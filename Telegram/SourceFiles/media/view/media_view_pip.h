@@ -112,7 +112,9 @@ public:
 
 	Pip(
 		not_null<Delegate*> delegate,
-		std::shared_ptr<Streaming::Document> document,
+		not_null<DocumentData*> document,
+		FullMsgId contextId,
+		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
 
@@ -123,6 +125,13 @@ private:
 		Enlarge,
 		Playback,
 		Other,
+	};
+	enum class ThumbState {
+		Empty,
+		Inline,
+		Thumb,
+		Good,
+		Cover,
 	};
 	struct Button {
 		QRect area;
@@ -165,6 +174,8 @@ private:
 	[[nodiscard]] QRect countRadialRect() const;
 
 	const not_null<Delegate*> _delegate;
+	not_null<DocumentData*> _document;
+	FullMsgId _contextId;
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
@@ -190,6 +201,7 @@ private:
 
 	mutable QImage _preparedCoverStorage;
 	mutable FrameRequest _preparedCoverRequest;
+	mutable ThumbState _preparedCoverState;
 
 };
 

@@ -245,6 +245,7 @@ struct OverlayWidget::PipWrap {
 	PipWrap(
 		QWidget *parent,
 		not_null<DocumentData*> document,
+		FullMsgId contextId,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
@@ -269,12 +270,15 @@ OverlayWidget::Streamed::Streamed(
 OverlayWidget::PipWrap::PipWrap(
 	QWidget *parent,
 	not_null<DocumentData*> document,
+	FullMsgId contextId,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
 : delegate(parent, &document->session())
 , wrapped(
 	&delegate,
+	document,
+	contextId,
 	std::move(shared),
 	std::move(closeAndContinue),
 	std::move(destroy)) {
@@ -2520,6 +2524,7 @@ void OverlayWidget::switchToPip() {
 	_pip = std::make_unique<PipWrap>(
 		this,
 		document,
+		msgId,
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });

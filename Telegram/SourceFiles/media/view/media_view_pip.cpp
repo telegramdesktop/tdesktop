@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -699,11 +700,15 @@ void PipPanel::updateDecorations() {
 
 Pip::Pip(
 	not_null<Delegate*> delegate,
-	std::shared_ptr<Streaming::Document> document,
+	not_null<DocumentData*> document,
+	FullMsgId contextId,
+	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
 : _delegate(delegate)
-, _instance(document, [=] { waitingAnimationCallback(); })
+, _document(document)
+, _contextId(contextId)
+, _instance(std::move(shared), [=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
@@ -718,7 +723,10 @@ Pip::Pip(
 void Pip::setupPanel() {
 	const auto size = style::ConvertScale(_instance.info().video.size);
 	if (size.isEmpty()) {
-		_panel.setAspectRatio(QSize(1, 1));
+		const auto good = _document->goodThumbnail();
+		const auto useGood = (good && good->loaded());
+		const auto original = useGood ? good->size() : _document->dimensions;
+		_panel.setAspectRatio(original.isEmpty() ? QSize(1, 1) : original);
 	} else {
 		_panel.setAspectRatio(size);
 	}
@@ -902,6 +910,7 @@ void Pip::setupStreaming() {
 	}, [=](Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
 	}, _instance.lifetime());
+	updatePlaybackState();
 }
 
 void Pip::paint(QPainter &p, FrameRequest request) {
@@ -989,9 +998,9 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 
 void Pip::updatePlaybackState() {
 	const auto state = _instance.player().prepareLegacyState();
-	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
+	//if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		updatePlayPauseResumeState(state);
-	}
+	//}
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {
@@ -1027,15 +1036,71 @@ void Pip::restartAtSeekPosition(crl::time position) {
 
 QImage Pip::videoFrame(const FrameRequest &request) const {
 	if (_instance.player().ready()) {
+		_preparedCoverStorage = QImage();
 		return _instance.frame(request);
-	} else if (_preparedCoverStorage.isNull()
-		|| _preparedCoverRequest != request) {
+	}
+	const auto &cover = _instance.info().video.cover;
+	const auto good = _document->goodThumbnail();
+	const auto useGood = (good && good->loaded());
+	const auto thumb = _document->thumbnail();
+	const auto useThumb = (thumb && thumb->loaded());
+	const auto blurred = _document->thumbnailInline();
+	const auto state = !cover.isNull()
+		? ThumbState::Cover
+		: useGood
+		? ThumbState::Good
+		: useThumb
+		? ThumbState::Thumb
+		: blurred
+		? ThumbState::Inline
+		: ThumbState::Empty;
+	if (_preparedCoverStorage.isNull()
+		|| _preparedCoverRequest != request
+		|| _preparedCoverState < state) {
 		_preparedCoverRequest = request;
-		_preparedCoverStorage = Streaming::PrepareByRequest(
-			_instance.info().video.cover,
-			_instance.info().video.rotation,
-			request,
-			std::move(_preparedCoverStorage));
+		_preparedCoverState = state;
+		if (state == ThumbState::Cover) {
+			_preparedCoverStorage = Streaming::PrepareByRequest(
+				_instance.info().video.cover,
+				_instance.info().video.rotation,
+				request,
+				std::move(_preparedCoverStorage));
+		} else if (!request.resize.isEmpty()) {
+			if (good && !useGood) {
+				good->load({});
+			} else if (thumb && !useThumb) {
+				thumb->load(_contextId);
+			}
+			using Option = Images::Option;
+			const auto options = Option::Smooth
+				| (useGood ? Option(0) : Option::Blurred)
+				| Option::RoundedLarge
+				| ((request.corners & RectPart::TopLeft)
+					? Option::RoundedTopLeft
+					: Option(0))
+				| ((request.corners & RectPart::TopRight)
+					? Option::RoundedTopRight
+					: Option(0))
+				| ((request.corners & RectPart::BottomRight)
+					? Option::RoundedBottomRight
+					: Option(0))
+				| ((request.corners & RectPart::BottomLeft)
+					? Option::RoundedBottomLeft
+					: Option(0));
+			_preparedCoverStorage = (useGood
+				? good
+				: useThumb
+				? thumb
+				: blurred
+				? blurred
+				: Image::BlankMedia().get())->pixNoCache(
+					_contextId,
+					request.resize.width(),
+					request.resize.height(),
+					options,
+					request.outer.width(),
+					request.outer.height()).toImage();
+		}
 	}
 	return _preparedCoverStorage;
 }
