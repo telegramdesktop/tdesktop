@@ -51,6 +51,8 @@ parts:
       - gcc-8
       - g++-8
       - qtbase5-private-dev
+      - libmapbox-variant-dev
+      - libmsgsl-dev
       - libayatana-appindicator3-dev
       - libgtk-3-dev
       - libasound2-dev
@@ -91,6 +93,7 @@ parts:
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_FONTS=OFF
+      - -DDESKTOP_APP_USE_PACKAGED_EXPECTED=OFF
       - -DDESKTOP_APP_USE_PACKAGED_RLOTTIE=OFF
       - -DTDESKTOP_USE_PACKAGED_TGVOIP=OFF
     override-pull: |
