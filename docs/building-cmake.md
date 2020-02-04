@@ -253,12 +253,12 @@ Go to ***BuildPath*** and run
     -force-debug-info \
     -opensource \
     -confirm-license \
-    -qt-zlib \
     -qt-libpng \
     -qt-libjpeg \
     -qt-harfbuzz \
     -qt-pcre \
     -qt-xcb \
+    -system-zlib \
     -system-freetype \
     -fontconfig \
     -no-opengl \
