@@ -243,6 +243,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 		replyToMsg = nullptr;
 	}
 	replyToMsgId = 0;
+	refreshReplyToDocument();
 }
 
 bool HistoryMessageReply::isNameUpdated() const {
