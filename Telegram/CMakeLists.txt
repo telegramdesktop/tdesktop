@@ -189,6 +189,8 @@ PRIVATE
     boxes/connection_box.h
     boxes/create_poll_box.cpp
     boxes/create_poll_box.h
+    boxes/dictionaries_manager.cpp
+    boxes/dictionaries_manager.h
     boxes/download_path_box.cpp
     boxes/download_path_box.h
     boxes/edit_caption_box.cpp
