@@ -70,7 +70,7 @@ namespace {
 
 constexpr auto kPreloadCount = 4;
 constexpr auto kMaxZoomLevel = 7; // x8
-
+constexpr auto kZoomToScreenLevel = 1024;
 constexpr auto kOverlayLoaderPriority = 2;
 
 // macOS OpenGL renderer fails to render larger texture
@@ -859,35 +859,52 @@ void OverlayWidget::contentSizeChanged() {
 }
 
 void OverlayWidget::resizeContentByScreenSize() {
+	const auto bottom = (!_streamed || videoIsGifv())
+		? height()
+		: (_streamed->controls.y()
+			- st::mediaviewCaptionPadding.bottom()
+			- st::mediaviewCaptionMargin.height());
+	const auto skipWidth = 0;
+	const auto skipHeight = (height() - bottom);
+	const auto availableWidth = width();
+	const auto availableHeight = height() - 2 * skipHeight;
+	const auto countZoomFor = [&](int outerw, int outerh) {
+		auto result = float64(outerw) / _w;
+		if (_h * result > outerh) {
+			result = float64(outerh) / _h;
+		}
+		if (result >= 1.) {
+			result -= 1.;
+		} else {
+			result = 1. - (1. / result);
+		}
+		return result;
+	};
 	if (_w > 0 && _h > 0) {
-		_zoomToScreen = float64(width()) / _w;
-		if (_h * _zoomToScreen > height()) {
-			_zoomToScreen = float64(height()) / _h;
-		}
-		if (_zoomToScreen >= 1.) {
-			_zoomToScreen -= 1.;
-		} else {
-			_zoomToScreen = 1. - (1. / _zoomToScreen);
-		}
+		_zoomToDefault = countZoomFor(availableWidth, availableHeight);
+		_zoomToScreen = countZoomFor(width(), height());
 	} else {
-		_zoomToScreen = 0;
+		_zoomToDefault = _zoomToScreen = 0;
 	}
-	if ((_w > width()) || (_h > height()) || _fullScreenVideo) {
-		_zoom = ZoomToScreenLevel;
-		if (_zoomToScreen >= 0) {
-			_w = qRound(_w * (_zoomToScreen + 1));
-			_h = qRound(_h * (_zoomToScreen + 1));
+	const auto usew = _fullScreenVideo ? width() : availableWidth;
+	const auto useh = _fullScreenVideo ? height() : availableHeight;
+	if ((_w > usew) || (_h > useh) || _fullScreenVideo) {
+		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
+		_zoom = kZoomToScreenLevel;
+		if (use >= 0) {
+			_w = qRound(_w * (use + 1));
+			_h = qRound(_h * (use + 1));
 		} else {
-			_w = qRound(_w / (-_zoomToScreen + 1));
-			_h = qRound(_h / (-_zoomToScreen + 1));
+			_w = qRound(_w / (-use + 1));
+			_h = qRound(_h / (-use + 1));
 		}
 	} else {
 		_zoom = 0;
 		_w = _width;
 		_h = _height;
 	}
-	_x = (width() - _w) / 2;
-	_y = (height() - _h) / 2;
+	_x = skipWidth + (usew - _w) / 2;
+	_y = skipHeight + (useh - _h) / 2;
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -969,14 +986,15 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 }
 
 void OverlayWidget::zoomIn() {
-	int32 newZoom = _zoom;
-	if (newZoom == ZoomToScreenLevel) {
-		if (qCeil(_zoomToScreen) <= kMaxZoomLevel) {
-			newZoom = qCeil(_zoomToScreen);
+	auto newZoom = _zoom;
+	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
+	if (newZoom == kZoomToScreenLevel) {
+		if (qCeil(full) <= kMaxZoomLevel) {
+			newZoom = qCeil(full);
 		}
 	} else {
-		if (newZoom < _zoomToScreen && (newZoom + 1 > _zoomToScreen || (_zoomToScreen > kMaxZoomLevel && newZoom == kMaxZoomLevel))) {
-			newZoom = ZoomToScreenLevel;
+		if (newZoom < full && (newZoom + 1 > full || (full > kMaxZoomLevel && newZoom == kMaxZoomLevel))) {
+			newZoom = kZoomToScreenLevel;
 		} else if (newZoom < kMaxZoomLevel) {
 			++newZoom;
 		}
@@ -985,14 +1003,15 @@ void OverlayWidget::zoomIn() {
 }
 
 void OverlayWidget::zoomOut() {
-	int32 newZoom = _zoom;
-	if (newZoom == ZoomToScreenLevel) {
-		if (qFloor(_zoomToScreen) >= -kMaxZoomLevel) {
-			newZoom = qFloor(_zoomToScreen);
+	auto newZoom = _zoom;
+	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
+	if (newZoom == kZoomToScreenLevel) {
+		if (qFloor(full) >= -kMaxZoomLevel) {
+			newZoom = qFloor(full);
 		}
 	} else {
-		if (newZoom > _zoomToScreen && (newZoom - 1 < _zoomToScreen || (_zoomToScreen < -kMaxZoomLevel && newZoom == -kMaxZoomLevel))) {
-			newZoom = ZoomToScreenLevel;
+		if (newZoom > full && (newZoom - 1 < full || (full < -kMaxZoomLevel && newZoom == -kMaxZoomLevel))) {
+			newZoom = kZoomToScreenLevel;
 		} else if (newZoom > -kMaxZoomLevel) {
 			--newZoom;
 		}
@@ -1001,19 +1020,20 @@ void OverlayWidget::zoomOut() {
 }
 
 void OverlayWidget::zoomReset() {
-	int32 newZoom = _zoom;
+	auto newZoom = _zoom;
+	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
-		if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -kMaxZoomLevel && qRound(_zoomToScreen) <= kMaxZoomLevel) {
-			newZoom = qRound(_zoomToScreen);
+		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel) {
+			newZoom = qRound(full);
 		} else {
-			newZoom = ZoomToScreenLevel;
+			newZoom = kZoomToScreenLevel;
 		}
 	} else {
 		newZoom = 0;
 	}
 	_x = -_width / 2;
 	_y = -_height / 2;
-	float64 z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
+	float64 z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z >= 0) {
 		_x = qRound(_x * (z + 1));
 		_y = qRound(_y * (z + 1));
@@ -1028,7 +1048,7 @@ void OverlayWidget::zoomReset() {
 }
 
 void OverlayWidget::zoomUpdate(int32 &newZoom) {
-	if (newZoom != ZoomToScreenLevel) {
+	if (newZoom != kZoomToScreenLevel) {
 		while ((newZoom < 0 && (-newZoom + 1) > _w) || (-newZoom + 1) > _h) {
 			++newZoom;
 		}
@@ -1885,7 +1905,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	refreshCaption(item);
 
 	_zoom = 0;
-	_zoomToScreen = 0;
+	_zoomToScreen = _zoomToDefault = 0;
 	_blurred = true;
 	_current = QPixmap();
 	_down = OverNone;
@@ -2543,9 +2563,9 @@ void OverlayWidget::playbackToggleFullScreen() {
 	_fullScreenVideo = !_fullScreenVideo;
 	if (_fullScreenVideo) {
 		_fullScreenZoomCache = _zoom;
-		setZoomLevel(ZoomToScreenLevel);
+		setZoomLevel(kZoomToScreenLevel, true);
 	} else {
-		setZoomLevel(_fullScreenZoomCache);
+		setZoomLevel(_fullScreenZoomCache, true);
 		_streamed->controls.showAnimated();
 	}
 
@@ -3197,10 +3217,13 @@ void OverlayWidget::wheelEvent(QWheelEvent *e) {
 	}
 }
 
-void OverlayWidget::setZoomLevel(int newZoom) {
-	if (_zoom == newZoom) return;
+void OverlayWidget::setZoomLevel(int newZoom, bool force) {
+	if (!force && _zoom == newZoom) {
+		return;
+	}
 
-	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
+	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
+	float64 nx, ny, z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	const auto contentSize = videoShown()
 		? style::ConvertScale(videoSize())
 		: QSize(_width, _height);
@@ -3214,7 +3237,7 @@ void OverlayWidget::setZoomLevel(int newZoom) {
 		ny = (_y - height() / 2.) * (-z + 1);
 	}
 	_zoom = newZoom;
-	z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
+	z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z > 0) {
 		_w = qRound(_w * (z + 1));
 		_h = qRound(_h * (z + 1));

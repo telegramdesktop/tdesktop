@@ -260,7 +260,7 @@ private:
 	void findCurrent();
 
 	void updateCursor();
-	void setZoomLevel(int newZoom);
+	void setZoomLevel(int newZoom, bool force = false);
 
 	void updatePlaybackState();
 	void restartAtSeekPosition(crl::time position);
@@ -378,6 +378,7 @@ private:
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen = 0.; // for documents
+	float64 _zoomToDefault = 0.;
 	QPoint _mStart;
 	bool _pressed = false;
 	int32 _dragging = 0;
