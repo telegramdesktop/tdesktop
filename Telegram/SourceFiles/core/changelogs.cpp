@@ -45,6 +45,17 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Spell checker on Linux using Enchant.\n"
 	},
+	{
+		1009010,
+		"\xE2\x80\xA2 Switch to the Picture-in-Picture mode "
+		"to watch your video in a small window.\n"
+
+		"\xE2\x80\xA2 Change video playback speed "
+		"in the playback controls '...' menu.\n"
+
+		"\xE2\x80\xA2 Rotate photos and videos in the media viewer "
+		"using the rotate button in the bottom right corner.\n"
+	}
 	};
 };
 
