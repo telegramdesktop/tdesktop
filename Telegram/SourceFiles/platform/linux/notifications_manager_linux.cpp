@@ -114,7 +114,7 @@ NotificationData::NotificationData(
 
 		connect(_notificationInterface.get(),
 			SIGNAL(ActionInvoked(uint, QString)),
-			this, SLOT(notificationClicked(uint)));
+			this, SLOT(notificationClicked(uint,QString)));
 	}
 
 	if (ranges::find(capabilities, qsl("action-icons")) != capabilitiesEnd) {
@@ -229,8 +229,9 @@ void NotificationData::notificationClosed(uint id) {
 	}
 }
 
-void NotificationData::notificationClicked(uint id) {
-	if (id == _notificationId) {
+void NotificationData::notificationClicked(uint id, const QString &actionId) {
+	if (id == _notificationId
+		&& (actionId == qsl("default") || actionId == qsl("mail-reply-sender"))) {
 		const auto manager = _manager;
 		crl::on_main(manager, [=] {
 			manager->notificationActivated(_peerId, _msgId);
