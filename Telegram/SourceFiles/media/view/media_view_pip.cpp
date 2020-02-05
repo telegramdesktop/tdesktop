@@ -47,7 +47,7 @@ constexpr auto kMsInSecond = 1000;
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = [&]() -> QScreen* {
 		for (const auto screen : QGuiApplication::screens()) {
-			if (screen->virtualGeometry().contains(point)) {dD
+			if (screen->virtualGeometry().contains(point)) {
 				return screen;
 			}
 		}
