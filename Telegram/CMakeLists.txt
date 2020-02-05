@@ -856,6 +856,8 @@ PRIVATE
     storage/serialize_common.h
     storage/serialize_document.cpp
     storage/serialize_document.h
+    storage/storage_cloud_blob.cpp
+    storage/storage_cloud_blob.h
     storage/storage_facade.cpp
     storage/storage_facade.h
     # storage/storage_feed_messages.cpp

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "mainwidget.h"
 #include "app.h"
+#include "storage/storage_cloud_blob.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -197,26 +198,6 @@ QString StateDescription(const SetState &state) {
 	});
 }
 
-QByteArray ReadFinalFile(const QString &path) {
-	constexpr auto kMaxZipSize = 10 * 1024 * 1024;
-	auto file = QFile(path);
-	if (file.size() > kMaxZipSize || !file.open(QIODevice::ReadOnly)) {
-		return QByteArray();
-	}
-	return file.readAll();
-}
-
-bool ExtractZipFile(zlib::FileToRead &zip, const QString path) {
-	constexpr auto kMaxSize = 10 * 1024 * 1024;
-	const auto content = zip.readCurrentFileContent(kMaxSize);
-	if (content.isEmpty() || zip.error() != UNZ_OK) {
-		return false;
-	}
-	auto file = QFile(path);
-	return file.open(QIODevice::WriteOnly)
-		&& (file.write(content) == content.size());
-}
-
 bool GoodSetPartName(const QString &name) {
 	return (name == qstr("config.json"))
 		|| (name.startsWith(qstr("emoji_"))
@@ -224,30 +205,7 @@ bool GoodSetPartName(const QString &name) {
 }
 
 bool UnpackSet(const QString &path, const QString &folder) {
-	const auto bytes = ReadFinalFile(path);
-	if (bytes.isEmpty()) {
-		return false;
-	}
-
-	auto zip = zlib::FileToRead(bytes);
-	if (zip.goToFirstFile() != UNZ_OK) {
-		return false;
-	}
-	do {
-		const auto name = zip.getCurrentFileName();
-		const auto path = folder + '/' + name;
-		if (GoodSetPartName(name) && !ExtractZipFile(zip, path)) {
-			return false;
-		}
-
-		const auto jump = zip.goToNextFile();
-		if (jump == UNZ_END_OF_LIST_OF_FILE) {
-			break;
-		} else if (jump != UNZ_OK) {
-			return false;
-		}
-	} while (true);
-	return true;
+	return Storage::UnpackBlob(path, folder, GoodSetPartName);
 }
 
 Loader::Loader(QObject *parent, int id)

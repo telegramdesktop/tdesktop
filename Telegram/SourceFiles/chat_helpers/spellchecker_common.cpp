@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
+#include "storage/storage_cloud_blob.h"
+
 #include "base/zlib_help.h"
 
 namespace Spellchecker {
@@ -84,26 +86,6 @@ void EnsurePath() {
 	}
 }
 
-QByteArray ReadFinalFile(const QString &path) {
-	constexpr auto kMaxZipSize = 10 * 1024 * 1024; //12
-	auto file = QFile(path);
-	if (file.size() > kMaxZipSize || !file.open(QIODevice::ReadOnly)) {
-		return QByteArray();
-	}
-	return file.readAll();
-}
-
-bool ExtractZipFile(zlib::FileToRead &zip, const QString path) {
-	constexpr auto kMaxSize = 10 * 1024 * 1024;
-	const auto content = zip.readCurrentFileContent(kMaxSize);
-	if (content.isEmpty() || zip.error() != UNZ_OK) {
-		return false;
-	}
-	auto file = QFile(path);
-	return file.open(QIODevice::WriteOnly)
-		&& (file.write(content) == content.size());
-}
-
 } // namespace
 
 std::initializer_list<const Dict> Dictionaries() {
@@ -128,29 +110,7 @@ QString DictionariesPath() {
 
 bool UnpackDictionary(const QString &path, int langId) {
 	const auto folder = DictPathByLangId(langId);
-	const auto bytes = ReadFinalFile(path);
-	if (bytes.isEmpty()) {
-		return false;
-	}
-	auto zip = zlib::FileToRead(bytes);
-	if (zip.goToFirstFile() != UNZ_OK) {
-		return false;
-	}
-	do {
-		const auto name = zip.getCurrentFileName();
-		const auto path = folder + '/' + name;
-		if (IsGoodPartName(name) && !ExtractZipFile(zip, path)) {
-			return false;
-		}
-
-		const auto jump = zip.goToNextFile();
-		if (jump == UNZ_END_OF_LIST_OF_FILE) {
-			break;
-		} else if (jump != UNZ_OK) {
-			return false;
-		}
-	} while (true);
-	return true;
+	return Storage::UnpackBlob(path, folder, IsGoodPartName);
 }
 
 bool DictionaryExists(int langId) {
