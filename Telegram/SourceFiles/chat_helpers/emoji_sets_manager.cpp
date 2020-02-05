@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/emoji_config.h"
-#include "lang/lang_keys.h"
-#include "base/zlib_help.h"
 #include "core/application.h"
 #include "main/main_account.h"
 #include "mainwidget.h"
