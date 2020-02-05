@@ -63,16 +63,6 @@ private:
 base::unique_qptr<Loader> GlobalLoader;
 rpl::event_stream<Loader*> GlobalLoaderValues;
 
-QLocale LocaleFromLangId(int langId) {
-	if (langId > 1000) {
-		const auto l = langId / 1000;
-		const auto lang = static_cast<QLocale::Language>(l);
-		const auto country = static_cast<QLocale::Country>(langId - l * 1000);
-		return QLocale(lang, country);
-	}
-	return QLocale(static_cast<QLocale::Language>(langId));
-}
-
 void SetGlobalLoader(base::unique_qptr<Loader> loader) {
 	GlobalLoader = std::move(loader);
 	GlobalLoaderValues.fire(GlobalLoader.get());

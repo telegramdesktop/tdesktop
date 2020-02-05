@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
+#include "spellcheck/spellcheck_utils.h"
 #include "base/zlib_help.h"
 
 namespace Spellchecker {
@@ -16,6 +17,8 @@ namespace Spellchecker {
 namespace {
 
 using namespace Storage::CloudBlob;
+
+constexpr auto kDictExtensions = { "dic", "aff" };
 
 // Language With Country.
 inline auto LWC(QLocale::Country country) {
@@ -70,16 +73,6 @@ const auto kDictionaries = {
 	Dict{{ QLocale::Vietnamese,           52,    12'949, "\x54\x69\xe1\xba\xbf\x6e\x67\x20\x56\x69\xe1\xbb\x87\x74" }},
 };
 
-QLocale LocaleFromLangId(int langId) {
-	if (langId > 1000) {
-		const auto l = langId / 1000;
-		const auto lang = static_cast<QLocale::Language>(l);
-		const auto country = static_cast<QLocale::Country>(langId - l * 1000);
-		return QLocale(lang, country);
-	}
-	return QLocale(static_cast<QLocale::Language>(langId));
-}
-
 void EnsurePath() {
 	if (!QDir::current().mkpath(Spellchecker::DictionariesPath())) {
 		LOG(("App Error: Could not create dictionaries path."));
@@ -93,15 +86,16 @@ std::initializer_list<const Dict> Dictionaries() {
 }
 
 bool IsGoodPartName(const QString &name) {
-	return name.endsWith(qsl(".dic"))
-		|| name.endsWith(qsl(".aff"));
+	return ranges::find_if(kDictExtensions, [&](const auto &ext) {
+		return name.endsWith(ext);
+	}) != end(kDictExtensions);
 }
 
 QString DictPathByLangId(int langId) {
 	EnsurePath();
 	return qsl("%1/%2")
 		.arg(DictionariesPath())
-		.arg(LocaleFromLangId(langId).name());
+		.arg(Spellchecker::LocaleFromLangId(langId).name());
 }
 
 QString DictionariesPath() {
@@ -118,12 +112,11 @@ bool DictionaryExists(int langId) {
 		return true;
 	}
 	const auto folder = DictPathByLangId(langId) + '/';
-	const auto exts = { "dic", "aff" };
-	const auto bad = ranges::find_if(exts, [&](const QString &ext) {
-		const auto name = LocaleFromLangId(langId).name();
+	const auto bad = ranges::find_if(kDictExtensions, [&](const auto &ext) {
+		const auto name = Spellchecker::LocaleFromLangId(langId).name();
 		return !QFile(folder + name + '.' + ext).exists();
 	});
-	return (bad == exts.end());
+	return (bad == end(kDictExtensions));
 }
 
 bool WriteDefaultDictionary() {
