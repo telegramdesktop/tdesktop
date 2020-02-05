@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Storage {
+namespace Storage::CloudBlob {
 
 struct Blob {
 	int id = 0;
@@ -16,9 +16,44 @@ struct Blob {
 	QString name;
 };
 
+struct Available {
+	int size = 0;
+
+	inline bool operator<(const Available &other) const {
+		return size < other.size;
+	}
+	inline bool operator==(const Available &other) const {
+		return size == other.size;
+	}
+};
+struct Ready {
+	inline bool operator<(const Ready &other) const {
+		return false;
+	}
+	inline bool operator==(const Ready &other) const {
+		return true;
+	}
+};
+struct Active {
+	inline bool operator<(const Active &other) const {
+		return false;
+	}
+	inline bool operator==(const Active &other) const {
+		return true;
+	}
+};
+struct Failed {
+	inline bool operator<(const Failed &other) const {
+		return false;
+	}
+	inline bool operator==(const Failed &other) const {
+		return true;
+	}
+};
+
 bool UnpackBlob(
 	const QString &path,
 	const QString &folder,
 	Fn<bool(const QString &)> checkNameCallback);
 
-} // namespace Storage
+} // namespace Storage::CloudBlob

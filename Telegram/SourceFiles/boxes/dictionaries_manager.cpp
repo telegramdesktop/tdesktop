@@ -38,48 +38,15 @@ namespace Ui {
 namespace {
 
 using Dictionaries = std::vector<int>;
+using namespace Storage::CloudBlob;
 
-struct Available {
-	int size = 0;
-
-	inline bool operator<(const Available &other) const {
-		return size < other.size;
-	}
-	inline bool operator==(const Available &other) const {
-		return size == other.size;
-	}
-};
-struct Ready {
-	inline bool operator<(const Ready &other) const {
-		return false;
-	}
-	inline bool operator==(const Ready &other) const {
-		return true;
-	}
-};
-struct Active {
-	inline bool operator<(const Active &other) const {
-		return false;
-	}
-	inline bool operator==(const Active &other) const {
-		return true;
-	}
-};
 using Loading = MTP::DedicatedLoader::Progress;
-struct Failed {
-	inline bool operator<(const Failed &other) const {
-		return false;
-	}
-	inline bool operator==(const Failed &other) const {
-		return true;
-	}
-};
-using SetState = base::variant<
+using DictState = base::variant<
 	Available,
 	Ready,
 	Active,
-	Loading,
-	Failed>;
+	Failed,
+	Loading>;
 
 class Loader : public QObject {
 public:
@@ -87,7 +54,7 @@ public:
 
 	int id() const;
 
-	rpl::producer<SetState> state() const;
+	rpl::producer<DictState> state() const;
 	void destroy();
 
 private:
@@ -98,7 +65,7 @@ private:
 
 	int _id = 0;
 	int _size = 0;
-	rpl::variable<SetState> _state;
+	rpl::variable<DictState> _state;
 
 	MTP::WeakInstance _mtproto;
 	std::unique_ptr<MTP::DedicatedLoader> _implementation;
@@ -148,7 +115,7 @@ MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 	return MTP::DedicatedLoader::Location{ kUsername, i->postId };
 }
 
-SetState ComputeState(int id) {
+DictState ComputeState(int id) {
 	// if (id == CurrentSetId()) {
 		// return Active();
 	if (Spellchecker::DictionaryExists(id)) {
@@ -157,7 +124,7 @@ SetState ComputeState(int id) {
 	return Available{ GetDownloadSize(id) };
 }
 
-QString StateDescription(const SetState &state) {
+QString StateDescription(const DictState &state) {
 	return state.match([](const Available &data) {
 		return tr::lng_emoji_set_download(tr::now, lt_size, formatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
@@ -202,7 +169,7 @@ int Loader::id() const {
 	return _id;
 }
 
-rpl::producer<SetState> Loader::state() const {
+rpl::producer<DictState> Loader::state() const {
 	return _state.value();
 }
 
@@ -210,11 +177,11 @@ void Loader::setImplementation(
 		std::unique_ptr<MTP::DedicatedLoader> loader) {
 	_implementation = std::move(loader);
 	auto convert = [](auto value) {
-		return SetState(value);
+		return DictState(value);
 	};
 	_state = _implementation->progress(
 	) | rpl::map([](const Loading &state) {
-		return SetState(state);
+		return DictState(state);
 	});
 	_implementation->failed(
 	) | rpl::start_with_next([=] {
@@ -287,7 +254,7 @@ auto AddButtonWithLoader(
 	)->entity();
 
 	const auto buttonState = button->lifetime()
-		.make_state<rpl::variable<SetState>>();
+		.make_state<rpl::variable<DictState>>();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
@@ -305,7 +272,7 @@ auto AddButtonWithLoader(
 	}, label->lifetime());
 
 	buttonState->value(
-	) | rpl::start_with_next([=](const SetState &state) {
+	) | rpl::start_with_next([=](const DictState &state) {
 		const auto isToggledSet = state.is<Active>();
 		const auto toggled = isToggledSet ? 1. : 0.;
 		const auto over = !button->isDisabled()
@@ -326,9 +293,9 @@ auto AddButtonWithLoader(
 			buttonEnabled
 		) | rpl::then(
 			buttonState->value(
-			) | rpl::filter([](const SetState &state) {
+			) | rpl::filter([](const DictState &state) {
 				return state.is<Failed>();
-			}) | rpl::map([](const SetState &state) {
+			}) | rpl::map([](const auto &state) {
 				return false;
 			})
 		)
@@ -346,15 +313,15 @@ auto AddButtonWithLoader(
 			) | rpl::map([=](auto enabled) {
 				const auto &state = buttonState->current();
 				if (enabled && state.is<Ready>()) {
-					return SetState(Active());
+					return DictState(Active());
 				}
 				if (!enabled && state.is<Active>()) {
-					return SetState(Ready());
+					return DictState(Ready());
 				}
 				return ComputeState(id);
 			});
 	}) | rpl::flatten_latest(
-	) | rpl::filter([=](const SetState &state) {
+	) | rpl::filter([=](const DictState &state) {
 		return !buttonState->current().is<Failed>() || !state.is<Available>();
 	});
 

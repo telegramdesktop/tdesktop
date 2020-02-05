@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Spellchecker {
 
-struct Dict : public Storage::Blob {
+struct Dict : public Storage::CloudBlob::Blob {
 };
 
 [[nodiscard]] QString DictionariesPath();

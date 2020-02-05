@@ -15,6 +15,8 @@ namespace Spellchecker {
 
 namespace {
 
+using namespace Storage::CloudBlob;
+
 // Language With Country.
 inline auto LWC(QLocale::Country country) {
 	const auto l = QLocale::matchingLocales(
@@ -108,7 +110,7 @@ QString DictionariesPath() {
 
 bool UnpackDictionary(const QString &path, int langId) {
 	const auto folder = DictPathByLangId(langId);
-	return Storage::UnpackBlob(path, folder, IsGoodPartName);
+	return UnpackBlob(path, folder, IsGoodPartName);
 }
 
 bool DictionaryExists(int langId) {

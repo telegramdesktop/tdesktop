@@ -31,7 +31,9 @@ namespace Ui {
 namespace Emoji {
 namespace {
 
-struct Set : public Storage::Blob {
+using namespace Storage::CloudBlob;
+
+struct Set : public Blob {
 	QString previewPath;
 };
 
@@ -50,41 +52,7 @@ auto Sets() {
 	return kSets;
 }
 
-struct Available {
-	int size = 0;
-
-	inline bool operator<(const Available &other) const {
-		return size < other.size;
-	}
-	inline bool operator==(const Available &other) const {
-		return size == other.size;
-	}
-};
-struct Ready {
-	inline bool operator<(const Ready &other) const {
-		return false;
-	}
-	inline bool operator==(const Ready &other) const {
-		return true;
-	}
-};
-struct Active {
-	inline bool operator<(const Active &other) const {
-		return false;
-	}
-	inline bool operator==(const Active &other) const {
-		return true;
-	}
-};
 using Loading = MTP::DedicatedLoader::Progress;
-struct Failed {
-	inline bool operator<(const Failed &other) const {
-		return false;
-	}
-	inline bool operator==(const Failed &other) const {
-		return true;
-	}
-};
 using SetState = base::variant<
 	Available,
 	Ready,
@@ -224,7 +192,7 @@ bool GoodSetPartName(const QString &name) {
 }
 
 bool UnpackSet(const QString &path, const QString &folder) {
-	return Storage::UnpackBlob(path, folder, GoodSetPartName);
+	return UnpackBlob(path, folder, GoodSetPartName);
 }
 
 Loader::Loader(QObject *parent, int id)

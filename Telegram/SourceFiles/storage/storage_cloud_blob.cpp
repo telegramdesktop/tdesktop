@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/zlib_help.h"
 
-namespace Storage {
+namespace Storage::CloudBlob {
 
 namespace {
 
@@ -64,4 +64,4 @@ bool UnpackBlob(
 	return true;
 }
 
-} // namespace Storage
+} // namespace Storage::CloudBlob
