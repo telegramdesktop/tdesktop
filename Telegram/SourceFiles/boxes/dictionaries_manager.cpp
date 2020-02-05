@@ -80,11 +80,14 @@ MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 	return MTP::DedicatedLoader::Location{ username, i->postId };
 }
 
-DictState ComputeState(int id) {
-	// if (id == CurrentSetId()) {
-		// return Active();
-	if (Spellchecker::DictionaryExists(id)) {
-		return Ready();
+inline auto DictExists(int langId) {
+	return Spellchecker::DictionaryExists(langId);
+}
+
+DictState ComputeState(int id, bool enabled) {
+	const auto result = enabled ? DictState(Active()) : DictState(Ready());
+	if (DictExists(id)) {
+		return result;
 	}
 	return Available{ GetDownloadSize(id) };
 }
@@ -210,14 +213,7 @@ auto AddButtonWithLoader(
 			) | rpl::then(
 				button->toggledValue()
 			) | rpl::map([=](auto enabled) {
-				const auto &state = buttonState->current();
-				if (enabled && state.is<Ready>()) {
-					return DictState(Active());
-				}
-				if (!enabled && state.is<Active>()) {
-					return DictState(Ready());
-				}
-				return ComputeState(id);
+				return ComputeState(id, enabled);
 			});
 	}) | rpl::flatten_latest(
 	) | rpl::filter([=](const DictState &state) {
@@ -255,7 +251,7 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 			ranges::contains(enabledDictionaries, set.id));
 		row->toggledValue(
 		) | rpl::start_with_next([=](auto enabled) {
-			if (enabled && Spellchecker::DictionaryExists(set.id)) {
+			if (enabled && DictExists(set.id)) {
 				_enabledRows.push_back(set.id);
 			} else {
 				auto &rows = _enabledRows;
