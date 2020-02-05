@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/zlib_help.h"
 #include "core/application.h"
+#include "lang/lang_keys.h"
+#include "layout.h"
 #include "main/main_account.h"
 
 namespace Storage::CloudBlob {
@@ -64,6 +66,31 @@ bool UnpackBlob(
 		}
 	} while (true);
 	return true;
+}
+
+QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
+	return state.match([](const Available &data) {
+		return tr::lng_emoji_set_download(
+			tr::now,
+			lt_size,
+			formatSizeText(data.size));
+	}, [](const Ready &data) -> QString {
+		return tr::lng_emoji_set_ready(tr::now);
+	}, [&](const Active &data) -> QString {
+		return activeText(tr::now);
+	}, [](const Loading &data) {
+		const auto percent = (data.size > 0)
+			? snap((data.already * 100) / float64(data.size), 0., 100.)
+			: 0.;
+		return tr::lng_emoji_set_loading(
+			tr::now,
+			lt_percent,
+			QString::number(int(std::round(percent))) + '%',
+			lt_progress,
+			formatDownloadText(data.already, data.size));
+	}, [](const Failed &data) {
+		return tr::lng_attach_failed(tr::now);
+	});
 }
 
 BlobLoader::BlobLoader(

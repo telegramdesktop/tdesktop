@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/dedicated_file_loader.h"
 
+namespace tr {
+template <typename ...>
+struct phrase;
+} // namespace tr
+
 namespace Storage::CloudBlob {
 
 constexpr auto kCloudLocationUsername = "tdhbcfiles"_cs;
@@ -67,6 +72,8 @@ bool UnpackBlob(
 	const QString &path,
 	const QString &folder,
 	Fn<bool(const QString &)> checkNameCallback);
+
+QString StateDescription(const BlobState &state, tr::phrase<> activeText);
 
 class BlobLoader : public QObject {
 public:
