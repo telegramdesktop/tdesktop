@@ -104,6 +104,7 @@ mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
 mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
 mediaviewClose: icon {{ "mediaview_close", mediaviewControlFg }};
 mediaviewSave: icon {{ "mediaview_download", mediaviewControlFg }};
+mediaviewRotate: icon {{ "mediaview_rotate", mediaviewControlFg }};
 mediaviewMore: icon {{ "mediaview_more", mediaviewControlFg }};
 
 mediaviewFileRed: icon {

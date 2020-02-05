@@ -46,6 +46,7 @@ public:
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
+		virtual void playbackControlsRotate() = 0;
 	};
 
 	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);

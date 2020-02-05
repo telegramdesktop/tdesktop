@@ -140,6 +140,7 @@ private:
 		OverName,
 		OverDate,
 		OverSave,
+		OverRotate,
 		OverMore,
 		OverIcon,
 		OverVideo,
@@ -180,6 +181,7 @@ private:
 	void playbackControlsToFullScreen() override;
 	void playbackControlsFromFullScreen() override;
 	void playbackControlsToPictureInPicture() override;
+	void playbackControlsRotate() override;
 	void playbackPauseResume();
 	void playbackToggleFullScreen();
 	void playbackPauseOnCall();
@@ -283,7 +285,8 @@ private:
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(not_null<HistoryItem*> row, MsgId newId);
 
-	QRect contentRect() const;
+	[[nodiscard]] int contentRotation() const;
+	[[nodiscard]] QRect contentRect() const;
 	void contentSizeChanged();
 
 	// Radial animation interface.
@@ -325,21 +328,27 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 
+	[[nodiscard]] QSize flipSizeByRotation(QSize size) const;
+
+	void applyVideoSize();
 	[[nodiscard]] bool videoShown() const;
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool videoIsGifv() const;
 	[[nodiscard]] QImage videoFrame() const;
 	[[nodiscard]] QImage videoFrameForDirectPaint() const;
 	[[nodiscard]] QImage transformVideoFrame(QImage frame) const;
+	[[nodiscard]] QImage transformStaticContent(QPixmap content) const;
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
 	void paintTransformedVideoFrame(Painter &p);
+	void paintTransformedStaticContent(Painter &p);
 	void clearStreaming(bool savePosition = true);
 
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
+	int _rotation = 0;
 	std::unique_ptr<SharedMedia> _sharedMedia;
 	std::optional<SharedMediaWithLastSlice> _sharedMediaData;
 	std::optional<SharedMediaWithLastSlice::Key> _sharedMediaDataKey;
@@ -351,7 +360,7 @@ private:
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
-	QRect _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;
+	QRect _rotateNav, _rotateNavIcon, _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;
 	bool _leftNavVisible = false;
 	bool _rightNavVisible = false;
 	bool _saveVisible = false;
@@ -382,7 +391,7 @@ private:
 	QPoint _mStart;
 	bool _pressed = false;
 	int32 _dragging = 0;
-	QPixmap _current;
+	QPixmap _staticContent;
 	bool _blurred = true;
 
 	std::unique_ptr<Streamed> _streamed;

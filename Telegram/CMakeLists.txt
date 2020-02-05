@@ -337,6 +337,8 @@ PRIVATE
     data/data_groups.h
     data/data_location.cpp
     data/data_location.h
+    data/data_media_rotation.cpp
+    data/data_media_rotation.h
     data/data_media_types.cpp
     data/data_media_types.h
     data/data_messages.cpp

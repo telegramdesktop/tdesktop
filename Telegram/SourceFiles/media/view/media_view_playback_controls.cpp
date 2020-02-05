@@ -223,6 +223,10 @@ void PlaybackControls::showMenu() {
 	addSpeed(1.75);
 	addSpeed(2.);
 	_menu.emplace(this, st::mediaviewControlsPopupMenu);
+	_menu->addAction("Rotate video", [=] {
+		_delegate->playbackControlsRotate();
+	});
+	_menu->addSeparator();
 	_menu->addAction(
 		tr::lng_mediaview_playback_speed(tr::now),
 		std::move(submenu));

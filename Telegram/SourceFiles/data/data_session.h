@@ -60,6 +60,7 @@ class WallPaper;
 class ScheduledMessages;
 class CloudThemes;
 class Streaming;
+class MediaRotation;
 
 class Session final {
 public:
@@ -91,6 +92,9 @@ public:
 	}
 	[[nodiscard]] Streaming &streaming() const {
 		return *_streaming;
+	}
+	[[nodiscard]] MediaRotation &mediaRotation() const {
+		return *_mediaRotation;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -984,6 +988,7 @@ private:
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<CloudThemes> _cloudThemes;
 	std::unique_ptr<Streaming> _streaming;
+	std::unique_ptr<MediaRotation> _mediaRotation;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

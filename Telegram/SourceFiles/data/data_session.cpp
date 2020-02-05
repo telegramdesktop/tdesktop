@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_streaming.h"
+#include "data/data_media_rotation.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -192,7 +193,8 @@ Session::Session(not_null<Main::Session*> session)
 , _groups(this)
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _cloudThemes(std::make_unique<CloudThemes>(session))
-, _streaming(std::make_unique<Streaming>(this)) {
+, _streaming(std::make_unique<Streaming>(this))
+, _mediaRotation(std::make_unique<MediaRotation>()) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 

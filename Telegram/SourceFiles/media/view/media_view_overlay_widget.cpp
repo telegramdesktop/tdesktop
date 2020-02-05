@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_media_rotation.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -196,6 +197,32 @@ QPixmap PrepareStaticImage(const QString &path) {
 	}
 #endif // Q_OS_MAC && !OS_MAC_OLD
 	return App::pixmapFromImageInPlace(std::move(image));
+}
+
+[[nodiscard]] QRect RotatedRect(QRect rect, int rotation) {
+	switch (rotation) {
+	case 0: return rect;
+	case 90: return QRect(
+		rect.y(),
+		-rect.x() - rect.width(),
+		rect.height(),
+		rect.width());
+	case 180: return QRect(
+		-rect.x() - rect.width(),
+		-rect.y() - rect.height(),
+		rect.width(),
+		rect.height());
+	case 270: return QRect(
+		-rect.y() - rect.height(),
+		rect.x(),
+		rect.height(),
+		rect.width());
+	}
+	Unexpected("Rotation in RotatedRect.");
+}
+
+[[nodiscard]] bool UsePainterRotation(int rotation) {
+	return Platform::IsMac() || !(rotation % 180);
 }
 
 } // namespace
@@ -432,6 +459,12 @@ void OverlayWidget::moveToScreen(bool force) {
 	update();
 }
 
+QSize OverlayWidget::flipSizeByRotation(QSize size) const {
+	return (((_rotation / 90) % 2) == 1)
+		? QSize(size.height(), size.width())
+		: size;
+}
+
 bool OverlayWidget::videoShown() const {
 	return _streamed && !_streamed->instance.info().video.cover.isNull();
 }
@@ -439,7 +472,7 @@ bool OverlayWidget::videoShown() const {
 QSize OverlayWidget::videoSize() const {
 	Expects(videoShown());
 
-	return _streamed->instance.info().video.size;
+	return flipSizeByRotation(_streamed->instance.info().video.size);
 }
 
 bool OverlayWidget::videoIsGifv() const {
@@ -498,7 +531,7 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 }
 
 bool OverlayWidget::documentContentShown() const {
-	return _doc && (!_current.isNull() || videoShown());
+	return _doc && (!_staticContent.isNull() || videoShown());
 }
 
 bool OverlayWidget::documentBubbleShown() const {
@@ -506,7 +539,7 @@ bool OverlayWidget::documentBubbleShown() const {
 		|| (_doc
 			&& !_themePreviewShown
 			&& !_streamed
-			&& _current.isNull());
+			&& _staticContent.isNull());
 }
 
 void OverlayWidget::clearStreaming(bool savePosition) {
@@ -630,8 +663,10 @@ void OverlayWidget::updateControls() {
 		|| (_doc
 			&& _doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
 			&& !_doc->loading());
-	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 3, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
+	_rotateNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_rotateNavIcon = style::centerrect(_rotateNav, st::mediaviewRotate);
 	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_moreNavIcon = style::centerrect(_moreNav, st::mediaviewMore);
 
@@ -826,6 +861,7 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		+ (_over == OverRightNav ? _rightNav : _rightNavIcon)
 		+ (_over == OverClose ? _closeNav : _closeNavIcon)
 		+ _saveNavIcon
+		+ _rotateNavIcon
 		+ _moreNavIcon
 		+ _headerNav
 		+ _nameNav
@@ -846,6 +882,15 @@ void OverlayWidget::updateCursor() {
 	setCursor(_controlsState == ControlsHidden
 		? Qt::BlankCursor
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
+}
+
+int OverlayWidget::contentRotation() const {
+	if (!_streamed) {
+		return _rotation;
+	}
+	return (_rotation + (_streamed
+		? _streamed->instance.info().video.rotation
+		: 0)) % 360;
 }
 
 QRect OverlayWidget::contentRect() const {
@@ -1410,12 +1455,9 @@ void OverlayWidget::onOverview() {
 void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
-		if (videoShown()) {
-			QGuiApplication::clipboard()->setImage(
-				transformVideoFrame(videoFrame()));
-		} else if (!_current.isNull()) {
-			QGuiApplication::clipboard()->setPixmap(_current);
-		}
+		QGuiApplication::clipboard()->setImage(videoShown()
+			? transformVideoFrame(videoFrame())
+			: transformStaticContent(_staticContent));
 	} else if (_photo && _photo->loaded()) {
 		QGuiApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
 	}
@@ -1899,6 +1941,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	_doc = nullptr;
 	_fullScreenVideo = false;
 	_photo = photo;
+	_rotation = _photo->owner().mediaRotation().get(_photo);
 	_radial.stop();
 
 	refreshMediaViewer();
@@ -1907,10 +1950,13 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	_zoom = 0;
 	_zoomToScreen = _zoomToDefault = 0;
 	_blurred = true;
-	_current = QPixmap();
+	_staticContent = QPixmap();
 	_down = OverNone;
-	_w = style::ConvertScale(photo->width());
-	_h = style::ConvertScale(photo->height());
+	const auto size = style::ConvertScale(flipSizeByRotation(QSize(
+		photo->width(),
+		photo->height())));
+	_w = size.width();
+	_h = size.height();
 	contentSizeChanged();
 	refreshFromLabel(item);
 	_photo->download(fileOrigin());
@@ -1948,10 +1994,11 @@ void OverlayWidget::displayDocument(
 		moveToScreen();
 	}
 	_fullScreenVideo = false;
-	_current = QPixmap();
+	_staticContent = QPixmap();
 	clearStreaming(_doc != doc);
 	destroyThemePreview();
 	_doc = doc;
+	_rotation = _doc ? _doc->owner().mediaRotation().get(_doc) : 0;
 	_themeCloudData = cloud;
 	_photo = nullptr;
 	_radial.stop();
@@ -1960,9 +2007,9 @@ void OverlayWidget::displayDocument(
 	if (_doc) {
 		if (_doc->sticker()) {
 			if (const auto image = _doc->getStickerLarge()) {
-				_current = image->pix(fileOrigin());
+				_staticContent = image->pix(fileOrigin());
 			} else if (_doc->hasThumbnail()) {
-				_current = _doc->thumbnail()->pixBlurred(
+				_staticContent = _doc->thumbnail()->pixBlurred(
 					fileOrigin(),
 					_doc->dimensions.width(),
 					_doc->dimensions.height());
@@ -1981,7 +2028,7 @@ void OverlayWidget::displayDocument(
 				if (location.accessEnable()) {
 					const auto &path = location.name();
 					if (QImageReader(path).canRead()) {
-						_current = PrepareStaticImage(path);
+						_staticContent = PrepareStaticImage(path);
 					}
 				}
 				location.accessDisable();
@@ -2045,10 +2092,12 @@ void OverlayWidget::displayDocument(
 		_docIconRect = myrtlrect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else if (_themePreviewShown) {
 		updateThemePreviewGeometry();
-	} else if (!_current.isNull()) {
-		_current.setDevicePixelRatio(cRetinaFactor());
-		_w = style::ConvertScale(_current.width());
-		_h = style::ConvertScale(_current.height());
+	} else if (!_staticContent.isNull()) {
+		_staticContent.setDevicePixelRatio(cRetinaFactor());
+		const auto size = style::ConvertScale(
+			flipSizeByRotation(_staticContent.size()));
+		_w = size.width();
+		_h = size.height();
 	} else if (videoShown()) {
 		const auto contentSize = style::ConvertScale(videoSize());
 		_w = contentSize.width();
@@ -2175,7 +2224,7 @@ void OverlayWidget::initStreamingThumbnail() {
 	const auto h = size.height();
 	const auto options = VideoThumbOptions(_doc);
 	const auto goodOptions = (options & ~Images::Option::Blurred);
-	_current = (useGood
+	_staticContent = (useGood
 		? good
 		: useThumb
 		? thumb
@@ -2188,20 +2237,24 @@ void OverlayWidget::initStreamingThumbnail() {
 			useGood ? goodOptions : options,
 			w / cIntRetinaFactor(),
 			h / cIntRetinaFactor());
-	_current.setDevicePixelRatio(cRetinaFactor());
+	_staticContent.setDevicePixelRatio(cRetinaFactor());
 }
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	if (videoShown()) {
-		const auto contentSize = style::ConvertScale(videoSize());
-		if (contentSize != QSize(_width, _height)) {
-			update(contentRect());
-			_w = contentSize.width();
-			_h = contentSize.height();
-			contentSizeChanged();
-		}
+		applyVideoSize();
 	}
-	this->update(contentRect());
+	update(contentRect());
+}
+
+void OverlayWidget::applyVideoSize() {
+	const auto contentSize = style::ConvertScale(videoSize());
+	if (contentSize != QSize(_width, _height)) {
+		update(contentRect());
+		_w = contentSize.width();
+		_h = contentSize.height();
+		contentSizeChanged();
+	}
 }
 
 bool OverlayWidget::createStreamingObjects() {
@@ -2234,18 +2287,30 @@ bool OverlayWidget::createStreamingObjects() {
 QImage OverlayWidget::transformVideoFrame(QImage frame) const {
 	Expects(videoShown());
 
-	if (_streamed->instance.info().video.rotation != 0) {
+	const auto rotation = contentRotation();
+	if (rotation != 0) {
 		auto transform = QTransform();
-		transform.rotate(_streamed->instance.info().video.rotation);
+		transform.rotate(rotation);
 		frame = frame.transformed(transform);
 	}
-	if (frame.size() != _streamed->instance.info().video.size) {
+	const auto requiredSize = videoSize();
+	if (frame.size() != requiredSize) {
 		frame = frame.scaled(
-			_streamed->instance.info().video.size,
+			requiredSize,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 	}
 	return frame;
+}
+
+QImage OverlayWidget::transformStaticContent(QPixmap content) const {
+	auto image = content.toImage();
+	if (!_rotation) {
+		return image;
+	}
+	auto transform = QTransform();
+	transform.rotate(_rotation);
+	return image.transformed(transform);
 }
 
 void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
@@ -2420,6 +2485,25 @@ void OverlayWidget::playbackControlsToPictureInPicture() {
 	}
 }
 
+void OverlayWidget::playbackControlsRotate() {
+	if (_photo) {
+		auto &storage = _photo->owner().mediaRotation();
+		storage.set(_photo, storage.get(_photo) - 90);
+		_rotation = storage.get(_photo);
+		redisplayContent();
+	} else if (_doc) {
+		auto &storage = _doc->owner().mediaRotation();
+		storage.set(_doc, storage.get(_doc) - 90);
+		_rotation = storage.get(_doc);
+		if (videoShown()) {
+			applyVideoSize();
+			update(contentRect());
+		} else {
+			redisplayContent();
+		}
+	}
+}
+
 void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
@@ -2449,7 +2533,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 
 	if (videoShown()) {
 		_streamed->instance.saveFrameToCover();
-		_current = Images::PixmapFast(transformVideoFrame(videoFrame()));
+		const auto saved = base::take(_rotation);
+		_staticContent = Images::PixmapFast(transformVideoFrame(videoFrame()));
+		_rotation = saved;
 		update(contentRect());
 	}
 	auto options = Streaming::PlaybackOptions();
@@ -2625,18 +2711,18 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 			image->load(fileOrigin());
 		}
 		return;
-	} else if (!_current.isNull() && (blurred || !_blurred)) {
+	} else if (!_staticContent.isNull() && (blurred || !_blurred)) {
 		return;
 	}
 	const auto w = _width * cIntRetinaFactor();
 	const auto h = _height * cIntRetinaFactor();
-	_current = image->pixNoCache(
+	_staticContent = image->pixNoCache(
 		fileOrigin(),
 		w,
 		h,
 		Images::Option::Smooth
 		| (blurred ? Images::Option::Blurred : Images::Option(0)));
-	_current.setDevicePixelRatio(cRetinaFactor());
+	_staticContent.setDevicePixelRatio(cRetinaFactor());
 	_blurred = blurred;
 }
 
@@ -2645,7 +2731,7 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photo->thumbnail(), true);
 	validatePhotoImage(_photo->thumbnailSmall(), true);
 	validatePhotoImage(_photo->thumbnailInline(), true);
-	if (_current.isNull()
+	if (_staticContent.isNull()
 		&& _peer
 		&& !_msgid
 		&& _peer->userpicLoaded()
@@ -2654,7 +2740,7 @@ void OverlayWidget::validatePhotoCurrentImage() {
 			Images::Create(_peer->userpicLocation()).get(),
 			true);
 	}
-	if (_current.isNull()) {
+	if (_staticContent.isNull()) {
 		_photo->loadThumbnailSmall(fileOrigin());
 	}
 }
@@ -2697,14 +2783,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			if (videoShown()) {
 				paintTransformedVideoFrame(p);
 			} else {
-				if ((!_doc || !_doc->getStickerLarge())
-					&& (_current.isNull() || _current.hasAlpha())) {
-					p.fillRect(rect, _transparentBrush);
-				}
-				if (!_current.isNull()) {
-					PainterHighQualityEnabler hq(p);
-					p.drawPixmap(rect, _current);
-				}
+				paintTransformedStaticContent(p);
 			}
 
 			const auto radial = _radial.animating();
@@ -2834,6 +2913,13 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			st::mediaviewSave.paintInCenter(p, _saveNavIcon);
 		}
 
+		// rotate button
+		if (_rotateNavIcon.intersects(r)) {
+			auto o = overLevel(OverRotate);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
+			st::mediaviewRotate.paintInCenter(p, _rotateNavIcon);
+		}
+
 		// more area
 		if (_moreNavIcon.intersects(r)) {
 			auto o = overLevel(OverMore);
@@ -2927,46 +3013,52 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 
 	const auto rect = contentRect();
 	const auto image = videoFrameForDirectPaint();
-	//if (_fullScreenVideo) {
-	//	const auto fill = rect.intersected(this->rect());
-	//	PaintImageProfile(p, image, rect, fill);
-	//} else {
-	const auto rotation = _streamed->instance.info().video.rotation;
-	const auto rotated = [](QRect rect, int rotation) {
-		switch (rotation) {
-		case 0: return rect;
-		case 90: return QRect(
-			rect.y(),
-			-rect.x() - rect.width(),
-			rect.height(),
-			rect.width());
-		case 180: return QRect(
-			-rect.x() - rect.width(),
-			-rect.y() - rect.height(),
-			rect.width(),
-			rect.height());
-		case 270: return QRect(
-			-rect.y() - rect.height(),
-			rect.x(),
-			rect.height(),
-			rect.width());
-		}
-		Unexpected("Rotation in OverlayWidget::paintTransformedVideoFrame");
-	};
 
 	PainterHighQualityEnabler hq(p);
-	if (rotation) {
-		p.save();
-		p.rotate(rotation);
-	}
-	p.drawImage(rotated(rect, rotation), image);
-	if (rotation) {
-		p.restore();
+
+	const auto rotation = contentRotation();
+	if (UsePainterRotation(rotation)) {
+		if (rotation) {
+			p.save();
+			p.rotate(rotation);
+		}
+		p.drawImage(RotatedRect(rect, rotation), image);
+		if (rotation) {
+			p.restore();
+		}
+	} else {
+		p.drawImage(rect, transformVideoFrame(image));
 	}
 	if (_streamed->instance.player().ready()) {
 		_streamed->instance.markFrameShown();
 	}
-	//}
+}
+
+void OverlayWidget::paintTransformedStaticContent(Painter &p) {
+	const auto rect = contentRect();
+
+	PainterHighQualityEnabler hq(p);
+	if ((!_doc || !_doc->getStickerLarge())
+		&& (_staticContent.isNull()
+			|| _staticContent.hasAlpha())) {
+		p.fillRect(rect, _transparentBrush);
+	}
+	if (_staticContent.isNull()) {
+		return;
+	}
+	const auto rotation = contentRotation();
+	if (UsePainterRotation(rotation)) {
+		if (rotation) {
+			p.save();
+			p.rotate(rotation);
+		}
+		p.drawPixmap(RotatedRect(rect, rotation), _staticContent);
+		if (rotation) {
+			p.restore();
+		}
+	} else {
+		p.drawImage(rect, transformStaticContent(_staticContent));
+	}
 }
 
 void OverlayWidget::paintRadialLoading(
@@ -3438,6 +3530,7 @@ void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 				|| _over == OverDate
 				|| _over == OverHeader
 				|| _over == OverSave
+				|| _over == OverRotate
 				|| _over == OverIcon
 				|| _over == OverMore
 				|| _over == OverClose
@@ -3515,6 +3608,7 @@ void OverlayWidget::updateOverRect(OverState state) {
 	case OverName: update(_nameNav); break;
 	case OverDate: update(_dateNav); break;
 	case OverSave: update(_saveNavIcon); break;
+	case OverRotate: update(_rotateNavIcon); break;
 	case OverIcon: update(_docIconRect); break;
 	case OverHeader: update(_headerNav); break;
 	case OverClose: update(_closeNav); break;
@@ -3608,6 +3702,8 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
 		updateOverState(OverSave);
+	} else if (_rotateNav.contains(pos)) {
+		updateOverState(OverRotate);
 	} else if (_doc && documentBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
@@ -3650,6 +3746,8 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		onOverview();
 	} else if (_over == OverSave && _down == OverSave) {
 		onDownload();
+	} else if (_over == OverRotate && _down == OverRotate) {
+		playbackControlsRotate();
 	} else if (_over == OverIcon && _down == OverIcon) {
 		onDocClick();
 	} else if (_over == OverMore && _down == OverMore) {
@@ -3872,7 +3970,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		clearStreaming();
 		destroyThemePreview();
 		_radial.stop();
-		_current = QPixmap();
+		_staticContent = QPixmap();
 		_themePreview = nullptr;
 		_themeApply.destroyDelayed();
 		_themeCancel.destroyDelayed();
