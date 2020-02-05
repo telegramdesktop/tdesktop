@@ -263,6 +263,8 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
+    chat_helpers/spellchecker_common.cpp
+    chat_helpers/spellchecker_common.h
     chat_helpers/stickers.cpp
     chat_helpers/stickers.h
     chat_helpers/stickers_emoji_pack.cpp
