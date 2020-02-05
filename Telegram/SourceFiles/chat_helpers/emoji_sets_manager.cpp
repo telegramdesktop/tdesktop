@@ -31,6 +31,25 @@ namespace Ui {
 namespace Emoji {
 namespace {
 
+struct Set : public Storage::Blob {
+	QString previewPath;
+};
+
+inline auto PreviewPath(int i) {
+	return qsl(":/gui/emoji/set%1_preview.webp").arg(i);
+}
+
+const auto kSets = {
+	Set{ {0,   0,         0, "Mac"},       PreviewPath(0) },
+	Set{ {1, 246, 7'336'383, "Android"},   PreviewPath(1) },
+	Set{ {2, 206, 5'038'738, "Twemoji"},   PreviewPath(2) },
+	Set{ {3, 238, 6'992'260, "JoyPixels"}, PreviewPath(3) },
+};
+
+auto Sets() {
+	return kSets;
+}
+
 struct Available {
 	int size = 0;
 

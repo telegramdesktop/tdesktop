@@ -9,13 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
+#include "storage/storage_cloud_blob.h"
+
 namespace Spellchecker {
 
-struct Dict {
-	int id = 0;
-	int postId = 0;
-	int size = 0;
-	QString name;
+struct Dict : public Storage::Blob {
 };
 
 [[nodiscard]] QString DictionariesPath();

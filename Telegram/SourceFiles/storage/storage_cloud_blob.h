@@ -9,6 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 
+struct Blob {
+	int id = 0;
+	int postId = 0;
+	int size = 0;
+	QString name;
+};
+
 bool UnpackBlob(
 	const QString &path,
 	const QString &folder,
