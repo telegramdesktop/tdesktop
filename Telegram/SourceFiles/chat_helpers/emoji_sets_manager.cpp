@@ -53,34 +53,19 @@ auto Sets() {
 }
 
 using Loading = MTP::DedicatedLoader::Progress;
-using SetState = base::variant<
-	Available,
-	Ready,
-	Active,
-	Loading,
-	Failed>;
+using SetState = BlobState;
 
-class Loader : public QObject {
+class Loader : public BlobLoader {
 public:
-	Loader(QObject *parent, int id);
+	Loader(
+		QObject *parent,
+		int id,
+		MTP::DedicatedLoader::Location location,
+		const QString &folder,
+		int size);
 
-	int id() const;
-
-	rpl::producer<SetState> state() const;
-	void destroy();
-
-private:
-	void setImplementation(std::unique_ptr<MTP::DedicatedLoader> loader);
-	void unpack(const QString &path);
-	void finalize(const QString &path);
-	void fail();
-
-	int _id = 0;
-	int _size = 0;
-	rpl::variable<SetState> _state;
-
-	MTP::WeakInstance _mtproto;
-	std::unique_ptr<MTP::DedicatedLoader> _implementation;
+	void destroy() override;
+	void unpack(const QString &path) override;
 
 };
 
@@ -148,10 +133,10 @@ int GetDownloadSize(int id) {
 }
 
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
-	constexpr auto kUsername = "tdhbcfiles";
+	const auto username = kCloudLocationUsername.utf16();
 	const auto sets = Sets();
 	const auto i = ranges::find(sets, id, &Set::id);
-	return MTP::DedicatedLoader::Location{ kUsername, i->postId };
+	return MTP::DedicatedLoader::Location{ username, i->postId };
 }
 
 SetState ComputeState(int id) {
@@ -195,63 +180,21 @@ bool UnpackSet(const QString &path, const QString &folder) {
 	return UnpackBlob(path, folder, GoodSetPartName);
 }
 
-Loader::Loader(QObject *parent, int id)
-: QObject(parent)
-, _id(id)
-, _size(GetDownloadSize(_id))
-, _state(Loading{ 0, _size })
-, _mtproto(Core::App().activeAccount().mtp()) {
-	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
-		if (loader) {
-			setImplementation(std::move(loader));
-		} else {
-			fail();
-		}
-	};
-	const auto location = GetDownloadLocation(id);
-	const auto folder = internal::SetDataPath(id);
-	MTP::StartDedicatedLoader(&_mtproto, location, folder, ready);
-}
-
-int Loader::id() const {
-	return _id;
-}
-
-rpl::producer<SetState> Loader::state() const {
-	return _state.value();
-}
-
-void Loader::setImplementation(
-		std::unique_ptr<MTP::DedicatedLoader> loader) {
-	_implementation = std::move(loader);
-	auto convert = [](auto value) {
-		return SetState(value);
-	};
-	_state = _implementation->progress(
-	) | rpl::map([](const Loading &state) {
-		return SetState(state);
-	});
-	_implementation->failed(
-	) | rpl::start_with_next([=] {
-		fail();
-	}, _implementation->lifetime());
-
-	_implementation->ready(
-	) | rpl::start_with_next([=](const QString &filepath) {
-		unpack(filepath);
-	}, _implementation->lifetime());
-
-	QDir(internal::SetDataPath(_id)).removeRecursively();
-	_implementation->start();
+Loader::Loader(
+	QObject *parent,
+	int id,
+	MTP::DedicatedLoader::Location location,
+	const QString &folder,
+	int size) : BlobLoader(parent, id, location, folder, size) {
 }
 
 void Loader::unpack(const QString &path) {
-	const auto folder = internal::SetDataPath(_id);
+	const auto folder = internal::SetDataPath(id());
 	const auto weak = Ui::MakeWeak(this);
 	crl::async([=] {
 		if (UnpackSet(path, folder)) {
 			QFile(path).remove();
-			SwitchToSet(_id, crl::guard(weak, [=](bool success) {
+			SwitchToSet(id(), crl::guard(weak, [=](bool success) {
 				if (success) {
 					destroy();
 				} else {
@@ -264,13 +207,6 @@ void Loader::unpack(const QString &path) {
 			});
 		}
 	});
-}
-
-void Loader::finalize(const QString &path) {
-}
-
-void Loader::fail() {
-	_state = Failed();
 }
 
 void Loader::destroy() {
@@ -491,7 +427,12 @@ void Row::setupHandler() {
 }
 
 void Row::load() {
-	SetGlobalLoader(base::make_unique_q<Loader>(App::main(), _id));
+	SetGlobalLoader(base::make_unique_q<Loader>(
+		App::main(),
+		_id,
+		GetDownloadLocation(_id),
+		internal::SetDataPath(_id),
+		GetDownloadSize(_id)));
 }
 
 void Row::setupLabels(const Set &set) {

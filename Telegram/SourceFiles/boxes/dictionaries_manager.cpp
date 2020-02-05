@@ -41,34 +41,19 @@ using Dictionaries = std::vector<int>;
 using namespace Storage::CloudBlob;
 
 using Loading = MTP::DedicatedLoader::Progress;
-using DictState = base::variant<
-	Available,
-	Ready,
-	Active,
-	Failed,
-	Loading>;
+using DictState = BlobState;
 
-class Loader : public QObject {
+class Loader : public BlobLoader {
 public:
-	Loader(QObject *parent, int id);
+	Loader(
+		QObject *parent,
+		int id,
+		MTP::DedicatedLoader::Location location,
+		const QString &folder,
+		int size);
 
-	int id() const;
-
-	rpl::producer<DictState> state() const;
-	void destroy();
-
-private:
-	void setImplementation(std::unique_ptr<MTP::DedicatedLoader> loader);
-	void unpack(const QString &path);
-	void finalize(const QString &path);
-	void fail();
-
-	int _id = 0;
-	int _size = 0;
-	rpl::variable<DictState> _state;
-
-	MTP::WeakInstance _mtproto;
-	std::unique_ptr<MTP::DedicatedLoader> _implementation;
+	void destroy() override;
+	void unpack(const QString &path) override;
 
 };
 
@@ -109,10 +94,10 @@ int GetDownloadSize(int id) {
 }
 
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
-	constexpr auto kUsername = "tdhbcfiles";
+	const auto username = kCloudLocationUsername.utf16();
 	const auto sets = Spellchecker::Dictionaries();
 	const auto i = ranges::find(sets, id, &Spellchecker::Dict::id);
-	return MTP::DedicatedLoader::Location{ kUsername, i->postId };
+	return MTP::DedicatedLoader::Location{ username, i->postId };
 }
 
 DictState ComputeState(int id) {
@@ -147,60 +132,18 @@ QString StateDescription(const DictState &state) {
 	});
 }
 
-Loader::Loader(QObject *parent, int id)
-: QObject(parent)
-, _id(id)
-, _size(GetDownloadSize(_id))
-, _state(Loading{ 0, _size })
-, _mtproto(Core::App().activeAccount().mtp()) {
-	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
-		if (loader) {
-			setImplementation(std::move(loader));
-		} else {
-			fail();
-		}
-	};
-	const auto location = GetDownloadLocation(id);
-	const auto folder = Spellchecker::DictPathByLangId(id);
-	MTP::StartDedicatedLoader(&_mtproto, location, folder, ready);
-}
-
-int Loader::id() const {
-	return _id;
-}
-
-rpl::producer<DictState> Loader::state() const {
-	return _state.value();
-}
-
-void Loader::setImplementation(
-		std::unique_ptr<MTP::DedicatedLoader> loader) {
-	_implementation = std::move(loader);
-	auto convert = [](auto value) {
-		return DictState(value);
-	};
-	_state = _implementation->progress(
-	) | rpl::map([](const Loading &state) {
-		return DictState(state);
-	});
-	_implementation->failed(
-	) | rpl::start_with_next([=] {
-		fail();
-	}, _implementation->lifetime());
-
-	_implementation->ready(
-	) | rpl::start_with_next([=](const QString &filepath) {
-		unpack(filepath);
-	}, _implementation->lifetime());
-
-	QDir(Spellchecker::DictPathByLangId(_id)).removeRecursively();
-	_implementation->start();
+Loader::Loader(
+	QObject *parent,
+	int id,
+	MTP::DedicatedLoader::Location location,
+	const QString &folder,
+	int size) : BlobLoader(parent, id, location, folder, size) {
 }
 
 void Loader::unpack(const QString &path) {
 	const auto weak = Ui::MakeWeak(this);
 	crl::async([=] {
-		if (Spellchecker::UnpackDictionary(path, _id)) {
+		if (Spellchecker::UnpackDictionary(path, id())) {
 			QFile(path).remove();
 			crl::on_main(weak, [=] {
 				destroy();
@@ -211,13 +154,6 @@ void Loader::unpack(const QString &path) {
 			});
 		}
 	});
-}
-
-void Loader::finalize(const QString &path) {
-}
-
-void Loader::fail() {
-	_state = Failed();
 }
 
 void Loader::destroy() {
@@ -329,7 +265,12 @@ auto AddButtonWithLoader(
 	) | rpl::start_with_next([=](bool toggled) {
 		const auto &state = buttonState->current();
 		if (toggled && (state.is<Available>() || state.is<Failed>())) {
-			SetGlobalLoader(base::make_unique_q<Loader>(App::main(), id));
+			SetGlobalLoader(base::make_unique_q<Loader>(
+				App::main(),
+				id,
+				GetDownloadLocation(id),
+				Spellchecker::DictPathByLangId(id),
+				GetDownloadSize(id)));
 		} else if (!toggled && state.is<Loading>()) {
 			if (GlobalLoader && GlobalLoader->id() == id) {
 				GlobalLoader->destroy();

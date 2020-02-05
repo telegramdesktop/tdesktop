@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_cloud_blob.h"
 
 #include "base/zlib_help.h"
+#include "core/application.h"
+#include "main/main_account.h"
 
 namespace Storage::CloudBlob {
 
@@ -62,6 +64,63 @@ bool UnpackBlob(
 		}
 	} while (true);
 	return true;
+}
+
+BlobLoader::BlobLoader(
+	QObject *parent,
+	int id,
+	MTP::DedicatedLoader::Location location,
+	const QString &folder,
+	int size)
+: QObject(parent)
+, _folder(folder)
+, _id(id)
+, _state(Loading{ 0, size })
+, _mtproto(Core::App().activeAccount().mtp()) {
+	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
+		if (loader) {
+			setImplementation(std::move(loader));
+		} else {
+			fail();
+		}
+	};
+	MTP::StartDedicatedLoader(&_mtproto, location, _folder, ready);
+}
+
+int BlobLoader::id() const {
+	return _id;
+}
+
+rpl::producer<BlobState> BlobLoader::state() const {
+	return _state.value();
+}
+
+void BlobLoader::setImplementation(
+		std::unique_ptr<MTP::DedicatedLoader> loader) {
+	_implementation = std::move(loader);
+	auto convert = [](auto value) {
+		return BlobState(value);
+	};
+	_state = _implementation->progress(
+	) | rpl::map([](const Loading &state) {
+		return BlobState(state);
+	});
+	_implementation->failed(
+	) | rpl::start_with_next([=] {
+		fail();
+	}, _implementation->lifetime());
+
+	_implementation->ready(
+	) | rpl::start_with_next([=](const QString &filepath) {
+		unpack(filepath);
+	}, _implementation->lifetime());
+
+	QDir(_folder).removeRecursively();
+	_implementation->start();
+}
+
+void BlobLoader::fail() {
+	_state = Failed();
 }
 
 } // namespace Storage::CloudBlob
