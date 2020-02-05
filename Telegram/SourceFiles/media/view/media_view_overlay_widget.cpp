@@ -199,32 +199,6 @@ QPixmap PrepareStaticImage(const QString &path) {
 	return App::pixmapFromImageInPlace(std::move(image));
 }
 
-[[nodiscard]] QRect RotatedRect(QRect rect, int rotation) {
-	switch (rotation) {
-	case 0: return rect;
-	case 90: return QRect(
-		rect.y(),
-		-rect.x() - rect.width(),
-		rect.height(),
-		rect.width());
-	case 180: return QRect(
-		-rect.x() - rect.width(),
-		-rect.y() - rect.height(),
-		rect.width(),
-		rect.height());
-	case 270: return QRect(
-		-rect.y() - rect.height(),
-		rect.x(),
-		rect.height(),
-		rect.width());
-	}
-	Unexpected("Rotation in RotatedRect.");
-}
-
-[[nodiscard]] bool UsePainterRotation(int rotation) {
-	return Platform::IsMac() || !(rotation % 180);
-}
-
 } // namespace
 
 struct OverlayWidget::SharedMedia {
@@ -460,9 +434,7 @@ void OverlayWidget::moveToScreen(bool force) {
 }
 
 QSize OverlayWidget::flipSizeByRotation(QSize size) const {
-	return (((_rotation / 90) % 2) == 1)
-		? QSize(size.height(), size.width())
-		: size;
+	return FlipSizeByRotation(size, _rotation);
 }
 
 bool OverlayWidget::videoShown() const {
@@ -2289,9 +2261,7 @@ QImage OverlayWidget::transformVideoFrame(QImage frame) const {
 
 	const auto rotation = contentRotation();
 	if (rotation != 0) {
-		auto transform = QTransform();
-		transform.rotate(rotation);
-		frame = frame.transformed(transform);
+		frame = RotateFrameImage(std::move(frame), rotation);
 	}
 	const auto requiredSize = videoSize();
 	if (frame.size() != requiredSize) {
@@ -2304,13 +2274,9 @@ QImage OverlayWidget::transformVideoFrame(QImage frame) const {
 }
 
 QImage OverlayWidget::transformStaticContent(QPixmap content) const {
-	auto image = content.toImage();
-	if (!_rotation) {
-		return image;
-	}
-	auto transform = QTransform();
-	transform.rotate(_rotation);
-	return image.transformed(transform);
+	return _rotation
+		? RotateFrameImage(content.toImage(), _rotation)
+		: content.toImage();
 }
 
 void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {

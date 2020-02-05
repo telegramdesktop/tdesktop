@@ -29,6 +29,11 @@ namespace View {
 
 class PlaybackProgress;
 
+[[nodiscard]] QRect RotatedRect(QRect rect, int rotation);
+[[nodiscard]] bool UsePainterRotation(int rotation);
+[[nodiscard]] QSize FlipSizeByRotation(QSize size, int rotation);
+[[nodiscard]] QImage RotateFrameImage(QImage image, int rotation);
+
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 #define USE_OPENGL_OVERLAY_WIDGET
 #endif // Q_OS_MAC && !OS_MAC_OLD
@@ -204,6 +209,7 @@ private:
 	bool _pausedBySeek = false;
 	QString _timeAlready, _timeLeft;
 	int _timeLeftWidth = 0;
+	int _rotation = 0;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
 	OverState _over = OverState::None;

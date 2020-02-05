@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "data/data_media_rotation.h"
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -253,7 +255,93 @@ constexpr auto kMsInSecond = 1000;
 	return result;
 }
 
+Streaming::FrameRequest UnrotateRequest(
+		const Streaming::FrameRequest &request,
+		int rotation) {
+	if (!rotation) {
+		return request;
+	}
+	const auto unrotatedCorner = [&](RectPart corner) {
+		if (!(request.corners & corner)) {
+			return RectPart(0);
+		}
+		switch (corner) {
+		case RectPart::TopLeft:
+			return (rotation == 90)
+				? RectPart::BottomLeft
+				: (rotation == 180)
+				? RectPart::BottomRight
+				: RectPart::TopRight;
+		case RectPart::TopRight:
+			return (rotation == 90)
+				? RectPart::TopLeft
+				: (rotation == 180)
+				? RectPart::BottomLeft
+				: RectPart::BottomRight;
+		case RectPart::BottomRight:
+			return (rotation == 90)
+				? RectPart::TopRight
+				: (rotation == 180)
+				? RectPart::TopLeft
+				: RectPart::BottomLeft;
+		case RectPart::BottomLeft:
+			return (rotation == 90)
+				? RectPart::BottomRight
+				: (rotation == 180)
+				? RectPart::TopRight
+				: RectPart::TopLeft;
+		}
+		Unexpected("Corner in rotateCorner.");
+	};
+	auto result = request;
+	result.outer = FlipSizeByRotation(request.outer, rotation);
+	result.resize = FlipSizeByRotation(request.resize, rotation);
+	result.corners = unrotatedCorner(RectPart::TopLeft)
+		| unrotatedCorner(RectPart::TopRight)
+		| unrotatedCorner(RectPart::BottomRight)
+		| unrotatedCorner(RectPart::BottomLeft);
+	return result;
+}
+
 } // namespace
+
+QRect RotatedRect(QRect rect, int rotation) {
+	switch (rotation) {
+	case 0: return rect;
+	case 90: return QRect(
+		rect.y(),
+		-rect.x() - rect.width(),
+		rect.height(),
+		rect.width());
+	case 180: return QRect(
+		-rect.x() - rect.width(),
+		-rect.y() - rect.height(),
+		rect.width(),
+		rect.height());
+	case 270: return QRect(
+		-rect.y() - rect.height(),
+		rect.x(),
+		rect.height(),
+		rect.width());
+	}
+	Unexpected("Rotation in RotatedRect.");
+}
+
+bool UsePainterRotation(int rotation) {
+	return Platform::IsMac() || !(rotation % 180);
+}
+
+QSize FlipSizeByRotation(QSize size, int rotation) {
+	return (((rotation / 90) % 2) == 1)
+		? QSize(size.height(), size.width())
+		: size;
+}
+
+QImage RotateFrameImage(QImage image, int rotation) {
+	auto transform = QTransform();
+	transform.rotate(rotation);
+	return image.transformed(transform);
+}
 
 PipPanel::PipPanel(
 	QWidget *parent,
@@ -724,6 +812,7 @@ Pip::Pip(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
 , _playbackProgress(std::make_unique<PlaybackProgress>())
+, _rotation(document->owner().mediaRotation().get(document))
 , _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
@@ -735,15 +824,16 @@ Pip::Pip(
 Pip::~Pip() = default;
 
 void Pip::setupPanel() {
-	const auto size = style::ConvertScale(_instance.info().video.size);
-	if (size.isEmpty()) {
+	const auto size = [&] {
+		if (!_instance.info().video.size.isEmpty()) {
+			return _instance.info().video.size;
+		}
 		const auto good = _document->goodThumbnail();
 		const auto useGood = (good && good->loaded());
 		const auto original = useGood ? good->size() : _document->dimensions;
-		_panel.setAspectRatio(original.isEmpty() ? QSize(1, 1) : original);
-	} else {
-		_panel.setAspectRatio(size);
-	}
+		return original.isEmpty() ? QSize(1, 1) : original;
+	}();
+	_panel.setAspectRatio(FlipSizeByRotation(size, _rotation));
 	_panel.setPosition(Deserialize(_delegate->pipLoadGeometry()));
 	_panel.show();
 
@@ -1022,11 +1112,25 @@ void Pip::setupStreaming() {
 }
 
 void Pip::paint(QPainter &p, FrameRequest request) {
-	const auto image = videoFrameForDirectPaint(request);
+	const auto image = videoFrameForDirectPaint(
+		UnrotateRequest(request, _rotation));
 	const auto inner = _panel.inner();
-	p.drawImage(
-		QRect{ inner.topLeft(), request.outer / style::DevicePixelRatio() },
-		image);
+	const auto rect = QRect{
+		inner.topLeft(),
+		request.outer / style::DevicePixelRatio()
+	};
+	if (UsePainterRotation(_rotation)) {
+		if (_rotation) {
+			p.save();
+			p.rotate(_rotation);
+		}
+		p.drawImage(RotatedRect(rect, _rotation), image);
+		if (_rotation) {
+			p.restore();
+		}
+	} else {
+		p.drawImage(rect, RotateFrameImage(image, _rotation));
+	}
 	if (_instance.player().ready()) {
 		_instance.markFrameShown();
 	}
@@ -1149,7 +1253,8 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
 	update.data.match([&](Information &update) {
-		_panel.setAspectRatio(update.video.size);
+		_panel.setAspectRatio(
+			FlipSizeByRotation(update.video.size, _rotation));
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
