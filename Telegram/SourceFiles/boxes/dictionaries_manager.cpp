@@ -251,7 +251,7 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 			ranges::contains(enabledDictionaries, set.id));
 		row->toggledValue(
 		) | rpl::start_with_next([=](auto enabled) {
-			if (enabled && DictExists(set.id)) {
+			if (enabled) {
 				_enabledRows.push_back(set.id);
 			} else {
 				auto &rows = _enabledRows;
@@ -280,7 +280,11 @@ void ManageDictionariesBox::prepare() {
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
-		_session->settings().setDictionariesEnabled(inner->enabledRows());
+		auto enabledRows = inner->enabledRows();
+		_session->settings().setDictionariesEnabled(
+			enabledRows | ranges::views::filter(
+				DictExists
+			) | ranges::to_vector);
 		_session->saveSettingsDelayed();
 		closeBox();
 	});
