@@ -45,10 +45,6 @@ const auto kSets = {
 	Set{ {3, 238, 6'992'260, "JoyPixels"}, PreviewPath(3) },
 };
 
-auto Sets() {
-	return kSets;
-}
-
 using Loading = MTP::DedicatedLoader::Progress;
 using SetState = BlobState;
 
@@ -119,8 +115,7 @@ void SetGlobalLoader(base::unique_qptr<Loader> loader) {
 }
 
 int GetDownloadSize(int id) {
-	const auto sets = Sets();
-	return ranges::find(sets, id, &Set::id)->size;
+	return ranges::find(kSets, id, &Set::id)->size;
 }
 
 [[nodiscard]] float64 CountProgress(not_null<const Loading*> loading) {
@@ -131,8 +126,7 @@ int GetDownloadSize(int id) {
 
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 	const auto username = kCloudLocationUsername.utf16();
-	const auto sets = Sets();
-	const auto i = ranges::find(sets, id, &Set::id);
+	const auto i = ranges::find(kSets, id, &Set::id);
 	return MTP::DedicatedLoader::Location{ username, i->postId };
 }
 
@@ -203,8 +197,7 @@ Inner::Inner(QWidget *parent) : RpWidget(parent) {
 void Inner::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto sets = Sets();
-	for (const auto &set : sets) {
+	for (const auto &set : kSets) {
 		content->add(object_ptr<Row>(content, set));
 	}
 
