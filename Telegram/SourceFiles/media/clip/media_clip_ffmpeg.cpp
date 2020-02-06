@@ -312,7 +312,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		LOG(("Gif Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
 	}
-	av_codec_set_pkt_timebase(_codecContext, _fmtContext->streams[_streamId]->time_base);
+	_codecContext->pkt_timebase = _fmtContext->streams[_streamId]->time_base;
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
 	const auto codec = avcodec_find_decoder(_codecContext->codec_id);
