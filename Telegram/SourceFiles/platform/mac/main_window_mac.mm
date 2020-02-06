@@ -548,8 +548,15 @@ void MainWindow::psShowTrayMenu() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
-	if (trayIcon && trayIconMenu && trayIcon->contextMenu() != trayIconMenu) {
-		trayIcon->setContextMenu(trayIconMenu);
+	// On macOS just remove trayIcon menu if the window is not active.
+	// So we will activate the window on click instead of showing the menu.
+	if (isActive()) {
+		if (trayIcon && trayIconMenu
+			&& trayIcon->contextMenu() != trayIconMenu) {
+			trayIcon->setContextMenu(trayIconMenu);
+		}
+	} else {
+		trayIcon->setContextMenu(0);
 	}
 }
 

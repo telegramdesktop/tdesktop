@@ -42,6 +42,7 @@ StatusNotifierItem::StatusNotifierItem(QString id, QObject *parent)
     mId(id),
     mTitle(QLatin1String("Test")),
     mStatus(QLatin1String("Active")),
+    mCategory(QLatin1String("ApplicationStatus")),
     mMenu(nullptr),
     mMenuPath(QLatin1String("/NO_DBUSMENU")),
     mMenuExporter(nullptr),
@@ -114,6 +115,14 @@ void StatusNotifierItem::setStatus(const QString &status)
 
     mStatus = status;
     Q_EMIT mAdaptor->NewStatus(mStatus);
+}
+
+void StatusNotifierItem::setCategory(const QString &category)
+{
+    if (mCategory == category)
+        return;
+
+    mCategory = category;
 }
 
 void StatusNotifierItem::setMenuPath(const QString& path)

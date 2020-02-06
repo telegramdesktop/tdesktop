@@ -31,7 +31,7 @@ jobs:
       CMAKE_VER: "3.16.3"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "2"
+      MANUAL_CACHING: "3"
       DOC_PATH: "docs/building-cmake.md"
 
     steps:
@@ -364,10 +364,11 @@ jobs:
 
           git clone git://code.qt.io/qt/qt5.git qt_$QT
           cd qt_$QT
-          perl init-repository --module-subset=qtbase,qtimageformats
+          perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
           git checkout v5.12.5
           git submodule update qtbase
           git submodule update qtimageformats
+          git submodule update qtsvg
           cd qtbase
           git apply ../../patches/qtbase_$QT.diff
           cd src/plugins/platforminputcontexts
