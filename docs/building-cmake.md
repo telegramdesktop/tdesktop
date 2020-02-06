@@ -235,10 +235,11 @@ Go to ***BuildPath*** and run
 
     git clone git://code.qt.io/qt/qt5.git qt_5_12_5
     cd qt_5_12_5
-    perl init-repository --module-subset=qtbase,qtimageformats
+    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
     git checkout v5.12.5
     git submodule update qtbase
     git submodule update qtimageformats
+    git submodule update qtsvg
     cd qtbase
     git apply ../../patches/qtbase_5_12_5.diff
     cd src/plugins/platforminputcontexts

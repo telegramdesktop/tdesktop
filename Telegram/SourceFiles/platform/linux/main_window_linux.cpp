@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
+#include <QtCore/QSize>
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus>
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -73,33 +75,49 @@ QImage TrayIconImageGen() {
 
 	const auto iconThemeName = QIcon::themeName();
 	const auto iconName = GetTrayIconName();
+	const auto desiredSize = QSize(_trayIconSize, _trayIconSize);
 
 	if (_trayIconImage.isNull()
-		|| _trayIconImage.width() != _trayIconSize
+		|| _trayIconImage.size() != desiredSize
 		|| iconThemeName != _trayIconThemeName
 		|| iconName != _trayIconName
 		|| muted != _trayIconMuted
 		|| counterSlice != _trayIconCount) {
 		if (_trayIconImageBack.isNull()
-			|| _trayIconImageBack.width() != _trayIconSize
+			|| _trayIconImageBack.size() != desiredSize
 			|| iconThemeName != _trayIconThemeName
 			|| iconName != _trayIconName) {
-			_trayIconImageBack = Core::App().logo();
+			const auto hasPanelIcon = QIcon::hasThemeIcon(iconName);
 
-			_trayIconImageBack = QIcon::fromTheme(
-				iconName,
-				QIcon::fromTheme(
-					kTrayIconName.utf16(),
-					QIcon(QPixmap::fromImage(_trayIconImageBack)))
-			).pixmap(_trayIconSize, _trayIconSize).toImage();
+			if (hasPanelIcon || QIcon::hasThemeIcon(kTrayIconName.utf16())) {
+				QIcon systemIcon;
 
-			auto w = _trayIconImageBack.width(),
-				h = _trayIconImageBack.height();
+				if (hasPanelIcon) {
+					systemIcon = QIcon::fromTheme(iconName);
+				} else {
+					systemIcon = QIcon::fromTheme(kTrayIconName.utf16());
+				}
 
-			if (w != _trayIconSize || h != _trayIconSize) {
+				if (systemIcon.actualSize(desiredSize) == desiredSize) {
+					_trayIconImageBack = systemIcon
+						.pixmap(desiredSize)
+						.toImage();
+				} else {
+					const auto biggestSize = systemIcon
+						.availableSizes()
+						.last();
+
+					_trayIconImageBack = systemIcon
+						.pixmap(biggestSize)
+						.toImage();
+				}
+			} else {
+				_trayIconImageBack = Core::App().logo();
+			}
+
+			if (_trayIconImageBack.size() != desiredSize) {
 				_trayIconImageBack = _trayIconImageBack.scaled(
-					_trayIconSize,
-					_trayIconSize,
+					desiredSize,
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 			}
@@ -107,8 +125,8 @@ QImage TrayIconImageGen() {
 			_trayIconImageBack = _trayIconImageBack.convertToFormat(
 				QImage::Format_ARGB32);
 
-			w = _trayIconImageBack.width();
-			h = _trayIconImageBack.height();
+			const auto w = _trayIconImageBack.width();
+			const auto h = _trayIconImageBack.height();
 			const auto perline = _trayIconImageBack.bytesPerLine();
 			auto *bytes = _trayIconImageBack.bits();
 
@@ -166,26 +184,31 @@ QImage TrayIconImageGen() {
 	return _trayIconImage;
 }
 
+bool IsAppIndicator() {
+#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	static const auto AppIndicator = false;
+#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
+	static const auto AppIndicator = QDBusInterface(
+		qsl("com.canonical.indicator.application"),
+		qsl("/com/canonical/indicator/application/service"),
+		qsl("com.canonical.indicator.application.service")).isValid()
+			|| QDBusInterface(
+				qsl("org.ayatana.indicator.application"),
+				qsl("/org/ayatana/indicator/application/service"),
+				qsl("org.ayatana.indicator.application.service")).isValid();
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+	return AppIndicator;
+}
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 static bool NeedTrayIconFile() {
 	// Hack for indicator-application, which doesn't handle icons sent across D-Bus:
 	// save the icon to a temp file and set the icon name to that filename.
-	static const auto TrayIconFileNeeded = [&] {
-		auto necessary = false;
-		const auto session = QDBusConnection::sessionBus();
-		const auto pid = session.interface()
-			->servicePid(kSNIWatcherService.utf16()).value();
-		const auto processName = ProcessNameByPID(QString::number(pid));
-		necessary = processName.endsWith(
-			qsl("indicator-application-service"));
-		if (!necessary) {
-			// Accessing to process name might be not allowed if the application
-			// is confined, thus we can just rely on the current desktop in use
-			necessary = DesktopEnvironment::IsUnity()
-				|| DesktopEnvironment::IsMATE();
-		}
-		return necessary;
-	}();
+	static const auto TrayIconFileNeeded = IsAppIndicator()
+		// Ubuntu's tray extension doesn't zoom image data, but zooms image file
+		|| DesktopEnvironment::IsGnome();
+
 	return TrayIconFileNeeded;
 }
 
@@ -196,7 +219,7 @@ static inline QString TrayIconFileTemplate() {
 }
 
 std::unique_ptr<QTemporaryFile> TrayIconFile(
-		const QPixmap &icon, QObject *parent) {
+		const QImage &icon, QObject *parent) {
 	auto ret = std::make_unique<QTemporaryFile>(
 		TrayIconFileTemplate(),
 		parent);
@@ -268,7 +291,7 @@ void MainWindow::psTrayMenuUpdated() {
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void MainWindow::setSNITrayIcon(
-		const QIcon &icon, const QPixmap &iconPixmap) {
+		const QIcon &icon, const QImage &iconImage) {
 	if (!NeedTrayIconFile()) {
 		_sniTrayIcon->setIconByPixmap(icon);
 		_sniTrayIcon->setToolTipIconByPixmap(icon);
@@ -279,7 +302,7 @@ void MainWindow::setSNITrayIcon(
 		_sniTrayIcon->setIconByName(iconName);
 		_sniTrayIcon->setToolTipIconByName(iconName);
 	} else if (NeedTrayIconFile()) {
-		_trayIconFile = TrayIconFile(iconPixmap, this);
+		_trayIconFile = TrayIconFile(iconImage, this);
 
 		if (_trayIconFile) {
 			_sniTrayIcon->setIconByName(_trayIconFile->fileName());
@@ -311,8 +334,8 @@ void MainWindow::attachToSNITrayIcon() {
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 void MainWindow::psSetupTrayIcon() {
-	const auto iconPixmap = QPixmap::fromImage(TrayIconImageGen());
-	const auto icon = QIcon(iconPixmap);
+	const auto iconImage = TrayIconImageGen();
+	const auto icon = QIcon(QPixmap::fromImage(iconImage));
 
 	if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -322,8 +345,8 @@ void MainWindow::psSetupTrayIcon() {
 				QCoreApplication::applicationName(),
 				this);
 
-			_sniTrayIcon->setTitle(QCoreApplication::applicationName());
-			setSNITrayIcon(icon, iconPixmap);
+			_sniTrayIcon->setTitle(AppName.utf16());
+			setSNITrayIcon(icon, iconImage);
 
 			attachToSNITrayIcon();
 		}
@@ -406,13 +429,13 @@ void MainWindow::updateIconCounters() {
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	const auto iconPixmap = QPixmap::fromImage(TrayIconImageGen());
-	const auto icon = QIcon(iconPixmap);
+	const auto iconImage = TrayIconImageGen();
+	const auto icon = QIcon(QPixmap::fromImage(iconImage));
 
 	if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		if (_sniTrayIcon) {
-			setSNITrayIcon(icon, iconPixmap);
+			setSNITrayIcon(icon, iconImage);
 		}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 	} else if (trayIcon) {
@@ -427,7 +450,7 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	if (!IsSNIAvailable()) {
+	if (!IsSNIAvailable() || IsAppIndicator()) {
 		_trayIconSize = 22;
 	}
 }

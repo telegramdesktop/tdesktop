@@ -43,6 +43,7 @@ class StatusNotifierItem : public QObject
 {
     Q_OBJECT
 
+    Q_PROPERTY(QString Category READ category)
     Q_PROPERTY(QString Title READ title)
     Q_PROPERTY(QString Id READ id)
     Q_PROPERTY(QString Status READ status)
@@ -73,6 +74,10 @@ public:
     QString status() const
     { return mStatus; }
     void setStatus(const QString &status);
+
+    QString category() const
+    { return mCategory; }
+    void setCategory(const QString &category);
 
     QDBusObjectPath menu() const
     { return mMenuPath; }
@@ -162,6 +167,7 @@ private:
     QString mId;
     QString mTitle;
     QString mStatus;
+    QString mCategory;
 
     // icons
     QString mIconName, mOverlayIconName, mAttentionIconName;

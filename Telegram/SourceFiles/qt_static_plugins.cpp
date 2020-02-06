@@ -23,6 +23,7 @@ Q_IMPORT_PLUGIN(QGenericEnginePlugin)
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QSvgIconPlugin)
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
 Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)

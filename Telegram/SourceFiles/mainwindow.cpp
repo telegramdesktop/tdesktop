@@ -556,8 +556,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 void MainWindow::updateTrayMenu(bool force) {
 	if (!trayIconMenu || (Platform::IsWindows() && !force)) return;
 
-	auto iconMenu = trayIconMenu;
-	auto actions = iconMenu->actions();
+	auto actions = trayIconMenu->actions();
 	if (Platform::IsLinux()) {
 		auto minimizeAction = actions.at(1);
 		minimizeAction->setEnabled(isVisible());
@@ -571,12 +570,6 @@ void MainWindow::updateTrayMenu(bool force) {
 		toggleAction->setText(active
 			? tr::lng_minimize_to_tray(tr::now)
 			: tr::lng_open_from_tray(tr::now));
-
-		// On macOS just remove trayIcon menu if the window is not active.
-		// So we will activate the window on click instead of showing the menu.
-		if (!active && Platform::IsMac()) {
-			iconMenu = nullptr;
-		}
 	}
 	auto notificationAction = actions.at(Platform::IsLinux() ? 2 : 1);
 	auto notificationActionText = Global::DesktopNotify()
