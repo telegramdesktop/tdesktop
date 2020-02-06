@@ -72,7 +72,7 @@ private:
 
 private slots:
 	void notificationClosed(uint id);
-	void notificationClicked(uint id);
+	void notificationClicked(uint id, const QString &actionId);
 	void notificationReplied(uint id, const QString &text);
 };
 
