@@ -225,7 +225,7 @@ private:
 		not_null<Data*> data,
 		Streaming::Error &&error);
 
-	void clearStreamed(not_null<Data *> data);
+	void clearStreamed(not_null<Data*> data, bool savePosition = true);
 	void emitUpdate(AudioMsgId::Type type);
 	template <typename CheckCallback>
 	void emitUpdate(AudioMsgId::Type type, CheckCallback check);

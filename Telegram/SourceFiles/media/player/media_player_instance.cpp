@@ -189,14 +189,16 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 	}
 }
 
-void Instance::clearStreamed(not_null<Data*> data) {
+void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	if (!data->streamed || data->streamed->clearing) {
 		return;
 	}
 	data->streamed->clearing = true;
-	SaveLastPlaybackPosition(
-		data->current.audio(),
-		data->streamed->instance.player().prepareLegacyState());
+	if (savePosition) {
+		SaveLastPlaybackPosition(
+			data->current.audio(),
+			data->streamed->instance.player().prepareLegacyState());
+	}
 	data->streamed->instance.stop();
 	data->isPlaying = false;
 	requestRoundVideoResize();
@@ -414,7 +416,7 @@ void Instance::playStreamed(
 	const auto data = getData(audioId.type());
 	Assert(data != nullptr);
 
-	clearStreamed(data);
+	clearStreamed(data, data->current.audio() != audioId.audio());
 	data->streamed = std::make_unique<Streamed>(
 		audioId,
 		std::move(shared));
