@@ -68,18 +68,6 @@ void SetGlobalLoader(base::unique_qptr<Loader> loader) {
 	GlobalLoaderValues.fire(GlobalLoader.get());
 }
 
-int GetDownloadSize(int id) {
-	const auto sets = Spellchecker::Dictionaries();
-	return ranges::find(sets, id, &Spellchecker::Dict::id)->size;
-}
-
-MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
-	const auto username = kCloudLocationUsername.utf16();
-	const auto sets = Spellchecker::Dictionaries();
-	const auto i = ranges::find(sets, id, &Spellchecker::Dict::id);
-	return MTP::DedicatedLoader::Location{ username, i->postId };
-}
-
 inline auto DictExists(int langId) {
 	return Spellchecker::DictionaryExists(langId);
 }
@@ -89,7 +77,7 @@ DictState ComputeState(int id, bool enabled) {
 	if (DictExists(id)) {
 		return result;
 	}
-	return Available{ GetDownloadSize(id) };
+	return Available{ Spellchecker::GetDownloadSize(id) };
 }
 
 QString StateDescription(const DictState &state) {
@@ -140,16 +128,16 @@ Dictionaries Inner::enabledRows() const {
 
 auto AddButtonWithLoader(
 		not_null<Ui::VerticalLayout*> content,
-		const Spellchecker::Dict &set,
+		const Spellchecker::Dict &dict,
 		bool buttonEnabled) {
-	const auto id = set.id;
+	const auto id = dict.id;
 
 	const auto button = content->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			content,
 			object_ptr<Ui::SettingsButton>(
 				content,
-				rpl::single(set.name),
+				rpl::single(dict.name),
 				st::dictionariesSectionButton
 			)
 		)
@@ -227,9 +215,9 @@ auto AddButtonWithLoader(
 			SetGlobalLoader(base::make_unique_q<Loader>(
 				App::main(),
 				id,
-				GetDownloadLocation(id),
+				Spellchecker::GetDownloadLocation(id),
 				Spellchecker::DictPathByLangId(id),
-				GetDownloadSize(id)));
+				Spellchecker::GetDownloadSize(id)));
 		} else if (!toggled && state.is<Loading>()) {
 			if (GlobalLoader && GlobalLoader->id() == id) {
 				GlobalLoader->destroy();
@@ -243,19 +231,19 @@ auto AddButtonWithLoader(
 void Inner::setupContent(Dictionaries enabledDictionaries) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto sets = Spellchecker::Dictionaries();
-	for (const auto &set : sets) {
+	for (const auto &dict : Spellchecker::Dictionaries()) {
+		const auto id = dict.id;
 		const auto row = AddButtonWithLoader(
 			content,
-			set,
-			ranges::contains(enabledDictionaries, set.id));
+			dict,
+			ranges::contains(enabledDictionaries, id));
 		row->toggledValue(
 		) | rpl::start_with_next([=](auto enabled) {
 			if (enabled) {
-				_enabledRows.push_back(set.id);
+				_enabledRows.push_back(id);
 			} else {
 				auto &rows = _enabledRows;
-				rows.erase(ranges::remove(rows, set.id), end(rows));
+				rows.erase(ranges::remove(rows, id), end(rows));
 			}
 		}, row->lifetime());
 	}

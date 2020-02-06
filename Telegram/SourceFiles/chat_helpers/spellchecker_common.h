@@ -16,14 +16,16 @@ namespace Spellchecker {
 struct Dict : public Storage::CloudBlob::Blob {
 };
 
+int GetDownloadSize(int id);
+MTP::DedicatedLoader::Location GetDownloadLocation(int id);
+
 [[nodiscard]] QString DictionariesPath();
 [[nodiscard]] QString DictPathByLangId(int langId);
-[[nodiscard]] bool IsGoodPartName(const QString &name);
 bool UnpackDictionary(const QString &path, int langId);
 [[nodiscard]] bool DictionaryExists(int langId);
 
 bool WriteDefaultDictionary();
-std::initializer_list<const Dict> Dictionaries();
+std::vector<Dict> Dictionaries();
 
 } // namespace Spellchecker
 
