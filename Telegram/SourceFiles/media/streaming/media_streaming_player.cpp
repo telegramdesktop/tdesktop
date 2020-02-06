@@ -827,7 +827,6 @@ float64 Player::speed() const {
 }
 
 void Player::setSpeed(float64 speed) {
-	Expects(active());
 	Expects(speed >= 0.5 && speed <= 2.);
 
 	if (!Media::Audio::SupportsSpeedControl()) {
@@ -835,11 +834,13 @@ void Player::setSpeed(float64 speed) {
 	}
 	if (_options.speed != speed) {
 		_options.speed = speed;
-		if (_audio) {
-			_audio->setSpeed(speed);
-		}
-		if (_video) {
-			_video->setSpeed(speed);
+		if (active()) {
+			if (_audio) {
+				_audio->setSpeed(speed);
+			}
+			if (_video) {
+				_video->setSpeed(speed);
+			}
 		}
 	}
 }
