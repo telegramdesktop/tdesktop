@@ -118,7 +118,7 @@ NotificationData::NotificationData(
 			kInterface.utf16(),
 			qsl("ActionInvoked"),
 			this,
-			SLOT(notificationClicked(uint)));
+			SLOT(notificationClicked(uint,QString)));
 
 		if (capabilities.contains(qsl("inline-reply"))) {
 			_actions << qsl("inline-reply")
@@ -261,13 +261,19 @@ void NotificationData::notificationClosed(uint id) {
 	}
 }
 
-void NotificationData::notificationClicked(uint id) {
-	if (id == _notificationId) {
-		const auto manager = _manager;
-		crl::on_main(manager, [=] {
-			manager->notificationActivated(_peerId, _msgId);
-		});
+void NotificationData::notificationClicked(uint id, const QString &actionId) {
+	if (id != _notificationId) {
+		return;
 	}
+
+	if (actionId != qsl("default") && actionId != qsl("mail-reply-sender")) {
+		return;
+	}
+
+	const auto manager = _manager;
+	crl::on_main(manager, [=] {
+		manager->notificationActivated(_peerId, _msgId);
+	});
 }
 
 void NotificationData::notificationReplied(uint id, const QString &text) {
