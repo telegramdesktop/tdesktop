@@ -199,7 +199,8 @@ void Call::startOutgoing() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()),
+			MTP_vector(1, MTP_string("2.4.4")))
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
@@ -277,7 +278,8 @@ void Call::actuallyAnswer() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()),
+			MTP_vector(1, MTP_string("2.4.4")))
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
@@ -515,7 +517,8 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()),
+			MTP_vector(1, MTP_string("2.4.4")))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 

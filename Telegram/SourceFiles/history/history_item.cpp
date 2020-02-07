@@ -153,6 +153,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaPoll &) {
 		return Result::Good;
+	}, [](const MTPDmessageMediaDice &) {
+		return Result::Unsupported; // #TODO dice
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});
