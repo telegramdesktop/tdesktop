@@ -126,8 +126,6 @@ public:
 
 	rpl::producer<ChosenRow> chosenRow() const;
 
-	void notify_historyMuteUpdated(History *history);
-
 	~InnerWidget();
 
 public slots:
@@ -176,7 +174,7 @@ private:
 	void refreshWithCollapsedRows(bool toTop = false);
 	bool needCollapsedRowsRefresh() const;
 	bool chooseCollapsedRow();
-	void switchImportantChats();
+	void switchToFilter(FilterId filterId);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
 	bool isSearchResultActive(

@@ -277,10 +277,6 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, 
 	return false;
 }
 
-void historyMuteUpdated(History *history) {
-	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
-}
-
 void unreadCounterUpdated() {
 	Global::RefHandleUnreadCounterUpdate().call();
 }

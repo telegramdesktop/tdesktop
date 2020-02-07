@@ -24,6 +24,10 @@ ChatFilter::ChatFilter(
 , _flags(flags) {
 }
 
+QString ChatFilter::title() const {
+	return _title;
+}
+
 bool ChatFilter::contains(not_null<History*> history) const {
 	const auto flag = [&] {
 		const auto peer = history->peer;
@@ -43,11 +47,44 @@ bool ChatFilter::contains(not_null<History*> history) const {
 			Unexpected("Peer type in ChatFilter::contains.");
 		}
 	}();
+	if (history->folder()) {
+		return false;
+	}
 	return false
 		|| ((_flags & flag)
 			&& (!(_flags & Flag::NoMuted) || !history->mute())
 			&& (!(_flags & Flag::NoRead) || history->unreadCountForBadge()))
 		|| _always.contains(history);
 }
+
+ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
+	using Flag = ChatFilter::Flag;
+	const auto all = Flag::Users
+		| Flag::SecretChats
+		| Flag::PrivateGroups
+		| Flag::PublicGroups
+		| Flag::Broadcasts
+		| Flag::Bots;
+	_list.emplace(
+		1,
+		ChatFilter("Unmuted Chats", all | ChatFilter::Flag::NoMuted, {}));
+	_list.emplace(
+		2,
+		ChatFilter("Unread Chats", all | ChatFilter::Flag::NoRead, {}));
+}
+
+const base::flat_map<FilterId, ChatFilter> &ChatFilters::list() const {
+	return _list;
+}
+
+void ChatFilters::refreshHistory(not_null<History*> history) {
+	_refreshHistoryRequests.fire_copy(history);
+}
+
+auto ChatFilters::refreshHistoryRequests() const
+-> rpl::producer<not_null<History*>> {
+	return _refreshHistoryRequests.events();
+}
+
 
 } // namespace Data

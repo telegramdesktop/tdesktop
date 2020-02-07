@@ -49,9 +49,7 @@ void MainList::setLoaded(bool loaded) {
 
 void MainList::clear() {
 	_all.clear();
-	for (auto &[filterId, list] : _other) { // #TODO filters _other.clear?..
-		list.clear();
-	}
+	_other.clear();
 	_unreadState = UnreadState();
 }
 

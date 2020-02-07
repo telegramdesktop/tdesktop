@@ -1453,6 +1453,9 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 }
 
 void HistoryWidget::notify_userIsBotChanged(UserData *user) {
+	if (const auto history = session().data().history(user)) {
+		session().data().chatsFilters()->refreshHistory(history);
+	}
 	if (_peer && _peer == user) {
 		_list->notifyIsBotChanged();
 		_list->updateBotInfo();

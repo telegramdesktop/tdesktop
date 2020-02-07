@@ -783,10 +783,6 @@ void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	_history->notify_userIsBotChanged(bot);
 }
 
-void MainWidget::notify_historyMuteUpdated(History *history) {
-	_dialogs->notify_historyMuteUpdated(history);
-}
-
 void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 	if (_hider != instance) {
 		return;

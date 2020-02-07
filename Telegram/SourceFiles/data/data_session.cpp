@@ -184,6 +184,7 @@ Session::Session(not_null<Main::Session*> session)
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
 , _chatsList(PinnedDialogsCountMaxValue(session))
+, _chatsFilters(this)
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
@@ -3347,6 +3348,14 @@ not_null<const Dialogs::MainList*> Session::chatsList(
 	return folder ? folder->chatsList() : &_chatsList;
 }
 
+not_null<ChatFilters*> Session::chatsFilters() {
+	return &_chatsFilters;
+}
+
+not_null<const ChatFilters*> Session::chatsFilters() const {
+	return &_chatsFilters;
+}
+
 not_null<Dialogs::IndexedList*> Session::contactsList() {
 	return &_contactsList;
 }
@@ -3355,33 +3364,42 @@ not_null<Dialogs::IndexedList*> Session::contactsNoChatsList() {
 	return &_contactsNoChatsList;
 }
 
-auto Session::refreshChatListEntry(Dialogs::Key key)
+auto Session::refreshChatListEntry(
+	Dialogs::Key key,
+	FilterId filterIdForResult)
 -> RefreshChatListEntryResult {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	auto result = RefreshChatListEntryResult();
-	result.changed = !entry->inChatList();
-	if (result.changed) {
+	const auto history = key.history();
+	auto mainListResult = RefreshChatListEntryResult();
+	mainListResult.changed = !entry->inChatList();
+	if (mainListResult.changed) {
 		const auto mainRow = entry->addToChatList(0);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		result.moved = entry->adjustByPosInChatList(0);
+		mainListResult.moved = entry->adjustByPosInChatList(0);
 	}
-	//if (Global::DialogsFiltersEnabled()) { // #TODO filters
-	//	if (entry->toImportant()) {
-	//		result.importantChanged = !entry->inChatList(Mode::Important);
-	//		if (result.importantChanged) {
-	//			entry->addToChatList(Mode::Important);
-	//		} else {
-	//			result.importantMoved = entry->adjustByPosInChatList(
-	//				Mode::Important);
-	//		}
-	//	} else if (entry->inChatList(Mode::Important)) {
-	//		entry->removeFromChatList(Mode::Important);
-	//		result.importantChanged = true;
-	//	}
-	//}
+	auto result = filterIdForResult
+		? RefreshChatListEntryResult()
+		: mainListResult;
+	for (const auto &[filterId, filter] : _chatsFilters.list()) {
+		auto filterResult = RefreshChatListEntryResult();
+		if (history && filter.contains(history)) {
+			filterResult.changed = !entry->inChatList(filterId);
+			if (filterResult.changed) {
+				entry->addToChatList(filterId);
+			} else {
+				filterResult.moved = entry->adjustByPosInChatList(filterId);
+			}
+		} else if (entry->inChatList(filterId)) {
+			entry->removeFromChatList(filterId);
+			filterResult.changed = true;
+		}
+		if (filterId == filterIdForResult) {
+			result = filterResult;
+		}
+	}
 	return result;
 }
 
@@ -3390,9 +3408,9 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 
 	const auto entry = key.entry();
 	entry->removeFromChatList(0);
-	//if (Global::DialogsFiltersEnabled()) { // #TODO filters
-	//	entry->removeFromChatList(Mode::Important);
-	//}
+	for (const auto &[filterId, filter] : _chatsFilters.list()) {
+		entry->removeFromChatList(filterId);
+	}
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {
 			_contactsNoChatsList.addByName(key);

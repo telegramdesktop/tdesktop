@@ -85,8 +85,6 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
-	void notify_historyMuteUpdated(History *history);
-
 	~Widget();
 
 signals:

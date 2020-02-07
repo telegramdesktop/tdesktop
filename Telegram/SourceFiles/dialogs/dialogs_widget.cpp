@@ -678,10 +678,6 @@ void Widget::escape() {
 	}
 }
 
-void Widget::notify_historyMuteUpdated(History *history) {
-	_inner->notify_historyMuteUpdated(history);
-}
-
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
 	if (!mayBlock) {
 		_loadMoreChats.destroy();

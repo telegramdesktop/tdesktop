@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
+#include "data/data_chat_filters.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -621,19 +622,22 @@ public:
 	//FeedId defaultFeedId() const;
 	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
-	not_null<Dialogs::MainList*> chatsList(Data::Folder *folder = nullptr);
-	not_null<const Dialogs::MainList*> chatsList(
+	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
+		Data::Folder *folder = nullptr);
+	[[nodiscard]] not_null<const Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr) const;
-	not_null<Dialogs::IndexedList*> contactsList();
-	not_null<Dialogs::IndexedList*> contactsNoChatsList();
+	[[nodiscard]] not_null<ChatFilters*> chatsFilters();
+	[[nodiscard]] not_null<const ChatFilters*> chatsFilters() const;
+	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsList();
+	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsNoChatsList();
 
 	struct RefreshChatListEntryResult {
 		bool changed = false;
-		bool importantChanged = false;
 		Dialogs::PositionChange moved;
-		Dialogs::PositionChange importantMoved;
 	};
-	RefreshChatListEntryResult refreshChatListEntry(Dialogs::Key key);
+	RefreshChatListEntryResult refreshChatListEntry(
+		Dialogs::Key key,
+		FilterId filterIdForResult);
 	void removeChatListEntry(Dialogs::Key key);
 
 	struct DialogsRowReplacement {
@@ -870,6 +874,7 @@ private:
 	Stickers::SavedGifs _savedGifs;
 
 	Dialogs::MainList _chatsList;
+	ChatFilters _chatsFilters;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
 

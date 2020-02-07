@@ -81,10 +81,12 @@ int PinnedDialogsCount(not_null<Dialogs::IndexedList*> list) {
 } // namespace
 
 struct InnerWidget::CollapsedRow {
-	explicit CollapsedRow(Data::Folder *folder = nullptr) : folder(folder) {
+	CollapsedRow(Data::Folder *folder, FilterId filterId)
+	: folder(folder), filterId(filterId) {
 	}
 
 	Data::Folder *folder = nullptr;
+	FilterId filterId = 0;
 	BasicRow row;
 };
 
@@ -202,6 +204,14 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
+	session().data().chatsFilters()->refreshHistoryRequests(
+	) | rpl::start_with_next([=](not_null<History*> history) {
+		if (history->inChatList()
+			&& !session().data().chatsFilters()->list().empty()) {
+			refreshDialog(history);
+		}
+	}, lifetime());
+
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Layout::clearUnreadBadgesCache();
@@ -281,7 +291,13 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 
 	_collapsedRows.clear();
 	if (!_openedFolder && Global::DialogsFiltersEnabled()) {
-		_collapsedRows.push_back(std::make_unique<CollapsedRow>());
+		if (_filterId) {
+			_collapsedRows.push_back(std::make_unique<CollapsedRow>(nullptr, 0));
+		} else {
+			for (const auto &[filterId, filter] : session().data().chatsFilters()->list()) {
+				_collapsedRows.push_back(std::make_unique<CollapsedRow>(nullptr, filterId));
+			}
+		}
 	}
 	const auto list = shownDialogs();
 	const auto archive = !list->empty()
@@ -296,8 +312,8 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 			setPressed(nullptr);
 		}
 		_skipTopDialogs = 1;
-		if (!inMainMenu) {
-			_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive));
+		if (!inMainMenu && !_filterId) {
+			_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive, 0));
 		}
 	} else {
 		_skipTopDialogs = 0;
@@ -686,12 +702,13 @@ void InnerWidget::paintCollapsedRow(
 	const auto narrow = (width() <= smallWidth);
 	const auto text = row->folder
 		? row->folder->chatListName()
-		: _filterId // #TODO filters
+		: _filterId
 		? (narrow ? "Show" : tr::lng_dialogs_show_all_chats(tr::now))
-		: (narrow ? "Hide" : tr::lng_dialogs_hide_muted_chats(tr::now));
+		: session().data().chatsFilters()->list().find(
+			row->filterId)->second.title();
 	const auto unread = row->folder
 		? row->folder->chatListUnreadCount()
-		: _filterId // #TODO filters
+		: _filterId
 		? session().data().unreadOnlyMutedBadge()
 		: 0;
 	Layout::PaintCollapsedRow(
@@ -1434,17 +1451,12 @@ void InnerWidget::refreshDialog(Key key) {
 		}
 	}
 
-	const auto result = session().data().refreshChatListEntry(key);
-	const auto changed = _filterId // #TODO filters
-		? result.importantChanged
-		: result.changed;
-	const auto moved = _filterId // #TODO filters
-		? result.importantMoved
-		: result.moved;
-
+	const auto result = session().data().refreshChatListEntry(
+		key,
+		_filterId);
 	const auto rowHeight = st::dialogsRowHeight;
-	const auto from = dialogsOffset() + moved.from * rowHeight;
-	const auto to = dialogsOffset() + moved.to * rowHeight;
+	const auto from = dialogsOffset() + result.moved.from * rowHeight;
+	const auto to = dialogsOffset() + result.moved.to * rowHeight;
 	if (!_dragging
 		&& (from != to)
 		&& (key.entry()->folder() == _openedFolder)) {
@@ -1452,7 +1464,7 @@ void InnerWidget::refreshDialog(Key key) {
 		emit dialogMoved(from, to);
 	}
 
-	if (changed) {
+	if (result.changed) {
 		refresh();
 	} else if (_state == WidgetState::Default && from != to) {
 		update(
@@ -2136,14 +2148,6 @@ void InnerWidget::peerSearchReceived(
 	refresh();
 }
 
-void InnerWidget::notify_historyMuteUpdated(History *history) {
-	// #TODO filters
-	if (!Global::DialogsFiltersEnabled() || !history->inChatList()) {
-		return;
-	}
-	refreshDialog(history);
-}
-
 Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;
 }
@@ -2528,19 +2532,18 @@ bool InnerWidget::chooseCollapsedRow() {
 	if (row->folder) {
 		_controller->openFolder(row->folder);
 	} else {
-		switchImportantChats();
+		switchToFilter(row->filterId);
 	}
 	return true;
 }
 
-void InnerWidget::switchImportantChats() {
+void InnerWidget::switchToFilter(FilterId filterId) {
 	clearSelection();
-	// #TODO filters
-	//if (Global::DialogsFilterId() == 0) {
-	//	Global::SetDialogsMode(Mode::Important);
-	//} else {
-	//	Global::SetDialogsMode(Mode::All);
-	//}
+	if (!Global::DialogsFiltersEnabled()
+		|| !session().data().chatsFilters()->list().contains(filterId)) {
+		filterId = 0;
+	}
+	Global::SetDialogsFilterId(filterId);
 	_filterId = Global::DialogsFilterId();
 	Local::writeUserSettings();
 	refreshWithCollapsedRows(true);
