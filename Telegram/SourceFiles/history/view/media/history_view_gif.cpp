@@ -1120,6 +1120,9 @@ void Gif::validateGroupedCache(
 				&& thumb->height() < kUseNonBlurredThreshold));
 	if (good && !useGood) {
 		good->load({});
+		if (!useThumb) {
+			_data->loadThumbnail(_realParent->fullId());
+		}
 	}
 
 	const auto loadLevel = useGood ? 3 : useThumb ? 2 : image ? 1 : 0;
