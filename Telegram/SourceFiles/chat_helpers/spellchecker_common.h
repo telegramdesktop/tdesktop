@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_cloud_blob.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Spellchecker {
 
 struct Dict : public Storage::CloudBlob::Blob {
@@ -26,6 +30,8 @@ bool UnpackDictionary(const QString &path, int langId);
 
 bool WriteDefaultDictionary();
 std::vector<Dict> Dictionaries();
+
+void Start(not_null<Main::Session*> session);
 
 } // namespace Spellchecker
 

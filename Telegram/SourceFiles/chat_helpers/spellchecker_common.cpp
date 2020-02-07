@@ -9,8 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
-#include "spellcheck/spellcheck_utils.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "base/zlib_help.h"
+#include "spellcheck/platform/platform_spellcheck.h"
+#include "spellcheck/spellcheck_utils.h"
+#include "spellcheck/spellcheck_value.h"
 
 namespace Spellchecker {
 
@@ -154,6 +158,35 @@ bool WriteDefaultDictionary() {
 		return result;
 	}
 	return false;
+}
+
+void Start(not_null<Main::Session*> session) {
+	Spellchecker::SetPhrases({ {
+		{ &ph::lng_spellchecker_add, tr::lng_spellchecker_add() },
+		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
+		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
+	} });
+
+	if (!Platform::Spellchecker::IsSystemSpellchecker()) {
+		Spellchecker::SetWorkingDirPath(DictionariesPath());
+
+		session->settings().dictionariesEnabledChanges(
+		) | rpl::start_with_next([](auto dictionaries) {
+			Platform::Spellchecker::UpdateLanguages(dictionaries);
+		}, session->lifetime());
+
+		session->settings().spellcheckerEnabledChanges(
+		) | rpl::start_with_next([=](auto enabled) {
+			Platform::Spellchecker::UpdateLanguages(
+				enabled
+					? session->settings().dictionariesEnabled()
+					: std::vector<int>());
+		}, session->lifetime());
+	}
+	if (session->settings().spellcheckerEnabled()) {
+		Platform::Spellchecker::UpdateLanguages(
+			session->settings().dictionariesEnabled());
+	}
 }
 
 } // namespace Spellchecker

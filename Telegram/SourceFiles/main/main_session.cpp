@@ -27,6 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "facades.h"
 
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "chat_helpers/spellchecker_common.h"
+#endif // TDESKTOP_DISABLE_SPELLCHECK
+
 namespace Main {
 namespace {
 
@@ -97,6 +101,10 @@ Session::Session(
 	});
 
 	Window::Theme::Background()->start();
+
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+	Spellchecker::Start(this);
+#endif // TDESKTOP_DISABLE_SPELLCHECK
 }
 
 Session::~Session() {
