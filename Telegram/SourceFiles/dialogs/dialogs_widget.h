@@ -41,7 +41,6 @@ class ConnectionState;
 
 namespace Dialogs {
 
-enum class Mode;
 struct RowDescriptor;
 class Row;
 class FakeRow;
@@ -63,7 +62,7 @@ public:
 
 	void refreshDialog(Key key);
 	void removeDialog(Key key);
-	void repaintDialogRow(Mode list, not_null<Row*> row);
+	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 
 	void jumpToTop();

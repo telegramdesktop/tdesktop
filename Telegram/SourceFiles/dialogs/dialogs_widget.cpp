@@ -528,9 +528,9 @@ void Widget::refreshDialog(Key key) {
 }
 
 void Widget::repaintDialogRow(
-		Mode list,
+		FilterId filterId,
 		not_null<Row*> row) {
-	_inner->repaintDialogRow(list, row);
+	_inner->repaintDialogRow(filterId, row);
 }
 
 void Widget::repaintDialogRow(RowDescriptor row) {

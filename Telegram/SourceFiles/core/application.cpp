@@ -503,8 +503,8 @@ void Application::switchDebugMode() {
 }
 
 void Application::switchWorkMode() {
-	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
-	Global::SetDialogsMode(Dialogs::Mode::All);
+	Global::SetDialogsFiltersEnabled(!Global::DialogsFiltersEnabled());
+	Global::SetDialogsFilterId(0);
 	Local::writeUserSettings();
 	App::restart();
 }

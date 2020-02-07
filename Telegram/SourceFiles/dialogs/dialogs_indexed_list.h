@@ -33,7 +33,7 @@ public:
 
 	//For sortMode == SortMode::Date
 	void peerNameChanged(
-		Mode list,
+		FilterId filterId,
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldChars);
 
@@ -48,8 +48,6 @@ public:
 		return (i != _index.end()) ? &i->second : nullptr;
 	}
 	std::vector<not_null<Row*>> filtered(const QStringList &words) const;
-
-	~IndexedList();
 
 	// Part of List interface is duplicated here for all() list.
 	int size() const { return all().size(); }
@@ -78,7 +76,7 @@ private:
 		Key key,
 		const base::flat_set<QChar> &oldChars);
 	void adjustNames(
-		Mode list,
+		FilterId filterId,
 		not_null<History*> history,
 		const base::flat_set<QChar> &oldChars);
 

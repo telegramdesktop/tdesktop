@@ -58,7 +58,6 @@ public:
 	TimeId adjustedChatListTimeId() const override;
 
 	int fixedOnTopIndex() const override;
-	bool toImportant() const override;
 	bool shouldBeInChatList() const override;
 	int chatListUnreadCount() const override;
 	bool chatListUnreadMark() const override;

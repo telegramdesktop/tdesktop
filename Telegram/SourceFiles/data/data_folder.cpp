@@ -441,10 +441,6 @@ void Folder::unreadEntryChanged(
 //	return _unreadPosition.changes();
 //}
 
-bool Folder::toImportant() const {
-	return false;
-}
-
 int Folder::fixedOnTopIndex() const {
 	return kArchiveFixOnTopIndex;
 }

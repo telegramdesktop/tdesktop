@@ -3363,25 +3363,25 @@ auto Session::refreshChatListEntry(Dialogs::Key key)
 	auto result = RefreshChatListEntryResult();
 	result.changed = !entry->inChatList();
 	if (result.changed) {
-		const auto mainRow = entry->addToChatList(Mode::All);
+		const auto mainRow = entry->addToChatList(0);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		result.moved = entry->adjustByPosInChatList(Mode::All);
+		result.moved = entry->adjustByPosInChatList(0);
 	}
-	if (Global::DialogsModeEnabled()) {
-		if (entry->toImportant()) {
-			result.importantChanged = !entry->inChatList(Mode::Important);
-			if (result.importantChanged) {
-				entry->addToChatList(Mode::Important);
-			} else {
-				result.importantMoved = entry->adjustByPosInChatList(
-					Mode::Important);
-			}
-		} else if (entry->inChatList(Mode::Important)) {
-			entry->removeFromChatList(Mode::Important);
-			result.importantChanged = true;
-		}
-	}
+	//if (Global::DialogsFiltersEnabled()) { // #TODO filters
+	//	if (entry->toImportant()) {
+	//		result.importantChanged = !entry->inChatList(Mode::Important);
+	//		if (result.importantChanged) {
+	//			entry->addToChatList(Mode::Important);
+	//		} else {
+	//			result.importantMoved = entry->adjustByPosInChatList(
+	//				Mode::Important);
+	//		}
+	//	} else if (entry->inChatList(Mode::Important)) {
+	//		entry->removeFromChatList(Mode::Important);
+	//		result.importantChanged = true;
+	//	}
+	//}
 	return result;
 }
 
@@ -3389,10 +3389,10 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	entry->removeFromChatList(Mode::All);
-	if (Global::DialogsModeEnabled()) {
-		entry->removeFromChatList(Mode::Important);
-	}
+	entry->removeFromChatList(0);
+	//if (Global::DialogsFiltersEnabled()) { // #TODO filters
+	//	entry->removeFromChatList(Mode::Important);
+	//}
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {
 			_contactsNoChatsList.addByName(key);

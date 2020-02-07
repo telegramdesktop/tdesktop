@@ -2183,9 +2183,9 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 }
 
 void MainWidget::repaintDialogRow(
-		Dialogs::Mode list,
+		FilterId filterId,
 		not_null<Dialogs::Row*> row) {
-	_dialogs->repaintDialogRow(list, row);
+	_dialogs->repaintDialogRow(filterId, row);
 }
 
 void MainWidget::repaintDialogRow(Dialogs::RowDescriptor row) {

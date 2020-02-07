@@ -20,16 +20,17 @@ IndexedList::IndexedList(SortMode sortMode)
 }
 
 RowsByLetter IndexedList::addToEnd(Key key) {
-	RowsByLetter result;
-	if (!_list.contains(key)) {
-		result.emplace(0, _list.addToEnd(key));
-		for (const auto ch : key.entry()->chatListFirstLetters()) {
-			auto j = _index.find(ch);
-			if (j == _index.cend()) {
-				j = _index.emplace(ch, _sortMode).first;
-			}
-			result.emplace(ch, j->second.addToEnd(key));
+	if (const auto row = _list.getRow(key)) {
+		return { row };
+	}
+
+	auto result = RowsByLetter{ _list.addToEnd(key) };
+	for (const auto ch : key.entry()->chatListFirstLetters()) {
+		auto j = _index.find(ch);
+		if (j == _index.cend()) {
+			j = _index.emplace(ch, _sortMode).first;
 		}
+		result.letters.emplace(ch, j->second.addToEnd(key));
 	}
 	return result;
 }
@@ -51,13 +52,10 @@ Row *IndexedList::addByName(Key key) {
 }
 
 void IndexedList::adjustByDate(const RowsByLetter &links) {
-	for (const auto [ch, row] : links) {
-		if (ch == QChar(0)) {
-			_list.adjustByDate(row);
-		} else {
-			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second.adjustByDate(row);
-			}
+	_list.adjustByDate(links.main);
+	for (const auto [ch, row] : links.letters) {
+		if (auto it = _index.find(ch); it != _index.cend()) {
+			it->second.adjustByDate(row);
 		}
 	}
 }
@@ -95,19 +93,19 @@ void IndexedList::peerNameChanged(
 		if (_sortMode == SortMode::Name) {
 			adjustByName(history, oldLetters);
 		} else {
-			adjustNames(Dialogs::Mode::All, history, oldLetters);
+			adjustNames(FilterId(), history, oldLetters);
 		}
 	}
 }
 
 void IndexedList::peerNameChanged(
-		Mode list,
+		FilterId filterId,
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters) {
 	Expects(_sortMode == SortMode::Date);
 
 	if (const auto history = peer->owner().historyLoaded(peer)) {
-		adjustNames(list, history, oldLetters);
+		adjustNames(filterId, history, oldLetters);
 	}
 }
 
@@ -149,7 +147,7 @@ void IndexedList::adjustByName(
 }
 
 void IndexedList::adjustNames(
-		Mode list,
+		FilterId filterId,
 		not_null<History*> history,
 		const base::flat_set<QChar> &oldLetters) {
 	const auto key = Dialogs::Key(history);
@@ -168,7 +166,7 @@ void IndexedList::adjustNames(
 	}
 	for (auto ch : toRemove) {
 		if (_sortMode == SortMode::Date) {
-			history->removeChatListEntryByLetter(list, ch);
+			history->removeChatListEntryByLetter(filterId, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
 			it->second.del(key, mainRow);
@@ -181,7 +179,7 @@ void IndexedList::adjustNames(
 		}
 		auto row = j->second.addToEnd(key);
 		if (_sortMode == SortMode::Date) {
-			history->addChatListEntryByLetter(list, ch, row);
+			history->addChatListEntryByLetter(filterId, ch, row);
 		}
 	}
 }
@@ -248,10 +246,6 @@ std::vector<not_null<Row*>> IndexedList::filtered(
 		}
 	}
 	return result;
-}
-
-IndexedList::~IndexedList() {
-	clear();
 }
 
 } // namespace Dialogs

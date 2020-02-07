@@ -24,17 +24,16 @@ namespace Dialogs {
 
 class Row;
 class IndexedList;
-using RowsByLetter = base::flat_map<QChar, not_null<Row*>>;
+
+struct RowsByLetter {
+	not_null<Row*> main;
+	base::flat_map<QChar, not_null<Row*>> letters;
+};
 
 enum class SortMode {
 	Date = 0x00,
 	Name = 0x01,
 	Add  = 0x02,
-};
-
-enum class Mode {
-	All       = 0x00,
-	Important = 0x01,
 };
 
 struct PositionChange {
@@ -94,19 +93,19 @@ public:
 	Entry &operator=(const Entry &other) = delete;
 	virtual ~Entry() = default;
 
-	Data::Session &owner() const;
-	Main::Session &session() const;
+	[[nodiscard]] Data::Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
 
-	PositionChange adjustByPosInChatList(Mode list);
-	bool inChatList(Mode list = Mode::All) const {
-		return !chatListLinks(list).empty();
+	PositionChange adjustByPosInChatList(FilterId filterId);
+	[[nodiscard]] bool inChatList(FilterId filterId = 0) const {
+		return _chatListLinks.contains(filterId);
 	}
-	int posInChatList(Mode list) const;
-	not_null<Row*> addToChatList(Mode list);
-	void removeFromChatList(Mode list);
-	void removeChatListEntryByLetter(Mode list, QChar letter);
+	[[nodiscard]] int posInChatList(FilterId filterId) const;
+	not_null<Row*> addToChatList(FilterId filterId);
+	void removeFromChatList(FilterId filterId);
+	void removeChatListEntryByLetter(FilterId filterId, QChar letter);
 	void addChatListEntryByLetter(
-		Mode list,
+		FilterId filterId,
 		QChar letter,
 		not_null<Row*> row);
 	void updateChatListEntry() const;
@@ -131,7 +130,6 @@ public:
 	static constexpr auto kArchiveFixOnTopIndex = 1;
 	static constexpr auto kProxyPromotionFixOnTopIndex = 2;
 
-	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListUnreadMark() const = 0;
@@ -190,15 +188,16 @@ private:
 	void notifyUnreadStateChange(const UnreadState &wasState);
 
 	void setChatListExistence(bool exists);
-	RowsByLetter &chatListLinks(Mode list);
-	const RowsByLetter &chatListLinks(Mode list) const;
-	Row *mainChatListLink(Mode list) const;
+	RowsByLetter *chatListLinks(FilterId filterId);
+	const RowsByLetter *chatListLinks(FilterId filterId) const;
+	not_null<Row*> mainChatListLink(FilterId filterId) const;
+	Row *maybeMainChatListLink(FilterId filterId) const;
 
-	not_null<IndexedList*> myChatsList(Mode list) const;
+	not_null<IndexedList*> myChatsList(FilterId filterId) const;
 
 	not_null<Data::Session*> _owner;
 	Dialogs::Key _key;
-	RowsByLetter _chatListLinks[2];
+	base::flat_map<FilterId, RowsByLetter> _chatListLinks;
 	uint64 _sortKeyInChatList = 0;
 	int _pinnedIndex = 0;
 	bool _isProxyPromoted = false;

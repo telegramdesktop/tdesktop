@@ -129,7 +129,7 @@ SessionController::SessionController(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder != nullptr)
 			&& (folder == _openedFolder.current())
-			&& folder->chatsList()->indexed(Global::DialogsMode())->empty();
+			&& folder->chatsList()->indexed()->empty();
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		folder->updateChatListSortPosition();
 		closeFolder();

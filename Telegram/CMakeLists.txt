@@ -320,6 +320,8 @@ PRIVATE
     data/data_auto_download.h
     data/data_chat.cpp
     data/data_chat.h
+    data/data_chat_filters.cpp
+    data/data_chat_filters.h
     data/data_channel.cpp
     data/data_channel.h
     data/data_channel_admins.cpp

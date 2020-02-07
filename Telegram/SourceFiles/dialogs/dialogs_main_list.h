@@ -27,16 +27,16 @@ public:
 	void unreadEntryChanged(
 		const Dialogs::UnreadState &state,
 		bool added);
-	UnreadState unreadState() const;
+	[[nodiscard]] UnreadState unreadState() const;
 
-	not_null<IndexedList*> indexed(Mode list = Mode::All);
-	not_null<const IndexedList*> indexed(Mode list = Mode::All) const;
+	not_null<IndexedList*> indexed(FilterId filterId = 0);
+	not_null<const IndexedList*> indexed() const;
 	not_null<PinnedList*> pinned();
 	not_null<const PinnedList*> pinned() const;
 
 private:
 	IndexedList _all;
-	IndexedList _important;
+	base::flat_map<FilterId, IndexedList> _other;
 	PinnedList _pinned;
 	UnreadState _unreadState;
 

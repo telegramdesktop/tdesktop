@@ -70,7 +70,7 @@ auto GenerateCodes() {
 		Unexpected("Crashed in Settings!");
 	});
 	codes.emplace(qsl("workmode"), [](::Main::Session *session) {
-		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
+		auto text = Global::DialogsFiltersEnabled() ? qsl("Disable filters?") : qsl("Enable filters?");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			Core::App().switchWorkMode();
 		}));

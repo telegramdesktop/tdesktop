@@ -118,9 +118,9 @@ InnerWidget::InnerWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif // OS_MAC_OLD
 
-	_mode = Global::DialogsModeEnabled()
-		? Global::DialogsMode()
-		: Dialogs::Mode::All;
+	_filterId = Global::DialogsFiltersEnabled()
+		? Global::DialogsFilterId()
+		: 0;
 
 	_addContactLnk->addClickHandler([] { App::wnd()->onShowAddContact(); });
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
@@ -280,7 +280,7 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 	_collapsedSelected = -1;
 
 	_collapsedRows.clear();
-	if (!_openedFolder && Global::DialogsModeEnabled()) {
+	if (!_openedFolder && Global::DialogsFiltersEnabled()) {
 		_collapsedRows.push_back(std::make_unique<CollapsedRow>());
 	}
 	const auto list = shownDialogs();
@@ -368,7 +368,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
-	_mode = _openedFolder ? Mode::All : Global::DialogsMode();
+	_filterId = _openedFolder ? 0 : Global::DialogsFilterId();
 	refreshWithCollapsedRows(true);
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
@@ -686,12 +686,12 @@ void InnerWidget::paintCollapsedRow(
 	const auto narrow = (width() <= smallWidth);
 	const auto text = row->folder
 		? row->folder->chatListName()
-		: (_mode == Dialogs::Mode::Important)
+		: _filterId // #TODO filters
 		? (narrow ? "Show" : tr::lng_dialogs_show_all_chats(tr::now))
 		: (narrow ? "Hide" : tr::lng_dialogs_hide_muted_chats(tr::now));
 	const auto unread = row->folder
 		? row->folder->chatListUnreadCount()
-		: (_mode == Dialogs::Mode::Important)
+		: _filterId // #TODO filters
 		? session().data().unreadOnlyMutedBadge()
 		: 0;
 	Layout::PaintCollapsedRow(
@@ -1049,11 +1049,11 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
 		const auto row = _filterResults[_filteredPressed];
-		const auto list = _mode;
+		const auto filterId = _filterId;
 		row->addRipple(
 			e->pos() - QPoint(0, filteredOffset() + _filteredPressed * st::dialogsRowHeight),
 			QSize(width(), st::dialogsRowHeight),
-			[=] { repaintDialogRow(list, row); });
+			[=] { repaintDialogRow(filterId, row); });
 	} else if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
 		auto &result = _peerSearchResults[_peerSearchPressed];
 		auto row = &result->row;
@@ -1435,10 +1435,10 @@ void InnerWidget::refreshDialog(Key key) {
 	}
 
 	const auto result = session().data().refreshChatListEntry(key);
-	const auto changed = (_mode == Mode::Important)
+	const auto changed = _filterId // #TODO filters
 		? result.importantChanged
 		: result.changed;
-	const auto moved = (_mode == Mode::Important)
+	const auto moved = _filterId // #TODO filters
 		? result.importantMoved
 		: result.moved;
 
@@ -1511,17 +1511,17 @@ int InnerWidget::defaultRowTop(not_null<Row*> row) const {
 }
 
 void InnerWidget::repaintDialogRow(
-		Mode list,
+		FilterId filterId,
 		not_null<Row*> row) {
 	if (_state == WidgetState::Default) {
-		if (_mode == list) {
+		if (_filterId == filterId) {
 			if (const auto folder = row->folder()) {
 				repaintCollapsedFolderRow(folder);
 			}
 			update(0, defaultRowTop(row), width(), st::dialogsRowHeight);
 		}
 	} else if (_state == WidgetState::Filtered) {
-		if (list == Mode::All) {
+		if (!filterId) {
 			for (auto i = 0, l = int(_filterResults.size()); i != l; ++i) {
 				if (_filterResults[i]->key() == row->key()) {
 					update(
@@ -1645,10 +1645,10 @@ void InnerWidget::updateSelectedRow(Key key) {
 	if (_state == WidgetState::Default) {
 		if (key) {
 			const auto entry = key.entry();
-			if (!entry->inChatList(_mode)) {
+			if (!entry->inChatList(_filterId)) {
 				return;
 			}
-			auto position = entry->posInChatList(_mode);
+			auto position = entry->posInChatList(_filterId);
 			auto top = dialogsOffset();
 			if (base::in_range(position, 0, _pinnedRows.size())) {
 				top += qRound(_pinnedRows[position].yadd.current());
@@ -1680,7 +1680,7 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 not_null<IndexedList*> InnerWidget::shownDialogs() const {
-	return session().data().chatsList(_openedFolder)->indexed(_mode);
+	return session().data().chatsList(_openedFolder)->indexed(_filterId);
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {
@@ -2137,7 +2137,8 @@ void InnerWidget::peerSearchReceived(
 }
 
 void InnerWidget::notify_historyMuteUpdated(History *history) {
-	if (!Global::DialogsModeEnabled() || !history->inChatList()) {
+	// #TODO filters
+	if (!Global::DialogsFiltersEnabled() || !history->inChatList()) {
 		return;
 	}
 	refreshDialog(history);
@@ -2425,22 +2426,23 @@ void InnerWidget::scrollToEntry(const RowDescriptor &entry) {
 
 void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 	clearMouseSelection();
+	const auto list = shownDialogs();
 	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == WidgetState::Default) {
 		if (!_selected) {
-			if (direction > 0 && shownDialogs()->size() > _skipTopDialogs) {
-				_selected = *(shownDialogs()->cbegin() + _skipTopDialogs);
+			if (direction > 0 && list->size() > _skipTopDialogs) {
+				_selected = *(list->cbegin() + _skipTopDialogs);
 				_collapsedSelected = -1;
 			} else {
 				return;
 			}
 		}
 		if (direction > 0) {
-			for (auto i = shownDialogs()->cfind(_selected), end = shownDialogs()->cend(); i != end && (toSkip--); ++i) {
+			for (auto i = list->cfind(_selected), end = list->cend(); i != end && (toSkip--); ++i) {
 				_selected = *i;
 			}
 		} else {
-			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (*i)->pos() > _skipTopDialogs && (toSkip--);) {
+			for (auto i = list->cfind(_selected), b = list->cbegin(); i != b && (*i)->pos() > _skipTopDialogs && (toSkip--);) {
 				_selected = *(--i);
 			}
 			if (toSkip && !_collapsedRows.empty()) {
@@ -2463,12 +2465,13 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 void InnerWidget::loadPeerPhotos() {
 	if (!parentWidget()) return;
 
+	const auto list = shownDialogs();
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
 	if (_state == WidgetState::Default) {
-		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
+		auto otherStart = list->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {
-			for (auto i = shownDialogs()->cfind(yFrom, st::dialogsRowHeight), end = shownDialogs()->cend(); i != end; ++i) {
+			for (auto i = list->cfind(yFrom, st::dialogsRowHeight), end = list->cend(); i != end; ++i) {
 				if (((*i)->pos() * st::dialogsRowHeight) >= yTo) {
 					break;
 				}
@@ -2532,12 +2535,13 @@ bool InnerWidget::chooseCollapsedRow() {
 
 void InnerWidget::switchImportantChats() {
 	clearSelection();
-	if (Global::DialogsMode() == Mode::All) {
-		Global::SetDialogsMode(Mode::Important);
-	} else {
-		Global::SetDialogsMode(Mode::All);
-	}
-	_mode = Global::DialogsMode();
+	// #TODO filters
+	//if (Global::DialogsFilterId() == 0) {
+	//	Global::SetDialogsMode(Mode::Important);
+	//} else {
+	//	Global::SetDialogsMode(Mode::All);
+	//}
+	_filterId = Global::DialogsFilterId();
 	Local::writeUserSettings();
 	refreshWithCollapsedRows(true);
 	_collapsedSelected = 0;
@@ -2633,9 +2637,10 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 		return RowDescriptor();
 	}
 	if (_state == WidgetState::Default) {
-		if (const auto row = shownDialogs()->getRow(which.key)) {
-			const auto i = shownDialogs()->cfind(row);
-			if (i != shownDialogs()->cbegin()) {
+		const auto list = shownDialogs();
+		if (const auto row = list->getRow(which.key)) {
+			const auto i = list->cfind(row);
+			if (i != list->cbegin()) {
 				return RowDescriptor(
 					(*(i - 1))->key(),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
@@ -2710,9 +2715,10 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 		return RowDescriptor();
 	}
 	if (_state == WidgetState::Default) {
-		if (const auto row = shownDialogs()->getRow(which.key)) {
-			const auto i = shownDialogs()->cfind(row) + 1;
-			if (i != shownDialogs()->cend()) {
+		const auto list = shownDialogs();
+		if (const auto row = list->getRow(which.key)) {
+			const auto i = list->cfind(row) + 1;
+			if (i != list->cend()) {
 				return RowDescriptor(
 					(*i)->key(),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
@@ -2775,8 +2781,9 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 
 RowDescriptor InnerWidget::chatListEntryFirst() const {
 	if (_state == WidgetState::Default) {
-		const auto i = shownDialogs()->cbegin();
-		if (i != shownDialogs()->cend()) {
+		const auto list = shownDialogs();
+		const auto i = list->cbegin();
+		if (i != list->cend()) {
 			return RowDescriptor(
 				(*i)->key(),
 				FullMsgId(NoChannel, ShowAtUnreadMsgId));
@@ -2800,8 +2807,9 @@ RowDescriptor InnerWidget::chatListEntryFirst() const {
 
 RowDescriptor InnerWidget::chatListEntryLast() const {
 	if (_state == WidgetState::Default) {
-		const auto i = shownDialogs()->cend();
-		if (i != shownDialogs()->cbegin()) {
+		const auto list = shownDialogs();
+		const auto i = list->cend();
+		if (i != list->cbegin()) {
 			return RowDescriptor(
 				(*(i - 1))->key(),
 				FullMsgId(NoChannel, ShowAtUnreadMsgId));

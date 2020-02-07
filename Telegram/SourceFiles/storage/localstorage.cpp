@@ -613,7 +613,7 @@ enum {
 	dbiHiddenPinnedMessages = 0x39,
 	dbiRecentEmoji = 0x3a,
 	dbiEmojiVariants = 0x3b,
-	dbiDialogsMode = 0x40,
+	dbiDialogsFilters = 0x40,
 	dbiModerateMode = 0x41,
 	dbiVideoVolume = 0x42,
 	dbiStickersRecentLimit = 0x43,
@@ -1167,20 +1167,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		}
 	} break;
 
-	case dbiDialogsMode: {
+	case dbiDialogsFilters: {
 		qint32 enabled, modeInt;
 		stream >> enabled >> modeInt;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetDialogsModeEnabled(enabled == 1);
-		auto mode = Dialogs::Mode::All;
+		Global::SetDialogsFiltersEnabled(enabled == 1);
+		auto mode = FilterId(0);
 		if (enabled) {
-			mode = static_cast<Dialogs::Mode>(modeInt);
-			if (mode != Dialogs::Mode::All && mode != Dialogs::Mode::Important) {
-				mode = Dialogs::Mode::All;
+			mode = FilterId(modeInt);
+			if (mode == 1) { // #TODO filters
+
 			}
 		}
-		Global::SetDialogsMode(mode);
+		Global::SetDialogsFilterId(mode);
 	} break;
 
 	case dbiModerateMode: {
@@ -2140,7 +2140,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
 	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
-	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
+	data.stream << quint32(dbiDialogsFilters) << qint32(Global::DialogsFiltersEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsFilterId());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);

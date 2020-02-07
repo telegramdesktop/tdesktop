@@ -131,25 +131,33 @@ TimeId Entry::adjustedChatListTimeId() const {
 void Entry::changedChatListPinHook() {
 }
 
-RowsByLetter &Entry::chatListLinks(Mode list) {
-	return _chatListLinks[static_cast<int>(list)];
+RowsByLetter *Entry::chatListLinks(FilterId filterId) {
+	const auto i = _chatListLinks.find(filterId);
+	return (i != end(_chatListLinks)) ? &i->second : nullptr;
 }
 
-const RowsByLetter &Entry::chatListLinks(Mode list) const {
-	return _chatListLinks[static_cast<int>(list)];
+const RowsByLetter *Entry::chatListLinks(FilterId filterId) const {
+	const auto i = _chatListLinks.find(filterId);
+	return (i != end(_chatListLinks)) ? &i->second : nullptr;
 }
 
-Row *Entry::mainChatListLink(Mode list) const {
-	auto it = chatListLinks(list).find(0);
-	Assert(it != chatListLinks(list).cend());
-	return it->second;
+not_null<Row*> Entry::mainChatListLink(FilterId filterId) const {
+	const auto links = chatListLinks(filterId);
+	Assert(links != nullptr);
+	return links->main;
 }
 
-PositionChange Entry::adjustByPosInChatList(Mode list) {
-	const auto lnk = mainChatListLink(list);
-	const auto from = lnk->pos();
-	myChatsList(list)->adjustByDate(chatListLinks(list));
-	const auto to = lnk->pos();
+Row *Entry::maybeMainChatListLink(FilterId filterId) const {
+	const auto links = chatListLinks(filterId);
+	return links ? links->main.get() : nullptr;
+}
+
+PositionChange Entry::adjustByPosInChatList(FilterId filterId) {
+	const auto links = chatListLinks(filterId);
+	Assert(links != nullptr);
+	const auto from = links->main->pos();
+	myChatsList(filterId)->adjustByDate(*links);
+	const auto to = links->main->pos();
 	return { from, to };
 }
 
@@ -161,60 +169,57 @@ void Entry::setChatListTimeId(TimeId date) {
 	}
 }
 
-int Entry::posInChatList(Dialogs::Mode list) const {
-	return mainChatListLink(list)->pos();
+int Entry::posInChatList(FilterId filterId) const {
+	return mainChatListLink(filterId)->pos();
 }
 
-not_null<Row*> Entry::addToChatList(Mode list) {
-	if (!inChatList(list)) {
-		chatListLinks(list) = myChatsList(list)->addToEnd(_key);
-		if (list == Mode::All) {
-			owner().unreadEntryChanged(_key, true);
-		}
+not_null<Row*> Entry::addToChatList(FilterId filterId) {
+	if (const auto main = maybeMainChatListLink(filterId)) {
+		return main;
 	}
-	return mainChatListLink(list);
+	const auto result = _chatListLinks.emplace(
+		filterId,
+		myChatsList(filterId)->addToEnd(_key)
+	).first->second.main;
+	if (!filterId) {
+		owner().unreadEntryChanged(_key, true);
+	}
+	return result;
 }
 
-void Entry::removeFromChatList(Dialogs::Mode list) {
-	if (inChatList(list)) {
-		myChatsList(list)->del(_key);
-		chatListLinks(list).clear();
-		if (list == Mode::All) {
-			owner().unreadEntryChanged(_key, false);
-		}
+void Entry::removeFromChatList(FilterId filterId) {
+	const auto i = _chatListLinks.find(filterId);
+	if (i == end(_chatListLinks)) {
+		return;
+	}
+	myChatsList(filterId)->del(_key);
+	_chatListLinks.erase(i);
+	if (!filterId) {
+		owner().unreadEntryChanged(_key, false);
 	}
 }
 
-void Entry::removeChatListEntryByLetter(Mode list, QChar letter) {
-	Expects(letter != 0);
-
-	if (inChatList(list)) {
-		chatListLinks(list).remove(letter);
+void Entry::removeChatListEntryByLetter(FilterId filterId, QChar letter) {
+	const auto i = _chatListLinks.find(filterId);
+	if (i != end(_chatListLinks)) {
+		i->second.letters.remove(letter);
 	}
 }
 
 void Entry::addChatListEntryByLetter(
-		Mode list,
+		FilterId filterId,
 		QChar letter,
 		not_null<Row*> row) {
-	Expects(letter != 0);
-
-	if (inChatList(list)) {
-		chatListLinks(list).emplace(letter, row);
+	const auto i = _chatListLinks.find(filterId);
+	if (i != end(_chatListLinks)) {
+		i->second.letters.emplace(letter, row);
 	}
 }
 
 void Entry::updateChatListEntry() const {
 	if (const auto main = App::main()) {
-		if (inChatList()) {
-			main->repaintDialogRow(
-				Mode::All,
-				mainChatListLink(Mode::All));
-			if (inChatList(Mode::Important)) {
-				main->repaintDialogRow(
-					Mode::Important,
-					mainChatListLink(Mode::Important));
-			}
+		for (const auto &[filterId, links] : _chatListLinks) {
+			main->repaintDialogRow(filterId, links.main);
 		}
 		if (session().supportMode()
 			&& !session().settings().supportAllSearchResults()) {
@@ -223,8 +228,8 @@ void Entry::updateChatListEntry() const {
 	}
 }
 
-not_null<IndexedList*> Entry::myChatsList(Mode list) const {
-	return owner().chatsList(folder())->indexed(list);
+not_null<IndexedList*> Entry::myChatsList(FilterId filterId) const {
+	return owner().chatsList(folder())->indexed(filterId);
 }
 
 } // namespace Dialogs

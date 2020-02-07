@@ -314,8 +314,8 @@ struct Data {
 	bool AdaptiveForWide = true;
 	base::Observable<void> AdaptiveChanged;
 
-	bool DialogsModeEnabled = false;
-	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
+	bool DialogsFiltersEnabled = false;
+	FilterId DialogsFilterId = 0;
 	bool ModerateModeEnabled = false;
 
 	bool ScreenIsLocked = false;
@@ -444,8 +444,8 @@ DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
 DefineVar(Global, bool, AdaptiveForWide);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
 
-DefineVar(Global, bool, DialogsModeEnabled);
-DefineVar(Global, Dialogs::Mode, DialogsMode);
+DefineVar(Global, bool, DialogsFiltersEnabled);
+DefineVar(Global, FilterId, DialogsFilterId);
 DefineVar(Global, bool, ModerateModeEnabled);
 
 DefineVar(Global, bool, ScreenIsLocked);

@@ -38,7 +38,6 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class IndexedList;
-enum class Mode;
 
 struct ChosenRow {
 	Key key;
@@ -89,7 +88,7 @@ public:
 
 	void refreshDialog(Key key);
 	void removeDialog(Key key);
-	void repaintDialogRow(Mode list, not_null<Row*> row);
+	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 
 	void dragLeft();
@@ -310,7 +309,7 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 
-	Mode _mode = Mode();
+	FilterId _filterId = 0;
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;

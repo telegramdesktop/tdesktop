@@ -838,7 +838,7 @@ void History::setUnreadMentionsCount(int count) {
 	}
 	_unreadMentionsCount = count;
 	const auto has = (count > 0);
-	if (has != had && Global::DialogsModeEnabled()) {
+	if (has != had && Global::DialogsFiltersEnabled()) { // #TODO filters
 		Notify::historyMuteUpdated(this);
 		updateChatListEntry();
 	}
@@ -1912,8 +1912,6 @@ void History::clearFolder() {
 }
 
 void History::setFolderPointer(Data::Folder *folder) {
-	using Mode = Dialogs::Mode;
-
 	if (_folder == folder) {
 		return;
 	}
@@ -1922,23 +1920,24 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
-	const auto wasInImportant = wasInList && inChatList(Mode::Important);
-	if (wasInList) {
-		removeFromChatList(Mode::All);
-		if (wasInImportant) {
-			removeFromChatList(Mode::Important);
-		}
-	}
+	// #TODO filters
+	//const auto wasInImportant = wasInList && inChatList(Mode::Important);
+	//if (wasInList) {
+	//	removeFromChatList(Mode::All);
+	//	if (wasInImportant) {
+	//		removeFromChatList(Mode::Important);
+	//	}
+	//}
 	const auto was = _folder.value_or(nullptr);
 	_folder = folder;
 	if (was) {
 		was->unregisterOne(this);
 	}
 	if (wasInList) {
-		addToChatList(Mode::All);
-		if (wasInImportant) {
-			addToChatList(Mode::Important);
-		}
+		addToChatList(0);
+		//if (wasInImportant) { // #TODO filters
+		//	addToChatList(Mode::Important);
+		//}
 		owner().chatsListChanged(was);
 		owner().chatsListChanged(folder);
 	} else if (!wasKnown) {
@@ -2600,10 +2599,6 @@ bool History::shouldBeInChatList() const {
 	}
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
-}
-
-bool History::toImportant() const {
-	return !mute() || hasUnreadMentions();
 }
 
 void History::unknownMessageDeleted(MsgId messageId) {

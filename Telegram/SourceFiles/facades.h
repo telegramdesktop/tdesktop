@@ -18,10 +18,6 @@ namespace Data {
 struct FileOrigin;
 } // namespace Data
 
-namespace Dialogs {
-enum class Mode;
-} // namespace Dialogs
-
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -154,8 +150,8 @@ DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
 DeclareVar(bool, AdaptiveForWide);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
-DeclareVar(bool, DialogsModeEnabled);
-DeclareVar(Dialogs::Mode, DialogsMode);
+DeclareVar(bool, DialogsFiltersEnabled);
+DeclareVar(FilterId, DialogsFilterId);
 DeclareVar(bool, ModerateModeEnabled);
 
 DeclareVar(bool, ScreenIsLocked);
