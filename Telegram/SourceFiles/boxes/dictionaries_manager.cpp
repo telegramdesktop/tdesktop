@@ -40,10 +40,14 @@ public:
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,
-		int size);
+		int size,
+		Fn<void()> destroyCallback);
 
 	void destroy() override;
 	void unpack(const QString &path) override;
+
+private:
+	Fn<void()> _destroyCallback;
 
 };
 
@@ -59,14 +63,6 @@ private:
 	Dictionaries _enabledRows;
 
 };
-
-base::unique_qptr<Loader> GlobalLoader;
-rpl::event_stream<Loader*> GlobalLoaderValues;
-
-void SetGlobalLoader(base::unique_qptr<Loader> loader) {
-	GlobalLoader = std::move(loader);
-	GlobalLoaderValues.fire(GlobalLoader.get());
-}
 
 inline auto DictExists(int langId) {
 	return Spellchecker::DictionaryExists(langId);
@@ -91,29 +87,24 @@ Loader::Loader(
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
-	int size) : BlobLoader(parent, id, location, folder, size) {
+	int size,
+	Fn<void()> destroyCallback)
+: BlobLoader(parent, id, location, folder, size)
+, _destroyCallback(std::move(destroyCallback)) {
 }
 
 void Loader::unpack(const QString &path) {
-	const auto weak = Ui::MakeWeak(this);
+	Expects(_destroyCallback);
 	crl::async([=] {
-		if (Spellchecker::UnpackDictionary(path, id())) {
+		const auto success = Spellchecker::UnpackDictionary(path, id());
+		if (success) {
 			QFile(path).remove();
-			crl::on_main(weak, [=] {
-				destroy();
-			});
-		} else {
-			crl::on_main(weak, [=] {
-				fail();
-			});
 		}
+		crl::on_main(success ? _destroyCallback : [=] { fail(); });
 	});
 }
 
 void Loader::destroy() {
-	Expects(GlobalLoader == this);
-
-	SetGlobalLoader(nullptr);
 }
 
 Inner::Inner(
@@ -142,6 +133,20 @@ auto AddButtonWithLoader(
 			)
 		)
 	)->entity();
+
+
+	const auto localLoader = button->lifetime()
+		.make_state<base::unique_qptr<Loader>>();
+	const auto localLoaderValues = button->lifetime()
+		.make_state<rpl::event_stream<Loader*>>();
+	const auto setLocalLoader = [=](base::unique_qptr<Loader> loader) {
+		*localLoader = std::move(loader);
+		localLoaderValues->fire(localLoader->get());
+	};
+	const auto destroyLocalLoader = [=] {
+		setLocalLoader(nullptr);
+	};
+
 
 	const auto buttonState = button->lifetime()
 		.make_state<rpl::variable<DictState>>();
@@ -191,9 +196,9 @@ auto AddButtonWithLoader(
 		)
 	);
 
-	*buttonState = GlobalLoaderValues.events_starting_with(
-		GlobalLoader.get()
-	) | rpl::map([=](Loader *loader) {
+	 *buttonState = localLoaderValues->events_starting_with(
+	 	localLoader->get()
+	 ) | rpl::map([=](Loader *loader) {
 		return (loader && loader->id() == id)
 			? loader->state()
 			: rpl::single(
@@ -212,15 +217,17 @@ auto AddButtonWithLoader(
 	) | rpl::start_with_next([=](bool toggled) {
 		const auto &state = buttonState->current();
 		if (toggled && (state.is<Available>() || state.is<Failed>())) {
-			SetGlobalLoader(base::make_unique_q<Loader>(
+			const auto weak = Ui::MakeWeak(button);
+			setLocalLoader(base::make_unique_q<Loader>(
 				App::main(),
 				id,
 				Spellchecker::GetDownloadLocation(id),
 				Spellchecker::DictPathByLangId(id),
-				Spellchecker::GetDownloadSize(id)));
+				Spellchecker::GetDownloadSize(id),
+				crl::guard(weak, destroyLocalLoader)));
 		} else if (!toggled && state.is<Loading>()) {
-			if (GlobalLoader && GlobalLoader->id() == id) {
-				GlobalLoader->destroy();
+			if (localLoader && localLoader->get()->id() == id) {
+				destroyLocalLoader();
 			}
 		}
 	}, button->lifetime());
