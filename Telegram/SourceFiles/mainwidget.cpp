@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -4049,6 +4050,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &data = update.c_updateFolderPeers();
 
 		ptsUpdateAndApply(data.vpts().v, data.vpts_count().v, update);
+	} break;
+
+	case mtpc_updateDialogFilter:
+	case mtpc_updateDialogFilterOrder:
+	case mtpc_updateDialogFilters: {
+		session().data().chatsFilters().apply(update);
 	} break;
 
 	// Deleted messages.

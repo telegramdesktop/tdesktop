@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_channel_admins.h"
+#include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_folder.h"
 #include "data/data_photo.h"
@@ -839,7 +840,7 @@ void History::setUnreadMentionsCount(int count) {
 	_unreadMentionsCount = count;
 	const auto has = (count > 0);
 	if (has != had) {
-		owner().chatsFilters()->refreshHistory(this);
+		owner().chatsFilters().refreshHistory(this);
 		updateChatListEntry();
 	}
 }
@@ -1785,7 +1786,7 @@ void History::setUnreadCount(int newUnreadCount) {
 	const auto wasForBadge = (unreadCountForBadge() > 0);
 	_unreadCount = newUnreadCount;
 	if (wasForBadge != (unreadCountForBadge() > 0)) {
-		owner().chatsFilters()->refreshHistory(this);
+		owner().chatsFilters().refreshHistory(this);
 	}
 
 	if (newUnreadCount == 1) {
@@ -1823,7 +1824,7 @@ void History::setUnreadMark(bool unread) {
 	_unreadMark = unread;
 
 	if (inChatList() && noUnreadMessages) {
-		owner().chatsFilters()->refreshHistory(this);
+		owner().chatsFilters().refreshHistory(this);
 		updateChatListEntry();
 	}
 	Notify::peerUpdatedDelayed(
@@ -1849,7 +1850,7 @@ bool History::changeMute(bool newMute) {
 	_mute = newMute;
 
 	if (inChatList()) {
-		owner().chatsFilters()->refreshHistory(this);
+		owner().chatsFilters().refreshHistory(this);
 		updateChatListEntry();
 	}
 	Notify::peerUpdatedDelayed(
@@ -1927,8 +1928,8 @@ void History::setFolderPointer(Data::Folder *folder) {
 	const auto wasInList = inChatList();
 	if (wasInList) {
 		removeFromChatList(0);
-		for (const auto &[filterId, _] : owner().chatsFilters()->list()) {
-			removeFromChatList(filterId);
+		for (const auto &filter : owner().chatsFilters().list()) {
+			removeFromChatList(filter.id());
 		}
 	}
 	const auto was = _folder.value_or(nullptr);
@@ -1938,9 +1939,9 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 	if (wasInList) {
 		addToChatList(0);
-		for (const auto &[filterId, filter] : owner().chatsFilters()->list()) {
+		for (const auto &filter : owner().chatsFilters().list()) {
 			if (filter.contains(this)) {
-				addToChatList(filterId);
+				addToChatList(filter.id());
 			}
 		}
 		owner().chatsListChanged(was);

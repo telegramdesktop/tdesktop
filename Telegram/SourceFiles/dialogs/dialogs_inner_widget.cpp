@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_histories.h"
+#include "data/data_chat_filters.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -194,7 +195,10 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	session().settings().archiveCollapsedChanges(
+	rpl::merge(
+		session().settings().archiveCollapsedChanges(
+		) | rpl::map([] { return rpl::empty_value(); }),
+		session().data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
 		refreshWithCollapsedRows();
 	}, lifetime());
@@ -204,10 +208,10 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	session().data().chatsFilters()->refreshHistoryRequests(
+	session().data().chatsFilters().refreshHistoryRequests(
 	) | rpl::start_with_next([=](not_null<History*> history) {
 		if (history->inChatList()
-			&& !session().data().chatsFilters()->list().empty()) {
+			&& !session().data().chatsFilters().list().empty()) {
 			refreshDialog(history);
 		}
 	}, lifetime());
@@ -291,11 +295,17 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 
 	_collapsedRows.clear();
 	if (!_openedFolder && Global::DialogsFiltersEnabled()) {
+		const auto &list = session().data().chatsFilters().list();
+		if (_filterId
+			&& ranges::find(list, _filterId, &Data::ChatFilter::id) == end(list)) {
+			switchToFilter(0);
+		}
 		if (_filterId) {
 			_collapsedRows.push_back(std::make_unique<CollapsedRow>(nullptr, 0));
 		} else {
-			for (const auto &[filterId, filter] : session().data().chatsFilters()->list()) {
-				_collapsedRows.push_back(std::make_unique<CollapsedRow>(nullptr, filterId));
+			for (const auto &filter : session().data().chatsFilters().list()) {
+				_collapsedRows.push_back(
+					std::make_unique<CollapsedRow>(nullptr, filter.id()));
 			}
 		}
 	}
@@ -704,8 +714,10 @@ void InnerWidget::paintCollapsedRow(
 		? row->folder->chatListName()
 		: _filterId
 		? (narrow ? "Show" : tr::lng_dialogs_show_all_chats(tr::now))
-		: session().data().chatsFilters()->list().find(
-			row->filterId)->second.title();
+		: ranges::find(
+			session().data().chatsFilters().list(),
+			row->filterId,
+			&Data::ChatFilter::id)->title();
 	const auto unread = row->folder
 		? row->folder->chatListUnreadCount()
 		: _filterId
@@ -1705,6 +1717,16 @@ void InnerWidget::dragLeft() {
 	clearSelection();
 }
 
+FilterId InnerWidget::filterId() const {
+	return _filterId;
+}
+
+void InnerWidget::closeFilter() {
+	if (_filterId) {
+		switchToFilter(0);
+	}
+}
+
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
@@ -2540,7 +2562,10 @@ bool InnerWidget::chooseCollapsedRow() {
 void InnerWidget::switchToFilter(FilterId filterId) {
 	clearSelection();
 	if (!Global::DialogsFiltersEnabled()
-		|| !session().data().chatsFilters()->list().contains(filterId)) {
+		|| !ranges::contains(
+			session().data().chatsFilters().list(),
+			filterId,
+			&Data::ChatFilter::id)) {
 		filterId = 0;
 	}
 	Global::SetDialogsFilterId(filterId);

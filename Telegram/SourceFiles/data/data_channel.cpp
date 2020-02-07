@@ -87,6 +87,12 @@ void ChannelData::setName(const QString &newName, const QString &newUsername) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 
+void ChannelData::setAccessHash(uint64 accessHash) {
+	access = accessHash;
+	input = MTP_inputPeerChannel(MTP_int(bareId()), MTP_long(accessHash));
+	inputChannel = MTP_inputChannel(MTP_int(bareId()), MTP_long(accessHash));
+}
+
 void ChannelData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;

@@ -127,6 +127,7 @@ public:
 	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
 
 	void setName(const QString &name, const QString &username);
+	void setAccessHash(uint64 accessHash);
 
 	void setFlags(MTPDchannel::Flags which) {
 		_flags.set(which);

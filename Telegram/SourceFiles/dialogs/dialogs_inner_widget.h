@@ -80,6 +80,9 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
+	[[nodiscard]] FilterId filterId() const;
+	void closeFilter();
+
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);

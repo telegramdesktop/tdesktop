@@ -18,31 +18,44 @@ class Session;
 class ChatFilter final {
 public:
 	enum class Flag : uchar {
-		Users         = 0x01,
-		SecretChats   = 0x02,
-		PrivateGroups = 0x04,
-		PublicGroups  = 0x08,
-		Broadcasts    = 0x10,
-		Bots          = 0x20,
-		NoMuted       = 0x40,
-		NoRead        = 0x80,
+		Contacts    = 0x01,
+		NonContacts = 0x02,
+		Groups      = 0x04,
+		Broadcasts  = 0x08,
+		Bots        = 0x10,
+		NoMuted     = 0x20,
+		NoRead      = 0x40,
+		NoArchive   = 0x80,
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
 	ChatFilter() = default;
 	ChatFilter(
+		FilterId id,
 		const QString &title,
 		Flags flags,
-		base::flat_set<not_null<History*>> always);
+		base::flat_set<not_null<History*>> always,
+		base::flat_set<not_null<History*>> never);
 
+	[[nodiscard]] static ChatFilter FromTL(
+		const MTPDialogFilter &data,
+		not_null<Session*> owner);
+	[[nodiscard]] MTPDialogFilter tl() const;
+
+	[[nodiscard]] FilterId id() const;
 	[[nodiscard]] QString title() const;
+	[[nodiscard]] Flags flags() const;
+	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
+	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
 
 	[[nodiscard]] bool contains(not_null<History*> history) const;
 
 private:
+	FilterId _id = 0;
 	QString _title;
 	base::flat_set<not_null<History*>> _always;
+	base::flat_set<not_null<History*>> _never;
 	Flags _flags;
 
 };
@@ -51,17 +64,30 @@ class ChatFilters final {
 public:
 	explicit ChatFilters(not_null<Session*> owner);
 
-	[[nodiscard]] const base::flat_map<FilterId, ChatFilter> &list() const;
+	void load();
+	void apply(const MTPUpdate &update);
+	void set(ChatFilter filter);
+	void remove(FilterId id);
+	[[nodiscard]] const std::vector<ChatFilter> &list() const;
+	[[nodiscard]] rpl::producer<> changed() const;
 
 	void refreshHistory(not_null<History*> history);
 	[[nodiscard]] auto refreshHistoryRequests() const
 		-> rpl::producer<not_null<History*>>;
 
 private:
+	void load(bool force);
+	bool applyOrder(const QVector<MTPint> &order);
+	bool applyChange(ChatFilter &filter, ChatFilter &&updated);
+	void applyInsert(ChatFilter filter, int position);
+	void applyRemove(int position);
+
 	const not_null<Session*> _owner;
 
-	base::flat_map<FilterId, ChatFilter> _list;
+	std::vector<ChatFilter> _list;
+	rpl::event_stream<> _listChanged;
 	rpl::event_stream<not_null<History*>> _refreshHistoryRequests;
+	mtpRequestId _loadRequestId = 0;
 
 };
 

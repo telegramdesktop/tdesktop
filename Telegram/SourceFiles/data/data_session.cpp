@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
+#include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_streaming.h"
@@ -184,7 +185,6 @@ Session::Session(not_null<Main::Session*> session)
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
 , _chatsList(PinnedDialogsCountMaxValue(session))
-, _chatsFilters(this)
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
@@ -193,6 +193,7 @@ Session::Session(not_null<Main::Session*> session)
 })
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
+, _chatsFilters(std::make_unique<ChatFilters>(this))
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _cloudThemes(std::make_unique<CloudThemes>(session))
 , _streaming(std::make_unique<Streaming>(this))
@@ -520,11 +521,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				const auto channel = this->channel(input.vchannel_id().v);
 				channel->addFlags(MTPDchannel::Flag::f_megagroup);
 				if (!channel->access) {
-					channel->input = MTP_inputPeerChannel(
-						input.vchannel_id(),
-						input.vaccess_hash());
-					channel->inputChannel = *migratedTo;
-					channel->access = input.vaccess_hash().v;
+					channel->setAccessHash(input.vaccess_hash().v);
 				}
 				ApplyMigration(chat, channel);
 			}, [](const MTPDinputChannelFromMessage &) {
@@ -567,10 +564,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			if (result->loadedStatus != PeerData::FullLoaded) {
 				LOG(("API Warning: not loaded minimal channel applied."));
 			}
-		} else {
-			channel->input = MTP_inputPeerChannel(
-				data.vid(),
-				MTP_long(data.vaccess_hash().value_or_empty()));
 		}
 
 		const auto wasInChannel = channel->amIn();
@@ -606,11 +599,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				channel->setRestrictions(
 					MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 			}
-			const auto hash = data.vaccess_hash().value_or(channel->access);
-			channel->inputChannel = MTP_inputChannel(
-				data.vid(),
-				MTP_long(hash));
-			channel->access = hash;
+			channel->setAccessHash(
+				data.vaccess_hash().value_or(channel->access));
 			channel->date = data.vdate().v;
 			if (channel->version() < data.vversion().v) {
 				channel->setVersion(data.vversion().v);
@@ -645,14 +635,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
-		channel->input = MTP_inputPeerChannel(data.vid(), data.vaccess_hash());
 
 		auto wasInChannel = channel->amIn();
 		auto canViewAdmins = channel->canViewAdmins();
 		auto canViewMembers = channel->canViewMembers();
 		auto canAddMembers = channel->canAddMembers();
-
-		channel->inputChannel = MTP_inputChannel(data.vid(), data.vaccess_hash());
 
 		auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
 		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags()) & mask) | MTPDchannel_ClientFlag::f_forbidden);
@@ -666,7 +653,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 
 		channel->setName(qs(data.vtitle()), QString());
 
-		channel->access = data.vaccess_hash().v;
+		channel->setAccessHash(data.vaccess_hash().v);
 		channel->setPhoto(MTP_chatPhotoEmpty());
 		channel->date = 0;
 		channel->setMembersCount(0);
@@ -3348,14 +3335,6 @@ not_null<const Dialogs::MainList*> Session::chatsList(
 	return folder ? folder->chatsList() : &_chatsList;
 }
 
-not_null<ChatFilters*> Session::chatsFilters() {
-	return &_chatsFilters;
-}
-
-not_null<const ChatFilters*> Session::chatsFilters() const {
-	return &_chatsFilters;
-}
-
 not_null<Dialogs::IndexedList*> Session::contactsList() {
 	return &_contactsList;
 }
@@ -3383,20 +3362,21 @@ auto Session::refreshChatListEntry(
 	auto result = filterIdForResult
 		? RefreshChatListEntryResult()
 		: mainListResult;
-	for (const auto &[filterId, filter] : _chatsFilters.list()) {
+	for (const auto &filter : _chatsFilters->list()) {
+		const auto id = filter.id();
 		auto filterResult = RefreshChatListEntryResult();
 		if (history && filter.contains(history)) {
-			filterResult.changed = !entry->inChatList(filterId);
+			filterResult.changed = !entry->inChatList(id);
 			if (filterResult.changed) {
-				entry->addToChatList(filterId);
+				entry->addToChatList(id);
 			} else {
-				filterResult.moved = entry->adjustByPosInChatList(filterId);
+				filterResult.moved = entry->adjustByPosInChatList(id);
 			}
-		} else if (entry->inChatList(filterId)) {
-			entry->removeFromChatList(filterId);
+		} else if (entry->inChatList(id)) {
+			entry->removeFromChatList(id);
 			filterResult.changed = true;
 		}
-		if (filterId == filterIdForResult) {
+		if (id == filterIdForResult) {
 			result = filterResult;
 		}
 	}
@@ -3408,8 +3388,8 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 
 	const auto entry = key.entry();
 	entry->removeFromChatList(0);
-	for (const auto &[filterId, filter] : _chatsFilters.list()) {
-		entry->removeFromChatList(filterId);
+	for (const auto &filter : _chatsFilters->list()) {
+		entry->removeFromChatList(filter.id());
 	}
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {

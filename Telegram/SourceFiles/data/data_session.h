@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
-#include "data/data_chat_filters.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -59,6 +58,7 @@ class Folder;
 class LocationPoint;
 class WallPaper;
 class ScheduledMessages;
+class ChatFilters;
 class CloudThemes;
 class Streaming;
 class MediaRotation;
@@ -85,6 +85,9 @@ public:
 	}
 	[[nodiscard]] const Groups &groups() const {
 		return _groups;
+	}
+	[[nodiscard]] ChatFilters &chatsFilters() const {
+		return *_chatsFilters;
 	}
 	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
@@ -626,8 +629,6 @@ public:
 		Data::Folder *folder = nullptr);
 	[[nodiscard]] not_null<const Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr) const;
-	[[nodiscard]] not_null<ChatFilters*> chatsFilters();
-	[[nodiscard]] not_null<const ChatFilters*> chatsFilters() const;
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsList();
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsNoChatsList();
 
@@ -874,7 +875,6 @@ private:
 	Stickers::SavedGifs _savedGifs;
 
 	Dialogs::MainList _chatsList;
-	ChatFilters _chatsFilters;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
 
@@ -980,6 +980,7 @@ private:
 	int32 _wallpapersHash = 0;
 
 	Groups _groups;
+	std::unique_ptr<ChatFilters> _chatsFilters;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<CloudThemes> _cloudThemes;
 	std::unique_ptr<Streaming> _streaming;
