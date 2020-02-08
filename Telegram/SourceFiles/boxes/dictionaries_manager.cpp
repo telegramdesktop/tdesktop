@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
+#include "base/event_filter.h"
 #include "chat_helpers/spellchecker_common.h"
 #include "core/application.h"
 #include "main/main_account.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
 
@@ -66,6 +68,12 @@ private:
 
 inline auto DictExists(int langId) {
 	return Spellchecker::DictionaryExists(langId);
+}
+
+inline auto FilterEnabledDict(Dictionaries dicts) {
+	return dicts | ranges::views::filter(
+		DictExists
+	) | ranges::to_vector;
 }
 
 DictState ComputeState(int id, bool enabled) {
@@ -151,6 +159,8 @@ auto AddButtonWithLoader(
 
 	const auto buttonState = button->lifetime()
 		.make_state<rpl::variable<DictState>>();
+	const auto dictionaryRemoved = button->lifetime()
+		.make_state<rpl::event_stream<>>();
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
@@ -188,10 +198,15 @@ auto AddButtonWithLoader(
 		rpl::single(
 			buttonEnabled
 		) | rpl::then(
-			buttonState->value(
-			) | rpl::filter([](const DictState &state) {
-				return state.is<Failed>();
-			}) | rpl::map([](const auto &state) {
+			rpl::merge(
+				dictionaryRemoved->events(),
+				buttonState->value(
+				) | rpl::filter([](const DictState &state) {
+					return state.is<Failed>();
+				}) | rpl::map([] {
+					return rpl::empty_value();
+				})
+			) | rpl::map([]() {
 				return false;
 			})
 		)
@@ -205,7 +220,13 @@ auto AddButtonWithLoader(
 			: rpl::single(
 				buttonEnabled
 			) | rpl::then(
-				button->toggledValue()
+				rpl::merge(
+					dictionaryRemoved->events(
+					) | rpl::map([] {
+						return false;
+					}),
+					button->toggledValue()
+				)
 			) | rpl::map([=](auto enabled) {
 				return ComputeState(id, enabled);
 			});
@@ -232,6 +253,29 @@ auto AddButtonWithLoader(
 			}
 		}
 	}, button->lifetime());
+
+	const auto contextMenu = button->lifetime()
+		.make_state<base::unique_qptr<Ui::PopupMenu>>();
+	const auto showMenu = [=] {
+		if (!DictExists(id)) {
+			return false;
+		}
+		*contextMenu = base::make_unique_q<Ui::PopupMenu>(button);
+		contextMenu->get()->addAction(
+			tr::lng_settings_manage_remove_dictionary(tr::now), [=] {
+			Spellchecker::RemoveDictionary(id);
+			dictionaryRemoved->fire({});
+		});
+		contextMenu->get()->popup(QCursor::pos());
+		return true;
+	};
+
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu && showMenu()) {
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
 
 	return button;
 }
@@ -281,11 +325,8 @@ void ManageDictionariesBox::prepare() {
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
-		auto enabledRows = inner->enabledRows();
 		_session->settings().setDictionariesEnabled(
-			enabledRows | ranges::views::filter(
-				DictExists
-			) | ranges::to_vector);
+			FilterEnabledDict(inner->enabledRows()));
 		_session->saveSettingsDelayed();
 		// Ignore boxClosing() when the Save button was pressed.
 		lifetime().destroy();
@@ -294,7 +335,8 @@ void ManageDictionariesBox::prepare() {
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	boxClosing() | rpl::start_with_next([=] {
-		_session->settings().setDictionariesEnabled(initialEnabledRows);
+		_session->settings().setDictionariesEnabled(
+			FilterEnabledDict(initialEnabledRows));
 		_session->saveSettingsDelayed();
 	}, lifetime());
 

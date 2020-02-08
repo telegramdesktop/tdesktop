@@ -425,6 +425,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_custom_spellchecker" = "Use spell checker";
 "lng_settings_manage_dictionaries" = "Manage dictionaries";
 "lng_settings_manage_enabled_dictionary" = "Dictionary is enabled";
+"lng_settings_manage_remove_dictionary" = "Remove Dictionary";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

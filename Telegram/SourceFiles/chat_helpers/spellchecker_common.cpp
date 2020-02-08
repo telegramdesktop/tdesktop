@@ -134,6 +134,17 @@ bool DictionaryExists(int langId) {
 	return (bad == end(kDictExtensions));
 }
 
+bool RemoveDictionary(int langId) {
+	if (!langId) {
+		return true;
+	}
+	const auto fileName = Spellchecker::LocaleFromLangId(langId).name();
+	const auto folder = qsl("%1/%2/")
+		.arg(DictionariesPath())
+		.arg(fileName);
+	return QDir(folder).removeRecursively();
+}
+
 bool WriteDefaultDictionary() {
 	// This is an unused function.
 	const auto en = QLocale::English;
