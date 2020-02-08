@@ -767,6 +767,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 		st::createPollFieldPadding);
 	InitField(getDelegate()->outerContainer(), question, _session);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);
+	question->setSubmitSettings(_session->settings().sendSubmitWay());
 
 	const auto warning = CreateWarningLabel(
 		container,

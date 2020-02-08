@@ -260,7 +260,7 @@ EditCaptionBox::EditCaptionBox(
 		tr::lng_photo_caption(),
 		editData);
 	_field->setMaxLength(Global::CaptionLengthMax());
-	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	_field->setSubmitSettings(_controller->session().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
 		_controller->session().settings().replaceEmojiValue());
