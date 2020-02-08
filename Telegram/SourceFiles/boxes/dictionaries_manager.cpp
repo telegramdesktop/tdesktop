@@ -122,6 +122,7 @@ auto AddButtonWithLoader(
 		const Spellchecker::Dict &dict,
 		bool buttonEnabled) {
 	const auto id = dict.id;
+	buttonEnabled &= DictExists(id);
 
 	const auto button = content->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -272,6 +273,11 @@ void ManageDictionariesBox::prepare() {
 		this,
 		_session->settings().dictionariesEnabled()));
 
+	// The initial list of enabled rows may differ from the list of languages
+	// in settings, so we should store it when box opens
+	// and save it when box closes (don't do it when "Save" was pressed).
+	const auto initialEnabledRows = inner->enabledRows();
+
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
@@ -281,9 +287,16 @@ void ManageDictionariesBox::prepare() {
 				DictExists
 			) | ranges::to_vector);
 		_session->saveSettingsDelayed();
+		// Ignore boxClosing() when the Save button was pressed.
+		lifetime().destroy();
 		closeBox();
 	});
 	addButton(tr::lng_close(), [=] { closeBox(); });
+
+	boxClosing() | rpl::start_with_next([=] {
+		_session->settings().setDictionariesEnabled(initialEnabledRows);
+		_session->saveSettingsDelayed();
+	}, lifetime());
 
 	setDimensionsToContent(st::boxWidth, inner);
 
