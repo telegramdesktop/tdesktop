@@ -111,16 +111,6 @@ jobs:
 
           cmake --version
 
-      - name: Zlib.
-        run: |
-          cd $LibrariesPath
-
-          git clone $GIT/madler/zlib.git
-          cd zlib
-          ./configure
-          make -j$(nproc)
-          sudo make install
-
       - name: Opus cache.
         id: cache-opus
         uses: actions/cache@v1

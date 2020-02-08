@@ -58,13 +58,6 @@ Go to ***BuildPath*** and run
     cd ../
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
-    git clone https://github.com/madler/zlib.git
-    cd zlib
-    ./configure
-    make $MAKE_THREADS_CNT
-    sudo make install
-    cd ..
-
     git clone https://github.com/xiph/opus
     cd opus
     git checkout v1.3
@@ -254,12 +247,12 @@ Go to ***BuildPath*** and run
     -force-debug-info \
     -opensource \
     -confirm-license \
+    -qt-zlib \
     -qt-libpng \
     -qt-libjpeg \
     -qt-harfbuzz \
     -qt-pcre \
     -qt-xcb \
-    -system-zlib \
     -system-freetype \
     -fontconfig \
     -no-opengl \
