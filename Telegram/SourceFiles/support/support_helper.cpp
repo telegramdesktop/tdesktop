@@ -77,7 +77,7 @@ EditInfoBox::EditInfoBox(
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
-	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	_field->setSubmitSettings(session->settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
 		session->settings().replaceEmojiValue());

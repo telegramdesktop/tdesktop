@@ -201,6 +201,7 @@ void ComposeControls::init() {
 
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
+	_field->setSubmitSettings(_window->session().settings().sendSubmitWay());
 	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
 	//Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });

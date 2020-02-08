@@ -494,6 +494,7 @@ void GroupInfoBox::prepare() {
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
 		_description->setInstantReplacesEnabled(
 			_navigation->session().settings().replaceEmojiValue());
+		_description->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
 
 		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 		connect(_description, &Ui::InputField::submitted, [=] { submit(); });

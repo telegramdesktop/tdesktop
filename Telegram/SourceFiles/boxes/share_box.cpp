@@ -206,6 +206,7 @@ void ShareBox::prepareCommentField() {
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
 		DefaultEditLinkCallback(&_navigation->session(), field));
+	field->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
 
 	InitSpellchecker(&_navigation->session(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);

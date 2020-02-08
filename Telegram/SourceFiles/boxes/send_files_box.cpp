@@ -2046,7 +2046,7 @@ void SendFilesBox::applyAlbumOrder() {
 
 void SendFilesBox::setupCaption() {
 	_caption->setMaxLength(Global::CaptionLengthMax());
-	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	_caption->setSubmitSettings(_controller->session().settings().sendSubmitWay());
 	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});
