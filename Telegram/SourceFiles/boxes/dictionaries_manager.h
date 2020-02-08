@@ -25,9 +25,11 @@ public:
 
 protected:
 	void prepare() override;
+	void setInnerFocus() override;
 
 private:
 	const not_null<Main::Session*> _session;
+	Fn<void()> _setInnerFocus;
 
 };
 

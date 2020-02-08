@@ -16,12 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
+#include "spellcheck/spellcheck_utils.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/multi_select.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
@@ -34,6 +36,13 @@ using namespace Storage::CloudBlob;
 
 using Loading = MTP::DedicatedLoader::Progress;
 using DictState = BlobState;
+using QueryCallback = Fn<void(const QString &)>;
+constexpr auto kMaxQueryLength = 15;
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+#define OLD_QT
+using QStringView = QString;
+#endif
 
 class Loader : public BlobLoader {
 public:
@@ -58,11 +67,13 @@ public:
 	Inner(QWidget *parent, Dictionaries enabledDictionaries);
 
 	Dictionaries enabledRows() const;
+	QueryCallback queryCallback() const;
 
 private:
 	void setupContent(Dictionaries enabledDictionaries);
 
 	Dictionaries _enabledRows;
+	QueryCallback _queryCallback;
 
 };
 
@@ -115,10 +126,25 @@ void Loader::unpack(const QString &path) {
 void Loader::destroy() {
 }
 
+auto CreateMultiSelect(QWidget *parent) {
+	const auto result = Ui::CreateChild<Ui::MultiSelect>(
+		parent,
+		st::contactsMultiSelect,
+		tr::lng_participant_filter());
+
+	result->resizeToWidth(st::boxWidth);
+	result->moveToLeft(0, 0);
+	return result;
+}
+
 Inner::Inner(
 	QWidget *parent,
 	Dictionaries enabledDictionaries) : RpWidget(parent) {
 	setupContent(std::move(enabledDictionaries));
+}
+
+QueryCallback Inner::queryCallback() const {
+	return _queryCallback;
 }
 
 Dictionaries Inner::enabledRows() const {
@@ -128,11 +154,19 @@ Dictionaries Inner::enabledRows() const {
 auto AddButtonWithLoader(
 		not_null<Ui::VerticalLayout*> content,
 		const Spellchecker::Dict &dict,
-		bool buttonEnabled) {
+		bool buttonEnabled,
+		rpl::producer<QStringView> query) {
 	const auto id = dict.id;
 	buttonEnabled &= DictExists(id);
 
-	const auto button = content->add(
+	const auto locale = Spellchecker::LocaleFromLangId(id);
+	const std::vector<QString> indexList = {
+		dict.name,
+		QLocale::languageToString(locale.language()),
+		QLocale::countryToString(locale.country())
+	};
+
+	const auto wrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			content,
 			object_ptr<Ui::SettingsButton>(
@@ -141,8 +175,18 @@ auto AddButtonWithLoader(
 				st::dictionariesSectionButton
 			)
 		)
-	)->entity();
+	);
+	const auto button = wrap->entity();
 
+	std::move(
+		query
+	) | rpl::start_with_next([=](auto string) {
+		wrap->toggle(
+			ranges::any_of(indexList, [&](const QString &s) {
+				return s.startsWith(string, Qt::CaseInsensitive);
+			}),
+			anim::type::instant);
+	}, button->lifetime());
 
 	const auto localLoader = button->lifetime()
 		.make_state<base::unique_qptr<Loader>>();
@@ -283,12 +327,16 @@ auto AddButtonWithLoader(
 void Inner::setupContent(Dictionaries enabledDictionaries) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	const auto queryStream = content->lifetime()
+		.make_state<rpl::event_stream<QStringView>>();
+
 	for (const auto &dict : Spellchecker::Dictionaries()) {
 		const auto id = dict.id;
 		const auto row = AddButtonWithLoader(
 			content,
 			dict,
-			ranges::contains(enabledDictionaries, id));
+			ranges::contains(enabledDictionaries, id),
+			queryStream->events());
 		row->toggledValue(
 		) | rpl::start_with_next([=](auto enabled) {
 			if (enabled) {
@@ -299,6 +347,13 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 			}
 		}, row->lifetime());
 	}
+
+	_queryCallback = [=](const QString &query) {
+		if (query.size() >= kMaxQueryLength) {
+			return;
+		}
+		queryStream->fire_copy(query);
+	};
 
 	content->resizeToWidth(st::boxWidth);
 	Ui::ResizeFitChild(this, content);
@@ -312,10 +367,25 @@ ManageDictionariesBox::ManageDictionariesBox(
 : _session(session) {
 }
 
+void ManageDictionariesBox::setInnerFocus() {
+	_setInnerFocus();
+}
+
 void ManageDictionariesBox::prepare() {
-	const auto inner = setInnerWidget(object_ptr<Inner>(
-		this,
-		_session->settings().dictionariesEnabled()));
+	const auto multiSelect = CreateMultiSelect(this);
+
+	const auto inner = setInnerWidget(
+		object_ptr<Inner>(
+			this,
+			_session->settings().dictionariesEnabled()),
+		st::boxScroll,
+		multiSelect->height()
+	);
+
+	multiSelect->setQueryChangedCallback(inner->queryCallback());
+	_setInnerFocus = [=] {
+		multiSelect->setInnerFocus();
+	};
 
 	// The initial list of enabled rows may differ from the list of languages
 	// in settings, so we should store it when box opens
@@ -342,10 +412,16 @@ void ManageDictionariesBox::prepare() {
 
 	setDimensionsToContent(st::boxWidth, inner);
 
-	inner->heightValue(
+	using namespace rpl::mappers;
+	const auto max = lifetime().make_state<int>(0);
+	rpl::combine(
+		inner->heightValue(),
+		multiSelect->heightValue(),
+		_1 + _2
 	) | rpl::start_with_next([=](int height) {
 		using std::min;
-		setDimensions(st::boxWidth, min(height, st::boxMaxListHeight));
+		accumulate_max(*max, height);
+		setDimensions(st::boxWidth, min(*max, st::boxMaxListHeight), true);
 	}, inner->lifetime());
 }
 
