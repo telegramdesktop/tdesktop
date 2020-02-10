@@ -3807,8 +3807,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					: nullptr;
 			};
 			if (const auto id = owner.messageIdByRandomId(randomId)) {
-				if (const auto local = owner.message(id);
-					local->isScheduled()) {
+				const auto local = owner.message(id);
+				if (local && local->isScheduled()) {
 					owner.scheduledMessages().sendNowSimpleMessage(d, local);
 				}
 			}
