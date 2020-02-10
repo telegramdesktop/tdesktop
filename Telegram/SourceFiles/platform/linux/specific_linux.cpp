@@ -43,6 +43,7 @@ using Platform::File::internal::EscapeShell;
 namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
+constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
 
 bool XDGDesktopPortalPresent = false;
 
@@ -125,19 +126,25 @@ bool GenerateDesktopFile(const QString &targetPath, const QString &args) {
 	DEBUG_LOG(("App Info: placing .desktop file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
+	const auto sourceFile = [&] {
+		if (InSnap()) {
+			return kSnapLauncherDir.utf16() + GetLauncherFilename();
+		} else {
+			return kDesktopFile.utf16();
+		}
+	}();
+
 	const auto targetFile = targetPath + GetLauncherFilename();
 
 	QString fileText;
 
-	QFile source(kDesktopFile.utf16());
+	QFile source(sourceFile);
 	if (source.open(QIODevice::ReadOnly)) {
 		QTextStream s(&source);
 		fileText = s.readAll();
 		source.close();
 	} else {
-		LOG(("App Error: Could not open '%1' for read")
-			.arg(kDesktopFile.utf16()));
-
+		LOG(("App Error: Could not open '%1' for read").arg(sourceFile));
 		return false;
 	}
 
@@ -540,10 +547,19 @@ void psAutoStart(bool start, bool silent) {
 		SandboxAutostart(start);
 #endif
 	} else {
-		const auto autostart =
-			QStandardPaths::writableLocation(
-				QStandardPaths::GenericConfigLocation)
-			+ qsl("/autostart/");
+		const auto autostart = [&] {
+			if (InSnap()) {
+				QDir realHomeDir(home);
+				realHomeDir.cd(qsl("../../.."));
+
+				return realHomeDir
+					.absoluteFilePath(qsl(".config/autostart/"));
+			} else {
+				return QStandardPaths::writableLocation(
+					QStandardPaths::GenericConfigLocation)
+				+ qsl("/autostart/");
+			}
+		}();
 
 		if (start) {
 			GenerateDesktopFile(autostart, qsl("-autostart"));
