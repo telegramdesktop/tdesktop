@@ -858,7 +858,7 @@ void Notification::showReplyField() {
 	_replyArea->show();
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
-	_replyArea->setSubmitSettings(_item->history()->session().settings().sendSubmitWay());
+	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
 	_replyArea->setInstantReplacesEnabled(
 		_item->history()->session().settings().replaceEmojiValue());
