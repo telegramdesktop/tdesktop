@@ -92,6 +92,7 @@ parts:
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_FONTS=OFF
+      - -DDESKTOP_APP_USE_PACKAGED_GSL=OFF
       - -DDESKTOP_APP_USE_PACKAGED_EXPECTED=OFF
       - -DDESKTOP_APP_USE_PACKAGED_RLOTTIE=OFF
       - -DTDESKTOP_USE_PACKAGED_TGVOIP=OFF
@@ -115,7 +116,6 @@ parts:
       - cmake
       - desktop-qt5
       - enchant
-      - gsl
       - range-v3
       - xxhash
 
@@ -204,15 +204,6 @@ parts:
     configflags:
       - --enable-relocatable
     prime: [-./bin/*]
-
-  gsl:
-    source: https://github.com/microsoft/GSL.git
-    source-depth: 1
-    source-tag: v2.1.0
-    plugin: cmake
-    configflags:
-      - -DGSL_TEST=OFF
-    prime: [-./*]
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
