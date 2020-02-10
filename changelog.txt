@@ -1,3 +1,7 @@
+1.9.11 beta (10.02.20)
+
+- Bug fixes and other minor improvements.
+
 1.9.10 beta (05.02.20)
 
 - Switch to the Picture-in-Picture mode to watch your video in a small window.
