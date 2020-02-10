@@ -392,14 +392,18 @@ void MainWindow::initSize() {
 	auto position = cWindowPos();
 	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
 
-	auto avail = QDesktopWidget().availableGeometry();
+	const auto primaryScreen = QGuiApplication::primaryScreen();
+	auto geometryScreen = primaryScreen;
+	const auto available = primaryScreen
+		? primaryScreen->availableGeometry()
+		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 	bool maximized = false;
-	auto geom = QRect(
-		avail.x() + std::max(
-			(avail.width() - st::windowDefaultWidth) / 2,
+	auto geometry = QRect(
+		available.x() + std::max(
+			(available.width() - st::windowDefaultWidth) / 2,
 			0),
-		avail.y() + std::max(
-			(avail.height() - st::windowDefaultHeight) / 2,
+		available.y() + std::max(
+			(available.height() - st::windowDefaultHeight) / 2,
 			0),
 		st::windowDefaultWidth,
 		st::windowDefaultHeight);
@@ -420,7 +424,8 @@ void MainWindow::initSize() {
 					if (position.x + st::windowMinWidth <= screenGeometry.x() + screenGeometry.width() &&
 						position.y + st::windowMinHeight <= screenGeometry.y() + screenGeometry.height()) {
 						DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4").arg(position.x).arg(position.y).arg(position.w).arg(position.h));
-						geom = QRect(position.x, position.y, position.w, position.h);
+						geometry = QRect(position.x, position.y, position.w, position.h);
+						geometryScreen = screen;
 					}
 				}
 				break;
@@ -428,8 +433,17 @@ void MainWindow::initSize() {
 		}
 		maximized = position.maximized;
 	}
-	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geom.x()).arg(geom.y()).arg(geom.width()).arg(geom.height()));
-	setGeometry(geom);
+	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
+	setGeometry(geometry);
+	if (geometryScreen != primaryScreen) {
+		// In case screen DPI changed we show the window now,
+		// so that when we call setGeometry() once again after
+		// make_unique<Media::View::OverlayWidget> it already
+		// has adjusted by dpi geometry saved in QWidget.
+		//
+		// Somehow should fix https://github.com/telegramdesktop/tdesktop/issues/6804
+		show();
+	}
 }
 
 void MainWindow::positionUpdated() {
