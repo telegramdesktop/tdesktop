@@ -2265,16 +2265,18 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 	// - on second we get wrong doWeReadServerHistory() and read both.
 	session().data().sendHistoryChangeNotifications();
 
-	if (_scroll->scrollTop() + 1 > _scroll->scrollTopMax()) {
-		destroyUnreadBar();
+	const auto atBottom = (_scroll->scrollTop() >= _scroll->scrollTopMax());
+	if (!atBottom) {
+		return;
 	}
-	if (!App::wnd()->doWeReadServerHistory()) {
+	destroyUnreadBar();
+	if (!doWeReadServerHistory()) {
 		return;
 	}
 	if (item->isUnreadMention() && !item->isUnreadMedia()) {
 		session().api().markMediaRead(item);
 	}
-	session().api().readServerHistoryForce(_history);
+	_history->readInboxTill(item);
 
 	// Also clear possible scheduled messages notifications.
 	session().notifications().clearFromHistory(_history);
@@ -2403,7 +2405,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		addMessagesToBack(peer, *histList);
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
-		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
+		if (_history->loadedAtBottom()) {
+			App::wnd()->checkHistoryActivation();
+		}
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
 			_history->clear(History::ClearType::Unload);
@@ -2472,30 +2476,21 @@ void HistoryWidget::windowShown() {
 }
 
 bool HistoryWidget::doWeReadServerHistory() const {
-	if (!_history || !_list) return true;
-	if (_firstLoadRequest || _a_show.animating()) return false;
-	if (_history->loadedAtBottom()) {
-		int scrollTop = _scroll->scrollTop();
-		if (scrollTop + 1 > _scroll->scrollTopMax()) return true;
-
-		if (const auto unread = firstUnreadMessage()) {
-			const auto scrollBottom = scrollTop + _scroll->height();
-			if (scrollBottom > _list->itemTop(unread)) {
-				return true;
-			}
-		}
-	}
-	if (_history->hasNotFreezedUnreadBar()
-		|| (_migrated && _migrated->hasNotFreezedUnreadBar())) {
-		return true;
-	}
-	return false;
+	return doWeReadMentions() && !session().supportMode();
 }
 
 bool HistoryWidget::doWeReadMentions() const {
-	if (!_history || !_list) return true;
-	if (_firstLoadRequest || _a_show.animating()) return false;
-	return true;
+	return _history
+		&& _list
+		&& !_firstLoadRequest
+		&& !_a_show.animating()
+		&& App::wnd()->doWeMarkAsRead();
+}
+
+void HistoryWidget::checkHistoryActivation() {
+	if (_list) {
+		_list->checkHistoryActivation();
+	}
 }
 
 void HistoryWidget::firstLoadMessages() {
@@ -2714,24 +2709,6 @@ void HistoryWidget::visibleAreaUpdated() {
 		const auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
 		controller()->floatPlayerAreaUpdated().notify(true);
-
-		const auto atBottom = (scrollTop >= _scroll->scrollTopMax());
-		if (_history->loadedAtBottom()
-			&& atBottom
-			&& App::wnd()->doWeReadServerHistory()) {
-			// Clear possible scheduled messages notifications.
-			session().api().readServerHistory(_history);
-			session().notifications().clearFromHistory(_history);
-		} else if (_history->loadedAtBottom()
-			&& (_history->unreadCount() > 0
-				|| (_migrated && _migrated->unreadCount() > 0))) {
-			const auto unread = firstUnreadMessage();
-			const auto unreadVisible = unread
-				&& (scrollBottom > _list->itemTop(unread));
-			if (unreadVisible && App::wnd()->doWeReadServerHistory()) {
-				session().api().readServerHistory(_history);
-			}
-		}
 	}
 }
 
@@ -2820,9 +2797,8 @@ void HistoryWidget::historyDownClicked() {
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
 		showHistory(_peer->id, -_replyReturn->id);
 	} else if (_peer) {
-		showHistory(
-			_peer->id,
-			session().supportMode() ? ShowAtTheEndMsgId : ShowAtUnreadMsgId);
+		showHistory(_peer->id, ShowAtTheEndMsgId); // #TODO reading
+		// session().supportMode() ? ShowAtTheEndMsgId : ShowAtUnreadMsgId);
 	}
 }
 
@@ -3178,10 +3154,8 @@ void HistoryWidget::doneShow() {
 		handlePendingHistoryUpdate();
 	}
 	preloadHistoryIfNeeded();
-	if (App::wnd()) {
-		App::wnd()->checkHistoryActivation();
-		App::wnd()->setInnerFocus();
-	}
+	App::wnd()->checkHistoryActivation();
+	App::wnd()->setInnerFocus();
 }
 
 void HistoryWidget::finishAnimating() {

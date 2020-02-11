@@ -503,23 +503,17 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	}
 }
 
-bool MainWindow::doWeReadServerHistory() {
+bool MainWindow::doWeMarkAsRead() {
+	if (!_main || Ui::isLayerShown()) {
+		return false;
+	}
 	updateIsActive(0);
-	return isActive()
-		&& !Ui::isLayerShown()
-		&& (_main ? _main->doWeReadServerHistory() : false);
-}
-
-bool MainWindow::doWeReadMentions() {
-	updateIsActive(0);
-	return isActive()
-		&& !Ui::isLayerShown()
-		&& (_main ? _main->doWeReadMentions() : false);
+	return isActive();
 }
 
 void MainWindow::checkHistoryActivation() {
-	if (doWeReadServerHistory()) {
-		_main->markActiveHistoryAsRead();
+	if (_main) {
+		_main->checkHistoryActivation();
 	}
 }
 

@@ -148,7 +148,7 @@ public:
 	bool deleteChannelFailed(const RPCError &error);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void markActiveHistoryAsRead();
+	void checkHistoryActivation();
 
 	PeerData *peer();
 
@@ -173,8 +173,7 @@ public:
 	void updateOnlineDisplayIn(int32 msecs);
 
 	bool isActive() const;
-	bool doWeReadServerHistory() const;
-	bool doWeReadMentions() const;
+	[[nodiscard]] bool doWeMarkAsRead() const;
 	bool lastWasOnline() const;
 	crl::time lastSetOnline() const;
 

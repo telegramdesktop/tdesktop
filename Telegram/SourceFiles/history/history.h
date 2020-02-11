@@ -159,6 +159,7 @@ public:
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
 	MsgId readInbox();
+	void readInboxTill(not_null<HistoryItem*> item);
 	void applyInboxReadUpdate(
 		FolderId folderId,
 		MsgId upTo,
@@ -174,6 +175,10 @@ public:
 
 	[[nodiscard]] int unreadCount() const;
 	[[nodiscard]] bool unreadCountKnown() const;
+
+	// Some old unread count is known, but we read history till some place.
+	[[nodiscard]] bool unreadCountRefreshNeeded() const;
+
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
@@ -469,6 +474,7 @@ private:
 	void getNextFirstUnreadMessage();
 	bool nonEmptyCountMoreThan(int count) const;
 	std::optional<int> countUnread(MsgId upTo) const;
+	std::optional<int> countStillUnreadLocal() const;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
@@ -497,6 +503,7 @@ private:
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;
+	MsgId _inboxReadTillLocal = 0;
 	std::optional<int> _unreadCount;
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;

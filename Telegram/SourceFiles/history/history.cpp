@@ -1592,11 +1592,12 @@ void History::calculateFirstUnreadMessage() {
 }
 
 void History::readClientSideMessages() {
-	for (const auto &block : blocks) {
-		for (const auto &view : block->messages) {
-			const auto item = view->data();
-			if (!item->out()) {
-				item->markClientSideAsRead();
+	auto unread = unreadCount();
+	for (const auto item : _localMessages) {
+		if (!item->out() && item->unread()) {
+			item->markClientSideAsRead();
+			if (unread > 0) {
+				setUnreadCount(--unread);
 			}
 		}
 	}
@@ -1604,14 +1605,115 @@ void History::readClientSideMessages() {
 
 MsgId History::readInbox() {
 	const auto upTo = msgIdForRead();
+	readClientSideMessages();
 	if (unreadCountKnown()) {
 		setUnreadCount(0);
 	}
-	readClientSideMessages();
 	if (upTo) {
 		inboxRead(upTo);
 	}
 	return upTo;
+}
+
+void History::readInboxTill(not_null<HistoryItem*> item) {
+	if (!IsServerMsgId(item->id)) {
+		auto view = item->mainView();
+		if (!view) {
+			return;
+		}
+		auto block = view->block();
+		auto blockIndex = block->indexInHistory();
+		auto itemIndex = view->indexInBlock();
+		while (blockIndex > 0 || itemIndex > 0) {
+			if (itemIndex > 0) {
+				view = block->messages[--itemIndex].get();
+			} else {
+				while (blockIndex > 0) {
+					block = blocks[--blockIndex].get();
+					itemIndex = block->messages.size();
+					if (itemIndex > 0) {
+						view = block->messages[--itemIndex].get();
+						break;
+					}
+				}
+			}
+			item = view->data();
+			if (IsServerMsgId(item->id)) {
+				break;
+			}
+		}
+		if (!IsServerMsgId(item->id)) {
+			LOG(("App Error: "
+				"Can't read history till unknown local message."));
+			return;
+		}
+	}
+	readClientSideMessages();
+	if (unreadMark()) {
+		session().api().changeDialogUnreadMark(this, false);
+	}
+	if (_inboxReadTillLocal >= item->id) {
+		return;
+	}
+	_inboxReadTillLocal = item->id;
+	const auto stillUnread = countStillUnreadLocal();
+	if (!stillUnread) {
+		session().api().readServerHistoryForce(this, _inboxReadTillLocal);
+		return;
+	}
+	setInboxReadTill(_inboxReadTillLocal);
+	if (stillUnread && _unreadCount && *stillUnread == *_unreadCount) {
+		return;
+	}
+	setUnreadCount(*stillUnread);
+	session().api().readServerHistoryForce(this, _inboxReadTillLocal);
+	updateChatListEntry();
+}
+
+bool History::unreadCountRefreshNeeded() const {
+	return !unreadCountKnown()
+		|| ((_inboxReadTillLocal + 1) > _inboxReadBefore.value_or(0));
+}
+
+std::optional<int> History::countStillUnreadLocal() const {
+	if (isEmpty()) {
+		return std::nullopt;
+	}
+	const auto till = _inboxReadTillLocal;
+	if (_inboxReadBefore) {
+		const auto before = *_inboxReadBefore;
+		if (minMsgId() <= before && maxMsgId() >= till) {
+			auto result = 0;
+			for (const auto &block : blocks) {
+				for (const auto &message : block->messages) {
+					const auto item = message->data();
+					if (item->out() || !IsServerMsgId(item->id)) {
+						continue;
+					} else if (item->id > till) {
+						break;
+					} else if (item->id >= before) {
+						++result;
+					}
+				}
+			}
+			if (_unreadCount) {
+				return std::max(*_unreadCount - result, 0);
+			}
+		}
+	}
+	if (!loadedAtBottom() || minMsgId() > till) {
+		return std::nullopt;
+	}
+	auto result = 0;
+	for (const auto &block : blocks) {
+		for (const auto &message : block->messages) {
+			const auto item = message->data();
+			if (!item->out() && IsServerMsgId(item->id) && item->id > till) {
+				++result;
+			}
+		}
+	}
+	return result;
 }
 
 void History::applyInboxReadUpdate(
@@ -1625,10 +1727,12 @@ void History::applyInboxReadUpdate(
 		session().api().requestDialogEntry(this);
 		session().api().requestDialogEntry(folder);
 	}
-	if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
-		inboxRead(upTo, stillUnread);
-	} else {
-		inboxRead(upTo);
+	if (_inboxReadTillLocal <= upTo) {
+		if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
+			inboxRead(upTo, stillUnread);
+		} else {
+			inboxRead(upTo);
+		}
 	}
 }
 
@@ -1645,9 +1749,9 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	}
 	setInboxReadTill(upTo);
 	updateChatListEntry();
-	if (peer->migrateTo()) {
-		if (auto migrateTo = peer->owner().historyLoaded(peer->migrateTo()->id)) {
-			migrateTo->updateChatListEntry();
+	if (const auto to = peer->migrateTo()) {
+		if (const auto migrated = peer->owner().historyLoaded(to->id)) {
+			migrated->updateChatListEntry();
 		}
 	}
 
@@ -2656,7 +2760,7 @@ void History::applyDialogFields(
 	} else {
 		clearFolder();
 	}
-	if (!skipUnreadUpdate()) {
+	if (!skipUnreadUpdate() && maxInboxRead >= _inboxReadTillLocal) {
 		setUnreadCount(unreadCount);
 		setInboxReadTill(maxInboxRead);
 	}
@@ -2690,6 +2794,7 @@ void History::setInboxReadTill(MsgId upTo) {
 	} else {
 		_inboxReadBefore = upTo + 1;
 	}
+	accumulate_max(_inboxReadTillLocal, upTo);
 }
 
 void History::setOutboxReadTill(MsgId upTo) {

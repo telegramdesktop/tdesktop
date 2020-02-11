@@ -2217,10 +2217,8 @@ void MainWidget::dialogsToUp() {
 	_dialogs->jumpToTop();
 }
 
-void MainWidget::markActiveHistoryAsRead() {
-	if (const auto activeHistory = _history->history()) {
-		session().api().readServerHistory(activeHistory);
-	}
+void MainWidget::checkHistoryActivation() {
+	_history->checkHistoryActivation();
 }
 
 void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
@@ -3519,15 +3517,8 @@ bool MainWidget::isActive() const {
 	return !_isIdle && isVisible() && !_a_show.animating();
 }
 
-bool MainWidget::doWeReadServerHistory() const {
-	return isActive()
-		&& !session().supportMode()
-		&& !_mainSection
-		&& _history->doWeReadServerHistory();
-}
-
-bool MainWidget::doWeReadMentions() const {
-	return isActive() && !_mainSection && _history->doWeReadMentions();
+bool MainWidget::doWeMarkAsRead() const {
+	return isActive() && !_mainSection;
 }
 
 bool MainWidget::lastWasOnline() const {

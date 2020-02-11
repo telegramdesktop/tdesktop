@@ -109,9 +109,10 @@ public:
 	void historyLoaded();
 
 	void windowShown();
-	bool doWeReadServerHistory() const;
-	bool doWeReadMentions() const;
+	[[nodiscard]] bool doWeReadServerHistory() const;
+	[[nodiscard]] bool doWeReadMentions() const;
 	bool skipItemRepaint();
+	void checkHistoryActivation();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;

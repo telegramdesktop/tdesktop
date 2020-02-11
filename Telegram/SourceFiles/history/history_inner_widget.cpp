@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
+#include "window/notifications_manager.h"
 #include "boxes/confirm_box.h"
 #include "boxes/report_box.h"
 #include "boxes/sticker_set_box.h"
@@ -655,13 +656,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto iItem = (_curHistory == _history ? _curItem : 0);
 			auto view = block->messages[iItem].get();
 			auto item = view->data();
-
+			auto readTill = (HistoryItem*)nullptr;
 			auto hclip = clip.intersected(QRect(0, hdrawtop, width(), clip.top() + clip.height()));
 			auto y = htop + block->y() + view->y();
 			p.save();
 			p.translate(0, y);
 			while (y < drawToY) {
-				auto h = view->height();
+				const auto h = view->height();
 				if (hclip.y() < y + h && hdrawtop < y + h) {
 					const auto selection = itemRenderSelection(
 						view,
@@ -669,12 +670,20 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						seltoy - htop);
 					view->draw(p, hclip.translated(0, -y), selection, ms);
 
-					if (item->hasViews()) {
-						App::main()->scheduleViewIncrement(item);
+					const auto middle = y + h / 2;
+					const auto bottom = y + h;
+					if (_visibleAreaBottom >= bottom) {
+						readTill = view->data();
 					}
-					if (item->isUnreadMention() && !item->isUnreadMedia()) {
-						readMentions.insert(item);
-						_widget->enqueueMessageHighlight(view);
+					if (_visibleAreaBottom >= middle
+						&& _visibleAreaTop <= middle) {
+						if (item->hasViews()) {
+							App::main()->scheduleViewIncrement(item);
+						}
+						if (item->isUnreadMention() && !item->isUnreadMedia()) {
+							readMentions.insert(item);
+							_widget->enqueueMessageHighlight(view);
+						}
 					}
 				}
 				p.translate(0, h);
@@ -693,9 +702,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				item = view->data();
 			}
 			p.restore();
+
+			if (readTill) {
+				_history->readInboxTill(readTill);
+			}
 		}
 
-		if (!readMentions.empty() && App::wnd()->doWeReadMentions()) {
+		if (!readMentions.empty() && _widget->doWeReadMentions()) {
 			session().api().markMediaRead(readMentions);
 		}
 
@@ -2013,6 +2026,42 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void HistoryInner::checkHistoryActivation() {
+	if (!_widget->doWeReadServerHistory()) {
+		return;
+	}
+	adjustCurrent(_visibleAreaBottom);
+	if (_history->loadedAtBottom() && _visibleAreaBottom >= height()) {
+		// Clear possible scheduled messages notifications.
+		session().notifications().clearFromHistory(_history);
+	}
+	if (_curHistory != _history || _history->isEmpty()) {
+		return;
+	}
+	auto block = _history->blocks[_curBlock].get();
+	auto view = block->messages[_curItem].get();
+	while (_curBlock > 0 || _curItem > 0) {
+		const auto top = itemTop(view);
+		const auto bottom = itemTop(view) + view->height();
+		if (_visibleAreaBottom >= bottom) {
+			break;
+		}
+		if (_curItem > 0) {
+			view = block->messages[--_curItem].get();
+		} else {
+			while (_curBlock > 0) {
+				block = _history->blocks[--_curBlock].get();
+				_curItem = block->messages.size();
+				if (_curItem > 0) {
+					view = block->messages[--_curItem].get();
+					break;
+				}
+			}
+		}
+	}
+	_history->readInboxTill(view->data());
+}
+
 void HistoryInner::recountHistoryGeometry() {
 	_contentWidth = _scroll->width();
 
@@ -2178,6 +2227,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	const auto from = _visibleAreaTop - pages * visibleAreaHeight;
 	const auto till = _visibleAreaBottom + pages * visibleAreaHeight;
 	session().data().unloadHeavyViewParts(ElementDelegate(), from, till);
+	checkHistoryActivation();
 }
 
 bool HistoryInner::displayScrollDate() const {
@@ -2326,7 +2376,8 @@ void HistoryInner::adjustCurrent(int32 y) const {
 }
 
 void HistoryInner::adjustCurrent(int32 y, History *history) const {
-	Assert(!history->isEmpty());
+	Expects(!history->isEmpty());
+
 	_curHistory = history;
 	if (_curBlock >= history->blocks.size()) {
 		_curBlock = history->blocks.size() - 1;

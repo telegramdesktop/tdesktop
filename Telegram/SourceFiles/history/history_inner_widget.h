@@ -62,6 +62,7 @@ public:
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
+	void checkHistoryActivation();
 	void recountHistoryGeometry();
 	void updateSize();
 

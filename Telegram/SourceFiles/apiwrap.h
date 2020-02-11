@@ -390,7 +390,7 @@ public:
 		const SendAction &action);
 	void shareContact(not_null<UserData*> user, const SendAction &action);
 	void readServerHistory(not_null<History*> history);
-	void readServerHistoryForce(not_null<History*> history);
+	void readServerHistoryForce(not_null<History*> history, MsgId upTo = 0);
 	//void readFeed( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Data::MessagePosition position);

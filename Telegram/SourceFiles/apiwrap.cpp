@@ -6009,13 +6009,16 @@ void ApiWrap::readServerHistory(not_null<History*> history) {
 	}
 }
 
-void ApiWrap::readServerHistoryForce(not_null<History*> history) {
+void ApiWrap::readServerHistoryForce(
+		not_null<History*> history,
+		MsgId upTo) {
 	const auto peer = history->peer;
-	const auto upTo = history->readInbox();
 	if (!upTo) {
-		return;
+		upTo = history->readInbox();
+		if (!upTo) {
+			return;
+		}
 	}
-
 	if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
 			return; // no read request for channels that I didn't join
@@ -6099,7 +6102,7 @@ void ApiWrap::sendReadRequest(not_null<PeerData*> peer, MsgId upTo) {
 				sendReadRequest(peer, *next);
 			} else if (const auto history
 				= _session->data().historyLoaded(peer)) {
-				if (!history->unreadCountKnown()) {
+				if (history->unreadCountRefreshNeeded()) {
 					requestDialogEntry(history);
 				}
 			}

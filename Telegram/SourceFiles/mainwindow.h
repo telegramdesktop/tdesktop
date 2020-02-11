@@ -62,8 +62,7 @@ public:
 
 	MainWidget *mainWidget();
 
-	bool doWeReadServerHistory();
-	bool doWeReadMentions();
+	[[nodiscard]] bool doWeMarkAsRead();
 
 	void activate();
 
