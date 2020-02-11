@@ -1,3 +1,9 @@
+1.9.12 (11.02.20)
+
+- Switch to Picture-in-Picture mode to watch your video in a small window while doing something else.
+- Change playback speed in the '...' menu when watching videos.
+- Rotate photos and videos in the media viewer using the rotate button in the bottom right corner.
+
 1.9.11 beta (10.02.20)
 
 - Bug fixes and other minor improvements.
