@@ -555,8 +555,8 @@ void MainWindow::psTrayMenuUpdated() {
 			&& trayIcon->contextMenu() != trayIconMenu) {
 			trayIcon->setContextMenu(trayIconMenu);
 		}
-	} else {
-		trayIcon->setContextMenu(0);
+	} else if (trayIcon) {
+		trayIcon->setContextMenu(nullptr);
 	}
 }
 
