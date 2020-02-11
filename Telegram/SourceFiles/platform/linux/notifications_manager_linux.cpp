@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtCore/QVersionNumber>
+#include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusMetaType>
 #endif
@@ -23,6 +25,10 @@ namespace Notifications {
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 namespace {
+
+constexpr auto kDBusService = "org.freedesktop.DBus"_cs;
+constexpr auto kDBusObjectPath = "/org/freedesktop/DBus"_cs;
+constexpr auto kDBusInterface = kDBusService;
 
 constexpr auto kService = "org.freedesktop.Notifications"_cs;
 constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
@@ -316,13 +322,30 @@ const QDBusArgument &operator>>(const QDBusArgument &argument,
 
 bool Supported() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto Available = QDBusInterface(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kInterface.utf16()
-	).isValid();
+	static const auto Supported = [] {
+		// Check if service is already running
+		if (QDBusConnection::sessionBus().interface()->isServiceRegistered(kService.utf16())) {
+			return true;
+		}
 
-	return Available;
+		// Check if service would be activated when we call it
+		QDBusMessage message = QDBusMessage::createMethodCall(kDBusService.utf16(),
+			kDBusObjectPath.utf16(),
+			kDBusInterface.utf16(),
+			QStringLiteral("ListActivatableNames"));
+
+		QDBusMessage reply = QDBusConnection::sessionBus().call(message);
+		if (reply.type() == QDBusMessage::ReplyMessage && reply.arguments().count() == 1) {
+			const QStringList names = reply.arguments().first().toStringList();
+			if (names.contains(kService.utf16())) {
+				return true;
+			}
+		}
+
+		return false;
+	}();
+
+	return Supported;
 #else
 	return false;
 #endif
