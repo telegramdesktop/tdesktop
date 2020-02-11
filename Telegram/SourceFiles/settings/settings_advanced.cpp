@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "boxes/dictionaries_manager.h"
+#include "chat_helpers/spellchecker_common.h"
 #include "spellcheck/platform/platform_spellcheck.h"
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 
@@ -288,9 +289,10 @@ void SetupSpellchecker(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 
-	AddButton(
+	AddButtonWithLabel(
 		sliding->entity(),
 		tr::lng_settings_manage_dictionaries(),
+		Spellchecker::ButtonManageDictsState(session),
 		st::settingsButton
 	)->addClickHandler([=] {
 		Ui::show(Box<Ui::ManageDictionariesBox>(session));

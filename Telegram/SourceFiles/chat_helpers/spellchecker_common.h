@@ -34,6 +34,8 @@ bool WriteDefaultDictionary();
 std::vector<Dict> Dictionaries();
 
 void Start(not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<QString> ButtonManageDictsState(
+	not_null<Main::Session*> session);
 
 } // namespace Spellchecker
 

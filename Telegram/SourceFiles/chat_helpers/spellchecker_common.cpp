@@ -171,6 +171,44 @@ bool WriteDefaultDictionary() {
 	return false;
 }
 
+rpl::producer<QString> ButtonManageDictsState(
+	not_null<Main::Session*> session) {
+	if (Platform::Spellchecker::IsSystemSpellchecker()) {
+		return rpl::single(QString());
+	}
+	const auto computeString = [=] {
+		if (!session->settings().spellcheckerEnabled()) {
+			return QString();
+		}
+		if (!session->settings().dictionariesEnabled().size()) {
+			return QString();
+		}
+		const auto dicts = session->settings().dictionariesEnabled();
+		const auto filtered = ranges::view::all(
+			dicts
+		) | ranges::views::filter(
+			DictionaryExists
+		) | ranges::to_vector;
+		const auto active = Platform::Spellchecker::ActiveLanguages();
+
+		return (active.size() == filtered.size())
+			? QString::number(filtered.size())
+			: tr::lng_contacts_loading(tr::now);
+	};
+	const auto emptyValue = [] { return rpl::empty_value(); };
+	return rpl::single(
+		computeString()
+	) | rpl::then(
+		rpl::merge(
+			Spellchecker::SupportedScriptsChanged(),
+			session->settings().dictionariesEnabledChanges(
+			) | rpl::map(emptyValue),
+			session->settings().spellcheckerEnabledChanges(
+			) | rpl::map(emptyValue)
+		) | rpl::map(computeString)
+	);
+}
+
 void Start(not_null<Main::Session*> session) {
 	Spellchecker::SetPhrases({ {
 		{ &ph::lng_spellchecker_add, tr::lng_spellchecker_add() },
