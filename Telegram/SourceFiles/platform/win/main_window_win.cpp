@@ -833,12 +833,8 @@ void MainWindow::psFirstShow() {
 		if (Global::WorkMode().value() == dbiwmTrayOnly
 			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
-		} else {
-			show();
 		}
 		showShadows = false;
-	} else {
-		show();
 	}
 
 	setPositionInited();

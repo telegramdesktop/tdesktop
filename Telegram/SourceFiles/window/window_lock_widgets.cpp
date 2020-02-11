@@ -69,13 +69,15 @@ void LockWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 void LockWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
-		showChildren();
-		_window->widget()->setInnerFocus();
-
-		Ui::showChatsList();
-
-		_cacheUnder = _cacheOver = QPixmap();
+		showFinished();
 	}
+}
+
+void LockWidget::showFinished() {
+	showChildren();
+	_window->widget()->setInnerFocus();
+	Ui::showChatsList();
+	_cacheUnder = _cacheOver = QPixmap();
 }
 
 void LockWidget::paintEvent(QPaintEvent *e) {

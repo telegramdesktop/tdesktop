@@ -435,15 +435,6 @@ void MainWindow::initSize() {
 	}
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));
 	setGeometry(geometry);
-	if (geometryScreen != primaryScreen) {
-		// In case screen DPI changed we show the window now,
-		// so that when we call setGeometry() once again after
-		// make_unique<Media::View::OverlayWidget> it already
-		// has adjusted by dpi geometry saved in QWidget.
-		//
-		// Somehow should fix https://github.com/telegramdesktop/tdesktop/issues/6804
-		show();
-	}
 }
 
 void MainWindow::positionUpdated() {

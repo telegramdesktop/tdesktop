@@ -207,10 +207,6 @@ void Application::run() {
 
 	_window = std::make_unique<Window::Controller>(&activeAccount());
 
-	const auto currentGeometry = _window->widget()->geometry();
-	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->widget()->setGeometry(currentGeometry);
-
 	QCoreApplication::instance()->installEventFilter(this);
 	connect(
 		static_cast<QGuiApplication*>(QCoreApplication::instance()),
@@ -241,6 +237,8 @@ void Application::run() {
 	}
 	DEBUG_LOG(("Application Info: showing."));
 	_window->firstShow();
+
+	_mediaView = std::make_unique<Media::View::OverlayWidget>();
 
 	if (!locked() && cStartToSettings()) {
 		_window->showSettings();

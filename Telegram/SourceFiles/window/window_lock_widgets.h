@@ -32,6 +32,7 @@ public:
 	virtual void setInnerFocus();
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	void showFinished();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
