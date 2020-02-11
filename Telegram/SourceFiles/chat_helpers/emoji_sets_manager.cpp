@@ -127,6 +127,7 @@ private:
 	void setupHandler();
 	void load();
 	void radialAnimationCallback(crl::time now);
+	void updateLoadingToFinished();
 
 	int _id = 0;
 	bool _switching = false;
@@ -150,6 +151,12 @@ void SetGlobalLoader(base::unique_qptr<Loader> loader) {
 int GetDownloadSize(int id) {
 	const auto sets = Sets();
 	return ranges::find(sets, id, &Set::id)->size;
+}
+
+[[nodiscard]] float64 CountProgress(not_null<const Loading*> loading) {
+	return (loading->size > 0)
+		? (loading->already / float64(loading->size))
+		: 0.;
 }
 
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
@@ -379,6 +386,9 @@ void Row::paintPreview(Painter &p) const {
 }
 
 void Row::paintRadio(Painter &p) {
+	if (_loading && !_loading->animating()) {
+		_loading = nullptr;
+	}
 	const auto loading = _loading
 		? _loading->computeState()
 		: Ui::RadialState{ 0., 0, FullArcLength };
@@ -580,14 +590,20 @@ void Row::setupPreview(const Set &set) {
 	}
 }
 
+void Row::updateLoadingToFinished() {
+	_loading->update(
+		_state.current().is<Failed>() ? 0. : 1.,
+		true,
+		crl::now());
+}
+
 void Row::radialAnimationCallback(crl::time now) {
 	const auto updated = [&] {
 		const auto state = _state.current();
 		if (const auto loading = base::get_if<Loading>(&state)) {
-			const auto progress = (loading->size > 0)
-				? (loading->already / float64(loading->size))
-				: 0.;
-			return _loading->update(progress, false, now);
+			return _loading->update(CountProgress(loading), false, now);
+		} else {
+			updateLoadingToFinished();
 		}
 		return false;
 	}();
@@ -636,15 +652,9 @@ void Row::setupAnimation() {
 		if (loading && !_loading) {
 			_loading = std::make_unique<Ui::RadialAnimation>(
 				[=](crl::time now) { radialAnimationCallback(now); });
-			const auto progress = (loading->size > 0)
-				? (loading->already / float64(loading->size))
-				: 0.;
-			_loading->start(progress);
+			_loading->start(CountProgress(loading));
 		} else if (!loading && _loading) {
-			_loading->update(
-				_state.current().is<Failed>() ? 0. : 1.,
-				true,
-				crl::now());
+			updateLoadingToFinished();
 		}
 	}, lifetime());
 
