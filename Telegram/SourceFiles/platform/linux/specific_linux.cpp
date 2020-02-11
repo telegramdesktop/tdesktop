@@ -281,7 +281,7 @@ QString GetLauncherBasename() {
 				: "SNAP_NAME";
 
 		const auto result = qsl("%1_%2")
-			.arg(QString::fromLatin1(snapNameKey))
+			.arg(QString::fromLatin1(qgetenv(snapNameKey)))
 			.arg(cExeName());
 
 		LOG(("SNAP Environment detected, launcher filename is %1.desktop")
