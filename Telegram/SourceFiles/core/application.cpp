@@ -238,7 +238,9 @@ void Application::run() {
 	DEBUG_LOG(("Application Info: showing."));
 	_window->firstShow();
 
+	const auto currentGeometry = _window->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
+	_window->widget()->setGeometry(currentGeometry);
 
 	if (!locked() && cStartToSettings()) {
 		_window->showSettings();
