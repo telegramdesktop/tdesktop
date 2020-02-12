@@ -1,3 +1,7 @@
+1.9.13 (12.02.20)
+
+- Bug fixes and other minor improvements.
+
 1.9.12 (11.02.20)
 
 - Switch to Picture-in-Picture mode to watch your video in a small window while doing something else.
