@@ -28,7 +28,6 @@ public:
 	HWND psHwnd() const;
 	HMENU psMenu() const;
 
-	void psFirstShow();
 	void psInitSysMenu();
 	void updateSystemMenu(Qt::WindowState state);
 	void psUpdateMargins();
@@ -77,6 +76,8 @@ protected:
 	int32 screenNameChecksum(const QString &name) const override;
 	void unreadCounterChangedHook() override;
 
+	void initShadows() override;
+	void firstShadowsUpdate() override;
 	void stateChangedHook(Qt::WindowState state) override;
 
 	bool hasTrayIcon() const override {

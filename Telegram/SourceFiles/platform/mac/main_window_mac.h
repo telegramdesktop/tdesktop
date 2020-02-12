@@ -23,8 +23,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	void psFirstShow();
-
 	bool psFilterNativeEvent(void *event);
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
@@ -87,14 +85,15 @@ protected:
 
 	QTimer psUpdatedPositionTimer;
 
+	void initShadows() override;
 	void closeWithoutDestroy() override;
+	void createGlobalMenu() override;
 
 private:
 	friend class Private;
 
 	void initTouchBar();
 	void hideAndDeactivate();
-	void createGlobalMenu();
 	void updateTitleCounter();
 	void updateIconCounters();
 

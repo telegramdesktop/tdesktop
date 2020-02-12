@@ -455,7 +455,7 @@ void MainWindow::LibsLoaded() {
 	}
 }
 
-void MainWindow::psFirstShow() {
+void MainWindow::initTrayMenuHook() {
 	const auto trayAvailable = IsSNIAvailable()
 		|| QSystemTrayIcon::isSystemTrayAvailable();
 
@@ -490,30 +490,6 @@ void MainWindow::psFirstShow() {
 		LOG(("Not using Unity Launcher count."));
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-
-	show();
-	if (cWindowPos().maximized) {
-		DEBUG_LOG(("Window Pos: First show, setting maximized."));
-		setWindowState(Qt::WindowMaximized);
-	}
-
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized())
-		|| cStartInTray()) {
-		// If I call hide() synchronously here after show() then on Ubuntu 14.04
-		// it will show a window frame with transparent window body, without content.
-		// And to be able to "Show from tray" one more hide() will be required.
-		crl::on_main(this, [=] {
-			setWindowState(Qt::WindowMinimized);
-			if (Global::WorkMode().value() == dbiwmTrayOnly
-				|| Global::WorkMode().value() == dbiwmWindowAndTray) {
-				hide();
-			} else {
-				show();
-			}
-		});
-	}
-
-	setPositionInited();
 }
 
 MainWindow::~MainWindow() {

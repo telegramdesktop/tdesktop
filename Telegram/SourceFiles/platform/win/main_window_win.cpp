@@ -808,37 +808,15 @@ void MainWindow::initHook() {
 	psInitSysMenu();
 }
 
-Q_DECLARE_METATYPE(QMargins);
-void MainWindow::psFirstShow() {
+void MainWindow::initShadows() {
 	_psShadowWindows.init(this, st::windowShadowFg->c);
 	_shadowsWorking = true;
-
 	psUpdateMargins();
-
 	shadowsUpdate(ShadowsChange::Hidden);
-	bool showShadows = true;
+}
 
-	show();
-	if (cWindowPos().maximized) {
-		DEBUG_LOG(("Window Pos: First show, setting maximized."));
-		setWindowState(Qt::WindowMaximized);
-	}
-
-	if (cStartInTray()
-		|| (cLaunchMode() == LaunchModeAutoStart
-			&& cStartMinimized()
-			&& !Core::App().passcodeLocked())) {
-		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
-		setWindowState(windowState() | Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly
-			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
-			hide();
-		}
-		showShadows = false;
-	}
-
-	setPositionInited();
-	if (showShadows) {
+void MainWindow::firstShadowsUpdate() {
+	if (!(windowState() & Qt::WindowMinimized) && !isHidden()) {
 		shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized | ShadowsChange::Shown);
 	}
 }
@@ -896,6 +874,7 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 	}
 }
 
+Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psUpdateMargins() {
 	if (!ps_hWnd || _inUpdateMargins) return;
 

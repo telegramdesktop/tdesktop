@@ -137,6 +137,8 @@ protected:
 	virtual void updateGlobalMenuHook() {
 	}
 
+	virtual void initTrayMenuHook() {
+	}
 	virtual bool hasTrayIcon() const {
 		return false;
 	}
@@ -147,6 +149,13 @@ protected:
 	}
 
 	virtual void updateControlsGeometry();
+
+	virtual void createGlobalMenu() {
+	}
+	virtual void initShadows() {
+	}
+	virtual void firstShadowsUpdate() {
+	}
 
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;

@@ -49,7 +49,7 @@ public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 	~MainWindow();
 
-	void firstShow();
+	void finishFirstShow();
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
@@ -152,9 +152,11 @@ signals:
 private:
 	[[nodiscard]] bool skipTrayClick() const;
 
+	void createTrayIconMenu();
 	void handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) override;
 
+	void applyInitialWorkMode();
 	void ensureLayerCreated();
 	void destroyLayer();
 

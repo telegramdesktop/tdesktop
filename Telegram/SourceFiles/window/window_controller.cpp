@@ -42,8 +42,8 @@ Controller::~Controller() {
 	_widget.clearWidgets();
 }
 
-void Controller::firstShow() {
-	_widget.firstShow();
+void Controller::finishFirstShow() {
+	_widget.finishFirstShow();
 	checkThemeEditor();
 }
 

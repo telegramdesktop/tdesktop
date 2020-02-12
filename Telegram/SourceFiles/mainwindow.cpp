@@ -130,7 +130,7 @@ void MainWindow::initHook() {
 		Qt::QueuedConnection);
 }
 
-void MainWindow::firstShow() {
+void MainWindow::createTrayIconMenu() {
 #ifdef Q_OS_WIN
 	trayIconMenu = new Ui::PopupMenu(nullptr);
 	trayIconMenu->deleteOnHide(false);
@@ -148,9 +148,48 @@ void MainWindow::firstShow() {
 	trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
 	trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
 	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
+
+	initTrayMenuHook();
+}
+
+void MainWindow::applyInitialWorkMode() {
 	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
-	psFirstShow();
+	if (cWindowPos().maximized) {
+		DEBUG_LOG(("Window Pos: First show, setting maximized."));
+		setWindowState(Qt::WindowMaximized);
+	}
+	if (cStartInTray()
+		|| (cLaunchMode() == LaunchModeAutoStart
+			&& cStartMinimized()
+			&& !Core::App().passcodeLocked())) {
+		const auto minimizeAndHide = [=] {
+			DEBUG_LOG(("Window Pos: First show, setting minimized after."));
+			setWindowState(windowState() | Qt::WindowMinimized);
+			if (Global::WorkMode().value() == dbiwmTrayOnly
+				|| Global::WorkMode().value() == dbiwmWindowAndTray) {
+				hide();
+			}
+		};
+
+		if (Platform::IsLinux()) {
+			// If I call hide() synchronously here after show() then on Ubuntu 14.04
+			// it will show a window frame with transparent window body, without content.
+			// And to be able to "Show from tray" one more hide() will be required.
+			crl::on_main(this, minimizeAndHide);
+		} else {
+			minimizeAndHide();
+		}
+	}
+	setPositionInited();
+}
+
+void MainWindow::finishFirstShow() {
+	createTrayIconMenu();
+	initShadows();
+	applyInitialWorkMode();
+	createGlobalMenu();
+	firstShadowsUpdate();
 	updateTrayMenu();
 
 	windowDeactivateEvents(

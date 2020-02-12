@@ -34,7 +34,7 @@ public:
 		return _sessionController.get();
 	}
 
-	void firstShow();
+	void finishFirstShow();
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();

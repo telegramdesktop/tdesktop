@@ -24,8 +24,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	void psFirstShow();
-
 	virtual QImage iconWithCounter(
 		int size,
 		int count,
@@ -43,6 +41,7 @@ public slots:
 protected:
 	void unreadCounterChangedHook() override;
 
+	void initTrayMenuHook() override;
 	bool hasTrayIcon() const override;
 
 	void workmodeUpdated(DBIWorkMode mode) override;

@@ -663,31 +663,8 @@ void MainWindow::updateIconCounters() {
 	}
 }
 
-void MainWindow::psFirstShow() {
-	bool showShadows = true;
-
-	show();
+void MainWindow::initShadows() {
 	_private->enableShadow(winId());
-	if (cWindowPos().maximized) {
-		DEBUG_LOG(("Window Pos: First show, setting maximized."));
-		setWindowState(Qt::WindowMaximized);
-	}
-
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
-		setWindowState(Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
-			hide();
-		} else {
-			show();
-		}
-		showShadows = false;
-	} else {
-		show();
-	}
-
-	setPositionInited();
-
-	createGlobalMenu();
 }
 
 void MainWindow::createGlobalMenu() {
