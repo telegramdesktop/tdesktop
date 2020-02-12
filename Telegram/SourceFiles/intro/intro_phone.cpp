@@ -72,7 +72,7 @@ void PhoneWidget::setupQrLogin() {
 	) | rpl::map([=] {
 		const auto result = account().appConfig().get<QString>(
 			"qr_login_code",
-			"disabled");
+			"[not-set]");
 		DEBUG_LOG(("PhoneWidget.qr_login_code: %1").arg(result));
 		return result;
 	}) | rpl::filter([](const QString &value) {

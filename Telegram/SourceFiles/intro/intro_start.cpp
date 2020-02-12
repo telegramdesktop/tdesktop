@@ -33,7 +33,7 @@ void StartWidget::submit() {
 	account().destroyStaleAuthorizationKeys();
 	const auto qrLogin = account().appConfig().get<QString>(
 		"qr_login_code",
-		"disabled");
+		"[not-set]");
 	DEBUG_LOG(("qr_login_code: %1").arg(qrLogin));
 	if (qrLogin == "primary") {
 		goNext<QrWidget>();
