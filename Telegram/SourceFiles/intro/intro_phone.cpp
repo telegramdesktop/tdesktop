@@ -70,9 +70,11 @@ void PhoneWidget::setupQrLogin() {
 	) | rpl::then(
 		account().appConfig().refreshed()
 	) | rpl::map([=] {
-		return account().appConfig().get<QString>(
+		const auto result = account().appConfig().get<QString>(
 			"qr_login_code",
 			"disabled");
+		DEBUG_LOG(("PhoneWidget.qr_login_code: %1").arg(result));
+		return result;
 	}) | rpl::filter([](const QString &value) {
 		return (value != "disabled");
 	}) | rpl::take(1) | rpl::start_with_next([=] {
@@ -80,6 +82,8 @@ void PhoneWidget::setupQrLogin() {
 			this,
 			tr::lng_phone_to_qr(tr::now));
 		qrLogin->show();
+
+		DEBUG_LOG(("PhoneWidget.qrLogin link created and shown."));
 
 		rpl::combine(
 			sizeValue(),

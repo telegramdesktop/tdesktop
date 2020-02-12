@@ -34,6 +34,7 @@ void StartWidget::submit() {
 	const auto qrLogin = account().appConfig().get<QString>(
 		"qr_login_code",
 		"disabled");
+	DEBUG_LOG(("qr_login_code: %1").arg(qrLogin));
 	if (qrLogin == "primary") {
 		goNext<QrWidget>();
 	} else {

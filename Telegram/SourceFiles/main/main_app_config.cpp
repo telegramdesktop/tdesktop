@@ -47,6 +47,7 @@ void AppConfig::refresh() {
 					_data.emplace_or_assign(qs(data.vkey()), data.vvalue());
 				});
 			}
+			DEBUG_LOG(("getAppConfig result handled."));
 		}
 		_refreshed.fire({});
 	}).fail([=](const RPCError &error) {
