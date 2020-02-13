@@ -31,7 +31,7 @@ jobs:
       CMAKE_VER: "3.16.3"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "3"
+      MANUAL_CACHING: "4"
       DOC_PATH: "docs/building-cmake.md"
 
     steps:
@@ -381,7 +381,6 @@ jobs:
           -system-freetype \
           -fontconfig \
           -no-opengl \
-          -no-glib \
           -no-gtk \
           -static \
           -openssl-linked \
