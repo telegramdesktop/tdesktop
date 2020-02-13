@@ -223,7 +223,7 @@ void PlaybackControls::showMenu() {
 	addSpeed(1.75);
 	addSpeed(2.);
 	_menu.emplace(this, st::mediaviewControlsPopupMenu);
-	_menu->addAction("Rotate video", [=] {
+	_menu->addAction(tr::lng_mediaview_rotate_video(tr::now), [=] {
 		_delegate->playbackControlsRotate();
 	});
 	_menu->addSeparator();
@@ -235,6 +235,7 @@ void PlaybackControls::showMenu() {
 }
 
 void PlaybackControls::updatePlaybackSpeed(float64 speed) {
+	DEBUG_LOG(("Media playback speed: update to %1.").arg(speed));
 	_delegate->playbackControlsSpeedChanged(speed);
 	resizeEvent(nullptr);
 }
