@@ -44,6 +44,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QtEndian>
 #include <QtCore/QDirIterator>
 
+#ifndef Q_OS_WIN
+#include <unistd.h>
+#endif // Q_OS_WIN
+
 extern "C" {
 #include <openssl/evp.h>
 } // extern "C"
@@ -250,28 +254,25 @@ struct FileWriteDescriptor {
 		}
 
 		// detect order of read attempts and file version
-		QString toTry[2];
-		toTry[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
+		QString toWrite[2];
+		toWrite[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
 		if (options & FileOption::Safe) {
-			toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
-			QFileInfo toTry0(toTry[0]);
-			QFileInfo toTry1(toTry[1]);
-			if (toTry0.exists()) {
-				if (toTry1.exists()) {
-					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
+			toWrite[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
+			QFileInfo toWrite0(toWrite[0]);
+			QFileInfo toWrite1(toWrite[1]);
+			if (toWrite0.exists()) {
+				if (toWrite1.exists()) {
+					QDateTime mod0 = toWrite0.lastModified(), mod1 = toWrite1.lastModified();
 					if (mod0 > mod1) {
-						qSwap(toTry[0], toTry[1]);
+						qSwap(toWrite[0], toWrite[1]);
 					}
 				} else {
-					qSwap(toTry[0], toTry[1]);
+					qSwap(toWrite[0], toWrite[1]);
 				}
-				toDelete = toTry[1];
-			} else if (toTry1.exists()) {
-				toDelete = toTry[1];
 			}
 		}
 
-		file.setFileName(toTry[0]);
+		file.setFileName(toWrite[0]);
 		if (file.open(QIODevice::WriteOnly)) {
 			file.write(tdfMagic, tdfMagicLen);
 			qint32 version = AppVersion;
@@ -326,16 +327,14 @@ struct FileWriteDescriptor {
 		md5.feed(&version, sizeof(version));
 		md5.feed(tdfMagic, tdfMagicLen);
 		file.write((const char*)md5.result(), 0x10);
+		file.flush();
+#ifndef Q_OS_WIN
+		fsync(file.handle());
+#endif // Q_OS_WIN
 		file.close();
-
-		if (!toDelete.isEmpty()) {
-			QFile::remove(toDelete);
-		}
 	}
 	QFile file;
 	QDataStream stream;
-
-	QString toDelete;
 
 	HashMd5 md5;
 	int32 dataSize = 0;
