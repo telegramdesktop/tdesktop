@@ -269,6 +269,9 @@ struct FileWriteDescriptor {
 				} else {
 					qSwap(toWrite[0], toWrite[1]);
 				}
+				toDelete = toWrite[1];
+			} else if (toWrite1.exists()) {
+				toDelete = toWrite[1];
 			}
 		}
 
@@ -332,9 +335,15 @@ struct FileWriteDescriptor {
 		fsync(file.handle());
 #endif // Q_OS_WIN
 		file.close();
+
+		if (!toDelete.isEmpty()) {
+			QFile::remove(toDelete);
+		}
 	}
 	QFile file;
 	QDataStream stream;
+
+	QString toDelete;
 
 	HashMd5 md5;
 	int32 dataSize = 0;
