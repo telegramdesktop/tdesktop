@@ -398,15 +398,21 @@ void MainWindow::initSize() {
 		? primaryScreen->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 	bool maximized = false;
+	const auto initialWidth = Main::Settings::ThirdColumnByDefault()
+		? st::windowBigDefaultWidth
+		: st::windowDefaultWidth;
+	const auto initialHeight = Main::Settings::ThirdColumnByDefault()
+		? st::windowBigDefaultHeight
+		: st::windowDefaultHeight;
 	auto geometry = QRect(
 		available.x() + std::max(
-			(available.width() - st::windowDefaultWidth) / 2,
+			(available.width() - initialWidth) / 2,
 			0),
 		available.y() + std::max(
-			(available.height() - st::windowDefaultHeight) / 2,
+			(available.height() - initialHeight) / 2,
 			0),
-		st::windowDefaultWidth,
-		st::windowDefaultHeight);
+		initialWidth,
+		initialHeight);
 	if (position.w && position.h) {
 		for (auto screen : QGuiApplication::screens()) {
 			if (position.moncrc == screenNameChecksum(screen->name())) {

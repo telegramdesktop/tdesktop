@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_common.h"
 #include "storage/serialize_common.h"
 #include "boxes/send_files_box.h"
+#include "base/platform/base_platform_info.h"
 
 namespace Main {
 namespace {
@@ -38,8 +39,15 @@ Settings::Variables::Variables()
 , selectorTab(ChatHelpers::SelectorTab::Emoji)
 , floatPlayerColumn(Window::Column::Second)
 , floatPlayerCorner(RectPart::TopRight)
+, dialogsWidthRatio(ThirdColumnByDefault()
+	? kDefaultBigDialogsWidthRatio
+	: kDefaultDialogsWidthRatio)
 , sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , supportSwitch(Support::SwitchSettings::Next) {
+}
+
+bool Settings::ThirdColumnByDefault() {
+	return Platform::IsMacStoreBuild();
 }
 
 QByteArray Settings::serialize() const {

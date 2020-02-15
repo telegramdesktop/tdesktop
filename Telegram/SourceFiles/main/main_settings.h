@@ -254,11 +254,14 @@ public:
 		_variables.videoPipGeometry = geometry;
 	}
 
+	[[nodiscard]] static bool ThirdColumnByDefault();
+
 private:
 	struct Variables {
 		Variables();
 
 		static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+		static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
 		static constexpr auto kDefaultThirdColumnWidth = 0;
 
 		bool lastSeenWarningSeen = false;
@@ -273,8 +276,7 @@ private:
 		bool thirdSectionInfoEnabled = true; // per-window
 		bool smallDialogsList = false; // per-window
 		int thirdSectionExtendedBy = -1; // per-window
-		rpl::variable<float64> dialogsWidthRatio
-			= kDefaultDialogsWidthRatio; // per-window
+		rpl::variable<float64> dialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
 			= kDefaultThirdColumnWidth; // per-window
 		Ui::InputSubmitSettings sendSubmitWay;
