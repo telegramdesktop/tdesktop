@@ -1076,8 +1076,8 @@ endif()
 
 if (build_macstore)
     set(bundle_identifier "org.telegram.desktop")
-    set(bundle_entitlements "Telegram Desktop.entitlements")
-    set(output_name "Telegram Desktop")
+    set(bundle_entitlements "Telegram Lite.entitlements")
+    set(output_name "Telegram Lite")
     set_target_properties(Telegram PROPERTIES
         XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS ${libs_loc}/breakpad/src/client/mac/build/Release
     )
@@ -1121,7 +1121,7 @@ set_target_properties(Telegram PROPERTIES
 )
 set(entitlement_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram.entitlements"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Desktop.entitlements"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Lite.entitlements"
 )
 target_sources(Telegram PRIVATE ${entitlement_sources})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${entitlement_sources})
