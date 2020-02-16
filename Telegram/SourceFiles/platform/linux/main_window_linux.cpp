@@ -38,7 +38,7 @@ constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
 constexpr auto kSNIWatcherService = "org.kde.StatusNotifierWatcher"_cs;
 constexpr auto kTrayIconFilename = "tdesktop-trayicon-XXXXXX.png"_cs;
 
-int32 _trayIconSize = 48;
+int32 _trayIconSize = 22;
 bool _trayIconMuted = true;
 int32 _trayIconCount = 0;
 QImage _trayIconImageBack, _trayIconImage;
@@ -49,11 +49,6 @@ bool UseUnityCount = false;
 QString UnityCountDesktopFile;
 QString UnityCountDBusPath = "/";
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-
-#define QT_RED 0
-#define QT_GREEN 1
-#define QT_BLUE 2
-#define QT_ALPHA 3
 
 QString GetTrayIconName() {
 	const auto counter = Core::App().unreadBadge();
@@ -120,29 +115,6 @@ QImage TrayIconImageGen() {
 					desiredSize,
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
-			}
-
-			_trayIconImageBack = _trayIconImageBack.convertToFormat(
-				QImage::Format_ARGB32);
-
-			const auto w = _trayIconImageBack.width();
-			const auto h = _trayIconImageBack.height();
-			const auto perline = _trayIconImageBack.bytesPerLine();
-			auto *bytes = _trayIconImageBack.bits();
-
-			for (int32 y = 0; y < h; ++y) {
-				for (int32 x = 0; x < w; ++x) {
-					int32 srcoff = y * perline + x * 4;
-					bytes[srcoff + QT_RED  ] = qMax(
-						bytes[srcoff + QT_RED  ],
-						uchar(224));
-					bytes[srcoff + QT_GREEN] = qMax(
-						bytes[srcoff + QT_GREEN],
-						uchar(165));
-					bytes[srcoff + QT_BLUE ] = qMax(
-						bytes[srcoff + QT_BLUE ],
-						uchar(44));
-				}
 			}
 		}
 
@@ -292,11 +264,6 @@ void MainWindow::psTrayMenuUpdated() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void MainWindow::setSNITrayIcon(
 		const QIcon &icon, const QImage &iconImage) {
-	if (!NeedTrayIconFile()) {
-		_sniTrayIcon->setIconByPixmap(icon);
-		_sniTrayIcon->setToolTipIconByPixmap(icon);
-	}
-
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
 		const auto iconName = GetTrayIconName();
 		_sniTrayIcon->setIconByName(iconName);
@@ -308,6 +275,9 @@ void MainWindow::setSNITrayIcon(
 			_sniTrayIcon->setIconByName(_trayIconFile->fileName());
 			_sniTrayIcon->setToolTipIconByName(_trayIconFile->fileName());
 		}
+	} else {
+		_sniTrayIcon->setIconByPixmap(icon);
+		_sniTrayIcon->setToolTipIconByPixmap(icon);
 	}
 }
 
@@ -450,8 +420,8 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	if (!IsSNIAvailable() || IsAppIndicator()) {
-		_trayIconSize = 22;
+	if (DesktopEnvironment::IsKDE()) {
+		_trayIconSize = 48;
 	}
 }
 
