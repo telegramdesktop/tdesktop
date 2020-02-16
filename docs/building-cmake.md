@@ -257,6 +257,7 @@ Go to ***BuildPath*** and run
     -no-opengl \
     -no-gtk \
     -static \
+    -dbus-runtime \
     -openssl-linked \
     -I "$OPENSSL_DIR/include" OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
     -nomake examples \
