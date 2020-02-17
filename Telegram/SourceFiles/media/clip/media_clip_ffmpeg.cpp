@@ -16,8 +16,10 @@ namespace Clip {
 namespace internal {
 namespace {
 
-constexpr int kSkipInvalidDataPackets = 10;
-constexpr int kAlignImageBy = 16;
+constexpr auto kSkipInvalidDataPackets = 10;
+
+// See https://github.com/telegramdesktop/tdesktop/issues/7225
+constexpr auto kAlignImageBy = 64;
 
 void alignedImageBufferCleanupHandler(void *data) {
 	auto buffer = static_cast<uchar*>(data);

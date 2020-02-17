@@ -23,7 +23,8 @@ extern "C" {
 namespace FFmpeg {
 namespace {
 
-constexpr auto kAlignImageBy = 16;
+// See https://github.com/telegramdesktop/tdesktop/issues/7225
+constexpr auto kAlignImageBy = 64;
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
 constexpr auto kMaxScaleByAspectRatio = 16;
 constexpr auto kAvioBlockSize = 4096;
