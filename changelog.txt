@@ -1,3 +1,7 @@
+1.9.14 (17.02.20)
+
+- Bug fixes and other minor improvements.
+
 1.9.13 (12.02.20)
 
 - Bug fixes and other minor improvements.
