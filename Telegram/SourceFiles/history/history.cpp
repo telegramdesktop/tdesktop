@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_histories.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -1591,6 +1592,16 @@ void History::calculateFirstUnreadMessage() {
 	}
 }
 
+bool History::readInboxTillNeedsRequest(MsgId tillId) {
+	Expects(IsServerMsgId(tillId));
+
+	readClientSideMessages();
+	if (unreadMark()) {
+		session().api().changeDialogUnreadMark(this, false);
+	}
+	return (_inboxReadBefore.value_or(1) <= tillId);
+}
+
 void History::readClientSideMessages() {
 	auto unread = unreadCount();
 	for (const auto item : _localMessages) {
@@ -1616,80 +1627,28 @@ MsgId History::readInbox() {
 }
 
 void History::readInboxTill(not_null<HistoryItem*> item) {
-	if (!IsServerMsgId(item->id)) {
-		auto view = item->mainView();
-		if (!view) {
-			return;
-		}
-		auto block = view->block();
-		auto blockIndex = block->indexInHistory();
-		auto itemIndex = view->indexInBlock();
-		while (blockIndex > 0 || itemIndex > 0) {
-			if (itemIndex > 0) {
-				view = block->messages[--itemIndex].get();
-			} else {
-				while (blockIndex > 0) {
-					block = blocks[--blockIndex].get();
-					itemIndex = block->messages.size();
-					if (itemIndex > 0) {
-						view = block->messages[--itemIndex].get();
-						break;
-					}
-				}
-			}
-			item = view->data();
-			if (IsServerMsgId(item->id)) {
-				break;
-			}
-		}
-		if (!IsServerMsgId(item->id)) {
-			LOG(("App Error: "
-				"Can't read history till unknown local message."));
-			return;
-		}
-	}
-	readClientSideMessages();
-	if (unreadMark()) {
-		session().api().changeDialogUnreadMark(this, false);
-	}
-	if (_inboxReadTillLocal >= item->id) {
-		return;
-	}
-	_inboxReadTillLocal = item->id;
-	const auto stillUnread = countStillUnreadLocal();
-	if (!stillUnread) {
-		session().api().readServerHistoryForce(this, _inboxReadTillLocal);
-		return;
-	}
-	setInboxReadTill(_inboxReadTillLocal);
-	if (stillUnread && _unreadCount && *stillUnread == *_unreadCount) {
-		return;
-	}
-	setUnreadCount(*stillUnread);
-	session().api().readServerHistoryForce(this, _inboxReadTillLocal);
-	updateChatListEntry();
+	owner().histories().readInboxTill(this, item);
 }
 
-bool History::unreadCountRefreshNeeded() const {
+bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
 	return !unreadCountKnown()
-		|| ((_inboxReadTillLocal + 1) > _inboxReadBefore.value_or(0));
+		|| ((readTillId + 1) > _inboxReadBefore.value_or(0));
 }
 
-std::optional<int> History::countStillUnreadLocal() const {
+std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	if (isEmpty()) {
 		return std::nullopt;
 	}
-	const auto till = _inboxReadTillLocal;
 	if (_inboxReadBefore) {
 		const auto before = *_inboxReadBefore;
-		if (minMsgId() <= before && maxMsgId() >= till) {
+		if (minMsgId() <= before && maxMsgId() >= readTillId) {
 			auto result = 0;
 			for (const auto &block : blocks) {
 				for (const auto &message : block->messages) {
 					const auto item = message->data();
 					if (item->out() || !IsServerMsgId(item->id)) {
 						continue;
-					} else if (item->id > till) {
+					} else if (item->id > readTillId) {
 						break;
 					} else if (item->id >= before) {
 						++result;
@@ -1701,14 +1660,16 @@ std::optional<int> History::countStillUnreadLocal() const {
 			}
 		}
 	}
-	if (!loadedAtBottom() || minMsgId() > till) {
+	if (!loadedAtBottom() || minMsgId() > readTillId) {
 		return std::nullopt;
 	}
 	auto result = 0;
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			const auto item = message->data();
-			if (!item->out() && IsServerMsgId(item->id) && item->id > till) {
+			if (!item->out()
+				&& IsServerMsgId(item->id)
+				&& item->id > readTillId) {
 				++result;
 			}
 		}
@@ -1727,7 +1688,7 @@ void History::applyInboxReadUpdate(
 		session().api().requestDialogEntry(this);
 		session().api().requestDialogEntry(folder);
 	}
-	if (_inboxReadTillLocal <= upTo) {
+	if (_inboxReadBefore.value_or(1) <= upTo) {
 		if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
 			inboxRead(upTo, stillUnread);
 		} else {
@@ -2760,7 +2721,8 @@ void History::applyDialogFields(
 	} else {
 		clearFolder();
 	}
-	if (!skipUnreadUpdate() && maxInboxRead >= _inboxReadTillLocal) {
+	if (!skipUnreadUpdate()
+		&& maxInboxRead >= _inboxReadBefore.value_or(1)) {
 		setUnreadCount(unreadCount);
 		setInboxReadTill(maxInboxRead);
 	}
@@ -2794,7 +2756,6 @@ void History::setInboxReadTill(MsgId upTo) {
 	} else {
 		_inboxReadBefore = upTo + 1;
 	}
-	accumulate_max(_inboxReadTillLocal, upTo);
 }
 
 void History::setOutboxReadTill(MsgId upTo) {

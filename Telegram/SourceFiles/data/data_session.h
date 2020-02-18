@@ -61,6 +61,7 @@ class ScheduledMessages;
 class CloudThemes;
 class Streaming;
 class MediaRotation;
+class Histories;
 
 class Session final {
 public:
@@ -95,6 +96,9 @@ public:
 	}
 	[[nodiscard]] MediaRotation &mediaRotation() const {
 		return *_mediaRotation;
+	}
+	[[nodiscard]] Histories &histories() const {
+		return *_histories;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -968,7 +972,6 @@ private:
 	base::Timer _unmuteByFinishedTimer;
 
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> _peers;
-	std::unordered_map<PeerId, std::unique_ptr<History>> _histories;
 
 	MessageIdsList _mimeForwardIds;
 
@@ -989,6 +992,7 @@ private:
 	std::unique_ptr<CloudThemes> _cloudThemes;
 	std::unique_ptr<Streaming> _streaming;
 	std::unique_ptr<MediaRotation> _mediaRotation;
+	std::unique_ptr<Histories> _histories;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

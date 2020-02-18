@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
+#include "data/data_histories.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -194,7 +195,8 @@ Session::Session(not_null<Main::Session*> session)
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
 , _cloudThemes(std::make_unique<CloudThemes>(session))
 , _streaming(std::make_unique<Streaming>(this))
-, _mediaRotation(std::make_unique<MediaRotation>()) {
+, _mediaRotation(std::make_unique<MediaRotation>())
+, _histories(std::make_unique<Histories>(this)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -215,9 +217,7 @@ Session::Session(not_null<Main::Session*> session)
 void Session::clear() {
 	_sendActions.clear();
 
-	for (const auto &[peerId, history] : _histories) {
-		history->clear(History::ClearType::Unload);
-	}
+	_histories->unloadAll();
 	_scheduledMessages = nullptr;
 	_dependentMessages.clear();
 	base::take(_messages);
@@ -227,7 +227,7 @@ void Session::clear() {
 	cSetRecentInlineBots(RecentInlineBots());
 	cSetRecentStickers(RecentStickerPack());
 	App::clearMousedItems();
-	_histories.clear();
+	_histories->clearAll();
 }
 
 not_null<PeerData*> Session::peer(PeerId id) {
@@ -768,20 +768,11 @@ void Session::enumerateChannels(
 }
 
 not_null<History*> Session::history(PeerId peerId) {
-	Expects(peerId != 0);
-
-	if (const auto result = historyLoaded(peerId)) {
-		return result;
-	}
-	const auto [i, ok] = _histories.emplace(
-		peerId,
-		std::make_unique<History>(this, peerId));
-	return i->second.get();
+	return _histories->findOrCreate(peerId);
 }
 
 History *Session::historyLoaded(PeerId peerId) const {
-	const auto i = peerId ? _histories.find(peerId) : end(_histories);
-	return (i != end(_histories)) ? i->second.get() : nullptr;
+	return _histories->find(peerId);
 }
 
 not_null<History*> Session::history(not_null<const PeerData*> peer) {

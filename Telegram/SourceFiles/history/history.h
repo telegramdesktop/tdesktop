@@ -160,6 +160,7 @@ public:
 
 	MsgId readInbox();
 	void readInboxTill(not_null<HistoryItem*> item);
+	[[nodiscard]] bool readInboxTillNeedsRequest(MsgId tillId);
 	void applyInboxReadUpdate(
 		FolderId folderId,
 		MsgId upTo,
@@ -177,7 +178,7 @@ public:
 	[[nodiscard]] bool unreadCountKnown() const;
 
 	// Some old unread count is known, but we read history till some place.
-	[[nodiscard]] bool unreadCountRefreshNeeded() const;
+	[[nodiscard]] bool unreadCountRefreshNeeded(MsgId readTillId) const;
 
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
@@ -349,6 +350,10 @@ public:
 		HistoryItem *folderDialogItem = nullptr);
 	void clearFolder();
 
+	// Interface for Data::Histories.
+	void setInboxReadTill(MsgId upTo);
+	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;
+
 	// Still public data.
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
 
@@ -437,7 +442,6 @@ private:
 	TimeId adjustedChatListTimeId() const override;
 	void changedChatListPinHook() override;
 
-	void setInboxReadTill(MsgId upTo);
 	void setOutboxReadTill(MsgId upTo);
 	void readClientSideMessages();
 
@@ -474,7 +478,6 @@ private:
 	void getNextFirstUnreadMessage();
 	bool nonEmptyCountMoreThan(int count) const;
 	std::optional<int> countUnread(MsgId upTo) const;
-	std::optional<int> countStillUnreadLocal() const;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
@@ -503,7 +506,6 @@ private:
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;
-	MsgId _inboxReadTillLocal = 0;
 	std::optional<int> _unreadCount;
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;

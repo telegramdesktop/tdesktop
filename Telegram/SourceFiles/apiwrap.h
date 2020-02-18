@@ -394,6 +394,9 @@ public:
 	//void readFeed( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Data::MessagePosition position);
+	void applyAffectedMessages(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedMessages &result);
 
 	void sendVoiceMessage(
 		QByteArray result,
@@ -628,9 +631,6 @@ private:
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedHistory &result);
 	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
-	void applyAffectedMessages(
-		not_null<PeerData*> peer,
-		const MTPmessages_AffectedMessages &result);
 
 	void deleteAllFromUserSend(
 		not_null<ChannelData*> channel,

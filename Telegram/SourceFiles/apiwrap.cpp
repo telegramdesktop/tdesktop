@@ -6102,7 +6102,7 @@ void ApiWrap::sendReadRequest(not_null<PeerData*> peer, MsgId upTo) {
 				sendReadRequest(peer, *next);
 			} else if (const auto history
 				= _session->data().historyLoaded(peer)) {
-				if (history->unreadCountRefreshNeeded()) {
+				if (!history->unreadCountKnown()) {
 					requestDialogEntry(history);
 				}
 			}
