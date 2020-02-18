@@ -36,6 +36,7 @@ public:
 	void readInboxTill(
 		not_null<History*> history,
 		not_null<HistoryItem*> item);
+	void readInboxTill(not_null<History*> history, MsgId tillId);
 	void sendPendingReadInbox(not_null<History*> history);
 
 private:

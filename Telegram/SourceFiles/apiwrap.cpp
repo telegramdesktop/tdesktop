@@ -4432,7 +4432,7 @@ void ApiWrap::userPhotosDone(
 //}
 
 void ApiWrap::sendAction(const SendAction &action) {
-	readServerHistory(action.history);
+	action.history->readInbox();
 	action.history->getReadyFor(ShowAtTheEndMsgId);
 	_sendActions.fire_copy(action);
 }
@@ -4459,7 +4459,7 @@ void ApiWrap::forwardMessages(
 	const auto history = action.history;
 	const auto peer = history->peer;
 
-	readServerHistory(history);
+	history->readInbox();
 
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = action.options.silent
@@ -6000,46 +6000,6 @@ void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {
 	_pollReloadRequestIds.emplace(itemId, requestId);
 }
 
-void ApiWrap::readServerHistory(not_null<History*> history) {
-	if (history->unreadCount()) {
-		readServerHistoryForce(history);
-	}
-	if (history->unreadMark()) {
-		changeDialogUnreadMark(history, false);
-	}
-}
-
-void ApiWrap::readServerHistoryForce(
-		not_null<History*> history,
-		MsgId upTo) {
-	const auto peer = history->peer;
-	if (!upTo) {
-		upTo = history->readInbox();
-		if (!upTo) {
-			return;
-		}
-	}
-	if (const auto channel = peer->asChannel()) {
-		if (!channel->amIn()) {
-			return; // no read request for channels that I didn't join
-		} else if (const auto migrateFrom = channel->migrateFrom()) {
-			if (const auto migrated = _session->data().historyLoaded(migrateFrom)) {
-				readServerHistory(migrated);
-			}
-		}
-	}
-
-	if (_readRequests.contains(peer)) {
-		const auto i = _readRequestsPending.find(peer);
-		if (i == _readRequestsPending.cend()) {
-			_readRequestsPending.emplace(peer, upTo);
-		} else if (i->second < upTo) {
-			i->second = upTo;
-		}
-	} else {
-		sendReadRequest(peer, upTo);
-	}
-}
 // // #feed
 //void ApiWrap::readFeed(
 //		not_null<Data::Feed*> feed,
@@ -6093,39 +6053,3 @@ void ApiWrap::readServerHistoryForce(
 //		_feedReadTimer.callOnce(delay);
 //	}
 //}
-
-void ApiWrap::sendReadRequest(not_null<PeerData*> peer, MsgId upTo) {
-	const auto requestId = [&] {
-		const auto finished = [=] {
-			_readRequests.remove(peer);
-			if (const auto next = _readRequestsPending.take(peer)) {
-				sendReadRequest(peer, *next);
-			} else if (const auto history
-				= _session->data().historyLoaded(peer)) {
-				if (!history->unreadCountKnown()) {
-					requestDialogEntry(history);
-				}
-			}
-		};
-		if (const auto channel = peer->asChannel()) {
-			return request(MTPchannels_ReadHistory(
-				channel->inputChannel,
-				MTP_int(upTo)
-			)).done([=](const MTPBool &result) {
-				finished();
-			}).fail([=](const RPCError &error) {
-				finished();
-			}).send();
-		}
-		return request(MTPmessages_ReadHistory(
-			peer->input,
-			MTP_int(upTo)
-		)).done([=](const MTPmessages_AffectedMessages &result) {
-			applyAffectedMessages(peer, result);
-			finished();
-		}).fail([=](const RPCError &error) {
-			finished();
-		}).send();
-	}();
-	_readRequests.emplace(peer, requestId, upTo);
-}

@@ -158,7 +158,7 @@ public:
 	void unregisterLocalMessage(not_null<HistoryItem*> item);
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
-	MsgId readInbox();
+	void readInbox();
 	void readInboxTill(not_null<HistoryItem*> item);
 	[[nodiscard]] bool readInboxTillNeedsRequest(MsgId tillId);
 	void applyInboxReadUpdate(

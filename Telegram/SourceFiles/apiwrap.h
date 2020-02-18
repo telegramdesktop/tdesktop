@@ -389,8 +389,6 @@ public:
 		const QString &lastName,
 		const SendAction &action);
 	void shareContact(not_null<UserData*> user, const SendAction &action);
-	void readServerHistory(not_null<History*> history);
-	void readServerHistoryForce(not_null<History*> history, MsgId upTo = 0);
 	//void readFeed( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Data::MessagePosition position);
@@ -626,7 +624,6 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
-	void sendReadRequest(not_null<PeerData*> peer, MsgId upTo);
 	int applyAffectedHistory(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedHistory &result);
@@ -799,18 +796,6 @@ private:
 		DialogsLoadState> _foldersLoadState;
 
 	rpl::event_stream<SendAction> _sendActions;
-
-	struct ReadRequest {
-		ReadRequest(mtpRequestId requestId, MsgId upTo)
-		: requestId(requestId)
-		, upTo(upTo) {
-		}
-
-		mtpRequestId requestId = 0;
-		MsgId upTo = 0;
-	};
-	base::flat_map<not_null<PeerData*>, ReadRequest> _readRequests;
-	base::flat_map<not_null<PeerData*>, MsgId> _readRequestsPending;
 
 	std::unique_ptr<TaskQueue> _fileLoader;
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;

@@ -98,7 +98,10 @@ void Histories::readInboxTill(
 			return;
 		}
 	}
-	const auto tillId = item->id;
+	readInboxTill(history, item->id);
+}
+
+void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
 	if (!history->readInboxTillNeedsRequest(tillId)) {
 		return;
 	}

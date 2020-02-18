@@ -1614,16 +1614,47 @@ void History::readClientSideMessages() {
 	}
 }
 
-MsgId History::readInbox() {
-	const auto upTo = msgIdForRead();
-	readClientSideMessages();
-	if (unreadCountKnown()) {
-		setUnreadCount(0);
+void History::readInbox() {
+	if (_lastMessage) {
+		if (!*_lastMessage) {
+			owner().histories().readInboxTill(this, 0);
+			return;
+		} else if (IsServerMsgId((*_lastMessage)->id)) {
+			readInboxTill(*_lastMessage);
+			return;
+		}
 	}
-	if (upTo) {
-		inboxRead(upTo);
+	if (loadedAtBottom()) {
+		const auto last = [&]() -> HistoryItem* {
+			for (const auto &block : ranges::view::reverse(blocks)) {
+				const auto &messages = block->messages;
+				for (const auto &item : ranges::view::reverse(messages)) {
+					if (IsServerMsgId(item->data()->id)) {
+						return item->data();
+					}
+				}
+			}
+			return nullptr;
+		}();
+		if (last) {
+			readInboxTill(last);
+			return;
+		} else if (loadedAtTop()) {
+			owner().histories().readInboxTill(this, 0);
+			return;
+		}
 	}
-	return upTo;
+	session().api().requestDialogEntry(this, [=] {
+		Expects(_lastMessage.has_value());
+
+		if (!*_lastMessage) {
+			owner().histories().readInboxTill(this, 0);
+		} else if (IsServerMsgId((*_lastMessage)->id)) {
+			readInboxTill(*_lastMessage);
+		} else {
+			Unexpected("Local _lastMessage after requestDialogEntry.");
+		}
+	});
 }
 
 void History::readInboxTill(not_null<HistoryItem*> item) {
