@@ -74,9 +74,8 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone git://anongit.freedesktop.org/vdpau/libvdpau
+    git clone https://gitlab.freedesktop.org/vdpau/libvdpau.git --depth=1 -b libvdpau-1.2
     cd libvdpau
-    git checkout libvdpau-1.2
     ./autogen.sh --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
