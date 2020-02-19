@@ -87,7 +87,7 @@ bool NativeSupported() {
 #ifndef TDESKTOP_FORCE_GTK_FILE_DIALOG
 	return false;
 #endif // TDESKTOP_FORCE_GTK_FILE_DIALOG
-	return !Platform::IsXDGDesktopPortalPresent()
+	return !Platform::UseXDGDesktopPortal()
 		&& Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
