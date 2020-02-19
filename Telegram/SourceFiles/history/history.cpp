@@ -1937,8 +1937,8 @@ void History::setFolder(
 		not_null<Data::Folder*> folder,
 		HistoryItem *folderDialogItem) {
 	setFolderPointer(folder);
-	if (folderDialogItem && _lastMessage != folderDialogItem) {
-		setLastMessage(folderDialogItem);
+	if (folderDialogItem) {
+		setLastServerMessage(folderDialogItem);
 	}
 }
 
@@ -2369,16 +2369,19 @@ void History::clearSharedMedia() {
 	//}
 }
 
+void History::setLastServerMessage(HistoryItem *item) {
+	if (_lastMessage
+		&& *_lastMessage
+		&& !IsServerMsgId((*_lastMessage)->id)
+		&& (!item || (*_lastMessage)->date() > item->date())) {
+		return;
+	}
+	setLastMessage(item);
+}
+
 void History::setLastMessage(HistoryItem *item) {
-	if (_lastMessage) {
-		if (*_lastMessage == item) {
-			return;
-		} else if (*_lastMessage
-			&& item
-			&& !IsServerMsgId((*_lastMessage)->id)
-			&& (*_lastMessage)->date() > item->date()) {
-			return;
-		}
+	if (_lastMessage && *_lastMessage == item) {
+		return;
 	}
 	_lastMessage = item;
 	if (peer->migrateTo()) {
@@ -2766,12 +2769,12 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 			channelId(),
 			topMessageId);
 		if (const auto item = owner().message(itemId)) {
-			setLastMessage(item);
+			setLastServerMessage(item);
 		} else {
-			setLastMessage(nullptr);
+			setLastServerMessage(nullptr);
 		}
 	} else {
-		setLastMessage(nullptr);
+		setLastServerMessage(nullptr);
 	}
 	if (clearUnreadOnClientSide()) {
 		setUnreadCount(0);
@@ -3167,7 +3170,7 @@ void History::clear(ClearType type) {
 			setUnreadCount(0);
 		}
 		if (type == ClearType::DeleteChat) {
-			setLastMessage(nullptr);
+			setLastServerMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {
 			if (IsServerMsgId((*_lastMessage)->id)) {
 				(*_lastMessage)->applyEditionToHistoryCleared();

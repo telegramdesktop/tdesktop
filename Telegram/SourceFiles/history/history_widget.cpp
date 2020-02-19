@@ -145,22 +145,6 @@ void ActivateWindow(not_null<Window::SessionController*> controller) {
 	Ui::ActivateWindowDelayed(window);
 }
 
-bool ShowHistoryEndInsteadOfUnread(
-		not_null<Data::Session*> session,
-		PeerId peerId) {
-	// Ignore unread messages in case of unread changelogs.
-	// We must show this history at end for the changelog to be visible.
-	if (peerId != PeerData::kServiceNotificationsId) {
-		return false;
-	}
-	const auto history = session->history(peerId);
-	if (!history->unreadCount()) {
-		return false;
-	}
-	const auto last = history->lastMessage();
-	return (last != nullptr) && !IsServerMsgId(last->id);
-}
-
 object_ptr<Ui::FlatButton> SetupDiscussButton(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller) {
@@ -1645,9 +1629,6 @@ void HistoryWidget::showHistory(
 
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
 	if (startBot) {
-		showAtMsgId = ShowAtTheEndMsgId;
-	} else if ((showAtMsgId == ShowAtUnreadMsgId)
-		&& ShowHistoryEndInsteadOfUnread(&session().data(), peerId)) {
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
 

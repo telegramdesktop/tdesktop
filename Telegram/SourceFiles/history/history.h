@@ -455,6 +455,7 @@ private:
 	// After adding a new history slice check lastMessage / loadedAtBottom.
 	void checkLastMessage();
 	void setLastMessage(HistoryItem *item);
+	void setLastServerMessage(HistoryItem *item);
 
 	void refreshChatListMessage();
 	void setChatListMessage(HistoryItem *item);
