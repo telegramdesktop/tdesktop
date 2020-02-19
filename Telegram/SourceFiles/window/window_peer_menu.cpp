@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_histories.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "facades.h"
@@ -303,7 +304,7 @@ void Filler::addToggleUnreadMark() {
 		const auto markAsRead = isUnread(peer);
 		const auto handle = [&](not_null<History*> history) {
 			if (markAsRead) {
-				history->readInbox();
+				peer->session().data().histories().readInbox(history);
 			} else {
 				peer->session().api().changeDialogUnreadMark(
 					history,

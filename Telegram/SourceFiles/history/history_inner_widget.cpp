@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_histories.h"
 #include "facades.h"
 #include "app.h"
 
@@ -704,7 +705,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.restore();
 
 			if (readTill) {
-				_history->readInboxTill(readTill);
+				session().data().histories().readInboxTill(readTill);
 			}
 		}
 
@@ -2059,7 +2060,7 @@ void HistoryInner::checkHistoryActivation() {
 			}
 		}
 	}
-	_history->readInboxTill(view->data());
+	session().data().histories().readInboxTill(view->data());
 }
 
 void HistoryInner::recountHistoryGeometry() {

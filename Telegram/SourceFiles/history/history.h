@@ -158,8 +158,6 @@ public:
 	void unregisterLocalMessage(not_null<HistoryItem*> item);
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
-	void readInbox();
-	void readInboxTill(not_null<HistoryItem*> item);
 	[[nodiscard]] bool readInboxTillNeedsRequest(MsgId tillId);
 	void applyInboxReadUpdate(
 		FolderId folderId,
@@ -203,7 +201,9 @@ public:
 	void getReadyFor(MsgId msgId);
 
 	[[nodiscard]] HistoryItem *lastMessage() const;
+	[[nodiscard]] HistoryItem *lastServerMessage() const;
 	[[nodiscard]] bool lastMessageKnown() const;
+	[[nodiscard]] bool lastServerMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
@@ -478,7 +478,6 @@ private:
 	HistoryItem *lastAvailableMessage() const;
 	void getNextFirstUnreadMessage();
 	bool nonEmptyCountMoreThan(int count) const;
-	std::optional<int> countUnread(MsgId upTo) const;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
@@ -511,6 +510,7 @@ private:
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
+	std::optional<HistoryItem*> _lastServerMessage;
 	base::flat_set<not_null<HistoryItem*>> _localMessages;
 
 	// This almost always is equal to _lastMessage. The only difference is

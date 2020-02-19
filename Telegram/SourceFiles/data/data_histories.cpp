@@ -63,10 +63,32 @@ void Histories::clearAll() {
 	_map.clear();
 }
 
-void Histories::readInboxTill(
-		not_null<History*> history,
-		not_null<HistoryItem*> item) {
+void Histories::readInbox(not_null<History*> history) {
+	if (history->lastServerMessageKnown()) {
+		const auto last = history->lastServerMessage();
+		readInboxTill(history, last ? last->id : 0);
+		return;
+	} else if (history->loadedAtBottom()) {
+		if (const auto lastId = history->maxMsgId()) {
+			readInboxTill(history, lastId);
+			return;
+		} else if (history->loadedAtTop()) {
+			readInboxTill(history, 0);
+			return;
+		}
+	}
+	session().api().requestDialogEntry(history, [=] {
+		Expects(history->lastServerMessageKnown());
+
+		const auto last = history->lastServerMessage();
+		readInboxTill(history, last ? last->id : 0);
+	});
+}
+
+void Histories::readInboxTill(not_null<HistoryItem*> item) {
+	const auto history = item->history();
 	if (!IsServerMsgId(item->id)) {
+		readClientSideMessage(item);
 		auto view = item->mainView();
 		if (!view) {
 			return;
@@ -102,15 +124,23 @@ void Histories::readInboxTill(
 }
 
 void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
-	if (!history->readInboxTillNeedsRequest(tillId)) {
+	readInboxTill(history, tillId, false);
+}
+void Histories::readInboxTill(
+		not_null<History*> history,
+		MsgId tillId,
+		bool force) {
+	if (!history->readInboxTillNeedsRequest(tillId) && !force) {
 		return;
-	}
-	const auto maybeState = lookup(history);
-	if (maybeState && maybeState->readTill >= tillId) {
-		return;
+	} else if (!force) {
+		const auto maybeState = lookup(history);
+		if (maybeState && maybeState->readTill >= tillId) {
+			return;
+		}
 	}
 	const auto stillUnread = history->countStillUnreadLocal(tillId);
-	if (stillUnread
+	if (!force
+		&& stillUnread
 		&& history->unreadCountKnown()
 		&& *stillUnread == history->unreadCount()) {
 		history->setInboxReadTill(tillId);
@@ -119,10 +149,12 @@ void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
 	auto &state = _states[history];
 	const auto wasReadTill = state.readTill;
 	state.readTill = tillId;
-	if (!stillUnread) {
+	if (force || !stillUnread || !*stillUnread) {
 		state.readWhen = 0;
 		sendReadRequests();
-		return;
+		if (!stillUnread) {
+			return;
+		}
 	} else if (!wasReadTill) {
 		state.readWhen = crl::now() + kReadRequestTimeout;
 		if (!_readRequestsTimer.isActive()) {
@@ -132,6 +164,25 @@ void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
 	history->setInboxReadTill(tillId);
 	history->setUnreadCount(*stillUnread);
 	history->updateChatListEntry();
+}
+
+void Histories::readInboxOnNewMessage(not_null<HistoryItem*> item) {
+	if (!IsServerMsgId(item->id)) {
+		readClientSideMessage(item);
+	} else {
+		readInboxTill(item->history(), item->id, true);
+	}
+}
+
+void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
+	if (item->out() || !item->unread()) {
+		return;
+	}
+	const auto history = item->history();
+	item->markClientSideAsRead();
+	if (const auto unread = history->unreadCount()) {
+		history->setUnreadCount(unread - 1);
+	}
 }
 
 void Histories::sendPendingReadInbox(not_null<History*> history) {
@@ -255,10 +306,11 @@ void Histories::checkPostponed(not_null<History*> history, int requestId) {
 		const auto action = chooseAction(*state, entry.second.type, true);
 		if (action == Action::Send) {
 			const auto id = entry.first;
+			const auto postponed = std::move(entry.second);
 			state->postponed.remove(id);
 			state->sent.emplace(id, SentRequest{
-				entry.second.generator([=] { checkPostponed(history, id); }),
-				entry.second.type
+				postponed.generator([=] { checkPostponed(history, id); }),
+				postponed.type
 			});
 			if (base::take(state->thenRequestEntry)) {
 				session().api().requestDialogEntry(history);

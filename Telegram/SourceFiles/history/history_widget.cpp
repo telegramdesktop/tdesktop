@@ -2259,7 +2259,7 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 	if (item->isUnreadMention() && !item->isUnreadMedia()) {
 		session().api().markMediaRead(item);
 	}
-	_history->readInboxTill(item);
+	session().data().histories().readInboxOnNewMessage(item);
 
 	// Also clear possible scheduled messages notifications.
 	session().notifications().clearFromHistory(_history);

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_histories.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
@@ -4432,7 +4433,7 @@ void ApiWrap::userPhotosDone(
 //}
 
 void ApiWrap::sendAction(const SendAction &action) {
-	action.history->readInbox();
+	session().data().histories().readInbox(action.history);
 	action.history->getReadyFor(ShowAtTheEndMsgId);
 	_sendActions.fire_copy(action);
 }
@@ -4459,7 +4460,7 @@ void ApiWrap::forwardMessages(
 	const auto history = action.history;
 	const auto peer = history->peer;
 
-	history->readInbox();
+	session().data().histories().readInbox(history);
 
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = action.options.silent

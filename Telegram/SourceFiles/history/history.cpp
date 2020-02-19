@@ -136,6 +136,9 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 		_joinedMessage = nullptr;
 	}
 	item->removeMainView();
+	if (_lastServerMessage == item) {
+		_lastServerMessage = std::nullopt;
+	}
 	if (lastMessage() == item) {
 		_lastMessage = std::nullopt;
 		if (loadedAtBottom()) {
@@ -1546,27 +1549,6 @@ void History::addToSharedMedia(
 	}
 }
 
-std::optional<int> History::countUnread(MsgId upTo) const {
-	if (!folderKnown() || !loadedAtBottom()) {
-		return std::nullopt;
-	}
-	auto result = 0;
-	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
-		--i;
-		const auto &messages = (*i)->messages;
-		for (auto j = messages.cend(), en = messages.cbegin(); j != en;) {
-			--j;
-			const auto item = (*j)->data();
-			if (item->id > 0 && item->id <= upTo) {
-				return result;
-			} else if (!item->out() && item->unread()) {
-				++result;
-			}
-		}
-	}
-	return std::nullopt;
-}
-
 void History::calculateFirstUnreadMessage() {
 	if (_firstUnreadView || !_inboxReadBefore) {
 		return;
@@ -1603,62 +1585,10 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 }
 
 void History::readClientSideMessages() {
-	auto unread = unreadCount();
+	auto &histories = owner().histories();
 	for (const auto item : _localMessages) {
-		if (!item->out() && item->unread()) {
-			item->markClientSideAsRead();
-			if (unread > 0) {
-				setUnreadCount(--unread);
-			}
-		}
+		histories.readClientSideMessage(item);
 	}
-}
-
-void History::readInbox() {
-	if (_lastMessage) {
-		if (!*_lastMessage) {
-			owner().histories().readInboxTill(this, 0);
-			return;
-		} else if (IsServerMsgId((*_lastMessage)->id)) {
-			readInboxTill(*_lastMessage);
-			return;
-		}
-	}
-	if (loadedAtBottom()) {
-		const auto last = [&]() -> HistoryItem* {
-			for (const auto &block : ranges::view::reverse(blocks)) {
-				const auto &messages = block->messages;
-				for (const auto &item : ranges::view::reverse(messages)) {
-					if (IsServerMsgId(item->data()->id)) {
-						return item->data();
-					}
-				}
-			}
-			return nullptr;
-		}();
-		if (last) {
-			readInboxTill(last);
-			return;
-		} else if (loadedAtTop()) {
-			owner().histories().readInboxTill(this, 0);
-			return;
-		}
-	}
-	session().api().requestDialogEntry(this, [=] {
-		Expects(_lastMessage.has_value());
-
-		if (!*_lastMessage) {
-			owner().histories().readInboxTill(this, 0);
-		} else if (IsServerMsgId((*_lastMessage)->id)) {
-			readInboxTill(*_lastMessage);
-		} else {
-			Unexpected("Local _lastMessage after requestDialogEntry.");
-		}
-	});
-}
-
-void History::readInboxTill(not_null<HistoryItem*> item) {
-	owner().histories().readInboxTill(this, item);
 }
 
 bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
@@ -1691,17 +1621,22 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 			}
 		}
 	}
-	if (!loadedAtBottom() || minMsgId() > readTillId) {
+	const auto minimalServerId = minMsgId();
+	if (!loadedAtBottom()
+		|| (!loadedAtTop() && !minimalServerId)
+		|| minimalServerId > readTillId) {
 		return std::nullopt;
 	}
 	auto result = 0;
-	for (const auto &block : blocks) {
-		for (const auto &message : block->messages) {
+	for (const auto &block : ranges::view::reverse(blocks)) {
+		for (const auto &message : ranges::view::reverse(block->messages)) {
 			const auto item = message->data();
-			if (!item->out()
-				&& IsServerMsgId(item->id)
-				&& item->id > readTillId) {
-				++result;
+			if (IsServerMsgId(item->id)) {
+				if (item->id <= readTillId) {
+					return result;
+				} else if (!item->out()) {
+					++result;
+				}
 			}
 		}
 	}
@@ -1734,7 +1669,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	}
 	if (stillUnread.has_value() && folderKnown()) {
 		setUnreadCount(*stillUnread);
-	} else if (const auto still = countUnread(upTo)) {
+	} else if (const auto still = countStillUnreadLocal(upTo)) {
 		setUnreadCount(*still);
 	} else {
 		session().api().requestDialogEntry(this);
@@ -2370,6 +2305,7 @@ void History::clearSharedMedia() {
 }
 
 void History::setLastServerMessage(HistoryItem *item) {
+	_lastServerMessage = item;
 	if (_lastMessage
 		&& *_lastMessage
 		&& !IsServerMsgId((*_lastMessage)->id)
@@ -2384,6 +2320,9 @@ void History::setLastMessage(HistoryItem *item) {
 		return;
 	}
 	_lastMessage = item;
+	if (!item || IsServerMsgId(item->id)) {
+		_lastServerMessage = item;
+	}
 	if (peer->migrateTo()) {
 		// We don't want to request last message for all deactivated chats.
 		// This is a heavy request for them, because we need to get last
@@ -2583,6 +2522,14 @@ bool History::lastMessageKnown() const {
 	return _lastMessage.has_value();
 }
 
+HistoryItem *History::lastServerMessage() const {
+	return _lastServerMessage.value_or(nullptr);
+}
+
+bool History::lastServerMessageKnown() const {
+	return _lastServerMessage.has_value();
+}
+
 void History::updateChatListExistence() {
 	Entry::updateChatListExistence();
 	//if (const auto channel = peer->asChannel()) { // #feed
@@ -2691,7 +2638,9 @@ void History::applyDialog(
 }
 
 void History::dialogEntryApplied() {
-	if (!lastMessageKnown()) {
+	if (!lastServerMessageKnown()) {
+		setLastServerMessage(nullptr);
+	} else if (!lastMessageKnown()) {
 		setLastMessage(nullptr);
 	}
 	if (peer->migrateTo()) {

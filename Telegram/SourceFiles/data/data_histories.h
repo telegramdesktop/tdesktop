@@ -33,10 +33,11 @@ public:
 	void unloadAll();
 	void clearAll();
 
-	void readInboxTill(
-		not_null<History*> history,
-		not_null<HistoryItem*> item);
+	void readInbox(not_null<History*> history);
+	void readInboxTill(not_null<HistoryItem*> item);
 	void readInboxTill(not_null<History*> history, MsgId tillId);
+	void readInboxOnNewMessage(not_null<HistoryItem*> item);
+	void readClientSideMessage(not_null<HistoryItem*> item);
 	void sendPendingReadInbox(not_null<History*> history);
 
 private:
@@ -69,6 +70,7 @@ private:
 		bool thenRequestEntry = false;
 	};
 
+	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
 	void sendReadRequest(not_null<History*> history, State &state);
 	[[nodiscard]] State *lookup(not_null<History*> history);
