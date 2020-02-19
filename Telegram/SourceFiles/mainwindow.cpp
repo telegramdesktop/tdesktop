@@ -508,7 +508,7 @@ bool MainWindow::doWeMarkAsRead() {
 		return false;
 	}
 	updateIsActive(0);
-	return isActive();
+	return isActive() && _main->doWeMarkAsRead();
 }
 
 void MainWindow::checkHistoryActivation() {
@@ -549,10 +549,12 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::MouseMove: {
-		if (_main && _main->isIdle()) {
+		const auto position = static_cast<QMouseEvent*>(e)->globalPos();
+		if (_main && _main->isIdle() && _lastMousePosition != position) {
 			Core::App().updateNonIdle();
 			_main->checkIdleFinish();
 		}
+		_lastMousePosition = position;
 	} break;
 
 	case QEvent::MouseButtonRelease: {

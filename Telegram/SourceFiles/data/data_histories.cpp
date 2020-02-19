@@ -126,6 +126,7 @@ void Histories::readInboxTill(not_null<HistoryItem*> item) {
 void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
 	readInboxTill(history, tillId, false);
 }
+
 void Histories::readInboxTill(
 		not_null<History*> history,
 		MsgId tillId,

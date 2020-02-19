@@ -674,7 +674,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					const auto middle = y + h / 2;
 					const auto bottom = y + h;
 					if (_visibleAreaBottom >= bottom) {
-						readTill = view->data();
+						const auto item = view->data();
+						if (!item->out() && item->unread()) {
+							readTill = item;
+						}
 					}
 					if (_visibleAreaBottom >= middle
 						&& _visibleAreaTop <= middle) {
@@ -704,7 +707,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			}
 			p.restore();
 
-			if (readTill) {
+			if (readTill && _widget->doWeReadServerHistory()) {
 				session().data().histories().readInboxTill(readTill);
 			}
 		}
