@@ -117,13 +117,13 @@ void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
 		return;
 	}
 	auto &state = _states[history];
-	const auto wasWaiting = (state.readTill != 0);
+	const auto wasReadTill = state.readTill;
 	state.readTill = tillId;
 	if (!stillUnread) {
 		state.readWhen = 0;
 		sendReadRequests();
 		return;
-	} else if (!wasWaiting) {
+	} else if (!wasReadTill) {
 		state.readWhen = crl::now() + kReadRequestTimeout;
 		if (!_readRequestsTimer.isActive()) {
 			_readRequestsTimer.callOnce(kReadRequestTimeout);
@@ -158,6 +158,8 @@ void Histories::sendReadRequests() {
 	}
 	if (next.has_value()) {
 		_readRequestsTimer.callOnce(*next - now);
+	} else {
+		_readRequestsTimer.cancel();
 	}
 }
 
@@ -168,12 +170,18 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 		const auto finished = [=] {
 			const auto state = lookup(history);
 			Assert(state != nullptr);
+			Assert(state->readTill >= tillId);
+
 			if (history->unreadCountRefreshNeeded(tillId)) {
 				session().api().requestDialogEntry(history);
 			}
 			if (state->readWhen == kReadRequestSent) {
 				state->readWhen = 0;
-				state->readTill = 0;
+				if (state->readTill == tillId) {
+					state->readTill = 0;
+				} else {
+					sendReadRequests();
+				}
 			}
 			done();
 		};

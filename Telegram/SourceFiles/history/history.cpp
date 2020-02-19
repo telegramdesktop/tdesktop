@@ -1667,7 +1667,7 @@ bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
 }
 
 std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
-	if (isEmpty()) {
+	if (isEmpty() || !folderKnown()) {
 		return std::nullopt;
 	}
 	if (_inboxReadBefore) {
