@@ -24,6 +24,7 @@ bool InSandbox();
 bool InSnap();
 
 bool IsXDGDesktopPortalPresent();
+bool UseXDGDesktopPortal();
 
 QString ProcessNameByPID(const QString &pid);
 QString CurrentExecutablePath(int argc, char *argv[]);
