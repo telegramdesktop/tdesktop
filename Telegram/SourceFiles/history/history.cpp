@@ -1590,22 +1590,22 @@ void History::addToSharedMedia(
 }
 
 void History::calculateFirstUnreadMessage() {
-	if (_firstUnreadView || !_inboxReadBefore) {
+	if (!_inboxReadBefore) {
 		return;
 	}
 
-	for (auto i = blocks.cend(); i != blocks.cbegin();) {
-		--i;
-		const auto &messages = (*i)->messages;
-		for (auto j = messages.cend(); j != messages.cbegin();) {
-			--j;
-			const auto view = j->get();
-			const auto item = view->data();
+	_firstUnreadView = nullptr;
+	if (!unreadCount()) {
+		return;
+	}
+	for (const auto &block : ranges::view::reverse(blocks)) {
+		for (const auto &message : ranges::view::reverse(block->messages)) {
+			const auto item = message->data();
 			if (!IsServerMsgId(item->id)) {
 				continue;
-			} else if (!item->out() || !_firstUnreadView) {
+			} else if (!item->out()) {
 				if (item->id >= *_inboxReadBefore) {
-					_firstUnreadView = view;
+					_firstUnreadView = message.get();
 				} else {
 					return;
 				}
@@ -1798,10 +1798,8 @@ void History::setUnreadCount(int newUnreadCount) {
 		if (const auto last = msgIdForRead()) {
 			setInboxReadTill(last);
 		}
-	} else {
-		if (!_firstUnreadView && !_unreadBarView && loadedAtBottom()) {
-			calculateFirstUnreadMessage();
-		}
+	} else if (!_firstUnreadView && !_unreadBarView && loadedAtBottom()) {
+		calculateFirstUnreadMessage();
 	}
 	Notify::peerUpdatedDelayed(
 		peer,

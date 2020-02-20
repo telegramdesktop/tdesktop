@@ -1551,10 +1551,7 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 	}
 
 	clearAllLoadRequests();
-
 	setMsgId(ShowAtUnreadMsgId);
-	_historyInited = false;
-
 	if (_history->isReadyFor(_showAtMsgId)) {
 		historyLoaded();
 	} else {
@@ -1637,7 +1634,7 @@ void HistoryWidget::showHistory(
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
 
-			bool canShowNow = _history->isReadyFor(showAtMsgId);
+			const auto canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
 			} else {
@@ -1659,10 +1656,8 @@ void HistoryWidget::showHistory(
 
 				setMsgId(showAtMsgId);
 				if (_historyInited) {
-					countHistoryShowFrom();
-					destroyUnreadBar();
-
-					auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
+					const auto item = getItemFromHistoryOrMigrated(
+						_showAtMsgId);
 					animatedScrollToY(countInitialScrollTop(), item);
 				} else {
 					historyLoaded();
@@ -1712,7 +1707,7 @@ void HistoryWidget::showHistory(
 
 		_history->showAtMsgId = _showAtMsgId;
 
-		destroyUnreadBar();
+		destroyUnreadBarOnClose();
 		destroyPinnedBar();
 		_membersDropdown.destroy();
 		_scrollToAnimation.stop();
@@ -1822,7 +1817,9 @@ void HistoryWidget::showHistory(
 		_updateHistoryItems.stop();
 
 		pinnedMsgVisibilityUpdated();
-		if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem) || _history->isReadyFor(_showAtMsgId)) {
+		if (_history->scrollTopItem
+			|| (_migrated && _migrated->scrollTopItem)
+			|| _history->isReadyFor(_showAtMsgId)) {
 			historyLoaded();
 		} else {
 			firstLoadMessages();
@@ -2236,8 +2233,22 @@ void HistoryWidget::destroyUnreadBar() {
 	if (_migrated) _migrated->destroyUnreadBar();
 }
 
+void HistoryWidget::destroyUnreadBarOnClose() {
+	if (!_history || !_historyInited) {
+		return;
+	} else if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
+		destroyUnreadBar();
+		return;
+	}
+	const auto top = unreadBarTop();
+	if (top && *top < _scroll->scrollTop()) {
+		destroyUnreadBar();
+		return;
+	}
+}
+
 void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
-	if (_history != item->history()) {
+	if (_history != item->history() || !_historyInited) {
 		return;
 	}
 
@@ -2442,15 +2453,12 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 
 		setMsgId(_delayedShowAtMsgId);
-
-		_historyInited = false;
 		historyLoaded();
 	}
 }
 
 void HistoryWidget::historyLoaded() {
-	countHistoryShowFrom();
-	destroyUnreadBar();
+	_historyInited = false;
 	doneShow();
 }
 
@@ -2478,7 +2486,9 @@ void HistoryWidget::checkHistoryActivation() {
 }
 
 void HistoryWidget::firstLoadMessages() {
-	if (!_history || _firstLoadRequest) return;
+	if (!_history || _firstLoadRequest) {
+		return;
+	}
 
 	auto from = _peer;
 	auto offsetId = 0;
@@ -2535,13 +2545,18 @@ void HistoryWidget::firstLoadMessages() {
 }
 
 void HistoryWidget::loadMessages() {
-	if (!_history || _preloadRequest) return;
+	if (!_history || _preloadRequest) {
+		return;
+	}
 
 	if (_history->isEmpty() && _migrated && _migrated->isEmpty()) {
 		return firstLoadMessages();
 	}
 
-	auto loadMigrated = _migrated && (_history->isEmpty() || _history->loadedAtTop() || (!_migrated->isEmpty() && !_migrated->loadedAtBottom()));
+	auto loadMigrated = _migrated
+		&& (_history->isEmpty()
+			|| _history->loadedAtTop()
+			|| (!_migrated->isEmpty() && !_migrated->loadedAtBottom()));
 	auto from = loadMigrated ? _migrated : _history;
 	if (from->loadedAtTop()) {
 		return;
@@ -2572,7 +2587,9 @@ void HistoryWidget::loadMessages() {
 }
 
 void HistoryWidget::loadMessagesDown() {
-	if (!_history || _preloadDownRequest) return;
+	if (!_history || _preloadDownRequest) {
+		return;
+	}
 
 	if (_history->isEmpty() && _migrated && _migrated->isEmpty()) {
 		return firstLoadMessages();
@@ -4949,9 +4966,11 @@ int HistoryWidget::countInitialScrollTop() {
 	auto result = ScrollMax;
 	if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem)) {
 		result = _list->historyScrollTop();
-	} else if (_showAtMsgId && (_showAtMsgId > 0 || -_showAtMsgId < ServerMaxMsgId)) {
-		auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
-		auto itemTop = _list->itemTop(item);
+	} else if (_showAtMsgId
+		&& (IsServerMsgId(_showAtMsgId)
+			|| IsServerMsgId(-_showAtMsgId))) {
+		const auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
+		const auto itemTop = _list->itemTop(item);
 		if (itemTop < 0) {
 			setMsgId(0);
 			return countInitialScrollTop();
@@ -4971,8 +4990,14 @@ int HistoryWidget::countInitialScrollTop() {
 }
 
 int HistoryWidget::countAutomaticScrollTop() {
+	Expects(_history != nullptr);
+	Expects(_list != nullptr);
+
 	auto result = ScrollMax;
-	if (const auto unread = firstUnreadMessage()) {
+	if (!_historyInited) {
+		_history->calculateFirstUnreadMessage();
+	}
+	if (const auto unread = _history->firstUnreadMessage()) {
 		result = _list->itemTop(unread);
 		const auto possibleUnreadBarTop = _scroll->scrollTopMax()
 			+ HistoryView::UnreadBar::height()
@@ -5037,10 +5062,10 @@ void HistoryWidget::updateHistoryGeometry(
 	if (newScrollHeight <= 0) {
 		return;
 	}
-	auto wasScrollTop = _scroll->scrollTop();
-	auto wasScrollTopMax = _scroll->scrollTopMax();
-	auto wasAtBottom = wasScrollTop + 1 > wasScrollTopMax;
-	auto needResize = (_scroll->width() != width()) || (_scroll->height() != newScrollHeight);
+	const auto wasScrollTop = _scroll->scrollTop();
+	const auto wasAtBottom = (wasScrollTop == _scroll->scrollTopMax());
+	const auto needResize = (_scroll->width() != width())
+		|| (_scroll->height() != newScrollHeight);
 	if (needResize) {
 		_scroll->resize(width(), newScrollHeight);
 		// on initial updateListSize we didn't put the _scroll->scrollTop correctly yet
@@ -5069,52 +5094,30 @@ void HistoryWidget::updateHistoryGeometry(
 	updateListSize();
 	_updateHistoryGeometryRequired = false;
 
-	if ((!initial && !wasAtBottom)
-		|| (loadedDown
-			&& (!_history->firstUnreadMessage()
-				|| _history->unreadBar()
-				|| _history->loadedAtBottom())
-			&& (!_migrated
-				|| !_migrated->firstUnreadMessage()
-				|| _migrated->unreadBar()
-				|| _history->loadedAtBottom()))) {
-		const auto historyScrollTop = _list->historyScrollTop();
-		if (!wasAtBottom && historyScrollTop == ScrollMax) {
-			// History scroll top was not inited yet.
-			// If we're showing locally unread messages, we get here
-			// from destroyUnreadBar() before we have time to scroll
-			// to good initial position, like top of an unread bar.
-			return;
-		}
-		auto toY = qMin(_list->historyScrollTop(), _scroll->scrollTopMax());
-		if (change.type == ScrollChangeAdd) {
-			toY += change.value;
-		} else if (change.type == ScrollChangeNoJumpToBottom) {
-			toY = wasScrollTop;
-		} else if (_addToScroll) {
-			toY += _addToScroll;
-			_addToScroll = 0;
-		}
-		toY = snap(toY, 0, _scroll->scrollTopMax());
-		if (_scroll->scrollTop() == toY) {
-			visibleAreaUpdated();
-		} else {
-			synteticScrollToY(toY);
-		}
-		return;
-	}
-
+	auto newScrollTop = 0;
 	if (initial) {
+		newScrollTop = countInitialScrollTop();
 		_historyInited = true;
 		_scrollToAnimation.stop();
+	} else if (wasAtBottom && !loadedDown) {
+		newScrollTop = countAutomaticScrollTop();
+	} else {
+		newScrollTop = std::min(
+			_list->historyScrollTop(),
+			_scroll->scrollTopMax());
+		if (change.type == ScrollChangeAdd) {
+			newScrollTop += change.value;
+		} else if (change.type == ScrollChangeNoJumpToBottom) {
+			newScrollTop = wasScrollTop;
+		} else if (const auto add = base::take(_addToScroll)) {
+			newScrollTop += add;
+		}
 	}
-	const auto newScrollTop = initial
-		? countInitialScrollTop()
-		: countAutomaticScrollTop();
-	if (_scroll->scrollTop() == newScrollTop) {
+	const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
+	if (_scroll->scrollTop() == toY) {
 		visibleAreaUpdated();
 	} else {
-		synteticScrollToY(newScrollTop);
+		synteticScrollToY(toY);
 	}
 }
 
@@ -5137,15 +5140,13 @@ bool HistoryWidget::hasPendingResizedItems() const {
 }
 
 std::optional<int> HistoryWidget::unreadBarTop() const {
-	auto getUnreadBar = [this]() -> HistoryView::Element* {
+	const auto bar = [&]() -> HistoryView::Element* {
 		if (const auto bar = _migrated ? _migrated->unreadBar() : nullptr) {
 			return bar;
-		} else if (const auto bar = _history->unreadBar()) {
-			return bar;
 		}
-		return nullptr;
-	};
-	if (const auto bar = getUnreadBar()) {
+		return _history->unreadBar();
+	}();
+	if (bar) {
 		const auto result = _list->itemTop(bar)
 			+ HistoryView::UnreadBar::marginTop();
 		if (bar->Has<HistoryView::DateBadge>()) {
@@ -5154,15 +5155,6 @@ std::optional<int> HistoryWidget::unreadBarTop() const {
 		return result;
 	}
 	return std::nullopt;
-}
-
-HistoryView::Element *HistoryWidget::firstUnreadMessage() const {
-	if (_migrated) {
-		if (const auto result = _migrated->firstUnreadMessage()) {
-			return result;
-		}
-	}
-	return _history ? _history->firstUnreadMessage() : nullptr;
 }
 
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
@@ -5177,21 +5169,6 @@ void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> 
 	_list->messagesReceivedDown(peer, messages);
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
-	}
-}
-
-void HistoryWidget::countHistoryShowFrom() {
-	if (_migrated
-		&& _showAtMsgId == ShowAtUnreadMsgId
-		&& _migrated->unreadCount()) {
-		_migrated->calculateFirstUnreadMessage();
-	}
-	if ((_migrated && _migrated->firstUnreadMessage())
-		|| (_showAtMsgId != ShowAtUnreadMsgId)
-		|| !_history->unreadCount()) {
-		_history->unsetFirstUnreadMessage();
-	} else {
-		_history->calculateFirstUnreadMessage();
 	}
 }
 
@@ -5311,7 +5288,7 @@ void HistoryWidget::updateHistoryDownPosition() {
 void HistoryWidget::updateHistoryDownVisibility() {
 	if (_a_show.animating()) return;
 
-	auto haveUnreadBelowBottom = [&](History *history) {
+	const auto haveUnreadBelowBottom = [&](History *history) {
 		if (!_list || !history || history->unreadCount() <= 0) {
 			return false;
 		}
@@ -5322,7 +5299,7 @@ void HistoryWidget::updateHistoryDownVisibility() {
 		const auto top = _list->itemTop(unread);
 		return (top >= _scroll->scrollTop() + _scroll->height());
 	};
-	auto historyDownIsVisible = [&] {
+	const auto historyDownIsVisible = [&] {
 		if (!_list || _firstLoadRequest) {
 			return false;
 		}

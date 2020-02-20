@@ -557,6 +557,7 @@ private:
 
 	// destroys _history and _migrated unread bars
 	void destroyUnreadBar();
+	void destroyUnreadBarOnClose();
 
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
@@ -583,14 +584,11 @@ private:
 	std::optional<int> unreadBarTop() const;
 	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
-	HistoryView::Element *firstUnreadMessage() const;
 
 	// Scroll to current y without updating the _lastUserScrolled time.
 	// Used to distinguish between user scrolls and syntetic scrolls.
 	// This one is syntetic.
 	void synteticScrollToY(int y);
-
-	void countHistoryShowFrom();
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);
