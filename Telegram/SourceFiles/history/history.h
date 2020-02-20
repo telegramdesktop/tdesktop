@@ -205,7 +205,6 @@ public:
 	bool changeMute(bool newMute);
 	void addUnreadBar();
 	void destroyUnreadBar();
-	[[nodiscard]] bool hasNotFreezedUnreadBar() const;
 	[[nodiscard]] Element *unreadBar() const;
 	void calculateFirstUnreadMessage();
 	void unsetFirstUnreadMessage();

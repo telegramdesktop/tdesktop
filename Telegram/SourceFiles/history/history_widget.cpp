@@ -2389,7 +2389,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom()) {
-			App::wnd()->checkHistoryActivation();
+			checkHistoryActivation();
 		}
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
@@ -3138,7 +3138,7 @@ void HistoryWidget::doneShow() {
 		handlePendingHistoryUpdate();
 	}
 	preloadHistoryIfNeeded();
-	App::wnd()->checkHistoryActivation();
+	checkHistoryActivation();
 	App::wnd()->setInnerFocus();
 }
 
@@ -4986,7 +4986,6 @@ int HistoryWidget::countAutomaticScrollTop() {
 			if (history->unreadBar() != nullptr) {
 				setMsgId(ShowAtUnreadMsgId);
 				result = countInitialScrollTop();
-				App::wnd()->checkHistoryActivation();
 				if (session().supportMode()) {
 					history->unsetFirstUnreadMessage();
 				}
@@ -5109,7 +5108,7 @@ void HistoryWidget::updateHistoryGeometry(
 		_historyInited = true;
 		_scrollToAnimation.stop();
 	}
-	auto newScrollTop = initial
+	const auto newScrollTop = initial
 		? countInitialScrollTop()
 		: countAutomaticScrollTop();
 	if (_scroll->scrollTop() == newScrollTop) {

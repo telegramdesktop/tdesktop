@@ -96,26 +96,15 @@ TextSelection ShiftItemSelection(
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
 struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
-	void init(int newCount);
+	void init();
 
 	static int height();
 	static int marginTop();
 
 	void paint(Painter &p, int y, int w) const;
 
-	static constexpr auto kCountUnknown = std::numeric_limits<int>::max();
-
 	QString text;
 	int width = 0;
-	int count = 0;
-
-	// If unread bar is freezed the new messages do not
-	// increment the counter displayed by this bar.
-	//
-	// It happens when we've opened the conversation and
-	// we've seen the bar and new messages are marked as read
-	// as soon as they are added to the chat history.
-	bool freezed = false;
 
 };
 
@@ -192,13 +181,8 @@ public:
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 
-	void setUnreadBarCount(int count);
+	void createUnreadBar();
 	void destroyUnreadBar();
-
-	// marks the unread bar as freezed so that unread
-	// messages count will not change for this bar
-	// when the new messages arrive in this chat history
-	void setUnreadBarFreezed();
 
 	int displayedDateHeight() const;
 	bool displayDate() const;

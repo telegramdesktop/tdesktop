@@ -1367,8 +1367,8 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 }
 
 void History::viewReplaced(not_null<const Element*> was, Element *now) {
-	if (scrollTopItem == was) scrollTopItem= now;
-	if (_firstUnreadView == was) _firstUnreadView= now;
+	if (scrollTopItem == was) scrollTopItem = now;
+	if (_firstUnreadView == was) _firstUnreadView = now;
 	if (_unreadBarView == was) _unreadBarView = now;
 }
 
@@ -1803,14 +1803,6 @@ void History::setUnreadCount(int newUnreadCount) {
 			calculateFirstUnreadMessage();
 		}
 	}
-	if (_unreadBarView) {
-		const auto count = chatListUnreadCount();
-		if (count > 0) {
-			_unreadBarView->setUnreadBarCount(count);
-		} else {
-			_unreadBarView->setUnreadBarFreezed();
-		}
-	}
 	Notify::peerUpdatedDelayed(
 		peer,
 		Notify::PeerUpdate::Flag::UnreadViewChanged);
@@ -2064,7 +2056,7 @@ void History::addUnreadBar() {
 	}
 	if (const auto count = chatListUnreadCount()) {
 		_unreadBarView = _firstUnreadView;
-		_unreadBarView->setUnreadBarCount(count);
+		_unreadBarView->createUnreadBar();
 	}
 }
 
@@ -2072,17 +2064,6 @@ void History::destroyUnreadBar() {
 	if (const auto view = base::take(_unreadBarView)) {
 		view->destroyUnreadBar();
 	}
-}
-
-bool History::hasNotFreezedUnreadBar() const {
-	if (_firstUnreadView) {
-		if (const auto view = _unreadBarView) {
-			if (const auto bar = view->Get<HistoryView::UnreadBar>()) {
-				return !bar->freezed;
-			}
-		}
-	}
-	return false;
 }
 
 void History::unsetFirstUnreadMessage() {

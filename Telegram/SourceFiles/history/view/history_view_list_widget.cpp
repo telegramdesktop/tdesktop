@@ -462,7 +462,7 @@ void ListWidget::checkUnreadBarCreation() {
 	if (!_unreadBarElement) {
 		if (const auto index = _delegate->listUnreadBarView(_items)) {
 			_unreadBarElement = _items[*index].get();
-			_unreadBarElement->setUnreadBarCount(UnreadBar::kCountUnknown);
+			_unreadBarElement->createUnreadBar();
 			refreshAttachmentsAtIndex(*index);
 		}
 	}
@@ -2497,14 +2497,9 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_overElement == was) _overElement = now;
 	if (_unreadBarElement == was) {
 		const auto bar = _unreadBarElement->Get<UnreadBar>();
-		const auto count = bar ? bar->count : 0;
-		const auto freezed = bar ? bar->freezed : false;
 		_unreadBarElement = now;
-		if (now && count) {
-			_unreadBarElement->setUnreadBarCount(count);
-			if (freezed) {
-				_unreadBarElement->setUnreadBarFreezed();
-			}
+		if (now && bar) {
+			_unreadBarElement->createUnreadBar();
 		}
 	}
 }

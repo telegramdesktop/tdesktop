@@ -127,14 +127,8 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
-void UnreadBar::init(int newCount) {
-	if (freezed) {
-		return;
-	}
-	count = newCount;
-	text = /*(count == kCountUnknown) // #feed
-		? tr::lng_unread_bar_some(tr::now)
-		: */tr::lng_unread_bar(tr::now, lt_count, count);
+void UnreadBar::init() {
+	text = tr::lng_unread_bar_some(tr::now);
 	width = st::semiboldFont->width(text);
 }
 
@@ -416,6 +410,18 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	return false;
 }
 
+void Element::createUnreadBar() {
+	if (!AddComponents(UnreadBar::Bit())) {
+		return;
+	}
+	const auto bar = Get<UnreadBar>();
+	bar->init();
+	if (data()->mainView() == this) {
+		recountAttachToPreviousInBlocks();
+	}
+	history()->owner().requestViewResize(this);
+}
+
 void Element::destroyUnreadBar() {
 	if (!Has<UnreadBar>()) {
 		return;
@@ -424,29 +430,6 @@ void Element::destroyUnreadBar() {
 	history()->owner().requestViewResize(this);
 	if (data()->mainView() == this) {
 		recountAttachToPreviousInBlocks();
-	}
-}
-
-void Element::setUnreadBarCount(int count) {
-	const auto changed = AddComponents(UnreadBar::Bit());
-	const auto bar = Get<UnreadBar>();
-	if (bar->freezed) {
-		return;
-	}
-	bar->init(count);
-	if (changed) {
-		if (data()->mainView() == this) {
-			recountAttachToPreviousInBlocks();
-		}
-		history()->owner().requestViewResize(this);
-	} else {
-		history()->owner().requestViewRepaint(this);
-	}
-}
-
-void Element::setUnreadBarFreezed() {
-	if (const auto bar = Get<UnreadBar>()) {
-		bar->freezed = true;
 	}
 }
 
