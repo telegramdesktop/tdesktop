@@ -2465,6 +2465,7 @@ bool HistoryWidget::doWeReadServerHistory() const {
 bool HistoryWidget::doWeReadMentions() const {
 	return _history
 		&& _list
+		&& _historyInited
 		&& !_firstLoadRequest
 		&& !_a_show.animating()
 		&& App::wnd()->doWeMarkAsRead();
