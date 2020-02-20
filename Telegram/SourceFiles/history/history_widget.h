@@ -558,6 +558,7 @@ private:
 	// destroys _history and _migrated unread bars
 	void destroyUnreadBar();
 	void destroyUnreadBarOnClose();
+	void createUnreadBarIfBelowVisibleArea(int withScrollTop);
 
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);

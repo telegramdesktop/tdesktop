@@ -1634,6 +1634,9 @@ void HistoryWidget::showHistory(
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
 
+			if (showAtMsgId == ShowAtUnreadMsgId) {
+				showAtMsgId = ShowAtTheEndMsgId;
+			}
 			const auto canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
@@ -1658,7 +1661,12 @@ void HistoryWidget::showHistory(
 				if (_historyInited) {
 					const auto item = getItemFromHistoryOrMigrated(
 						_showAtMsgId);
-					animatedScrollToY(countInitialScrollTop(), item);
+					animatedScrollToY(
+						std::clamp(
+							countInitialScrollTop(),
+							0,
+							_scroll->scrollTopMax()),
+						item);
 				} else {
 					historyLoaded();
 				}
@@ -4963,9 +4971,8 @@ MsgId HistoryWidget::replyToId() const {
 }
 
 int HistoryWidget::countInitialScrollTop() {
-	auto result = ScrollMax;
 	if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem)) {
-		result = _list->historyScrollTop();
+		return _list->historyScrollTop();
 	} else if (_showAtMsgId
 		&& (IsServerMsgId(_showAtMsgId)
 			|| IsServerMsgId(-_showAtMsgId))) {
@@ -4978,31 +4985,44 @@ int HistoryWidget::countInitialScrollTop() {
 			const auto view = item->mainView();
 			Assert(view != nullptr);
 
-			result = itemTopForHighlight(view);
 			enqueueMessageHighlight(view);
+			const auto result = itemTopForHighlight(view);
+			createUnreadBarIfBelowVisibleArea(result);
+			return result;
 		}
 	} else if (const auto top = unreadBarTop()) {
-		result = *top;
+		return *top;
 	} else {
+		_history->calculateFirstUnreadMessage();
 		return countAutomaticScrollTop();
 	}
-	return qMin(result, _scroll->scrollTopMax());
+}
+
+void HistoryWidget::createUnreadBarIfBelowVisibleArea(int withScrollTop) {
+	if (_history->unreadBar()) {
+		return;
+	}
+	_history->calculateFirstUnreadMessage();
+	if (const auto unread = _history->firstUnreadMessage()) {
+		if (_list->itemTop(unread) > withScrollTop) {
+			_history->addUnreadBar();
+			if (hasPendingResizedItems()) {
+				updateListSize();
+			}
+		}
+	}
 }
 
 int HistoryWidget::countAutomaticScrollTop() {
 	Expects(_history != nullptr);
 	Expects(_list != nullptr);
 
-	auto result = ScrollMax;
-	if (!_historyInited) {
-		_history->calculateFirstUnreadMessage();
-	}
 	if (const auto unread = _history->firstUnreadMessage()) {
-		result = _list->itemTop(unread);
+		const auto firstUnreadTop = _list->itemTop(unread);
 		const auto possibleUnreadBarTop = _scroll->scrollTopMax()
 			+ HistoryView::UnreadBar::height()
 			- HistoryView::UnreadBar::marginTop();
-		if (result < possibleUnreadBarTop) {
+		if (firstUnreadTop < possibleUnreadBarTop) {
 			const auto history = unread->data()->history();
 			history->addUnreadBar();
 			if (hasPendingResizedItems()) {
@@ -5010,15 +5030,11 @@ int HistoryWidget::countAutomaticScrollTop() {
 			}
 			if (history->unreadBar() != nullptr) {
 				setMsgId(ShowAtUnreadMsgId);
-				result = countInitialScrollTop();
-				if (session().supportMode()) {
-					history->unsetFirstUnreadMessage();
-				}
-				return result;
+				return countInitialScrollTop();
 			}
 		}
 	}
-	return qMin(result, _scroll->scrollTopMax());
+	return ScrollMax;
 }
 
 void HistoryWidget::updateHistoryGeometry(
@@ -5165,8 +5181,23 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 	}
 }
 
-void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages) {
+void HistoryWidget::addMessagesToBack(
+		PeerData *peer,
+		const QVector<MTPMessage> &messages) {
+	const auto checkForUnreadStart = [&] {
+		if (_history->unreadBar() || !_history->inChatList()) {
+			return false;
+		}
+		_history->calculateFirstUnreadMessage();
+		return !_history->firstUnreadMessage();
+	}();
 	_list->messagesReceivedDown(peer, messages);
+	if (checkForUnreadStart) {
+		_history->calculateFirstUnreadMessage();
+		if (const auto unread = _history->firstUnreadMessage()) {
+			_history->addUnreadBar();
+		}
+	}
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
