@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_value.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtGui/QInputMethod>
 
 namespace Spellchecker {
 
@@ -45,6 +46,14 @@ inline auto LWC(QLocale::Country country) {
 		return int(l.language());
 	}
 	return (l.language() * 1000) + country;
+}
+
+inline auto LanguageFromLocale(QLocale loc) {
+	const auto locLang = int(loc.language());
+	return (ranges::contains(kLangsForLWC, locLang)
+		&& (loc.country() != QLocale::AnyCountry))
+			? LWC(loc.country())
+			: locLang;
 }
 
 const auto kDictionaries = {
@@ -91,6 +100,10 @@ const auto kDictionaries = {
 	Dict{{ QLocale::Vietnamese,          633,    12'949, "\x54\x69\xe1\xba\xbf\x6e\x67\x20\x56\x69\xe1\xbb\x87\x74" }}, // vi_VN
 	// The Tajik code is 'tg_TG' in Chromium, but QT has only 'tg_TJ'.
 };
+
+inline auto IsSupportedLang(int lang) {
+	return ranges::contains(kDictionaries, lang, &Dict::id);
+}
 
 void EnsurePath() {
 	if (!QDir::current().mkpath(Spellchecker::DictionariesPath())) {
@@ -322,17 +335,20 @@ rpl::producer<QString> ButtonManageDictsState(
 std::vector<int> DefaultLanguages() {
 	std::vector<int> langs;
 
+	const auto append = [&](const auto loc) {
+		const auto l = LanguageFromLocale(loc);
+		if (!ranges::contains(langs, l) && IsSupportedLang(l)) {
+			langs.push_back(l);
+		}
+	};
+
 	const auto method = QGuiApplication::inputMethod();
 	langs.reserve(method ? 3 : 2);
 	if (method) {
-		const auto loc = method->locale();
-		const auto locLang = int(loc.language());
-		langs.push_back(ranges::contains(kLangsForLWC, locLang)
-			? LWC(loc.country())
-			: locLang);
+		append(method->locale());
 	}
-	langs.push_back(QLocale(Platform::SystemLanguage()).language());
-	langs.push_back(QLocale(Lang::Current().id()).language());
+	append(QLocale(Platform::SystemLanguage()));
+	append(QLocale(Lang::LanguageIdOrDefault(Lang::Current().id())));
 
 	return langs;
 }
@@ -345,38 +361,84 @@ void Start(not_null<Main::Session*> session) {
 	} });
 	const auto settings = &session->settings();
 
-	if (!Platform::Spellchecker::IsSystemSpellchecker()) {
-		Spellchecker::SetWorkingDirPath(DictionariesPath());
-
-		settings->dictionariesEnabledChanges(
-		) | rpl::start_with_next([](auto dictionaries) {
-			Platform::Spellchecker::UpdateLanguages(dictionaries);
-		}, session->lifetime());
-
-		settings->spellcheckerEnabledChanges(
-		) | rpl::start_with_next([=](auto enabled) {
+	const auto guard = gsl::finally([=]{
+		if (settings->spellcheckerEnabled()) {
 			Platform::Spellchecker::UpdateLanguages(
-				enabled
-					? settings->dictionariesEnabled()
-					: std::vector<int>());
+				settings->dictionariesEnabled());
+		}
+	});
+
+	if (Platform::Spellchecker::IsSystemSpellchecker()) {
+		return;
+	}
+
+	Spellchecker::SetWorkingDirPath(DictionariesPath());
+
+	settings->dictionariesEnabledChanges(
+	) | rpl::start_with_next([](auto dictionaries) {
+		Platform::Spellchecker::UpdateLanguages(dictionaries);
+	}, session->lifetime());
+
+	settings->spellcheckerEnabledChanges(
+	) | rpl::start_with_next([=](auto enabled) {
+		Platform::Spellchecker::UpdateLanguages(
+			enabled
+				? settings->dictionariesEnabled()
+				: std::vector<int>());
+	}, session->lifetime());
+
+	const auto method = QGuiApplication::inputMethod();
+
+	const auto connectInput = [=] {
+		if (!method || !settings->spellcheckerEnabled()) {
+			return;
+		}
+		auto callback = [=] {
+			if (BackgroundLoader) {
+				return;
+			}
+			const auto l = LanguageFromLocale(method->locale());
+			if (!IsSupportedLang(l) || DictionaryExists(l)) {
+				return;
+			}
+			crl::on_main(session, [=] {
+				DownloadDictionaryInBackground(session, 0, { l });
+			});
+		};
+		QObject::connect(
+			method,
+			&QInputMethod::localeChanged,
+			std::move(callback));
+	};
+
+	if (settings->autoDownloadDictionaries()) {
+		session->data().contactsLoaded().changes(
+		) | rpl::start_with_next([=](bool loaded) {
+			if (!loaded) {
+				return;
+			}
+
+			DownloadDictionaryInBackground(session, 0, DefaultLanguages());
 		}, session->lifetime());
 
-		if (settings->autoDownloadDictionaries()) {
-			session->data().contactsLoaded().changes(
-			) | rpl::start_with_next([=](bool loaded) {
-				if (!loaded) {
-					return;
-				}
+		connectInput();
+	}
 
-				DownloadDictionaryInBackground(session, 0, DefaultLanguages());
-			}, session->lifetime());
+	rpl::combine(
+		settings->spellcheckerEnabledValue(),
+		settings->autoDownloadDictionariesValue()
+	) | rpl::start_with_next([=](bool spell, bool download) {
+		if (spell && download) {
+			connectInput();
+			return;
 		}
+		QObject::disconnect(
+			method,
+			&QInputMethod::localeChanged,
+			nullptr,
+			nullptr);
+	}, session->lifetime());
 
-	}
-	if (settings->spellcheckerEnabled()) {
-		Platform::Spellchecker::UpdateLanguages(
-			settings->dictionariesEnabled());
-	}
 }
 
 } // namespace Spellchecker
