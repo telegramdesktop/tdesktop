@@ -2423,9 +2423,33 @@ int ApiWrap::OnlineTillFromStatus(
 }
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
+	deleteHistory(peer, true, revoke);
+}
+
+void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
+	if (const auto chat = peer->asChat()) {
+		request(MTPmessages_DeleteChatUser(
+			chat->inputChat,
+			_session->user()->inputUser
+		)).done([=](const MTPUpdates &updates) {
+			applyUpdates(updates);
+			deleteHistory(peer, false, revoke);
+		}).fail([=](const RPCError &error) {
+			deleteHistory(peer, false, revoke);
+		}).send();
+	} else {
+		deleteHistory(peer, false, revoke);
+	}
+}
+
+void ApiWrap::deleteHistory(
+		not_null<PeerData*> peer,
+		bool justClear,
+		bool revoke) {
 	auto deleteTillId = MsgId(0);
 	const auto history = _session->data().historyLoaded(peer);
-	if (history) {
+	if (history && justClear) {
+		// In case of clear history we need to know the last server message.
 		while (history->lastMessageKnown()) {
 			const auto last = history->lastMessage();
 			if (!last) {
@@ -2442,65 +2466,48 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 			requestDialogEntry(history, [=] {
 				Expects(history->lastMessageKnown());
 
-				clearHistory(peer, revoke);
+				deleteHistory(peer, justClear, revoke);
 			});
 			return;
 		}
 		deleteTillId = history->lastMessage()->id;
 	}
 	if (const auto channel = peer->asChannel()) {
-		if (const auto migrated = peer->migrateFrom()) {
-			clearHistory(migrated, revoke);
-		}
-		if (IsServerMsgId(deleteTillId)) {
-			request(MTPchannels_DeleteHistory(
-				channel->inputChannel,
-				MTP_int(deleteTillId)
-			)).send();
+		if (!justClear) {
+			channel->ptsWaitingForShortPoll(-1);
+			leaveChannel(channel);
+		} else {
+			if (const auto migrated = peer->migrateFrom()) {
+				clearHistory(migrated, revoke);
+			}
+			if (IsServerMsgId(deleteTillId)) {
+				request(MTPchannels_DeleteHistory(
+					channel->inputChannel,
+					MTP_int(deleteTillId)
+				)).send();
+			}
 		}
 	} else {
-		deleteHistory(peer, true, revoke);
+		using Flag = MTPmessages_DeleteHistory::Flag;
+		const auto flags = Flag(0)
+			| (justClear ? Flag::f_just_clear : Flag(0))
+			| ((peer->isUser() && revoke) ? Flag::f_revoke : Flag(0));
+		request(MTPmessages_DeleteHistory(
+			MTP_flags(flags),
+			peer->input,
+			MTP_int(0)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = applyAffectedHistory(peer, result);
+			if (offset > 0) {
+				deleteHistory(peer, justClear, revoke);
+			}
+		}).send();
 	}
-	if (history) {
+	if (!justClear) {
+		_session->data().deleteConversationLocally(peer);
+	} else if (history) {
 		history->clear(History::ClearType::ClearHistory);
 	}
-}
-
-void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
-	if (const auto chat = peer->asChat()) {
-		request(MTPmessages_DeleteChatUser(
-			chat->inputChat,
-			_session->user()->inputUser
-		)).done([=](const MTPUpdates &updates) {
-			applyUpdates(updates);
-			deleteHistory(peer, false, revoke);
-		}).fail([=](const RPCError &error) {
-			deleteHistory(peer, false, revoke);
-		}).send();
-	} else if (const auto channel = peer->asChannel()) {
-		channel->ptsWaitingForShortPoll(-1);
-		leaveChannel(channel);
-	} else {
-		deleteHistory(peer, false, revoke);
-	}
-	_session->data().deleteConversationLocally(peer);
-}
-
-void ApiWrap::deleteHistory(not_null<PeerData*> peer, bool justClear, bool revoke) {
-	using Flag = MTPmessages_DeleteHistory::Flag;
-	const auto flags = Flag(0)
-		| (justClear ? Flag::f_just_clear : Flag(0))
-		| ((peer->isUser() && revoke) ? Flag::f_revoke : Flag(0));
-	request(MTPmessages_DeleteHistory(
-		MTP_flags(flags),
-		peer->input,
-		MTP_int(0)
-	)).done([=](const MTPmessages_AffectedHistory &result) {
-		const auto offset = applyAffectedHistory(peer, result);
-		if (offset > 0) {
-			deleteHistory(peer, justClear, revoke);
-		}
-	}).send();
 }
 
 int ApiWrap::applyAffectedHistory(
