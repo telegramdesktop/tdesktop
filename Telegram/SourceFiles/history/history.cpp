@@ -1615,13 +1615,13 @@ void History::calculateFirstUnreadMessage() {
 }
 
 bool History::readInboxTillNeedsRequest(MsgId tillId) {
-	Expects(IsServerMsgId(tillId));
+	Expects(!tillId || IsServerMsgId(tillId));
 
 	readClientSideMessages();
 	if (unreadMark()) {
 		session().api().changeDialogUnreadMark(this, false);
 	}
-	return (_inboxReadBefore.value_or(1) <= tillId);
+	return IsServerMsgId(tillId) && (_inboxReadBefore.value_or(1) <= tillId);
 }
 
 void History::readClientSideMessages() {

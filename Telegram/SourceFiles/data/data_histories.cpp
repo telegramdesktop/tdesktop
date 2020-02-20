@@ -131,6 +131,8 @@ void Histories::readInboxTill(
 		not_null<History*> history,
 		MsgId tillId,
 		bool force) {
+	Expects(IsServerMsgId(tillId) || (!tillId && !force));
+
 	if (!history->readInboxTillNeedsRequest(tillId) && !force) {
 		return;
 	} else if (!force) {
@@ -202,7 +204,9 @@ void Histories::sendReadRequests() {
 	const auto now = crl::now();
 	auto next = std::optional<crl::time>();
 	for (auto &[history, state] : _states) {
-		if (state.readTill && state.readWhen <= now) {
+		if (!state.readTill) {
+			continue;
+		} else if (state.readWhen <= now) {
 			sendReadRequest(history, state);
 		} else if (!next || *next > state.readWhen) {
 			next = state.readWhen;
