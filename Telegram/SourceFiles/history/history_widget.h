@@ -559,6 +559,7 @@ private:
 	void destroyUnreadBar();
 	void destroyUnreadBarOnClose();
 	void createUnreadBarIfBelowVisibleArea(int withScrollTop);
+	[[nodiscard]] bool insideJumpToEndInsteadOfToUnread() const;
 
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);

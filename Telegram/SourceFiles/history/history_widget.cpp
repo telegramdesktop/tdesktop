@@ -1617,6 +1617,18 @@ void HistoryWidget::applyCloudDraft(History *history) {
 	}
 }
 
+bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
+	if (session().supportMode()) {
+		return true;
+	} else if (!_historyInited) {
+		return false;
+	}
+	_history->calculateFirstUnreadMessage();
+	const auto unread = _history->firstUnreadMessage();
+	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
+	return unread && _list->itemTop(unread) <= visibleBottom;
+}
+
 void HistoryWidget::showHistory(
 		const PeerId &peerId,
 		MsgId showAtMsgId,
@@ -1634,8 +1646,14 @@ void HistoryWidget::showHistory(
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
 
-			if (showAtMsgId == ShowAtUnreadMsgId) {
+			if (showAtMsgId == ShowAtUnreadMsgId
+				&& insideJumpToEndInsteadOfToUnread()) {
 				showAtMsgId = ShowAtTheEndMsgId;
+			}
+			if (!IsServerMsgId(showAtMsgId)
+				&& !IsServerMsgId(-showAtMsgId)) {
+				// To end or to unread.
+				destroyUnreadBar();
 			}
 			const auto canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
@@ -2806,8 +2824,7 @@ void HistoryWidget::historyDownClicked() {
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
 		showHistory(_peer->id, -_replyReturn->id);
 	} else if (_peer) {
-		showHistory(_peer->id, ShowAtTheEndMsgId); // #TODO reading
-		// session().supportMode() ? ShowAtTheEndMsgId : ShowAtUnreadMsgId);
+		showHistory(_peer->id, ShowAtUnreadMsgId);
 	}
 }
 
@@ -4990,6 +5007,8 @@ int HistoryWidget::countInitialScrollTop() {
 			createUnreadBarIfBelowVisibleArea(result);
 			return result;
 		}
+	} else if (_showAtMsgId == ShowAtTheEndMsgId) {
+		return ScrollMax;
 	} else if (const auto top = unreadBarTop()) {
 		return *top;
 	} else {
