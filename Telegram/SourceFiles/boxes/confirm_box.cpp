@@ -785,6 +785,8 @@ void DeleteMessagesBox::deleteAndClear() {
 		_deleteConfirmedCallback();
 	}
 
+	auto remove = std::vector<not_null<HistoryItem*>>();
+	remove.reserve(_ids.size());
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> idsByPeer;
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
 	for (const auto itemId : _ids) {
@@ -801,15 +803,9 @@ void DeleteMessagesBox::deleteAndClear() {
 				}
 				continue;
 			}
-			const auto wasOnServer = IsServerMsgId(item->id);
-			const auto wasLast = (history->lastMessage() == item);
-			const auto wasInChats = (history->chatListMessage() == item);
-			item->destroy();
-
-			if (wasOnServer) {
+			remove.push_back(item);
+			if (IsServerMsgId(item->id)) {
 				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
-			} else if (wasLast || wasInChats) {
-				history->requestChatListMessage();
 			}
 		}
 	}
@@ -824,6 +820,17 @@ void DeleteMessagesBox::deleteAndClear() {
 		)).done([=, peer=peer](const MTPUpdates &updates) {
 			peer->session().api().applyUpdates(updates);
 		}).send();
+	}
+
+	for (const auto item : remove) {
+		const auto history = item->history();
+		const auto wasLast = (history->lastMessage() == item);
+		const auto wasInChats = (history->chatListMessage() == item);
+		item->destroy();
+
+		if (wasLast || wasInChats) {
+			history->requestChatListMessage();
+		}
 	}
 
 	const auto session = _session;
