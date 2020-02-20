@@ -261,6 +261,7 @@ void SetupSpellchecker(
 		not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto session = &controller->session();
+	const auto settings = &session->settings();
 	const auto isSystem = Platform::Spellchecker::IsSystemSpellchecker();
 	const auto button = AddButton(
 		container,
@@ -269,14 +270,14 @@ void SetupSpellchecker(
 			: tr::lng_settings_custom_spellchecker(),
 		st::settingsButton
 	)->toggleOn(
-		rpl::single(session->settings().spellcheckerEnabled())
+		rpl::single(settings->spellcheckerEnabled())
 	);
 
 	button->toggledValue(
 	) | rpl::filter([=](bool enabled) {
-		return (enabled != session->settings().spellcheckerEnabled());
+		return (enabled != settings->spellcheckerEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setSpellcheckerEnabled(enabled);
+		settings->setSpellcheckerEnabled(enabled);
 		session->saveSettingsDelayed();
 	}, container->lifetime());
 
@@ -288,6 +289,20 @@ void SetupSpellchecker(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
+
+	AddButton(
+		sliding->entity(),
+		tr::lng_settings_auto_download_dictionaries(),
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(settings->autoDownloadDictionaries())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != settings->autoDownloadDictionaries());
+	}) | rpl::start_with_next([=](bool enabled) {
+		settings->setAutoDownloadDictionaries(enabled);
+		session->saveSettingsDelayed();
+	}, sliding->entity()->lifetime());
 
 	AddButtonWithLabel(
 		sliding->entity(),

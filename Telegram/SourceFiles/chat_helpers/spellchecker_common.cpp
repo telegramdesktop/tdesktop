@@ -343,37 +343,39 @@ void Start(not_null<Main::Session*> session) {
 		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
 		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
 	} });
+	const auto settings = &session->settings();
 
 	if (!Platform::Spellchecker::IsSystemSpellchecker()) {
 		Spellchecker::SetWorkingDirPath(DictionariesPath());
 
-		session->settings().dictionariesEnabledChanges(
+		settings->dictionariesEnabledChanges(
 		) | rpl::start_with_next([](auto dictionaries) {
 			Platform::Spellchecker::UpdateLanguages(dictionaries);
 		}, session->lifetime());
 
-		session->settings().spellcheckerEnabledChanges(
+		settings->spellcheckerEnabledChanges(
 		) | rpl::start_with_next([=](auto enabled) {
 			Platform::Spellchecker::UpdateLanguages(
 				enabled
-					? session->settings().dictionariesEnabled()
+					? settings->dictionariesEnabled()
 					: std::vector<int>());
 		}, session->lifetime());
 
-		session->data().contactsLoaded().changes(
-		) | rpl::start_with_next([=](bool loaded) {
-			if (!loaded) {
-				return;
-			}
+		if (settings->autoDownloadDictionaries()) {
+			session->data().contactsLoaded().changes(
+			) | rpl::start_with_next([=](bool loaded) {
+				if (!loaded) {
+					return;
+				}
 
-			DownloadDictionaryInBackground(session, 0, DefaultLanguages());
-		}, session->lifetime());
-
+				DownloadDictionaryInBackground(session, 0, DefaultLanguages());
+			}, session->lifetime());
+		}
 
 	}
-	if (session->settings().spellcheckerEnabled()) {
+	if (settings->spellcheckerEnabled()) {
 		Platform::Spellchecker::UpdateLanguages(
-			session->settings().dictionariesEnabled());
+			settings->dictionariesEnabled());
 	}
 }
 

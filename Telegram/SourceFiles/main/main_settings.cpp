@@ -122,6 +122,7 @@ QByteArray Settings::serialize() const {
 		for (const auto i : _variables.dictionariesEnabled.current()) {
 			stream << quint64(i);
 		}
+		stream << qint32(_variables.autoDownloadDictionaries.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -175,6 +176,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 videoPlaybackSpeed = SerializePlaybackSpeed(_variables.videoPlaybackSpeed.current());
 	QByteArray videoPipGeometry = _variables.videoPipGeometry;
 	std::vector<int> dictionariesEnabled;
+	qint32 autoDownloadDictionaries = _variables.autoDownloadDictionaries.current() ? 1 : 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -312,6 +314,9 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> autoDownloadDictionaries;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Main::Settings::constructFromSerialized()"));
@@ -402,6 +407,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.videoPlaybackSpeed = DeserializePlaybackSpeed(videoPlaybackSpeed);
 	_variables.videoPipGeometry = videoPipGeometry;
 	_variables.dictionariesEnabled = std::move(dictionariesEnabled);
+	_variables.autoDownloadDictionaries = (autoDownloadDictionaries == 1);
 }
 
 void Settings::setSupportChatsTimeSlice(int slice) {

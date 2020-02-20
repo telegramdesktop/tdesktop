@@ -423,6 +423,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";
 "lng_settings_custom_spellchecker" = "Use spell checker";
+"lng_settings_auto_download_dictionaries" = "Automatic dictionaries download";
 "lng_settings_manage_dictionaries" = "Manage dictionaries";
 "lng_settings_manage_enabled_dictionary" = "Dictionary is enabled";
 "lng_settings_manage_remove_dictionary" = "Remove Dictionary";

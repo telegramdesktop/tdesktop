@@ -253,6 +253,19 @@ public:
 		return _variables.dictionariesEnabled.changes();
 	}
 
+	void setAutoDownloadDictionaries(bool value) {
+		_variables.autoDownloadDictionaries = value;
+	}
+	bool autoDownloadDictionaries() const {
+		return _variables.autoDownloadDictionaries.current();
+	}
+	rpl::producer<bool> autoDownloadDictionariesValue() const {
+		return _variables.autoDownloadDictionaries.value();
+	}
+	rpl::producer<bool> autoDownloadDictionariesChanges() const {
+		return _variables.autoDownloadDictionaries.changes();
+	}
+
 	[[nodiscard]] float64 videoPlaybackSpeed() const {
 		return _variables.videoPlaybackSpeed.current();
 	}
@@ -311,6 +324,7 @@ private:
 		rpl::variable<float64> videoPlaybackSpeed = 1.;
 		QByteArray videoPipGeometry;
 		rpl::variable<std::vector<int>> dictionariesEnabled;
+		rpl::variable<bool> autoDownloadDictionaries = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;
