@@ -2689,12 +2689,12 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	} else if (!_staticContent.isNull() && (blurred || !_blurred)) {
 		return;
 	}
-	const auto w = _width * cIntRetinaFactor();
-	const auto h = _height * cIntRetinaFactor();
+	const auto use = flipSizeByRotation({ _width, _height })
+		* cIntRetinaFactor();
 	_staticContent = image->pixNoCache(
 		fileOrigin(),
-		w,
-		h,
+		use.width(),
+		use.height(),
 		Images::Option::Smooth
 		| (blurred ? Images::Option::Blurred : Images::Option(0)));
 	_staticContent.setDevicePixelRatio(cRetinaFactor());
