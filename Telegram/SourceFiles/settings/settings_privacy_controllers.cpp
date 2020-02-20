@@ -165,8 +165,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		//MTPMessageReactions(),
 		MTPVector<MTPRestrictionReason>()
 	).match([&](const MTPDmessage &data) {
-		return history->owner().makeMessage(
-			history,
+		return history->makeMessage(
 			data,
 			MTPDmessage_ClientFlag::f_fake_history_item);
 	}, [](auto &&) -> not_null<HistoryMessage*> {

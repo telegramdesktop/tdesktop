@@ -90,6 +90,25 @@ public:
 
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
+	template <typename ...Args>
+	not_null<HistoryMessage*> makeMessage(Args &&...args) {
+		return static_cast<HistoryMessage*>(
+			insertItem(
+				std::make_unique<HistoryMessage>(
+					this,
+					std::forward<Args>(args)...)).get());
+	}
+
+	template <typename ...Args>
+	not_null<HistoryService*> makeServiceMessage(Args &&...args) {
+		return static_cast<HistoryService*>(
+			insertItem(
+				std::make_unique<HistoryService>(
+					this,
+					std::forward<Args>(args)...)).get());
+	}
+	void destroyMessage(not_null<HistoryItem*> item);
+
 	HistoryItem *addNewMessage(
 		const MTPMessage &msg,
 		MTPDmessage_ClientFlags clientFlags,
@@ -405,6 +424,7 @@ private:
 	void removeBlock(not_null<HistoryBlock*> block);
 	void clearSharedMedia();
 
+	not_null<HistoryItem*> insertItem(std::unique_ptr<HistoryItem> item);
 	not_null<HistoryItem*> addNewItem(
 		not_null<HistoryItem*> item,
 		bool unread);
@@ -512,6 +532,7 @@ private:
 	std::optional<HistoryItem*> _lastMessage;
 	std::optional<HistoryItem*> _lastServerMessage;
 	base::flat_set<not_null<HistoryItem*>> _localMessages;
+	std::unordered_set<std::unique_ptr<HistoryItem>> _messages;
 
 	// This almost always is equal to _lastMessage. The only difference is
 	// for a group that migrated to a supergroup. Then _lastMessage can

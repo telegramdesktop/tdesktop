@@ -371,22 +371,8 @@ public:
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 
-	template <typename ...Args>
-	not_null<HistoryMessage*> makeMessage(Args &&...args) {
-		return static_cast<HistoryMessage*>(
-			registerMessage(
-				std::make_unique<HistoryMessage>(
-					std::forward<Args>(args)...)));
-	}
-
-	template <typename ...Args>
-	not_null<HistoryService*> makeServiceMessage(Args &&...args) {
-		return static_cast<HistoryService*>(
-			registerMessage(
-				std::make_unique<HistoryService>(
-					std::forward<Args>(args)...)));
-	}
-	void destroyMessage(not_null<HistoryItem*> item);
+	void registerMessage(not_null<HistoryItem*> item);
+	void unregisterMessage(not_null<HistoryItem*> item);
 
 	// Returns true if item found and it is not detached.
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &data);
@@ -698,7 +684,7 @@ public:
 	void clearLocalStorage();
 
 private:
-	using Messages = std::unordered_map<MsgId, std::unique_ptr<HistoryItem>>;
+	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
 
 	void suggestStartExport();
 
@@ -719,7 +705,8 @@ private:
 
 	const Messages *messagesList(ChannelId channelId) const;
 	not_null<Messages*> messagesListForInsert(ChannelId channelId);
-	HistoryItem *registerMessage(std::unique_ptr<HistoryItem> item);
+	not_null<HistoryItem*> registerMessage(
+		std::unique_ptr<HistoryItem> item);
 	void changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId);
 	void removeDependencyMessage(not_null<HistoryItem*> item);
 

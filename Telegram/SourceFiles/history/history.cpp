@@ -637,6 +637,50 @@ HistoryItem *History::addNewMessage(
 	return addNewItem(item, unread);
 }
 
+not_null<HistoryItem*> History::insertItem(
+		std::unique_ptr<HistoryItem> item) {
+	Expects(item != nullptr);
+
+	const auto [i, ok] = _messages.insert(std::move(item));
+
+	const auto result = i->get();
+	owner().registerMessage(result);
+
+	Ensures(ok);
+	return result;
+}
+
+void History::destroyMessage(not_null<HistoryItem*> item) {
+	Expects(item->isHistoryEntry() || !item->mainView());
+
+	const auto peerId = peer->id;
+	if (item->isHistoryEntry()) {
+		// All this must be done for all items manually in History::clear()!
+		item->eraseFromUnreadMentions();
+		if (IsServerMsgId(item->id)) {
+			if (const auto types = item->sharedMediaTypes()) {
+				session().storage().remove(Storage::SharedMediaRemoveOne(
+					peerId,
+					types,
+					item->id));
+			}
+		} else {
+			session().api().cancelLocalItem(item);
+		}
+		itemRemoved(item);
+	}
+
+	owner().unregisterMessage(item);
+	session().notifications().clearFromItem(item);
+
+	auto hack = std::unique_ptr<HistoryItem>(item.get());
+	const auto i = _messages.find(hack);
+	hack.release();
+
+	Assert(i != end(_messages));
+	_messages.erase(i);
+}
+
 not_null<HistoryItem*> History::addNewItem(
 		not_null<HistoryItem*> item,
 		bool unread) {
@@ -693,8 +737,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const QString &postAuthor,
 		not_null<HistoryMessage*> forwardOriginal) {
 	return addNewItem(
-		owner().makeMessage(
-			this,
+		makeMessage(
 			id,
 			flags,
 			clientFlags,
@@ -718,8 +761,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		owner().makeMessage(
-			this,
+		makeMessage(
 			id,
 			flags,
 			clientFlags,
@@ -747,8 +789,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		owner().makeMessage(
-			this,
+		makeMessage(
 			id,
 			flags,
 			clientFlags,
@@ -775,8 +816,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		owner().makeMessage(
-			this,
+		makeMessage(
 			id,
 			flags,
 			clientFlags,
@@ -3097,10 +3137,10 @@ void History::clear(ClearType type) {
 	removeJoinedMessage();
 
 	forgetScrollState();
+	blocks.clear();
+	owner().notifyHistoryUnloaded(this);
+	lastKeyboardInited = false;
 	if (type == ClearType::Unload) {
-		blocks.clear();
-		owner().notifyHistoryUnloaded(this);
-		lastKeyboardInited = false;
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
 		// Leave the 'sending' messages in local messages.
@@ -3145,7 +3185,6 @@ void History::clear(ClearType type) {
 			//}
 		}
 	}
-	owner().notifyHistoryChangeDelayed(this);
 
 	if (const auto chat = peer->asChat()) {
 		chat->lastAuthors.clear();
@@ -3153,27 +3192,28 @@ void History::clear(ClearType type) {
 	} else if (const auto channel = peer->asMegagroup()) {
 		channel->mgInfo->markupSenders.clear();
 	}
+
+	owner().notifyHistoryChangeDelayed(this);
+	owner().sendHistoryChangeNotifications();
 }
 
 void History::clearUpTill(MsgId availableMinId) {
-	auto minId = minMsgId();
-	if (!minId || minId > availableMinId) {
-		return;
-	}
-	do {
-		const auto item = blocks.front()->messages.front()->data();
+	auto remove = std::vector<not_null<HistoryItem*>>();
+	remove.reserve(_messages.size());
+	for (const auto &item : _messages) {
 		const auto itemId = item->id;
-		if (IsServerMsgId(itemId) && itemId >= availableMinId) {
-			if (itemId == availableMinId) {
-				item->applyEditionToHistoryCleared();
-			}
-			break;
+		if (!IsServerMsgId(itemId)) {
+			continue;
+		} else if (itemId == availableMinId) {
+			item->applyEditionToHistoryCleared();
+		} else if (itemId < availableMinId) {
+			remove.push_back(item.get());
 		}
+	}
+	for (const auto item : remove) {
 		item->destroy();
-	} while (!isEmpty());
-
+	}
 	requestChatListMessage();
-	owner().sendHistoryChangeNotifications();
 }
 
 void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {

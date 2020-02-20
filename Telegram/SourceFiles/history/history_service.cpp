@@ -525,8 +525,8 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	MTPDmessage_ClientFlags clientFlags,
 	MsgId id,
+	MTPDmessage_ClientFlags clientFlags,
 	TimeId date,
 	const PreparedText &message,
 	MTPDmessage::Flags flags,
@@ -797,10 +797,9 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		TimeId inviteDate,
 		not_null<UserData*> inviter,
 		MTPDmessage::Flags flags) {
-	return new HistoryService(
-		history,
-		MTPDmessage_ClientFlag::f_local_history_entry,
+	return history->makeServiceMessage(
 		history->owner().nextLocalMessageId(),
+		MTPDmessage_ClientFlag::f_local_history_entry,
 		inviteDate,
 		GenerateJoinedText(history, inviter),
 		flags);

@@ -392,10 +392,9 @@ void GenerateItems(
 	auto addSimpleServiceMessage = [&](const QString &text, PhotoData *photo = nullptr) {
 		auto message = HistoryService::PreparedText { text };
 		message.links.push_back(fromLink);
-		addPart(history->owner().makeServiceMessage(
-			history,
-			MTPDmessage_ClientFlag::f_admin_log_entry,
+		addPart(history->makeServiceMessage(
 			history->nextNonHistoryEntryId(),
+			MTPDmessage_ClientFlag::f_admin_log_entry,
 			date,
 			message,
 			MTPDmessage::Flags(0),
@@ -433,8 +432,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newDescription = PrepareText(newValue, QString());
-		auto body = history->owner().makeMessage(
-			history,
+		auto body = history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -469,8 +467,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Core::App().createInternalLinkFull(newValue), QString());
-		auto body = history->owner().makeMessage(
-			history,
+		auto body = history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -609,8 +606,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant());
-		addPart(history->owner().makeMessage(
-			history,
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -628,8 +624,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
-		addPart(history->owner().makeMessage(
-			history,
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -653,8 +648,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
-		addPart(history->owner().makeMessage(
-			history,
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -687,10 +681,9 @@ void GenerateItems(
 			auto message = HistoryService::PreparedText { text };
 			message.links.push_back(fromLink);
 			message.links.push_back(setLink);
-			addPart(history->owner().makeServiceMessage(
-				history,
-				MTPDmessage_ClientFlag::f_admin_log_entry,
+			addPart(history->makeServiceMessage(
 				history->nextNonHistoryEntryId(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
 				date,
 				message,
 				MTPDmessage::Flags(0),
@@ -712,8 +705,7 @@ void GenerateItems(
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights(), action.vprev_banned_rights());
-		addPart(history->owner().makeMessage(
-			history,
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
@@ -763,10 +755,9 @@ void GenerateItems(
 			auto message = HistoryService::PreparedText{ text };
 			message.links.push_back(fromLink);
 			message.links.push_back(chatLink);
-			addPart(history->owner().makeServiceMessage(
-				history,
-				MTPDmessage_ClientFlag::f_admin_log_entry,
+			addPart(history->makeServiceMessage(
 				history->nextNonHistoryEntryId(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
 				date,
 				message,
 				MTPDmessage::Flags(0),

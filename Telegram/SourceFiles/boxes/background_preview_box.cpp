@@ -293,8 +293,7 @@ AdminLog::OwnedItem GenerateTextItem(
 	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
-	const auto item = history->owner().makeMessage(
-		history,
+	const auto item = history->makeMessage(
 		++id,
 		flags,
 		clientFlags,

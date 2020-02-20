@@ -740,6 +740,9 @@ void ApplyChannelUpdate(
 	channel->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(channel->input),
 		update.vnotify_settings());
+
+	// For clearUpTill() call.
+	channel->owner().sendHistoryChangeNotifications();
 }
 
 void ApplyMegagroupAdmins(

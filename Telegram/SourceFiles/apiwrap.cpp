@@ -2424,7 +2424,8 @@ int ApiWrap::OnlineTillFromStatus(
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 	auto deleteTillId = MsgId(0);
-	if (const auto history = _session->data().historyLoaded(peer)) {
+	const auto history = _session->data().historyLoaded(peer);
+	if (history) {
 		while (history->lastMessageKnown()) {
 			const auto last = history->lastMessage();
 			if (!last) {
@@ -2446,7 +2447,6 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 			return;
 		}
 		deleteTillId = history->lastMessage()->id;
-		history->clear(History::ClearType::ClearHistory);
 	}
 	if (const auto channel = peer->asChannel()) {
 		if (const auto migrated = peer->migrateFrom()) {
@@ -2460,6 +2460,9 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 		}
 	} else {
 		deleteHistory(peer, true, revoke);
+	}
+	if (history) {
+		history->clear(History::ClearType::ClearHistory);
 	}
 }
 

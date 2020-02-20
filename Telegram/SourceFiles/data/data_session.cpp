@@ -1724,18 +1724,15 @@ auto Session::messagesListForInsert(ChannelId channelId)
 		: &_channelMessages[channelId];
 }
 
-HistoryItem *Session::registerMessage(std::unique_ptr<HistoryItem> item) {
-	Expects(item != nullptr);
-
-	const auto result = item.get();
-	const auto list = messagesListForInsert(result->channelId());
-	const auto i = list->find(result->id);
+void Session::registerMessage(not_null<HistoryItem*> item) {
+	const auto list = messagesListForInsert(item->channelId());
+	const auto itemId = item->id;
+	const auto i = list->find(itemId);
 	if (i != list->end()) {
 		LOG(("App Error: Trying to re-registerMessage()."));
 		i->second->destroy();
 	}
-	list->emplace(result->id, std::move(item));
-	return result;
+	list->emplace(itemId, item);
 }
 
 void Session::processMessagesDeleted(
@@ -1754,7 +1751,7 @@ void Session::processMessagesDeleted(
 		const auto i = list ? list->find(messageId.v) : Messages::iterator();
 		if (list && i != list->end()) {
 			const auto history = i->second->history();
-			destroyMessage(i->second.get());
+			i->second->destroy();
 			if (!history->chatListMessageKnown()) {
 				historiesToCheck.emplace(history);
 			}
@@ -1780,32 +1777,12 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 	}
 }
 
-void Session::destroyMessage(not_null<HistoryItem*> item) {
-	Expects(item->isHistoryEntry() || !item->mainView());
-
+void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
-	if (item->isHistoryEntry()) {
-		// All this must be done for all items manually in History::clear()!
-		item->eraseFromUnreadMentions();
-		if (IsServerMsgId(item->id)) {
-			if (const auto types = item->sharedMediaTypes()) {
-				session().storage().remove(Storage::SharedMediaRemoveOne(
-					peerId,
-					types,
-					item->id));
-			}
-		} else {
-			session().api().cancelLocalItem(item);
-		}
-		item->history()->itemRemoved(item);
-	}
 	_itemRemoved.fire_copy(item);
 	groups().unregisterMessage(item);
 	removeDependencyMessage(item);
-	session().notifications().clearFromItem(item);
-
-	const auto list = messagesListForInsert(peerToChannel(peerId));
-	list->erase(item->id);
+	messagesListForInsert(peerToChannel(peerId))->erase(item->id);
 }
 
 MsgId Session::nextLocalMessageId() {

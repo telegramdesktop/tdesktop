@@ -68,8 +68,8 @@ public:
 		MTPDmessage_ClientFlags clientFlags);
 	HistoryService(
 		not_null<History*> history,
-		MTPDmessage_ClientFlags clientFlags,
 		MsgId id,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		const PreparedText &message,
 		MTPDmessage::Flags flags = 0,
