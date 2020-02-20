@@ -282,25 +282,34 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 QString GetLauncherBasename() {
 	static const auto LauncherBasename = [&] {
-		if (!InSnap()) {
-			return qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
+		if (InSnap()) {
+			const auto snapNameKey =
+				qEnvironmentVariableIsSet("SNAP_INSTANCE_NAME")
+					? "SNAP_INSTANCE_NAME"
+					: "SNAP_NAME";
+
+			return qsl("%1_%2")
+				.arg(QString::fromLatin1(qgetenv(snapNameKey)))
+				.arg(cExeName());
 		}
 
-		const auto snapNameKey =
-			qEnvironmentVariableIsSet("SNAP_INSTANCE_NAME")
-				? "SNAP_INSTANCE_NAME"
-				: "SNAP_NAME";
+		const auto possibleBasenames = std::vector<QString>{
+			qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)),
+			qsl("Telegram")
+		};
 
-		const auto result = qsl("%1_%2")
-			.arg(QString::fromLatin1(qgetenv(snapNameKey)))
-			.arg(cExeName());
+		for (const auto &it : possibleBasenames) {
+			if (!QStandardPaths::locate(
+				QStandardPaths::ApplicationsLocation,
+				it + qsl(".desktop")).isEmpty()) {
+				return it;
+			}
+		}
 
-		LOG(("SNAP Environment detected, launcher filename is %1.desktop")
-			.arg(result));
-
-		return result;
+		return possibleBasenames[0];
 	}();
 
+	LOG(("Launcher filename is %1.desktop").arg(LauncherBasename));
 	return LauncherBasename;
 }
 
