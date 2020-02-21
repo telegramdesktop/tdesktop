@@ -627,7 +627,7 @@ void Histories::finishSentRequest(
 	}
 	if (!state->postponed.empty() && !postponeHistoryRequest(*state)) {
 		for (auto &[id, postponed] : base::take(state->postponed)) {
-			const auto requestId = postponed.generator([=] {
+			const auto requestId = postponed.generator([=, id=id] {
 				checkPostponed(history, id);
 			});
 			state->sent.emplace(id, SentRequest{
