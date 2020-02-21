@@ -241,11 +241,21 @@ void Histories::sendDialogRequests() {
 	if (_dialogRequestsPending.empty()) {
 		return;
 	}
-	auto histories = std::vector<not_null<History*>>();
-	ranges::transform(
-		_dialogRequestsPending,
-		ranges::back_inserter(histories),
-		[](const auto &pair) { return pair.first; });
+	const auto histories = ranges::view::all(
+		_dialogRequestsPending
+	) | ranges::view::transform([](const auto &pair) {
+		return pair.first;
+	}) | ranges::view::filter([&](not_null<History*> history) {
+		const auto state = lookup(history);
+		if (!state) {
+			return true;
+		} else if (!postponeEntryRequest(*state)) {
+			return true;
+		}
+		state->postponedRequestEntry = true;
+		return false;
+	}) | ranges::to_vector;
+
 	auto peers = QVector<MTPInputDialogPeer>();
 	const auto dialogPeer = [](not_null<History*> history) {
 		return MTP_inputDialogPeer(history->peer->input);
@@ -260,8 +270,11 @@ void Histories::sendDialogRequests() {
 
 	const auto finalize = [=] {
 		for (const auto history : histories) {
-			dialogEntryApplied(history);
-			history->updateChatListExistence();
+			const auto state = lookup(history);
+			if (!state || !state->postponedRequestEntry) {
+				dialogEntryApplied(history);
+				history->updateChatListExistence();
+			}
 		}
 	};
 	session().api().request(MTPmessages_GetPeerDialogs(
@@ -401,6 +414,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 void Histories::checkEmptyState(not_null<History*> history) {
 	const auto empty = [](const State &state) {
 		return state.postponed.empty()
+			&& !state.postponedRequestEntry
 			&& state.sent.empty()
 			&& (state.readTill == 0);
 	};
@@ -408,6 +422,21 @@ void Histories::checkEmptyState(not_null<History*> history) {
 	if (i != end(_states) && empty(i->second)) {
 		_states.erase(i);
 	}
+}
+
+bool Histories::postponeHistoryRequest(const State &state) const {
+	const auto proj = [](const auto &pair) {
+		return pair.second.type;
+	};
+	const auto i = ranges::find(state.sent, RequestType::Delete, proj);
+	return (i != end(state.sent));
+}
+
+bool Histories::postponeEntryRequest(const State &state) const {
+	const auto i = ranges::find_if(state.sent, [](const auto &pair) {
+		return pair.second.type != RequestType::History;
+	});
+	return (i != end(state.sent));
 }
 
 int Histories::sendRequest(
@@ -418,119 +447,85 @@ int Histories::sendRequest(
 
 	auto &state = _states[history];
 	const auto id = ++state.autoincrement;
-	const auto action = chooseAction(state, type);
-	if (action == Action::Send) {
-		state.sent.emplace(id, SentRequest{
-			generator([=] { checkPostponed(history, id); }),
-			type
-		});
-		if (base::take(state.thenRequestEntry)) {
-			requestDialogEntry(history);
-		}
-	} else if (action == Action::Postpone) {
+	if (type == RequestType::History && postponeHistoryRequest(state)) {
 		state.postponed.emplace(
 			id,
-			PostponedRequest{ std::move(generator), type });
+			PostponedHistoryRequest{ std::move(generator) });
+		return id;
+	}
+	const auto requestId = generator([=] { checkPostponed(history, id); });
+	state.sent.emplace(id, SentRequest{
+		std::move(generator),
+		requestId,
+		type
+	});
+	if (!state.postponedRequestEntry
+		&& postponeEntryRequest(state)
+		&& _dialogRequests.contains(history)) {
+		state.postponedRequestEntry = true;
+	}
+	if (postponeHistoryRequest(state)) {
+		const auto resendHistoryRequest = [&](auto &pair) {
+			auto &[id, sent] = pair;
+			if (sent.type != RequestType::History) {
+				return false;
+			}
+			state.postponed.emplace(
+				id,
+				PostponedHistoryRequest{ std::move(sent.generator) });
+			session().api().request(sent.id).cancel();
+			return true;
+		};
+		state.sent.erase(
+			ranges::remove_if(state.sent, resendHistoryRequest),
+			end(state.sent));
 	}
 	return id;
 }
 
-void Histories::checkPostponed(not_null<History*> history, int requestId) {
+void Histories::checkPostponed(not_null<History*> history, int id) {
 	const auto state = lookup(history);
 	Assert(state != nullptr);
 
-	state->sent.remove(requestId);
-	if (!state->postponed.empty()) {
-		auto &entry = state->postponed.front();
-		const auto action = chooseAction(*state, entry.second.type, true);
-		if (action == Action::Send) {
-			const auto id = entry.first;
-			const auto postponed = std::move(entry.second);
-			state->postponed.remove(id);
-			state->sent.emplace(id, SentRequest{
-				postponed.generator([=] { checkPostponed(history, id); }),
-				postponed.type
-			});
-			if (base::take(state->thenRequestEntry)) {
-				requestDialogEntry(history);
-			}
-		} else {
-			Assert(action == Action::Postpone);
-		}
-	}
-	checkEmptyState(history);
+	finishSentRequest(history, state, id);
 }
 
-Histories::Action Histories::chooseAction(
-		State &state,
-		RequestType type,
-		bool fromPostponed) const {
-	switch (type) {
-	case RequestType::ReadInbox:
-		for (const auto &[_, sent] : state.sent) {
-			if (sent.type == RequestType::ReadInbox
-				|| sent.type == RequestType::DialogsEntry
-				|| sent.type == RequestType::Delete) {
-				if (!fromPostponed) {
-					auto &postponed = state.postponed;
-					for (auto i = begin(postponed); i != end(postponed);) {
-						if (i->second.type == RequestType::ReadInbox) {
-							i = postponed.erase(i);
-						} else {
-							++i;
-						}
-					}
-				}
-				return Action::Postpone;
-			}
-		}
-		return Action::Send;
-
-	case RequestType::DialogsEntry:
-		for (const auto &[_, sent] : state.sent) {
-			if (sent.type == RequestType::DialogsEntry) {
-				return Action::Skip;
-			}
-			if (sent.type == RequestType::ReadInbox
-				|| sent.type == RequestType::Delete) {
-				if (!fromPostponed) {
-					auto &postponed = state.postponed;
-					for (const auto &[_, postponed] : state.postponed) {
-						if (postponed.type == RequestType::DialogsEntry) {
-							return Action::Skip;
-						}
-					}
-				}
-				return Action::Postpone;
-			}
-		}
-		return Action::Send;
-
-	case RequestType::History:
-		for (const auto &[_, sent] : state.sent) {
-			if (sent.type == RequestType::Delete) {
-				return Action::Postpone;
-			}
-		}
-		return Action::Send;
-
-	case RequestType::Delete:
-		for (const auto &[_, sent] : state.sent) {
-			if (sent.type == RequestType::History
-				|| sent.type == RequestType::ReadInbox) {
-				return Action::Postpone;
-			}
-		}
-		for (auto i = begin(state.sent); i != end(state.sent);) {
-			if (i->second.type == RequestType::DialogsEntry) {
-				session().api().request(i->second.id).cancel();
-				i = state.sent.erase(i);
-				state.thenRequestEntry = true;
-			}
-		}
-		return Action::Send;
+void Histories::cancelRequest(not_null<History*> history, int id) {
+	const auto state = lookup(history);
+	if (!state) {
+		return;
 	}
-	Unexpected("Request type in Histories::chooseAction.");
+	state->postponed.remove(id);
+	finishSentRequest(history, state, id);
+}
+
+void Histories::finishSentRequest(
+		not_null<History*> history,
+		not_null<State*> state,
+		int id) {
+	state->sent.remove(id);
+	if (!state->postponed.empty() && !postponeHistoryRequest(*state)) {
+		for (auto &[id, postponed] : base::take(state->postponed)) {
+			const auto requestId = postponed.generator([=] {
+				checkPostponed(history, id);
+			});
+			state->sent.emplace(id, SentRequest{
+				std::move(postponed.generator),
+				requestId,
+				RequestType::History
+			});
+		}
+	}
+	if (state->postponedRequestEntry && !postponeEntryRequest(*state)) {
+		const auto i = _dialogRequests.find(history);
+		Assert(i != end(_dialogRequests));
+		const auto [j, ok] = _dialogRequestsPending.emplace(
+			history,
+			std::move(i->second));
+		Assert(ok);
+		state->postponedRequestEntry = false;
+	}
+	checkEmptyState(history);
 }
 
 Histories::State *Histories::lookup(not_null<History*> history) {

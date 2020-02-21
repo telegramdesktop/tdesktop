@@ -23,6 +23,14 @@ class Folder;
 
 class Histories final {
 public:
+	enum class RequestType : uchar {
+		None,
+		History,
+		ReadInbox,
+		Delete,
+		Send,
+	};
+
 	explicit Histories(not_null<Session*> owner);
 
 	[[nodiscard]] Session &owner() const;
@@ -49,34 +57,28 @@ public:
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
+	int sendRequest(
+		not_null<History*> history,
+		RequestType type,
+		Fn<mtpRequestId(Fn<void()> done)> generator);
+	void cancelRequest(not_null<History*> history, int id);
+
 private:
-	enum class RequestType : uchar {
-		None,
-		DialogsEntry,
-		History,
-		ReadInbox,
-		Delete,
-	};
-	enum class Action : uchar {
-		Send,
-		Postpone,
-		Skip,
-	};
-	struct PostponedRequest {
+	struct PostponedHistoryRequest {
 		Fn<mtpRequestId(Fn<void()> done)> generator;
-		RequestType type = RequestType::None;
 	};
 	struct SentRequest {
+		Fn<mtpRequestId(Fn<void()> done)> generator;
 		mtpRequestId id = 0;
 		RequestType type = RequestType::None;
 	};
 	struct State {
-		base::flat_map<int, PostponedRequest> postponed;
+		base::flat_map<int, PostponedHistoryRequest> postponed;
 		base::flat_map<int, SentRequest> sent;
 		crl::time readWhen = 0;
 		MsgId readTill = 0;
 		int autoincrement = 0;
-		bool thenRequestEntry = false;
+		bool postponedRequestEntry = false;
 	};
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
@@ -84,15 +86,13 @@ private:
 	void sendReadRequest(not_null<History*> history, State &state);
 	[[nodiscard]] State *lookup(not_null<History*> history);
 	void checkEmptyState(not_null<History*> history);
-	int sendRequest(
+	void checkPostponed(not_null<History*> history, int id);
+	void finishSentRequest(
 		not_null<History*> history,
-		RequestType type,
-		Fn<mtpRequestId(Fn<void()> done)> generator);
-	void checkPostponed(not_null<History*> history, int requestId);
-	[[nodiscard]] Action chooseAction(
-		State &state,
-		RequestType type,
-		bool fromPostponed = false) const;
+		not_null<State*> state,
+		int id);
+	[[nodiscard]] bool postponeHistoryRequest(const State &state) const;
+	[[nodiscard]] bool postponeEntryRequest(const State &state) const;
 
 	void sendDialogRequests();
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
