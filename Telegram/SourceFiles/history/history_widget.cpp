@@ -1716,9 +1716,8 @@ void HistoryWidget::showHistory(
 	session().data().stopPlayingVideoFiles();
 
 	clearReplyReturns();
-	clearAllLoadRequests();
-
 	if (_history) {
+		clearAllLoadRequests();
 		if (Ui::InFocusChain(_list)) {
 			// Removing focus from list clears selected and updates top bar.
 			setFocus();
@@ -1917,19 +1916,34 @@ void HistoryWidget::showHistory(
 }
 
 void HistoryWidget::clearDelayedShowAt() {
+	Expects(_history != nullptr);
+
 	_delayedShowAtMsgId = -1;
 	if (_delayedShowAtRequest) {
-		MTP::cancel(_delayedShowAtRequest);
+		_history->owner().histories().cancelRequest(
+			_history,
+			_delayedShowAtRequest);
 		_delayedShowAtRequest = 0;
 	}
 }
 
 void HistoryWidget::clearAllLoadRequests() {
+	Expects(_history != nullptr);
+
+	auto &histories = _history->owner().histories();
 	clearDelayedShowAt();
-	if (_firstLoadRequest) MTP::cancel(_firstLoadRequest);
-	if (_preloadRequest) MTP::cancel(_preloadRequest);
-	if (_preloadDownRequest) MTP::cancel(_preloadDownRequest);
-	_preloadRequest = _preloadDownRequest = _firstLoadRequest = 0;
+	if (_firstLoadRequest) {
+		histories.cancelRequest(_history, _firstLoadRequest);
+		_firstLoadRequest = 0;
+	}
+	if (_preloadRequest) {
+		histories.cancelRequest(_history, _preloadRequest);
+		_preloadRequest = 0;
+	}
+	if (_preloadDownRequest) {
+		histories.cancelRequest(_history, _preloadDownRequest);
+		_preloadDownRequest = 0;
+	}
 }
 
 void HistoryWidget::updateFieldSubmitSettings() {
@@ -2330,8 +2344,10 @@ void HistoryWidget::unreadCountUpdated() {
 	}
 }
 
-bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
+bool HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")
 		|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
@@ -2356,15 +2372,20 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	return true;
 }
 
-void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, mtpRequestId requestId) {
-	if (!_history) {
-		_preloadRequest = _preloadDownRequest = _firstLoadRequest = _delayedShowAtRequest = 0;
-		return;
-	}
+void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId) {
+	Expects(_history != nullptr);
 
 	bool toMigrated = (peer == _peer->migrateFrom());
 	if (peer != _peer && !toMigrated) {
-		_preloadRequest = _preloadDownRequest = _firstLoadRequest = _delayedShowAtRequest = 0;
+		if (_preloadRequest == requestId) {
+			_preloadRequest = 0;
+		} else if (_preloadDownRequest == requestId) {
+			_preloadDownRequest = 0;
+		} else if (_firstLoadRequest == requestId) {
+			_firstLoadRequest = 0;
+		} else if (_delayedShowAtRequest == requestId) {
+			_delayedShowAtRequest = 0;
+		}
 		return;
 	}
 
@@ -2456,10 +2477,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		_delayedShowAtRequest = 0;
 		_history->getReadyFor(_delayedShowAtMsgId);
 		if (_history->isEmpty()) {
-			if (_preloadRequest) MTP::cancel(_preloadRequest);
-			if (_preloadDownRequest) MTP::cancel(_preloadDownRequest);
-			if (_firstLoadRequest) MTP::cancel(_firstLoadRequest);
-			_preloadRequest = _preloadDownRequest = 0;
+			clearAllLoadRequests();
 			_firstLoadRequest = -1; // hack - don't updateListSize yet
 			addMessagesToFront(peer, *histList);
 			_firstLoadRequest = 0;
@@ -2520,14 +2538,14 @@ void HistoryWidget::firstLoadMessages() {
 		return;
 	}
 
-	auto from = _peer;
+	auto from = _history;
 	auto offsetId = 0;
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
 		if (const auto around = _migrated ? _migrated->loadAroundId() : 0) {
 			_history->getReadyFor(_showAtMsgId);
-			from = _migrated->peer;
+			from = _migrated;
 			offset = -loadCount / 2;
 			offsetId = around;
 		} else if (const auto around = _history->loadAroundId()) {
@@ -2547,7 +2565,7 @@ void HistoryWidget::firstLoadMessages() {
 	} else if (_showAtMsgId < 0 && _history->isChannel()) {
 		if (_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId && _migrated) {
 			_history->getReadyFor(_showAtMsgId);
-			from = _migrated->peer;
+			from = _migrated;
 			offset = -loadCount / 2;
 			offsetId = -_showAtMsgId;
 		} else if (_showAtMsgId == SwitchAtTopMsgId) {
@@ -2560,18 +2578,27 @@ void HistoryWidget::firstLoadMessages() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_firstLoadRequest = MTP::send(
-		MTPmessages_GetHistory(
-			from->input,
+	const auto history = from;
+	const auto type = Data::Histories::RequestType::History;
+	auto &histories = history->owner().histories();
+	_firstLoadRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return history->session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
 			MTP_int(offset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from),
-		rpcFail(&HistoryWidget::messagesFailed));
+			MTP_int(historyHash)
+		)).done([=](const MTPmessages_Messages &result) {
+			messagesReceived(history->peer, result, _firstLoadRequest);
+			finish();
+		}).fail([=](const RPCError &error) {
+			messagesFailed(error, _firstLoadRequest);
+			finish();
+		}).send();
+	});
 }
 
 void HistoryWidget::loadMessages() {
@@ -2602,18 +2629,27 @@ void HistoryWidget::loadMessages() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_preloadRequest = MTP::send(
-		MTPmessages_GetHistory(
-			from->peer->input,
+	const auto history = from;
+	const auto type = Data::Histories::RequestType::History;
+	auto &histories = history->owner().histories();
+	_preloadRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return history->session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from->peer.get()),
-		rpcFail(&HistoryWidget::messagesFailed));
+			MTP_int(historyHash)
+		)).done([=](const MTPmessages_Messages &result) {
+			messagesReceived(history->peer, result, _preloadRequest);
+			finish();
+		}).fail([=](const RPCError &error) {
+			messagesFailed(error, _preloadRequest);
+			finish();
+		}).send();
+	});
 }
 
 void HistoryWidget::loadMessagesDown() {
@@ -2644,18 +2680,27 @@ void HistoryWidget::loadMessagesDown() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_preloadDownRequest = MTP::send(
-		MTPmessages_GetHistory(
-			from->peer->input,
+	const auto history = from;
+	const auto type = Data::Histories::RequestType::History;
+	auto &histories = history->owner().histories();
+	_preloadDownRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return history->session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
 			MTP_int(offsetId + 1),
 			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from->peer.get()),
-		rpcFail(&HistoryWidget::messagesFailed));
+			MTP_int(historyHash)
+		)).done([=](const MTPmessages_Messages &result) {
+			messagesReceived(history->peer, result, _preloadDownRequest);
+			finish();
+		}).fail([=](const RPCError &error) {
+			messagesFailed(error, _preloadDownRequest);
+			finish();
+		}).send();
+	});
 }
 
 void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
@@ -2667,13 +2712,13 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	clearDelayedShowAt();
 	_delayedShowAtMsgId = showAtMsgId;
 
-	auto from = _peer;
+	auto from = _history;
 	auto offsetId = 0;
 	auto offset = 0;
 	auto loadCount = kMessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
 		if (const auto around = _migrated ? _migrated->loadAroundId() : 0) {
-			from = _migrated->peer;
+			from = _migrated;
 			offset = -loadCount / 2;
 			offsetId = around;
 		} else if (const auto around = _history->loadAroundId()) {
@@ -2689,7 +2734,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 		offsetId = _delayedShowAtMsgId;
 	} else if (_delayedShowAtMsgId < 0 && _history->isChannel()) {
 		if (_delayedShowAtMsgId < 0 && -_delayedShowAtMsgId < ServerMaxMsgId && _migrated) {
-			from = _migrated->peer;
+			from = _migrated;
 			offset = -loadCount / 2;
 			offsetId = -_delayedShowAtMsgId;
 		}
@@ -2699,18 +2744,27 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_delayedShowAtRequest = MTP::send(
-		MTPmessages_GetHistory(
-			from->input,
+	const auto history = from;
+	const auto type = Data::Histories::RequestType::History;
+	auto &histories = history->owner().histories();
+	_delayedShowAtRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return history->session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
 			MTP_int(offset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
-			MTP_int(historyHash)),
-		rpcDone(&HistoryWidget::messagesReceived, from),
-		rpcFail(&HistoryWidget::messagesFailed));
+			MTP_int(historyHash)
+		)).done([=](const MTPmessages_Messages &result) {
+			messagesReceived(history->peer, result, _delayedShowAtRequest);
+			finish();
+		}).fail([=](const RPCError &error) {
+			messagesFailed(error, _delayedShowAtRequest);
+			finish();
+		}).send();
+	});
 }
 
 void HistoryWidget::onScroll() {
@@ -2884,7 +2938,8 @@ void HistoryWidget::saveEditMsg() {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 
-	_saveEditMsgRequestId = MTP::send(
+	const auto history = _history;
+	_saveEditMsgRequestId = history->session().api().request(
 		MTPmessages_EditMessage(
 			MTP_flags(sendFlags),
 			_history->peer->input,
@@ -2893,9 +2948,12 @@ void HistoryWidget::saveEditMsg() {
 			MTPInputMedia(),
 			MTPReplyMarkup(),
 			sentEntities,
-			MTP_int(0)), // schedule_date
-		rpcDone(&HistoryWidget::saveEditMsgDone, _history),
-		rpcFail(&HistoryWidget::saveEditMsgFail, _history));
+			MTP_int(0)
+	)).done([=](const MTPUpdates &result, mtpRequestId requestId) {
+		saveEditMsgDone(history, result, requestId);
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		saveEditMsgFail(history, error, requestId);
+	}).send();
 }
 
 void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req) {
@@ -2913,7 +2971,9 @@ void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates,
 }
 
 bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 	if (req == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 	}
@@ -3733,7 +3793,9 @@ void HistoryWidget::inlineBotResolveDone(
 }
 
 bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 
 	_inlineBotResolveRequestId = 0;
 //	Notify::inlineBotRequesting(false);
@@ -6085,7 +6147,7 @@ void HistoryWidget::cancelEdit() {
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {
-		MTP::cancel(_saveEditMsgRequestId);
+		_history->session().api().request(_saveEditMsgRequestId).cancel();
 		_saveEditMsgRequestId = 0;
 	}
 
@@ -6970,5 +7032,6 @@ void HistoryWidget::synteticScrollToY(int y) {
 }
 
 HistoryWidget::~HistoryWidget() {
+	clearAllLoadRequests();
 	setTabbedPanel(nullptr);
 }

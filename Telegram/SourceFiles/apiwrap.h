@@ -177,7 +177,6 @@ public:
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
 	//	const std::vector<not_null<ChannelData*>> &channels);
-	void requestFakeChatListMessage(not_null<History*> history);
 
 	void requestWallPaper(
 		const QString &slug,
@@ -739,15 +738,14 @@ private:
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
-	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 
-	base::flat_map<std::tuple<
+	base::flat_set<std::tuple<
 		not_null<PeerData*>,
 		SharedMediaType,
 		MsgId,
-		SliceType>, mtpRequestId> _sharedMediaRequests;
+		SliceType>> _sharedMediaRequests;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 

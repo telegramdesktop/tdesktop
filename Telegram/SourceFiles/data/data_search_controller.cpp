@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_channel.h"
+#include "data/data_histories.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "apiwrap.h"
@@ -193,7 +194,8 @@ SearchController::CacheEntry::CacheEntry(const Query &query)
 }
 
 SearchController::SearchController(not_null<Main::Session*> session)
-: _api(session->api().instance()) {
+: _session(session)
+, _api(session->api().instance()) {
 }
 
 bool SearchController::hasInCache(const Query &query) const {
@@ -366,23 +368,32 @@ void SearchController::requestMore(
 	if (!prepared) {
 		return;
 	}
-	auto requestId = _api.request(
-		std::move(*prepared)
-	).done([=](const MTPmessages_Messages &result) {
-		listData->requests.remove(key);
-		auto parsed = ParseSearchResult(
-			listData->peer,
-			query.type,
-			key.aroundId,
-			key.direction,
-			result);
-		listData->list.addSlice(
-			std::move(parsed.messageIds),
-			parsed.noSkipRange,
-			parsed.fullCount);
-	}).send();
+	auto &histories = _session->data().histories();
+	const auto type = Histories::RequestType::History;
+	const auto history = _session->data().history(listData->peer);
+	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+		return _api.request(
+			std::move(*prepared)
+		).done([=](const MTPmessages_Messages &result) {
+			listData->requests.remove(key);
+			auto parsed = ParseSearchResult(
+				listData->peer,
+				query.type,
+				key.aroundId,
+				key.direction,
+				result);
+			listData->list.addSlice(
+				std::move(parsed.messageIds),
+				parsed.noSkipRange,
+				parsed.fullCount);
+			finish();
+		}).fail([=](const RPCError &error) {
+			finish();
+		}).send();
+	});
 	listData->requests.emplace(key, [=] {
-		_api.request(requestId).cancel();
+		auto &histories = _session->data().histories();
+		histories.cancelRequest(history, requestId);
 	});
 }
 

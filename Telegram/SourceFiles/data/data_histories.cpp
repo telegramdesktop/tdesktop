@@ -333,6 +333,38 @@ void Histories::changeDialogUnreadMark(
 	)).send();
 }
 
+void Histories::requestFakeChatListMessage(
+		not_null<History*> history) {
+	if (_fakeChatListRequests.contains(history)) {
+		return;
+	}
+
+	_fakeChatListRequests.emplace(history);
+	sendRequest(history, RequestType::History, [=](Fn<void()> finish) {
+		return session().api().request(MTPmessages_GetHistory(
+			history->peer->input,
+			MTP_int(0),  // offset_id
+			MTP_int(0),  // offset_date
+			MTP_int(0),  // add_offset
+			MTP_int(2),  // limit
+			MTP_int(0),  // max_id
+			MTP_int(0),  // min_id
+			MTP_int(0)
+		)).done([=](const MTPmessages_Messages &result) {
+			_fakeChatListRequests.erase(history);
+			history->setFakeChatListMessageFrom(result);
+			finish();
+		}).fail([=](const RPCError &error) {
+			_fakeChatListRequests.erase(history);
+			history->setFakeChatListMessageFrom(MTP_messages_messages(
+				MTP_vector<MTPMessage>(0),
+				MTP_vector<MTPChat>(0),
+				MTP_vector<MTPUser>(0)));
+			finish();
+		}).send();
+	});
+}
+
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
 		if (state->readTill

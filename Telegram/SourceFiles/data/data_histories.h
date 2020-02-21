@@ -56,6 +56,7 @@ public:
 	void dialogEntryApplied(not_null<History*> history);
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
+	void requestFakeChatListMessage(not_null<History*> history);
 
 	void deleteMessages(
 		not_null<History*> history,
@@ -120,6 +121,8 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		std::vector<Fn<void()>>> _dialogRequestsPending;
+
+	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 };
 

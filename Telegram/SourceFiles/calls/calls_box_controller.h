@@ -44,7 +44,7 @@ private:
 	MTP::Sender _api;
 
 	MsgId _offsetId = 0;
-	mtpRequestId _loadRequestId = 0;
+	int _loadRequestId = 0; // Not a real mtpRequestId.
 	bool _allLoaded = false;
 
 };

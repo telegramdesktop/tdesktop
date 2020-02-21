@@ -1012,34 +1012,6 @@ rpl::producer<bool> ApiWrap::dialogsLoadBlockedByDate() const {
 	return _dialogsLoadBlockedByDate.value();
 }
 
-void ApiWrap::requestFakeChatListMessage(
-		not_null<History*> history) {
-	if (_fakeChatListRequests.contains(history)) {
-		return;
-	}
-
-	_fakeChatListRequests.emplace(history);
-	request(MTPmessages_GetHistory(
-		history->peer->input,
-		MTP_int(0),  // offset_id
-		MTP_int(0),  // offset_date
-		MTP_int(0),  // add_offset
-		MTP_int(2),  // limit
-		MTP_int(0),  // max_id
-		MTP_int(0),  // min_id
-		MTP_int(0)
-	)).done([=](const MTPmessages_Messages &result) {
-		_fakeChatListRequests.erase(history);
-		history->setFakeChatListMessageFrom(result);
-	}).fail([=](const RPCError &error) {
-		_fakeChatListRequests.erase(history);
-		history->setFakeChatListMessageFrom(MTP_messages_messages(
-			MTP_vector<MTPMessage>(0),
-			MTP_vector<MTPChat>(0),
-			MTP_vector<MTPUser>(0)));
-	}).send();
-}
-
 void ApiWrap::requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
@@ -3908,12 +3880,12 @@ void ApiWrap::requestSharedMedia(
 		SharedMediaType type,
 		MsgId messageId,
 		SliceType slice) {
-	auto key = std::make_tuple(peer, type, messageId, slice);
+	const auto key = std::make_tuple(peer, type, messageId, slice);
 	if (_sharedMediaRequests.contains(key)) {
 		return;
 	}
 
-	auto prepared = Api::PrepareSearchRequest(
+	const auto prepared = Api::PrepareSearchRequest(
 		peer,
 		type,
 		QString(),
@@ -3923,17 +3895,23 @@ void ApiWrap::requestSharedMedia(
 		return;
 	}
 
-	auto requestId = request(
-		std::move(*prepared)
-	).done([this, peer, type, messageId, slice](
-			const MTPmessages_Messages &result) {
-		auto key = std::make_tuple(peer, type, messageId, slice);
-		_sharedMediaRequests.remove(key);
-		sharedMediaDone(peer, type, messageId, slice, result);
-	}).fail([this, key](const RPCError &error) {
-		_sharedMediaRequests.remove(key);
-	}).send();
-	_sharedMediaRequests.emplace(key, requestId);
+	const auto history = session().data().history(peer);
+	auto &histories = history->owner().histories();
+	const auto requestType = Data::Histories::RequestType::History;
+	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+		return request(
+			std::move(*prepared)
+		).done([=](const MTPmessages_Messages &result) {
+			const auto key = std::make_tuple(peer, type, messageId, slice);
+			_sharedMediaRequests.remove(key);
+			sharedMediaDone(peer, type, messageId, slice, result);
+			finish();
+		}).fail([=](const RPCError &error) {
+			_sharedMediaRequests.remove(key);
+			finish();
+		}).send();
+	});
+	_sharedMediaRequests.emplace(key);
 }
 
 void ApiWrap::sharedMediaDone(

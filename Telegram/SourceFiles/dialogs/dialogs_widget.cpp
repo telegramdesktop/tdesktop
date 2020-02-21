@@ -1015,94 +1015,95 @@ void Widget::searchReceived(
 		? *_singleMessageSearch.lookup(_searchQuery)
 		: nullptr;
 
-	if (_searchRequest == requestId) {
-		switch (result.type()) {
-		case mtpc_messages_messages: {
-			auto &d = result.c_messages_messages();
-			if (_searchRequest != 0) {
-				// Don't apply cached data!
-				session().data().processUsers(d.vusers());
-				session().data().processChats(d.vchats());
-			}
-			auto &msgs = d.vmessages().v;
-			_inner->searchReceived(msgs, inject, type, msgs.size());
+	if (_searchRequest != requestId) {
+		return;
+	}
+	switch (result.type()) {
+	case mtpc_messages_messages: {
+		auto &d = result.c_messages_messages();
+		if (_searchRequest != 0) {
+			// Don't apply cached data!
+			session().data().processUsers(d.vusers());
+			session().data().processChats(d.vchats());
+		}
+		auto &msgs = d.vmessages().v;
+		_inner->searchReceived(msgs, inject, type, msgs.size());
+		if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
+			_searchFullMigrated = true;
+		} else {
+			_searchFull = true;
+		}
+	} break;
+
+	case mtpc_messages_messagesSlice: {
+		auto &d = result.c_messages_messagesSlice();
+		if (_searchRequest != 0) {
+			// Don't apply cached data!
+			session().data().processUsers(d.vusers());
+			session().data().processChats(d.vchats());
+		}
+		auto &msgs = d.vmessages().v;
+		const auto someAdded = _inner->searchReceived(msgs, inject, type, d.vcount().v);
+		const auto nextRate = d.vnext_rate();
+		const auto rateUpdated = nextRate && (nextRate->v != _searchNextRate);
+		const auto finished = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset)
+			? !rateUpdated
+			: !someAdded;
+		if (rateUpdated) {
+			_searchNextRate = nextRate->v;
+		}
+		if (finished) {
 			if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 				_searchFullMigrated = true;
 			} else {
 				_searchFull = true;
 			}
-		} break;
+		}
+	} break;
 
-		case mtpc_messages_messagesSlice: {
-			auto &d = result.c_messages_messagesSlice();
-			if (_searchRequest != 0) {
-				// Don't apply cached data!
-				session().data().processUsers(d.vusers());
-				session().data().processChats(d.vchats());
-			}
-			auto &msgs = d.vmessages().v;
-			const auto someAdded = _inner->searchReceived(msgs, inject, type, d.vcount().v);
-			const auto nextRate = d.vnext_rate();
-			const auto rateUpdated = nextRate && (nextRate->v != _searchNextRate);
-			const auto finished = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset)
-				? !rateUpdated
-				: !someAdded;
-			if (rateUpdated) {
-				_searchNextRate = nextRate->v;
-			}
-			if (finished) {
-				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
-					_searchFullMigrated = true;
-				} else {
-					_searchFull = true;
-				}
-			}
-		} break;
-
-		case mtpc_messages_channelMessages: {
-			auto &d = result.c_messages_channelMessages();
-			if (const auto peer = _searchInChat.peer()) {
-				if (const auto channel = peer->asChannel()) {
-					channel->ptsReceived(d.vpts().v);
-				} else {
-					LOG(("API Error: "
-						"received messages.channelMessages when no channel "
-						"was passed! (Widget::searchReceived)"));
-				}
+	case mtpc_messages_channelMessages: {
+		auto &d = result.c_messages_channelMessages();
+		if (const auto peer = _searchInChat.peer()) {
+			if (const auto channel = peer->asChannel()) {
+				channel->ptsReceived(d.vpts().v);
 			} else {
 				LOG(("API Error: "
 					"received messages.channelMessages when no channel "
 					"was passed! (Widget::searchReceived)"));
 			}
-			if (_searchRequest != 0) {
-				// Don't apply cached data!
-				session().data().processUsers(d.vusers());
-				session().data().processChats(d.vchats());
-			}
-			auto &msgs = d.vmessages().v;
-			if (!_inner->searchReceived(msgs, inject, type, d.vcount().v)) {
-				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
-					_searchFullMigrated = true;
-				} else {
-					_searchFull = true;
-				}
-			}
-		} break;
-
-		case mtpc_messages_messagesNotModified: {
-			LOG(("API Error: received messages.messagesNotModified! (Widget::searchReceived)"));
+		} else {
+			LOG(("API Error: "
+				"received messages.channelMessages when no channel "
+				"was passed! (Widget::searchReceived)"));
+		}
+		if (_searchRequest != 0) {
+			// Don't apply cached data!
+			session().data().processUsers(d.vusers());
+			session().data().processChats(d.vchats());
+		}
+		auto &msgs = d.vmessages().v;
+		if (!_inner->searchReceived(msgs, inject, type, d.vcount().v)) {
 			if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 				_searchFullMigrated = true;
 			} else {
 				_searchFull = true;
 			}
-		} break;
 		}
+	} break;
 
-		_searchRequest = 0;
-		onListScroll();
-		update();
+	case mtpc_messages_messagesNotModified: {
+		LOG(("API Error: received messages.messagesNotModified! (Widget::searchReceived)"));
+		if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
+			_searchFullMigrated = true;
+		} else {
+			_searchFull = true;
+		}
+	} break;
 	}
+
+	_searchRequest = 0;
+	onListScroll();
+	update();
 }
 
 void Widget::peerSearchReceived(

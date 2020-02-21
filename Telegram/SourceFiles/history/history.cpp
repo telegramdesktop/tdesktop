@@ -2480,7 +2480,7 @@ void History::setFakeChatListMessage() {
 	if (const auto chat = peer->asChat()) {
 		// In chats we try to take the item before the 'last', which
 		// is the empty-displayed migration message.
-		session().api().requestFakeChatListMessage(this);
+		owner().histories().requestFakeChatListMessage(this);
 	} else if (const auto from = migrateFrom()) {
 		// In megagroups we just try to use
 		// the message from the original group.

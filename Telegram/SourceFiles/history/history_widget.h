@@ -105,7 +105,6 @@ public:
 
 	void start();
 
-	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, mtpRequestId requestId);
 	void historyLoaded();
 
 	void windowShown();
@@ -569,7 +568,8 @@ private:
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
-	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
+	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
+	bool messagesFailed(const RPCError &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
@@ -681,12 +681,12 @@ private:
 	bool _canSendMessages = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 
-	mtpRequestId _firstLoadRequest = 0;
-	mtpRequestId _preloadRequest = 0;
-	mtpRequestId _preloadDownRequest = 0;
+	int _firstLoadRequest = 0; // Not real mtpRequestId.
+	int _preloadRequest = 0; // Not real mtpRequestId.
+	int _preloadDownRequest = 0; // Not real mtpRequestId.
 
 	MsgId _delayedShowAtMsgId = -1;
-	mtpRequestId _delayedShowAtRequest = 0;
+	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
 
 	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
