@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_histories.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "observer_peer.h"
@@ -787,7 +788,7 @@ void DeleteMessagesBox::deleteAndClear() {
 
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(_ids.size());
-	base::flat_map<not_null<PeerData*>, QVector<MTPint>> idsByPeer;
+	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
 	for (const auto itemId : _ids) {
 		if (const auto item = _session->data().message(itemId)) {
@@ -805,13 +806,13 @@ void DeleteMessagesBox::deleteAndClear() {
 			}
 			remove.push_back(item);
 			if (IsServerMsgId(item->id)) {
-				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
+				idsByPeer[history].push_back(MTP_int(itemId.msg));
 			}
 		}
 	}
 
-	for (const auto &[peer, ids] : idsByPeer) {
-		peer->session().api().deleteMessages(peer, ids, revoke);
+	for (const auto &[history, ids] : idsByPeer) {
+		history->owner().histories().deleteMessages(history, ids, revoke);
 	}
 	for (const auto &[peer, ids] : scheduledIdsByPeer) {
 		peer->session().api().request(MTPmessages_DeleteScheduledMessages(

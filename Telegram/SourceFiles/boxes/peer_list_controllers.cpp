@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
+#include "data/data_histories.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
@@ -30,33 +31,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	const auto history = chat->owner().historyLoaded(chat);
-	const auto randomId = rand_value<uint64>();
-	const auto api = &chat->session().api();
-	const auto requestId = api->request(MTPmessages_SendMedia(
-		MTP_flags(0),
-		chat->input,
-		MTP_int(0),
-		MTP_inputMediaGame(
-			MTP_inputGameShortName(
-				bot->inputUser,
-				MTP_string(bot->botInfo->shareGameShortName))),
-		MTP_string(),
-		MTP_long(randomId),
-		MTPReplyMarkup(),
-		MTPVector<MTPMessageEntity>(),
-		MTP_int(0) // schedule_date
-	)).done([=](const MTPUpdates &result) {
-		api->applyUpdates(result, randomId);
-	}).fail([=](const RPCError &error) {
-		api->sendMessageFail(error, chat);
-	}).afterRequest(
-		history ? history->sendRequestId : 0
-	).send();
-
-	if (history) {
-		history->sendRequestId = requestId;
-	}
+	const auto history = chat->owner().history(chat);
+	auto &histories = history->owner().histories();
+	const auto requestType = Data::Histories::RequestType::Send;
+	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+		const auto randomId = rand_value<uint64>();
+		const auto api = &chat->session().api();
+		history->sendRequestId = api->request(MTPmessages_SendMedia(
+			MTP_flags(0),
+			chat->input,
+			MTP_int(0),
+			MTP_inputMediaGame(
+				MTP_inputGameShortName(
+					bot->inputUser,
+					MTP_string(bot->botInfo->shareGameShortName))),
+			MTP_string(),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			MTPVector<MTPMessageEntity>(),
+			MTP_int(0) // schedule_date
+		)).done([=](const MTPUpdates &result) {
+			api->applyUpdates(result, randomId);
+			finish();
+		}).fail([=](const RPCError &error) {
+			api->sendMessageFail(error, chat);
+			finish();
+		}).afterRequest(
+			history->sendRequestId
+		).send();
+		return history->sendRequestId;
+	});
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 }

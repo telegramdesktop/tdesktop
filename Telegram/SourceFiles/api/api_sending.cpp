@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h" // UserData::name
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_histories.h"
 #include "history/history.h"
 #include "history/history_message.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
@@ -110,23 +111,30 @@ void SendExistingMedia(
 
 	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
 	auto performRequest = [=] {
-		const auto usedFileReference = media->fileReference();
-		history->sendRequestId = api->request(MTPmessages_SendMedia(
-			MTP_flags(sendFlags),
-			peer->input,
-			MTP_int(replyTo),
-			inputMedia(),
-			MTP_string(captionText),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			sentEntities,
-			MTP_int(message.action.options.scheduled)
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result, randomId);
-		}).fail([=](const RPCError &error) {
-			(*failHandler)(error, usedFileReference);
-		}).afterRequest(history->sendRequestId
-		).send();
+		auto &histories = history->owner().histories();
+		const auto requestType = Data::Histories::RequestType::Send;
+		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+			const auto usedFileReference = media->fileReference();
+			history->sendRequestId = api->request(MTPmessages_SendMedia(
+				MTP_flags(sendFlags),
+				peer->input,
+				MTP_int(replyTo),
+				inputMedia(),
+				MTP_string(captionText),
+				MTP_long(randomId),
+				MTPReplyMarkup(),
+				sentEntities,
+				MTP_int(message.action.options.scheduled)
+			)).done([=](const MTPUpdates &result) {
+				api->applyUpdates(result, randomId);
+				finish();
+			}).fail([=](const RPCError &error) {
+				(*failHandler)(error, usedFileReference);
+				finish();
+			}).afterRequest(history->sendRequestId
+			).send();
+			return history->sendRequestId;
+		});
 	};
 	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
 		if (error.code() == 400

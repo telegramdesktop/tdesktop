@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_histories.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_dialogs.h"
@@ -265,15 +266,6 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			return;
 		}
 
-		auto doneCallback = [=](const MTPUpdates &updates, mtpRequestId requestId) {
-			history->session().api().applyUpdates(updates);
-			data->requests.remove(requestId);
-			if (data->requests.empty()) {
-				Ui::Toast::Show(tr::lng_share_done(tr::now));
-				Ui::hideLayer();
-			}
-		};
-
 		const auto sendFlags = MTPmessages_ForwardMessages::Flag(0)
 			| MTPmessages_ForwardMessages::Flag::f_with_my_score
 			| (isGroup
@@ -297,28 +289,40 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 			return result;
 		};
+		auto &api = owner->session().api();
+		auto &histories = owner->histories();
+		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto peer : result) {
-			const auto history = peer->owner().history(peer);
+			const auto history = owner->history(peer);
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
 				message.action.options = options;
 				message.action.clearDraft = false;
-				history->session().api().sendMessage(std::move(message));
+				api.sendMessage(std::move(message));
 			}
-			history->sendRequestId = MTP::send(
-				MTPmessages_ForwardMessages(
-					MTP_flags(sendFlags),
-					data->peer->input,
-					MTP_vector<MTPint>(msgIds),
-					MTP_vector<MTPlong>(generateRandom()),
-					peer->input,
-					MTP_int(options.scheduled)),
-				rpcDone(base::duplicate(doneCallback)),
-				nullptr,
-				0,
-				0,
-				history->sendRequestId);
+			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+				auto &api = history->session().api();
+				history->sendRequestId = api.request(MTPmessages_ForwardMessages(
+						MTP_flags(sendFlags),
+						data->peer->input,
+						MTP_vector<MTPint>(msgIds),
+						MTP_vector<MTPlong>(generateRandom()),
+						peer->input,
+						MTP_int(options.scheduled)
+				)).done([=](const MTPUpdates &updates, mtpRequestId requestId) {
+					history->session().api().applyUpdates(updates);
+					data->requests.remove(requestId);
+					if (data->requests.empty()) {
+						Ui::Toast::Show(tr::lng_share_done(tr::now));
+						Ui::hideLayer();
+					}
+					finish();
+				}).fail([=](const RPCError &error) {
+					finish();
+				}).afterRequest(history->sendRequestId).send();
+				return history->sendRequestId;
+			});
 			data->requests.insert(history->sendRequestId);
 		}
 	};

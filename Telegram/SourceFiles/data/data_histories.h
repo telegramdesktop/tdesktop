@@ -57,18 +57,28 @@ public:
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
+	void deleteMessages(
+		not_null<History*> history,
+		const QVector<MTPint> &ids,
+		bool revoke);
+	void deleteAllMessages(
+		not_null<History*> history,
+		MsgId deleteTillId,
+		bool justClear,
+		bool revoke);
+
 	int sendRequest(
 		not_null<History*> history,
 		RequestType type,
-		Fn<mtpRequestId(Fn<void()> done)> generator);
+		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(not_null<History*> history, int id);
 
 private:
 	struct PostponedHistoryRequest {
-		Fn<mtpRequestId(Fn<void()> done)> generator;
+		Fn<mtpRequestId(Fn<void()> finish)> generator;
 	};
 	struct SentRequest {
-		Fn<mtpRequestId(Fn<void()> done)> generator;
+		Fn<mtpRequestId(Fn<void()> finish)> generator;
 		mtpRequestId id = 0;
 		RequestType type = RequestType::None;
 	};

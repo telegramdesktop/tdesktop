@@ -141,6 +141,9 @@ public:
 	void applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId = 0);
+	int applyAffectedHistory(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedHistory &result);
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
@@ -298,10 +301,6 @@ public:
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);
-	void deleteMessages(
-		not_null<PeerData*> peer,
-		const QVector<MTPint> &ids,
-		bool revoke);
 
 	base::Observable<PeerData*> &fullPeerUpdated() {
 		return _fullPeerUpdated;
@@ -469,8 +468,8 @@ public:
 	void createPoll(
 		const PollData &data,
 		const SendAction &action,
-		FnMut<void()> done,
-		FnMut<void(const RPCError &error)> fail);
+		Fn<void()> done,
+		Fn<void(const RPCError &error)> fail);
 	void sendPollVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options);
@@ -616,9 +615,6 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
-	int applyAffectedHistory(
-		not_null<PeerData*> peer,
-		const MTPmessages_AffectedHistory &result);
 	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
 
 	void deleteAllFromUserSend(

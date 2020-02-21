@@ -369,7 +369,7 @@ void Histories::sendReadRequests() {
 void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	const auto tillId = state.readTill;
 	state.readWhen = kReadRequestSent;
-	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> done) {
+	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		const auto finished = [=] {
 			const auto state = lookup(history);
 			Assert(state != nullptr);
@@ -386,7 +386,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 					sendReadRequests();
 				}
 			}
-			done();
+			finish();
 		};
 		if (const auto channel = history->peer->asChannel()) {
 			return session().api().request(MTPchannels_ReadHistory(
@@ -439,10 +439,81 @@ bool Histories::postponeEntryRequest(const State &state) const {
 	return (i != end(state.sent));
 }
 
+void Histories::deleteMessages(
+		not_null<History*> history,
+		const QVector<MTPint> &ids,
+		bool revoke) {
+	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
+		const auto done = [=](const MTPmessages_AffectedMessages &result) {
+			session().api().applyAffectedMessages(history->peer, result);
+			finish();
+			history->requestChatListMessage();
+		};
+		const auto fail = [=](const RPCError &error) {
+			finish();
+		};
+		if (const auto channel = history->peer->asChannel()) {
+			return session().api().request(MTPchannels_DeleteMessages(
+				channel->inputChannel,
+				MTP_vector<MTPint>(ids)
+			)).done(done).fail(fail).send();
+		} else {
+			using Flag = MTPmessages_DeleteMessages::Flag;
+			return session().api().request(MTPmessages_DeleteMessages(
+				MTP_flags(revoke ? Flag::f_revoke : Flag(0)),
+				MTP_vector<MTPint>(ids)
+			)).done(done).fail(fail).send();
+		}
+	});
+}
+
+void Histories::deleteAllMessages(
+		not_null<History*> history,
+		MsgId deleteTillId,
+		bool justClear,
+		bool revoke) {
+	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
+		const auto peer = history->peer;
+		const auto fail = [=](const RPCError &error) {
+			finish();
+		};
+		if (const auto channel = peer->asChannel()) {
+			return session().api().request(MTPchannels_DeleteHistory(
+				channel->inputChannel,
+				MTP_int(deleteTillId)
+			)).done([=](const MTPBool &result) {
+				finish();
+			}).fail(fail).send();
+		} else {
+			using Flag = MTPmessages_DeleteHistory::Flag;
+			const auto flags = Flag(0)
+				| (justClear ? Flag::f_just_clear : Flag(0))
+				| ((peer->isUser() && revoke) ? Flag::f_revoke : Flag(0));
+			return session().api().request(MTPmessages_DeleteHistory(
+				MTP_flags(flags),
+				peer->input,
+				MTP_int(0)
+			)).done([=](const MTPmessages_AffectedHistory &result) {
+				const auto offset = session().api().applyAffectedHistory(
+					peer,
+					result);
+				if (offset > 0) {
+					deleteAllMessages(
+						history,
+						deleteTillId,
+						justClear,
+						revoke);
+				}
+				finish();
+			}).fail(fail).send();
+		}
+	});
+}
+
 int Histories::sendRequest(
 		not_null<History*> history,
 		RequestType type,
-		Fn<mtpRequestId(Fn<void()> done)> generator) {
+		Fn<mtpRequestId(Fn<void()> finish)> generator) {
 	Expects(type != RequestType::None);
 
 	auto &state = _states[history];
