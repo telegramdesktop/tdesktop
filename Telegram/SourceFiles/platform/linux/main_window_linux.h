@@ -68,8 +68,9 @@ private:
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
+	std::unique_ptr<QTemporaryFile> _trayToolTipIconFile = nullptr;
 
-	void setSNITrayIcon(const QIcon &icon, const QImage &iconImage);
+	void setSNITrayIcon(const QIcon &icon);
 	void attachToSNITrayIcon();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
