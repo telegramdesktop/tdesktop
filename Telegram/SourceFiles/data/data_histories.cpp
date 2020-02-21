@@ -621,7 +621,11 @@ void Histories::finishSentRequest(
 		not_null<State*> state,
 		int id) {
 	_historyByRequest.remove(id);
-	state->sent.remove(id);
+	const auto i = state->sent.find(id);
+	if (i != end(state->sent)) {
+		session().api().request(i->second.id).cancel();
+		state->sent.erase(i);
+	}
 	if (!state->postponed.empty() && !postponeHistoryRequest(*state)) {
 		for (auto &[id, postponed] : base::take(state->postponed)) {
 			const auto requestId = postponed.generator([=] {
