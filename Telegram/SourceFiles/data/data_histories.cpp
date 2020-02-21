@@ -190,7 +190,9 @@ void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
 
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
-		if (state->readTill && state->readWhen) {
+		if (state->readTill
+			&& state->readWhen
+			&& state->readWhen != kReadRequestSent) {
 			state->readWhen = 0;
 			sendReadRequests();
 		}
