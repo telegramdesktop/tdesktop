@@ -549,7 +549,8 @@ int Histories::sendRequest(
 	Expects(type != RequestType::None);
 
 	auto &state = _states[history];
-	const auto id = ++state.autoincrement;
+	const auto id = ++_requestAutoincrement;
+	_historyByRequest.emplace(id, history);
 	if (type == RequestType::History && postponeHistoryRequest(state)) {
 		state.postponed.emplace(
 			id,
@@ -593,19 +594,24 @@ void Histories::checkPostponed(not_null<History*> history, int id) {
 	finishSentRequest(history, state, id);
 }
 
-void Histories::cancelRequest(not_null<History*> history, int id) {
-	const auto state = lookup(history);
+void Histories::cancelRequest(int id) {
+	const auto history = _historyByRequest.take(id);
+	if (!history) {
+		return;
+	}
+	const auto state = lookup(*history);
 	if (!state) {
 		return;
 	}
 	state->postponed.remove(id);
-	finishSentRequest(history, state, id);
+	finishSentRequest(*history, state, id);
 }
 
 void Histories::finishSentRequest(
 		not_null<History*> history,
 		not_null<State*> state,
 		int id) {
+	_historyByRequest.remove(id);
 	state->sent.remove(id);
 	if (!state->postponed.empty() && !postponeHistoryRequest(*state)) {
 		for (auto &[id, postponed] : base::take(state->postponed)) {
@@ -626,6 +632,7 @@ void Histories::finishSentRequest(
 			history,
 			std::move(i->second));
 		Assert(ok);
+		_dialogRequests.erase(i);
 		state->postponedRequestEntry = false;
 	}
 	checkEmptyState(history);

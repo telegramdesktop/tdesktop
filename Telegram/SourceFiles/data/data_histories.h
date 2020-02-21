@@ -72,7 +72,7 @@ public:
 		not_null<History*> history,
 		RequestType type,
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
-	void cancelRequest(not_null<History*> history, int id);
+	void cancelRequest(int id);
 
 private:
 	struct PostponedHistoryRequest {
@@ -88,7 +88,6 @@ private:
 		base::flat_map<int, SentRequest> sent;
 		crl::time readWhen = 0;
 		MsgId readTill = 0;
-		int autoincrement = 0;
 		bool postponedRequestEntry = false;
 	};
 
@@ -112,6 +111,8 @@ private:
 
 	std::unordered_map<PeerId, std::unique_ptr<History>> _map;
 	base::flat_map<not_null<History*>, State> _states;
+	base::flat_map<int, not_null<History*>> _historyByRequest;
+	int _requestAutoincrement = 0;
 	base::Timer _readRequestsTimer;
 
 	base::flat_set<not_null<Data::Folder*>> _dialogFolderRequests;

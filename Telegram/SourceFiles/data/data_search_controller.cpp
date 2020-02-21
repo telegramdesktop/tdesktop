@@ -369,7 +369,7 @@ void SearchController::requestMore(
 		return;
 	}
 	auto &histories = _session->data().histories();
-	const auto type = Histories::RequestType::History;
+	const auto type = ::Data::Histories::RequestType::History;
 	const auto history = _session->data().history(listData->peer);
 	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
 		return _api.request(
@@ -392,8 +392,7 @@ void SearchController::requestMore(
 		}).send();
 	});
 	listData->requests.emplace(key, [=] {
-		auto &histories = _session->data().histories();
-		histories.cancelRequest(history, requestId);
+		_session->data().histories().cancelRequest(requestId);
 	});
 }
 

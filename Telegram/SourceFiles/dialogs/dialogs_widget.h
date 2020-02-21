@@ -136,6 +136,7 @@ private:
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 	void escape();
+	void cancelSearchRequest();
 
 	void setupSupportMode();
 	void setupConnectingWidget();
@@ -219,6 +220,7 @@ private:
 	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;
+	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _searchRequest = 0;
 
 	QMap<QString, MTPmessages_Messages> _searchCache;

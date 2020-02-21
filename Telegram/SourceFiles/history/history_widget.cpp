@@ -1920,9 +1920,7 @@ void HistoryWidget::clearDelayedShowAt() {
 
 	_delayedShowAtMsgId = -1;
 	if (_delayedShowAtRequest) {
-		_history->owner().histories().cancelRequest(
-			_history,
-			_delayedShowAtRequest);
+		_history->owner().histories().cancelRequest(_delayedShowAtRequest);
 		_delayedShowAtRequest = 0;
 	}
 }
@@ -1933,15 +1931,15 @@ void HistoryWidget::clearAllLoadRequests() {
 	auto &histories = _history->owner().histories();
 	clearDelayedShowAt();
 	if (_firstLoadRequest) {
-		histories.cancelRequest(_history, _firstLoadRequest);
+		histories.cancelRequest(_firstLoadRequest);
 		_firstLoadRequest = 0;
 	}
 	if (_preloadRequest) {
-		histories.cancelRequest(_history, _preloadRequest);
+		histories.cancelRequest(_preloadRequest);
 		_preloadRequest = 0;
 	}
 	if (_preloadDownRequest) {
-		histories.cancelRequest(_history, _preloadDownRequest);
+		histories.cancelRequest(_preloadDownRequest);
 		_preloadDownRequest = 0;
 	}
 }
@@ -7032,6 +7030,8 @@ void HistoryWidget::synteticScrollToY(int y) {
 }
 
 HistoryWidget::~HistoryWidget() {
-	clearAllLoadRequests();
+	if (_history) {
+		clearAllLoadRequests();
+	}
 	setTabbedPanel(nullptr);
 }
