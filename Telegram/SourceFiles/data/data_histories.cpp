@@ -135,6 +135,8 @@ void Histories::readInboxTill(
 
 	if (!history->readInboxTillNeedsRequest(tillId) && !force) {
 		return;
+	} else if (!history->trackUnreadMessages()) {
+		return;
 	} else if (!force) {
 		const auto maybeState = lookup(history);
 		if (maybeState && maybeState->readTill >= tillId) {

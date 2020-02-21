@@ -1595,7 +1595,7 @@ void History::calculateFirstUnreadMessage() {
 	}
 
 	_firstUnreadView = nullptr;
-	if (!unreadCount()) {
+	if (!unreadCount() || !trackUnreadMessages()) {
 		return;
 	}
 	for (const auto &block : ranges::view::reverse(blocks)) {
@@ -2573,6 +2573,13 @@ bool History::useProxyPromotion() const {
 
 int History::fixedOnTopIndex() const {
 	return useProxyPromotion() ? kProxyPromotionFixOnTopIndex : 0;
+}
+
+bool History::trackUnreadMessages() const {
+	if (const auto channel = peer->asChannel()) {
+		return channel->amIn();
+	}
+	return true;
 }
 
 bool History::shouldBeInChatList() const {

@@ -5212,7 +5212,7 @@ void HistoryWidget::addMessagesToBack(
 		PeerData *peer,
 		const QVector<MTPMessage> &messages) {
 	const auto checkForUnreadStart = [&] {
-		if (_history->unreadBar() || !_history->inChatList()) {
+		if (_history->unreadBar() || !_history->trackUnreadMessages()) {
 			return false;
 		}
 		_history->calculateFirstUnreadMessage();

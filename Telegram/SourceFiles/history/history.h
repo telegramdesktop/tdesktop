@@ -191,6 +191,7 @@ public:
 		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] MsgId loadAroundId() const;
 
+	[[nodiscard]] bool trackUnreadMessages() const;
 	[[nodiscard]] int unreadCount() const;
 	[[nodiscard]] bool unreadCountKnown() const;
 
