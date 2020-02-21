@@ -213,8 +213,9 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
-	void clearDelayedShowAt();
 	void clearAllLoadRequests();
+	void clearDelayedShowAtRequest();
+	void clearDelayedShowAt();
 	void saveFieldToHistoryLocalDraft();
 
 	void applyCloudDraft(History *history);

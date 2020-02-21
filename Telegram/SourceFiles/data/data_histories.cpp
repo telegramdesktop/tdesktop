@@ -597,10 +597,9 @@ int Histories::sendRequest(
 }
 
 void Histories::checkPostponed(not_null<History*> history, int id) {
-	const auto state = lookup(history);
-	Assert(state != nullptr);
-
-	finishSentRequest(history, state, id);
+	if (const auto state = lookup(history)) {
+		finishSentRequest(history, state, id);
+	}
 }
 
 void Histories::cancelRequest(int id) {

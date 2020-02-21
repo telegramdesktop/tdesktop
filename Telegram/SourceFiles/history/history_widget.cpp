@@ -1916,9 +1916,13 @@ void HistoryWidget::showHistory(
 }
 
 void HistoryWidget::clearDelayedShowAt() {
+	_delayedShowAtMsgId = -1;
+	clearDelayedShowAtRequest();
+}
+
+void HistoryWidget::clearDelayedShowAtRequest() {
 	Expects(_history != nullptr);
 
-	_delayedShowAtMsgId = -1;
 	if (_delayedShowAtRequest) {
 		_history->owner().histories().cancelRequest(_delayedShowAtRequest);
 		_delayedShowAtRequest = 0;
@@ -1929,7 +1933,7 @@ void HistoryWidget::clearAllLoadRequests() {
 	Expects(_history != nullptr);
 
 	auto &histories = _history->owner().histories();
-	clearDelayedShowAt();
+	clearDelayedShowAtRequest();
 	if (_firstLoadRequest) {
 		histories.cancelRequest(_firstLoadRequest);
 		_firstLoadRequest = 0;
@@ -2472,19 +2476,19 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			_migrated->clear(History::ClearType::Unload);
 		}
 
-		_delayedShowAtRequest = 0;
+		clearAllLoadRequests();
+		_firstLoadRequest = -1; // hack - don't updateListSize yet
 		_history->getReadyFor(_delayedShowAtMsgId);
 		if (_history->isEmpty()) {
-			clearAllLoadRequests();
-			_firstLoadRequest = -1; // hack - don't updateListSize yet
 			addMessagesToFront(peer, *histList);
-			_firstLoadRequest = 0;
-			if (_history->loadedAtTop()
-				&& _history->isEmpty()
-				&& count > 0) {
-				firstLoadMessages();
-				return;
-			}
+		}
+		_firstLoadRequest = 0;
+
+		if (_history->loadedAtTop()
+			&& _history->isEmpty()
+			&& count > 0) {
+			firstLoadMessages();
+			return;
 		}
 		while (_replyReturn) {
 			if (_replyReturn->history() == _history
@@ -2498,6 +2502,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			}
 		}
 
+		_delayedShowAtRequest = 0;
 		setMsgId(_delayedShowAtMsgId);
 		historyLoaded();
 	}
@@ -2521,6 +2526,7 @@ bool HistoryWidget::doWeReadMentions() const {
 		&& _list
 		&& _historyInited
 		&& !_firstLoadRequest
+		&& !_delayedShowAtRequest
 		&& !_a_show.animating()
 		&& App::wnd()->doWeMarkAsRead();
 }
@@ -2707,7 +2713,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 		return;
 	}
 
-	clearDelayedShowAt();
+	clearAllLoadRequests();
 	_delayedShowAtMsgId = showAtMsgId;
 
 	auto from = _history;
@@ -2799,7 +2805,11 @@ void HistoryWidget::visibleAreaUpdated() {
 }
 
 void HistoryWidget::preloadHistoryIfNeeded() {
-	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+	if (_firstLoadRequest
+		|| _delayedShowAtRequest
+		|| _scroll->isHidden()
+		|| !_peer
+		|| !_historyInited) {
 		return;
 	}
 
@@ -2818,7 +2828,11 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 }
 
 void HistoryWidget::preloadHistoryByScroll() {
-	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+	if (_firstLoadRequest
+		|| _delayedShowAtRequest
+		|| _scroll->isHidden()
+		|| !_peer
+		|| !_historyInited) {
 		return;
 	}
 
@@ -2834,7 +2848,10 @@ void HistoryWidget::preloadHistoryByScroll() {
 }
 
 void HistoryWidget::checkReplyReturns() {
-	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+	if (_firstLoadRequest
+		|| _scroll->isHidden()
+		|| !_peer
+		|| !_historyInited) {
 		return;
 	}
 	auto scrollTop = _scroll->scrollTop();
