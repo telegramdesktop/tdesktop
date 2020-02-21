@@ -355,6 +355,7 @@ std::vector<int> DefaultLanguages() {
 
 void Start(not_null<Main::Session*> session) {
 	Spellchecker::SetPhrases({ {
+		{ &ph::lng_spellchecker_submenu, tr::lng_spellchecker_submenu() },
 		{ &ph::lng_spellchecker_add, tr::lng_spellchecker_add() },
 		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
 		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },

@@ -282,7 +282,11 @@ void InitSpellchecker(
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
 		field.get(),
-		session->settings().spellcheckerEnabledValue());
+		session->settings().spellcheckerEnabledValue(),
+		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
+			tr::lng_settings_manage_dictionaries(tr::now),
+			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(session)); }
+		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
 }

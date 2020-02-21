@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_connection.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "boxes/dictionaries_manager.h"
 #include "spellcheck/spelling_highlighter.h"
 #endif // TDESKTOP_DISABLE_SPELLCHECK
 
