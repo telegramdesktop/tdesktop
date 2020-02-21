@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
 #include "storage/storage_cloud_blob.h"
+#include "base/unique_qptr.h"
 
 namespace Main {
 class Session;
@@ -36,6 +37,37 @@ std::vector<Dict> Dictionaries();
 void Start(not_null<Main::Session*> session);
 [[nodiscard]] rpl::producer<QString> ButtonManageDictsState(
 	not_null<Main::Session*> session);
+
+std::vector<int> DefaultLanguages();
+
+class DictLoader : public Storage::CloudBlob::BlobLoader {
+public:
+	DictLoader(
+		QObject *parent,
+		int id,
+		MTP::DedicatedLoader::Location location,
+		const QString &folder,
+		int size,
+		Fn<void()> destroyCallback);
+
+	void destroy() override;
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+private:
+	void unpack(const QString &path) override;
+	void fail() override;
+
+	Fn<void()> _destroyCallback;
+
+	rpl::lifetime _lifetime;
+
+};
+
+std::shared_ptr<base::unique_qptr<DictLoader>> GlobalLoader();
+rpl::producer<int> GlobalLoaderChanged();
 
 } // namespace Spellchecker
 

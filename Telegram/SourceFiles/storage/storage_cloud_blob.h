@@ -91,7 +91,7 @@ public:
 	virtual void unpack(const QString &path) = 0;
 
 protected:
-	void fail();
+	virtual void fail();
 
 	const QString _folder;
 

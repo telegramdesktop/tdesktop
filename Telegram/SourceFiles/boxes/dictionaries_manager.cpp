@@ -44,24 +44,6 @@ constexpr auto kMaxQueryLength = 15;
 using QStringView = QString;
 #endif
 
-class Loader : public BlobLoader {
-public:
-	Loader(
-		QObject *parent,
-		int id,
-		MTP::DedicatedLoader::Location location,
-		const QString &folder,
-		int size,
-		Fn<void()> destroyCallback);
-
-	void destroy() override;
-	void unpack(const QString &path) override;
-
-private:
-	Fn<void()> _destroyCallback;
-
-};
-
 class Inner : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent, Dictionaries enabledDictionaries);
@@ -99,31 +81,6 @@ QString StateDescription(const DictState &state) {
 	return StateDescription(
 		state,
 		tr::lng_settings_manage_enabled_dictionary);
-}
-
-Loader::Loader(
-	QObject *parent,
-	int id,
-	MTP::DedicatedLoader::Location location,
-	const QString &folder,
-	int size,
-	Fn<void()> destroyCallback)
-: BlobLoader(parent, id, location, folder, size)
-, _destroyCallback(std::move(destroyCallback)) {
-}
-
-void Loader::unpack(const QString &path) {
-	Expects(_destroyCallback);
-	crl::async([=] {
-		const auto success = Spellchecker::UnpackDictionary(path, id());
-		if (success) {
-			QFile(path).remove();
-		}
-		crl::on_main(success ? _destroyCallback : [=] { fail(); });
-	});
-}
-
-void Loader::destroy() {
 }
 
 auto CreateMultiSelect(QWidget *parent) {
@@ -188,6 +145,9 @@ auto AddButtonWithLoader(
 			anim::type::instant);
 	}, button->lifetime());
 
+	using Loader = Spellchecker::DictLoader;
+	using GlobalLoaderPtr = std::shared_ptr<base::unique_qptr<Loader>>;
+
 	const auto localLoader = button->lifetime()
 		.make_state<base::unique_qptr<Loader>>();
 	const auto localLoaderValues = button->lifetime()
@@ -200,11 +160,45 @@ auto AddButtonWithLoader(
 		setLocalLoader(nullptr);
 	};
 
-
 	const auto buttonState = button->lifetime()
 		.make_state<rpl::variable<DictState>>();
 	const auto dictionaryRemoved = button->lifetime()
 		.make_state<rpl::event_stream<>>();
+	const auto dictionaryFromGlobalLoader = button->lifetime()
+		.make_state<rpl::event_stream<>>();
+
+	const auto globalLoader = button->lifetime()
+		.make_state<GlobalLoaderPtr>();
+
+	const auto rawGlobalLoaderPtr = [=]() -> Loader* {
+		if (!globalLoader || !*globalLoader || !*globalLoader->get()) {
+			return nullptr;
+		}
+		return globalLoader->get()->get();
+	};
+
+	const auto setGlobalLoaderPtr = [=](GlobalLoaderPtr loader) {
+		if (localLoader->get()) {
+			if (loader && loader->get()) {
+				loader->get()->destroy();
+			}
+			return;
+		}
+		*globalLoader = std::move(loader);
+		localLoaderValues->fire(rawGlobalLoaderPtr());
+		if (rawGlobalLoaderPtr()) {
+			dictionaryFromGlobalLoader->fire({});
+		}
+	};
+
+	Spellchecker::GlobalLoaderChanged(
+	) | rpl::start_with_next([=](int langId) {
+		if (!langId && rawGlobalLoaderPtr()) {
+			setGlobalLoaderPtr(nullptr);
+		} else if (langId == id) {
+			setGlobalLoaderPtr(Spellchecker::GlobalLoader());
+		}
+	}, button->lifetime());
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
@@ -243,21 +237,29 @@ auto AddButtonWithLoader(
 			buttonEnabled
 		) | rpl::then(
 			rpl::merge(
-				dictionaryRemoved->events(),
-				buttonState->value(
-				) | rpl::filter([](const DictState &state) {
-					return state.is<Failed>();
-				}) | rpl::map([] {
-					return rpl::empty_value();
+				// Events to toggle on.
+				dictionaryFromGlobalLoader->events(
+				) | rpl::map([] {
+					return true;
+				}),
+				// Events to toggle off.
+				rpl::merge(
+					dictionaryRemoved->events(),
+					buttonState->value(
+					) | rpl::filter([](const DictState &state) {
+						return state.is<Failed>();
+					}) | rpl::map([] {
+						return rpl::empty_value();
+					})
+				) | rpl::map([] {
+					return false;
 				})
-			) | rpl::map([]() {
-				return false;
-			})
+			)
 		)
 	);
 
 	 *buttonState = localLoaderValues->events_starting_with(
-	 	localLoader->get()
+	 	rawGlobalLoaderPtr() ? rawGlobalLoaderPtr() : localLoader->get()
 	 ) | rpl::map([=](Loader *loader) {
 		return (loader && loader->id() == id)
 			? loader->state()
@@ -292,6 +294,10 @@ auto AddButtonWithLoader(
 				Spellchecker::GetDownloadSize(id),
 				crl::guard(weak, destroyLocalLoader)));
 		} else if (!toggled && state.is<Loading>()) {
+			if (const auto g = rawGlobalLoaderPtr()) {
+				g->destroy();
+				return;
+			}
 			if (localLoader && localLoader->get()->id() == id) {
 				destroyLocalLoader();
 			}
@@ -320,6 +326,12 @@ auto AddButtonWithLoader(
 		}
 		return base::EventFilterResult::Continue;
 	});
+
+	if (const auto g = Spellchecker::GlobalLoader()) {
+		if (g.get() && g->get()->id() == id) {
+			setGlobalLoaderPtr(g);
+		}
+	}
 
 	return button;
 }
