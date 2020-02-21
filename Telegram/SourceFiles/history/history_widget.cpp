@@ -796,6 +796,7 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 
 void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 	Expects(_history != nullptr);
+
 	if (hasPendingResizedItems()) {
 		updateListSize();
 	}
@@ -814,6 +815,7 @@ void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 
 void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 	Expects(_history != nullptr);
+
 	if (hasPendingResizedItems()) {
 		updateListSize();
 	}
@@ -1677,13 +1679,11 @@ void HistoryWidget::showHistory(
 
 				setMsgId(showAtMsgId);
 				if (_historyInited) {
+					const auto to = countInitialScrollTop();
 					const auto item = getItemFromHistoryOrMigrated(
 						_showAtMsgId);
 					animatedScrollToY(
-						std::clamp(
-							countInitialScrollTop(),
-							0,
-							_scroll->scrollTopMax()),
+						std::clamp(to, 0, _scroll->scrollTopMax()),
 						item);
 				} else {
 					historyLoaded();
@@ -2655,7 +2655,10 @@ void HistoryWidget::loadMessagesDown() {
 }
 
 void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
-	if (!_history || (_delayedShowAtRequest && _delayedShowAtMsgId == showAtMsgId)) return;
+	if (!_history
+		|| (_delayedShowAtRequest && _delayedShowAtMsgId == showAtMsgId)) {
+		return;
+	}
 
 	clearDelayedShowAt();
 	_delayedShowAtMsgId = showAtMsgId;
@@ -5024,12 +5027,21 @@ void HistoryWidget::createUnreadBarIfBelowVisibleArea(int withScrollTop) {
 	_history->calculateFirstUnreadMessage();
 	if (const auto unread = _history->firstUnreadMessage()) {
 		if (_list->itemTop(unread) > withScrollTop) {
-			_history->addUnreadBar();
-			if (hasPendingResizedItems()) {
-				updateListSize();
-			}
+			createUnreadBarAndResize();
 		}
 	}
+}
+
+void HistoryWidget::createUnreadBarAndResize() {
+	if (!_history->firstUnreadMessage()) {
+		return;
+	}
+	const auto was = base::take(_historyInited);
+	_history->addUnreadBar();
+	if (hasPendingResizedItems()) {
+		updateListSize();
+	}
+	_historyInited = was;
 }
 
 int HistoryWidget::countAutomaticScrollTop() {
@@ -5042,12 +5054,8 @@ int HistoryWidget::countAutomaticScrollTop() {
 			+ HistoryView::UnreadBar::height()
 			- HistoryView::UnreadBar::marginTop();
 		if (firstUnreadTop < possibleUnreadBarTop) {
-			const auto history = unread->data()->history();
-			history->addUnreadBar();
-			if (hasPendingResizedItems()) {
-				updateListSize();
-			}
-			if (history->unreadBar() != nullptr) {
+			createUnreadBarAndResize();
+			if (_history->unreadBar() != nullptr) {
 				setMsgId(ShowAtUnreadMsgId);
 				return countInitialScrollTop();
 			}
@@ -5213,9 +5221,7 @@ void HistoryWidget::addMessagesToBack(
 	_list->messagesReceivedDown(peer, messages);
 	if (checkForUnreadStart) {
 		_history->calculateFirstUnreadMessage();
-		if (const auto unread = _history->firstUnreadMessage()) {
-			_history->addUnreadBar();
-		}
+		createUnreadBarAndResize();
 	}
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
