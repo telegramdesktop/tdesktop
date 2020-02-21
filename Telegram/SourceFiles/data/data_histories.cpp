@@ -388,7 +388,7 @@ void Histories::sendReadRequests() {
 	const auto now = crl::now();
 	auto next = std::optional<crl::time>();
 	for (auto &[history, state] : _states) {
-		if (!state.readTill) {
+		if (!state.readTill || state.readWhen == kReadRequestSent) {
 			continue;
 		} else if (state.readWhen <= now) {
 			sendReadRequest(history, state);
