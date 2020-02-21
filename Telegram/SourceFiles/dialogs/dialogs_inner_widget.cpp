@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
+#include "data/data_histories.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -2040,7 +2041,7 @@ bool InnerWidget::searchReceived(
 							_searchInChat,
 							item));
 					if (uniquePeers && !history->unreadCountKnown()) {
-						history->session().api().requestDialogEntry(history);
+						history->owner().histories().requestDialogEntry(history);
 					}
 				}
 				lastDateFound = lastDate;

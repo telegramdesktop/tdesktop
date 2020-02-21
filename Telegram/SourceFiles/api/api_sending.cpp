@@ -169,7 +169,7 @@ void SendExistingDocument(
 	if (document->sticker()) {
 		if (const auto main = App::main()) {
 			main->incrementSticker(document);
-			document->session().data().notifyRecentStickersUpdated();
+			document->owner().notifyRecentStickersUpdated();
 		}
 	}
 }

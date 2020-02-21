@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_histories.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -108,7 +109,7 @@ void Folder::registerOne(not_null<History*> history) {
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
 		if (!_cloudUnread.known) {
-			session().api().requestDialogEntry(this);
+			owner().histories().requestDialogEntry(this);
 		}
 	} else {
 		updateChatListEntry();
@@ -323,7 +324,7 @@ uint32 Folder::chatListViewVersion() const {
 
 void Folder::requestChatListMessage() {
 	if (!chatListMessageKnown()) {
-		session().api().requestDialogEntry(this);
+		owner().histories().requestDialogEntry(this);
 	}
 }
 

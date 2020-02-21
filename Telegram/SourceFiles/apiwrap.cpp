@@ -344,7 +344,7 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 		const auto peer = _session->data().peer(peerId);
 		_session->data().setProxyPromoted(peer);
 		if (const auto history = _session->data().historyLoaded(peer)) {
-			requestDialogEntry(history);
+			history->owner().histories().requestDialogEntry(history);
 		}
 	});
 }
@@ -1012,134 +1012,6 @@ rpl::producer<bool> ApiWrap::dialogsLoadBlockedByDate() const {
 	return _dialogsLoadBlockedByDate.value();
 }
 
-void ApiWrap::requestDialogEntry(not_null<Data::Folder*> folder) {
-	if (_dialogFolderRequests.contains(folder)) {
-		return;
-	}
-	_dialogFolderRequests.emplace(folder);
-
-	auto peers = QVector<MTPInputDialogPeer>(
-		1,
-		MTP_inputDialogPeerFolder(MTP_int(folder->id())));
-	request(MTPmessages_GetPeerDialogs(
-		MTP_vector(std::move(peers))
-	)).done([=](const MTPmessages_PeerDialogs &result) {
-		applyPeerDialogs(result);
-		_dialogFolderRequests.remove(folder);
-	}).fail([=](const RPCError &error) {
-		_dialogFolderRequests.remove(folder);
-	}).send();
-}
-
-void ApiWrap::requestDialogEntry(
-		not_null<History*> history,
-		Fn<void()> callback) {
-	const auto i = _dialogRequests.find(history);
-	if (i != end(_dialogRequests)) {
-		if (callback) {
-			i->second.push_back(std::move(callback));
-		}
-		return;
-	}
-
-	const auto [j, ok] = _dialogRequestsPending.try_emplace(history);
-	if (callback) {
-		j->second.push_back(std::move(callback));
-	}
-	if (!ok) {
-		return;
-	}
-	if (_dialogRequestsPending.size() > 1) {
-		return;
-	}
-	Core::App().postponeCall(crl::guard(_session, [=] {
-		sendDialogRequests();
-	}));
-}
-
-void ApiWrap::sendDialogRequests() {
-	if (_dialogRequestsPending.empty()) {
-		return;
-	}
-	auto histories = std::vector<not_null<History*>>();
-	ranges::transform(
-		_dialogRequestsPending,
-		ranges::back_inserter(histories),
-		[](const auto &pair) { return pair.first; });
-	auto peers = QVector<MTPInputDialogPeer>();
-	const auto dialogPeer = [](not_null<History*> history) {
-		return MTP_inputDialogPeer(history->peer->input);
-	};
-	ranges::transform(
-		histories,
-		ranges::back_inserter(peers),
-		dialogPeer);
-	for (auto &[history, callbacks] : base::take(_dialogRequestsPending)) {
-		_dialogRequests.emplace(history, std::move(callbacks));
-	}
-
-	const auto finalize = [=] {
-		for (const auto history : histories) {
-			dialogEntryApplied(history);
-			history->updateChatListExistence();
-		}
-	};
-	request(MTPmessages_GetPeerDialogs(
-		MTP_vector(std::move(peers))
-	)).done([=](const MTPmessages_PeerDialogs &result) {
-		applyPeerDialogs(result);
-		finalize();
-	}).fail([=](const RPCError &error) {
-		finalize();
-	}).send();
-}
-
-void ApiWrap::dialogEntryApplied(not_null<History*> history) {
-	history->dialogEntryApplied();
-	if (const auto callbacks = _dialogRequestsPending.take(history)) {
-		for (const auto &callback : *callbacks) {
-			callback();
-		}
-	}
-	if (const auto callbacks = _dialogRequests.take(history)) {
-		for (const auto &callback : *callbacks) {
-			callback();
-		}
-	}
-}
-
-void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
-	Expects(dialogs.type() == mtpc_messages_peerDialogs);
-
-	const auto &data = dialogs.c_messages_peerDialogs();
-	_session->data().processUsers(data.vusers());
-	_session->data().processChats(data.vchats());
-	_session->data().processMessages(data.vmessages(), NewMessageType::Last);
-	for (const auto &dialog : data.vdialogs().v) {
-		dialog.match([&](const MTPDdialog &data) {
-			if (const auto peerId = peerFromMTP(data.vpeer())) {
-				_session->data().history(peerId)->applyDialog(nullptr, data);
-			}
-		}, [&](const MTPDdialogFolder &data) {
-			const auto folder = _session->data().processFolder(data.vfolder());
-			folder->applyDialog(data);
-		});
-	}
-	_session->data().sendHistoryChangeNotifications();
-}
-
-void ApiWrap::changeDialogUnreadMark(
-		not_null<History*> history,
-		bool unread) {
-	history->setUnreadMark(unread);
-
-	using Flag = MTPmessages_MarkDialogUnread::Flag;
-	request(MTPmessages_MarkDialogUnread(
-		MTP_flags(unread ? Flag::f_unread : Flag(0)),
-		MTP_inputDialogPeer(history->peer->input)
-	)).send();
-}
-
 void ApiWrap::requestFakeChatListMessage(
 		not_null<History*> history) {
 	if (_fakeChatListRequests.contains(history)) {
@@ -1787,7 +1659,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 				history->checkLocalMessages();
 				history->owner().sendHistoryChangeNotifications();
 			} else {
-				requestDialogEntry(history);
+				history->owner().histories().requestDialogEntry(history);
 			}
 		}
 	};
@@ -2463,7 +2335,7 @@ void ApiWrap::deleteHistory(
 			}
 		}
 		if (!history->lastMessageKnown()) {
-			requestDialogEntry(history, [=] {
+			history->owner().histories().requestDialogEntry(history, [=] {
 				Expects(history->lastMessageKnown());
 
 				deleteHistory(peer, justClear, revoke);

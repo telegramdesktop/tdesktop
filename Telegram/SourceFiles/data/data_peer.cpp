@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_histories.h"
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "lang/lang_keys.h"
@@ -457,7 +458,7 @@ void PeerData::checkFolder(FolderId folderId) {
 		: nullptr;
 	if (const auto history = owner().historyLoaded(this)) {
 		if (folder && history->folder() != folder) {
-			session().api().requestDialogEntry(history);
+			owner().histories().requestDialogEntry(history);
 		}
 	}
 }

@@ -304,9 +304,9 @@ void Filler::addToggleUnreadMark() {
 		const auto markAsRead = isUnread(peer);
 		const auto handle = [&](not_null<History*> history) {
 			if (markAsRead) {
-				peer->session().data().histories().readInbox(history);
+				peer->owner().histories().readInbox(history);
 			} else {
-				peer->session().api().changeDialogUnreadMark(
+				peer->owner().histories().changeDialogUnreadMark(
 					history,
 					!markAsRead);
 			}

@@ -76,7 +76,7 @@ void MuteSettingsBox::prepare() {
 
 	_save = [=] {
 		const auto muteForSeconds = group->value() * 3600;
-		_peer->session().data().updateNotifySettings(
+		_peer->owner().updateNotifySettings(
 			_peer,
 			muteForSeconds);
 		closeBox();

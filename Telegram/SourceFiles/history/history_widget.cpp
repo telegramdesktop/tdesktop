@@ -1878,9 +1878,13 @@ void HistoryWidget::showHistory(
 			}
 		}
 		if (_history->chatListUnreadMark()) {
-			session().api().changeDialogUnreadMark(_history, false);
+			_history->owner().histories().changeDialogUnreadMark(
+				_history,
+				false);
 			if (_migrated) {
-				session().api().changeDialogUnreadMark(_migrated, false);
+				_migrated->owner().histories().changeDialogUnreadMark(
+					_migrated,
+					false);
 			}
 
 			// Must be done before unreadCountUpdated(), or we auto-close.

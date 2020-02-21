@@ -685,7 +685,7 @@ not_null<HistoryItem*> History::addNewItem(
 		not_null<HistoryItem*> item,
 		bool unread) {
 	if (item->isScheduled()) {
-		session().data().scheduledMessages().appendSending(item);
+		owner().scheduledMessages().appendSending(item);
 		return item;
 	} else if (!item->isHistoryEntry()) {
 		return item;
@@ -1285,7 +1285,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 				if (unreadCountKnown()) {
 					setUnreadCount(unreadCount() + 1);
 				} else {
-					session().api().requestDialogEntry(this);
+					owner().histories().requestDialogEntry(this);
 				}
 			}
 		}
@@ -1298,7 +1298,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		outboxRead(item);
 	}
 	if (!folderKnown()) {
-		session().api().requestDialogEntry(this);
+		owner().histories().requestDialogEntry(this);
 	}
 }
 
@@ -1619,7 +1619,7 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 
 	readClientSideMessages();
 	if (unreadMark()) {
-		session().api().changeDialogUnreadMark(this, false);
+		owner().histories().changeDialogUnreadMark(this, false);
 	}
 	return IsServerMsgId(tillId) && (_inboxReadBefore.value_or(1) <= tillId);
 }
@@ -1691,8 +1691,8 @@ void History::applyInboxReadUpdate(
 	const auto folder = folderId ? owner().folderLoaded(folderId) : nullptr;
 	if (folder && this->folder() != folder) {
 		// If history folder is unknown or not synced, request both.
-		session().api().requestDialogEntry(this);
-		session().api().requestDialogEntry(folder);
+		owner().histories().requestDialogEntry(this);
+		owner().histories().requestDialogEntry(folder);
 	}
 	if (_inboxReadBefore.value_or(1) <= upTo) {
 		if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
@@ -1712,7 +1712,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	} else if (const auto still = countStillUnreadLocal(upTo)) {
 		setUnreadCount(*still);
 	} else {
-		session().api().requestDialogEntry(this);
+		owner().histories().requestDialogEntry(this);
 	}
 	setInboxReadTill(upTo);
 	updateChatListEntry();
@@ -2463,7 +2463,7 @@ void History::setChatListMessageUnknown() {
 
 void History::requestChatListMessage() {
 	if (!lastMessageKnown()) {
-		session().api().requestDialogEntry(this, [=] {
+		owner().histories().requestDialogEntry(this, [=] {
 			requestChatListMessage();
 		});
 		return;
@@ -2556,7 +2556,7 @@ void History::updateChatListExistence() {
 	//		// After ungrouping from a feed we need to load dialog.
 	//		requestChatListMessage();
 	//		if (!unreadCountKnown()) {
-	//			session().api().requestDialogEntry(this);
+	//			owner().histories().requestDialogEntry(this);
 	//		}
 	//	}
 	//}
@@ -2608,7 +2608,7 @@ bool History::toImportant() const {
 
 void History::unknownMessageDeleted(MsgId messageId) {
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
-		session().api().requestDialogEntry(this);
+		owner().histories().requestDialogEntry(this);
 	}
 }
 
@@ -2660,7 +2660,7 @@ void History::applyDialog(
 	if (draft && draft->type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, draft->c_draftMessage());
 	}
-	session().api().dialogEntryApplied(this);
+	owner().histories().dialogEntryApplied(this);
 }
 
 void History::dialogEntryApplied() {

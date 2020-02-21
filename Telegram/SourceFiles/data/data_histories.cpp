@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_folder.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "core/application.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -77,7 +79,7 @@ void Histories::readInbox(not_null<History*> history) {
 			return;
 		}
 	}
-	session().api().requestDialogEntry(history, [=] {
+	requestDialogEntry(history, [=] {
 		Expects(history->lastServerMessageKnown());
 
 		const auto last = history->lastServerMessage();
@@ -190,6 +192,134 @@ void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
 	}
 }
 
+void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
+	if (_dialogFolderRequests.contains(folder)) {
+		return;
+	}
+	_dialogFolderRequests.emplace(folder);
+
+	auto peers = QVector<MTPInputDialogPeer>(
+		1,
+		MTP_inputDialogPeerFolder(MTP_int(folder->id())));
+	session().api().request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+		_dialogFolderRequests.remove(folder);
+	}).fail([=](const RPCError &error) {
+		_dialogFolderRequests.remove(folder);
+	}).send();
+}
+
+void Histories::requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback) {
+	const auto i = _dialogRequests.find(history);
+	if (i != end(_dialogRequests)) {
+		if (callback) {
+			i->second.push_back(std::move(callback));
+		}
+		return;
+	}
+
+	const auto [j, ok] = _dialogRequestsPending.try_emplace(history);
+	if (callback) {
+		j->second.push_back(std::move(callback));
+	}
+	if (!ok) {
+		return;
+	}
+	if (_dialogRequestsPending.size() > 1) {
+		return;
+	}
+	Core::App().postponeCall(crl::guard(&session(), [=] {
+		sendDialogRequests();
+	}));
+}
+
+void Histories::sendDialogRequests() {
+	if (_dialogRequestsPending.empty()) {
+		return;
+	}
+	auto histories = std::vector<not_null<History*>>();
+	ranges::transform(
+		_dialogRequestsPending,
+		ranges::back_inserter(histories),
+		[](const auto &pair) { return pair.first; });
+	auto peers = QVector<MTPInputDialogPeer>();
+	const auto dialogPeer = [](not_null<History*> history) {
+		return MTP_inputDialogPeer(history->peer->input);
+	};
+	ranges::transform(
+		histories,
+		ranges::back_inserter(peers),
+		dialogPeer);
+	for (auto &[history, callbacks] : base::take(_dialogRequestsPending)) {
+		_dialogRequests.emplace(history, std::move(callbacks));
+	}
+
+	const auto finalize = [=] {
+		for (const auto history : histories) {
+			dialogEntryApplied(history);
+			history->updateChatListExistence();
+		}
+	};
+	session().api().request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+		finalize();
+	}).fail([=](const RPCError &error) {
+		finalize();
+	}).send();
+}
+
+void Histories::dialogEntryApplied(not_null<History*> history) {
+	history->dialogEntryApplied();
+	if (const auto callbacks = _dialogRequestsPending.take(history)) {
+		for (const auto &callback : *callbacks) {
+			callback();
+		}
+	}
+	if (const auto callbacks = _dialogRequests.take(history)) {
+		for (const auto &callback : *callbacks) {
+			callback();
+		}
+	}
+}
+
+void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
+	Expects(dialogs.type() == mtpc_messages_peerDialogs);
+
+	const auto &data = dialogs.c_messages_peerDialogs();
+	_owner->processUsers(data.vusers());
+	_owner->processChats(data.vchats());
+	_owner->processMessages(data.vmessages(), NewMessageType::Last);
+	for (const auto &dialog : data.vdialogs().v) {
+		dialog.match([&](const MTPDdialog &data) {
+			if (const auto peerId = peerFromMTP(data.vpeer())) {
+				_owner->history(peerId)->applyDialog(nullptr, data);
+			}
+		}, [&](const MTPDdialogFolder &data) {
+			const auto folder = _owner->processFolder(data.vfolder());
+			folder->applyDialog(data);
+		});
+	}
+	_owner->sendHistoryChangeNotifications();
+}
+
+void Histories::changeDialogUnreadMark(
+		not_null<History*> history,
+		bool unread) {
+	history->setUnreadMark(unread);
+
+	using Flag = MTPmessages_MarkDialogUnread::Flag;
+	session().api().request(MTPmessages_MarkDialogUnread(
+		MTP_flags(unread ? Flag::f_unread : Flag(0)),
+		MTP_inputDialogPeer(history->peer->input)
+	)).send();
+}
+
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
 		if (state->readTill
@@ -233,7 +363,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			Assert(state->readTill >= tillId);
 
 			if (history->unreadCountRefreshNeeded(tillId)) {
-				session().api().requestDialogEntry(history);
+				requestDialogEntry(history);
 			}
 			if (state->readWhen == kReadRequestSent) {
 				state->readWhen = 0;
@@ -295,7 +425,7 @@ int Histories::sendRequest(
 			type
 		});
 		if (base::take(state.thenRequestEntry)) {
-			session().api().requestDialogEntry(history);
+			requestDialogEntry(history);
 		}
 	} else if (action == Action::Postpone) {
 		state.postponed.emplace(
@@ -322,7 +452,7 @@ void Histories::checkPostponed(not_null<History*> history, int requestId) {
 				postponed.type
 			});
 			if (base::take(state->thenRequestEntry)) {
-				session().api().requestDialogEntry(history);
+				requestDialogEntry(history);
 			}
 		} else {
 			Assert(action == Action::Postpone);

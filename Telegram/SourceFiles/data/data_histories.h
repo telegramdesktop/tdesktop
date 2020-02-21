@@ -19,6 +19,7 @@ class Session;
 namespace Data {
 
 class Session;
+class Folder;
 
 class Histories final {
 public:
@@ -39,6 +40,14 @@ public:
 	void readInboxOnNewMessage(not_null<HistoryItem*> item);
 	void readClientSideMessage(not_null<HistoryItem*> item);
 	void sendPendingReadInbox(not_null<History*> history);
+
+	void requestDialogEntry(not_null<Data::Folder*> folder);
+	void requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback = nullptr);
+	void dialogEntryApplied(not_null<History*> history);
+	void changeDialogUnreadMark(not_null<History*> history, bool unread);
+	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
 private:
 	enum class RequestType : uchar {
@@ -85,11 +94,22 @@ private:
 		RequestType type,
 		bool fromPostponed = false) const;
 
+	void sendDialogRequests();
+	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
+
 	const not_null<Session*> _owner;
 
 	std::unordered_map<PeerId, std::unique_ptr<History>> _map;
 	base::flat_map<not_null<History*>, State> _states;
 	base::Timer _readRequestsTimer;
+
+	base::flat_set<not_null<Data::Folder*>> _dialogFolderRequests;
+	base::flat_map<
+		not_null<History*>,
+		std::vector<Fn<void()>>> _dialogRequests;
+	base::flat_map<
+		not_null<History*>,
+		std::vector<Fn<void()>>> _dialogRequestsPending;
 
 };
 

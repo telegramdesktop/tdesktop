@@ -170,17 +170,10 @@ public:
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
 	rpl::producer<bool> dialogsLoadBlockedByDate() const;
 
-	void requestDialogEntry(not_null<Data::Folder*> folder);
-	void requestDialogEntry(
-		not_null<History*> history,
-		Fn<void()> callback = nullptr);
-	void dialogEntryApplied(not_null<History*> history);
 	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
 	//	const std::vector<not_null<ChannelData*>> &channels);
-	void changeDialogUnreadMark(not_null<History*> history, bool unread);
-	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 	void requestFakeChatListMessage(not_null<History*> history);
 
 	void requestWallPaper(
@@ -532,7 +525,6 @@ private:
 
 	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
-	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
 
 	void gotChatFull(
 		not_null<PeerData*> peer,
@@ -682,8 +674,6 @@ private:
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const RPCError &error);
 
-	void sendDialogRequests();
-
 	not_null<Main::Session*> _session;
 
 	base::flat_map<QString, int> _modifyRequests;
@@ -753,13 +743,6 @@ private:
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
-	base::flat_set<not_null<Data::Folder*>> _dialogFolderRequests;
-	base::flat_map<
-		not_null<History*>,
-		std::vector<Fn<void()>>> _dialogRequests;
-	base::flat_map<
-		not_null<History*>,
-		std::vector<Fn<void()>>> _dialogRequestsPending;
 	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;

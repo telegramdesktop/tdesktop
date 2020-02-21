@@ -1530,7 +1530,7 @@ void Session::applyDialog(
 		return;
 	}
 
-	const auto history = session().data().history(peerId);
+	const auto history = this->history(peerId);
 	history->applyDialog(requestFolder, data);
 	setPinnedFromDialog(history, data.is_pinned());
 
@@ -3597,7 +3597,7 @@ void Session::serviceNotification(
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {
-		_session->api().requestDialogEntry(history, [=] {
+		histories().requestDialogEntry(history, [=] {
 			insertCheckedServiceNotification(message, media, date);
 		});
 	} else {
