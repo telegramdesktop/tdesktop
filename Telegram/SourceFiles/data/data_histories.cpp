@@ -154,6 +154,11 @@ void Histories::readInboxTill(
 		return;
 	}
 	auto &state = _states[history];
+	if (state.readTillSent >= tillId) {
+		return;
+	} else {
+		state.readTillSent = 0;
+	}
 	const auto wasReadTill = state.readTill;
 	state.readTill = tillId;
 	if (force || !stillUnread || !*stillUnread) {
@@ -401,6 +406,7 @@ void Histories::sendReadRequests() {
 void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	const auto tillId = state.readTill;
 	state.readWhen = kReadRequestSent;
+	state.readTillSent = tillId;
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		const auto finished = [=] {
 			const auto state = lookup(history);
@@ -409,6 +415,8 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 
 			if (history->unreadCountRefreshNeeded(tillId)) {
 				requestDialogEntry(history);
+			} else if (state->readTillSent == tillId) {
+				state->readTillSent = 0;
 			}
 			if (state->readWhen == kReadRequestSent) {
 				state->readWhen = 0;
@@ -448,7 +456,8 @@ void Histories::checkEmptyState(not_null<History*> history) {
 		return state.postponed.empty()
 			&& !state.postponedRequestEntry
 			&& state.sent.empty()
-			&& (state.readTill == 0);
+			&& (state.readTill == 0)
+			&& (state.readTillSent == 0);
 	};
 	const auto i = _states.find(history);
 	if (i != end(_states) && empty(i->second)) {

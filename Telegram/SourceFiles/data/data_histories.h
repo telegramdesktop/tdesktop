@@ -88,6 +88,7 @@ private:
 		base::flat_map<int, SentRequest> sent;
 		crl::time readWhen = 0;
 		MsgId readTill = 0;
+		MsgId readTillSent = 0;
 		bool postponedRequestEntry = false;
 	};
 
