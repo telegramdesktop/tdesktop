@@ -1,3 +1,8 @@
+1.9.15 (21.02.20)
+
+- Mark new messages as read while scrolling down through them.
+- Bug fixes and other minor improvements.
+
 1.9.14 (17.02.20)
 
 - Bug fixes and other minor improvements.
