@@ -122,9 +122,8 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/xiph/opus
+          git clone -b v1.3 --depth=1 $GIT/xiph/opus
           cd opus
-          git checkout v1.3
           ./autogen.sh
           ./configure
           make -j$(nproc)
@@ -142,16 +141,20 @@ jobs:
           ./autogen.sh --enable-static
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf libva
 
       - name: Libvdpau.
         run: |
           cd $LibrariesPath
 
-          git clone https://gitlab.freedesktop.org/vdpau/libvdpau.git --depth=1 -b libvdpau-1.2
+          git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
           cd libvdpau
           ./autogen.sh --enable-static
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf libvdpau
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -267,6 +270,8 @@ jobs:
 
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf ffmpeg
       - name: FFmpeg install.
         run: |
           cd $LibrariesPath
@@ -293,18 +298,20 @@ jobs:
           ./configure
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf portaudio
 
       - name: OpenAL Soft.
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/kcat/openal-soft.git
-          cd openal-soft
-          git checkout openal-soft-1.19.1
-          cd build
+          git clone -b openal-soft-1.19.1 --depth=1 $GIT/kcat/openal-soft.git
+          cd openal-soft/build
           cmake -D LIBTYPE:STRING=STATIC ..
           make -j$(nproc)
           sudo make install
+          cd -
+          rm -rf openal-soft
 
       - name: OpenSSL cache.
         id: cache-openssl
@@ -317,12 +324,14 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/openssl/openssl openssl_$OPENSSL_VER
-          cd openssl_$OPENSSL_VER
-          git checkout OpenSSL_1_1_1-stable
+          git clone -b OpenSSL_${OPENSSL_VER}-stable --depth=1 \
+            $GIT/openssl/openssl openssl_${OPENSSL_VER}
+          cd openssl_${OPENSSL_VER}
           ./config --prefix=$LibrariesPath/openssl-cache
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf openssl_${OPENSSL_VER}
       - name: OpenSSL install.
         run: |
           cd $LibrariesPath
@@ -333,12 +342,13 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/xkbcommon/libxkbcommon.git
+          git clone -b xkbcommon-0.8.4 --depth=1 $GIT/xkbcommon/libxkbcommon.git
           cd libxkbcommon
-          git checkout xkbcommon-0.8.4
           ./autogen.sh
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf libxkbcommon
 
       - name: Qt 5.12.5 cache.
         id: cache-qt
@@ -351,15 +361,12 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone git://code.qt.io/qt/qt5.git qt_$QT
-          cd qt_$QT
+          git clone -b v5.12.5 --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
+          cd qt_${QT}
           perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-          git checkout v5.12.5
-          git submodule update qtbase
-          git submodule update qtimageformats
-          git submodule update qtsvg
+          git submodule update qtbase qtimageformats qtsvg
           cd qtbase
-          git apply ../../patches/qtbase_$QT.diff
+          git apply ../../patches/qtbase_${QT}.diff
           cd src/plugins/platforminputcontexts
           git clone $GIT/desktop-app/fcitx.git
           git clone $GIT/desktop-app/hime.git
@@ -390,6 +397,8 @@ jobs:
 
           make -j$(nproc)
           sudo make install
+          cd ..
+          rm -rf qt_${QT}
       - name: Qt 5.12.5 install.
         run: |
           cd $LibrariesPath
@@ -440,6 +449,8 @@ jobs:
           make -j$(nproc) dump_syms
 
           mv dump_syms $BreakpadCache/
+          cd ..
+          rm -rf gyp breakpad
       - name: Breakpad install.
         run: |
           cd $LibrariesPath
