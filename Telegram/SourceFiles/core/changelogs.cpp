@@ -55,6 +55,13 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Rotate photos and videos in the media viewer "
 		"using the rotate button in the bottom right corner.\n"
+	},
+	{
+		1009015,
+		"\xE2\x80\xA2 Mark new messages as read "
+		"while scrolling down through them.\n"
+
+		"\xE2\x80\xA2 Bug fixes and other minor improvements."
 	}
 	};
 };
