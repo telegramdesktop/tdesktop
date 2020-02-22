@@ -170,7 +170,7 @@ parts:
   cmake:
     source: "https://gitlab.kitware.com/cmake/cmake.git"
     source-depth: 1
-    source-branch: master
+    source-tag: v3.16.4
     source-type: git
     plugin: make
     override-build: |
