@@ -38,15 +38,19 @@ public:
 	NotificationData(
 		const std::shared_ptr<QDBusInterface> &notificationInterface,
 		const base::weak_ptr<Manager> &manager,
-		const QString &title, const QString &subtitle,
-		const QString &msg, PeerId peerId, MsgId msgId);
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		PeerId peerId,
+		MsgId msgId,
+		bool hideReplyButton);
 
 	NotificationData(const NotificationData &other) = delete;
 	NotificationData &operator=(const NotificationData &other) = delete;
 	NotificationData(NotificationData &&other) = delete;
 	NotificationData &operator=(NotificationData &&other) = delete;
 
-	bool show();
+	bool show(bool hideNameAndPhoto);
 	bool close();
 	void setImage(const QString &imagePath);
 
@@ -78,10 +82,12 @@ private slots:
 
 using Notification = std::shared_ptr<NotificationData>;
 
-QDBusArgument &operator<<(QDBusArgument &argument,
+QDBusArgument &operator<<(
+	QDBusArgument &argument,
 	const NotificationData::ImageData &imageData);
 
-const QDBusArgument &operator>>(const QDBusArgument &argument,
+const QDBusArgument &operator>>(
+	const QDBusArgument &argument,
 	NotificationData::ImageData &imageData);
 
 class Manager
