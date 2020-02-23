@@ -297,6 +297,10 @@ void Histories::sendDialogRequests() {
 }
 
 void Histories::dialogEntryApplied(not_null<History*> history) {
+	const auto state = lookup(history);
+	if (state->postponedRequestEntry) {
+		return;
+	}
 	history->dialogEntryApplied();
 	if (const auto callbacks = _dialogRequestsPending.take(history)) {
 		for (const auto &callback : *callbacks) {
@@ -308,11 +312,9 @@ void Histories::dialogEntryApplied(not_null<History*> history) {
 			callback();
 		}
 	}
-	if (const auto state = lookup(history)) {
-		if (state->sentReadTill && state->sentReadDone) {
-			history->setInboxReadTill(base::take(state->sentReadTill));
-			checkEmptyState(history);
-		}
+	if (state && state->sentReadTill && state->sentReadDone) {
+		history->setInboxReadTill(base::take(state->sentReadTill));
+		checkEmptyState(history);
 	}
 }
 
