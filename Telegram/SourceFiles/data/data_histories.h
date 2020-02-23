@@ -86,9 +86,10 @@ private:
 	struct State {
 		base::flat_map<int, PostponedHistoryRequest> postponed;
 		base::flat_map<int, SentRequest> sent;
-		crl::time readWhen = 0;
-		MsgId readTill = 0;
-		MsgId readTillSent = 0;
+		MsgId willReadTill = 0;
+		MsgId sentReadTill = 0;
+		crl::time willReadWhen = 0;
+		bool sentReadDone = false;
 		bool postponedRequestEntry = false;
 	};
 

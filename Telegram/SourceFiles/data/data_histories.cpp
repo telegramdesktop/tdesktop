@@ -21,7 +21,6 @@ namespace Data {
 namespace {
 
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
-constexpr auto kReadRequestSent = std::numeric_limits<crl::time>::max();
 
 } // namespace
 
@@ -135,15 +134,23 @@ void Histories::readInboxTill(
 		bool force) {
 	Expects(IsServerMsgId(tillId) || (!tillId && !force));
 
-	if (!history->readInboxTillNeedsRequest(tillId) && !force) {
+	const auto needsRequest = history->readInboxTillNeedsRequest(tillId);
+	if (!needsRequest && !force) {
 		return;
 	} else if (!history->trackUnreadMessages()) {
 		return;
-	} else if (!force) {
-		const auto maybeState = lookup(history);
-		if (maybeState && maybeState->readTill >= tillId) {
-			return;
+	}
+	const auto maybeState = lookup(history);
+	if (maybeState && maybeState->sentReadTill >= tillId) {
+		return;
+	} else if (maybeState && maybeState->willReadTill >= tillId) {
+		if (force) {
+			sendPendingReadInbox(history);
 		}
+		return;
+	} else if (!needsRequest
+		&& (!maybeState || !maybeState->willReadTill)) {
+		return;
 	}
 	const auto stillUnread = history->countStillUnreadLocal(tillId);
 	if (!force
@@ -153,22 +160,16 @@ void Histories::readInboxTill(
 		history->setInboxReadTill(tillId);
 		return;
 	}
-	auto &state = _states[history];
-	if (state.readTillSent >= tillId) {
-		return;
-	} else {
-		state.readTillSent = 0;
-	}
-	const auto wasReadTill = state.readTill;
-	state.readTill = tillId;
+	auto &state = maybeState ? *maybeState : _states[history];
+	state.willReadTill = tillId;
 	if (force || !stillUnread || !*stillUnread) {
-		state.readWhen = 0;
+		state.willReadWhen = 0;
 		sendReadRequests();
 		if (!stillUnread) {
 			return;
 		}
-	} else if (!wasReadTill) {
-		state.readWhen = crl::now() + kReadRequestTimeout;
+	} else if (!state.willReadWhen) {
+		state.willReadWhen = crl::now() + kReadRequestTimeout;
 		if (!_readRequestsTimer.isActive()) {
 			_readRequestsTimer.callOnce(kReadRequestTimeout);
 		}
@@ -304,6 +305,12 @@ void Histories::dialogEntryApplied(not_null<History*> history) {
 			callback();
 		}
 	}
+	if (const auto state = lookup(history)) {
+		if (state->sentReadTill && state->sentReadDone) {
+			history->setInboxReadTill(base::take(state->sentReadTill));
+			checkEmptyState(history);
+		}
+	}
 }
 
 void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
@@ -372,10 +379,8 @@ void Histories::requestFakeChatListMessage(
 
 void Histories::sendPendingReadInbox(not_null<History*> history) {
 	if (const auto state = lookup(history)) {
-		if (state->readTill
-			&& state->readWhen
-			&& state->readWhen != kReadRequestSent) {
-			state->readWhen = 0;
+		if (state->willReadTill && state->willReadWhen) {
+			state->willReadWhen = 0;
 			sendReadRequests();
 		}
 	}
@@ -388,12 +393,12 @@ void Histories::sendReadRequests() {
 	const auto now = crl::now();
 	auto next = std::optional<crl::time>();
 	for (auto &[history, state] : _states) {
-		if (!state.readTill || state.readWhen == kReadRequestSent) {
+		if (!state.willReadTill) {
 			continue;
-		} else if (state.readWhen <= now) {
+		} else if (state.willReadWhen <= now) {
 			sendReadRequest(history, state);
-		} else if (!next || *next > state.readWhen) {
-			next = state.readWhen;
+		} else if (!next || *next > state.willReadWhen) {
+			next = state.willReadWhen;
 		}
 	}
 	if (next.has_value()) {
@@ -404,28 +409,26 @@ void Histories::sendReadRequests() {
 }
 
 void Histories::sendReadRequest(not_null<History*> history, State &state) {
-	const auto tillId = state.readTill;
-	state.readWhen = kReadRequestSent;
-	state.readTillSent = tillId;
+	Expects(state.willReadTill > state.sentReadTill);
+
+	const auto tillId = state.sentReadTill = base::take(state.willReadTill);
+	state.willReadWhen = 0;
+	state.sentReadDone = false;
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		const auto finished = [=] {
 			const auto state = lookup(history);
 			Assert(state != nullptr);
-			Assert(state->readTill >= tillId);
+			Assert(state->sentReadTill >= tillId);
 
-			if (history->unreadCountRefreshNeeded(tillId)) {
-				requestDialogEntry(history);
-			} else if (state->readTillSent == tillId) {
-				state->readTillSent = 0;
-			}
-			if (state->readWhen == kReadRequestSent) {
-				state->readWhen = 0;
-				if (state->readTill == tillId) {
-					state->readTill = 0;
+			if (state->sentReadTill == tillId) {
+				state->sentReadDone = true;
+				if (history->unreadCountRefreshNeeded(tillId)) {
+					requestDialogEntry(history);
 				} else {
-					sendReadRequests();
+					state->sentReadTill = 0;
 				}
 			}
+			sendReadRequests();
 			finish();
 		};
 		if (const auto channel = history->peer->asChannel()) {
@@ -456,8 +459,8 @@ void Histories::checkEmptyState(not_null<History*> history) {
 		return state.postponed.empty()
 			&& !state.postponedRequestEntry
 			&& state.sent.empty()
-			&& (state.readTill == 0)
-			&& (state.readTillSent == 0);
+			&& (state.willReadTill == 0)
+			&& (state.sentReadTill == 0);
 	};
 	const auto i = _states.find(history);
 	if (i != end(_states) && empty(i->second)) {
