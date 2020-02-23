@@ -298,7 +298,7 @@ void Histories::sendDialogRequests() {
 
 void Histories::dialogEntryApplied(not_null<History*> history) {
 	const auto state = lookup(history);
-	if (state->postponedRequestEntry) {
+	if (state && state->postponedRequestEntry) {
 		return;
 	}
 	history->dialogEntryApplied();
