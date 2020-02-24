@@ -212,6 +212,7 @@ void PaintFrameInner(
 		QPainter &p,
 		QRect to,
 		const QImage &original,
+		bool alpha,
 		int rotation) {
 	const auto rotated = [](QRect rect, int rotation) {
 		switch (rotation) {
@@ -239,22 +240,32 @@ void PaintFrameInner(
 	if (rotation) {
 		p.rotate(rotation);
 	}
-	p.drawImage(rotated(to, rotation), original);
+	const auto rect = rotated(to, rotation);
+	if (alpha) {
+		p.fillRect(rect, Qt::white);
+	}
+	p.drawImage(rect, original);
 }
 
 void PaintFrameContent(
 		QPainter &p,
 		const QImage &original,
+		bool alpha,
 		int rotation,
 		const FrameRequest &request) {
-	const auto full = request.outer;
+	const auto full = request.outer.isEmpty()
+		? original.size()
+		: request.outer;
+	const auto size = request.resize.isEmpty()
+		? original.size()
+		: request.resize;
 	const auto to = QRect(
-		(full.width() - request.resize.width()) / 2,
-		(full.height() - request.resize.height()) / 2,
-		request.resize.width(),
-		request.resize.height());
+		(full.width() - size.width()) / 2,
+		(full.height() - size.height()) / 2,
+		size.width(),
+		size.height());
 	PaintFrameOuter(p, to, full);
-	PaintFrameInner(p, to, original, rotation);
+	PaintFrameInner(p, to, original, alpha, rotation);
 }
 
 void ApplyFrameRounding(QImage &storage, const FrameRequest &request) {
@@ -267,17 +278,21 @@ void ApplyFrameRounding(QImage &storage, const FrameRequest &request) {
 
 QImage PrepareByRequest(
 		const QImage &original,
+		bool alpha,
 		int rotation,
 		const FrameRequest &request,
 		QImage storage) {
-	Expects(!request.outer.isEmpty());
+	Expects(!request.outer.isEmpty() || alpha);
 
-	if (!FFmpeg::GoodStorageForFrame(storage, request.outer)) {
-		storage = FFmpeg::CreateFrameStorage(request.outer);
+	const auto outer = request.outer.isEmpty()
+		? original.size()
+		: request.outer;
+	if (!FFmpeg::GoodStorageForFrame(storage, outer)) {
+		storage = FFmpeg::CreateFrameStorage(outer);
 	}
 
 	QPainter p(&storage);
-	PaintFrameContent(p, original, rotation, request);
+	PaintFrameContent(p, original, alpha, rotation, request);
 	p.end();
 
 	ApplyFrameRounding(storage, request);

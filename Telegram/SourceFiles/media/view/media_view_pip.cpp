@@ -1391,6 +1391,7 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		if (state == ThumbState::Cover) {
 			_preparedCoverStorage = Streaming::PrepareByRequest(
 				_instance.info().video.cover,
+				false,
 				_instance.info().video.rotation,
 				request,
 				std::move(_preparedCoverStorage));

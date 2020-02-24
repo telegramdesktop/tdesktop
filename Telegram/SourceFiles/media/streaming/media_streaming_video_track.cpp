@@ -361,6 +361,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		Expects(frame->position != kFinishedPosition);
 
 		fillRequests(frame);
+		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA);
 		frame->original = ConvertFrame(
 			_stream,
 			frame->decoded.get(),
@@ -982,7 +983,8 @@ QImage VideoTrack::frame(
 			unwrapped.updateFrameRequest(instance, useRequest);
 		});
 	}
-	if (GoodForRequest(frame->original, _streamRotation, useRequest)) {
+	if (!frame->alpha
+		&& GoodForRequest(frame->original, _streamRotation, useRequest)) {
 		return frame->original;
 	} else if (changed || none || i->second.image.isNull()) {
 		const auto j = none
@@ -1002,6 +1004,7 @@ QImage VideoTrack::frame(
 		}
 		j->second.image = PrepareByRequest(
 			frame->original,
+			frame->alpha,
 			_streamRotation,
 			useRequest,
 			std::move(j->second.image));
@@ -1025,7 +1028,8 @@ void VideoTrack::PrepareFrameByRequests(
 	const auto end = frame->prepared.end();
 	for (auto i = begin; i != end; ++i) {
 		auto &prepared = i->second;
-		if (!GoodForRequest(frame->original, rotation, prepared.request)) {
+		if (frame->alpha
+			|| !GoodForRequest(frame->original, rotation, prepared.request)) {
 			auto j = begin;
 			for (; j != i; ++j) {
 				if (j->second.request == prepared.request) {
@@ -1036,6 +1040,7 @@ void VideoTrack::PrepareFrameByRequests(
 			if (j == i) {
 				prepared.image = PrepareByRequest(
 					frame->original,
+					frame->alpha,
 					rotation,
 					prepared.request,
 					std::move(prepared.image));

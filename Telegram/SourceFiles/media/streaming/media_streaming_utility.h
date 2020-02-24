@@ -60,6 +60,7 @@ struct Stream {
 	QImage storage);
 [[nodiscard]] QImage PrepareByRequest(
 	const QImage &original,
+	bool alpha,
 	int rotation,
 	const FrameRequest &request,
 	QImage storage);

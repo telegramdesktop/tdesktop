@@ -83,6 +83,8 @@ private:
 		crl::time display = kTimeUnknown;
 
 		base::flat_map<const Instance*, Prepared> prepared;
+
+		bool alpha = false;
 	};
 
 	class Shared {
