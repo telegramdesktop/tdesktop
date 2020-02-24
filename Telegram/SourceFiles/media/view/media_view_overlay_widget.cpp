@@ -3688,7 +3688,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 	} else if (documentContentShown() && contentRect().contains(pos)) {
 		if ((_doc->isVideoFile() || _doc->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
-		} else if (!_doc->loaded()) {
+		} else if (!_streamed && !_doc->loaded()) {
 			updateOverState(OverIcon);
 		} else if (_over != OverNone) {
 			updateOverState(OverNone);
