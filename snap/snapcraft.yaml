@@ -62,6 +62,7 @@ parts:
       - libswscale-dev
       - libswresample-dev
       - libdbusmenu-qt5-dev
+      - libhunspell-dev
       - liblz4-dev
       - liblzma-dev
       - libminizip-dev
@@ -79,6 +80,7 @@ parts:
       - libswscale4
       - libswresample2
       - libdbusmenu-qt5-2
+      - libhunspell-1.6-0
       - liblz4-1
       - liblzma5
       - libminizip1
@@ -117,25 +119,8 @@ parts:
     after:
       - cmake
       - desktop-qt5
-      - enchant
       - range-v3
       - xxhash
-
-  spellchecking:
-    plugin: nil
-    stage-packages:
-      - hunspell-de-de
-      - hunspell-en-au
-      - hunspell-en-ca
-      - hunspell-en-gb
-      - hunspell-en-us
-      - hunspell-en-za
-      - hunspell-fr-classical
-      - hunspell-it
-      - hunspell-pl
-      - hunspell-es
-      - hunspell-pt-br
-      - hunspell-pt-pt
 
   desktop-qt5:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
@@ -190,22 +175,6 @@ parts:
       - libncurses5
       - libtinfo5
     prime: [-./*]
-
-  enchant:
-    source: https://github.com/AbiWord/enchant.git
-    source-depth: 1
-    source-tag: v2.2.7
-    plugin: autotools
-    build-packages:
-      - libltdl-dev
-      - libglib2.0-dev
-      - libhunspell-dev
-    stage-packages:
-      - libglib2.0-0
-      - libhunspell-1.6-0
-    configflags:
-      - --enable-relocatable
-    prime: [-./bin/*]
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
