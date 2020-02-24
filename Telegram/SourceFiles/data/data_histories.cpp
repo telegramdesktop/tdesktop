@@ -135,6 +135,17 @@ void Histories::readInboxTill(
 		bool force) {
 	Expects(IsServerMsgId(tillId) || (!tillId && !force));
 
+	const auto syncGuard = gsl::finally([&] {
+		if (history->unreadCount() > 0) {
+			if (const auto last = history->lastServerMessage()) {
+				if (last->id == tillId) {
+					history->setUnreadCount(0);
+					history->updateChatListEntry();
+				}
+			}
+		}
+	});
+
 	history->session().notifications().clearIncomingFromHistory(history);
 
 	const auto needsRequest = history->readInboxTillNeedsRequest(tillId);
