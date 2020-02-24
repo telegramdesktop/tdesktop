@@ -423,7 +423,6 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 		const auto finished = [=] {
 			const auto state = lookup(history);
 			Assert(state != nullptr);
-			Assert(state->sentReadTill >= tillId);
 
 			if (state->sentReadTill == tillId) {
 				state->sentReadDone = true;
@@ -432,6 +431,8 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 				} else {
 					state->sentReadTill = 0;
 				}
+			} else {
+				Assert(!state->sentReadTill || state->sentReadTill > tillId);
 			}
 			sendReadRequests();
 			finish();
