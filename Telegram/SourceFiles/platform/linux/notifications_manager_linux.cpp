@@ -83,6 +83,31 @@ QVersionNumber ParseSpecificationVersion(
 	return QVersionNumber();
 }
 
+QString GetImageKey(
+		const std::shared_ptr<QDBusInterface> &notificationInterface) {
+	const auto specificationVersion = ParseSpecificationVersion(
+		GetServerInformation(notificationInterface));
+
+	if (!specificationVersion.isNull()) {
+		const auto majorVersion = specificationVersion.majorVersion();
+		const auto minorVersion = specificationVersion.minorVersion();
+
+		if ((majorVersion == 1 && minorVersion >= 2) || majorVersion > 1) {
+			return qsl("image-data");
+		} else if (majorVersion == 1 && minorVersion == 1) {
+			return qsl("image_data");
+		} else if ((majorVersion == 1 && minorVersion < 1)
+			|| majorVersion < 1) {
+			return qsl("icon_data");
+		} else {
+			LOG(("Native notification error: unknown specification version"));
+		}
+	} else {
+		LOG(("Native notification error: specification version is null"));
+	}
+	return QString();
+}
+
 }
 
 NotificationData::NotificationData(
@@ -97,6 +122,7 @@ NotificationData::NotificationData(
 : _notificationInterface(notificationInterface)
 , _manager(manager)
 , _title(title)
+, _imageKey(GetImageKey(_notificationInterface))
 , _peerId(peerId)
 , _msgId(msgId) {
 	const auto capabilities = GetCapabilities(_notificationInterface);
@@ -161,7 +187,6 @@ NotificationData::NotificationData(
 	}
 
 	_hints["category"] = qsl("im.received");
-
 	_hints["desktop-entry"] = GetLauncherBasename();
 
 	_notificationInterface->connection().connect(
@@ -173,14 +198,16 @@ NotificationData::NotificationData(
 		SLOT(notificationClosed(uint)));
 }
 
-bool NotificationData::show(bool hideNameAndPhoto) {
+bool NotificationData::show() {
+	const auto iconName = _imageKey.isEmpty() || !_hints.contains(_imageKey)
+		? qsl("telegram")
+		: QString();
+
 	const QDBusReply<uint> notifyReply = _notificationInterface->call(
 		qsl("Notify"),
 		AppName.utf16(),
 		uint(0),
-		hideNameAndPhoto
-			? qsl("telegram")
-			: QString(),
+		iconName,
 		_title,
 		_body,
 		_actions,
@@ -198,8 +225,9 @@ bool NotificationData::show(bool hideNameAndPhoto) {
 }
 
 bool NotificationData::close() {
-	const QDBusReply<void> closeReply = _notificationInterface
-		->call(qsl("CloseNotification"), _notificationId);
+	const QDBusReply<void> closeReply = _notificationInterface->call(
+		qsl("CloseNotification"),
+		_notificationId);
 
 	if (!closeReply.isValid()) {
 		LOG(("Native notification error: %1")
@@ -210,28 +238,7 @@ bool NotificationData::close() {
 }
 
 void NotificationData::setImage(const QString &imagePath) {
-	const auto specificationVersion = ParseSpecificationVersion(
-		GetServerInformation(_notificationInterface));
-
-	QString imageKey;
-
-	if (!specificationVersion.isNull()) {
-		const auto majorVersion = specificationVersion.majorVersion();
-		const auto minorVersion = specificationVersion.minorVersion();
-
-		if ((majorVersion == 1 && minorVersion >= 2) || majorVersion > 1) {
-			imageKey = qsl("image-data");
-		} else if (majorVersion == 1 && minorVersion == 1) {
-			imageKey = qsl("image_data");
-		} else if ((majorVersion == 1 && minorVersion < 1)
-			|| majorVersion < 1) {
-			imageKey = qsl("icon_data");
-		} else {
-			LOG(("Native notification error: unknown specification version"));
-			return;
-		}
-	} else {
-		LOG(("Native notification error: specification version is null"));
+	if (_imageKey.isEmpty()) {
 		return;
 	}
 
@@ -246,16 +253,17 @@ void NotificationData::setImage(const QString &imagePath) {
 		image.sizeInBytes());
 #endif
 
-	ImageData imageData;
-	imageData.width = image.width();
-	imageData.height = image.height();
-	imageData.rowStride = image.bytesPerLine();
-	imageData.hasAlpha = true;
-	imageData.bitsPerSample = 8;
-	imageData.channels = 4;
-	imageData.data = imageBytes;
+	const auto imageData = ImageData{
+		image.width(),
+		image.height(),
+		image.bytesPerLine(),
+		true,
+		8,
+		4,
+		imageBytes
+	};
 
-	_hints[imageKey] = QVariant::fromValue(imageData);
+	_hints[_imageKey] = QVariant::fromValue(imageData);
 }
 
 void NotificationData::notificationClosed(uint id) {
@@ -410,7 +418,7 @@ void Manager::Private::showNotification(
 		i = _notifications.insert(peer->id, QMap<MsgId, Notification>());
 	}
 	_notifications[peer->id].insert(msgId, notification);
-	if (!notification->show(hideNameAndPhoto)) {
+	if (!notification->show()) {
 		i = _notifications.find(peer->id);
 		if (i != _notifications.cend()) {
 			i->remove(msgId);

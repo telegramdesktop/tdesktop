@@ -50,7 +50,7 @@ public:
 	NotificationData(NotificationData &&other) = delete;
 	NotificationData &operator=(NotificationData &&other) = delete;
 
-	bool show(bool hideNameAndPhoto);
+	bool show();
 	bool close();
 	void setImage(const QString &imagePath);
 
@@ -69,6 +69,7 @@ private:
 	QString _body;
 	QStringList _actions;
 	QVariantMap _hints;
+	QString _imageKey;
 
 	uint _notificationId;
 	PeerId _peerId;
