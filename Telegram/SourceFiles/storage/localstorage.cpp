@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <QtCore/QBuffer>
+#include <QtCore/QSaveFile>
 #include <QtCore/QtEndian>
 #include <QtCore/QDirIterator>
 
@@ -118,10 +119,18 @@ inline constexpr auto is_flag_type(FileOption) { return true; };
 
 bool keyAlreadyUsed(QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
 	name += '0';
-	if (QFileInfo(name).exists()) return true;
+	if (QFileInfo(name).exists()) {
+		return true;
+	}
 	if (options & (FileOption::Safe)) {
 		name[name.size() - 1] = '1';
-		return QFileInfo(name).exists();
+		if (QFileInfo(name).exists()) {
+			return true;
+		}
+		name[name.size() - 1] = 's';
+		if (QFileInfo(name).exists()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -159,6 +168,8 @@ void clearKey(const FileKey &key, FileOptions options = FileOption::User | FileO
 	QFile::remove(name);
 	if (options & FileOption::Safe) {
 		name[name.size() - 1] = '1';
+		QFile::remove(name);
+		name[name.size() - 1] = 's';
 		QFile::remove(name);
 	}
 }
@@ -240,10 +251,12 @@ struct EncryptedDescriptor {
 };
 
 struct FileWriteDescriptor {
-	FileWriteDescriptor(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe) {
+	FileWriteDescriptor(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe)
+	: file((options & FileOption::Safe) ? (QFileDevice&)saveFile : plainFile) {
 		init(toFilePart(key), options);
 	}
-	FileWriteDescriptor(const QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
+	FileWriteDescriptor(const QString &name, FileOptions options = FileOption::User | FileOption::Safe)
+	: file((options & FileOption::Safe) ? (QFileDevice&)saveFile : plainFile) {
 		init(name, options);
 	}
 	void init(const QString &name, FileOptions options) {
@@ -253,29 +266,13 @@ struct FileWriteDescriptor {
 			if (!_working()) return;
 		}
 
-		// detect order of read attempts and file version
-		QString toWrite[2];
-		toWrite[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
+		const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
 		if (options & FileOption::Safe) {
-			toWrite[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
-			QFileInfo toWrite0(toWrite[0]);
-			QFileInfo toWrite1(toWrite[1]);
-			if (toWrite0.exists()) {
-				if (toWrite1.exists()) {
-					QDateTime mod0 = toWrite0.lastModified(), mod1 = toWrite1.lastModified();
-					if (mod0 > mod1) {
-						qSwap(toWrite[0], toWrite[1]);
-					}
-				} else {
-					qSwap(toWrite[0], toWrite[1]);
-				}
-				toDelete = toWrite[1];
-			} else if (toWrite1.exists()) {
-				toDelete = toWrite[1];
-			}
+			toDelete = base;
+			saveFile.setFileName(base + 's');
+		} else {
+			plainFile.setFileName(base + '0');
 		}
-
-		file.setFileName(toWrite[0]);
 		if (file.open(QIODevice::WriteOnly)) {
 			file.write(tdfMagic, tdfMagicLen);
 			qint32 version = AppVersion;
@@ -330,17 +327,21 @@ struct FileWriteDescriptor {
 		md5.feed(&version, sizeof(version));
 		md5.feed(tdfMagic, tdfMagicLen);
 		file.write((const char*)md5.result(), 0x10);
-		file.flush();
-#ifndef Q_OS_WIN
-		fsync(file.handle());
-#endif // Q_OS_WIN
-		file.close();
+
+		if (saveFile.isOpen()) {
+			saveFile.commit();
+		} else {
+			plainFile.close();
+		}
 
 		if (!toDelete.isEmpty()) {
-			QFile::remove(toDelete);
+			QFile::remove(toDelete + '0');
+			QFile::remove(toDelete + '1');
 		}
 	}
-	QFile file;
+	QFile plainFile;
+	QSaveFile saveFile;
+	QFileDevice &file;
 	QDataStream stream;
 
 	QString toDelete;
@@ -360,25 +361,35 @@ bool readFile(FileReadDescriptor &result, const QString &name, FileOptions optio
 		if (!_working()) return false;
 	}
 
+	const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
+
 	// detect order of read attempts
 	QString toTry[2];
-	toTry[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
 	if (options & FileOption::Safe) {
-		QFileInfo toTry0(toTry[0]);
-		if (toTry0.exists()) {
-			toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
-			QFileInfo toTry1(toTry[1]);
-			if (toTry1.exists()) {
-				QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
-				if (mod0 < mod1) {
-					qSwap(toTry[0], toTry[1]);
+		const auto modern = base + 's';
+		if (QFileInfo(modern).exists()) {
+			toTry[0] = modern;
+		} else {
+			// Legacy way.
+			toTry[0] = base + '0';
+			QFileInfo toTry0(toTry[0]);
+			if (toTry0.exists()) {
+				toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
+				QFileInfo toTry1(toTry[1]);
+				if (toTry1.exists()) {
+					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
+					if (mod0 < mod1) {
+						qSwap(toTry[0], toTry[1]);
+					}
+				} else {
+					toTry[1] = QString();
 				}
 			} else {
-				toTry[1] = QString();
+				toTry[0][toTry[0].size() - 1] = '1';
 			}
-		} else {
-			toTry[0][toTry[0].size() - 1] = '1';
 		}
+	} else {
+		toTry[0] = base + '0';
 	}
 	for (int32 i = 0; i < 2; ++i) {
 		QString fname(toTry[i]);
