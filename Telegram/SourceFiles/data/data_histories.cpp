@@ -238,6 +238,10 @@ void Histories::requestDialogEntry(
 	if (!ok) {
 		return;
 	}
+	postponeRequestDialogEntries();
+}
+
+void Histories::postponeRequestDialogEntries() {
 	if (_dialogRequestsPending.size() > 1) {
 		return;
 	}
@@ -655,6 +659,7 @@ void Histories::finishSentRequest(
 		Assert(ok);
 		_dialogRequests.erase(i);
 		state->postponedRequestEntry = false;
+		postponeRequestDialogEntries();
 	}
 	checkEmptyState(history);
 }

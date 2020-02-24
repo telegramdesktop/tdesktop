@@ -105,6 +105,7 @@ private:
 		int id);
 	[[nodiscard]] bool postponeHistoryRequest(const State &state) const;
 	[[nodiscard]] bool postponeEntryRequest(const State &state) const;
+	void postponeRequestDialogEntries();
 
 	void sendDialogRequests();
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
