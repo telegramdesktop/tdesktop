@@ -1877,6 +1877,9 @@ void HistoryWidget::showHistory(
 				}
 			}
 		}
+		if (!_history->folderKnown()) {
+			session().data().histories().requestDialogEntry(_history);
+		}
 		if (_history->chatListUnreadMark()) {
 			_history->owner().histories().changeDialogUnreadMark(
 				_history,
