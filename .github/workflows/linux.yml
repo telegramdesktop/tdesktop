@@ -33,6 +33,7 @@ jobs:
       ONLY_CACHE: "false"
       MANUAL_CACHING: "6"
       DOC_PATH: "docs/building-cmake.md"
+      AUTO_CACHING: "1"
 
     steps:
       - name: Get repository name.
@@ -56,6 +57,7 @@ jobs:
           p doc
 
       - name: First set up.
+        shell: bash
         run: |
           cd ..
           mv $REPO_NAME temp
@@ -87,6 +89,10 @@ jobs:
 
           gcc --version > CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/linux.yml
+            echo `md5sum $thisFile | cut -c -32` >> CACHE_KEY.txt
+          fi
           md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
           echo ::set-env name=CACHE_KEY::$md5cache
 

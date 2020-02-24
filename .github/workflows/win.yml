@@ -30,6 +30,8 @@ jobs:
       ONLY_CACHE: "false"
       MANUAL_CACHING: "2"
       DOC_PATH: "docs/building-msvc.md"
+      AUTO_CACHING: "1"
+
     steps:
       - name: Get repository name.
         shell: bash
@@ -69,6 +71,10 @@ jobs:
       - name: Generate cache key.
         shell: bash
         run: |
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/win.yml
+            echo `md5sum $thisFile | awk '{ print $1 }'` >> CACHE_KEY.txt
+          fi
           echo ::set-env name=CACHE_KEY::`md5sum CACHE_KEY.txt | awk '{ print $1 }'`
 
       - name: Choco installs.

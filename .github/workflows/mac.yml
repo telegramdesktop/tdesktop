@@ -35,6 +35,8 @@ jobs:
       ONLY_CACHE: "false"
       MANUAL_CACHING: "2"
       DOC_PATH: "docs/building-xcode.md"
+      AUTO_CACHING: "1"
+
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
@@ -61,6 +63,10 @@ jobs:
           echo $MIN_MAC >> CACHE_KEY.txt
           echo $PREFIX >> CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/mac.yml
+            echo `md5 -q $thisFile` >> CACHE_KEY.txt
+          fi
           echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
 
           echo ::add-path::$PWD/Libraries/depot_tools
