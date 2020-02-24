@@ -1717,7 +1717,6 @@ void HistoryWidget::showHistory(
 
 	clearReplyReturns();
 	if (_history) {
-		clearAllLoadRequests();
 		if (Ui::InFocusChain(_list)) {
 			// Removing focus from list clears selected and updates top bar.
 			setFocus();
@@ -1736,6 +1735,8 @@ void HistoryWidget::showHistory(
 		destroyPinnedBar();
 		_membersDropdown.destroy();
 		_scrollToAnimation.stop();
+
+		clearAllLoadRequests();
 		_history = _migrated = nullptr;
 		_list = nullptr;
 		_peer = nullptr;
