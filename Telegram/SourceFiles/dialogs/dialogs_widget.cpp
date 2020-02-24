@@ -797,9 +797,11 @@ bool Widget::onSearchMessages(bool searchCache) {
 					MTP_int(0)
 				)).done([=](const MTPmessages_Messages &result) {
 					searchReceived(type, result, _searchRequest);
+					_searchInHistoryRequest = 0;
 					finish();
 				}).fail([=](const RPCError &error) {
 					searchFailed(type, error, _searchRequest);
+					_searchInHistoryRequest = 0;
 					finish();
 				}).send();
 				_searchQueries.insert(_searchRequest, _searchQuery);
@@ -956,8 +958,12 @@ void Widget::onSearchMore() {
 					MTP_int(0)
 				)).done([=](const MTPmessages_Messages &result) {
 					searchReceived(type, result, _searchRequest);
+					_searchInHistoryRequest = 0;
+					finish();
 				}).fail([=](const RPCError &error) {
 					searchFailed(type, error, _searchRequest);
+					_searchInHistoryRequest = 0;
+					finish();
 				}).send();
 				if (!offsetId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
@@ -1032,8 +1038,12 @@ void Widget::onSearchMore() {
 				MTP_int(0)
 			)).done([=](const MTPmessages_Messages &result) {
 				searchReceived(type, result, _searchRequest);
+				_searchInHistoryRequest = 0;
+				finish();
 			}).fail([=](const RPCError &error) {
 				searchFailed(type, error, _searchRequest);
+				_searchInHistoryRequest = 0;
+				finish();
 			}).send();
 			return _searchRequest;
 		});
