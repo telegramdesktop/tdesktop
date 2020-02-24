@@ -62,6 +62,13 @@ std::map<int, const char*> BetaLogs() {
 		"while scrolling down through them.\n"
 
 		"\xE2\x80\xA2 Bug fixes and other minor improvements."
+	},
+
+	{
+		1009017,
+		"\xE2\x80\xA2 Spell checker on Windows 7.\n"
+
+		"\xE2\x80\xA2 Bug fixes and other minor improvements."
 	}
 	};
 };
