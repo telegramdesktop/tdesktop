@@ -47,10 +47,6 @@ jobs:
           md5cache=$(md5sum CMAKE_CACHE_KEY.txt | cut -c -32)
           echo ::set-env name=CMAKE_CACHE_KEY::$md5cache
 
-          awk -v RS="" -v ORS="\n\n" '/^  enchant:/' snap/snapcraft.yaml > ENCHANT_CACHE_KEY.txt
-          md5cache=$(md5sum ENCHANT_CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=ENCHANT_CACHE_KEY::$md5cache
-
       - name: CMake cache.
         id: cache-cmake
         uses: actions/cache@v1
@@ -61,17 +57,6 @@ jobs:
       - name: CMake build.
         if: steps.cache-cmake.outputs.cache-hit != 'true'
         run: snapcraft build --destructive-mode cmake
-
-      - name: Enchant cache.
-        id: cache-enchant
-        uses: actions/cache@v1
-        with:
-          path: parts/enchant
-          key: ${{ runner.OS }}-enchant-${{ env.CACHE_KEY }}-${{ env.ENCHANT_CACHE_KEY }}
-
-      - name: Enchant build.
-        if: steps.cache-enchant.outputs.cache-hit != 'true'
-        run: snapcraft build --destructive-mode enchant
 
       - name: Telegram Desktop snap build.
         if: env.ONLY_CACHE == 'false'
@@ -95,5 +80,5 @@ jobs:
 
       - name: Remove unneeded directories for cache.
         run: |
-          rm -rf parts/{cmake,enchant}/{build,src,ubuntu}
-          rm -rf parts/{cmake,enchant}/state/{stage,prime}
+          rm -rf parts/cmake/{build,src,ubuntu}
+          rm -rf parts/cmake/state/{stage,prime}
