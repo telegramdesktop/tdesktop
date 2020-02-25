@@ -2731,7 +2731,7 @@ void History::applyDialogFields(
 		clearFolder();
 	}
 	if (!skipUnreadUpdate()
-		&& maxInboxRead >= _inboxReadBefore.value_or(1)) {
+		&& maxInboxRead + 1 >= _inboxReadBefore.value_or(1)) {
 		setUnreadCount(unreadCount);
 		setInboxReadTill(maxInboxRead);
 	}
