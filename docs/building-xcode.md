@@ -1,4 +1,4 @@
-## Build instructions for Xcode 10.1
+## Build instructions for Xcode 11
 
 ### Prepare folder
 
@@ -8,18 +8,14 @@ Choose a folder for the future build, for example **/Users/user/TBuild**. It wil
 
 You will require **api_id** and **api_hash** to access the Telegram API servers. To learn how to obtain them [click here][api_credentials].
 
-### Download libraries
-
-Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/macos/xz-5.0.5**
-
-Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) and unpack to ***BuildPath*/Libraries/macos/libiconv-1.15**
-
 ### Clone source code and prepare libraries
 
 Go to ***BuildPath*** and run
 
     MAKE_THREADS_CNT=-j8
     MACOSX_DEPLOYMENT_TARGET=10.12
+    UNGUARDED="-Werror=unguarded-availability-new"
+    MIN_VER="-mmacosx-version-min=10.12"
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
     brew install automake cmake fdk-aac git lame libass libtool libvorbis libvpx ninja opus sdl shtool texi2html theora wget x264 xvid yasm pkg-config gnu-tar
@@ -45,6 +41,7 @@ Go to ***BuildPath*** and run
     sudo ./setup.py install
     cd ../..
 
+    mkdir -p Libraries/macos
     cd Libraries/macos
     LibrariesPath=`pwd`
 
@@ -54,15 +51,19 @@ Go to ***BuildPath*** and run
     cd ..
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
-    cd xz-5.0.5
-    CFLAGS="-mmacosx-version-min=10.12" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    xz_ver=5.2.4
+    wget https://tukaani.org/xz/xz-$xz_ver.tar.gz
+    tar -xvzf xz-$xz_ver.tar.gz
+    rm xz-$xz_ver.tar.gz
+    cd xz-$xz_ver
+    CFLAGS="$MIN_VER" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     git clone https://github.com/desktop-app/zlib.git
     cd zlib
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -70,7 +71,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    ./Configure --prefix=/usr/local/macos darwin64-x86_64-cc -static -mmacosx-version-min=10.12
+    ./Configure --prefix=/usr/local/macos darwin64-x86_64-cc -static $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
@@ -78,13 +79,17 @@ Go to ***BuildPath*** and run
     cd opus
     git checkout v1.3
     ./autogen.sh
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
-    cd libiconv-1.15
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --enable-static --prefix=/usr/local/macos
+    libiconv_ver=1.16
+    wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$libiconv_ver.tar.gz
+    tar -xvzf libiconv-$libiconv_ver.tar.gz
+    rm libiconv-$libiconv_ver.tar.gz
+    cd libiconv-$libiconv_ver
+    CFLAGS="$MIN_VER $UNGUARDED" CPPFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --enable-static --prefix=/usr/local/macos
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -97,9 +102,9 @@ Go to ***BuildPath*** and run
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
     ./configure --prefix=/usr/local/macos \
-    --extra-cflags="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" \
-    --extra-cxxflags="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" \
-    --extra-ldflags="-mmacosx-version-min=10.12" \
+    --extra-cflags="$MIN_VER $UNGUARDED" \
+    --extra-cxxflags="$MIN_VER $UNGUARDED" \
+    --extra-ldflags="$MIN_VER" \
     --enable-protocol=file --enable-libopus \
     --disable-programs \
     --disable-doc \
@@ -205,7 +210,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout v1.19
     cd build
-    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
+    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
     make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
@@ -241,7 +246,19 @@ Go to ***BuildPath*** and run
     git apply ../../patches/qtbase_5_12_5.diff
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" \
+    -debug-and-release \
+    -force-debug-info \
+    -opensource \
+    -confirm-license \
+    -static \
+    -opengl desktop \
+    -no-openssl \
+    -securetransport \
+    -nomake examples \
+    -nomake tests \
+    -platform macx-clang
+
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..

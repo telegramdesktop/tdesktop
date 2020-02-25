@@ -1,4 +1,4 @@
-## Build instructions for GYP/CMake under Ubuntu 14.04
+## Build instructions for CMake under Ubuntu 14.04
 
 ### Prepare folder
 
@@ -17,7 +17,7 @@ You will need GCC 8 installed. To install them and all the required dependencies
     libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
     autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
     libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
-    libvorbis-dev libenchant-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+    libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
     libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
     libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
     libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libegl1-mesa-dev \
@@ -214,7 +214,7 @@ Go to ***BuildPath*** and run
     git checkout OpenSSL_1_1_1-stable
     ./config --prefix=/usr/local/desktop-app/openssl-1.1.1
     make $MAKE_THREADS_CNT
-    sudo make install
+    sudo make install_sw
     cd ..
 
     git clone https://github.com/xkbcommon/libxkbcommon.git

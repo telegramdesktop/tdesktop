@@ -48,8 +48,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 ## Build instructions
 
 * [Visual Studio 2019][msvc]
-* [Xcode 10][xcode]
-* [GYP/CMake on GNU/Linux][cmake]
+* [Xcode 11][xcode]
+* [CMake on GNU/Linux][cmake]
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org
