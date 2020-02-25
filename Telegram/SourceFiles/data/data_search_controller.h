@@ -130,7 +130,6 @@ private:
 		Data *listData);
 
 	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
 	Cache _cache;
 	Cache::iterator _current = _cache.end();
 

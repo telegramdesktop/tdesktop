@@ -194,8 +194,7 @@ SearchController::CacheEntry::CacheEntry(const Query &query)
 }
 
 SearchController::SearchController(not_null<Main::Session*> session)
-: _session(session)
-, _api(session->api().instance()) {
+: _session(session) {
 }
 
 bool SearchController::hasInCache(const Query &query) const {
@@ -372,7 +371,7 @@ void SearchController::requestMore(
 	const auto type = ::Data::Histories::RequestType::History;
 	const auto history = _session->data().history(listData->peer);
 	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
-		return _api.request(
+		return _session->api().request(
 			std::move(*prepared)
 		).done([=](const MTPmessages_Messages &result) {
 			listData->requests.remove(key);
