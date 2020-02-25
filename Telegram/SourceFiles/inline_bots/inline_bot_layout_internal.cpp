@@ -482,8 +482,9 @@ void Sticker::setupLottie(not_null<DocumentData*> document) const {
 
 void Sticker::prepareThumbnail() const {
 	if (const auto document = getShownDocument()) {
-		if (document->sticker()->animated
-			&& !_lottie
+		if (!_lottie
+			&& document->sticker()
+			&& document->sticker()->animated
 			&& document->loaded()) {
 			setupLottie(document);
 		}
