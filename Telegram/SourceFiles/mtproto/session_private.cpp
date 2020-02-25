@@ -189,8 +189,9 @@ void SessionPrivate::appendTestConnection(
 		});
 	});
 
+	const auto protocolDcId = getProtocolDcId();
 	InvokeQueued(_testConnections.back().data, [=] {
-		weak->connectToServer(ip, port, protocolSecret, getProtocolDcId());
+		weak->connectToServer(ip, port, protocolSecret, protocolDcId);
 	});
 }
 
