@@ -1,3 +1,7 @@
+1.9.18 beta (25.02.20)
+
+- Bug fixes and other minor improvements.
+
 1.9.17 beta (24.02.20)
 
 - Spell checker on Windows 7.
