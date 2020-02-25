@@ -2896,7 +2896,7 @@ base::flat_set<QString> CollectGoodNames() {
 		_exportSettingsKey,
 		_trustedBotsKey
 	};
-	auto result = base::flat_set<QString>{ "map0", "map1" };
+	auto result = base::flat_set<QString>{ "map0", "map1", "maps" };
 	const auto push = [&](FileKey key) {
 		if (!key) {
 			return;
@@ -2904,6 +2904,8 @@ base::flat_set<QString> CollectGoodNames() {
 		auto name = toFilePart(key) + '0';
 		result.emplace(name);
 		name[name.size() - 1] = '1';
+		result.emplace(name);
+		name[name.size() - 1] = 's';
 		result.emplace(name);
 	};
 	for (const auto &value : _draftsMap) {
@@ -5120,7 +5122,7 @@ void ClearManager::onStart() {
 					if (!QDir(di.filePath()).removeRecursively()) result = false;
 				} else {
 					QString path = di.filePath();
-					if (!path.endsWith(qstr("map0")) && !path.endsWith(qstr("map1"))) {
+					if (!path.endsWith(qstr("map0")) && !path.endsWith(qstr("map1")) && !path.endsWith(qstr("maps"))) {
 						if (!QFile::remove(di.filePath())) result = false;
 					}
 				}
