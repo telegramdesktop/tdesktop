@@ -136,7 +136,7 @@ void RemoveQuarantine(const QString &path) {
 	removexattr(local.data(), kQuarantineAttribute, 0);
 }
 
-void RegisterCustomScheme() {
+void RegisterCustomScheme(bool force) {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
 	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));

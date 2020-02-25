@@ -404,7 +404,7 @@ namespace {
 
 namespace Platform {
 
-void RegisterCustomScheme() {
+void RegisterCustomScheme(bool force) {
 	if (cExeName().isEmpty()) {
 		return;
 	}

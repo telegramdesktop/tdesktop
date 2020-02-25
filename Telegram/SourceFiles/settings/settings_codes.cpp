@@ -112,10 +112,12 @@ auto GenerateCodes() {
 			}
 		});
 	});
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("registertg"), [](::Main::Session *session) {
-		Platform::RegisterCustomScheme();
+		Platform::RegisterCustomScheme(true);
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
+#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("export"), [](::Main::Session *session) {
 		session->data().startExport();
 	});
