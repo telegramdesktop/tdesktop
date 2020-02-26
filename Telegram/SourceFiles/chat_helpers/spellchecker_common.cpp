@@ -133,27 +133,22 @@ void DownloadDictionaryInBackground(
 	const auto id = langs[counter];
 	counter++;
 	const auto destroyer = [=] {
-		// This is a temporary workaround.
-		const auto copyId = id;
-		const auto copyLangs = langs;
-		const auto copySession = session;
-		const auto copyCounter = counter;
 		BackgroundLoader = nullptr;
 		BackgroundLoaderChanged.fire(0);
 
-		if (DictionaryExists(copyId)) {
-			auto dicts = copySession->settings().dictionariesEnabled();
-			if (!ranges::contains(dicts, copyId)) {
-				dicts.push_back(copyId);
-				copySession->settings().setDictionariesEnabled(std::move(dicts));
-				copySession->saveSettingsDelayed();
+		if (DictionaryExists(id)) {
+			auto dicts = session->settings().dictionariesEnabled();
+			if (!ranges::contains(dicts, id)) {
+				dicts.push_back(id);
+				session->settings().setDictionariesEnabled(std::move(dicts));
+				session->saveSettingsDelayed();
 			}
 		}
 
-		if (copyCounter >= copyLangs.size()) {
+		if (counter >= langs.size()) {
 			return;
 		}
-		DownloadDictionaryInBackground(copySession, copyCounter, copyLangs);
+		DownloadDictionaryInBackground(session, counter, langs);
 	};
 	if (DictionaryExists(id)) {
 		destroyer();
@@ -194,20 +189,21 @@ DictLoader::DictLoader(
 }
 
 void DictLoader::unpack(const QString &path) {
-	Expects(_destroyCallback);
 	crl::async([=] {
 		const auto success = Spellchecker::UnpackDictionary(path, id());
 		if (success) {
 			QFile(path).remove();
+			destroy();
+			return;
 		}
-		crl::on_main(success ? _destroyCallback : [=] { fail(); });
+		crl::on_main([=] { fail(); });
 	});
 }
 
 void DictLoader::destroy() {
 	Expects(_destroyCallback);
 
-	_destroyCallback();
+	crl::on_main(_destroyCallback);
 }
 
 void DictLoader::fail() {

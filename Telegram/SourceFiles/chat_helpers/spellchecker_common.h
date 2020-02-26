@@ -60,6 +60,7 @@ private:
 	void unpack(const QString &path) override;
 	void fail() override;
 
+	// Be sure to always call it in the main thread.
 	Fn<void()> _destroyCallback;
 
 	rpl::lifetime _lifetime;
