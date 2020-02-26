@@ -1444,7 +1444,8 @@ bool Gif::dataLoaded() const {
 bool Gif::needInfoDisplay() const {
 	return _parent->data()->isSending()
 		|| _data->uploading()
-		|| _parent->isUnderCursor();
+		|| _parent->isUnderCursor()
+		|| _parent->isLastAndSelfMessage();
 }
 
 bool Gif::needCornerStatusDisplay() const {

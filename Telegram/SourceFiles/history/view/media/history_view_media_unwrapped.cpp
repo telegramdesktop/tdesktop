@@ -367,6 +367,7 @@ bool UnwrappedMedia::needInfoDisplay() const {
 	return (_parent->data()->id < 0)
 		|| (_parent->isUnderCursor())
 		|| (_parent->displayRightAction())
+		|| (_parent->isLastAndSelfMessage())
 		|| (_parent->hasOutLayout()
 			&& !Adaptive::ChatWide()
 			&& _content->alwaysShowOutTimestamp());

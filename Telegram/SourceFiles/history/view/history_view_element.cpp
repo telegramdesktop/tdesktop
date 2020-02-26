@@ -280,6 +280,16 @@ bool Element::isUnderCursor() const {
 	return _delegate->elementUnderCursor(this);
 }
 
+bool Element::isLastAndSelfMessage() const {
+	if (!hasOutLayout()) {
+		return false;
+	}
+	if (const auto last = data()->_history->lastMessage()) {
+		return last == data();
+	}
+	return false;
+}
+
 void Element::setPendingResize() {
 	_flags |= Flag::NeedsResize;
 	if (_context == Context::History) {

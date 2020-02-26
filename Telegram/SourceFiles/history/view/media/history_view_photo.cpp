@@ -480,7 +480,9 @@ bool Photo::dataLoaded() const {
 }
 
 bool Photo::needInfoDisplay() const {
-	return (_parent->data()->id < 0 || _parent->isUnderCursor());
+	return (_parent->data()->id < 0
+		|| _parent->isUnderCursor()
+		|| _parent->isLastAndSelfMessage());
 }
 
 void Photo::validateGroupedCache(
