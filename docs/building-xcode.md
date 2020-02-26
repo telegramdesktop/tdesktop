@@ -51,7 +51,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/desktop-app/patches.git
     cd patches
     git checkout 4f1cffb
-    cd ../
+    cd ..
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     cd xz-5.0.5
