@@ -44,6 +44,7 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
+constexpr auto kIconName = "telegram"_cs;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void SandboxAutostart(bool autostart, bool silent = false) {
@@ -331,6 +332,13 @@ QString GetLauncherFilename() {
 	static const auto LauncherFilename = GetLauncherBasename()
 		+ qsl(".desktop");
 	return LauncherFilename;
+}
+
+QString GetIconName() {
+	static const auto IconName = InSandbox()
+		? GetLauncherBasename()
+		: kIconName.utf16();
+	return IconName;
 }
 
 } // namespace Platform

@@ -117,9 +117,9 @@ QIcon CreateOfficialIcon(Main::Account *account) {
 
 QIcon CreateIcon(Main::Account *account) {
 	auto result = CreateOfficialIcon(account);
-	if (Platform::IsLinux()) {
-		return QIcon::fromTheme("telegram", result);
-	}
+#ifdef Q_OS_LINUX
+	return QIcon::fromTheme(Platform::GetIconName(), result);
+#endif
 	return result;
 }
 
