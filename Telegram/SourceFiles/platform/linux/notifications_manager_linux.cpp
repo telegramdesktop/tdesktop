@@ -200,7 +200,7 @@ NotificationData::NotificationData(
 
 bool NotificationData::show() {
 	const auto iconName = _imageKey.isEmpty() || !_hints.contains(_imageKey)
-		? qsl("telegram")
+		? GetIconName()
 		: QString();
 
 	const QDBusReply<uint> notifyReply = _notificationInterface->call(

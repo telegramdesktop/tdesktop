@@ -31,7 +31,6 @@ namespace Platform {
 namespace {
 
 constexpr auto kDisableTrayCounter = "TDESKTOP_DISABLE_TRAY_COUNTER"_cs;
-constexpr auto kTrayIconName = "telegram"_cs;
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
@@ -56,18 +55,13 @@ QString GetPanelIconName() {
 }
 
 QString GetTrayIconName() {
+	const auto iconName = GetIconName();
 	const auto panelIconName = GetPanelIconName();
 
 	if (QIcon::hasThemeIcon(panelIconName)) {
 		return panelIconName;
-	} else if (InSandbox()) {
-		const auto launcherBasename = GetLauncherBasename();
-
-		if (QIcon::hasThemeIcon(launcherBasename)) {
-			return launcherBasename;
-		}
-	} else if (QIcon::hasThemeIcon(kTrayIconName.utf16())) {
-		return kTrayIconName.utf16();
+	} else if (QIcon::hasThemeIcon(iconName)) {
+		return iconName;
 	}
 
 	return QString();
