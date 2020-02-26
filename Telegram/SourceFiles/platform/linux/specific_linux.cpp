@@ -400,7 +400,9 @@ QString psAppDataPath() {
 	if (!home.isEmpty()) {
 		auto oldPath = home + qsl(".TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
-		if (QFile(oldSettingsBase + '0').exists() || QFile(oldSettingsBase + '1').exists()) {
+		if (QFile(oldSettingsBase + '0').exists()
+			|| QFile(oldSettingsBase + '1').exists()
+			|| QFile(oldSettingsBase + 's').exists()) {
 			return oldPath;
 		}
 	}
