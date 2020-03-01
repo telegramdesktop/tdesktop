@@ -23,7 +23,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Third-party
 
-* Qt 5.12.5 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* Qt 5.12.8 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
 * OpenSSL 1.1.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))

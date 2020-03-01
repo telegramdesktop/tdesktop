@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 395b620
+    git checkout 10aeaf6
     cd ../
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
@@ -235,16 +235,16 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_5
-    cd qt_5_12_5
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
+    cd qt_5_12_8
     perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
-    git checkout v5.12.5
+    git checkout v5.12.8
     git submodule update qtbase
     git submodule update qtwayland
     git submodule update qtimageformats
     git submodule update qtsvg
     cd qtbase
-    git apply ../../patches/qtbase_5_12_5.diff
+    git apply ../../patches/qtbase_5_12_8.diff
     cd src/plugins/platforminputcontexts
     git clone https://github.com/desktop-app/fcitx.git
     git clone https://github.com/desktop-app/hime.git
@@ -252,7 +252,7 @@ Go to ***BuildPath*** and run
     cd ../../../..
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" \
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
     -release \
     -force-debug-info \
     -opensource \
