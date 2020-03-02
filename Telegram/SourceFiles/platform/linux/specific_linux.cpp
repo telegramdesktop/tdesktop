@@ -26,6 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
+#include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusMessage>
+#include <QtDBus/QDBusReply>
+#include <QtDBus/QDBusError>
 #endif
 
 #include <sys/stat.h>
@@ -339,6 +343,31 @@ QString GetIconName() {
 		? GetLauncherBasename()
 		: kIconName.utf16();
 	return IconName;
+}
+
+std::optional<crl::time> LastUserInputTime() {
+	// TODO: a fallback pure-X11 implementation, this one covers only major DEs on X11 and Wayland
+	// an example: https://stackoverflow.com/q/9049087
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	static const auto message = QDBusMessage::createMethodCall(
+		qsl("org.freedesktop.ScreenSaver"),
+		qsl("/org/freedesktop/ScreenSaver"),
+		qsl("org.freedesktop.ScreenSaver"),
+		qsl("GetSessionIdleTime"));
+
+	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+		message);
+
+	if (reply.isValid()) {
+		return (crl::now() - static_cast<crl::time>(reply.value()));
+	} else if (reply.error().type() != QDBusError::ServiceUnknown) {
+		LOG(("Unable to get last user input time: %1: %2")
+			.arg(reply.error().name())
+			.arg(reply.error().message()));
+	}
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+	return std::nullopt;
 }
 
 } // namespace Platform
