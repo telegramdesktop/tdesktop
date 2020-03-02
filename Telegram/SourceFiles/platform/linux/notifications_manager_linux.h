@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusInterface>
+#include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusArgument>
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
@@ -28,7 +28,6 @@ class NotificationData : public QObject {
 
 public:
 	NotificationData(
-		not_null<QDBusInterface*> notificationInterface,
 		const base::weak_ptr<Manager> &manager,
 		const QString &title,
 		const QString &subtitle,
@@ -43,7 +42,7 @@ public:
 	NotificationData &operator=(NotificationData &&other) = delete;
 
 	bool show();
-	bool close();
+	void close();
 	void setImage(const QString &imagePath);
 
 	struct ImageData {
@@ -54,7 +53,7 @@ public:
 	};
 
 private:
-	const not_null<QDBusInterface*> _notificationInterface;
+	QDBusConnection _dbusConnection;
 	base::weak_ptr<Manager> _manager;
 
 	QString _title;
@@ -134,7 +133,6 @@ private:
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
 	base::weak_ptr<Manager> _manager;
-	std::shared_ptr<QDBusInterface> _notificationInterface;
 };
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
