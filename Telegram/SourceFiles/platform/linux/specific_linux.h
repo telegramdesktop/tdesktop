@@ -37,10 +37,6 @@ QString GetLauncherFilename();
 
 QString GetIconName();
 
-inline std::optional<crl::time> LastUserInputTime() {
-	return std::nullopt;
-}
-
 inline void IgnoreApplicationActivationRightNow() {
 }
 
