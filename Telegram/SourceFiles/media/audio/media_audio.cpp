@@ -82,7 +82,7 @@ bool PlaybackErrorHappened() {
 
 void EnumeratePlaybackDevices() {
 	auto deviceNames = QStringList();
-	auto devices = alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
+	auto devices = alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER);
 	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
@@ -92,7 +92,7 @@ void EnumeratePlaybackDevices() {
 	}
 	LOG(("Audio Playback Devices: %1").arg(deviceNames.join(';')));
 
-	if (auto device = alcGetString(nullptr, ALC_DEFAULT_DEVICE_SPECIFIER)) {
+	if (auto device = alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER)) {
 		LOG(("Audio Playback Default Device: %1").arg(QString::fromLocal8Bit(device)));
 	} else {
 		LOG(("Audio Playback Default Device: (null)"));

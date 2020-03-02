@@ -323,7 +323,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone -b openal-soft-1.19.1 --depth=1 $GIT/kcat/openal-soft.git
+          git clone -b openal-soft-1.20.1 --depth=1 $GIT/kcat/openal-soft.git
           cd openal-soft/build
           cmake -D LIBTYPE:STRING=STATIC ..
           make -j$(nproc)

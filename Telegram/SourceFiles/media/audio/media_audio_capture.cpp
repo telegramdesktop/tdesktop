@@ -62,16 +62,12 @@ Instance::Instance() : _inner(new Inner(&_thread)) {
 
 void Instance::check() {
 	_available = false;
-	if (auto defaultDevice = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		if (auto device = alcCaptureOpenDevice(defaultDevice, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5)) {
-			auto error = ErrorHappened(device);
-			alcCaptureCloseDevice(device);
-			_available = !error;
-		} else {
-			LOG(("Audio Error: Could not open capture device!"));
-		}
+	if (auto device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5)) {
+		auto error = ErrorHappened(device);
+		alcCaptureCloseDevice(device);
+		_available = !error;
 	} else {
-		LOG(("Audio Error: No capture device found!"));
+		LOG(("Audio Error: Could not open capture device!"));
 	}
 }
 
@@ -177,9 +173,7 @@ void Instance::Inner::onInit() {
 void Instance::Inner::onStart() {
 
 	// Start OpenAL Capture
-	const ALCchar *dName = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
-	DEBUG_LOG(("Audio Info: Capture device name '%1'").arg(dName));
-	d->device = alcCaptureOpenDevice(dName, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
+	d->device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
 		emit error();
