@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusReply>
+#include <QtDBus/QDBusError>
 #include <QtDBus/QDBusMetaType>
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
@@ -28,6 +29,7 @@ namespace {
 constexpr auto kService = "org.freedesktop.Notifications"_cs;
 constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 std::vector<QString> GetServerInformation() {
 	std::vector<QString> serverInformation;
@@ -73,6 +75,30 @@ QStringList GetCapabilities() {
 	}
 
 	return {};
+}
+
+bool Inhibited() {
+	auto message = QDBusMessage::createMethodCall(
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kPropertiesInterface.utf16(),
+		qsl("Get"));
+
+	message.setArguments({
+		qsl("org.freedesktop.Notifications"),
+		qsl("Inhibited")
+	});
+
+	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
+		message);
+
+	if (reply.isValid()) {
+		return reply.value().toBool();
+	} else if (reply.error().type() != QDBusError::InvalidArgs) {
+		LOG(("Native notification error: %1").arg(reply.error().message()));
+	}
+
+	return false;
 }
 
 QVersionNumber ParseSpecificationVersion(
@@ -331,6 +357,26 @@ const QDBusArgument &operator>>(
 	return argument;
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+bool SkipAudio() {
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	if (Supported()) {
+		return Inhibited();
+	}
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+	return false;
+}
+
+bool SkipToast() {
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	if (Supported()) {
+		return Inhibited();
+	}
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+	return false;
+}
 
 bool Supported() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION

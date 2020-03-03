@@ -19,14 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-inline bool SkipAudio() {
-	return false;
-}
-
-inline bool SkipToast() {
-	return false;
-}
-
 inline void FlashBounce() {
 }
 
