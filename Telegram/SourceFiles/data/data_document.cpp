@@ -42,7 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kMemoryForCache = 32 * 1024 * 1024;
+// Updated Mar 3, 2020: Increase the size of the memory cache for media, to prevent items still being displayed from being unloaded.
+constexpr auto kMemoryForCache = 128 * 1024 * 1024; // was 32, updated to 128
 const auto kAnimatedStickerDimensions = QSize(512, 512);
 
 using FilePathResolve = DocumentData::FilePathResolve;
