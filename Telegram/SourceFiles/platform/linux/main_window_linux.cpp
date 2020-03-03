@@ -24,7 +24,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QSize>
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus>
+#include <QtDBus/QDBusInterface>
+#include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusConnectionInterface>
+#include <QtDBus/QDBusMessage>
+#include <QtDBus/QDBusReply>
+#include <QtDBus/QDBusError>
+#include <QtDBus/QDBusMetaType>
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
@@ -35,6 +41,7 @@ constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
 constexpr auto kSNIWatcherService = "org.kde.StatusNotifierWatcher"_cs;
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kTrayIconFilename = "tdesktop-trayicon-XXXXXX.png"_cs;
 
 bool TrayIconMuted = true;
@@ -43,10 +50,7 @@ base::flat_map<int, QImage> TrayIconImageBack;
 QIcon TrayIcon;
 QString TrayIconThemeName, TrayIconName;
 
-QString GetPanelIconName() {
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
-
+QString GetPanelIconName(int counter, bool muted) {
 	return (counter > 0)
 		? (muted
 			? kMutePanelTrayIconName.utf16()
@@ -54,9 +58,9 @@ QString GetPanelIconName() {
 		: kPanelTrayIconName.utf16();
 }
 
-QString GetTrayIconName() {
+QString GetTrayIconName(int counter, bool muted) {
 	const auto iconName = GetIconName();
-	const auto panelIconName = GetPanelIconName();
+	const auto panelIconName = GetPanelIconName(counter, muted);
 
 	if (QIcon::hasThemeIcon(panelIconName)) {
 		return panelIconName;
@@ -67,9 +71,9 @@ QString GetTrayIconName() {
 	return QString();
 }
 
-QIcon TrayIconGen() {
+QIcon TrayIconGen(int counter, bool muted) {
 	const auto iconThemeName = QIcon::themeName();
-	const auto iconName = GetTrayIconName();
+	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
 		&& !iconName.isEmpty()) {
@@ -84,8 +88,6 @@ QIcon TrayIconGen() {
 		return TrayIcon;
 	}
 
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
 	const auto counterSlice = (counter >= 1000)
 		? (1000 + (counter % 100))
 		: counter;
@@ -196,47 +198,40 @@ QIcon TrayIconGen() {
 	return TrayIcon;
 }
 
-bool IsAppIndicator() {
-#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto AppIndicator = false;
-#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto AppIndicator = QDBusInterface(
-		qsl("com.canonical.indicator.application"),
-		qsl("/com/canonical/indicator/application/service"),
-		qsl("com.canonical.indicator.application.service")).isValid()
-			|| QDBusInterface(
-				qsl("org.ayatana.indicator.application"),
-				qsl("/org/ayatana/indicator/application/service"),
-				qsl("org.ayatana.indicator.application.service")).isValid();
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-
-	return AppIndicator;
-}
-
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-static bool NeedTrayIconFile() {
+bool IsIndicatorApplication() {
 	// Hack for indicator-application, which doesn't handle icons sent across D-Bus:
 	// save the icon to a temp file and set the icon name to that filename.
-	static const auto TrayIconFileNeeded = IsAppIndicator();
-	return TrayIconFileNeeded;
-}
+	static const auto IndicatorApplication = [&] {
+		const auto interface = QDBusConnection::sessionBus().interface();
 
-static inline QString TrayIconFileTemplate() {
-	static const auto TempFileTemplate = AppRuntimeDirectory()
-		+ kTrayIconFilename.utf16();
-	return TempFileTemplate;
+		const auto ubuntuIndicator = interface->isServiceRegistered(
+			qsl("com.canonical.indicator.application"));
+
+		const auto ayatanaIndicator = interface->isServiceRegistered(
+			qsl("org.ayatana.indicator.application"));
+
+		return ubuntuIndicator || ayatanaIndicator;
+	}();
+
+	return IndicatorApplication;
 }
 
 std::unique_ptr<QTemporaryFile> TrayIconFile(
 		const QIcon &icon,
 		int size,
 		QObject *parent) {
+	static const auto templateName = AppRuntimeDirectory()
+		+ kTrayIconFilename.utf16();
+
 	auto ret = std::make_unique<QTemporaryFile>(
-		TrayIconFileTemplate(),
+		templateName,
 		parent);
+
 	ret->open();
 	icon.pixmap(size).save(ret.get());
 	ret->close();
+
 	return ret;
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -244,15 +239,25 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 bool IsSNIAvailable() {
 	static const auto SNIAvailable = [&] {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		QDBusInterface systrayHost(
+		auto message = QDBusMessage::createMethodCall(
 			kSNIWatcherService.utf16(),
 			qsl("/StatusNotifierWatcher"),
-			kSNIWatcherService.utf16());
+			kPropertiesInterface.utf16(),
+			qsl("Get"));
 
-		return systrayHost.isValid()
-			&& systrayHost
-				.property("IsStatusNotifierHostRegistered")
-				.toBool();
+		message.setArguments({
+			kSNIWatcherService.utf16(),
+			qsl("IsStatusNotifierHostRegistered")
+		});
+
+		const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
+			message);
+
+		if (reply.isValid()) {
+			return reply.value().toBool();
+		} else if (reply.error().type() != QDBusError::ServiceUnknown) {
+			LOG(("SNI Error: %1").arg(reply.error().message()));
+		}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 		return false;
@@ -288,6 +293,20 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
 }
 
+void MainWindow::initHook() {
+	const auto trayAvailable = IsSNIAvailable()
+		|| QSystemTrayIcon::isSystemTrayAvailable();
+
+	LOG(("System tray available: %1").arg(Logs::b(trayAvailable)));
+	cSetSupportTray(trayAvailable);
+
+	if (UseUnityCounter()) {
+		LOG(("Using Unity launcher counter."));
+	} else {
+		LOG(("Not using Unity launcher counter."));
+	}
+}
+
 bool MainWindow::hasTrayIcon() const {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	return trayIcon || _sniTrayIcon;
@@ -313,23 +332,23 @@ void MainWindow::psTrayMenuUpdated() {
 }
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-void MainWindow::setSNITrayIcon(const QIcon &icon) {
-	const auto iconName = GetTrayIconName();
+void MainWindow::setSNITrayIcon(int counter, bool muted) {
+	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
 		&& !iconName.isEmpty()) {
 		_sniTrayIcon->setIconByName(iconName);
 		_sniTrayIcon->setToolTipIconByName(iconName);
-	} else if (NeedTrayIconFile()) {
+	} else if (IsIndicatorApplication()) {
+		const auto icon = TrayIconGen(counter, muted);
 		_trayIconFile = TrayIconFile(icon, 22, this);
-		_trayToolTipIconFile = TrayIconFile(icon, 48, this);
 
 		if (_trayIconFile) {
+			// indicator-application doesn't support tooltips
 			_sniTrayIcon->setIconByName(_trayIconFile->fileName());
-			_sniTrayIcon->setToolTipIconByName(
-				_trayToolTipIconFile->fileName());
 		}
 	} else {
+		const auto icon = TrayIconGen(counter, muted);
 		_sniTrayIcon->setIconByPixmap(icon);
 		_sniTrayIcon->setToolTipIconByPixmap(icon);
 	}
@@ -358,6 +377,9 @@ void MainWindow::attachToSNITrayIcon() {
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 void MainWindow::psSetupTrayIcon() {
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
+
 	if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		LOG(("Using SNI tray icon."));
@@ -367,7 +389,7 @@ void MainWindow::psSetupTrayIcon() {
 				this);
 
 			_sniTrayIcon->setTitle(AppName.utf16());
-			setSNITrayIcon(TrayIconGen());
+			setSNITrayIcon(counter, muted);
 
 			attachToSNITrayIcon();
 		}
@@ -375,15 +397,9 @@ void MainWindow::psSetupTrayIcon() {
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 	} else {
 		LOG(("Using Qt tray icon."));
-
-		if (!_trayIconMenuXEmbed) {
-			_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
-			_trayIconMenuXEmbed->deleteOnHide(false);
-		}
-
 		if (!trayIcon) {
 			trayIcon = new QSystemTrayIcon(this);
-			trayIcon->setIcon(TrayIconGen());
+			trayIcon->setIcon(TrayIconGen(counter, muted));
 
 			attachToTrayIcon(trayIcon);
 		}
@@ -423,11 +439,13 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
+
 	updateWindowIcon();
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (UseUnityCounter()) {
-		const auto counter = Core::App().unreadBadge();
 		const auto launcherUrl = "application://" + GetLauncherFilename();
 		QVariantMap dbusUnityProperties;
 		if (counter > 0) {
@@ -455,11 +473,11 @@ void MainWindow::updateIconCounters() {
 	if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		if (_sniTrayIcon) {
-			setSNITrayIcon(TrayIconGen());
+			setSNITrayIcon(counter, muted);
 		}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 	} else if (trayIcon) {
-		trayIcon->setIcon(TrayIconGen());
+		trayIcon->setIcon(TrayIconGen(counter, muted));
 	}
 }
 
@@ -472,16 +490,9 @@ void MainWindow::LibsLoaded() {
 }
 
 void MainWindow::initTrayMenuHook() {
-	const auto trayAvailable = IsSNIAvailable()
-		|| QSystemTrayIcon::isSystemTrayAvailable();
-
-	LOG(("System tray available: %1").arg(Logs::b(trayAvailable)));
-	cSetSupportTray(trayAvailable);
-
-	if (UseUnityCounter()) {
-		LOG(("Using Unity launcher counter."));
-	} else {
-		LOG(("Not using Unity launcher counter."));
+	if (!IsSNIAvailable()) {
+		_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
+		_trayIconMenuXEmbed->deleteOnHide(false);
 	}
 }
 
