@@ -54,6 +54,7 @@ public:
 	}
 
 	void showRightColumn(object_ptr<TWidget> widget);
+	void sideBarChanged();
 
 	void activate();
 	void reActivate();

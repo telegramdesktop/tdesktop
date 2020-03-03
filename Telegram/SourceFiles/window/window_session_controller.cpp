@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
+#include "window/window_filters_menu.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "history/history.h"
@@ -187,6 +188,17 @@ void SessionController::initSupportMode() {
 			return chatEntryHistoryMove(1);
 		});
 	}, lifetime());
+}
+
+void SessionController::toggleFiltersMenu(bool enabled) {
+	if (!enabled == !_filters) {
+		return;
+	} else if (enabled) {
+		_filters = std::make_unique<FiltersMenu>(this);
+	} else {
+		_filters = nullptr;
+	}
+	_window->sideBarChanged();
 }
 
 bool SessionController::uniqueChatsInSearchResults() const {
@@ -711,6 +723,22 @@ rpl::producer<FullMsgId> SessionController::floatPlayerClosed() const {
 	Expects(_floatPlayers != nullptr);
 
 	return _floatPlayers->closeEvents();
+}
+
+int SessionController::filtersWidth() const {
+	return _filters ? st::windowFiltersWidth : 0;
+}
+
+rpl::producer<FilterId> SessionController::activeChatsFilter() const {
+	return _activeChatsFilter.value();
+}
+
+FilterId SessionController::activeChatsFilterCurrent() const {
+	return _activeChatsFilter.current();
+}
+
+void SessionController::setActiveChatsFilter(FilterId id) {
+	_activeChatsFilter = id;
 }
 
 SessionController::~SessionController() = default;

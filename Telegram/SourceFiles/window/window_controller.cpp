@@ -31,6 +31,11 @@ Controller::Controller(not_null<Main::Account*> account)
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
+		if (_sessionController && Global::DialogsFiltersEnabled()) {
+			_sessionController->toggleFiltersMenu(true);
+		} else {
+			sideBarChanged();
+		}
 		_widget.updateWindowIcon();
 	}, _lifetime);
 
@@ -84,6 +89,11 @@ void Controller::showBox(
 
 void Controller::showRightColumn(object_ptr<TWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
+}
+
+void Controller::sideBarChanged() {
+	_widget.setMinimumWidth(_widget.computeMinWidth());
+	_widget.updateControlsGeometry();
 }
 
 void Controller::activate() {

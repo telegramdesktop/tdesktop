@@ -56,6 +56,7 @@ namespace Window {
 class MainWindow;
 class SectionMemento;
 class Controller;
+class FiltersMenu;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -292,6 +293,13 @@ public:
 		not_null<Media::Player::FloatDelegate*> replacement);
 	rpl::producer<FullMsgId> floatPlayerClosed() const;
 
+	[[nodiscard]] int filtersWidth() const;
+	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
+	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
+	void setActiveChatsFilter(FilterId id);
+
+	void toggleFiltersMenu(bool enabled);
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -321,6 +329,7 @@ private:
 	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
+	std::unique_ptr<FiltersMenu> _filters;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
@@ -334,6 +343,8 @@ private:
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
+
+	rpl::variable<FilterId> _activeChatsFilter;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;

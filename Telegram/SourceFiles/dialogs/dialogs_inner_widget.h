@@ -81,7 +81,6 @@ public:
 		const QVector<MTPPeer> &result);
 
 	[[nodiscard]] FilterId filterId() const;
-	void closeFilter();
 
 	void clearSelection();
 

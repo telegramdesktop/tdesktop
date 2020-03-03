@@ -82,12 +82,10 @@ int PinnedDialogsCount(not_null<Dialogs::IndexedList*> list) {
 } // namespace
 
 struct InnerWidget::CollapsedRow {
-	CollapsedRow(Data::Folder *folder, FilterId filterId)
-	: folder(folder), filterId(filterId) {
+	CollapsedRow(Data::Folder *folder) : folder(folder) {
 	}
 
 	Data::Folder *folder = nullptr;
-	FilterId filterId = 0;
 	BasicRow row;
 };
 
@@ -120,10 +118,6 @@ InnerWidget::InnerWidget(
 #ifndef OS_MAC_OLD // Qt 5.3.2 build is working with glitches otherwise.
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif // OS_MAC_OLD
-
-	_filterId = Global::DialogsFiltersEnabled()
-		? Global::DialogsFilterId()
-		: 0;
 
 	_addContactLnk->addClickHandler([] { App::wnd()->onShowAddContact(); });
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
@@ -262,6 +256,11 @@ InnerWidget::InnerWidget(
 		updateDialogRow(next);
 	}, lifetime());
 
+	_controller->activeChatsFilter(
+	) | rpl::start_with_next([=](FilterId filterId) {
+		switchToFilter(filterId);
+	}, lifetime());
+
 	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
@@ -294,21 +293,6 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 	_collapsedSelected = -1;
 
 	_collapsedRows.clear();
-	if (!_openedFolder && Global::DialogsFiltersEnabled()) {
-		const auto &list = session().data().chatsFilters().list();
-		if (_filterId
-			&& ranges::find(list, _filterId, &Data::ChatFilter::id) == end(list)) {
-			switchToFilter(0);
-		}
-		if (_filterId) {
-			_collapsedRows.push_back(std::make_unique<CollapsedRow>(nullptr, 0));
-		} else {
-			for (const auto &filter : session().data().chatsFilters().list()) {
-				_collapsedRows.push_back(
-					std::make_unique<CollapsedRow>(nullptr, filter.id()));
-			}
-		}
-	}
 	const auto list = shownDialogs();
 	const auto archive = !list->empty()
 		? (*list->begin())->folder()
@@ -323,7 +307,8 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 		}
 		_skipTopDialogs = 1;
 		if (!inMainMenu && !_filterId) {
-			_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive, 0));
+			_collapsedRows.push_back(
+				std::make_unique<CollapsedRow>(archive));
 		}
 	} else {
 		_skipTopDialogs = 0;
@@ -394,7 +379,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
-	_filterId = _openedFolder ? 0 : Global::DialogsFilterId();
+	_filterId = _openedFolder ? 0 : _controller->activeChatsFilterCurrent();
 	refreshWithCollapsedRows(true);
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
@@ -706,23 +691,14 @@ void InnerWidget::paintCollapsedRow(
 		Painter &p,
 		not_null<const CollapsedRow*> row,
 		bool selected) const {
+	Expects(row->folder != nullptr);
+
 	const auto smallWidth = st::dialogsPadding.x()
 		+ st::dialogsPhotoSize
 		+ st::dialogsPhotoPadding;
 	const auto narrow = (width() <= smallWidth);
-	const auto text = row->folder
-		? row->folder->chatListName()
-		: _filterId
-		? (narrow ? "Show" : tr::lng_dialogs_show_all_chats(tr::now))
-		: ranges::find(
-			session().data().chatsFilters().list(),
-			row->filterId,
-			&Data::ChatFilter::id)->title();
-	const auto unread = row->folder
-		? row->folder->chatListUnreadCount()
-		: _filterId
-		? session().data().unreadOnlyMutedBadge()
-		: 0;
+	const auto text = row->folder->chatListName();
+	const auto unread = row->folder->chatListUnreadCount();
 	Layout::PaintCollapsedRow(
 		p,
 		row->row,
@@ -1721,12 +1697,6 @@ FilterId InnerWidget::filterId() const {
 	return _filterId;
 }
 
-void InnerWidget::closeFilter() {
-	if (_filterId) {
-		switchToFilter(0);
-	}
-}
-
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
@@ -2551,11 +2521,8 @@ bool InnerWidget::chooseCollapsedRow() {
 		return false;
 	}
 	const auto &row = _collapsedRows[_collapsedSelected];
-	if (row->folder) {
-		_controller->openFolder(row->folder);
-	} else {
-		switchToFilter(row->filterId);
-	}
+	Assert(row->folder != nullptr);
+	_controller->openFolder(row->folder);
 	return true;
 }
 
@@ -2568,9 +2535,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 			&Data::ChatFilter::id)) {
 		filterId = 0;
 	}
-	Global::SetDialogsFilterId(filterId);
-	_filterId = Global::DialogsFilterId();
-	Local::writeUserSettings();
+	_filterId = filterId;
 	refreshWithCollapsedRows(true);
 	_collapsedSelected = 0;
 }

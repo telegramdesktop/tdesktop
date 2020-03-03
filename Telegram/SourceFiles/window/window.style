@@ -245,6 +245,18 @@ createThemeLink: InputField(defaultInputField) {
 	font: boxTextFont;
 }
 
+windowFiltersWidth: 72px;
+windowFiltersIconTop: 8px;
+windowFiltersAll: icon {{ "filters_all", sideBarIconFg }};
+windowFiltersAllActive: icon {{ "filters_all_active", sideBarIconFgActive }};
+windowFiltersUnread: icon {{ "filters_unread", sideBarIconFg }};
+windowFiltersUnreadActive: icon {{ "filters_unread_active", sideBarIconFgActive }};
+windowFiltersUnmuted: icon {{ "filters_unmuted", sideBarIconFg }};
+windowFiltersUnmutedActive: icon {{ "filters_unmuted_active", sideBarIconFgActive }};
+windowFiltersCustom: icon {{ "filters_custom", sideBarIconFg }};
+windowFiltersCustomActive: icon {{ "filters_custom_active", sideBarIconFgActive }};
+windowFiltersSetup: icon {{ "filters_setup", sideBarIconFg }};
+
 // Mac specific
 
 macAccessoryWidth: 450.;
