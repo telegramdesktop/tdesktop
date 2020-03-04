@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/details/mtproto_dump_to_text.h"
 
-#include "base/zlib_help.h"
 #include "scheme-dump_to_text.h"
 #include "scheme.h"
+
+#include "zlib.h"
 
 namespace MTP::details {
 

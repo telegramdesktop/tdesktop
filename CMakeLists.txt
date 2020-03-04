@@ -22,6 +22,9 @@ project(Telegram
 )
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 
+get_filename_component(third_party_loc "Telegram/ThirdParty" REALPATH)
+get_filename_component(submodules_loc "Telegram" REALPATH)
+
 include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_link_static_libraries.cmake)
