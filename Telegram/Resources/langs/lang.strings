@@ -2239,6 +2239,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_linux_menu_undo" = "Undo";
 "lng_linux_menu_redo" = "Redo";
+"lng_linux_menu_tools" = "Tools";
+"lng_linux_menu_help" = "Help";
 
 "lng_linux_no_audio_prefs" = "You don't have any audio configuration applications installed.";
 
