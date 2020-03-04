@@ -57,7 +57,7 @@ bool Sticker::isEmojiSticker() const {
 	return (_parent->data()->media() == nullptr);
 }
 
-QSize Sticker::size() {
+void Sticker::initSize() {
 	_size = _document->dimensions;
 	if (isEmojiSticker()) {
 		constexpr auto kIdealStickerSize = 512;
@@ -70,14 +70,22 @@ QSize Sticker::size() {
 		_size = DownscaledSize(
 			_size,
 			{ st::maxStickerSize, st::maxStickerSize });
+		[[maybe_unused]] bool result = readyToDrawLottie();
 	}
+}
+
+QSize Sticker::size() {
+	initSize();
 	return _size;
 }
 
-void Sticker::draw(Painter &p, const QRect &r, bool selected) {
+bool Sticker::readyToDrawLottie() {
+	if (!_lastDiceFrame.isNull()) {
+		return true;
+	}
 	const auto sticker = _document->sticker();
 	if (!sticker) {
-		return;
+		return false;
 	}
 
 	_document->checkStickerLarge();
@@ -85,10 +93,14 @@ void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 	if (sticker->animated && !_lottie && loaded) {
 		setupLottie();
 	}
+	return (_lottie && _lottie->ready());
+}
 
-	if (_lottie && _lottie->ready()) {
+void Sticker::draw(Painter &p, const QRect &r, bool selected) {
+	if (readyToDrawLottie()) {
 		paintLottie(p, r, selected);
-	} else if (!sticker->animated || !_replacements) {
+	} else if (_document->sticker()
+		&& (!_document->sticker()->animated || !_replacements)) {
 		paintPixmap(p, r, selected);
 	}
 }
@@ -96,24 +108,51 @@ void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 	auto request = Lottie::FrameRequest();
 	request.box = _size * cIntRetinaFactor();
-	if (selected) {
+	if (selected && !_nextLastDiceFrame) {
 		request.colored = st::msgStickerOverlay->c;
 	}
-	const auto frame = _lottie->frameInfo(request);
-	const auto size = frame.image.size() / cIntRetinaFactor();
+	const auto frame = _lottie
+		? _lottie->frameInfo(request)
+		: Lottie::Animation::FrameInfo();
+	if (_nextLastDiceFrame) {
+		_nextLastDiceFrame = false;
+		_lastDiceFrame = frame.image;
+	}
+	const auto &image = _lastDiceFrame.isNull()
+		? frame.image
+		: _lastDiceFrame;
+	const auto prepared = (!_lastDiceFrame.isNull() && selected)
+		? Images::prepareColored(st::msgStickerOverlay->c, image)
+		: image;
+	const auto size = prepared.size() / cIntRetinaFactor();
 	p.drawImage(
 		QRect(
 			QPoint(
 				r.x() + (r.width() - size.width()) / 2,
 				r.y() + (r.height() - size.height()) / 2),
 			size),
-		frame.image);
+		prepared);
+	if (!_lastDiceFrame.isNull()) {
+		return;
+	}
 
 	const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
-	const auto playOnce = isEmojiSticker()
-		|| !_document->session().settings().loopAnimatedStickers();
+	const auto playOnce = (_diceIndex > 0)
+		? true
+		: (_diceIndex == 0)
+		? false
+		: (isEmojiSticker()
+			|| !_document->session().settings().loopAnimatedStickers());
+	const auto count = _lottie->information().framesCount;
+	_atTheEnd = (frame.index + 1 == count);
+	_nextLastDiceFrame = !paused
+		&& (_diceIndex > 0)
+		&& (frame.index + 2 == count);
+	const auto lastDiceFrame = (_diceIndex > 0) && _atTheEnd;
+	const auto switchToNext = !playOnce
+		|| (!lastDiceFrame && (frame.index != 0 || !_lottieOncePlayed));
 	if (!paused
-		&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
+		&& switchToNext
 		&& _lottie->markFrameShown()
 		&& playOnce
 		&& !_lottieOncePlayed) {
@@ -186,6 +225,10 @@ void Sticker::refreshLink() {
 			StickerSetBox::Show(App::wnd()->sessionController(), document);
 		});
 	}
+}
+
+void Sticker::setDiceIndex(int index) {
+	_diceIndex = index;
 }
 
 void Sticker::setupLottie() {

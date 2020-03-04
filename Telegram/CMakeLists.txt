@@ -270,6 +270,8 @@ PRIVATE
     chat_helpers/stickers.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
+    chat_helpers/stickers_dice_pack.cpp
+    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
     chat_helpers/tabbed_panel.cpp
@@ -436,6 +438,8 @@ PRIVATE
     history/view/media/history_view_call.cpp
     history/view/media/history_view_contact.h
     history/view/media/history_view_contact.cpp
+    history/view/media/history_view_dice.h
+    history/view/media/history_view_dice.cpp
     history/view/media/history_view_document.h
     history/view/media/history_view_document.cpp
     history/view/media/history_view_file.h

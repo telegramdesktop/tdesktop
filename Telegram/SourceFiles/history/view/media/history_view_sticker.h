@@ -31,6 +31,7 @@ public:
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
 
+	void initSize();
 	QSize size() override;
 	void draw(Painter &p, const QRect &r, bool selected) override;
 	ClickHandlerPtr link() override {
@@ -48,6 +49,12 @@ public:
 	}
 	void refreshLink() override;
 
+	void setDiceIndex(int index);
+	[[nodiscard]] bool atTheEnd() const {
+		return _atTheEnd;
+	}
+	[[nodiscard]] bool readyToDrawLottie();
+
 private:
 	[[nodiscard]] bool isEmojiSticker() const;
 	void paintLottie(Painter &p, const QRect &r, bool selected);
@@ -63,7 +70,11 @@ private:
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 	ClickHandlerPtr _link;
 	QSize _size;
+	QImage _lastDiceFrame;
+	int _diceIndex = -1;
 	mutable bool _lottieOncePlayed = false;
+	mutable bool _atTheEnd = false;
+	mutable bool _nextLastDiceFrame = false;
 
 	rpl::lifetime _lifetime;
 
