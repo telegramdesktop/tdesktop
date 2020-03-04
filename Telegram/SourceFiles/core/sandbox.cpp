@@ -274,7 +274,7 @@ void Sandbox::socketError(QLocalSocket::LocalSocketError e) {
 	psCheckLocalSocket(_localServerName);
 
 	if (!_localServer.listen(_localServerName)) {
-		LOG(("Failed to start listening to %1 server, error %2").arg(_localServerName).arg(int(_localServer.serverError())));
+		LOG(("Failed to start listening to %1 server: %2").arg(_localServerName).arg(_localServer.errorString()));
 		return App::quit();
 	}
 #endif // !Q_OS_WINRT
