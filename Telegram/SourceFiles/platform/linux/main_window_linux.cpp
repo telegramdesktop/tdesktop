@@ -71,131 +71,151 @@ QString GetTrayIconName(int counter, bool muted) {
 	return QString();
 }
 
+int GetCounterSlice(int counter) {
+	return (counter >= 1000)
+		? (1000 + (counter % 100))
+		: counter;
+}
+
+bool IsIconRegenerationNeeded(
+		int counter,
+		bool muted,
+		const QString &iconThemeName = QIcon::themeName()) {
+	const auto iconName = GetTrayIconName(counter, muted);
+	const auto counterSlice = GetCounterSlice(counter);
+
+	return TrayIcon.isNull()
+		|| iconThemeName != TrayIconThemeName
+		|| iconName != TrayIconName
+		|| muted != TrayIconMuted
+		|| counterSlice != TrayIconCount;
+}
+
+void UpdateIconRegenerationNeeded(
+		const QIcon &icon,
+		int counter,
+		bool muted,
+		const QString &iconThemeName) {
+	const auto iconName = GetTrayIconName(counter, muted);
+	const auto counterSlice = GetCounterSlice(counter);
+
+	TrayIcon = icon;
+	TrayIconMuted = muted;
+	TrayIconCount = counterSlice;
+	TrayIconThemeName = iconThemeName;
+	TrayIconName = iconName;
+}
+
 QIcon TrayIconGen(int counter, bool muted) {
 	const auto iconThemeName = QIcon::themeName();
+
+	if (!IsIconRegenerationNeeded(counter, muted, iconThemeName)) {
+		return TrayIcon;
+	}
+
 	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
 		&& !iconName.isEmpty()) {
-		if (TrayIcon.isNull()
+		const auto result = QIcon::fromTheme(iconName);
+		UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
+		return result;
+	}
+
+	QIcon result;
+	QIcon systemIcon;
+
+	const auto iconSizes = {
+		16,
+		22,
+		24,
+		32,
+		48,
+		64
+	};
+
+	for (const auto iconSize : iconSizes) {
+		auto &currentImageBack = TrayIconImageBack[iconSize];
+		const auto desiredSize = QSize(iconSize, iconSize);
+
+		if (currentImageBack.isNull()
 			|| iconThemeName != TrayIconThemeName
 			|| iconName != TrayIconName) {
-			TrayIcon = QIcon::fromTheme(iconName);
-			TrayIconThemeName = iconThemeName;
-			TrayIconName = iconName;
-		}
+			if (!iconName.isEmpty()) {
+				if(systemIcon.isNull()) {
+					systemIcon = QIcon::fromTheme(iconName);
+				}
 
-		return TrayIcon;
-	}
-
-	const auto counterSlice = (counter >= 1000)
-		? (1000 + (counter % 100))
-		: counter;
-
-	if (TrayIcon.isNull()
-		|| iconThemeName != TrayIconThemeName
-		|| iconName != TrayIconName
-		|| muted != TrayIconMuted
-		|| counterSlice != TrayIconCount) {
-		QIcon result;
-		QIcon systemIcon;
-
-		const auto iconSizes = {
-			16,
-			22,
-			24,
-			32,
-			48,
-			64
-		};
-
-		for (const auto iconSize : iconSizes) {
-			auto &currentImageBack = TrayIconImageBack[iconSize];
-			const auto desiredSize = QSize(iconSize, iconSize);
-
-			if (currentImageBack.isNull()
-				|| iconThemeName != TrayIconThemeName
-				|| iconName != TrayIconName) {
-				if (!iconName.isEmpty()) {
-					if(systemIcon.isNull()) {
-						systemIcon = QIcon::fromTheme(iconName);
-					}
-
-					if (systemIcon.actualSize(desiredSize) == desiredSize) {
-						currentImageBack = systemIcon
-							.pixmap(desiredSize)
-							.toImage();
-					} else {
-						const auto availableSizes = systemIcon
-							.availableSizes();
-
-						const auto biggestSize = ranges::max_element(
-							availableSizes,
-							std::less<>(),
-							&QSize::width);
-
-						currentImageBack = systemIcon
-							.pixmap(*biggestSize)
-							.toImage();
-					}
+				if (systemIcon.actualSize(desiredSize) == desiredSize) {
+					currentImageBack = systemIcon
+						.pixmap(desiredSize)
+						.toImage();
 				} else {
-					currentImageBack = Core::App().logo();
-				}
+					const auto availableSizes = systemIcon
+						.availableSizes();
 
-				if (currentImageBack.size() != desiredSize) {
-					currentImageBack = currentImageBack.scaled(
-						desiredSize,
-						Qt::IgnoreAspectRatio,
-						Qt::SmoothTransformation);
+					const auto biggestSize = ranges::max_element(
+						availableSizes,
+						std::less<>(),
+						&QSize::width);
+
+					currentImageBack = systemIcon
+						.pixmap(*biggestSize)
+						.toImage();
 				}
+			} else {
+				currentImageBack = Core::App().logo();
 			}
 
-			auto iconImage = currentImageBack;
-			TrayIconMuted = muted;
-			TrayIconCount = counterSlice;
-			TrayIconThemeName = iconThemeName;
-			TrayIconName = iconName;
-
-			if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-				&& counter > 0) {
-				QPainter p(&iconImage);
-				int32 layerSize = -16;
-
-				if (iconSize >= 48) {
-					layerSize = -32;
-				} else if (iconSize >= 36) {
-					layerSize = -24;
-				} else if (iconSize >= 32) {
-					layerSize = -20;
-				}
-
-				auto &bg = muted
-					? st::trayCounterBgMute
-					: st::trayCounterBg;
-
-				auto &fg = st::trayCounterFg;
-
-				auto layer = App::wnd()->iconWithCounter(
-					layerSize,
-					counter,
-					bg,
-					fg,
-					false);
-
-				p.drawImage(
-					iconImage.width() - layer.width() - 1,
-					iconImage.height() - layer.height() - 1,
-					layer);
+			if (currentImageBack.size() != desiredSize) {
+				currentImageBack = currentImageBack.scaled(
+					desiredSize,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
 			}
-
-			result.addPixmap(App::pixmapFromImageInPlace(
-				std::move(iconImage)));
 		}
 
-		TrayIcon = result;
+		auto iconImage = currentImageBack;
+
+		if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
+			&& counter > 0) {
+			QPainter p(&iconImage);
+			int32 layerSize = -16;
+
+			if (iconSize >= 48) {
+				layerSize = -32;
+			} else if (iconSize >= 36) {
+				layerSize = -24;
+			} else if (iconSize >= 32) {
+				layerSize = -20;
+			}
+
+			auto &bg = muted
+				? st::trayCounterBgMute
+				: st::trayCounterBg;
+
+			auto &fg = st::trayCounterFg;
+
+			auto layer = App::wnd()->iconWithCounter(
+				layerSize,
+				counter,
+				bg,
+				fg,
+				false);
+
+			p.drawImage(
+				iconImage.width() - layer.width() - 1,
+				iconImage.height() - layer.height() - 1,
+				layer);
+		}
+
+		result.addPixmap(App::pixmapFromImageInPlace(
+			std::move(iconImage)));
 	}
 
-	return TrayIcon;
+	UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
+
+	return result;
 }
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -332,14 +352,22 @@ void MainWindow::psTrayMenuUpdated() {
 }
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-void MainWindow::setSNITrayIcon(int counter, bool muted) {
+void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
 	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
 		&& !iconName.isEmpty()) {
+		if (_sniTrayIcon->iconName() == iconName) {
+			return;
+		}
+
 		_sniTrayIcon->setIconByName(iconName);
 		_sniTrayIcon->setToolTipIconByName(iconName);
 	} else if (IsIndicatorApplication()) {
+		if(!IsIconRegenerationNeeded(counter, muted) && !firstShow) {
+			return;
+		}
+
 		const auto icon = TrayIconGen(counter, muted);
 		_trayIconFile = TrayIconFile(icon, 22, this);
 
@@ -348,6 +376,10 @@ void MainWindow::setSNITrayIcon(int counter, bool muted) {
 			_sniTrayIcon->setIconByName(_trayIconFile->fileName());
 		}
 	} else {
+		if(!IsIconRegenerationNeeded(counter, muted) && !firstShow) {
+			return;
+		}
+
 		const auto icon = TrayIconGen(counter, muted);
 		_sniTrayIcon->setIconByPixmap(icon);
 		_sniTrayIcon->setToolTipIconByPixmap(icon);
@@ -389,7 +421,7 @@ void MainWindow::psSetupTrayIcon() {
 				this);
 
 			_sniTrayIcon->setTitle(AppName.utf16());
-			setSNITrayIcon(counter, muted);
+			setSNITrayIcon(counter, muted, true);
 
 			attachToSNITrayIcon();
 		}
@@ -476,7 +508,7 @@ void MainWindow::updateIconCounters() {
 			setSNITrayIcon(counter, muted);
 		}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-	} else if (trayIcon) {
+	} else if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
 		trayIcon->setIcon(TrayIconGen(counter, muted));
 	}
 }

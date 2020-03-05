@@ -70,7 +70,7 @@ private:
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
 
-	void setSNITrayIcon(int counter, bool muted);
+	void setSNITrayIcon(int counter, bool muted, bool firstShow = false);
 	void attachToSNITrayIcon();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
