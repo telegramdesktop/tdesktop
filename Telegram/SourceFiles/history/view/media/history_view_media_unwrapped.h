@@ -38,6 +38,9 @@ public:
 		}
 		virtual void refreshLink() {
 		}
+		[[nodiscard]] virtual bool hidesForwardedInfo() {
+			return true;
+		}
 		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
 			return false;
 		}
@@ -73,7 +76,7 @@ public:
 		return true;
 	}
 	bool hidesForwardedInfo() const override {
-		return true;
+		return _content->hidesForwardedInfo();
 	}
 	void clearStickerLoopPlayed() override {
 		_content->clearStickerLoopPlayed();
@@ -84,15 +87,27 @@ public:
 	}
 
 private:
-	int surroundingHeight(
+	struct SurroundingInfo {
+		int height = 0;
+		int forwardedHeight = 0;
+		bool forwardedBreakEverywhere = false;
+
+		explicit operator bool() const {
+			return (height > 0);
+		}
+	};
+	[[nodiscard]] SurroundingInfo surroundingInfo(
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply) const;
+		const HistoryMessageReply *reply,
+		const HistoryMessageForwarded *forwarded,
+		int outerw) const;
 	void drawSurrounding(
 		Painter &p,
 		const QRect &inner,
 		bool selected,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply) const;
+		const HistoryMessageReply *reply,
+		const HistoryMessageForwarded *forwarded) const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -100,13 +115,16 @@ private:
 	bool needInfoDisplay() const;
 	int additionalWidth(
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply) const;
+		const HistoryMessageReply *reply,
+		const HistoryMessageForwarded *forwarded) const;
 
 	inline int calculateFullRight(const QRect &inner) const;
 	inline QPoint calculateFastActionPosition(
 		int fullBottom,
 		int replyRight,
 		int fullRight) const;
+
+	const HistoryMessageForwarded *getDisplayedForwardedInfo() const;
 
 	std::unique_ptr<Content> _content;
 	QSize _contentSize;
