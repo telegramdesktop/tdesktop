@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_dice_pack.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
 #include "main/main_session.h"
 
@@ -28,7 +29,12 @@ Dice::Dice(not_null<Element*> parent, int value)
 : _parent(parent)
 , _start(parent, Lookup(parent, 0))
 , _value(value) {
-	_start.setDiceIndex(0);
+	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
+	if (_showLastFrame) {
+		_drawingEnd = true;
+	} else {
+		_start.setDiceIndex(0);
+	}
 }
 
 Dice::~Dice() = default;
@@ -38,19 +44,17 @@ QSize Dice::size() {
 }
 
 void Dice::draw(Painter &p, const QRect &r, bool selected) {
-	Expects(_end.has_value() || !_drawingEnd);
-
+	if (!_end && _value) {
+		if (const auto document = Lookup(_parent, _value)) {
+			_end.emplace(_parent, document);
+			_end->setDiceIndex(_value);
+			_end->initSize();
+		}
+	}
 	if (_drawingEnd) {
 		_end->draw(p, r, selected);
 	} else {
 		_start.draw(p, r, selected);
-		if (!_end && _value) {
-			if (const auto document = Lookup(_parent, _value)) {
-				_end.emplace(_parent, document);
-				_end->setDiceIndex(_value);
-				_end->initSize();
-			}
-		}
 		if (_end && _end->readyToDrawLottie() && _start.atTheEnd()) {
 			_drawingEnd = true;
 		}

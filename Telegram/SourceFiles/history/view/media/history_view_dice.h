@@ -21,7 +21,6 @@ public:
 	void draw(Painter &p, const QRect &r, bool selected) override;
 
 	void clearStickerLoopPlayed() override {
-		_lottieOncePlayed = false;
 	}
 	void unloadHeavyPart() override {
 		_start.unloadHeavyPart();
@@ -38,7 +37,7 @@ private:
 	std::optional<Sticker> _end;
 	Sticker _start;
 	int _value = 0;
-	mutable bool _lottieOncePlayed = false;
+	mutable bool _showLastFrame = false;
 	mutable bool _drawingEnd = false;
 
 };
