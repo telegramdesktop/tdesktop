@@ -3158,7 +3158,7 @@ void writeFileLocation(MediaKey location, const FileLocation &local) {
 				return;
 			}
 			if (i.value().first != location) {
-				for (FileLocations::iterator j = _fileLocations.find(i.value().first), e = _fileLocations.end(); (j != e) && (j.key() == i.value().first);) {
+				for (FileLocations::iterator j = _fileLocations.find(i.value().first), e = _fileLocations.end(); (j != e) && (j.key() == i.value().first); ++j) {
 					if (j.value() == i.value().second) {
 						_fileLocations.erase(j);
 						break;
