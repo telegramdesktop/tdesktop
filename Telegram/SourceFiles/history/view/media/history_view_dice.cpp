@@ -25,10 +25,10 @@ DocumentData *Lookup(not_null<Element*> view, int value) {
 
 } // namespace
 
-Dice::Dice(not_null<Element*> parent, int value)
+Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 : _parent(parent)
-, _start(parent, Lookup(parent, 0))
-, _value(value) {
+, _dice(dice)
+, _start(parent, Lookup(parent, 0)) {
 	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
 	if (_showLastFrame) {
 		_drawingEnd = true;
@@ -44,10 +44,10 @@ QSize Dice::size() {
 }
 
 void Dice::draw(Painter &p, const QRect &r, bool selected) {
-	if (!_end && _value) {
-		if (const auto document = Lookup(_parent, _value)) {
+	if (const auto value = _end ? 0 : _dice->diceValue()) {
+		if (const auto document = Lookup(_parent, value)) {
 			_end.emplace(_parent, document);
-			_end->setDiceIndex(_value);
+			_end->setDiceIndex(value);
 			_end->initSize();
 		}
 	}

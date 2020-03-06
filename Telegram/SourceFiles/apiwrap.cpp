@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
@@ -4793,7 +4794,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	if (!peer->canWrite()) {
+	if (!peer->canWrite() || Api::SendDice(message)) {
 		return;
 	}
 	Local::saveRecentSentHashtags(textWithTags.text);

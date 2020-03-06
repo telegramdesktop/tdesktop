@@ -198,4 +198,109 @@ void SendExistingPhoto(
 		Data::FileOrigin());
 }
 
+bool SendDice(Api::MessageToSend &message) {
+	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
+	if (message.textWithTags.text != kDiceString) {
+		return false;
+	}
+	const auto history = message.action.history;
+	const auto peer = history->peer;
+	const auto session = &history->session();
+	const auto api = &session->api();
+
+	message.textWithTags = TextWithTags();
+	message.action.clearDraft = false;
+	message.action.generateLocal = true;
+	api->sendAction(message.action);
+
+	const auto newId = FullMsgId(
+		peerToChannel(peer->id),
+		session->data().nextLocalMessageId());
+	const auto randomId = rand_value<uint64>();
+
+	auto &histories = history->owner().histories();
+	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (message.action.replyTo) {
+		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+	}
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = message.action.options.silent
+		|| (channelPost && session->data().notifySilentPosts(peer));
+	if (channelPost) {
+		flags |= MTPDmessage::Flag::f_views;
+		flags |= MTPDmessage::Flag::f_post;
+	}
+	if (!channelPost) {
+		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
+	}
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+	auto messageFromId = channelPost ? 0 : session->userId();
+	auto messagePostAuthor = channelPost ? session->user()->name : QString();
+	const auto replyTo = message.action.replyTo;
+
+	if (message.action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
+
+	session->data().registerMessageRandomId(randomId, newId);
+
+	history->addNewMessage(
+		MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(history->peer->id),
+			MTPMessageFwdHeader(),
+			MTP_int(0),
+			MTP_int(replyTo),
+			MTP_int(HistoryItem::NewMessageDate(
+				message.action.options.scheduled)),
+			MTP_string(),
+			MTP_messageMediaDice(MTP_int(0)),
+			MTPReplyMarkup(),
+			MTP_vector<MTPMessageEntity>(),
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTPlong(),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>()),
+		clientFlags,
+		NewMessageType::Unread);
+
+	const auto requestType = Data::Histories::RequestType::Send;
+	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+		history->sendRequestId = api->request(MTPmessages_SendMedia(
+			MTP_flags(sendFlags),
+			peer->input,
+			MTP_int(replyTo),
+			MTP_inputMediaDice(),
+			MTP_string(),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			MTP_vector<MTPMessageEntity>(),
+			MTP_int(message.action.options.scheduled)
+		)).done([=](const MTPUpdates &result) {
+			api->applyUpdates(result, randomId);
+			finish();
+		}).fail([=](const RPCError &error) {
+			api->sendMessageFail(error, peer, randomId, newId);
+			finish();
+		}).afterRequest(history->sendRequestId
+		).send();
+		return history->sendRequestId;
+	});
+	return true;
+}
+
 } // namespace Api

@@ -10,11 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "history/view/media/history_view_sticker.h"
 
+namespace Data {
+class MediaDice;
+} // namespace Data
+
 namespace HistoryView {
 
 class Dice final : public UnwrappedMedia::Content {
 public:
-	Dice(not_null<Element*> parent, int value);
+	Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice);
 	~Dice();
 
 	QSize size() override;
@@ -34,9 +38,9 @@ public:
 
 private:
 	const not_null<Element*> _parent;
+	const not_null<Data::MediaDice*> _dice;
 	std::optional<Sticker> _end;
 	Sticker _start;
-	int _value = 0;
 	mutable bool _showLastFrame = false;
 	mutable bool _drawingEnd = false;
 

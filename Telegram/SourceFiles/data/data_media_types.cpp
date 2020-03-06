@@ -1360,6 +1360,7 @@ bool MediaDice::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	_value = media.c_messageMediaDice().vvalue().v;
+	parent()->history()->owner().requestItemRepaint(parent());
 	return true;
 }
 
@@ -1368,7 +1369,7 @@ std::unique_ptr<HistoryView::Media> MediaDice::createView(
 		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryView::UnwrappedMedia>(
 		message,
-		std::make_unique<HistoryView::Dice>(message, _value));
+		std::make_unique<HistoryView::Dice>(message, this));
 }
 
 } // namespace Data
