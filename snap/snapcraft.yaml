@@ -14,9 +14,12 @@ apps:
     environment:
       # Use GTK3 cursor theme, icon theme and open/save file dialogs.
       QT_QPA_PLATFORMTHEME: gtk3
-      # Wayland support is still too bad.
+      # The blocker is https://github.com/ubuntu/snapcraft-desktop-helpers/issues/172
       DISABLE_WAYLAND: 1
     plugs:
+      - alsa
+      - audio-playback
+      - audio-record
       - desktop
       - desktop-legacy
       - home
@@ -43,6 +46,10 @@ plugs:
     interface: content
     target: $SNAP/data-dir/sounds
     default-provider: gtk-common-themes
+
+layout:
+  /usr/share/alsa:
+    bind: $SNAP/usr/share/alsa
 
 parts:
   telegram:
