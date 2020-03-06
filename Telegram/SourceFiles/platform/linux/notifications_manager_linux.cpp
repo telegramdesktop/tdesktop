@@ -169,13 +169,9 @@ NotificationData::NotificationData(
 	if (capabilities.contains(qsl("actions"))) {
 		_actions << qsl("default") << QString();
 
-		_dbusConnection.connect(
-			kService.utf16(),
-			kObjectPath.utf16(),
-			kInterface.utf16(),
-			qsl("ActionInvoked"),
-			this,
-			SLOT(notificationClicked(uint,QString)));
+		_actions
+			<< qsl("mail-mark-read")
+			<< tr::lng_context_mark_read(tr::now);
 
 		if (capabilities.contains(qsl("inline-reply")) && !hideReplyButton) {
 			_actions
@@ -195,6 +191,14 @@ NotificationData::NotificationData(
 				<< qsl("mail-reply-sender")
 				<< tr::lng_notification_reply(tr::now);
 		}
+
+		_dbusConnection.connect(
+			kService.utf16(),
+			kObjectPath.utf16(),
+			kInterface.utf16(),
+			qsl("ActionInvoked"),
+			this,
+			SLOT(actionInvoked(uint,QString)));
 	}
 
 	if (capabilities.contains(qsl("action-icons"))) {
@@ -313,19 +317,23 @@ void NotificationData::notificationClosed(uint id) {
 	}
 }
 
-void NotificationData::notificationClicked(uint id, const QString &actionId) {
+void NotificationData::actionInvoked(uint id, const QString &actionName) {
 	if (id != _notificationId) {
 		return;
 	}
 
-	if (actionId != qsl("default") && actionId != qsl("mail-reply-sender")) {
-		return;
+	if (actionName == qsl("default")
+		|| actionName == qsl("mail-reply-sender")) {
+		const auto manager = _manager;
+		crl::on_main(manager, [=] {
+			manager->notificationActivated(_peerId, _msgId);
+		});
+	} else if (actionName == qsl("mail-mark-read")) {
+		const auto manager = _manager;
+		crl::on_main(manager, [=] {
+			manager->notificationReplied(_peerId, _msgId, {});
+		});
 	}
-
-	const auto manager = _manager;
-	crl::on_main(manager, [=] {
-		manager->notificationActivated(_peerId, _msgId);
-	});
 }
 
 void NotificationData::notificationReplied(uint id, const QString &text) {
