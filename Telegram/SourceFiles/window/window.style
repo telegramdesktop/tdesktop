@@ -246,6 +246,8 @@ createThemeLink: InputField(defaultInputField) {
 }
 
 windowFiltersWidth: 72px;
+windowFiltersMainMenu: icon {{ "dialogs_menu", sideBarIconFg }};
+windowFiltersMainMenuIconTop: 12px;
 windowFiltersIconTop: 8px;
 windowFiltersAll: icon {{ "filters_all", sideBarIconFg }};
 windowFiltersAllActive: icon {{ "filters_all_active", sideBarIconFgActive }};

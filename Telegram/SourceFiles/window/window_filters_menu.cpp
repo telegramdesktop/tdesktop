@@ -48,7 +48,9 @@ void FiltersMenu::setup() {
 
 	_widget.activateRequests(
 	) | rpl::start_with_next([=](const QString &id) {
-		if (id == "setup") {
+		if (id == "main_menu") {
+			_session->widget()->showMainMenu();
+		} else if (id == "setup") {
 		} else if (const auto filterId = id.toInt()) {
 			_session->setActiveChatsFilter(filterId);
 		} else {
@@ -59,6 +61,14 @@ void FiltersMenu::setup() {
 
 void FiltersMenu::refresh() {
 	auto items = std::vector<Ui::SideBarMenu::Item>();
+	items.push_back({
+		"main_menu",
+		QString(),
+		QString(),
+		&st::windowFiltersMainMenu,
+		&st::windowFiltersMainMenu,
+		st::windowFiltersMainMenuIconTop
+	});
 	items.push_back({
 		QString::number(0),
 		"All Chats",
