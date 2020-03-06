@@ -522,12 +522,6 @@ void MainWindow::updateControlsGeometry() {
 		bodyWidth -= _rightColumn->width();
 		_rightColumn->setGeometry(bodyWidth, bodyTop, width() - bodyWidth, height() - bodyTop);
 	}
-	if (const auto session = _controller->sessionController()) {
-		if (const auto skip = session->filtersWidth()) {
-			bodyLeft += skip;
-			bodyWidth -= skip;
-		}
-	}
 	_body->setGeometry(bodyLeft, bodyTop, bodyWidth, height() - bodyTop);
 }
 

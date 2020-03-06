@@ -215,7 +215,7 @@ public:
 		int thirdWidth;
 		Adaptive::WindowLayout windowLayout;
 	};
-	ColumnLayout computeColumnLayout() const;
+	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
 	bool forceWideDialogs() const;
 	void updateColumnLayout();

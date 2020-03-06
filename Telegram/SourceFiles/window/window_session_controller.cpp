@@ -194,7 +194,9 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 	if (!enabled == !_filters) {
 		return;
 	} else if (enabled) {
-		_filters = std::make_unique<FiltersMenu>(this);
+		_filters = std::make_unique<FiltersMenu>(
+			widget()->bodyWidget(),
+			this);
 	} else {
 		_filters = nullptr;
 	}
@@ -346,10 +348,10 @@ bool SessionController::forceWideDialogs() const {
 	return !App::main()->isMainSectionShown();
 }
 
-SessionController::ColumnLayout SessionController::computeColumnLayout() const {
+auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
-	auto bodyWidth = widget()->bodyWidget()->width();
+	auto bodyWidth = widget()->bodyWidget()->width() - filtersWidth();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
 
 	auto useOneColumnLayout = [&] {

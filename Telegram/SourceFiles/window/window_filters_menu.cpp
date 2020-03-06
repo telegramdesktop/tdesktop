@@ -17,19 +17,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-FiltersMenu::FiltersMenu(not_null<SessionController*> session)
+FiltersMenu::FiltersMenu(
+	not_null<Ui::RpWidget*> parent,
+	not_null<SessionController*> session)
 : _session(session)
-, _widget(session->widget(), st::defaultSideBarMenu) {
+, _parent(parent)
+, _widget(_parent, st::defaultSideBarMenu) {
 	setup();
 }
 
 void FiltersMenu::setup() {
-	const auto body = _session->widget()->bodyWidget();
-	rpl::combine(
-		body->topValue(),
-		body->heightValue()
-	) | rpl::start_with_next([=](int top, int height) {
-		_widget.setGeometry({ 0, top, st::windowFiltersWidth, height });
+	_parent->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_widget.setGeometry({ 0, 0, st::windowFiltersWidth, height });
 	}, _widget.lifetime());
 
 	const auto filters = &_session->session().data().chatsFilters();

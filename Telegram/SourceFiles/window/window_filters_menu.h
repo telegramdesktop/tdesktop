@@ -15,13 +15,16 @@ class SessionController;
 
 class FiltersMenu final {
 public:
-	explicit FiltersMenu(not_null<SessionController*> session);
+	FiltersMenu(
+		not_null<Ui::RpWidget*> parent,
+		not_null<SessionController*> session);
 
 private:
 	void setup();
 	void refresh();
 
 	const not_null<SessionController*> _session;
+	const not_null<Ui::RpWidget*> _parent;
 	Ui::SideBarMenu _widget;
 
 };
