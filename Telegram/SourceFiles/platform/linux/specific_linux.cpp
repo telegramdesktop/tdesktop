@@ -524,18 +524,21 @@ void finish() {
 
 void RegisterCustomScheme(bool force) {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-	auto home = getHomeDir();
+	const auto home = getHomeDir();
 	if (home.isEmpty() || cExeName().isEmpty())
 		return;
 
+	static const auto disabledByEnv = qEnvironmentVariableIsSet(
+		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
+
 	// don't update desktop file for alpha version or if updater is disabled
-	if ((cAlphaVersion() || Core::UpdaterDisabled()) && !force)
+	if ((cAlphaVersion() || Core::UpdaterDisabled() || disabledByEnv)
+		&& !force)
 		return;
 
 	const auto applicationsPath = QStandardPaths::writableLocation(
 		QStandardPaths::ApplicationsLocation) + '/';
 
-#ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 	GenerateDesktopFile(applicationsPath, qsl("-- %u"));
 
 	const auto icons =
@@ -558,7 +561,6 @@ void RegisterCustomScheme(bool force) {
 			DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
 		}
 	}
-#endif // !TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 
 	RunShellCommand("update-desktop-database "
 		+ EscapeShell(QFile::encodeName(applicationsPath)));
@@ -629,7 +631,7 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 }
 
 void psAutoStart(bool start, bool silent) {
-	auto home = getHomeDir();
+	const auto home = getHomeDir();
 	if (home.isEmpty() || cExeName().isEmpty())
 		return;
 
