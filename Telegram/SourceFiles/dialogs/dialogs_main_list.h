@@ -14,7 +14,7 @@ namespace Dialogs {
 
 class MainList final {
 public:
-	explicit MainList(rpl::producer<int> pinnedLimit);
+	MainList(FilterId filterId, rpl::producer<int> pinnedLimit);
 
 	bool empty() const;
 	bool loaded() const;
@@ -29,14 +29,14 @@ public:
 		bool added);
 	[[nodiscard]] UnreadState unreadState() const;
 
-	not_null<IndexedList*> indexed(FilterId filterId = 0);
+	not_null<IndexedList*> indexed();
 	not_null<const IndexedList*> indexed() const;
 	not_null<PinnedList*> pinned();
 	not_null<const PinnedList*> pinned() const;
 
 private:
+	FilterId _filterId = 0;
 	IndexedList _all;
-	base::flat_map<FilterId, IndexedList> _other;
 	PinnedList _pinned;
 	UnreadState _unreadState;
 

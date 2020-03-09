@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_chat_filters.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "history/history_item.h"
@@ -92,16 +93,17 @@ void Entry::updateChatListSortPosition() {
 		updateChatListEntry();
 		return;
 	}
+	_sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
 	const auto fixedIndex = fixedOnTopIndex();
 	_sortKeyInChatList = fixedIndex
 		? FixedOnTopDialogPos(fixedIndex)
 		: isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
-		: DialogPosFromDate(adjustedChatListTimeId());
+		: _sortKeyByDate;
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
 	} else {
-		_sortKeyInChatList = 0;
+		_sortKeyInChatList = _sortKeyByDate = 0;
 	}
 }
 
@@ -229,7 +231,9 @@ void Entry::updateChatListEntry() const {
 }
 
 not_null<IndexedList*> Entry::myChatsList(FilterId filterId) const {
-	return owner().chatsList(folder())->indexed(filterId);
+	return filterId
+		? owner().chatsFilters().chatsList(filterId)->indexed()
+		: owner().chatsList(folder())->indexed();
 }
 
 } // namespace Dialogs

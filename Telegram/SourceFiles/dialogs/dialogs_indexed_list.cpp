@@ -87,7 +87,7 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 void IndexedList::peerNameChanged(
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters) {
-	Expects(_sortMode != SortMode::Date);
+	Expects(_sortMode != SortMode::Date && _sortMode != SortMode::Complex);
 
 	if (const auto history = peer->owner().historyLoaded(peer)) {
 		if (_sortMode == SortMode::Name) {
@@ -102,7 +102,7 @@ void IndexedList::peerNameChanged(
 		FilterId filterId,
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters) {
-	Expects(_sortMode == SortMode::Date);
+	Expects(_sortMode == SortMode::Date || _sortMode == SortMode::Complex);
 
 	if (const auto history = peer->owner().historyLoaded(peer)) {
 		adjustNames(filterId, history, oldLetters);
@@ -165,7 +165,7 @@ void IndexedList::adjustNames(
 		}
 	}
 	for (auto ch : toRemove) {
-		if (_sortMode == SortMode::Date) {
+		if (_sortMode == SortMode::Date || _sortMode == SortMode::Complex) {
 			history->removeChatListEntryByLetter(filterId, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
@@ -178,7 +178,7 @@ void IndexedList::adjustNames(
 			j = _index.emplace(ch, _sortMode).first;
 		}
 		auto row = j->second.addToEnd(key);
-		if (_sortMode == SortMode::Date) {
+		if (_sortMode == SortMode::Date || _sortMode == SortMode::Complex) {
 			history->addChatListEntryByLetter(filterId, ch, row);
 		}
 	}

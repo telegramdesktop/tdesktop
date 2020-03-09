@@ -26,12 +26,12 @@ public:
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);
 
-	// For sortMode != SortMode::Date
+	// For sortMode != SortMode::Date && != Complex
 	void peerNameChanged(
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldChars);
 
-	//For sortMode == SortMode::Date
+	//For sortMode == SortMode::Date || == Complex
 	void peerNameChanged(
 		FilterId filterId,
 		not_null<PeerData*> peer,

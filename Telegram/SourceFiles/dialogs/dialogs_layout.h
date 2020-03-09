@@ -29,6 +29,7 @@ public:
 	static void paint(
 		Painter &p,
 		not_null<const Row*> row,
+		int filterId,
 		int fullWidth,
 		bool active,
 		bool selected,

@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_folder.h"
+#include "dialogs/dialogs_main_list.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 
@@ -179,6 +181,18 @@ ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
 		ChatFilter(2, "Unread", all | Flag::NoRead, {}, {}));
 }
 
+ChatFilters::~ChatFilters() = default;
+
+not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
+	auto &pointer = _chatsLists[filterId];
+	if (!pointer) {
+		pointer = std::make_unique<Dialogs::MainList>(
+			filterId,
+			rpl::single(1));
+	}
+	return pointer.get();
+}
+
 void ChatFilters::load() {
 	load(false);
 }
@@ -285,21 +299,31 @@ void ChatFilters::applyRemove(int position) {
 
 bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	const auto rulesChanged = (filter.flags() != updated.flags())
-		|| (filter.always() != updated.always());
+		|| (filter.always() != updated.always())
+		|| (filter.never() != updated.never());
 	if (rulesChanged) {
-		const auto list = _owner->chatsList()->indexed();
-		for (const auto &entry : *list) {
-			if (const auto history = entry->history()) {
-				const auto now = updated.contains(history);
-				const auto was = filter.contains(history);
-				if (now != was) {
-					if (now) {
-						history->addToChatList(filter.id());
-					} else {
-						history->removeFromChatList(filter.id());
-					}
+		const auto feedHistory = [&](not_null<History*> history) {
+			const auto now = updated.contains(history);
+			const auto was = filter.contains(history);
+			if (now != was) {
+				if (now) {
+					history->addToChatList(filter.id());
+				} else {
+					history->removeFromChatList(filter.id());
 				}
 			}
+		};
+		const auto feedList = [&](not_null<const Dialogs::MainList*> list) {
+			for (const auto &entry : *list->indexed()) {
+				if (const auto history = entry->history()) {
+					feedHistory(history);
+				}
+			}
+		};
+		feedList(_owner->chatsList());
+		const auto id = Data::Folder::kId;
+		if (const auto folder = _owner->folderLoaded(id)) {
+			feedList(folder->chatsList());
 		}
 	} else if (filter.title() == updated.title()) {
 		return false;

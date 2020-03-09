@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Dialogs {
+class MainList;
+} // namespace Dialogs
+
 namespace Data {
 
 class Session;
@@ -63,6 +67,7 @@ private:
 class ChatFilters final {
 public:
 	explicit ChatFilters(not_null<Session*> owner);
+	~ChatFilters();
 
 	void load();
 	void apply(const MTPUpdate &update);
@@ -75,6 +80,8 @@ public:
 	[[nodiscard]] auto refreshHistoryRequests() const
 		-> rpl::producer<not_null<History*>>;
 
+	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(FilterId filterId);
+
 private:
 	void load(bool force);
 	bool applyOrder(const QVector<MTPint> &order);
@@ -85,6 +92,7 @@ private:
 	const not_null<Session*> _owner;
 
 	std::vector<ChatFilter> _list;
+	base::flat_map<FilterId, std::unique_ptr<Dialogs::MainList>> _chatsLists;
 	rpl::event_stream<> _listChanged;
 	rpl::event_stream<not_null<History*>> _refreshHistoryRequests;
 	mtpRequestId _loadRequestId = 0;

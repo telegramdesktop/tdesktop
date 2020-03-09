@@ -440,6 +440,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				Layout::RowPainter::paint(
 					p,
 					row,
+					_filterId,
 					fullWidth,
 					isActive,
 					isSelected,
@@ -565,6 +566,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					Layout::RowPainter::paint(
 						p,
 						_filterResults[from],
+						_filterId,
 						fullWidth,
 						active,
 						selected,
@@ -1680,7 +1682,9 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 not_null<IndexedList*> InnerWidget::shownDialogs() const {
-	return session().data().chatsList(_openedFolder)->indexed(_filterId);
+	return _filterId
+		? session().data().chatsFilters().chatsList(_filterId)->indexed()
+		: session().data().chatsList(_openedFolder)->indexed();
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {

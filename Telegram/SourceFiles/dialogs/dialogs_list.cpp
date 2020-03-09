@@ -32,7 +32,7 @@ not_null<Row*> List::addToEnd(Key key) {
 		std::make_unique<Row>(key, _rows.size())
 	).first->second.get();
 	_rows.emplace_back(result);
-	if (_sortMode == SortMode::Date) {
+	if (_sortMode == SortMode::Date || _sortMode == SortMode::Complex) {
 		adjustByDate(result);
 	}
 	return result;
@@ -82,20 +82,20 @@ void List::adjustByName(not_null<Row*> row) {
 }
 
 void List::adjustByDate(not_null<Row*> row) {
-	Expects(_sortMode == SortMode::Date);
+	Expects(_sortMode == SortMode::Date || _sortMode == SortMode::Complex);
 
-	const auto key = row->sortKey();
+	const auto key = row->sortKey(_sortMode);
 	const auto index = row->pos();
 	const auto i = _rows.begin() + index;
 	const auto before = std::find_if(i + 1, _rows.end(), [&](Row *row) {
-		return (row->sortKey() <= key);
+		return (row->sortKey(_sortMode) <= key);
 	});
 	if (before != i + 1) {
 		rotate(i, i + 1, before);
 	} else {
 		const auto from = std::make_reverse_iterator(i);
 		const auto after = std::find_if(from, _rows.rend(), [&](Row *row) {
-			return (row->sortKey() >= key);
+			return (row->sortKey(_sortMode) >= key);
 		}).base();
 		if (after != i) {
 			rotate(after, i, i + 1);

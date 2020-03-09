@@ -12,8 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-MainList::MainList(rpl::producer<int> pinnedLimit)
-: _all(SortMode::Date)
+MainList::MainList(FilterId filterId, rpl::producer<int> pinnedLimit)
+: _filterId(filterId)
+, _all(filterId ? SortMode::Date : SortMode::Complex)
 , _pinned(1) {
 	_unreadState.known = true;
 
@@ -28,10 +29,7 @@ MainList::MainList(rpl::producer<int> pinnedLimit)
 	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
 		const auto peer = update.peer;
 		const auto &oldLetters = update.oldNameFirstLetters;
-		_all.peerNameChanged(FilterId(), peer, oldLetters);
-		for (auto &[filterId, list] : _other) {
-			list.peerNameChanged(filterId, peer, oldLetters);
-		}
+		_all.peerNameChanged(_filterId, peer, oldLetters);
 	}, _lifetime);
 }
 
@@ -49,7 +47,6 @@ void MainList::setLoaded(bool loaded) {
 
 void MainList::clear() {
 	_all.clear();
-	_other.clear();
 	_unreadState = UnreadState();
 }
 
@@ -73,15 +70,8 @@ UnreadState MainList::unreadState() const {
 	return _unreadState;
 }
 
-not_null<IndexedList*> MainList::indexed(FilterId filterId) {
-	if (!filterId) {
-		return &_all;
-	}
-	const auto i = _other.find(filterId);
-	if (i != end(_other)) {
-		return &i->second;
-	}
-	return &_other.emplace(filterId, SortMode::Date).first->second;
+not_null<IndexedList*> MainList::indexed() {
+	return &_all;
 }
 
 not_null<const IndexedList*> MainList::indexed() const {

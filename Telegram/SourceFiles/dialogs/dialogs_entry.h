@@ -31,9 +31,10 @@ struct RowsByLetter {
 };
 
 enum class SortMode {
-	Date = 0x00,
-	Name = 0x01,
-	Add  = 0x02,
+	Complex = 0x00,
+	Date    = 0x01,
+	Name    = 0x02,
+	Add     = 0x04,
 };
 
 struct PositionChange {
@@ -120,6 +121,9 @@ public:
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
+	uint64 sortKeyByDate() const {
+		return _sortKeyByDate;
+	}
 	void updateChatListSortPosition();
 	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
@@ -199,6 +203,7 @@ private:
 	Dialogs::Key _key;
 	base::flat_map<FilterId, RowsByLetter> _chatListLinks;
 	uint64 _sortKeyInChatList = 0;
+	uint64 _sortKeyByDate = 0;
 	int _pinnedIndex = 0;
 	bool _isProxyPromoted = false;
 	TimeId _timeId = 0;

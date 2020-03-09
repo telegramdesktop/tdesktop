@@ -613,6 +613,7 @@ void paintUnreadCount(
 void RowPainter::paint(
 		Painter &p,
 		not_null<const Row*> row,
+		int filterId,
 		int fullWidth,
 		bool active,
 		bool selected,
@@ -668,6 +669,7 @@ void RowPainter::paint(
 	const auto displayPinnedIcon = !displayUnreadCounter
 		&& !displayMentionBadge
 		&& !displayUnreadMark
+		&& !filterId
 		&& entry->isPinnedDialog()
 		&& !entry->fixedOnTopIndex();
 
