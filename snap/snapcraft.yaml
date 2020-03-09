@@ -63,11 +63,6 @@ parts:
       - qtbase5-private-dev
       - libmapbox-variant-dev
       - libasound2-dev
-      - libavcodec-dev
-      - libavformat-dev
-      - libavutil-dev
-      - libswscale-dev
-      - libswresample-dev
       - libdbusmenu-qt5-dev
       - libhunspell-dev
       - liblz4-dev
@@ -81,11 +76,6 @@ parts:
     stage-packages:
       - qt5-image-formats-plugins
       - libasound2
-      - libavcodec57
-      - libavformat57
-      - libavutil55
-      - libswscale4
-      - libswresample2
       - libdbusmenu-qt5-2
       - libhunspell-1.6-0
       - liblz4-1
@@ -126,6 +116,7 @@ parts:
     after:
       - cmake
       - desktop-qt5
+      - ffmpeg
       - range-v3
       - xxhash
 
@@ -182,6 +173,110 @@ parts:
       - libncurses5
       - libtinfo5
     prime: [-./*]
+
+  ffmpeg:
+    source: https://github.com/FFmpeg/FFmpeg.git
+    source-depth: 1
+    source-branch: release/4.2
+    plugin: autotools
+    build-packages:
+      - libtool
+      - pkg-config
+      - texi2html
+      - yasm
+      - libass-dev
+      - libfreetype6-dev
+      - libgpac-dev
+      - liblzma-dev
+      - libopus-dev
+      - libsdl1.2-dev
+      - libtheora-dev
+      - libva-dev
+      - libvdpau-dev
+      - libvorbis-dev
+      - libxcb1-dev
+      - libxcb-shm0-dev
+      - libxcb-xfixes0-dev
+      - zlib1g-dev
+    stage-packages:
+      - freeglut3
+      - libass9
+      - libfreetype6
+      - libgpac4
+      - liblzma5
+      - libopus0
+      - libslang2
+      - libsdl1.2debian
+      - libtheora0
+      - libva2
+      - libva-drm2
+      - libvdpau1
+      - libvorbis0a
+      - libxcb1
+      - libxcb-shm0
+      - libxcb-xfixes0
+      - zlib1g
+    configflags:
+      - --prefix=/usr
+      - --disable-debug
+      - --disable-programs
+      - --disable-doc
+      - --disable-everything
+      - --enable-gpl
+      - --enable-version3
+      - --enable-libopus
+      - --enable-decoder=aac
+      - --enable-decoder=aac_latm
+      - --enable-decoder=aasc
+      - --enable-decoder=flac
+      - --enable-decoder=gif
+      - --enable-decoder=h264
+      - --enable-decoder=h264_vdpau
+      - --enable-decoder=mp1
+      - --enable-decoder=mp1float
+      - --enable-decoder=mp2
+      - --enable-decoder=mp2float
+      - --enable-decoder=mp3
+      - --enable-decoder=mp3adu
+      - --enable-decoder=mp3adufloat
+      - --enable-decoder=mp3float
+      - --enable-decoder=mp3on4
+      - --enable-decoder=mp3on4float
+      - --enable-decoder=mpeg4
+      - --enable-decoder=mpeg4_vdpau
+      - --enable-decoder=msmpeg4v2
+      - --enable-decoder=msmpeg4v3
+      - --enable-decoder=opus
+      - --enable-decoder=vorbis
+      - --enable-decoder=wavpack
+      - --enable-decoder=wmalossless
+      - --enable-decoder=wmapro
+      - --enable-decoder=wmav1
+      - --enable-decoder=wmav2
+      - --enable-decoder=wmavoice
+      - --enable-encoder=libopus
+      - --enable-hwaccel=h264_vaapi
+      - --enable-hwaccel=h264_vdpau
+      - --enable-hwaccel=mpeg4_vaapi
+      - --enable-hwaccel=mpeg4_vdpau
+      - --enable-parser=aac
+      - --enable-parser=aac_latm
+      - --enable-parser=flac
+      - --enable-parser=h264
+      - --enable-parser=mpeg4video
+      - --enable-parser=mpegaudio
+      - --enable-parser=opus
+      - --enable-parser=vorbis
+      - --enable-demuxer=aac
+      - --enable-demuxer=flac
+      - --enable-demuxer=gif
+      - --enable-demuxer=h264
+      - --enable-demuxer=mov
+      - --enable-demuxer=mp3
+      - --enable-demuxer=ogg
+      - --enable-demuxer=wav
+      - --enable-muxer=ogg
+      - --enable-muxer=opus
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git

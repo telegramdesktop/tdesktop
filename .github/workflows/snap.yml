@@ -47,6 +47,10 @@ jobs:
           md5cache=$(md5sum CMAKE_CACHE_KEY.txt | cut -c -32)
           echo ::set-env name=CMAKE_CACHE_KEY::$md5cache
 
+          awk -v RS="" -v ORS="\n\n" '/^  ffmpeg:/' snap/snapcraft.yaml > FFMPEG_CACHE_KEY.txt
+          md5cache=$(md5sum FFMPEG_CACHE_KEY.txt | cut -c -32)
+          echo ::set-env name=FFMPEG_CACHE_KEY::$md5cache
+
       - name: CMake cache.
         id: cache-cmake
         uses: actions/cache@v1
@@ -57,6 +61,17 @@ jobs:
       - name: CMake build.
         if: steps.cache-cmake.outputs.cache-hit != 'true'
         run: snapcraft build --destructive-mode cmake
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v1
+        with:
+          path: parts/ffmpeg
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-${{ env.FFMPEG_CACHE_KEY }}
+
+      - name: FFmpeg build.
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: snapcraft build --destructive-mode ffmpeg
 
       - name: Telegram Desktop snap build.
         if: env.ONLY_CACHE == 'false'
@@ -80,5 +95,5 @@ jobs:
 
       - name: Remove unneeded directories for cache.
         run: |
-          rm -rf parts/cmake/{build,src,ubuntu}
-          rm -rf parts/cmake/state/{stage,prime}
+          rm -rf parts/{cmake,ffmpeg}/{build,src,ubuntu}
+          rm -rf parts/{cmake,ffmpeg}/state/{stage,prime}
