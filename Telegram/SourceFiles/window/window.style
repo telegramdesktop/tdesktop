@@ -246,18 +246,43 @@ createThemeLink: InputField(defaultInputField) {
 }
 
 windowFiltersWidth: 72px;
-windowFiltersMainMenu: icon {{ "dialogs_menu", sideBarIconFg }};
-windowFiltersMainMenuIconTop: 12px;
-windowFiltersIconTop: 8px;
-windowFiltersAll: icon {{ "filters_all", sideBarIconFg }};
-windowFiltersAllActive: icon {{ "filters_all_active", sideBarIconFgActive }};
-windowFiltersUnread: icon {{ "filters_unread", sideBarIconFg }};
-windowFiltersUnreadActive: icon {{ "filters_unread_active", sideBarIconFgActive }};
-windowFiltersUnmuted: icon {{ "filters_unmuted", sideBarIconFg }};
-windowFiltersUnmutedActive: icon {{ "filters_unmuted_active", sideBarIconFgActive }};
-windowFiltersCustom: icon {{ "filters_custom", sideBarIconFg }};
-windowFiltersCustomActive: icon {{ "filters_custom_active", sideBarIconFgActive }};
-windowFiltersSetup: icon {{ "filters_setup", sideBarIconFg }};
+windowFiltersButton: SideBarButton(defaultSideBarButton) {
+	textTop: 40px;
+	textSkip: 6px;
+	minHeight: 62px;
+	minTextWidth: 48px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+	badgeStyle: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+	iconPosition: point(-1px, 6px);
+}
+windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "dialogs_menu", sideBarIconFg }};
+	iconPosition: point(-1px, -1px);
+	minHeight: 54px;
+}
+windowFiltersAll: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_all", sideBarIconFg }};
+	iconActive: icon {{ "filters_all_active", sideBarIconFgActive }};
+}
+windowFiltersUnread: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_unread", sideBarIconFg }};
+	iconActive: icon {{ "filters_unread_active", sideBarIconFgActive }};
+}
+windowFiltersUnmuted: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_unmuted", sideBarIconFg }};
+	iconActive: icon {{ "filters_unmuted_active", sideBarIconFgActive }};
+}
+windowFiltersCustom: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_custom", sideBarIconFg }};
+	iconActive: icon {{ "filters_custom_active", sideBarIconFgActive }};
+}
+windowFiltersSetup: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_setup", sideBarIconFg }};
+}
 
 // Mac specific
 

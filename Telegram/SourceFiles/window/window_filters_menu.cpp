@@ -43,23 +43,11 @@ enum class Type {
 	return Type::Custom;
 }
 
-[[nodiscard]] std::array<const style::icon*, 2> ComputeIcons(Type type) {
+[[nodiscard]] const style::SideBarButton &ComputeStyle(Type type) {
 	switch (type) {
-	case Type::Unread:
-		return {
-			&st::windowFiltersUnread,
-			&st::windowFiltersUnreadActive
-		};
-	case Type::Unmuted:
-		return {
-			&st::windowFiltersUnmuted,
-			&st::windowFiltersUnmutedActive
-		};
-	case Type::Custom:
-		return {
-			&st::windowFiltersCustom,
-			&st::windowFiltersCustomActive
-		};
+	case Type::Unread: return st::windowFiltersUnread;
+	case Type::Unmuted: return st::windowFiltersUnmuted;
+	case Type::Custom: return st::windowFiltersCustom;
 	}
 	Unexpected("Filter type in FiltersMenu::refresh.");
 }
@@ -71,15 +59,46 @@ FiltersMenu::FiltersMenu(
 	not_null<SessionController*> session)
 : _session(session)
 , _parent(parent)
-, _widget(_parent, st::defaultSideBarMenu) {
+, _outer(_parent)
+, _menu(&_outer, QString(), st::windowFiltersMainMenu)
+, _scroll(&_outer)
+, _container(
+	_scroll.setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(&_scroll))) {
 	setup();
 }
 
 void FiltersMenu::setup() {
+	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
+	_outer.show();
+	_outer.paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		const auto bottom = _scroll.y() + _container->height();
+		const auto height = _outer.height() - bottom;
+		if (height <= 0) {
+			return;
+		}
+		const auto fill = clip.intersected(
+			QRect(0, bottom, _outer.width(), height));
+		if (!fill.isEmpty()) {
+			auto p = QPainter(&_outer);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowFiltersAll.textBg);
+			p.drawRect(fill);
+		}
+	}, _outer.lifetime());
+
 	_parent->heightValue(
 	) | rpl::start_with_next([=](int height) {
-		_widget.setGeometry({ 0, 0, st::windowFiltersWidth, height });
-	}, _widget.lifetime());
+		const auto width = st::windowFiltersWidth;
+		_outer.setGeometry({ 0, 0, width, height });
+		_menu.resizeToWidth(width);
+		_menu.move(0, 0);
+		_scroll.setGeometry(
+			{ 0, _menu.height(), width, height - _menu.height() });
+		_container->resizeToWidth(width);
+		_container->move(0, 0);
+	}, _outer.lifetime());
 
 	const auto filters = &_session->session().data().chatsFilters();
 	rpl::single(
@@ -88,66 +107,63 @@ void FiltersMenu::setup() {
 		filters->changed()
 	) | rpl::start_with_next([=] {
 		refresh();
-	}, _widget.lifetime());
+	}, _outer.lifetime());
 
+	_activeFilterId = _session->activeChatsFilterCurrent();
 	_session->activeChatsFilter(
-	) | rpl::start_with_next([=](FilterId id) {
-		_widget.setActive(QString::number(id));
-	}, _widget.lifetime());
-
-	_widget.activateRequests(
-	) | rpl::start_with_next([=](const QString &id) {
-		if (id == "main_menu") {
-			_session->widget()->showMainMenu();
-		} else if (id == "setup") {
-		} else if (const auto filterId = id.toInt()) {
-			_session->setActiveChatsFilter(filterId);
-		} else {
-			_session->setActiveChatsFilter(0);
+	) | rpl::filter([=](FilterId id) {
+		return id != _activeFilterId;
+	}) | rpl::start_with_next([=](FilterId id) {
+		const auto i = _filters.find(_activeFilterId);
+		if (i != end(_filters)) {
+			i->second->setActive(false);
 		}
-	}, _widget.lifetime());
+		_activeFilterId = id;
+		const auto j = _filters.find(_activeFilterId);
+		if (j != end(_filters)) {
+			j->second->setActive(true);
+		}
+	}, _outer.lifetime());
+
+	_menu.setClickedCallback([=] {
+		_session->widget()->showMainMenu();
+	});
 }
 
 void FiltersMenu::refresh() {
-	auto items = std::vector<Ui::SideBarMenu::Item>();
-	items.push_back({
-		"main_menu",
-		QString(),
-		QString(),
-		&st::windowFiltersMainMenu,
-		&st::windowFiltersMainMenu,
-		st::windowFiltersMainMenuIconTop
-	});
-	items.push_back({
-		QString::number(0),
-		"All Chats",
-		QString(),
-		&st::windowFiltersAll,
-		&st::windowFiltersAllActive,
-		st::windowFiltersIconTop
-	});
 	const auto filters = &_session->session().data().chatsFilters();
-	for (const auto &filter : filters->list()) {
-		const auto type = ComputeType(filter);
-		const auto icons = ComputeIcons(type);
-		items.push_back({
-			QString::number(filter.id()),
-			filter.title(),
-			QString(),
-			icons[0],
-			icons[1],
-			st::windowFiltersIconTop
+	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
+	const auto prepare = [&](
+			FilterId id,
+			const QString &title,
+			const style::SideBarButton &st,
+			const QString &badge) {
+		auto button = base::unique_qptr<Ui::SideBarButton>(_container->add(
+			object_ptr<Ui::SideBarButton>(
+				_container,
+				title,
+				st)));
+		button->setBadge(badge);
+		button->setActive(_session->activeChatsFilterCurrent() == id);
+		button->setClickedCallback([=] {
+			if (id >= 0) {
+				_session->setActiveChatsFilter(id);
+			} else {
+				// #TODO filters
+			}
 		});
+		now.emplace(id, std::move(button));
+	};
+	prepare(0, "All chats", st::windowFiltersAll, QString());
+	for (const auto filter : filters->list()) {
+		prepare(
+			filter.id(),
+			filter.title(),
+			ComputeStyle(ComputeType(filter)),
+			QString());
 	}
-	items.push_back({
-		"setup",
-		"Setup",
-		QString(),
-		&st::windowFiltersSetup,
-		&st::windowFiltersSetup,
-		st::windowFiltersIconTop
-	});
-	_widget.setItems(items);
+	prepare(-1, "Setup", st::windowFiltersSetup, QString());
+	_filters = std::move(now);
 }
 
 } // namespace Window
