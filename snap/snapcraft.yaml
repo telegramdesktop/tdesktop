@@ -222,6 +222,7 @@ parts:
       - --disable-programs
       - --disable-doc
       - --disable-everything
+      - --disable-neon
       - --enable-gpl
       - --enable-version3
       - --enable-libopus
