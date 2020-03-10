@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h"
+#include "ui/wrap/slide_wrap.h"
 #include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -297,7 +298,7 @@ void ManageFiltersPrepare::showBoxWithSuggested() {
 void ManageFiltersPrepare::CreateBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> window,
-		const std::vector<Suggested> &suggested) {
+		const std::vector<Suggested> &suggestions) {
 	struct FilterRow {
 		not_null<FilterRowButton*> button;
 		Data::ChatFilter filter;
@@ -349,44 +350,57 @@ void ManageFiltersPrepare::CreateBox(
 		tr::lng_filters_create() | Ui::Text::ToUpper(),
 		st::settingsUpdate);
 	Settings::AddSkip(content);
-	if (suggested.empty()) {
-		content->add(
+	const auto emptyAbout = content->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			content,
 			object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_filters_about(),
 				st::boxDividerLabel),
-			st::settingsDividerLabelPadding);
-	} else {
-		Settings::AddDividerText(content, tr::lng_filters_about());
-		Settings::AddSkip(content);
-		Settings::AddSubsectionTitle(content, tr::lng_filters_recommended());
+			st::settingsDividerLabelPadding)
+	)->setDuration(0);
+	const auto nonEmptyAbout = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content))
+	)->setDuration(0);
+	const auto aboutRows = nonEmptyAbout->entity();
+	Settings::AddDividerText(aboutRows, tr::lng_filters_about());
+	Settings::AddSkip(aboutRows);
+	Settings::AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
-		for (const auto &suggestion : suggested) {
-			const auto filter = suggestion.filter;
-			const auto already = [&] {
-				for (const auto &entry : list) {
-					if (entry.flags() == filter.flags()
-						&& entry.always() == filter.always()
-						&& entry.never() == filter.never()) {
-						return true;
-					}
+	const auto suggested = box->lifetime().make_state<rpl::variable<int>>();
+	for (const auto &suggestion : suggestions) {
+		const auto filter = suggestion.filter;
+		const auto already = [&] {
+			for (const auto &entry : list) {
+				if (entry.flags() == filter.flags()
+					&& entry.always() == filter.always()
+					&& entry.never() == filter.never()) {
+					return true;
 				}
-				return false;
-			}();
-			if (already) {
-				continue;
 			}
-			const auto button = content->add(object_ptr<FilterRowButton>(
-				content,
-				filter,
-				suggestion.description));
-			button->addRequests(
-			) | rpl::start_with_next([=] {
-				addFilter(filter);
-				delete button;
-			}, button->lifetime());
+			return false;
+		}();
+		if (already) {
+			continue;
 		}
+		*suggested = suggested->current() + 1;
+		const auto button = aboutRows->add(object_ptr<FilterRowButton>(
+			aboutRows,
+			filter,
+			suggestion.description));
+		button->addRequests(
+		) | rpl::start_with_next([=] {
+			addFilter(filter);
+			*suggested = suggested->current() - 1;
+			delete button;
+		}, button->lifetime());
 	}
+
+	using namespace rpl::mappers;
+	emptyAbout->toggleOn(suggested->value() | rpl::map(_1 == 0));
+	nonEmptyAbout->toggleOn(suggested->value() | rpl::map(_1 > 0));
 
 	const auto prepareGoodIdsForNewFilters = [=] {
 		const auto &list = session->data().chatsFilters().list();
