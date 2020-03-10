@@ -38,6 +38,13 @@ public:
 public slots:
 	void psShowTrayMenu();
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	void onSNIOwnerChanged(
+		const QString &service,
+		const QString &oldOwner,
+		const QString &newOwner);
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
 protected:
 	void initHook() override;
 	void unreadCounterChangedHook() override;
