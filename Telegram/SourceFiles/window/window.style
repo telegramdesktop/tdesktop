@@ -276,6 +276,22 @@ windowFiltersUnmuted: SideBarButton(windowFiltersButton) {
 	icon: icon {{ "filters_unmuted", sideBarIconFg }};
 	iconActive: icon {{ "filters_unmuted_active", sideBarIconFgActive }};
 }
+windowFiltersBots: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_bots", sideBarIconFg }};
+	iconActive: icon {{ "filters_bots_active", sideBarIconFgActive }};
+}
+windowFiltersChannels: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_channels", sideBarIconFg }};
+	iconActive: icon {{ "filters_channels_active", sideBarIconFgActive }};
+}
+windowFiltersGroups: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_groups", sideBarIconFg }};
+	iconActive: icon {{ "filters_groups_active", sideBarIconFgActive }};
+}
+windowFiltersPrivate: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "filters_private", sideBarIconFg }};
+	iconActive: icon {{ "filters_private_active", sideBarIconFgActive }};
+}
 windowFiltersCustom: SideBarButton(windowFiltersButton) {
 	icon: icon {{ "filters_custom", sideBarIconFg }};
 	iconActive: icon {{ "filters_custom_active", sideBarIconFgActive }};

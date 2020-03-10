@@ -24,6 +24,10 @@ namespace {
 enum class Type {
 	Unread,
 	Unmuted,
+	People,
+	Groups,
+	Channels,
+	Bots,
 	Custom,
 };
 
@@ -35,12 +39,26 @@ enum class Type {
 		| Flag::Groups
 		| Flag::Broadcasts
 		| Flag::Bots;
+	const auto removed = Flag::NoRead | Flag::NoMuted;
+	const auto people = Flag::Contacts | Flag::NonContacts;
 	const auto allNoArchive = all | Flag::NoArchive;
-	if (!filter.always().empty() || !filter.never().empty()) {
+	if (!filter.always().empty()
+		|| !filter.never().empty()
+		|| !(filter.flags() & all)) {
 		return Type::Custom;
-	} else if (filter.flags() == (all | Flag::NoRead)) {
+	} else if ((filter.flags() & all) == Flag::Contacts
+		|| (filter.flags() & all) == Flag::NonContacts
+		|| (filter.flags() & all) == people) {
+		return Type::People;
+	} else if ((filter.flags() & all) == Flag::Groups) {
+		return Type::Groups;
+	} else if ((filter.flags() & all) == Flag::Broadcasts) {
+		return Type::Channels;
+	} else if ((filter.flags() & all) == Flag::Bots) {
+		return Type::Bots;
+	} else if ((filter.flags() & removed) == Flag::NoRead) {
 		return Type::Unread;
-	} else if (filter.flags() == (all | Flag::NoMuted)) {
+	} else if ((filter.flags() & removed) == Flag::NoMuted) {
 		return Type::Unmuted;
 	}
 	return Type::Custom;
@@ -50,6 +68,10 @@ enum class Type {
 	switch (type) {
 	case Type::Unread: return st::windowFiltersUnread;
 	case Type::Unmuted: return st::windowFiltersUnmuted;
+	case Type::People: return st::windowFiltersPrivate;
+	case Type::Groups: return st::windowFiltersGroups;
+	case Type::Channels: return st::windowFiltersChannels;
+	case Type::Bots: return st::windowFiltersBots;
 	case Type::Custom: return st::windowFiltersCustom;
 	}
 	Unexpected("Filter type in FiltersMenu::refresh.");
