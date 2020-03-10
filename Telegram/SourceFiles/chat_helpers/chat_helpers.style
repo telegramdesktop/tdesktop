@@ -95,6 +95,10 @@ stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
 
+filtersRemove: IconButton(stickersRemove) {
+	ripple: defaultRippleAnimation;
+}
+
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
 emojiTabs: SettingsSlider(defaultTabsSlider) {

@@ -9,9 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
+#include "boxes/manage_filters_box.h"
+#include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -31,9 +34,9 @@ enum class Type {
 		| Flag::NonContacts
 		| Flag::Groups
 		| Flag::Broadcasts
-		| Flag::Bots
-		| Flag::NoArchive;
-	if (!filter.always().empty()) {
+		| Flag::Bots;
+	const auto allNoArchive = all | Flag::NoArchive;
+	if (!filter.always().empty() || !filter.never().empty()) {
 		return Type::Custom;
 	} else if (filter.flags() == (all | Flag::NoRead)) {
 		return Type::Unread;
@@ -132,6 +135,11 @@ void FiltersMenu::setup() {
 
 void FiltersMenu::refresh() {
 	const auto filters = &_session->session().data().chatsFilters();
+	if (filters->list().empty()) {
+		return;
+	}
+	const auto manage = _outer.lifetime().make_state<ManageFiltersPrepare>(
+		_session);
 	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
 	const auto prepare = [&](
 			FilterId id,
@@ -149,12 +157,12 @@ void FiltersMenu::refresh() {
 			if (id >= 0) {
 				_session->setActiveChatsFilter(id);
 			} else {
-				// #TODO filters
+				manage->showBox();
 			}
 		});
 		now.emplace(id, std::move(button));
 	};
-	prepare(0, "All chats", st::windowFiltersAll, QString());
+	prepare(0, tr::lng_filters_all(tr::now), st::windowFiltersAll, {});
 	for (const auto filter : filters->list()) {
 		prepare(
 			filter.id(),
@@ -162,7 +170,7 @@ void FiltersMenu::refresh() {
 			ComputeStyle(ComputeType(filter)),
 			QString());
 	}
-	prepare(-1, "Setup", st::windowFiltersSetup, QString());
+	prepare(-1, tr::lng_filters_setup(tr::now), st::windowFiltersSetup, {});
 	_filters = std::move(now);
 }
 

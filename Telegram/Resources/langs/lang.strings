@@ -2228,6 +2228,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_outdated_soon" = "Otherwise, Telegram Desktop will stop updating on {date}.";
 "lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";
 
+"lng_filters_all" = "All chats";
+"lng_filters_setup" = "Setup";
+"lng_filters_title" = "Folders";
+"lng_filters_subtitle" = "My folders";
+"lng_filters_no_chats" = "No chats";
+"lng_filters_chats_count#one" = "{count} chat";
+"lng_filters_chats_count#other" = "{count} chats";
+"lng_filters_create" = "Add a custom folder";
+"lng_filters_about" = "Create folders for different groups of chats and quickly switch between them.";
+"lng_filters_recommended" = "Recommended";
+"lng_filters_recommended_add" = "Add";
+"lng_filters_restore" = "Undo";
+"lng_filters_new" = "New folder";
+"lng_filters_new_name" = "Folder name";
+"lng_filters_add_chats" = "Add chats";
+"lng_filters_include" = "Include";
+"lng_filters_include_about" = "Choose chats and types of chats that will appear in this folder.";
+"lng_filters_exclude" = "Exclude";
+"lng_filters_exclude_about" = "Choose chats and types of chats that will never appear in this folder.";
+"lng_filters_add_title" = "Add Chats";
+"lng_filters_edit_types" = "Chat types";
+"lng_filters_edit_chats" = "Chats";
+"lng_filters_include_contacts" = "Contacts";
+"lng_filters_include_non_contacts" = "Non-Contacts";
+"lng_filters_include_groups" = "Groups";
+"lng_filters_include_channels" = "Channels";
+"lng_filters_include_bots" = "Bots";
+"lng_filters_exclude_muted" = "Muted";
+"lng_filters_exclude_read" = "Read";
+"lng_filters_exclude_archived" = "Archived";
+"lng_filters_add" = "Done";
+"lng_filters_limit" = "Sorry, you have reached folders limit.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

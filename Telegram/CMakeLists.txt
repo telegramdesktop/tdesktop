@@ -204,6 +204,8 @@ PRIVATE
     boxes/language_box.h
     boxes/local_storage_box.cpp
     boxes/local_storage_box.h
+    boxes/manage_filters_box.cpp
+    boxes/manage_filters_box.h
     boxes/mute_settings_box.cpp
     boxes/mute_settings_box.h
     boxes/peer_list_box.cpp
