@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
+#include <QtDBus/QDBusServiceWatcher>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
@@ -50,6 +51,8 @@ int32 TrayIconCount = 0;
 base::flat_map<int, QImage> TrayIconImageBack;
 QIcon TrayIcon;
 QString TrayIconThemeName, TrayIconName;
+
+bool SNIAvailable = false;
 
 QString GetPanelIconName(int counter, bool muted) {
 	return (counter > 0)
@@ -258,33 +261,29 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 bool IsSNIAvailable() {
-	static const auto SNIAvailable = [&] {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		auto message = QDBusMessage::createMethodCall(
-			kSNIWatcherService.utf16(),
-			qsl("/StatusNotifierWatcher"),
-			kPropertiesInterface.utf16(),
-			qsl("Get"));
+	auto message = QDBusMessage::createMethodCall(
+		kSNIWatcherService.utf16(),
+		qsl("/StatusNotifierWatcher"),
+		kPropertiesInterface.utf16(),
+		qsl("Get"));
 
-		message.setArguments({
-			kSNIWatcherService.utf16(),
-			qsl("IsStatusNotifierHostRegistered")
-		});
+	message.setArguments({
+		kSNIWatcherService.utf16(),
+		qsl("IsStatusNotifierHostRegistered")
+	});
 
-		const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
-			message);
+	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
+		message);
 
-		if (reply.isValid()) {
-			return reply.value().toBool();
-		} else if (reply.error().type() != QDBusError::ServiceUnknown) {
-			LOG(("SNI Error: %1").arg(reply.error().message()));
-		}
+	if (reply.isValid()) {
+		return reply.value().toBool();
+	} else if (reply.error().type() != QDBusError::ServiceUnknown) {
+		LOG(("SNI Error: %1").arg(reply.error().message()));
+	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-		return false;
-	}();
-
-	return SNIAvailable;
+	return false;
 }
 
 bool UseUnityCounter() {
@@ -315,11 +314,27 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initHook() {
-	const auto trayAvailable = IsSNIAvailable()
+	SNIAvailable = IsSNIAvailable();
+
+	const auto trayAvailable = SNIAvailable
 		|| QSystemTrayIcon::isSystemTrayAvailable();
 
 	LOG(("System tray available: %1").arg(Logs::b(trayAvailable)));
 	cSetSupportTray(trayAvailable);
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+    auto sniWatcher = new QDBusServiceWatcher(
+		kSNIWatcherService.utf16(),
+		QDBusConnection::sessionBus(),
+		QDBusServiceWatcher::WatchForOwnerChange,
+		this);
+
+    connect(
+		sniWatcher,
+		&QDBusServiceWatcher::serviceOwnerChanged,
+		this,
+		&MainWindow::onSNIOwnerChanged);
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	if (UseUnityCounter()) {
 		LOG(("Using Unity launcher counter."));
@@ -337,17 +352,13 @@ bool MainWindow::hasTrayIcon() const {
 }
 
 void MainWindow::psShowTrayMenu() {
-	if (!IsSNIAvailable()) {
-		_trayIconMenuXEmbed->popup(QCursor::pos());
-	}
+	_trayIconMenuXEmbed->popup(QCursor::pos());
 }
 
 void MainWindow::psTrayMenuUpdated() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	if (IsSNIAvailable()) {
-		if (_sniTrayIcon && trayIconMenu) {
-			_sniTrayIcon->setContextMenu(trayIconMenu);
-		}
+	if (_sniTrayIcon && trayIconMenu) {
+		_sniTrayIcon->setContextMenu(trayIconMenu);
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
@@ -408,13 +419,51 @@ void MainWindow::attachToSNITrayIcon() {
 	});
 	updateTrayMenu();
 }
+
+void MainWindow::onSNIOwnerChanged(
+		const QString &service,
+		const QString &oldOwner,
+		const QString &newOwner) {
+	if (oldOwner.isEmpty() && !newOwner.isEmpty()) {
+		LOG(("Switching to SNI tray icon..."));
+	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
+		LOG(("Switching to Qt tray icon..."));
+	} else {
+		return;
+	}
+
+	if (_sniTrayIcon) {
+		_sniTrayIcon->setContextMenu(0);
+		_sniTrayIcon->deleteLater();
+	}
+	_sniTrayIcon = nullptr;
+
+	if (trayIcon) {
+		trayIcon->setContextMenu(0);
+		trayIcon->deleteLater();
+	}
+	trayIcon = nullptr;
+
+	SNIAvailable = IsSNIAvailable();
+
+	const auto trayAvailable = SNIAvailable
+		|| QSystemTrayIcon::isSystemTrayAvailable();
+
+	cSetSupportTray(trayAvailable);
+
+	if(cSupportTray()) {
+		psSetupTrayIcon();
+	} else {
+		LOG(("System tray is not available."));
+	}
+}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 void MainWindow::psSetupTrayIcon() {
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
 
-	if (IsSNIAvailable()) {
+	if (SNIAvailable) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		LOG(("Using SNI tray icon."));
 		if (!_sniTrayIcon) {
@@ -447,21 +496,19 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	if (!cSupportTray()) return;
 
 	if (mode == dbiwmWindowOnly) {
-		if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-			if (_sniTrayIcon) {
-				_sniTrayIcon->setContextMenu(0);
-				_sniTrayIcon->deleteLater();
-			}
-			_sniTrayIcon = 0;
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-		} else {
-			if (trayIcon) {
-				trayIcon->setContextMenu(0);
-				trayIcon->deleteLater();
-			}
-			trayIcon = 0;
+		if (_sniTrayIcon) {
+			_sniTrayIcon->setContextMenu(0);
+			_sniTrayIcon->deleteLater();
 		}
+		_sniTrayIcon = nullptr;
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+		if (trayIcon) {
+			trayIcon->setContextMenu(0);
+			trayIcon->deleteLater();
+		}
+		trayIcon = nullptr;
 	} else {
 		psSetupTrayIcon();
 	}
@@ -504,13 +551,13 @@ void MainWindow::updateIconCounters() {
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	if (IsSNIAvailable()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		if (_sniTrayIcon) {
-			setSNITrayIcon(counter, muted);
-		}
+	if (_sniTrayIcon) {
+		setSNITrayIcon(counter, muted);
+	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-	} else if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
+
+	if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
 		trayIcon->setIcon(TrayIconGen(counter, muted));
 	}
 }
@@ -524,10 +571,8 @@ void MainWindow::LibsLoaded() {
 }
 
 void MainWindow::initTrayMenuHook() {
-	if (!IsSNIAvailable()) {
-		_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
-		_trayIconMenuXEmbed->deleteOnHide(false);
-	}
+	_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
+	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
 MainWindow::~MainWindow() {
