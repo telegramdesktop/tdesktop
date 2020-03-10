@@ -31,7 +31,9 @@ constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
-std::vector<QString> GetServerInformation() {
+bool InhibitedNotSupported = false;
+
+std::vector<QString> ComputeServerInformation() {
 	std::vector<QString> serverInformation;
 
 	const auto message = QDBusMessage::createMethodCall(
@@ -58,7 +60,12 @@ std::vector<QString> GetServerInformation() {
 	return serverInformation;
 }
 
-QStringList GetCapabilities() {
+std::vector<QString> GetServerInformation() {
+	static const auto ServerInformation = ComputeServerInformation();
+	return ServerInformation;
+}
+
+QStringList ComputeCapabilities() {
 	const auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
 		kObjectPath.utf16(),
@@ -77,6 +84,11 @@ QStringList GetCapabilities() {
 	return {};
 }
 
+QStringList GetCapabilities() {
+	static const auto Capabilities = ComputeCapabilities();
+	return Capabilities;
+}
+
 bool Inhibited() {
 	auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
@@ -92,9 +104,20 @@ bool Inhibited() {
 	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 		message);
 
+	constexpr auto notSupportedErrors = {
+		QDBusError::ServiceUnknown,
+		QDBusError::InvalidArgs,
+	};
+
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (reply.error().type() != QDBusError::InvalidArgs) {
+	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
+		InhibitedNotSupported = true;
+	} else {
+		if (reply.error().type() == QDBusError::AccessDenied) {
+			InhibitedNotSupported = true;
+		}
+
 		LOG(("Native notification error: %1").arg(reply.error().message()));
 	}
 
@@ -380,7 +403,9 @@ const QDBusArgument &operator>>(
 
 bool SkipAudio() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	if (Supported()) {
+	if (Supported()
+		&& GetCapabilities().contains(qsl("inhibitions"))
+		&& !InhibitedNotSupported) {
 		return Inhibited();
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -390,7 +415,9 @@ bool SkipAudio() {
 
 bool SkipToast() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	if (Supported()) {
+	if (Supported()
+		&& GetCapabilities().contains(qsl("inhibitions"))
+		&& !InhibitedNotSupported) {
 		return Inhibited();
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -427,14 +454,22 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 	const auto capabilities = GetCapabilities();
 
 	if (!serverInformation.empty()) {
-		LOG(("Notification daemon product name: %1").arg(serverInformation[0]));
-		LOG(("Notification daemon vendor name: %1").arg(serverInformation[1]));
-		LOG(("Notification daemon version: %1").arg(serverInformation[2]));
-		LOG(("Notification daemon specification version: %1").arg(serverInformation[3]));
+		LOG(("Notification daemon product name: %1")
+			.arg(serverInformation[0]));
+
+		LOG(("Notification daemon vendor name: %1")
+			.arg(serverInformation[1]));
+
+		LOG(("Notification daemon version: %1")
+			.arg(serverInformation[2]));
+
+		LOG(("Notification daemon specification version: %1")
+			.arg(serverInformation[3]));
 	}
 
 	if (!capabilities.isEmpty()) {
-		LOG(("Notification daemon capabilities: %1").arg(capabilities.join(", ")));
+		LOG(("Notification daemon capabilities: %1")
+			.arg(capabilities.join(", ")));
 	}
 }
 

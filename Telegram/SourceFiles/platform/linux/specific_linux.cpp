@@ -359,6 +359,12 @@ std::optional<crl::time> LastUserInputTime() {
 	// TODO: a fallback pure-X11 implementation, this one covers only major DEs on X11 and Wayland
 	// an example: https://stackoverflow.com/q/9049087
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	static auto NotSupported = false;
+
+	if (NotSupported) {
+		return std::nullopt;
+	}
+
 	static const auto message = QDBusMessage::createMethodCall(
 		qsl("org.freedesktop.ScreenSaver"),
 		qsl("/org/freedesktop/ScreenSaver"),
@@ -368,10 +374,20 @@ std::optional<crl::time> LastUserInputTime() {
 	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
 		message);
 
+	constexpr auto notSupportedErrors = {
+		QDBusError::ServiceUnknown,
+		QDBusError::NotSupported,
+	};
+
 	if (reply.isValid()) {
 		return (crl::now() - static_cast<crl::time>(reply.value()));
-	} else if (reply.error().type() != QDBusError::ServiceUnknown
-		&& reply.error().type() != QDBusError::NotSupported) {
+	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
+		NotSupported = true;
+	} else {
+		if (reply.error().type() == QDBusError::AccessDenied) {
+			NotSupported = true;
+		}
+
 		LOG(("Unable to get last user input time: %1: %2")
 			.arg(reply.error().name())
 			.arg(reply.error().message()));
