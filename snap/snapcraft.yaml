@@ -127,6 +127,11 @@ parts:
       - range-v3
       - xxhash
 
+  patches:
+    plugin: dump
+    source: Telegram/Patches
+    prime: [-./*]
+
   desktop-qt5:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
     source-subdir: qt
@@ -229,6 +234,7 @@ parts:
       - --disable-programs
       - --disable-doc
       - --disable-everything
+      - --disable-neon
       - --enable-gpl
       - --enable-version3
       - --enable-libopus
@@ -284,6 +290,11 @@ parts:
       - --enable-demuxer=wav
       - --enable-muxer=ogg
       - --enable-muxer=opus
+    override-pull: |
+      snapcraftctl pull
+      patch -p1 < "$SNAPCRAFT_STAGE/ffmpeg.diff"
+    after:
+      - patches
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
