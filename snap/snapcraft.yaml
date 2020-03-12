@@ -6,6 +6,13 @@ base: core18
 grade: stable
 confinement: strict
 
+architectures:
+  - build-on: amd64
+  - build-on: i386
+  - build-on: arm64
+  - build-on: armhf
+  - build-on: ppc64el
+
 apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
