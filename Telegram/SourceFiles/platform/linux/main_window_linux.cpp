@@ -37,6 +37,7 @@ namespace Platform {
 namespace {
 
 constexpr auto kDisableTrayCounter = "TDESKTOP_DISABLE_TRAY_COUNTER"_cs;
+constexpr auto kForcePanelIcon = "TDESKTOP_FORCE_PANEL_ICON"_cs;
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
@@ -356,7 +357,8 @@ void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
 	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& !iconName.isEmpty()) {
+		&& (!iconName.isEmpty()
+			|| qEnvironmentVariableIsSet(kForcePanelIcon.utf8()))) {
 		if (_sniTrayIcon->iconName() == iconName) {
 			return;
 		}
