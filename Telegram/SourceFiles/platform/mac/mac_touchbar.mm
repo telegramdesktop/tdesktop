@@ -481,6 +481,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PinnedDialogButton {
 	rpl::lifetime _lifetime;
 	rpl::lifetime _peerChangedLifetime;
+	base::has_weak_ptr _guard;
+
 	bool isWaitingUserpicLoad;
 }
 
@@ -518,7 +520,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
 		return update.paletteChanged();
 	}) | rpl::start_with_next([=] {
-		crl::on_main([=] {
+		crl::on_main(&_guard, [=] {
 			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer)) {
 				[self updateUserpic];
 			} else if (_peer
