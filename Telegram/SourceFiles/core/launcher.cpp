@@ -247,6 +247,7 @@ void Launcher::init() {
 	prepareSettings();
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
+	QApplication::setApplicationDisplayName(AppName.utf16());
 
 #if defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 	QApplication::setDesktopFileName(Platform::GetLauncherFilename());
