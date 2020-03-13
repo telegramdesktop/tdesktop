@@ -75,7 +75,6 @@ parts:
       - liblz4-dev
       - liblzma-dev
       - libminizip-dev
-      - libopenal-dev
       - libopus-dev
       - libpulse-dev
       - libssl-dev
@@ -88,7 +87,6 @@ parts:
       - liblz4-1
       - liblzma5
       - libminizip1
-      - libopenal1
       - libopus0
       - libpulse0
       - libssl1.1
@@ -124,6 +122,7 @@ parts:
       - cmake
       - desktop-qt5
       - ffmpeg
+      - openal
       - range-v3
       - xxhash
 
@@ -295,6 +294,28 @@ parts:
       patch -p1 < "$SNAPCRAFT_STAGE/ffmpeg.diff"
     after:
       - patches
+
+  openal:
+    source: https://github.com/kcat/openal-soft.git
+    source-depth: 1
+    source-tag: openal-soft-1.20.1
+    plugin: cmake
+    build-packages:
+      - libasound2-dev
+      - libpulse-dev
+      - libsndio-dev
+      - portaudio19-dev
+    stage-packages:
+      - libasound2
+      - libpulse0
+      - libportaudio2
+      - libsndio6.1
+    configflags:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DALSOFT_EXAMPLES=OFF
+      - -DALSOFT_TESTS=OFF
+      - -DALSOFT_UTILS=OFF
+      - -DALSOFT_CONFIG=OFF
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
