@@ -73,6 +73,7 @@ public:
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
+		LastParticipantsOnceReceived   = 0x01,
 		LastParticipantsCountOutdated  = 0x02,
 	};
 	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
@@ -219,20 +220,7 @@ public:
 	void markForbidden();
 
 	[[nodiscard]] bool isGroupAdmin(not_null<UserData*> user) const;
-
-	[[nodiscard]] bool lastParticipantsCountOutdated() const {
-		if (!mgInfo
-			|| !(mgInfo->lastParticipantsStatus
-				& MegagroupInfo::LastParticipantsCountOutdated)) {
-			return false;
-		}
-		if (mgInfo->lastParticipantsCount == membersCount()) {
-			mgInfo->lastParticipantsStatus
-				&= ~MegagroupInfo::LastParticipantsCountOutdated;
-			return false;
-		}
-		return true;
-	}
+	[[nodiscard]] bool lastParticipantsRequestNeeded() const;
 	[[nodiscard]] bool isMegagroup() const {
 		return flags() & MTPDchannel::Flag::f_megagroup;
 	}

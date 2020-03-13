@@ -848,7 +848,7 @@ void TopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
 		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
-			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
+			if (channel->lastParticipantsRequestNeeded()) {
 				session().api().requestLastParticipants(channel);
 			}
 			const auto self = session().user();

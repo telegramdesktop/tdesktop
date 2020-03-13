@@ -192,7 +192,7 @@ void GroupMembersWidget::refreshMembers() {
 		fillChatMembers(chat);
 	} else if (const auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
-		if (megagroupInfo->lastParticipants.empty() || megagroup->lastParticipantsCountOutdated()) {
+		if (megagroup->lastParticipantsRequestNeeded()) {
 			Auth().api().requestLastParticipants(megagroup);
 		}
 		fillMegagroupMembers(megagroup);
