@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
+#include "ui/toast/toast.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
@@ -78,6 +79,10 @@ void Controller::setupMain() {
 
 void Controller::showSettings() {
 	_widget.showSettings();
+}
+
+void Controller::showToast(const QString &text) {
+	Ui::Toast::Show(_widget.bodyWidget(), text);
 }
 
 void Controller::showBox(

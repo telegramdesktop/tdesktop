@@ -37,11 +37,11 @@ enum class Type {
 	const auto all = Flag::Contacts
 		| Flag::NonContacts
 		| Flag::Groups
-		| Flag::Broadcasts
+		| Flag::Channels
 		| Flag::Bots;
 	const auto removed = Flag::NoRead | Flag::NoMuted;
 	const auto people = Flag::Contacts | Flag::NonContacts;
-	const auto allNoArchive = all | Flag::NoArchive;
+	const auto allNoArchive = all | Flag::NoArchived;
 	if (!filter.always().empty()
 		|| !filter.never().empty()
 		|| !(filter.flags() & all)) {
@@ -52,7 +52,7 @@ enum class Type {
 		return Type::People;
 	} else if ((filter.flags() & all) == Flag::Groups) {
 		return Type::Groups;
-	} else if ((filter.flags() & all) == Flag::Broadcasts) {
+	} else if ((filter.flags() & all) == Flag::Channels) {
 		return Type::Channels;
 	} else if ((filter.flags() & all) == Flag::Bots) {
 		return Type::Bots;

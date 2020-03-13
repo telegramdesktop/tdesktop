@@ -40,11 +40,11 @@ ChatFilter ChatFilter::FromTL(
 		const auto flags = (data.is_contacts() ? Flag::Contacts : Flag(0))
 			| (data.is_non_contacts() ? Flag::NonContacts : Flag(0))
 			| (data.is_groups() ? Flag::Groups : Flag(0))
-			| (data.is_broadcasts() ? Flag::Broadcasts : Flag(0))
+			| (data.is_broadcasts() ? Flag::Channels : Flag(0))
 			| (data.is_bots() ? Flag::Bots : Flag(0))
 			| (data.is_exclude_muted() ? Flag::NoMuted : Flag(0))
 			| (data.is_exclude_read() ? Flag::NoRead : Flag(0))
-			| (data.is_exclude_archived() ? Flag::NoArchive : Flag(0));
+			| (data.is_exclude_archived() ? Flag::NoArchived : Flag(0));
 		auto &&to_histories = ranges::view::transform([&](
 				const MTPInputPeer &data) {
 			const auto peer = data.match([&](const MTPDinputPeerUser &data) {
@@ -87,11 +87,11 @@ MTPDialogFilter ChatFilter::tl() const {
 		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
 		| ((_flags & Flag::NonContacts) ? TLFlag::f_non_contacts : TLFlag(0))
 		| ((_flags & Flag::Groups) ? TLFlag::f_groups : TLFlag(0))
-		| ((_flags & Flag::Broadcasts) ? TLFlag::f_broadcasts : TLFlag(0))
+		| ((_flags & Flag::Channels) ? TLFlag::f_broadcasts : TLFlag(0))
 		| ((_flags & Flag::Bots) ? TLFlag::f_bots : TLFlag(0))
 		| ((_flags & Flag::NoMuted) ? TLFlag::f_exclude_muted : TLFlag(0))
 		| ((_flags & Flag::NoRead) ? TLFlag::f_exclude_read : TLFlag(0))
-		| ((_flags & Flag::NoArchive)
+		| ((_flags & Flag::NoArchived)
 			? TLFlag::f_exclude_archived
 			: TLFlag(0));
 	auto always = QVector<MTPInputPeer>();
@@ -147,7 +147,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 			return Flag::Groups;
 		} else if (const auto channel = peer->asChannel()) {
 			if (channel->isBroadcast()) {
-				return Flag::Broadcasts;
+				return Flag::Channels;
 			} else {
 				return Flag::Groups;
 			}
@@ -162,7 +162,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 		|| ((_flags & flag)
 			&& (!(_flags & Flag::NoMuted) || !history->mute())
 			&& (!(_flags & Flag::NoRead) || history->unreadCountForBadge())
-			&& (!(_flags & Flag::NoArchive)
+			&& (!(_flags & Flag::NoArchived)
 				|| (history->folderKnown() && !history->folder())))
 		|| _always.contains(history);
 }
@@ -172,9 +172,9 @@ ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
 	//const auto all = Flag::Contacts
 	//	| Flag::NonContacts
 	//	| Flag::Groups
-	//	| Flag::Broadcasts
+	//	| Flag::Channels
 	//	| Flag::Bots
-	//	| Flag::NoArchive;
+	//	| Flag::NoArchived;
 	//_list.push_back(
 	//	ChatFilter(1, "Unmuted", all | Flag::NoMuted, {}, {}));
 	//_list.push_back(

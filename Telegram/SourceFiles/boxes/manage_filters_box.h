@@ -34,10 +34,15 @@ private:
 	};
 
 	void showBoxWithSuggested();
-	static void CreateBox(
+	static void SetupBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> window,
 		const std::vector<Suggested> &suggested);
+	static void EditBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> window,
+		const Data::ChatFilter &filter,
+		Fn<void(const Data::ChatFilter &)> doneCallback);
 
 	const not_null<Window::SessionController*> _window;
 	const not_null<ApiWrap*> _api;

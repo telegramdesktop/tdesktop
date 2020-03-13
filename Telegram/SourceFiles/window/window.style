@@ -299,6 +299,23 @@ windowFiltersCustom: SideBarButton(windowFiltersButton) {
 windowFiltersSetup: SideBarButton(windowFiltersButton) {
 	icon: icon {{ "filters_setup", sideBarIconFg }};
 }
+windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
+	height: 44px;
+	photoPosition: point(15px, 5px);
+	namePosition: point(62px, 14px);
+	photoSize: 34px;
+}
+windowFilterSmallRemove: IconButton(notifyClose) {
+}
+windowFilterSmallRemoveRight: 10px;
+windowFilterTypeContacts: icon {{ "filters_type_contacts", historyPeerUserpicFg }};
+windowFilterTypeNonContacts: icon {{ "filters_type_noncontacts", historyPeerUserpicFg }};
+windowFilterTypeGroups: icon {{ "filters_type_groups", historyPeerUserpicFg }};
+windowFilterTypeChannels: icon {{ "filters_type_channels", historyPeerUserpicFg }};
+windowFilterTypeBots: icon {{ "filters_type_bots", historyPeerUserpicFg }};
+windowFilterTypeNoMuted: icon {{ "filters_type_muted", historyPeerUserpicFg }};
+windowFilterTypeNoArchived: icon {{ "filters_type_archived", historyPeerUserpicFg }};
+windowFilterTypeNoRead: icon {{ "filters_type_read", historyPeerUserpicFg }};
 
 // Mac specific
 

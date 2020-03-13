@@ -1173,14 +1173,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetDialogsFiltersEnabled(enabled == 1);
-		auto mode = FilterId(0);
-		if (enabled) {
-			mode = FilterId(modeInt);
-			if (mode == 1) { // #TODO filters
-
-			}
-		}
-		Global::SetDialogsFilterId(mode);
 	} break;
 
 	case dbiModerateMode: {

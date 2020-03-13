@@ -2240,14 +2240,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_recommended" = "Recommended";
 "lng_filters_recommended_add" = "Add";
 "lng_filters_restore" = "Undo";
-"lng_filters_new" = "New folder";
+"lng_filters_new" = "New Folder";
+"lng_filters_edit" = "Edit Folder";
 "lng_filters_new_name" = "Folder name";
 "lng_filters_add_chats" = "Add chats";
-"lng_filters_include" = "Include";
+"lng_filters_include" = "Included Chats";
 "lng_filters_include_about" = "Choose chats and types of chats that will appear in this folder.";
-"lng_filters_exclude" = "Exclude";
+"lng_filters_exclude" = "Excluded Chats";
 "lng_filters_exclude_about" = "Choose chats and types of chats that will never appear in this folder.";
+"lng_filters_create_button" = "Create";
 "lng_filters_add_title" = "Add Chats";
+"lng_filters_include_title" = "Include Chats";
+"lng_filters_exclude_title" = "Exclude Chats";
 "lng_filters_edit_types" = "Chat types";
 "lng_filters_edit_chats" = "Chats";
 "lng_filters_include_contacts" = "Contacts";
@@ -2260,6 +2264,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_exclude_archived" = "Archived";
 "lng_filters_add" = "Done";
 "lng_filters_limit" = "Sorry, you have reached folders limit.";
+"lng_filters_empty" = "Please choose at least one chat for this folder.";
+"lng_filters_default" = "Please change at least one rule for this folder.";
+"lng_filters_type_contacts" = "Contacts";
+"lng_filters_type_non_contacts" = "Non-Contacts";
+"lng_filters_type_groups" = "Groups";
+"lng_filters_type_channels" = "Channels";
+"lng_filters_type_bots" = "Bots";
+"lng_filters_type_no_archived" = "No Archived";
+"lng_filters_type_no_muted" = "No Muted";
+"lng_filters_type_no_read" = "No Read";
 
 // Wnd specific
 

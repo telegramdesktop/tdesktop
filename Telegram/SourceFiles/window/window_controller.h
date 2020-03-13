@@ -52,6 +52,7 @@ public:
 		showBox(std::move(content), options, animated);
 		return result;
 	}
+	void showToast(const QString &text);
 
 	void showRightColumn(object_ptr<TWidget> widget);
 	void sideBarChanged();

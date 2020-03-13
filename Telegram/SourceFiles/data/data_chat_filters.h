@@ -25,11 +25,11 @@ public:
 		Contacts    = 0x01,
 		NonContacts = 0x02,
 		Groups      = 0x04,
-		Broadcasts  = 0x08,
+		Channels    = 0x08,
 		Bots        = 0x10,
 		NoMuted     = 0x20,
 		NoRead      = 0x40,
-		NoArchive   = 0x80,
+		NoArchived  = 0x80,
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -63,6 +63,17 @@ private:
 	Flags _flags;
 
 };
+
+inline bool operator==(const ChatFilter &a, const ChatFilter &b) {
+	return (a.title() == b.title())
+		&& (a.flags() == b.flags())
+		&& (a.always() == b.always())
+		&& (a.never() == b.never());
+}
+
+inline bool operator!=(const ChatFilter &a, const ChatFilter &b) {
+	return !(a == b);
+}
 
 class ChatFilters final {
 public:
