@@ -24,6 +24,17 @@ namespace Main {
 class Session;
 } // namespace Main
 
+class Painter;
+
+[[nodiscard]] QString FilterChatsTypeName(Data::ChatFilter::Flag flag);
+void PaintFilterChatsTypeIcon(
+	Painter &p,
+	Data::ChatFilter::Flag flag,
+	int x,
+	int y,
+	int outerWidth,
+	int size);
+
 class EditFilterChatsListController final : public ChatsListBoxController {
 public:
 	using Flag = Data::ChatFilter::Flag;
@@ -36,20 +47,27 @@ public:
 		Flags selected,
 		const base::flat_set<not_null<History*>> &peers);
 
-	Main::Session &session() const override;
+	[[nodiscard]] Main::Session &session() const override;
+	[[nodiscard]] Flags chosenOptions() const {
+		return _selected;
+	}
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
 
-protected:
+private:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
+	[[nodiscard]] object_ptr<Ui::RpWidget> prepareTypesList();
 
-private:
 	void updateTitle();
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	rpl::producer<QString> _title;
 	base::flat_set<not_null<History*>> _peers;
+	Flags _options;
+	Flags _selected;
+
+	rpl::lifetime _lifetime;
 
 };

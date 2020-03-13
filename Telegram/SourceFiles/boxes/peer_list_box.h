@@ -38,22 +38,31 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-auto PaintUserpicCallback(
+using PaintRoundImageCallback = Fn<void(
+	Painter &p,
+	int x,
+	int y,
+	int outerWidth,
+	int size)>;
+
+[[nodiscard]] PaintRoundImageCallback PaintUserpicCallback(
 	not_null<PeerData*> peer,
-	bool respectSavedMessagesChat)
--> Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
+	bool respectSavedMessagesChat);
 
 using PeerListRowId = uint64;
 class PeerListRow {
 public:
-	PeerListRow(not_null<PeerData*> peer);
-	PeerListRow(not_null<PeerData*> peer, PeerListRowId id);
-
 	enum class State {
 		Active,
 		Disabled,
 		DisabledChecked,
 	};
+
+	explicit PeerListRow(not_null<PeerData*> peer);
+	PeerListRow(not_null<PeerData*> peer, PeerListRowId id);
+
+	virtual ~PeerListRow();
+
 	void setDisabledState(State state) {
 		_disabledState = state;
 	}
@@ -62,19 +71,26 @@ public:
 	// not by the row itself, so there is no setChecked() method.
 	// We can query the checked state from row, but before it is
 	// added to the box it is always false.
-	bool checked() const;
+	[[nodiscard]] bool checked() const;
 
-	not_null<PeerData*> peer() const {
+	[[nodiscard]] bool special() const {
+		return !_peer;
+	}
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		Expects(!special());
+
 		return _peer;
 	}
-	PeerListRowId id() const {
+	[[nodiscard]] PeerListRowId id() const {
 		return _id;
 	}
 
+	[[nodiscard]] virtual QString generateName();
+	[[nodiscard]] virtual QString generateShortName();
+	[[nodiscard]] PaintRoundImageCallback generatePaintUserpicCallback();
+
 	void setCustomStatus(const QString &status);
 	void clearCustomStatus();
-
-	virtual ~PeerListRow();
 
 	// Box interface.
 	virtual int nameIconWidth() const;
@@ -138,19 +154,16 @@ public:
 		_isSavedMessagesChat = isSavedMessagesChat;
 	}
 
-	enum class SetStyle {
-		Animated,
-		Fast,
-	};
 	template <typename UpdateCallback>
 	void setChecked(
 			bool checked,
-			SetStyle style,
+		const style::RoundImageCheckbox &st,
+			anim::type animated,
 			UpdateCallback callback) {
 		if (checked && !_checkbox) {
-			createCheckbox(std::move(callback));
+			createCheckbox(st, std::move(callback));
 		}
-		setCheckedInternal(checked, style);
+		setCheckedInternal(checked, animated);
 	}
 	void invalidatePixmapsCache();
 
@@ -192,9 +205,20 @@ protected:
 		return _initialized;
 	}
 
+	explicit PeerListRow(PeerListRowId id);
+
+	virtual void paintEntityUserpicLeft(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size);
+
 private:
-	void createCheckbox(Fn<void()> updateCallback);
-	void setCheckedInternal(bool checked, SetStyle style);
+	void createCheckbox(
+		const style::RoundImageCheckbox &st,
+		Fn<void()> updateCallback);
+	void setCheckedInternal(bool checked, anim::type animated);
 	void paintDisabledCheckUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -204,7 +228,7 @@ private:
 	void setStatusText(const QString &text);
 
 	PeerListRowId _id = 0;
-	not_null<PeerData*> _peer;
+	PeerData *_peer = nullptr;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Ui::Text::String _name;
@@ -245,7 +269,7 @@ public:
 	virtual void peerListUpdateRow(not_null<PeerListRow*> row) = 0;
 	virtual void peerListRemoveRow(not_null<PeerListRow*> row) = 0;
 	virtual void peerListConvertRowToSearchResult(not_null<PeerListRow*> row) = 0;
-	virtual bool peerListIsRowSelected(not_null<PeerData*> peer) = 0;
+	virtual bool peerListIsRowChecked(not_null<PeerListRow*> row) = 0;
 	virtual void peerListSetRowChecked(not_null<PeerListRow*> row, bool checked) = 0;
 	virtual not_null<PeerListRow*> peerListRowAt(int index) = 0;
 	virtual void peerListRefreshRows() = 0;
@@ -256,9 +280,17 @@ public:
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 
 	template <typename PeerDataRange>
-	void peerListAddSelectedRows(PeerDataRange &&range) {
-		for (auto peer : range) {
-			peerListAddSelectedRowInBunch(peer);
+	void peerListAddSelectedPeers(PeerDataRange &&range) {
+		for (const auto peer : range) {
+			peerListAddSelectedPeerInBunch(peer);
+		}
+		peerListFinishSelectedRowsBunch();
+	}
+
+	template <typename PeerListRowRange>
+	void peerListAddSelectedRows(PeerListRowRange &&range) {
+		for (const auto row : range) {
+			peerListAddSelectedRowInBunch(row);
 		}
 		peerListFinishSelectedRowsBunch();
 	}
@@ -271,7 +303,8 @@ public:
 	virtual ~PeerListDelegate() = default;
 
 private:
-	virtual void peerListAddSelectedRowInBunch(not_null<PeerData*> peer) = 0;
+	virtual void peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) = 0;
+	virtual void peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) = 0;
 	virtual void peerListFinishSelectedRowsBunch() = 0;
 
 };
@@ -366,8 +399,8 @@ public:
 
 	virtual int contentWidth() const;
 
-	bool isRowSelected(not_null<PeerData*> peer) {
-		return delegate()->peerListIsRowSelected(peer);
+	bool isRowSelected(not_null<PeerListRow*> row) {
+		return delegate()->peerListIsRowChecked(row);
 	}
 
 	virtual bool searchInLocal() {
@@ -470,7 +503,10 @@ public:
 	void refreshRows();
 
 	void setSearchMode(PeerListSearchMode mode);
-	void changeCheckState(not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style);
+	void changeCheckState(
+		not_null<PeerListRow*> row,
+		bool checked,
+		anim::type animated);
 
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback) {
@@ -677,10 +713,7 @@ public:
 	void peerListSetRowChecked(
 			not_null<PeerListRow*> row,
 			bool checked) override {
-		_content->changeCheckState(
-			row,
-			checked,
-			PeerListRow::SetStyle::Animated);
+		_content->changeCheckState(row, checked, anim::type::normal);
 	}
 	int peerListFullRowsCount() override {
 		return _content->fullRowsCount();
@@ -770,7 +803,7 @@ public:
 	void peerListSetRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) override;
-	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
+	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
 	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
 	void peerListScrollToTop() override;
@@ -784,15 +817,26 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void peerListAddSelectedRowInBunch(
+	void peerListAddSelectedPeerInBunch(
 			not_null<PeerData*> peer) override {
-		addSelectItem(peer, PeerListRow::SetStyle::Fast);
+		addSelectItem(peer, anim::type::instant);
+	}
+	void peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) override {
+		addSelectItem(row, anim::type::instant);
 	}
 	void peerListFinishSelectedRowsBunch() override;
 
 	void addSelectItem(
 		not_null<PeerData*> peer,
-		PeerListRow::SetStyle style);
+		anim::type animated);
+	void addSelectItem(
+		not_null<PeerListRow*> row,
+		anim::type animated);
+	void addSelectItem(
+		uint64 itemId,
+		const QString &text,
+		PaintRoundImageCallback paintUserpic,
+		anim::type animated);
 	void createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();

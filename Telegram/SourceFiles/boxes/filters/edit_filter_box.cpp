@@ -77,13 +77,9 @@ private:
 
 	void paintEvent(QPaintEvent *e) override;
 
-	void setup(
-		Flags flags,
-		const base::flat_set<not_null<History*>> &peers);
 	void refresh();
 	void removeFlag(Flag flag);
 	void removePeer(not_null<History*> history);
-	void paintFlagIcon(QPainter &p, int left, int top, Flag flag) const;
 
 	std::vector<FlagButton> _removeFlag;
 	std::vector<PeerButton> _removePeer;
@@ -187,21 +183,6 @@ int FilterChatsPreview::resizeGetHeight(int newWidth) {
 	return top;
 }
 
-[[nodiscard]] QString TypeName(Flag flag) {
-	switch (flag) {
-	case Flag::Contacts: return tr::lng_filters_type_contacts(tr::now);
-	case Flag::NonContacts:
-		return tr::lng_filters_type_non_contacts(tr::now);
-	case Flag::Groups: return tr::lng_filters_type_groups(tr::now);
-	case Flag::Channels: return tr::lng_filters_type_channels(tr::now);
-	case Flag::Bots: return tr::lng_filters_type_bots(tr::now);
-	case Flag::NoMuted: return tr::lng_filters_type_no_muted(tr::now);
-	case Flag::NoArchived: return tr::lng_filters_type_no_archived(tr::now);
-	case Flag::NoRead: return tr::lng_filters_type_no_read(tr::now);
-	}
-	Unexpected("Flag in TypeName.");
-}
-
 void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	auto top = 0;
@@ -212,10 +193,20 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 	p.setFont(st::windowFilterSmallItem.nameStyle.font);
 	const auto nameTop = st.namePosition.y();
 	for (const auto &[flag, button] : _removeFlag) {
-		paintFlagIcon(p, iconLeft, top + iconTop, flag);
+		PaintFilterChatsTypeIcon(
+			p,
+			flag,
+			iconLeft,
+			top + iconTop,
+			width(),
+			st.photoSize);
 
 		p.setPen(st::contactsNameFg);
-		p.drawTextLeft(nameLeft, top + nameTop, width(), TypeName(flag));
+		p.drawTextLeft(
+			nameLeft,
+			top + nameTop,
+			width(),
+			FilterChatsTypeName(flag));
 		top += st.height;
 	}
 	for (const auto &[history, button] : _removePeer) {
@@ -234,46 +225,6 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 			width());
 		top += st.height;
 	}
-}
-
-void FilterChatsPreview::paintFlagIcon(
-		QPainter &p,
-		int left,
-		int top,
-		Flag flag) const {
-	const auto &color = [&]() -> const style::color& {
-		switch (flag) {
-		case Flag::Contacts: return st::historyPeer4UserpicBg;
-		case Flag::NonContacts: return st::historyPeer7UserpicBg;
-		case Flag::Groups: return st::historyPeer2UserpicBg;
-		case Flag::Channels: return st::historyPeer1UserpicBg;
-		case Flag::Bots: return st::historyPeer6UserpicBg;
-		case Flag::NoMuted: return st::historyPeer6UserpicBg;
-		case Flag::NoArchived: return st::historyPeer4UserpicBg;
-		case Flag::NoRead: return st::historyPeer7UserpicBg;
-		}
-		Unexpected("Flag in color paintFlagIcon.");
-	}();
-	const auto &icon = [&]() -> const style::icon& {
-		switch (flag) {
-		case Flag::Contacts: return st::windowFilterTypeContacts;
-		case Flag::NonContacts: return st::windowFilterTypeNonContacts;
-		case Flag::Groups: return st::windowFilterTypeGroups;
-		case Flag::Channels: return st::windowFilterTypeChannels;
-		case Flag::Bots: return st::windowFilterTypeBots;
-		case Flag::NoMuted: return st::windowFilterTypeNoMuted;
-		case Flag::NoArchived: return st::windowFilterTypeNoArchived;
-		case Flag::NoRead: return st::windowFilterTypeNoRead;
-		}
-		Unexpected("Flag in icon paintFlagIcon.");
-	}();
-	const auto size = st::windowFilterSmallItem.photoSize;
-	const auto rect = QRect(left, top, size, size);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(color->b);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(rect);
-	icon.paintInCenter(p, rect);
 }
 
 void FilterChatsPreview::removeFlag(Flag flag) {
@@ -307,7 +258,16 @@ void EditExceptions(
 		not_null<Data::ChatFilter*> data,
 		Fn<void()> refresh) {
 	const auto include = (options & Flag::Contacts) != Flags(0);
-	const auto initBox = [=](not_null<PeerListBox*> box) {
+	auto controller = std::make_unique<EditFilterChatsListController>(
+		window,
+		(include
+			? tr::lng_filters_include_title()
+			: tr::lng_filters_exclude_title()),
+		options,
+		data->flags() & options,
+		include ? data->always() : data->never());
+	const auto rawController = controller.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_settings_save(), crl::guard(context, [=] {
 			const auto peers = box->peerListCollectSelectedRows();
 			auto &&histories = ranges::view::all(
@@ -326,7 +286,7 @@ void EditExceptions(
 			*data = Data::ChatFilter(
 				data->id(),
 				data->title(),
-				data->flags(),
+				(data->flags() & ~options) | rawController->chosenOptions(),
 				include ? std::move(changed) : std::move(removeFrom),
 				include ? std::move(removeFrom) : std::move(changed));
 			refresh();
@@ -336,14 +296,7 @@ void EditExceptions(
 	};
 	window->window().show(
 		Box<PeerListBox>(
-			std::make_unique<EditFilterChatsListController>(
-				window,
-				(include
-					? tr::lng_filters_include_title()
-					: tr::lng_filters_exclude_title()),
-				options,
-				data->flags() & options,
-				include ? data->always() : data->never()),
+			std::move(controller),
 			std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }

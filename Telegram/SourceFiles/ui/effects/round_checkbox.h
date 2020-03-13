@@ -22,11 +22,9 @@ public:
 	bool checked() const {
 		return _checked;
 	}
-	enum class SetStyle {
-		Animated,
-		Fast,
-	};
-	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
+	void setChecked(
+		bool newChecked,
+		anim::type animated = anim::type::normal);
 
 	void invalidateCache();
 
@@ -55,8 +53,9 @@ public:
 	bool checked() const {
 		return _check.checked();
 	}
-	using SetStyle = RoundCheckbox::SetStyle;
-	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
+	void setChecked(
+		bool newChecked,
+		anim::type animated = anim::type::normal);
 
 	void invalidateCache() {
 		_check.invalidateCache();

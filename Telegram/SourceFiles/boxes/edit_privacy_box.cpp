@@ -69,7 +69,7 @@ Main::Session &PrivacyExceptionsBoxController::session() const {
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
-	delegate()->peerListAddSelectedRows(_selected);
+	delegate()->peerListAddSelectedPeers(_selected);
 }
 
 std::vector<not_null<PeerData*>> PrivacyExceptionsBoxController::getResult() const {

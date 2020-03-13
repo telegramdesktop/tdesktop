@@ -251,7 +251,7 @@ void InnerWidget::peerListSetTitle(rpl::producer<QString> title) {
 void InnerWidget::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
-bool InnerWidget::peerListIsRowSelected(not_null<PeerData*> peer) {
+bool InnerWidget::peerListIsRowChecked(not_null<PeerListRow*> row) {
 	return false;
 }
 
@@ -267,7 +267,11 @@ void InnerWidget::peerListScrollToTop() {
 	_scrollToRequests.fire({ -1, -1 });
 }
 
-void InnerWidget::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
+void InnerWidget::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
+	Unexpected("Item selection in Info::Profile::Members.");
+}
+
+void InnerWidget::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
 	Unexpected("Item selection in Info::Profile::Members.");
 }
 
