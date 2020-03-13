@@ -33,6 +33,11 @@ constexpr auto kAllTypes = {
 	Flag::NoRead
 };
 
+struct RowSelectionChange {
+	not_null<PeerListRow*> row;
+	bool checked = false;
+};
+
 class TypeRow final : public PeerListRow {
 public:
 	explicit TypeRow(Flag flag);
@@ -79,7 +84,9 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	[[nodiscard]] rpl::producer<Flags> selectedOptions() const;
+	[[nodiscard]] rpl::producer<Flags> selectedChanges() const;
+	[[nodiscard]] auto rowSelectionChanges() const
+		-> rpl::producer<RowSelectionChange>;
 
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(Flag flag) const;
@@ -89,6 +96,7 @@ private:
 	Flags _options;
 
 	rpl::event_stream<> _selectionChanged;
+	rpl::event_stream<RowSelectionChange> _rowSelectionChanges;
 
 };
 
@@ -221,20 +229,25 @@ Flags TypeController::collectSelectedOptions() const {
 }
 
 void TypeController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListSetRowChecked(row, !row->checked());
-	_selectionChanged.fire({});
+	const auto checked = !row->checked();
+	delegate()->peerListSetRowChecked(row, checked);
+	_rowSelectionChanges.fire({ row, checked });
 }
 
 std::unique_ptr<PeerListRow> TypeController::createRow(Flag flag) const {
 	return std::make_unique<TypeRow>(flag);
 }
 
-rpl::producer<Flags> TypeController::selectedOptions() const {
-	return _selectionChanged.events_starting_with(
-		{}
+rpl::producer<Flags> TypeController::selectedChanges() const {
+	return _rowSelectionChanges.events(
 	) | rpl::map([=] {
 		return collectSelectedOptions();
 	});
+}
+
+auto TypeController::rowSelectionChanges() const
+-> rpl::producer<RowSelectionChange> {
+	return _rowSelectionChanges.events();
 }
 
 } // namespace
@@ -326,11 +339,24 @@ void EditFilterChatsListController::itemDeselectedHook(
 	updateTitle();
 }
 
+bool EditFilterChatsListController::isForeignRow(PeerListRowId itemId) {
+	return ranges::contains(kAllTypes, itemId, TypeId);
+}
+
+bool EditFilterChatsListController::handleDeselectForeignRow(
+		PeerListRowId itemId) {
+	if (isForeignRow(itemId)) {
+		_deselectOption(itemId);
+		return true;
+	}
+	return false;
+}
+
 void EditFilterChatsListController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
+	delegate()->peerListSetAboveWidget(prepareTypesList());
 	delegate()->peerListAddSelectedPeers(
 		_peers | ranges::view::transform(&History::peer));
-	delegate()->peerListSetAboveWidget(prepareTypesList());
 }
 
 object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
@@ -354,6 +380,7 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 		if (_selected & flag) {
 			if (const auto row = delegate->peerListFindRow(TypeId(flag))) {
 				content->changeCheckState(row, true, anim::type::instant);
+				this->delegate()->peerListSetForeignRowChecked(row, true);
 			}
 		}
 	}
@@ -361,10 +388,23 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 		container,
 		tr::lng_filters_edit_chats()));
 
-	controller->selectedOptions(
+	controller->selectedChanges(
 	) | rpl::start_with_next([=](Flags selected) {
 		_selected = selected;
 	}, _lifetime);
+
+	controller->rowSelectionChanges(
+	) | rpl::start_with_next([=](RowSelectionChange update) {
+		this->delegate()->peerListSetForeignRowChecked(
+			update.row,
+			update.checked);
+	}, _lifetime);
+
+	_deselectOption = [=](PeerListRowId itemId) {
+		if (const auto row = delegate->peerListFindRow(itemId)) {
+			delegate->peerListSetRowChecked(row, false);
+		}
+	};
 
 	return result;
 }

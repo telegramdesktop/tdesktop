@@ -271,6 +271,7 @@ public:
 	virtual void peerListConvertRowToSearchResult(not_null<PeerListRow*> row) = 0;
 	virtual bool peerListIsRowChecked(not_null<PeerListRow*> row) = 0;
 	virtual void peerListSetRowChecked(not_null<PeerListRow*> row, bool checked) = 0;
+	virtual void peerListSetForeignRowChecked(not_null<PeerListRow*> row, bool checked) = 0;
 	virtual not_null<PeerListRow*> peerListRowAt(int index) = 0;
 	virtual void peerListRefreshRows() = 0;
 	virtual void peerListScrollToTop() = 0;
@@ -377,6 +378,12 @@ public:
 	virtual void loadMoreRows() {
 	}
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
+	}
+	virtual bool isForeignRow(PeerListRowId itemId) {
+		return false;
+	}
+	virtual bool handleDeselectForeignRow(PeerListRowId itemId) {
+		return false;
 	}
 	virtual base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
@@ -715,6 +722,10 @@ public:
 			bool checked) override {
 		_content->changeCheckState(row, checked, anim::type::normal);
 	}
+	void peerListSetForeignRowChecked(
+		not_null<PeerListRow*> row,
+		bool checked) override {
+	}
 	int peerListFullRowsCount() override {
 		return _content->fullRowsCount();
 	}
@@ -801,6 +812,9 @@ public:
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override;
 	void peerListSetRowChecked(
+		not_null<PeerListRow*> row,
+		bool checked) override;
+	void peerListSetForeignRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) override;
 	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;

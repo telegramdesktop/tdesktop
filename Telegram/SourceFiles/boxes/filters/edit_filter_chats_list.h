@@ -54,6 +54,8 @@ public:
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
+	bool isForeignRow(PeerListRowId itemId) override;
+	bool handleDeselectForeignRow(PeerListRowId itemId) override;
 
 private:
 	void prepareViewHook() override;
@@ -67,6 +69,8 @@ private:
 	base::flat_set<not_null<History*>> _peers;
 	Flags _options;
 	Flags _selected;
+
+	Fn<void(PeerListRowId)> _deselectOption;
 
 	rpl::lifetime _lifetime;
 

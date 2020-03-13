@@ -30,7 +30,7 @@ namespace {
 
 using namespace Settings;
 
-constexpr auto kMaxFilterTitleLength = 20;
+constexpr auto kMaxFilterTitleLength = 12;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;

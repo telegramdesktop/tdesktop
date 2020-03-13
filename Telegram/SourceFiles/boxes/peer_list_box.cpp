@@ -74,6 +74,9 @@ void PeerListBox::createMultiSelect() {
 		searchQueryChanged(query);
 	});
 	_select->entity()->setItemRemovedCallback([=](uint64 itemId) {
+		if (_controller->handleDeselectForeignRow(itemId)) {
+			return;
+		}
 		if (const auto peer = _controller->session().data().peerLoaded(itemId)) {
 			if (const auto row = peerListFindRow(peer->id)) {
 				content()->changeCheckState(row, false, anim::type::normal);
@@ -195,6 +198,20 @@ void PeerListBox::peerListSetRowChecked(
 		// The itemRemovedCallback will call changeCheckState() here.
 		_select->entity()->removeItem(row->id());
 		peerListUpdateRow(row);
+	}
+}
+
+void PeerListBox::peerListSetForeignRowChecked(
+		not_null<PeerListRow*> row,
+		bool checked) {
+	if (checked) {
+		addSelectItem(row, anim::type::normal);
+
+		// This call deletes row from _searchRows.
+		_select->entity()->clearQuery();
+	} else {
+		// The itemRemovedCallback will call changeCheckState() here.
+		_select->entity()->removeItem(row->id());
 	}
 }
 
@@ -364,7 +381,9 @@ auto PeerListBox::peerListCollectSelectedRows()
 	if (!items.empty()) {
 		result.reserve(items.size());
 		for (const auto itemId : items) {
-			result.push_back(_controller->session().data().peer(itemId));
+			if (!_controller->isForeignRow(itemId)) {
+				result.push_back(_controller->session().data().peer(itemId));
+			}
 		}
 	}
 	return result;
