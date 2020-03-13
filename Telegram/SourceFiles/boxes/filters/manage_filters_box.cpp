@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/manage_filters_box.h"
+#include "boxes/filters/manage_filters_box.h"
 
+#include "boxes/filters/edit_filter_box.h"
 #include "data/data_session.h"
-#include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "history/history.h"
@@ -35,66 +35,11 @@ namespace {
 
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kFiltersLimit = 10;
-constexpr auto kMaxFilterTitleLength = 20;
 
 using namespace Settings;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
-using ExceptionPeersRef = const base::flat_set<not_null<History*>> &;
-using ExceptionPeersGetter = ExceptionPeersRef(Data::ChatFilter::*)() const;
-
-constexpr auto kAllTypes = {
-	Flag::Contacts,
-	Flag::NonContacts,
-	Flag::Groups,
-	Flag::Channels,
-	Flag::Bots,
-	Flag::NoMuted,
-	Flag::NoArchived,
-	Flag::NoRead
-};
-
-class FilterChatsPreview final : public Ui::RpWidget {
-public:
-	FilterChatsPreview(
-		not_null<QWidget*> parent,
-		Flags flags,
-		const base::flat_set<not_null<History*>> &peers);
-
-	[[nodiscard]] rpl::producer<Flag> flagRemoved() const;
-	[[nodiscard]] rpl::producer<not_null<History*>> peerRemoved() const;
-
-	int resizeGetHeight(int newWidth) override;
-
-private:
-	using Button = base::unique_qptr<Ui::IconButton>;
-	struct FlagButton {
-		Flag flag = Flag();
-		Button button;
-	};
-	struct PeerButton {
-		not_null<History*> history;
-		Button button;
-	};
-
-	void paintEvent(QPaintEvent *e) override;
-
-	void setup(
-		Flags flags,
-		const base::flat_set<not_null<History*>> &peers);
-	void refresh();
-	void removeFlag(Flag flag);
-	void removePeer(not_null<History*> history);
-	void paintFlagIcon(QPainter &p, int left, int top, Flag flag) const;
-
-	std::vector<FlagButton> _removeFlag;
-	std::vector<PeerButton> _removePeer;
-
-	rpl::event_stream<Flag> _flagRemoved;
-	rpl::event_stream<not_null<History*>> _peerRemoved;
-
-};
 
 class FilterRowButton final : public Ui::RippleButton {
 public:
@@ -194,173 +139,6 @@ private:
 	return count
 		? tr::lng_filters_chats_count(tr::now, lt_count_short, count)
 		: tr::lng_filters_no_chats(tr::now);
-}
-
-FilterChatsPreview::FilterChatsPreview(
-	not_null<QWidget*> parent,
-	Flags flags,
-	const base::flat_set<not_null<History*>> &peers)
-: RpWidget(parent) {
-	setup(flags, peers);
-}
-
-void FilterChatsPreview::setup(
-		Flags flags,
-		const base::flat_set<not_null<History*>> &peers) {
-	const auto makeButton = [&](Fn<void()> handler) {
-		auto result = base::make_unique_q<Ui::IconButton>(
-			this,
-			st::windowFilterSmallRemove);
-		result->setClickedCallback(std::move(handler));
-		return result;
-	};
-	for (const auto flag : kAllTypes) {
-		if (flags & flag) {
-			_removeFlag.push_back({
-				flag,
-				makeButton([=] { removeFlag(flag); }) });
-		}
-	}
-	for (const auto history : peers) {
-		_removePeer.push_back({
-			history,
-			makeButton([=] { removePeer(history); }) });
-	}
-	refresh();
-}
-
-void FilterChatsPreview::refresh() {
-	resizeToWidth(width());
-}
-
-int FilterChatsPreview::resizeGetHeight(int newWidth) {
-	const auto right = st::windowFilterSmallRemoveRight;
-	const auto add = (st::windowFilterSmallItem.height
-		- st::windowFilterSmallRemove.height) / 2;
-	auto top = 0;
-	const auto moveNextButton = [&](not_null<Ui::IconButton*> button) {
-		button->moveToRight(right, top + add, newWidth);
-		top += st::windowFilterSmallItem.height;
-	};
-	for (const auto &[flag, button] : _removeFlag) {
-		moveNextButton(button.get());
-	}
-	for (const auto &[history, button] : _removePeer) {
-		moveNextButton(button.get());
-	}
-	return top;
-}
-
-[[nodiscard]] QString TypeName(Flag flag) {
-	switch (flag) {
-	case Flag::Contacts: return tr::lng_filters_type_contacts(tr::now);
-	case Flag::NonContacts:
-		return tr::lng_filters_type_non_contacts(tr::now);
-	case Flag::Groups: return tr::lng_filters_type_groups(tr::now);
-	case Flag::Channels: return tr::lng_filters_type_channels(tr::now);
-	case Flag::Bots: return tr::lng_filters_type_bots(tr::now);
-	case Flag::NoMuted: return tr::lng_filters_type_no_muted(tr::now);
-	case Flag::NoArchived: return tr::lng_filters_type_no_archived(tr::now);
-	case Flag::NoRead: return tr::lng_filters_type_no_read(tr::now);
-	}
-	Unexpected("Flag in TypeName.");
-}
-
-void FilterChatsPreview::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
-	auto top = 0;
-	const auto &st = st::windowFilterSmallItem;
-	const auto iconLeft = st.photoPosition.x();
-	const auto iconTop = st.photoPosition.y();
-	const auto nameLeft = st.namePosition.x();
-	p.setFont(st::windowFilterSmallItem.nameStyle.font);
-	const auto nameTop = st.namePosition.y();
-	for (const auto &[flag, button] : _removeFlag) {
-		paintFlagIcon(p, iconLeft, top + iconTop, flag);
-
-		p.setPen(st::contactsNameFg);
-		p.drawTextLeft(nameLeft, top + nameTop, width(), TypeName(flag));
-		top += st.height;
-	}
-	for (const auto &[history, button] : _removePeer) {
-		history->peer->paintUserpicLeft(
-			p,
-			iconLeft,
-			top + iconTop,
-			width(),
-			st.photoSize);
-		history->peer->nameText().drawLeftElided(
-			p,
-			nameLeft,
-			top + nameTop,
-			button->x() - nameLeft,
-			width());
-		top += st.height;
-	}
-}
-
-void FilterChatsPreview::paintFlagIcon(
-		QPainter &p,
-		int left,
-		int top,
-		Flag flag) const {
-	const auto &color = [&]() -> const style::color& {
-		switch (flag) {
-		case Flag::Contacts: return st::historyPeer4UserpicBg;
-		case Flag::NonContacts: return st::historyPeer7UserpicBg;
-		case Flag::Groups: return st::historyPeer2UserpicBg;
-		case Flag::Channels: return st::historyPeer1UserpicBg;
-		case Flag::Bots: return st::historyPeer6UserpicBg;
-		case Flag::NoMuted: return st::historyPeer6UserpicBg;
-		case Flag::NoArchived: return st::historyPeer4UserpicBg;
-		case Flag::NoRead: return st::historyPeer7UserpicBg;
-		}
-		Unexpected("Flag in color paintFlagIcon.");
-	}();
-	const auto &icon = [&]() -> const style::icon& {
-		switch (flag) {
-		case Flag::Contacts: return st::windowFilterTypeContacts;
-		case Flag::NonContacts: return st::windowFilterTypeNonContacts;
-		case Flag::Groups: return st::windowFilterTypeGroups;
-		case Flag::Channels: return st::windowFilterTypeChannels;
-		case Flag::Bots: return st::windowFilterTypeBots;
-		case Flag::NoMuted: return st::windowFilterTypeNoMuted;
-		case Flag::NoArchived: return st::windowFilterTypeNoArchived;
-		case Flag::NoRead: return st::windowFilterTypeNoRead;
-		}
-		Unexpected("Flag in icon paintFlagIcon.");
-	}();
-	const auto size = st::windowFilterSmallItem.photoSize;
-	const auto rect = QRect(left, top, size, size);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(color->b);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(rect);
-	icon.paintInCenter(p, rect);
-}
-
-void FilterChatsPreview::removeFlag(Flag flag) {
-	const auto i = ranges::find(_removeFlag, flag, &FlagButton::flag);
-	Assert(i != end(_removeFlag));
-	_removeFlag.erase(i);
-	refresh();
-	_flagRemoved.fire_copy(flag);
-}
-
-void FilterChatsPreview::removePeer(not_null<History*> history) {
-	const auto i = ranges::find(_removePeer, history, &PeerButton::history);
-	Assert(i != end(_removePeer));
-	_removePeer.erase(i);
-	refresh();
-	_peerRemoved.fire_copy(history);
-}
-
-rpl::producer<Flag> FilterChatsPreview::flagRemoved() const {
-	return _flagRemoved.events();
-}
-
-rpl::producer<not_null<History*>> FilterChatsPreview::peerRemoved() const {
-	return _peerRemoved.events();
 }
 
 FilterRowButton::FilterRowButton(
@@ -609,7 +387,7 @@ void ManageFiltersPrepare::SetupBox(
 				button->updateData(result);
 			};
 			window->window().show(Box(
-				EditBox,
+				EditFilterBox,
 				window,
 				found->filter,
 				crl::guard(button, doneCallback)));
@@ -633,7 +411,7 @@ void ManageFiltersPrepare::SetupBox(
 			addFilter(result);
 		};
 		window->window().show(Box(
-			EditBox,
+			EditFilterBox,
 			window,
 			Data::ChatFilter(),
 			crl::guard(box, doneCallback)));
@@ -764,146 +542,4 @@ void ManageFiltersPrepare::SetupBox(
 	};
 	box->boxClosing() | rpl::start_with_next(save, box->lifetime());
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
-}
-
-void SetupChatsPreview(
-		not_null<Ui::VerticalLayout*> content,
-		not_null<Data::ChatFilter*> data,
-		Flags flags,
-		ExceptionPeersGetter peers) {
-	const auto preview = content->add(object_ptr<FilterChatsPreview>(
-		content,
-		data->flags() & flags,
-		(data->*peers)()));
-
-	preview->flagRemoved(
-	) | rpl::start_with_next([=](Flag flag) {
-		*data = Data::ChatFilter(
-			data->id(),
-			data->title(),
-			(data->flags() & ~flag),
-			data->always(),
-			data->never());
-	}, preview->lifetime());
-
-	preview->peerRemoved(
-	) | rpl::start_with_next([=](not_null<History*> history) {
-		auto always = data->always();
-		auto never = data->never();
-		always.remove(history);
-		never.remove(history);
-		*data = Data::ChatFilter(
-			data->id(),
-			data->title(),
-			data->flags(),
-			std::move(always),
-			std::move(never));
-	}, preview->lifetime());
-}
-
-void ManageFiltersPrepare::EditBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> window,
-		const Data::ChatFilter &filter,
-		Fn<void(const Data::ChatFilter &)> doneCallback) {
-	const auto creating = filter.title().isEmpty();
-	box->setTitle(creating ? tr::lng_filters_new() : tr::lng_filters_edit());
-
-	const auto content = box->verticalLayout();
-	const auto name = content->add(
-		object_ptr<Ui::InputField>(
-			box,
-			st::defaultInputField,
-			tr::lng_filters_new_name(),
-			filter.title()),
-		st::markdownLinkFieldPadding);
-	name->setMaxLength(kMaxFilterTitleLength);
-
-	const auto data = box->lifetime().make_state<Data::ChatFilter>(filter);
-
-	constexpr auto kTypes = Flag::Contacts
-		| Flag::NonContacts
-		| Flag::Groups
-		| Flag::Channels
-		| Flag::Bots;
-	constexpr auto kExcludeTypes = Flag::NoMuted
-		| Flag::NoArchived
-		| Flag::NoRead;
-
-	box->setFocusCallback([=] {
-		name->setFocusFast();
-	});
-
-	AddSkip(content);
-	AddDivider(content);
-	AddSkip(content);
-	AddSubsectionTitle(content, tr::lng_filters_include());
-
-	SetupChatsPreview(
-		content,
-		data,
-		kTypes,
-		&Data::ChatFilter::always);
-
-	AddButton(
-		content,
-		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate
-	)->setClickedCallback([=] {
-	});
-
-	AddSkip(content);
-	AddDividerText(content, tr::lng_filters_include_about());
-	AddSkip(content);
-
-	AddSubsectionTitle(content, tr::lng_filters_exclude());
-
-	SetupChatsPreview(
-		content,
-		data,
-		kExcludeTypes,
-		&Data::ChatFilter::never);
-
-	AddButton(
-		content,
-		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate
-	)->setClickedCallback([=] {
-	});
-	AddSkip(content);
-	content->add(
-		object_ptr<Ui::FlatLabel>(
-			content,
-			tr::lng_filters_exclude_about(),
-			st::boxDividerLabel),
-		st::settingsDividerLabelPadding);
-
-	const auto save = [=] {
-		const auto title = name->getLastText().trimmed();
-		if (title.isEmpty()) {
-			name->showError();
-			return;
-		} else if (!(data->flags() & kTypes) && data->always().empty()) {
-			window->window().showToast(tr::lng_filters_empty(tr::now));
-			return;
-		} else if ((data->flags() == (kTypes | Flag::NoArchived))
-			&& data->always().empty()
-			&& data->never().empty()) {
-			window->window().showToast(tr::lng_filters_default(tr::now));
-			return;
-		}
-		const auto result = Data::ChatFilter(
-			data->id(),
-			title,
-			data->flags(),
-			data->always(),
-			data->never());
-		box->closeBox();
-
-		doneCallback(result);
-	};
-	box->addButton(
-		creating ? tr::lng_filters_create_button() : tr::lng_settings_save(),
-		save);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

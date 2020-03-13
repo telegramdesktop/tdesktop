@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
-#include "boxes/manage_filters_box.h"
+#include "boxes/filters/manage_filters_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"

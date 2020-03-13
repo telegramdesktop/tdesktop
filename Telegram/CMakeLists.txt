@@ -146,6 +146,12 @@ PRIVATE
     api/api_single_message_search.h
     api/api_text_entities.cpp
     api/api_text_entities.h
+    boxes/filters/edit_filter_box.cpp
+    boxes/filters/edit_filter_box.h
+    boxes/filters/edit_filter_chats_list.cpp
+    boxes/filters/edit_filter_chats_list.h
+    boxes/filters/manage_filters_box.cpp
+    boxes/filters/manage_filters_box.h
     boxes/peers/add_participants_box.cpp
     boxes/peers/add_participants_box.h
     boxes/peers/edit_contact_box.cpp
@@ -204,8 +210,6 @@ PRIVATE
     boxes/language_box.h
     boxes/local_storage_box.cpp
     boxes/local_storage_box.h
-    boxes/manage_filters_box.cpp
-    boxes/manage_filters_box.h
     boxes/mute_settings_box.cpp
     boxes/mute_settings_box.h
     boxes/peer_list_box.cpp
