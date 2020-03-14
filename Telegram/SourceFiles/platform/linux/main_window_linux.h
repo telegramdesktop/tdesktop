@@ -45,7 +45,6 @@ public slots:
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner);
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	void psLinuxUndo();
 	void psLinuxRedo();
@@ -63,17 +62,16 @@ public slots:
 	void psLinuxClearFormat();
 
 	void onVisibleChanged(bool visible);
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 protected:
 	void initHook() override;
 	void unreadCounterChangedHook() override;
-	void updateGlobalMenuHook() override;
 
 	void initTrayMenuHook() override;
 	bool hasTrayIcon() const override;
 
 	void workmodeUpdated(DBIWorkMode mode) override;
-	void createGlobalMenu() override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
@@ -88,6 +86,11 @@ protected:
 		style::color bg,
 		const QPoint &shift,
 		style::color color) = 0;
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	void createGlobalMenu() override;
+	void updateGlobalMenuHook() override;
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 private:
 	Ui::PopupMenu *_trayIconMenuXEmbed = nullptr;
