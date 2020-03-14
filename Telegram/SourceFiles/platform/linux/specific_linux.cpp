@@ -374,7 +374,7 @@ std::optional<crl::time> LastUserInputTime() {
 	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
 		message);
 
-	constexpr auto notSupportedErrors = {
+	const auto notSupportedErrors = {
 		QDBusError::ServiceUnknown,
 		QDBusError::NotSupported,
 	};
