@@ -3675,9 +3675,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 	if (outOrder) {
 		auto outOrderCount = quint32();
 		stickers.stream >> outOrderCount;
-		if (!_checkStreamStatus(stickers.stream)
-			|| outOrderCount < 0
-			|| outOrderCount > 1000) {
+		if (!_checkStreamStatus(stickers.stream) || outOrderCount > 1000) {
 			return failed();
 		}
 		outOrder->reserve(outOrderCount);
