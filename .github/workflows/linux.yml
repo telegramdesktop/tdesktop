@@ -21,6 +21,7 @@ jobs:
       matrix:
         defines:
           - ""
+          - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
 
     env:
       GIT: "https://github.com"
