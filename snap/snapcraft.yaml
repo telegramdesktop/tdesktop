@@ -118,6 +118,10 @@ parts:
       snapcraftctl set-version "$version"
 
       sed -i 's|^Icon=.*|Icon=/share/icons/hicolor/512x512/apps/telegram.png|g' lib/xdg/telegramdesktop.desktop
+    override-build: |
+      snapcraftctl build
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/etc/fonts"
+      cp "$SNAPCRAFT_PART_SRC/Telegram/lib_ui/qt_conf/fc-custom.conf" "$SNAPCRAFT_PART_INSTALL/etc/fonts/fonts.conf"
     after:
       - cmake
       - desktop-qt5
@@ -155,11 +159,13 @@ parts:
       - locales-all
       - xdg-user-dirs
       - fcitx-frontend-qt5
+    stage: [-etc/fonts/fonts.conf]
 
   qt5-gtk-platform:
     plugin: nil
     stage-packages:
       - qt5-gtk-platformtheme
+    stage: [-etc/fonts/fonts.conf]
 
   cmake:
     source: "https://gitlab.kitware.com/cmake/cmake.git"
@@ -191,59 +197,37 @@ parts:
     source-branch: release/4.2
     plugin: autotools
     build-packages:
-      - libtool
-      - pkg-config
-      - texi2html
       - yasm
-      - libass-dev
-      - libfreetype6-dev
-      - libgpac-dev
-      - liblzma-dev
+      - libasound2-dev
       - libopus-dev
-      - libsdl1.2-dev
-      - libtheora-dev
       - libva-dev
       - libvdpau-dev
-      - libvorbis-dev
-      - libxcb1-dev
-      - libxcb-shm0-dev
-      - libxcb-xfixes0-dev
-      - zlib1g-dev
     stage-packages:
-      - freeglut3
-      - libass9
-      - libfreetype6
-      - libgpac4
-      - liblzma5
+      - libasound2
       - libopus0
-      - libslang2
-      - libsdl1.2debian
-      - libtheora0
       - libva2
       - libva-drm2
       - libvdpau1
-      - libvorbis0a
-      - libxcb1
-      - libxcb-shm0
-      - libxcb-xfixes0
-      - zlib1g
     configflags:
       - --prefix=/usr
       - --disable-debug
       - --disable-programs
       - --disable-doc
+      - --disable-autodetect
       - --disable-everything
       - --disable-neon
+      - --disable-iconv
       - --enable-gpl
       - --enable-version3
       - --enable-libopus
+      - --enable-vaapi
+      - --enable-vdpau
       - --enable-decoder=aac
       - --enable-decoder=aac_latm
       - --enable-decoder=aasc
       - --enable-decoder=flac
       - --enable-decoder=gif
       - --enable-decoder=h264
-      - --enable-decoder=h264_vdpau
       - --enable-decoder=mp1
       - --enable-decoder=mp1float
       - --enable-decoder=mp2
@@ -255,7 +239,6 @@ parts:
       - --enable-decoder=mp3on4
       - --enable-decoder=mp3on4float
       - --enable-decoder=mpeg4
-      - --enable-decoder=mpeg4_vdpau
       - --enable-decoder=msmpeg4v2
       - --enable-decoder=msmpeg4v3
       - --enable-decoder=opus
