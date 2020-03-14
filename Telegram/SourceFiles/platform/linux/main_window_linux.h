@@ -45,7 +45,6 @@ public slots:
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner);
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	void psLinuxUndo();
 	void psLinuxRedo();
@@ -63,6 +62,8 @@ public slots:
 	void psLinuxClearFormat();
 
 	void onVisibleChanged(bool visible);
+
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 protected:
 	void initHook() override;

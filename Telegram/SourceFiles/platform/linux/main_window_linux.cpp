@@ -411,6 +411,12 @@ void MainWindow::initHook() {
 		&QDBusServiceWatcher::serviceOwnerChanged,
 		this,
 		&MainWindow::onSNIOwnerChanged);
+
+	connect(
+		windowHandle(),
+		&QWindow::visibleChanged,
+		this,
+		&MainWindow::onVisibleChanged);
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	if (UseUnityCounter()) {
@@ -418,12 +424,6 @@ void MainWindow::initHook() {
 	} else {
 		LOG(("Not using Unity launcher counter."));
 	}
-
-	connect(
-		windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		&MainWindow::onVisibleChanged);
 }
 
 bool MainWindow::hasTrayIcon() const {
@@ -632,9 +632,7 @@ void MainWindow::updateIconCounters() {
 		signal << dbusUnityProperties;
 		QDBusConnection::sessionBus().send(signal);
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (_sniTrayIcon) {
 		setSNITrayIcon(counter, muted);
 	}
@@ -658,8 +656,17 @@ void MainWindow::initTrayMenuHook() {
 	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
+#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
+
 void MainWindow::createGlobalMenu() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+}
+
+void MainWindow::updateGlobalMenuHook() {
+}
+
+#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+void MainWindow::createGlobalMenu() {
 	if (!AppMenuSupported()) return;
 
 	psMainMenu = new QMenu(this);
@@ -843,7 +850,6 @@ void MainWindow::createGlobalMenu() {
 	RegisterAppMenu(winId(), _mainMenuPath);
 
 	updateGlobalMenu();
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
 
 void MainWindow::psLinuxUndo() {
@@ -899,7 +905,6 @@ void MainWindow::psLinuxClearFormat() {
 }
 
 void MainWindow::updateGlobalMenuHook() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (!AppMenuSupported() || !App::wnd() || !positionInited()) return;
 
 	const auto focused = QApplication::focusWidget();
@@ -959,11 +964,9 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psStrikeOut, !markdownEnabled);
 	ForceDisabled(psMonospace, !markdownEnabled);
 	ForceDisabled(psClearFormat, !markdownEnabled);
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
 
 void MainWindow::onVisibleChanged(bool visible) {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (AppMenuSupported() && !_mainMenuPath.path().isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);
@@ -971,8 +974,9 @@ void MainWindow::onVisibleChanged(bool visible) {
 			UnregisterAppMenu(winId());
 		}
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
+
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 MainWindow::~MainWindow() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
