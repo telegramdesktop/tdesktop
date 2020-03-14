@@ -19,33 +19,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1008005,
-		"\xE2\x80\xA2 Create new themes based on your color "
-		"and wallpaper choices.\n"
-
-		"\xE2\x80\xA2 Share your themes with other users via links.\n"
-
-		"\xE2\x80\xA2 Update your theme for all its users "
-		"when you change something.\n"
-	},
-	{
-		1009000,
-		"\xE2\x80\xA2 System spell checker on Windows 8+ and macOS 10.12+.\n"
-	},
-	{
-		1009002,
-		"\xE2\x80\xA2 Videos in chats start playing automatically.\n"
-
-		"\xE2\x80\xA2 Resume playback from where you left off "
-		"when watching long videos.\n"
-
-		"\xE2\x80\xA2 Control videos, GIFs and round video messages "
-		"automatic playback in "
-		"Settings > Advanced > Automatic media download.\n"
-
-		"\xE2\x80\xA2 Spell checker on Linux using Enchant.\n"
-	},
-	{
 		1009010,
 		"\xE2\x80\xA2 Switch to the Picture-in-Picture mode "
 		"to watch your video in a small window.\n"
@@ -63,12 +36,19 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Bug fixes and other minor improvements."
 	},
-
 	{
 		1009017,
 		"\xE2\x80\xA2 Spell checker on Windows 7.\n"
 
 		"\xE2\x80\xA2 Bug fixes and other minor improvements."
+	},
+	{
+		1009020,
+		"\xE2\x80\xA2 Fix crash in shared links search.\n"
+
+		"\xE2\x80\xA2 Fix blurred thumbnails in albums with video files.\n"
+
+		"\xE2\x80\xA2 Fix a possible crash in animated stickers rendering."
 	}
 	};
 };

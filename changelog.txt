@@ -1,3 +1,9 @@
+1.9.20 beta (14.03.20)
+
+- Fix crash in shared links search.
+- Fix blurred thumbnails in albums with video files.
+- Fix a possible crash in animated stickers rendering.
+
 1.9.19 beta (25.02.20)
 
 - Bug fixes and other minor improvements.
