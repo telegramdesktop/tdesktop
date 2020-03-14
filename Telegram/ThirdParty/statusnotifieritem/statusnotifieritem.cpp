@@ -27,8 +27,8 @@
 
 #include "statusnotifieritem.h"
 #include "statusnotifieritemadaptor.h"
-#include <QDBusInterface>
 #include <QDBusServiceWatcher>
+#include <QDBusMessage>
 #include <dbusmenuexporter.h>
 
 int StatusNotifierItem::mServiceCounter = 0;
@@ -75,11 +75,16 @@ StatusNotifierItem::~StatusNotifierItem()
 
 void StatusNotifierItem::registerToHost()
 {
-    QDBusInterface interface(QLatin1String("org.kde.StatusNotifierWatcher"),
-                             QLatin1String("/StatusNotifierWatcher"),
-                             QLatin1String("org.kde.StatusNotifierWatcher"),
-                             mSessionBus);
-    interface.asyncCall(QLatin1String("RegisterStatusNotifierItem"), mSessionBus.baseService());
+    QDBusMessage message = QDBusMessage::createMethodCall(QLatin1String("org.kde.StatusNotifierWatcher"),
+                                                          QLatin1String("/StatusNotifierWatcher"),
+                                                          QLatin1String("org.kde.StatusNotifierWatcher"),
+                                                          QLatin1String("RegisterStatusNotifierItem"));
+
+    message.setArguments({
+        mSessionBus.baseService()
+    });
+
+    mSessionBus.send(message);
 }
 
 void StatusNotifierItem::onServiceOwnerChanged(const QString& service, const QString& oldOwner,
@@ -292,10 +297,23 @@ void StatusNotifierItem::Scroll(int delta, const QString &orientation)
 void StatusNotifierItem::showMessage(const QString& title, const QString& msg,
                                      const QString& iconName, int secs)
 {
-    QDBusInterface interface(QLatin1String("org.freedesktop.Notifications"), QLatin1String("/org/freedesktop/Notifications"),
-                             QLatin1String("org.freedesktop.Notifications"), mSessionBus);
-    interface.call(QLatin1String("Notify"), mTitle, (uint) 0, iconName, title,
-                   msg, QStringList(), QVariantMap(), secs);
+    QDBusMessage message = QDBusMessage::createMethodCall(QLatin1String("org.freedesktop.Notifications"),
+                                                          QLatin1String("/org/freedesktop/Notifications"),
+                                                          QLatin1String("org.freedesktop.Notifications"),
+                                                          QLatin1String("Notify"));
+
+    message.setArguments({
+        mTitle,
+        (uint) 0,
+        iconName,
+        title,
+        msg,
+        QStringList(),
+        QVariantMap(),
+        secs
+    });
+
+    mSessionBus.send(message);
 }
 
 IconPixmapList StatusNotifierItem::iconToPixmapList(const QIcon& icon)
