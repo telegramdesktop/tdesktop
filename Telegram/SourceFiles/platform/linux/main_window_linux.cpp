@@ -451,7 +451,7 @@ void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
 	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& (!iconName.isEmpty()
+		&& ((!iconName.isEmpty() && !InSnap())
 			|| qEnvironmentVariableIsSet(kForcePanelIcon.utf8()))) {
 		if (_sniTrayIcon->iconName() == iconName) {
 			return;
