@@ -31,6 +31,11 @@ using namespace Storage::CloudBlob;
 
 constexpr auto kDictExtensions = { "dic", "aff" };
 
+constexpr auto kExceptions = {
+	AppFile,
+	"\xd0\xa2\xd0\xb5\xd0\xbb\xd0\xb5\xd0\xb3\xd1\x80\xd0\xb0\xd0\xbc"_cs,
+};
+
 // 31 - QLocale::English, 91 - QLocale::Portuguese.
 constexpr auto kLangsForLWC = { 31, 91 };
 // 225 - QLocale::UnitesStates, 30 - QLocale::Brazil.
@@ -165,6 +170,19 @@ void DownloadDictionaryInBackground(
 		crl::guard(session, destroyer));
 	SetBackgroundLoader(std::move(sharedLoader));
 	BackgroundLoaderChanged.fire_copy(id);
+}
+
+void AddExceptions() {
+	const auto exceptions = ranges::view::all(
+		kExceptions
+	) | ranges::views::transform([](const auto &word) {
+		return word.utf16();
+	}) | ranges::views::filter([](const auto &word) {
+		return !(Platform::Spellchecker::IsWordInDictionary(word)
+			|| Spellchecker::IsWordSkippable(&word));
+	}) | ranges::to_vector;
+
+	ranges::for_each(exceptions, Platform::Spellchecker::AddWord);
 }
 
 } // namespace
@@ -358,16 +376,33 @@ void Start(not_null<Main::Session*> session) {
 	} });
 	const auto settings = &session->settings();
 
-	const auto guard = gsl::finally([=]{
-		if (settings->spellcheckerEnabled()) {
-			Platform::Spellchecker::UpdateLanguages(
-				settings->dictionariesEnabled());
-		}
+	const auto onEnabled = [=](auto enabled) {
+		Platform::Spellchecker::UpdateLanguages(
+			enabled
+				? settings->dictionariesEnabled()
+				: std::vector<int>());
+	};
+
+	const auto guard = gsl::finally([=] {
+		onEnabled(settings->spellcheckerEnabled());
 	});
 
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
+
+		const auto scriptsLifetime =
+			session->lifetime().make_state<rpl::lifetime>();
+
+		Spellchecker::SupportedScriptsChanged(
+		) | rpl::start_with_next([=] {
+			AddExceptions();
+			scriptsLifetime->destroy();
+		}, *scriptsLifetime);
+
 		return;
 	}
+
+	Spellchecker::SupportedScriptsChanged(
+	) | rpl::start_with_next(AddExceptions, session->lifetime());
 
 	Spellchecker::SetWorkingDirPath(DictionariesPath());
 
@@ -377,12 +412,7 @@ void Start(not_null<Main::Session*> session) {
 	}, session->lifetime());
 
 	settings->spellcheckerEnabledChanges(
-	) | rpl::start_with_next([=](auto enabled) {
-		Platform::Spellchecker::UpdateLanguages(
-			enabled
-				? settings->dictionariesEnabled()
-				: std::vector<int>());
-	}, session->lifetime());
+	) | rpl::start_with_next(onEnabled, session->lifetime());
 
 	const auto method = QGuiApplication::inputMethod();
 
