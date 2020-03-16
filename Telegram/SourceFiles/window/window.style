@@ -255,8 +255,12 @@ windowFiltersButton: SideBarButton(defaultSideBarButton) {
 		font: font(11px semibold);
 	}
 	badgeStyle: TextStyle(defaultTextStyle) {
-		font: font(11px semibold);
+		font: font(12px semibold);
 	}
+	badgeSkip: 4px;
+	badgeHeight: 17px;
+	badgeStroke: 2px;
+	badgePosition: point(5px, 7px);
 	iconPosition: point(-1px, 6px);
 }
 windowFiltersMainMenu: SideBarButton(windowFiltersButton) {

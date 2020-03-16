@@ -173,7 +173,23 @@ void FiltersMenu::refresh() {
 				_container,
 				title,
 				st)));
-		button->setBadge(badge);
+		if (id > 0) {
+			const auto list = filters->chatsList(id);
+			rpl::single(rpl::empty_value()) | rpl::then(
+				list->unreadStateChanges(
+				) | rpl::map([] { return rpl::empty_value(); })
+			) | rpl::start_with_next([=, raw = button.get()] {
+				const auto &state = list->unreadState();
+				const auto count = (state.chats + state.marks);
+				const auto muted = (state.chatsMuted + state.marksMuted);
+				const auto string = !count
+					? QString()
+					: (count > 99)
+					? "..."
+					: QString::number(count);
+				raw->setBadge(string, count == muted);
+			}, button->lifetime());
+		}
 		button->setActive(_session->activeChatsFilterCurrent() == id);
 		button->setClickedCallback([=] {
 			if (id >= 0) {

@@ -160,8 +160,15 @@ bool ChatFilter::contains(not_null<History*> history) const {
 	}
 	return false
 		|| ((_flags & flag)
-			&& (!(_flags & Flag::NoMuted) || !history->mute())
-			&& (!(_flags & Flag::NoRead) || history->unreadCountForBadge())
+			&& (!(_flags & Flag::NoMuted)
+				|| !history->mute()
+				|| (history->hasUnreadMentions()
+					&& history->folderKnown()
+					&& !history->folder()))
+			&& (!(_flags & Flag::NoRead)
+				|| history->unreadCount()
+				|| history->unreadMark()
+				|| history->hasUnreadMentions())
 			&& (!(_flags & Flag::NoArchived)
 				|| (history->folderKnown() && !history->folder())))
 		|| _always.contains(history);

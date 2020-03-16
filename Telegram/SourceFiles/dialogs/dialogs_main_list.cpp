@@ -106,8 +106,9 @@ void MainList::recomputeFullListSize() {
 void MainList::unreadStateChanged(
 		const UnreadState &wasState,
 		const UnreadState &nowState) {
+	const auto useClouded = _cloudUnreadState.known && !loaded();
 	const auto updateCloudUnread = _cloudUnreadState.known && wasState.known;
-	const auto notify = loaded() || updateCloudUnread;
+	const auto notify = !useClouded || wasState.known;
 	const auto notifier = unreadStateChangeNotifier(notify);
 	_unreadState += nowState - wasState;
 	if (updateCloudUnread) {
