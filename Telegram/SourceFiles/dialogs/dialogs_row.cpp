@@ -28,7 +28,7 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 
 	const auto count = std::max(
 		int(list.size()),
-		folder->chatsListSize());
+		folder->chatsList()->fullSize().current());
 
 	const auto throwAwayLastName = (list.size() > 1)
 		&& (count == list.size() + 1);

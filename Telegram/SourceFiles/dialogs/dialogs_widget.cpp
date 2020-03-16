@@ -280,7 +280,7 @@ Widget::Widget(
 			onSearchMore();
 		} else {
 			const auto folder = _inner->shownFolder();
-			if (!folder || !folder->chatsListLoaded()) {
+			if (!folder || !folder->chatsList()->loaded()) {
 				session().api().requestDialogs(folder);
 			}
 		}

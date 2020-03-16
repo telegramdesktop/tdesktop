@@ -1924,12 +1924,16 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (isPinnedDialog()) {
 		owner().setChatPinned(this, false);
 	}
+	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
 	if (wasInList) {
-		removeFromChatList(0);
-		for (const auto &filter : owner().chatsFilters().list()) {
-			removeFromChatList(filter.id());
+		removeFromChatList(0, owner().chatsList(this->folder()));
+		for (const auto &filter : filters.list()) {
+			const auto id = filter.id();
+			if (inChatList(id)) {
+				removeFromChatList(id, filters.chatsList(id));
+			}
 		}
 	}
 	const auto was = _folder.value_or(nullptr);
@@ -1938,10 +1942,11 @@ void History::setFolderPointer(Data::Folder *folder) {
 		was->unregisterOne(this);
 	}
 	if (wasInList) {
-		addToChatList(0);
-		for (const auto &filter : owner().chatsFilters().list()) {
+		addToChatList(0, owner().chatsList(folder));
+		for (const auto &filter : filters.list()) {
 			if (filter.contains(this)) {
-				addToChatList(filter.id());
+				const auto id = filter.id();
+				addToChatList(id, filters.chatsList(id));
 			}
 		}
 		owner().chatsListChanged(was);

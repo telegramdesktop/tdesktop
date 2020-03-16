@@ -449,11 +449,6 @@ public:
 	bool unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const;
 	int unreadOnlyMutedBadge() const;
 
-	void unreadStateChanged(
-		const Dialogs::Key &key,
-		const Dialogs::UnreadState &wasState);
-	void unreadEntryChanged(const Dialogs::Key &key, bool added);
-
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);

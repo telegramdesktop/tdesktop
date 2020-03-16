@@ -112,7 +112,15 @@ void Entry::updateChatListExistence() {
 }
 
 void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
-	owner().unreadStateChanged(_key, wasState);
+	Expects(folderKnown());
+	Expects(inChatList());
+
+	const auto nowState = chatListUnreadState();
+	owner().chatsList(folder())->unreadStateChanged(wasState, nowState);
+	auto &filters = owner().chatsFilters();
+	for (const auto &[filterId, links] : _chatListLinks) {
+		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);
+	}
 }
 
 void Entry::setChatListExistence(bool exists) {
@@ -154,11 +162,13 @@ Row *Entry::maybeMainChatListLink(FilterId filterId) const {
 	return links ? links->main.get() : nullptr;
 }
 
-PositionChange Entry::adjustByPosInChatList(FilterId filterId) {
+PositionChange Entry::adjustByPosInChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
 	const auto links = chatListLinks(filterId);
 	Assert(links != nullptr);
 	const auto from = links->main->pos();
-	myChatsList(filterId)->adjustByDate(*links);
+	list->indexed()->adjustByDate(*links);
 	const auto to = links->main->pos();
 	return { from, to };
 }
@@ -175,30 +185,27 @@ int Entry::posInChatList(FilterId filterId) const {
 	return mainChatListLink(filterId)->pos();
 }
 
-not_null<Row*> Entry::addToChatList(FilterId filterId) {
+not_null<Row*> Entry::addToChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
 	if (const auto main = maybeMainChatListLink(filterId)) {
 		return main;
 	}
-	const auto result = _chatListLinks.emplace(
+	return _chatListLinks.emplace(
 		filterId,
-		myChatsList(filterId)->addToEnd(_key)
+		list->addEntry(_key)
 	).first->second.main;
-	if (!filterId) {
-		owner().unreadEntryChanged(_key, true);
-	}
-	return result;
 }
 
-void Entry::removeFromChatList(FilterId filterId) {
+void Entry::removeFromChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
 	const auto i = _chatListLinks.find(filterId);
 	if (i == end(_chatListLinks)) {
 		return;
 	}
-	myChatsList(filterId)->del(_key);
 	_chatListLinks.erase(i);
-	if (!filterId) {
-		owner().unreadEntryChanged(_key, false);
-	}
+	list->removeEntry(_key);
 }
 
 void Entry::removeChatListEntryByLetter(FilterId filterId, QChar letter) {
@@ -228,12 +235,6 @@ void Entry::updateChatListEntry() const {
 			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
-}
-
-not_null<IndexedList*> Entry::myChatsList(FilterId filterId) const {
-	return filterId
-		? owner().chatsFilters().chatsList(filterId)->indexed()
-		: owner().chatsList(folder())->indexed();
 }
 
 } // namespace Dialogs

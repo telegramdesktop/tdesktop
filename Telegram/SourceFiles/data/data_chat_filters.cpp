@@ -303,14 +303,16 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		|| (filter.always() != updated.always())
 		|| (filter.never() != updated.never());
 	if (rulesChanged) {
+		const auto id = filter.id();
+		const auto filterList = _owner->chatsFilters().chatsList(id);
 		const auto feedHistory = [&](not_null<History*> history) {
 			const auto now = updated.contains(history);
 			const auto was = filter.contains(history);
 			if (now != was) {
 				if (now) {
-					history->addToChatList(filter.id());
+					history->addToChatList(id, filterList);
 				} else {
-					history->removeFromChatList(filter.id());
+					history->removeFromChatList(id, filterList);
 				}
 			}
 		};
@@ -322,8 +324,7 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 			}
 		};
 		feedList(_owner->chatsList());
-		const auto id = Data::Folder::kId;
-		if (const auto folder = _owner->folderLoaded(id)) {
+		if (const auto folder = _owner->folderLoaded(Data::Folder::kId)) {
 			feedList(folder->chatsList());
 		}
 	} else if (filter.title() == updated.title()) {

@@ -24,6 +24,7 @@ namespace Dialogs {
 
 class Row;
 class IndexedList;
+class MainList;
 
 struct RowsByLetter {
 	not_null<Row*> main;
@@ -97,13 +98,19 @@ public:
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 
-	PositionChange adjustByPosInChatList(FilterId filterId);
+	PositionChange adjustByPosInChatList(
+		FilterId filterId,
+		not_null<MainList*> list);
 	[[nodiscard]] bool inChatList(FilterId filterId = 0) const {
 		return _chatListLinks.contains(filterId);
 	}
 	[[nodiscard]] int posInChatList(FilterId filterId) const;
-	not_null<Row*> addToChatList(FilterId filterId);
-	void removeFromChatList(FilterId filterId);
+	not_null<Row*> addToChatList(
+		FilterId filterId,
+		not_null<MainList*> list);
+	void removeFromChatList(
+		FilterId filterId,
+		not_null<MainList*> list);
 	void removeChatListEntryByLetter(FilterId filterId, QChar letter);
 	void addChatListEntryByLetter(
 		FilterId filterId,
@@ -176,6 +183,7 @@ public:
 	mutable Ui::Text::String lastItemTextCache;
 
 protected:
+	void notifyUnreadStateChange(const UnreadState &wasState);
 	auto unreadStateChangeNotifier(bool required) {
 		const auto notify = required && inChatList();
 		const auto wasState = notify ? chatListUnreadState() : UnreadState();
@@ -189,15 +197,11 @@ protected:
 private:
 	virtual void changedChatListPinHook();
 
-	void notifyUnreadStateChange(const UnreadState &wasState);
-
 	void setChatListExistence(bool exists);
 	RowsByLetter *chatListLinks(FilterId filterId);
 	const RowsByLetter *chatListLinks(FilterId filterId) const;
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
 	Row *maybeMainChatListLink(FilterId filterId) const;
-
-	not_null<IndexedList*> myChatsList(FilterId filterId) const;
 
 	not_null<Data::Session*> _owner;
 	Dialogs::Key _key;

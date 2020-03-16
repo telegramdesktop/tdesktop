@@ -214,6 +214,11 @@ Session::Session(not_null<Main::Session*> session)
 	setupChannelLeavingViewer();
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
+
+	_chatsList.unreadStateChanges(
+	) | rpl::start_with_next([] {
+		Notify::unreadCounterUpdated();
+	}, _lifetime);
 }
 
 void Session::clear() {
@@ -833,7 +838,7 @@ void Session::chatsListChanged(Data::Folder *folder) {
 
 void Session::chatsListDone(Data::Folder *folder) {
 	if (folder) {
-		folder->setChatsListLoaded();
+		folder->chatsList()->setLoaded();
 	} else {
 		_chatsList.setLoaded();
 	}
@@ -1506,7 +1511,7 @@ void Session::applyDialogs(
 		});
 	}
 	if (requestFolder && count) {
-		requestFolder->setCloudChatsListSize(*count);
+		requestFolder->chatsList()->setCloudListSize(*count);
 	}
 }
 
@@ -2014,35 +2019,6 @@ bool Session::computeUnreadBadgeMuted(
 		&& (_session->settings().countUnreadMessages()
 			? (state.messagesMuted >= state.messages)
 			: (state.chatsMuted >= state.chats));
-}
-
-void Session::unreadStateChanged(
-		const Dialogs::Key &key,
-		const Dialogs::UnreadState &wasState) {
-	Expects(key.entry()->folderKnown());
-	Expects(key.entry()->inChatList());
-
-	const auto nowState = key.entry()->chatListUnreadState();
-	if (const auto folder = key.entry()->folder()) {
-		folder->unreadStateChanged(key, wasState, nowState);
-	} else {
-		_chatsList.unreadStateChanged(wasState, nowState);
-	}
-	Notify::unreadCounterUpdated();
-}
-
-void Session::unreadEntryChanged(const Dialogs::Key &key, bool added) {
-	Expects(key.entry()->folderKnown());
-
-	const auto state = key.entry()->chatListUnreadState();
-	if (!state.empty()) {
-		if (const auto folder = key.entry()->folder()) {
-			folder->unreadEntryChanged(key, state, added);
-		} else {
-			_chatsList.unreadEntryChanged(state, added);
-		}
-	}
-	Notify::unreadCounterUpdated();
 }
 
 void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
@@ -3347,33 +3323,42 @@ auto Session::refreshChatListEntry(
 	Dialogs::Key key,
 	FilterId filterIdForResult)
 -> RefreshChatListEntryResult {
+	Expects(key.entry()->folderKnown());
+
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
 	const auto history = key.history();
+	const auto mainList = chatsList(entry->folder());
 	auto mainListResult = RefreshChatListEntryResult();
 	mainListResult.changed = !entry->inChatList();
 	if (mainListResult.changed) {
-		const auto mainRow = entry->addToChatList(0);
+		const auto mainRow = entry->addToChatList(0, mainList);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		mainListResult.moved = entry->adjustByPosInChatList(0);
+		mainListResult.moved = entry->adjustByPosInChatList(0, mainList);
 	}
 	auto result = filterIdForResult
 		? RefreshChatListEntryResult()
 		: mainListResult;
+	if (!history) {
+		return result;
+	}
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
+		const auto filterList = chatsFilters().chatsList(id);
 		auto filterResult = RefreshChatListEntryResult();
-		if (history && filter.contains(history)) {
+		if (filter.contains(history)) {
 			filterResult.changed = !entry->inChatList(id);
 			if (filterResult.changed) {
-				entry->addToChatList(id);
+				entry->addToChatList(id, filterList);
 			} else {
-				filterResult.moved = entry->adjustByPosInChatList(id);
+				filterResult.moved = entry->adjustByPosInChatList(
+					id,
+					filterList);
 			}
 		} else if (entry->inChatList(id)) {
-			entry->removeFromChatList(id);
+			entry->removeFromChatList(id, filterList);
 			filterResult.changed = true;
 		}
 		if (id == filterIdForResult) {
@@ -3387,9 +3372,17 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	entry->removeFromChatList(0);
+	if (!entry->inChatList()) {
+		return;
+	}
+	Assert(entry->folderKnown());
+	const auto mainList = chatsList(entry->folder());
+	entry->removeFromChatList(0, mainList);
 	for (const auto &filter : _chatsFilters->list()) {
-		entry->removeFromChatList(filter.id());
+		const auto id = filter.id();
+		if (entry->inChatList(id)) {
+			entry->removeFromChatList(id, chatsFilters().chatsList(id));
+		}
 	}
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {

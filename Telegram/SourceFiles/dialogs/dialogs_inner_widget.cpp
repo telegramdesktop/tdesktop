@@ -1728,7 +1728,9 @@ void InnerWidget::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
 
 void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 	const auto folder = session().data().folderLoaded(Data::Folder::kId);
-	if (!folder || !folder->chatsListSize() || _searchInChat) {
+	if (!folder
+		|| !folder->chatsList()->fullSize().current()
+		|| _searchInChat) {
 		return;
 	}
 	const auto skip = session().settings().skipArchiveInSearch();
