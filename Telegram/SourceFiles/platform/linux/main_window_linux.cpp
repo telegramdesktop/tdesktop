@@ -167,8 +167,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 						.pixmap(desiredSize)
 						.toImage();
 				} else {
-					const auto availableSizes = systemIcon
-						.availableSizes();
+					const auto availableSizes = systemIcon.availableSizes();
 
 					const auto biggestSize = ranges::max_element(
 						availableSizes,
@@ -260,12 +259,33 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
+	const auto desiredSize = QSize(size, size);
+
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
 		parent);
 
 	ret->open();
-	icon.pixmap(size).save(ret.get());
+
+	if (icon.actualSize(desiredSize) == desiredSize) {
+		icon.pixmap(desiredSize).save(ret.get());
+	} else {
+		const auto availableSizes = icon.availableSizes();
+
+		const auto biggestSize = ranges::max_element(
+			availableSizes,
+			std::less<>(),
+			&QSize::width);
+
+		icon
+			.pixmap(*biggestSize)
+			.scaled(
+				desiredSize,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation)
+			.save(ret.get());
+	}
+
 	ret->close();
 
 	return ret;
@@ -400,13 +420,13 @@ void MainWindow::initHook() {
 	cSetSupportTray(trayAvailable);
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-    auto sniWatcher = new QDBusServiceWatcher(
+	auto sniWatcher = new QDBusServiceWatcher(
 		kSNIWatcherService.utf16(),
 		QDBusConnection::sessionBus(),
 		QDBusServiceWatcher::WatchForOwnerChange,
 		this);
 
-    connect(
+	connect(
 		sniWatcher,
 		&QDBusServiceWatcher::serviceOwnerChanged,
 		this,
