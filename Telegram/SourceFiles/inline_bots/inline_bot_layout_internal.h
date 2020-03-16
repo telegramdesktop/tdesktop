@@ -75,6 +75,8 @@ public:
 
 	int resizeGetHeight(int width) override;
 
+	void unloadAnimation() override;
+
 private:
 	QSize countFrameSize() const;
 
@@ -369,6 +371,8 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+
+	void unloadAnimation() override;
 
 private:
 	void countFrameSize();

@@ -357,6 +357,11 @@ void Gif::radialAnimationCallback(crl::time now) const {
 	}
 }
 
+void Gif::unloadAnimation() {
+	_gif.reset();
+	getShownDocument()->unload();
+}
+
 void Gif::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
@@ -370,8 +375,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 				auto frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
-				_gif.reset();
-				getShownDocument()->unload();
+				unloadAnimation();
 			}
 		}
 
@@ -1429,6 +1433,11 @@ void Game::radialAnimationCallback(crl::time now) const {
 	}
 }
 
+void Game::unloadAnimation() {
+	_gif.reset();
+	getResultDocument()->unload();
+}
+
 void Game::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
@@ -1440,8 +1449,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
-				_gif.reset();
-				getResultDocument()->unload();
+				unloadAnimation();
 			}
 		}
 

@@ -80,6 +80,8 @@ public:
 	PhotoData *getPreviewPhoto() const;
 
 	virtual void preload() const;
+	virtual void unloadAnimation() {
+	}
 
 	void update() const;
 	void layoutChanged();

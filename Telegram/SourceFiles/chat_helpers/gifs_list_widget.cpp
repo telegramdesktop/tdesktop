@@ -442,6 +442,7 @@ void GifsListWidget::processPanelHideFinished() {
 		if (const auto result = item->getResult()) {
 			result->unload();
 		}
+		item->unloadAnimation();
 	};
 	// Preserve panel state through visibility toggles.
 	//clearInlineRows(false);
