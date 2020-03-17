@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "api/api_chat_filters.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
@@ -1137,7 +1138,7 @@ void InnerWidget::savePinnedOrder() {
 		}
 	}
 	if (_filterId) {
-		// #TODO pinned reorder data and to server
+		Api::SaveNewFilterPinned(&session(), _filterId);
 	} else {
 		session().api().savePinnedOrder(_openedFolder);
 	}

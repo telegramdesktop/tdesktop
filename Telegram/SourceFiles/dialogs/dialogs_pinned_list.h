@@ -30,11 +30,6 @@ public:
 	// if (pinned) places on the first place in the list.
 	void setPinned(const Key &key, bool pinned);
 
-	void applyFilterPinned(
-		FilterId filterId,
-		not_null<History*> history,
-		int index);
-
 	void clear();
 
 	void applyList(

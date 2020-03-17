@@ -70,21 +70,6 @@ void PinnedList::setPinned(const Key &key, bool pinned) {
 	}
 }
 
-void PinnedList::applyFilterPinned(
-		FilterId filterId,
-		not_null<History*> history,
-		int index) {
-	Expects(index > 0);
-
-	history->cachePinnedIndex(filterId, index);
-
-	const auto key = Key{ history };
-	if (ranges::find(_data, key) == end(_data)) {
-		_data.push_back(key);
-		// #TODO pinned
-	}
-}
-
 void PinnedList::applyLimit(int limit) {
 	Expects(limit >= 0);
 
@@ -120,10 +105,8 @@ void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
 	_data.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		const auto history = list[i];
-		if (history->inChatList()) {
-			_data.emplace_back(history);
-			history->cachePinnedIndex(_filterId, i + 1);
-		}
+		_data.emplace_back(history);
+		history->cachePinnedIndex(_filterId, i + 1);
 	}
 }
 

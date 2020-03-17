@@ -343,9 +343,6 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		const auto feedHistory = [&](not_null<History*> history) {
 			const auto now = updated.contains(history);
 			const auto was = filter.contains(history);
-			if (now) {
-				history->applyFilterPinnedIndex(id, updated);
-			}
 			if (now != was) {
 				if (now) {
 					history->addToChatList(id, filterList);
@@ -365,7 +362,8 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		if (const auto folder = _owner->folderLoaded(Data::Folder::kId)) {
 			feedList(folder->chatsList());
 		}
-	} else if (pinnedChanged) {
+	}
+	if (pinnedChanged) {
 		const auto id = filter.id();
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		filterList->pinned()->applyList(updated.pinned());
@@ -410,6 +408,35 @@ bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
 		_listChanged.fire({});
 	}
 	return true;
+}
+
+const ChatFilter &ChatFilters::applyUpdatedPinned(
+		FilterId id,
+		const std::vector<Dialogs::Key> &dialogs) {
+	const auto i = ranges::find(_list, id, &ChatFilter::id);
+	Assert(i != end(_list));
+
+	auto always = i->always();
+	auto pinned = std::vector<not_null<History*>>();
+	pinned.reserve(dialogs.size());
+	for (const auto &row : dialogs) {
+		if (const auto history = row.history()) {
+			if (always.contains(history)) {
+				pinned.push_back(history);
+			} else if (always.size() < ChatFilter::kPinnedLimit) {
+				always.insert(history);
+				pinned.push_back(history);
+			}
+		}
+	}
+	set(ChatFilter(
+		id,
+		i->title(),
+		i->flags(),
+		std::move(always),
+		std::move(pinned),
+		i->never()));
+	return *i;
 }
 
 const std::vector<ChatFilter> &ChatFilters::list() const {

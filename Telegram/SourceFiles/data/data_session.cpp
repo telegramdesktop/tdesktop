@@ -1570,11 +1570,16 @@ int Session::pinnedChatsCount(
 int Session::pinnedChatsLimit(
 		Data::Folder *folder,
 		FilterId filterId) const {
-	return filterId
-		? Data::ChatFilter::kPinnedLimit
-		: folder
-		? Global::PinnedDialogsInFolderMax()
-		: Global::PinnedDialogsCountMax();
+	if (!filterId) {
+		return folder
+			? Global::PinnedDialogsInFolderMax()
+			: Global::PinnedDialogsCountMax();
+	}
+	const auto &list = chatsFilters().list();
+	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+	const auto pinned = (i != end(list)) ? i->pinned().size() : 0;
+	const auto already = (i != end(list)) ? i->always().size() : 0;
+	return Data::ChatFilter::kPinnedLimit + pinned - already;
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
@@ -3375,7 +3380,6 @@ auto Session::refreshChatListEntry(
 		const auto filterList = chatsFilters().chatsList(id);
 		auto filterResult = RefreshChatListEntryResult();
 		if (filter.contains(history)) {
-			history->applyFilterPinnedIndex(id, filter);
 			filterResult.changed = !entry->inChatList(id);
 			if (filterResult.changed) {
 				entry->addToChatList(id, filterList);

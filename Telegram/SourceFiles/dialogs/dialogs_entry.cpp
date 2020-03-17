@@ -235,9 +235,6 @@ void Entry::removeFromChatList(
 		return;
 	}
 	_chatListLinks.erase(i);
-	if (isPinnedDialog(filterId)) {
-		owner().setChatPinned(_key, filterId, false);
-	}
 	list->removeEntry(_key);
 }
 

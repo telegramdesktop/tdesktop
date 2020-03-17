@@ -13,6 +13,7 @@ class History;
 
 namespace Dialogs {
 class MainList;
+class Key;
 } // namespace Dialogs
 
 namespace Data {
@@ -34,7 +35,7 @@ public:
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	static constexpr int kPinnedLimit = 100;
+	static constexpr int kPinnedLimit = 10;
 
 	ChatFilter() = default;
 	ChatFilter(
@@ -97,6 +98,10 @@ public:
 		-> rpl::producer<not_null<History*>>;
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(FilterId filterId);
+
+	const ChatFilter &applyUpdatedPinned(
+		FilterId id,
+		const std::vector<Dialogs::Key> &dialogs);
 
 private:
 	void load(bool force);

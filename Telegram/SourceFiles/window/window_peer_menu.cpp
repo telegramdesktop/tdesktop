@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "api/api_common.h"
+#include "api/api_chat_filters.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h" // GetErrorTextForSending.
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_histories.h"
+#include "data/data_chat_filters.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "facades.h"
@@ -208,23 +210,7 @@ void TogglePinnedDialog(Dialogs::Key key, FilterId filterId) {
 	}
 
 	owner->setChatPinned(key, filterId, isPinned);
-	// #TODO pinned save data and to server
-	//const auto flags = isPinned
-	//	? MTPmessages_ToggleDialogPin::Flag::f_pinned
-	//	: MTPmessages_ToggleDialogPin::Flag(0);
-	//if (const auto history = key.history()) {
-	//	history->session().api().request(MTPmessages_ToggleDialogPin(
-	//		MTP_flags(flags),
-	//		MTP_inputDialogPeer(key.history()->peer->input)
-	//	)).done([=](const MTPBool &result) {
-	//		owner->notifyPinnedDialogsOrderUpdated();
-	//	}).send();
-	//} else if (const auto folder = key.folder()) {
-	//	folder->session().api().request(MTPmessages_ToggleDialogPin(
-	//		MTP_flags(flags),
-	//		MTP_inputDialogPeerFolder(MTP_int(folder->id()))
-	//	)).send();
-	//}
+	Api::SaveNewFilterPinned(&owner->session(), filterId);
 	if (isPinned) {
 		if (const auto main = App::main()) {
 			main->dialogsToUp();

@@ -369,10 +369,6 @@ public:
 		HistoryItem *folderDialogItem = nullptr);
 	void clearFolder();
 
-	void applyFilterPinnedIndex(
-		FilterId filterId,
-		const Data::ChatFilter &filter);
-
 	// Interface for Data::Histories.
 	void setInboxReadTill(MsgId upTo);
 	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;

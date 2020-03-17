@@ -134,6 +134,8 @@ nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
 
+    api/api_chat_filters.cpp
+    api/api_chat_filters.h
     api/api_common.h
     api/api_hash.h
     api/api_self_destruct.cpp

@@ -1921,6 +1921,9 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (_folder == folder) {
 		return;
 	}
+	if (isPinnedDialog(FilterId())) {
+		owner().setChatPinned(this, FilterId(), false);
+	}
 	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
@@ -1943,7 +1946,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 		for (const auto &filter : filters.list()) {
 			if (filter.contains(this)) {
 				const auto id = filter.id();
-				applyFilterPinnedIndex(id, filter);
 				addToChatList(id, filters.chatsList(id));
 			}
 		}
@@ -1955,24 +1957,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (folder) {
 		folder->registerOne(this);
 	}
-}
-
-void History::applyFilterPinnedIndex(
-		FilterId filterId,
-		const Data::ChatFilter &filter) {
-	const auto &pinned = filter.pinned();
-	const auto i = ranges::find(pinned, this);
-	if (i == end(pinned)) {
-		return;
-	}
-	const auto index = (i - begin(pinned)) + 1;
-	if (index == lookupPinnedIndex(filterId)) {
-		return;
-	}
-	owner().chatsFilters().chatsList(filterId)->pinned()->applyFilterPinned(
-		filterId,
-		this,
-		index);
 }
 
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
