@@ -123,7 +123,7 @@ private:
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	void setSNITrayIcon(int counter, bool muted, bool firstShow = false);
+	void setSNITrayIcon(int counter, bool muted);
 	void attachToSNITrayIcon();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
