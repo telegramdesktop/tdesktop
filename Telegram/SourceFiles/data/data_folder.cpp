@@ -347,7 +347,7 @@ void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	if (folderId != 0) {
 		LOG(("API Error: Nested folders detected."));
 	}
-	owner().setChatPinned(this, data.is_pinned());
+	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
 // #feed

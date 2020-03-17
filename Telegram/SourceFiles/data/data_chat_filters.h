@@ -34,12 +34,15 @@ public:
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
+	static constexpr int kPinnedLimit = 100;
+
 	ChatFilter() = default;
 	ChatFilter(
 		FilterId id,
 		const QString &title,
 		Flags flags,
 		base::flat_set<not_null<History*>> always,
+		std::vector<not_null<History*>> pinned,
 		base::flat_set<not_null<History*>> never);
 
 	[[nodiscard]] static ChatFilter FromTL(
@@ -51,6 +54,7 @@ public:
 	[[nodiscard]] QString title() const;
 	[[nodiscard]] Flags flags() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
+	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
 
 	[[nodiscard]] bool contains(not_null<History*> history) const;
@@ -59,6 +63,7 @@ private:
 	FilterId _id = 0;
 	QString _title;
 	base::flat_set<not_null<History*>> _always;
+	std::vector<not_null<History*>> _pinned;
 	base::flat_set<not_null<History*>> _never;
 	Flags _flags;
 

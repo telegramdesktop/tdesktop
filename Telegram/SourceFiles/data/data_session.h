@@ -362,16 +362,21 @@ public:
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	int pinnedChatsCount(Data::Folder *folder) const;
-	int pinnedChatsLimit(Data::Folder *folder) const;
+	int pinnedChatsCount(Data::Folder *folder, FilterId filterId) const;
+	int pinnedChatsLimit(Data::Folder *folder, FilterId filterId) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
-		Data::Folder *folder) const;
-	void setChatPinned(const Dialogs::Key &key, bool pinned);
-	void clearPinnedChats(Data::Folder *folder);
+		Data::Folder *folder,
+		FilterId filterId) const;
+	void setChatPinned(
+		const Dialogs::Key &key,
+		FilterId filterId,
+		bool pinned);
+	void clearPinnedChats(Data::Folder *folder, FilterId filterId);
 	void applyPinnedChats(
 		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list);
 	void reorderTwoPinnedChats(
+		FilterId filterId,
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 

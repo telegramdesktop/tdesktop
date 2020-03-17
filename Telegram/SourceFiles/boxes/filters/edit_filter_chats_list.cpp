@@ -380,7 +380,10 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 		if (_selected & flag) {
 			if (const auto row = delegate->peerListFindRow(TypeId(flag))) {
 				content->changeCheckState(row, true, anim::type::instant);
-				this->delegate()->peerListSetForeignRowChecked(row, true);
+				this->delegate()->peerListSetForeignRowChecked(
+					row,
+					true,
+					anim::type::instant);
 			}
 		}
 	}
@@ -397,7 +400,8 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	) | rpl::start_with_next([=](RowSelectionChange update) {
 		this->delegate()->peerListSetForeignRowChecked(
 			update.row,
-			update.checked);
+			update.checked,
+			anim::type::normal);
 	}, _lifetime);
 
 	_deselectOption = [=](PeerListRowId itemId) {

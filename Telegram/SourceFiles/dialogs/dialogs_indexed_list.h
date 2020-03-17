@@ -16,7 +16,7 @@ namespace Dialogs {
 
 class IndexedList {
 public:
-	IndexedList(SortMode sortMode);
+	IndexedList(SortMode sortMode, FilterId filterId = 0);
 
 	RowsByLetter addToEnd(Key key);
 	Row *addByName(Key key);
@@ -81,6 +81,7 @@ private:
 		const base::flat_set<QChar> &oldChars);
 
 	SortMode _sortMode = SortMode();
+	FilterId _filterId = 0;
 	List _list, _empty;
 	base::flat_map<QChar, List> _index;
 

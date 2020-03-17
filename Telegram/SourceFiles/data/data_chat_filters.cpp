@@ -25,10 +25,12 @@ ChatFilter::ChatFilter(
 	const QString &title,
 	Flags flags,
 	base::flat_set<not_null<History*>> always,
+	std::vector<not_null<History*>> pinned,
 	base::flat_set<not_null<History*>> never)
 : _id(id)
 , _title(title)
 , _always(std::move(always))
+, _pinned(std::move(pinned))
 , _never(std::move(never))
 , _flags(flags) {
 }
@@ -66,17 +68,26 @@ ChatFilter ChatFilter::FromTL(
 		}) | ranges::view::transform([](History *history) {
 			return not_null<History*>(history);
 		});
-		auto &&always = ranges::view::all(
+		auto &&always = ranges::view::concat(
 			data.vinclude_peers().v
 		) | to_histories;
+		auto pinned = ranges::view::all(
+			data.vpinned_peers().v
+		) | to_histories | ranges::to_vector;
 		auto &&never = ranges::view::all(
 			data.vexclude_peers().v
 		) | to_histories;
+		auto &&all = ranges::view::concat(always, pinned);
+		auto list = base::flat_set<not_null<History*>>{
+			all.begin(),
+			all.end()
+		};
 		return ChatFilter(
 			data.vid().v,
 			qs(data.vtitle()),
 			flags,
-			{ always.begin(), always.end() },
+			std::move(list),
+			std::move(pinned),
 			{ never.begin(), never.end() });
 	});
 }
@@ -94,10 +105,17 @@ MTPDialogFilter ChatFilter::tl() const {
 		| ((_flags & Flag::NoArchived)
 			? TLFlag::f_exclude_archived
 			: TLFlag(0));
-	auto always = QVector<MTPInputPeer>();
-	always.reserve(_always.size());
-	for (const auto history : _always) {
-		always.push_back(history->peer->input);
+	auto always = _always;
+	auto pinned = QVector<MTPInputPeer>();
+	pinned.reserve(_pinned.size());
+	for (const auto history : _pinned) {
+		pinned.push_back(history->peer->input);
+		always.remove(history);
+	}
+	auto include = QVector<MTPInputPeer>();
+	include.reserve(always.size());
+	for (const auto history : always) {
+		include.push_back(history->peer->input);
 	}
 	auto never = QVector<MTPInputPeer>();
 	never.reserve(_never.size());
@@ -109,8 +127,8 @@ MTPDialogFilter ChatFilter::tl() const {
 		MTP_int(_id),
 		MTP_string(_title),
 		MTPstring(), // emoticon
-		MTP_vector<MTPInputPeer>(),
-		MTP_vector<MTPInputPeer>(always),
+		MTP_vector<MTPInputPeer>(pinned),
+		MTP_vector<MTPInputPeer>(include),
 		MTP_vector<MTPInputPeer>(never));
 }
 
@@ -128,6 +146,10 @@ ChatFilter::Flags ChatFilter::flags() const {
 
 const base::flat_set<not_null<History*>> &ChatFilter::always() const {
 	return _always;
+}
+
+const std::vector<not_null<History*>> &ChatFilter::pinned() const {
+	return _pinned;
 }
 
 const base::flat_set<not_null<History*>> &ChatFilter::never() const {
@@ -196,7 +218,7 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	if (!pointer) {
 		pointer = std::make_unique<Dialogs::MainList>(
 			filterId,
-			rpl::single(1));
+			rpl::single(ChatFilter::kPinnedLimit));
 	}
 	return pointer.get();
 }
@@ -284,7 +306,7 @@ void ChatFilters::applyInsert(ChatFilter filter, int position) {
 
 	_list.insert(
 		begin(_list) + position,
-		ChatFilter(filter.id(), {}, {}, {}, {}));
+		ChatFilter(filter.id(), {}, {}, {}, {}, {}));
 	applyChange(*(begin(_list) + position), std::move(filter));
 }
 
@@ -301,7 +323,7 @@ void ChatFilters::applyRemove(int position) {
 	Expects(position >= 0 && position < _list.size());
 
 	const auto i = begin(_list) + position;
-	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}));
+	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}));
 	_list.erase(i);
 }
 
@@ -309,12 +331,21 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	const auto rulesChanged = (filter.flags() != updated.flags())
 		|| (filter.always() != updated.always())
 		|| (filter.never() != updated.never());
+	const auto pinnedChanged = (filter.pinned() != updated.pinned());
+	if (!rulesChanged
+		&& !pinnedChanged
+		&& filter.title() == updated.title()) {
+		return false;
+	}
 	if (rulesChanged) {
 		const auto id = filter.id();
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		const auto feedHistory = [&](not_null<History*> history) {
 			const auto now = updated.contains(history);
 			const auto was = filter.contains(history);
+			if (now) {
+				history->applyFilterPinnedIndex(id, updated);
+			}
 			if (now != was) {
 				if (now) {
 					history->addToChatList(id, filterList);
@@ -334,8 +365,10 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		if (const auto folder = _owner->folderLoaded(Data::Folder::kId)) {
 			feedList(folder->chatsList());
 		}
-	} else if (filter.title() == updated.title()) {
-		return false;
+	} else if (pinnedChanged) {
+		const auto id = filter.id();
+		const auto filterList = _owner->chatsFilters().chatsList(id);
+		filterList->pinned()->applyList(updated.pinned());
 	}
 	filter = std::move(updated);
 	return true;

@@ -106,20 +106,24 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 			data->title(),
 			(data->flags() & ~flag),
 			data->always(),
+			data->pinned(),
 			data->never());
 	}, preview->lifetime());
 
 	preview->peerRemoved(
 	) | rpl::start_with_next([=](not_null<History*> history) {
 		auto always = data->always();
+		auto pinned = data->pinned();
 		auto never = data->never();
 		always.remove(history);
+		pinned.erase(ranges::remove(pinned, history), end(pinned));
 		never.remove(history);
 		*data = Data::ChatFilter(
 			data->id(),
 			data->title(),
 			data->flags(),
 			std::move(always),
+			std::move(pinned),
 			std::move(never));
 	}, preview->lifetime());
 
@@ -272,7 +276,7 @@ void EditExceptions(
 			const auto peers = box->peerListCollectSelectedRows();
 			auto &&histories = ranges::view::all(
 				peers
-			) | ranges::view::transform([=](not_null<PeerData*> peer) {
+				) | ranges::view::transform([=](not_null<PeerData*> peer) {
 				return window->session().data().history(peer);
 			});
 			auto changed = base::flat_set<not_null<History*>>{
@@ -283,11 +287,17 @@ void EditExceptions(
 			for (const auto &history : changed) {
 				removeFrom.remove(history);
 			}
+			auto pinned = data->pinned();
+			pinned.erase(ranges::remove_if(pinned, [&](not_null<History*> history) {
+				const auto contains = changed.contains(history);
+				return include ? !contains : contains;
+			}), end(pinned));
 			*data = Data::ChatFilter(
 				data->id(),
 				data->title(),
 				(data->flags() & ~options) | rawController->chosenOptions(),
 				include ? std::move(changed) : std::move(removeFrom),
+				std::move(pinned),
 				include ? std::move(removeFrom) : std::move(changed));
 			refresh();
 			box->closeBox();
@@ -407,6 +417,7 @@ void EditFilterBox(
 			title,
 			data->flags(),
 			data->always(),
+			data->pinned(),
 			data->never());
 		box->closeBox();
 

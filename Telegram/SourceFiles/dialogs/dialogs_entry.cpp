@@ -55,19 +55,34 @@ Main::Session &Entry::session() const {
 	return _owner->session();
 }
 
-void Entry::cachePinnedIndex(int index) {
-	if (_pinnedIndex != index) {
-		const auto wasPinned = isPinnedDialog();
-		_pinnedIndex = index;
-		if (session().supportMode()) {
-			// Force reorder in support mode.
-			_sortKeyInChatList = 0;
+void Entry::pinnedIndexChanged(int was, int now) {
+	if (session().supportMode()) {
+		// Force reorder in support mode.
+		_sortKeyInChatList = 0;
+	}
+	updateChatListSortPosition();
+	updateChatListEntry();
+	if ((was != 0) != (now != 0)) {
+		changedChatListPinHook();
+	}
+}
+
+void Entry::cachePinnedIndex(FilterId filterId, int index) {
+	const auto i = _pinnedIndex.find(filterId);
+	const auto was = (i != end(_pinnedIndex)) ? i->second : 0;
+	if (index == was) {
+		return;
+	}
+	if (!index) {
+		_pinnedIndex.erase(i);
+		pinnedIndexChanged(was, index);
+	} else {
+		if (!was) {
+			_pinnedIndex.emplace(filterId, index);
+		} else {
+			i->second = index;
 		}
-		updateChatListSortPosition();
-		updateChatListEntry();
-		if (wasPinned != isPinnedDialog()) {
-			changedChatListPinHook();
-		}
+		pinnedIndexChanged(was, index);
 	}
 }
 
@@ -97,14 +112,29 @@ void Entry::updateChatListSortPosition() {
 	const auto fixedIndex = fixedOnTopIndex();
 	_sortKeyInChatList = fixedIndex
 		? FixedOnTopDialogPos(fixedIndex)
-		: isPinnedDialog()
-		? PinnedDialogPos(_pinnedIndex)
-		: _sortKeyByDate;
+		: computeSortPosition(0);
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
 	} else {
 		_sortKeyInChatList = _sortKeyByDate = 0;
 	}
+}
+
+int Entry::lookupPinnedIndex(FilterId filterId) const {
+	if (filterId) {
+		const auto i = _pinnedIndex.find(filterId);
+		return (i != end(_pinnedIndex)) ? i->second : 0;
+	} else if (!_pinnedIndex.empty()) {
+		return _pinnedIndex.front().first
+			? 0
+			: _pinnedIndex.front().second;
+	}
+	return 0;
+}
+
+uint64 Entry::computeSortPosition(FilterId filterId) const {
+	const auto index = lookupPinnedIndex(filterId);
+	return index ? PinnedDialogPos(index) : _sortKeyByDate;
 }
 
 void Entry::updateChatListExistence() {
@@ -205,6 +235,9 @@ void Entry::removeFromChatList(
 		return;
 	}
 	_chatListLinks.erase(i);
+	if (isPinnedDialog(filterId)) {
+		owner().setChatPinned(_key, filterId, false);
+	}
 	list->removeEntry(_key);
 }
 

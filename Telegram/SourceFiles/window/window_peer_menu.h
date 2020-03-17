@@ -39,6 +39,7 @@ using PeerMenuCallback = Fn<QAction*(
 void FillPeerMenu(
 	not_null<SessionController*> controller,
 	not_null<PeerData*> peer,
+	FilterId filterId,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
 void FillFolderMenu(

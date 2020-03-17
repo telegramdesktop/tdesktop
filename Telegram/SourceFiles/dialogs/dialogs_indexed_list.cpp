@@ -13,10 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-IndexedList::IndexedList(SortMode sortMode)
+IndexedList::IndexedList(SortMode sortMode, FilterId filterId)
 : _sortMode(sortMode)
-, _list(sortMode)
-, _empty(sortMode) {
+, _filterId(filterId)
+, _list(sortMode, filterId)
+, _empty(sortMode, filterId) {
 }
 
 RowsByLetter IndexedList::addToEnd(Key key) {
@@ -28,7 +29,7 @@ RowsByLetter IndexedList::addToEnd(Key key) {
 	for (const auto ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
-			j = _index.emplace(ch, _sortMode).first;
+			j = _index.emplace(ch, _sortMode, _filterId).first;
 		}
 		result.letters.emplace(ch, j->second.addToEnd(key));
 	}
@@ -44,7 +45,7 @@ Row *IndexedList::addByName(Key key) {
 	for (const auto ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
-			j = _index.emplace(ch, _sortMode).first;
+			j = _index.emplace(ch, _sortMode, _filterId).first;
 		}
 		j->second.addByName(key);
 	}
@@ -79,7 +80,8 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 		Assert(swapPinnedIndexWith != cbegin());
 		--swapPinnedIndexWith;
 	}
-	Auth().data().reorderTwoPinnedChats(
+	row->key().entry()->owner().reorderTwoPinnedChats(
+		_filterId,
 		row->key(),
 		(*swapPinnedIndexWith)->key());
 }
@@ -87,7 +89,7 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 void IndexedList::peerNameChanged(
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters) {
-	Expects(_sortMode != SortMode::Date && _sortMode != SortMode::Complex);
+	Expects(_sortMode != SortMode::Date);
 
 	if (const auto history = peer->owner().historyLoaded(peer)) {
 		if (_sortMode == SortMode::Name) {
@@ -102,7 +104,7 @@ void IndexedList::peerNameChanged(
 		FilterId filterId,
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters) {
-	Expects(_sortMode == SortMode::Date || _sortMode == SortMode::Complex);
+	Expects(_sortMode == SortMode::Date);
 
 	if (const auto history = peer->owner().historyLoaded(peer)) {
 		adjustNames(filterId, history, oldLetters);
@@ -139,7 +141,7 @@ void IndexedList::adjustByName(
 		for (auto ch : toAdd) {
 			auto j = _index.find(ch);
 			if (j == _index.cend()) {
-				j = _index.emplace(ch, _sortMode).first;
+				j = _index.emplace(ch, _sortMode, _filterId).first;
 			}
 			j->second.addByName(key);
 		}
@@ -165,7 +167,7 @@ void IndexedList::adjustNames(
 		}
 	}
 	for (auto ch : toRemove) {
-		if (_sortMode == SortMode::Date || _sortMode == SortMode::Complex) {
+		if (_sortMode == SortMode::Date) {
 			history->removeChatListEntryByLetter(filterId, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
@@ -175,10 +177,10 @@ void IndexedList::adjustNames(
 	for (auto ch : toAdd) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
-			j = _index.emplace(ch, _sortMode).first;
+			j = _index.emplace(ch, _sortMode, _filterId).first;
 		}
 		auto row = j->second.addToEnd(key);
-		if (_sortMode == SortMode::Date || _sortMode == SortMode::Complex) {
+		if (_sortMode == SortMode::Date) {
 			history->addChatListEntryByLetter(filterId, ch, row);
 		}
 	}

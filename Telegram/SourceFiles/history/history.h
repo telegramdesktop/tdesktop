@@ -31,6 +31,7 @@ namespace Data {
 struct Draft;
 class Session;
 class Folder;
+class ChatFilter;
 } // namespace Data
 
 namespace Dialogs {
@@ -367,6 +368,10 @@ public:
 		not_null<Data::Folder*> folder,
 		HistoryItem *folderDialogItem = nullptr);
 	void clearFolder();
+
+	void applyFilterPinnedIndex(
+		FilterId filterId,
+		const Data::ChatFilter &filter);
 
 	// Interface for Data::Histories.
 	void setInboxReadTill(MsgId upTo);

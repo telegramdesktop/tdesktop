@@ -1921,9 +1921,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (_folder == folder) {
 		return;
 	}
-	if (isPinnedDialog()) {
-		owner().setChatPinned(this, false);
-	}
 	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
@@ -1946,6 +1943,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 		for (const auto &filter : filters.list()) {
 			if (filter.contains(this)) {
 				const auto id = filter.id();
+				applyFilterPinnedIndex(id, filter);
 				addToChatList(id, filters.chatsList(id));
 			}
 		}
@@ -1959,6 +1957,24 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 }
 
+void History::applyFilterPinnedIndex(
+		FilterId filterId,
+		const Data::ChatFilter &filter) {
+	const auto &pinned = filter.pinned();
+	const auto i = ranges::find(pinned, this);
+	if (i == end(pinned)) {
+		return;
+	}
+	const auto index = (i - begin(pinned)) + 1;
+	if (index == lookupPinnedIndex(filterId)) {
+		return;
+	}
+	owner().chatsFilters().chatsList(filterId)->pinned()->applyFilterPinned(
+		filterId,
+		this,
+		index);
+}
+
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	const auto folderId = data.vfolder_id().value_or_empty();
 	if (!folderKnown()) {
@@ -1968,7 +1984,7 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 			clearFolder();
 		}
 	}
-	owner().setChatPinned(this, data.is_pinned());
+	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
 TimeId History::adjustedChatListTimeId() const {
@@ -2576,7 +2592,7 @@ bool History::useProxyPromotion() const {
 	if (!isProxyPromoted()) {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
-		return !isPinnedDialog() && !channel->amIn();
+		return !isPinnedDialog(FilterId()) && !channel->amIn();
 	}
 	return false;
 }
@@ -2595,7 +2611,7 @@ bool History::trackUnreadMessages() const {
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;
-	} else if (isPinnedDialog()) {
+	} else if (isPinnedDialog(FilterId())) {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {

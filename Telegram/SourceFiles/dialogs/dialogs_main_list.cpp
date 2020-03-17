@@ -14,8 +14,8 @@ namespace Dialogs {
 
 MainList::MainList(FilterId filterId, rpl::producer<int> pinnedLimit)
 : _filterId(filterId)
-, _all(filterId ? SortMode::Date : SortMode::Complex)
-, _pinned(1) {
+, _all(SortMode::Date, filterId)
+, _pinned(filterId, 1) {
 	_unreadState.known = true;
 
 	std::move(

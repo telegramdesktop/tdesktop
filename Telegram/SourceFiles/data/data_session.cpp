@@ -780,7 +780,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 	const auto history = historyLoaded(peer);
 	if (history) {
 		if (history->folderKnown()) {
-			setChatPinned(history, false);
+			setChatPinned(history, FilterId(), false);
 		}
 		App::main()->removeDialog(history);
 		history->clear(peer->isChannel()
@@ -1459,11 +1459,16 @@ MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
 	return { 1, item->fullId() };
 }
 
-void Session::setChatPinned(const Dialogs::Key &key, bool pinned) {
+void Session::setChatPinned(
+		const Dialogs::Key &key,
+		FilterId filterId,
+		bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	const auto list = chatsList(key.entry()->folder())->pinned();
-	list->setPinned(key, pinned);
+	const auto list = filterId
+		? chatsFilters().chatsList(filterId)
+		: chatsList(key.entry()->folder());
+	list->pinned()->setPinned(key, pinned);
 	notifyPinnedDialogsOrderUpdated();
 }
 
@@ -1549,32 +1554,53 @@ void Session::applyDialog(
 	setPinnedFromDialog(folder, data.is_pinned());
 }
 
-int Session::pinnedChatsCount(Data::Folder *folder) const {
-	return pinnedChatsOrder(folder).size();
+int Session::pinnedChatsCount(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	Expects(!folder || !filterId);
+
+	if (!filterId) {
+		return pinnedChatsOrder(folder, filterId).size();
+	}
+	const auto &list = chatsFilters().list();
+	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+	return (i != end(list)) ? i->pinned().size() : 0;
 }
 
-int Session::pinnedChatsLimit(Data::Folder *folder) const {
-	return folder
+int Session::pinnedChatsLimit(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	return filterId
+		? Data::ChatFilter::kPinnedLimit
+		: folder
 		? Global::PinnedDialogsInFolderMax()
 		: Global::PinnedDialogsCountMax();
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
-		Data::Folder *folder) const {
-	return chatsList(folder)->pinned()->order();
+		Data::Folder *folder,
+		FilterId filterId) const {
+	const auto list = filterId
+		? chatsFilters().chatsList(filterId)
+		: chatsList(folder);
+	return list->pinned()->order();
 }
 
-void Session::clearPinnedChats(Data::Folder *folder) {
+void Session::clearPinnedChats(Data::Folder *folder, FilterId filterId) {
 	chatsList(folder)->pinned()->clear();
 }
 
 void Session::reorderTwoPinnedChats(
+		FilterId filterId,
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2) {
 	Expects(key1.entry()->folderKnown() && key2.entry()->folderKnown());
-	Expects(key1.entry()->folder() == key2.entry()->folder());
+	Expects(filterId || (key1.entry()->folder() == key2.entry()->folder()));
 
-	chatsList(key1.entry()->folder())->pinned()->reorder(key1, key2);
+	const auto list = filterId
+		? chatsFilters().chatsList(filterId)
+		: chatsList(key1.entry()->folder());
+	list->pinned()->reorder(key1, key2);
 	notifyPinnedDialogsOrderUpdated();
 }
 
@@ -3349,6 +3375,7 @@ auto Session::refreshChatListEntry(
 		const auto filterList = chatsFilters().chatsList(id);
 		auto filterResult = RefreshChatListEntryResult();
 		if (filter.contains(history)) {
+			history->applyFilterPinnedIndex(id, filter);
 			filterResult.changed = !entry->inChatList(id);
 			if (filterResult.changed) {
 				entry->addToChatList(id, filterList);

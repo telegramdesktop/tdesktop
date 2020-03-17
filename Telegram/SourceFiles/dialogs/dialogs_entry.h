@@ -32,10 +32,9 @@ struct RowsByLetter {
 };
 
 enum class SortMode {
-	Complex = 0x00,
-	Date    = 0x01,
-	Name    = 0x02,
-	Add     = 0x04,
+	Date    = 0x00,
+	Name    = 0x01,
+	Add     = 0x02,
 };
 
 struct PositionChange {
@@ -117,19 +116,18 @@ public:
 		QChar letter,
 		not_null<Row*> row);
 	void updateChatListEntry() const;
-	bool isPinnedDialog() const {
-		return _pinnedIndex > 0;
+	[[nodiscard]] bool isPinnedDialog(FilterId filterId) const {
+		return lookupPinnedIndex(filterId) != 0;
 	}
-	void cachePinnedIndex(int index);
+	void cachePinnedIndex(FilterId filterId, int index);
 	bool isProxyPromoted() const {
 		return _isProxyPromoted;
 	}
 	void cacheProxyPromoted(bool promoted);
-	uint64 sortKeyInChatList() const {
-		return _sortKeyInChatList;
-	}
-	uint64 sortKeyByDate() const {
-		return _sortKeyByDate;
+	[[nodiscard]] uint64 sortKeyInChatList(FilterId filterId) const {
+		return filterId
+			? computeSortPosition(filterId)
+			: _sortKeyInChatList;
 	}
 	void updateChatListSortPosition();
 	void setChatListTimeId(TimeId date);
@@ -194,8 +192,12 @@ protected:
 		});
 	}
 
+	[[nodiscard]] int lookupPinnedIndex(FilterId filterId) const;
+
 private:
 	virtual void changedChatListPinHook();
+	void pinnedIndexChanged(int was, int now);
+	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
 
 	void setChatListExistence(bool exists);
 	RowsByLetter *chatListLinks(FilterId filterId);
@@ -208,7 +210,7 @@ private:
 	base::flat_map<FilterId, RowsByLetter> _chatListLinks;
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
-	int _pinnedIndex = 0;
+	base::flat_map<FilterId, int> _pinnedIndex;
 	bool _isProxyPromoted = false;
 	TimeId _timeId = 0;
 

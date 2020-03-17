@@ -220,10 +220,8 @@ Row::Row(Key key, int pos) : _id(key), _pos(pos) {
 	}
 }
 
-uint64 Row::sortKey(SortMode mode) const {
-	return (mode == SortMode::Complex)
-		? _id.entry()->sortKeyInChatList()
-		: _id.entry()->sortKeyByDate();
+uint64 Row::sortKey(FilterId filterId) const {
+	return _id.entry()->sortKeyInChatList(filterId);
 }
 
 void Row::validateListEntryCache() const {

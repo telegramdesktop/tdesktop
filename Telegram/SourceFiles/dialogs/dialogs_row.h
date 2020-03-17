@@ -90,7 +90,7 @@ public:
 	int pos() const {
 		return _pos;
 	}
-	uint64 sortKey(SortMode mode) const;
+	uint64 sortKey(FilterId filterId) const;
 
 	void validateListEntryCache() const;
 	const Ui::Text::String &listEntryCache() const {

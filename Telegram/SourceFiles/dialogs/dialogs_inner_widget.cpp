@@ -66,12 +66,14 @@ int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	return result;
 }
 
-int PinnedDialogsCount(not_null<Dialogs::IndexedList*> list) {
+int PinnedDialogsCount(
+		FilterId filterId,
+		not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
 	for (const auto row : *list) {
 		if (row->entry()->fixedOnTopIndex()) {
 			continue;
-		} else if (!row->entry()->isPinnedDialog()) {
+		} else if (!row->entry()->isPinnedDialog(filterId)) {
 			break;
 		}
 		++result;
@@ -1075,7 +1077,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	}
 	if (anim::Disabled()
-		&& (!_pressed || !_pressed->entry()->isPinnedDialog())) {
+		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
 		mousePressReleased(e->globalPos(), e->button());
 	}
 }
@@ -1091,7 +1093,9 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	if (updateReorderIndexGetCount() < 2) {
 		_dragging = nullptr;
 	} else {
-		const auto &order = session().data().pinnedChatsOrder(_openedFolder);
+		const auto &order = session().data().pinnedChatsOrder(
+			_openedFolder,
+			_filterId);
 		_pinnedOnDragStart = base::flat_set<Key>{
 			order.begin(),
 			order.end()
@@ -1103,14 +1107,14 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 }
 
 int InnerWidget::countPinnedIndex(Row *ofRow) {
-	if (!ofRow || !ofRow->entry()->isPinnedDialog()) {
+	if (!ofRow || !ofRow->entry()->isPinnedDialog(_filterId)) {
 		return -1;
 	}
 	auto result = 0;
 	for (const auto row : *shownDialogs()) {
 		if (row->entry()->fixedOnTopIndex()) {
 			continue;
-		} else if (!row->entry()->isPinnedDialog()) {
+		} else if (!row->entry()->isPinnedDialog(_filterId)) {
 			break;
 		} else if (row == ofRow) {
 			return result;
@@ -1121,7 +1125,9 @@ int InnerWidget::countPinnedIndex(Row *ofRow) {
 }
 
 void InnerWidget::savePinnedOrder() {
-	const auto &newOrder = session().data().pinnedChatsOrder(_openedFolder);
+	const auto &newOrder = session().data().pinnedChatsOrder(
+		_openedFolder,
+		_filterId);
 	if (newOrder.size() != _pinnedOnDragStart.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
@@ -1130,7 +1136,11 @@ void InnerWidget::savePinnedOrder() {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	session().api().savePinnedOrder(_openedFolder);
+	if (_filterId) {
+		// #TODO pinned reorder data and to server
+	} else {
+		session().api().savePinnedOrder(_openedFolder);
+	}
 }
 
 void InnerWidget::finishReorderPinned() {
@@ -1162,7 +1172,7 @@ int InnerWidget::updateReorderIndexGetCount() {
 		return 0;
 	}
 
-	const auto count = Dialogs::PinnedDialogsCount(shownDialogs());
+	const auto count = Dialogs::PinnedDialogsCount(_filterId, shownDialogs());
 	Assert(index < count);
 	if (count < 2) {
 		stopReorderPinned();
@@ -1789,6 +1799,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 		Window::FillPeerMenu(
 			_controller,
 			history->peer,
+			_filterId,
 			[&](const QString &text, Fn<void()> callback) {
 				return _menu->addAction(text, std::move(callback));
 			},
@@ -2541,6 +2552,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 			&Data::ChatFilter::id)) {
 		filterId = 0;
 	}
+	stopReorderPinned();
 	_filterId = filterId;
 	refreshWithCollapsedRows(true);
 	_collapsedSelected = 0;
@@ -2983,7 +2995,7 @@ void InnerWidget::setupShortcuts() {
 		for (const auto [command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
 				const auto list = session().data().chatsList()->indexed();
-				const auto count = Dialogs::PinnedDialogsCount(list);
+				const auto count = Dialogs::PinnedDialogsCount(_filterId, list);
 				if (index >= count) {
 					return false;
 				}

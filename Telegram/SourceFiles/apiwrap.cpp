@@ -484,7 +484,9 @@ void ApiWrap::applyUpdates(
 }
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
-	const auto &order = _session->data().pinnedChatsOrder(folder);
+	const auto &order = _session->data().pinnedChatsOrder(
+		folder,
+		FilterId());
 	const auto input = [](const Dialogs::Key &key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
@@ -513,7 +515,7 @@ void ApiWrap::toggleHistoryArchived(
 	if (const auto already = _historyArchivedRequests.take(history)) {
 		request(already->first).cancel();
 	}
-	const auto isPinned = history->isPinnedDialog();
+	const auto isPinned = history->isPinnedDialog(0);
 	const auto archiveId = Data::Folder::kId;
 	const auto requestId = request(MTPfolders_EditPeerFolders(
 		MTP_vector<MTPInputFolderPeer>(
@@ -980,7 +982,7 @@ void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 		result.match([&](const MTPDmessages_peerDialogs &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
-			_session->data().clearPinnedChats(folder);
+			_session->data().clearPinnedChats(folder, FilterId());
 			_session->data().applyDialogs(
 				folder,
 				data.vmessages().v,

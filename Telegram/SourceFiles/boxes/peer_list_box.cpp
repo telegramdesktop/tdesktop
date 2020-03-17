@@ -203,9 +203,10 @@ void PeerListBox::peerListSetRowChecked(
 
 void PeerListBox::peerListSetForeignRowChecked(
 		not_null<PeerListRow*> row,
-		bool checked) {
+		bool checked,
+		anim::type animated) {
 	if (checked) {
-		addSelectItem(row, anim::type::normal);
+		addSelectItem(row, animated);
 
 		// This call deletes row from _searchRows.
 		_select->entity()->clearQuery();
