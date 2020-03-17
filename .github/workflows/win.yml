@@ -350,6 +350,7 @@ jobs:
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
+        shell: cmd
         run: |
           cd %REPO_NAME%\out\Debug
           mkdir artifact
