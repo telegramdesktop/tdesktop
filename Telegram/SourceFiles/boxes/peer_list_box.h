@@ -87,7 +87,8 @@ public:
 
 	[[nodiscard]] virtual QString generateName();
 	[[nodiscard]] virtual QString generateShortName();
-	[[nodiscard]] PaintRoundImageCallback generatePaintUserpicCallback();
+	[[nodiscard]] virtual auto generatePaintUserpicCallback()
+		-> PaintRoundImageCallback;
 
 	void setCustomStatus(const QString &status);
 	void clearCustomStatus();
@@ -206,13 +207,6 @@ protected:
 	}
 
 	explicit PeerListRow(PeerListRowId id);
-
-	virtual void paintEntityUserpicLeft(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
 
 private:
 	void createCheckbox(

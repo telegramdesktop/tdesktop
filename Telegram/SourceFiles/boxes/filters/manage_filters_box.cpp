@@ -345,12 +345,11 @@ void ManageFiltersPrepare::SetupBox(
 	AddSubsectionTitle(content, tr::lng_filters_subtitle());
 
 	const auto rows = box->lifetime().make_state<std::vector<FilterRow>>();
+	const auto rowsCount = box->lifetime().make_state<rpl::variable<int>>();
 	const auto find = [=](not_null<FilterRowButton*> button) {
 		const auto i = ranges::find(*rows, button, &FilterRow::button);
 		Assert(i != end(*rows));
 		return &*i;
-	};
-	const auto countNonRemoved = [=] {
 	};
 	const auto showLimitReached = [=] {
 		const auto removed = ranges::count_if(*rows, &FilterRow::removed);
@@ -393,6 +392,7 @@ void ManageFiltersPrepare::SetupBox(
 				crl::guard(button, doneCallback)));
 		});
 		rows->push_back({ button, filter });
+		*rowsCount = rows->size();
 
 		wrap->resizeToWidth(content->width());
 	};
@@ -462,8 +462,14 @@ void ManageFiltersPrepare::SetupBox(
 	}
 
 	using namespace rpl::mappers;
-	emptyAbout->toggleOn(suggested->value() | rpl::map(_1 == 0));
-	nonEmptyAbout->toggleOn(suggested->value() | rpl::map(_1 > 0));
+	auto showSuggestions = rpl::combine(
+		suggested->value(),
+		rowsCount->value()
+	) | rpl::map(_1 > 0 && _2 < kFiltersLimit);
+	emptyAbout->toggleOn(rpl::duplicate(
+		showSuggestions
+	) | rpl::map(!_1));
+	nonEmptyAbout->toggleOn(std::move(showSuggestions));
 
 	const auto prepareGoodIdsForNewFilters = [=] {
 		const auto &list = session->data().chatsFilters().list();

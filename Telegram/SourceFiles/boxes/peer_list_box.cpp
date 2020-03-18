@@ -484,22 +484,15 @@ QString PeerListRow::generateShortName() {
 }
 
 PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback() {
+	const auto saved = _isSavedMessagesChat;
+	const auto peer = this->peer();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
-		paintEntityUserpicLeft(p, x, y, outerWidth, size);
+		if (saved) {
+			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		} else {
+			peer->paintUserpicLeft(p, x, y, outerWidth, size);
+		}
 	};
-}
-
-void PeerListRow::paintEntityUserpicLeft(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	if (_isSavedMessagesChat) {
-		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
-	} else {
-		peer()->paintUserpicLeft(p, x, y, outerWidth, size);
-	}
 }
 
 void PeerListRow::invalidatePixmapsCache() {
@@ -571,8 +564,8 @@ void PeerListRow::paintUserpic(
 		paintDisabledCheckUserpic(p, st, x, y, outerWidth);
 	} else if (_checkbox) {
 		_checkbox->paint(p, x, y, outerWidth);
-	} else {
-		paintEntityUserpicLeft(p, x, y, outerWidth, st.photoSize);
+	} else if (const auto callback = generatePaintUserpicCallback()) {
+		callback(p, x, y, outerWidth, st.photoSize);
 	}
 }
 

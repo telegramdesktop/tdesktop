@@ -44,12 +44,7 @@ public:
 
 	QString generateName() override;
 	QString generateShortName() override;
-	void paintEntityUserpicLeft(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) override;
+	PaintRoundImageCallback generatePaintUserpicCallback() override;
 
 private:
 	[[nodiscard]] Flag flag() const;
@@ -144,13 +139,11 @@ QString TypeRow::generateShortName() {
 	return generateName();
 }
 
-void TypeRow::paintEntityUserpicLeft(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	PaintFilterChatsTypeIcon(p, flag(), x, y, outerWidth, size);
+PaintRoundImageCallback TypeRow::generatePaintUserpicCallback() {
+	const auto flag = this->flag();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		PaintFilterChatsTypeIcon(p, flag, x, y, outerWidth, size);
+	};
 }
 
 Flag TypeRow::flag() const {
