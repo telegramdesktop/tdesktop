@@ -299,7 +299,6 @@ public:
 	void setActiveChatsFilter(FilterId id);
 
 	void toggleFiltersMenu(bool enabled);
-	void refreshFiltersMenu();
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
 	rpl::lifetime &lifetime() {
@@ -311,6 +310,8 @@ public:
 private:
 	void init();
 	void initSupportMode();
+	void refreshFiltersMenu();
+	void checkOpenedFilter();
 
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;

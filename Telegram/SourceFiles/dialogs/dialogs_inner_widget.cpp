@@ -498,11 +498,16 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, st::dialogsBg);
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
+			const auto phrase = _filterId
+				? (session().data().chatsList()->loaded()
+					? tr::lng_no_chats_filter(tr::now)
+					: tr::lng_contacts_loading(tr::now))
+				: session().data().contactsLoaded().current()
+				? tr::lng_no_chats(tr::now)
+				: tr::lng_contacts_loading(tr::now);
 			p.drawText(
 				QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().current() ? st::noContactsFont->height : 0)),
-				(session().data().contactsLoaded().current()
-					? tr::lng_no_chats
-					: tr::lng_contacts_loading)(tr::now),
+				phrase,
 				style::al_center);
 		}
 	} else if (_state == WidgetState::Filtered) {
@@ -1198,6 +1203,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 		return false;
 	}
 
+	const auto list = shownDialogs();
 	auto yaddWas = _pinnedRows[_draggingIndex].yadd.current();
 	auto shift = 0;
 	auto now = crl::now();
@@ -1206,7 +1212,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 		shift = -floorclamp(_dragStart.y() - localPosition.y() + (rowHeight / 2), rowHeight, 0, _draggingIndex);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
-			shownDialogs()->movePinned(_dragging, -1);
+			list->movePinned(_dragging, -1);
 			std::swap(_pinnedRows[from], _pinnedRows[from - 1]);
 			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - rowHeight, 0);
 			_pinnedRows[from].animStartTime = now;
@@ -1215,7 +1221,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 		shift = floorclamp(localPosition.y() - _dragStart.y() + (rowHeight / 2), rowHeight, 0, pinnedCount - _draggingIndex - 1);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
-			shownDialogs()->movePinned(_dragging, 1);
+			list->movePinned(_dragging, 1);
 			std::swap(_pinnedRows[from], _pinnedRows[from + 1]);
 			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + rowHeight, 0);
 			_pinnedRows[from].animStartTime = now;
@@ -2184,21 +2190,19 @@ void InnerWidget::refresh(bool toTop) {
 	if (needCollapsedRowsRefresh()) {
 		return refreshWithCollapsedRows(toTop);
 	}
+	const auto list = shownDialogs();
+	_addContactLnk->setVisible(!_filterId
+		&& (_state == WidgetState::Default)
+		&& list->empty()
+		&& session().data().contactsLoaded().current());
 	auto h = 0;
 	if (_state == WidgetState::Default) {
-		if (shownDialogs()->empty()) {
+		if (list->empty()) {
 			h = st::noContactsHeight;
-			if (session().data().contactsLoaded().current()) {
-				if (_addContactLnk->isHidden()) _addContactLnk->show();
-			} else {
-				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
-			}
 		} else {
-			h = dialogsOffset() + shownDialogs()->size() * st::dialogsRowHeight;
-			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
+			h = dialogsOffset() + list->size() * st::dialogsRowHeight;
 		}
 	} else if (_state == WidgetState::Filtered) {
-		if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 		if (_waitingForSearch) {
 			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight) + ((_searchResults.empty() && !_searchInChat) ? -st::searchedBarHeight : 0);
 		} else {
@@ -2556,7 +2560,6 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 	stopReorderPinned();
 	_filterId = filterId;
 	refreshWithCollapsedRows(true);
-	_collapsedSelected = 0;
 }
 
 bool InnerWidget::chooseHashtag() {

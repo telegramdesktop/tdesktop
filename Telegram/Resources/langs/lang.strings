@@ -250,6 +250,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_new_channel_name" = "Channel name";
 "lng_no_contacts" = "You have no contacts";
 "lng_no_chats" = "Your chats will be here";
+"lng_no_chats_filter" = "No chats currently match this folder.";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
 "lng_dlg_search_for_messages" = "Search for messages";

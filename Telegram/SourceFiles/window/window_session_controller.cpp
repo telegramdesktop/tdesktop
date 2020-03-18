@@ -141,6 +141,7 @@ SessionController::SessionController(
 
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
+		checkOpenedFilter();
 		crl::on_main(session, [=] {
 			refreshFiltersMenu();
 		});
@@ -224,6 +225,16 @@ void SessionController::refreshFiltersMenu() {
 
 rpl::producer<> SessionController::filtersMenuChanged() const {
 	return _filtersMenuChanged.events();
+}
+
+void SessionController::checkOpenedFilter() {
+	if (const auto filterId = activeChatsFilterCurrent()) {
+		const auto &list = session().data().chatsFilters().list();
+		const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+		if (i == end(list)) {
+			setActiveChatsFilter(0);
+		}
+	}
 }
 
 bool SessionController::uniqueChatsInSearchResults() const {
