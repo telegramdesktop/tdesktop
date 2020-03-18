@@ -531,6 +531,10 @@ void MainWindow::onSNIOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner) {
+	if (Global::WorkMode().value() == dbiwmWindowOnly) {
+		return;
+	}
+
 	if (oldOwner.isEmpty() && !newOwner.isEmpty()) {
 		LOG(("Switching to SNI tray icon..."));
 	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
