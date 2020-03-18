@@ -69,12 +69,6 @@ auto GenerateCodes() {
 	codes.emplace(qsl("crashplease"), [](::Main::Session *session) {
 		Unexpected("Crashed in Settings!");
 	});
-	codes.emplace(qsl("workmode"), [](::Main::Session *session) {
-		auto text = Global::DialogsFiltersEnabled() ? qsl("Disable filters?") : qsl("Enable filters?");
-		Ui::show(Box<ConfirmBox>(text, [] {
-			Core::App().switchWorkMode();
-		}));
-	});
 	codes.emplace(qsl("moderate"), [](::Main::Session *session) {
 		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {

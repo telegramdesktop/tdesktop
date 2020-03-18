@@ -2546,11 +2546,11 @@ bool InnerWidget::chooseCollapsedRow() {
 
 void InnerWidget::switchToFilter(FilterId filterId) {
 	clearSelection();
-	if (!Global::DialogsFiltersEnabled()
-		|| !ranges::contains(
-			session().data().chatsFilters().list(),
-			filterId,
-			&Data::ChatFilter::id)) {
+	const auto found = ranges::contains(
+		session().data().chatsFilters().list(),
+		filterId,
+		&Data::ChatFilter::id);
+	if (!found) {
 		filterId = 0;
 	}
 	stopReorderPinned();

@@ -502,13 +502,6 @@ void Application::switchDebugMode() {
 	}
 }
 
-void Application::switchWorkMode() {
-	Global::SetDialogsFiltersEnabled(!Global::DialogsFiltersEnabled());
-	Global::SetDialogsFilterId(0);
-	Local::writeUserSettings();
-	App::restart();
-}
-
 void Application::switchTestMode() {
 	if (cTestMode()) {
 		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();

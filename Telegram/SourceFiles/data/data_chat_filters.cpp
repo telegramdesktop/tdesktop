@@ -92,7 +92,7 @@ ChatFilter ChatFilter::FromTL(
 	});
 }
 
-MTPDialogFilter ChatFilter::tl() const {
+MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	using TLFlag = MTPDdialogFilter::Flag;
 	const auto flags = TLFlag(0)
 		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
@@ -124,7 +124,7 @@ MTPDialogFilter ChatFilter::tl() const {
 	}
 	return MTP_dialogFilter(
 		MTP_flags(flags),
-		MTP_int(_id),
+		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
 		MTPstring(), // emoticon
 		MTP_vector<MTPInputPeer>(pinned),

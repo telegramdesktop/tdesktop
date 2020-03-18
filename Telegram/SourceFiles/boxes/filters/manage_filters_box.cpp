@@ -504,7 +504,9 @@ void ManageFiltersPrepare::SetupBox(
 				continue;
 			}
 			const auto newId = ids.take(id).value_or(id);
-			const auto tl = removed ? MTPDialogFilter() : row.filter.tl();
+			const auto tl = removed
+				? MTPDialogFilter()
+				: row.filter.tl(newId);
 			const auto request = MTPmessages_UpdateDialogFilter(
 				MTP_flags(removed
 					? MTPmessages_UpdateDialogFilter::Flag(0)

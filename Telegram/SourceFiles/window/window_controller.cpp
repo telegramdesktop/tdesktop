@@ -28,7 +28,7 @@ Controller::Controller(not_null<Main::Account*> account)
 : _account(account)
 , _widget(this) {
 	_account->sessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
+		) | rpl::start_with_next([=](Main::Session *session) {
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;

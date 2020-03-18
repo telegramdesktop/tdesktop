@@ -49,7 +49,7 @@ public:
 	[[nodiscard]] static ChatFilter FromTL(
 		const MTPDialogFilter &data,
 		not_null<Session*> owner);
-	[[nodiscard]] MTPDialogFilter tl() const;
+	[[nodiscard]] MTPDialogFilter tl(FilterId replaceId = 0) const;
 
 	[[nodiscard]] FilterId id() const;
 	[[nodiscard]] QString title() const;

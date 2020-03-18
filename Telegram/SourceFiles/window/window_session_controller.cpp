@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_chat_filters.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
@@ -135,6 +136,13 @@ SessionController::SessionController(
 		folder->updateChatListSortPosition();
 		closeFolder();
 	}, lifetime());
+
+	session->data().chatsFilters().changed(
+	) | rpl::start_with_next([=] {
+		crl::on_main(session, [=] {
+			refreshFiltersMenu();
+		});
+	}, session->lifetime());
 }
 
 not_null<::MainWindow*> SessionController::widget() const {
@@ -201,6 +209,15 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 		_filters = nullptr;
 	}
 	_window->sideBarChanged();
+}
+
+void SessionController::refreshFiltersMenu() {
+	const auto enabled = !session().data().chatsFilters().list().empty();
+	if (enabled != Global::DialogsFiltersEnabled()) {
+		Global::SetDialogsFiltersEnabled(enabled);
+		session().saveSettingsDelayed();
+		toggleFiltersMenu(enabled);
+	}
 }
 
 bool SessionController::uniqueChatsInSearchResults() const {

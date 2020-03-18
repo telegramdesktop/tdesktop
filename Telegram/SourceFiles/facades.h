@@ -150,7 +150,6 @@ DeclareVar(bool, AdaptiveForWide);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
 DeclareVar(bool, DialogsFiltersEnabled);
-DeclareVar(FilterId, DialogsFilterId);
 DeclareVar(bool, ModerateModeEnabled);
 
 DeclareVar(bool, ScreenIsLocked);
