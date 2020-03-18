@@ -47,7 +47,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Build instructions
 
-* [Visual Studio 2019][msvc]
+* [Visual Studio 2019 x64][msvc_x64]
 * [Xcode 11][xcode]
 * [CMake on GNU/Linux][cmake]
 
@@ -57,7 +57,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [telegram_api]: https://core.telegram.org
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
-[msvc]: docs/building-msvc.md
+[msvc_x64]: docs/building-msvc_x64.md
 [xcode]: docs/building-xcode.md
 [xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
