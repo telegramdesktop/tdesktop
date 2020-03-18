@@ -45,6 +45,17 @@ auto PlainUsernameValue(not_null<PeerData*> peer) {
 
 } // namespace
 
+rpl::producer<TextWithEntities> IDValue(not_null<PeerData*> peer, int type) {
+	if (type == 0) {
+		return rpl::single(QString("-%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+	} else if (type == 1) {
+		return rpl::single(QString("-100%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+	}
+	else {
+		return rpl::single(QString("%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+	}
+}
+
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
 		peer,

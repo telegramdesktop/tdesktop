@@ -256,6 +256,19 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return result;
 	};
 	if (const auto user = _peer->asUser()) {
+		// Source from kotatogram
+		if (user->isBot()) {
+			addInfoOneLine(
+				tr::lng_profile_bot_id(),
+				IDValue(user, 2),
+				tr::lng_profile_copy_id(tr::now));
+		} else {
+			addInfoOneLine(
+				tr::lng_profile_user_id(),
+				IDValue(user, 2),
+				tr::lng_profile_copy_id(tr::now));
+		}
+
 		if (user->session().supportMode()) {
 			addInfoLineGeneric(
 				user->session().supportHelper().infoLabelValue(user),
@@ -284,6 +297,24 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			[=] { window->show(Box(EditContactBox, window, user)); },
 			tracker);
 	} else {
+		// Source from kotatogram
+		if (_peer->isChat()) {
+			addInfoOneLine(
+				tr::lng_profile_group_id(),
+				IDValue(_peer, 0),
+				tr::lng_profile_copy_id(tr::now));
+		} else if (_peer->isMegagroup()) {
+			addInfoOneLine(
+				tr::lng_profile_supergroup_id(),
+				IDValue(_peer, 1),
+				tr::lng_profile_copy_id(tr::now));
+		} else {
+			addInfoOneLine(
+				tr::lng_profile_channel_id(),
+				IDValue(_peer, 1),
+				tr::lng_profile_copy_id(tr::now));
+		}
+
 		auto linkText = LinkValue(
 			_peer
 		) | rpl::map([](const QString &link) {

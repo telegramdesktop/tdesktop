@@ -2284,4 +2284,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
+"lng_profile_copy_id" = "Copy ID";
+"lng_profile_bot_id" = "Bot ID";
+"lng_profile_user_id" = "User ID";
+"lng_profile_group_id" = "Group ID";
+"lng_profile_supergroup_id" = "Supergroup ID";
+"lng_profile_channel_id" = "Channel ID";
+
 // Keys finished
