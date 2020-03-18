@@ -178,6 +178,7 @@ private:
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _folderTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
+	object_ptr<Ui::IconButton> _searchForNarrowFilters;
 	object_ptr<Ui::FlatInput> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;

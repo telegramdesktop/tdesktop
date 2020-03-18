@@ -161,6 +161,7 @@ Widget::Widget(
 : Window::AbstractSectionWidget(parent, controller)
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
+, _searchForNarrowFilters(_searchControls, st::dialogsSearchForNarrowFilters)
 , _filter(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseFromUser(
 	_searchControls,
@@ -259,8 +260,18 @@ Widget::Widget(
 		Core::App().lockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
-	_mainMenuToggle->setVisible(!controller->filtersWidth());
-	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->filtersMenuChanged()
+	) | rpl::start_with_next([=] {
+		const auto filtersHidden = !controller->filtersWidth();
+		_mainMenuToggle->setVisible(filtersHidden);
+		_searchForNarrowFilters->setVisible(!filtersHidden);
+		updateControlsGeometry();
+	}, lifetime());
+	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(); });
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -1515,6 +1526,12 @@ void Widget::updateControlsGeometry() {
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	auto mainMenuLeft = anim::interpolate(st::dialogsFilterPadding.x(), (smallLayoutWidth - _mainMenuToggle->width()) / 2, smallLayoutRatio);
 	_mainMenuToggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	const auto searchLeft = anim::interpolate(
+		-_searchForNarrowFilters->width(),
+		(smallLayoutWidth - _searchForNarrowFilters->width()) / 2,
+		smallLayoutRatio);
+	_searchForNarrowFilters->moveToLeft(searchLeft, st::dialogsFilterPadding.y());
+
 	auto right = filterLeft + filterWidth;
 	_lockUnlock->moveToLeft(right + st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _filter->y());

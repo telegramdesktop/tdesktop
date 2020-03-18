@@ -300,6 +300,7 @@ public:
 
 	void toggleFiltersMenu(bool enabled);
 	void refreshFiltersMenu();
+	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -353,6 +354,8 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
+
+	rpl::event_stream<> _filtersMenuChanged;
 
 	rpl::lifetime _lifetime;
 

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/toast/toast.h"
@@ -32,6 +33,12 @@ Controller::Controller(not_null<Main::Account*> account)
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
+		if (_sessionController) {
+			_sessionController->filtersMenuChanged(
+			) | rpl::start_with_next([=] {
+				sideBarChanged();
+			}, session->lifetime());
+		}
 		if (_sessionController && Global::DialogsFiltersEnabled()) {
 			_sessionController->toggleFiltersMenu(true);
 		} else {

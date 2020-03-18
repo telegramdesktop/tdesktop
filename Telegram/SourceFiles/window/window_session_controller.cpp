@@ -210,7 +210,7 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 	} else {
 		_filters = nullptr;
 	}
-	_window->sideBarChanged();
+	_filtersMenuChanged.fire({});
 }
 
 void SessionController::refreshFiltersMenu() {
@@ -220,6 +220,10 @@ void SessionController::refreshFiltersMenu() {
 		session().saveSettingsDelayed();
 		toggleFiltersMenu(enabled);
 	}
+}
+
+rpl::producer<> SessionController::filtersMenuChanged() const {
+	return _filtersMenuChanged.events();
 }
 
 bool SessionController::uniqueChatsInSearchResults() const {
