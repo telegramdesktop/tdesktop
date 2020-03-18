@@ -226,7 +226,7 @@ public:
 				destroy();
 				return false;
 			}
-			SetWindowLong(hwnds[i], GWL_HWNDPARENT, (LONG)hwnd);
+			SetWindowLongPtr(hwnds[i], GWLP_HWNDPARENT, (intptr_t)hwnd);
 
 			dcs[i] = CreateCompatibleDC(screenDC);
 			if (!dcs[i]) {
@@ -712,18 +712,18 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	switch (mode) {
 	case dbiwmWindowAndTray: {
 		psSetupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, 0);
 			psRefreshTaskbarIcon();
 		}
 	} break;
 
 	case dbiwmTrayOnly: {
 		psSetupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (!psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, (LONG)ps_tbHider_hWnd);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (intptr_t)ps_tbHider_hWnd);
 		}
 	} break;
 
@@ -734,9 +734,9 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 		}
 		trayIcon = 0;
 
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, 0);
 			psRefreshTaskbarIcon();
 		}
 	} break;
@@ -885,7 +885,7 @@ void MainWindow::psUpdateMargins() {
 	GetClientRect(ps_hWnd, &r);
 	a = r;
 
-	LONG style = GetWindowLong(ps_hWnd, GWL_STYLE), styleEx = GetWindowLong(ps_hWnd, GWL_EXSTYLE);
+	LONG style = GetWindowLongPtr(ps_hWnd, GWL_STYLE), styleEx = GetWindowLongPtr(ps_hWnd, GWL_EXSTYLE);
 	AdjustWindowRectEx(&a, style, false, styleEx);
 	QMargins margins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
 	if (style & WS_MAXIMIZE) {

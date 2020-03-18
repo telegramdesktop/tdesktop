@@ -13,7 +13,7 @@ pacman --noconfirm -S pkg-config
 PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 ./configure --toolchain=msvc \
---extra-ldflags="-libpath:$FullExecPath/../opus/win32/VS2015/Win32/Release" \
+--extra-ldflags="-libpath:$FullExecPath/../opus/win32/VS2015/x64/Release" \
 --disable-programs \
 --disable-doc \
 --disable-network \
@@ -115,5 +115,5 @@ PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
 --enable-muxer=ogg \
 --enable-muxer=opus
 
-make -j4
-make -j4 install
+make -j$nproc
+make -j$nproc install
