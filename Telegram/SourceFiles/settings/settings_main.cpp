@@ -21,9 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_chat_filters.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
@@ -101,6 +104,14 @@ void SetupSections(
 		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
 		&st::settingsIconChat);
+	const auto &appConfig = controller->session().account().appConfig();
+	if (!controller->session().data().chatsFilters().list().empty()
+		|| appConfig.get<bool>("dialog_filters_enabled", false)) {
+		addSection(
+			tr::lng_settings_section_filters(),
+			Type::Folders,
+			&st::settingsIconFolders);
+	}
 	addSection(
 		tr::lng_settings_advanced(),
 		Type::Advanced,

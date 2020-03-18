@@ -393,6 +393,8 @@ void ManageFiltersPrepare::SetupBox(
 				crl::guard(button, doneCallback)));
 		});
 		rows->push_back({ button, filter });
+
+		wrap->resizeToWidth(content->width());
 	};
 	const auto &list = session->data().chatsFilters().list();
 	for (const auto &filter : list) {
@@ -466,8 +468,9 @@ void ManageFiltersPrepare::SetupBox(
 	const auto prepareGoodIdsForNewFilters = [=] {
 		const auto &list = session->data().chatsFilters().list();
 
-		auto localId = 2;
+		auto localId = 1;
 		const auto chooseNextId = [&] {
+			++localId;
 			while (ranges::contains(list, localId, &Data::ChatFilter::id)) {
 				++localId;
 			}

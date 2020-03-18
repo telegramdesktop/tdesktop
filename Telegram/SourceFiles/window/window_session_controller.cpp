@@ -91,6 +91,8 @@ void SessionNavigation::showPeerInfo(
 void SessionNavigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
+	Expects(type != Settings::Type::Folders);
+
 	showSection(
 		Info::Memento(
 			Info::Settings::Tag{ _session->user() },

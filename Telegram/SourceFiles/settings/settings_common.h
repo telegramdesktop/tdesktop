@@ -37,6 +37,7 @@ enum class Type {
 	PrivacySecurity,
 	Advanced,
 	Chat,
+	Folders,
 	Calls,
 };
 

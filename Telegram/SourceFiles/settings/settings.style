@@ -52,6 +52,7 @@ settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 settingsIconInformation: icon {{ "settings_information", menuIconFg }};
 settingsIconNotifications: icon {{ "settings_notifications", menuIconFg }};
 settingsIconChat: icon {{ "settings_chat", menuIconFg }};
+settingsIconFolders: icon {{ "settings_folders", menuIconFg }};
 settingsIconGeneral: icon {{ "settings_advanced", menuIconFg }};
 settingsIconPrivacySecurity: icon {{ "settings_privacy_security", menuIconFg }};
 settingsIconLanguage: icon {{ "settings_language", menuIconFg }};

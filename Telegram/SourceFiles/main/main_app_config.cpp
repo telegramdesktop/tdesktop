@@ -74,6 +74,16 @@ auto AppConfig::getValue(const QString &key, Extractor &&extractor) const {
 		: MTPJSONValue(MTP_jsonNull()));
 }
 
+bool AppConfig::getBool(const QString &key, bool fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonBool &data) {
+			return mtpIsTrue(data.vvalue());
+		}, [&](const auto &data) {
+			return fallback;
+		});
+	});
+}
+
 double AppConfig::getDouble(const QString &key, double fallback) const {
 	return getValue(key, [&](const MTPJSONValue &value) {
 		return value.match([&](const MTPDjsonNumber &data) {

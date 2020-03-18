@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 
+class ManageFiltersPrepare;
+
 namespace Settings {
 class Section;
 } // namespace Settings
@@ -52,6 +54,7 @@ public:
 	Widget(
 		QWidget *parent,
 		not_null<Controller*> controller);
+	~Widget();
 
 	not_null<UserData*> self() const;
 
@@ -77,6 +80,7 @@ private:
 	Type _type = Type();
 
 	not_null<::Settings::Section*> _inner;
+	std::unique_ptr<ManageFiltersPrepare> _manageFilters;
 
 };
 
