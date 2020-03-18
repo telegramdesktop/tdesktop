@@ -103,6 +103,8 @@ public:
 		FilterId id,
 		const std::vector<Dialogs::Key> &dialogs);
 
+	[[nodiscard]] bool archiveNeeded() const;
+
 private:
 	void load(bool force);
 	bool applyOrder(const QVector<MTPint> &order);

@@ -439,6 +439,15 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	return *i;
 }
 
+bool ChatFilters::archiveNeeded() const {
+	for (const auto &filter : _list) {
+		if (!(filter.flags() & ChatFilter::Flag::NoArchived)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 const std::vector<ChatFilter> &ChatFilters::list() const {
 	return _list;
 }

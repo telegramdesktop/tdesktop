@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_chat_filters.h"
 #include "data/data_histories.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
@@ -246,6 +247,13 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
 			photoUploadReady(data.fullId, data.file);
+		}, _session->lifetime());
+
+		_session->data().chatsFilters().changed(
+		) | rpl::filter([=] {
+			return _session->data().chatsFilters().archiveNeeded();
+		}) | rpl::start_with_next([=] {
+			requestMoreDialogsIfNeeded();
 		}, _session->lifetime());
 
 		setupSupportMode();
@@ -856,13 +864,11 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 				count);
 		});
 
-		if (!folder) {
-			if (!_dialogsLoadState || !_dialogsLoadState->listReceived) {
-				refreshDialogsLoadBlocked();
-			}
-			requestDialogs(folder);
-			requestContacts();
+		if (!folder
+			&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
+			refreshDialogsLoadBlocked();
 		}
+		requestMoreDialogsIfNeeded();
 		_session->data().chatsListChanged(folder);
 	}).fail([=](const RPCError &error) {
 		dialogsLoadState(folder)->requestId = 0;
@@ -886,6 +892,21 @@ void ApiWrap::refreshDialogsLoadBlocked() {
 		&& (_dialogsLoadTill > 0)
 		&& (_dialogsLoadState->offsetDate > 0)
 		&& (_dialogsLoadState->offsetDate <= _dialogsLoadTill);
+}
+
+void ApiWrap::requestMoreDialogsIfNeeded() {
+	if (_dialogsLoadState && !_dialogsLoadState->listReceived) {
+		if (_dialogsLoadState->requestId) {
+			return;
+		}
+		requestDialogs(nullptr);
+	} else if (const auto folder = _session->data().folderLoaded(
+			Data::Folder::kId)) {
+		if (_session->data().chatsFilters().archiveNeeded()) {
+			requestMoreDialogs(folder);
+		}
+	}
+	requestContacts();
 }
 
 void ApiWrap::updateDialogsOffset(
