@@ -476,13 +476,13 @@ void ManageFiltersPrepare::SetupBox(
 			}
 			return localId;
 		};
-		auto result = base::flat_map<FilterId, FilterId>();
+		auto result = base::flat_map<not_null<FilterRowButton*>, FilterId>();
 		for (auto &row : *rows) {
 			const auto id = row.filter.id();
 			if (row.removed) {
 				continue;
 			} else if (!ranges::contains(list, id, &Data::ChatFilter::id)) {
-				result.emplace(row.filter.id(), chooseNextId());
+				result.emplace(row.button, chooseNextId());
 			}
 		}
 		return result;
@@ -506,7 +506,7 @@ void ManageFiltersPrepare::SetupBox(
 				order.push_back(MTP_int(id));
 				continue;
 			}
-			const auto newId = ids.take(id).value_or(id);
+			const auto newId = ids.take(row.button).value_or(id);
 			const auto tl = removed
 				? MTPDialogFilter()
 				: row.filter.tl(newId);
