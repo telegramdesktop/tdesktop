@@ -357,6 +357,7 @@ void EditFilterChatsListController::prepareViewHook() {
 	delegate()->peerListSetAboveWidget(prepareTypesList());
 	delegate()->peerListAddSelectedPeers(
 		_peers | ranges::view::transform(&History::peer));
+	updateTitle();
 }
 
 object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
@@ -419,7 +420,13 @@ auto EditFilterChatsListController::createRow(not_null<History*> history)
 }
 
 void EditFilterChatsListController::updateTitle() {
-	const auto count = delegate()->peerListSelectedRowsCount();
+	auto types = 0;
+	for (const auto flag : kAllTypes) {
+		if (_selected & flag) {
+			++types;
+		}
+	}
+	const auto count = delegate()->peerListSelectedRowsCount() - types;
 	const auto additional = qsl("%1 / %2").arg(count).arg(kMaxExceptions);
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }
