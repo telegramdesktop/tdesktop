@@ -1781,13 +1781,17 @@ void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount == newUnreadCount) {
 		return;
 	}
-	const auto notifier = unreadStateChangeNotifier(true);
-
 	const auto wasForBadge = (unreadCountForBadge() > 0);
+	const auto refresher = gsl::finally([&] {
+		if (wasForBadge != (unreadCountForBadge() > 0)) {
+			owner().chatsFilters().refreshHistory(this);
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
+	});
+	const auto notifier = unreadStateChangeNotifier(true);
 	_unreadCount = newUnreadCount;
-	if (wasForBadge != (unreadCountForBadge() > 0)) {
-		owner().chatsFilters().refreshHistory(this);
-	}
 
 	if (newUnreadCount == 1) {
 		if (loadedAtBottom()) {
@@ -1806,9 +1810,6 @@ void History::setUnreadCount(int newUnreadCount) {
 	} else if (!_firstUnreadView && !_unreadBarView && loadedAtBottom()) {
 		calculateFirstUnreadMessage();
 	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged);
 }
 
 void History::setUnreadMark(bool unread) {
@@ -1819,17 +1820,17 @@ void History::setUnreadMark(bool unread) {
 		return;
 	}
 	const auto noUnreadMessages = !unreadCount();
+	const auto refresher = gsl::finally([&] {
+		if (inChatList() && noUnreadMessages) {
+			owner().chatsFilters().refreshHistory(this);
+			updateChatListEntry();
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
+	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-
 	_unreadMark = unread;
-
-	if (inChatList() && noUnreadMessages) {
-		owner().chatsFilters().refreshHistory(this);
-		updateChatListEntry();
-	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged);
 }
 
 bool History::unreadMark() const {
@@ -1844,18 +1845,18 @@ bool History::changeMute(bool newMute) {
 	if (_mute == newMute) {
 		return false;
 	}
+	const auto refresher = gsl::finally([&] {
+		if (inChatList()) {
+			owner().chatsFilters().refreshHistory(this);
+			updateChatListEntry();
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
+	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
-
 	_mute = newMute;
-
-	if (inChatList()) {
-		owner().chatsFilters().refreshHistory(this);
-		updateChatListEntry();
-	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled);
 	return true;
 }
 

@@ -45,9 +45,11 @@ void MainList::setLoaded(bool loaded) {
 	if (_loaded == loaded) {
 		return;
 	}
+	const auto recomputer = gsl::finally([&] {
+		recomputeFullListSize();
+	});
 	const auto notifier = unreadStateChangeNotifier(true);
 	_loaded = loaded;
-	recomputeFullListSize();
 }
 
 void MainList::setAllAreMuted(bool allAreMuted) {
@@ -71,6 +73,9 @@ const rpl::variable<int> &MainList::fullSize() const {
 }
 
 void MainList::clear() {
+	const auto recomputer = gsl::finally([&] {
+		recomputeFullListSize();
+	});
 	const auto notifier = unreadStateChangeNotifier(true);
 	_all.clear();
 	_unreadState = UnreadState();
@@ -78,7 +83,6 @@ void MainList::clear() {
 	_unreadState.known = true;
 	_cloudUnreadState.known = true;
 	_cloudListSize = 0;
-	recomputeFullListSize();
 }
 
 RowsByLetter MainList::addEntry(const Key &key) {
@@ -125,7 +129,7 @@ void MainList::unreadEntryChanged(
 		return;
 	}
 	const auto updateCloudUnread = _cloudUnreadState.known && state.known;
-	const auto notify = loaded() || updateCloudUnread;
+	const auto notify = !_cloudUnreadState.known || loaded() || state.known;
 	const auto notifier = unreadStateChangeNotifier(notify);
 	if (added) {
 		_unreadState += state;
