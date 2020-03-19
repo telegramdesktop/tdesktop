@@ -156,10 +156,12 @@ bool PinnedLimitReached(Dialogs::Key key, FilterId filterId) {
 		owner->setChatPinned(key, FilterId(), true);
 		entry->session().api().savePinnedOrder(folder);
 	} else {
-		const auto errorText = tr::lng_error_pinned_max(
-			tr::now,
-			lt_count,
-			pinnedMax);
+		const auto errorText = filterId
+			? tr::lng_filters_error_pinned_max(tr::now)
+			: tr::lng_error_pinned_max(
+				tr::now,
+				lt_count,
+				pinnedMax);
 		Ui::show(Box<InformBox>(errorText));
 	}
 	return true;

@@ -2278,6 +2278,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_no_muted" = "Muted";
 "lng_filters_type_no_read" = "Read";
 "lng_filters_icon_header" = "Choose icon";
+"lng_filters_error_pinned_max" = "Sorry, you can't pin any more chats to the top.";
 
 // Wnd specific
 
