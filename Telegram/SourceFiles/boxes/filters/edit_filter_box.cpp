@@ -12,10 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/effects/panel_animation.h"
+#include "ui/filter_icons.h"
+#include "ui/filter_icon_panel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "settings/settings_common.h"
+#include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "main/main_session.h"
@@ -91,39 +95,42 @@ private:
 
 not_null<FilterChatsPreview*> SetupChatsPreview(
 		not_null<Ui::VerticalLayout*> content,
-		not_null<Data::ChatFilter*> data,
+		not_null<rpl::variable<Data::ChatFilter>*> data,
 		Flags flags,
 		ExceptionPeersGetter peers) {
+	const auto rules = data->current();
 	const auto preview = content->add(object_ptr<FilterChatsPreview>(
 		content,
-		data->flags() & flags,
-		(data->*peers)()));
+		rules.flags() & flags,
+		(rules.*peers)()));
 
 	preview->flagRemoved(
 	) | rpl::start_with_next([=](Flag flag) {
+		const auto rules = data->current();
 		*data = Data::ChatFilter(
-			data->id(),
-			data->title(),
-			data->iconEmoji(),
-			(data->flags() & ~flag),
-			data->always(),
-			data->pinned(),
-			data->never());
+			rules.id(),
+			rules.title(),
+			rules.iconEmoji(),
+			(rules.flags() & ~flag),
+			rules.always(),
+			rules.pinned(),
+			rules.never());
 	}, preview->lifetime());
 
 	preview->peerRemoved(
 	) | rpl::start_with_next([=](not_null<History*> history) {
-		auto always = data->always();
-		auto pinned = data->pinned();
-		auto never = data->never();
+		const auto rules = data->current();
+		auto always = rules.always();
+		auto pinned = rules.pinned();
+		auto never = rules.never();
 		always.remove(history);
 		pinned.erase(ranges::remove(pinned, history), end(pinned));
 		never.remove(history);
 		*data = Data::ChatFilter(
-			data->id(),
-			data->title(),
-			data->iconEmoji(),
-			data->flags(),
+			rules.id(),
+			rules.title(),
+			rules.iconEmoji(),
+			rules.flags(),
 			std::move(always),
 			std::move(pinned),
 			std::move(never));
@@ -261,21 +268,23 @@ void EditExceptions(
 		not_null<Window::SessionController*> window,
 		not_null<QObject*> context,
 		Flags options,
-		not_null<Data::ChatFilter*> data,
+		not_null<rpl::variable<Data::ChatFilter>*> data,
 		Fn<void()> refresh) {
 	const auto include = (options & Flag::Contacts) != Flags(0);
+	const auto rules = data->current();
 	auto controller = std::make_unique<EditFilterChatsListController>(
 		window,
 		(include
 			? tr::lng_filters_include_title()
 			: tr::lng_filters_exclude_title()),
 		options,
-		data->flags() & options,
-		include ? data->always() : data->never());
+		rules.flags() & options,
+		include ? rules.always() : rules.never());
 	const auto rawController = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_settings_save(), crl::guard(context, [=] {
 			const auto peers = box->peerListCollectSelectedRows();
+			const auto rules = data->current();
 			auto &&histories = ranges::view::all(
 				peers
 			) | ranges::view::transform([=](not_null<PeerData*> peer) {
@@ -285,20 +294,22 @@ void EditExceptions(
 				histories.begin(),
 				histories.end()
 			};
-			auto removeFrom = include ? data->never() : data->always();
+			auto removeFrom = include ? rules.never() : rules.always();
 			for (const auto &history : changed) {
 				removeFrom.remove(history);
 			}
-			auto pinned = data->pinned();
-			pinned.erase(ranges::remove_if(pinned, [&](not_null<History*> history) {
+			auto pinned = rules.pinned();
+			pinned.erase(ranges::remove_if(pinned, [&](
+					not_null<History*> history) {
 				const auto contains = changed.contains(history);
 				return include ? !contains : contains;
 			}), end(pinned));
 			*data = Data::ChatFilter(
-				data->id(),
-				data->title(),
-				data->iconEmoji(),
-				(data->flags() & ~options) | rawController->chosenOptions(),
+				rules.id(),
+				rules.title(),
+				rules.iconEmoji(),
+				((rules.flags() & ~options)
+					| rawController->chosenOptions()),
 				include ? std::move(changed) : std::move(removeFrom),
 				std::move(pinned),
 				include ? std::move(removeFrom) : std::move(changed));
@@ -314,6 +325,94 @@ void EditExceptions(
 		Ui::LayerOption::KeepOther);
 }
 
+[[nodiscard]] void CreateIconSelector(
+		not_null<QWidget*> outer,
+		not_null<QWidget*> box,
+		not_null<QWidget*> parent,
+		not_null<Ui::InputField*> input,
+		not_null<rpl::variable<Data::ChatFilter>*> data) {
+	const auto rules = data->current();
+	const auto toggle = Ui::CreateChild<Ui::AbstractButton>(parent.get());
+	toggle->resize(st::windowFilterIconToggleSize);
+
+	const auto type = toggle->lifetime().make_state<Ui::FilterIcon>();
+	data->value(
+	) | rpl::map([=](const Data::ChatFilter &filter) {
+		return Ui::ComputeFilterIcon(filter);
+	}) | rpl::start_with_next([=](Ui::FilterIcon icon) {
+		*type = icon;
+		toggle->update();
+	}, toggle->lifetime());
+
+	input->geometryValue(
+	) | rpl::start_with_next([=](QRect geometry) {
+		const auto left = geometry.x() + geometry.width() - toggle->width();
+		const auto position = st::windowFilterIconTogglePosition;
+		toggle->move(
+			left - position.x(),
+			geometry.y() + position.y());
+	}, toggle->lifetime());
+
+	toggle->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(toggle);
+		const auto icons = Ui::LookupFilterIcon(*type);
+		icons.normal->paintInCenter(p, toggle->rect(), st::emojiIconFg->c);
+	}, toggle->lifetime());
+
+	const auto panel = toggle->lifetime().make_state<Ui::FilterIconPanel>(
+		outer);
+	toggle->installEventFilter(panel);
+	toggle->addClickHandler([=] {
+		panel->toggleAnimated();
+	});
+	panel->chosen(
+	) | rpl::filter([=](Ui::FilterIcon icon) {
+		return icon != Ui::ComputeFilterIcon(data->current());
+	}) | rpl::start_with_next([=](Ui::FilterIcon icon) {
+		panel->hideAnimated();
+		const auto rules = data->current();
+		*data = Data::ChatFilter(
+			rules.id(),
+			rules.title(),
+			Ui::LookupFilterIcon(icon).emoji,
+			rules.flags(),
+			rules.always(),
+			rules.pinned(),
+			rules.never());
+	}, panel->lifetime());
+
+	const auto updatePanelGeometry = [=] {
+		const auto global = toggle->mapToGlobal({
+			toggle->width(),
+			toggle->height()
+		});
+		const auto local = outer->mapFromGlobal(global);
+		const auto position = st::windwoFilterIconPanelPosition;
+		const auto padding = panel->innerPadding();
+		panel->move(
+			local.x() - panel->width() + position.x() + padding.right(),
+			local.y() + position.y() - padding.top());
+	};
+
+	const auto filterForGeometry = [=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		if (type == QEvent::Move || type == QEvent::Resize) {
+			// updatePanelGeometry uses not only container geometry, but
+			// also container children geometries that will be updated later.
+			crl::on_main(panel, [=] { updatePanelGeometry(); });
+		}
+		return base::EventFilterResult::Continue;
+	};
+
+	const auto installFilterForGeometry = [&](not_null<QWidget*> target) {
+		panel->lifetime().make_state<base::unique_qptr<QObject>>(
+			base::install_event_filter(target, filterForGeometry));
+	};
+	installFilterForGeometry(outer);
+	installFilterForGeometry(box);
+}
+
 } // namespace
 
 void EditFilterBox(
@@ -323,18 +422,28 @@ void EditFilterBox(
 		Fn<void(const Data::ChatFilter &)> doneCallback) {
 	const auto creating = filter.title().isEmpty();
 	box->setTitle(creating ? tr::lng_filters_new() : tr::lng_filters_edit());
+	box->setCloseByOutsideClick(false);
+
+	using State = rpl::variable<Data::ChatFilter>;
+	const auto data = box->lifetime().make_state<State>(filter);
 
 	const auto content = box->verticalLayout();
 	const auto name = content->add(
 		object_ptr<Ui::InputField>(
 			box,
-			st::defaultInputField,
+			st::windowFilterNameInput,
 			tr::lng_filters_new_name(),
-			filter.title()),
+			data->current().title()),
 		st::markdownLinkFieldPadding);
 	name->setMaxLength(kMaxFilterTitleLength);
 
-	const auto data = box->lifetime().make_state<Data::ChatFilter>(filter);
+	const auto outer = box->getDelegate()->outerContainer();
+	CreateIconSelector(
+		outer,
+		box,
+		content,
+		name,
+		data);
 
 	constexpr auto kTypes = Flag::Contacts
 		| Flag::NonContacts
@@ -391,8 +500,12 @@ void EditFilterBox(
 		st::settingsDividerLabelPadding);
 
 	const auto refreshPreviews = [=] {
-		include->updateData(data->flags() & kTypes, data->always());
-		exclude->updateData(data->flags() & kExcludeTypes, data->never());
+		include->updateData(
+			data->current().flags() & kTypes,
+			data->current().always());
+		exclude->updateData(
+			data->current().flags() & kExcludeTypes,
+			data->current().never());
 	};
 	includeAdd->setClickedCallback([=] {
 		EditExceptions(window, box, kTypes, data, refreshPreviews);
@@ -403,26 +516,27 @@ void EditFilterBox(
 
 	const auto save = [=] {
 		const auto title = name->getLastText().trimmed();
+		const auto rules = data->current();
+		const auto result = Data::ChatFilter(
+			rules.id(),
+			title,
+			rules.iconEmoji(),
+			rules.flags(),
+			rules.always(),
+			rules.pinned(),
+			rules.never());
 		if (title.isEmpty()) {
 			name->showError();
 			return;
-		} else if (!(data->flags() & kTypes) && data->always().empty()) {
+		} else if (!(rules.flags() & kTypes) && rules.always().empty()) {
 			window->window().showToast(tr::lng_filters_empty(tr::now));
 			return;
-		} else if ((data->flags() == (kTypes | Flag::NoArchived))
-			&& data->always().empty()
-			&& data->never().empty()) {
+		} else if ((rules.flags() == (kTypes | Flag::NoArchived))
+			&& rules.always().empty()
+			&& rules.never().empty()) {
 			window->window().showToast(tr::lng_filters_default(tr::now));
 			return;
 		}
-		const auto result = Data::ChatFilter(
-			data->id(),
-			title,
-			data->iconEmoji(),
-			data->flags(),
-			data->always(),
-			data->pinned(),
-			data->never());
 		box->closeBox();
 
 		doneCallback(result);

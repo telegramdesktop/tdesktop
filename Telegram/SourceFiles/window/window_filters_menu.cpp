@@ -24,39 +24,6 @@ namespace {
 
 using Icon = Ui::FilterIcon;
 
-[[nodiscard]] Icon ComputeIcon(const Data::ChatFilter &filter) {
-	using Flag = Data::ChatFilter::Flag;
-
-	const auto all = Flag::Contacts
-		| Flag::NonContacts
-		| Flag::Groups
-		| Flag::Channels
-		| Flag::Bots;
-	const auto removed = Flag::NoRead | Flag::NoMuted;
-	const auto people = Flag::Contacts | Flag::NonContacts;
-	const auto allNoArchive = all | Flag::NoArchived;
-	if (!filter.always().empty()
-		|| !filter.never().empty()
-		|| !(filter.flags() & all)) {
-		return Icon::Custom;
-	} else if ((filter.flags() & all) == Flag::Contacts
-		|| (filter.flags() & all) == Flag::NonContacts
-		|| (filter.flags() & all) == people) {
-		return Icon::Private;
-	} else if ((filter.flags() & all) == Flag::Groups) {
-		return Icon::Groups;
-	} else if ((filter.flags() & all) == Flag::Channels) {
-		return Icon::Channels;
-	} else if ((filter.flags() & all) == Flag::Bots) {
-		return Icon::Bots;
-	} else if ((filter.flags() & removed) == Flag::NoRead) {
-		return Icon::Unread;
-	} else if ((filter.flags() & removed) == Flag::NoMuted) {
-		return Icon::Unmuted;
-	}
-	return Icon::Custom;
-}
-
 } // namespace
 
 FiltersMenu::FiltersMenu(
@@ -187,7 +154,7 @@ void FiltersMenu::refresh() {
 		prepare(
 			filter.id(),
 			filter.title(),
-			ComputeIcon(filter),
+			Ui::ComputeFilterIcon(filter),
 			QString());
 	}
 	prepare(-1, tr::lng_filters_setup(tr::now), Icon::Setup, {});

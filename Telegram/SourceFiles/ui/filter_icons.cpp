@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 
 #include "ui/emoji_config.h"
+#include "data/data_chat_filters.h"
 #include "styles/style_filter_icons.h"
 
 namespace Ui {
@@ -62,7 +63,7 @@ const auto kIcons = std::vector<FilterIcons>{
 	{
 		&st::foldersCat,
 		&st::foldersCatActive,
-		"\xF0\x9F\x90\x88"_cs.utf16()
+		"\xF0\x9F\x90\xB1"_cs.utf16()
 	},
 	{
 		&st::foldersCrown,
@@ -153,6 +154,45 @@ std::optional<FilterIcon> LookupFilterIconByEmoji(const QString &emoji) {
 	}();
 	const auto i = kMap.find(Ui::Emoji::Find(emoji));
 	return (i != end(kMap)) ? std::make_optional(i->second) : std::nullopt;
+}
+
+FilterIcon ComputeDefaultFilterIcon(const Data::ChatFilter &filter) {
+	using Icon = FilterIcon;
+	using Flag = Data::ChatFilter::Flag;
+
+	const auto all = Flag::Contacts
+		| Flag::NonContacts
+		| Flag::Groups
+		| Flag::Channels
+		| Flag::Bots;
+	const auto removed = Flag::NoRead | Flag::NoMuted;
+	const auto people = Flag::Contacts | Flag::NonContacts;
+	const auto allNoArchive = all | Flag::NoArchived;
+	if (!filter.always().empty()
+		|| !filter.never().empty()
+		|| !(filter.flags() & all)) {
+		return Icon::Custom;
+	} else if ((filter.flags() & all) == Flag::Contacts
+		|| (filter.flags() & all) == Flag::NonContacts
+		|| (filter.flags() & all) == people) {
+		return Icon::Private;
+	} else if ((filter.flags() & all) == Flag::Groups) {
+		return Icon::Groups;
+	} else if ((filter.flags() & all) == Flag::Channels) {
+		return Icon::Channels;
+	} else if ((filter.flags() & all) == Flag::Bots) {
+		return Icon::Bots;
+	} else if ((filter.flags() & removed) == Flag::NoRead) {
+		return Icon::Unread;
+	} else if ((filter.flags() & removed) == Flag::NoMuted) {
+		return Icon::Unmuted;
+	}
+	return Icon::Custom;
+}
+
+FilterIcon ComputeFilterIcon(const Data::ChatFilter &filter) {
+	return LookupFilterIconByEmoji(filter.iconEmoji()).value_or(
+		ComputeDefaultFilterIcon(filter));
 }
 
 } // namespace Ui

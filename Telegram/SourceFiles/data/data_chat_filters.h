@@ -75,6 +75,7 @@ private:
 
 inline bool operator==(const ChatFilter &a, const ChatFilter &b) {
 	return (a.title() == b.title())
+		&& (a.iconEmoji() == b.iconEmoji())
 		&& (a.flags() == b.flags())
 		&& (a.always() == b.always())
 		&& (a.never() == b.never());

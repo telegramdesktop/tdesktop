@@ -128,7 +128,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		never.push_back(history->peer->input);
 	}
 	return MTP_dialogFilter(
-		MTP_flags(flags),
+		MTP_flags(flags | TLFlag::f_emoticon),
 		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
 		MTP_string(_iconEmoji),
@@ -344,7 +344,8 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	const auto pinnedChanged = (filter.pinned() != updated.pinned());
 	if (!rulesChanged
 		&& !pinnedChanged
-		&& filter.title() == updated.title()) {
+		&& filter.title() == updated.title()
+		&& filter.iconEmoji() == updated.iconEmoji()) {
 		return false;
 	}
 	if (rulesChanged) {

@@ -924,6 +924,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/filter_icons.cpp
     ui/filter_icons.h
+    ui/filter_icon_panel.cpp
+    ui/filter_icon_panel.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/resize_area.h

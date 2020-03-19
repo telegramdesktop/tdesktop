@@ -2277,6 +2277,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_no_archived" = "Archived";
 "lng_filters_type_no_muted" = "Muted";
 "lng_filters_type_no_read" = "Read";
+"lng_filters_icon_header" = "Choose icon";
 
 // Wnd specific
 

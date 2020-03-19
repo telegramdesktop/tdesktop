@@ -13,6 +13,10 @@ class Icon;
 } // namespace internal
 } // namespace style
 
+namespace Data {
+class ChatFilter;
+} // namespace Data
+
 namespace Ui {
 
 enum class FilterIcon : uchar {
@@ -51,5 +55,9 @@ struct FilterIcons {
 [[nodiscard]] const FilterIcons &LookupFilterIcon(FilterIcon icon);
 [[nodiscard]] std::optional<FilterIcon> LookupFilterIconByEmoji(
 	const QString &emoji);
+
+[[nodiscard]] FilterIcon ComputeDefaultFilterIcon(
+	const Data::ChatFilter &filter);
+[[nodiscard]] FilterIcon ComputeFilterIcon(const Data::ChatFilter &filter);
 
 } // namespace Ui
