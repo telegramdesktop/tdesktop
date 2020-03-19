@@ -325,6 +325,7 @@ void FilterIconPanel::hideByTimerOrLeave() {
 
 void FilterIconPanel::prepareCacheFor(bool hiding) {
 	if (_a_opacity.animating()) {
+		_hiding = hiding;
 		return;
 	}
 
@@ -404,7 +405,7 @@ void FilterIconPanel::hideAnimated() {
 }
 
 void FilterIconPanel::toggleAnimated() {
-	if (isHidden() || _hiding || _hideAfterSlide) {
+	if (isHidden() || _hiding) {
 		showAnimated();
 	} else {
 		hideAnimated();
@@ -421,7 +422,6 @@ void FilterIconPanel::hideFinished() {
 
 void FilterIconPanel::showAnimated() {
 	_hideTimer.cancel();
-	_hideAfterSlide = false;
 	showStarted();
 }
 

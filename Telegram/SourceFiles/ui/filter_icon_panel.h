@@ -77,7 +77,6 @@ private:
 	Ui::Animations::Simple _a_show;
 
 	bool _hiding = false;
-	bool _hideAfterSlide = false;
 	QPixmap _cache;
 	Ui::Animations::Simple _a_opacity;
 	base::Timer _hideTimer;
