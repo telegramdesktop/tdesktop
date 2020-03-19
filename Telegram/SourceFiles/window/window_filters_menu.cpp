@@ -15,23 +15,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "boxes/filters/manage_filters_box.h"
 #include "lang/lang_keys.h"
+#include "ui/filter_icons.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
 namespace Window {
 namespace {
 
-enum class Type {
-	Unread,
-	Unmuted,
-	People,
-	Groups,
-	Channels,
-	Bots,
-	Custom,
-};
+using Icon = Ui::FilterIcon;
 
-[[nodiscard]] Type ComputeType(const Data::ChatFilter &filter) {
+[[nodiscard]] Icon ComputeIcon(const Data::ChatFilter &filter) {
 	using Flag = Data::ChatFilter::Flag;
 
 	const auto all = Flag::Contacts
@@ -45,36 +38,23 @@ enum class Type {
 	if (!filter.always().empty()
 		|| !filter.never().empty()
 		|| !(filter.flags() & all)) {
-		return Type::Custom;
+		return Icon::Custom;
 	} else if ((filter.flags() & all) == Flag::Contacts
 		|| (filter.flags() & all) == Flag::NonContacts
 		|| (filter.flags() & all) == people) {
-		return Type::People;
+		return Icon::Private;
 	} else if ((filter.flags() & all) == Flag::Groups) {
-		return Type::Groups;
+		return Icon::Groups;
 	} else if ((filter.flags() & all) == Flag::Channels) {
-		return Type::Channels;
+		return Icon::Channels;
 	} else if ((filter.flags() & all) == Flag::Bots) {
-		return Type::Bots;
+		return Icon::Bots;
 	} else if ((filter.flags() & removed) == Flag::NoRead) {
-		return Type::Unread;
+		return Icon::Unread;
 	} else if ((filter.flags() & removed) == Flag::NoMuted) {
-		return Type::Unmuted;
+		return Icon::Unmuted;
 	}
-	return Type::Custom;
-}
-
-[[nodiscard]] const style::SideBarButton &ComputeStyle(Type type) {
-	switch (type) {
-	case Type::Unread: return st::windowFiltersUnread;
-	case Type::Unmuted: return st::windowFiltersUnmuted;
-	case Type::People: return st::windowFiltersPrivate;
-	case Type::Groups: return st::windowFiltersGroups;
-	case Type::Channels: return st::windowFiltersChannels;
-	case Type::Bots: return st::windowFiltersBots;
-	case Type::Custom: return st::windowFiltersCustom;
-	}
-	Unexpected("Filter type in FiltersMenu::refresh.");
+	return Icon::Custom;
 }
 
 } // namespace
@@ -108,7 +88,7 @@ void FiltersMenu::setup() {
 		if (!fill.isEmpty()) {
 			auto p = QPainter(&_outer);
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::windowFiltersAll.textBg);
+			p.setBrush(st::windowFiltersButton.textBg);
 			p.drawRect(fill);
 		}
 	}, _outer.lifetime());
@@ -166,13 +146,15 @@ void FiltersMenu::refresh() {
 	const auto prepare = [&](
 			FilterId id,
 			const QString &title,
-			const style::SideBarButton &st,
+			Icon icon,
 			const QString &badge) {
 		auto button = base::unique_qptr<Ui::SideBarButton>(_container->add(
 			object_ptr<Ui::SideBarButton>(
 				_container,
 				title,
-				st)));
+				st::windowFiltersButton)));
+		const auto &icons = Ui::LookupFilterIcon(icon);
+		button->setIconOverride(icons.normal, icons.active);
 		if (id > 0) {
 			const auto list = filters->chatsList(id);
 			rpl::single(rpl::empty_value()) | rpl::then(
@@ -200,15 +182,15 @@ void FiltersMenu::refresh() {
 		});
 		now.emplace(id, std::move(button));
 	};
-	prepare(0, tr::lng_filters_all(tr::now), st::windowFiltersAll, {});
+	prepare(0, tr::lng_filters_all(tr::now), Icon::All, {});
 	for (const auto filter : filters->list()) {
 		prepare(
 			filter.id(),
 			filter.title(),
-			ComputeStyle(ComputeType(filter)),
+			ComputeIcon(filter),
 			QString());
 	}
-	prepare(-1, tr::lng_filters_setup(tr::now), st::windowFiltersSetup, {});
+	prepare(-1, tr::lng_filters_setup(tr::now), Icon::Setup, {});
 	_filters = std::move(now);
 }
 

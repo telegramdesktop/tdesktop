@@ -38,6 +38,7 @@ include(cmake/lib_tgvoip.cmake)
 set(style_files
     boxes/boxes.style
     calls/calls.style
+    chat_helpers/chat_helpers.style
     dialogs/dialogs.style
     export/view/export.style
     history/history.style
@@ -49,7 +50,7 @@ set(style_files
     passport/passport.style
     profile/profile.style
     settings/settings.style
-    chat_helpers/chat_helpers.style
+    ui/filter_icons.style
     window/window.style
 )
 
@@ -921,6 +922,8 @@ PRIVATE
     ui/countryinput.h
     ui/empty_userpic.cpp
     ui/empty_userpic.h
+    ui/filter_icons.cpp
+    ui/filter_icons.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/resize_area.h

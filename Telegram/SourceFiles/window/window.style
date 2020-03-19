@@ -268,41 +268,6 @@ windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
 	iconPosition: point(-1px, -1px);
 	minHeight: 54px;
 }
-windowFiltersAll: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_all", sideBarIconFg }};
-	iconActive: icon {{ "filters_all_active", sideBarIconFgActive }};
-}
-windowFiltersUnread: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_unread", sideBarIconFg }};
-	iconActive: icon {{ "filters_unread_active", sideBarIconFgActive }};
-}
-windowFiltersUnmuted: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_unmuted", sideBarIconFg }};
-	iconActive: icon {{ "filters_unmuted_active", sideBarIconFgActive }};
-}
-windowFiltersBots: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_bots", sideBarIconFg }};
-	iconActive: icon {{ "filters_bots_active", sideBarIconFgActive }};
-}
-windowFiltersChannels: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_channels", sideBarIconFg }};
-	iconActive: icon {{ "filters_channels_active", sideBarIconFgActive }};
-}
-windowFiltersGroups: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_groups", sideBarIconFg }};
-	iconActive: icon {{ "filters_groups_active", sideBarIconFgActive }};
-}
-windowFiltersPrivate: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_private", sideBarIconFg }};
-	iconActive: icon {{ "filters_private_active", sideBarIconFgActive }};
-}
-windowFiltersCustom: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_custom", sideBarIconFg }};
-	iconActive: icon {{ "filters_custom_active", sideBarIconFgActive }};
-}
-windowFiltersSetup: SideBarButton(windowFiltersButton) {
-	icon: icon {{ "filters_setup", sideBarIconFg }};
-}
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
 	photoPosition: point(15px, 5px);
