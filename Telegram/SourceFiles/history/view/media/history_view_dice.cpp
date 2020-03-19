@@ -51,6 +51,9 @@ void Dice::draw(Painter &p, const QRect &r, bool selected) {
 			_end->initSize();
 		}
 	}
+	if (!_end) {
+		_drawingEnd = false;
+	}
 	if (_drawingEnd) {
 		_end->draw(p, r, selected);
 	} else {
