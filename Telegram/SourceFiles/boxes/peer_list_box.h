@@ -77,13 +77,15 @@ public:
 	virtual ~PeerListRow();
 
 	// Box interface.
-	virtual int nameIconWidth() const;
-	virtual void paintNameIcon(
+	// Source from kotatogram
+	virtual int adminTitleWidth() const;
+	virtual void paintAdminTitle(
 		Painter &p,
 		int x,
 		int y,
 		int outerWidth,
 		bool selected);
+
 	virtual QSize actionSize() const {
 		return QSize();
 	}

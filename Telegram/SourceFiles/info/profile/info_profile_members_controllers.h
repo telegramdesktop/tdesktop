@@ -26,6 +26,7 @@ public:
 	struct Type {
 		Rights rights;
 		bool canRemove = false;
+		QString adminTitle;
 	};
 
 	MemberListRow(not_null<UserData*> user, Type type);
@@ -39,14 +40,14 @@ public:
 		int outerWidth,
 		bool selected,
 		bool actionSelected) override;
-	int nameIconWidth() const override;
-	void paintNameIcon(
+	// Source from kotatogram
+	int adminTitleWidth() const override;
+	void paintAdminTitle(
 		Painter &p,
 		int x,
 		int y,
 		int outerWidth,
 		bool selected) override;
-
 	not_null<UserData*> user() const;
 	bool canRemove() const {
 		return _type.canRemove;

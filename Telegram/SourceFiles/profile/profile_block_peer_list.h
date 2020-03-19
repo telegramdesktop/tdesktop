@@ -42,6 +42,8 @@ public:
 			Creator,
 		};
 		AdminState adminState = AdminState::None;
+		QString adminTitle;
+		int adminTitleWidth = 0;
 		bool hasRemoveLink = false;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
