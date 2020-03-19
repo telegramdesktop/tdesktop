@@ -59,6 +59,8 @@ ChatFilter ChatFilter::FromTL(
 				const auto channel = owner->channel(data.vchannel_id().v);
 				channel->setAccessHash(data.vaccess_hash().v);
 				return (PeerData*)channel;
+			}, [&](const MTPDinputPeerSelf &data) {
+				return (PeerData*)owner->session().user();
 			}, [&](const auto &data) {
 				return (PeerData*)nullptr;
 			});

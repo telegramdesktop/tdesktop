@@ -276,7 +276,7 @@ void EditExceptions(
 			const auto peers = box->peerListCollectSelectedRows();
 			auto &&histories = ranges::view::all(
 				peers
-				) | ranges::view::transform([=](not_null<PeerData*> peer) {
+			) | ranges::view::transform([=](not_null<PeerData*> peer) {
 				return window->session().data().history(peer);
 			});
 			auto changed = base::flat_set<not_null<History*>>{
