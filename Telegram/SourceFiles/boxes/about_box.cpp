@@ -44,7 +44,7 @@ rpl::producer<TextWithEntities> Text2() {
 		lt_github_link,
 		rpl::single(Ui::Text::Link(
 			"GitHub",
-			"https://github.com/telegramdesktop/tdesktop")),
+			"https://github.com/TDesktop-x64/tdesktop")),
 		Ui::Text::WithEntities);
 }
 

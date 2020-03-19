@@ -66,7 +66,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		UserId viaBotId,
 		TimeId date,
 		UserId from) {
-	const auto siteLink = qsl("https://desktop.telegram.org");
+	const auto siteLink = qsl("https://github.com/TDesktop-x64/tdesktop");
 	auto text = TextWithEntities{
 		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
 	};
