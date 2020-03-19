@@ -2274,9 +2274,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_groups" = "Groups";
 "lng_filters_type_channels" = "Channels";
 "lng_filters_type_bots" = "Bots";
-"lng_filters_type_no_archived" = "No Archived";
-"lng_filters_type_no_muted" = "No Muted";
-"lng_filters_type_no_read" = "No Read";
+"lng_filters_type_no_archived" = "Archived";
+"lng_filters_type_no_muted" = "Muted";
+"lng_filters_type_no_read" = "Read";
 
 // Wnd specific
 

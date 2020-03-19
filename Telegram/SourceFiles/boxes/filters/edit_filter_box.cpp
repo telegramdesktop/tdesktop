@@ -44,8 +44,8 @@ constexpr auto kAllTypes = {
 	Flag::Channels,
 	Flag::Bots,
 	Flag::NoMuted,
+	Flag::NoRead,
 	Flag::NoArchived,
-	Flag::NoRead
 };
 
 class FilterChatsPreview final : public Ui::RpWidget {
