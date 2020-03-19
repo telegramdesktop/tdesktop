@@ -104,6 +104,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 		*data = Data::ChatFilter(
 			data->id(),
 			data->title(),
+			data->iconEmoji(),
 			(data->flags() & ~flag),
 			data->always(),
 			data->pinned(),
@@ -121,6 +122,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 		*data = Data::ChatFilter(
 			data->id(),
 			data->title(),
+			data->iconEmoji(),
 			data->flags(),
 			std::move(always),
 			std::move(pinned),
@@ -295,6 +297,7 @@ void EditExceptions(
 			*data = Data::ChatFilter(
 				data->id(),
 				data->title(),
+				data->iconEmoji(),
 				(data->flags() & ~options) | rawController->chosenOptions(),
 				include ? std::move(changed) : std::move(removeFrom),
 				std::move(pinned),
@@ -415,6 +418,7 @@ void EditFilterBox(
 		const auto result = Data::ChatFilter(
 			data->id(),
 			title,
+			data->iconEmoji(),
 			data->flags(),
 			data->always(),
 			data->pinned(),

@@ -41,6 +41,7 @@ public:
 	ChatFilter(
 		FilterId id,
 		const QString &title,
+		const QString &iconEmoji,
 		Flags flags,
 		base::flat_set<not_null<History*>> always,
 		std::vector<not_null<History*>> pinned,
@@ -53,6 +54,7 @@ public:
 
 	[[nodiscard]] FilterId id() const;
 	[[nodiscard]] QString title() const;
+	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] Flags flags() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
@@ -63,6 +65,7 @@ public:
 private:
 	FilterId _id = 0;
 	QString _title;
+	QString _iconEmoji;
 	base::flat_set<not_null<History*>> _always;
 	std::vector<not_null<History*>> _pinned;
 	base::flat_set<not_null<History*>> _never;
@@ -119,6 +122,7 @@ private:
 	rpl::event_stream<> _listChanged;
 	rpl::event_stream<not_null<History*>> _refreshHistoryRequests;
 	mtpRequestId _loadRequestId = 0;
+	bool _loaded = false;
 
 };
 

@@ -23,12 +23,14 @@ namespace Data {
 ChatFilter::ChatFilter(
 	FilterId id,
 	const QString &title,
+	const QString &iconEmoji,
 	Flags flags,
 	base::flat_set<not_null<History*>> always,
 	std::vector<not_null<History*>> pinned,
 	base::flat_set<not_null<History*>> never)
 : _id(id)
 , _title(title)
+, _iconEmoji(iconEmoji)
 , _always(std::move(always))
 , _pinned(std::move(pinned))
 , _never(std::move(never))
@@ -87,6 +89,7 @@ ChatFilter ChatFilter::FromTL(
 		return ChatFilter(
 			data.vid().v,
 			qs(data.vtitle()),
+			qs(data.vemoticon().value_or_empty()),
 			flags,
 			std::move(list),
 			std::move(pinned),
@@ -128,7 +131,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		MTP_flags(flags),
 		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
-		MTPstring(), // emoticon
+		MTP_string(_iconEmoji),
 		MTP_vector<MTPInputPeer>(pinned),
 		MTP_vector<MTPInputPeer>(include),
 		MTP_vector<MTPInputPeer>(never));
@@ -140,6 +143,10 @@ FilterId ChatFilter::id() const {
 
 QString ChatFilter::title() const {
 	return _title;
+}
+
+QString ChatFilter::iconEmoji() const {
+	return _iconEmoji;
 }
 
 ChatFilter::Flags ChatFilter::flags() const {
@@ -261,7 +268,8 @@ void ChatFilters::load(bool force) {
 			applyRemove(position);
 			changed = true;
 		}
-		if (changed) {
+		if (changed || !_loaded) {
+			_loaded = true;
 			_listChanged.fire({});
 		}
 		_loadRequestId = 0;
@@ -308,7 +316,7 @@ void ChatFilters::applyInsert(ChatFilter filter, int position) {
 
 	_list.insert(
 		begin(_list) + position,
-		ChatFilter(filter.id(), {}, {}, {}, {}, {}));
+		ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}));
 	applyChange(*(begin(_list) + position), std::move(filter));
 }
 
@@ -325,7 +333,7 @@ void ChatFilters::applyRemove(int position) {
 	Expects(position >= 0 && position < _list.size());
 
 	const auto i = begin(_list) + position;
-	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}));
+	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}, {}));
 	_list.erase(i);
 }
 
@@ -434,6 +442,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	set(ChatFilter(
 		id,
 		i->title(),
+		i->iconEmoji(),
 		i->flags(),
 		std::move(always),
 		std::move(pinned),

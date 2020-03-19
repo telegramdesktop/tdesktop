@@ -45,8 +45,11 @@ enum class FilterIcon : uchar {
 struct FilterIcons {
 	not_null<const style::internal::Icon*> normal;
 	not_null<const style::internal::Icon*> active;
+	QString emoji;
 };
 
 [[nodiscard]] const FilterIcons &LookupFilterIcon(FilterIcon icon);
+[[nodiscard]] std::optional<FilterIcon> LookupFilterIconByEmoji(
+	const QString &emoji);
 
 } // namespace Ui
