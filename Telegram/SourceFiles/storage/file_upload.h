@@ -122,7 +122,7 @@ private:
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;
 	uint32 sentSize = 0;
-	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
+	uint32 sentSizes[MTP::kUploadSessionsCountMax] = { 0 };
 
 	FullMsgId uploadingId;
 	FullMsgId _pausedId;

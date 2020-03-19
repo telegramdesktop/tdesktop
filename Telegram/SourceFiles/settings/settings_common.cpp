@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_notifications.h"
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_calls.h"
+#include "settings/settings_enhanced.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
@@ -50,6 +51,8 @@ object_ptr<Section> CreateSection(
 		return object_ptr<Chat>(parent, controller);
 	case Type::Calls:
 		return object_ptr<Calls>(parent, controller);
+	case Type::Enhanced:
+		return object_ptr<Enhanced>(parent, controller);
 	}
 	Unexpected("Settings section type in Widget::createInnerWidget.");
 }

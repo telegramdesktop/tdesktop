@@ -206,3 +206,10 @@ void AddRecentEmoji(EmojiPtr emoji) {
 rpl::producer<> UpdatedRecentEmoji() {
 	return UpdatesRecentEmoji.events();
 }
+
+bool gEnhancedFirstRun = true;
+
+int gNetSpeedBoost = 0;
+int gNetRequestsCount = 2;
+int gNetUploadSessionsCount = 2;
+int gNetUploadRequestInterval = 500;

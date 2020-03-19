@@ -2291,4 +2291,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_supergroup_id" = "Supergroup ID";
 "lng_profile_channel_id" = "Channel ID";
 
+"lng_settings_enhanced" = "Enhanced Setting";
+"lng_settings_network" = "Network";
+"lng_settings_net_speed_boost" = "Download/Upload Speed boost";
+
+"lng_net_speed_boost_title" = "Network speed boost";
+"lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.";
+
+"lng_net_speed_boost_default" = "Disabled";
+"lng_net_speed_boost_slight" = "Slight";
+"lng_net_speed_boost_medium" = "Medium";
+"lng_net_speed_boost_big" = "Big";
+
+"lng_net_boost_restart_desc" = "You'll need to restart app to change network boost.\n\nRestart now?";
+
 // Keys finished

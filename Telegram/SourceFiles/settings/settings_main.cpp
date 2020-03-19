@@ -105,6 +105,10 @@ void SetupSections(
 		tr::lng_settings_advanced(),
 		Type::Advanced,
 		&st::settingsIconGeneral);
+	addSection(
+		tr::lng_settings_enhanced(),
+		Type::Enhanced,
+		&st::settingsIconGeneral);
 
 	SetupLanguageButton(container);
 

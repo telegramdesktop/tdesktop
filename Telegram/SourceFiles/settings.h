@@ -178,3 +178,24 @@ inline void ValidateScale() {
 	SetScaleChecked(cConfigScale());
 	style::SetScale(cEvalScale(cConfigScale()));
 }
+
+DeclareSetting(bool, EnhancedFirstRun);
+
+DeclareSetting(int, NetSpeedBoost);
+DeclareSetting(int, NetRequestsCount);
+DeclareSetting(int, NetUploadSessionsCount);
+DeclareSetting(int, NetUploadRequestInterval);
+
+inline void SetNetworkBoost(int boost) {
+	if (boost < 0) {
+		cSetNetSpeedBoost(0);
+	} else if (boost > 3) {
+		cSetNetSpeedBoost(3);
+	} else {
+		cSetNetSpeedBoost(boost);
+	}
+
+	cSetNetRequestsCount(2 + (2 * cNetSpeedBoost()));
+	cSetNetUploadSessionsCount(2 + (2 * cNetSpeedBoost()));
+	cSetNetUploadRequestInterval(500 - (100 * cNetSpeedBoost()));
+}

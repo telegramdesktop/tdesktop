@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
+#include "core/enhanced_settings.h"
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "storage/localstorage.h"
@@ -155,11 +156,13 @@ Application::~Application() {
 
 	Global::finish();
 	ThirdParty::finish();
+	EnhancedSettings::Finish();
 
 	Instance = nullptr;
 }
 
 void Application::run() {
+	EnhancedSettings::Start();
 	style::internal::StartFonts();
 
 	ThirdParty::start();

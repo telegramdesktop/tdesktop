@@ -206,6 +206,8 @@ PRIVATE
     boxes/local_storage_box.h
     boxes/mute_settings_box.cpp
     boxes/mute_settings_box.h
+    boxes/net_boost_box.cpp
+    boxes/net_boost_box.h
     boxes/peer_list_box.cpp
     boxes/peer_list_box.h
     boxes/peer_list_controllers.cpp
@@ -294,6 +296,8 @@ PRIVATE
     core/crash_report_window.h
     core/crash_reports.cpp
     core/crash_reports.h
+    core/enhanced_settings.cpp
+    core/enhanced_settings.h
     core/file_utilities.cpp
     core/file_utilities.h
     core/launcher.cpp
@@ -827,6 +831,8 @@ PRIVATE
     settings/settings_codes.h
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/settings_enhanced.cpp
+    settings/settings_enhanced.h
     settings/settings_information.cpp
     settings/settings_information.h
     settings/settings_intro.cpp

@@ -38,6 +38,7 @@ enum class Type {
 	Advanced,
 	Chat,
 	Calls,
+	Enhanced,
 };
 
 using Button = Ui::SettingsButton;

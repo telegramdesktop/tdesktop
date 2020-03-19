@@ -626,6 +626,8 @@ rpl::producer<QString> TitleValue(
 			return tr::lng_settings_section_chat_settings();
 		case Section::SettingsType::Calls:
 			return tr::lng_settings_section_call_settings();
+		case Section::SettingsType::Enhanced:
+			return tr::lng_settings_enhanced();
 		}
 		Unexpected("Bad settings type in Info::TitleValue()");
 
