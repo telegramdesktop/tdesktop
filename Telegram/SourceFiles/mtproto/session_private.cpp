@@ -2007,9 +2007,10 @@ void SessionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse)
 				} else {
 					DEBUG_LOG(("Message Info: acked msgId %1 that was prepared to resend, requestId %2").arg(msgId).arg(requestId));
 				}
-				toSend.erase(j);
-
+				
 				_ackedIds.emplace(msgId, j->second->requestId);
+				
+				toSend.erase(j);
 				continue;
 			}
 			DEBUG_LOG(("Message Info: msgId %1 was not found in recent resent either").arg(msgId));
