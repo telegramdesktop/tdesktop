@@ -257,7 +257,13 @@ const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {
 }
 
 void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
+	if (const auto history = _activeChatEntry.current().key.history()) {
+		history->setFakeUnreadWhileOpened(false);
+	}
 	_activeChatEntry = row;
+	if (const auto history = row.key.history()) {
+		history->setFakeUnreadWhileOpened(true);
+	}
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
 	}

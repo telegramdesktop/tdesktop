@@ -1816,6 +1816,7 @@ void HistoryWidget::showHistory(
 			&& (!_history->loadedAtTop() || !_migrated->loadedAtBottom())) {
 			_migrated->clear(History::ClearType::Unload);
 		}
+		_history->setFakeUnreadWhileOpened(true);
 
 		_topBar->setActiveChat(
 			_history,

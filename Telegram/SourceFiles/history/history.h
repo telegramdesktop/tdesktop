@@ -202,6 +202,8 @@ public:
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
+	void setFakeUnreadWhileOpened(bool enabled);
+	[[nodiscard]] bool fakeUnreadWhileOpened() const;
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 	[[nodiscard]] bool mute() const;
 	bool changeMute(bool newMute);
@@ -540,6 +542,7 @@ private:
 	std::optional<HistoryItem*> _chatListMessage;
 
 	bool _unreadMark = false;
+	bool _fakeUnreadWhileOpened = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

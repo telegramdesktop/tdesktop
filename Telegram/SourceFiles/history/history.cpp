@@ -1837,6 +1837,23 @@ bool History::unreadMark() const {
 	return _unreadMark;
 }
 
+void History::setFakeUnreadWhileOpened(bool enabled) {
+	if (_fakeUnreadWhileOpened == enabled
+		|| (enabled
+			&& (!inChatList()
+				|| (!unreadCount()
+					&& !unreadMark()
+					&& !hasUnreadMentions())))) {
+		return;
+	}
+	_fakeUnreadWhileOpened = enabled;
+	owner().chatsFilters().refreshHistory(this);
+}
+
+[[nodiscard]] bool History::fakeUnreadWhileOpened() const {
+	return _fakeUnreadWhileOpened;
+}
+
 bool History::mute() const {
 	return _mute;
 }
