@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_box.h"
 
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -488,6 +489,13 @@ void EditFilterBox(
 			filter.title()),
 		st::markdownLinkFieldPadding);
 	name->setMaxLength(kMaxFilterTitleLength);
+	name->setInstantReplaces(Ui::InstantReplaces::Default());
+	name->setInstantReplacesEnabled(
+		window->session().settings().replaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		box->getDelegate()->outerContainer(),
+		name,
+		&window->session());
 
 	const auto nameEditing = box->lifetime().make_state<NameEditing>(
 		NameEditing{ name });
