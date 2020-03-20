@@ -409,7 +409,7 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 
 auto EditFilterChatsListController::createRow(not_null<History*> history)
 -> std::unique_ptr<Row> {
-	return std::make_unique<Row>(history);
+	return history->inChatList() ? std::make_unique<Row>(history) : nullptr;
 }
 
 void EditFilterChatsListController::updateTitle() {
