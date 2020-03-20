@@ -38,19 +38,14 @@ jobs:
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
 
       - name: Clone.
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
         with:
           submodules: recursive
+          path: ${{ env.REPO_NAME }}
 
       - name: Set up environment variables.
         shell: cmd
         run: |
-          cd ..
-          move %REPO_NAME% temp
-          mkdir %REPO_NAME%
-          move temp %REPO_NAME%/%REPO_NAME%
-          cd %REPO_NAME%
-
           echo ::add-path::C:\Strawberry\perl\bin\
           echo ::add-path::"%programfiles%\NASM"
 

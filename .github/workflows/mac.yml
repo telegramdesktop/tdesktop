@@ -42,18 +42,13 @@ jobs:
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
 
       - name: Clone.
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
         with:
           submodules: recursive
+          path: ${{ env.REPO_NAME }}
 
       - name: First set up.
         run: |
-          cd ..
-          mv $REPO_NAME temp
-          mkdir $REPO_NAME
-          mv temp $REPO_NAME/$REPO_NAME
-          cd $REPO_NAME
-
           brew install automake fdk-aac lame libass libtool libvorbis libvpx \
           ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
 

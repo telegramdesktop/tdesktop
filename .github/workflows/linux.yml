@@ -40,11 +40,6 @@ jobs:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
 
-      - name: Clone.
-        uses: actions/checkout@v1
-        with:
-          submodules: recursive
-
       - name: Disable man for further package installs.
         run: |
           cfgFile="/etc/dpkg/dpkg.cfg.d/no_man"
@@ -57,17 +52,13 @@ jobs:
           p locale
           p doc
 
-      - name: First set up.
+      - name: Apt install.
         shell: bash
         run: |
-          cd ..
-          mv $REPO_NAME temp
-          mkdir $REPO_NAME
-          mv temp $REPO_NAME/$REPO_NAME
-          cd $REPO_NAME
-
           sudo apt-get update
           sudo apt-get install software-properties-common -y && \
+          sudo add-apt-repository ppa:git-core/ppa -y && \
+          sudo apt-get update && \
           sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
           libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
           autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
@@ -86,6 +77,15 @@ jobs:
           sudo update-alternatives --config gcc && \
           sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
 
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
           gcc --version
 
           gcc --version > CACHE_KEY.txt
