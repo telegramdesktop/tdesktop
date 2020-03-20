@@ -346,8 +346,10 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			if (const auto restriction = data.vrestriction_reason()) {
 				result->setUnavailableReasons(
 					ExtractUnavailableReasons(restriction->v));
+				result->restriction_reason = QString::fromStdString(restriction->v[0].c_restrictionReason().vplatform().v.toStdString()) + "-" + QString::fromStdString(restriction->v[0].c_restrictionReason().vreason().v.toStdString());
 			} else {
 				result->setUnavailableReasons({});
+				result->restriction_reason = "";
 			}
 		}
 		if (data.is_deleted()) {
@@ -617,8 +619,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			if (const auto restriction = data.vrestriction_reason()) {
 				channel->setUnavailableReasons(
 					ExtractUnavailableReasons(restriction->v));
+				channel->restriction_reason = QString::fromStdString(restriction->v[0].c_restrictionReason().vplatform().v.toStdString()) + "-" + QString::fromStdString(restriction->v[0].c_restrictionReason().vreason().v.toStdString());
 			} else {
 				channel->setUnavailableReasons({});
+				channel->restriction_reason = "";
 			}
 			channel->setFlags(data.vflags().v);
 			//if (const auto feedId = data.vfeed_id()) { // #feed

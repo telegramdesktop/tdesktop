@@ -56,6 +56,10 @@ rpl::producer<TextWithEntities> IDValue(not_null<PeerData*> peer, int type) {
 	}
 }
 
+rpl::producer<TextWithEntities> StringValue(QString text) {
+	return rpl::single(QString("%1").arg(text)) | Ui::Text::ToWithEntities();
+}
+
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
 		peer,

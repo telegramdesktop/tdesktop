@@ -400,6 +400,8 @@ public:
 	UserId inviter = 0;
 	TimeId inviteDate = 0;
 
+	QString restriction_reason;
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;

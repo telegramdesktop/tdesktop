@@ -215,6 +215,8 @@ public:
 	}
 	void setCommonChatsCount(int count);
 
+	QString restriction_reason;
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;

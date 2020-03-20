@@ -308,12 +308,23 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				tr::lng_profile_supergroup_id(),
 				IDValue(_peer, 1),
 				tr::lng_profile_copy_id(tr::now));
+			addInfoOneLine(
+				tr::lng_chat_restriction_reason(),
+				StringValue(_peer->asMegagroup()->restriction_reason),
+				tr::lng_copy_restriction_reason(tr::now));
+		
 		} else {
 			addInfoOneLine(
 				tr::lng_profile_channel_id(),
 				IDValue(_peer, 1),
 				tr::lng_profile_copy_id(tr::now));
+			addInfoOneLine(
+				tr::lng_chat_restriction_reason(),
+				StringValue(_peer->asChannel()->restriction_reason),
+				tr::lng_copy_restriction_reason(tr::now));
 		}
+
+		
 
 		auto linkText = LinkValue(
 			_peer
