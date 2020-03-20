@@ -27,7 +27,7 @@ filtersSetup: icon {{ "filters/filters_setup", sideBarIconFg }};
 filtersSetupActive: icon {{ "filters/filters_setup", sideBarIconFgActive }};
 
 foldersCat: icon {{ "filters/folders_cat", sideBarIconFg }};
-foldersCatActive: icon {{ "filters/folders_cat_active", sideBarIconFg }};
+foldersCatActive: icon {{ "filters/folders_cat_active", sideBarIconFgActive }};
 foldersCrown: icon {{ "filters/folders_crown", sideBarIconFg }};
 foldersCrownActive: icon {{ "filters/folders_crown_active", sideBarIconFgActive }};
 foldersFavorite: icon {{ "filters/folders_favorite", sideBarIconFg }};
