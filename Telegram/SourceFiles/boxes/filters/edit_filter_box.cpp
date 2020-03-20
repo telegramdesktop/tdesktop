@@ -356,7 +356,7 @@ void EditExceptions(
 		Ui::LayerOption::KeepOther);
 }
 
-[[nodiscard]] void CreateIconSelector(
+void CreateIconSelector(
 		not_null<QWidget*> outer,
 		not_null<QWidget*> box,
 		not_null<QWidget*> parent,
