@@ -382,7 +382,6 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
-	_filterId = _openedFolder ? 0 : _controller->activeChatsFilterCurrent();
 	refreshWithCollapsedRows(true);
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
@@ -2258,9 +2257,7 @@ void InnerWidget::searchInChat(Key key, UserData *from) {
 	_searchInChat = key;
 	_searchFromUser = from;
 	if (_searchInChat) {
-		if (_openedFolder) {
-			changeOpenedFolder(nullptr);
-		}
+		_controller->closeFolder();
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInChat->show();
 		refreshSearchInChatLabel();
@@ -2549,7 +2546,6 @@ bool InnerWidget::chooseCollapsedRow() {
 }
 
 void InnerWidget::switchToFilter(FilterId filterId) {
-	clearSelection();
 	const auto found = ranges::contains(
 		session().data().chatsFilters().list(),
 		filterId,
@@ -2557,9 +2553,17 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 	if (!found) {
 		filterId = 0;
 	}
-	stopReorderPinned();
-	_filterId = filterId;
-	refreshWithCollapsedRows(true);
+	if (_filterId == filterId) {
+		return;
+	}
+	if (_openedFolder) {
+		_filterId = filterId;
+	} else {
+		clearSelection();
+		stopReorderPinned();
+		_filterId = filterId;
+		refreshWithCollapsedRows(true);
+	}
 }
 
 bool InnerWidget::chooseHashtag() {

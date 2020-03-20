@@ -244,6 +244,7 @@ bool SessionController::uniqueChatsInSearchResults() const {
 }
 
 void SessionController::openFolder(not_null<Data::Folder*> folder) {
+	setActiveChatsFilter(0);
 	_openedFolder = folder.get();
 }
 
@@ -775,6 +776,9 @@ FilterId SessionController::activeChatsFilterCurrent() const {
 
 void SessionController::setActiveChatsFilter(FilterId id) {
 	_activeChatsFilter = id;
+	if (id) {
+		closeFolder();
+	}
 }
 
 SessionController::~SessionController() = default;
