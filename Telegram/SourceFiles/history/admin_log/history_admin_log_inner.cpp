@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/confirm_box.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -1223,6 +1224,58 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 					(*weakBox)->closeBox();
 				}
 			});
+			*weakBox = Ui::show(
+				std::move(box),
+				Ui::LayerOption::KeepOther);
+		};
+		if (base::contains(_admins, user)) {
+			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		} else {
+			_api.request(MTPchannels_GetParticipant(
+				_channel->inputChannel,
+				user->inputUser
+			)).done([=](const MTPchannels_ChannelParticipant &result) {
+				Expects(result.type() == mtpc_channels_channelParticipant);
+
+				auto &participant = result.c_channels_channelParticipant();
+				_channel->owner().processUsers(participant.vusers());
+				auto type = participant.vparticipant().type();
+				if (type == mtpc_channelParticipantBanned) {
+					auto &banned = participant.vparticipant().c_channelParticipantBanned();
+					editRestrictions(false, banned.vbanned_rights());
+				} else {
+					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
+						|| (type == mtpc_channelParticipantCreator);
+					auto bannedRights = MTP_chatBannedRights(
+						MTP_flags(0),
+						MTP_int(0));
+					editRestrictions(hasAdminRights, bannedRights);
+				}
+			}).fail([=](const RPCError &error) {
+				auto bannedRights = MTP_chatBannedRights(
+					MTP_flags(0),
+					MTP_int(0));
+				editRestrictions(false, bannedRights);
+			}).send();
+		}
+	});
+
+	_menu->addAction(tr::lng_context_remove_from_group(tr::now), [=] {
+		const auto text = tr::lng_profile_sure_kick(tr::now, lt_user, user->firstName);
+		auto editRestrictions = [=](bool hasAdminRights, const MTPChatBannedRights &currentRights) {
+			auto weak = QPointer<InnerWidget>(this);
+			auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
+			auto box = Box<ConfirmBox>(
+				text,
+				tr::lng_box_remove(tr::now),
+				crl::guard(this, [=] {
+					if (weak) {
+						weak->restrictUser(user, currentRights, ChannelData::KickedRestrictedRights());
+					}
+					if (*weakBox) {
+						(*weakBox)->closeBox();
+					}
+				}));
 			*weakBox = Ui::show(
 				std::move(box),
 				Ui::LayerOption::KeepOther);
