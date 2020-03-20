@@ -24,6 +24,7 @@ filtersPrivateActive: icon {{ "filters/filters_private_active", sideBarIconFgAct
 filtersCustom: icon {{ "filters/filters_custom", sideBarIconFg }};
 filtersCustomActive: icon {{ "filters/filters_custom_active", sideBarIconFgActive }};
 filtersSetup: icon {{ "filters/filters_setup", sideBarIconFg }};
+filtersSetupActive: icon {{ "filters/filters_setup", sideBarIconFgActive }};
 
 foldersCat: icon {{ "filters/folders_cat", sideBarIconFg }};
 foldersCatActive: icon {{ "filters/folders_cat_active", sideBarIconFg }};
@@ -48,6 +49,7 @@ foldersSportActive: icon {{ "filters/folders_sport_active", sideBarIconFgActive 
 foldersStudy: icon {{ "filters/folders_study", sideBarIconFg }};
 foldersStudyActive: icon {{ "filters/folders_study_active", sideBarIconFgActive }};
 foldersTrade: icon {{ "filters/folders_trade", sideBarIconFg }};
+foldersTradeActive: icon {{ "filters/folders_trade", sideBarIconFgActive }};
 foldersTravel: icon {{ "filters/folders_travel", sideBarIconFg }};
 foldersTravelActive: icon {{ "filters/folders_travel_active", sideBarIconFgActive }};
 foldersWork: icon {{ "filters/folders_work", sideBarIconFg }};

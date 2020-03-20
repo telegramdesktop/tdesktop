@@ -57,7 +57,7 @@ const auto kIcons = std::vector<FilterIcons>{
 	},
 	{
 		&st::filtersSetup,
-		&st::filtersSetup,
+		&st::filtersSetupActive,
 		"\xF0\x9F\x93\x8B"_cs.utf16()
 	},
 	{
@@ -117,7 +117,7 @@ const auto kIcons = std::vector<FilterIcons>{
 	},
 	{
 		&st::foldersTrade,
-		&st::foldersTrade,
+		&st::foldersTradeActive,
 		"\xF0\x9F\x93\x88"_cs.utf16()
 	},
 	{
