@@ -1592,8 +1592,6 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (_openedFolder) {
 			controller()->closeFolder();
-		} else if (_inner->filterId()) {
-			controller()->setActiveChatsFilter(0);
 		} else {
 			e->ignore();
 		}
