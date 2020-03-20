@@ -2265,6 +2265,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_exclude_muted" = "Muted";
 "lng_filters_exclude_read" = "Read";
 "lng_filters_exclude_archived" = "Archived";
+"lng_filters_name_people" = "People";
+"lng_filters_name_unread" = "Unread";
+"lng_filters_name_unmuted" = "Unmuted";
 "lng_filters_add" = "Done";
 "lng_filters_limit" = "Sorry, you have reached folders limit.";
 "lng_filters_empty" = "Please choose at least one chat for this folder.";

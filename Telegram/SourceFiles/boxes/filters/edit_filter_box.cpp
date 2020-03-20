@@ -93,9 +93,16 @@ private:
 
 };
 
+struct NameEditing {
+	not_null<Ui::InputField*> field;
+	bool custom = false;
+	bool settingDefault = false;
+};
+
 not_null<FilterChatsPreview*> SetupChatsPreview(
 		not_null<Ui::VerticalLayout*> content,
 		not_null<rpl::variable<Data::ChatFilter>*> data,
+		Fn<void(const Data::ChatFilter&)> updateDefaultTitle,
 		Flags flags,
 		ExceptionPeersGetter peers) {
 	const auto rules = data->current();
@@ -107,7 +114,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 	preview->flagRemoved(
 	) | rpl::start_with_next([=](Flag flag) {
 		const auto rules = data->current();
-		*data = Data::ChatFilter(
+		auto computed = Data::ChatFilter(
 			rules.id(),
 			rules.title(),
 			rules.iconEmoji(),
@@ -115,6 +122,8 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 			rules.always(),
 			rules.pinned(),
 			rules.never());
+		updateDefaultTitle(computed);
+		*data = std::move(computed);
 	}, preview->lifetime());
 
 	preview->peerRemoved(
@@ -126,7 +135,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 		always.remove(history);
 		pinned.erase(ranges::remove(pinned, history), end(pinned));
 		never.remove(history);
-		*data = Data::ChatFilter(
+		auto computed = Data::ChatFilter(
 			rules.id(),
 			rules.title(),
 			rules.iconEmoji(),
@@ -134,6 +143,8 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 			std::move(always),
 			std::move(pinned),
 			std::move(never));
+		updateDefaultTitle(computed);
+		*data = std::move(computed);
 	}, preview->lifetime());
 
 	return preview;
@@ -269,6 +280,7 @@ void EditExceptions(
 		not_null<QObject*> context,
 		Flags options,
 		not_null<rpl::variable<Data::ChatFilter>*> data,
+		Fn<void(const Data::ChatFilter&)> updateDefaultTitle,
 		Fn<void()> refresh) {
 	const auto include = (options & Flag::Contacts) != Flags(0);
 	const auto rules = data->current();
@@ -304,7 +316,7 @@ void EditExceptions(
 				const auto contains = changed.contains(history);
 				return include ? !contains : contains;
 			}), end(pinned));
-			*data = Data::ChatFilter(
+			auto computed = Data::ChatFilter(
 				rules.id(),
 				rules.title(),
 				rules.iconEmoji(),
@@ -313,6 +325,8 @@ void EditExceptions(
 				include ? std::move(changed) : std::move(removeFrom),
 				std::move(pinned),
 				include ? std::move(removeFrom) : std::move(changed));
+			updateDefaultTitle(computed);
+			*data = computed;
 			refresh();
 			box->closeBox();
 		}));
@@ -413,6 +427,28 @@ void EditExceptions(
 	installFilterForGeometry(box);
 }
 
+[[nodiscard]] QString DefaultTitle(const Data::ChatFilter &filter) {
+	using Icon = Ui::FilterIcon;
+	const auto icon = Ui::ComputeDefaultFilterIcon(filter);
+	switch (icon) {
+	case Icon::Private:
+		return (filter.flags() & Data::ChatFilter::Flag::NonContacts)
+			? tr::lng_filters_name_people(tr::now)
+			: tr::lng_filters_include_contacts(tr::now);
+	case Icon::Groups:
+		return tr::lng_filters_include_groups(tr::now);
+	case Icon::Channels:
+		return tr::lng_filters_include_channels(tr::now);
+	case Icon::Bots:
+		return tr::lng_filters_include_bots(tr::now);
+	case Icon::Unread:
+		return tr::lng_filters_name_unread(tr::now);
+	case Icon::Unmuted:
+		return tr::lng_filters_name_unmuted(tr::now);
+	}
+	return QString();
+}
+
 } // namespace
 
 void EditFilterBox(
@@ -433,9 +469,29 @@ void EditFilterBox(
 			box,
 			st::windowFilterNameInput,
 			tr::lng_filters_new_name(),
-			data->current().title()),
+			filter.title()),
 		st::markdownLinkFieldPadding);
 	name->setMaxLength(kMaxFilterTitleLength);
+
+	const auto nameEditing = box->lifetime().make_state<NameEditing>(
+		NameEditing{ name });
+	nameEditing->custom = !creating;
+	QObject::connect(name, &Ui::InputField::changed, [=] {
+		if (!nameEditing->settingDefault) {
+			nameEditing->custom = true;
+		}
+	});
+	const auto updateDefaultTitle = [=](const Data::ChatFilter &filter) {
+		if (nameEditing->custom) {
+			return;
+		}
+		const auto title = DefaultTitle(filter);
+		if (nameEditing->field->getLastText() != title) {
+			nameEditing->settingDefault = true;
+			nameEditing->field->setText(title);
+			nameEditing->settingDefault = false;
+		}
+	};
 
 	const auto outer = box->getDelegate()->outerContainer();
 	CreateIconSelector(
@@ -466,6 +522,7 @@ void EditFilterBox(
 	const auto include = SetupChatsPreview(
 		content,
 		data,
+		updateDefaultTitle,
 		kTypes,
 		&Data::ChatFilter::always);
 
@@ -483,6 +540,7 @@ void EditFilterBox(
 	const auto exclude = SetupChatsPreview(
 		content,
 		data,
+		updateDefaultTitle,
 		kExcludeTypes,
 		&Data::ChatFilter::never);
 
@@ -508,10 +566,22 @@ void EditFilterBox(
 			data->current().never());
 	};
 	includeAdd->setClickedCallback([=] {
-		EditExceptions(window, box, kTypes, data, refreshPreviews);
+		EditExceptions(
+			window,
+			box,
+			kTypes,
+			data,
+			updateDefaultTitle,
+			refreshPreviews);
 	});
 	excludeAdd->setClickedCallback([=] {
-		EditExceptions(window, box, kExcludeTypes, data, refreshPreviews);
+		EditExceptions(
+			window,
+			box,
+			kExcludeTypes,
+			data,
+			updateDefaultTitle,
+			refreshPreviews);
 	});
 
 	const auto save = [=] {

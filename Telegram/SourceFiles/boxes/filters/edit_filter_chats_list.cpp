@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "base/object_ptr.h"
 #include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -359,6 +360,9 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	container->add(CreateSectionSubtitle(
 		container,
 		tr::lng_filters_edit_types()));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::membersMarginTop));
 	const auto delegate = container->lifetime().make_state<TypeDelegate>();
 	const auto controller = container->lifetime().make_state<TypeController>(
 		&session(),
@@ -381,6 +385,9 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 			}
 		}
 	}
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::membersMarginBottom));
 	container->add(CreateSectionSubtitle(
 		container,
 		tr::lng_filters_edit_chats()));
