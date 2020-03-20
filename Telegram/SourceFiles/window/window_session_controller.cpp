@@ -779,6 +779,9 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 	if (id) {
 		closeFolder();
 	}
+	if (Adaptive::OneColumn()) {
+		Ui::showChatsList();
+	}
 }
 
 SessionController::~SessionController() = default;
