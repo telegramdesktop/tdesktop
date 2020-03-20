@@ -32,20 +32,4 @@ void SaveNewFilterPinned(
 
 }
 
-void SaveNewOrder(
-		not_null<Main::Session*> session,
-		const std::vector<FilterId> &order) {
-	auto &filters = session->data().chatsFilters();
-	auto ids = QVector<MTPint>();
-	ids.reserve(order.size());
-	for (const auto id : order) {
-		ids.push_back(MTP_int(id));
-	}
-	const auto wrapped = MTP_vector<MTPint>(ids);
-	filters.apply(MTP_updateDialogFilterOrder(wrapped));
-	session->api().request(MTPmessages_UpdateDialogFiltersOrder(
-		wrapped
-	)).send();
-}
-
 } // namespace Api

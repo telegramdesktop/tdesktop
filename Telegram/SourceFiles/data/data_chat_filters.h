@@ -106,6 +106,9 @@ public:
 	const ChatFilter &applyUpdatedPinned(
 		FilterId id,
 		const std::vector<Dialogs::Key> &dialogs);
+	void saveOrder(
+		const std::vector<FilterId> &order,
+		mtpRequestId after = 0);
 
 	[[nodiscard]] bool archiveNeeded() const;
 
@@ -123,6 +126,8 @@ private:
 	rpl::event_stream<> _listChanged;
 	rpl::event_stream<not_null<History*>> _refreshHistoryRequests;
 	mtpRequestId _loadRequestId = 0;
+	mtpRequestId _saveOrderRequestId = 0;
+	mtpRequestId _saveOrderAfterId = 0;
 	bool _loaded = false;
 
 };

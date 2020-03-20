@@ -57,6 +57,7 @@ private:
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
 	FilterId _activeFilterId = 0;
 	int _reordering = 0;
+	bool _ignoreRefresh = false;
 
 };
 

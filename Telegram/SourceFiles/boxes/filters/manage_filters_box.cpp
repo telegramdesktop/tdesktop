@@ -501,7 +501,8 @@ void ManageFiltersPrepare::SetupBox(
 		auto addRequests = Requests(), removeRequests = Requests();
 		auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
-		auto order = QVector<MTPint>();
+		auto order = std::vector<FilterId>();
+		order.reserve(rows->size());
 		for (const auto &row : *rows) {
 			const auto id = row.filter.id();
 			const auto removed = row.removed;
@@ -509,7 +510,7 @@ void ManageFiltersPrepare::SetupBox(
 			if (removed && i == end(list)) {
 				continue;
 			} else if (!removed && i != end(list) && *i == row.filter) {
-				order.push_back(MTP_int(id));
+				order.push_back(id);
 				continue;
 			}
 			const auto newId = ids.take(row.button).value_or(id);
@@ -526,7 +527,7 @@ void ManageFiltersPrepare::SetupBox(
 				removeRequests.push_back(request);
 			} else {
 				addRequests.push_back(request);
-				order.push_back(MTP_int(newId));
+				order.push_back(newId);
 			}
 			realFilters.apply(MTP_updateDialogFilter(
 				MTP_flags(removed
@@ -542,12 +543,8 @@ void ManageFiltersPrepare::SetupBox(
 				std::move(request)
 			).afterRequest(previousId).send();
 		}
-		if (!order.isEmpty() && !addRequests.empty()) {
-			realFilters.apply(
-				MTP_updateDialogFilterOrder(MTP_vector(order)));
-			session->api().request(MTPmessages_UpdateDialogFiltersOrder(
-				MTP_vector(order)
-			)).afterRequest(previousId).send();
+		if (!order.empty() && !addRequests.empty()) {
+			realFilters.saveOrder(order, previousId);
 		}
 		box->closeBox();
 	};

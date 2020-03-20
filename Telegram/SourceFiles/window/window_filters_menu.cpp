@@ -99,7 +99,7 @@ void FiltersMenu::setup() {
 
 void FiltersMenu::refresh() {
 	const auto filters = &_session->session().data().chatsFilters();
-	if (filters->list().empty()) {
+	if (filters->list().empty() || _ignoreRefresh) {
 		return;
 	}
 
@@ -220,7 +220,10 @@ void FiltersMenu::applyReorder(
 		&Data::ChatFilter::id
 	) | ranges::to_vector;
 	base::reorder(order, oldPosition, newPosition);
-	Api::SaveNewOrder(&_session->session(), order);
+
+	_ignoreRefresh = true;
+	filters->saveOrder(order);
+	_ignoreRefresh = false;
 }
 
 } // namespace Window

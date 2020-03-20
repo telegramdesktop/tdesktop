@@ -451,6 +451,28 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	return *i;
 }
 
+void ChatFilters::saveOrder(
+		const std::vector<FilterId> &order,
+		mtpRequestId after) {
+	if (after) {
+		_saveOrderAfterId = after;
+	}
+	const auto api = &_owner->session().api();
+	api->request(_saveOrderRequestId).cancel();
+
+	auto ids = QVector<MTPint>();
+	ids.reserve(order.size());
+	for (const auto id : order) {
+		ids.push_back(MTP_int(id));
+	}
+	const auto wrapped = MTP_vector<MTPint>(ids);
+
+	apply(MTP_updateDialogFilterOrder(wrapped));
+	_saveOrderRequestId = api->request(MTPmessages_UpdateDialogFiltersOrder(
+		wrapped
+	)).afterRequest(_saveOrderAfterId).send();
+}
+
 bool ChatFilters::archiveNeeded() const {
 	for (const auto &filter : _list) {
 		if (!(filter.flags() & ChatFilter::Flag::NoArchived)) {

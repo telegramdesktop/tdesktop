@@ -17,8 +17,4 @@ void SaveNewFilterPinned(
 	not_null<Main::Session*> session,
 	FilterId filterId);
 
-void SaveNewOrder(
-	not_null<Main::Session*> session,
-	const std::vector<FilterId> &order);
-
 } // namespace Api
