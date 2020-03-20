@@ -52,6 +52,16 @@ private:
 
 };
 
+class ExceptionRow final : public ChatsListBoxController::Row {
+public:
+	explicit ExceptionRow(not_null<History*> history);
+
+	QString generateName() override;
+	QString generateShortName() override;
+	PaintRoundImageCallback generatePaintUserpicCallback() override;
+
+};
+
 class TypeDelegate final : public PeerListContentDelegate {
 public:
 	void peerListSetTitle(rpl::producer<QString> title) override;
@@ -149,6 +159,34 @@ PaintRoundImageCallback TypeRow::generatePaintUserpicCallback() {
 
 Flag TypeRow::flag() const {
 	return static_cast<Flag>(id() & 0xFF);
+}
+
+ExceptionRow::ExceptionRow(not_null<History*> history) : Row(history) {
+	if (peer()->isSelf()) {
+		setCustomStatus(tr::lng_saved_forward_here(tr::now));
+	}
+}
+
+QString ExceptionRow::generateName() {
+	return peer()->isSelf()
+		? tr::lng_saved_messages(tr::now)
+		: Row::generateName();
+}
+
+QString ExceptionRow::generateShortName() {
+	return generateName();
+}
+
+PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
+	const auto peer = this->peer();
+	const auto saved = peer->isSelf();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		if (saved) {
+			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		} else {
+			peer->paintUserpicLeft(p, x, y, outerWidth, size);
+		}
+	};
 }
 
 void TypeDelegate::peerListSetTitle(rpl::producer<QString> title) {
@@ -349,8 +387,19 @@ bool EditFilterChatsListController::handleDeselectForeignRow(
 void EditFilterChatsListController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
 	delegate()->peerListSetAboveWidget(prepareTypesList());
-	delegate()->peerListAddSelectedPeers(
-		_peers | ranges::view::transform(&History::peer));
+
+	const auto count = int(_peers.size());
+	const auto rows = std::make_unique<std::optional<ExceptionRow>[]>(count);
+	auto i = 0;
+	for (const auto history : _peers) {
+		rows[i++].emplace(history);
+	}
+	auto pointers = std::vector<ExceptionRow*>();
+	pointers.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		pointers.push_back(&*rows[i]);
+	}
+	delegate()->peerListAddSelectedRows(pointers);
 	updateTitle();
 }
 
@@ -416,7 +465,9 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 
 auto EditFilterChatsListController::createRow(not_null<History*> history)
 -> std::unique_ptr<Row> {
-	return history->inChatList() ? std::make_unique<Row>(history) : nullptr;
+	return history->inChatList()
+		? std::make_unique<ExceptionRow>(history)
+		: nullptr;
 }
 
 void EditFilterChatsListController::updateTitle() {

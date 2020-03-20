@@ -234,19 +234,35 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 		top += st.height;
 	}
 	for (const auto &[history, button] : _removePeer) {
-		history->peer->paintUserpicLeft(
-			p,
-			iconLeft,
-			top + iconTop,
-			width(),
-			st.photoSize);
-		p.setPen(st::contactsNameFg);
-		history->peer->nameText().drawLeftElided(
-			p,
-			nameLeft,
-			top + nameTop,
-			button->x() - nameLeft,
-			width());
+		const auto savedMessages = history->peer->isSelf();
+		if (savedMessages) {
+			Ui::EmptyUserpic::PaintSavedMessages(
+				p,
+				iconLeft,
+				top + iconTop,
+				width(),
+				st.photoSize);
+			p.setPen(st::contactsNameFg);
+			p.drawTextLeft(
+				nameLeft,
+				top + nameTop,
+				width(),
+				tr::lng_saved_messages(tr::now));
+		} else {
+			history->peer->paintUserpicLeft(
+				p,
+				iconLeft,
+				top + iconTop,
+				width(),
+				st.photoSize);
+			p.setPen(st::contactsNameFg);
+			history->peer->nameText().drawLeftElided(
+				p,
+				nameLeft,
+				top + nameTop,
+				button->x() - nameLeft,
+				width());
+		}
 		top += st.height;
 	}
 }
