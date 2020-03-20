@@ -29,27 +29,34 @@ jobs:
 
       - name: First set up.
         run: |
+          # Workaround for Heroku
+          curl https://cli-assets.heroku.com/apt/release.key | sudo apt-key add -
+
           sudo apt-get update
           sudo apt-get install gcc-8 g++-8 -y
           sudo snap install --classic snapcraft
 
           # Workaround for snapcraft
-          # See https://forum.snapcraft.io/t/permissions-problem-using-snapcraft-in-azure-pipelines/13258
+          # See https://forum.snapcraft.io/t/13258
           sudo chown root:root /
+
+          md5() {
+            md5cache=$(md5sum $1.txt | cut -c -32)
+            echo ::set-env name=$1::$md5cache
+          }
+          keyFor() {
+            keyName="${1^^}_CACHE_KEY"
+            awk -v RS="" -v ORS="\n\n" '/^  '"$1"':/' snap/snapcraft.yaml > $keyName.txt
+            md5 $keyName
+          }
 
           snapcraft --version > CACHE_KEY.txt
           gcc-8 --version >> CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
-          md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=CACHE_KEY::$md5cache
+          md5 CACHE_KEY
 
-          awk -v RS="" -v ORS="\n\n" '/^  cmake:/' snap/snapcraft.yaml > CMAKE_CACHE_KEY.txt
-          md5cache=$(md5sum CMAKE_CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=CMAKE_CACHE_KEY::$md5cache
-
-          awk -v RS="" -v ORS="\n\n" '/^  ffmpeg:/' snap/snapcraft.yaml > FFMPEG_CACHE_KEY.txt
-          md5cache=$(md5sum FFMPEG_CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=FFMPEG_CACHE_KEY::$md5cache
+          keyFor cmake
+          keyFor ffmpeg
 
       - name: CMake cache.
         id: cache-cmake
