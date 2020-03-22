@@ -118,17 +118,17 @@ inline int builtInDcsCountIPv6() {
 
 static const char *UpdatesPublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
-BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
-+9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
+MIGJAoGBAMJbQOSFyDYYBW+f+e/W945H49UZjzoz5fq7BuSEoaUAaYOMeFSKLI/I\n\
+Ya7aWiYB906oclTU8K6K+T14DJiMsYMMiY6EDic2w2F7n/8QOw4k+c0Z3ctdYjVg\n\
+dXvERtOgA3AI4fSUzQJ2O85XlugVhIi3w+lN6ShafBgN9gWp4MNxAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
 static const char *UpdatesPublicBetaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
-0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
-w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
+MIGJAoGBAJy9ruj3bPO0BgOtGQrDJp5/Jr1y42MMsRksXBVnVESQuXdbrDN9rGV7\n\
+H4RoYrDM/hlMKFlJNj3ISjPQmK1RskfWOtW+eyS3Av/6NoGV1ejtP4njHdm1IuuT\n\
+maSD7hlVmttJGd/nzai+XFUxCLmESjfHoWrjNqkeleKShEgftrc3AgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
