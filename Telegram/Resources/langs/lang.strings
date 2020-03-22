@@ -2308,4 +2308,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";
 
+"lng_context_copy_callback_data" = "Copy Callback Data";
+
 // Keys finished
