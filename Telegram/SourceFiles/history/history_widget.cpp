@@ -2077,11 +2077,23 @@ void HistoryWidget::updateControlsVisibility() {
 		} else if (isJoinChannel()) {
 			_unblock->hide();
 			_muteUnmute->hide();
-			_discuss->hide();
 			_botStart->hide();
 			if (_joinChannel->isHidden()) {
 				_joinChannel->clearState();
 				_joinChannel->show();
+			}
+			if (hasDiscussionGroup()) {
+				if (_discuss->isHidden()) {
+					_discuss->clearState();
+					_discuss->show();
+				}
+			}
+			else {
+				_discuss->hide();
+				if (_joinChannel->isHidden()) {
+					_joinChannel->clearState();
+					_joinChannel->show();
+				}
 			}
 		} else if (isMuteUnmute()) {
 			_unblock->hide();
@@ -4146,9 +4158,13 @@ void HistoryWidget::moveFieldControls() {
 		_botStart->height());
 	_botStart->setGeometry(fullWidthButtonRect);
 	_unblock->setGeometry(fullWidthButtonRect);
-	_joinChannel->setGeometry(fullWidthButtonRect);
 
 	if (hasDiscussionGroup()) {
+		_joinChannel->setGeometry(myrtlrect(
+			0,
+			fullWidthButtonRect.y(),
+			width() / 2,
+			fullWidthButtonRect.height()));
 		_muteUnmute->setGeometry(myrtlrect(
 			0,
 			fullWidthButtonRect.y(),
@@ -4161,6 +4177,7 @@ void HistoryWidget::moveFieldControls() {
 			fullWidthButtonRect.height()));
 	} else {
 		_muteUnmute->setGeometry(fullWidthButtonRect);
+		_joinChannel->setGeometry(fullWidthButtonRect);
 	}
 
 	if (_aboutProxyPromotion) {
