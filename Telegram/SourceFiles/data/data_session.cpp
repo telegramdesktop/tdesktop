@@ -619,7 +619,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			if (const auto restriction = data.vrestriction_reason()) {
 				channel->setUnavailableReasons(
 					ExtractUnavailableReasons(restriction->v));
-				channel->restriction_reason = QString::fromStdString(restriction->v[0].c_restrictionReason().vplatform().v.toStdString()) + "-" + QString::fromStdString(restriction->v[0].c_restrictionReason().vreason().v.toStdString());
+				channel->restriction_reason = QString::fromStdString(restriction->v[0].c_restrictionReason().vreason().v.toStdString()) + "-" + QString::fromStdString(restriction->v[0].c_restrictionReason().vplatform().v.toStdString());
 			} else {
 				channel->setUnavailableReasons({});
 				channel->restriction_reason = "";
