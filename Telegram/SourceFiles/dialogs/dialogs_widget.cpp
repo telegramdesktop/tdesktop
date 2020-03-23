@@ -686,7 +686,11 @@ void Widget::escape() {
 		controller()->closeFolder();
 	} else if (!onCancelSearch()
 		|| (!_searchInChat && !App::main()->selectingPeer())) {
-		emit cancelled();
+		if (controller()->activeChatEntryCurrent().key) {
+			emit cancelled();
+		} else if (controller()->activeChatsFilterCurrent()) {
+			controller()->setActiveChatsFilter(FilterId(0));
+		}
 	}
 }
 
