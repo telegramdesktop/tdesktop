@@ -290,7 +290,8 @@ void GroupMembersWidget::setItemFlags(
 	using AdminState = Item::AdminState;
 	const auto user = getMember(item)->user();
 	const auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
-	const auto isAdmin = chat->hasAdminRights();
+	const auto isAdmin = (item->peer->isSelf() && chat->hasAdminRights())
+		|| chat->admins.contains(user);
 	const auto adminState = isCreator
 		? AdminState::Creator
 		: isAdmin
