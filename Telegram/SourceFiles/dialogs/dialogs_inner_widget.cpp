@@ -2999,11 +2999,18 @@ void InnerWidget::setupShortcuts() {
 			Command::ChatPinned4,
 			Command::ChatPinned5,
 		};
-		auto &&pinned = ranges::view::zip(kPinned, ranges::view::ints(0, ranges::unreachable));
+		auto &&pinned = ranges::view::zip(
+			kPinned,
+			ranges::view::ints(0, ranges::unreachable));
 		for (const auto [command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
-				const auto list = session().data().chatsList()->indexed();
-				const auto count = Dialogs::PinnedDialogsCount(_filterId, list);
+				const auto list = (_filterId
+					? session().data().chatsFilters().chatsList(_filterId)
+					: session().data().chatsList()
+				)->indexed();
+				const auto count = Dialogs::PinnedDialogsCount(
+					_filterId,
+					list);
 				if (index >= count) {
 					return false;
 				}

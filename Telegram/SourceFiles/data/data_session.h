@@ -371,7 +371,7 @@ public:
 		const Dialogs::Key &key,
 		FilterId filterId,
 		bool pinned);
-	void clearPinnedChats(Data::Folder *folder, FilterId filterId);
+	void clearPinnedChats(Data::Folder *folder);
 	void applyPinnedChats(
 		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list);

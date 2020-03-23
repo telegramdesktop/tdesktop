@@ -1557,8 +1557,6 @@ void Session::applyDialog(
 int Session::pinnedChatsCount(
 		Data::Folder *folder,
 		FilterId filterId) const {
-	Expects(!folder || !filterId);
-
 	if (!filterId) {
 		return pinnedChatsOrder(folder, filterId).size();
 	}
@@ -1591,7 +1589,7 @@ const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 	return list->pinned()->order();
 }
 
-void Session::clearPinnedChats(Data::Folder *folder, FilterId filterId) {
+void Session::clearPinnedChats(Data::Folder *folder) {
 	chatsList(folder)->pinned()->clear();
 }
 
