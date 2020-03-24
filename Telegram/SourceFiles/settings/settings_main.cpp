@@ -106,6 +106,9 @@ void SetupSections(
 		Type::Chat,
 		&st::settingsIconChat);
 
+	const auto preload = [=] {
+		controller->session().data().chatsFilters().requestSuggested();
+	};
 	const auto account = &controller->session().account();
 	const auto slided = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -118,18 +121,30 @@ void SetupSections(
 	if (!controller->session().data().chatsFilters().list().empty()
 		|| Global::DialogsFiltersEnabled()) {
 		slided->show(anim::type::instant);
+		preload();
 	} else {
 		const auto enabled = [=] {
-			return account->appConfig().get<bool>(
+			const auto result = account->appConfig().get<bool>(
 				"dialog_filters_enabled",
 				false);
+			if (result) {
+				preload();
+			}
+			return result;
+		};
+		const auto preloadIfEnabled = [=](bool enabled) {
+			if (enabled) {
+				preload();
+			}
 		};
 		slided->toggleOn(
 			rpl::single(
 				rpl::empty_value()
 			) | rpl::then(
 				account->appConfig().refreshed()
-			) | rpl::map(enabled));
+			) | rpl::map(
+				enabled
+			) | rpl::before_next(preloadIfEnabled));
 	}
 	slided->entity()->setClickedCallback([=] {
 		showOther(Type::Folders);

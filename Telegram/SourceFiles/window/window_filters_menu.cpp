@@ -13,10 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
-#include "boxes/filters/manage_filters_box.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
+#include "settings/settings_common.h"
 #include "api/api_chat_filters.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -28,7 +28,6 @@ FiltersMenu::FiltersMenu(
 	not_null<SessionController*> session)
 : _session(session)
 , _parent(parent)
-, _manage(std::make_unique<ManageFiltersPrepare>(_session))
 , _outer(_parent)
 , _menu(&_outer, QString(), st::windowFiltersMainMenu)
 , _scroll(&_outer)
@@ -191,7 +190,17 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		} else if (id >= 0) {
 			_session->setActiveChatsFilter(id);
 		} else {
-			_manage->showBox();
+			const auto filters = &_session->session().data().chatsFilters();
+			if (filters->suggestedLoaded()) {
+				_session->showSettings(Settings::Type::Folders);
+			} else if (!_waitingSuggested) {
+				_waitingSuggested = true;
+				filters->requestSuggested();
+				filters->suggestedUpdated(
+				) | rpl::take(1) | rpl::start_with_next([=] {
+					_session->showSettings(Settings::Type::Folders);
+				}, _outer.lifetime());
+			}
 		}
 	});
 	return button;

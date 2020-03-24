@@ -5,12 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/filters/manage_filters_box.h"
+#include "settings/settings_folders.h"
 
 #include "boxes/filters/edit_filter_box.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
+#include "data/data_chat_filters.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -25,18 +26,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 
+namespace Settings {
 namespace {
 
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kFiltersLimit = 10;
-
-using namespace Settings;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
@@ -90,6 +91,13 @@ private:
 
 	State _state = State::Normal;
 
+};
+
+struct FilterRow {
+	not_null<FilterRowButton*> button;
+	Data::ChatFilter filter;
+	bool removed = false;
+	bool added = false;
 };
 
 [[nodiscard]] int CountFilterChats(
@@ -274,78 +282,17 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		_status);
 }
 
-} // namespace
+[[nodiscard]] Fn<void()> SetupFoldersContent(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	auto &lifetime = container->lifetime();
 
-ManageFiltersPrepare::ManageFiltersPrepare(
-	not_null<Window::SessionController*> window)
-: _window(window)
-, _api(&_window->session().api()) {
-}
+	const auto session = &controller->session();
+	AddSkip(container, st::settingsSectionSkip);
+	AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
-ManageFiltersPrepare::~ManageFiltersPrepare() {
-	if (_requestId) {
-		_api->request(_requestId).cancel();
-	}
-}
-
-void ManageFiltersPrepare::showBox() {
-	if (_requestId) {
-		return;
-	}
-	if (_suggestedLastReceived > 0
-		&& crl::now() - _suggestedLastReceived < kRefreshSuggestedTimeout) {
-		showBoxWithSuggested();
-		return;
-	}
-	_requestId = _api->request(MTPmessages_GetSuggestedDialogFilters(
-	)).done([=](const MTPVector<MTPDialogFilterSuggested> &data) {
-		_requestId = 0;
-		_suggestedLastReceived = crl::now();
-
-		const auto owner = &_api->session().data();
-		_suggested = ranges::view::all(
-			data.v
-		) | ranges::view::transform([&](const MTPDialogFilterSuggested &f) {
-			return f.match([&](const MTPDdialogFilterSuggested &data) {
-				return Suggested{
-					Data::ChatFilter::FromTL(data.vfilter(), owner),
-					qs(data.vdescription())
-				};
-			});
-		}) | ranges::to_vector;
-
-		showBoxWithSuggested();
-	}).fail([=](const RPCError &error) {
-		_requestId = 0;
-		_suggestedLastReceived = crl::now() + kRefreshSuggestedTimeout / 2;
-
-		showBoxWithSuggested();
-	}).send();
-}
-
-void ManageFiltersPrepare::showBoxWithSuggested() {
-	_window->window().show(Box(SetupBox, _window, _suggested));
-}
-
-void ManageFiltersPrepare::SetupBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> window,
-		const std::vector<Suggested> &suggestions) {
-	box->setTitle(tr::lng_filters_title());
-
-	struct FilterRow {
-		not_null<FilterRowButton*> button;
-		Data::ChatFilter filter;
-		bool removed = false;
-		bool added = false;
-	};
-
-	const auto session = &window->session();
-	const auto content = box->verticalLayout();
-	AddSubsectionTitle(content, tr::lng_filters_subtitle());
-
-	const auto rows = box->lifetime().make_state<std::vector<FilterRow>>();
-	const auto rowsCount = box->lifetime().make_state<rpl::variable<int>>();
+	const auto rows = lifetime.make_state<std::vector<FilterRow>>();
+	const auto rowsCount = lifetime.make_state<rpl::variable<int>>();
 	const auto find = [=](not_null<FilterRowButton*> button) {
 		const auto i = ranges::find(*rows, button, &FilterRow::button);
 		Assert(i != end(*rows));
@@ -356,10 +303,10 @@ void ManageFiltersPrepare::SetupBox(
 		if (rows->size() < kFiltersLimit + removed) {
 			return false;
 		}
-		window->window().showToast(tr::lng_filters_limit(tr::now));
+		controller->window().showToast(tr::lng_filters_limit(tr::now));
 		return true;
 	};
-	const auto wrap = content->add(object_ptr<Ui::VerticalLayout>(content));
+	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(container));
 	const auto addFilter = [=](const Data::ChatFilter &filter) {
 		const auto button = wrap->add(
 			object_ptr<FilterRowButton>(wrap, session, filter));
@@ -385,16 +332,16 @@ void ManageFiltersPrepare::SetupBox(
 				find(button)->filter = result;
 				button->updateData(result);
 			};
-			window->window().show(Box(
+			controller->window().show(Box(
 				EditFilterBox,
-				window,
+				controller,
 				found->filter,
 				crl::guard(button, doneCallback)));
 		});
 		rows->push_back({ button, filter });
 		*rowsCount = rows->size();
 
-		wrap->resizeToWidth(content->width());
+		wrap->resizeToWidth(container->width());
 	};
 	const auto &list = session->data().chatsFilters().list();
 	for (const auto &filter : list) {
@@ -402,7 +349,7 @@ void ManageFiltersPrepare::SetupBox(
 	}
 
 	AddButton(
-		content,
+		container,
 		tr::lng_filters_create() | Ui::Text::ToUpper(),
 		st::settingsUpdate
 	)->setClickedCallback([=] {
@@ -412,54 +359,69 @@ void ManageFiltersPrepare::SetupBox(
 		const auto doneCallback = [=](const Data::ChatFilter &result) {
 			addFilter(result);
 		};
-		window->window().show(Box(
+		controller->window().show(Box(
 			EditFilterBox,
-			window,
+			controller,
 			Data::ChatFilter(),
-			crl::guard(box, doneCallback)));
+			crl::guard(container, doneCallback)));
 	});
-	AddSkip(content);
-	const auto emptyAbout = content->add(
+	AddSkip(container);
+	const auto emptyAbout = container->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			content,
+			container,
 			object_ptr<Ui::FlatLabel>(
-				content,
+				container,
 				tr::lng_filters_about(),
 				st::boxDividerLabel),
 			st::settingsDividerLabelPadding)
 	)->setDuration(0);
-	const auto nonEmptyAbout = content->add(
+	const auto nonEmptyAbout = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content))
+			container,
+			object_ptr<Ui::VerticalLayout>(container))
 	)->setDuration(0);
 	const auto aboutRows = nonEmptyAbout->entity();
 	AddDividerText(aboutRows, tr::lng_filters_about());
 	AddSkip(aboutRows);
 	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
-	const auto changed = box->lifetime().make_state<bool>();
-	const auto suggested = box->lifetime().make_state<rpl::variable<int>>();
-	for (const auto &suggestion : suggestions) {
-		const auto &filter = suggestion.filter;
-		if (ranges::contains(list, filter)) {
-			continue;
-		}
-		*suggested = suggested->current() + 1;
-		const auto button = aboutRows->add(object_ptr<FilterRowButton>(
-			aboutRows,
-			filter,
-			suggestion.description));
-		button->addRequests(
-		) | rpl::start_with_next([=] {
-			if (showLimitReached()) {
-				return;
+	const auto changed = lifetime.make_state<bool>();
+	const auto suggested = lifetime.make_state<rpl::variable<int>>();
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		session->data().chatsFilters().suggestedUpdated()
+	) | rpl::map([=] {
+		return session->data().chatsFilters().suggestedFilters();
+	}) | rpl::filter([=](const std::vector<Data::SuggestedFilter> &list) {
+		return !list.empty();
+	}) | rpl::take(
+		1
+	) | rpl::start_with_next([=](
+			const std::vector<Data::SuggestedFilter> &suggestions) {
+		for (const auto &suggestion : suggestions) {
+			const auto &filter = suggestion.filter;
+			if (ranges::contains(*rows, filter, &FilterRow::filter)) {
+				continue;
 			}
-			addFilter(filter);
-			*suggested = suggested->current() - 1;
-			delete button;
-		}, button->lifetime());
-	}
+			*suggested = suggested->current() + 1;
+			const auto button = aboutRows->add(object_ptr<FilterRowButton>(
+				aboutRows,
+				filter,
+				suggestion.description));
+			button->addRequests(
+				) | rpl::start_with_next([=] {
+				if (showLimitReached()) {
+					return;
+				}
+				addFilter(filter);
+				*suggested = suggested->current() - 1;
+				delete button;
+			}, button->lifetime());
+		}
+		aboutRows->resizeToWidth(container->width());
+		AddSkip(aboutRows, st::settingsSectionSkip);
+	}, aboutRows->lifetime());
 
 	using namespace rpl::mappers;
 	auto showSuggestions = rpl::combine(
@@ -494,7 +456,7 @@ void ManageFiltersPrepare::SetupBox(
 		return result;
 	};
 
-	const auto save = [=] {
+	return [=] {
 		auto ids = prepareGoodIdsForNewFilters();
 
 		using Requests = std::vector<MTPmessages_UpdateDialogFilter>;
@@ -546,8 +508,32 @@ void ManageFiltersPrepare::SetupBox(
 		if (!order.empty() && !addRequests.empty()) {
 			realFilters.saveOrder(order, previousId);
 		}
-		box->closeBox();
 	};
-	box->boxClosing() | rpl::start_with_next(save, box->lifetime());
-	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 }
+
+} // namespace
+
+Folders::Folders(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
+	setupContent(controller);
+}
+
+Folders::~Folders() {
+	if (!App::quitting()) {
+		_save();
+	}
+}
+
+void Folders::setupContent(not_null<Window::SessionController*> controller) {
+	controller->session().data().chatsFilters().requestSuggested();
+
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	_save = SetupFoldersContent(controller, content);
+
+	Ui::ResizeFitChild(this, content);
+}
+
+} // namespace Settings

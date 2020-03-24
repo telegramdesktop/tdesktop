@@ -624,6 +624,8 @@ rpl::producer<QString> TitleValue(
 			return tr::lng_settings_advanced();
 		case Section::SettingsType::Chat:
 			return tr::lng_settings_section_chat_settings();
+		case Section::SettingsType::Folders:
+			return tr::lng_filters_title();
 		case Section::SettingsType::Calls:
 			return tr::lng_settings_section_call_settings();
 		}

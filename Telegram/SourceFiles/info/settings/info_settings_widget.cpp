@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "settings/settings_common.h"
-#include "boxes/filters/manage_filters_box.h"
 #include "ui/ui_utility.h"
 
 namespace Info {
@@ -44,20 +43,14 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
-, _inner(setInnerWidget(::Settings::CreateSection(
-	_type,
-	this,
-	controller->parentController())))
-, _manageFilters(
-	std::make_unique<ManageFiltersPrepare>(
-		controller->parentController())) {
+, _inner(setInnerWidget(
+	::Settings::CreateSection(
+		_type,
+		this,
+		controller->parentController()))) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
-		if (type == Type::Folders) {
-			_manageFilters->showBox();
-		} else {
-			controller->showSettings(type);
-		}
+		controller->showSettings(type);
 	}, _inner->lifetime());
 
 	controller->setCanSaveChanges(_inner->sectionCanSaveChanges());

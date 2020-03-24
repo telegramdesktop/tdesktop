@@ -153,8 +153,6 @@ PRIVATE
     boxes/filters/edit_filter_box.h
     boxes/filters/edit_filter_chats_list.cpp
     boxes/filters/edit_filter_chats_list.h
-    boxes/filters/manage_filters_box.cpp
-    boxes/filters/manage_filters_box.h
     boxes/peers/add_participants_box.cpp
     boxes/peers/add_participants_box.h
     boxes/peers/edit_contact_box.cpp
@@ -842,6 +840,8 @@ PRIVATE
     settings/settings_codes.h
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/settings_folders.cpp
+    settings/settings_folders.h
     settings/settings_information.cpp
     settings/settings_information.h
     settings/settings_intro.cpp

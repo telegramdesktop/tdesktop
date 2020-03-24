@@ -19,6 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 namespace Data {
+namespace {
+
+constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
+
+} // namespace
 
 ChatFilter::ChatFilter(
 	FilterId id,
@@ -500,5 +505,50 @@ auto ChatFilters::refreshHistoryRequests() const
 	return _refreshHistoryRequests.events();
 }
 
+void ChatFilters::requestSuggested() {
+	if (_suggestedRequestId) {
+		return;
+	}
+	if (_suggestedLastReceived > 0
+		&& crl::now() - _suggestedLastReceived < kRefreshSuggestedTimeout) {
+		return;
+	}
+	const auto api = &_owner->session().api();
+	_suggestedRequestId = api->request(MTPmessages_GetSuggestedDialogFilters(
+	)).done([=](const MTPVector<MTPDialogFilterSuggested> &data) {
+		_suggestedRequestId = 0;
+		_suggestedLastReceived = crl::now();
+
+		_suggested = ranges::view::all(
+			data.v
+		) | ranges::view::transform([&](const MTPDialogFilterSuggested &f) {
+			return f.match([&](const MTPDdialogFilterSuggested &data) {
+				return SuggestedFilter{
+					Data::ChatFilter::FromTL(data.vfilter(), _owner),
+					qs(data.vdescription())
+				};
+			});
+		}) | ranges::to_vector;
+
+		_suggestedUpdated.fire({});
+	}).fail([=](const RPCError &error) {
+		_suggestedRequestId = 0;
+		_suggestedLastReceived = crl::now() + kRefreshSuggestedTimeout / 2;
+
+		_suggestedUpdated.fire({});
+	}).send();
+}
+
+bool ChatFilters::suggestedLoaded() const {
+	return (_suggestedLastReceived > 0);
+}
+
+const std::vector<SuggestedFilter> &ChatFilters::suggestedFilters() const {
+	return _suggested;
+}
+
+rpl::producer<> ChatFilters::suggestedUpdated() const {
+	return _suggestedUpdated.events();
+}
 
 } // namespace Data

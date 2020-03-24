@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 #include "settings/settings_notifications.h"
 #include "settings/settings_privacy_security.h"
+#include "settings/settings_folders.h"
 #include "settings/settings_calls.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -46,6 +47,8 @@ object_ptr<Section> CreateSection(
 		return object_ptr<PrivacySecurity>(parent, controller);
 	case Type::Advanced:
 		return object_ptr<Advanced>(parent, controller);
+	case Type::Folders:
+		return object_ptr<Folders>(parent, controller);
 	case Type::Chat:
 		return object_ptr<Chat>(parent, controller);
 	case Type::Calls:

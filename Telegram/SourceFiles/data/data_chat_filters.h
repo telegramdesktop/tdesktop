@@ -85,6 +85,11 @@ inline bool operator!=(const ChatFilter &a, const ChatFilter &b) {
 	return !(a == b);
 }
 
+struct SuggestedFilter {
+	ChatFilter filter;
+	QString description;
+};
+
 class ChatFilters final {
 public:
 	explicit ChatFilters(not_null<Session*> owner);
@@ -112,6 +117,12 @@ public:
 
 	[[nodiscard]] bool archiveNeeded() const;
 
+	void requestSuggested();
+	[[nodiscard]] bool suggestedLoaded() const;
+	[[nodiscard]] auto suggestedFilters() const
+		-> const std::vector<SuggestedFilter> &;
+	[[nodiscard]] rpl::producer<> suggestedUpdated() const;
+
 private:
 	void load(bool force);
 	bool applyOrder(const QVector<MTPint> &order);
@@ -129,6 +140,11 @@ private:
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;
 	bool _loaded = false;
+
+	mtpRequestId _suggestedRequestId = 0;
+	std::vector<SuggestedFilter> _suggested;
+	rpl::event_stream<> _suggestedUpdated;
+	crl::time _suggestedLastReceived = 0;
 
 };
 

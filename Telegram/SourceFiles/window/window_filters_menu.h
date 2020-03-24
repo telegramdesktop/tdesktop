@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
-class ManageFiltersPrepare;
-
 namespace Ui {
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
@@ -45,7 +43,6 @@ private:
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
-	std::unique_ptr<ManageFiltersPrepare> _manage;
 	Ui::RpWidget _outer;
 	Ui::SideBarButton _menu;
 	Ui::ScrollArea _scroll;
@@ -58,6 +55,7 @@ private:
 	FilterId _activeFilterId = 0;
 	int _reordering = 0;
 	bool _ignoreRefresh = false;
+	bool _waitingSuggested = false;
 
 };
 
