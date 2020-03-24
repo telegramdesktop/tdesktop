@@ -570,7 +570,7 @@ void EditFilterBox(
 
 	const auto excludeAdd = AddButton(
 		content,
-		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
+		tr::lng_filters_remove_chats() | Ui::Text::ToUpper(),
 		st::settingsUpdate);
 
 	AddSkip(content);

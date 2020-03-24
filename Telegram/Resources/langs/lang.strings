@@ -2247,12 +2247,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_edit" = "Edit Folder";
 "lng_filters_new_name" = "Folder name";
 "lng_filters_add_chats" = "Add chats";
+"lng_filters_remove_chats" = "Remove chats";
 "lng_filters_include" = "Included Chats";
 "lng_filters_include_about" = "Choose chats and types of chats that will appear in this folder.";
 "lng_filters_exclude" = "Excluded Chats";
 "lng_filters_exclude_about" = "Choose chats and types of chats that will never appear in this folder.";
 "lng_filters_create_button" = "Create";
-"lng_filters_add_title" = "Add Chats";
 "lng_filters_include_title" = "Include Chats";
 "lng_filters_exclude_title" = "Exclude Chats";
 "lng_filters_edit_types" = "Chat types";
