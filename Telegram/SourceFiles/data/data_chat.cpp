@@ -350,6 +350,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	}
 	chat->checkFolder(update.vfolder_id().value_or_empty());
 	chat->fullUpdated();
+	chat->setAbout(qs(update.vabout()));
 
 	chat->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(chat->input),
