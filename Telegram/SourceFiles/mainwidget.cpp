@@ -1896,8 +1896,8 @@ void MainWidget::showNewSection(
 	using Column = Window::Column;
 
 	auto saveInStack = (params.way == SectionShow::Way::Forward);
-	auto thirdSectionTop = getThirdSectionTop();
-	auto newThirdGeometry = QRect(
+	const auto thirdSectionTop = getThirdSectionTop();
+	const auto newThirdGeometry = QRect(
 		width() - st::columnMinimalWidthThird,
 		thirdSectionTop,
 		st::columnMinimalWidthThird,
@@ -1909,9 +1909,10 @@ void MainWidget::showNewSection(
 			Column::Third,
 			newThirdGeometry)
 		: nullptr;
+	const auto layerRect = parentWidget()->rect();
 	if (newThirdSection) {
 		saveInStack = false;
-	} else if (auto layer = memento.createLayer(_controller, rect())) {
+	} else if (auto layer = memento.createLayer(_controller, layerRect)) {
 		if (params.activation != anim::activation::background) {
 			Ui::hideLayer(anim::type::instant);
 		}
