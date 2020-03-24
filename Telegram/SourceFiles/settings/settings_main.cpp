@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
@@ -104,14 +105,36 @@ void SetupSections(
 		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
 		&st::settingsIconChat);
-	const auto &appConfig = controller->session().account().appConfig();
+
+	const auto account = &controller->session().account();
+	const auto slided = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			CreateButton(
+				container,
+				tr::lng_settings_section_filters(),
+				st::settingsSectionButton,
+				&st::settingsIconFolders)))->setDuration(0);
 	if (!controller->session().data().chatsFilters().list().empty()
-		|| appConfig.get<bool>("dialog_filters_enabled", false)) {
-		addSection(
-			tr::lng_settings_section_filters(),
-			Type::Folders,
-			&st::settingsIconFolders);
+		|| Global::DialogsFiltersEnabled()) {
+		slided->show(anim::type::instant);
+	} else {
+		const auto enabled = [=] {
+			return account->appConfig().get<bool>(
+				"dialog_filters_enabled",
+				false);
+		};
+		slided->toggleOn(
+			rpl::single(
+				rpl::empty_value()
+			) | rpl::then(
+				account->appConfig().refreshed()
+			) | rpl::map(enabled));
 	}
+	slided->entity()->setClickedCallback([=] {
+		showOther(Type::Folders);
+	});
+
 	addSection(
 		tr::lng_settings_advanced(),
 		Type::Advanced,
