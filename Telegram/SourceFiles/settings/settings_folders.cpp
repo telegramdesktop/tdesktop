@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/filter_icons.h"
 #include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -88,6 +89,7 @@ private:
 
 	Ui::Text::String _title;
 	QString _status;
+	Ui::FilterIcon _icon = Ui::FilterIcon();
 
 	State _state = State::Normal;
 
@@ -192,6 +194,7 @@ void FilterRowButton::updateData(const Data::ChatFilter &filter) {
 
 	_title.setText(st::contactsNameStyle, filter.title());
 	_status = ComputeCountString(_session, filter, true);
+	_icon = Ui::ComputeFilterIcon(filter);
 	update();
 }
 
@@ -213,6 +216,7 @@ void FilterRowButton::setup(
 
 	_title.setText(st::contactsNameStyle, filter.title());
 	_status = status;
+	_icon = Ui::ComputeFilterIcon(filter);
 
 	setState(_state, true);
 
@@ -250,8 +254,9 @@ rpl::producer<> FilterRowButton::addRequests() const {
 void FilterRowButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
+	const auto over = isOver() || isDown();
 	if (_state == State::Normal) {
-		if (isOver() || isDown()) {
+		if (over) {
 			p.fillRect(e->rect(), st::windowBgOver);
 		}
 		RippleButton::paintRipple(p, 0, 0);
@@ -259,7 +264,9 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		p.setOpacity(st::stickersRowDisabledOpacity);
 	}
 
-	const auto left = st::settingsSubsectionTitlePadding.left();
+	const auto left = (_state == State::Suggested)
+		? st::settingsSubsectionTitlePadding.left()
+		: st::settingsFilterIconSkip;
 	const auto buttonsLeft = std::min(
 		_add.x(),
 		std::min(_remove.x(), _restore.x()));
@@ -280,6 +287,16 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		st::contactsPadding.top() + st::contactsStatusTop,
 		width(),
 		_status);
+
+	if (_state != State::Suggested) {
+		const auto icon = Ui::LookupFilterIcon(_icon).normal;
+		icon->paint(
+			p,
+			st::settingsFilterIconLeft,
+			(height() - icon->height()) / 2,
+			width(),
+			(over ? st::menuIconFgOver : st::menuIconFg)->c);
+	}
 }
 
 [[nodiscard]] Fn<void()> SetupFoldersContent(

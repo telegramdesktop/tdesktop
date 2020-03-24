@@ -217,6 +217,9 @@ settingsAccentColorSize: 24px;
 settingsAccentColorSkip: 4px;
 settingsAccentColorLine: 3px;
 
+settingsFilterIconSkip: 68px;
+settingsFilterIconLeft: 17px;
+
 dictionariesSectionButton: SettingsButton(settingsUpdateToggle) {
 	font: font(14px semibold);
 }
