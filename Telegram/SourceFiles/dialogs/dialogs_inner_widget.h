@@ -172,6 +172,7 @@ private:
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
+	void editOpenedFilter();
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
 	bool needCollapsedRowsRefresh() const;
@@ -376,6 +377,7 @@ private:
 	WidgetState _state = WidgetState::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
+	object_ptr<Ui::LinkButton> _editFilterLnk;
 	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 

@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "boxes/filters/edit_filter_box.h"
 #include "api/api_chat_filters.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
@@ -115,6 +116,7 @@ InnerWidget::InnerWidget(
 	return pinnedShiftAnimationCallback(now);
 })
 , _addContactLnk(this, tr::lng_add_contact_button(tr::now))
+, _editFilterLnk(this, tr::lng_filters_context_edit(tr::now))
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 
@@ -123,6 +125,7 @@ InnerWidget::InnerWidget(
 #endif // OS_MAC_OLD
 
 	_addContactLnk->addClickHandler([] { App::wnd()->onShowAddContact(); });
+	_editFilterLnk->addClickHandler([=] { editOpenedFilter(); });
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->setClickedCallback([=] {
@@ -1407,6 +1410,7 @@ void InnerWidget::setSearchedPressed(int pressed) {
 
 void InnerWidget::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
+	_editFilterLnk->move((width() - _editFilterLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 	const auto widthForCancelButton = qMax(width(), st::columnMinimalWidthLeft);
 	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInChat->width();
 	const auto top = (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2;
@@ -2185,6 +2189,12 @@ bool InnerWidget::needCollapsedRowsRefresh() const {
 			: (collapsedHasArchive || _skipTopDialogs != 0);
 }
 
+void InnerWidget::editOpenedFilter() {
+	if (_filterId > 0) {
+		EditExistingFilter(_controller, _filterId);
+	}
+}
+
 void InnerWidget::refresh(bool toTop) {
 	if (needCollapsedRowsRefresh()) {
 		return refreshWithCollapsedRows(toTop);
@@ -2194,6 +2204,10 @@ void InnerWidget::refresh(bool toTop) {
 		&& (_state == WidgetState::Default)
 		&& list->empty()
 		&& session().data().contactsLoaded().current());
+	_editFilterLnk->setVisible((_filterId > 0)
+		&& (_state == WidgetState::Default)
+		&& list->empty()
+		&& session().data().chatsList()->loaded());
 	auto h = 0;
 	if (_state == WidgetState::Default) {
 		if (list->empty()) {
