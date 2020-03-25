@@ -67,7 +67,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 		for (const auto history : _lastHistories) {
 			if (history->peer == update.peer) {
 				++_chatListViewVersion;
-				updateChatListEntry();
+				updateChatListEntryPostponed();
 				return;
 			}
 		}
@@ -81,13 +81,24 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 		++_chatListViewVersion;
 		notifyUnreadStateChange(old);
-		updateChatListEntry();
+		updateChatListEntryPostponed();
 	}, _lifetime);
 
 	_chatsList.fullSize().changes(
 	) | rpl::start_with_next([=] {
-		updateChatListEntry();
+		updateChatListEntryPostponed();
 	}, _lifetime);
+}
+
+void Folder::updateChatListEntryPostponed() {
+	if (_updateChatListEntryPostponed) {
+		return;
+	}
+	_updateChatListEntryPostponed = true;
+	Ui::PostponeCall(this, [=] {
+		updateChatListEntry();
+		_updateChatListEntryPostponed = false;
+	});
 }
 
 FolderId Folder::id() const {

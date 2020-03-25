@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_messages.h"
+#include "base/weak_ptr.h"
 
 class ChannelData;
 
@@ -24,7 +25,7 @@ class Folder;
 
 //MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
 
-class Folder final : public Dialogs::Entry {
+class Folder final : public Dialogs::Entry, public base::has_weak_ptr {
 public:
 	static constexpr auto kId = 1;
 
@@ -84,6 +85,7 @@ private:
 	void computeChatListMessage();
 
 	void reorderLastHistories();
+	void updateChatListEntryPostponed();
 
 	void paintUserpic(
 		Painter &p,
@@ -103,6 +105,7 @@ private:
 	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;
 	uint32 _chatListViewVersion = 0;
+	bool _updateChatListEntryPostponed = false;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
 	rpl::lifetime _lifetime;

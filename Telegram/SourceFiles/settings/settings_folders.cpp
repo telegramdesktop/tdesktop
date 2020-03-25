@@ -56,6 +56,7 @@ public:
 
 	void setRemoved(bool removed);
 	void updateData(const Data::ChatFilter &filter);
+	void updateCount(const Data::ChatFilter &filter);
 
 	[[nodiscard]] rpl::producer<> removeRequests() const;
 	[[nodiscard]] rpl::producer<> restoreRequests() const;
@@ -100,6 +101,7 @@ struct FilterRow {
 	Data::ChatFilter filter;
 	bool removed = false;
 	bool added = false;
+	bool postponedCountUpdate = false;
 };
 
 [[nodiscard]] int CountFilterChats(
@@ -193,8 +195,12 @@ void FilterRowButton::updateData(const Data::ChatFilter &filter) {
 	Expects(_session != nullptr);
 
 	_title.setText(st::contactsNameStyle, filter.title());
-	_status = ComputeCountString(_session, filter, true);
 	_icon = Ui::ComputeFilterIcon(filter);
+	updateCount(filter);
+}
+
+void FilterRowButton::updateCount(const Data::ChatFilter &filter) {
+	_status = ComputeCountString(_session, filter, true);
 	update();
 }
 
@@ -323,7 +329,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		controller->window().showToast(tr::lng_filters_limit(tr::now));
 		return true;
 	};
-	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(container));
+	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(
+		container));
 	const auto addFilter = [=](const Data::ChatFilter &filter) {
 		const auto button = wrap->add(
 			object_ptr<FilterRowButton>(wrap, session, filter));
@@ -357,6 +364,39 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		});
 		rows->push_back({ button, filter });
 		*rowsCount = rows->size();
+
+		const auto filters = &controller->session().data().chatsFilters();
+		const auto id = filter.id();
+		if (ranges::contains(filters->list(), id, &Data::ChatFilter::id)) {
+			filters->chatsList(id)->fullSize().changes(
+			) | rpl::start_with_next([=] {
+				const auto found = find(button);
+				if (found->postponedCountUpdate) {
+					return;
+				}
+				found->postponedCountUpdate = true;
+				Ui::PostponeCall(button, [=] {
+					const auto &list = filters->list();
+					const auto i = ranges::find(
+						list,
+						id,
+						&Data::ChatFilter::id);
+					if (i == end(list)) {
+						return;
+					}
+					const auto found = find(button);
+					const auto &real = *i;
+					const auto &now = found->filter;
+					if ((i->flags() != found->filter.flags())
+						|| (i->always() != found->filter.always())
+						|| (i->never() != found->filter.never())) {
+						return;
+					}
+					button->updateCount(found->filter);
+					found->postponedCountUpdate = false;
+				});
+			}, button->lifetime());
+		}
 
 		wrap->resizeToWidth(container->width());
 	};
