@@ -1648,7 +1648,8 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 			for (const auto &block : blocks) {
 				for (const auto &message : block->messages) {
 					const auto item = message->data();
-					if (item->out() || !IsServerMsgId(item->id)) {
+					if (!IsServerMsgId(item->id)
+						|| (item->out() && !item->isFromScheduled())) {
 						continue;
 					} else if (item->id > readTillId) {
 						break;
