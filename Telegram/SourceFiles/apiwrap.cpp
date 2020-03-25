@@ -895,7 +895,11 @@ void ApiWrap::refreshDialogsLoadBlocked() {
 }
 
 void ApiWrap::requestMoreDialogsIfNeeded() {
-	if (_dialogsLoadState && !_dialogsLoadState->listReceived) {
+	const auto dialogsReady = !_dialogsLoadState
+		|| _dialogsLoadState->listReceived;
+	if (_session->data().chatsFilters().loadNextExceptions(dialogsReady)) {
+		return;
+	} else if (_dialogsLoadState && !_dialogsLoadState->listReceived) {
 		if (_dialogsLoadState->requestId) {
 			return;
 		}

@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_histories.h"
 #include "dialogs/dialogs_main_list.h"
+#include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 
@@ -22,6 +24,8 @@ namespace Data {
 namespace {
 
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
+constexpr auto kLoadExceptionsAfter = 100;
+constexpr auto kLoadExceptionsPerRequest = 100;
 
 } // namespace
 
@@ -344,8 +348,12 @@ void ChatFilters::applyRemove(int position) {
 }
 
 bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
-	const auto rulesChanged = (filter.flags() != updated.flags())
-		|| (filter.always() != updated.always())
+	Expects(filter.id() == updated.id());
+
+	const auto id = filter.id();
+	const auto exceptionsChanged = filter.always() != updated.always();
+	const auto rulesChanged = exceptionsChanged
+		|| (filter.flags() != updated.flags())
 		|| (filter.never() != updated.never());
 	const auto pinnedChanged = (filter.pinned() != updated.pinned());
 	if (!rulesChanged
@@ -355,7 +363,6 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		return false;
 	}
 	if (rulesChanged) {
-		const auto id = filter.id();
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		const auto feedHistory = [&](not_null<History*> history) {
 			const auto now = updated.contains(history);
@@ -379,9 +386,14 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		if (const auto folder = _owner->folderLoaded(Data::Folder::kId)) {
 			feedList(folder->chatsList());
 		}
+		if (exceptionsChanged && !updated.always().empty()) {
+			_exceptionsToLoad.push_back(id);
+			Ui::PostponeCall(&_owner->session(), [=] {
+				_owner->session().api().requestMoreDialogsIfNeeded();
+			});
+		}
 	}
 	if (pinnedChanged) {
-		const auto id = filter.id();
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		filterList->pinned()->applyList(updated.pinned());
 	}
@@ -494,6 +506,56 @@ const std::vector<ChatFilter> &ChatFilters::list() const {
 
 rpl::producer<> ChatFilters::changed() const {
 	return _listChanged.events();
+}
+
+bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
+	if (_exceptionsLoadRequestId) {
+		return true;
+	} else if (!chatsListLoaded
+		&& (_owner->chatsList()->fullSize().current()
+			< kLoadExceptionsAfter)) {
+		return false;
+	}
+	auto inputs = QVector<MTPInputDialogPeer>();
+	const auto collectExceptions = [&](FilterId id) {
+		auto result = QVector<MTPInputDialogPeer>();
+		const auto i = ranges::find(_list, id, &ChatFilter::id);
+		if (i != end(_list)) {
+			result.reserve(i->always().size());
+			for (const auto history : i->always()) {
+				if (!history->folderKnown()) {
+					inputs.push_back(
+						MTP_inputDialogPeer(history->peer->input));
+				}
+			}
+		}
+		return result;
+	};
+	while (!_exceptionsToLoad.empty()) {
+		const auto id = _exceptionsToLoad.front();
+		const auto exceptions = collectExceptions(id);
+		if (inputs.size() + exceptions.size() > kLoadExceptionsPerRequest) {
+			Assert(!inputs.isEmpty());
+			break;
+		}
+		_exceptionsToLoad.pop_front();
+		inputs.append(exceptions);
+	}
+	if (inputs.isEmpty()) {
+		return false;
+	}
+	const auto api = &_owner->session().api();
+	_exceptionsLoadRequestId = api->request(MTPmessages_GetPeerDialogs(
+		MTP_vector(inputs)
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		_exceptionsLoadRequestId = 0;
+		_owner->session().data().histories().applyPeerDialogs(result);
+		_owner->session().api().requestMoreDialogsIfNeeded();
+	}).fail([=](const RPCError &error) {
+		_exceptionsLoadRequestId = 0;
+		_owner->session().api().requestMoreDialogsIfNeeded();
+	}).send();
+	return true;
 }
 
 void ChatFilters::refreshHistory(not_null<History*> history) {

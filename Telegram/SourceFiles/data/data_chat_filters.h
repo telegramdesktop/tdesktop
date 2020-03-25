@@ -102,6 +102,8 @@ public:
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
 
+	bool loadNextExceptions(bool chatsListLoaded);
+
 	void refreshHistory(not_null<History*> history);
 	[[nodiscard]] auto refreshHistoryRequests() const
 		-> rpl::producer<not_null<History*>>;
@@ -145,6 +147,9 @@ private:
 	std::vector<SuggestedFilter> _suggested;
 	rpl::event_stream<> _suggestedUpdated;
 	crl::time _suggestedLastReceived = 0;
+
+	std::deque<FilterId> _exceptionsToLoad;
+	mtpRequestId _exceptionsLoadRequestId = 0;
 
 };
 
