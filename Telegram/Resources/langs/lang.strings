@@ -2282,6 +2282,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_no_read" = "Read";
 "lng_filters_icon_header" = "Choose icon";
 "lng_filters_error_pinned_max" = "Sorry, you can't pin any more chats to the top.";
+"lng_filters_context_edit" = "Edit Folder";
+"lng_filters_context_remove" = "Remove";
+"lng_filters_remove_sure" = "This will remove the folder, your chats will not be deleted.";
+"lng_filters_remove_yes" = "Remove";
 
 // Wnd specific
 

@@ -16,8 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
+#include "ui/widgets/popup_menu.h"
+#include "boxes/confirm_box.h"
+#include "boxes/filters/edit_filter_box.h"
 #include "settings/settings_common.h"
 #include "api/api_chat_filters.h"
+#include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -203,7 +207,58 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 			}
 		}
 	});
+	if (id > 0) {
+		raw->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::ContextMenu;
+		}) | rpl::start_with_next([=] {
+			showMenu(QCursor::pos(), id);
+		}, raw->lifetime());
+	}
 	return button;
+}
+
+void FiltersMenu::showMenu(QPoint position, FilterId id) {
+	if (_popupMenu) {
+		_popupMenu = nullptr;
+		return;
+	}
+	const auto i = _filters.find(id);
+	if (i == end(_filters)) {
+		return;
+	}
+	_popupMenu = base::make_unique_q<Ui::PopupMenu>(i->second.get());
+	_popupMenu->addAction(
+		tr::lng_filters_context_edit(tr::now),
+		crl::guard(&_outer, [=] { showEditBox(id); }));
+	_popupMenu->addAction(
+		tr::lng_filters_context_remove(tr::now),
+		crl::guard(&_outer, [=] { showRemoveBox(id); }));
+	_popupMenu->popup(position);
+}
+
+void FiltersMenu::showEditBox(FilterId id) {
+	EditExistingFilter(_session, id);
+}
+
+void FiltersMenu::showRemoveBox(FilterId id) {
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	*box = _session->window().show(Box<ConfirmBox>(
+		tr::lng_filters_remove_sure(tr::now),
+		tr::lng_filters_remove_yes(tr::now),
+		[=] { (*box)->closeBox(); remove(id); }));
+}
+
+void FiltersMenu::remove(FilterId id) {
+	_session->session().data().chatsFilters().apply(MTP_updateDialogFilter(
+		MTP_flags(MTPDupdateDialogFilter::Flag(0)),
+		MTP_int(id),
+		MTPDialogFilter()));
+	_session->session().api().request(MTPmessages_UpdateDialogFilter(
+		MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
+		MTP_int(id),
+		MTPDialogFilter()
+	)).send();
 }
 
 void FiltersMenu::applyReorder(

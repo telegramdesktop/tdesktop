@@ -14,7 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
+class PopupMenu;
 } // namespace Ui
+
+namespace Data {
+class ChatFilter;
+} // namespace Data
 
 namespace Window {
 
@@ -40,6 +45,10 @@ private:
 		FilterId id,
 		const QString &title,
 		Ui::FilterIcon icon);
+	void showMenu(QPoint position, FilterId id);
+	void showEditBox(FilterId id);
+	void showRemoveBox(FilterId id);
+	void remove(FilterId id);
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
@@ -56,6 +65,8 @@ private:
 	int _reordering = 0;
 	bool _ignoreRefresh = false;
 	bool _waitingSuggested = false;
+
+	base::unique_qptr<Ui::PopupMenu> _popupMenu;
 
 };
 

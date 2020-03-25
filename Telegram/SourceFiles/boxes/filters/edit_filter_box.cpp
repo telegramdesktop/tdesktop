@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "apiwrap.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -639,4 +640,34 @@ void EditFilterBox(
 		creating ? tr::lng_filters_create_button() : tr::lng_settings_save(),
 		save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void EditExistingFilter(
+		not_null<Window::SessionController*> window,
+		FilterId id) {
+	const auto session = &window->session();
+	const auto &list = session->data().chatsFilters().list();
+	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
+	if (i == end(list)) {
+		return;
+	}
+	const auto doneCallback = [=](const Data::ChatFilter &result) {
+		Expects(id == result.id());
+
+		const auto tl = result.tl();
+		session->data().chatsFilters().apply(MTP_updateDialogFilter(
+			MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+			MTP_int(id),
+			tl));
+		session->api().request(MTPmessages_UpdateDialogFilter(
+			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+			MTP_int(id),
+			tl
+		)).send();
+	};
+	window->window().show(Box(
+		EditFilterBox,
+		window,
+		*i,
+		crl::guard(session, doneCallback)));
 }
