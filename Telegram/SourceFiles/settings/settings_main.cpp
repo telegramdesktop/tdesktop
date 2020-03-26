@@ -342,7 +342,9 @@ Main::Main(
 }
 
 void Main::keyPressEvent(QKeyEvent *e) {
-	CodesFeedString(&_controller->session(), e->text());
+	crl::on_main(this, [=, text = e->text()]{
+		CodesFeedString(_controller, text);
+	});
 	return Section::keyPressEvent(e);
 }
 
