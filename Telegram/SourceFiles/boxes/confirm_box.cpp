@@ -43,12 +43,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
-TextParseOptions _confirmBoxTextOptions = {
-	TextParseLinks | TextParseMultiline | TextParseMarkdown | TextParseRichText, // flags
+namespace {
+
+TextParseOptions kInformBoxTextOptions = {
+	(TextParseLinks
+		| TextParseMultiline
+		| TextParseMarkdown
+		| TextParseRichText), // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
+
+TextParseOptions kMarkedTextBoxOptions = {
+	(TextParseLinks
+		| TextParseMultiline
+		| TextParseMarkdown
+		| TextParseRichText
+		| TextParseMentions
+		| TextParseHashtags), // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+} // namespace
 
 ConfirmBox::ConfirmBox(
 	QWidget*,
@@ -185,11 +204,11 @@ void ConfirmBox::init(const QString &text) {
 	_text.setText(
 		st::boxLabelStyle,
 		text,
-		_informative ? _confirmBoxTextOptions : _textPlainOptions);
+		_informative ? kInformBoxTextOptions : _textPlainOptions);
 }
 
 void ConfirmBox::init(const TextWithEntities &text) {
-	_text.setMarkedText(st::boxLabelStyle, text, _confirmBoxTextOptions);
+	_text.setMarkedText(st::boxLabelStyle, text, kMarkedTextBoxOptions);
 }
 
 void ConfirmBox::prepare() {
@@ -326,7 +345,16 @@ InformBox::InformBox(QWidget*, const TextWithEntities &text, const QString &done
 
 MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxContent()
 , _channel(channel)
-, _text(st::boxLabelStyle, tr::lng_participant_invite_sorry(tr::now, lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::defaultBox.buttonPadding.right()) {
+, _text(
+	st::boxLabelStyle,
+	tr::lng_participant_invite_sorry(
+		tr::now,
+		lt_count,
+		Global::ChatSizeMax()),
+	kInformBoxTextOptions,
+	(st::boxWidth
+		- st::boxPadding.left()
+		- st::defaultBox.buttonPadding.right())) {
 }
 
 void MaxInviteBox::prepare() {
