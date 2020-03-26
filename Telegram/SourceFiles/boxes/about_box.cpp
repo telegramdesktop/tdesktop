@@ -28,9 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 rpl::producer<TextWithEntities> Text1() {
-	return tr::lng_about_text1(
+	return tr::lng_about_text4(
 		lt_api_link,
-		tr::lng_about_text1_api(
+		tr::lng_about_text4_api(
 		) | Ui::Text::ToLink("https://core.telegram.org/api"),
 		Ui::Text::WithEntities);
 }
