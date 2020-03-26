@@ -1764,6 +1764,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_chat_send_text" = "Send messages";
 "lng_rights_chat_send_media" = "Send media";
 "lng_rights_chat_send_stickers" = "Send stickers & GIFs";
+"lng_rights_chat_send_stickers2" = "Send stickers";
+"lng_rights_chat_send_gifs" = "Send GIFs";
+"lng_rights_chat_send_games" = "Send Games";
+"lng_rights_chat_use_inline" = "Use Inline Bots";
 "lng_rights_chat_send_links" = "Embed links";
 "lng_rights_chat_send_polls" = "Send polls";
 "lng_rights_chat_add_members" = "Add members";
@@ -1905,6 +1909,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_banned_send_messages" = "Send messages";
 "lng_admin_log_banned_send_media" = "Send media";
 "lng_admin_log_banned_send_stickers" = "Send stickers & GIFs";
+"lng_admin_log_banned_send_stickers2" = "Send stickers";
+"lng_admin_log_banned_send_gifs" = "Send GIFs";
+"lng_admin_log_banned_send_games" = "Send Games";
+"lng_admin_log_banned_use_inline" = "Use Inline Bots";
 "lng_admin_log_banned_embed_links" = "Embed links";
 "lng_admin_log_banned_send_polls" = "Send polls";
 "lng_admin_log_admin_change_info" = "Change info";

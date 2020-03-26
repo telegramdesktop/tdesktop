@@ -773,10 +773,10 @@ std::vector<ChatRestrictions> ListOfRestrictions() {
 	return {
 		Flag::f_send_messages,
 		Flag::f_send_media,
-		Flag::f_send_stickers
-		| Flag::f_send_gifs
-		| Flag::f_send_games
-		| Flag::f_send_inline,
+		Flag::f_send_stickers,
+		Flag::f_send_gifs,
+		Flag::f_send_games,
+		Flag::f_send_inline,
 		Flag::f_embed_links,
 		Flag::f_send_polls,
 		Flag::f_invite_users,

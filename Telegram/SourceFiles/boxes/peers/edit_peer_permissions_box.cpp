@@ -104,7 +104,10 @@ std::vector<std::pair<ChatRestrictions, QString>> RestrictionLabels() {
 	const auto langKeys = {
 		tr::lng_rights_chat_send_text,
 		tr::lng_rights_chat_send_media,
-		tr::lng_rights_chat_send_stickers,
+		tr::lng_rights_chat_send_stickers2,
+		tr::lng_rights_chat_send_gifs,
+		tr::lng_rights_chat_send_games,
+		tr::lng_rights_chat_use_inline,
 		tr::lng_rights_chat_send_links,
 		tr::lng_rights_chat_send_polls,
 		tr::lng_rights_chat_add_members,
@@ -155,16 +158,16 @@ auto Dependencies(ChatRestrictions)
 
 	return {
 		// stickers <-> gifs
-		{ Flag::f_send_gifs, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_gifs },
+		//{ Flag::f_send_gifs, Flag::f_send_gifs },
+		//{ Flag::f_send_stickers, Flag::f_send_gifs },
 
 		// stickers <-> games
-		{ Flag::f_send_games, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_games },
+		//{ Flag::f_send_games, Flag::f_send_games },
+		//{ Flag::f_send_stickers, Flag::f_send_games },
 
 		// stickers <-> inline
-		{ Flag::f_send_inline, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_inline },
+		//{ Flag::f_send_inline, Flag::f_send_inline },
+		//{ Flag::f_send_stickers, Flag::f_send_inline },
 
 		// stickers -> send_media
 		{ Flag::f_send_stickers, Flag::f_send_messages },
@@ -276,11 +279,11 @@ ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
 
 	// Fix iOS bug of saving send_inline like embed_links.
 	// We copy send_stickers to send_inline.
-	if (restrictions & ChatRestriction::f_send_stickers) {
-		restrictions |= ChatRestriction::f_send_inline;
-	} else {
-		restrictions &= ~ChatRestriction::f_send_inline;
-	}
+	//if (restrictions & ChatRestriction::f_send_stickers) {
+	//	restrictions |= ChatRestriction::f_send_inline;
+	//} else {
+	//	restrictions &= ~ChatRestriction::f_send_inline;
+	//}
 
 	// Apply the strictest.
 	const auto fixOne = [&] {
