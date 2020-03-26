@@ -235,6 +235,12 @@ void Session::clear() {
 	cSetRecentStickers(RecentStickerPack());
 	App::clearMousedItems();
 	_histories->clearAll();
+	_webpages.clear();
+	_locations.clear();
+	_polls.clear();
+	_games.clear();
+	_documents.clear();
+	_photos.clear();
 }
 
 not_null<PeerData*> Session::peer(PeerId id) {
