@@ -59,18 +59,18 @@ bool Sticker::isEmojiSticker() const {
 
 void Sticker::initSize() {
 	_size = _document->dimensions;
-	if (isEmojiSticker()) {
+	if (isEmojiSticker() || _diceIndex >= 0) {
 		constexpr auto kIdealStickerSize = 512;
 		const auto zoom = GetEmojiStickerZoom(&_document->session());
 		const auto convert = [&](int size) {
 			return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
 		};
 		_size = QSize(convert(_size.width()), convert(_size.height()));
+		[[maybe_unused]] bool result = readyToDrawLottie();
 	} else {
 		_size = DownscaledSize(
 			_size,
 			{ st::maxStickerSize, st::maxStickerSize });
-		[[maybe_unused]] bool result = readyToDrawLottie();
 	}
 }
 
