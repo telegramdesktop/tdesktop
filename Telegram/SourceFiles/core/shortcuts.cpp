@@ -295,6 +295,8 @@ bool Manager::readCustomFile() {
 }
 
 void Manager::fillDefaults() {
+	const auto ctrl = Platform::IsMac() ? qsl("meta") : qsl("ctrl");
+
 	set(qsl("ctrl+w"), Command::Close);
 	set(qsl("ctrl+f4"), Command::Close);
 	set(qsl("ctrl+l"), Command::Lock);
@@ -316,15 +318,11 @@ void Manager::fillDefaults() {
 	set(qsl("alt+down"), Command::ChatNext);
 	set(qsl("ctrl+pgup"), Command::ChatPrevious);
 	set(qsl("alt+up"), Command::ChatPrevious);
-	if (Platform::IsMac()) {
-		set(qsl("meta+tab"), Command::ChatNext);
-		set(qsl("meta+shift+tab"), Command::ChatPrevious);
-		set(qsl("meta+backtab"), Command::ChatPrevious);
-	} else {
-		set(qsl("ctrl+tab"), Command::ChatNext);
-		set(qsl("ctrl+shift+tab"), Command::ChatPrevious);
-		set(qsl("ctrl+backtab"), Command::ChatPrevious);
-	}
+
+	set(qsl("%1+tab").arg(ctrl), Command::ChatNext);
+	set(qsl("%1+shift+tab").arg(ctrl), Command::ChatPrevious);
+	set(qsl("%1+backtab").arg(ctrl), Command::ChatPrevious);
+
 	set(qsl("ctrl+alt+home"), Command::ChatFirst);
 	set(qsl("ctrl+alt+end"), Command::ChatLast);
 
@@ -339,6 +337,14 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+3"), Command::ChatPinned3);
 	set(qsl("ctrl+4"), Command::ChatPinned4);
 	set(qsl("ctrl+5"), Command::ChatPinned5);
+
+	auto &&folders = ranges::view::zip(
+		kShowFolder,
+		ranges::view::ints(1, ranges::unreachable));
+
+	for (const auto [command, index] : folders) {
+		set(qsl("%1+shift+%2").arg(ctrl).arg(index > 9 ? 0 : index), command);
+	}
 
 	set(qsl("ctrl+0"), Command::ChatSelf);
 

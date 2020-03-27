@@ -3034,6 +3034,25 @@ void InnerWidget::setupShortcuts() {
 				return jumpToDialogRow({ row->key(), FullMsgId() });
 			});
 		}
+
+		auto &&folders = ranges::view::zip(
+			Shortcuts::kShowFolder,
+			ranges::view::ints(0, ranges::unreachable));
+
+		for (const auto [command, index] : folders) {
+			request->check(command) && request->handle([=, index = index] {
+				const auto list = &session().data().chatsFilters().list();
+				if (index >= list->size()) {
+					return false;
+				}
+				const auto filterId = list->at(index).id();
+				_controller->setActiveChatsFilter((filterId == _filterId)
+					? 0
+					: filterId);
+				return true;
+			});
+		}
+
 		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent
