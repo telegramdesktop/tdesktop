@@ -308,6 +308,7 @@ windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	textFg: searchedBarFg;
 }
 windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
+windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
 
 // Mac specific
 

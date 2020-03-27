@@ -557,7 +557,13 @@ void EditFilterBox(
 		st::settingsUpdate);
 
 	AddSkip(content);
-	AddDividerText(content, tr::lng_filters_include_about());
+	content->add(
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_filters_include_about(),
+			st::boxDividerLabel),
+		st::windowFilterAboutPadding);
+	AddDivider(content);
 	AddSkip(content);
 
 	AddSubsectionTitle(content, tr::lng_filters_exclude());
@@ -580,7 +586,7 @@ void EditFilterBox(
 			content,
 			tr::lng_filters_exclude_about(),
 			st::boxDividerLabel),
-		st::settingsDividerLabelPadding);
+		st::windowFilterAboutPadding);
 
 	const auto refreshPreviews = [=] {
 		include->updateData(
