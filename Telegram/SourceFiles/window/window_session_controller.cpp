@@ -781,7 +781,7 @@ FilterId SessionController::activeChatsFilterCurrent() const {
 }
 
 void SessionController::setActiveChatsFilter(FilterId id) {
-	_activeChatsFilter = id;
+	_activeChatsFilter.force_assign(id);
 	if (id) {
 		closeFolder();
 	}

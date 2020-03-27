@@ -2568,6 +2568,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		filterId = 0;
 	}
 	if (_filterId == filterId) {
+		emit mustScrollTo(0, 0);
 		return;
 	}
 	if (_openedFolder) {
