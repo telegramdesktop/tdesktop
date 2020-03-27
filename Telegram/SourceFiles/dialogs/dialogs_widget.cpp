@@ -684,12 +684,15 @@ void Widget::animationCallback() {
 void Widget::escape() {
 	if (controller()->openedFolder().current()) {
 		controller()->closeFolder();
-	} else if (!onCancelSearch()
-		|| (!_searchInChat && !App::main()->selectingPeer())) {
+	} else if (!onCancelSearch()) {
 		if (controller()->activeChatEntryCurrent().key) {
 			emit cancelled();
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
+		}
+	} else if (!_searchInChat && !App::main()->selectingPeer()) {
+		if (controller()->activeChatEntryCurrent().key) {
+			emit cancelled();
 		}
 	}
 }
