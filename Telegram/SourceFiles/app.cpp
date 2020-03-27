@@ -56,23 +56,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // OS_MAC_OLD
 
 namespace {
-	App::LaunchState _launchState = App::Launched;
 
-	HistoryView::Element *hoveredItem = nullptr,
-		*pressedItem = nullptr,
-		*hoveredLinkItem = nullptr,
-		*pressedLinkItem = nullptr,
-		*mousedItem = nullptr;
+constexpr auto kImageAreaLimit = 6'016 * 3'384;
 
-	struct CornersPixmaps {
-		QPixmap p[4];
-	};
-	QVector<CornersPixmaps> corners;
-	using CornersMap = QMap<uint32, CornersPixmaps>;
-	CornersMap cornersMap;
-	QImage cornersMaskLarge[4], cornersMaskSmall[4];
+App::LaunchState _launchState = App::Launched;
 
-	int32 serviceImageCacheSize = 0;
+HistoryView::Element *hoveredItem = nullptr,
+	*pressedItem = nullptr,
+	*hoveredLinkItem = nullptr,
+	*pressedLinkItem = nullptr,
+	*mousedItem = nullptr;
+
+struct CornersPixmaps {
+	QPixmap p[4];
+};
+QVector<CornersPixmaps> corners;
+using CornersMap = QMap<uint32, CornersPixmaps>;
+CornersMap cornersMap;
+QImage cornersMaskLarge[4], cornersMaskSmall[4];
+
+int32 serviceImageCacheSize = 0;
 
 } // namespace
 
@@ -331,6 +334,13 @@ namespace App {
 			reader.setAutoTransform(true);
 #endif // OS_MAC_OLD
 			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
+			if (!reader.canRead()) {
+				return QImage();
+			}
+			const auto imageSize = reader.size();
+			if (imageSize.width() * imageSize.height() > kImageAreaLimit) {
+				return QImage();
+			}
 			QByteArray fmt = reader.format();
 			if (!fmt.isEmpty()) *format = fmt;
 			if (!reader.read(&result)) {

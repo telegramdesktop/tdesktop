@@ -216,26 +216,9 @@ contactsMultiSelect: MultiSelect {
 	fieldCancel: contactsSearchCancel;
 	fieldCancelSkip: 40px;
 }
-contactsPhotoCheckIcon: icon {{
-	"default_checkbox_check",
-	overviewCheckFgActive,
-	point(3px, 6px)
-}};
-contactsPhotoCheck: RoundCheckbox(defaultRoundCheckbox) {
-	size: 20px;
-	sizeSmall: 0.3;
-	bgInactive: overviewCheckBg;
-	bgActive: overviewCheckBgActive;
-	check: contactsPhotoCheckIcon;
-}
-contactsPhotoCheckbox: RoundImageCheckbox {
-	imageRadius: 21px;
-	imageSmallRadius: 18px;
-	selectWidth: 2px;
-	selectFg: windowBgActive;
-	selectDuration: 150;
-	check: contactsPhotoCheck;
-}
+contactsPhotoCheckIcon: defaultPeerListCheckIcon;
+contactsPhotoCheck: defaultPeerListCheck;
+contactsPhotoCheckbox: defaultPeerListCheckbox;
 contactsPhotoDisabledCheckFg: menuIconFg;
 contactsNameCheckedFg: windowActiveTextFg;
 contactsRipple: defaultRippleAnimation;

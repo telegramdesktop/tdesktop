@@ -41,8 +41,8 @@ stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
 
-	icon: icon {{ "stickers_remove", menuIconFg }};
-	iconOver: icon {{ "stickers_remove", menuIconFgOver }};
+	icon: icon {{ "info_media_delete", menuIconFg }};
+	iconOver: icon {{ "info_media_delete", menuIconFgOver }};
 
 	rippleAreaSize: 40px;
 	rippleAreaPosition: point(0px, 0px);
@@ -94,6 +94,10 @@ stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
+
+filtersRemove: IconButton(stickersRemove) {
+	ripple: defaultRippleAnimation;
+}
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 

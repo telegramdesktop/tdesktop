@@ -40,11 +40,17 @@ namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kUseNonBlurredThreshold = 240;
+constexpr auto kMaxInlineArea = 1920 * 1080;
 
 int gifMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
 	accumulate_max(result, st::normalFont->width(formatGifAndSizeText(document->size)));
 	return result;
+}
+
+[[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
+	const auto dimensions = document->dimensions;
+	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
 }
 
 } // namespace
@@ -261,7 +267,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto selected = (selection == FullSelection);
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _data->canBePlayed();
+	const auto canBePlayed = _data->canBePlayed() && CanPlayInline(_data);
 	const auto autoplay = autoplayEnabled() && canBePlayed;
 	const auto activeRoundPlaying = activeRoundStreamed();
 	const auto startPlay = autoplay
@@ -865,7 +871,7 @@ void Gif::drawGrouped(
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
-	const auto canBePlayed = _data->canBePlayed();
+	const auto canBePlayed = _data->canBePlayed() && CanPlayInline(_data);;
 	const auto autoplay = fullFeatured && autoplayEnabled() && canBePlayed;
 	const auto startPlay = autoplay && !_streamed;
 	if (startPlay) {
@@ -1404,7 +1410,13 @@ void Gif::repaintStreamedContent() {
 }
 
 void Gif::streamingReady(::Media::Streaming::Information &&info) {
-	history()->owner().requestViewResize(_parent);
+	if (info.video.size.width() * info.video.size.height()
+		> kMaxInlineArea) {
+		_data->dimensions = info.video.size;
+		stopAnimation();
+	} else {
+		history()->owner().requestViewResize(_parent);
+	}
 }
 
 void Gif::stopAnimation() {

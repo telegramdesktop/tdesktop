@@ -574,6 +574,7 @@ void WrapWidget::showTopBarMenu() {
 		Window::FillPeerMenu(
 			_controller->parentController(),
 			peer,
+			FilterId(),
 			addAction,
 			Window::PeerMenuSource::Profile);
 	//} else if (const auto feed = key().feed()) { // #feed

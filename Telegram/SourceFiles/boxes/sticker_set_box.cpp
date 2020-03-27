@@ -229,8 +229,9 @@ StickerSetBox::Inner::Inner(
 		_setAccess = data.vaccess_hash().v;
 	}, [&](const MTPDinputStickerSetShortName &data) {
 		_setShortName = qs(data.vshort_name());
-	}, [&](const MTPDinputStickerSetEmpty &) {
-	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
+	}, [](const MTPDinputStickerSetEmpty &) {
+	}, [](const MTPDinputStickerSetAnimatedEmoji &) {
+	}, [](const MTPDinputStickerSetDice &) {
 	});
 
 	_api.request(MTPmessages_GetStickerSet(

@@ -1378,6 +1378,7 @@ void OverlayWidget::onShowInFolder() {
 	auto filepath = _doc->filepath(DocumentData::FilePathResolve::Checked);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
+		close();
 	}
 }
 

@@ -44,6 +44,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
+* Hunspell ([GPL](https://github.com/hunspell/hunspell/blob/master/COPYING))
 
 ## Build instructions
 

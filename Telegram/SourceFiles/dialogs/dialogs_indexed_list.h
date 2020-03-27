@@ -16,7 +16,7 @@ namespace Dialogs {
 
 class IndexedList {
 public:
-	IndexedList(SortMode sortMode);
+	IndexedList(SortMode sortMode, FilterId filterId = 0);
 
 	RowsByLetter addToEnd(Key key);
 	Row *addByName(Key key);
@@ -26,14 +26,14 @@ public:
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);
 
-	// For sortMode != SortMode::Date
+	// For sortMode != SortMode::Date && != Complex
 	void peerNameChanged(
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldChars);
 
-	//For sortMode == SortMode::Date
+	//For sortMode == SortMode::Date || == Complex
 	void peerNameChanged(
-		Mode list,
+		FilterId filterId,
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldChars);
 
@@ -48,8 +48,6 @@ public:
 		return (i != _index.end()) ? &i->second : nullptr;
 	}
 	std::vector<not_null<Row*>> filtered(const QStringList &words) const;
-
-	~IndexedList();
 
 	// Part of List interface is duplicated here for all() list.
 	int size() const { return all().size(); }
@@ -78,11 +76,12 @@ private:
 		Key key,
 		const base::flat_set<QChar> &oldChars);
 	void adjustNames(
-		Mode list,
+		FilterId filterId,
 		not_null<History*> history,
 		const base::flat_set<QChar> &oldChars);
 
 	SortMode _sortMode = SortMode();
+	FilterId _filterId = 0;
 	List _list, _empty;
 	base::flat_map<QChar, List> _index;
 

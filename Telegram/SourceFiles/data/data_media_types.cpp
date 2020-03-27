@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
 #include "history/view/media/history_view_theme_document.h"
+#include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "ui/text_options.h"
@@ -1323,6 +1324,52 @@ std::unique_ptr<HistoryView::Media> MediaPoll::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryView::Poll>(message, _poll);
+}
+
+MediaDice::MediaDice(not_null<HistoryItem*> parent, int value)
+: Media(parent)
+, _value(value) {
+}
+
+std::unique_ptr<Media> MediaDice::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaDice>(parent, _value);
+}
+
+int MediaDice::diceValue() const {
+	return _value;
+}
+
+QString MediaDice::notificationText() const {
+	return QString::fromUtf8("\xF0\x9F\x8E\xB2");
+}
+
+QString MediaDice::pinnedTextSubstring() const {
+	return QChar(171) + notificationText() + QChar(187);
+}
+
+TextForMimeData MediaDice::clipboardText() const {
+	return { notificationText() };
+}
+
+bool MediaDice::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return updateSentMedia(media);
+}
+
+bool MediaDice::updateSentMedia(const MTPMessageMedia &media) {
+	if (media.type() != mtpc_messageMediaDice) {
+		return false;
+	}
+	_value = media.c_messageMediaDice().vvalue().v;
+	parent()->history()->owner().requestItemRepaint(parent());
+	return true;
+}
+
+std::unique_ptr<HistoryView::Media> MediaDice::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
+	return std::make_unique<HistoryView::UnwrappedMedia>(
+		message,
+		std::make_unique<HistoryView::Dice>(message, this));
 }
 
 } // namespace Data

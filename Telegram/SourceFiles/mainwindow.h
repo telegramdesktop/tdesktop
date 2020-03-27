@@ -118,6 +118,8 @@ public:
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();
 
+	void updateControlsGeometry() override;
+
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 	void closeEvent(QCloseEvent *e) override;
@@ -125,8 +127,6 @@ protected:
 	void initHook() override;
 	void updateIsActiveHook() override;
 	void clearWidgetsHook() override;
-
-	void updateControlsGeometry() override;
 
 public slots:
 	void showSettings();

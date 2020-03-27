@@ -161,6 +161,7 @@ Widget::Widget(
 : Window::AbstractSectionWidget(parent, controller)
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
+, _searchForNarrowFilters(_searchControls, st::dialogsSearchForNarrowFilters)
 , _filter(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseFromUser(
 	_searchControls,
@@ -259,7 +260,18 @@ Widget::Widget(
 		Core::App().lockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
-	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->filtersMenuChanged()
+	) | rpl::start_with_next([=] {
+		const auto filtersHidden = !controller->filtersWidth();
+		_mainMenuToggle->setVisible(filtersHidden);
+		_searchForNarrowFilters->setVisible(!filtersHidden);
+		updateControlsGeometry();
+	}, lifetime());
+	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(); });
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -279,7 +291,7 @@ Widget::Widget(
 			onSearchMore();
 		} else {
 			const auto folder = _inner->shownFolder();
-			if (!folder || !folder->chatsListLoaded()) {
+			if (!folder || !folder->chatsList()->loaded()) {
 				session().api().requestDialogs(folder);
 			}
 		}
@@ -528,9 +540,9 @@ void Widget::refreshDialog(Key key) {
 }
 
 void Widget::repaintDialogRow(
-		Mode list,
+		FilterId filterId,
 		not_null<Row*> row) {
-	_inner->repaintDialogRow(list, row);
+	_inner->repaintDialogRow(filterId, row);
 }
 
 void Widget::repaintDialogRow(RowDescriptor row) {
@@ -672,14 +684,17 @@ void Widget::animationCallback() {
 void Widget::escape() {
 	if (controller()->openedFolder().current()) {
 		controller()->closeFolder();
-	} else if (!onCancelSearch()
-		|| (!_searchInChat && !App::main()->selectingPeer())) {
-		emit cancelled();
+	} else if (!onCancelSearch()) {
+		if (controller()->activeChatEntryCurrent().key) {
+			emit cancelled();
+		} else if (controller()->activeChatsFilterCurrent()) {
+			controller()->setActiveChatsFilter(FilterId(0));
+		}
+	} else if (!_searchInChat && !App::main()->selectingPeer()) {
+		if (controller()->activeChatEntryCurrent().key) {
+			emit cancelled();
+		}
 	}
-}
-
-void Widget::notify_historyMuteUpdated(History *history) {
-	_inner->notify_historyMuteUpdated(history);
 }
 
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
@@ -1504,7 +1519,7 @@ void Widget::updateControlsGeometry() {
 	}
 	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
 	auto smallLayoutRatio = (width() < st::columnMinimalWidthLeft) ? (st::columnMinimalWidthLeft - width()) / float64(st::columnMinimalWidthLeft - smallLayoutWidth) : 0.;
-	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
+	auto filterLeft = (controller()->filtersWidth() ? st::dialogsFilterSkip : st::dialogsFilterPadding.x() + _mainMenuToggle->width()) + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
 	auto filterAreaHeight = st::topBarHeight;
@@ -1518,6 +1533,12 @@ void Widget::updateControlsGeometry() {
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	auto mainMenuLeft = anim::interpolate(st::dialogsFilterPadding.x(), (smallLayoutWidth - _mainMenuToggle->width()) / 2, smallLayoutRatio);
 	_mainMenuToggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	const auto searchLeft = anim::interpolate(
+		-_searchForNarrowFilters->width(),
+		(smallLayoutWidth - _searchForNarrowFilters->width()) / 2,
+		smallLayoutRatio);
+	_searchForNarrowFilters->moveToLeft(searchLeft, st::dialogsFilterPadding.y());
+
 	auto right = filterLeft + filterWidth;
 	_lockUnlock->moveToLeft(right + st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _filter->y());

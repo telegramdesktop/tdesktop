@@ -118,7 +118,7 @@ private:
 
 };
 
-class MediaPhoto : public Media {
+class MediaPhoto final : public Media {
 public:
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
@@ -158,7 +158,7 @@ private:
 
 };
 
-class MediaFile : public Media {
+class MediaFile final : public Media {
 public:
 	MediaFile(
 		not_null<HistoryItem*> parent,
@@ -195,7 +195,7 @@ private:
 
 };
 
-class MediaContact : public Media {
+class MediaContact final : public Media {
 public:
 	MediaContact(
 		not_null<HistoryItem*> parent,
@@ -223,7 +223,7 @@ private:
 
 };
 
-class MediaLocation : public Media {
+class MediaLocation final : public Media {
 public:
 	MediaLocation(
 		not_null<HistoryItem*> parent,
@@ -255,7 +255,7 @@ private:
 
 };
 
-class MediaCall : public Media {
+class MediaCall final : public Media {
 public:
 	MediaCall(
 		not_null<HistoryItem*> parent,
@@ -284,7 +284,7 @@ private:
 
 };
 
-class MediaWebPage : public Media {
+class MediaWebPage final : public Media {
 public:
 	MediaWebPage(
 		not_null<HistoryItem*> parent,
@@ -316,7 +316,7 @@ private:
 
 };
 
-class MediaGame : public Media {
+class MediaGame final : public Media {
 public:
 	MediaGame(
 		not_null<HistoryItem*> parent,
@@ -348,7 +348,7 @@ private:
 
 };
 
-class MediaInvoice : public Media {
+class MediaInvoice final : public Media {
 public:
 	MediaInvoice(
 		not_null<HistoryItem*> parent,
@@ -378,7 +378,7 @@ private:
 
 };
 
-class MediaPoll : public Media {
+class MediaPoll final : public Media {
 public:
 	MediaPoll(
 		not_null<HistoryItem*> parent,
@@ -402,6 +402,28 @@ public:
 
 private:
 	not_null<PollData*> _poll;
+
+};
+
+class MediaDice final : public Media {
+public:
+	MediaDice(not_null<HistoryItem*> parent, int value);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	int diceValue() const;
+
+	QString notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
+
+private:
+	int _value = 0;
 
 };
 

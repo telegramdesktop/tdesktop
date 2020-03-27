@@ -323,9 +323,12 @@ bool GetDefault(
 	}
 	QString file;
 
+	const auto resolvedParent = (parent && parent->window()->isVisible())
+		? parent->window()
+		: Core::App().getFileDialogParent();
 	Core::App().notifyFileDialogShown(true);
 	if (type == Type::ReadFiles) {
-		files = QFileDialog::getOpenFileNames(Core::App().getFileDialogParent(), caption, startFile, filter);
+		files = QFileDialog::getOpenFileNames(resolvedParent, caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
@@ -333,11 +336,11 @@ bool GetDefault(
 		}
 		return !files.isEmpty();
 	} else if (type == Type::ReadFolder) {
-		file = QFileDialog::getExistingDirectory(Core::App().getFileDialogParent(), caption, startFile);
+		file = QFileDialog::getExistingDirectory(resolvedParent, caption, startFile);
 	} else if (type == Type::WriteFile) {
-		file = QFileDialog::getSaveFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
+		file = QFileDialog::getSaveFileName(resolvedParent, caption, startFile, filter);
 	} else {
-		file = QFileDialog::getOpenFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
+		file = QFileDialog::getOpenFileName(resolvedParent, caption, startFile, filter);
 	}
 	Core::App().notifyFileDialogShown(false);
 

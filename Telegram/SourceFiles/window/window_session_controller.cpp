@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
+#include "window/window_filters_menu.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "history/history.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_chat_filters.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
@@ -129,11 +131,19 @@ SessionController::SessionController(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder != nullptr)
 			&& (folder == _openedFolder.current())
-			&& folder->chatsList()->indexed(Global::DialogsMode())->empty();
+			&& folder->chatsList()->indexed()->empty();
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		folder->updateChatListSortPosition();
 		closeFolder();
 	}, lifetime());
+
+	session->data().chatsFilters().changed(
+	) | rpl::start_with_next([=] {
+		checkOpenedFilter();
+		crl::on_main(session, [=] {
+			refreshFiltersMenu();
+		});
+	}, session->lifetime());
 }
 
 not_null<::MainWindow*> SessionController::widget() const {
@@ -189,6 +199,42 @@ void SessionController::initSupportMode() {
 	}, lifetime());
 }
 
+void SessionController::toggleFiltersMenu(bool enabled) {
+	if (!enabled == !_filters) {
+		return;
+	} else if (enabled) {
+		_filters = std::make_unique<FiltersMenu>(
+			widget()->bodyWidget(),
+			this);
+	} else {
+		_filters = nullptr;
+	}
+	_filtersMenuChanged.fire({});
+}
+
+void SessionController::refreshFiltersMenu() {
+	const auto enabled = !session().data().chatsFilters().list().empty();
+	if (enabled != Global::DialogsFiltersEnabled()) {
+		Global::SetDialogsFiltersEnabled(enabled);
+		session().saveSettingsDelayed();
+		toggleFiltersMenu(enabled);
+	}
+}
+
+rpl::producer<> SessionController::filtersMenuChanged() const {
+	return _filtersMenuChanged.events();
+}
+
+void SessionController::checkOpenedFilter() {
+	if (const auto filterId = activeChatsFilterCurrent()) {
+		const auto &list = session().data().chatsFilters().list();
+		const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+		if (i == end(list)) {
+			setActiveChatsFilter(0);
+		}
+	}
+}
+
 bool SessionController::uniqueChatsInSearchResults() const {
 	return session().supportMode()
 		&& !session().settings().supportAllSearchResults()
@@ -196,6 +242,7 @@ bool SessionController::uniqueChatsInSearchResults() const {
 }
 
 void SessionController::openFolder(not_null<Data::Folder*> folder) {
+	setActiveChatsFilter(0);
 	_openedFolder = folder.get();
 }
 
@@ -208,7 +255,15 @@ const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {
 }
 
 void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
+	const auto was = _activeChatEntry.current().key.history();
+	const auto now = row.key.history();
+	if (was && was != now) {
+		was->setFakeUnreadWhileOpened(false);
+	}
 	_activeChatEntry = row;
+	if (now) {
+		now->setFakeUnreadWhileOpened(true);
+	}
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
 	}
@@ -334,10 +389,10 @@ bool SessionController::forceWideDialogs() const {
 	return !App::main()->isMainSectionShown();
 }
 
-SessionController::ColumnLayout SessionController::computeColumnLayout() const {
+auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
-	auto bodyWidth = widget()->bodyWidget()->width();
+	auto bodyWidth = widget()->bodyWidget()->width() - filtersWidth();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
 
 	auto useOneColumnLayout = [&] {
@@ -711,6 +766,28 @@ rpl::producer<FullMsgId> SessionController::floatPlayerClosed() const {
 	Expects(_floatPlayers != nullptr);
 
 	return _floatPlayers->closeEvents();
+}
+
+int SessionController::filtersWidth() const {
+	return _filters ? st::windowFiltersWidth : 0;
+}
+
+rpl::producer<FilterId> SessionController::activeChatsFilter() const {
+	return _activeChatsFilter.value();
+}
+
+FilterId SessionController::activeChatsFilterCurrent() const {
+	return _activeChatsFilter.current();
+}
+
+void SessionController::setActiveChatsFilter(FilterId id) {
+	_activeChatsFilter.force_assign(id);
+	if (id) {
+		closeFolder();
+	}
+	if (Adaptive::OneColumn()) {
+		Ui::showChatsList();
+	}
 }
 
 SessionController::~SessionController() = default;

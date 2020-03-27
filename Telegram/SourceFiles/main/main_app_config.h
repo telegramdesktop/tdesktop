@@ -25,6 +25,8 @@ public:
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
 			return getStringArray(key, std::move(fallback));
+		} else if constexpr (std::is_same_v<Type, bool>) {
+			return getBool(key, fallback);
 		}
 	}
 
@@ -40,6 +42,9 @@ private:
 		const QString &key,
 		Extractor &&extractor) const;
 
+	[[nodiscard]] bool getBool(
+		const QString &key,
+		bool fallback) const;
 	[[nodiscard]] double getDouble(
 		const QString &key,
 		double fallback) const;

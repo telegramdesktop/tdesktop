@@ -287,6 +287,8 @@ QByteArray FormatText(
 		case Type::Strike: return "<s>" + text + "</s>";
 		case Type::Blockquote:
 			return "<blockquote>" + text + "</blockquote>";
+		case Type::BankCard:
+			return text;
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);

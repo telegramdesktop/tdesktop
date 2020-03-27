@@ -799,7 +799,21 @@ void MainWindow::updateControlsGeometry() {
 
 	auto body = bodyWidget()->rect();
 	if (_passcodeLock) _passcodeLock->setGeometry(body);
-	if (_main) _main->setGeometry(body);
+	auto mainLeft = 0;
+	auto mainWidth = body.width();
+	if (const auto session = sessionController()) {
+		if (const auto skip = session->filtersWidth()) {
+			mainLeft += skip;
+			mainWidth -= skip;
+		}
+	}
+	if (_main) {
+		_main->setGeometry({
+			body.x() + mainLeft,
+			body.y(),
+			mainWidth,
+			body.height() });
+	}
 	if (_intro) _intro->setGeometry(body);
 	if (_layer) _layer->setGeometry(body);
 	if (_mediaPreview) _mediaPreview->setGeometry(body);

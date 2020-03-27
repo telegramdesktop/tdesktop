@@ -39,6 +39,8 @@ public:
 	[[nodiscard]] History *find(PeerId peerId);
 	[[nodiscard]] not_null<History*> findOrCreate(PeerId peerId);
 
+	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
+
 	void unloadAll();
 	void clearAll();
 
@@ -108,7 +110,6 @@ private:
 	void postponeRequestDialogEntries();
 
 	void sendDialogRequests();
-	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
 
 	const not_null<Session*> _owner;
 

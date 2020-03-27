@@ -937,10 +937,7 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 		const auto history = chat->peer->owner().history(chat->peer);
 		auto row = _chatsIndexed->getRow(history);
 		if (!row) {
-			const auto rowsByLetter = _chatsIndexed->addToEnd(history);
-			const auto it = rowsByLetter.find(0);
-			Assert(it != rowsByLetter.cend());
-			row = it->second;
+			row = _chatsIndexed->addToEnd(history).main;
 		}
 		chat = getChat(row);
 		if (!chat->checkbox.checked()) {

@@ -245,6 +245,71 @@ createThemeLink: InputField(defaultInputField) {
 	font: boxTextFont;
 }
 
+windowFiltersWidth: 72px;
+windowFiltersButton: SideBarButton(defaultSideBarButton) {
+	textTop: 40px;
+	textSkip: 6px;
+	minHeight: 62px;
+	minTextWidth: 48px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px semibold);
+	}
+	badgeStyle: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+	badgeSkip: 4px;
+	badgeHeight: 17px;
+	badgeStroke: 2px;
+	badgePosition: point(3px, 7px);
+	iconPosition: point(-1px, 6px);
+}
+windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
+	icon: icon {{ "dialogs_menu", sideBarIconFg }};
+	iconPosition: point(-1px, -1px);
+	minHeight: 54px;
+}
+windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
+	height: 44px;
+	photoPosition: point(15px, 5px);
+	namePosition: point(62px, 14px);
+	photoSize: 34px;
+	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+		imageRadius: 17px;
+		imageSmallRadius: 14px;
+	}
+}
+windowFilterSmallList: PeerList(defaultPeerList) {
+	item: windowFilterSmallItem;
+}
+windowFilterSmallRemove: IconButton(notifyClose) {
+}
+windowFilterSmallRemoveRight: 10px;
+windowFilterNameInput: InputField(defaultInputField) {
+	textMargins: margins(0px, 26px, 36px, 4px);
+}
+windowFilterIconToggleSize: size(36px, 36px);
+windowFilterIconTogglePosition: point(-4px, 12px);
+windwoFilterIconPanelPosition: point(-2px, -1px);
+windowFilterIconSingle: size(44px, 42px);
+windowFilterIconPadding: margins(10px, 36px, 10px, 8px);
+windowFilterIconHeaderPosition: point(18px, 14px);
+windowFilterTypeContacts: icon {{ "filters/filters_type_contacts", historyPeerUserpicFg }};
+windowFilterTypeNonContacts: icon {{ "filters/filters_type_noncontacts", historyPeerUserpicFg }};
+windowFilterTypeGroups: icon {{ "filters/filters_type_groups", historyPeerUserpicFg }};
+windowFilterTypeChannels: icon {{ "filters/filters_type_channels", historyPeerUserpicFg }};
+windowFilterTypeBots: icon {{ "filters/filters_type_bots", historyPeerUserpicFg }};
+windowFilterTypeNoMuted: icon {{ "filters/filters_type_muted", historyPeerUserpicFg }};
+windowFilterTypeNoArchived: icon {{ "filters/filters_type_archived", historyPeerUserpicFg }};
+windowFilterTypeNoRead: icon {{ "filters/filters_type_read", historyPeerUserpicFg }};
+windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: searchedBarFont;
+	}
+	textFg: searchedBarFg;
+}
+windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
+windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
+
 // Mac specific
 
 macAccessoryWidth: 450.;

@@ -312,6 +312,7 @@ object_ptr<Ui::RpWidget> CloudList::takeWidget() {
 
 rpl::producer<bool> CloudList::empty() const {
 	using namespace rpl::mappers;
+
 	return _count.value() | rpl::map(_1 == 0);
 }
 
@@ -720,6 +721,7 @@ int CloudList::resizeGetHeight(int newWidth) {
 	auto rowHeight = 0;
 	for (const auto &element : _elements) {
 		const auto button = element.button.get();
+		button->resizeToWidth(single);
 		button->moveToLeft(int(std::round(x)), y);
 		accumulate_max(rowHeight, button->height());
 		x += single + skip;

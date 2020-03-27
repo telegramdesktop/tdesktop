@@ -185,7 +185,7 @@ BackgroundBox::Inner::Inner(
 , _session(session)
 , _api(_session->api().instance())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
-	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
+	_check->setChecked(true, anim::type::instant);
 	if (_session->data().wallpapers().empty()) {
 		resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 	} else {

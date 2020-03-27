@@ -31,6 +31,7 @@ namespace Data {
 struct Draft;
 class Session;
 class Folder;
+class ChatFilter;
 } // namespace Data
 
 namespace Dialogs {
@@ -201,6 +202,8 @@ public:
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
+	void setFakeUnreadWhileOpened(bool enabled);
+	[[nodiscard]] bool fakeUnreadWhileOpened() const;
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 	[[nodiscard]] bool mute() const;
 	bool changeMute(bool newMute);
@@ -331,7 +334,6 @@ public:
 	int fixedOnTopIndex() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
-	bool toImportant() const override;
 	int chatListUnreadCount() const override;
 	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
@@ -540,6 +542,7 @@ private:
 	std::optional<HistoryItem*> _chatListMessage;
 
 	bool _unreadMark = false;
+	bool _fakeUnreadWhileOpened = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

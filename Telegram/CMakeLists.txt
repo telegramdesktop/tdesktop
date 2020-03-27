@@ -38,6 +38,7 @@ include(cmake/lib_tgvoip.cmake)
 set(style_files
     boxes/boxes.style
     calls/calls.style
+    chat_helpers/chat_helpers.style
     dialogs/dialogs.style
     export/view/export.style
     history/history.style
@@ -49,7 +50,7 @@ set(style_files
     passport/passport.style
     profile/profile.style
     settings/settings.style
-    chat_helpers/chat_helpers.style
+    ui/filter_icons.style
     window/window.style
 )
 
@@ -134,6 +135,8 @@ nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
 
+    api/api_chat_filters.cpp
+    api/api_chat_filters.h
     api/api_common.h
     api/api_hash.h
     api/api_self_destruct.cpp
@@ -146,6 +149,10 @@ PRIVATE
     api/api_single_message_search.h
     api/api_text_entities.cpp
     api/api_text_entities.h
+    boxes/filters/edit_filter_box.cpp
+    boxes/filters/edit_filter_box.h
+    boxes/filters/edit_filter_chats_list.cpp
+    boxes/filters/edit_filter_chats_list.h
     boxes/peers/add_participants_box.cpp
     boxes/peers/add_participants_box.h
     boxes/peers/edit_contact_box.cpp
@@ -272,6 +279,8 @@ PRIVATE
     chat_helpers/stickers.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
+    chat_helpers/stickers_dice_pack.cpp
+    chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
     chat_helpers/tabbed_panel.cpp
@@ -324,6 +333,8 @@ PRIVATE
     data/data_auto_download.h
     data/data_chat.cpp
     data/data_chat.h
+    data/data_chat_filters.cpp
+    data/data_chat_filters.h
     data/data_channel.cpp
     data/data_channel.h
     data/data_channel_admins.cpp
@@ -438,6 +449,8 @@ PRIVATE
     history/view/media/history_view_call.cpp
     history/view/media/history_view_contact.h
     history/view/media/history_view_contact.cpp
+    history/view/media/history_view_dice.h
+    history/view/media/history_view_dice.cpp
     history/view/media/history_view_document.h
     history/view/media/history_view_document.cpp
     history/view/media/history_view_file.h
@@ -833,6 +846,8 @@ PRIVATE
     settings/settings_common.h
     settings/settings_enhanced.cpp
     settings/settings_enhanced.h
+    settings/settings_folders.cpp
+    settings/settings_folders.h
     settings/settings_information.cpp
     settings/settings_information.h
     settings/settings_intro.cpp
@@ -913,6 +928,10 @@ PRIVATE
     ui/countryinput.h
     ui/empty_userpic.cpp
     ui/empty_userpic.h
+    ui/filter_icons.cpp
+    ui/filter_icons.h
+    ui/filter_icon_panel.cpp
+    ui/filter_icon_panel.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/resize_area.h
@@ -941,6 +960,8 @@ PRIVATE
     window/window_connecting_widget.h
     window/window_controller.cpp
     window/window_controller.h
+    window/window_filters_menu.cpp
+    window/window_filters_menu.h
     window/window_history_hider.cpp
     window/window_history_hider.h
     window/window_lock_widgets.cpp

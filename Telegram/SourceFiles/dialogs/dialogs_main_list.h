@@ -14,12 +14,16 @@ namespace Dialogs {
 
 class MainList final {
 public:
-	explicit MainList(rpl::producer<int> pinnedLimit);
+	MainList(FilterId filterId, rpl::producer<int> pinnedLimit);
 
 	bool empty() const;
 	bool loaded() const;
 	void setLoaded(bool loaded = true);
+	void setAllAreMuted(bool allAreMuted = true);
 	void clear();
+
+	RowsByLetter addEntry(const Key &key);
+	void removeEntry(const Key &key);
 
 	void unreadStateChanged(
 		const UnreadState &wasState,
@@ -27,20 +31,43 @@ public:
 	void unreadEntryChanged(
 		const Dialogs::UnreadState &state,
 		bool added);
-	UnreadState unreadState() const;
+	void updateCloudUnread(const MTPDdialogFolder &data);
+	[[nodiscard]] bool cloudUnreadKnown() const;
+	[[nodiscard]] UnreadState unreadState() const;
+	[[nodiscard]] rpl::producer<UnreadState> unreadStateChanges() const;
 
-	not_null<IndexedList*> indexed(Mode list = Mode::All);
-	not_null<const IndexedList*> indexed(Mode list = Mode::All) const;
-	not_null<PinnedList*> pinned();
-	not_null<const PinnedList*> pinned() const;
+	[[nodiscard]] not_null<IndexedList*> indexed();
+	[[nodiscard]] not_null<const IndexedList*> indexed() const;
+	[[nodiscard]] not_null<PinnedList*> pinned();
+	[[nodiscard]] not_null<const PinnedList*> pinned() const;
+
+	void setCloudListSize(int size);
+	[[nodiscard]] const rpl::variable<int> &fullSize() const;
 
 private:
+	void finalizeCloudUnread();
+	void recomputeFullListSize();
+
+	auto unreadStateChangeNotifier(bool notify) {
+		const auto wasState = notify ? unreadState() : UnreadState();
+		return gsl::finally([=] {
+			if (notify) {
+				_unreadStateChanges.fire_copy(wasState);
+			}
+		});
+	}
+
+	FilterId _filterId = 0;
 	IndexedList _all;
-	IndexedList _important;
 	PinnedList _pinned;
 	UnreadState _unreadState;
+	UnreadState _cloudUnreadState;
+	rpl::event_stream<UnreadState> _unreadStateChanges;
+	rpl::variable<int> _fullListSize = 0;
+	int _cloudListSize = 0;
 
 	bool _loaded = false;
+	bool _allAreMuted = false;
 
 	rpl::lifetime _lifetime;
 

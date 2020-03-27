@@ -1,0 +1,56 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/colors.palette";
+
+filtersAll: icon {{ "filters/filters_all", sideBarIconFg }};
+filtersAllActive: icon {{ "filters/filters_all_active", sideBarIconFgActive }};
+filtersUnread: icon {{ "filters/filters_unread", sideBarIconFg }};
+filtersUnreadActive: icon {{ "filters/filters_unread_active", sideBarIconFgActive }};
+filtersUnmuted: icon {{ "filters/filters_unmuted", sideBarIconFg }};
+filtersUnmutedActive: icon {{ "filters/filters_unmuted_active", sideBarIconFgActive }};
+filtersBots: icon {{ "filters/filters_bots", sideBarIconFg }};
+filtersBotsActive: icon {{ "filters/filters_bots_active", sideBarIconFgActive }};
+filtersChannels: icon {{ "filters/filters_channels", sideBarIconFg }};
+filtersChannelsActive: icon {{ "filters/filters_channels_active", sideBarIconFgActive }};
+filtersGroups: icon {{ "filters/filters_groups", sideBarIconFg }};
+filtersGroupsActive: icon {{ "filters/filters_groups_active", sideBarIconFgActive }};
+filtersPrivate: icon {{ "filters/filters_private", sideBarIconFg }};
+filtersPrivateActive: icon {{ "filters/filters_private_active", sideBarIconFgActive }};
+filtersCustom: icon {{ "filters/filters_custom", sideBarIconFg }};
+filtersCustomActive: icon {{ "filters/filters_custom_active", sideBarIconFgActive }};
+filtersSetup: icon {{ "filters/filters_setup", sideBarIconFg }};
+filtersSetupActive: icon {{ "filters/filters_setup", sideBarIconFgActive }};
+
+foldersCat: icon {{ "filters/folders_cat", sideBarIconFg }};
+foldersCatActive: icon {{ "filters/folders_cat_active", sideBarIconFgActive }};
+foldersCrown: icon {{ "filters/folders_crown", sideBarIconFg }};
+foldersCrownActive: icon {{ "filters/folders_crown_active", sideBarIconFgActive }};
+foldersFavorite: icon {{ "filters/folders_favorite", sideBarIconFg }};
+foldersFavoriteActive: icon {{ "filters/folders_favorite_active", sideBarIconFgActive }};
+foldersFlower: icon {{ "filters/folders_flower", sideBarIconFg }};
+foldersFlowerActive: icon {{ "filters/folders_flower_active", sideBarIconFgActive }};
+foldersGame: icon {{ "filters/folders_game", sideBarIconFg }};
+foldersGameActive: icon {{ "filters/folders_game_active", sideBarIconFgActive }};
+foldersHome: icon {{ "filters/folders_home", sideBarIconFg }};
+foldersHomeActive: icon {{ "filters/folders_home_active", sideBarIconFgActive }};
+foldersLove: icon {{ "filters/folders_love", sideBarIconFg }};
+foldersLoveActive: icon {{ "filters/folders_love_active", sideBarIconFgActive }};
+foldersMask: icon {{ "filters/folders_mask", sideBarIconFg }};
+foldersMaskActive: icon {{ "filters/folders_mask_active", sideBarIconFgActive }};
+foldersParty: icon {{ "filters/folders_party", sideBarIconFg }};
+foldersPartyActive: icon {{ "filters/folders_party_active", sideBarIconFgActive }};
+foldersSport: icon {{ "filters/folders_sport", sideBarIconFg }};
+foldersSportActive: icon {{ "filters/folders_sport_active", sideBarIconFgActive }};
+foldersStudy: icon {{ "filters/folders_study", sideBarIconFg }};
+foldersStudyActive: icon {{ "filters/folders_study_active", sideBarIconFgActive }};
+foldersTrade: icon {{ "filters/folders_trade", sideBarIconFg }};
+foldersTradeActive: icon {{ "filters/folders_trade", sideBarIconFgActive }};
+foldersTravel: icon {{ "filters/folders_travel", sideBarIconFg }};
+foldersTravelActive: icon {{ "filters/folders_travel_active", sideBarIconFgActive }};
+foldersWork: icon {{ "filters/folders_work", sideBarIconFg }};
+foldersWorkActive: icon {{ "filters/folders_work_active", sideBarIconFgActive }};

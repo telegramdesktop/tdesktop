@@ -250,6 +250,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_new_channel_name" = "Channel name";
 "lng_no_contacts" = "You have no contacts";
 "lng_no_chats" = "Your chats will be here";
+"lng_no_chats_filter" = "No chats currently belong to this folder.";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
 "lng_dlg_search_for_messages" = "Search for messages";
@@ -343,6 +344,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
+
+"lng_settings_section_filters" = "Folders";
 
 "lng_settings_section_background" = "Chat background";
 "lng_settings_bg_use_default" = "Use default color theme";
@@ -1845,6 +1848,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_all_admins" = "All users and admins";
 "lng_admin_log_about" = "What is this?";
 "lng_admin_log_about_text" = "This is a list of all service actions taken by the group's members and admins in the last 48 hours.";
+"lng_admin_log_about_text_channel" = "This is a list of all service actions taken by the channel's admins in the last 48 hours.";
 "lng_admin_log_no_results_title" = "No actions found";
 "lng_admin_log_no_results_text" = "No recent actions that match your query have been found.";
 "lng_admin_log_no_results_search_text" = "No recent actions that contain '{query}' have been found.";
@@ -2237,6 +2241,62 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_soon" = "Otherwise, Telegram Desktop will stop updating on {date}.";
 "lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";
+
+"lng_filters_all" = "All chats";
+"lng_filters_setup" = "Edit";
+"lng_filters_title" = "Folders";
+"lng_filters_subtitle" = "My folders";
+"lng_filters_no_chats" = "No chats";
+"lng_filters_chats_count#one" = "{count} chat";
+"lng_filters_chats_count#other" = "{count} chats";
+"lng_filters_create" = "Create new folder";
+"lng_filters_about" = "Create folders for different groups of chats and quickly switch between them.";
+"lng_filters_recommended" = "Recommended folders";
+"lng_filters_recommended_add" = "Add";
+"lng_filters_restore" = "Undo";
+"lng_filters_new" = "New Folder";
+"lng_filters_edit" = "Edit Folder";
+"lng_filters_new_name" = "Folder name";
+"lng_filters_add_chats" = "Add chats";
+"lng_filters_remove_chats" = "Remove chats";
+"lng_filters_include" = "Included Chats";
+"lng_filters_include_about" = "Choose chats and types of chats that will appear in this folder.";
+"lng_filters_exclude" = "Excluded Chats";
+"lng_filters_exclude_about" = "Choose chats and types of chats that will never appear in this folder.";
+"lng_filters_create_button" = "Create";
+"lng_filters_include_title" = "Include Chats";
+"lng_filters_exclude_title" = "Exclude Chats";
+"lng_filters_edit_types" = "Chat types";
+"lng_filters_edit_chats" = "Chats";
+"lng_filters_include_contacts" = "Contacts";
+"lng_filters_include_non_contacts" = "Non-Contacts";
+"lng_filters_include_groups" = "Groups";
+"lng_filters_include_channels" = "Channels";
+"lng_filters_include_bots" = "Bots";
+"lng_filters_exclude_muted" = "Muted";
+"lng_filters_exclude_read" = "Read";
+"lng_filters_exclude_archived" = "Archived";
+"lng_filters_name_people" = "People";
+"lng_filters_name_unread" = "Unread";
+"lng_filters_name_unmuted" = "Unmuted";
+"lng_filters_add" = "Done";
+"lng_filters_limit" = "Sorry, you have reached folders limit.";
+"lng_filters_empty" = "Please choose at least one chat for this folder.";
+"lng_filters_default" = "Please change at least one rule for this folder.";
+"lng_filters_type_contacts" = "Contacts";
+"lng_filters_type_non_contacts" = "Non-Contacts";
+"lng_filters_type_groups" = "Groups";
+"lng_filters_type_channels" = "Channels";
+"lng_filters_type_bots" = "Bots";
+"lng_filters_type_no_archived" = "Archived";
+"lng_filters_type_no_muted" = "Muted";
+"lng_filters_type_no_read" = "Read";
+"lng_filters_icon_header" = "Choose an icon";
+"lng_filters_error_pinned_max" = "Sorry, you can't pin any more chats to the top.";
+"lng_filters_context_edit" = "Edit Folder";
+"lng_filters_context_remove" = "Remove";
+"lng_filters_remove_sure" = "This will remove the folder, your chats will not be deleted.";
+"lng_filters_remove_yes" = "Remove";
 
 // Wnd specific
 

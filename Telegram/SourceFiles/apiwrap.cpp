@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_chat_filters.h"
 #include "data/data_histories.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
@@ -245,6 +247,13 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
 			photoUploadReady(data.fullId, data.file);
+		}, _session->lifetime());
+
+		_session->data().chatsFilters().changed(
+		) | rpl::filter([=] {
+			return _session->data().chatsFilters().archiveNeeded();
+		}) | rpl::start_with_next([=] {
+			requestMoreDialogsIfNeeded();
 		}, _session->lifetime());
 
 		setupSupportMode();
@@ -483,7 +492,9 @@ void ApiWrap::applyUpdates(
 }
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
-	const auto &order = _session->data().pinnedChatsOrder(folder);
+	const auto &order = _session->data().pinnedChatsOrder(
+		folder,
+		FilterId());
 	const auto input = [](const Dialogs::Key &key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
@@ -512,7 +523,7 @@ void ApiWrap::toggleHistoryArchived(
 	if (const auto already = _historyArchivedRequests.take(history)) {
 		request(already->first).cancel();
 	}
-	const auto isPinned = history->isPinnedDialog();
+	const auto isPinned = history->isPinnedDialog(0);
 	const auto archiveId = Data::Folder::kId;
 	const auto requestId = request(MTPfolders_EditPeerFolders(
 		MTP_vector<MTPInputFolderPeer>(
@@ -853,13 +864,11 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 				count);
 		});
 
-		if (!folder) {
-			if (!_dialogsLoadState || !_dialogsLoadState->listReceived) {
-				refreshDialogsLoadBlocked();
-			}
-			requestDialogs(folder);
-			requestContacts();
+		if (!folder
+			&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
+			refreshDialogsLoadBlocked();
 		}
+		requestMoreDialogsIfNeeded();
 		_session->data().chatsListChanged(folder);
 	}).fail([=](const RPCError &error) {
 		dialogsLoadState(folder)->requestId = 0;
@@ -883,6 +892,25 @@ void ApiWrap::refreshDialogsLoadBlocked() {
 		&& (_dialogsLoadTill > 0)
 		&& (_dialogsLoadState->offsetDate > 0)
 		&& (_dialogsLoadState->offsetDate <= _dialogsLoadTill);
+}
+
+void ApiWrap::requestMoreDialogsIfNeeded() {
+	const auto dialogsReady = !_dialogsLoadState
+		|| _dialogsLoadState->listReceived;
+	if (_session->data().chatsFilters().loadNextExceptions(dialogsReady)) {
+		return;
+	} else if (_dialogsLoadState && !_dialogsLoadState->listReceived) {
+		if (_dialogsLoadState->requestId) {
+			return;
+		}
+		requestDialogs(nullptr);
+	} else if (const auto folder = _session->data().folderLoaded(
+			Data::Folder::kId)) {
+		if (_session->data().chatsFilters().archiveNeeded()) {
+			requestMoreDialogs(folder);
+		}
+	}
+	requestContacts();
 }
 
 void ApiWrap::updateDialogsOffset(
@@ -4793,7 +4821,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	if (!peer->canWrite()) {
+	if (!peer->canWrite() || Api::SendDice(message)) {
 		return;
 	}
 	Local::saveRecentSentHashtags(textWithTags.text);

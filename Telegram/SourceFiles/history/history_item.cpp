@@ -153,6 +153,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaPoll &) {
 		return Result::Good;
+	}, [](const MTPDmessageMediaDice &) {
+		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});
@@ -768,7 +770,9 @@ bool HistoryItem::showNotification() const {
 	if (channel && !channel->amIn()) {
 		return false;
 	}
-	return (out() || _history->peer->isSelf()) ? isFromScheduled() : unread();
+	return (out() || _history->peer->isSelf())
+		? isFromScheduled()
+		: unread();
 }
 
 void HistoryItem::markClientSideAsRead() {

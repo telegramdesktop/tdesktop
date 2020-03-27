@@ -495,7 +495,8 @@ struct TextPart {
 		Cashtag,
 		Underline,
 		Strike,
-		Blockquote
+		Blockquote,
+		BankCard,
 	};
 	Type type = Type::Text;
 	Utf8String text;

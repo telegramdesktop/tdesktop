@@ -38,7 +38,6 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class IndexedList;
-enum class Mode;
 
 struct ChosenRow {
 	Key key;
@@ -81,6 +80,8 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
+	[[nodiscard]] FilterId filterId() const;
+
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
@@ -89,7 +90,7 @@ public:
 
 	void refreshDialog(Key key);
 	void removeDialog(Key key);
-	void repaintDialogRow(Mode list, not_null<Row*> row);
+	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 
 	void dragLeft();
@@ -126,8 +127,6 @@ public:
 	base::Observable<UserData*> searchFromUserChanged;
 
 	rpl::producer<ChosenRow> chosenRow() const;
-
-	void notify_historyMuteUpdated(History *history);
 
 	~InnerWidget();
 
@@ -173,11 +172,12 @@ private:
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
+	void editOpenedFilter();
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
 	bool needCollapsedRowsRefresh() const;
 	bool chooseCollapsedRow();
-	void switchImportantChats();
+	void switchToFilter(FilterId filterId);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
 	bool isSearchResultActive(
@@ -310,7 +310,7 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 
-	Mode _mode = Mode();
+	FilterId _filterId = 0;
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
@@ -377,6 +377,7 @@ private:
 	WidgetState _state = WidgetState::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
+	object_ptr<Ui::LinkButton> _editFilterLnk;
 	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 

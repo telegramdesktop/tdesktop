@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-List::List(SortMode sortMode) : _sortMode(sortMode) {
+List::List(SortMode sortMode, FilterId filterId)
+: _sortMode(sortMode)
+, _filterId(filterId) {
 }
 
 List::const_iterator List::cfind(Row *value) const {
@@ -84,18 +86,18 @@ void List::adjustByName(not_null<Row*> row) {
 void List::adjustByDate(not_null<Row*> row) {
 	Expects(_sortMode == SortMode::Date);
 
-	const auto key = row->sortKey();
+	const auto key = row->sortKey(_filterId);
 	const auto index = row->pos();
 	const auto i = _rows.begin() + index;
 	const auto before = std::find_if(i + 1, _rows.end(), [&](Row *row) {
-		return (row->sortKey() <= key);
+		return (row->sortKey(_filterId) <= key);
 	});
 	if (before != i + 1) {
 		rotate(i, i + 1, before);
 	} else {
 		const auto from = std::make_reverse_iterator(i);
 		const auto after = std::find_if(from, _rows.rend(), [&](Row *row) {
-			return (row->sortKey() >= key);
+			return (row->sortKey(_filterId) >= key);
 		}).base();
 		if (after != i) {
 			rotate(after, i, i + 1);

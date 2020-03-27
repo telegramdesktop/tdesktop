@@ -43,7 +43,8 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
-, _inner(setInnerWidget(::Settings::CreateSection(
+, _inner(setInnerWidget(
+	::Settings::CreateSection(
 		_type,
 		this,
 		controller->parentController()))) {
@@ -54,6 +55,8 @@ Widget::Widget(
 
 	controller->setCanSaveChanges(_inner->sectionCanSaveChanges());
 }
+
+Widget::~Widget() = default;
 
 not_null<UserData*> Widget::self() const {
 	return _self;

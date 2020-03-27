@@ -9,11 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
+#include "history/history.h"
 #include "data/data_session.h"
 
 namespace Dialogs {
 
-PinnedList::PinnedList(int limit) : _limit(limit) {
+PinnedList::PinnedList(FilterId filterId, int limit)
+: _filterId(filterId)
+, _limit(limit) {
 	Expects(limit > 0);
 }
 
@@ -41,7 +44,7 @@ int PinnedList::addPinnedGetPosition(const Key &key) {
 	applyLimit(_limit - 1);
 	const auto position = int(_data.size());
 	_data.push_back(key);
-	key.entry()->cachePinnedIndex(position + 1);
+	key.entry()->cachePinnedIndex(_filterId, position + 1);
 	return position;
 }
 
@@ -54,15 +57,15 @@ void PinnedList::setPinned(const Key &key, bool pinned) {
 			const auto begin = _data.begin();
 			std::rotate(begin, begin + position, begin + position + 1);
 			for (auto i = 0; i != position + 1; ++i) {
-				_data[i].entry()->cachePinnedIndex(i + 1);
+				_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 			}
 		}
 	} else if (const auto it = ranges::find(_data, key); it != end(_data)) {
 		const auto index = int(it - begin(_data));
 		_data.erase(it);
-		key.entry()->cachePinnedIndex(0);
+		key.entry()->cachePinnedIndex(_filterId, 0);
 		for (auto i = index, count = int(size(_data)); i != count; ++i) {
-			_data[i].entry()->cachePinnedIndex(i + 1);
+			_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 		}
 	}
 }
@@ -83,15 +86,27 @@ void PinnedList::applyList(
 		not_null<Data::Session*> owner,
 		const QVector<MTPDialogPeer> &list) {
 	clear();
-	for (const auto &peer : ranges::view::reverse(list)) {
+	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
 			if (const auto peerId = peerFromMTP(data.vpeer())) {
-				setPinned(owner->history(peerId), true);
+				addPinned(owner->history(peerId));
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
-			const auto folderId = data.vfolder_id().v;
-			setPinned(owner->folder(folderId), true);
+			addPinned(owner->folder(data.vfolder_id().v));
 		});
+	}
+}
+
+void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
+	Expects(_filterId != 0);
+
+	clear();
+	const auto count = int(list.size());
+	_data.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		const auto history = list[i];
+		_data.emplace_back(history);
+		history->cachePinnedIndex(_filterId, i + 1);
 	}
 }
 
@@ -102,8 +117,8 @@ void PinnedList::reorder(const Key &key1, const Key &key2) {
 	Assert(index2 >= 0 && index2 < _data.size());
 	Assert(index1 != index2);
 	std::swap(_data[index1], _data[index2]);
-	key1.entry()->cachePinnedIndex(index2 + 1);
-	key2.entry()->cachePinnedIndex(index1 + 1);
+	key1.entry()->cachePinnedIndex(_filterId, index2 + 1);
+	key2.entry()->cachePinnedIndex(_filterId, index1 + 1);
 }
 
 } // namespace Dialogs

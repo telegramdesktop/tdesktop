@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
@@ -21,9 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_chat_filters.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
@@ -101,6 +105,51 @@ void SetupSections(
 		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
 		&st::settingsIconChat);
+
+	const auto preload = [=] {
+		controller->session().data().chatsFilters().requestSuggested();
+	};
+	const auto account = &controller->session().account();
+	const auto slided = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			CreateButton(
+				container,
+				tr::lng_settings_section_filters(),
+				st::settingsSectionButton,
+				&st::settingsIconFolders)))->setDuration(0);
+	if (!controller->session().data().chatsFilters().list().empty()
+		|| Global::DialogsFiltersEnabled()) {
+		slided->show(anim::type::instant);
+		preload();
+	} else {
+		const auto enabled = [=] {
+			const auto result = account->appConfig().get<bool>(
+				"dialog_filters_enabled",
+				false);
+			if (result) {
+				preload();
+			}
+			return result;
+		};
+		const auto preloadIfEnabled = [=](bool enabled) {
+			if (enabled) {
+				preload();
+			}
+		};
+		slided->toggleOn(
+			rpl::single(
+				rpl::empty_value()
+			) | rpl::then(
+				account->appConfig().refreshed()
+			) | rpl::map(
+				enabled
+			) | rpl::before_next(preloadIfEnabled));
+	}
+	slided->entity()->setClickedCallback([=] {
+		showOther(Type::Folders);
+	});
+
 	addSection(
 		tr::lng_settings_advanced(),
 		Type::Advanced,
@@ -297,7 +346,9 @@ Main::Main(
 }
 
 void Main::keyPressEvent(QKeyEvent *e) {
-	CodesFeedString(&_controller->session(), e->text());
+	crl::on_main(this, [=, text = e->text()]{
+		CodesFeedString(_controller, text);
+	});
 	return Section::keyPressEvent(e);
 }
 

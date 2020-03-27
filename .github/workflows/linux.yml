@@ -29,7 +29,7 @@ jobs:
       QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.5"
       OPENSSL_VER: "1_1_1"
       OPENSSL_PREFIX: "/usr/local/desktop-app/openssl-1.1.1"
-      CMAKE_VER: "3.16.3"
+      CMAKE_VER: "3.17.0"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "6"
@@ -39,11 +39,6 @@ jobs:
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
-
-      - name: Clone.
-        uses: actions/checkout@v1
-        with:
-          submodules: recursive
 
       - name: Disable man for further package installs.
         run: |
@@ -57,17 +52,13 @@ jobs:
           p locale
           p doc
 
-      - name: First set up.
+      - name: Apt install.
         shell: bash
         run: |
-          cd ..
-          mv $REPO_NAME temp
-          mkdir $REPO_NAME
-          mv temp $REPO_NAME/$REPO_NAME
-          cd $REPO_NAME
-
           sudo apt-get update
           sudo apt-get install software-properties-common -y && \
+          sudo add-apt-repository ppa:git-core/ppa -y && \
+          sudo apt-get update && \
           sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
           libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
           autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
@@ -86,6 +77,15 @@ jobs:
           sudo update-alternatives --config gcc && \
           sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
 
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
           gcc --version
 
           gcc --version > CACHE_KEY.txt
@@ -127,6 +127,7 @@ jobs:
           sudo mkdir /opt/cmake
           sudo sh $file --prefix=/opt/cmake --skip-license
           sudo ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+          rm $file
 
           cmake --version
 
@@ -500,11 +501,14 @@ jobs:
             echo Define from matrix: $DEFINE
           fi
 
-          ./configure.sh -D TDESKTOP_API_TEST=ON -D DESKTOP_APP_USE_PACKAGED=OFF $DEFINE
+          ./configure.sh \
+          -D CMAKE_CXX_FLAGS="-s" \
+          -D TDESKTOP_API_TEST=ON \
+          -D DESKTOP_APP_USE_PACKAGED=OFF \
+          $DEFINE
 
           cd ../out/Debug
           make -j$(nproc)
-          strip -s bin/Telegram
 
       - name: Check.
         if: env.ONLY_CACHE == 'false'

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_channel_admins.h"
+#include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_folder.h"
 #include "data/data_photo.h"
@@ -838,8 +839,8 @@ void History::setUnreadMentionsCount(int count) {
 	}
 	_unreadMentionsCount = count;
 	const auto has = (count > 0);
-	if (has != had && Global::DialogsModeEnabled()) {
-		Notify::historyMuteUpdated(this);
+	if (has != had) {
+		owner().chatsFilters().refreshHistory(this);
 		updateChatListEntry();
 	}
 }
@@ -1647,7 +1648,8 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 			for (const auto &block : blocks) {
 				for (const auto &message : block->messages) {
 					const auto item = message->data();
-					if (item->out() || !IsServerMsgId(item->id)) {
+					if (!IsServerMsgId(item->id)
+						|| (item->out() && !item->isFromScheduled())) {
 						continue;
 					} else if (item->id > readTillId) {
 						break;
@@ -1780,8 +1782,16 @@ void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount == newUnreadCount) {
 		return;
 	}
+	const auto wasForBadge = (unreadCountForBadge() > 0);
+	const auto refresher = gsl::finally([&] {
+		if (wasForBadge != (unreadCountForBadge() > 0)) {
+			owner().chatsFilters().refreshHistory(this);
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
+	});
 	const auto notifier = unreadStateChangeNotifier(true);
-
 	_unreadCount = newUnreadCount;
 
 	if (newUnreadCount == 1) {
@@ -1801,9 +1811,6 @@ void History::setUnreadCount(int newUnreadCount) {
 	} else if (!_firstUnreadView && !_unreadBarView && loadedAtBottom()) {
 		calculateFirstUnreadMessage();
 	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged);
 }
 
 void History::setUnreadMark(bool unread) {
@@ -1814,20 +1821,38 @@ void History::setUnreadMark(bool unread) {
 		return;
 	}
 	const auto noUnreadMessages = !unreadCount();
+	const auto refresher = gsl::finally([&] {
+		if (inChatList() && noUnreadMessages) {
+			owner().chatsFilters().refreshHistory(this);
+			updateChatListEntry();
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::UnreadViewChanged);
+	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-
 	_unreadMark = unread;
-
-	if (inChatList() && noUnreadMessages) {
-		updateChatListEntry();
-	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged);
 }
 
 bool History::unreadMark() const {
 	return _unreadMark;
+}
+
+void History::setFakeUnreadWhileOpened(bool enabled) {
+	if (_fakeUnreadWhileOpened == enabled
+		|| (enabled
+			&& (!inChatList()
+				|| (!unreadCount()
+					&& !unreadMark()
+					&& !hasUnreadMentions())))) {
+		return;
+	}
+	_fakeUnreadWhileOpened = enabled;
+	owner().chatsFilters().refreshHistory(this);
+}
+
+[[nodiscard]] bool History::fakeUnreadWhileOpened() const {
+	return _fakeUnreadWhileOpened;
 }
 
 bool History::mute() const {
@@ -1838,18 +1863,18 @@ bool History::changeMute(bool newMute) {
 	if (_mute == newMute) {
 		return false;
 	}
+	const auto refresher = gsl::finally([&] {
+		if (inChatList()) {
+			owner().chatsFilters().refreshHistory(this);
+			updateChatListEntry();
+		}
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
+	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
-
 	_mute = newMute;
-
-	if (inChatList()) {
-		Notify::historyMuteUpdated(this);
-		updateChatListEntry();
-	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled);
 	return true;
 }
 
@@ -1912,21 +1937,22 @@ void History::clearFolder() {
 }
 
 void History::setFolderPointer(Data::Folder *folder) {
-	using Mode = Dialogs::Mode;
-
 	if (_folder == folder) {
 		return;
 	}
-	if (isPinnedDialog()) {
-		owner().setChatPinned(this, false);
+	if (isPinnedDialog(FilterId())) {
+		owner().setChatPinned(this, FilterId(), false);
 	}
+	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
-	const auto wasInImportant = wasInList && inChatList(Mode::Important);
 	if (wasInList) {
-		removeFromChatList(Mode::All);
-		if (wasInImportant) {
-			removeFromChatList(Mode::Important);
+		removeFromChatList(0, owner().chatsList(this->folder()));
+		for (const auto &filter : filters.list()) {
+			const auto id = filter.id();
+			if (inChatList(id)) {
+				removeFromChatList(id, filters.chatsList(id));
+			}
 		}
 	}
 	const auto was = _folder.value_or(nullptr);
@@ -1935,9 +1961,12 @@ void History::setFolderPointer(Data::Folder *folder) {
 		was->unregisterOne(this);
 	}
 	if (wasInList) {
-		addToChatList(Mode::All);
-		if (wasInImportant) {
-			addToChatList(Mode::Important);
+		addToChatList(0, owner().chatsList(folder));
+		for (const auto &filter : filters.list()) {
+			if (filter.contains(this)) {
+				const auto id = filter.id();
+				addToChatList(id, filters.chatsList(id));
+			}
 		}
 		owner().chatsListChanged(was);
 		owner().chatsListChanged(folder);
@@ -1958,7 +1987,7 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 			clearFolder();
 		}
 	}
-	owner().setChatPinned(this, data.is_pinned());
+	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
 TimeId History::adjustedChatListTimeId() const {
@@ -2566,7 +2595,7 @@ bool History::useProxyPromotion() const {
 	if (!isProxyPromoted()) {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
-		return !isPinnedDialog() && !channel->amIn();
+		return !isPinnedDialog(FilterId()) && !channel->amIn();
 	}
 	return false;
 }
@@ -2585,7 +2614,7 @@ bool History::trackUnreadMessages() const {
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;
-	} else if (isPinnedDialog()) {
+	} else if (isPinnedDialog(FilterId())) {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
@@ -2600,10 +2629,6 @@ bool History::shouldBeInChatList() const {
 	}
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
-}
-
-bool History::toImportant() const {
-	return !mute() || hasUnreadMentions();
 }
 
 void History::unknownMessageDeleted(MsgId messageId) {

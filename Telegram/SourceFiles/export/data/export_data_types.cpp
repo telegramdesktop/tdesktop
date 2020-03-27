@@ -178,7 +178,9 @@ std::vector<TextPart> ParseText(
 			[](const MTPDmessageEntityCashtag&) { return Type::Cashtag; },
 			[](const MTPDmessageEntityUnderline&) { return Type::Underline; },
 			[](const MTPDmessageEntityStrike&) { return Type::Strike; },
-			[](const MTPDmessageEntityBlockquote&) { return Type::Blockquote; });
+			[](const MTPDmessageEntityBlockquote&) {
+				return Type::Blockquote; },
+			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
@@ -931,6 +933,8 @@ Media ParseMedia(
 		result.ttl = data.vperiod().v;
 	}, [&](const MTPDmessageMediaPoll &data) {
 		result.content = ParsePoll(data);
+	}, [](const MTPDmessageMediaDice &data) {
+		// #TODO dice
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }

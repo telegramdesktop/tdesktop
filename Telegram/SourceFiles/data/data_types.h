@@ -128,16 +128,18 @@ using UserId = int32;
 using ChatId = int32;
 using ChannelId = int32;
 using FolderId = int32;
+using FilterId = int32;
 
 constexpr auto NoChannel = ChannelId(0);
 
 using PeerId = uint64;
 
 constexpr auto PeerIdMask         = PeerId(0xFFFFFFFFULL);
-constexpr auto PeerIdTypeMask     = PeerId(0x300000000ULL);
+constexpr auto PeerIdTypeMask     = PeerId(0xF00000000ULL);
 constexpr auto PeerIdUserShift    = PeerId(0x000000000ULL);
 constexpr auto PeerIdChatShift    = PeerId(0x100000000ULL);
 constexpr auto PeerIdChannelShift = PeerId(0x200000000ULL);
+constexpr auto PeerIdFakeShift    = PeerId(0xF00000000ULL);
 
 inline constexpr bool peerIsUser(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdUserShift;

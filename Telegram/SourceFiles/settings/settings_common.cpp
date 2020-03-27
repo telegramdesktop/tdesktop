@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 #include "settings/settings_notifications.h"
 #include "settings/settings_privacy_security.h"
+#include "settings/settings_folders.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_enhanced.h"
 #include "ui/wrap/padding_wrap.h"
@@ -47,6 +48,8 @@ object_ptr<Section> CreateSection(
 		return object_ptr<PrivacySecurity>(parent, controller);
 	case Type::Advanced:
 		return object_ptr<Advanced>(parent, controller);
+	case Type::Folders:
+		return object_ptr<Folders>(parent, controller);
 	case Type::Chat:
 		return object_ptr<Chat>(parent, controller);
 	case Type::Calls:
@@ -83,21 +86,19 @@ void AddDividerText(
 		st::settingsDividerLabelPadding));
 }
 
-not_null<Button*> AddButton(
-		not_null<Ui::VerticalLayout*> container,
+object_ptr<Button> CreateButton(
+		not_null<QWidget*> parent,
 		rpl::producer<QString> text,
 		const style::SettingsButton &st,
 		const style::icon *leftIcon,
 		int iconLeft) {
-	const auto result = container->add(object_ptr<Button>(
-		container,
-		std::move(text),
-		st));
+	auto result = object_ptr<Button>(parent, std::move(text), st);
+	const auto button = result.data();
 	if (leftIcon) {
-		const auto icon = Ui::CreateChild<Ui::RpWidget>(result);
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(button);
 		icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 		icon->resize(leftIcon->size());
-		result->sizeValue(
+		button->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
 			icon->moveToLeft(
 				iconLeft ? iconLeft : st::settingsSectionIconLeft,
@@ -108,8 +109,8 @@ not_null<Button*> AddButton(
 		) | rpl::start_with_next([=] {
 			Painter p(icon);
 			const auto width = icon->width();
-			const auto paintOver = (result->isOver() || result->isDown())
-				&& !result->isDisabled();
+			const auto paintOver = (button->isOver() || button->isDown())
+				&& !button->isDisabled();
 			if (paintOver) {
 				leftIcon->paint(p, QPoint(), width, st::menuIconFgOver->c);
 			} else {
@@ -118,6 +119,16 @@ not_null<Button*> AddButton(
 		}, icon->lifetime());
 	}
 	return result;
+}
+
+not_null<Button*> AddButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		const style::SettingsButton &st,
+		const style::icon *leftIcon,
+		int iconLeft) {
+	return container->add(
+		CreateButton(container, std::move(text), st, leftIcon, iconLeft));
 }
 
 void CreateRightLabel(

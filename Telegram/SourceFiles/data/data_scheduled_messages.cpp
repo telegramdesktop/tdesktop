@@ -139,8 +139,8 @@ int ScheduledMessages::count(not_null<History*> history) const {
 }
 
 void ScheduledMessages::sendNowSimpleMessage(
-	const MTPDupdateShortSentMessage &update,
-	not_null<HistoryItem*> local) {
+		const MTPDupdateShortSentMessage &update,
+		not_null<HistoryItem*> local) {
 	Expects(local->isSending());
 	Expects(local->isScheduled());
 	Expects(local->date() == kScheduledUntilOnlineTimestamp);

@@ -226,6 +226,7 @@ void TopBarWidget::showMenu() {
 		Window::FillPeerMenu(
 			_controller,
 			peer,
+			FilterId(),
 			addAction,
 			Window::PeerMenuSource::History);
 	} else if (const auto folder = _activeChat.folder()) {

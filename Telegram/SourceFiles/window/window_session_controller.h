@@ -56,6 +56,7 @@ namespace Window {
 class MainWindow;
 class SectionMemento;
 class Controller;
+class FiltersMenu;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -214,7 +215,7 @@ public:
 		int thirdWidth;
 		Adaptive::WindowLayout windowLayout;
 	};
-	ColumnLayout computeColumnLayout() const;
+	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
 	bool forceWideDialogs() const;
 	void updateColumnLayout();
@@ -292,6 +293,14 @@ public:
 		not_null<Media::Player::FloatDelegate*> replacement);
 	rpl::producer<FullMsgId> floatPlayerClosed() const;
 
+	[[nodiscard]] int filtersWidth() const;
+	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
+	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
+	void setActiveChatsFilter(FilterId id);
+
+	void toggleFiltersMenu(bool enabled);
+	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -301,6 +310,8 @@ public:
 private:
 	void init();
 	void initSupportMode();
+	void refreshFiltersMenu();
+	void checkOpenedFilter();
 
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
@@ -321,6 +332,7 @@ private:
 	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
+	std::unique_ptr<FiltersMenu> _filters;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
@@ -335,12 +347,16 @@ private:
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 
+	rpl::variable<FilterId> _activeChatsFilter;
+
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
 	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
+
+	rpl::event_stream<> _filtersMenuChanged;
 
 	rpl::lifetime _lifetime;
 

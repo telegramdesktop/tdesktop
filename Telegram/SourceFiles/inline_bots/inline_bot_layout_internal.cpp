@@ -35,6 +35,13 @@ namespace internal {
 
 using TextState = HistoryView::TextState;
 
+constexpr auto kMaxInlineArea = 1280 * 720;
+
+[[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
+	const auto dimensions = document->dimensions;
+	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
+}
+
 FileBase::FileBase(not_null<Context*> context, not_null<Result*> result)
 : ItemBase(context, result) {
 }
@@ -141,7 +148,10 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	document->automaticLoad(fileOrigin(), nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
-	if (loaded && !_gif && !_gif.isBad()) {
+	if (loaded
+		&& !_gif
+		&& !_gif.isBad()
+		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
 		that->_gif = Media::Clip::MakeReader(document, FullMsgId(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
@@ -371,9 +381,16 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 				_gif.setBad();
 				getShownDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
-				auto height = st::inlineMediaHeight;
-				auto frame = countFrameSize();
-				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
+				if (_gif->width() * _gif->height() > kMaxInlineArea) {
+					getShownDocument()->dimensions = QSize(
+						_gif->width(),
+						_gif->height());
+					unloadAnimation();
+				} else {
+					auto height = st::inlineMediaHeight;
+					auto frame = countFrameSize();
+					_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
+				}
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				unloadAnimation();
 			}

@@ -23,6 +23,8 @@ namespace Layout {
 class RowPainter;
 } // namespace Layout
 
+enum class SortMode;
+
 class BasicRow {
 public:
 	BasicRow();
@@ -88,7 +90,7 @@ public:
 	int pos() const {
 		return _pos;
 	}
-	uint64 sortKey() const;
+	uint64 sortKey(FilterId filterId) const;
 
 	void validateListEntryCache() const;
 	const Ui::Text::String &listEntryCache() const {

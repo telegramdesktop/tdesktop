@@ -52,6 +52,7 @@ public:
 	Widget(
 		QWidget *parent,
 		not_null<Controller*> controller);
+	~Widget();
 
 	not_null<UserData*> self() const;
 

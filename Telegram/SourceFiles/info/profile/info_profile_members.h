@@ -61,12 +61,14 @@ private:
 	// PeerListContentDelegate interface.
 	void peerListSetTitle(rpl::producer<QString> title) override;
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
-	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
+	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
 	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
 	void peerListScrollToTop() override;
-	void peerListAddSelectedRowInBunch(
+	void peerListAddSelectedPeerInBunch(
 		not_null<PeerData*> peer) override;
+	void peerListAddSelectedRowInBunch(
+		not_null<PeerListRow*> row) override;
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;

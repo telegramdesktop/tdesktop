@@ -56,12 +56,14 @@ class ListDelegate final : public PeerListContentDelegate {
 public:
 	void peerListSetTitle(rpl::producer<QString> title) override;
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
-	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
+	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
 	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
 	void peerListScrollToTop() override;
-	void peerListAddSelectedRowInBunch(
+	void peerListAddSelectedPeerInBunch(
 		not_null<PeerData*> peer) override;
+	void peerListAddSelectedRowInBunch(
+		not_null<PeerListRow*> row) override;
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
@@ -121,7 +123,7 @@ void ListDelegate::peerListSetTitle(rpl::producer<QString> title) {
 void ListDelegate::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
-bool ListDelegate::peerListIsRowSelected(not_null<PeerData*> peer) {
+bool ListDelegate::peerListIsRowChecked(not_null<PeerListRow*> row) {
 	return false;
 }
 
@@ -137,7 +139,11 @@ auto ListDelegate::peerListCollectSelectedRows()
 void ListDelegate::peerListScrollToTop() {
 }
 
-void ListDelegate::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
+void ListDelegate::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
+	Unexpected("Item selection in Info::Profile::Members.");
+}
+
+void ListDelegate::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
 	Unexpected("Item selection in Info::Profile::Members.");
 }
 

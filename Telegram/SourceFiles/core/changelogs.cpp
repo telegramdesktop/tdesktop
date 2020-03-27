@@ -49,6 +49,11 @@ std::map<int, const char*> BetaLogs() {
 		"\xE2\x80\xA2 Fix blurred thumbnails in albums with video files.\n"
 
 		"\xE2\x80\xA2 Fix a possible crash in animated stickers rendering."
+	},
+	{
+		1009022,
+		"\xE2\x80\xA2 Organize chats into Chat Folders "
+		"if you have too many chats.\n"
 	}
 	};
 };

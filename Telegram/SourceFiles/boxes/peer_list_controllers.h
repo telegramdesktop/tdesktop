@@ -87,14 +87,6 @@ private:
 
 class ChatsListBoxController : public PeerListController {
 public:
-	ChatsListBoxController(not_null<Window::SessionNavigation*> navigation);
-	ChatsListBoxController(
-		std::unique_ptr<PeerListSearchController> searchController);
-
-	void prepare() override final;
-	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
-
-protected:
 	class Row : public PeerListRow {
 	public:
 		Row(not_null<History*> history);
@@ -107,6 +99,15 @@ protected:
 		not_null<History*> _history;
 
 	};
+
+	ChatsListBoxController(not_null<Window::SessionNavigation*> navigation);
+	ChatsListBoxController(
+		std::unique_ptr<PeerListSearchController> searchController);
+
+	void prepare() override final;
+	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
+
+protected:
 	virtual std::unique_ptr<Row> createRow(not_null<History*> history) = 0;
 	virtual void prepareViewHook() = 0;
 	virtual void updateRowHook(not_null<Row*> row) {

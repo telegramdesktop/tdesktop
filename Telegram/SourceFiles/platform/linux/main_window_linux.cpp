@@ -78,7 +78,8 @@ QString GetTrayIconName(int counter, bool muted) {
 	const auto iconName = GetIconName();
 	const auto panelIconName = GetPanelIconName(counter, muted);
 
-	if (QIcon::hasThemeIcon(panelIconName)) {
+	if (QIcon::hasThemeIcon(panelIconName)
+		|| qEnvironmentVariableIsSet(kForcePanelIcon.utf8())) {
 		return panelIconName;
 	} else if (QIcon::hasThemeIcon(iconName)) {
 		return iconName;
@@ -158,7 +159,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 			|| iconThemeName != TrayIconThemeName
 			|| iconName != TrayIconName) {
 			if (!iconName.isEmpty()) {
-				if(systemIcon.isNull()) {
+				if (systemIcon.isNull()) {
 					systemIcon = QIcon::fromTheme(iconName);
 				}
 
@@ -467,11 +468,12 @@ void MainWindow::psTrayMenuUpdated() {
 }
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
+void MainWindow::setSNITrayIcon(int counter, bool muted) {
 	const auto iconName = GetTrayIconName(counter, muted);
 
 	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& ((!iconName.isEmpty() && !InSnap())
+		&& !iconName.isEmpty()
+		&& (!InSnap()
 			|| qEnvironmentVariableIsSet(kForcePanelIcon.utf8()))) {
 		if (_sniTrayIcon->iconName() == iconName) {
 			return;
@@ -480,7 +482,8 @@ void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
 		_sniTrayIcon->setIconByName(iconName);
 		_sniTrayIcon->setToolTipIconByName(iconName);
 	} else if (IsIndicatorApplication()) {
-		if(!IsIconRegenerationNeeded(counter, muted) && !firstShow) {
+		if (!IsIconRegenerationNeeded(counter, muted)
+			&& !_sniTrayIcon->iconName().isEmpty()) {
 			return;
 		}
 
@@ -492,7 +495,8 @@ void MainWindow::setSNITrayIcon(int counter, bool muted, bool firstShow) {
 			_sniTrayIcon->setIconByName(_trayIconFile->fileName());
 		}
 	} else {
-		if(!IsIconRegenerationNeeded(counter, muted) && !firstShow) {
+		if (!IsIconRegenerationNeeded(counter, muted)
+			&& !_sniTrayIcon->iconPixmap().isEmpty()) {
 			return;
 		}
 
@@ -527,6 +531,10 @@ void MainWindow::onSNIOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner) {
+	if (Global::WorkMode().value() == dbiwmWindowOnly) {
+		return;
+	}
+
 	if (oldOwner.isEmpty() && !newOwner.isEmpty()) {
 		LOG(("Switching to SNI tray icon..."));
 	} else if (!oldOwner.isEmpty() && newOwner.isEmpty()) {
@@ -554,7 +562,7 @@ void MainWindow::onSNIOwnerChanged(
 
 	cSetSupportTray(trayAvailable);
 
-	if(cSupportTray()) {
+	if (cSupportTray()) {
 		psSetupTrayIcon();
 	} else {
 		LOG(("System tray is not available."));
@@ -575,7 +583,7 @@ void MainWindow::psSetupTrayIcon() {
 				this);
 
 			_sniTrayIcon->setTitle(AppName.utf16());
-			setSNITrayIcon(counter, muted, true);
+			setSNITrayIcon(counter, muted);
 
 			attachToSNITrayIcon();
 		}

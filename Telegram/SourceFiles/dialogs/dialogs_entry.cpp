@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_chat_filters.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "history/history_item.h"
@@ -54,19 +55,34 @@ Main::Session &Entry::session() const {
 	return _owner->session();
 }
 
-void Entry::cachePinnedIndex(int index) {
-	if (_pinnedIndex != index) {
-		const auto wasPinned = isPinnedDialog();
-		_pinnedIndex = index;
-		if (session().supportMode()) {
-			// Force reorder in support mode.
-			_sortKeyInChatList = 0;
+void Entry::pinnedIndexChanged(int was, int now) {
+	if (session().supportMode()) {
+		// Force reorder in support mode.
+		_sortKeyInChatList = 0;
+	}
+	updateChatListSortPosition();
+	updateChatListEntry();
+	if ((was != 0) != (now != 0)) {
+		changedChatListPinHook();
+	}
+}
+
+void Entry::cachePinnedIndex(FilterId filterId, int index) {
+	const auto i = _pinnedIndex.find(filterId);
+	const auto was = (i != end(_pinnedIndex)) ? i->second : 0;
+	if (index == was) {
+		return;
+	}
+	if (!index) {
+		_pinnedIndex.erase(i);
+		pinnedIndexChanged(was, index);
+	} else {
+		if (!was) {
+			_pinnedIndex.emplace(filterId, index);
+		} else {
+			i->second = index;
 		}
-		updateChatListSortPosition();
-		updateChatListEntry();
-		if (wasPinned != isPinnedDialog()) {
-			changedChatListPinHook();
-		}
+		pinnedIndexChanged(was, index);
 	}
 }
 
@@ -92,17 +108,33 @@ void Entry::updateChatListSortPosition() {
 		updateChatListEntry();
 		return;
 	}
+	_sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
 	const auto fixedIndex = fixedOnTopIndex();
 	_sortKeyInChatList = fixedIndex
 		? FixedOnTopDialogPos(fixedIndex)
-		: isPinnedDialog()
-		? PinnedDialogPos(_pinnedIndex)
-		: DialogPosFromDate(adjustedChatListTimeId());
+		: computeSortPosition(0);
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
 	} else {
-		_sortKeyInChatList = 0;
+		_sortKeyInChatList = _sortKeyByDate = 0;
 	}
+}
+
+int Entry::lookupPinnedIndex(FilterId filterId) const {
+	if (filterId) {
+		const auto i = _pinnedIndex.find(filterId);
+		return (i != end(_pinnedIndex)) ? i->second : 0;
+	} else if (!_pinnedIndex.empty()) {
+		return _pinnedIndex.front().first
+			? 0
+			: _pinnedIndex.front().second;
+	}
+	return 0;
+}
+
+uint64 Entry::computeSortPosition(FilterId filterId) const {
+	const auto index = lookupPinnedIndex(filterId);
+	return index ? PinnedDialogPos(index) : _sortKeyByDate;
 }
 
 void Entry::updateChatListExistence() {
@@ -110,7 +142,15 @@ void Entry::updateChatListExistence() {
 }
 
 void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
-	owner().unreadStateChanged(_key, wasState);
+	Expects(folderKnown());
+	Expects(inChatList());
+
+	const auto nowState = chatListUnreadState();
+	owner().chatsList(folder())->unreadStateChanged(wasState, nowState);
+	auto &filters = owner().chatsFilters();
+	for (const auto &[filterId, links] : _chatListLinks) {
+		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);
+	}
 }
 
 void Entry::setChatListExistence(bool exists) {
@@ -131,25 +171,35 @@ TimeId Entry::adjustedChatListTimeId() const {
 void Entry::changedChatListPinHook() {
 }
 
-RowsByLetter &Entry::chatListLinks(Mode list) {
-	return _chatListLinks[static_cast<int>(list)];
+RowsByLetter *Entry::chatListLinks(FilterId filterId) {
+	const auto i = _chatListLinks.find(filterId);
+	return (i != end(_chatListLinks)) ? &i->second : nullptr;
 }
 
-const RowsByLetter &Entry::chatListLinks(Mode list) const {
-	return _chatListLinks[static_cast<int>(list)];
+const RowsByLetter *Entry::chatListLinks(FilterId filterId) const {
+	const auto i = _chatListLinks.find(filterId);
+	return (i != end(_chatListLinks)) ? &i->second : nullptr;
 }
 
-Row *Entry::mainChatListLink(Mode list) const {
-	auto it = chatListLinks(list).find(0);
-	Assert(it != chatListLinks(list).cend());
-	return it->second;
+not_null<Row*> Entry::mainChatListLink(FilterId filterId) const {
+	const auto links = chatListLinks(filterId);
+	Assert(links != nullptr);
+	return links->main;
 }
 
-PositionChange Entry::adjustByPosInChatList(Mode list) {
-	const auto lnk = mainChatListLink(list);
-	const auto from = lnk->pos();
-	myChatsList(list)->adjustByDate(chatListLinks(list));
-	const auto to = lnk->pos();
+Row *Entry::maybeMainChatListLink(FilterId filterId) const {
+	const auto links = chatListLinks(filterId);
+	return links ? links->main.get() : nullptr;
+}
+
+PositionChange Entry::adjustByPosInChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
+	const auto links = chatListLinks(filterId);
+	Assert(links != nullptr);
+	const auto from = links->main->pos();
+	list->indexed()->adjustByDate(*links);
+	const auto to = links->main->pos();
 	return { from, to };
 }
 
@@ -161,70 +211,60 @@ void Entry::setChatListTimeId(TimeId date) {
 	}
 }
 
-int Entry::posInChatList(Dialogs::Mode list) const {
-	return mainChatListLink(list)->pos();
+int Entry::posInChatList(FilterId filterId) const {
+	return mainChatListLink(filterId)->pos();
 }
 
-not_null<Row*> Entry::addToChatList(Mode list) {
-	if (!inChatList(list)) {
-		chatListLinks(list) = myChatsList(list)->addToEnd(_key);
-		if (list == Mode::All) {
-			owner().unreadEntryChanged(_key, true);
-		}
+not_null<Row*> Entry::addToChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
+	if (const auto main = maybeMainChatListLink(filterId)) {
+		return main;
 	}
-	return mainChatListLink(list);
+	return _chatListLinks.emplace(
+		filterId,
+		list->addEntry(_key)
+	).first->second.main;
 }
 
-void Entry::removeFromChatList(Dialogs::Mode list) {
-	if (inChatList(list)) {
-		myChatsList(list)->del(_key);
-		chatListLinks(list).clear();
-		if (list == Mode::All) {
-			owner().unreadEntryChanged(_key, false);
-		}
+void Entry::removeFromChatList(
+		FilterId filterId,
+		not_null<MainList*> list) {
+	const auto i = _chatListLinks.find(filterId);
+	if (i == end(_chatListLinks)) {
+		return;
 	}
+	_chatListLinks.erase(i);
+	list->removeEntry(_key);
 }
 
-void Entry::removeChatListEntryByLetter(Mode list, QChar letter) {
-	Expects(letter != 0);
-
-	if (inChatList(list)) {
-		chatListLinks(list).remove(letter);
+void Entry::removeChatListEntryByLetter(FilterId filterId, QChar letter) {
+	const auto i = _chatListLinks.find(filterId);
+	if (i != end(_chatListLinks)) {
+		i->second.letters.remove(letter);
 	}
 }
 
 void Entry::addChatListEntryByLetter(
-		Mode list,
+		FilterId filterId,
 		QChar letter,
 		not_null<Row*> row) {
-	Expects(letter != 0);
-
-	if (inChatList(list)) {
-		chatListLinks(list).emplace(letter, row);
+	const auto i = _chatListLinks.find(filterId);
+	if (i != end(_chatListLinks)) {
+		i->second.letters.emplace(letter, row);
 	}
 }
 
 void Entry::updateChatListEntry() const {
 	if (const auto main = App::main()) {
-		if (inChatList()) {
-			main->repaintDialogRow(
-				Mode::All,
-				mainChatListLink(Mode::All));
-			if (inChatList(Mode::Important)) {
-				main->repaintDialogRow(
-					Mode::Important,
-					mainChatListLink(Mode::Important));
-			}
+		for (const auto &[filterId, links] : _chatListLinks) {
+			main->repaintDialogRow(filterId, links.main);
 		}
 		if (session().supportMode()
 			&& !session().settings().supportAllSearchResults()) {
 			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
-}
-
-not_null<IndexedList*> Entry::myChatsList(Mode list) const {
-	return owner().chatsList(folder())->indexed(list);
 }
 
 } // namespace Dialogs

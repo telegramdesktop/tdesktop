@@ -120,6 +120,11 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	icon: icon {{ "dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
 }
+dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "top_bar_search", menuIconFg }};
+	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
+	iconPosition: point(4px, 4px);
+}
 dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
 
 dialogsFilter: FlatInput(defaultFlatInput) {

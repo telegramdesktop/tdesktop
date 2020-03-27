@@ -292,6 +292,8 @@ public:
 	void process();
 	void finish();
 
+	FileLoadResult *peekResult() const;
+
 private:
 	static bool CheckForSong(
 		const QString &filepath,

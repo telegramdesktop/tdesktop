@@ -44,7 +44,6 @@ struct RowDescriptor;
 class Row;
 class Key;
 class Widget;
-enum class Mode;
 } // namespace Dialogs
 
 namespace Media {
@@ -136,7 +135,7 @@ public:
 
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
-	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
+	void repaintDialogRow(FilterId filterId, not_null<Dialogs::Row*> row);
 	void repaintDialogRow(Dialogs::RowDescriptor row);
 
 	void windowShown();
@@ -288,7 +287,6 @@ public:
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *bot);
-	void notify_historyMuteUpdated(History *history);
 
 	void closeBothPlayers();
 

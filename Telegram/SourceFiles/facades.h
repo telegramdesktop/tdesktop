@@ -18,10 +18,6 @@ namespace Data {
 struct FileOrigin;
 } // namespace Data
 
-namespace Dialogs {
-enum class Mode;
-} // namespace Dialogs
-
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -93,7 +89,6 @@ void replyMarkupUpdated(const HistoryItem *item);
 void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot = nullptr, MsgId samePeerReplyTo = 0);
 
-void historyMuteUpdated(History *history);
 void unreadCounterUpdated();
 
 enum class ScreenCorner {
@@ -154,8 +149,7 @@ DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
 DeclareVar(bool, AdaptiveForWide);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
-DeclareVar(bool, DialogsModeEnabled);
-DeclareVar(Dialogs::Mode, DialogsMode);
+DeclareVar(bool, DialogsFiltersEnabled);
 DeclareVar(bool, ModerateModeEnabled);
 
 DeclareVar(bool, ScreenIsLocked);

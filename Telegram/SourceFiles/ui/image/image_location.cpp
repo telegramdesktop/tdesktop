@@ -169,6 +169,8 @@ StorageFileLocation::StorageFileLocation(
 		}, [&](const MTPDinputStickerSetAnimatedEmoji &data) {
 			Unexpected(
 				"inputStickerSetAnimatedEmoji in StorageFileLocation.");
+		}, [&](const MTPDinputStickerSetDice &data) {
+			Unexpected("inputStickerSetDice in StorageFileLocation.");
 		});
 		_volumeId = data.vvolume_id().v;
 		_localId = data.vlocal_id().v;

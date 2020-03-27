@@ -505,13 +505,6 @@ void Application::switchDebugMode() {
 	}
 }
 
-void Application::switchWorkMode() {
-	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
-	Global::SetDialogsMode(Dialogs::Mode::All);
-	Local::writeUserSettings();
-	App::restart();
-}
-
 void Application::switchTestMode() {
 	if (cTestMode()) {
 		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();

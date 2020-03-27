@@ -280,6 +280,7 @@ void TabbedPanel::hideByTimerOrLeave() {
 
 void TabbedPanel::prepareCacheFor(bool hiding) {
 	if (_a_opacity.animating()) {
+		_hiding = hiding;
 		return;
 	}
 
