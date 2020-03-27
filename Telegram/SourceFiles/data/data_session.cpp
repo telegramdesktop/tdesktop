@@ -2421,6 +2421,7 @@ void Session::documentConvert(
 	}();
 	const auto oldKey = original->mediaKey();
 	const auto oldCacheKey = original->cacheKey();
+	const auto oldGoodKey = original->goodThumbnailCacheKey();
 	const auto idChanged = (original->id != id);
 	const auto sentSticker = idChanged && (original->sticker() != nullptr);
 	if (idChanged) {
@@ -2444,6 +2445,7 @@ void Session::documentConvert(
 	documentApplyFields(original, data);
 	if (idChanged) {
 		cache().moveIfEmpty(oldCacheKey, original->cacheKey());
+		cache().moveIfEmpty(oldGoodKey, original->goodThumbnailCacheKey());
 		if (savedGifs().indexOf(original) >= 0) {
 			Local::writeSavedGifs();
 		}
@@ -3180,10 +3182,10 @@ void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
 	if (i != _playingVideoFiles.end()) {
 		if (!--i->second) {
 			_playingVideoFiles.erase(i);
-			unregisterHeavyViewPart(view);
+			view->checkHeavyPart();
 		}
 	} else {
-		unregisterHeavyViewPart(view);
+		view->checkHeavyPart();
 	}
 }
 
@@ -3205,7 +3207,7 @@ void Session::checkPlayingVideoFiles() {
 				continue;
 			}
 		}
-		unregisterHeavyViewPart(view);
+		view->checkHeavyPart();
 	}
 }
 

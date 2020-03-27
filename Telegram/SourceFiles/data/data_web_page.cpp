@@ -237,15 +237,7 @@ bool WebPageData::applyChanges(
 }
 
 void WebPageData::replaceDocumentGoodThumbnail() {
-	if (!document || !photo || !document->goodThumbnail()) {
-		return;
+	if (document && photo) {
+		document->setGoodThumbnailPhoto(photo);
 	}
-	const auto &location = photo->large()->location();
-	if (location.valid()) {
-		document->replaceGoodThumbnail(
-			std::make_unique<Images::StorageSource>(
-				location,
-				photo->large()->bytesSize()));
-	}
-
 }

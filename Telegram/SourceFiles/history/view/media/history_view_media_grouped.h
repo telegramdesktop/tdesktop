@@ -88,6 +88,7 @@ public:
 
 	void stopAnimation() override;
 	int checkAnimationCount() override;
+	void checkHeavyPart() override;
 	void unloadHeavyPart() override;
 
 	void parentTextUpdated() override;

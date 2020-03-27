@@ -32,6 +32,7 @@ class Loader;
 
 namespace Data {
 class Session;
+class DocumentMedia;
 } // namespace Data
 
 namespace Main {
@@ -180,11 +181,18 @@ public:
 		ImagePtr thumbnailInline,
 		ImagePtr thumbnail);
 
-	[[nodiscard]] Image *goodThumbnail() const;
 	[[nodiscard]] Storage::Cache::Key goodThumbnailCacheKey() const;
-	void setGoodThumbnailOnUpload(QImage &&image, QByteArray &&bytes);
-	void refreshGoodThumbnail();
-	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
+	[[nodiscard]] bool goodThumbnailChecked() const;
+	[[nodiscard]] bool goodThumbnailGenerating() const;
+	[[nodiscard]] bool goodThumbnailNoData() const;
+	void setGoodThumbnailGenerating();
+	void setGoodThumbnailDataReady();
+	void setGoodThumbnailChecked(bool hasData);
+
+	[[nodiscard]] std::shared_ptr<Data::DocumentMedia> createMediaView();
+	[[nodiscard]] std::shared_ptr<Data::DocumentMedia> activeMediaView();
+	void setGoodThumbnailPhoto(not_null<PhotoData*> photo);
+	[[nodiscard]] PhotoData *goodThumbnailPhoto() const;
 
 	[[nodiscard]] auto bigFileBaseCacheKey() const
 	-> std::optional<Storage::Cache::Key>;
@@ -258,6 +266,17 @@ private:
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
 
+	enum class GoodThumbnailFlag : uchar {
+		Checked = 0x01,
+		Generating = 0x02,
+		NoData = 0x03,
+		Mask = 0x03,
+
+		DataReady = 0x04,
+	};
+	using GoodThumbnailState = base::flags<GoodThumbnailFlag>;
+	friend constexpr bool is_flag_type(GoodThumbnailFlag) { return true; };
+
 	static constexpr Flags kStreamingSupportedMask = Flags()
 		| Flag::StreamingMaybeYes
 		| Flag::StreamingMaybeNo;
@@ -272,9 +291,8 @@ private:
 
 	friend class Serialize::Document;
 
-	LocationType locationType() const;
+	[[nodiscard]] LocationType locationType() const;
 	void validateLottieSticker();
-	void validateGoodThumbnail();
 	void setMaybeSupportsStreaming(bool supports);
 	void setLoadedInMediaCacheLocation();
 
@@ -294,8 +312,9 @@ private:
 
 	ImagePtr _thumbnailInline;
 	ImagePtr _thumbnail;
-	std::unique_ptr<Image> _goodThumbnail;
 	Data::ReplyPreview _replyPreview;
+	std::weak_ptr<Data::DocumentMedia> _media;
+	PhotoData *_goodThumbnailPhoto = nullptr;
 
 	not_null<Data::Session*> _owner;
 
@@ -304,6 +323,7 @@ private:
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;
+	GoodThumbnailState _goodThumbnailState = GoodThumbnailState();
 	mutable std::unique_ptr<FileLoader> _loader;
 
 };

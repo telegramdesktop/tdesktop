@@ -16,6 +16,7 @@ class Session;
 
 namespace Data {
 struct FileOrigin;
+class DocumentMedia;
 } // namespace Data
 
 namespace Lottie {
@@ -31,7 +32,7 @@ class Sticker final
 public:
 	Sticker(
 		not_null<Element*> parent,
-		not_null<DocumentData*> document,
+		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
 
@@ -43,7 +44,7 @@ public:
 	}
 
 	DocumentData *document() override {
-		return _document;
+		return _data;
 	}
 	void clearStickerLoopPlayed() override {
 		_lottieOncePlayed = false;
@@ -71,13 +72,16 @@ private:
 	void paintPixmap(Painter &p, const QRect &r, bool selected);
 	[[nodiscard]] QPixmap paintedPixmap(bool selected) const;
 
+	void ensureDataMediaCreated() const;
+
 	void setupLottie();
 	void unloadLottie();
 
 	const not_null<Element*> _parent;
-	const not_null<DocumentData*> _document;
+	const not_null<DocumentData*> _data;
 	const Lottie::ColorReplacements *_replacements = nullptr;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	ClickHandlerPtr _link;
 	QSize _size;
 	QImage _lastDiceFrame;

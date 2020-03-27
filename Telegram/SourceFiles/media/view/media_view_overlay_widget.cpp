@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_media_rotation.h"
+#include "data/data_document_media.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -2177,7 +2178,8 @@ void OverlayWidget::startStreamingPlayer() {
 void OverlayWidget::initStreamingThumbnail() {
 	Expects(_doc != nullptr);
 
-	const auto good = _doc->goodThumbnail();
+	const auto media = _doc->activeMediaView();
+	const auto good = media ? media->goodThumbnail() : nullptr;
 	const auto useGood = (good && good->loaded());
 	const auto thumb = _doc->thumbnail();
 	const auto useThumb = (thumb && thumb->loaded());

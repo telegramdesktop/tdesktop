@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "main/main_session.h"
 #include "storage/file_download.h" // Storage::kMaxFileInMemory.
 #include "styles/style_widgets.h"
 
@@ -192,48 +194,53 @@ void Document::waitingChange(bool waiting) {
 }
 
 void Document::validateGoodThumbnail() {
-	const auto good = _document->goodThumbnail();
-	if (_info.video.cover.isNull()
-		|| (good && good->loaded())
-		|| _document->uploading()) {
+	if (_info.video.cover.isNull() || _document->goodThumbnailChecked()) {
 		return;
 	}
-	auto image = [&] {
-		auto result = _info.video.cover;
-		if (_info.video.rotation != 0) {
-			auto transform = QTransform();
-			transform.rotate(_info.video.rotation);
-			result = result.transformed(transform);
+	const auto document = _document;
+	const auto information = _info.video;
+	const auto key = document->goodThumbnailCacheKey();
+	const auto guard = base::make_weak(&document->session());
+	document->owner().cache().get(key, [=](QByteArray value) {
+		if (!value.isEmpty()) {
+			return;
 		}
-		if (result.size() != _info.video.size) {
-			result = result.scaled(
-				_info.video.size,
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
+		const auto image = [&] {
+			auto result = information.cover;
+			if (information.rotation != 0) {
+				auto transform = QTransform();
+				transform.rotate(information.rotation);
+				result = result.transformed(transform);
+			}
+			if (result.size() != information.size) {
+				result = result.scaled(
+					information.size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			return result;
+		}();
+		auto bytes = QByteArray();
+		{
+			auto buffer = QBuffer(&bytes);
+			image.save(&buffer, "JPG", kGoodThumbnailQuality);
 		}
-		return result;
-	}();
-
-	auto bytes = QByteArray();
-	{
-		auto buffer = QBuffer(&bytes);
-		image.save(&buffer, "JPG", kGoodThumbnailQuality);
-	}
-	const auto length = bytes.size();
-	if (!length || length > Storage::kMaxFileInMemory) {
-		LOG(("App Error: Bad thumbnail data for saving to cache."));
-	} else if (_document->uploading()) {
-		_document->setGoodThumbnailOnUpload(
-			std::move(image),
-			std::move(bytes));
-	} else {
-		_document->owner().cache().putIfEmpty(
-			_document->goodThumbnailCacheKey(),
-			Storage::Cache::Database::TaggedValue(
-				std::move(bytes),
-				Data::kImageCacheTag));
-		_document->refreshGoodThumbnail();
-	}
+		const auto length = bytes.size();
+		if (!length || length > Storage::kMaxFileInMemory) {
+			LOG(("App Error: Bad thumbnail data for saving to cache."));
+			bytes = "(failed)";
+		}
+		crl::on_main(guard, [=] {
+			if (const auto active = document->activeMediaView()) {
+				active->setGoodThumbnail(image);
+			}
+			document->owner().cache().putIfEmpty(
+				document->goodThumbnailCacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					base::duplicate(bytes),
+					Data::kImageCacheTag));
+		});
+	});
 }
 
 void Document::waitingCallback() {

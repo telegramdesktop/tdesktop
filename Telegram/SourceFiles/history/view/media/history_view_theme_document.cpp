@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "base/qthelp_url.h"
 #include "window/themes/window_theme.h"
@@ -181,8 +182,11 @@ void ThemeDocument::validateThumbnail() const {
 	if (_thumbnailGood > 0) {
 		return;
 	}
-	const auto good = _data->goodThumbnail();
-	if (good) {
+	if (!_dataMedia) {
+		_dataMedia = _data->createMediaView();
+		_dataMedia->goodThumbnailWanted();
+	}
+	if (const auto good = _dataMedia->goodThumbnail()) {
 		if (good->loaded()) {
 			prepareThumbnailFrom(good, 1);
 			return;

@@ -348,6 +348,7 @@ private:
 
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
+	std::shared_ptr<Data::DocumentMedia> _docMedia;
 	int _rotation = 0;
 	std::unique_ptr<SharedMedia> _sharedMedia;
 	std::optional<SharedMediaWithLastSlice> _sharedMediaData;

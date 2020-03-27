@@ -422,6 +422,12 @@ int GroupedMedia::checkAnimationCount() {
 	return result;
 }
 
+void GroupedMedia::checkHeavyPart() {
+	for (auto &part : _parts) {
+		part.content->checkHeavyPart();
+	}
+}
+
 void GroupedMedia::unloadHeavyPart() {
 	for (auto &part : _parts) {
 		part.content->unloadHeavyPart();

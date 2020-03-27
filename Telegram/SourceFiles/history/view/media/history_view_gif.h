@@ -15,6 +15,10 @@ struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 class Painter;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Media {
 namespace View {
 class PlaybackProgress;
@@ -100,9 +104,8 @@ public:
 
 	void parentTextUpdated() override;
 
-	void unloadHeavyPart() override {
-		stopAnimation();
-	}
+	void checkHeavyPart() override;
+	void unloadHeavyPart() override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
@@ -113,6 +116,7 @@ private:
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 
+	void ensureDataMediaCreated() const;
 	void refreshCaption();
 
 	[[nodiscard]] bool autoplayEnabled() const;
@@ -161,11 +165,12 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 	QString _downloadSize;
 

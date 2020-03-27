@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
@@ -417,12 +418,9 @@ Video::Video(
 , _duration(formatDurationText(_data->getDuration())) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
-	if (_data->hasThumbnail() && !_data->thumbnail()->loaded()) {
-		if (const auto good = _data->goodThumbnail()) {
-			good->load({});
-		}
-	}
 }
+
+Video::~Video() = default;
 
 void Video::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
@@ -436,12 +434,14 @@ int32 Video::resizeGetHeight(int32 width) {
 }
 
 void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
+	ensureDataMediaCreated();
+
 	const auto selected = (selection == FullSelection);
 	const auto blurred = _data->thumbnailInline();
-	const auto goodLoaded = _data->goodThumbnail()
-		&& _data->goodThumbnail()->loaded();
 	const auto thumbLoaded = _data->hasThumbnail()
 		&& _data->thumbnail()->loaded();
+	const auto goodLoaded = _dataMedia->goodThumbnail()
+		&& _dataMedia->goodThumbnail()->loaded();
 
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
@@ -459,7 +459,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			|| (_pixBlurred && (thumbLoaded || goodLoaded)))) {
 		auto size = _width * cIntRetinaFactor();
 		auto img = goodLoaded
-			? _data->goodThumbnail()->original()
+			? _dataMedia->goodThumbnail()->original()
 			: thumbLoaded
 			? _data->thumbnail()->original()
 			: Images::prepareBlur(blurred->original());
@@ -541,6 +541,14 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto checkLeft = _width - checkDelta;
 	const auto checkTop = _height - checkDelta;
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
+}
+
+void Video::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	_dataMedia->goodThumbnailWanted();
 }
 
 float64 Video::dataProgress() const {

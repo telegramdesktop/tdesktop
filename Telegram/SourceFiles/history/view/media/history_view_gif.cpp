@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "app.h"
 #include "styles/style_history.h"
 
@@ -92,6 +93,8 @@ Gif::~Gif() {
 		_data->owner().streaming().keepAlive(_data);
 		setStreamed(nullptr);
 	}
+	_dataMedia = nullptr;
+	checkHeavyPart();
 }
 
 QSize Gif::sizeForAspectRatio() const {
@@ -404,7 +407,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			}
 		}
 	} else {
-		const auto good = _data->goodThumbnail();
+		ensureDataMediaCreated();
+		const auto good = _dataMedia->goodThumbnail();
 		if (good && good->loaded()) {
 			p.drawPixmap(rthumb.topLeft(), good->pixSingle({}, _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 		} else {
@@ -1071,6 +1075,15 @@ TextState Gif::getStateGrouped(
 		: _savel);
 }
 
+void Gif::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	_dataMedia->goodThumbnailWanted();
+	history()->owner().registerHeavyViewPart(_parent);
+}
+
 bool Gif::uploading() const {
 	return _data->uploading();
 }
@@ -1116,7 +1129,10 @@ void Gif::validateGroupedCache(
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
-	const auto good = _data->goodThumbnail();
+
+	ensureDataMediaCreated();
+
+	const auto good = _dataMedia->goodThumbnail();
 	const auto useGood = (good && good->loaded());
 	const auto thumb = _data->thumbnail();
 	const auto useThumb = (thumb && thumb->loaded());
@@ -1243,6 +1259,17 @@ void Gif::parentTextUpdated() {
 		refreshCaption();
 		history()->owner().requestViewResize(_parent);
 	}
+}
+
+void Gif::checkHeavyPart() {
+	if (!_dataMedia && !_streamed) {
+		history()->owner().unregisterHeavyViewPart(_parent);
+	}
+}
+
+void Gif::unloadHeavyPart() {
+	stopAnimation();
+	_dataMedia = nullptr;
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {

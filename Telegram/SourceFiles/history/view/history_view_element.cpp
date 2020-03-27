@@ -606,6 +606,12 @@ auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
 	};
 }
 
+void Element::checkHeavyPart() {
+	if (_media) {
+		_media->checkHeavyPart();
+	}
+}
+
 void Element::unloadHeavyPart() {
 	if (_media) {
 		_media->unloadHeavyPart();

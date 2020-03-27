@@ -750,23 +750,6 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	parent()->history()->owner().documentConvert(_document, *content);
-
-	if (const auto good = _document->goodThumbnail()) {
-		auto bytes = good->bytesForCache();
-		if (const auto length = bytes.size()) {
-			if (length > Storage::kMaxFileInMemory) {
-				LOG(("App Error: Bad thumbnail data for saving to cache."));
-			} else {
-				parent()->history()->owner().cache().putIfEmpty(
-					_document->goodThumbnailCacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						std::move(bytes),
-						Data::kImageCacheTag));
-				_document->refreshGoodThumbnail();
-			}
-		}
-	}
-
 	return true;
 }
 

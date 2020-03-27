@@ -34,6 +34,8 @@ public:
 		}
 		virtual void clearStickerLoopPlayed() {
 		}
+		virtual void checkHeavyPart() {
+		}
 		virtual void unloadHeavyPart() {
 		}
 		virtual void refreshLink() {
@@ -82,6 +84,9 @@ public:
 		_content->clearStickerLoopPlayed();
 	}
 
+	void checkHeavyPart() override {
+		_content->checkHeavyPart();
+	}
 	void unloadHeavyPart() override {
 		_content->unloadHeavyPart();
 	}

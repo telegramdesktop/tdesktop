@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -193,9 +194,18 @@ void Uploader::upload(
 				std::move(file->thumb));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
-		document->setGoodThumbnailOnUpload(
-			std::move(file->goodThumbnail),
-			std::move(file->goodThumbnailBytes));
+		if (!file->goodThumbnail.isNull()) {
+			if (const auto active = document->activeMediaView()) {
+				active->setGoodThumbnail(std::move(file->goodThumbnail));
+			}
+		}
+		if (!file->goodThumbnailBytes.isEmpty()) {
+			document->owner().cache().putIfEmpty(
+				document->goodThumbnailCacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					std::move(file->goodThumbnailBytes),
+					Data::kImageCacheTag));
+		}
 		if (!file->content.isEmpty()) {
 			document->setDataAndCache(file->content);
 			if (file->type == SendMediaType::ThemeFile) {

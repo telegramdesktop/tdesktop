@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_document_good_thumbnail.h"
+#include "data/data_document_media.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "main/main_session.h"
@@ -569,7 +570,6 @@ void DocumentData::setattributes(
 			_additional = nullptr;
 		}
 	}
-	validateGoodThumbnail();
 	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
 		setMaybeSupportsStreaming(true);
 	}
@@ -612,7 +612,6 @@ bool DocumentData::checkWallPaperProperties() {
 		return false; // #TODO themes support svg patterns
 	}
 	type = WallPaperDocument;
-	validateGoodThumbnail();
 	return true;
 }
 
@@ -661,48 +660,65 @@ Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {
 	return Data::DocumentThumbCacheKey(_dc, id);
 }
 
-Image *DocumentData::goodThumbnail() const {
-	return _goodThumbnail.get();
+bool DocumentData::goodThumbnailChecked() const {
+	return (_goodThumbnailState & GoodThumbnailFlag::Mask)
+		== GoodThumbnailFlag::Checked;
 }
 
-void DocumentData::validateGoodThumbnail() {
-	if (!isVideoFile()
-		&& !isAnimation()
-		&& !isWallPaper()
-		&& !isTheme()
-		&& (!sticker() || !sticker()->animated)) {
-		_goodThumbnail = nullptr;
-	} else if (!_goodThumbnail && hasRemoteLocation()) {
-		_goodThumbnail = std::make_unique<Image>(
-			std::make_unique<Data::GoodThumbSource>(this));
-	}
+bool DocumentData::goodThumbnailGenerating() const {
+	return (_goodThumbnailState & GoodThumbnailFlag::Mask)
+		== GoodThumbnailFlag::Generating;
 }
 
-void DocumentData::refreshGoodThumbnail() {
-	if (_goodThumbnail && hasRemoteLocation()) {
-		replaceGoodThumbnail(std::make_unique<Data::GoodThumbSource>(this));
-	}
+bool DocumentData::goodThumbnailNoData() const {
+	return (_goodThumbnailState & GoodThumbnailFlag::Mask)
+		== GoodThumbnailFlag::NoData;
 }
 
-void DocumentData::replaceGoodThumbnail(
-		std::unique_ptr<Images::Source> &&source) {
-	_goodThumbnail->replaceSource(std::move(source));
+void DocumentData::setGoodThumbnailGenerating() {
+	_goodThumbnailState = (_goodThumbnailState & ~GoodThumbnailFlag::Mask)
+		| GoodThumbnailFlag::Generating;
 }
 
-void DocumentData::setGoodThumbnailOnUpload(
-		QImage &&image,
-		QByteArray &&bytes) {
-	Expects(uploadingData != nullptr);
+void DocumentData::setGoodThumbnailDataReady() {
+	_goodThumbnailState = GoodThumbnailFlag::DataReady
+		| (goodThumbnailNoData()
+			? GoodThumbnailFlag(0)
+			: (_goodThumbnailState & GoodThumbnailFlag::Mask));
+}
 
-	if (image.isNull()) {
+void DocumentData::setGoodThumbnailChecked(bool hasData) {
+	if (!hasData && (_goodThumbnailState & GoodThumbnailFlag::DataReady)) {
+		_goodThumbnailState &= ~GoodThumbnailFlag::DataReady;
+		_goodThumbnailState &= ~GoodThumbnailFlag::Mask;
+		Data::DocumentMedia::CheckGoodThumbnail(this);
 		return;
 	}
-	_goodThumbnail = std::make_unique<Image>(
-		std::make_unique<Images::LocalFileSource>(
-			QString(),
-			std::move(bytes),
-			sticker() ? "WEBP" : "JPG",
-			std::move(image)));
+	_goodThumbnailState = (_goodThumbnailState & ~GoodThumbnailFlag::Mask)
+		| (hasData
+			? GoodThumbnailFlag::Checked
+			: GoodThumbnailFlag::NoData);
+}
+
+std::shared_ptr<Data::DocumentMedia> DocumentData::createMediaView() {
+	if (auto result = activeMediaView()) {
+		return result;
+	}
+	auto result = std::make_shared<Data::DocumentMedia>(this);
+	_media = result;
+	return result;
+}
+
+std::shared_ptr<Data::DocumentMedia> DocumentData::activeMediaView() {
+	return _media.lock();
+}
+
+void DocumentData::setGoodThumbnailPhoto(not_null<PhotoData*> photo) {
+	_goodThumbnailPhoto = photo;
+}
+
+PhotoData *DocumentData::goodThumbnailPhoto() const {
+	return _goodThumbnailPhoto;
 }
 
 auto DocumentData::bigFileBaseCacheKey() const
@@ -817,7 +833,8 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 				ActiveCache().increment(ComputeUsage(that->sticker()));
 			}
 
-			that->refreshGoodThumbnail();
+			that->setGoodThumbnailDataReady();
+			Data::DocumentMedia::CheckGoodThumbnail(that);
 			destroyLoader();
 
 			if (!that->_data.isEmpty() || that->getStickerLarge()) {
@@ -1606,7 +1623,6 @@ void DocumentData::setRemoteLocation(
 			}
 		}
 	}
-	validateGoodThumbnail();
 }
 
 void DocumentData::setContentUrl(const QString &url) {

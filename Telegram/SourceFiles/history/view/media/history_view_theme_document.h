@@ -9,9 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_file.h"
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace HistoryView {
 
-class ThemeDocument : public File {
+class ThemeDocument final : public File {
 public:
 	ThemeDocument(
 		not_null<Element*> parent,
@@ -54,11 +58,12 @@ private:
 	void validateThumbnail() const;
 	void prepareThumbnailFrom(not_null<Image*> image, int good) const;
 
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	int _pixw = 1;
 	int _pixh = 1;
 	mutable QPixmap _thumbnail;
 	mutable int _thumbnailGood = -1; // -1 inline, 0 thumbnail, 1 good
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 	// For wallpaper documents.
 	QColor _background;

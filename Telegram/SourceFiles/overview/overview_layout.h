@@ -19,6 +19,7 @@ struct RoundCheckbox;
 
 namespace Data {
 class Media;
+class DocumentMedia;
 } // namespace Data
 
 namespace Overview {
@@ -220,11 +221,12 @@ private:
 
 };
 
-class Video : public RadialProgressItem {
+class Video final : public RadialProgressItem {
 public:
 	Video(
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> video);
+	~Video();
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
@@ -240,14 +242,16 @@ protected:
 	bool iconAnimated() const override;
 
 private:
+	void ensureDataMediaCreated() const;
+	void updateStatusText();
+
 	not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 
 	QString _duration;
 	QPixmap _pix;
 	bool _pixBlurred = true;
-
-	void updateStatusText();
 
 };
 
