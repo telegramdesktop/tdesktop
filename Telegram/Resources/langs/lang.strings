@@ -250,7 +250,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_new_channel_name" = "Channel name";
 "lng_no_contacts" = "You have no contacts";
 "lng_no_chats" = "Your chats will be here";
-"lng_no_chats_filter" = "No chats currently match this folder.";
+"lng_no_chats_filter" = "No chats currently belong to this folder.";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
 "lng_dlg_search_for_messages" = "Search for messages";
@@ -2233,15 +2233,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";
 
 "lng_filters_all" = "All chats";
-"lng_filters_setup" = "Setup";
+"lng_filters_setup" = "Edit";
 "lng_filters_title" = "Folders";
 "lng_filters_subtitle" = "My folders";
 "lng_filters_no_chats" = "No chats";
 "lng_filters_chats_count#one" = "{count} chat";
 "lng_filters_chats_count#other" = "{count} chats";
-"lng_filters_create" = "Add a custom folder";
+"lng_filters_create" = "Create new folder";
 "lng_filters_about" = "Create folders for different groups of chats and quickly switch between them.";
-"lng_filters_recommended" = "Recommended";
+"lng_filters_recommended" = "Recommended folders";
 "lng_filters_recommended_add" = "Add";
 "lng_filters_restore" = "Undo";
 "lng_filters_new" = "New Folder";
@@ -2281,7 +2281,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_type_no_archived" = "Archived";
 "lng_filters_type_no_muted" = "Muted";
 "lng_filters_type_no_read" = "Read";
-"lng_filters_icon_header" = "Choose icon";
+"lng_filters_icon_header" = "Choose an icon";
 "lng_filters_error_pinned_max" = "Sorry, you can't pin any more chats to the top.";
 "lng_filters_context_edit" = "Edit Folder";
 "lng_filters_context_remove" = "Remove";
