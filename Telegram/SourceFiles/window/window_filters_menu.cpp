@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
+#include "data/data_folder.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
@@ -26,6 +27,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 namespace Window {
+namespace {
+
+[[nodiscard]] rpl::producer<Dialogs::UnreadState> MainListUnreadState(
+		not_null<Dialogs::MainList*> list) {
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		list->unreadStateChanges(
+			) | rpl::map([] { return rpl::empty_value(); })
+	) | rpl::map([=] {
+		return list->unreadState();
+	});
+}
+
+[[nodiscard]] rpl::producer<Dialogs::UnreadState> UnreadStateValue(
+		not_null<Main::Session*> session,
+		FilterId filterId) {
+	if (filterId > 0) {
+		const auto filters = &session->data().chatsFilters();
+		return MainListUnreadState(filters->chatsList(filterId));
+	}
+	return MainListUnreadState(
+		session->data().chatsList()
+	) | rpl::map([=](const Dialogs::UnreadState &state) {
+		const auto folderId = Data::Folder::kId;
+		if (const auto folder = session->data().folderLoaded(folderId)) {
+			return state - folder->chatsList()->unreadState();
+		}
+		return state;
+	});
+}
+
+} // namespace
 
 FiltersMenu::FiltersMenu(
 	not_null<Ui::RpWidget*> parent,
@@ -169,14 +201,11 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	const auto raw = button.get();
 	const auto &icons = Ui::LookupFilterIcon(icon);
 	raw->setIconOverride(icons.normal, icons.active);
-	if (id > 0) {
-		const auto filters = &_session->session().data().chatsFilters();
-		const auto list = filters->chatsList(id);
-		rpl::single(rpl::empty_value()) | rpl::then(
-			list->unreadStateChanges(
-			) | rpl::map([] { return rpl::empty_value(); })
-		) | rpl::start_with_next([=] {
-			const auto &state = list->unreadState();
+	if (id >= 0) {
+		UnreadStateValue(
+			&_session->session(),
+			id
+		) | rpl::start_with_next([=](const Dialogs::UnreadState &state) {
 			const auto count = (state.chats + state.marks);
 			const auto muted = (state.chatsMuted + state.marksMuted);
 			const auto string = !count
