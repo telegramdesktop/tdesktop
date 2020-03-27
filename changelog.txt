@@ -1,4 +1,4 @@
-1.9.22 (27.03.20)
+1.9.22 beta (27.03.20)
 
 - Organize chats into Chat Folders if you have too many chats.
 
