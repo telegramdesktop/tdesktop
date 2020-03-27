@@ -208,12 +208,6 @@ void UnwrappedMedia::drawSurrounding(
 			int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 			recty += skip;
 		}
-		if (via) {
-			p.setFont(st::msgDateFont);
-			p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
-			int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
-			recty += skip;
-		}
 		if (reply) {
 			HistoryMessageReply::PaintFlags flags = 0;
 			if (selected) {
