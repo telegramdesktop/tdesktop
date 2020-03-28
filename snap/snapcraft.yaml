@@ -102,6 +102,7 @@ parts:
       - -DDESKTOP_APP_USE_PACKAGED_EXPECTED=OFF
       - -DDESKTOP_APP_USE_PACKAGED_RLOTTIE=OFF
       - -DTDESKTOP_USE_PACKAGED_TGVOIP=OFF
+      - -DTDESKTOP_USE_FONTCONFIG_FALLBACK=ON
     override-pull: |
       snapcraftctl pull
 
@@ -118,10 +119,6 @@ parts:
       snapcraftctl set-version "$version"
 
       sed -i 's|^Icon=.*|Icon=/share/icons/hicolor/512x512/apps/telegram.png|g' lib/xdg/telegramdesktop.desktop
-    override-build: |
-      snapcraftctl build
-      mkdir -p "$SNAPCRAFT_PART_INSTALL/etc/fonts"
-      cp "$SNAPCRAFT_PART_SRC/Telegram/lib_ui/qt_conf/fc-custom.conf" "$SNAPCRAFT_PART_INSTALL/etc/fonts/fonts.conf"
     after:
       - cmake
       - desktop-qt5
@@ -159,13 +156,11 @@ parts:
       - locales-all
       - xdg-user-dirs
       - fcitx-frontend-qt5
-    stage: [-etc/fonts/fonts.conf]
 
   qt5-gtk-platform:
     plugin: nil
     stage-packages:
       - qt5-gtk-platformtheme
-    stage: [-etc/fonts/fonts.conf]
 
   cmake:
     source: "https://gitlab.kitware.com/cmake/cmake.git"
