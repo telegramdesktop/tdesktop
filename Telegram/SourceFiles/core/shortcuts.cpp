@@ -346,6 +346,9 @@ void Manager::fillDefaults() {
 		set(qsl("%1+shift+%2").arg(ctrl).arg(index > 9 ? 0 : index), command);
 	}
 
+	set(qsl("%1+shift+down").arg(ctrl), Command::FolderNext);
+	set(qsl("%1+shift+up").arg(ctrl), Command::FolderPrevious);
+
 	set(qsl("ctrl+0"), Command::ChatSelf);
 
 	set(qsl("ctrl+9"), Command::ShowArchive);

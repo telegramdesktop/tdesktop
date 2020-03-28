@@ -46,6 +46,9 @@ enum class Command {
 	ShowFolder9,
 	ShowFolder10,
 
+	FolderNext,
+	FolderPrevious,
+
 	ShowArchive,
 
 	JustSendMessage,

@@ -3053,6 +3053,35 @@ void InnerWidget::setupShortcuts() {
 			});
 		}
 
+		const auto nearFolder = [=](bool isNext) {
+			const auto id = _controller->activeChatsFilterCurrent();
+			const auto list = &session().data().chatsFilters().list();
+			const auto it = (id == 0)
+				? begin(*list) - 1
+				: ranges::find(*list, id, &Data::ChatFilter::id);
+			if (it == end(*list) && id != 0) {
+				return false;
+			}
+			const auto i = isNext ? 1 : -1;
+			const auto index = it - begin(*list) + i;
+			if (index >= (int)list->size() || index < -1) {
+				return false;
+			}
+			const auto filterId = (index == -1)
+				? 0
+				: list->at(index).id();
+			_controller->setActiveChatsFilter(filterId);
+			return true;
+		};
+
+		request->check(Command::FolderNext) && request->handle([=] {
+			return nearFolder(true);
+		});
+
+		request->check(Command::FolderPrevious) && request->handle([=] {
+			return nearFolder(false);
+		});
+
 		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent
