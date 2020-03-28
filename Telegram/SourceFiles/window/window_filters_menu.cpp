@@ -127,6 +127,7 @@ void FiltersMenu::setup() {
 			_all->setActive(true);
 			scrollToButton(_all);
 		}
+		_reorder->finishReordering();
 	}, _outer.lifetime());
 
 	_menu.setClickedCallback([=] {
@@ -198,7 +199,7 @@ void FiltersMenu::setupList() {
 		-1,
 		tr::lng_filters_setup(tr::now),
 		Ui::FilterIcon::Setup);
-	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list);
+	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
 	_reorder->updates(
 		) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {
