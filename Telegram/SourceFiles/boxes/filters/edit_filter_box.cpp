@@ -312,6 +312,7 @@ void EditExceptions(
 		include ? rules.always() : rules.never());
 	const auto rawController = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setCloseByOutsideClick(false);
 		box->addButton(tr::lng_settings_save(), crl::guard(context, [=] {
 			const auto peers = box->peerListCollectSelectedRows();
 			const auto rules = data->current();
