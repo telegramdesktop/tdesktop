@@ -70,8 +70,8 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib
-    msbuild LzmaLib.sln /property:Configuration=Debug
-    msbuild LzmaLib.sln /property:Configuration=Release
+    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform=x86
+    msbuild LzmaLib.sln /property:Configuration=Release /property:Platform=x86
     cd ..\..\..\..
 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
