@@ -30,10 +30,9 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 , _dice(dice)
 , _start(parent, Lookup(parent, 0)) {
 	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
+	_start.setDiceIndex(0);
 	if (_showLastFrame) {
 		_drawingEnd = true;
-	} else {
-		_start.setDiceIndex(0);
 	}
 }
 
