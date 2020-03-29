@@ -1247,7 +1247,8 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	const auto delta = [&] {
 		if (localPosition.y() < _visibleTop) {
 			return localPosition.y() - _visibleTop;
-		} else if (_openedFolder && localPosition.y() > _visibleBottom) {
+		} else if ((_openedFolder || _filterId)
+			&& localPosition.y() > _visibleBottom) {
 			return localPosition.y() - _visibleBottom;
 		}
 		return 0;
@@ -3034,6 +3035,54 @@ void InnerWidget::setupShortcuts() {
 				return jumpToDialogRow({ row->key(), FullMsgId() });
 			});
 		}
+
+		auto &&folders = ranges::view::zip(
+			Shortcuts::kShowFolder,
+			ranges::view::ints(0, ranges::unreachable));
+
+		for (const auto [command, index] : folders) {
+			request->check(command) && request->handle([=, index = index] {
+				const auto list = &session().data().chatsFilters().list();
+				if (index >= list->size()) {
+					return false;
+				}
+				const auto filterId = list->at(index).id();
+				_controller->setActiveChatsFilter((filterId == _filterId)
+					? 0
+					: filterId);
+				return true;
+			});
+		}
+
+		const auto nearFolder = [=](bool isNext) {
+			const auto id = _controller->activeChatsFilterCurrent();
+			const auto list = &session().data().chatsFilters().list();
+			const auto it = (id == 0)
+				? begin(*list) - 1
+				: ranges::find(*list, id, &Data::ChatFilter::id);
+			if (it == end(*list) && id != 0) {
+				return false;
+			}
+			const auto i = isNext ? 1 : -1;
+			const auto index = it - begin(*list) + i;
+			if (index >= (int)list->size() || index < -1) {
+				return false;
+			}
+			const auto filterId = (index == -1)
+				? 0
+				: list->at(index).id();
+			_controller->setActiveChatsFilter(filterId);
+			return true;
+		};
+
+		request->check(Command::FolderNext) && request->handle([=] {
+			return nearFolder(true);
+		});
+
+		request->check(Command::FolderPrevious) && request->handle([=] {
+			return nearFolder(false);
+		});
+
 		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent

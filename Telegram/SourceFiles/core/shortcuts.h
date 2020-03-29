@@ -35,6 +35,20 @@ enum class Command {
 	ChatPinned4,
 	ChatPinned5,
 
+	ShowFolder1,
+	ShowFolder2,
+	ShowFolder3,
+	ShowFolder4,
+	ShowFolder5,
+	ShowFolder6,
+	ShowFolder7,
+	ShowFolder8,
+	ShowFolder9,
+	ShowFolder10,
+
+	FolderNext,
+	FolderPrevious,
+
 	ShowArchive,
 
 	JustSendMessage,
@@ -46,6 +60,19 @@ enum class Command {
 	SupportScrollToCurrent,
 	SupportHistoryBack,
 	SupportHistoryForward,
+};
+
+constexpr auto kShowFolder = {
+	Command::ShowFolder1,
+	Command::ShowFolder2,
+	Command::ShowFolder3,
+	Command::ShowFolder4,
+	Command::ShowFolder5,
+	Command::ShowFolder6,
+	Command::ShowFolder7,
+	Command::ShowFolder8,
+	Command::ShowFolder9,
+	Command::ShowFolder10,
 };
 
 [[nodiscard]] FnMut<bool()> RequestHandler(Command command);

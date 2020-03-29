@@ -122,14 +122,43 @@ void FiltersMenu::setup() {
 		const auto j = _filters.find(_activeFilterId);
 		if (j != end(_filters)) {
 			j->second->setActive(true);
+			scrollToButton(j->second);
 		} else if (!_activeFilterId) {
 			_all->setActive(true);
+			scrollToButton(_all);
 		}
+		_reorder->finishReordering();
 	}, _outer.lifetime());
 
 	_menu.setClickedCallback([=] {
 		_session->widget()->showMainMenu();
 	});
+}
+
+void FiltersMenu::scrollToButton(not_null<Ui::RpWidget*> widget) {
+	const auto globalPosition = widget->mapToGlobal(QPoint(0, 0));
+	const auto localTop = _scroll.mapFromGlobal(globalPosition).y();
+	const auto localBottom = localTop + widget->height() - _scroll.height();
+	const auto isTopEdge = (localTop < 0);
+	const auto isBottomEdge = (localBottom > 0);
+	if (!isTopEdge && !isBottomEdge) {
+		return;
+	}
+
+	_scrollToAnimation.stop();
+	const auto scrollTop = _scroll.scrollTop();
+	const auto scrollTo = scrollTop + (isBottomEdge ? localBottom : localTop);
+
+	auto scroll = [=] {
+		_scroll.scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+	};
+
+	_scrollToAnimation.start(
+		std::move(scroll),
+		scrollTop,
+		scrollTo,
+		st::slideDuration,
+		anim::sineInOut);
 }
 
 void FiltersMenu::refresh() {
@@ -170,7 +199,7 @@ void FiltersMenu::setupList() {
 		-1,
 		tr::lng_filters_setup(tr::now),
 		Ui::FilterIcon::Setup);
-	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list);
+	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
 	_reorder->updates(
 		) | rpl::start_with_next([=](Ui::VerticalLayoutReorder::Single data) {

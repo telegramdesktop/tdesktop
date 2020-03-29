@@ -4,6 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
+option(TDESKTOP_USE_FONTCONFIG_FALLBACK "Use custom fonts.conf (Linux only)." OFF)
 option(TDESKTOP_FORCE_GTK_FILE_DIALOG "Force using GTK file dialog (Linux only)." OFF)
 option(TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME "Disable automatic 'tg://' URL scheme handler registration." ${DESKTOP_APP_USE_PACKAGED})
 option(TDESKTOP_DISABLE_NETWORK_PROXY "Disable all code for working through Socks5 or MTProxy." OFF)
@@ -61,6 +62,10 @@ endif()
 
 if (DESKTOP_APP_SPECIAL_TARGET)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_ALLOW_CLOSED_ALPHA)
+endif()
+
+if (TDESKTOP_USE_FONTCONFIG_FALLBACK)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_FONTCONFIG_FALLBACK)
 endif()
 
 if (TDESKTOP_FORCE_GTK_FILE_DIALOG)

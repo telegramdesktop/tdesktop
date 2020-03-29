@@ -254,6 +254,10 @@ void Sticker::unloadLottie() {
 	if (!_lottie) {
 		return;
 	}
+	if (_diceIndex > 0 && _lastDiceFrame.isNull()) {
+		_nextLastDiceFrame = false;
+		_lottieOncePlayed = false;
+	}
 	_lottie = nullptr;
 	_parent->data()->history()->owner().unregisterHeavyViewPart(_parent);
 }

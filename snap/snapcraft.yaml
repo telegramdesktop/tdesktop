@@ -102,6 +102,7 @@ parts:
       - -DDESKTOP_APP_USE_PACKAGED_EXPECTED=OFF
       - -DDESKTOP_APP_USE_PACKAGED_RLOTTIE=OFF
       - -DTDESKTOP_USE_PACKAGED_TGVOIP=OFF
+      - -DTDESKTOP_USE_FONTCONFIG_FALLBACK=ON
     override-pull: |
       snapcraftctl pull
 
@@ -118,10 +119,6 @@ parts:
       snapcraftctl set-version "$version"
 
       sed -i 's|^Icon=.*|Icon=/share/icons/hicolor/512x512/apps/telegram.png|g' lib/xdg/telegramdesktop.desktop
-    override-build: |
-      snapcraftctl build
-      mkdir -p "$SNAPCRAFT_PART_INSTALL/etc/fonts"
-      cp "$SNAPCRAFT_PART_SRC/Telegram/lib_ui/qt_conf/fc-custom.conf" "$SNAPCRAFT_PART_INSTALL/etc/fonts/fonts.conf"
     after:
       - cmake
       - desktop-qt5
@@ -159,13 +156,11 @@ parts:
       - locales-all
       - xdg-user-dirs
       - fcitx-frontend-qt5
-    stage: [-etc/fonts/fonts.conf]
 
   qt5-gtk-platform:
     plugin: nil
     stage-packages:
       - qt5-gtk-platformtheme
-    stage: [-etc/fonts/fonts.conf]
 
   cmake:
     source: "https://gitlab.kitware.com/cmake/cmake.git"
@@ -191,13 +186,35 @@ parts:
       - libtinfo5
     prime: [-./*]
 
+  nasm:
+    source: https://repo.or.cz/nasm.git
+    source-depth: 1
+    source-tag: nasm-2.14.02
+    plugin: autotools
+    override-build: |
+      ./autogen.sh
+      ./configure --prefix=
+      make
+      install -d "$SNAPCRAFT_PART_INSTALL/bin"
+      install nasm "$SNAPCRAFT_PART_INSTALL/bin/nasm"
+      install ndisasm "$SNAPCRAFT_PART_INSTALL/bin/ndisasm"
+    prime: [-./*]
+
+  dav1d:
+    source: https://github.com/videolan/dav1d.git
+    source-depth: 1
+    source-tag: 0.6.0
+    plugin: meson
+    meson-parameters: [--prefix=/usr]
+    after:
+      - nasm
+
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
     source-branch: release/4.2
     plugin: autotools
     build-packages:
-      - yasm
       - libasound2-dev
       - libopus-dev
       - libva-dev
@@ -219,6 +236,7 @@ parts:
       - --disable-iconv
       - --enable-gpl
       - --enable-version3
+      - --enable-libdav1d
       - --enable-libopus
       - --enable-vaapi
       - --enable-vdpau
@@ -228,6 +246,7 @@ parts:
       - --enable-decoder=flac
       - --enable-decoder=gif
       - --enable-decoder=h264
+      - --enable-decoder=libdav1d
       - --enable-decoder=mp1
       - --enable-decoder=mp1float
       - --enable-decoder=mp2
@@ -277,6 +296,8 @@ parts:
       patch -p1 < "$SNAPCRAFT_STAGE/ffmpeg.diff"
     after:
       - patches
+      - nasm
+      - dav1d
 
   openal:
     source: https://github.com/kcat/openal-soft.git

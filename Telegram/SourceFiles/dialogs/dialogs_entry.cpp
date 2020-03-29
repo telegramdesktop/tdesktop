@@ -230,6 +230,10 @@ not_null<Row*> Entry::addToChatList(
 void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
+	if (isPinnedDialog(filterId)) {
+		owner().setChatPinned(_key, filterId, false);
+	}
+
 	const auto i = _chatListLinks.find(filterId);
 	if (i == end(_chatListLinks)) {
 		return;

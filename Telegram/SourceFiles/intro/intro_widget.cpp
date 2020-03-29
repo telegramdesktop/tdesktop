@@ -23,9 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "core/update_checker.h"
+#include "core/application.h"
+#include "mtproto/dc_options.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "base/platform/base_platform_info.h"
+#include "api/api_text_entities.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
@@ -72,6 +75,11 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		createLanguageLink();
 	});
 
+	_account->mtpUpdates(
+	) | rpl::start_with_next([=](const MTPUpdates &updates) {
+		handleUpdates(updates);
+	}, lifetime());
+
 	_back->entity()->setClickedCallback([=] {
 		historyMove(Direction::Back);
 	});
@@ -114,6 +122,34 @@ void Widget::refreshLang() {
 	_changeLanguage.destroy();
 	createLanguageLink();
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
+}
+
+void Widget::handleUpdates(const MTPUpdates &updates) {
+	updates.match([&](const MTPDupdateShort &data) {
+		handleUpdate(data.vupdate());
+	}, [&](const MTPDupdates &data) {
+		for (const auto &update : data.vupdates().v) {
+			handleUpdate(update);
+		}
+	}, [&](const MTPDupdatesCombined &data) {
+		for (const auto &update : data.vupdates().v) {
+			handleUpdate(update);
+		}
+	}, [](const auto &) {});
+}
+
+void Widget::handleUpdate(const MTPUpdate &update) {
+	update.match([&](const MTPDupdateDcOptions &data) {
+		Core::App().dcOptions()->addFromList(data.vdc_options());
+	}, [&](const MTPDupdateConfig &data) {
+		_account->mtp()->requestConfig();
+	}, [&](const MTPDupdateServiceNotification &data) {
+		const auto text = TextWithEntities{
+			qs(data.vmessage()),
+			Api::EntitiesFromMTP(data.ventities().v)
+		};
+		Ui::show(Box<InformBox>(text));
+	}, [](const auto &) {});
 }
 
 void Widget::createLanguageLink() {
@@ -650,7 +686,6 @@ void Widget::updateControlsGeometry() {
 		_terms->moveToLeft((width() - _terms->width()) / 2, height() - st::introTermsBottom - _terms->height());
 	}
 }
-
 
 void Widget::keyPressEvent(QKeyEvent *e) {
 	if (_a_show.animating() || getStep()->animating()) return;

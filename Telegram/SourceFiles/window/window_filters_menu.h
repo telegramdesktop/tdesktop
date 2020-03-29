@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
@@ -49,6 +50,7 @@ private:
 	void showEditBox(FilterId id);
 	void showRemoveBox(FilterId id);
 	void remove(FilterId id);
+	void scrollToButton(not_null<Ui::RpWidget*> widget);
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
@@ -67,6 +69,8 @@ private:
 	bool _waitingSuggested = false;
 
 	base::unique_qptr<Ui::PopupMenu> _popupMenu;
+
+	Ui::Animations::Simple _scrollToAnimation;
 
 };
 
