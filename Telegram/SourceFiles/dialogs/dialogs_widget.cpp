@@ -745,7 +745,9 @@ void Widget::onDraggingScrollDelta(int delta) {
 }
 
 void Widget::onDraggingScrollTimer() {
-	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(Ui::kMaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(Ui::kMaxScrollSpeed));
+	const auto delta = (_draggingScrollDelta > 0)
+		? qMin(_draggingScrollDelta * 3 / 20 + 1, Ui::kMaxScrollSpeed)
+		: qMax(_draggingScrollDelta * 3 / 20 - 1, -Ui::kMaxScrollSpeed);
 	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 

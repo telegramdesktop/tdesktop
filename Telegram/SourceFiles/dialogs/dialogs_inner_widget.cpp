@@ -1247,7 +1247,8 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	const auto delta = [&] {
 		if (localPosition.y() < _visibleTop) {
 			return localPosition.y() - _visibleTop;
-		} else if (_openedFolder && localPosition.y() > _visibleBottom) {
+		} else if ((_openedFolder || _filterId)
+			&& localPosition.y() > _visibleBottom) {
 			return localPosition.y() - _visibleBottom;
 		}
 		return 0;
