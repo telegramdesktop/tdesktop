@@ -169,7 +169,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_media_invalid_file" = "Sorry, no way to use this file.";
 "lng_edit_caption_attach" = "Sorry, you can't attach a new media while you're editing your message.";
 
-"lng_intro_about" = "Welcome to the Unofficial Telegram Desktop app.\nIt's fast and secure.";
+"lng_intro_about" = "Welcome to the Official Telegram Desktop app.\nIt's fast and secure.";
+"lng_intro_about2" = "Welcome to the Unofficial Telegram Desktop app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
