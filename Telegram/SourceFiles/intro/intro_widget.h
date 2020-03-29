@@ -93,6 +93,8 @@ private:
 	void createLanguageLink();
 	void checkUpdateStatus();
 	void setupNextButton();
+	void handleUpdates(const MTPUpdates &updates);
+	void handleUpdate(const MTPUpdate &update);
 
 	void updateControlsGeometry();
 	[[nodiscard]] not_null<details::Data*> getData() {
