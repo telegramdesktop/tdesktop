@@ -1329,6 +1329,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_skip_archive_in_search" = "Skip results from archive";
 "lng_dialogs_show_archive_in_search" = "With results from archive";
 
+"lng_about_dice" = "Send a 🎲 emoji to any chat to get a random number from Telegram.";
+
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
 "lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID to the web pages you open via this bot?";

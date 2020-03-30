@@ -24,6 +24,8 @@ public:
 	QSize size() override;
 	void draw(Painter &p, const QRect &r, bool selected) override;
 
+	ClickHandlerPtr link() override;
+
 	void clearStickerLoopPlayed() override {
 	}
 	void unloadHeavyPart() override {
