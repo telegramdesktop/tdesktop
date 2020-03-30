@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
 
+namespace Platform {
 namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
@@ -95,23 +96,27 @@ bool RunShellCommand(const QByteArray &command) {
 	return true;
 }
 
-void FallbackFontConfig() {
-#ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
-	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
-	const auto finish = gsl::finally([&] {
-		if (QFile(custom).exists()) {
-			LOG(("Custom FONTCONFIG_FILE: ") + custom);
-			qputenv("FONTCONFIG_FILE", QFile::encodeName(custom));
-		}
-	});
+[[nodiscard]] bool CheckFontConfigCrash() {
+	return InSnap();
+}
 
+[[nodiscard]] QString FallbackFontConfigCheckPath() {
+	return cWorkingDir() + "tdata/fc-check";
+}
+
+#ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
+
+[[nodiscard]] bool BadFontConfigVersion() {
+	if (CheckFontConfigCrash()) {
+		return QFile(FallbackFontConfigCheckPath()).exists();
+	}
 	QProcess process;
 	process.setProcessChannelMode(QProcess::MergedChannels);
 	process.start("fc-list", QStringList() << "--version");
 	process.waitForFinished();
 	if (process.exitCode() > 0) {
 		LOG(("App Error: Could not start fc-list. Process exited with code: %1.").arg(process.exitCode()));
-		return;
+		return false;
 	}
 
 	QString result(process.readAllStandardOutput());
@@ -120,19 +125,30 @@ void FallbackFontConfig() {
 	QVersionNumber version = QVersionNumber::fromString(result.split("version ").last());
 	if (version.isNull()) {
 		LOG(("App Error: Could not get version from fc-list output."));
-		return;
+		return false;
 	}
 
 	LOG(("Fontconfig version: %1.").arg(version.toString()));
 	if (version < QVersionNumber::fromString("2.13")) {
 		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONTCONFIG").isEmpty()) {
-			return;
+			return false;
 		}
 	}
-
-	QFile(":/fc/fc-custom.conf").copy(custom);
-#endif // TDESKTOP_USE_FONTCONFIG_FALLBACK
+	return true;
 }
+
+void FallbackFontConfig() {
+	if (BadFontConfigVersion()) {
+		const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
+		QFile(":/fc/fc-custom.conf").copy(custom);
+		if (QFile(custom).exists()) {
+			LOG(("Custom FONTCONFIG_FILE: ") + custom);
+			qputenv("FONTCONFIG_FILE", QFile::encodeName(custom));
+		}
+	}
+}
+
+#endif // TDESKTOP_USE_FONTCONFIG_FALLBACK
 
 bool GenerateDesktopFile(
 		const QString &targetPath,
@@ -207,8 +223,6 @@ bool GenerateDesktopFile(
 }
 
 } // namespace
-
-namespace Platform {
 
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
@@ -405,6 +419,23 @@ std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
 }
 
+void FallbackFontConfigCheckBegin() {
+	if (!CheckFontConfigCrash()) {
+		return;
+	}
+	auto file = QFile(FallbackFontConfigCheckPath());
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write("1", 1);
+	}
+}
+
+void FallbackFontConfigCheckEnd() {
+	if (!CheckFontConfigCrash()) {
+		return;
+	}
+	QFile(FallbackFontConfigCheckPath()).remove();
+}
+
 } // namespace Platform
 
 namespace {
@@ -521,7 +552,10 @@ namespace Platform {
 
 void start() {
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
+
+#ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
 	FallbackFontConfig();
+#endif // TDESKTOP_USE_FONTCONFIG_FALLBACK
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
@@ -529,9 +563,9 @@ void start() {
 #ifdef TDESKTOP_FORCE_GTK_FILE_DIALOG
 	LOG(("Checking for XDG Desktop Portal..."));
 	// this can give us a chance to use a proper file dialog for current session
-	if(IsXDGDesktopPortalPresent()) {
+	if (IsXDGDesktopPortalPresent()) {
 		LOG(("XDG Desktop Portal is present!"));
-		if(UseXDGDesktopPortal()) {
+		if (UseXDGDesktopPortal()) {
 			LOG(("Usage of XDG Desktop Portal is enabled."));
 			qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 		} else {
