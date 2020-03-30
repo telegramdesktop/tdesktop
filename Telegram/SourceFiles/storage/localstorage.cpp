@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "boxes/send_files_box.h"
+#include "base/flags.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
@@ -35,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
-#include "base/flags.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "facades.h"
@@ -251,97 +252,24 @@ struct EncryptedDescriptor {
 };
 
 struct FileWriteDescriptor {
-	FileWriteDescriptor(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe)
-	: file((options & FileOption::Safe) ? (QFileDevice&)saveFile : plainFile) {
-		init(toFilePart(key), options);
-	}
-	FileWriteDescriptor(const QString &name, FileOptions options = FileOption::User | FileOption::Safe)
-	: file((options & FileOption::Safe) ? (QFileDevice&)saveFile : plainFile) {
-		init(name, options);
-	}
-	void init(const QString &name, FileOptions options) {
-		if (options & FileOption::User) {
-			if (!_userWorking()) return;
-		} else {
-			if (!_working()) return;
-		}
+	FileWriteDescriptor(
+		const FileKey &key,
+		FileOptions options = FileOption::User | FileOption::Safe);
+	FileWriteDescriptor(
+		const QString &name,
+		FileOptions options = FileOption::User | FileOption::Safe);
+	~FileWriteDescriptor();
 
-		const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
-		if (options & FileOption::Safe) {
-			toDelete = base;
-			saveFile.setFileName(base + 's');
-		} else {
-			plainFile.setFileName(base + '0');
-		}
-		if (file.open(QIODevice::WriteOnly)) {
-			file.write(tdfMagic, tdfMagicLen);
-			qint32 version = AppVersion;
-			file.write((const char*)&version, sizeof(version));
+	void init(const QString &name, FileOptions options);
+	bool writeData(const QByteArray &data);
+	bool writeEncrypted(
+		EncryptedDescriptor &data,
+		const MTP::AuthKeyPtr &key = LocalKey);
+	void finish();
 
-			stream.setDevice(&file);
-			stream.setVersion(QDataStream::Qt_5_1);
-		}
-	}
-	bool writeData(const QByteArray &data) {
-		if (!file.isOpen()) return false;
-
-		stream << data;
-		quint32 len = data.isNull() ? 0xffffffff : data.size();
-		if (QSysInfo::ByteOrder != QSysInfo::BigEndian) {
-			len = qbswap(len);
-		}
-		md5.feed(&len, sizeof(len));
-		md5.feed(data.constData(), data.size());
-		dataSize += sizeof(len) + data.size();
-
-		return true;
-	}
-	static QByteArray prepareEncrypted(EncryptedDescriptor &data, const MTP::AuthKeyPtr &key = LocalKey) {
-		data.finish();
-		QByteArray &toEncrypt(data.data);
-
-		// prepare for encryption
-		uint32 size = toEncrypt.size(), fullSize = size;
-		if (fullSize & 0x0F) {
-			fullSize += 0x10 - (fullSize & 0x0F);
-			toEncrypt.resize(fullSize);
-			memset_rand(toEncrypt.data() + size, fullSize - size);
-		}
-		*(uint32*)toEncrypt.data() = size;
-		QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
-		hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-		MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, key, encrypted.constData());
-
-		return encrypted;
-	}
-	bool writeEncrypted(EncryptedDescriptor &data, const MTP::AuthKeyPtr &key = LocalKey) {
-		return writeData(prepareEncrypted(data, key));
-	}
-	void finish() {
-		if (!file.isOpen()) return;
-
-		stream.setDevice(nullptr);
-
-		md5.feed(&dataSize, sizeof(dataSize));
-		qint32 version = AppVersion;
-		md5.feed(&version, sizeof(version));
-		md5.feed(tdfMagic, tdfMagicLen);
-		file.write((const char*)md5.result(), 0x10);
-
-		if (saveFile.isOpen()) {
-			saveFile.commit();
-		} else {
-			plainFile.close();
-		}
-
-		if (!toDelete.isEmpty()) {
-			QFile::remove(toDelete + '0');
-			QFile::remove(toDelete + '1');
-		}
-	}
 	QFile plainFile;
 	QSaveFile saveFile;
-	QFileDevice &file;
+	not_null<QFileDevice*> file;
 	QDataStream stream;
 
 	QString toDelete;
@@ -349,10 +277,140 @@ struct FileWriteDescriptor {
 	HashMd5 md5;
 	int32 dataSize = 0;
 
-	~FileWriteDescriptor() {
-		finish();
-	}
 };
+
+[[nodiscard]] QByteArray PrepareEncrypted(
+		EncryptedDescriptor &data,
+		const MTP::AuthKeyPtr &key = LocalKey) {
+	data.finish();
+	QByteArray &toEncrypt(data.data);
+
+	// prepare for encryption
+	uint32 size = toEncrypt.size(), fullSize = size;
+	if (fullSize & 0x0F) {
+		fullSize += 0x10 - (fullSize & 0x0F);
+		toEncrypt.resize(fullSize);
+		memset_rand(toEncrypt.data() + size, fullSize - size);
+	}
+	*(uint32*)toEncrypt.data() = size;
+	QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
+	hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
+	MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, key, encrypted.constData());
+
+	return encrypted;
+}
+
+FileWriteDescriptor::FileWriteDescriptor(
+	const FileKey &key,
+	FileOptions options)
+: file((options & FileOption::Safe) ? (QFileDevice*)&saveFile : &plainFile) {
+	init(toFilePart(key), options);
+}
+
+FileWriteDescriptor::FileWriteDescriptor(
+	const QString &name,
+	FileOptions options)
+: file((options & FileOption::Safe) ? (QFileDevice*)&saveFile : &plainFile) {
+	init(name, options);
+}
+
+FileWriteDescriptor::~FileWriteDescriptor() {
+	finish();
+}
+
+void FileWriteDescriptor::init(const QString &name, FileOptions options) {
+	if (options & FileOption::User) {
+		if (!_userWorking()) return;
+	} else {
+		if (!_working()) return;
+	}
+
+	const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
+	saveFile.setFileName(base + 's');
+	plainFile.setFileName(base + '0');
+	if (options & FileOption::Safe) {
+		toDelete = base;
+	}
+	if (!file->open(QIODevice::WriteOnly)) {
+		LOG(("Storage Error: Could not open '%1' for writing.").arg(file->fileName()));
+		if (!(options & FileOption::Safe)) {
+			return;
+		}
+		file = &plainFile;
+		LOG(("Storage Info: Trying to fallback to '%1'.").arg(file->fileName()));
+		if (!file->open(QIODevice::WriteOnly)) {
+			LOG(("Storage Error: Could not open '%1' for safe writing.").arg(file->fileName()));
+			return;
+		}
+	}
+	file->write(tdfMagic, tdfMagicLen);
+	qint32 version = AppVersion;
+	file->write((const char*)&version, sizeof(version));
+
+	stream.setDevice(file);
+	stream.setVersion(QDataStream::Qt_5_1);
+}
+
+bool FileWriteDescriptor::writeData(const QByteArray &data) {
+	if (!file->isOpen()) {
+		return false;
+	}
+
+	stream << data;
+	quint32 len = data.isNull() ? 0xffffffff : data.size();
+	if (QSysInfo::ByteOrder != QSysInfo::BigEndian) {
+		len = qbswap(len);
+	}
+	md5.feed(&len, sizeof(len));
+	md5.feed(data.constData(), data.size());
+	dataSize += sizeof(len) + data.size();
+
+	return true;
+}
+
+bool FileWriteDescriptor::writeEncrypted(
+		EncryptedDescriptor &data,
+		const MTP::AuthKeyPtr &key) {
+	return writeData(PrepareEncrypted(data, key));
+}
+
+void FileWriteDescriptor::finish() {
+	if (!file->isOpen()) {
+		return;
+	}
+
+	stream.setDevice(nullptr);
+
+	md5.feed(&dataSize, sizeof(dataSize));
+	qint32 version = AppVersion;
+	md5.feed(&version, sizeof(version));
+	md5.feed(tdfMagic, tdfMagicLen);
+	file->write((const char*)md5.result(), 0x10);
+
+	if (saveFile.isOpen()) {
+		if (!saveFile.commit()) {
+			LOG(("Storage Error: Could not commit safe writing in '%1'."
+				).arg(saveFile.fileName()));
+		}
+	} else {
+		plainFile.close();
+		if (!toDelete.isEmpty()) {
+			QFile::remove(toDelete + '1');
+			if (!base::Platform::RenameWithOverwrite(
+					plainFile.fileName(),
+					saveFile.fileName())) {
+				LOG(("Storage Error: Could not rename '%1' to '%2'"
+				).arg(plainFile.fileName()
+				).arg(saveFile.fileName()));
+			}
+		}
+	}
+
+	if (!toDelete.isEmpty()) {
+		QFile::remove(toDelete + '0');
+		QFile::remove(toDelete + '1');
+	}
+}
 
 bool readFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
 	if (options & FileOption::User) {
@@ -2482,7 +2540,7 @@ void _writeMap(WriteMapWhen when) {
 
 		EncryptedDescriptor passKeyData(kLocalKeySize);
 		LocalKey->write(passKeyData.stream);
-		_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, PassKey);
+		_passKeyEncrypted = PrepareEncrypted(passKeyData, PassKey);
 	}
 	map.writeData(_passKeySalt);
 	map.writeData(_passKeyEncrypted);
@@ -2868,7 +2926,7 @@ void setPasscode(const QByteArray &passcode) {
 
 	EncryptedDescriptor passKeyData(kLocalKeySize);
 	LocalKey->write(passKeyData.stream);
-	_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, PassKey);
+	_passKeyEncrypted = PrepareEncrypted(passKeyData, PassKey);
 
 	_mapChanged = true;
 	_writeMap(WriteMapWhen::Now);

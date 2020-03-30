@@ -52,6 +52,14 @@ void UiIntegration::activationFromTopPanel() {
 	Platform::IgnoreApplicationActivationRightNow();
 }
 
+void UiIntegration::startFontsBegin() {
+	Platform::FallbackFontConfigCheckBegin();
+}
+
+void UiIntegration::startFontsEnd() {
+	Platform::FallbackFontConfigCheckEnd();
+}
+
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		EntityType type,
 		const QString &text,

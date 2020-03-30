@@ -23,6 +23,9 @@ public:
 	void textActionsUpdated() override;
 	void activationFromTopPanel() override;
 
+	void startFontsBegin() override;
+	void startFontsEnd() override;
+
 	std::shared_ptr<ClickHandler> createLinkHandler(
 		EntityType type,
 		const QString &text,

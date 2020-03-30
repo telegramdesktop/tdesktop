@@ -1,3 +1,12 @@
+2.0 (30.03.20)
+
+- Organize chats into Chat Folders if you have too many chats.
+- Create custom folders with flexible settings, or use default recommendations.
+- Pin an unlimited number of chats in each folder.
+- Switch between folders in the new side bar to easily access all of your chats.
+- Send :dice: to any chat to try your luck and get a random number from the animated dice.
+- Send :virus:, :face_with_thermometer:, :mask:, :face_with_head_bandage:, :sneeze:, :sick:, :soap: or :ambulance: to try out the new animated emoji.
+
 1.9.22 beta (27.03.20)
 
 - Organize chats into Chat Folders if you have too many chats.

@@ -22,6 +22,12 @@ QString SingleInstanceLocalServerName(const QString &hash);
 
 void RemoveQuarantine(const QString &path);
 
+inline void FallbackFontConfigCheckBegin() {
+}
+
+inline void FallbackFontConfigCheckEnd() {
+}
+
 namespace ThirdParty {
 
 inline void start() {

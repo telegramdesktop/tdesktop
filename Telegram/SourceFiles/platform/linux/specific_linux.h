@@ -40,6 +40,9 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
+void FallbackFontConfigCheckBegin();
+void FallbackFontConfigCheckEnd();
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {

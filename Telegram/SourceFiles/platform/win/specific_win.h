@@ -26,6 +26,12 @@ QString SingleInstanceLocalServerName(const QString &hash);
 inline void IgnoreApplicationActivationRightNow() {
 }
 
+inline void FallbackFontConfigCheckBegin() {
+}
+
+inline void FallbackFontConfigCheckEnd() {
+}
+
 namespace ThirdParty {
 
 void start();

@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
+#include "ui/toast/toast.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 
 namespace HistoryView {
@@ -40,6 +42,20 @@ Dice::~Dice() = default;
 
 QSize Dice::size() {
 	return _start.size();
+}
+
+ClickHandlerPtr Dice::link() {
+	if (_parent->data()->Has<HistoryMessageForwarded>()) {
+		return nullptr;
+	}
+	static auto kHandler = std::make_shared<LambdaClickHandler>([] {
+		auto config = Ui::Toast::Config();
+		config.multiline = true;
+		config.minWidth = st::msgMinWidth;
+		config.text = tr::lng_about_dice(tr::now);
+		Ui::Toast::Show(config);
+	});
+	return kHandler;
 }
 
 void Dice::draw(Painter &p, const QRect &r, bool selected) {
