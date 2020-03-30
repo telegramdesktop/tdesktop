@@ -35,16 +35,14 @@ enum class Command {
 	ChatPinned4,
 	ChatPinned5,
 
+	ShowAllChats,
 	ShowFolder1,
 	ShowFolder2,
 	ShowFolder3,
 	ShowFolder4,
 	ShowFolder5,
 	ShowFolder6,
-	ShowFolder7,
-	ShowFolder8,
-	ShowFolder9,
-	ShowFolder10,
+	ShowFolderLast,
 
 	FolderNext,
 	FolderPrevious,
@@ -63,16 +61,14 @@ enum class Command {
 };
 
 constexpr auto kShowFolder = {
+	Command::ShowAllChats,
 	Command::ShowFolder1,
 	Command::ShowFolder2,
 	Command::ShowFolder3,
 	Command::ShowFolder4,
 	Command::ShowFolder5,
 	Command::ShowFolder6,
-	Command::ShowFolder7,
-	Command::ShowFolder8,
-	Command::ShowFolder9,
-	Command::ShowFolder10,
+	Command::ShowFolderLast,
 };
 
 [[nodiscard]] FnMut<bool()> RequestHandler(Command command);
@@ -83,13 +79,13 @@ public:
 	bool handle(FnMut<bool()> handler);
 
 private:
-	explicit Request(Command command);
+	explicit Request(std::vector<Command> commands);
 
-	Command _command;
+	std::vector<Command> _commands;
 	int _handlerPriority = -1;
 	FnMut<bool()> _handler;
 
-	friend FnMut<bool()> RequestHandler(Command command);
+	friend FnMut<bool()> RequestHandler(std::vector<Command> commands);
 
 };
 

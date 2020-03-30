@@ -3008,6 +3008,27 @@ void InnerWidget::setupShortcuts() {
 			return false;
 		});
 
+		const auto filters = &session().data().chatsFilters().list();
+		if (const auto filtersCount = int(filters->size())) {
+			auto &&folders = ranges::view::zip(
+				Shortcuts::kShowFolder,
+				ranges::view::ints(0, ranges::unreachable));
+
+			for (const auto [command, index] : folders) {
+				const auto select = (command == Command::ShowFolderLast)
+					? filtersCount
+					: std::clamp(index, 0, filtersCount);
+				request->check(command) && request->handle([=] {
+					if (select <= filtersCount) {
+						_controller->setActiveChatsFilter((select > 0)
+							? (*filters)[select - 1].id()
+							: 0);
+					}
+					return true;
+				});
+			}
+		}
+
 		static const auto kPinned = {
 			Command::ChatPinned1,
 			Command::ChatPinned2,
@@ -3036,42 +3057,23 @@ void InnerWidget::setupShortcuts() {
 			});
 		}
 
-		auto &&folders = ranges::view::zip(
-			Shortcuts::kShowFolder,
-			ranges::view::ints(0, ranges::unreachable));
-
-		for (const auto [command, index] : folders) {
-			request->check(command) && request->handle([=, index = index] {
-				const auto list = &session().data().chatsFilters().list();
-				if (index >= list->size()) {
-					return false;
-				}
-				const auto filterId = list->at(index).id();
-				_controller->setActiveChatsFilter((filterId == _filterId)
-					? 0
-					: filterId);
-				return true;
-			});
-		}
-
 		const auto nearFolder = [=](bool isNext) {
 			const auto id = _controller->activeChatsFilterCurrent();
 			const auto list = &session().data().chatsFilters().list();
-			const auto it = (id == 0)
-				? begin(*list) - 1
-				: ranges::find(*list, id, &Data::ChatFilter::id);
-			if (it == end(*list) && id != 0) {
+			const auto index = (id != 0)
+				? int(ranges::find(*list, id, &Data::ChatFilter::id)
+					- begin(*list))
+				: -1;
+			if (index == list->size() && id != 0) {
 				return false;
 			}
-			const auto i = isNext ? 1 : -1;
-			const auto index = it - begin(*list) + i;
-			if (index >= (int)list->size() || index < -1) {
+			const auto changed = index + (isNext ? 1 : -1);
+			if (changed >= int(list->size()) || changed < -1) {
 				return false;
 			}
-			const auto filterId = (index == -1)
-				? 0
-				: list->at(index).id();
-			_controller->setActiveChatsFilter(filterId);
+			_controller->setActiveChatsFilter((changed >= 0)
+				? (*list)[changed].id()
+				: 0);
 			return true;
 		};
 
