@@ -468,6 +468,10 @@ void CreateIconSelector(
 	return QString();
 }
 
+[[nodiscard]] QString TrimDefaultTitle(const QString &title) {
+	return (title.size() <= kMaxFilterTitleLength) ? title : QString();
+}
+
 } // namespace
 
 void EditFilterBox(
@@ -511,7 +515,7 @@ void EditFilterBox(
 		if (nameEditing->custom) {
 			return;
 		}
-		const auto title = DefaultTitle(filter);
+		const auto title = TrimDefaultTitle(DefaultTitle(filter));
 		if (nameEditing->field->getLastText() != title) {
 			nameEditing->settingDefault = true;
 			nameEditing->field->setText(title);
