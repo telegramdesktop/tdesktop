@@ -200,7 +200,7 @@ void SendExistingPhoto(
 
 bool SendDice(Api::MessageToSend &message) {
 	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-	if (message.textWithTags.text != kDiceString) {
+	if (message.textWithTags.text.midRef(0).trimmed() != kDiceString) {
 		return false;
 	}
 	const auto history = message.action.history;
