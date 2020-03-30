@@ -545,17 +545,17 @@ void EditFilterBox(
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_filters_include());
 
+	const auto includeAdd = AddButton(
+		content,
+		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
+		st::settingsUpdate);
+
 	const auto include = SetupChatsPreview(
 		content,
 		data,
 		updateDefaultTitle,
 		kTypes,
 		&Data::ChatFilter::always);
-
-	const auto includeAdd = AddButton(
-		content,
-		tr::lng_filters_add_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate);
 
 	AddSkip(content);
 	content->add(
@@ -569,17 +569,17 @@ void EditFilterBox(
 
 	AddSubsectionTitle(content, tr::lng_filters_exclude());
 
+	const auto excludeAdd = AddButton(
+		content,
+		tr::lng_filters_remove_chats() | Ui::Text::ToUpper(),
+		st::settingsUpdate);
+
 	const auto exclude = SetupChatsPreview(
 		content,
 		data,
 		updateDefaultTitle,
 		kExcludeTypes,
 		&Data::ChatFilter::never);
-
-	const auto excludeAdd = AddButton(
-		content,
-		tr::lng_filters_remove_chats() | Ui::Text::ToUpper(),
-		st::settingsUpdate);
 
 	AddSkip(content);
 	content->add(
