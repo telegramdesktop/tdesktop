@@ -31,10 +31,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-double GetEmojiStickerZoom(not_null<Main::Session*> session) {
+[[nodiscard]] double GetEmojiStickerZoom(not_null<Main::Session*> session) {
 	return session->account().appConfig().get<double>(
 		"emojies_animated_zoom",
 		0.625);
+}
+
+[[nodiscard]] QImage CacheDiceImage(int index, const QImage &image) {
+	static auto Cache = base::flat_map<int, QImage>();
+	const auto i = Cache.find(index);
+	if (i != end(Cache) && i->second.size() == image.size()) {
+		return i->second;
+	}
+	Cache[index] = image;
+	return image;
 }
 
 } // namespace
@@ -116,7 +126,7 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 		: Lottie::Animation::FrameInfo();
 	if (_nextLastDiceFrame) {
 		_nextLastDiceFrame = false;
-		_lastDiceFrame = frame.image;
+		_lastDiceFrame = CacheDiceImage(_diceIndex, frame.image);
 	}
 	const auto &image = _lastDiceFrame.isNull()
 		? frame.image
