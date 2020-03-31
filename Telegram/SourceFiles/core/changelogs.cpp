@@ -54,6 +54,15 @@ std::map<int, const char*> BetaLogs() {
 		1009022,
 		"\xE2\x80\xA2 Organize chats into Chat Folders "
 		"if you have too many chats.\n"
+	},
+	{
+		2000001,
+		"\xE2\x80\xA2 Switch between folders using Ctrl+1, ..., Ctrl+8.\n"
+
+		"\xE2\x80\xA2 Fix crash when a pinned in folder chat "
+		"was added to archive.\n"
+
+		"\xE2\x80\xA2 Fix font issues in Linux version."
 	}
 	};
 };
