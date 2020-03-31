@@ -796,7 +796,6 @@ PRIVATE
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
     platform/mac/launcher_mac.h
-    platform/mac/mac_iconv_helper.c
     platform/mac/main_window_mac.mm
     platform/mac/main_window_mac.h
     platform/mac/notifications_manager_mac.mm
@@ -1034,6 +1033,8 @@ PRIVATE
 
 if (DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
+else()
+    nice_target_sources(Telegram ${src_loc} PRIVATE platform/mac/mac_iconv_helper.c)
 endif()
 
 nice_target_sources(Telegram ${res_loc}
@@ -1069,11 +1070,11 @@ if (WIN32)
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
 elseif (APPLE)
-    target_link_libraries(Telegram
-    PRIVATE
-        desktop-app::external_sp_media_key_tap
-        desktop-app::external_iconv
-    )
+    target_link_libraries(Telegram PRIVATE desktop-app::external_sp_media_key_tap)
+
+    if (NOT DESKTOP_APP_USE_PACKAGED)
+        target_link_libraries(Telegram PRIVATE desktop-app::external_iconv)
+    endif()
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
     set_target_properties(Telegram PROPERTIES RESOURCE ${icons_path})

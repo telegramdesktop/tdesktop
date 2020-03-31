@@ -18,7 +18,7 @@ extern "C" {
 #include <libswresample/swresample.h>
 } // extern "C"
 
-#include <AL/al.h>
+#include <al.h>
 
 namespace Media {
 
