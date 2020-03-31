@@ -1,3 +1,9 @@
+2.0.1 (31.03.20)
+
+- Switch between folders using Ctrl+1, ..., Ctrl+8.
+- Fix crash when a pinned in folder chat was added to archive.
+- Fix font issues in Linux version.
+
 2.0 (30.03.20)
 
 - Organize chats into Chat Folders if you have too many chats.

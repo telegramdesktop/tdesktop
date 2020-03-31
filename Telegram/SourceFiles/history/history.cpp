@@ -1948,12 +1948,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 	const auto wasInList = inChatList();
 	if (wasInList) {
 		removeFromChatList(0, owner().chatsList(this->folder()));
-		for (const auto &filter : filters.list()) {
-			const auto id = filter.id();
-			if (inChatList(id)) {
-				removeFromChatList(id, filters.chatsList(id));
-			}
-		}
 	}
 	const auto was = _folder.value_or(nullptr);
 	_folder = folder;
@@ -1962,12 +1956,10 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 	if (wasInList) {
 		addToChatList(0, owner().chatsList(folder));
-		for (const auto &filter : filters.list()) {
-			if (filter.contains(this)) {
-				const auto id = filter.id();
-				addToChatList(id, filters.chatsList(id));
-			}
-		}
+
+		owner().chatsFilters().refreshHistory(this);
+		updateChatListEntry();
+
 		owner().chatsListChanged(was);
 		owner().chatsListChanged(folder);
 	} else if (!wasKnown) {

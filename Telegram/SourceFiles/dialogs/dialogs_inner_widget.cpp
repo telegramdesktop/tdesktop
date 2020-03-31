@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "ui/ui_utility.h"
 #include "data/data_drafts.h"
@@ -115,8 +116,6 @@ InnerWidget::InnerWidget(
 , _pinnedShiftAnimation([=](crl::time now) {
 	return pinnedShiftAnimationCallback(now);
 })
-, _addContactLnk(this, tr::lng_add_contact_button(tr::now))
-, _editFilterLnk(this, tr::lng_filters_context_edit(tr::now))
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 
@@ -124,8 +123,6 @@ InnerWidget::InnerWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif // OS_MAC_OLD
 
-	_addContactLnk->addClickHandler([] { App::wnd()->onShowAddContact(); });
-	_editFilterLnk->addClickHandler([=] { editOpenedFilter(); });
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->setClickedCallback([=] {
@@ -146,6 +143,7 @@ InnerWidget::InnerWidget(
 	session().data().contactsLoaded().changes(
 	) | rpl::start_with_next([=] {
 		refresh();
+		refreshEmptyLabel();
 	}, lifetime());
 
 	session().data().itemRemoved(
@@ -188,7 +186,9 @@ InnerWidget::InnerWidget(
 
 	setupOnlineStatusCheck();
 
-	session().data().chatsListChanges(
+	rpl::merge(
+		session().data().chatsListChanges(),
+		session().data().chatsListLoadedEvents()
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder == _openedFolder);
 	}) | rpl::start_with_next([=] {
@@ -498,19 +498,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (!otherStart) {
 			p.fillRect(dialogsClip, st::dialogsBg);
-			p.setFont(st::noContactsFont);
-			p.setPen(st::noContactsColor);
-			const auto phrase = _filterId
-				? (session().data().chatsList()->loaded()
-					? tr::lng_no_chats_filter(tr::now)
-					: tr::lng_contacts_loading(tr::now))
-				: session().data().contactsLoaded().current()
-				? tr::lng_no_chats(tr::now)
-				: tr::lng_contacts_loading(tr::now);
-			p.drawText(
-				QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().current() ? st::noContactsFont->height : 0)),
-				phrase,
-				style::al_center);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (!_hashtagResults.empty()) {
@@ -1410,8 +1397,7 @@ void InnerWidget::setSearchedPressed(int pressed) {
 }
 
 void InnerWidget::resizeEvent(QResizeEvent *e) {
-	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_editFilterLnk->move((width() - _editFilterLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
+	resizeEmptyLabel();
 	const auto widthForCancelButton = qMax(width(), st::columnMinimalWidthLeft);
 	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInChat->width();
 	const auto top = (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2;
@@ -2200,19 +2186,12 @@ void InnerWidget::refresh(bool toTop) {
 	if (needCollapsedRowsRefresh()) {
 		return refreshWithCollapsedRows(toTop);
 	}
+	refreshEmptyLabel();
 	const auto list = shownDialogs();
-	_addContactLnk->setVisible(!_filterId
-		&& (_state == WidgetState::Default)
-		&& list->empty()
-		&& session().data().contactsLoaded().current());
-	_editFilterLnk->setVisible((_filterId > 0)
-		&& (_state == WidgetState::Default)
-		&& list->empty()
-		&& session().data().chatsList()->loaded());
 	auto h = 0;
 	if (_state == WidgetState::Default) {
 		if (list->empty()) {
-			h = st::noContactsHeight;
+			h = st::dialogsEmptyHeight;
 		} else {
 			h = dialogsOffset() + list->size() * st::dialogsRowHeight;
 		}
@@ -2233,6 +2212,69 @@ void InnerWidget::refresh(bool toTop) {
 		_searchInChat || !_filter.isEmpty(),
 		true);
 	update();
+}
+
+void InnerWidget::refreshEmptyLabel() {
+	const auto data = &session().data();
+	const auto state = !shownDialogs()->empty()
+		? EmptyState::None
+		: (!_filterId && data->contactsLoaded().current())
+		? EmptyState::NoContacts
+		: (_filterId > 0) && data->chatsList()->loaded()
+		? EmptyState::EmptyFolder
+		: EmptyState::Loading;
+	if (state == EmptyState::None) {
+		_emptyState = state;
+		_empty.destroy();
+		return;
+	} else if (_emptyState == state) {
+		_empty->setVisible(_state == WidgetState::Default);
+		return;
+	}
+	_emptyState = state;
+	auto phrase = (state == EmptyState::NoContacts)
+		? tr::lng_no_chats()
+		: (state == EmptyState::EmptyFolder)
+		? tr::lng_no_chats_filter()
+		: tr::lng_contacts_loading();
+	auto link = (state == EmptyState::NoContacts)
+		? tr::lng_add_contact_button()
+		: (state == EmptyState::EmptyFolder)
+		? tr::lng_filters_context_edit()
+		: rpl::single(QString());
+	auto full = rpl::combine(
+		std::move(phrase),
+		std::move(link)
+	) | rpl::map([](const QString &phrase, const QString &link) {
+		auto result = Ui::Text::WithEntities(phrase);
+		if (!link.isEmpty()) {
+			result.append("\n\n").append(Ui::Text::Link(link));
+		}
+		return result;
+	});
+	_empty.create(this, std::move(full), st::dialogsEmptyLabel);
+	resizeEmptyLabel();
+	_empty->setClickHandlerFilter([=](const auto &...) {
+		if (_emptyState == EmptyState::NoContacts) {
+			App::wnd()->onShowAddContact();
+		} else if (_emptyState == EmptyState::EmptyFolder) {
+			editOpenedFilter();
+		}
+		return false;
+	});
+	_empty->setVisible(_state == WidgetState::Default);
+}
+
+void InnerWidget::resizeEmptyLabel() {
+	if (!_empty) {
+		return;
+	}
+	const auto useWidth = std::min(
+		_empty->naturalWidth(),
+		width() - 2 * st::dialogsEmptySkip);
+	const auto left = (width() - useWidth) / 2;
+	_empty->resizeToWidth(useWidth);
+	_empty->move(left, (st::dialogsEmptyHeight - _empty->height()) / 2);
 }
 
 void InnerWidget::clearMouseSelection(bool clearSelection) {
@@ -2580,6 +2622,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		_filterId = filterId;
 		refreshWithCollapsedRows(true);
 	}
+	refreshEmptyLabel();
 }
 
 bool InnerWidget::chooseHashtag() {
@@ -3008,6 +3051,27 @@ void InnerWidget::setupShortcuts() {
 			return false;
 		});
 
+		const auto filters = &session().data().chatsFilters().list();
+		if (const auto filtersCount = int(filters->size())) {
+			auto &&folders = ranges::view::zip(
+				Shortcuts::kShowFolder,
+				ranges::view::ints(0, ranges::unreachable));
+
+			for (const auto [command, index] : folders) {
+				const auto select = (command == Command::ShowFolderLast)
+					? filtersCount
+					: std::clamp(index, 0, filtersCount);
+				request->check(command) && request->handle([=] {
+					if (select <= filtersCount) {
+						_controller->setActiveChatsFilter((select > 0)
+							? (*filters)[select - 1].id()
+							: 0);
+					}
+					return true;
+				});
+			}
+		}
+
 		static const auto kPinned = {
 			Command::ChatPinned1,
 			Command::ChatPinned2,
@@ -3036,42 +3100,23 @@ void InnerWidget::setupShortcuts() {
 			});
 		}
 
-		auto &&folders = ranges::view::zip(
-			Shortcuts::kShowFolder,
-			ranges::view::ints(0, ranges::unreachable));
-
-		for (const auto [command, index] : folders) {
-			request->check(command) && request->handle([=, index = index] {
-				const auto list = &session().data().chatsFilters().list();
-				if (index >= list->size()) {
-					return false;
-				}
-				const auto filterId = list->at(index).id();
-				_controller->setActiveChatsFilter((filterId == _filterId)
-					? 0
-					: filterId);
-				return true;
-			});
-		}
-
 		const auto nearFolder = [=](bool isNext) {
 			const auto id = _controller->activeChatsFilterCurrent();
 			const auto list = &session().data().chatsFilters().list();
-			const auto it = (id == 0)
-				? begin(*list) - 1
-				: ranges::find(*list, id, &Data::ChatFilter::id);
-			if (it == end(*list) && id != 0) {
+			const auto index = (id != 0)
+				? int(ranges::find(*list, id, &Data::ChatFilter::id)
+					- begin(*list))
+				: -1;
+			if (index == list->size() && id != 0) {
 				return false;
 			}
-			const auto i = isNext ? 1 : -1;
-			const auto index = it - begin(*list) + i;
-			if (index >= (int)list->size() || index < -1) {
+			const auto changed = index + (isNext ? 1 : -1);
+			if (changed >= int(list->size()) || changed < -1) {
 				return false;
 			}
-			const auto filterId = (index == -1)
-				? 0
-				: list->at(index).id();
-			_controller->setActiveChatsFilter(filterId);
+			_controller->setActiveChatsFilter((changed >= 0)
+				? (*list)[changed].id()
+				: 0);
 			return true;
 		};
 
