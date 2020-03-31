@@ -87,6 +87,14 @@ dialogsTextPaletteArchiveActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgActive;
 }
 
+dialogsEmptyHeight: 160px;
+dialogsEmptySkip: 2px;
+dialogsEmptyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 32px;
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+
 dialogsMenuToggle: IconButton {
 	width: 40px;
 	height: 40px;
