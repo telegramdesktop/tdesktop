@@ -111,68 +111,62 @@ bool _userWorking() {
 	return _manager && !_basePath.isEmpty() && !_userBasePath.isEmpty();
 }
 
-enum class FileOption {
-	User = (1 << 0),
-	Safe = (1 << 1),
+enum class FileOwner {
+	User   = (1 << 0),
+	Global = (1 << 1),
 };
-using FileOptions = base::flags<FileOption>;
-inline constexpr auto is_flag_type(FileOption) { return true; };
 
-bool keyAlreadyUsed(QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
+[[nodiscard]] bool KeyAlreadyUsed(QString &name) {
 	name += '0';
 	if (QFileInfo(name).exists()) {
 		return true;
 	}
-	if (options & (FileOption::Safe)) {
-		name[name.size() - 1] = '1';
-		if (QFileInfo(name).exists()) {
-			return true;
-		}
-		name[name.size() - 1] = 's';
-		if (QFileInfo(name).exists()) {
-			return true;
-		}
+	name[name.size() - 1] = '1';
+	if (QFileInfo(name).exists()) {
+		return true;
+	}
+	name[name.size() - 1] = 's';
+	if (QFileInfo(name).exists()) {
+		return true;
 	}
 	return false;
 }
 
-FileKey genKey(FileOptions options = FileOption::User | FileOption::Safe) {
-	if (options & FileOption::User) {
+[[nodiscard]] FileKey GenerateKey(FileOwner owner = FileOwner::User) {
+	if (owner == FileOwner::User) {
 		if (!_userWorking()) return 0;
 	} else {
 		if (!_working()) return 0;
 	}
 
 	FileKey result;
-	QString base = (options & FileOption::User) ? _userBasePath : _basePath, path;
+	QString base = (owner == FileOwner::User) ? _userBasePath : _basePath, path;
 	path.reserve(base.size() + 0x11);
 	path += base;
 	do {
 		result = rand_value<FileKey>();
 		path.resize(base.size());
 		path += toFilePart(result);
-	} while (!result || keyAlreadyUsed(path, options));
+	} while (!result || KeyAlreadyUsed(path));
 
 	return result;
 }
 
-void clearKey(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe) {
-	if (options & FileOption::User) {
+void ClearKey(const FileKey &key, FileOwner owner = FileOwner::User) {
+	if (owner == FileOwner::User) {
 		if (!_userWorking()) return;
 	} else {
 		if (!_working()) return;
 	}
 
-	QString base = (options & FileOption::User) ? _userBasePath : _basePath, name;
+	QString base = (owner == FileOwner::User) ? _userBasePath : _basePath, name;
 	name.reserve(base.size() + 0x11);
 	name.append(base).append(toFilePart(key)).append('0');
 	QFile::remove(name);
-	if (options & FileOption::Safe) {
-		name[name.size() - 1] = '1';
-		QFile::remove(name);
-		name[name.size() - 1] = 's';
-		QFile::remove(name);
-	}
+	name[name.size() - 1] = '1';
+	QFile::remove(name);
+	name[name.size() - 1] = 's';
+	QFile::remove(name);
 }
 
 bool _checkStreamStatus(QDataStream &stream) {
@@ -251,31 +245,37 @@ struct EncryptedDescriptor {
 	}
 };
 
-struct FileWriteDescriptor {
-	FileWriteDescriptor(
+class FileWriteDescriptor final {
+public:
+	explicit FileWriteDescriptor(
 		const FileKey &key,
-		FileOptions options = FileOption::User | FileOption::Safe);
-	FileWriteDescriptor(
+		FileOwner owner = FileOwner::User);
+	explicit FileWriteDescriptor(
 		const QString &name,
-		FileOptions options = FileOption::User | FileOption::Safe);
+		FileOwner owner = FileOwner::User);
 	~FileWriteDescriptor();
 
-	void init(const QString &name, FileOptions options);
-	bool writeData(const QByteArray &data);
-	bool writeEncrypted(
+	void writeData(const QByteArray &data);
+	void writeEncrypted(
 		EncryptedDescriptor &data,
 		const MTP::AuthKeyPtr &key = LocalKey);
+
+private:
+	void init(const QString &name);
+	[[nodiscard]] QString path(char postfix) const;
+	template <typename File>
+	[[nodiscard]] bool open(File &file, char postfix);
+	[[nodiscard]] bool writeHeader(QFileDevice &file);
+	void writeFooter(QFileDevice &file);
 	void finish();
 
-	QFile plainFile;
-	QSaveFile saveFile;
-	not_null<QFileDevice*> file;
-	QDataStream stream;
-
-	QString toDelete;
-
-	HashMd5 md5;
-	int32 dataSize = 0;
+	const FileOwner _owner = FileOwner();
+	QBuffer _buffer;
+	QDataStream _stream;
+	QByteArray _safeData;
+	QString _base;
+	HashMd5 _md5;
+	int _fullSize = 0;
 
 };
 
@@ -302,152 +302,168 @@ struct FileWriteDescriptor {
 
 FileWriteDescriptor::FileWriteDescriptor(
 	const FileKey &key,
-	FileOptions options)
-: file((options & FileOption::Safe) ? (QFileDevice*)&saveFile : &plainFile) {
-	init(toFilePart(key), options);
+	FileOwner owner)
+: FileWriteDescriptor(toFilePart(key), owner) {
 }
 
 FileWriteDescriptor::FileWriteDescriptor(
 	const QString &name,
-	FileOptions options)
-: file((options & FileOption::Safe) ? (QFileDevice*)&saveFile : &plainFile) {
-	init(name, options);
+	FileOwner owner)
+: _owner(owner) {
+	init(name);
 }
 
 FileWriteDescriptor::~FileWriteDescriptor() {
 	finish();
 }
 
-void FileWriteDescriptor::init(const QString &name, FileOptions options) {
-	if (options & FileOption::User) {
-		if (!_userWorking()) return;
-	} else {
-		if (!_working()) return;
-	}
-
-	const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
-	saveFile.setFileName(base + 's');
-	plainFile.setFileName(base + '0');
-	if (options & FileOption::Safe) {
-		toDelete = base;
-	}
-	if (!file->open(QIODevice::WriteOnly)) {
-		LOG(("Storage Error: Could not open '%1' for writing.").arg(file->fileName()));
-		if (!(options & FileOption::Safe)) {
-			return;
-		}
-		file = &plainFile;
-		LOG(("Storage Info: Trying to fallback to '%1'.").arg(file->fileName()));
-		if (!file->open(QIODevice::WriteOnly)) {
-			LOG(("Storage Error: Could not open '%1' for safe writing.").arg(file->fileName()));
-			return;
-		}
-	}
-	file->write(tdfMagic, tdfMagicLen);
-	qint32 version = AppVersion;
-	file->write((const char*)&version, sizeof(version));
-
-	stream.setDevice(file);
-	stream.setVersion(QDataStream::Qt_5_1);
+QString FileWriteDescriptor::path(char postfix) const {
+	return _base + postfix;
 }
 
-bool FileWriteDescriptor::writeData(const QByteArray &data) {
-	if (!file->isOpen()) {
+template <typename File>
+bool FileWriteDescriptor::open(File &file, char postfix) {
+	const auto name = path(postfix);
+	file.setFileName(name);
+	if (!writeHeader(file)) {
+		LOG(("Storage Error: Could not open '%1' for writing.").arg(name));
 		return false;
 	}
+	return true;
+}
 
-	stream << data;
+bool FileWriteDescriptor::writeHeader(QFileDevice &file) {
+	if (!file.open(QIODevice::WriteOnly)) {
+		return false;
+	}
+	file.write(tdfMagic, tdfMagicLen);
+	const auto version = qint32(AppVersion);
+	file.write((const char*)&version, sizeof(version));
+	return true;
+}
+
+void FileWriteDescriptor::writeFooter(QFileDevice &file) {
+	file.write((const char*)_md5.result(), 0x10);
+}
+
+void FileWriteDescriptor::init(const QString &name) {
+	const auto working = (_owner == FileOwner::User)
+		? _userWorking()
+		: _working();
+	if (!working) {
+		return;
+	}
+
+	const auto basePath = (_owner == FileOwner::User)
+		? _userBasePath
+		: _basePath;
+	_base = basePath + name;
+	_buffer.setBuffer(&_safeData);
+	const auto opened = _buffer.open(QIODevice::WriteOnly);
+	Assert(opened);
+	_stream.setDevice(&_buffer);
+}
+
+void FileWriteDescriptor::writeData(const QByteArray &data) {
+	if (!_stream.device()) {
+		return;
+	}
+	_stream << data;
 	quint32 len = data.isNull() ? 0xffffffff : data.size();
 	if (QSysInfo::ByteOrder != QSysInfo::BigEndian) {
 		len = qbswap(len);
 	}
-	md5.feed(&len, sizeof(len));
-	md5.feed(data.constData(), data.size());
-	dataSize += sizeof(len) + data.size();
-
-	return true;
+	_md5.feed(&len, sizeof(len));
+	_md5.feed(data.constData(), data.size());
+	_fullSize += sizeof(len) + data.size();
 }
 
-bool FileWriteDescriptor::writeEncrypted(
+void FileWriteDescriptor::writeEncrypted(
 		EncryptedDescriptor &data,
 		const MTP::AuthKeyPtr &key) {
-	return writeData(PrepareEncrypted(data, key));
+	writeData(PrepareEncrypted(data, key));
 }
 
 void FileWriteDescriptor::finish() {
-	if (!file->isOpen()) {
+	if (!_stream.device()) {
 		return;
 	}
 
-	stream.setDevice(nullptr);
-
-	md5.feed(&dataSize, sizeof(dataSize));
+	_stream.setDevice(nullptr);
+	_md5.feed(&_fullSize, sizeof(_fullSize));
 	qint32 version = AppVersion;
-	md5.feed(&version, sizeof(version));
-	md5.feed(tdfMagic, tdfMagicLen);
-	file->write((const char*)md5.result(), 0x10);
+	_md5.feed(&version, sizeof(version));
+	_md5.feed(tdfMagic, tdfMagicLen);
 
-	if (saveFile.isOpen()) {
-		if (!saveFile.commit()) {
-			LOG(("Storage Error: Could not commit safe writing in '%1'."
-				).arg(saveFile.fileName()));
+	_buffer.close();
+
+	const auto safe = path('s');
+	const auto simple = path('0');
+	const auto backup = path('1');
+	QSaveFile save;
+	if (open(save, 's')) {
+		save.write(_safeData);
+		writeFooter(save);
+		if (save.commit()) {
+			QFile::remove(simple);
+			QFile::remove(backup);
+			return;
 		}
-	} else {
-		plainFile.close();
-		if (!toDelete.isEmpty()) {
-			QFile::remove(toDelete + '1');
-			if (!base::Platform::RenameWithOverwrite(
-					plainFile.fileName(),
-					saveFile.fileName())) {
-				LOG(("Storage Error: Could not rename '%1' to '%2'"
-				).arg(plainFile.fileName()
-				).arg(saveFile.fileName()));
-			}
-		}
+		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
 	}
+	QFile plain;
+	if (open(plain, '0')) {
+		plain.write(_safeData);
+		writeFooter(plain);
+		base::Platform::FlushFileData(plain);
+		plain.close();
 
-	if (!toDelete.isEmpty()) {
-		QFile::remove(toDelete + '0');
-		QFile::remove(toDelete + '1');
+		QFile::remove(backup);
+		if (base::Platform::RenameWithOverwrite(simple, safe)) {
+			return;
+		}
+		QFile::remove(safe);
+		LOG(("Storage Error: Could not rename '%1' to '%2', removing."
+			).arg(simple
+			).arg(safe));
 	}
 }
 
-bool readFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
-	if (options & FileOption::User) {
+bool ReadFile(
+		FileReadDescriptor &result,
+		const QString &name,
+		FileOwner owner = FileOwner::User) {
+	if (owner == FileOwner::User) {
 		if (!_userWorking()) return false;
 	} else {
 		if (!_working()) return false;
 	}
 
-	const auto base = ((options & FileOption::User) ? _userBasePath : _basePath) + name;
+	const auto base = ((owner == FileOwner::User) ? _userBasePath : _basePath) + name;
 
 	// detect order of read attempts
 	QString toTry[2];
-	if (options & FileOption::Safe) {
-		const auto modern = base + 's';
-		if (QFileInfo(modern).exists()) {
-			toTry[0] = modern;
-		} else {
-			// Legacy way.
-			toTry[0] = base + '0';
-			QFileInfo toTry0(toTry[0]);
-			if (toTry0.exists()) {
-				toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
-				QFileInfo toTry1(toTry[1]);
-				if (toTry1.exists()) {
-					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
-					if (mod0 < mod1) {
-						qSwap(toTry[0], toTry[1]);
-					}
-				} else {
-					toTry[1] = QString();
+	const auto modern = base + 's';
+	if (QFileInfo(modern).exists()) {
+		toTry[0] = modern;
+	} else {
+		// Legacy way.
+		toTry[0] = base + '0';
+		QFileInfo toTry0(toTry[0]);
+		if (toTry0.exists()) {
+			toTry[1] = ((owner == FileOwner::User) ? _userBasePath : _basePath) + name + '1';
+			QFileInfo toTry1(toTry[1]);
+			if (toTry1.exists()) {
+				QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
+				if (mod0 < mod1) {
+					qSwap(toTry[0], toTry[1]);
 				}
 			} else {
-				toTry[0][toTry[0].size() - 1] = '1';
+				toTry[1] = QString();
 			}
+		} else {
+			toTry[0][toTry[0].size() - 1] = '1';
 		}
-	} else {
-		toTry[0] = base + '0';
 	}
 	for (int32 i = 0; i < 2; ++i) {
 		QString fname(toTry[i]);
@@ -555,8 +571,12 @@ bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, cons
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKeyPtr &key = LocalKey) {
-	if (!readFile(result, name, options)) {
+bool ReadEncryptedFile(
+		FileReadDescriptor &result,
+		const QString &name,
+		FileOwner owner = FileOwner::User,
+		const MTP::AuthKeyPtr &key = LocalKey) {
+	if (!ReadFile(result, name, owner)) {
 		return false;
 	}
 	QByteArray encrypted;
@@ -585,8 +605,12 @@ bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOpti
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKeyPtr &key = LocalKey) {
-	return readEncryptedFile(result, toFilePart(fkey), options, key);
+bool ReadEncryptedFile(
+		FileReadDescriptor &result,
+		const FileKey &fkey,
+		FileOwner owner = FileOwner::User,
+		const MTP::AuthKeyPtr &key = LocalKey) {
+	return ReadEncryptedFile(result, toFilePart(fkey), owner, key);
 }
 
 FileKey _dataNameKey = 0;
@@ -810,14 +834,14 @@ void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
 	_manager->writingLocations();
 	if (_fileLocations.isEmpty()) {
 		if (_locationsKey) {
-			clearKey(_locationsKey);
+			ClearKey(_locationsKey);
 			_locationsKey = 0;
 			_mapChanged = true;
 			_writeMap();
 		}
 	} else {
 		if (!_locationsKey) {
-			_locationsKey = genKey();
+			_locationsKey = GenerateKey();
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -874,8 +898,8 @@ void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
 
 void _readLocations() {
 	FileReadDescriptor locations;
-	if (!readEncryptedFile(locations, _locationsKey)) {
-		clearKey(_locationsKey);
+	if (!ReadEncryptedFile(locations, _locationsKey)) {
+		ClearKey(_locationsKey);
 		_locationsKey = 0;
 		_writeMap();
 		return;
@@ -924,7 +948,7 @@ void _readLocations() {
 				quint64 key;
 				qint32 size;
 				locations.stream >> url >> key >> size;
-				clearKey(key, FileOption::User);
+				ClearKey(key, FileOwner::User);
 			}
 		}
 	}
@@ -2136,7 +2160,7 @@ void _writeUserSettings() {
 	LOG(("App Info: writing encrypted user settings..."));
 
 	if (!_userSettingsKey) {
-		_userSettingsKey = genKey();
+		_userSettingsKey = GenerateKey();
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
@@ -2231,7 +2255,7 @@ void _writeUserSettings() {
 void _readUserSettings() {
 	ReadSettingsContext context;
 	FileReadDescriptor userSettings;
-	if (!readEncryptedFile(userSettings, _userSettingsKey)) {
+	if (!ReadEncryptedFile(userSettings, _userSettingsKey)) {
 		LOG(("App Info: could not read encrypted user settings..."));
 
 		_readOldUserSettings(true, context);
@@ -2262,7 +2286,7 @@ void _readUserSettings() {
 }
 
 void _writeMtpData() {
-	FileWriteDescriptor mtp(toFilePart(_dataNameKey), FileOption::Safe);
+	FileWriteDescriptor mtp(toFilePart(_dataNameKey), FileOwner::Global);
 	if (!LocalKey) {
 		LOG(("App Error: localkey not created in _writeMtpData()"));
 		return;
@@ -2280,7 +2304,7 @@ void _writeMtpData() {
 void _readMtpData() {
 	ReadSettingsContext context;
 	FileReadDescriptor mtp;
-	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), FileOption::Safe)) {
+	if (!ReadEncryptedFile(mtp, toFilePart(_dataNameKey), FileOwner::Global)) {
 		if (LocalKey) {
 			_readOldMtpData(true, context);
 			applyReadContext(std::move(context));
@@ -2318,7 +2342,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 		+ '/';
 
 	FileReadDescriptor mapData;
-	if (!readFile(mapData, qsl("map"))) {
+	if (!ReadFile(mapData, qsl("map"))) {
 		return ReadMapFailed;
 	}
 	LOG(("App Info: reading map..."));
@@ -2411,7 +2435,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 		} break;
 		case lskReportSpamStatusesOld: {
 			map.stream >> reportSpamStatusesKey;
-			clearKey(reportSpamStatusesKey);
+			ClearKey(reportSpamStatusesKey);
 		} break;
 		case lskTrustedBots: {
 			map.stream >> trustedBotsKey;
@@ -2666,7 +2690,7 @@ void start() {
 
 	ReadSettingsContext context;
 	FileReadDescriptor settingsData;
-	if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe)) {
+	if (!ReadFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), FileOwner::Global)) {
 		_readOldSettings(true, context);
 		_readOldUserSettings(false, context); // needed further in _readUserSettings
 		_readOldMtpData(false, context); // needed further in _readMtpData
@@ -2727,7 +2751,9 @@ void writeSettings() {
 
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
-	FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe);
+	FileWriteDescriptor settings(
+		cTestMode() ? qsl("settings_test") : qsl("settings"),
+		FileOwner::Global);
 	if (_settingsSalt.isEmpty() || !SettingsKey) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
 		memset_rand(_settingsSalt.data(), _settingsSalt.size());
@@ -3008,7 +3034,7 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 	if (localDraft.msgId <= 0 && localDraft.textWithTags.text.isEmpty() && editDraft.msgId <= 0) {
 		auto i = _draftsMap.find(peer);
 		if (i != _draftsMap.cend()) {
-			clearKey(i.value());
+			ClearKey(i.value());
 			_draftsMap.erase(i);
 			_mapChanged = true;
 			_writeMap();
@@ -3018,7 +3044,7 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 	} else {
 		auto i = _draftsMap.constFind(peer);
 		if (i == _draftsMap.cend()) {
-			i = _draftsMap.insert(peer, genKey());
+			i = _draftsMap.insert(peer, GenerateKey());
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -3049,7 +3075,7 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 void clearDraftCursors(const PeerId &peer) {
 	DraftsMap::iterator i = _draftCursorsMap.find(peer);
 	if (i != _draftCursorsMap.cend()) {
-		clearKey(i.value());
+		ClearKey(i.value());
 		_draftCursorsMap.erase(i);
 		_mapChanged = true;
 		_writeMap();
@@ -3063,7 +3089,7 @@ void _readDraftCursors(const PeerId &peer, MessageCursor &localCursor, MessageCu
 	}
 
 	FileReadDescriptor draft;
-	if (!readEncryptedFile(draft, j.value())) {
+	if (!ReadEncryptedFile(draft, j.value())) {
 		clearDraftCursors(peer);
 		return;
 	}
@@ -3097,8 +3123,8 @@ void readDraftsWithCursors(History *h) {
 		return;
 	}
 	FileReadDescriptor draft;
-	if (!readEncryptedFile(draft, j.value())) {
-		clearKey(j.value());
+	if (!ReadEncryptedFile(draft, j.value())) {
+		ClearKey(j.value());
 		_draftsMap.erase(j);
 		clearDraftCursors(peer);
 		return;
@@ -3126,7 +3152,7 @@ void readDraftsWithCursors(History *h) {
 		}
 	}
 	if (draftPeer != peer) {
-		clearKey(j.value());
+		ClearKey(j.value());
 		_draftsMap.erase(j);
 		clearDraftCursors(peer);
 		return;
@@ -3172,7 +3198,7 @@ void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const
 	} else {
 		DraftsMap::const_iterator i = _draftCursorsMap.constFind(peer);
 		if (i == _draftCursorsMap.cend()) {
-			i = _draftCursorsMap.insert(peer, genKey());
+			i = _draftCursorsMap.insert(peer, GenerateKey());
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -3453,7 +3479,7 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	const auto &sets = Auth().data().stickerSets();
 	if (sets.isEmpty()) {
 		if (stickersKey) {
-			clearKey(stickersKey);
+			ClearKey(stickersKey);
 			stickersKey = 0;
 			_mapChanged = true;
 		}
@@ -3505,7 +3531,7 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	}
 	if (!setsCount && order.isEmpty()) {
 		if (stickersKey) {
-			clearKey(stickersKey);
+			ClearKey(stickersKey);
 			stickersKey = 0;
 			_mapChanged = true;
 		}
@@ -3515,7 +3541,7 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	size += sizeof(qint32) + (order.size() * sizeof(quint64));
 
 	if (!stickersKey) {
-		stickersKey = genKey();
+		stickersKey = GenerateKey();
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
@@ -3541,15 +3567,15 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 
 void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr, MTPDstickerSet::Flags readingFlags = 0) {
 	FileReadDescriptor stickers;
-	if (!readEncryptedFile(stickers, stickersKey)) {
-		clearKey(stickersKey);
+	if (!ReadEncryptedFile(stickers, stickersKey)) {
+		ClearKey(stickersKey);
 		stickersKey = 0;
 		_writeMap();
 		return;
 	}
 
 	const auto failed = [&] {
-		clearKey(stickersKey);
+		ClearKey(stickersKey);
 		stickersKey = 0;
 	};
 
@@ -3841,8 +3867,8 @@ void importOldRecentStickers() {
 	if (!_recentStickersKeyOld) return;
 
 	FileReadDescriptor stickers;
-	if (!readEncryptedFile(stickers, _recentStickersKeyOld)) {
-		clearKey(_recentStickersKeyOld);
+	if (!ReadEncryptedFile(stickers, _recentStickersKeyOld)) {
+		ClearKey(_recentStickersKeyOld);
 		_recentStickersKeyOld = 0;
 		_writeMap();
 		return;
@@ -3940,7 +3966,7 @@ void importOldRecentStickers() {
 	writeInstalledStickers();
 	writeUserSettings();
 
-	clearKey(_recentStickersKeyOld);
+	ClearKey(_recentStickersKeyOld);
 	_recentStickersKeyOld = 0;
 	_writeMap();
 }
@@ -4061,7 +4087,7 @@ void writeSavedGifs() {
 	auto &saved = Auth().data().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
-			clearKey(_savedGifsKey);
+			ClearKey(_savedGifsKey);
 			_savedGifsKey = 0;
 			_mapChanged = true;
 		}
@@ -4073,7 +4099,7 @@ void writeSavedGifs() {
 		}
 
 		if (!_savedGifsKey) {
-			_savedGifsKey = genKey();
+			_savedGifsKey = GenerateKey();
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -4091,8 +4117,8 @@ void readSavedGifs() {
 	if (!_savedGifsKey) return;
 
 	FileReadDescriptor gifs;
-	if (!readEncryptedFile(gifs, _savedGifsKey)) {
-		clearKey(_savedGifsKey);
+	if (!ReadEncryptedFile(gifs, _savedGifsKey)) {
+		ClearKey(_savedGifsKey);
 		_savedGifsKey = 0;
 		_writeMap();
 		return;
@@ -4100,7 +4126,7 @@ void readSavedGifs() {
 
 	auto &saved = Auth().data().savedGifsRef();
 	const auto failed = [&] {
-		clearKey(_savedGifsKey);
+		ClearKey(_savedGifsKey);
 		_savedGifsKey = 0;
 		saved.clear();
 	};
@@ -4168,7 +4194,7 @@ void writeBackground(const Data::WallPaper &paper, const QImage &image) {
 		}
 	}
 	if (!backgroundKey) {
-		backgroundKey = genKey();
+		backgroundKey = GenerateKey();
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
@@ -4191,9 +4217,9 @@ bool readBackground() {
 	auto &backgroundKey = Window::Theme::IsNightMode()
 		? _backgroundKeyNight
 		: _backgroundKeyDay;
-	if (!readEncryptedFile(bg, backgroundKey)) {
+	if (!ReadEncryptedFile(bg, backgroundKey)) {
 		if (backgroundKey) {
-			clearKey(backgroundKey);
+			ClearKey(backgroundKey);
 			backgroundKey = 0;
 			_mapChanged = true;
 			_writeMap();
@@ -4308,7 +4334,7 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	using namespace Window::Theme;
 
 	FileReadDescriptor theme;
-	if (!readEncryptedFile(theme, key, FileOption::Safe, SettingsKey)) {
+	if (!ReadEncryptedFile(theme, key, FileOwner::Global, SettingsKey)) {
 		return {};
 	}
 
@@ -4397,7 +4423,7 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		: _themeKeyDay;
 	if (saved.object.content.isEmpty()) {
 		if (themeKey) {
-			clearKey(themeKey);
+			ClearKey(themeKey, FileOwner::Global);
 			themeKey = 0;
 			writeSettings();
 		}
@@ -4405,7 +4431,7 @@ void writeTheme(const Window::Theme::Saved &saved) {
 	}
 
 	if (!themeKey) {
-		themeKey = genKey(FileOption::Safe);
+		themeKey = GenerateKey(FileOwner::Global);
 		writeSettings();
 	}
 
@@ -4442,7 +4468,7 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		<< cache.background
 		<< quint32(cache.tiled ? 1 : 0);
 
-	FileWriteDescriptor file(themeKey, FileOption::Safe);
+	FileWriteDescriptor file(themeKey, FileOwner::Global);
 	file.writeEncrypted(data, SettingsKey);
 }
 
@@ -4494,7 +4520,7 @@ Window::Theme::Saved readThemeAfterSwitch() {
 
 void readLangPack() {
 	FileReadDescriptor langpack;
-	if (!_langPackKey || !readEncryptedFile(langpack, _langPackKey, FileOption::Safe, SettingsKey)) {
+	if (!_langPackKey || !ReadEncryptedFile(langpack, _langPackKey, FileOwner::Global, SettingsKey)) {
 		return;
 	}
 	auto data = QByteArray();
@@ -4507,21 +4533,21 @@ void readLangPack() {
 void writeLangPack() {
 	auto langpack = Lang::Current().serialize();
 	if (!_langPackKey) {
-		_langPackKey = genKey(FileOption::Safe);
+		_langPackKey = GenerateKey(FileOwner::Global);
 		writeSettings();
 	}
 
 	EncryptedDescriptor data(Serialize::bytearraySize(langpack));
 	data.stream << langpack;
 
-	FileWriteDescriptor file(_langPackKey, FileOption::Safe);
+	FileWriteDescriptor file(_langPackKey, FileOwner::Global);
 	file.writeEncrypted(data, SettingsKey);
 }
 
 void saveRecentLanguages(const std::vector<Lang::Language> &list) {
 	if (list.empty()) {
 		if (_languagesKey) {
-			clearKey(_languagesKey, FileOption::Safe);
+			ClearKey(_languagesKey, FileOwner::Global);
 			_languagesKey = 0;
 			writeSettings();
 		}
@@ -4537,7 +4563,7 @@ void saveRecentLanguages(const std::vector<Lang::Language> &list) {
 			+ Serialize::stringSize(language.nativeName);
 	}
 	if (!_languagesKey) {
-		_languagesKey = genKey(FileOption::Safe);
+		_languagesKey = GenerateKey(FileOwner::Global);
 		writeSettings();
 	}
 
@@ -4552,7 +4578,7 @@ void saveRecentLanguages(const std::vector<Lang::Language> &list) {
 			<< language.nativeName;
 	}
 
-	FileWriteDescriptor file(_languagesKey, FileOption::Safe);
+	FileWriteDescriptor file(_languagesKey, FileOwner::Global);
 	file.writeEncrypted(data, SettingsKey);
 }
 
@@ -4584,7 +4610,7 @@ void removeRecentLanguage(const QString &id) {
 
 std::vector<Lang::Language> readRecentLanguages() {
 	FileReadDescriptor languages;
-	if (!_languagesKey || !readEncryptedFile(languages, _languagesKey, FileOption::Safe, SettingsKey)) {
+	if (!_languagesKey || !ReadEncryptedFile(languages, _languagesKey, FileOwner::Global, SettingsKey)) {
 		return {};
 	}
 	qint32 count = 0;
@@ -4619,7 +4645,7 @@ Window::Theme::Object ReadThemeContent() {
 	}
 
 	FileReadDescriptor theme;
-	if (!readEncryptedFile(theme, themeKey, FileOption::Safe, SettingsKey)) {
+	if (!ReadEncryptedFile(theme, themeKey, FileOwner::Global, SettingsKey)) {
 		return Object();
 	}
 
@@ -4644,14 +4670,14 @@ void writeRecentHashtagsAndBots() {
 	if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) readRecentHashtagsAndBots();
 	if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) {
 		if (_recentHashtagsAndBotsKey) {
-			clearKey(_recentHashtagsAndBotsKey);
+			ClearKey(_recentHashtagsAndBotsKey);
 			_recentHashtagsAndBotsKey = 0;
 			_mapChanged = true;
 		}
 		_writeMap();
 	} else {
 		if (!_recentHashtagsAndBotsKey) {
-			_recentHashtagsAndBotsKey = genKey();
+			_recentHashtagsAndBotsKey = GenerateKey();
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -4696,8 +4722,8 @@ void readRecentHashtagsAndBots() {
 	if (!_recentHashtagsAndBotsKey) return;
 
 	FileReadDescriptor hashtags;
-	if (!readEncryptedFile(hashtags, _recentHashtagsAndBotsKey)) {
-		clearKey(_recentHashtagsAndBotsKey);
+	if (!ReadEncryptedFile(hashtags, _recentHashtagsAndBotsKey)) {
+		ClearKey(_recentHashtagsAndBotsKey);
 		_recentHashtagsAndBotsKey = 0;
 		_writeMap();
 		return;
@@ -4851,14 +4877,14 @@ void WriteExportSettings(const Export::Settings &settings) {
 		&& settings.availableAt == check.availableAt
 		&& !settings.onlySinglePeer()) {
 		if (_exportSettingsKey) {
-			clearKey(_exportSettingsKey);
+			ClearKey(_exportSettingsKey);
 			_exportSettingsKey = 0;
 			_mapChanged = true;
 		}
 		_writeMap();
 	} else {
 		if (!_exportSettingsKey) {
-			_exportSettingsKey = genKey();
+			_exportSettingsKey = GenerateKey();
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -4905,8 +4931,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 
 Export::Settings ReadExportSettings() {
 	FileReadDescriptor file;
-	if (!readEncryptedFile(file, _exportSettingsKey)) {
-		clearKey(_exportSettingsKey);
+	if (!ReadEncryptedFile(file, _exportSettingsKey)) {
+		ClearKey(_exportSettingsKey);
 		_exportSettingsKey = 0;
 		_writeMap();
 		return Export::Settings();
@@ -5006,14 +5032,14 @@ void writeTrustedBots() {
 
 	if (_trustedBots.isEmpty()) {
 		if (_trustedBotsKey) {
-			clearKey(_trustedBotsKey);
+			ClearKey(_trustedBotsKey);
 			_trustedBotsKey = 0;
 			_mapChanged = true;
 			_writeMap();
 		}
 	} else {
 		if (!_trustedBotsKey) {
-			_trustedBotsKey = genKey();
+			_trustedBotsKey = GenerateKey();
 			_mapChanged = true;
 			_writeMap(WriteMapWhen::Fast);
 		}
@@ -5033,8 +5059,8 @@ void readTrustedBots() {
 	if (!_trustedBotsKey) return;
 
 	FileReadDescriptor trusted;
-	if (!readEncryptedFile(trusted, _trustedBotsKey)) {
-		clearKey(_trustedBotsKey);
+	if (!ReadEncryptedFile(trusted, _trustedBotsKey)) {
+		ClearKey(_trustedBotsKey);
 		_trustedBotsKey = 0;
 		_writeMap();
 		return;
