@@ -427,7 +427,6 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 	} else if (replace) {
 		unregister(std::exchange(i->second, std::move(shortcut)));
 	} else {
-		shortcut = nullptr;
 		id = i->second->id();
 	}
 	if (!id) {
@@ -435,10 +434,10 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 		return;
 	}
 	_commandByShortcutId.emplace(id, command);
-	if (shortcut && isMediaShortcut) {
+	if (!shortcut && isMediaShortcut) {
 		_mediaShortcuts.emplace(i->second.get());
 	}
-	if (shortcut && isSupportShortcut) {
+	if (!shortcut && isSupportShortcut) {
 		_supportShortcuts.emplace(i->second.get());
 	}
 }
