@@ -1786,6 +1786,12 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(
 				|| _additional.canEditAdmin(user))) {
 			row->setActionLink(tr::lng_profile_kick(tr::now));
 		}
+		if (_role == Role::Members && user->isBot()) {
+			auto seesAllMessages = (user->botInfo->readsAllHistory || _additional.adminRights(user).has_value());
+			row->setCustomStatus(seesAllMessages
+				? tr::lng_status_bot_reads_all(tr::now)
+				: tr::lng_status_bot_not_reads_all(tr::now));
+		}
 	}
 	return row;
 }
