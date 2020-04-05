@@ -466,7 +466,7 @@ int main(int argc, char *argv[]) {
 		push(workdir);
 	}
 
-	auto args = vector<char*>();
+	auto args = vector<const char*>();
 	for (auto &arg : values) {
 		args.push_back(arg.data());
 	}

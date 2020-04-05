@@ -467,9 +467,7 @@ int main(int argc, char *argv[])
 	QString outName(QString("tupdate%1").arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
 	QString outName((targetosx ? QString("tosxupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_LINUX32
-	QString outName(QString("tlinux32upd%1").arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_LINUX64
+#elif defined Q_OS_LINUX
 	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #else
 #error Unknown platform!
