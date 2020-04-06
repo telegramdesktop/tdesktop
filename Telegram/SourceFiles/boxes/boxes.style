@@ -800,7 +800,7 @@ themesMenuPosition: point(-2px, 25px);
 
 createPollField: InputField(defaultInputField) {
 	font: boxTextFont;
-	textMargins: margins(0px, 0px, 0px, 0px);
+	textMargins: margins(0px, 4px, 0px, 4px);
 	textAlign: align(left);
 	heightMin: 36px;
 	heightMax: 86px;
@@ -821,6 +821,11 @@ createPollOptionField: InputField(createPollField) {
 	textMargins: margins(22px, 11px, 40px, 11px);
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	heightMax: 68px;
+}
+createPollSolutionField: InputField(createPollField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	border: 1px;
+	borderActive: 2px;
 }
 createPollLimitLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;

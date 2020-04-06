@@ -794,6 +794,40 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 	return question;
 }
 
+not_null<Ui::InputField*> CreatePollBox::setupSolution(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> shown) {
+	using namespace Settings;
+
+	const auto outer = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container))
+	)->setDuration(0)->toggleOn(std::move(shown));
+	const auto inner = outer->entity();
+
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_polls_solution_title());
+	const auto solution = inner->add(
+		object_ptr<Ui::InputField>(
+			inner,
+			st::createPollSolutionField,
+			Ui::InputField::Mode::MultiLine,
+			tr::lng_polls_solution_placeholder()),
+		st::createPollFieldPadding);
+	InitField(getDelegate()->outerContainer(), solution, _session);
+	solution->setMaxLength(kQuestionLimit + kErrorLimit);
+
+	inner->add(
+		object_ptr<Ui::FlatLabel>(
+			inner,
+			tr::lng_polls_solution_about(),
+			st::boxDividerLabel),
+		st::createPollFieldTitlePadding);
+
+	return solution;
+}
+
 object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	using namespace Settings;
 
@@ -866,6 +900,11 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			(_chosen & PollData::Flag::Quiz),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
+
+	const auto explanation = setupSolution(
+		container,
+		rpl::single(quiz->checked()) | rpl::then(quiz->checkedChanges()));
+
 	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
 	if (multiple) {
 		multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
