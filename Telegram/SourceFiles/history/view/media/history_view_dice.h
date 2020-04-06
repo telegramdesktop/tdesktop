@@ -41,6 +41,7 @@ public:
 private:
 	const not_null<Element*> _parent;
 	const not_null<Data::MediaDice*> _dice;
+	ClickHandlerPtr _link;
 	std::optional<Sticker> _end;
 	Sticker _start;
 	mutable bool _showLastFrame = false;

@@ -20,9 +20,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-DocumentData *Lookup(not_null<Element*> view, int value) {
+[[nodiscard]] DocumentData *Lookup(
+		not_null<Element*> view,
+		const QString &emoji,
+		int value) {
 	const auto &session = view->data()->history()->session();
-	return session.diceStickersPack().lookup(value);
+	return session.diceStickersPacks().lookup(emoji, value);
+}
+
+[[nodiscard]] ClickHandlerPtr MakeDiceHandler(const QString &emoji) {
+	return std::make_shared<LambdaClickHandler>([=] {
+		auto config = Ui::Toast::Config();
+		config.multiline = true;
+		config.minWidth = st::msgMinWidth;
+		config.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) };
+		Ui::Toast::Show(config);
+	});
 }
 
 } // namespace
@@ -30,9 +43,12 @@ DocumentData *Lookup(not_null<Element*> view, int value) {
 Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 : _parent(parent)
 , _dice(dice)
-, _start(parent, Lookup(parent, 0)) {
+, _link(_parent->data()->Has<HistoryMessageForwarded>()
+	? nullptr
+	: MakeDiceHandler(dice->emoji()))
+, _start(parent, Lookup(parent, dice->emoji(), 0)) {
 	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
-	_start.setDiceIndex(0);
+	_start.setDiceIndex(_dice->emoji(), 0);
 	if (_showLastFrame) {
 		_drawingEnd = true;
 	}
@@ -45,24 +61,14 @@ QSize Dice::size() {
 }
 
 ClickHandlerPtr Dice::link() {
-	if (_parent->data()->Has<HistoryMessageForwarded>()) {
-		return nullptr;
-	}
-	static auto kHandler = std::make_shared<LambdaClickHandler>([] {
-		auto config = Ui::Toast::Config();
-		config.multiline = true;
-		config.minWidth = st::msgMinWidth;
-		config.text = { tr::lng_about_dice(tr::now) };
-		Ui::Toast::Show(config);
-	});
-	return kHandler;
+	return _link;
 }
 
 void Dice::draw(Painter &p, const QRect &r, bool selected) {
-	if (const auto value = _end ? 0 : _dice->diceValue()) {
-		if (const auto document = Lookup(_parent, value)) {
+	if (const auto value = _end ? 0 : _dice->value()) {
+		if (const auto document = Lookup(_parent, _dice->emoji(), value)) {
 			_end.emplace(_parent, document);
-			_end->setDiceIndex(value);
+			_end->setDiceIndex(_dice->emoji(), value);
 			_end->initSize();
 		}
 	}

@@ -5775,7 +5775,9 @@ void ApiWrap::createPoll(
 			MTP_inputMediaPoll(
 				MTP_flags(inputFlags),
 				PollDataToMTP(&data),
-				MTP_vector<MTPbytes>(correct)),
+				MTP_vector<MTPbytes>(correct),
+				MTPstring(), // #TODO polls solution
+				MTPvector<MTPMessageEntity>()),
 			MTP_string(),
 			MTP_long(rand_value<uint64>()),
 			MTPReplyMarkup(),
@@ -5870,7 +5872,9 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		MTP_inputMediaPoll(
 			MTP_flags(inputFlags),
 			PollDataToMTP(poll, true),
-			MTP_vector<MTPbytes>(correct)),
+			MTP_vector<MTPbytes>(correct),
+			MTPstring(), // #TODO polls solution
+			MTPvector<MTPMessageEntity>()),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTP_int(0) // schedule_date

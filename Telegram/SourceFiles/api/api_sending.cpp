@@ -200,9 +200,12 @@ void SendExistingPhoto(
 
 bool SendDice(Api::MessageToSend &message) {
 	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-	if (message.textWithTags.text.midRef(0).trimmed() != kDiceString) {
+	static const auto kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
+	const auto full = message.textWithTags.text.midRef(0).trimmed();
+	if (full != kDiceString && full != kDartString) {
 		return false;
 	}
+	const auto emoji = full.toString();
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
@@ -266,7 +269,7 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_int(HistoryItem::NewMessageDate(
 				message.action.options.scheduled)),
 			MTP_string(),
-			MTP_messageMediaDice(MTP_int(0)),
+			MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(1),
@@ -284,7 +287,7 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_flags(sendFlags),
 			peer->input,
 			MTP_int(replyTo),
-			MTP_inputMediaDice(),
+			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
 			MTPReplyMarkup(),

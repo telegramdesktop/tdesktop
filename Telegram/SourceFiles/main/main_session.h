@@ -46,7 +46,7 @@ class Instance;
 
 namespace Stickers {
 class EmojiPack;
-class DicePack;
+class DicePacks;
 } // namespace Stickers;
 
 namespace Core {
@@ -93,8 +93,8 @@ public:
 	[[nodiscard]] Stickers::EmojiPack &emojiStickersPack() const {
 		return *_emojiStickersPack;
 	}
-	[[nodiscard]] Stickers::DicePack &diceStickersPack() const {
-		return *_diceStickersPack;
+	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
+		return *_diceStickersPacks;
 	}
 
 	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
@@ -161,7 +161,7 @@ private:
 
 	// _emojiStickersPack depends on _data.
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
-	const std::unique_ptr<Stickers::DicePack> _diceStickersPack;
+	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;

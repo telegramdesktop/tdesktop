@@ -1326,21 +1326,26 @@ std::unique_ptr<HistoryView::Media> MediaPoll::createView(
 	return std::make_unique<HistoryView::Poll>(message, _poll);
 }
 
-MediaDice::MediaDice(not_null<HistoryItem*> parent, int value)
+MediaDice::MediaDice(not_null<HistoryItem*> parent, QString emoji, int value)
 : Media(parent)
+, _emoji(emoji)
 , _value(value) {
 }
 
 std::unique_ptr<Media> MediaDice::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaDice>(parent, _value);
+	return std::make_unique<MediaDice>(parent, _emoji, _value);
 }
 
-int MediaDice::diceValue() const {
+QString MediaDice::emoji() const {
+	return _emoji;
+}
+
+int MediaDice::value() const {
 	return _value;
 }
 
 QString MediaDice::notificationText() const {
-	return QString::fromUtf8("\xF0\x9F\x8E\xB2");
+	return _emoji;
 }
 
 QString MediaDice::pinnedTextSubstring() const {

@@ -49,7 +49,7 @@ public:
 	}
 	void refreshLink() override;
 
-	void setDiceIndex(int index);
+	void setDiceIndex(const QString &emoji, int index);
 	[[nodiscard]] bool atTheEnd() const {
 		return _atTheEnd;
 	}
@@ -71,6 +71,7 @@ private:
 	ClickHandlerPtr _link;
 	QSize _size;
 	QImage _lastDiceFrame;
+	QString _diceEmoji;
 	int _diceIndex = -1;
 	mutable bool _lottieOncePlayed = false;
 	mutable bool _atTheEnd = false;

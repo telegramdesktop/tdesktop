@@ -17,7 +17,7 @@ namespace Stickers {
 
 class DicePack final {
 public:
-	explicit DicePack(not_null<Main::Session*> session);
+	DicePack(not_null<Main::Session*> session, const QString &emoji);
 	~DicePack();
 
 	DocumentData *lookup(int value);
@@ -27,10 +27,24 @@ private:
 	void applySet(const MTPDmessages_stickerSet &data);
 	void ensureZeroGenerated();
 
-	not_null<Main::Session*> _session;
+	const not_null<Main::Session*> _session;
+	QString _emoji;
 	base::flat_map<int, not_null<DocumentData*>> _map;
 	DocumentData *_zero = nullptr;
 	mtpRequestId _requestId = 0;
+
+};
+
+class DicePacks final {
+public:
+	explicit DicePacks(not_null<Main::Session*> session);
+
+	DocumentData *lookup(const QString &emoji, int value);
+
+private:
+	const not_null<Main::Session*> _session;
+
+	base::flat_map<QString, std::unique_ptr<DicePack>> _packs;
 
 };
 

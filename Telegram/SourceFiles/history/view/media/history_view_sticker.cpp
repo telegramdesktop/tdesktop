@@ -37,13 +37,17 @@ namespace {
 		0.625);
 }
 
-[[nodiscard]] QImage CacheDiceImage(int index, const QImage &image) {
-	static auto Cache = base::flat_map<int, QImage>();
-	const auto i = Cache.find(index);
+[[nodiscard]] QImage CacheDiceImage(
+		const QString &emoji,
+		int index,
+		const QImage &image) {
+	static auto Cache = base::flat_map<std::pair<QString, int>, QImage>();
+	const auto key = std::make_pair(emoji, index);
+	const auto i = Cache.find(key);
 	if (i != end(Cache) && i->second.size() == image.size()) {
 		return i->second;
 	}
-	Cache[index] = image;
+	Cache[key] = image;
 	return image;
 }
 
@@ -126,7 +130,7 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 		: Lottie::Animation::FrameInfo();
 	if (_nextLastDiceFrame) {
 		_nextLastDiceFrame = false;
-		_lastDiceFrame = CacheDiceImage(_diceIndex, frame.image);
+		_lastDiceFrame = CacheDiceImage(_diceEmoji, _diceIndex, frame.image);
 	}
 	const auto &image = _lastDiceFrame.isNull()
 		? frame.image
@@ -237,7 +241,8 @@ void Sticker::refreshLink() {
 	}
 }
 
-void Sticker::setDiceIndex(int index) {
+void Sticker::setDiceIndex(const QString &emoji, int index) {
+	_diceEmoji = emoji;
 	_diceIndex = index;
 }
 

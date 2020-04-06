@@ -621,6 +621,7 @@ void SessionPrivate::tryToSend() {
 			MTP_string(langPackName),
 			MTP_string(cloudLangCode),
 			clientProxyFields,
+			MTPJSONValue(), // #TODO polls timezone
 			SerializedRequest());
 		initSizeInInts = (tl::count_length(initWrapper) >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
@@ -2007,9 +2008,9 @@ void SessionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse)
 				} else {
 					DEBUG_LOG(("Message Info: acked msgId %1 that was prepared to resend, requestId %2").arg(msgId).arg(requestId));
 				}
-				
+
 				_ackedIds.emplace(msgId, j->second->requestId);
-				
+
 				toSend.erase(j);
 				continue;
 			}

@@ -24,8 +24,9 @@ constexpr auto kZeroDiceDocumentId = 0xa3b83c9f84fa9e83ULL;
 
 } // namespace
 
-DicePack::DicePack(not_null<Main::Session*> session)
-: _session(session) {
+DicePack::DicePack(not_null<Main::Session*> session, const QString &emoji)
+: _session(session)
+, _emoji(emoji) {
 }
 
 DicePack::~DicePack() = default;
@@ -47,7 +48,7 @@ void DicePack::load() {
 		return;
 	}
 	_requestId = _session->api().request(MTPmessages_GetStickerSet(
-		MTP_inputStickerSetDice()
+		MTP_inputStickerSetDice(MTP_string(_emoji))
 	)).done([=](const MTPmessages_StickerSet &result) {
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
@@ -73,7 +74,11 @@ void DicePack::ensureZeroGenerated() {
 		return;
 	}
 
-	const auto path = qsl(":/gui/art/dice_idle.tgs");
+	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
+	static const auto kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
+	const auto path = QString((_emoji == kDiceString)
+		? ":/gui/art/dice_idle.tgs"
+		: ":/gui/art/dart_idle.tgs");
 	auto task = FileLoadTask(
 		path,
 		QByteArray(),
@@ -91,6 +96,20 @@ void DicePack::ensureZeroGenerated() {
 
 	Ensures(_zero->sticker());
 	Ensures(_zero->sticker()->animated);
+}
+
+DicePacks::DicePacks(not_null<Main::Session*> session) : _session(session) {
+}
+
+DocumentData *DicePacks::lookup(const QString &emoji, int value) {
+	const auto i = _packs.find(emoji);
+	if (i != end(_packs)) {
+		return i->second->lookup(value);
+	}
+	return _packs.emplace(
+		emoji,
+		std::make_unique<DicePack>(_session, emoji)
+	).first->second->lookup(value);
 }
 
 } // namespace Stickers

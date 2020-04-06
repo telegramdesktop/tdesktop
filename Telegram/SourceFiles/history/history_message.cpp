@@ -1025,7 +1025,10 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			item,
 			item->history()->owner().processPoll(media));
 	}, [&](const MTPDmessageMediaDice &media) -> Result {
-		return std::make_unique<Data::MediaDice>(item, media.vvalue().v);
+		return std::make_unique<Data::MediaDice>(
+			item,
+			qs(media.vemoticon()),
+			media.vvalue().v);
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

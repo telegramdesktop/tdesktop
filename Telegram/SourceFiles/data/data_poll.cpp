@@ -231,5 +231,7 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 		MTP_long(poll->id),
 		MTP_flags(flags),
 		MTP_string(poll->question),
-		MTP_vector<MTPPollAnswer>(answers));
+		MTP_vector<MTPPollAnswer>(answers),
+		MTPint(), // #TODO polls close_period
+		MTPint());
 }
