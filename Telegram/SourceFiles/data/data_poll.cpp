@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "api/api_text_entities.h"
+#include "ui/text_options.h"
 
 namespace {
 
@@ -123,6 +125,15 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}) | ranges::to_vector;
 			}
 		}
+		auto newSolution = TextWithEntities{
+			results.vsolution().value_or_empty(),
+			Api::EntitiesFromMTP(
+				results.vsolution_entities().value_or_empty())
+		};
+		if (solution != newSolution) {
+			solution = std::move(newSolution);
+			changed = true;
+		}
 		if (!changed) {
 			return false;
 		}
@@ -226,12 +237,48 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto flags = ((poll->closed() || close) ? Flag::f_closed : Flag(0))
 		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
 		| (poll->publicVotes() ? Flag::f_public_voters : Flag(0))
-		| (poll->quiz() ? Flag::f_quiz : Flag(0));
+		| (poll->quiz() ? Flag::f_quiz : Flag(0))
+		| (poll->closePeriod > 0 ? Flag::f_close_period : Flag(0));
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
 		MTP_string(poll->question),
 		MTP_vector<MTPPollAnswer>(answers),
-		MTPint(), // #TODO polls close_period
-		MTPint());
+		MTP_int(poll->closePeriod),
+		MTP_int(poll->closeDate));
+}
+
+MTPInputMedia PollDataToInputMedia(
+		not_null<const PollData*> poll,
+		bool close) {
+	auto inputFlags = MTPDinputMediaPoll::Flag(0)
+		| (poll->quiz()
+			? MTPDinputMediaPoll::Flag::f_correct_answers
+			: MTPDinputMediaPoll::Flag(0));
+	auto correct = QVector<MTPbytes>();
+	for (const auto &answer : poll->answers) {
+		if (answer.correct) {
+			correct.push_back(MTP_bytes(answer.option));
+		}
+	}
+
+	auto solution = poll->solution;
+	const auto prepareFlags = Ui::ItemTextDefaultOptions().flags;
+	TextUtilities::PrepareForSending(solution, prepareFlags);
+	TextUtilities::Trim(solution);
+	const auto sentEntities = Api::EntitiesToMTP(
+		solution.entities,
+		Api::ConvertOption::SkipLocal);
+	if (!solution.text.isEmpty()) {
+		inputFlags |= MTPDinputMediaPoll::Flag::f_solution;
+	}
+	if (!sentEntities.v.isEmpty()) {
+		inputFlags |= MTPDinputMediaPoll::Flag::f_solution_entities;
+	}
+	return MTP_inputMediaPoll(
+		MTP_flags(inputFlags),
+		PollDataToMTP(poll, close),
+		MTP_vector<MTPbytes>(correct),
+		MTP_string(solution.text),
+		sentEntities);
 }

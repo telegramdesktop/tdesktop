@@ -60,10 +60,12 @@ struct PollData {
 	QString question;
 	std::vector<PollAnswer> answers;
 	std::vector<not_null<UserData*>> recentVoters;
-	int totalVoters = 0;
 	std::vector<QByteArray> sendingVotes;
 	crl::time lastResultsUpdate = 0;
-
+	TextWithEntities solution;
+	TimeId closePeriod = -1;
+	TimeId closeDate = -1;
+	int totalVoters = 0;
 	int version = 0;
 
 	static constexpr auto kMaxOptions = 10;
@@ -78,4 +80,9 @@ private:
 
 };
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close = false);
+[[nodiscard]] MTPPoll PollDataToMTP(
+	not_null<const PollData*> poll,
+	bool close = false);
+[[nodiscard]] MTPInputMedia PollDataToInputMedia(
+	not_null<const PollData*> poll,
+	bool close = false);

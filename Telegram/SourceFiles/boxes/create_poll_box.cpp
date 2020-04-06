@@ -38,6 +38,7 @@ constexpr auto kMaxOptionsCount = PollData::kMaxOptions;
 constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;
+constexpr auto kSolutionLimit = 400;
 constexpr auto kErrorLimit = 99;
 
 class Options {
@@ -816,7 +817,13 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 			tr::lng_polls_solution_placeholder()),
 		st::createPollFieldPadding);
 	InitField(getDelegate()->outerContainer(), solution, _session);
-	solution->setMaxLength(kQuestionLimit + kErrorLimit);
+	solution->setMaxLength(kSolutionLimit + kErrorLimit);
+	solution->setInstantReplaces(Ui::InstantReplaces::Default());
+	solution->setInstantReplacesEnabled(
+		_session->settings().replaceEmojiValue());
+	solution->setMarkdownReplacesEnabled(rpl::single(true));
+	solution->setEditLinkCallback(
+		DefaultEditLinkCallback(_session, solution));
 
 	inner->add(
 		object_ptr<Ui::FlatLabel>(
@@ -901,7 +908,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 
-	const auto explanation = setupSolution(
+	const auto solution = setupSolution(
 		container,
 		rpl::single(quiz->checked()) | rpl::then(quiz->checkedChanges()));
 
@@ -950,6 +957,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		auto result = PollData(&_session->data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
+		const auto solutionWithTags = quiz->checked()
+			? solution->getTextWithAppliedMarkdown()
+			: TextWithTags();
+		result.solution = TextWithEntities{
+			solutionWithTags.text,
+			TextUtilities::ConvertTextTagsToEntities(solutionWithTags.tags)
+		};
 		const auto publicVotes = (anonymous && !anonymous->checked());
 		const auto multiChoice = (multiple && multiple->checked());
 		result.setFlags(Flag(0)
