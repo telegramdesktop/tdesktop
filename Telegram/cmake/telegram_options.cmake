@@ -56,7 +56,7 @@ else()
     target_link_libraries(Telegram PRIVATE desktop-app::lib_spellcheck)
 endif()
 
-if (disable_autoupdate)
+if (DESKTOP_APP_DISABLE_AUTOUPDATE)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
 endif()
 
