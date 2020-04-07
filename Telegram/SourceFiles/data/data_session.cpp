@@ -191,6 +191,7 @@ Session::Session(not_null<Main::Session*> session)
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
 })
+, _pollsClosingTimer([=] { checkPollsClosings(); })
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
@@ -2877,6 +2878,10 @@ not_null<PollData*> Session::processPoll(const MTPPoll &data) {
 		if (changed) {
 			notifyPollUpdateDelayed(result);
 		}
+		if (result->closeDate > 0 && !result->closed()) {
+			_pollsClosings.emplace(result->closeDate, result);
+			checkPollsClosings();
+		}
 		return result;
 	});
 }
@@ -2888,6 +2893,29 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 		notifyPollUpdateDelayed(result);
 	}
 	return result;
+}
+
+void Session::checkPollsClosings() {
+	const auto now = base::unixtime::now();
+	auto closest = 0;
+	for (auto i = _pollsClosings.begin(); i != _pollsClosings.end();) {
+		if (i->first <= now) {
+			if (i->second->closeByTimer()) {
+				notifyPollUpdateDelayed(i->second);
+			}
+			i = _pollsClosings.erase(i);
+		} else {
+			if (!closest) {
+				closest = i->first;
+			}
+			++i;
+		}
+	}
+	if (closest) {
+		_pollsClosingTimer.callOnce((closest - now) * crl::time(1000));
+	} else {
+		_pollsClosingTimer.cancel();
+	}
 }
 
 void Session::applyUpdate(const MTPDupdateMessagePoll &update) {

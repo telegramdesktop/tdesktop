@@ -40,6 +40,7 @@ struct PollData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
+	bool closeByTimer();
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
 	void checkResultsReload(not_null<HistoryItem*> item, crl::time now);
@@ -63,8 +64,8 @@ struct PollData {
 	std::vector<QByteArray> sendingVotes;
 	crl::time lastResultsUpdate = 0;
 	TextWithEntities solution;
-	TimeId closePeriod = -1;
-	TimeId closeDate = -1;
+	TimeId closePeriod = 0;
+	TimeId closeDate = 0;
 	int totalVoters = 0;
 	int version = 0;
 

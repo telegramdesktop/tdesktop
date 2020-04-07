@@ -43,6 +43,15 @@ PollData::PollData(not_null<Data::Session*> owner, PollId id)
 , _owner(owner) {
 }
 
+bool PollData::closeByTimer() {
+	if (closed()) {
+		return false;
+	}
+	_flags |= Flag::Closed;
+	++version;
+	return true;
+}
+
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
@@ -51,6 +60,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
 		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
 		| (poll.is_quiz() ? Flag::Quiz : Flag(0));
+	const auto newCloseDate = poll.vclose_date().value_or_empty();
+	const auto newClosePeriod = poll.vclose_period().value_or_empty();
 	auto newAnswers = ranges::view::all(
 		poll.vanswers().v
 	) | ranges::view::transform([](const MTPPollAnswer &data) {
@@ -65,6 +76,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	) | ranges::to_vector;
 
 	const auto changed1 = (question != newQuestion)
+		|| (closeDate != newCloseDate)
+		|| (closePeriod != newClosePeriod)
 		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
 	if (!changed1 && !changed2) {
@@ -72,6 +85,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	}
 	if (changed1) {
 		question = newQuestion;
+		closeDate = newCloseDate;
+		closePeriod = newClosePeriod;
 		_flags = newFlags;
 	}
 	if (changed2) {
@@ -238,7 +253,8 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
 		| (poll->publicVotes() ? Flag::f_public_voters : Flag(0))
 		| (poll->quiz() ? Flag::f_quiz : Flag(0))
-		| (poll->closePeriod > 0 ? Flag::f_close_period : Flag(0));
+		| (poll->closePeriod > 0 ? Flag::f_close_period : Flag(0))
+		| (poll->closeDate > 0 ? Flag::f_close_date : Flag(0));
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
