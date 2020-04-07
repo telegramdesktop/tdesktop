@@ -166,6 +166,7 @@ private:
 	[[nodiscard]] uint32 nextRequestSeqNumber(bool needAck);
 
 	[[nodiscard]] bool realDcTypeChanged();
+	[[nodiscard]] MTPVector<MTPJSONObjectValue> prepareInitParams();
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;
