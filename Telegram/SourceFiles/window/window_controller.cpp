@@ -106,6 +106,7 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 void Controller::sideBarChanged() {
 	_widget.setMinimumWidth(_widget.computeMinWidth());
 	_widget.updateControlsGeometry();
+	_widget.fixOrder();
 }
 
 void Controller::activate() {
