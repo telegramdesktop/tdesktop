@@ -13,6 +13,8 @@ class HistoryItem;
 
 namespace Images {
 
+[[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
+
 void ClearRemote();
 void ClearAll();
 

@@ -108,6 +108,19 @@ void DocumentMedia::setGoodThumbnail(QImage thumbnail) {
 	_owner->session().downloaderTaskFinished().notify();
 }
 
+Image *DocumentMedia::thumbnailInline() const {
+	if (!_inlineThumbnail) {
+		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
+		if (!image.isNull()) {
+			_inlineThumbnail = std::make_unique<Image>(
+				std::make_unique<Images::ImageSource>(
+					std::move(image),
+					"PNG"));
+		}
+	}
+	return _inlineThumbnail.get();
+}
+
 void DocumentMedia::GenerateGoodThumbnail(not_null<DocumentData*> document) {
 	const auto data = document->data();
 	const auto type = document->isWallPaper()

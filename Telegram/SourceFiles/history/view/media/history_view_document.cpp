@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
 #include "app.h"
@@ -262,6 +263,8 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 	int nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0, bottom = 0;
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
+		ensureDataMediaCreated();
+
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		nametop = st::msgFileThumbNameTop - topMinus;
 		nameright = st::msgFileThumbPadding.left();
@@ -278,7 +281,7 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 				thumb = normal->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 			} else {
 				_data->loadThumbnail(_realParent->fullId());
-				if (const auto blurred = _data->thumbnailInline()) {
+				if (const auto blurred = _dataMedia->thumbnailInline()) {
 					thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 				}
 			}
@@ -489,6 +492,24 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
 	}
+}
+
+void Document::checkHeavyPart() {
+	if (!_dataMedia) {
+		history()->owner().unregisterHeavyViewPart(_parent);
+	}
+}
+
+void Document::unloadHeavyPart() {
+	_dataMedia = nullptr;
+}
+
+void Document::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	history()->owner().registerHeavyViewPart(_parent);
 }
 
 bool Document::downloadInCorner() const {

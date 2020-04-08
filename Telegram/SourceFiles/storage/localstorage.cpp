@@ -3942,7 +3942,7 @@ void importOldRecentStickers() {
 			date,
 			attributes,
 			mime,
-			ImagePtr(),
+			QByteArray(),
 			ImagePtr(),
 			dc,
 			size,

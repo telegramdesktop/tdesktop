@@ -1376,7 +1376,10 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 	const auto useGood = (good && good->loaded());
 	const auto thumb = _data->thumbnail();
 	const auto useThumb = (thumb && thumb->loaded());
-	const auto blurred = _data->thumbnailInline();
+
+	// #TODO optimize always use when available
+	const auto blurred = media ? media->thumbnailInline() : nullptr;
+
 	const auto state = !cover.isNull()
 		? ThumbState::Cover
 		: useGood

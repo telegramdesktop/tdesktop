@@ -146,7 +146,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		date,
 		attributes,
 		mime,
-		ImagePtr(),
+		QByteArray(),
 		Images::Create(*thumb),
 		dc,
 		size,

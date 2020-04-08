@@ -437,7 +437,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	ensureDataMediaCreated();
 
 	const auto selected = (selection == FullSelection);
-	const auto blurred = _data->thumbnailInline();
+	const auto blurred = _dataMedia->thumbnailInline();
 	const auto thumbLoaded = _data->hasThumbnail()
 		&& _data->thumbnail()->loaded();
 	const auto goodLoaded = _dataMedia->goodThumbnail()
@@ -672,10 +672,15 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_st.songThumbSize,
 		_width);
 	if (clip.intersects(inner)) {
+		if (_data->hasThumbnail()) {
+			ensureDataMediaCreated();
+		}
 		p.setPen(Qt::NoPen);
 		const auto thumbLoaded = _data->hasThumbnail()
 			&& _data->thumbnail()->loaded();
-		const auto blurred = _data->thumbnailInline();
+		const auto blurred = _dataMedia
+			? _dataMedia->thumbnailInline()
+			: nullptr;
 		if (thumbLoaded || blurred) {
 			const auto thumb = thumbLoaded
 				? _data->thumbnail()->pixCircled(
@@ -824,6 +829,13 @@ TextState Voice::getState(
 		return { parent(), _namel };
 	}
 	return result;
+}
+
+void Voice::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
 }
 
 float64 Voice::dataProgress() const {
@@ -1023,8 +1035,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		QRect rthumb(style::rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
+				ensureDataMediaCreated();
 				const auto thumbLoaded = _data->thumbnail()->loaded();
-				const auto blurred = _data->thumbnailInline();
+				const auto blurred = _dataMedia->thumbnailInline();
 				if (thumbLoaded || blurred) {
 					if (_thumb.isNull() || (thumbLoaded && !_thumbLoaded)) {
 						_thumbLoaded = thumbLoaded;
@@ -1277,6 +1290,13 @@ TextState Document::getState(
 
 const style::RoundCheckbox &Document::checkboxStyle() const {
 	return st::overviewSmallCheck;
+}
+
+void Document::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
 }
 
 float64 Document::dataProgress() const {

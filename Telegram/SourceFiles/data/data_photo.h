@@ -15,11 +15,13 @@ class Session;
 
 namespace Data {
 class Session;
+class ReplyPreview;
 } // namespace Data
 
-class PhotoData {
+class PhotoData final {
 public:
 	PhotoData(not_null<Data::Session*> owner, PhotoId id);
+	~PhotoData();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -97,7 +99,7 @@ private:
 	int32 _dc = 0;
 	uint64 _access = 0;
 	QByteArray _fileReference;
-	Data::ReplyPreview _replyPreview;
+	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 
 	not_null<Data::Session*> _owner;
 

@@ -18,6 +18,10 @@ namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace InlineBots {
 namespace Layout {
 namespace internal {
@@ -75,23 +79,30 @@ public:
 
 	int resizeGetHeight(int width) override;
 
-	void unloadAnimation() override;
+	void unloadHeavyPart() override;
 
 private:
-	QSize countFrameSize() const;
-
 	enum class StateFlag {
-		Over       = (1 << 0),
+		Over = (1 << 0),
 		DeleteOver = (1 << 1),
 	};
 	using StateFlags = base::flags<StateFlag>;
 	friend inline constexpr auto is_flag_type(StateFlag) { return true; };
-	StateFlags _state;
 
-	Media::Clip::ReaderPointer _gif;
-	ClickHandlerPtr _delete;
-	mutable QPixmap _thumb;
-	mutable bool _thumbGood = false;
+	struct AnimationData {
+		template <typename Callback>
+		AnimationData(Callback &&callback)
+			: radial(std::forward<Callback>(callback)) {
+		}
+		bool over = false;
+		Ui::Animations::Simple _a_over;
+		Ui::RadialAnimation radial;
+	};
+
+	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
+	void unloadAnimation();
+	QSize countFrameSize() const;
+
 	void validateThumbnail(
 		Image *image,
 		QSize size,
@@ -105,15 +116,15 @@ private:
 
 	void clipCallback(Media::Clip::Notification notification);
 
-	struct AnimationData {
-		template <typename Callback>
-		AnimationData(Callback &&callback)
-		: radial(std::forward<Callback>(callback)) {
-		}
-		bool over = false;
-		Ui::Animations::Simple _a_over;
-		Ui::RadialAnimation radial;
-	};
+	StateFlags _state;
+
+	Media::Clip::ReaderPointer _gif;
+	ClickHandlerPtr _delete;
+	mutable QPixmap _thumb;
+	mutable bool _thumbGood = false;
+
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+
 	mutable std::unique_ptr<AnimationData> _animation;
 	mutable Ui::Animations::Simple _a_deleteOver;
 
@@ -372,9 +383,11 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	void unloadAnimation() override;
+	void unloadHeavyPart() override;
 
 private:
+	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
+	void unloadAnimation();
 	void countFrameSize();
 
 	void prepareThumbnail(QSize size) const;
@@ -386,6 +399,7 @@ private:
 	void clipCallback(Media::Clip::Notification notification);
 
 	Media::Clip::ReaderPointer _gif;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable QPixmap _thumb;
 	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;

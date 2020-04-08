@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/rp_widget.h"
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
@@ -55,6 +59,7 @@ private:
 	bool _hiding = false;
 	Data::FileOrigin _origin;
 	DocumentData *_document = nullptr;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	PhotoData *_photo = nullptr;
 	Media::Clip::ReaderPointer _gif;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;

@@ -304,7 +304,7 @@ void Inner::hideFinish(bool completely) {
 			if (const auto result = item->getResult()) {
 				result->unload();
 			}
-			item->unloadAnimation();
+			item->unloadHeavyPart();
 		};
 		clearInlineRows(false);
 		for (const auto &[result, layout] : _inlineLayouts) {

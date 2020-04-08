@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "styles/style_chat_helpers.h"
@@ -325,11 +326,19 @@ void Gif::validateThumbnail(
 
 void Gif::prepareThumbnail(QSize size, QSize frame) const {
 	if (const auto document = getShownDocument()) {
+		ensureDataMediaCreated(document);
 		validateThumbnail(document->thumbnail(), size, frame, true);
-		validateThumbnail(document->thumbnailInline(), size, frame, false);
+		validateThumbnail(_dataMedia->thumbnailInline(), size, frame, false);
 	} else {
 		validateThumbnail(getResultThumb(), size, frame, true);
 	}
+}
+
+void Gif::ensureDataMediaCreated(not_null<DocumentData*> document) const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = document->createMediaView();
 }
 
 void Gif::ensureAnimation() const {
@@ -367,9 +376,14 @@ void Gif::radialAnimationCallback(crl::time now) const {
 	}
 }
 
+void Gif::unloadHeavyPart() {
+	unloadAnimation();
+	getShownDocument()->unload();
+	_dataMedia = nullptr;
+}
+
 void Gif::unloadAnimation() {
 	_gif.reset();
-	getShownDocument()->unload();
 }
 
 void Gif::clipCallback(Media::Clip::Notification notification) {
@@ -1380,9 +1394,17 @@ void Game::prepareThumbnail(QSize size) const {
 		validateThumbnail(photo->thumbnail(), size, true);
 		validateThumbnail(photo->thumbnailInline(), size, false);
 	} else if (const auto document = getResultDocument()) {
+		ensureDataMediaCreated(document);
 		validateThumbnail(document->thumbnail(), size, true);
-		validateThumbnail(document->thumbnailInline(), size, false);
+		validateThumbnail(_dataMedia->thumbnailInline(), size, false);
 	}
+}
+
+void Game::ensureDataMediaCreated(not_null<DocumentData*> document) const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = document->createMediaView();
 }
 
 void Game::validateThumbnail(Image *image, QSize size, bool good) const {
@@ -1450,9 +1472,14 @@ void Game::radialAnimationCallback(crl::time now) const {
 	}
 }
 
+void Game::unloadHeavyPart() {
+	unloadAnimation();
+	getResultDocument()->unload();
+	_dataMedia = nullptr;
+}
+
 void Game::unloadAnimation() {
 	_gif.reset();
-	getResultDocument()->unload();
 }
 
 void Game::clipCallback(Media::Clip::Notification notification) {
@@ -1464,7 +1491,20 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 				_gif.setBad();
 				getResultDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
-				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None);
+				if (_gif->width() * _gif->height() > kMaxInlineArea) {
+					getResultDocument()->dimensions = QSize(
+						_gif->width(),
+						_gif->height());
+					unloadAnimation();
+				} else {
+					_gif->start(
+						_frameSize.width(),
+						_frameSize.height(),
+						st::inlineThumbSize,
+						st::inlineThumbSize,
+						ImageRoundRadius::None,
+						RectPart::None);
+				}
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				unloadAnimation();
 			}

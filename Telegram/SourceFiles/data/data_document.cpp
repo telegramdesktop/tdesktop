@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_document_good_thumbnail.h"
 #include "data/data_document_media.h"
+#include "data/data_reply_preview.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "main/main_session.h"
@@ -470,6 +471,12 @@ DocumentData::DocumentData(not_null<Data::Session*> owner, DocumentId id)
 , _owner(owner) {
 }
 
+DocumentData::~DocumentData() {
+	destroyLoader();
+	unload();
+	ActiveCache().remove(this);
+}
+
 Data::Session &DocumentData::owner() const {
 	return *_owner;
 }
@@ -616,10 +623,11 @@ bool DocumentData::checkWallPaperProperties() {
 }
 
 void DocumentData::updateThumbnails(
-		ImagePtr thumbnailInline,
+		const QByteArray &inlineThumbnailBytes,
 		ImagePtr thumbnail) {
-	if (thumbnailInline && !_thumbnailInline) {
-		_thumbnailInline = thumbnailInline;
+	if (!inlineThumbnailBytes.isEmpty()
+		&& _inlineThumbnailBytes.isEmpty()) {
+		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
 	if (thumbnail
 		&& (!_thumbnail
@@ -640,10 +648,6 @@ bool DocumentData::isPatternWallPaper() const {
 
 bool DocumentData::hasThumbnail() const {
 	return !_thumbnail->isNull();
-}
-
-Image *DocumentData::thumbnailInline() const {
-	return _thumbnailInline ? _thumbnailInline.get() : nullptr;
 }
 
 Image *DocumentData::thumbnail() const {
@@ -750,7 +754,6 @@ void DocumentData::unload() {
 	// Also, you can't unload() images that you don't own
 	// from the destructor, because they're already destroyed.
 	//
-	//_thumbnailInline->unload();
 	//_thumbnail->unload();
 	if (sticker()) {
 		if (sticker()->image) {
@@ -758,7 +761,7 @@ void DocumentData::unload() {
 			sticker()->image = nullptr;
 		}
 	}
-	_replyPreview.clear();
+	_replyPreview = nullptr;
 	if (!_data.isEmpty()) {
 		ActiveCache().decrement(_data.size());
 		_data.clear();
@@ -1192,28 +1195,10 @@ bool DocumentData::isStickerSetInstalled() const {
 Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
 	if (!_thumbnail) {
 		return nullptr;
-	} else if (_replyPreview
-		&& (_replyPreview.good() || !_thumbnail->loaded())) {
-		return _replyPreview.image();
+	} else if (!_replyPreview) {
+		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	const auto option = isVideoMessage()
-		? Images::Option::Circled
-		: Images::Option::None;
-	if (_thumbnail->loaded()) {
-		_replyPreview.prepare(
-			_thumbnail.get(),
-			origin,
-			option);
-	} else {
-		_thumbnail->load(origin);
-		if (_thumbnailInline) {
-			_replyPreview.prepare(
-				_thumbnailInline.get(),
-				origin,
-				option | Images::Option::Blurred);
-		}
-	}
-	return _replyPreview.image();
+	return _replyPreview->image(origin);
 }
 
 StickerData *DocumentData::sticker() const {
@@ -1651,12 +1636,6 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 		_location = local->_location;
 		Local::writeFileLocation(mediaKey(), _location);
 	}
-}
-
-DocumentData::~DocumentData() {
-	destroyLoader();
-	unload();
-	ActiveCache().remove(this);
 }
 
 QString DocumentData::ComposeNameString(

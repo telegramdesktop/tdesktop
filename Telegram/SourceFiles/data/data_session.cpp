@@ -126,19 +126,20 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	}) | ranges::to_vector;
 }
 
-MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
+QByteArray FindDocumentInlineThumbnail(const MTPDdocument &data) {
 	const auto thumbs = data.vthumbs();
 	if (!thumbs) {
-		return MTP_photoSizeEmpty(MTP_string());
+		return QByteArray();
 	}
 	const auto &list = thumbs->v;
 	const auto i = ranges::find(
 		list,
 		mtpc_photoStrippedSize,
 		&MTPPhotoSize::type);
-	return (i != list.end())
-		? (*i)
-		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
+	if (i == list.end()) {
+		return QByteArray();
+	}
+	return i->c_photoStrippedSize().vbytes().v;
 }
 
 MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
@@ -2371,7 +2372,7 @@ not_null<DocumentData*> Session::processDocument(
 			fields.vdate().v,
 			fields.vattributes().v,
 			mime,
-			ImagePtr(),
+			QByteArray(),
 			Images::Create(std::move(thumb), format),
 			fields.vdc_id().v,
 			fields.vsize().v,
@@ -2388,7 +2389,7 @@ not_null<DocumentData*> Session::document(
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumbnailInline,
+		const QByteArray &inlineThumbnailBytes,
 		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
@@ -2401,7 +2402,7 @@ not_null<DocumentData*> Session::document(
 		date,
 		attributes,
 		mime,
-		thumbnailInline,
+		inlineThumbnailBytes,
 		thumbnail,
 		dc,
 		size,
@@ -2476,7 +2477,7 @@ DocumentData *Session::documentFromWeb(
 		base::unixtime::now(),
 		data.vattributes().v,
 		data.vmime_type().v,
-		ImagePtr(),
+		QByteArray(),
 		thumb,
 		MTP::maindc(),
 		int32(0), // data.vsize().v
@@ -2497,7 +2498,7 @@ DocumentData *Session::documentFromWeb(
 		base::unixtime::now(),
 		data.vattributes().v,
 		data.vmime_type().v,
-		ImagePtr(),
+		QByteArray(),
 		thumb,
 		MTP::maindc(),
 		int32(0), // data.vsize().v
@@ -2517,7 +2518,7 @@ void Session::documentApplyFields(
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data) {
-	const auto thumbnailInline = FindDocumentInlineThumbnail(data);
+	const auto inlineThumbnailBytes = FindDocumentInlineThumbnail(data);
 	const auto thumbnailSize = FindDocumentThumbnail(data);
 	const auto thumbnail = Images::Create(data, thumbnailSize);
 	documentApplyFields(
@@ -2527,7 +2528,7 @@ void Session::documentApplyFields(
 		data.vdate().v,
 		data.vattributes().v,
 		qs(data.vmime_type()),
-		Images::Create(data, thumbnailInline),
+		inlineThumbnailBytes,
 		thumbnail,
 		data.vdc_id().v,
 		data.vsize().v,
@@ -2541,7 +2542,7 @@ void Session::documentApplyFields(
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumbnailInline,
+		const QByteArray &inlineThumbnailBytes,
 		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
@@ -2551,7 +2552,7 @@ void Session::documentApplyFields(
 	}
 	document->date = date;
 	document->setMimeString(mime);
-	document->updateThumbnails(thumbnailInline, thumbnail);
+	document->updateThumbnails(inlineThumbnailBytes, thumbnail);
 	document->size = size;
 	document->setattributes(attributes);
 

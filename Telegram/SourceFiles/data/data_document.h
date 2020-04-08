@@ -33,6 +33,7 @@ class Loader;
 namespace Data {
 class Session;
 class DocumentMedia;
+class ReplyPreview;
 } // namespace Data
 
 namespace Main {
@@ -84,9 +85,10 @@ namespace Serialize {
 class Document;
 } // namespace Serialize;
 
-class DocumentData {
+class DocumentData final {
 public:
 	DocumentData(not_null<Data::Session*> owner, DocumentId id);
+	~DocumentData();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -175,11 +177,14 @@ public:
 
 	[[nodiscard]] bool hasThumbnail() const;
 	void loadThumbnail(Data::FileOrigin origin);
-	[[nodiscard]] Image *thumbnailInline() const;
 	[[nodiscard]] Image *thumbnail() const;
 	void updateThumbnails(
-		ImagePtr thumbnailInline,
+		const QByteArray &inlineThumbnailBytes,
 		ImagePtr thumbnail);
+
+	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
+		return _inlineThumbnailBytes;
+	}
 
 	[[nodiscard]] Storage::Cache::Key goodThumbnailCacheKey() const;
 	[[nodiscard]] bool goodThumbnailChecked() const;
@@ -241,8 +246,6 @@ public:
 
 	void setInappPlaybackFailed();
 	[[nodiscard]] bool inappPlaybackFailed() const;
-
-	~DocumentData();
 
 	DocumentId id = 0;
 	DocumentType type = FileDocument;
@@ -310,9 +313,9 @@ private:
 	QString _mimeString;
 	WebFileLocation _urlLocation;
 
-	ImagePtr _thumbnailInline;
+	QByteArray _inlineThumbnailBytes;
 	ImagePtr _thumbnail;
-	Data::ReplyPreview _replyPreview;
+	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;
 

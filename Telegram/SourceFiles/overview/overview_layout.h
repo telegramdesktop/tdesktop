@@ -255,7 +255,7 @@ private:
 
 };
 
-class Voice : public RadialProgressItem {
+class Voice final : public RadialProgressItem {
 public:
 	Voice(
 		not_null<HistoryItem*> parent,
@@ -276,9 +276,11 @@ protected:
 	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
+	void ensureDataMediaCreated() const;
 	int duration() const;
 
 	not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 	ClickHandlerPtr _namel;
 
@@ -292,7 +294,7 @@ private:
 
 };
 
-class Document : public RadialProgressItem {
+class Document final : public RadialProgressItem {
 public:
 	Document(
 		not_null<HistoryItem*> parent,
@@ -305,7 +307,7 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
-	virtual DocumentData *getDocument() const override {
+	DocumentData *getDocument() const override {
 		return _data;
 	}
 
@@ -323,7 +325,10 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
+	void ensureDataMediaCreated() const;
+
 	not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 	ClickHandlerPtr _msgl, _namel;
 
@@ -342,7 +347,7 @@ private:
 
 };
 
-class Link : public ItemBase {
+class Link final : public ItemBase {
 public:
 	Link(
 		not_null<HistoryItem*> parent,

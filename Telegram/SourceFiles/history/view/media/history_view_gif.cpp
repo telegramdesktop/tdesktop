@@ -425,7 +425,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 				}
 			} else {
 				_data->loadThumbnail(_realParent->fullId());
-				if (const auto blurred = _data->thumbnailInline()) {
+				if (const auto blurred = _dataMedia->thumbnailInline()) {
 					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else if (!isRound) {
 					const auto roundTop = (roundCorners & RectPart::TopLeft);
@@ -1140,7 +1140,7 @@ void Gif::validateGroupedCache(
 		? good
 		: useThumb
 		? thumb
-		: _data->thumbnailInline();
+		: _dataMedia->thumbnailInline();
 	const auto blur = !useGood
 		&& (!useThumb
 			|| (thumb->width() < kUseNonBlurredThreshold

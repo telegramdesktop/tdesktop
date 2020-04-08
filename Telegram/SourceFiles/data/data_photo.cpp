@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_reply_preview.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "main/main_session.h"
@@ -21,6 +22,8 @@ PhotoData::PhotoData(not_null<Data::Session*> owner, PhotoId id)
 : id(id)
 , _owner(owner) {
 }
+
+PhotoData::~PhotoData() = default;
 
 Data::Session &PhotoData::owner() const {
 	return *_owner;
@@ -105,37 +108,14 @@ void PhotoData::unload() {
 	_thumbnailSmall->unload();
 	_thumbnail->unload();
 	_large->unload();
-	_replyPreview.clear();
+	_replyPreview = nullptr;
 }
 
 Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
-	if (_replyPreview
-		&& (_replyPreview.good() || !_thumbnailSmall->loaded())) {
-		return _replyPreview.image();
+	if (!_replyPreview) {
+		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	if (_thumbnailSmall->isDelayedStorageImage()
-		&& !_large->isNull()
-		&& !_large->isDelayedStorageImage()
-		&& _large->loaded()) {
-		_replyPreview.prepare(
-			_large.get(),
-			origin,
-			Images::Option(0));
-	} else if (_thumbnailSmall->loaded()) {
-		_replyPreview.prepare(
-			_thumbnailSmall.get(),
-			origin,
-			Images::Option(0));
-	} else {
-		_thumbnailSmall->load(origin);
-		if (_thumbnailInline) {
-			_replyPreview.prepare(
-				_thumbnailInline.get(),
-				origin,
-				Images::Option::Blurred);
-		}
-	}
-	return _replyPreview.image();
+	return _replyPreview->image(origin);
 }
 
 void PhotoData::setRemoteLocation(

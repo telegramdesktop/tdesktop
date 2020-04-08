@@ -20,8 +20,9 @@ public:
 	[[nodiscard]] Image *goodThumbnail() const;
 	void setGoodThumbnail(QImage thumbnail);
 
+	[[nodiscard]] Image *thumbnailInline() const;
+
 	// For DocumentData.
-	void validateGoodThumbnail();
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
 
 private:
@@ -36,6 +37,7 @@ private:
 
 	const not_null<DocumentData*> _owner;
 	std::unique_ptr<Image> _goodThumbnail;
+	mutable std::unique_ptr<Image> _inlineThumbnail;
 	Flags _flags;
 
 };

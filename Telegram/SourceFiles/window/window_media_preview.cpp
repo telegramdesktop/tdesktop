@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "lottie/lottie_single_player.h"
@@ -114,6 +115,7 @@ void MediaPreviewWidget::showPreview(
 	_origin = origin;
 	_photo = nullptr;
 	_document = document;
+	_documentMedia = _document->createMediaView();
 	fillEmojiString();
 	resetGifAndCache();
 }
@@ -125,6 +127,7 @@ void MediaPreviewWidget::showPreview(
 	_origin = origin;
 	_photo = photo;
 	_document = nullptr;
+	_documentMedia = nullptr;
 	fillEmojiString();
 	resetGifAndCache();
 }
@@ -137,7 +140,7 @@ void MediaPreviewWidget::startShow() {
 			_controller->enableGifPauseReason(Window::GifPauseReason::MediaPreview);
 		}
 		_hiding = false;
-		_a_shown.start([this] { update(); }, 0., 1., st::stickerPreviewDuration);
+		_a_shown.start([=] { update(); }, 0., 1., st::stickerPreviewDuration);
 	} else {
 		update();
 	}
@@ -149,9 +152,10 @@ void MediaPreviewWidget::hidePreview() {
 	}
 	if (_gif) _cache = currentImage();
 	_hiding = true;
-	_a_shown.start([this] { update(); }, 1., 0., st::stickerPreviewDuration);
+	_a_shown.start([=] { update(); }, 1., 0., st::stickerPreviewDuration);
 	_photo = nullptr;
 	_document = nullptr;
+	_documentMedia = nullptr;
 	resetGifAndCache();
 }
 
@@ -279,7 +283,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				if (_document->thumbnail()->loaded()) {
 					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
-				} else if (const auto blurred = _document->thumbnailInline()) {
+				} else if (const auto blurred = _documentMedia->thumbnailInline()) {
 					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				} else {

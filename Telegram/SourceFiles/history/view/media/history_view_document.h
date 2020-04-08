@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryDocumentNamed;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Ui {
 namespace Text {
 class String;
@@ -63,6 +67,9 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 	void parentTextUpdated() override;
 
+	void checkHeavyPart() override;
+	void unloadHeavyPart() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -74,6 +81,8 @@ private:
 		bool showPause = false;
 		int realDuration = 0;
 	};
+
+	void ensureDataMediaCreated() const;
 
 	[[nodiscard]] Ui::Text::String createCaption();
 
@@ -93,6 +102,7 @@ private:
 		StateRequest request) const;
 
 	not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 };
 

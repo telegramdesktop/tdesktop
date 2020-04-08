@@ -396,6 +396,8 @@ PRIVATE
     data/data_poll.h
     data/data_pts_waiter.cpp
     data/data_pts_waiter.h
+    data/data_reply_preview.cpp
+    data/data_reply_preview.h
     data/data_search_controller.cpp
     data/data_search_controller.h
     data/data_session.cpp

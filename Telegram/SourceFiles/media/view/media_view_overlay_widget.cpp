@@ -2183,7 +2183,10 @@ void OverlayWidget::initStreamingThumbnail() {
 	const auto useGood = (good && good->loaded());
 	const auto thumb = _doc->thumbnail();
 	const auto useThumb = (thumb && thumb->loaded());
-	const auto blurred = _doc->thumbnailInline();
+
+	// #TODO optimize
+	const auto blurred = media ? media->thumbnailInline() : nullptr;
+
 	if (good && !useGood) {
 		good->load({});
 	} else if (thumb && !useThumb) {

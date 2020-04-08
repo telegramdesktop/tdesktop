@@ -207,8 +207,8 @@ void ThemeDocument::validateThumbnail() const {
 	}
 	if (_data->thumbnail()->loaded()) {
 		prepareThumbnailFrom(_data->thumbnail(), 0);
-	} else if (const auto blurred = _data->thumbnailInline()) {
-		if (_thumbnail.isNull()) {
+	} else if (_thumbnail.isNull()) {
+		if (const auto blurred = _dataMedia->thumbnailInline()) {
 			prepareThumbnailFrom(blurred, -1);
 		}
 	}
