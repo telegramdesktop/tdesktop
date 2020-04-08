@@ -494,6 +494,7 @@ MainWidget::MainWidget(
 	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
+	subscribe(Adaptive::WideMessageChanged(), [this]() { showAll(); });
 
 	_dialogs->show();
 	if (Adaptive::OneColumn()) {

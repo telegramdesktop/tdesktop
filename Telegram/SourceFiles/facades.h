@@ -147,7 +147,9 @@ DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
 DeclareVar(bool, AdaptiveForWide);
+DeclareVar(bool, WideMessageWidth);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
+DeclareRefVar(base::Observable<void>, WideMessageWidthChanged);
 
 DeclareVar(bool, DialogsFiltersEnabled);
 DeclareVar(bool, ModerateModeEnabled);
@@ -247,6 +249,10 @@ inline base::Observable<void> &Changed() {
 	return Global::RefAdaptiveChanged();
 }
 
+inline base::Observable<void> &WideMessageChanged() {
+	return Global::RefWideMessageWidthChanged();
+}
+
 inline bool OneColumn() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::OneColumn;
 }
@@ -266,6 +272,10 @@ inline bool ChatNormal() {
 
 inline bool ChatWide() {
 	return !ChatNormal();
+}
+
+inline bool ChatWideMessage() {
+	return Global::WideMessageWidth();
 }
 
 } // namespace Adaptive

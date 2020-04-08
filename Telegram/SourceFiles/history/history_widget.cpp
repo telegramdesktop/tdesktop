@@ -468,6 +468,17 @@ HistoryWidget::HistoryWidget(
 		}
 	});
 
+	subscribe(Adaptive::WideMessageChanged(), [=] {
+		if (_history) {
+			_history->forceFullResize();
+			if (_migrated) {
+				_migrated->forceFullResize();
+			}
+			updateHistoryGeometry();
+			update();
+		}
+	});
+
 	session().data().unreadItemAdded(
 	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		unreadMessageAdded(item);

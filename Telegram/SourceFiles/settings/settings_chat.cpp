@@ -957,6 +957,15 @@ void SetupChatBackground(
 				Global::AdaptiveForWide(),
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
+	const auto wideMessageWidth = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+			inner,
+			object_ptr<Ui::Checkbox>(
+				inner,
+				tr::lng_settings_wide_msg_width(tr::now),
+				Global::WideMessageWidth(),
+				st::settingsCheckbox),
+			st::settingsSendTypePadding));
 
 	tile->checkedChanges(
 	) | rpl::start_with_next([](bool checked) {
@@ -988,6 +997,13 @@ void SetupChatBackground(
 		Adaptive::Changed().notify();
 		Local::writeUserSettings();
 	}, adaptive->lifetime());
+
+	wideMessageWidth->entity()->checkedChanges(
+	) | rpl::start_with_next([](bool checked) {
+		Global::SetWideMessageWidth(checked);
+		Adaptive::WideMessageChanged().notify();
+		Local::writeUserSettings();
+	}, wideMessageWidth->lifetime());
 }
 
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {

@@ -695,6 +695,7 @@ enum {
 	dbiHiddenPinnedMessages = 0x39,
 	dbiRecentEmoji = 0x3a,
 	dbiEmojiVariants = 0x3b,
+	dbiWideMessageWidth = 0x3c,
 	dbiDialogsModeOld = 0x40,
 	dbiModerateMode = 0x41,
 	dbiVideoVolume = 0x42,
@@ -1717,6 +1718,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetAdaptiveForWide(v == 1);
 	} break;
 
+	case dbiWideMessageWidth: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetWideMessageWidth(v == 1);
+	} break;
+
 	case dbiAutoLock: {
 		qint32 v;
 		stream >> v;
@@ -2208,6 +2217,7 @@ void _writeUserSettings() {
 		<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
 		<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
+	data.stream << quint32(dbiWideMessageWidth) << qint32(Global::WideMessageWidth() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());

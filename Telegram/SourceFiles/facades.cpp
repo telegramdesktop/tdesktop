@@ -308,7 +308,9 @@ struct Data {
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
 	bool AdaptiveForWide = true;
+	bool WideMessageWidth = false;
 	base::Observable<void> AdaptiveChanged;
+	base::Observable<void> WideMessageWidthChanged;
 
 	bool DialogsFiltersEnabled = false;
 	bool ModerateModeEnabled = false;
@@ -437,7 +439,9 @@ DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
 DefineVar(Global, bool, AdaptiveForWide);
+DefineVar(Global, bool, WideMessageWidth);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
+DefineRefVar(Global, base::Observable<void>, WideMessageWidthChanged);
 
 DefineVar(Global, bool, DialogsFiltersEnabled);
 DefineVar(Global, bool, ModerateModeEnabled);
