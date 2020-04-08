@@ -21,6 +21,7 @@ public:
 		not_null<Element*> parent,
 		not_null<DocumentData*> document,
 		const QString &url = QString());
+	~ThemeDocument();
 
 	void draw(
 		Painter &p,
@@ -44,6 +45,9 @@ public:
 	}
 	bool isReadyForOpen() const override;
 	QString additionalInfoString() const override;
+
+	void checkHeavyPart() override;
+	void unloadHeavyPart() override;
 
 protected:
 	float64 dataProgress() const override;

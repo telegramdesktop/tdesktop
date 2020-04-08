@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 
 #include "layout.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "base/qthelp_url.h"
@@ -36,6 +38,11 @@ ThemeDocument::ThemeDocument(
 	_data->loadThumbnail(_parent->data()->fullId());
 	setDocumentLinks(_data, parent->data());
 	setStatusSize(FileStatusSizeReady, _data->size, -1, 0);
+}
+
+ThemeDocument::~ThemeDocument() {
+	_dataMedia = nullptr;
+	checkHeavyPart();
 }
 
 void ThemeDocument::fillPatternFieldsFrom(const QString &url) {
@@ -185,6 +192,7 @@ void ThemeDocument::validateThumbnail() const {
 	if (!_dataMedia) {
 		_dataMedia = _data->createMediaView();
 		_dataMedia->goodThumbnailWanted();
+		_parent->history()->owner().registerHeavyViewPart(_parent);
 	}
 	if (const auto good = _dataMedia->goodThumbnail()) {
 		if (good->loaded()) {
@@ -286,6 +294,16 @@ QString ThemeDocument::additionalInfoString() const {
 	// this attachment in WebPage media.
 	static auto result = QString(" ");
 	return result;
+}
+
+void ThemeDocument::checkHeavyPart() {
+	if (!_dataMedia) {
+		_parent->history()->owner().unregisterHeavyViewPart(_parent);
+	}
+}
+
+void ThemeDocument::unloadHeavyPart() {
+	_dataMedia = nullptr;
 }
 
 } // namespace HistoryView

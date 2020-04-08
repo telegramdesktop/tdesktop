@@ -66,6 +66,8 @@ Sticker::Sticker(
 
 Sticker::~Sticker() {
 	unloadLottie();
+	_dataMedia = nullptr;
+	checkHeavyPart();
 }
 
 bool Sticker::isEmojiSticker() const {
@@ -244,7 +246,7 @@ void Sticker::refreshLink() {
 				return;
 			}
 			that->_lottieOncePlayed = false;
-			that->_parent->data()->history()->owner().requestViewRepaint(
+			that->_parent->history()->owner().requestViewRepaint(
 				that->_parent);
 		});
 	} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
@@ -260,6 +262,7 @@ void Sticker::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->goodThumbnailWanted();
+	_parent->history()->owner().registerHeavyViewPart(_parent);
 }
 
 void Sticker::setDiceIndex(const QString &emoji, int index) {
@@ -274,16 +277,27 @@ void Sticker::setupLottie() {
 		Stickers::LottieSize::MessageHistory,
 		_size * cIntRetinaFactor(),
 		Lottie::Quality::High);
-	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
+	_parent->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		update.data.match([&](const Lottie::Information &information) {
-			_parent->data()->history()->owner().requestViewResize(_parent);
+			_parent->history()->owner().requestViewResize(_parent);
 		}, [&](const Lottie::DisplayFrameRequest &request) {
-			_parent->data()->history()->owner().requestViewRepaint(_parent);
+			_parent->history()->owner().requestViewRepaint(_parent);
 		});
 	}, _lifetime);
+}
+
+void Sticker::checkHeavyPart() {
+	if (!_dataMedia && !_lottie) {
+		_parent->history()->owner().unregisterHeavyViewPart(_parent);
+	}
+}
+
+void Sticker::unloadHeavyPart() {
+	unloadLottie();
+	_dataMedia = nullptr;
 }
 
 void Sticker::unloadLottie() {
@@ -295,7 +309,7 @@ void Sticker::unloadLottie() {
 		_lottieOncePlayed = false;
 	}
 	_lottie = nullptr;
-	_parent->data()->history()->owner().unregisterHeavyViewPart(_parent);
+	checkHeavyPart();
 }
 
 } // namespace HistoryView

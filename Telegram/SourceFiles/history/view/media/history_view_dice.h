@@ -28,6 +28,8 @@ public:
 
 	void clearStickerLoopPlayed() override {
 	}
+	void checkHeavyPart() override {
+	}
 	void unloadHeavyPart() override {
 		if (_start) {
 			_start->unloadHeavyPart();

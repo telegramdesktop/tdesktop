@@ -49,9 +49,10 @@ public:
 	void clearStickerLoopPlayed() override {
 		_lottieOncePlayed = false;
 	}
-	void unloadHeavyPart() override {
-		unloadLottie();
-	}
+
+	void checkHeavyPart() override;
+	void unloadHeavyPart() override;
+
 	void refreshLink() override;
 
 	void setDiceIndex(const QString &emoji, int index);

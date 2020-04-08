@@ -81,14 +81,19 @@ public:
 	}
 	bool enforceBubbleWidth() const override;
 
+	Media *attach() const {
+		return _attach.get();
+	}
+
+	void checkHeavyPart() override {
+		if (_attach) {
+			_attach->checkHeavyPart();
+		}
+	}
 	void unloadHeavyPart() override {
 		if (_attach) {
 			_attach->unloadHeavyPart();
 		}
-	}
-
-	Media *attach() const {
-		return _attach.get();
 	}
 
 	~WebPage();

@@ -78,13 +78,18 @@ public:
 		return _attach.get();
 	}
 
+	void parentTextUpdated() override;
+
+	void checkHeavyPart() override {
+		if (_attach) {
+			_attach->checkHeavyPart();
+		}
+	}
 	void unloadHeavyPart() override {
 		if (_attach) {
 			_attach->unloadHeavyPart();
 		}
 	}
-
-	void parentTextUpdated() override;
 
 	~Game();
 
