@@ -130,7 +130,7 @@ bool RunShellCommand(const QByteArray &command) {
 
 	LOG(("Fontconfig version: %1.").arg(version.toString()));
 	if (version < QVersionNumber::fromString("2.13")) {
-		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONTCONFIG").isEmpty()) {
+		if (!qEnvironmentVariableIsSet("TDESKTOP_FORCE_CUSTOM_FONTCONFIG")) {
 			return false;
 		}
 	}
@@ -138,13 +138,24 @@ bool RunShellCommand(const QByteArray &command) {
 }
 
 void FallbackFontConfig() {
-	if (BadFontConfigVersion()) {
-		const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
-		QFile(":/fc/fc-custom.conf").copy(custom);
+	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
+
+	auto doFallback = [&] {
 		if (QFile(custom).exists()) {
 			LOG(("Custom FONTCONFIG_FILE: ") + custom);
 			qputenv("FONTCONFIG_FILE", QFile::encodeName(custom));
+			return true;
 		}
+		return false;
+	};
+
+	if (doFallback()) {
+		return;
+	}
+
+	if (BadFontConfigVersion()) {
+		QFile(":/fc/fc-custom.conf").copy(custom);
+		doFallback();
 	}
 }
 
@@ -696,7 +707,7 @@ void psAutoStart(bool start, bool silent) {
 	if (InSandbox()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		SandboxAutostart(start, silent);
-#endif // !DESKTOP_APP_USE_PACKAGED
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 	} else {
 		const auto autostart = [&] {
 			if (InSnap()) {
