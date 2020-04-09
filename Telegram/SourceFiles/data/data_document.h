@@ -103,8 +103,6 @@ public:
 	enum class FilePathResolve {
 		Cached,
 		Checked,
-		SaveFromData,
-		SaveFromDataSilent,
 	};
 	[[nodiscard]] bool loaded(
 		FilePathResolve resolve = FilePathResolve::Cached) const;
@@ -131,6 +129,8 @@ public:
 	[[nodiscard]] const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
 
+	bool saveFromData();
+	bool saveFromDataSilent();
 	[[nodiscard]] QString filepath(
 		FilePathResolve resolve = FilePathResolve::Cached) const;
 
@@ -296,6 +296,7 @@ private:
 	void destroyLoader() const;
 
 	[[nodiscard]] bool useStreamingLoader() const;
+	bool saveFromDataChecked();
 
 	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;

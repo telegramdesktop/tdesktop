@@ -337,10 +337,7 @@ void DocumentOpenClickHandler::Open(
 		} else {
 			Core::App().showDocument(data, context);
 		}
-	} else if (!location.isEmpty()
-		|| (data->loaded()
-			&& !data->filepath(
-				FilePathResolve::SaveFromDataSilent).isEmpty())) {
+	} else if (data->saveFromDataSilent()) {
 		openFile();
 	} else if (data->status == FileReady
 		|| data->status == FileDownloadFailed) {
@@ -364,14 +361,12 @@ void DocumentSaveClickHandler::Save(
 
 	auto savename = QString();
 	if (mode != Mode::ToCacheOrFile || !data->saveToCache()) {
-		const auto filepath = data->filepath(FilePathResolve::Checked);
-		if (mode != Mode::ToNewFile
-			&& (!filepath.isEmpty()
-				|| !data->filepath(
-					FilePathResolve::SaveFromData).isEmpty())) {
+		if (mode != Mode::ToNewFile && data->saveFromData()) {
 			return;
 		}
-		const auto fileinfo = QFileInfo(filepath);
+		const auto filepath = data->filepath(FilePathResolve::Checked);
+		const auto fileinfo = QFileInfo(
+			);
 		const auto filedir = filepath.isEmpty()
 			? QDir()
 			: fileinfo.dir();
@@ -420,18 +415,16 @@ void DocumentOpenWithClickHandler::Open(
 		return;
 	}
 
-	if (data->loaded()) {
-		const auto path = data->filepath(
-			FilePathResolve::SaveFromDataSilent);
-		if (!path.isEmpty()) {
-			File::OpenWith(path, QCursor::pos());
-			return;
-		}
+	data->saveFromDataSilent();
+	const auto path = data->filepath(FilePathResolve::Checked);
+	if (!path.isEmpty()) {
+		File::OpenWith(path, QCursor::pos());
+	} else {
+		DocumentSaveClickHandler::Save(
+			origin,
+			data,
+			DocumentSaveClickHandler::Mode::ToFile);
 	}
-	DocumentSaveClickHandler::Save(
-		origin,
-		data,
-		DocumentSaveClickHandler::Mode::ToFile);
 }
 
 void DocumentOpenWithClickHandler::onClickImpl() const {
@@ -1119,35 +1112,50 @@ void DocumentData::setLocation(const FileLocation &loc) {
 }
 
 QString DocumentData::filepath(FilePathResolve resolve) const {
-	bool check = (resolve != FilePathResolve::Cached);
-	QString result = (check && _location.name().isEmpty())
+	const auto check = (resolve != FilePathResolve::Cached);
+	return (check && _location.name().isEmpty())
 		? QString()
 		: location(check).name();
-	bool saveFromData = result.isEmpty() && !rawBytes().isEmpty();
-	if (saveFromData) {
-		if (resolve != FilePathResolve::SaveFromData
-			&& resolve != FilePathResolve::SaveFromDataSilent) {
-			saveFromData = false;
-		} else if (resolve == FilePathResolve::SaveFromDataSilent
-			&& Global::AskDownloadPath()) {
-			saveFromData = false;
-		}
+}
+
+bool DocumentData::saveFromData() {
+	if (!filepath(FilePathResolve::Checked).isEmpty()) {
+		return true;
 	}
-	if (saveFromData) {
-		QString filename = documentSaveFilename(this);
-		if (!filename.isEmpty()) {
-			QFile f(filename);
-			if (f.open(QIODevice::WriteOnly)) {
-				if (f.write(rawBytes()) == rawBytes().size()) {
-					f.close();
-					const_cast<DocumentData*>(this)->_location = FileLocation(filename);
-					Local::writeFileLocation(mediaKey(), _location);
-					result = filename;
-				}
-			}
-		}
+	return saveFromDataChecked();
+}
+
+bool DocumentData::saveFromDataSilent() {
+	if (!filepath(FilePathResolve::Checked).isEmpty()) {
+		return true;
+	} else if (Global::AskDownloadPath()) {
+		return false;
 	}
-	return result;
+	return saveFromDataChecked();
+}
+
+bool DocumentData::saveFromDataChecked() {
+	const auto media = activeMediaView();
+	if (!media) {
+		return false;
+	}
+	const auto bytes = media->bytes();
+	if (bytes.isEmpty()) {
+		return false;
+	}
+	const auto path = documentSaveFilename(this);
+	if (path.isEmpty()) {
+		return false;
+	}
+	auto file = QFile(path);
+	if (!file.open(QIODevice::WriteOnly)
+		|| file.write(bytes) != bytes.size()) {
+		return false;
+	}
+	file.close();
+	_location = FileLocation(path);
+	Local::writeFileLocation(mediaKey(), _location);
+	return true;
 }
 
 bool DocumentData::isStickerSetInstalled() const {
