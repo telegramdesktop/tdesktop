@@ -17,11 +17,11 @@ with open(filename) as f:
       continue
     if re.match(r'\"lng_[a-z_]+\#(zero|two|few|many)\".+', line):
       continue
-    result = result + line
+    result += line
 
 remove = 0
 while (len(result) > remove + 1) and (result[len(result) - remove - 1] == '\n') and (result[len(result) - remove - 2] == '\n'):
-  remove = remove + 1
+  remove += 1
 result = result[:len(result) - remove]
 
 with open('lang.strings', 'w') as out:
