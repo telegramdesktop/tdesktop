@@ -233,15 +233,17 @@ private:
 			bool removed,
 			int32 pixw,
 			int32 pixh);
+		~Row();
+
 		bool isRecentSet() const {
 			return (id == Stickers::CloudRecentSetId);
 		}
-		~Row();
 
 		uint64 id = 0;
 		uint64 accessHash = 0;
 		ImagePtr thumbnail;
 		DocumentData *sticker = nullptr;
+		std::shared_ptr<Data::DocumentMedia> stickerMedia;
 		int32 count = 0;
 		QString title;
 		int titleWidth = 0;

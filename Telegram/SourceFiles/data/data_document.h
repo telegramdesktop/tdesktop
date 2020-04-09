@@ -127,7 +127,7 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	[[nodiscard]] QByteArray data() const;
+	[[nodiscard]] QByteArray rawBytes() const;
 	[[nodiscard]] const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
 
@@ -163,9 +163,6 @@ public:
 	void recountIsImage();
 	[[nodiscard]] bool supportsStreaming() const;
 	void setNotSupportsStreaming();
-	void setData(const QByteArray &data) {
-		_data = data;
-	}
 	void setDataAndCache(const QByteArray &data);
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;

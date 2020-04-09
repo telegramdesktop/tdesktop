@@ -82,10 +82,15 @@ enum class FileType {
 } // namespace
 
 DocumentMedia::DocumentMedia(not_null<DocumentData*> owner)
-: _owner(owner) {
+: _owner(owner)
+, _bytes(owner->rawBytes()) {
 }
 
 DocumentMedia::~DocumentMedia() = default;
+
+not_null<DocumentData*> DocumentMedia::owner() const {
+	return _owner;
+}
 
 void DocumentMedia::goodThumbnailWanted() {
 	_flags |= Flag::GoodThumbnailWanted;
@@ -135,7 +140,7 @@ void DocumentMedia::checkStickerLarge() {
 	if (data->animated || !_owner->loaded()) {
 		return;
 	}
-	const auto bytes = _owner->data();
+	const auto bytes = _owner->rawBytes();
 	if (bytes.isEmpty()) {
 		const auto &loc = _owner->location(true);
 		if (loc.accessEnable()) {
@@ -153,6 +158,16 @@ void DocumentMedia::checkStickerLarge() {
 				format,
 				std::move(image)));
 	}
+}
+
+void DocumentMedia::setBytes(const QByteArray &bytes) {
+	if (!bytes.isEmpty()) {
+		_bytes = bytes;
+	}
+}
+
+QByteArray DocumentMedia::bytes() const {
+	return _bytes;
 }
 
 void DocumentMedia::checkStickerSmall() {
@@ -184,18 +199,18 @@ void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
 	if (_owner->sticker()
 		&& !_sticker
 		&& !loader->imageData().isNull()
-		&& !_owner->data().isEmpty()) {
+		&& !_owner->rawBytes().isEmpty()) {
 		_sticker = std::make_unique<Image>(
 			std::make_unique<Images::LocalFileSource>(
 				QString(),
-				_owner->data(),
+				_owner->rawBytes(),
 				loader->imageFormat(),
 				loader->imageData()));
 	}
 }
 
 void DocumentMedia::GenerateGoodThumbnail(not_null<DocumentData*> document) {
-	const auto data = document->data();
+	const auto data = document->rawBytes();
 	const auto type = document->isWallPaper()
 		? FileType::WallPaper
 		: document->isTheme()

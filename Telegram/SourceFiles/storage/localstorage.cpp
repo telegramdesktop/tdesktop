@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
+#include "data/data_document_media.h"
 #include "boxes/send_files_box.h"
 #include "base/flags.h"
 #include "base/platform/base_platform_file_utilities.h"
@@ -37,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
-#include "data/data_session.h"
 #include "history/history.h"
 #include "facades.h"
 
@@ -3358,11 +3359,11 @@ Storage::Cache::Database::Settings cacheBigFileSettings() {
 
 class CountWaveformTask : public Task {
 public:
-	CountWaveformTask(DocumentData *doc)
-		: _doc(doc)
-		, _loc(doc->location(true))
-		, _data(doc->data())
-		, _wavemax(0) {
+	CountWaveformTask(not_null<Data::DocumentMedia*> media)
+	: _doc(media->owner())
+	, _loc(_doc->location(true))
+	, _data(media->bytes())
+	, _wavemax(0) {
 		if (_data.isEmpty() && !_loc.accessEnable()) {
 			_doc = nullptr;
 		}
@@ -3399,7 +3400,7 @@ public:
 	}
 
 protected:
-	DocumentData *_doc;
+	DocumentData *_doc = nullptr;
 	FileLocation _loc;
 	QByteArray _data;
 	VoiceWaveform _waveform;
@@ -3407,13 +3408,14 @@ protected:
 
 };
 
-void countVoiceWaveform(DocumentData *document) {
+void countVoiceWaveform(not_null<Data::DocumentMedia*> media) {
+	const auto document = media->owner();
 	if (const auto voice = document->voice()) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting
 			TaskId taskId = _localLoader->addTask(
-				std::make_unique<CountWaveformTask>(document));
+				std::make_unique<CountWaveformTask>(media));
 			memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
 		}
 	}

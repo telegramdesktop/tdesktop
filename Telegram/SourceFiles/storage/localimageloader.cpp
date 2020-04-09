@@ -836,7 +836,7 @@ void FileLoadTask::process() {
 				&& (h > 0)
 				&& (w <= StickerMaxSize)
 				&& (h <= StickerMaxSize)
-				&& (filesize < Storage::kMaxStickerInMemory);
+				&& (filesize < Storage::kMaxStickerBytesSize);
 			if (isSticker) {
 				attributes.push_back(MTP_documentAttributeSticker(
 					MTP_flags(0),

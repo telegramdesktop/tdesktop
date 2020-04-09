@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stickers.h"
 
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "boxes/stickers_box.h"
@@ -1146,10 +1147,11 @@ auto LottieCachedFromContent(
 template <typename Method>
 auto LottieFromDocument(
 		Method &&method,
-		not_null<DocumentData*> document,
+		not_null<Data::DocumentMedia*> media,
 		uint8 keyShift,
 		QSize box) {
-	const auto data = document->data();
+	const auto document = media->owner();
+	const auto data = media->bytes();
 	const auto filepath = document->filepath();
 	if (box.width() * box.height() > kDontCacheLottieAfterArea) {
 		// Don't use frame caching for large stickers.
@@ -1172,13 +1174,13 @@ auto LottieFromDocument(
 }
 
 std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
-		not_null<DocumentData*> document,
+		not_null<Data::DocumentMedia*> media,
 		LottieSize sizeTag,
 		QSize box,
 		Lottie::Quality quality,
 		std::shared_ptr<Lottie::FrameRenderer> renderer) {
 	return LottiePlayerFromDocument(
-		document,
+		media,
 		nullptr,
 		sizeTag,
 		box,
@@ -1187,7 +1189,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 }
 
 std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
-		not_null<DocumentData*> document,
+		not_null<Data::DocumentMedia*> media,
 		const Lottie::ColorReplacements *replacements,
 		LottieSize sizeTag,
 		QSize box,
@@ -1202,18 +1204,18 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 	};
 	const auto tag = replacements ? replacements->tag : uint8(0);
 	const auto keyShift = ((tag << 4) & 0xF0) | (uint8(sizeTag) & 0x0F);
-	return LottieFromDocument(method, document, uint8(keyShift), box);
+	return LottieFromDocument(method, media, uint8(keyShift), box);
 }
 
 not_null<Lottie::Animation*> LottieAnimationFromDocument(
 		not_null<Lottie::MultiPlayer*> player,
-		not_null<DocumentData*> document,
+		not_null<Data::DocumentMedia*> media,
 		LottieSize sizeTag,
 		QSize box) {
 	const auto method = [&](auto &&...args) {
 		return player->append(std::forward<decltype(args)>(args)...);
 	};
-	return LottieFromDocument(method, document, uint8(sizeTag), box);
+	return LottieFromDocument(method, media, uint8(sizeTag), box);
 }
 
 bool HasLottieThumbnail(
@@ -1243,19 +1245,20 @@ bool HasLottieThumbnail(
 
 std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		ImagePtr thumbnail,
-		not_null<DocumentData*> sticker,
+		not_null<Data::DocumentMedia*> media,
 		LottieSize sizeTag,
 		QSize box,
 		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	const auto document = media->owner();
 	const auto baseKey = thumbnail
 		? thumbnail->location().file().bigFileBaseCacheKey()
-		: sticker->bigFileBaseCacheKey();
+		: document->bigFileBaseCacheKey();
 	if (!baseKey) {
 		return nullptr;
 	}
 	const auto content = (thumbnail
 		? thumbnail->bytesForCache()
-		: Lottie::ReadContent(sticker->data(), sticker->filepath()));
+		: Lottie::ReadContent(media->bytes(), document->filepath()));
 	if (content.isEmpty()) {
 		return nullptr;
 	}
@@ -1267,7 +1270,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		method,
 		*baseKey,
 		uint8(sizeTag),
-		&sticker->session(),
+		&document->session(),
 		content,
 		box);
 }

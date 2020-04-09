@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/popup_menu.h"
@@ -560,6 +561,7 @@ void CloudList::refreshColors(Element &element) {
 			&& (!document || !document->isTheme()))) {
 		element.check->setColors(ColorsFromCurrentTheme());
 	} else if (document) {
+		element.media = document ? document->createMediaView() : nullptr;
 		document->save(
 			Data::FileOriginTheme(theme.id, theme.accessHash),
 			QString());
@@ -639,7 +641,9 @@ void CloudList::refreshColorsFromDocument(
 		not_null<DocumentData*> document) {
 	const auto id = element.id();
 	const auto path = document->filepath();
-	const auto data = document->data();
+	const auto data = element.media
+		? base::take(element.media)->bytes()
+		: QByteArray();
 	crl::async([=, guard = element.generating.make_guard()]() mutable {
 		crl::on_main(std::move(guard), [
 			=,

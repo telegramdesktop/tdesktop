@@ -226,7 +226,7 @@ void MediaPreviewWidget::setupLottie() {
 	Expects(_document != nullptr);
 
 	_lottie = std::make_unique<Lottie::SinglePlayer>(
-		Lottie::ReadContent(_document->data(), _document->filepath()),
+		Lottie::ReadContent(_documentMedia->bytes(), _document->filepath()),
 		Lottie::FrameRequest{ currentDimensions() * cIntRetinaFactor() },
 		Lottie::Quality::High);
 
@@ -266,7 +266,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_document->loaded()) {
 				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = Media::Clip::MakeReader(_document, FullMsgId(), [=](Media::Clip::Notification notification) {
+					that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [=](Media::Clip::Notification notification) {
 						that->clipCallback(notification);
 					});
 					if (_gif) _gif->setAutoplay();

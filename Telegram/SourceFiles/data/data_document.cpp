@@ -587,7 +587,10 @@ void DocumentData::validateLottieSticker() {
 }
 
 void DocumentData::setDataAndCache(const QByteArray &data) {
-	setData(data);
+	_data = data;
+	if (const auto media = activeMediaView()) {
+		media->setBytes(data);
+	}
 	if (saveToCache() && data.size() <= Storage::kMaxFileInMemory) {
 		owner().cache().put(
 			cacheKey(),
@@ -734,11 +737,12 @@ auto DocumentData::bigFileBaseCacheKey() const
 }
 
 bool DocumentData::saveToCache() const {
-	return (type == StickerDocument && size < Storage::kMaxStickerInMemory)
-		|| (isAnimation() && size < Storage::kMaxAnimationInMemory)
-		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory)
-		|| (type == WallPaperDocument)
-		|| (isTheme() && size < Storage::kMaxFileInMemory);
+	return (size < Storage::kMaxFileInMemory)
+		&& ((type == StickerDocument)
+			|| isAnimation()
+			|| isVoiceMessage()
+			|| (type == WallPaperDocument)
+			|| isTheme());
 }
 
 void DocumentData::unload() {
@@ -814,6 +818,7 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 			that->setGoodThumbnailDataReady();
 
 			if (const auto media = activeMediaView()) {
+				media->setBytes(_loader->bytes());
 				media->checkStickerLarge(_loader.get());
 			}
 			destroyLoader();
@@ -824,7 +829,7 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 		}
 		_owner->notifyDocumentLayoutChanged(this);
 	}
-	return !data().isEmpty() || !filepath(resolve).isEmpty();
+	return !rawBytes().isEmpty() || !filepath(resolve).isEmpty();
 }
 
 void DocumentData::destroyLoader() const {
@@ -918,10 +923,10 @@ void DocumentData::save(
 	if (loaded(FilePathResolve::Checked)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
-			if (!_data.isEmpty()) {
+			if (!rawBytes().isEmpty()) {
 				QFile f(toFile);
 				f.open(QIODevice::WriteOnly);
-				f.write(_data);
+				f.write(rawBytes());
 				f.close();
 
 				setLocation(FileLocation(toFile));
@@ -1085,7 +1090,7 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	return result;
 }
 
-QByteArray DocumentData::data() const {
+QByteArray DocumentData::rawBytes() const {
 	if (!_data.isEmpty()) {
 		ActiveCache().up(const_cast<DocumentData*>(this));
 	}
@@ -1115,8 +1120,10 @@ void DocumentData::setLocation(const FileLocation &loc) {
 
 QString DocumentData::filepath(FilePathResolve resolve) const {
 	bool check = (resolve != FilePathResolve::Cached);
-	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
-	bool saveFromData = result.isEmpty() && !data().isEmpty();
+	QString result = (check && _location.name().isEmpty())
+		? QString()
+		: location(check).name();
+	bool saveFromData = result.isEmpty() && !rawBytes().isEmpty();
 	if (saveFromData) {
 		if (resolve != FilePathResolve::SaveFromData
 			&& resolve != FilePathResolve::SaveFromDataSilent) {
@@ -1131,7 +1138,7 @@ QString DocumentData::filepath(FilePathResolve resolve) const {
 		if (!filename.isEmpty()) {
 			QFile f(filename);
 			if (f.open(QIODevice::WriteOnly)) {
-				if (f.write(data()) == data().size()) {
+				if (f.write(rawBytes()) == rawBytes().size()) {
 					f.close();
 					const_cast<DocumentData*>(this)->_location = FileLocation(filename);
 					Local::writeFileLocation(mediaKey(), _location);
@@ -1263,8 +1270,8 @@ auto DocumentData::createStreamingLoader(
 	}
 	if (!forceRemoteLoader) {
 		const auto &location = this->location(true);
-		if (!data().isEmpty()) {
-			return Media::Streaming::MakeBytesLoader(data());
+		if (!rawBytes().isEmpty()) {
+			return Media::Streaming::MakeBytesLoader(rawBytes());
 		} else if (!location.isEmpty() && location.accessEnable()) {
 			auto result = Media::Streaming::MakeFileLoader(location.name());
 			location.accessDisable();
@@ -1545,6 +1552,9 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 	if (!local->_data.isEmpty()) {
 		ActiveCache().decrement(_data.size());
 		_data = local->_data;
+		if (const auto media = activeMediaView()) {
+			media->setBytes(local->_data);
+		}
 		ActiveCache().increment(_data.size());
 		if (!_data.isEmpty()) {
 			ActiveCache().up(this);
@@ -1642,7 +1652,7 @@ base::binary_guard ReadImageAsync(
 		FnMut<void(QImage&&)> done) {
 	auto result = base::binary_guard();
 	crl::async([
-		bytes = document->data(),
+		bytes = document->rawBytes(),
 		path = document->filepath(),
 		postprocess = std::move(postprocess),
 		guard = result.make_guard(),
@@ -1671,31 +1681,5 @@ base::binary_guard ReadImageAsync(
 	});
 	return result;
 }
-
-//void HandleUnsupportedMedia(
-//		not_null<DocumentData*> document,
-//		FullMsgId contextId) {
-//	using Error = ::Media::Streaming::Error;
-//
-//	document->setInappPlaybackFailed();
-//	const auto filepath = document->filepath(
-//		DocumentData::FilePathResolve::SaveFromData);
-//	if (filepath.isEmpty()) {
-//		const auto save = [=] {
-//			Ui::hideLayer();
-//			DocumentSaveClickHandler::Save(
-//				(contextId ? contextId : Data::FileOrigin()),
-//				document,
-//				document->owner().message(contextId));
-//		};
-//		Ui::show(Box<ConfirmBox>(
-//			tr::lng_player_cant_stream(tr::now),
-//			tr::lng_player_download(tr::now),
-//			tr::lng_cancel(tr::now),
-//			save));
-//	} else if (IsValidMediaFile(filepath)) {
-//		File::Launch(filepath);
-//	}
-//}
 
 } // namespace Data

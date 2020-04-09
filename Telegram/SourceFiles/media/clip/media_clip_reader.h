@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class FileLocation;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Media {
 namespace Clip {
 
@@ -56,8 +60,8 @@ public:
 		Video,
 	};
 
+	Reader(not_null<Data::DocumentMedia*> media, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
-	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 
 	// Reader can be already deleted.

@@ -761,7 +761,6 @@ void Mixer::play(
 
 	auto type = audio.type();
 	AudioMsgId stopped;
-	auto notLoadedYet = false;
 	{
 		QMutexLocker lock(&AudioMutex);
 		Audio::AttachToDevice();
@@ -799,42 +798,18 @@ void Mixer::play(
 		current->state.id = audio;
 		current->lastUpdateWhen = 0;
 		current->lastUpdatePosition = 0;
-		if (externalData) {
-			current->setExternalData(std::move(externalData));
-		} else {
-			current->setExternalData(nullptr);
-			current->file = audio.audio()->location(true);
-			current->data = audio.audio()->data();
-			notLoadedYet = (current->file.isEmpty() && current->data.isEmpty());
-		}
-		if (notLoadedYet) {
-			auto newState = (type == AudioMsgId::Type::Song)
-				? State::Stopped
-				: State::StoppedAtError;
-			setStoppedState(current, newState);
-		} else {
-			current->state.position = (positionMs * current->state.frequency)
-				/ 1000LL;
-			current->state.state = current->externalData
-				? State::Paused
-				: fadedStart
-				? State::Starting
-				: State::Playing;
-			current->loading = true;
-			emit loaderOnStart(current->state.id, positionMs);
-			if (type == AudioMsgId::Type::Voice) {
-				emit suppressSong();
-			}
-		}
-	}
-	if (notLoadedYet) {
-		if (type == AudioMsgId::Type::Song || type == AudioMsgId::Type::Video) {
-			DocumentOpenClickHandler::Open(
-				audio.contextId(),
-				audio.audio(),
-				Auth().data().message(audio.contextId()));
-		} else {
-			onError(audio);
+		current->setExternalData(std::move(externalData));
+		current->state.position = (positionMs * current->state.frequency)
+			/ 1000LL;
+		current->state.state = current->externalData
+			? State::Paused
+			: fadedStart
+			? State::Starting
+			: State::Playing;
+		current->loading = true;
+		emit loaderOnStart(current->state.id, positionMs);
+		if (type == AudioMsgId::Type::Voice) {
+			emit suppressSong();
 		}
 	}
 	if (stopped) {

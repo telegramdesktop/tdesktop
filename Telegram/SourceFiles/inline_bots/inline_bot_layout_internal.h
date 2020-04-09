@@ -193,7 +193,7 @@ public:
 
 private:
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
-	void setupLottie(not_null<DocumentData*> document) const;
+	void setupLottie() const;
 	QSize getThumbSize() const;
 	void prepareThumbnail() const;
 

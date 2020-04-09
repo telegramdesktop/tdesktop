@@ -23,6 +23,7 @@ class SessionController;
 
 namespace Data {
 class Media;
+class DocumentMedia;
 } // namespace Data
 
 namespace Ui {
@@ -94,6 +95,7 @@ private:
 	bool _doc = false;
 
 	QPixmap _thumb;
+	std::shared_ptr<Data::DocumentMedia> _gifMedia;
 	Media::Clip::ReaderPointer _gifPreview;
 
 	object_ptr<Ui::InputField> _field = { nullptr };

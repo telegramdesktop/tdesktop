@@ -1220,8 +1220,9 @@ void OverlayWidget::notifyFileDialogShown(bool shown) {
 void OverlayWidget::onSaveAs() {
 	QString file;
 	if (_doc) {
-		const FileLocation &location(_doc->location(true));
-		if (!_doc->data().isEmpty() || location.accessEnable()) {
+		const auto &location = _doc->location(true);
+		const auto bytes = _docMedia->bytes();
+		if (!bytes.isEmpty() || location.accessEnable()) {
 			QFileInfo alreadyInfo(location.name());
 			QDir alreadyDir(alreadyInfo.dir());
 			QString name = alreadyInfo.fileName(), filter;
@@ -1240,17 +1241,19 @@ void OverlayWidget::onSaveAs() {
 
 			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
 			if (!file.isEmpty() && file != location.name()) {
-				if (_doc->data().isEmpty()) {
+				if (bytes.isEmpty()) {
 					QFile(file).remove();
 					QFile(location.name()).copy(file);
 				} else {
 					QFile f(file);
 					f.open(QIODevice::WriteOnly);
-					f.write(_doc->data());
+					f.write(bytes);
 				}
 			}
 
-			if (_doc->data().isEmpty()) location.accessDisable();
+			if (bytes.isEmpty()) {
+				location.accessDisable();
+			}
 		} else {
 			DocumentSaveClickHandler::Save(
 				fileOrigin(),
@@ -2330,7 +2333,7 @@ void OverlayWidget::initThemePreview() {
 
 	Assert(_doc && _doc->isTheme());
 
-	const auto bytes = _doc->data();
+	const auto bytes = _docMedia->bytes();
 	auto &location = _doc->location();
 	if (bytes.isEmpty()
 		&& (location.isEmpty() || !location.accessEnable())) {

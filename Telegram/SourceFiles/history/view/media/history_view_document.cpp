@@ -386,6 +386,8 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 
 	auto voiceStatusOverride = QString();
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		ensureDataMediaCreated();
+
 		const VoiceWaveform *wf = nullptr;
 		uchar norm_value = 0;
 		if (const auto voiceData = _data->voice()) {
@@ -393,7 +395,7 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 			if (wf->isEmpty()) {
 				wf = nullptr;
 				if (loaded) {
-					Local::countVoiceWaveform(_data);
+					Local::countVoiceWaveform(_dataMedia.get());
 				}
 			} else if (wf->at(0) < 0) {
 				wf = nullptr;

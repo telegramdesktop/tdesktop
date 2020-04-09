@@ -88,6 +88,7 @@ private:
 		Data::CloudTheme theme;
 		not_null<CloudListCheck*> check;
 		std::unique_ptr<Ui::Radiobutton> button;
+		std::shared_ptr<Data::DocumentMedia> media;
 		base::binary_guard generating;
 		bool waiting = false;
 

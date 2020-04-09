@@ -18,6 +18,8 @@ public:
 	explicit DocumentMedia(not_null<DocumentData*> owner);
 	~DocumentMedia();
 
+	[[nodiscard]] not_null<DocumentData*> owner() const;
+
 	void goodThumbnailWanted();
 	[[nodiscard]] Image *goodThumbnail() const;
 	void setGoodThumbnail(QImage thumbnail);
@@ -29,6 +31,9 @@ public:
 	[[nodiscard]] Image *getStickerSmall();
 	[[nodiscard]] Image *getStickerLarge();
 	void checkStickerLarge(not_null<FileLoader*> loader);
+
+	void setBytes(const QByteArray &bytes);
+	[[nodiscard]] QByteArray bytes() const;
 
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
@@ -47,6 +52,7 @@ private:
 	std::unique_ptr<Image> _goodThumbnail;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
 	std::unique_ptr<Image> _sticker;
+	QByteArray _bytes;
 	Flags _flags;
 
 };

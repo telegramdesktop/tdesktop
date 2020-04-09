@@ -315,9 +315,10 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 	const auto callback = [=](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	};
+	_gifMedia = document ? document->createMediaView() : nullptr;
 	if (document && document->isAnimation() && document->loaded()) {
 		_gifPreview = Media::Clip::MakeReader(
-			document,
+			_gifMedia.get(),
 			_msgId,
 			callback);
 	} else if (!isListEmpty) {

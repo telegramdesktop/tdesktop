@@ -1008,7 +1008,7 @@ auto FieldAutocompleteInner::getLottieRenderer()
 void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	const auto document = suggestion.document;
 	suggestion.animated = Stickers::LottiePlayerFromDocument(
-		document,
+		suggestion.documentMedia.get(),
 		Stickers::LottieSize::InlineResults,
 		stickerBoundingBox() * cIntRetinaFactor(),
 		Lottie::Quality::Default,

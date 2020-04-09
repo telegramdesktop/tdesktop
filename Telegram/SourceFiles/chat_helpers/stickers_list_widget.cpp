@@ -67,6 +67,7 @@ struct StickerIcon {
 	: setId(setId)
 	, thumbnail(thumbnail)
 	, sticker(sticker)
+	, stickerMedia(sticker ? sticker->createMediaView() : nullptr)
 	, pixw(pixw)
 	, pixh(pixh) {
 	}
@@ -74,6 +75,7 @@ struct StickerIcon {
 	ImagePtr thumbnail;
 	mutable Lottie::SinglePlayer *lottie = nullptr;
 	DocumentData *sticker = nullptr;
+	std::shared_ptr<Data::DocumentMedia> stickerMedia;
 	ChannelData *megagroup = nullptr;
 	int pixw = 0;
 	int pixh = 0;
@@ -704,7 +706,7 @@ void StickersListWidget::Footer::validateIconLottieAnimation(
 	}
 	auto player = Stickers::LottieThumbnail(
 		icon.thumbnail,
-		icon.sticker,
+		icon.stickerMedia.get(),
 		Stickers::LottieSize::StickersFooter,
 		QSize(
 			st::stickerIconWidth - 2 * st::stickerIconPadding,
@@ -1692,7 +1694,7 @@ void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	ensureLottiePlayer(set);
 	sticker.animated = Stickers::LottieAnimationFromDocument(
 		set.lottiePlayer,
-		document,
+		sticker.documentMedia.get(),
 		Stickers::LottieSize::StickersPanel,
 		boundingBoxSize() * cIntRetinaFactor());
 	_lottieData[set.id].items.emplace(

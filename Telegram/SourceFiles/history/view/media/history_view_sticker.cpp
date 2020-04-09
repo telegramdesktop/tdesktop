@@ -271,8 +271,10 @@ void Sticker::setDiceIndex(const QString &emoji, int index) {
 }
 
 void Sticker::setupLottie() {
+	Expects(_dataMedia != nullptr);
+
 	_lottie = Stickers::LottiePlayerFromDocument(
-		_data,
+		_dataMedia.get(),
 		_replacements,
 		Stickers::LottieSize::MessageHistory,
 		_size * cIntRetinaFactor(),

@@ -11,22 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 
 enum class ImageRoundRadius;
-class MainWindow;
-class MainWidget;
-class HistoryItem;
-class History;
+
 namespace HistoryView {
 class Element;
 } // namespace HistoryView
-
-namespace Media {
-namespace Clip {
-class Reader;
-} // namespace Clip
-} // namespace Media
-
-using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
-using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
 enum RoundCorners : int {
 	SmallMaskCorners = 0x00, // for images

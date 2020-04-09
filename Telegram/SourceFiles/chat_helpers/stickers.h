@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -136,13 +140,13 @@ enum class LottieSize : uchar {
 };
 
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
-	not_null<DocumentData*> document,
+	not_null<Data::DocumentMedia*> media,
 	LottieSize sizeTag,
 	QSize box,
 	Lottie::Quality quality = Lottie::Quality(),
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
-	not_null<DocumentData*> document,
+	not_null<Data::DocumentMedia*> media,
 	const Lottie::ColorReplacements *replacements,
 	LottieSize sizeTag,
 	QSize box,
@@ -150,7 +154,7 @@ enum class LottieSize : uchar {
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 [[nodiscard]] not_null<Lottie::Animation*> LottieAnimationFromDocument(
 	not_null<Lottie::MultiPlayer*> player,
-	not_null<DocumentData*> document,
+	not_null<Data::DocumentMedia*> media,
 	LottieSize sizeTag,
 	QSize box);
 
@@ -159,7 +163,7 @@ enum class LottieSize : uchar {
 	not_null<DocumentData*> sticker);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 	ImagePtr thumbnail,
-	not_null<DocumentData*> sticker,
+	not_null<Data::DocumentMedia*> media,
 	LottieSize sizeTag,
 	QSize box,
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);

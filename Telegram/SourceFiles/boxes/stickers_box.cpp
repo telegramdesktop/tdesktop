@@ -642,6 +642,7 @@ StickersBox::Inner::Row::Row(
 , accessHash(accessHash)
 , thumbnail(thumbnail)
 , sticker(sticker)
+, stickerMedia(sticker ? sticker->createMediaView() : nullptr)
 , count(count)
 , title(title)
 , titleWidth(titleWidth)
@@ -947,7 +948,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> set) {
 	}
 	auto player = Stickers::LottieThumbnail(
 		set->thumbnail,
-		set->sticker,
+		set->stickerMedia.get(),
 		Stickers::LottieSize::SetsListThumbnail,
 		QSize(
 			st::contactsPhotoSize,
@@ -1645,6 +1646,7 @@ void StickersBox::Inner::updateRows() {
 				}
 				row->thumbnail = thumbnail;
 				row->sticker = sticker;
+				row->stickerMedia = sticker->createMediaView();
 				row->pixw = pixw;
 				row->pixh = pixh;
 			}

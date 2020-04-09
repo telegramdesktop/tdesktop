@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "storage/file_download.h"
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
@@ -91,15 +92,20 @@ Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, crl::tim
 	init(FileLocation(filepath), QByteArray());
 }
 
-Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, crl::time seekMs)
+Reader::Reader(
+	not_null<Data::DocumentMedia*> media,
+	FullMsgId msgId,
+	Callback &&callback,
+	Mode mode,
+	crl::time seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _audioMsgId(
-	document,
+	media->owner(),
 	msgId,
 	(mode == Mode::Video) ? AudioMsgId::CreateExternalPlayId() : 0)
 , _seekPositionMs(seekMs) {
-	init(document->location(), document->data());
+	init(media->owner()->location(), media->bytes());
 }
 
 Reader::Reader(const QByteArray &data, Callback &&callback, Mode mode, crl::time seekMs)

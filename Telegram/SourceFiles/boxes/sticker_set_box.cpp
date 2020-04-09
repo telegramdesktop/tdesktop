@@ -604,7 +604,7 @@ void StickerSetBox::Inner::setupLottie(int index) {
 
 	element.animated = Stickers::LottieAnimationFromDocument(
 		getLottiePlayer(),
-		document,
+		element.documentMedia.get(),
 		Stickers::LottieSize::StickerSet,
 		boundingBoxSize() * cIntRetinaFactor());
 }

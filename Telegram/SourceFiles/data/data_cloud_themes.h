@@ -17,6 +17,8 @@ class Session;
 
 namespace Data {
 
+class DocumentMedia;
+
 struct CloudTheme {
 	uint64 id = 0;
 	uint64 accessHash = 0;
@@ -54,8 +56,9 @@ private:
 	struct LoadingDocument {
 		CloudTheme theme;
 		DocumentData *document = nullptr;
+		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		rpl::lifetime subscription;
-		Fn<void()> callback;
+		Fn<void(std::shared_ptr<Data::DocumentMedia>)> callback;
 	};
 
 	void parseThemes(const QVector<MTPTheme> &list);
@@ -71,7 +74,7 @@ private:
 		LoadingDocument &value,
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document,
-		Fn<void()> callback);
+		Fn<void(std::shared_ptr<Data::DocumentMedia>)> callback);
 	void invokeForLoaded(LoadingDocument &value);
 
 	const not_null<Main::Session*> _session;

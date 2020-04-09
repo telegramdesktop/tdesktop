@@ -146,6 +146,9 @@ int Gif::resizeGetHeight(int width) {
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
+	if (document) {
+		ensureDataMediaCreated(document);
+	}
 	document->automaticLoad(fileOrigin(), nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
@@ -154,7 +157,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		&& !_gif.isBad()
 		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
-		that->_gif = Media::Clip::MakeReader(document, FullMsgId(), [that](Media::Clip::Notification notification) {
+		that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
 		});
 		if (_gif) _gif->setAutoplay();
@@ -508,9 +511,11 @@ QSize Sticker::getThumbSize() const {
 	return QSize(qMax(w, 1), qMax(h, 1));
 }
 
-void Sticker::setupLottie(not_null<DocumentData*> document) const {
+void Sticker::setupLottie() const {
+	Expects(_dataMedia != nullptr);
+
 	_lottie = Stickers::LottiePlayerFromDocument(
-		document,
+		_dataMedia.get(),
 		Stickers::LottieSize::InlineResults,
 		QSize(
 			st::stickerPanSize.width() - st::buttonRadius * 2,
@@ -530,7 +535,7 @@ void Sticker::prepareThumbnail() const {
 			&& document->sticker()
 			&& document->sticker()->animated
 			&& document->loaded()) {
-			setupLottie(document);
+			setupLottie();
 		}
 		_dataMedia->checkStickerSmall();
 		if (const auto sticker = _dataMedia->getStickerSmall()) {
@@ -1318,7 +1323,10 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	// Gif thumb
 	auto thumbDisplayed = false, radial = false;
-	auto document = getResultDocument();
+	const auto document = getResultDocument();
+	if (document) {
+		ensureDataMediaCreated(document);
+	}
 	auto animatedThumb = document && document->isAnimation();
 	if (animatedThumb) {
 		document->automaticLoad(fileOrigin(), nullptr);
@@ -1326,7 +1334,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = Media::Clip::MakeReader(document, FullMsgId(), [that](Media::Clip::Notification notification) {
+			that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
 				that->clipCallback(notification);
 			});
 			if (_gif) _gif->setAutoplay();
@@ -1403,7 +1411,7 @@ void Game::prepareThumbnail(QSize size) const {
 		validateThumbnail(photo->thumbnail(), size, true);
 		validateThumbnail(photo->thumbnailInline(), size, false);
 	} else if (const auto document = getResultDocument()) {
-		ensureDataMediaCreated(document);
+		Assert(_dataMedia != nullptr);
 		validateThumbnail(document->thumbnail(), size, true);
 		validateThumbnail(_dataMedia->thumbnailInline(), size, false);
 	}
