@@ -358,8 +358,6 @@ PRIVATE
     data/data_countries.h
     data/data_document.cpp
     data/data_document.h
-    data/data_document_good_thumbnail.cpp
-    data/data_document_good_thumbnail.h
     data/data_document_media.cpp
     data/data_document_media.h
     data/data_drafts.cpp

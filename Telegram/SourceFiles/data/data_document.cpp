@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_streaming.h"
-#include "data/data_document_good_thumbnail.h"
 #include "data/data_document_media.h"
 #include "data/data_reply_preview.h"
 #include "lang/lang_keys.h"
