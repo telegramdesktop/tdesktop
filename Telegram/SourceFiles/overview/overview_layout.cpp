@@ -443,7 +443,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto goodLoaded = _dataMedia->goodThumbnail()
 		&& _dataMedia->goodThumbnail()->loaded();
 
-	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
+	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
 		ensureRadial();
 		if (!_radial->animating()) {
@@ -560,7 +560,7 @@ bool Video::dataFinished() const {
 }
 
 bool Video::dataLoaded() const {
-	return _data->loaded();
+	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
 }
 
 bool Video::iconAnimated() const {
@@ -573,7 +573,7 @@ TextState Video::getState(
 	if (hasPoint(point)) {
 		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
-			: (_data->loaded() || _data->canBePlayed())
+			: (dataLoaded() || _data->canBePlayed())
 			? _openl
 			: _savel;
 		return { parent(), link };
@@ -588,7 +588,7 @@ void Video::updateStatusText() {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
-	} else if (_data->loaded()) {
+	} else if (dataLoaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -642,7 +642,7 @@ void Voice::initDimensions() {
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
-	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
+	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -776,7 +776,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 TextState Voice::getState(
 		QPoint point,
 		StateRequest request) const {
-	const auto loaded = _data->loaded();
+	const auto loaded = dataLoaded();
 
 	const auto nameleft = _st.songPadding.left()
 		+ _st.songThumbSize
@@ -847,7 +847,7 @@ bool Voice::dataFinished() const {
 }
 
 bool Voice::dataLoaded() const {
-	return _data->loaded();
+	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
 }
 
 bool Voice::iconAnimated() const {
@@ -882,7 +882,7 @@ bool Voice::updateStatusText() {
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (_data->loaded()) {
+	} else if (dataLoaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -964,7 +964,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	const auto cornerDownload = downloadInCorner();
 
 	_data->automaticLoad(parent()->fullId(), parent());
-	const auto loaded = _data->loaded();
+	const auto loaded = dataLoaded();
 	const auto displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
@@ -1131,7 +1131,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 }
 
 void Document::drawCornerDownload(Painter &p, bool selected, const PaintContext *context) const {
-	if (_data->loaded()
+	if (dataLoaded()
 		|| _data->loadedInMediaCache()
 		|| !downloadInCorner()) {
 		return;
@@ -1170,7 +1170,7 @@ TextState Document::cornerDownloadTextState(
 		StateRequest request) const {
 	auto result = TextState(parent());
 	if (!downloadInCorner()
-		|| _data->loaded()
+		|| dataLoaded()
 		|| _data->loadedInMediaCache()) {
 		return result;
 	}
@@ -1187,7 +1187,7 @@ TextState Document::cornerDownloadTextState(
 TextState Document::getState(
 		QPoint point,
 		StateRequest request) const {
-	const auto loaded = _data->loaded();
+	const auto loaded = dataLoaded();
 	const auto wthumb = withThumb();
 
 	if (_data->isSong()) {
@@ -1308,12 +1308,12 @@ bool Document::dataFinished() const {
 }
 
 bool Document::dataLoaded() const {
-	return _data->loaded();
+	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
 }
 
 bool Document::iconAnimated() const {
 	return _data->isSong()
-		|| !_data->loaded()
+		|| !dataLoaded()
 		|| (_radial && _radial->animating());
 }
 
@@ -1328,13 +1328,14 @@ bool Document::withThumb() const {
 bool Document::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
-	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
+	if (_data->status == FileDownloadFailed
+		|| _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (_data->loaded()) {
+	} else if (dataLoaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;

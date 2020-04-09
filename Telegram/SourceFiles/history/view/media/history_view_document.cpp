@@ -93,7 +93,7 @@ bool Document::dataFinished() const {
 }
 
 bool Document::dataLoaded() const {
-	return _data->loaded();
+	return _dataMedia ? _dataMedia->loaded() : _data->loaded();
 }
 
 void Document::createComponents(bool caption) {

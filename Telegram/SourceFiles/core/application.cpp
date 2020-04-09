@@ -300,7 +300,7 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 
 	if (cUseExternalVideoPlayer()
 		&& document->isVideoFile()
-		&& document->loaded()) {
+		&& !document->filepath().isEmpty()) {
 		File::Launch(document->location(false).fname);
 	} else {
 		_mediaView->showDocument(document, item);

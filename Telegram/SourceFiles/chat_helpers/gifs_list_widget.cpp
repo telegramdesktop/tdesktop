@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
@@ -377,7 +378,8 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 			photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
-		if (document->loaded()
+		const auto media = document->activeMediaView();
+		if ((media && media->loaded())
 			|| QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
 			_fileChosen.fire_copy(document);
 		} else if (document->loading()) {

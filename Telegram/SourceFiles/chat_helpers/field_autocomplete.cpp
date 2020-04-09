@@ -643,7 +643,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 				if (document->sticker()->animated
 					&& !sticker.animated
-					&& document->loaded()) {
+					&& media->loaded()) {
 					setupLottie(sticker);
 				}
 

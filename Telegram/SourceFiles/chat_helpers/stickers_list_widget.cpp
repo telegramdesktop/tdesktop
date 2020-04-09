@@ -987,7 +987,7 @@ void StickersListWidget::readVisibleFeatured(
 		for (int j = 0; j < count; ++j) {
 			if (!set.stickers[j].document->hasThumbnail()
 				|| set.stickers[j].document->thumbnail()->loaded()
-				|| set.stickers[j].document->loaded()) {
+				|| set.stickers[j].documentMedia->loaded()) {
 				++loaded;
 			}
 		}
@@ -1718,7 +1718,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 
 	if (document->sticker()->animated
 		&& !sticker.animated
-		&& document->loaded()) {
+		&& media->loaded()) {
 		setupLottie(set, section, index);
 	}
 

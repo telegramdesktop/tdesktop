@@ -34,6 +34,7 @@ public:
 
 	void setBytes(const QByteArray &bytes);
 	[[nodiscard]] QByteArray bytes() const;
+	[[nodiscard]] bool loaded(bool check = false) const;
 
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);

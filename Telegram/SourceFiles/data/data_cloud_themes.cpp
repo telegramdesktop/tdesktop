@@ -217,15 +217,15 @@ void CloudThemes::loadDocumentAndInvoke(
 		Data::FileOriginTheme(cloud.id, cloud.accessHash),
 		QString());
 	value.callback = std::move(callback);
-	if (document->loaded()) {
+	if (value.documentMedia->loaded()) {
 		invokeForLoaded(value);
 		return;
 	}
 	if (!alreadyWaiting) {
 		base::ObservableViewer(
 			_session->downloaderTaskFinished()
-		) | rpl::filter([=] {
-			return document->loaded();
+		) | rpl::filter([=, &value] {
+			return value.documentMedia->loaded();
 		}) | rpl::start_with_next([=, &value] {
 			invokeForLoaded(value);
 		}, value.subscription);

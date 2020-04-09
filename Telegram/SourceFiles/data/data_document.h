@@ -100,12 +100,7 @@ public:
 		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
-	enum class FilePathResolve {
-		Cached,
-		Checked,
-	};
-	[[nodiscard]] bool loaded(
-		FilePathResolve resolve = FilePathResolve::Cached) const;
+	[[nodiscard]] bool loaded(bool check = false) const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
@@ -131,8 +126,7 @@ public:
 
 	bool saveFromData();
 	bool saveFromDataSilent();
-	[[nodiscard]] QString filepath(
-		FilePathResolve resolve = FilePathResolve::Cached) const;
+	[[nodiscard]] QString filepath(bool check = false) const;
 
 	[[nodiscard]] bool saveToCache() const;
 

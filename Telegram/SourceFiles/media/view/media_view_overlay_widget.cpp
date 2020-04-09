@@ -535,7 +535,7 @@ void OverlayWidget::documentUpdated(DocumentData *doc) {
 				update(_docRect);
 			}
 		} else if (_streamed) {
-			const auto ready = _doc->loaded()
+			const auto ready = _docMedia->loaded()
 				? _doc->size
 				: _doc->loading()
 				? std::clamp(_doc->loadOffset(), 0, _doc->size)
@@ -609,7 +609,7 @@ void OverlayWidget::updateControls() {
 			_docCancel->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 			_docCancel->show();
 		} else {
-			if (_doc->loaded(DocumentData::FilePathResolve::Checked)) {
+			if (_docMedia->loaded(true)) {
 				_docDownload->hide();
 				_docSaveAs->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 				_docSaveAs->show();
@@ -634,7 +634,7 @@ void OverlayWidget::updateControls() {
 
 	_saveVisible = (_photo && _photo->loaded())
 		|| (_doc
-			&& _doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
+			&& _doc->filepath(true).isEmpty()
 			&& !_doc->loading());
 	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 3, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
@@ -739,7 +739,7 @@ void OverlayWidget::updateActions() {
 	if (IsServerMsgId(_msgid.msg)) {
 		_actions.push_back({ tr::lng_context_to_msg(tr::now), SLOT(onToMessage()) });
 	}
-	if (_doc && !_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
+	if (_doc && !_doc->filepath(true).isEmpty()) {
 		_actions.push_back({ Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), SLOT(onShowInFolder()) });
 	}
 	if ((_doc && documentContentShown()) || (_photo && _photo->loaded())) {
@@ -982,7 +982,7 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 		&& (!anim::Disabled() || updated)) {
 		update(radialRect());
 	}
-	const auto ready = _doc && _doc->loaded();
+	const auto ready = _doc && _docMedia->loaded();
 	const auto streamVideo = ready && _doc->canBePlayed();
 	const auto tryOpenImage = ready && (_doc->size < App::kImageSizeLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
@@ -1335,7 +1335,7 @@ void OverlayWidget::onDownload() {
 			}
 			location.accessDisable();
 		} else {
-			if (_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
+			if (_doc->filepath(true).isEmpty()
 				&& !_doc->loading()) {
 				DocumentSaveClickHandler::Save(
 					fileOrigin(),
@@ -1380,7 +1380,7 @@ void OverlayWidget::onSaveCancel() {
 void OverlayWidget::onShowInFolder() {
 	if (!_doc) return;
 
-	auto filepath = _doc->filepath(DocumentData::FilePathResolve::Checked);
+	auto filepath = _doc->filepath(true);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 		close();
@@ -2816,7 +2816,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				const auto radialOpacity = radial ? _radial.opacity() : 0.;
 				if (!_doc || !_doc->hasThumbnail()) {
 					p.fillRect(_docIconRect, _docIconColor);
-					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
+					if ((!_doc || _docMedia->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
 						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
 						p.setPen(st::mediaviewFileExtFg);
 						p.setFont(st::mediaviewFileExtFont);
@@ -3058,7 +3058,7 @@ void OverlayWidget::paintRadialLoading(
 		if (!_streamed->instance.waitingShown()) {
 			return;
 		}
-	} else if (!radial && (!_doc || _doc->loaded())) {
+	} else if (!radial && (!_doc || _docMedia->loaded())) {
 		return;
 	}
 
@@ -3125,7 +3125,7 @@ void OverlayWidget::paintRadialLoadingContent(
 	} else {
 		const auto o = overLevel(OverIcon);
 		paintBg(
-			_doc->loaded() ? radialOpacity : 1.,
+			_docMedia->loaded() ? radialOpacity : 1.,
 			anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, o));
 
 		const auto icon = [&]() -> const style::icon * {
@@ -3237,7 +3237,7 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_streamed) {
 			playbackPauseResume();
-		} else if (_doc && !_doc->loading() && (documentBubbleShown() || !_doc->loaded())) {
+		} else if (_doc && !_doc->loading() && (documentBubbleShown() || !_docMedia->loaded())) {
 			onDocClick();
 		}
 	} else if (e->key() == Qt::Key_Left) {
@@ -3698,7 +3698,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 	} else if (documentContentShown() && contentRect().contains(pos)) {
 		if ((_doc->isVideoFile() || _doc->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
-		} else if (!_streamed && !_doc->loaded()) {
+		} else if (!_streamed && !_docMedia->loaded()) {
 			updateOverState(OverIcon);
 		} else if (_over != OverNone) {
 			updateOverState(OverNone);

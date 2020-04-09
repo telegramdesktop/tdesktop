@@ -244,7 +244,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	if (_document) {
 		if (const auto sticker = _document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				if (sticker->animated && !_lottie && _document->loaded()) {
+				if (sticker->animated && !_lottie && _documentMedia->loaded()) {
 					const_cast<MediaPreviewWidget*>(this)->setupLottie();
 				}
 				if (_lottie && _lottie->ready()) {
@@ -263,7 +263,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			}
 		} else {
 			_document->automaticLoad(_origin, nullptr);
-			if (_document->loaded()) {
+			if (_documentMedia->loaded()) {
 				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);
 					that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [=](Media::Clip::Notification notification) {

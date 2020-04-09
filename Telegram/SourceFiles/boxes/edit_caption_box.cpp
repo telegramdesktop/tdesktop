@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -157,6 +158,9 @@ EditCaptionBox::EditCaptionBox(
 					maxW,
 					maxH);
 			};
+			if (doc) {
+				_gifMedia = doc->createMediaView();
+			}
 			prepareGifPreview(doc);
 		} else {
 			maxW = dimensions.width();
@@ -248,8 +252,13 @@ EditCaptionBox::EditCaptionBox(
 			_refreshThumbnail();
 			update();
 		}
-		if (doc && doc->isAnimation() && doc->loaded() && !_gifPreview) {
-			prepareGifPreview(doc);
+		if (doc && doc->isAnimation()) {
+			if (!_gifMedia) {
+				_gifMedia = doc->createMediaView();
+			}
+			if (_gifMedia->loaded() && !_gifPreview) {
+				prepareGifPreview(doc);
+			}
 		}
 	});
 
@@ -306,6 +315,8 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData* document) {
+	Expects(!document || (_gifMedia != nullptr));
+
 	const auto isListEmpty = _preparedList.files.empty();
 	if (_gifPreview) {
 		return;
@@ -315,8 +326,7 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 	const auto callback = [=](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	};
-	_gifMedia = document ? document->createMediaView() : nullptr;
-	if (document && document->isAnimation() && document->loaded()) {
+	if (document && document->isAnimation() && _gifMedia->loaded()) {
 		_gifPreview = Media::Clip::MakeReader(
 			_gifMedia.get(),
 			_msgId,

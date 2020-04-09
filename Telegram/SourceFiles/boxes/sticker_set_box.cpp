@@ -628,7 +628,7 @@ void StickerSetBox::Inner::paintSticker(
 
 	if (document->sticker()->animated
 		&& !element.animated
-		&& document->loaded()) {
+		&& media->loaded()) {
 		const_cast<Inner*>(this)->setupLottie(index);
 	}
 

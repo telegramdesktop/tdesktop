@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -1913,7 +1914,7 @@ void StickersBox::Inner::readVisibleSets() {
 			: _rows[i]->sticker->thumbnail();
 		if (!thumbnail
 			|| thumbnail->loaded()
-			|| _rows[i]->sticker->loaded()) {
+			|| _rows[i]->stickerMedia->loaded()) {
 			_session->api().readFeaturedSetDelayed(_rows[i]->id);
 		}
 	}

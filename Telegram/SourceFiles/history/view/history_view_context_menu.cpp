@@ -134,8 +134,7 @@ void OpenGif(FullMsgId itemId) {
 }
 
 void ShowInFolder(not_null<DocumentData*> document) {
-	const auto filepath = document->filepath(
-		DocumentData::FilePathResolve::Checked);
+	const auto filepath = document->filepath(true);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 	}
@@ -205,8 +204,7 @@ void AddDocumentActions(
 				: tr::lng_faved_stickers_add(tr::now)),
 			[=] { ToggleFavedSticker(document, contextId); });
 	}
-	if (!document->filepath(
-			DocumentData::FilePathResolve::Checked).isEmpty()) {
+	if (!document->filepath(true).isEmpty()) {
 		menu->addAction(
 			(Platform::IsMac()
 				? tr::lng_context_show_in_finder(tr::now)

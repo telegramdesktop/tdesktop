@@ -108,9 +108,7 @@ private:
 	void insert(int index, const Data::CloudTheme &theme);
 	void refreshColors(Element &element);
 	void showMenu(Element &element);
-	void refreshColorsFromDocument(
-		Element &element,
-		not_null<DocumentData*> document);
+	void refreshColorsFromDocument(Element &element);
 	void setWaiting(Element &element, bool waiting);
 	void subscribeToDownloadFinished();
 	int resizeGetHeight(int newWidth);

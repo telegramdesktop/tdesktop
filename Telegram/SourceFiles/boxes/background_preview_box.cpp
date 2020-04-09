@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
@@ -410,6 +411,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)
+, _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
 	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 }
@@ -710,7 +712,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 	const auto document = _paper.document();
 	if (!_full.isNull()
 		|| !document
-		|| !document->loaded(DocumentData::FilePathResolve::Checked)
+		|| !_media->loaded(true)
 		|| _generating) {
 		return;
 	}

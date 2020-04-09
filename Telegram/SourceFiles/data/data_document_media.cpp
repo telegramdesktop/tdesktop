@@ -137,7 +137,7 @@ void DocumentMedia::checkStickerLarge() {
 	}
 
 	_owner->automaticLoad(_owner->stickerSetOrigin(), nullptr);
-	if (data->animated || !_owner->loaded()) {
+	if (data->animated || !loaded()) {
 		return;
 	}
 	const auto bytes = _owner->rawBytes();
@@ -168,6 +168,10 @@ void DocumentMedia::setBytes(const QByteArray &bytes) {
 
 QByteArray DocumentMedia::bytes() const {
 	return _bytes;
+}
+
+bool DocumentMedia::loaded(bool check) const {
+	return !_bytes.isEmpty() || _owner->loaded(check);// checkLoadedTo(this);
 }
 
 void DocumentMedia::checkStickerSmall() {
