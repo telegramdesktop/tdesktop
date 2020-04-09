@@ -58,7 +58,6 @@ struct DocumentAdditionalData {
 struct StickerData : public DocumentAdditionalData {
 	Data::FileOrigin setOrigin() const;
 
-	std::unique_ptr<Image> image;
 	bool animated = false;
 	QString alt;
 	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
@@ -141,13 +140,10 @@ public:
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
 
 	[[nodiscard]] StickerData *sticker() const;
-	void checkStickerLarge();
-	void checkStickerSmall();
-	[[nodiscard]] Image *getStickerSmall();
-	[[nodiscard]] Image *getStickerLarge();
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;
 	[[nodiscard]] Data::FileOrigin stickerOrGifOrigin() const;
 	[[nodiscard]] bool isStickerSetInstalled() const;
+	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 	[[nodiscard]] SongData *song();
 	[[nodiscard]] const SongData *song() const;
 	[[nodiscard]] VoiceData *voice();
@@ -195,7 +191,8 @@ public:
 	void setGoodThumbnailChecked(bool hasData);
 
 	[[nodiscard]] std::shared_ptr<Data::DocumentMedia> createMediaView();
-	[[nodiscard]] std::shared_ptr<Data::DocumentMedia> activeMediaView();
+	[[nodiscard]] auto activeMediaView() const
+		-> std::shared_ptr<Data::DocumentMedia>;
 	void setGoodThumbnailPhoto(not_null<PhotoData*> photo);
 	[[nodiscard]] PhotoData *goodThumbnailPhoto() const;
 
@@ -302,7 +299,6 @@ private:
 	void destroyLoader() const;
 
 	[[nodiscard]] bool useStreamingLoader() const;
-	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 
 	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;

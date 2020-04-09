@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -177,7 +178,10 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	auto result = ranges::view::all(
 		list
 	) | ranges::view::transform([](not_null<DocumentData*> sticker) {
-		return internal::StickerSuggestion{ sticker };
+		return internal::StickerSuggestion{
+			sticker,
+			sticker->createMediaView()
+		};
 	}) | ranges::to_vector;
 	for (auto &suggestion : _srows) {
 		if (!suggestion.animated) {
@@ -634,6 +638,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 				auto &sticker = (*_srows)[index];
 				const auto document = sticker.document;
+				const auto &media = sticker.documentMedia;
 				if (!document->sticker()) continue;
 
 				if (document->sticker()->animated
@@ -649,7 +654,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 				}
 
-				document->checkStickerSmall();
+				media->checkStickerSmall();
 				auto w = 1;
 				auto h = 1;
 				if (sticker.animated && !document->dimensions.isEmpty()) {
@@ -680,7 +685,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					if (!paused) {
 						sticker.animated->markFrameShown();
 					}
-				} else if (const auto image = document->getStickerSmall()) {
+				} else if (const auto image = media->getStickerSmall()) {
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));
 				}

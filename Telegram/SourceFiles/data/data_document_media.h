@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 
+class FileLoader;
+
 namespace Data {
 
 class DocumentMedia final {
@@ -21,6 +23,12 @@ public:
 	void setGoodThumbnail(QImage thumbnail);
 
 	[[nodiscard]] Image *thumbnailInline() const;
+
+	void checkStickerLarge();
+	void checkStickerSmall();
+	[[nodiscard]] Image *getStickerSmall();
+	[[nodiscard]] Image *getStickerLarge();
+	void checkStickerLarge(not_null<FileLoader*> loader);
 
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
@@ -38,6 +46,7 @@ private:
 	const not_null<DocumentData*> _owner;
 	std::unique_ptr<Image> _goodThumbnail;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
+	std::unique_ptr<Image> _sticker;
 	Flags _flags;
 
 };

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
@@ -184,7 +185,7 @@ auto StickersListWidget::PrepareStickers(const Stickers::Pack &pack)
 	return ranges::view::all(
 		pack
 	) | ranges::view::transform([](DocumentData *document) {
-		return Sticker{ document };
+		return Sticker{ document, document->createMediaView() };
 	}) | ranges::to_vector;
 }
 
@@ -1708,6 +1709,7 @@ QSize StickersListWidget::boundingBoxSize() const {
 void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected) {
 	auto &sticker = set.stickers[index];
 	const auto document = sticker.document;
+	const auto &media = sticker.documentMedia;
 	if (!document->sticker()) {
 		return;
 	}
@@ -1727,7 +1729,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 	}
 
-	document->checkStickerSmall();
+	media->checkStickerSmall();
 
 	auto w = 1;
 	auto h = 1;
@@ -1752,7 +1754,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 			frame);
 
 		set.lottiePlayer->unpause(sticker.animated);
-	} else if (const auto image = document->getStickerSmall()) {
+	} else if (const auto image = media->getStickerSmall()) {
 		if (image->loaded()) {
 			p.drawPixmapLeft(
 				ppos,
@@ -2301,9 +2303,10 @@ void StickersListWidget::preloadImages() {
 			if (++k > _columnCount * (_columnCount + 1)) break;
 
 			const auto document = sets[i].stickers[j].document;
+			const auto &media = sets[i].stickers[j].documentMedia;
 			if (!document || !document->sticker()) continue;
 
-			document->checkStickerSmall();
+			media->checkStickerSmall();
 		}
 		if (k > _columnCount * (_columnCount + 1)) break;
 	}
@@ -2395,7 +2398,10 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 				_custom[index] = true;
 			}
 		} else if (!_favedStickersMap.contains(document)) {
-			result.push_back(Sticker{ document });
+			result.push_back(Sticker{
+				document,
+				document->createMediaView()
+			});
 			_custom.push_back(custom);
 		}
 	};

@@ -1093,6 +1093,7 @@ void OverlayWidget::clearData() {
 	_fromName = QString();
 	_photo = nullptr;
 	_doc = nullptr;
+	_docMedia = nullptr;
 	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
@@ -1913,6 +1914,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	clearStreaming();
 	destroyThemePreview();
 	_doc = nullptr;
+	_docMedia = nullptr;
 	_fullScreenVideo = false;
 	_photo = photo;
 	_rotation = _photo->owner().mediaRotation().get(_photo);
@@ -1972,6 +1974,9 @@ void OverlayWidget::displayDocument(
 	clearStreaming(_doc != doc);
 	destroyThemePreview();
 	_doc = doc;
+	if (_doc) {
+		_docMedia = _doc->createMediaView();
+	}
 	_rotation = _doc ? _doc->owner().mediaRotation().get(_doc) : 0;
 	_themeCloudData = cloud;
 	_photo = nullptr;
@@ -1980,7 +1985,7 @@ void OverlayWidget::displayDocument(
 	refreshMediaViewer();
 	if (_doc) {
 		if (_doc->sticker()) {
-			if (const auto image = _doc->getStickerLarge()) {
+			if (const auto image = _docMedia->getStickerLarge()) {
 				_staticContent = image->pix(fileOrigin());
 			} else if (_doc->hasThumbnail()) {
 				_staticContent = _doc->thumbnail()->pixBlurred(
@@ -3019,7 +3024,7 @@ void OverlayWidget::paintTransformedStaticContent(Painter &p) {
 	const auto rect = contentRect();
 
 	PainterHighQualityEnabler hq(p);
-	if ((!_doc || !_doc->getStickerLarge())
+	if ((!_doc || !_docMedia->getStickerLarge())
 		&& (_staticContent.isNull()
 			|| _staticContent.hasAlpha())) {
 		p.fillRect(rect, _transparentBrush);
@@ -3482,13 +3487,9 @@ void OverlayWidget::preloadData(int delta) {
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			(*photo)->download(fileOrigin());
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			if (const auto image = (*document)->getStickerLarge()) {
-				image->load(fileOrigin());
-			} else {
-				(*document)->loadThumbnail(fileOrigin());
-				if (!(*document)->canBePlayed()) {
-					(*document)->automaticLoad(fileOrigin(), entity.item);
-				}
+			(*document)->loadThumbnail(fileOrigin());
+			if (!(*document)->canBePlayed()) {
+				(*document)->automaticLoad(fileOrigin(), entity.item);
 			}
 		}
 	}

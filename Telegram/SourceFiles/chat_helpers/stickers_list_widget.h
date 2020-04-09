@@ -32,6 +32,10 @@ class MultiPlayer;
 class FrameRenderer;
 } // namespace Lottie
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -151,6 +155,7 @@ private:
 
 	struct Sticker {
 		not_null<DocumentData*> document;
+		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *animated = nullptr;
 	};
 

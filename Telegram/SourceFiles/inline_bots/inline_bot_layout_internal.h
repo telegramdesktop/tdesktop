@@ -192,6 +192,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
 private:
+	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
 	void setupLottie(not_null<DocumentData*> document) const;
 	QSize getThumbSize() const;
 	void prepareThumbnail() const;
@@ -203,6 +204,7 @@ private:
 	mutable bool _thumbLoaded = false;
 
 	mutable std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable rpl::lifetime _lifetime;
 
 };

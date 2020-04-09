@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_good_thumbnail.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_file_origin.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
 #include "lottie/lottie_animation.h"
 #include "window/themes/window_theme_preview.h"
+#include "storage/file_download.h"
 #include "ui/image/image.h"
 #include "app.h"
 
@@ -119,6 +121,78 @@ Image *DocumentMedia::thumbnailInline() const {
 		}
 	}
 	return _inlineThumbnail.get();
+}
+
+void DocumentMedia::checkStickerLarge() {
+	if (_sticker) {
+		return;
+	}
+	const auto data = _owner->sticker();
+	if (!data) {
+		return;
+	}
+
+	_owner->automaticLoad(_owner->stickerSetOrigin(), nullptr);
+	if (data->animated || !_owner->loaded()) {
+		return;
+	}
+	const auto bytes = _owner->data();
+	if (bytes.isEmpty()) {
+		const auto &loc = _owner->location(true);
+		if (loc.accessEnable()) {
+			_sticker = std::make_unique<Image>(
+				std::make_unique<Images::LocalFileSource>(loc.name()));
+			loc.accessDisable();
+		}
+	} else {
+		auto format = QByteArray();
+		auto image = App::readImage(bytes, &format, false);
+		_sticker = std::make_unique<Image>(
+			std::make_unique<Images::LocalFileSource>(
+				QString(),
+				bytes,
+				format,
+				std::move(image)));
+	}
+}
+
+void DocumentMedia::checkStickerSmall() {
+	const auto data = _owner->sticker();
+	if ((data && data->animated) || _owner->thumbnailEnoughForSticker()) {
+		_owner->loadThumbnail(_owner->stickerSetOrigin());
+		if (data && data->animated) {
+			_owner->automaticLoad(_owner->stickerSetOrigin(), nullptr);
+		}
+	} else {
+		checkStickerLarge();
+	}
+}
+
+Image *DocumentMedia::getStickerLarge() {
+	checkStickerLarge();
+	return _sticker.get();
+}
+
+Image *DocumentMedia::getStickerSmall() {
+	const auto data = _owner->sticker();
+	if ((data && data->animated) || _owner->thumbnailEnoughForSticker()) {
+		return _owner->thumbnail();
+	}
+	return _sticker.get();
+}
+
+void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
+	if (_owner->sticker()
+		&& !_sticker
+		&& !loader->imageData().isNull()
+		&& !_owner->data().isEmpty()) {
+		_sticker = std::make_unique<Image>(
+			std::make_unique<Images::LocalFileSource>(
+				QString(),
+				_owner->data(),
+				loader->imageFormat(),
+				loader->imageData()));
+	}
 }
 
 void DocumentMedia::GenerateGoodThumbnail(not_null<DocumentData*> document) {

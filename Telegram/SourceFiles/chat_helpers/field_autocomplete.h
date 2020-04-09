@@ -26,10 +26,15 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace internal {
 
 struct StickerSuggestion {
 	not_null<DocumentData*> document;
+	std::shared_ptr<Data::DocumentMedia> documentMedia;
 	std::unique_ptr<Lottie::SinglePlayer> animated;
 };
 

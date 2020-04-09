@@ -100,7 +100,8 @@ bool Sticker::readyToDrawLottie() {
 		return false;
 	}
 
-	_data->checkStickerLarge();
+	ensureDataMediaCreated();
+	_dataMedia->checkStickerLarge();
 	const auto loaded = _data->loaded();
 	if (sticker->animated && !_lottie && loaded) {
 		setupLottie();
@@ -124,6 +125,7 @@ QSize Sticker::GetAnimatedEmojiSize(
 }
 
 void Sticker::draw(Painter &p, const QRect &r, bool selected) {
+	ensureDataMediaCreated();
 	if (readyToDrawLottie()) {
 		paintLottie(p, r, selected);
 	} else if (_data->sticker()
@@ -200,8 +202,6 @@ void Sticker::paintPixmap(Painter &p, const QRect &r, bool selected) {
 }
 
 QPixmap Sticker::paintedPixmap(bool selected) const {
-	ensureDataMediaCreated();
-
 	const auto o = _parent->data()->fullId();
 	const auto w = _size.width();
 	const auto h = _size.height();
@@ -210,7 +210,7 @@ QPixmap Sticker::paintedPixmap(bool selected) const {
 	if (good && !good->loaded()) {
 		good->load({});
 	}
-	if (const auto image = _data->getStickerLarge()) {
+	if (const auto image = _dataMedia->getStickerLarge()) {
 		return selected
 			? image->pixColored(o, c, w, h)
 			: image->pix(o, w, h);

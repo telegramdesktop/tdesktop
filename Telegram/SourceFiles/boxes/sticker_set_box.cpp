@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "lang/lang_keys.h"
 #include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
@@ -72,6 +73,7 @@ protected:
 private:
 	struct Element {
 		not_null<DocumentData*> document;
+		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *animated = nullptr;
 		Ui::Animations::Simple overAnimation;
 	};
@@ -267,7 +269,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				continue;
 			}
 			_pack.push_back(document);
-			_elements.push_back({ document });
+			_elements.push_back({ document, document->createMediaView() });
 		}
 		for (const auto &pack : data.vpacks().v) {
 			pack.match([&](const MTPDstickerPack &pack) {
@@ -621,7 +623,8 @@ void StickerSetBox::Inner::paintSticker(
 
 	const auto &element = _elements[index];
 	const auto document = element.document;
-	document->checkStickerSmall();
+	const auto &media = element.documentMedia;
+	media->checkStickerSmall();
 
 	if (document->sticker()->animated
 		&& !element.animated
@@ -650,7 +653,7 @@ void StickerSetBox::Inner::paintSticker(
 			frame);
 
 		_lottiePlayer->unpause(element.animated);
-	} else if (const auto image = document->getStickerSmall()) {
+	} else if (const auto image = media->getStickerSmall()) {
 		p.drawPixmapLeft(
 			ppos,
 			width(),

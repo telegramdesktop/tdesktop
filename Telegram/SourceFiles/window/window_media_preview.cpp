@@ -249,7 +249,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				}
 				if (_lottie && _lottie->ready()) {
 					return QPixmap();
-				} else if (const auto image = _document->getStickerLarge()) {
+				} else if (const auto image = _documentMedia->getStickerLarge()) {
 					QSize s = currentDimensions();
 					_cache = image->pix(_origin, s.width(), s.height());
 					_cacheStatus = CacheLoaded;

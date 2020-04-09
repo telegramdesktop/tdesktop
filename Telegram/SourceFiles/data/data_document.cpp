@@ -58,12 +58,6 @@ Core::MediaActiveCache<DocumentData> &ActiveCache() {
 	return Instance;
 }
 
-int64 ComputeUsage(StickerData *sticker) {
-	return (sticker != nullptr && sticker->image != nullptr)
-		? sticker->image->width() * sticker->image->height() * 4
-		: 0;
-}
-
 QString JoinStringList(const QStringList &list, const QString &separator) {
 	const auto count = list.size();
 	if (!count) {
@@ -713,7 +707,7 @@ std::shared_ptr<Data::DocumentMedia> DocumentData::createMediaView() {
 	return result;
 }
 
-std::shared_ptr<Data::DocumentMedia> DocumentData::activeMediaView() {
+std::shared_ptr<Data::DocumentMedia> DocumentData::activeMediaView() const {
 	return _media.lock();
 }
 
@@ -755,12 +749,6 @@ void DocumentData::unload() {
 	// from the destructor, because they're already destroyed.
 	//
 	//_thumbnail->unload();
-	if (sticker()) {
-		if (sticker()->image) {
-			ActiveCache().decrement(ComputeUsage(sticker()));
-			sticker()->image = nullptr;
-		}
-	}
 	_replyPreview = nullptr;
 	if (!_data.isEmpty()) {
 		ActiveCache().decrement(_data.size());
@@ -824,23 +812,14 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 			that->_data = _loader->bytes();
 			ActiveCache().increment(that->_data.size());
 
-			if (that->sticker()
-				&& !that->sticker()->image
-				&& !_loader->imageData().isNull()) {
-				that->sticker()->image = std::make_unique<Image>(
-					std::make_unique<Images::LocalFileSource>(
-						QString(),
-						_data,
-						_loader->imageFormat(),
-						_loader->imageData()));
-				ActiveCache().increment(ComputeUsage(that->sticker()));
-			}
-
 			that->setGoodThumbnailDataReady();
-			Data::DocumentMedia::CheckGoodThumbnail(that);
+
+			if (const auto media = activeMediaView()) {
+				media->checkStickerLarge(_loader.get());
+			}
 			destroyLoader();
 
-			if (!that->_data.isEmpty() || that->getStickerLarge()) {
+			if (!that->_data.isEmpty()) {
 				ActiveCache().up(that);
 			}
 		}
@@ -1205,66 +1184,6 @@ StickerData *DocumentData::sticker() const {
 	return (type == StickerDocument)
 		? static_cast<StickerData*>(_additional.get())
 		: nullptr;
-}
-
-void DocumentData::checkStickerLarge() {
-	const auto data = sticker();
-	if (!data) return;
-
-	automaticLoad(stickerSetOrigin(), nullptr);
-	if (!data->image && !data->animated && loaded()) {
-		if (_data.isEmpty()) {
-			const auto &loc = location(true);
-			if (loc.accessEnable()) {
-				data->image = std::make_unique<Image>(
-					std::make_unique<Images::LocalFileSource>(loc.name()));
-				loc.accessDisable();
-			}
-		} else {
-			auto format = QByteArray();
-			auto image = App::readImage(_data, &format, false);
-			data->image = std::make_unique<Image>(
-				std::make_unique<Images::LocalFileSource>(
-					QString(),
-					_data,
-					format,
-					std::move(image)));
-		}
-		if (const auto usage = ComputeUsage(data)) {
-			ActiveCache().increment(usage);
-			ActiveCache().up(this);
-		}
-	}
-}
-
-void DocumentData::checkStickerSmall() {
-	const auto data = sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
-		_thumbnail->load(stickerSetOrigin());
-		if (data && data->animated) {
-			automaticLoad(stickerSetOrigin(), nullptr);
-		}
-	} else {
-		checkStickerLarge();
-	}
-}
-
-Image *DocumentData::getStickerLarge() {
-	checkStickerLarge();
-	if (const auto data = sticker()) {
-		return data->image.get();
-	}
-	return nullptr;
-}
-
-Image *DocumentData::getStickerSmall() {
-	const auto data = sticker();
-	if ((data && data->animated) || thumbnailEnoughForSticker()) {
-		return _thumbnail->isNull() ? nullptr : _thumbnail.get();
-	} else if (data) {
-		return data->image.get();
-	}
-	return nullptr;
 }
 
 Data::FileOrigin DocumentData::stickerSetOrigin() const {

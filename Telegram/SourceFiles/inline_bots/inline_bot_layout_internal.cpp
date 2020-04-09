@@ -434,10 +434,18 @@ void Sticker::initDimensions() {
 
 void Sticker::preload() const {
 	if (const auto document = getShownDocument()) {
-		document->checkStickerSmall();
+		ensureDataMediaCreated(document);
+		_dataMedia->checkStickerSmall();
 	} else if (const auto thumb = getResultThumb()) {
 		thumb->load(fileOrigin());
 	}
+}
+
+void Sticker::ensureDataMediaCreated(not_null<DocumentData*> document) const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = document->createMediaView();
 }
 
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
@@ -517,14 +525,15 @@ void Sticker::setupLottie(not_null<DocumentData*> document) const {
 
 void Sticker::prepareThumbnail() const {
 	if (const auto document = getShownDocument()) {
+		ensureDataMediaCreated(document);
 		if (!_lottie
 			&& document->sticker()
 			&& document->sticker()->animated
 			&& document->loaded()) {
 			setupLottie(document);
 		}
-		document->checkStickerSmall();
-		if (const auto sticker = document->getStickerSmall()) {
+		_dataMedia->checkStickerSmall();
+		if (const auto sticker = _dataMedia->getStickerSmall()) {
 			if (!_lottie && !_thumbLoaded && sticker->loaded()) {
 				const auto thumbSize = getThumbSize();
 				_thumb = sticker->pix(
