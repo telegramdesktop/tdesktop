@@ -1235,7 +1235,7 @@ bool HasLottieThumbnail(
 		if (!info->animated) {
 			return false;
 		}
-		document->automaticLoad(document->stickerSetOrigin(), nullptr);
+		media->automaticLoad(document->stickerSetOrigin(), nullptr);
 		if (!media->loaded()) {
 			return false;
 		}

@@ -2000,13 +2000,13 @@ void OverlayWidget::displayDocument(
 			if (_docMedia->canBePlayed()
 				&& initStreaming(continueStreaming)) {
 			} else if (_doc->isVideoFile()) {
-				_doc->automaticLoad(fileOrigin(), item);
+				_docMedia->automaticLoad(fileOrigin(), item);
 				initStreamingThumbnail();
 			} else if (_doc->isTheme()) {
-				_doc->automaticLoad(fileOrigin(), item);
+				_docMedia->automaticLoad(fileOrigin(), item);
 				initThemePreview();
 			} else {
-				_doc->automaticLoad(fileOrigin(), item);
+				_docMedia->automaticLoad(fileOrigin(), item);
 				auto &location = _doc->location(true);
 				if (location.accessEnable()) {
 					const auto &path = location.name();

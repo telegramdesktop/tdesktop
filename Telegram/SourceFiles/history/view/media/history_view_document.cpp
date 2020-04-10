@@ -247,7 +247,7 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 	const auto cornerDownload = downloadInCorner();
 
 	if (!_dataMedia->canBePlayed()) {
-		_data->automaticLoad(_realParent->fullId(), _parent->data());
+		_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	bool selected = (selection == FullSelection);

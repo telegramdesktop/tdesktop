@@ -147,7 +147,7 @@ int Gif::resizeGetHeight(int width) {
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
 	ensureDataMediaCreated(document);
-	document->automaticLoad(fileOrigin(), nullptr);
+	_dataMedia->automaticLoad(fileOrigin(), nullptr);
 
 	bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded
@@ -1341,7 +1341,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 	auto animatedThumb = document && document->isAnimation();
 	if (animatedThumb) {
-		document->automaticLoad(fileOrigin(), nullptr);
+		_dataMedia->automaticLoad(fileOrigin(), nullptr);
 
 		bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {

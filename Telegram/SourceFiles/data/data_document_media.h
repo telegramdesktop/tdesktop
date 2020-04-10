@@ -38,6 +38,8 @@ public:
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] bool canBePlayed() const;
 
+	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
+
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
 

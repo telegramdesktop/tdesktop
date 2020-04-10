@@ -972,7 +972,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 	const auto cornerDownload = downloadInCorner();
 
-	_data->automaticLoad(parent()->fullId(), parent());
+	_dataMedia->automaticLoad(parent()->fullId(), parent());
 	const auto loaded = dataLoaded();
 	const auto displayLoading = _data->displayLoading();
 

@@ -110,7 +110,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 
 	ensureDataMediaCreated();
 
-	_data->automaticLoad(_realParent->fullId(), _parent->data());
+	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 	auto selected = (selection == FullSelection);
 	auto loaded = dataLoaded();
 	auto displayLoading = _data->displayLoading();

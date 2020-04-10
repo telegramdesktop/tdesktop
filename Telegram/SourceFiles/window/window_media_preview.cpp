@@ -262,7 +262,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				}
 			}
 		} else {
-			_document->automaticLoad(_origin, nullptr);
+			_documentMedia->automaticLoad(_origin, nullptr);
 			if (_documentMedia->loaded()) {
 				if (!_gif && !_gif.isBad()) {
 					auto that = const_cast<MediaPreviewWidget*>(this);

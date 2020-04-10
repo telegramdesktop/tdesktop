@@ -95,9 +95,6 @@ public:
 	void setattributes(
 		const QVector<MTPDocumentAttribute> &attributes);
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
 	[[nodiscard]] bool loading() const;
@@ -428,6 +425,12 @@ QString FileNameForSave(
 	const QString &prefix,
 	QString name,
 	bool savingAs,
+	const QDir &dir = QDir());
+
+QString DocumentFileNameForSave(
+	not_null<const DocumentData*> data,
+	bool forceSavingAs = false,
+	const QString &already = QString(),
 	const QDir &dir = QDir());
 
 namespace Data {

@@ -11,12 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
+#include "data/data_auto_download.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
 #include "lottie/lottie_animation.h"
+#include "history/history_item.h"
+#include "history/history.h"
 #include "window/themes/window_theme_preview.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
+#include "facades.h"
 #include "app.h"
 
 #include <QtCore/QBuffer>
@@ -135,7 +139,7 @@ void DocumentMedia::checkStickerLarge() {
 		return;
 	}
 
-	_owner->automaticLoad(_owner->stickerSetOrigin(), nullptr);
+	automaticLoad(_owner->stickerSetOrigin(), nullptr);
 	if (data->animated || !loaded()) {
 		return;
 	}
@@ -158,6 +162,42 @@ void DocumentMedia::checkStickerLarge() {
 	}
 }
 
+void DocumentMedia::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
+	if (_owner->status != FileReady || loaded() || _owner->cancelled()) {
+		return;
+	} else if (!item && !_owner->sticker() && !_owner->isAnimation()) {
+		return;
+	}
+	const auto toCache = _owner->saveToCache();
+	if (!toCache && Global::AskDownloadPath()) {
+		// We need a filename, but we're supposed to ask user for it.
+		// No automatic download in this case.
+		return;
+	}
+	const auto filename = toCache
+		? QString()
+		: DocumentFileNameForSave(_owner);
+	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
+		&& (item
+			? Data::AutoDownload::Should(
+				_owner->session().settings().autoDownload(),
+				item->history()->peer,
+				_owner)
+			: Data::AutoDownload::Should(
+				_owner->session().settings().autoDownload(),
+				_owner));
+	const auto loadFromCloud = shouldLoadFromCloud
+		? LoadFromCloudOrLocal
+		: LoadFromLocalOnly;
+	_owner->save(
+		origin,
+		filename,
+		loadFromCloud,
+		true);
+}
+
 void DocumentMedia::setBytes(const QByteArray &bytes) {
 	if (!bytes.isEmpty()) {
 		_bytes = bytes;
@@ -173,15 +213,15 @@ bool DocumentMedia::loaded(bool check) const {
 }
 
 float64 DocumentMedia::progress() const {
-	return (owner()->uploading() || owner()->loading())
-		? owner()->progress()
+	return (_owner->uploading() || _owner->loading())
+		? _owner->progress()
 		: (loaded() ? 1. : 0.);
 }
 
 bool DocumentMedia::canBePlayed() const {
-	return !owner()->inappPlaybackFailed()
-		&& owner()->useStreamingLoader()
-		&& (loaded() || owner()->canBeStreamed());
+	return !_owner->inappPlaybackFailed()
+		&& _owner->useStreamingLoader()
+		&& (loaded() || _owner->canBeStreamed());
 }
 
 void DocumentMedia::checkStickerSmall() {
@@ -189,7 +229,7 @@ void DocumentMedia::checkStickerSmall() {
 	if ((data && data->animated) || _owner->thumbnailEnoughForSticker()) {
 		_owner->loadThumbnail(_owner->stickerSetOrigin());
 		if (data && data->animated) {
-			_owner->automaticLoad(_owner->stickerSetOrigin(), nullptr);
+			automaticLoad(_owner->stickerSetOrigin(), nullptr);
 		}
 	} else {
 		checkStickerLarge();

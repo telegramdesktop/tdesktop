@@ -233,7 +233,11 @@ QString FileNameForSave(
 	return result;
 }
 
-QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = false, const QString already = QString(), const QDir &dir = QDir()) {
+QString DocumentFileNameForSave(
+		not_null<const DocumentData*> data,
+		bool forceSavingAs,
+		const QString &already,
+		const QDir &dir) {
 	auto alreadySavingFilename = data->loadingFilePath();
 	if (!alreadySavingFilename.isEmpty()) {
 		return alreadySavingFilename;
@@ -363,7 +367,7 @@ void DocumentSaveClickHandler::Save(
 		const auto filename = filepath.isEmpty()
 			? QString()
 			: fileinfo.fileName();
-		savename = documentSaveFilename(
+		savename = DocumentFileNameForSave(
 			data,
 			(mode == Mode::ToNewFile),
 			filename,
@@ -736,43 +740,6 @@ void DocumentData::unload() {
 	_replyPreview = nullptr;
 }
 
-void DocumentData::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	const auto media = activeMediaView();
-	if (status != FileReady || !media || media->loaded() || cancelled()) {
-		return;
-	} else if (!item && type != StickerDocument && !isAnimation()) {
-		return;
-	}
-	const auto toCache = saveToCache();
-	if (!toCache && Global::AskDownloadPath()) {
-		// We need a filename, but we're supposed to ask user for it.
-		// No automatic download in this case.
-		return;
-	}
-	const auto filename = toCache
-		? QString()
-		: documentSaveFilename(this);
-	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
-		&& (item
-			? Data::AutoDownload::Should(
-				session().settings().autoDownload(),
-				item->history()->peer,
-				this)
-			: Data::AutoDownload::Should(
-				session().settings().autoDownload(),
-				this));
-	const auto loadFromCloud = shouldLoadFromCloud
-		? LoadFromCloudOrLocal
-		: LoadFromLocalOnly;
-	save(
-		origin,
-		filename,
-		loadFromCloud,
-		true);
-}
-
 void DocumentData::automaticLoadSettingsChanged() {
 	if (!cancelled() || status != FileReady) {
 		return;
@@ -1129,7 +1096,7 @@ bool DocumentData::saveFromDataChecked() {
 	if (bytes.isEmpty()) {
 		return false;
 	}
-	const auto path = documentSaveFilename(this);
+	const auto path = DocumentFileNameForSave(this);
 	if (path.isEmpty()) {
 		return false;
 	}
