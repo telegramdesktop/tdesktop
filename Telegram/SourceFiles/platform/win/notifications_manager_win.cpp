@@ -455,6 +455,19 @@ void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
 	}
 }
 
+namespace {
+bool isFullScreen() {
+	QUERY_USER_NOTIFICATION_STATE userState = {};
+	if (FAILED(::SHQueryUserNotificationState(&userState))) {
+		return false;
+	}
+
+	return userState == QUNS_RUNNING_D3D_FULL_SCREEN ||
+		   userState == QUNS_PRESENTATION_MODE ||
+		   userState == QUNS_QUIET_TIME;
+}
+}
+
 bool Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		MsgId msgId,
@@ -464,6 +477,8 @@ bool Manager::Private::showNotification(
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
 	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
+
+	if (isFullScreen()) return false;
 
 	ComPtr<IXmlDocument> toastXml;
 	bool withSubtitle = !subtitle.isEmpty();
