@@ -618,6 +618,11 @@ historyAudioInDownloadSelected: icon {{ "history_audio_download", historyFileInI
 historyAudioOutDownload: icon {{ "history_audio_download", historyFileOutIconFg }};
 historyAudioOutDownloadSelected: icon {{ "history_audio_download", historyFileOutIconFgSelected }};
 
+historyQuizExplainIn: icon {{ "quiz_explain", msgInDateFg }};
+historyQuizExplainInSelected: icon {{ "quiz_explain", msgInDateFgSelected }};
+historyQuizExplainOut: icon {{ "quiz_explain", msgOutDateFg }};
+historyQuizExplainOutSelected: icon {{ "quiz_explain", msgOutDateFgSelected }};
+
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
 
 largeEmojiSize: 36px;

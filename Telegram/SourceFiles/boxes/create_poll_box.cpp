@@ -38,7 +38,7 @@ constexpr auto kMaxOptionsCount = PollData::kMaxOptions;
 constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;
-constexpr auto kSolutionLimit = 400;
+constexpr auto kSolutionLimit = 200;
 constexpr auto kErrorLimit = 99;
 
 class Options {

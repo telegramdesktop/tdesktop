@@ -418,7 +418,7 @@ void Poll::checkQuizAnswered() {
 	}
 }
 
-void Poll::showSolution() {
+void Poll::showSolution() const {
 	if (_poll->solution.text.isEmpty()) {
 		return;
 	}
@@ -676,6 +676,7 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 	p.setPen(regular);
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
 	paintRecentVoters(p, padding.left() + _subtitle.maxWidth(), tshift, selection);
+	paintShowSolution(p, padding.left() + paintw, tshift, selection);
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
@@ -820,6 +821,29 @@ void Poll::paintRecentVoters(
 		p.drawEllipse(x, y, size, size);
 		x -= st::historyPollRecentVoterSkip;
 	}
+}
+
+void Poll::paintShowSolution(
+		Painter &p,
+		int right,
+		int top,
+		TextSelection selection) const {
+	if (!showVotes() || _poll->solution.text.isEmpty()) {
+		return;
+	}
+	if (!_showSolutionLink) {
+		_showSolutionLink = std::make_shared<LambdaClickHandler>(
+			crl::guard(this, [=] { showSolution(); }));
+	}
+	const auto outbg = _parent->hasOutLayout();
+	const auto &icon = (selection == FullSelection)
+		? (outbg
+			? st::historyQuizExplainOutSelected
+			: st::historyQuizExplainInSelected)
+		: (outbg ? st::historyQuizExplainOut : st::historyQuizExplainIn);
+	const auto x = right - icon.width();
+	const auto y = top + (st::normalFont->height - icon.height()) / 2;
+	icon.paint(p, x, y, width());
 }
 
 int Poll::paintAnswer(
@@ -1134,6 +1158,10 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 	paintw -= padding.left() + padding.right();
 
 	tshift += _question.countHeight(paintw) + st::historyPollSubtitleSkip;
+	if (inShowSolution(point, padding.left() + paintw, tshift)) {
+		result.link = _showSolutionLink;
+		return result;
+	}
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 	const auto awidth = paintw
 		- st::historyPollAnswerPadding.left()
@@ -1265,6 +1293,23 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 	} else if (answer.ripple) {
 		answer.ripple->lastStop();
 	}
+}
+
+bool Poll::canShowSolution() const {
+	return showVotes() && !_poll->solution.text.isEmpty();
+}
+
+bool Poll::inShowSolution(
+		QPoint point,
+		int right,
+		int top) const {
+	if (!canShowSolution()) {
+		return false;
+	}
+	const auto &icon = st::historyQuizExplainIn;
+	const auto x = right - icon.width();
+	const auto y = top + (st::normalFont->height - icon.height()) / 2;
+	return QRect(x, y, icon.width(), icon.height()).contains(point);
 }
 
 int Poll::bottomButtonHeight() const {

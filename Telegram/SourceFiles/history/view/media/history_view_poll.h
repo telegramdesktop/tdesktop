@@ -96,6 +96,11 @@ private:
 		int left,
 		int top,
 		TextSelection selection) const;
+	void paintShowSolution(
+		Painter &p,
+		int right,
+		int top,
+		TextSelection selection) const;
 	int paintAnswer(
 		Painter &p,
 		const Answer &answer,
@@ -155,7 +160,13 @@ private:
 	void sendMultiOptions();
 	void showResults();
 	void checkQuizAnswered();
-	void showSolution();
+	void showSolution() const;
+
+	[[nodiscard]] bool canShowSolution() const;
+	[[nodiscard]] bool inShowSolution(
+		QPoint point,
+		int right,
+		int top) const;
 
 	[[nodiscard]] int bottomButtonHeight() const;
 
@@ -174,6 +185,7 @@ private:
 	Ui::Text::String _totalVotesLabel;
 	ClickHandlerPtr _showResultsLink;
 	ClickHandlerPtr _sendVotesLink;
+	mutable ClickHandlerPtr _showSolutionLink;
 	mutable std::unique_ptr<Ui::RippleAnimation> _linkRipple;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
