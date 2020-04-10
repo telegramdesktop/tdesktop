@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
+#include "base/timer.h"
 #include "layout.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -40,6 +42,8 @@ constexpr auto kRotateAmplitude = 3.;
 constexpr auto kScaleSegments = 2;
 constexpr auto kScaleAmplitude = 0.03;
 constexpr auto kRollDuration = crl::time(400);
+constexpr auto kLargestRadialDuration = 30 * crl::time(1000);
+constexpr auto kCriticalCloseDuration = 5 * crl::time(1000);
 
 struct PercentCounterItem {
 	int index = 0;
@@ -170,6 +174,16 @@ struct Poll::Answer {
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
+struct Poll::CloseInformation {
+	CloseInformation(TimeId date, TimeId period, Fn<void()> repaint);
+
+	crl::time start = 0;
+	crl::time finish = 0;
+	crl::time duration = 0;
+	base::Timer timer;
+	Ui::Animations::Basic radial;
+};
+
 template <typename Callback>
 Poll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
@@ -195,6 +209,16 @@ void Poll::Answer::fillData(
 		st::historyPollAnswerStyle,
 		original.text,
 		Ui::WebpageTextTitleOptions());
+}
+
+Poll::CloseInformation::CloseInformation(
+	TimeId date,
+	TimeId period,
+	Fn<void()> repaint)
+: duration(period * crl::time(1000))
+, timer(std::move(repaint)) {
+	const auto left = std::clamp(date - base::unixtime::now(), 0, period);
+	finish = crl::now() + left * crl::time(1000);
 }
 
 Poll::Poll(
@@ -676,6 +700,7 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 	p.setPen(regular);
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
 	paintRecentVoters(p, padding.left() + _subtitle.maxWidth(), tshift, selection);
+	paintCloseByTimer(p, padding.left() + paintw, tshift, selection);
 	paintShowSolution(p, padding.left() + paintw, tshift, selection);
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
@@ -820,6 +845,80 @@ void Poll::paintRecentVoters(
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 		x -= st::historyPollRecentVoterSkip;
+	}
+}
+
+void Poll::paintCloseByTimer(
+		Painter &p,
+		int right,
+		int top,
+		TextSelection selection) const {
+	if (!canVote() || _poll->closeDate <= 0 || _poll->closePeriod <= 0) {
+		_close = nullptr;
+		return;
+	}
+	if (!_close) {
+		_close = std::make_unique<CloseInformation>(
+			_poll->closeDate,
+			_poll->closePeriod,
+			[=] { history()->owner().requestViewRepaint(_parent); });
+	}
+	const auto now = crl::now();
+	const auto left = std::max(_close->finish - now, crl::time(0));
+	const auto radial = std::min(_close->duration, kLargestRadialDuration);
+	if (!left) {
+		_close->radial.stop();
+	} else if (left < radial && !anim::Disabled()) {
+		if (!_close->radial.animating()) {
+			_close->radial.init([=] {
+				history()->owner().requestViewRepaint(_parent);
+			});
+			_close->radial.start();
+		}
+	} else {
+		_close->radial.stop();
+	}
+	const auto time = formatDurationText(int(std::ceil(left / 1000.)));
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = (selection == FullSelection);
+	const auto &icon = selected
+		? (outbg
+			? st::historyQuizTimerOutSelected
+			: st::historyQuizTimerInSelected)
+		: (outbg ? st::historyQuizTimerOut : st::historyQuizTimerIn);
+	const auto x = right - icon.width();
+	const auto y = top
+		+ (st::normalFont->height - icon.height()) / 2
+		- st::lineWidth;
+	const auto &regular = (left < kCriticalCloseDuration)
+		? st::boxTextFgError
+		: selected
+		? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
+		: (outbg ? st::msgOutDateFg : st::msgInDateFg);
+	p.setPen(regular);
+	const auto timeWidth = st::normalFont->width(time);
+	p.drawTextLeft(x - timeWidth, top, width(), time, timeWidth);
+	if (left < radial) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto part = std::max(
+			left / float64(radial),
+			1. / FullArcLength);
+		const auto length = int(std::round(FullArcLength * part));
+		auto pen = regular->p;
+		pen.setWidth(st::historyPollRadio.thickness);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		const auto size = icon.width() / 2;
+		const auto left = (x + (icon.width() - size) / 2);
+		const auto top = (y + (icon.height() - size) / 2) + st::lineWidth;
+		p.drawArc(left, top, size, size, (FullArcLength / 4), length);
+	} else {
+		icon.paint(p, x, y, width());
+	}
+
+	if (left > (anim::Disabled() ? 0 : (radial - 1))) {
+		const auto next = (left % 1000);
+		_close->timer.callOnce((next ? next : 1000) + 1);
 	}
 }
 

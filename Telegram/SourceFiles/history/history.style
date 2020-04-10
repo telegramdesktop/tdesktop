@@ -622,6 +622,10 @@ historyQuizExplainIn: icon {{ "quiz_explain", msgInDateFg }};
 historyQuizExplainInSelected: icon {{ "quiz_explain", msgInDateFgSelected }};
 historyQuizExplainOut: icon {{ "quiz_explain", msgOutDateFg }};
 historyQuizExplainOutSelected: icon {{ "quiz_explain", msgOutDateFgSelected }};
+historyQuizTimerIn: icon {{ "quiz_timer", msgInDateFg }};
+historyQuizTimerInSelected: icon {{ "quiz_timer", msgInDateFgSelected }};
+historyQuizTimerOut: icon {{ "quiz_timer", msgOutDateFg }};
+historyQuizTimerOutSelected: icon {{ "quiz_timer", msgOutDateFgSelected }};
 
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
 

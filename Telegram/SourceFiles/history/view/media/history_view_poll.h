@@ -24,6 +24,7 @@ public:
 	Poll(
 		not_null<Element*> parent,
 		not_null<PollData*> poll);
+	~Poll();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -53,13 +54,12 @@ public:
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
-	~Poll();
-
 private:
 	struct AnswerAnimation;
 	struct AnswersAnimation;
 	struct SendingAnimation;
 	struct Answer;
+	struct CloseInformation;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -94,6 +94,11 @@ private:
 	void paintRecentVoters(
 		Painter &p,
 		int left,
+		int top,
+		TextSelection selection) const;
+	void paintCloseByTimer(
+		Painter &p,
+		int right,
 		int top,
 		TextSelection selection) const;
 	void paintShowSolution(
@@ -193,6 +198,8 @@ private:
 	mutable std::unique_ptr<Ui::FireworksAnimation> _fireworksAnimation;
 	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
+
+	mutable std::unique_ptr<CloseInformation> _close;
 
 	bool _hasSelected = false;
 	bool _votedFromHere = false;
