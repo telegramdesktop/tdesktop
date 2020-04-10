@@ -927,7 +927,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 
 float64 OverlayWidget::radialProgress() const {
 	if (_doc) {
-		return _doc->progress();
+		return _docMedia->progress();
 	} else if (_photo) {
 		return _photo->large()->progress();
 	}
@@ -983,7 +983,7 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 		update(radialRect());
 	}
 	const auto ready = _doc && _docMedia->loaded();
-	const auto streamVideo = ready && _doc->canBePlayed();
+	const auto streamVideo = ready && _docMedia->canBePlayed();
 	const auto tryOpenImage = ready && (_doc->size < App::kImageSizeLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
 		_streamingStartPaused = false;
@@ -1296,7 +1296,7 @@ void OverlayWidget::onDocClick() {
 			_doc,
 			Auth().data().message(_msgid));
 		if (_doc->loading() && !_radial.animating()) {
-			_radial.start(_doc->progress());
+			_radial.start(_docMedia->progress());
 		}
 	}
 }
@@ -1371,7 +1371,7 @@ void OverlayWidget::onDownload() {
 void OverlayWidget::onSaveCancel() {
 	if (_doc && _doc->loading()) {
 		_doc->cancel();
-		if (_doc->canBePlayed()) {
+		if (_docMedia->canBePlayed()) {
 			redisplayContent();
 		}
 	}
@@ -1997,7 +1997,8 @@ void OverlayWidget::displayDocument(
 					_doc->dimensions.height());
 			}
 		} else {
-			if (_doc->canBePlayed() && initStreaming(continueStreaming)) {
+			if (_docMedia->canBePlayed()
+				&& initStreaming(continueStreaming)) {
 			} else if (_doc->isVideoFile()) {
 				_doc->automaticLoad(fileOrigin(), item);
 				initStreamingThumbnail();
@@ -2132,7 +2133,7 @@ void OverlayWidget::displayFinished() {
 
 bool OverlayWidget::initStreaming(bool continueStreaming) {
 	Expects(_doc != nullptr);
-	Expects(_doc->canBePlayed());
+	Expects(_docMedia->canBePlayed());
 
 	if (_streamed) {
 		return true;
@@ -2316,12 +2317,14 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 }
 
 void OverlayWidget::handleStreamingError(Streaming::Error &&error) {
+	Expects(_doc != nullptr);
+
 	if (error == Streaming::Error::NotStreamable) {
 		_doc->setNotSupportsStreaming();
 	} else if (error == Streaming::Error::OpenFailed) {
 		_doc->setInappPlaybackFailed();
 	}
-	if (!_doc->canBePlayed()) {
+	if (!_docMedia->canBePlayed()) {
 		redisplayContent();
 	} else {
 		updatePlaybackState();
@@ -2490,7 +2493,7 @@ void OverlayWidget::playbackPauseResume() {
 	_streamed->resumeOnCallEnd = false;
 	if (_streamed->instance.player().failed()) {
 		clearStreaming();
-		if (!_doc->canBePlayed() || !initStreaming()) {
+		if (!_docMedia->canBePlayed() || !initStreaming()) {
 			redisplayContent();
 		}
 	} else if (_streamed->instance.player().finished()
@@ -3489,11 +3492,12 @@ void OverlayWidget::preloadData(int delta) {
 		auto entity = entityByIndex(index);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			(*photo)->download(fileOrigin());
-		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
+		} else if (auto document = base::get_if<not_null<DocumentData*>>(
+				&entity.data)) {
 			(*document)->loadThumbnail(fileOrigin());
-			if (!(*document)->canBePlayed()) {
-				(*document)->automaticLoad(fileOrigin(), entity.item);
-			}
+			//if (!(*document)->canBePlayed()) { // #TODO optimize
+			//	(*document)->automaticLoad(fileOrigin(), entity.item);
+			//}
 		}
 	}
 }

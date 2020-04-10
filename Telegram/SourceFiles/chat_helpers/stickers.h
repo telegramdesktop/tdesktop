@@ -160,7 +160,7 @@ enum class LottieSize : uchar {
 
 [[nodiscard]] bool HasLottieThumbnail(
 	ImagePtr thumbnail,
-	not_null<DocumentData*> sticker);
+	not_null<Data::DocumentMedia*> media);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 	ImagePtr thumbnail,
 	not_null<Data::DocumentMedia*> media,

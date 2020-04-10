@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "core/click_handler_types.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_internal.h"
@@ -48,19 +49,10 @@ PhotoData *ItemBase::getPhoto() const {
 }
 
 DocumentData *ItemBase::getPreviewDocument() const {
-	auto previewDocument = [this]() -> DocumentData* {
-		if (_doc) {
-			return _doc;
-		}
-		if (_result) {
-			return _result->_document;
-		}
-		return nullptr;
-	};
-	if (DocumentData *result = previewDocument()) {
-		if (result->sticker() || result->loaded()) {
-			return result;
-		}
+	if (_doc) {
+		return _doc;
+	} else if (_result) {
+		return _result->_document;
 	}
 	return nullptr;
 }
@@ -193,7 +185,8 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 		return std::make_shared<UrlClickHandler>(
 			_result->_content_url,
 			false);
-	} else if (_result->_document && _result->_document->canBePlayed()) {
+	} else if (_result->_document
+		&& _result->_document->createMediaView()->canBePlayed()) { // #TODO optimize
 		return std::make_shared<DocumentOpenClickHandler>(
 			_result->_document);
 	} else if (_result->_photo) {

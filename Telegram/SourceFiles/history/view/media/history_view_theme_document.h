@@ -61,6 +61,7 @@ private:
 	void fillPatternFieldsFrom(const QString &url);
 	void validateThumbnail() const;
 	void prepareThumbnailFrom(not_null<Image*> image, int good) const;
+	void ensureDataMediaCreated() const;
 
 	const not_null<DocumentData*> _data;
 	int _pixw = 1;

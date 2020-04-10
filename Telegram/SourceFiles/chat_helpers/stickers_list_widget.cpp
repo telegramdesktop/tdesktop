@@ -701,7 +701,9 @@ void StickersListWidget::Footer::paintSearchIcon(Painter &p) const {
 void StickersListWidget::Footer::validateIconLottieAnimation(
 		const StickerIcon &icon) {
 	if (icon.lottie
-		|| !Stickers::HasLottieThumbnail(icon.thumbnail, icon.sticker)) {
+		|| !Stickers::HasLottieThumbnail(
+			icon.thumbnail,
+			icon.stickerMedia.get())) {
 		return;
 	}
 	auto player = Stickers::LottieThumbnail(

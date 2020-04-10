@@ -82,8 +82,7 @@ enum class FileType {
 } // namespace
 
 DocumentMedia::DocumentMedia(not_null<DocumentData*> owner)
-: _owner(owner)
-, _bytes(owner->rawBytes()) {
+: _owner(owner) {
 }
 
 DocumentMedia::~DocumentMedia() = default;
@@ -140,8 +139,7 @@ void DocumentMedia::checkStickerLarge() {
 	if (data->animated || !loaded()) {
 		return;
 	}
-	const auto bytes = _owner->rawBytes();
-	if (bytes.isEmpty()) {
+	if (_bytes.isEmpty()) {
 		const auto &loc = _owner->location(true);
 		if (loc.accessEnable()) {
 			_sticker = std::make_unique<Image>(
@@ -150,11 +148,11 @@ void DocumentMedia::checkStickerLarge() {
 		}
 	} else {
 		auto format = QByteArray();
-		auto image = App::readImage(bytes, &format, false);
+		auto image = App::readImage(_bytes, &format, false);
 		_sticker = std::make_unique<Image>(
 			std::make_unique<Images::LocalFileSource>(
 				QString(),
-				bytes,
+				_bytes,
 				format,
 				std::move(image)));
 	}
@@ -171,7 +169,19 @@ QByteArray DocumentMedia::bytes() const {
 }
 
 bool DocumentMedia::loaded(bool check) const {
-	return !_bytes.isEmpty() || _owner->loaded(check);// checkLoadedTo(this);
+	return !_bytes.isEmpty() || !_owner->filepath(check).isEmpty();
+}
+
+float64 DocumentMedia::progress() const {
+	return (owner()->uploading() || owner()->loading())
+		? owner()->progress()
+		: (loaded() ? 1. : 0.);
+}
+
+bool DocumentMedia::canBePlayed() const {
+	return !owner()->inappPlaybackFailed()
+		&& owner()->useStreamingLoader()
+		&& (loaded() || owner()->canBeStreamed());
 }
 
 void DocumentMedia::checkStickerSmall() {
@@ -203,18 +213,19 @@ void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
 	if (_owner->sticker()
 		&& !_sticker
 		&& !loader->imageData().isNull()
-		&& !_owner->rawBytes().isEmpty()) {
+		&& !_bytes.isEmpty()) {
 		_sticker = std::make_unique<Image>(
 			std::make_unique<Images::LocalFileSource>(
 				QString(),
-				_owner->rawBytes(),
+				_bytes,
 				loader->imageFormat(),
 				loader->imageData()));
 	}
 }
 
-void DocumentMedia::GenerateGoodThumbnail(not_null<DocumentData*> document) {
-	const auto data = document->rawBytes();
+void DocumentMedia::GenerateGoodThumbnail(
+		not_null<DocumentData*> document,
+		QByteArray data) {
 	const auto type = document->isWallPaper()
 		? FileType::WallPaper
 		: document->isTheme()
@@ -282,8 +293,9 @@ void DocumentMedia::ReadOrGenerateThumbnail(
 	const auto active = document->activeMediaView();
 	const auto got = [=](QByteArray value) {
 		if (value.isEmpty()) {
+			const auto bytes = active ? active->bytes() : QByteArray();
 			crl::on_main(guard, [=] {
-				GenerateGoodThumbnail(document);
+				GenerateGoodThumbnail(document, bytes);
 			});
 		} else if (active) {
 			crl::async([=] {

@@ -447,7 +447,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	if (displayLoading) {
 		ensureRadial();
 		if (!_radial->animating()) {
-			_radial->start(_data->progress());
+			_radial->start(dataProgress());
 		}
 	}
 	updateStatusText();
@@ -490,7 +490,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 	if (!selected && !context->selecting && radialOpacity < 1.) {
 		if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
-			const auto download = !loaded && !_data->canBePlayed();
+			const auto download = !loaded && !_dataMedia->canBePlayed();
 			const auto &icon = download
 				? (selected ? st::overviewVideoDownloadSelected : st::overviewVideoDownload)
 				: (selected ? st::overviewVideoPlaySelected : st::overviewVideoPlay);
@@ -516,7 +516,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
 		} else {
-			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
+			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _dataMedia->canBePlayed()) ? _openl : _savel);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.value(over ? 1. : 0.)));
 		}
 
@@ -552,7 +552,8 @@ void Video::ensureDataMediaCreated() const {
 }
 
 float64 Video::dataProgress() const {
-	return _data->progress();
+	ensureDataMediaCreated();
+	return _dataMedia->progress();
 }
 
 bool Video::dataFinished() const {
@@ -560,7 +561,8 @@ bool Video::dataFinished() const {
 }
 
 bool Video::dataLoaded() const {
-	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
+	ensureDataMediaCreated();
+	return _dataMedia->loaded();
 }
 
 bool Video::iconAnimated() const {
@@ -571,9 +573,10 @@ TextState Video::getState(
 		QPoint point,
 		StateRequest request) const {
 	if (hasPoint(point)) {
+		ensureDataMediaCreated();
 		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
-			: (dataLoaded() || _data->canBePlayed())
+			: (dataLoaded() || _dataMedia->canBePlayed())
 			? _openl
 			: _savel;
 		return { parent(), link };
@@ -641,13 +644,14 @@ void Voice::initDimensions() {
 }
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
+	ensureDataMediaCreated();
 	bool selected = (selection == FullSelection);
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
 		if (!_radial->animating()) {
-			_radial->start(_data->progress());
+			_radial->start(dataProgress());
 		}
 	}
 	const auto showPause = updateStatusText();
@@ -699,7 +703,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 		const auto &checkLink = (_data->loading() || _data->uploading())
 			? _cancell
-			: (_data->canBePlayed() || loaded)
+			: (_dataMedia->canBePlayed() || loaded)
 			? _openl
 			: _savel;
 		if (selected) {
@@ -727,7 +731,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			} else if (showPause) {
 				return &(selected ? _st.songPauseSelected : _st.songPause);
-			} else if (_data->canBePlayed()) {
+			} else if (_dataMedia->canBePlayed()) {
 				return &(selected ? _st.songPlaySelected : _st.songPlay);
 			}
 			return &(selected ? _st.songDownloadSelected : _st.songDownload);
@@ -776,6 +780,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 TextState Voice::getState(
 		QPoint point,
 		StateRequest request) const {
+	ensureDataMediaCreated();
 	const auto loaded = dataLoaded();
 
 	const auto nameleft = _st.songPadding.left()
@@ -794,7 +799,7 @@ TextState Voice::getState(
 	if (inner.contains(point)) {
 		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
-			: (_data->canBePlayed() || loaded)
+			: (_dataMedia->canBePlayed() || loaded)
 			? _openl
 			: _savel;
 		return { parent(), link };
@@ -839,7 +844,8 @@ void Voice::ensureDataMediaCreated() const {
 }
 
 float64 Voice::dataProgress() const {
-	return _data->progress();
+	ensureDataMediaCreated();
+	return _dataMedia->progress();
 }
 
 bool Voice::dataFinished() const {
@@ -847,7 +853,8 @@ bool Voice::dataFinished() const {
 }
 
 bool Voice::dataLoaded() const {
-	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
+	ensureDataMediaCreated();
+	return _dataMedia->loaded();
 }
 
 bool Voice::iconAnimated() const {
@@ -959,6 +966,8 @@ void Document::initDimensions() {
 }
 
 void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
+	ensureDataMediaCreated();
+
 	const auto selected = (selection == FullSelection);
 
 	const auto cornerDownload = downloadInCorner();
@@ -970,7 +979,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	if (displayLoading) {
 		ensureRadial();
 		if (!_radial->animating()) {
-			_radial->start(_data->progress());
+			_radial->start(dataProgress());
 		}
 	}
 	const auto showPause = updateStatusText();
@@ -992,7 +1001,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
 			} else {
-				auto over = ClickHandler::showAsActive((!cornerDownload && (_data->loading() || _data->uploading())) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
+				auto over = ClickHandler::showAsActive((!cornerDownload && (_data->loading() || _data->uploading())) ? _cancell : (loaded || _dataMedia->canBePlayed()) ? _openl : _savel);
 				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.value(over ? 1. : 0.)));
 			}
 
@@ -1006,7 +1015,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				} else if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
-				} else if (loaded || _data->canBePlayed()) {
+				} else if (loaded || _dataMedia->canBePlayed()) {
 					return &(selected ? _st.songPlaySelected : _st.songPlay);
 				}
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
@@ -1187,6 +1196,7 @@ TextState Document::cornerDownloadTextState(
 TextState Document::getState(
 		QPoint point,
 		StateRequest request) const {
+	ensureDataMediaCreated();
 	const auto loaded = dataLoaded();
 	const auto wthumb = withThumb();
 
@@ -1213,7 +1223,7 @@ TextState Document::getState(
 			const auto link = (!downloadInCorner()
 				&& (_data->loading() || _data->uploading()))
 				? _cancell
-				: (loaded || _data->canBePlayed())
+				: (loaded || _dataMedia->canBePlayed())
 				? _openl
 				: _savel;
 			return { parent(), link };
@@ -1300,7 +1310,8 @@ void Document::ensureDataMediaCreated() const {
 }
 
 float64 Document::dataProgress() const {
-	return _data->progress();
+	ensureDataMediaCreated();
+	return _dataMedia->progress();
 }
 
 bool Document::dataFinished() const {
@@ -1308,7 +1319,8 @@ bool Document::dataFinished() const {
 }
 
 bool Document::dataLoaded() const {
-	return _dataMedia ? _dataMedia->loaded() : !_data->filepath().isEmpty();
+	ensureDataMediaCreated();
+	return _dataMedia->loaded();
 }
 
 bool Document::iconAnimated() const {

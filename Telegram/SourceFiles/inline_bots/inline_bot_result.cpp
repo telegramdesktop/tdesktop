@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "storage/file_download.h"
@@ -268,7 +269,8 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 		_type == Type::File ||
 		_type == Type::Gif)) {
 		if (_type == Type::Gif) {
-			if (_document->loaded()) {
+			const auto media = _document->activeMediaView();
+			if (!media || media->loaded()) {
 				return true;
 			} else if (_document->loading()) {
 				_document->cancel();

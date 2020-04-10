@@ -1028,15 +1028,13 @@ void GifsListWidget::showPreview() {
 		auto layout = _rows[row].items[col];
 		if (const auto w = App::wnd()) {
 			if (const auto previewDocument = layout->getPreviewDocument()) {
-				w->showMediaPreview(
+				_previewShown = w->showMediaPreview(
 					Data::FileOriginSavedGifs(),
 					previewDocument);
-				_previewShown = true;
 			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				w->showMediaPreview(
+				_previewShown = w->showMediaPreview(
 					Data::FileOrigin(),
 					previewPhoto);
-				_previewShown = true;
 			}
 		}
 	}

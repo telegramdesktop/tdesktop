@@ -433,7 +433,7 @@ void BackgroundPreviewBox::prepare() {
 	_paper.loadThumbnail();
 	_paper.loadDocument();
 	if (_paper.document() && _paper.document()->loading()) {
-		_radial.start(_paper.document()->progress());
+		_radial.start(_media->progress());
 	}
 	if (_paper.thumbnail() && !_paper.isPattern()) {
 		createBlurCheckbox();
@@ -636,7 +636,7 @@ void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 	const auto document = _paper.document();
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
-		document->progress(),
+		_media->progress(),
 		!document->loading(),
 		now);
 	if ((wasAnimating || _radial.animating())
@@ -746,7 +746,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		});
 	};
 	_generating = Data::ReadImageAsync(
-		document,
+		_media.get(),
 		Window::Theme::ProcessBackgroundImage,
 		generateCallback);
 }

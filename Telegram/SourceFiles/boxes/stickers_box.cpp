@@ -944,7 +944,9 @@ void StickersBox::Inner::paintRowThumbnail(
 
 void StickersBox::Inner::validateLottieAnimation(not_null<Row*> set) {
 	if (set->lottie
-		|| !Stickers::HasLottieThumbnail(set->thumbnail, set->sticker)) {
+		|| !Stickers::HasLottieThumbnail(
+			set->thumbnail,
+			set->stickerMedia.get())) {
 		return;
 	}
 	auto player = Stickers::LottieThumbnail(

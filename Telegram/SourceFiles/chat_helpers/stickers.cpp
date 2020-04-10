@@ -1220,7 +1220,8 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 
 bool HasLottieThumbnail(
 		ImagePtr thumbnail,
-		not_null<DocumentData*> sticker) {
+		not_null<Data::DocumentMedia*> media) {
+	const auto document = media->owner();
 	if (thumbnail) {
 		if (!thumbnail->loaded()) {
 			return false;
@@ -1230,15 +1231,15 @@ bool HasLottieThumbnail(
 		return location.valid()
 			&& location.type() == StorageFileLocation::Type::StickerSetThumb
 			&& !bytes.isEmpty();
-	} else if (const auto info = sticker->sticker()) {
+	} else if (const auto info = document->sticker()) {
 		if (!info->animated) {
 			return false;
 		}
-		sticker->automaticLoad(sticker->stickerSetOrigin(), nullptr);
-		if (!sticker->loaded()) {
+		document->automaticLoad(document->stickerSetOrigin(), nullptr);
+		if (!media->loaded()) {
 			return false;
 		}
-		return sticker->bigFileBaseCacheKey().has_value();
+		return document->bigFileBaseCacheKey().has_value();
 	}
 	return false;
 }

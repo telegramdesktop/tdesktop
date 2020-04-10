@@ -279,6 +279,7 @@ private:
 	void radialAnimationCallback(crl::time now) const;
 
 	void ensureAnimation() const;
+	void ensureDataMediaCreated() const;
 	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
@@ -326,6 +327,7 @@ private:
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
 	not_null<DocumentData*> _document;
+	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
 
 };
 

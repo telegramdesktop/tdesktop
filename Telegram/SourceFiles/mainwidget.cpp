@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
@@ -365,6 +366,7 @@ struct MainWidget::SettingBackground {
 	explicit SettingBackground(const Data::WallPaper &data);
 
 	Data::WallPaper data;
+	std::shared_ptr<Data::DocumentMedia> dataMedia;
 	base::binary_guard generating;
 };
 
@@ -1326,6 +1328,9 @@ void MainWidget::setChatBackground(
 	}
 
 	_background = std::make_unique<SettingBackground>(background);
+	if (const auto document = _background->data.document()) {
+		_background->dataMedia = document->createMediaView();
+	}
 	_background->data.loadDocument();
 	checkChatBackground();
 
@@ -1375,7 +1380,7 @@ float64 MainWidget::chatBackgroundProgress() const {
 		if (_background->generating) {
 			return 1.;
 		} else if (const auto document = _background->data.document()) {
-			return document->progress();
+			return _background->dataMedia->progress();
 		} else if (const auto thumbnail = _background->data.thumbnail()) {
 			return thumbnail->progress();
 		}
@@ -1387,11 +1392,14 @@ void MainWidget::checkChatBackground() {
 	if (!_background || _background->generating) {
 		return;
 	}
-	const auto document = _background->data.document();
-	Assert(document != nullptr);
-	if (!document->loaded()) {
+	const auto &media = _background->dataMedia;
+	Assert(media != nullptr);
+	if (!media->loaded()) {
 		return;
 	}
+
+	const auto document = _background->data.document();
+	Assert(document != nullptr);
 
 	const auto generateCallback = [=](QImage &&image) {
 		const auto background = base::take(_background);
@@ -1401,7 +1409,7 @@ void MainWidget::checkChatBackground() {
 		setReadyChatBackground(ready, std::move(image));
 	};
 	_background->generating = Data::ReadImageAsync(
-		document,
+		media.get(),
 		Window::Theme::ProcessBackgroundImage,
 		generateCallback);
 }

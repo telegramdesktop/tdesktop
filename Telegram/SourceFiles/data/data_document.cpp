@@ -44,16 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-// Updated Mar 3, 2020: Increase the size of the memory cache for media, to prevent items still being displayed from being unloaded.
-constexpr auto kMemoryForCache = 128 * 1024 * 1024; // was 32, updated to 128
 const auto kAnimatedStickerDimensions = QSize(512, 512);
-
-Core::MediaActiveCache<DocumentData> &ActiveCache() {
-	static auto Instance = Core::MediaActiveCache<DocumentData>(
-		kMemoryForCache,
-		[](DocumentData *document) { document->unload(); });
-	return Instance;
-}
 
 QString JoinStringList(const QStringList &list, const QString &separator) {
 	const auto count = list.size();
@@ -320,11 +311,12 @@ void DocumentOpenClickHandler::Open(
 		}
 		LaunchWithWarning(location.name(), context);
 	};
+	const auto media = data->createMediaView();
 	const auto &location = data->location(true);
-	if (data->isTheme() && data->loaded(true)) {
+	if (data->isTheme() && media->loaded(true)) {
 		Core::App().showDocument(data, context);
 		location.accessDisable();
-	} else if (data->canBePlayed()) {
+	} else if (media->canBePlayed()) {
 		if (data->isAudioFile()
 			|| data->isVoiceMessage()
 			|| data->isVideoMessage()) {
@@ -458,7 +450,6 @@ DocumentData::DocumentData(not_null<Data::Session*> owner, DocumentId id)
 DocumentData::~DocumentData() {
 	destroyLoader();
 	unload();
-	ActiveCache().remove(this);
 }
 
 Data::Session &DocumentData::owner() const {
@@ -578,7 +569,6 @@ void DocumentData::validateLottieSticker() {
 }
 
 void DocumentData::setDataAndCache(const QByteArray &data) {
-	_data = data;
 	if (const auto media = activeMediaView()) {
 		media->setBytes(data);
 	}
@@ -744,16 +734,13 @@ void DocumentData::unload() {
 	//
 	//_thumbnail->unload();
 	_replyPreview = nullptr;
-	if (!_data.isEmpty()) {
-		ActiveCache().decrement(_data.size());
-		_data.clear();
-	}
 }
 
 void DocumentData::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
-	if (status != FileReady || loaded() || cancelled()) {
+	const auto media = activeMediaView();
+	if (status != FileReady || !media || media->loaded() || cancelled()) {
 		return;
 	} else if (!item && type != StickerDocument && !isAnimation()) {
 		return;
@@ -794,10 +781,6 @@ void DocumentData::automaticLoadSettingsChanged() {
 	_flags &= ~Flag::DownloadCancelled;
 }
 
-bool DocumentData::loaded(bool check) const {
-	return !rawBytes().isEmpty() || !filepath(check).isEmpty();
-}
-
 void DocumentData::finishLoad() {
 	const auto guard = gsl::finally([&] {
 		destroyLoader();
@@ -807,17 +790,10 @@ void DocumentData::finishLoad() {
 		return;
 	}
 	setLocation(FileLocation(_loader->fileName()));
-	ActiveCache().decrement(_data.size());
-	_data = _loader->bytes();
-	ActiveCache().increment(_data.size());
-
 	setGoodThumbnailDataReady();
 	if (const auto media = activeMediaView()) {
 		media->setBytes(_loader->bytes());
 		media->checkStickerLarge(_loader.get());
-	}
-	if (!_data.isEmpty()) {
-		ActiveCache().up(this);
 	}
 }
 
@@ -854,7 +830,7 @@ float64 DocumentData::progress() const {
 		}
 		return 0.;
 	}
-	return loading() ? _loader->currentProgress() : (loaded() ? 1. : 0.);
+	return loading() ? _loader->currentProgress() : 0.;
 }
 
 int DocumentData::loadOffset() const {
@@ -909,13 +885,13 @@ void DocumentData::save(
 		const QString &toFile,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	if (loaded(true)) {
+	if (const auto media = activeMediaView(); media->loaded(true)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
-			if (!rawBytes().isEmpty()) {
+			if (!media->bytes().isEmpty()) {
 				QFile f(toFile);
 				f.open(QIODevice::WriteOnly);
-				f.write(rawBytes());
+				f.write(media->bytes());
 				f.close();
 
 				setLocation(FileLocation(toFile));
@@ -1108,13 +1084,6 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	return result;
 }
 
-QByteArray DocumentData::rawBytes() const {
-	if (!_data.isEmpty()) {
-		ActiveCache().up(const_cast<DocumentData*>(this));
-	}
-	return _data;
-}
-
 const FileLocation &DocumentData::location(bool check) const {
 	if (check && !_location.check()) {
 		const auto location = Local::readFileLocation(mediaKey());
@@ -1272,12 +1241,6 @@ bool DocumentData::canBeStreamed() const {
 	return hasRemoteLocation() && supportsStreaming();
 }
 
-bool DocumentData::canBePlayed() const {
-	return !(_flags & Flag::StreamingPlaybackFailed)
-		&& useStreamingLoader()
-		&& (loaded() || canBeStreamed());
-}
-
 void DocumentData::setInappPlaybackFailed() {
 	_flags |= Flag::StreamingPlaybackFailed;
 }
@@ -1294,9 +1257,10 @@ auto DocumentData::createStreamingLoader(
 		return nullptr;
 	}
 	if (!forceRemoteLoader) {
+		const auto media = activeMediaView();
 		const auto &location = this->location(true);
-		if (!rawBytes().isEmpty()) {
-			return Media::Streaming::MakeBytesLoader(rawBytes());
+		if (media && !media->bytes().isEmpty()) {
+			return Media::Streaming::MakeBytesLoader(media->bytes());
 		} else if (!location.isEmpty() && location.accessEnable()) {
 			auto result = Media::Streaming::MakeFileLoader(location.name());
 			location.accessDisable();
@@ -1574,15 +1538,10 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 	}
 
 	_owner->cache().copyIfEmpty(local->cacheKey(), cacheKey());
-	if (!local->_data.isEmpty()) {
-		ActiveCache().decrement(_data.size());
-		_data = local->_data;
+	const auto localMedia = local->activeMediaView();
+	if (!localMedia->bytes().isEmpty()) {
 		if (const auto media = activeMediaView()) {
-			media->setBytes(local->_data);
-		}
-		ActiveCache().increment(_data.size());
-		if (!_data.isEmpty()) {
-			ActiveCache().up(this);
+			media->setBytes(localMedia->bytes());
 		}
 	}
 	if (!local->_location.inMediaCache() && !local->_location.isEmpty()) {
@@ -1672,13 +1631,13 @@ website ws wsc wsf wsh xbap xll xnk xs");
 }
 
 base::binary_guard ReadImageAsync(
-		not_null<DocumentData*> document,
+		not_null<Data::DocumentMedia*> media,
 		FnMut<QImage(QImage)> postprocess,
 		FnMut<void(QImage&&)> done) {
 	auto result = base::binary_guard();
 	crl::async([
-		bytes = document->rawBytes(),
-		path = document->filepath(),
+		bytes = media->bytes(),
+		path = media->owner()->filepath(),
 		postprocess = std::move(postprocess),
 		guard = result.make_guard(),
 		callback = std::move(done)

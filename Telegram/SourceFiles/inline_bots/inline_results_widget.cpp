@@ -723,11 +723,9 @@ void Inner::showPreview() {
 		auto layout = _rows.at(row).items.at(col);
 		if (const auto w = App::wnd()) {
 			if (const auto previewDocument = layout->getPreviewDocument()) {
-				w->showMediaPreview(Data::FileOrigin(), previewDocument);
-				_previewShown = true;
+				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewDocument);
 			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-				_previewShown = true;
+				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewPhoto);
 			}
 		}
 	}

@@ -102,7 +102,7 @@ bool Sticker::readyToDrawLottie() {
 
 	ensureDataMediaCreated();
 	_dataMedia->checkStickerLarge();
-	const auto loaded = _data->loaded();
+	const auto loaded = _dataMedia->loaded();
 	if (sticker->animated && !_lottie && loaded) {
 		setupLottie();
 	}

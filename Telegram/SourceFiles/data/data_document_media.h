@@ -35,6 +35,8 @@ public:
 	void setBytes(const QByteArray &bytes);
 	[[nodiscard]] QByteArray bytes() const;
 	[[nodiscard]] bool loaded(bool check = false) const;
+	[[nodiscard]] float64 progress() const;
+	[[nodiscard]] bool canBePlayed() const;
 
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
@@ -47,7 +49,9 @@ private:
 	using Flags = base::flags<Flag>;
 
 	static void ReadOrGenerateThumbnail(not_null<DocumentData*> document);
-	static void GenerateGoodThumbnail(not_null<DocumentData*> document);
+	static void GenerateGoodThumbnail(
+		not_null<DocumentData*> document,
+		QByteArray data);
 
 	const not_null<DocumentData*> _owner;
 	std::unique_ptr<Image> _goodThumbnail;

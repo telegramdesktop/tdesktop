@@ -108,9 +108,11 @@ QSize ThemeDocument::countCurrentSize(int newWidth) {
 void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
+	ensureDataMediaCreated();
+
 	_data->automaticLoad(_realParent->fullId(), _parent->data());
 	auto selected = (selection == FullSelection);
-	auto loaded = _data->loaded();
+	auto loaded = dataLoaded();
 	auto displayLoading = _data->displayLoading();
 
 	auto inWebPage = (_parent->media() != this);
@@ -121,7 +123,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_data->progress());
+			_animation->radial.start(dataProgress());
 		}
 	}
 	const auto radial = isRadialAnimation();
@@ -185,15 +187,20 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	}
 }
 
+void ThemeDocument::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	_dataMedia->goodThumbnailWanted();
+	_parent->history()->owner().registerHeavyViewPart(_parent);
+}
+
 void ThemeDocument::validateThumbnail() const {
 	if (_thumbnailGood > 0) {
 		return;
 	}
-	if (!_dataMedia) {
-		_dataMedia = _data->createMediaView();
-		_dataMedia->goodThumbnailWanted();
-		_parent->history()->owner().registerHeavyViewPart(_parent);
-	}
+	ensureDataMediaCreated();
 	if (const auto good = _dataMedia->goodThumbnail()) {
 		if (good->loaded()) {
 			prepareThumbnailFrom(good, 1);
@@ -261,7 +268,7 @@ TextState ThemeDocument::textState(QPoint point, StateRequest request) const {
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
-		} else if (_data->loaded()) {
+		} else if (dataLoaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
 			result.link = _cancell;
@@ -273,7 +280,8 @@ TextState ThemeDocument::textState(QPoint point, StateRequest request) const {
 }
 
 float64 ThemeDocument::dataProgress() const {
-	return _data->progress();
+	ensureDataMediaCreated();
+	return _dataMedia->progress();
 }
 
 bool ThemeDocument::dataFinished() const {
@@ -282,11 +290,13 @@ bool ThemeDocument::dataFinished() const {
 }
 
 bool ThemeDocument::dataLoaded() const {
-	return _data->loaded();
+	ensureDataMediaCreated();
+	return _dataMedia->loaded();
 }
 
 bool ThemeDocument::isReadyForOpen() const {
-	return _data->loaded();
+	ensureDataMediaCreated();
+	return _dataMedia->loaded();
 }
 
 QString ThemeDocument::additionalInfoString() const {

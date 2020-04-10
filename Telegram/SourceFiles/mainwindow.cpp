@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_document_media.h"
 #include "dialogs/dialogs_layout.h"
 #include "history/history.h"
 #include "ui/widgets/popup_menu.h"
@@ -429,11 +430,13 @@ bool MainWindow::ui_isLayerShown() {
 	return _layer != nullptr;
 }
 
-void MainWindow::showMediaPreview(
+bool MainWindow::showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
-	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
-		return;
+	const auto media = document->activeMediaView();
+	if (!document->sticker()
+		&& (!document->isAnimation() || !media || !media->loaded())) {
+		return false;
 	}
 	if (!_mediaPreview) {
 		_mediaPreview.create(bodyWidget(), sessionController());
@@ -443,14 +446,12 @@ void MainWindow::showMediaPreview(
 		fixOrder();
 	}
 	_mediaPreview->showPreview(origin, document);
+	return true;
 }
 
-void MainWindow::showMediaPreview(
+bool MainWindow::showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo) {
-	if (!photo) {
-		return;
-	}
 	if (!_mediaPreview) {
 		_mediaPreview.create(bodyWidget(), sessionController());
 		updateControlsGeometry();
@@ -459,6 +460,7 @@ void MainWindow::showMediaPreview(
 		fixOrder();
 	}
 	_mediaPreview->showPreview(origin, photo);
+	return true;
 }
 
 void MainWindow::hideMediaPreview() {

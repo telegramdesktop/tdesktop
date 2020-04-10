@@ -24,7 +24,7 @@ class String;
 
 namespace HistoryView {
 
-class Document
+class Document final
 	: public File
 	, public RuntimeComposer<Document> {
 public:

@@ -146,12 +146,10 @@ int Gif::resizeGetHeight(int width) {
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
-	if (document) {
-		ensureDataMediaCreated(document);
-	}
+	ensureDataMediaCreated(document);
 	document->automaticLoad(fileOrigin(), nullptr);
 
-	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
+	bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()
@@ -167,7 +165,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(document->progress());
+			_animation->radial.start(_dataMedia->progress());
 		}
 	}
 	const auto radial = isRadialAnimation();
@@ -260,7 +258,8 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _delete || p == _send) {
 		bool wasactive = (_state & StateFlag::Over);
 		if (active != wasactive) {
-			if (!getShownDocument()->loaded()) {
+			ensureDataMediaCreated(getShownDocument());
+			if (!_dataMedia->loaded()) {
 				ensureAnimation();
 				auto from = active ? 0. : 1., to = active ? 1. : 0.;
 				_animation->_a_over.start([this] { update(); }, from, to, st::stickersRowDuration);
@@ -356,8 +355,11 @@ bool Gif::isRadialAnimation() const {
 	if (_animation) {
 		if (_animation->radial.animating()) {
 			return true;
-		} else if (getShownDocument()->loaded()) {
-			_animation = nullptr;
+		} else {
+			ensureDataMediaCreated(getShownDocument());
+			if (_dataMedia->loaded()) {
+				_animation = nullptr;
+			}
 		}
 	}
 	return false;
@@ -365,16 +367,17 @@ bool Gif::isRadialAnimation() const {
 
 void Gif::radialAnimationCallback(crl::time now) const {
 	const auto document = getShownDocument();
+	ensureDataMediaCreated(document);
 	const auto updated = [&] {
 		return _animation->radial.update(
-			document->progress(),
-			!document->loading() || document->loaded(),
+			_dataMedia->progress(),
+			!document->loading() || _dataMedia->loaded(),
 			now);
 	}();
 	if (!anim::Disabled() || updated) {
 		update();
 	}
-	if (!_animation->radial.animating() && document->loaded()) {
+	if (!_animation->radial.animating() && _dataMedia->loaded()) {
 		_animation = nullptr;
 	}
 }
@@ -452,7 +455,8 @@ void Sticker::ensureDataMediaCreated(not_null<DocumentData*> document) const {
 }
 
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	bool loaded = getShownDocument()->loaded();
+	ensureDataMediaCreated(getShownDocument());
+	bool loaded = _dataMedia->loaded();
 
 	auto over = _a_over.value(_active ? 1. : 0.);
 	if (over > 0) {
@@ -534,12 +538,12 @@ void Sticker::prepareThumbnail() const {
 		if (!_lottie
 			&& document->sticker()
 			&& document->sticker()->animated
-			&& document->loaded()) {
+			&& _dataMedia->loaded()) {
 			setupLottie();
 		}
 		_dataMedia->checkStickerSmall();
 		if (const auto sticker = _dataMedia->getStickerSmall()) {
-			if (!_lottie && !_thumbLoaded && sticker->loaded()) {
+			if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
 				const auto thumbSize = getThumbSize();
 				_thumb = sticker->pix(
 					document->stickerSetOrigin(),
@@ -831,12 +835,13 @@ void File::initDimensions() {
 void File::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto left = st::msgFileSize + st::inlineThumbSkip;
 
-	const auto loaded = _document->loaded();
+	ensureDataMediaCreated();
+	const auto loaded = _documentMedia->loaded();
 	const auto displayLoading = _document->displayLoading();
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_document->progress());
+			_animation->radial.start(_documentMedia->progress());
 		}
 	}
 	const auto showPause = updateStatusText();
@@ -862,21 +867,18 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::historyFileInRadialFg);
 	}
 
-	auto icon = [&] {
+	const auto icon = [&] {
 		if (radial || _document->loading()) {
 			return &st::historyFileInCancel;
 		} else if (showPause) {
 			return &st::historyFileInPause;
-		} else if (true || _document->loaded()) {
-			if (_document->isImage()) {
-				return &st::historyFileInImage;
-			} else if (_document->isVoiceMessage()
-				|| _document->isAudioFile()) {
-				return &st::historyFileInPlay;
-			}
-			return &st::historyFileInDocument;
+		} else if (_document->isImage()) {
+			return &st::historyFileInImage;
+		} else if (_document->isVoiceMessage()
+			|| _document->isAudioFile()) {
+			return &st::historyFileInPlay;
 		}
-		return &st::historyFileInDownload;
+		return &st::historyFileInDocument;
 	}();
 	icon->paintInCenter(p, inner);
 
@@ -934,10 +936,11 @@ void File::thumbAnimationCallback() {
 }
 
 void File::radialAnimationCallback(crl::time now) const {
+	ensureDataMediaCreated();
 	const auto updated = [&] {
 		return _animation->radial.update(
-			_document->progress(),
-			!_document->loading() || _document->loaded(),
+			_documentMedia->progress(),
+			!_document->loading() || _documentMedia->loaded(),
 			now);
 	}();
 	if (!anim::Disabled() || updated) {
@@ -956,17 +959,26 @@ void File::ensureAnimation() const {
 	}
 }
 
+void File::ensureDataMediaCreated() const {
+	if (_documentMedia) {
+		return;
+	}
+	_documentMedia = _document->createMediaView();
+}
+
 void File::checkAnimationFinished() const {
 	if (_animation
 		&& !_animation->a_thumbOver.animating()
 		&& !_animation->radial.animating()) {
-		if (_document->loaded()) {
+		ensureDataMediaCreated();
+		if (_documentMedia->loaded()) {
 			_animation.reset();
 		}
 	}
 }
 
 bool File::updateStatusText() const {
+	ensureDataMediaCreated();
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_document->status == FileDownloadFailed || _document->status == FileUploadFailed) {
@@ -975,7 +987,7 @@ bool File::updateStatusText() const {
 		statusSize = _document->uploadingData->offset;
 	} else if (_document->loading()) {
 		statusSize = _document->loadOffset();
-	} else if (_document->loaded()) {
+	} else if (_documentMedia->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
@@ -1331,7 +1343,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	if (animatedThumb) {
 		document->automaticLoad(fileOrigin(), nullptr);
 
-		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
+		bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
 			that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
@@ -1348,7 +1360,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 				});
 			}
 			if (!_radial->animating()) {
-				_radial->start(document->progress());
+				_radial->start(_dataMedia->progress());
 			}
 		}
 		radial = isRadialAnimation();
@@ -1466,8 +1478,11 @@ bool Game::isRadialAnimation() const {
 	if (_radial) {
 		if (_radial->animating()) {
 			return true;
-		} else if (getResultDocument()->loaded()) {
-			_radial = nullptr;
+		} else {
+			ensureDataMediaCreated(getResultDocument());
+			if (_dataMedia->loaded()) {
+				_radial = nullptr;
+			}
 		}
 	}
 	return false;
@@ -1475,16 +1490,17 @@ bool Game::isRadialAnimation() const {
 
 void Game::radialAnimationCallback(crl::time now) const {
 	const auto document = getResultDocument();
+	ensureDataMediaCreated(document);
 	const auto updated = [&] {
 		return _radial->update(
-			document->progress(),
-			!document->loading() || document->loaded(),
+			_dataMedia->progress(),
+			!document->loading() || _dataMedia->loaded(),
 			now);
 	}();
 	if (!anim::Disabled() || updated) {
 		update();
 	}
-	if (!_radial->animating() && document->loaded()) {
+	if (!_radial->animating() && _dataMedia->loaded()) {
 		_radial = nullptr;
 	}
 }

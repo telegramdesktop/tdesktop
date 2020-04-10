@@ -100,7 +100,6 @@ public:
 		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
-	[[nodiscard]] bool loaded(bool check = false) const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
@@ -120,7 +119,6 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	[[nodiscard]] QByteArray rawBytes() const;
 	[[nodiscard]] const FileLocation &location(bool check = false) const;
 	void setLocation(const FileLocation &loc);
 
@@ -225,12 +223,12 @@ public:
 		const QString &songPerformer);
 	[[nodiscard]] QString composeNameString() const;
 
-	[[nodiscard]] bool canBePlayed() const;
 	[[nodiscard]] bool canBeStreamed() const;
 	[[nodiscard]] auto createStreamingLoader(
 		Data::FileOrigin origin,
 		bool forceRemoteLoader) const
 	-> std::unique_ptr<Media::Streaming::Loader>;
+	[[nodiscard]] bool useStreamingLoader() const;
 
 	void setInappPlaybackFailed();
 	[[nodiscard]] bool inappPlaybackFailed() const;
@@ -291,7 +289,6 @@ private:
 	void handleLoaderUpdates();
 	void destroyLoader() const;
 
-	[[nodiscard]] bool useStreamingLoader() const;
 	bool saveFromDataChecked();
 
 	// Two types of location: from MTProto by dc+access or from web by url
@@ -312,7 +309,6 @@ private:
 	not_null<Data::Session*> _owner;
 
 	FileLocation _location;
-	QByteArray _data;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;
@@ -440,7 +436,7 @@ QString FileExtension(const QString &filepath);
 bool IsValidMediaFile(const QString &filepath);
 bool IsExecutableName(const QString &filepath);
 base::binary_guard ReadImageAsync(
-	not_null<DocumentData*> document,
+	not_null<Data::DocumentMedia*> media,
 	FnMut<QImage(QImage)> postprocess,
 	FnMut<void(QImage&&)> done);
 
