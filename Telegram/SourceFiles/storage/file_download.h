@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
+#include "base/weak_ptr.h"
 
 #include <QtNetwork/QNetworkReply>
 
@@ -51,9 +52,7 @@ struct StorageImageSaved {
 
 };
 
-class FileLoader : public QObject {
-	Q_OBJECT
-
+class FileLoader : public base::has_weak_ptr {
 public:
 	FileLoader(
 		const QString &toFile,
@@ -109,9 +108,9 @@ public:
 		const QByteArray &imageFormat,
 		const QImage &imageData);
 
-signals:
-	void progress(FileLoader *loader);
-	void failed(FileLoader *loader, bool started);
+	[[nodiscard]] rpl::producer<rpl::empty_value, bool> updates() const {
+		return _updates.events();
+	}
 
 protected:
 	enum class LocalStatus {
@@ -139,6 +138,7 @@ protected:
 	[[nodiscard]] QByteArray readLoadedPartBack(int offset, int size);
 
 	const not_null<Main::Session*> _session;
+	rpl::event_stream<rpl::empty_value, bool> _updates;
 
 	bool _autoLoading = false;
 	uint8 _cacheTag = 0;

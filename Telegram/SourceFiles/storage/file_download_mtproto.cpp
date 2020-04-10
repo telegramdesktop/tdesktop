@@ -109,7 +109,6 @@ bool mtpFileLoader::feedPart(int offset, const QByteArray &bytes) {
 	if (buffer.empty() || (buffer.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
-	const auto weak = QPointer<mtpFileLoader>(this);
 	const auto finished = !haveSentRequests()
 		&& (_lastComplete || (_size && _nextRequestOffset >= _size));
 	if (finished) {
@@ -117,8 +116,7 @@ bool mtpFileLoader::feedPart(int offset, const QByteArray &bytes) {
 		if (!finalizeResult()) {
 			return false;
 		}
-	}
-	if (weak) {
+	} else {
 		notifyAboutProgress();
 	}
 	return true;

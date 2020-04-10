@@ -529,7 +529,7 @@ private:
 	Form _form;
 	bool _cancelled = false;
 	mtpRequestId _recoverRequestId = 0;
-	std::map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
+	base::flat_map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
 	rpl::event_stream<not_null<const Value*>> _valueSaveFinished;

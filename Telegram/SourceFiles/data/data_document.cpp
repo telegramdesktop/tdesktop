@@ -795,32 +795,30 @@ void DocumentData::automaticLoadSettingsChanged() {
 }
 
 bool DocumentData::loaded(bool check) const {
-	if (loading() && _loader->finished()) {
-		if (_loader->cancelled()) {
-			_flags |= Flag::DownloadCancelled;
-			destroyLoader();
-		} else {
-			auto that = const_cast<DocumentData*>(this);
-			that->setLocation(FileLocation(_loader->fileName()));
-			ActiveCache().decrement(that->_data.size());
-			that->_data = _loader->bytes();
-			ActiveCache().increment(that->_data.size());
-
-			that->setGoodThumbnailDataReady();
-
-			if (const auto media = activeMediaView()) {
-				media->setBytes(_loader->bytes());
-				media->checkStickerLarge(_loader.get());
-			}
-			destroyLoader();
-
-			if (!that->_data.isEmpty()) {
-				ActiveCache().up(that);
-			}
-		}
-		_owner->notifyDocumentLayoutChanged(this);
-	}
 	return !rawBytes().isEmpty() || !filepath(check).isEmpty();
+}
+
+void DocumentData::finishLoad() {
+	const auto guard = gsl::finally([&] {
+		destroyLoader();
+	});
+	if (_loader->cancelled()) {
+		_flags |= Flag::DownloadCancelled;
+		return;
+	}
+	setLocation(FileLocation(_loader->fileName()));
+	ActiveCache().decrement(_data.size());
+	_data = _loader->bytes();
+	ActiveCache().increment(_data.size());
+
+	setGoodThumbnailDataReady();
+	if (const auto media = activeMediaView()) {
+		media->setBytes(_loader->bytes());
+		media->checkStickerLarge(_loader.get());
+	}
+	if (!_data.isEmpty()) {
+		ActiveCache().up(this);
+	}
 }
 
 void DocumentData::destroyLoader() const {
@@ -996,22 +994,52 @@ void DocumentData::save(
 				autoLoading,
 				cacheTag());
 		}
-
-		QObject::connect(
-			_loader.get(),
-			&FileLoader::progress,
-			App::main(),
-			[=](FileLoader *l) { App::main()->documentLoadProgress(l); });
-		QObject::connect(
-			_loader.get(),
-			&FileLoader::failed,
-			App::main(),
-			&MainWidget::documentLoadFailed);
+		handleLoaderUpdates();
 	}
 	if (loading()) {
 		_loader->start();
 	}
 	_owner->notifyDocumentLayoutChanged(this);
+}
+
+void DocumentData::handleLoaderUpdates() {
+	_loader->updates(
+	) | rpl::start_with_next_error_done([=] {
+		_owner->documentLoadProgress(this);
+	}, [=](bool started) {
+		if (started) {
+			const auto origin = _loader->fileOrigin();
+			const auto failedFileName = _loader->fileName();
+			const auto retry = [=] {
+				Ui::hideLayer();
+				save(origin, failedFileName);
+			};
+			Ui::show(Box<ConfirmBox>(
+				tr::lng_download_finish_failed(tr::now),
+				crl::guard(&session(), retry)));
+		} else {
+			// Sometimes we have LOCATION_INVALID error in documents / stickers.
+			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
+			//
+			//const auto openSettings = [=] {
+			//	Global::SetDownloadPath(QString());
+			//	Global::SetDownloadPathBookmark(QByteArray());
+			//	Ui::show(Box<DownloadPathBox>());
+			//	Global::RefDownloadPathChanged().notify();
+			//};
+			//Ui::show(Box<ConfirmBox>(
+			//	tr::lng_download_path_failed(tr::now),
+			//	tr::lng_download_path_settings(tr::now),
+			//	crl::guard(&session(), openSettings)));
+		}
+		finishLoad();
+		status = FileDownloadFailed;
+		_owner->documentLoadFail(this, started);
+	}, [=] {
+		finishLoad();
+		_owner->documentLoadDone(this);
+	}) | rpl::release();
+
 }
 
 void DocumentData::cancel() {
@@ -1021,8 +1049,7 @@ void DocumentData::cancel() {
 
 	_flags |= Flag::DownloadCancelled;
 	destroyLoader();
-	_owner->notifyDocumentLayoutChanged(this);
-	App::main()->documentLoadProgress(this);
+	_owner->documentLoadDone(this);
 }
 
 bool DocumentData::cancelled() const {

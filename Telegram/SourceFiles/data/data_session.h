@@ -433,6 +433,10 @@ public:
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
 
+	void documentLoadProgress(not_null<DocumentData*> document);
+	void documentLoadDone(not_null<DocumentData*> document);
+	void documentLoadFail(not_null<DocumentData*> document, bool started);
+
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
 		MTPDmessage_ClientFlags flags,

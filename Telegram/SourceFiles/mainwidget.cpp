@@ -1252,53 +1252,6 @@ void MainWidget::exportTopBarHeightUpdated() {
 	}
 }
 
-void MainWidget::documentLoadProgress(FileLoader *loader) {
-	if (const auto documentId = loader ? loader->objId() : 0) {
-		documentLoadProgress(session().data().document(documentId));
-	}
-}
-
-void MainWidget::documentLoadProgress(DocumentData *document) {
-	session().data().requestDocumentViewRepaint(document);
-	session().documentUpdated.notify(document, true);
-
-	if (!document->loaded() && document->isAudioFile()) {
-		Media::Player::instance()->documentLoadProgress(document);
-	}
-}
-
-void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
-	const auto documentId = loader ? loader->objId() : 0;
-	if (!documentId) return;
-
-	const auto document = session().data().document(documentId);
-	if (started) {
-		const auto origin = loader->fileOrigin();
-		const auto failedFileName = loader->fileName();
-		Ui::show(Box<ConfirmBox>(tr::lng_download_finish_failed(tr::now), crl::guard(this, [=] {
-			Ui::hideLayer();
-			if (document) {
-				document->save(origin, failedFileName);
-			}
-		})));
-	} else {
-		// Sometimes we have LOCATION_INVALID error in documents / stickers.
-		// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
-		//
-		//Ui::show(Box<ConfirmBox>(tr::lng_download_path_failed(tr::now), tr::lng_download_path_settings(tr::now), crl::guard(this, [=] {
-		//	Global::SetDownloadPath(QString());
-		//	Global::SetDownloadPathBookmark(QByteArray());
-		//	Ui::show(Box<DownloadPathBox>());
-		//	Global::RefDownloadPathChanged().notify();
-		//})));
-	}
-
-	if (document) {
-		if (document->loading()) document->cancel();
-		document->status = FileDownloadFailed;
-	}
-}
-
 void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
 	//InlineBots::Result *result = InlineBots::resultFromLoader(loader);
 	//if (!result) return;

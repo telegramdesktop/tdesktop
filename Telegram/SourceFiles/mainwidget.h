@@ -266,8 +266,6 @@ public:
 	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
 	bool ptsUpdateAndApply(int32 pts, int32 ptsCount);
 
-	void documentLoadProgress(DocumentData *document);
-
 	void searchInChat(Dialogs::Key chat);
 
 	void app_sendBotCallback(
@@ -299,8 +297,6 @@ signals:
 	void dialogsUpdated();
 
 public slots:
-	void documentLoadProgress(FileLoader *loader);
-	void documentLoadFailed(FileLoader *loader, bool started);
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
 

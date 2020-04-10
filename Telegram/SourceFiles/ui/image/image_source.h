@@ -148,6 +148,9 @@ protected:
 		bool autoLoading) = 0;
 
 	void loadLocal();
+	FileLoader *currentLoader() const {
+		return _loader.get();
+	}
 
 private:
 	bool cancelled() const;

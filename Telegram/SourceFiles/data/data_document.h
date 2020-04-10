@@ -287,6 +287,8 @@ private:
 	void setMaybeSupportsStreaming(bool supports);
 	void setLoadedInMediaCacheLocation();
 
+	void finishLoad();
+	void handleLoaderUpdates();
 	void destroyLoader() const;
 
 	[[nodiscard]] bool useStreamingLoader() const;

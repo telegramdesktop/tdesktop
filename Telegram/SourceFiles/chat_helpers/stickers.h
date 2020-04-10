@@ -178,14 +178,7 @@ public:
 
 	QByteArray bytesForCache() override;
 
-protected:
-	std::unique_ptr<FileLoader> createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) override;
-
 private:
-	QPointer<FileLoader> _loader;
 	QByteArray _bytesForAnimated;
 
 };

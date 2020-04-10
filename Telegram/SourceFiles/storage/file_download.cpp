@@ -72,7 +72,8 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 		Platform::File::PostprocessDownloaded(
 			QFileInfo(_file).absoluteFilePath());
 	}
-	Auth().downloaderTaskFinished().notify();
+	_session->downloaderTaskFinished().notify();
+	_updates.fire_done();
 }
 
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
@@ -130,7 +131,7 @@ void FileLoader::permitLoadFromCloud() {
 }
 
 void FileLoader::notifyAboutProgress() {
-	emit progress(this);
+	_updates.fire({});
 }
 
 void FileLoader::localLoaded(
@@ -148,7 +149,6 @@ void FileLoader::localLoaded(
 		_imageData = imageData;
 	}
 	finishWithBytes(result.data);
-	notifyAboutProgress();
 }
 
 void FileLoader::start() {
@@ -186,7 +186,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 				std::move(image));
 		});
 	};
-	session().data().cache().get(key, [=, callback = std::move(done)](
+	_session->data().cache().get(key, [=, callback = std::move(done)](
 			QByteArray &&value) mutable {
 		if (readImage) {
 			crl::async([
@@ -218,10 +218,10 @@ bool FileLoader::tryLoadLocal() {
 		return true;
 	}
 
-	const auto weak = QPointer<FileLoader>(this);
+	const auto weak = base::make_weak(this);
 	if (_toCache == LoadToCacheAsWell) {
 		loadLocal(cacheKey());
-		emit progress(this);
+		notifyAboutProgress();
 	}
 	if (!weak) {
 		return false;
@@ -253,11 +253,11 @@ void FileLoader::cancel(bool fail) {
 	}
 	_data = QByteArray();
 
-	const auto weak = QPointer<FileLoader>(this);
+	const auto weak = base::make_weak(this);
 	if (fail) {
-		emit failed(this, started);
+		_updates.fire_error_copy(started);
 	} else {
-		emit progress(this);
+		_updates.fire_done();
 	}
 	if (weak) {
 		_filename = QString();
@@ -361,13 +361,14 @@ bool FileLoader::finalizeResult() {
 		}
 		if ((_toCache == LoadToCacheAsWell)
 			&& (_data.size() <= Storage::kMaxFileInMemory)) {
-			session().data().cache().put(
+			_session->data().cache().put(
 				cacheKey(),
 				Storage::Cache::Database::TaggedValue(
 					base::duplicate(_data),
 					_cacheTag));
 		}
 	}
-	Auth().downloaderTaskFinished().notify();
+	_session->downloaderTaskFinished().notify();
+	_updates.fire_done();
 	return true;
 }

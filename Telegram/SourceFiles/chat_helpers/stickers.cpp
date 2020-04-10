@@ -1282,11 +1282,12 @@ ThumbnailSource::ThumbnailSource(
 }
 
 QImage ThumbnailSource::takeLoaded() {
+	const auto loader = currentLoader();
 	if (_bytesForAnimated.isEmpty()
-		&& _loader
-		&& _loader->finished()
-		&& !_loader->cancelled()) {
-		_bytesForAnimated = _loader->bytes();
+		&& loader
+		&& loader->finished()
+		&& !loader->cancelled()) {
+		_bytesForAnimated = loader->bytes();
 	}
 	auto result = StorageSource::takeLoaded();
 	if (!_bytesForAnimated.isEmpty()
@@ -1299,18 +1300,6 @@ QImage ThumbnailSource::takeLoaded() {
 
 QByteArray ThumbnailSource::bytesForCache() {
 	return _bytesForAnimated;
-}
-
-std::unique_ptr<FileLoader> ThumbnailSource::createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) {
-	auto result = StorageSource::createLoader(
-		origin,
-		fromCloud,
-		autoLoading);
-	_loader = result.get();
-	return result;
 }
 
 } // namespace Stickers

@@ -1114,6 +1114,25 @@ void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
 	}
 }
 
+void Session::documentLoadProgress(not_null<DocumentData*> document) {
+	requestDocumentViewRepaint(document);
+	session().documentUpdated.notify(document, true);
+
+	if (document->isAudioFile()) {
+		::Media::Player::instance()->documentLoadProgress(document);
+	}
+}
+
+void Session::documentLoadDone(not_null<DocumentData*> document) {
+	notifyDocumentLayoutChanged(document);
+}
+
+void Session::documentLoadFail(
+		not_null<DocumentData*> document,
+		bool started) {
+	notifyDocumentLayoutChanged(document);
+}
+
 void Session::markMediaRead(not_null<const DocumentData*> document) {
 	const auto i = _documentItems.find(document);
 	if (i != end(_documentItems)) {
