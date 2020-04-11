@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -1824,19 +1824,23 @@ void ParticipantsBoxController::recomputeTypeFor(
 void ParticipantsBoxController::refreshCustomStatus(
 		not_null<PeerListRow*> row) const {
 	const auto user = row->peer()->asUser();
+	QString title;
+	if (_additional.adminRank(user) != "") {
+		title = _additional.adminRank(user) + "|";
+	}
 	if (_role == Role::Admins) {
 		if (const auto by = _additional.adminPromotedBy(user)) {
-			row->setCustomStatus(tr::lng_channel_admin_status_promoted_by(
+			row->setCustomStatus(title+tr::lng_channel_admin_status_promoted_by(
 				tr::now,
 				lt_user,
 				by->name));
 		} else {
 			if (_additional.isCreator(user)) {
 				row->setCustomStatus(
-					tr::lng_channel_admin_status_creator(tr::now));
+					title+tr::lng_channel_admin_status_creator(tr::now));
 			} else {
 				row->setCustomStatus(
-					tr::lng_channel_admin_status_not_admin(tr::now));
+					title+tr::lng_channel_admin_status_not_admin(tr::now));
 			}
 		}
 	} else if (_role == Role::Kicked || _role == Role::Restricted) {
