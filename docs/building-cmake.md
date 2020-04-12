@@ -85,23 +85,27 @@ Go to ***BuildPath*** and run
     cd ffmpeg
     git checkout release/3.4
 
-    ./configure --prefix=/usr/local \
-    --enable-protocol=file --enable-libopus \
+    ./configure \
     --disable-programs \
     --disable-doc \
     --disable-network \
+    --disable-autodetect \
     --disable-everything \
+    --disable-neon \
+    --disable-iconv \
+    --enable-libopus \
+    --enable-vaapi \
+    --enable-vdpau \
+    --enable-protocol=file \
     --enable-hwaccel=h264_vaapi \
     --enable-hwaccel=h264_vdpau \
     --enable-hwaccel=mpeg4_vaapi \
     --enable-hwaccel=mpeg4_vdpau \
     --enable-decoder=aac \
-    --enable-decoder=aac_at \
     --enable-decoder=aac_fixed \
     --enable-decoder=aac_latm \
     --enable-decoder=aasc \
     --enable-decoder=alac \
-    --enable-decoder=alac_at \
     --enable-decoder=flac \
     --enable-decoder=gif \
     --enable-decoder=h264 \
@@ -123,14 +127,12 @@ Go to ***BuildPath*** and run
     --enable-decoder=msmpeg4v3 \
     --enable-decoder=opus \
     --enable-decoder=pcm_alaw \
-    --enable-decoder=pcm_alaw_at \
     --enable-decoder=pcm_f32be \
     --enable-decoder=pcm_f32le \
     --enable-decoder=pcm_f64be \
     --enable-decoder=pcm_f64le \
     --enable-decoder=pcm_lxf \
     --enable-decoder=pcm_mulaw \
-    --enable-decoder=pcm_mulaw_at \
     --enable-decoder=pcm_s16be \
     --enable-decoder=pcm_s16be_planar \
     --enable-decoder=pcm_s16le \
@@ -200,11 +202,12 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout openal-soft-1.20.1
     cd build
-    if [ `uname -p` == "i686" ]; then
-    cmake -D LIBTYPE:STRING=STATIC -D ALSOFT_UTILS:BOOL=OFF ..
-    else
-    cmake -D LIBTYPE:STRING=STATIC ..
-    fi
+    cmake .. \
+    -DLIBTYPE:STRING=STATIC \
+    -DALSOFT_EXAMPLES=OFF \
+    -DALSOFT_TESTS=OFF \
+    -DALSOFT_UTILS=OFF \
+    -DALSOFT_CONFIG=OFF
     make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
@@ -227,7 +230,7 @@ Go to ***BuildPath*** and run
 
     git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
     cd wayland
-    ./autogen.sh --enable-static --disable-documentation
+    ./autogen.sh --enable-static --disable-documentation  --disable-dtd-validation
     make -j$(nproc)
     sudo make install
     cd ..
@@ -260,8 +263,6 @@ Go to ***BuildPath*** and run
     -qt-harfbuzz \
     -qt-pcre \
     -qt-xcb \
-    -system-freetype \
-    -fontconfig \
     -no-gtk \
     -static \
     -dbus-runtime \
