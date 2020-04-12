@@ -324,6 +324,9 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
+            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+          else
+            echo ::set-env name=ARTIFACT_NAME::Telegram
           fi
           echo "::set-env name=TDESKTOP_BUILD_DEFINE::$DEFINE"
 
@@ -355,5 +358,5 @@ jobs:
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: Telegram
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.REPO_NAME }}\out\Debug\artifact\
