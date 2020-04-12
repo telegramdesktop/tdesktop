@@ -27,6 +27,7 @@ jobs:
       GIT: "https://github.com"
       QT: "5_12_5"
       QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.5"
+      Qt5_DIR: "/usr/local/desktop-app/Qt-5.12.5/lib/cmake/Qt5"
       OPENSSL_VER: "1_1_1"
       OPENSSL_PREFIX: "/usr/local/desktop-app/openssl-1.1.1"
       CMAKE_VER: "3.17.0"
@@ -130,6 +131,18 @@ jobs:
           rm $file
 
           cmake --version
+
+      - name: Extra CMake Modules.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b v5.69.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
+          cd extra-cmake-modules
+          cmake . -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf extra-cmake-modules
 
       - name: Opus cache.
         id: cache-opus
@@ -409,7 +422,6 @@ jobs:
           cd qtbase
           git apply ../../patches/qtbase_${QT}.diff
           cd src/plugins/platforminputcontexts
-          git clone $GIT/desktop-app/fcitx.git
           git clone $GIT/desktop-app/hime.git
           git clone $GIT/desktop-app/nimf.git
           cd ../../../..
@@ -440,6 +452,22 @@ jobs:
         run: |
           cd $LibrariesPath
           sudo cp -R qt-cache/. /
+
+      - name: Fcitx Qt5.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b 1.2.4 --depth=1 $GIT/fcitx/fcitx-qt5.git
+          cd fcitx-qt5
+          sed -i 's/MODULE/STATIC/g' platforminputcontext/CMakeLists.txt
+          cmake . \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_FLAGS="-DQT_STATICPLUGIN" \
+          -DENABLE_LIBRARY=OFF
+          make -j$(nproc)
+          sudo install -D platforminputcontext/libfcitxplatforminputcontextplugin.a "$QT_PREFIX/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a"
+          cd ..
+          rm -rf fcitx-qt5
 
       - name: Breakpad cache.
         id: cache-breakpad

@@ -215,7 +215,8 @@ Go to ***BuildPath*** and run
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    ./config --prefix=/usr/local/desktop-app/openssl-1.1.1
+    OPENSSL_PREFIX=/usr/local/desktop-app/openssl-1.1.1
+    ./config --prefix="$OPENSSL_PREFIX"
     make $MAKE_THREADS_CNT
     sudo make install_sw
     cd ..
@@ -246,13 +247,13 @@ Go to ***BuildPath*** and run
     cd qtbase
     git apply ../../patches/qtbase_5_12_5.diff
     cd src/plugins/platforminputcontexts
-    git clone https://github.com/desktop-app/fcitx.git
     git clone https://github.com/desktop-app/hime.git
     git clone https://github.com/desktop-app/nimf.git
     cd ../../../..
 
-    OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" \
+    QT_PREFIX=/usr/local/desktop-app/Qt-5.12.5
+    export Qt5_DIR="$QT_PREFIX/lib/cmake/Qt5"
+    ./configure -prefix "$QT_PREFIX" \
     -release \
     -force-debug-info \
     -opensource \
@@ -267,12 +268,23 @@ Go to ***BuildPath*** and run
     -static \
     -dbus-runtime \
     -openssl-linked \
-    -I "$OPENSSL_DIR/include" OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
+    -I "$OPENSSL_PREFIX/include" OPENSSL_LIBS="$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -ldl -lpthread" \
     -nomake examples \
     -nomake tests
 
     make $MAKE_THREADS_CNT
     sudo make install
+    cd ..
+
+    git clone -b 1.2.4 --depth=1 https://github.com/fcitx/fcitx-qt5.git
+    cd fcitx-qt5
+    sed -i 's/MODULE/STATIC/g' platforminputcontext/CMakeLists.txt
+    cmake . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_FLAGS="-DQT_STATICPLUGIN" \
+    -DENABLE_LIBRARY=OFF
+    make $MAKE_THREADS_CNT
+    sudo install -D platforminputcontext/libfcitxplatforminputcontextplugin.a "$QT_PREFIX/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a"
     cd ..
 
     git clone https://chromium.googlesource.com/external/gyp
