@@ -50,6 +50,7 @@ private:
 		Options  = 0x02,
 		Correct  = 0x04,
 		Other    = 0x08,
+		Solution = 0x10,
 	};
 	friend constexpr inline bool is_flag_type(Error) { return true; }
 	using Errors = base::flags<Error>;

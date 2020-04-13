@@ -39,6 +39,7 @@ constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;
 constexpr auto kSolutionLimit = 200;
+constexpr auto kWarnSolutionLimit = 60;
 constexpr auto kErrorLimit = 99;
 
 class Options {
@@ -825,6 +826,28 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	solution->setEditLinkCallback(
 		DefaultEditLinkCallback(_session, solution));
 
+	const auto warning = CreateWarningLabel(
+		inner,
+		solution,
+		kSolutionLimit,
+		kWarnSolutionLimit);
+	rpl::combine(
+		solution->geometryValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=](QRect geometry, QSize label) {
+		warning->moveToLeft(
+			(inner->width()
+				- label.width()
+				- st::createPollWarningPosition.x()),
+			(geometry.y()
+				- st::createPollFieldPadding.top()
+				- st::settingsSubsectionTitlePadding.bottom()
+				- st::settingsSubsectionTitle.style.font->height
+				+ st::settingsSubsectionTitle.style.font->ascent
+				- st::createPollWarning.style.font->ascent),
+			geometry.width());
+	}, warning->lifetime());
+
 	inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
@@ -990,6 +1013,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		} else {
 			*error &= ~Error::Correct;
 		}
+		if (quiz->checked()
+			&& solution->getLastText().trimmed().size() > kSolutionLimit) {
+			*error |= Error::Solution;
+		} else {
+			*error &= ~Error::Solution;
+		}
 	};
 	const auto showError = [=](const QString &text) {
 		Ui::Toast::Show(text);
@@ -1004,6 +1033,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			options->focusFirst();
 		} else if (*error & Error::Correct) {
 			showError(tr::lng_polls_choose_correct(tr::now));
+		} else if (*error & Error::Solution) {
+			solution->showError();
 		} else if (!*error) {
 			_submitRequests.fire({ collectResult(), sendOptions });
 		}
