@@ -62,7 +62,6 @@ struct PollData {
 	std::vector<PollAnswer> answers;
 	std::vector<not_null<UserData*>> recentVoters;
 	std::vector<QByteArray> sendingVotes;
-	crl::time lastResultsUpdate = 0;
 	TextWithEntities solution;
 	TimeId closePeriod = 0;
 	TimeId closeDate = 0;
@@ -76,8 +75,9 @@ private:
 		const MTPPollAnswerVoters &result,
 		bool isMinResults);
 
-	not_null<Data::Session*> _owner;
+	const not_null<Data::Session*> _owner;
 	Flags _flags = Flags();
+	crl::time _lastResultsUpdate = 0; // < 0 means force reload.
 
 };
 

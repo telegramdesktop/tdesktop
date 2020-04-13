@@ -48,6 +48,7 @@ bool PollData::closeByTimer() {
 		return false;
 	}
 	_flags |= Flag::Closed;
+	_lastResultsUpdate = -1; // Force reload results.
 	++version;
 	return true;
 }
@@ -105,7 +106,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 
 bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
-		lastResultsUpdate = crl::now();
+		_lastResultsUpdate = crl::now();
 
 		const auto newTotalVoters =
 			results.vtotal_voters().value_or(totalVoters);
@@ -158,13 +159,16 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	});
 }
 
-void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
-	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
+void PollData::checkResultsReload(
+		not_null<HistoryItem*> item,
+		crl::time now) {
+	if (_lastResultsUpdate > 0
+		&& _lastResultsUpdate + kShortPollTimeout > now) {
 		return;
-	} else if (closed()) {
+	} else if (closed() && _lastResultsUpdate >= 0) {
 		return;
 	}
-	lastResultsUpdate = now;
+	_lastResultsUpdate = now;
 	_owner->session().api().reloadPollResults(item);
 }
 
