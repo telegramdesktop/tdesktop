@@ -130,6 +130,11 @@ const auto kIcons = std::vector<FilterIcons>{
 		&st::foldersWorkActive,
 		"\xF0\x9F\x92\xBC"_cs.utf16()
 	},
+	{
+		&st::filtersEdit,
+		&st::filtersEdit,
+		QString()
+	}
 };
 
 } // namespace
@@ -145,6 +150,9 @@ std::optional<FilterIcon> LookupFilterIconByEmoji(const QString &emoji) {
 		auto result = base::flat_map<EmojiPtr, FilterIcon>();
 		auto index = 0;
 		for (const auto &entry : kIcons) {
+			if (entry.emoji.isEmpty()) {
+				continue;
+			}
 			const auto emoji = Ui::Emoji::Find(entry.emoji);
 			Assert(emoji != nullptr);
 			result.emplace(emoji, static_cast<FilterIcon>(index++));

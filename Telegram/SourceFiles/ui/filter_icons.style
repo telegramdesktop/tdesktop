@@ -26,6 +26,8 @@ filtersCustomActive: icon {{ "filters/filters_custom_active", sideBarIconFgActiv
 filtersSetup: icon {{ "filters/filters_setup", sideBarIconFg }};
 filtersSetupActive: icon {{ "filters/filters_setup", sideBarIconFgActive }};
 
+filtersEdit: icon {{ "filters/filters_edit", sideBarIconFg }};
+
 foldersCat: icon {{ "filters/folders_cat", sideBarIconFg }};
 foldersCatActive: icon {{ "filters/folders_cat_active", sideBarIconFgActive }};
 foldersCrown: icon {{ "filters/folders_crown", sideBarIconFg }};

@@ -44,6 +44,8 @@ enum class FilterIcon : uchar {
 	Trade,
 	Travel,
 	Work,
+
+	Edit,
 };
 
 struct FilterIcons {
