@@ -451,7 +451,7 @@ void MainWindow::initHook() {
 
 bool MainWindow::hasTrayIcon() const {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	return trayIcon || _sniTrayIcon;
+	return trayIcon || (SNIAvailable && _sniTrayIcon);
 #else
 	return trayIcon;
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -544,12 +544,6 @@ void MainWindow::onSNIOwnerChanged(
 	} else {
 		return;
 	}
-
-	if (_sniTrayIcon) {
-		_sniTrayIcon->setContextMenu(0);
-		_sniTrayIcon->deleteLater();
-	}
-	_sniTrayIcon = nullptr;
 
 	if (trayIcon) {
 		trayIcon->setContextMenu(0);
