@@ -618,14 +618,14 @@ historyAudioInDownloadSelected: icon {{ "history_audio_download", historyFileInI
 historyAudioOutDownload: icon {{ "history_audio_download", historyFileOutIconFg }};
 historyAudioOutDownloadSelected: icon {{ "history_audio_download", historyFileOutIconFgSelected }};
 
-historyQuizExplainIn: icon {{ "quiz_explain", msgInDateFg }};
-historyQuizExplainInSelected: icon {{ "quiz_explain", msgInDateFgSelected }};
-historyQuizExplainOut: icon {{ "quiz_explain", msgOutDateFg }};
-historyQuizExplainOutSelected: icon {{ "quiz_explain", msgOutDateFgSelected }};
-historyQuizTimerIn: icon {{ "quiz_timer", msgInDateFg }};
-historyQuizTimerInSelected: icon {{ "quiz_timer", msgInDateFgSelected }};
-historyQuizTimerOut: icon {{ "quiz_timer", msgOutDateFg }};
-historyQuizTimerOutSelected: icon {{ "quiz_timer", msgOutDateFgSelected }};
+historyQuizExplainIn: icon {{ "quiz_explain", msgFileThumbLinkInFg }};
+historyQuizExplainInSelected: icon {{ "quiz_explain", msgFileThumbLinkInFgSelected }};
+historyQuizExplainOut: icon {{ "quiz_explain", msgFileThumbLinkOutFg }};
+historyQuizExplainOutSelected: icon {{ "quiz_explain", msgFileThumbLinkOutFgSelected }};
+historyQuizTimerIn: icon {{ "quiz_timer", msgFileThumbLinkInFg }};
+historyQuizTimerInSelected: icon {{ "quiz_timer", msgFileThumbLinkInFgSelected }};
+historyQuizTimerOut: icon {{ "quiz_timer", msgFileThumbLinkOutFg }};
+historyQuizTimerOutSelected: icon {{ "quiz_timer", msgFileThumbLinkOutFgSelected }};
 
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
 
