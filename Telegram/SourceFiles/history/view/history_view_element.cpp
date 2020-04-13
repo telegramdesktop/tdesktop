@@ -286,7 +286,7 @@ bool Element::isUnderCursor() const {
 }
 
 bool Element::isLastAndSelfMessage() const {
-	if (!hasOutLayout()) {
+	if (!hasOutLayout() || data()->_history->peer->isSelf()) {
 		return false;
 	}
 	if (const auto last = data()->_history->lastMessage()) {
