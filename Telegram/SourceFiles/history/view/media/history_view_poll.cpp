@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/fireworks_animation.h"
+#include "ui/toast/toast.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 namespace HistoryView {
 namespace {
@@ -114,6 +116,13 @@ void CountNicePercent(
 	for (const auto &item : items) {
 		result[item.index] = item.percent;
 	}
+}
+
+[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
+	return std::clamp(
+		crl::time(1000) * text.text.size() / 14,
+		crl::time(1000) * 5,
+		crl::time(1000) * 8);
 }
 
 } // namespace
@@ -405,7 +414,21 @@ void Poll::checkQuizAnswered() {
 			1.,
 			kRollDuration,
 			anim::linear);
+		showSolution();
 	}
+}
+
+void Poll::showSolution() {
+	if (_poll->solution.text.isEmpty()) {
+		return;
+	}
+	auto config = Ui::Toast::Config();
+	config.multiline = true;
+	config.minWidth = st::msgMinWidth;
+	config.maxWidth = st::windowMinWidth;
+	config.text = _poll->solution;
+	config.durationMs = CountToastDuration(config.text);
+	Ui::Toast::Show(config);
 }
 
 void Poll::updateRecentVoters() {

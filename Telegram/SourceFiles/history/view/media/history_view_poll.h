@@ -155,6 +155,7 @@ private:
 	void sendMultiOptions();
 	void showResults();
 	void checkQuizAnswered();
+	void showSolution();
 
 	[[nodiscard]] int bottomButtonHeight() const;
 
