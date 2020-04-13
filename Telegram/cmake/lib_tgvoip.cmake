@@ -9,10 +9,9 @@ if (TDESKTOP_USE_PACKAGED_TGVOIP)
     add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(TGVOIP REQUIRED tgvoip)
+    pkg_check_modules(TGVOIP REQUIRED IMPORTED_TARGET tgvoip)
 
-    target_include_directories(lib_tgvoip INTERFACE ${TGVOIP_INCLUDE_DIRS})
-    target_link_libraries(lib_tgvoip INTERFACE ${TGVOIP_LIBRARIES})
+    target_link_libraries(lib_tgvoip INTERFACE PkgConfig::TGVOIP)
 else()
     add_library(lib_tgvoip STATIC)
     init_target(lib_tgvoip)
@@ -777,10 +776,6 @@ else()
             WEBRTC_POSIX
             WEBRTC_LINUX
         )
-    endif()
-
-    if (NOT WIN32)
-        target_compile_definitions(lib_tgvoip PRIVATE TGVOIP_USE_INSTALLED_OPUS)
     endif()
 
     target_include_directories(lib_tgvoip
