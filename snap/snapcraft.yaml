@@ -205,7 +205,10 @@ parts:
     source-depth: 1
     source-tag: 0.6.0
     plugin: meson
-    meson-parameters: [--prefix=/usr]
+    meson-parameters:
+      - --prefix=/usr
+      - -Denable_tools=false
+      - -Denable_tests=false
     after:
       - nasm
 
