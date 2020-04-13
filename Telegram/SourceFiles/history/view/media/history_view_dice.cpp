@@ -52,7 +52,7 @@ ClickHandlerPtr Dice::link() {
 		auto config = Ui::Toast::Config();
 		config.multiline = true;
 		config.minWidth = st::msgMinWidth;
-		config.text = tr::lng_about_dice(tr::now);
+		config.text = { tr::lng_about_dice(tr::now) };
 		Ui::Toast::Show(config);
 	});
 	return kHandler;

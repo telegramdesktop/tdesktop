@@ -273,9 +273,7 @@ void SeparatePanel::showBox(
 }
 
 void SeparatePanel::showToast(const QString &text) {
-	auto toast = Ui::Toast::Config();
-	toast.text = text;
-	Ui::Toast::Show(this, toast);
+	Ui::Toast::Show(this, text);
 }
 
 void SeparatePanel::ensureLayerCreated() {

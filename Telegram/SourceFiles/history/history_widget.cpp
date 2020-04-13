@@ -238,7 +238,7 @@ void ShowErrorToast(const QString &text) {
 	auto config = Ui::Toast::Config();
 	config.multiline = true;
 	config.minWidth = st::msgMinWidth;
-	config.text = text;
+	config.text = { text };
 	Ui::Toast::Show(config);
 }
 
