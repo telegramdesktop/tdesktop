@@ -1706,9 +1706,6 @@ void History::applyInboxReadUpdate(
 }
 
 void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
-	if (unreadCount() > 0 && loadedAtBottom()) {
-		App::main()->historyToDown(this);
-	}
 	if (stillUnread.has_value() && folderKnown()) {
 		setUnreadCount(*stillUnread);
 	} else if (const auto still = countStillUnreadLocal(upTo)) {
