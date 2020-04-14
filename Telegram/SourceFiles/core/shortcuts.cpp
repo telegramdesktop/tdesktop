@@ -122,6 +122,16 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	
 	{ Command::FolderPrevious ,  qsl("previous_folder")   },
 	{ Command::FolderNext     ,  qsl("next_folder")       },
+	{ Command::ShowAllChats   , qsl("all_chats")   },
+	                                                   
+	{   Command::ShowFolder1       , qsl("folder1")    },
+	{   Command::ShowFolder2       , qsl("folder2")    },
+	{   Command::ShowFolder3       , qsl("folder3")    },
+	{   Command::ShowFolder4       , qsl("folder4")    },
+	{   Command::ShowFolder5       , qsl("folder5")    },
+	{   Command::ShowFolder6       , qsl("folder6")    },
+	{   Command::ShowFolderLast    , qsl("last_folder") },
+
 
 	{ Command::ShowArchive   , qsl("show_archive") },
 };
