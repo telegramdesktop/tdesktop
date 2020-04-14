@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "base/call_delayed.h"
 #include "main/main_session.h"
 #include "api/api_text_entities.h"
 #include "ui/text_options.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kShortPollTimeout = 30 * crl::time(1000);
+constexpr auto kReloadAfterAutoCloseDelay = crl::time(1000);
 
 const PollAnswer *AnswerByOption(
 		const std::vector<PollAnswer> &list,
@@ -48,8 +50,12 @@ bool PollData::closeByTimer() {
 		return false;
 	}
 	_flags |= Flag::Closed;
-	_lastResultsUpdate = -1; // Force reload results.
 	++version;
+	base::call_delayed(kReloadAfterAutoCloseDelay, &_owner->session(), [=] {
+		_lastResultsUpdate = -1; // Force reload results.
+		++version;
+		_owner->notifyPollUpdateDelayed(this);
+	});
 	return true;
 }
 
