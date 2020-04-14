@@ -749,6 +749,7 @@ void DocumentData::automaticLoadSettingsChanged() {
 }
 
 void DocumentData::finishLoad() {
+	// NB! _loader may be in ~FileLoader() already.
 	const auto guard = gsl::finally([&] {
 		destroyLoader();
 	});

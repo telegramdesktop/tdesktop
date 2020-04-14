@@ -43,7 +43,11 @@ FileLoader::FileLoader(
 	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
-FileLoader::~FileLoader() = default;
+FileLoader::~FileLoader() {
+	if (!_finished) {
+		cancel();
+	}
+}
 
 Main::Session &FileLoader::session() const {
 	return *_session;
