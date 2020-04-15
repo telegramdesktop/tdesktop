@@ -21,10 +21,14 @@ public:
 	[[nodiscard]] not_null<DocumentData*> owner() const;
 
 	void goodThumbnailWanted();
-	[[nodiscard]] Image *goodThumbnail() const;
+	[[nodiscard]] Image *goodThumbnail() const; // #TODO optimize QImage-wrap
 	void setGoodThumbnail(QImage thumbnail);
 
 	[[nodiscard]] Image *thumbnailInline() const;
+	[[nodiscard]] Image *thumbnail() const;
+	[[nodiscard]] QSize thumbnailSize() const;
+	void thumbnailWanted(Data::FileOrigin origin);
+	void setThumbnail(QImage thumbnail);
 
 	void checkStickerLarge();
 	void checkStickerSmall();
@@ -55,9 +59,12 @@ private:
 		not_null<DocumentData*> document,
 		QByteArray data);
 
+	[[nodiscard]] bool thumbnailEnoughForSticker() const;
+
 	const not_null<DocumentData*> _owner;
 	std::unique_ptr<Image> _goodThumbnail;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
+	std::unique_ptr<Image> _thumbnail;
 	std::unique_ptr<Image> _sticker;
 	QByteArray _bytes;
 	Flags _flags;

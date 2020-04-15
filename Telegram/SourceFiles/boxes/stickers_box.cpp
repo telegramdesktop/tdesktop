@@ -908,7 +908,7 @@ void StickersBox::Inner::paintRowThumbnail(
 		set->accessHash);
 	const auto thumb = set->thumbnail
 		? set->thumbnail.get()
-		: set->sticker->thumbnail();
+		: set->stickerMedia->thumbnail();
 	if (!thumb) {
 		return;
 	}
@@ -1650,6 +1650,8 @@ void StickersBox::Inner::updateRows() {
 				row->thumbnail = thumbnail;
 				row->sticker = sticker;
 				row->stickerMedia = sticker->createMediaView();
+				row->stickerMedia->thumbnailWanted(
+					Data::FileOriginStickerSet(row->id, row->accessHash));
 				row->pixw = pixw;
 				row->pixh = pixh;
 			}
@@ -1747,8 +1749,10 @@ void StickersBox::Inner::fillSetCover(const Stickers::Set &set, ImagePtr *thumbn
 
 	const auto size = set.thumbnail
 		? set.thumbnail->size()
-		: sticker->thumbnail()
-		? sticker->thumbnail()->size()
+		: sticker->hasThumbnail()
+		? QSize(
+			sticker->thumbnailLocation().width(),
+			sticker->thumbnailLocation().height())
 		: QSize(1, 1);
 	auto pixw = size.width();
 	auto pixh = size.height();
@@ -1913,10 +1917,17 @@ void StickersBox::Inner::readVisibleSets() {
 			? nullptr
 			: _rows[i]->thumbnail
 			? _rows[i]->thumbnail.get()
-			: _rows[i]->sticker->thumbnail();
-		if (!thumbnail
-			|| thumbnail->loaded()
-			|| _rows[i]->stickerMedia->loaded()) {
+			: _rows[i]->stickerMedia
+			? _rows[i]->stickerMedia->thumbnail()
+			: nullptr;
+		const auto thumbnailLoading = !_rows[i]->sticker
+			? false
+			: _rows[i]->thumbnail
+			? !thumbnail->loaded()
+			: _rows[i]->stickerMedia
+			? _rows[i]->sticker->thumbnailLoading()
+			: false;
+		if (!thumbnailLoading || _rows[i]->stickerMedia->loaded()) {
 			_session->api().readFeaturedSetDelayed(_rows[i]->id);
 		}
 	}

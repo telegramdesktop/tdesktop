@@ -1371,13 +1371,13 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		return _instance.frame(request);
 	}
 	const auto &cover = _instance.info().video.cover;
+
+	// #TODO optimize always use when available
 	const auto media = _data->activeMediaView();
 	const auto good = media ? media->goodThumbnail() : nullptr;
 	const auto useGood = (good && good->loaded());
-	const auto thumb = _data->thumbnail();
+	const auto thumb = media ? media->thumbnail() : nullptr;
 	const auto useThumb = (thumb && thumb->loaded());
-
-	// #TODO optimize always use when available
 	const auto blurred = media ? media->thumbnailInline() : nullptr;
 
 	const auto state = !cover.isNull()

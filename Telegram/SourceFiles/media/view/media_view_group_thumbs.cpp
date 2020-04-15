@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_photos.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
@@ -133,6 +134,11 @@ public:
 		Image *image,
 		Data::FileOrigin origin,
 		Fn<void()> handler);
+	Thumb(
+		Key key,
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		Fn<void()> handler);
 
 	int leftToUpdate() const;
 	int rightToUpdate() const;
@@ -158,6 +164,7 @@ private:
 
 	ClickHandlerPtr _link;
 	const Key _key;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Image *_image = nullptr;
 	Data::FileOrigin _origin;
 	State _state = State::Alive;
@@ -186,6 +193,22 @@ GroupThumbs::Thumb::Thumb(
 	validateImage();
 }
 
+GroupThumbs::Thumb::Thumb(
+	Key key,
+	not_null<DocumentData*> document,
+	Data::FileOrigin origin,
+	Fn<void()> handler)
+: _key(key)
+, _documentMedia(document->createMediaView())
+, _origin(origin) {
+	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
+	_fullWidth = std::min(
+		wantedPixSize().width(),
+		st::mediaviewGroupWidthMax);
+	_documentMedia->thumbnailWanted(origin);
+	validateImage();
+}
+
 QSize GroupThumbs::Thumb::wantedPixSize() const {
 	const auto originalWidth = _image ? std::max(_image->width(), 1) : 1;
 	const auto originalHeight = _image ? std::max(_image->height(), 1) : 1;
@@ -195,6 +218,9 @@ QSize GroupThumbs::Thumb::wantedPixSize() const {
 }
 
 void GroupThumbs::Thumb::validateImage() {
+	if (!_image && _documentMedia) {
+		_image = _documentMedia->thumbnail();
+	}
 	if (!_full.isNull() || !_image) {
 		return;
 	}
@@ -524,7 +550,7 @@ auto GroupThumbs::createThumb(Key key)
 				if (const auto photo = media->photo()) {
 					return createThumb(key, photo->thumbnail());
 				} else if (const auto document = media->document()) {
-					return createThumb(key, document->thumbnail());
+					return createThumb(key, document);
 				}
 			}
 		}
@@ -559,7 +585,7 @@ auto GroupThumbs::createThumb(
 	if (const auto photo = base::get_if<PhotoData*>(&item)) {
 		return createThumb(key, (*photo)->thumbnail());
 	} else if (const auto document = base::get_if<DocumentData*>(&item)) {
-		return createThumb(key, (*document)->thumbnail());
+		return createThumb(key, (*document));
 	}
 	return createThumb(key, nullptr);
 }
@@ -569,6 +595,17 @@ auto GroupThumbs::createThumb(Key key, Image *image)
 	const auto weak = base::make_weak(this);
 	const auto origin = ComputeFileOrigin(key, _context);
 	return std::make_unique<Thumb>(key, image, origin, [=] {
+		if (const auto strong = weak.get()) {
+			strong->_activateStream.fire_copy(key);
+		}
+	});
+}
+
+auto GroupThumbs::createThumb(Key key, not_null<DocumentData*> document)
+-> std::unique_ptr<Thumb> {
+	const auto weak = base::make_weak(this);
+	const auto origin = ComputeFileOrigin(key, _context);
+	return std::make_unique<Thumb>(key, document, origin, [=] {
 		if (const auto strong = weak.get()) {
 			strong->_activateStream.fire_copy(key);
 		}

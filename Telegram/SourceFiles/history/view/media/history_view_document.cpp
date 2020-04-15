@@ -104,11 +104,10 @@ void Document::createComponents(bool caption) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
-		if (const auto thumb = _data->thumbnail()) {
+		if (_data->hasThumbnail()) {
 			if (!_data->isSong()
-				&& thumb->width()
-				&& thumb->height()
 				&& !Data::IsExecutableName(_data->filename())) {
+				_data->loadThumbnail(_realParent->fullId());
 				mask |= HistoryDocumentThumbed::Bit();
 			}
 		}
@@ -157,9 +156,9 @@ QSize Document::countOptimalSize() {
 	}
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
-		_data->loadThumbnail(_realParent->fullId());
-		auto tw = style::ConvertScale(_data->thumbnail()->width());
-		auto th = style::ConvertScale(_data->thumbnail()->height());
+		const auto &location = _data->thumbnailLocation();
+		auto tw = style::ConvertScale(location.width());
+		auto th = style::ConvertScale(location.height());
 		if (tw > th) {
 			thumbed->_thumbw = (tw * st::msgFileThumbSize) / th;
 		} else {
@@ -278,15 +277,10 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		QRect rthumb(style::rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, width()));
 		QPixmap thumb;
-		if (const auto normal = _data->thumbnail()) {
-			if (normal->loaded()) {
-				thumb = normal->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
-			} else {
-				_data->loadThumbnail(_realParent->fullId());
-				if (const auto blurred = _dataMedia->thumbnailInline()) {
-					thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
-				}
-			}
+		if (const auto normal = _dataMedia->thumbnail()) {
+			thumb = normal->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
+			thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
@@ -515,6 +509,9 @@ void Document::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
+	if (Get<HistoryDocumentThumbed>()) {
+		_dataMedia->thumbnailWanted(_realParent->fullId());
+	}
 	history()->owner().registerHeavyViewPart(_parent);
 }
 

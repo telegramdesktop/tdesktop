@@ -1330,6 +1330,8 @@ void MainWidget::setChatBackground(
 	_background = std::make_unique<SettingBackground>(background);
 	if (const auto document = _background->data.document()) {
 		_background->dataMedia = document->createMediaView();
+		_background->dataMedia->thumbnailWanted(
+			_background->data.fileOrigin());
 	}
 	_background->data.loadDocument();
 	checkChatBackground();
@@ -1352,9 +1354,9 @@ void MainWidget::setReadyChatBackground(
 
 	if (image.isNull()
 		&& !background.document()
-		&& background.thumbnail()
-		&& background.thumbnail()->loaded()) {
-		image = background.thumbnail()->original();
+		&& background.localThumbnail()
+		&& background.localThumbnail()->loaded()) {
+		image = background.localThumbnail()->original();
 	}
 
 	const auto resetToDefault = image.isNull()
@@ -1381,7 +1383,7 @@ float64 MainWidget::chatBackgroundProgress() const {
 			return 1.;
 		} else if (const auto document = _background->data.document()) {
 			return _background->dataMedia->progress();
-		} else if (const auto thumbnail = _background->data.thumbnail()) {
+		} else if (const auto thumbnail = _background->data.localThumbnail()) {
 			return thumbnail->progress();
 		}
 	}
@@ -1415,7 +1417,13 @@ void MainWidget::checkChatBackground() {
 }
 
 Image *MainWidget::newBackgroundThumb() {
-	return _background ? _background->data.thumbnail() : nullptr;
+	return !_background
+		? nullptr
+		: _background->data.localThumbnail()
+		? _background->data.localThumbnail()
+		: _background->dataMedia
+		? _background->dataMedia->thumbnail()
+		: nullptr;
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {

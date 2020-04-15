@@ -225,7 +225,7 @@ QPixmap Sticker::paintedPixmap(bool selected) const {
 		return selected
 			? good->pixColored(o, c, w, h)
 			: good->pix(o, w, h);
-	} else if (const auto thumbnail = _data->thumbnail()) {
+	} else if (const auto thumbnail = _dataMedia->thumbnail()) {
 		return selected
 			? thumbnail->pixBlurredColored(o, c, w, h)
 			: thumbnail->pixBlurred(o, w, h);
@@ -262,6 +262,7 @@ void Sticker::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->goodThumbnailWanted();
+	_dataMedia->thumbnailWanted(_parent->data()->fullId());
 	_parent->history()->owner().registerHeavyViewPart(_parent);
 }
 

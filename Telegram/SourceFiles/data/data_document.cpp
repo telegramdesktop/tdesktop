@@ -452,6 +452,7 @@ DocumentData::DocumentData(not_null<Data::Session*> owner, DocumentId id)
 }
 
 DocumentData::~DocumentData() {
+	base::take(_thumbnailLoader).reset();
 	destroyLoader();
 	unload();
 }
@@ -564,7 +565,7 @@ void DocumentData::setattributes(
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
 		&& _mimeString == qstr("application/x-tgsticker")
-		&& _thumbnail) {
+		&& hasThumbnail()) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
 		sticker()->animated = true;
@@ -590,7 +591,7 @@ bool DocumentData::checkWallPaperProperties() {
 		return true;
 	}
 	if (type != FileDocument
-		|| !_thumbnail
+		|| !hasThumbnail()
 		|| !dimensions.width()
 		|| !dimensions.height()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension
@@ -605,18 +606,26 @@ bool DocumentData::checkWallPaperProperties() {
 
 void DocumentData::updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		ImagePtr thumbnail) {
+		const StorageImageLocation &thumbnail) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
-	if (thumbnail
-		&& (!_thumbnail
-			|| (sticker()
-				&& (_thumbnail->width() < thumbnail->width()
-					|| _thumbnail->height() < thumbnail->height())))) {
-		_thumbnail = thumbnail;
+	if (thumbnail.valid()
+		&& (!_thumbnailLocation.valid()
+			|| _thumbnailLocation.width() < thumbnail.width()
+			|| _thumbnailLocation.height() < thumbnail.height())) {
+		_thumbnailLocation = thumbnail;
+		if (_thumbnailLoader) {
+			const auto origin = base::take(_thumbnailLoader)->fileOrigin();
+			loadThumbnail(origin);
+			// #TODO optimize replace thumbnail in activeMediaView().
+		}
 	}
+}
+
+const StorageImageLocation &DocumentData::thumbnailLocation() const {
+	return _thumbnailLocation;
 }
 
 bool DocumentData::isWallPaper() const {
@@ -628,17 +637,53 @@ bool DocumentData::isPatternWallPaper() const {
 }
 
 bool DocumentData::hasThumbnail() const {
-	return !_thumbnail->isNull();
+	return _thumbnailLocation.valid()
+		&& (_thumbnailLocation.width() > 0)
+		&& (_thumbnailLocation.height() > 0);
 }
 
-Image *DocumentData::thumbnail() const {
-	return _thumbnail ? _thumbnail.get() : nullptr;
+bool DocumentData::thumbnailLoading() const {
+	return _thumbnailLoader != nullptr;
+}
+
+bool DocumentData::thumbnailFailed() const {
+	return (_flags & Flag::ThumbnailFailed);
 }
 
 void DocumentData::loadThumbnail(Data::FileOrigin origin) {
-	if (_thumbnail && !_thumbnail->loaded()) {
-		_thumbnail->load(origin);
+	if (_thumbnailLoader || (_flags & Flag::ThumbnailFailed)) {
+		return;
+	} else if (const auto active = activeMediaView()) {
+		if (active->thumbnail()) {
+			return;
+		}
 	}
+	const auto autoLoading = false;
+	_thumbnailLoader = std::make_unique<mtpFileLoader>(
+		_thumbnailLocation.file(),
+		origin,
+		UnknownFileLocation,
+		QString(),
+		_thumbnailSize,
+		LoadToCacheAsWell,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kImageCacheTag);
+	_thumbnailLoader->updates(
+	) | rpl::start_with_error_done([=](bool started) {
+		_thumbnailLoader = nullptr;
+		_flags |= Flag::ThumbnailFailed;
+	}, [=] {
+		if (!_thumbnailLoader->cancelled()) {
+			if (auto image = _thumbnailLoader->imageData(); image.isNull()) {
+				_flags |= Flag::ThumbnailFailed;
+			} else if (const auto active = activeMediaView()) {
+				active->setThumbnail(std::move(image));
+			}
+		}
+		_thumbnailLoader = nullptr;
+	}) | rpl::release();
+	_thumbnailLoader->start();
 }
 
 Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {
@@ -765,7 +810,7 @@ void DocumentData::finishLoad() {
 	}
 }
 
-void DocumentData::destroyLoader() const {
+void DocumentData::destroyLoader() {
 	if (!_loader) {
 		return;
 	}
@@ -1140,7 +1185,7 @@ bool DocumentData::isStickerSetInstalled() const {
 }
 
 Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
-	if (!_thumbnail) {
+	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
@@ -1275,19 +1320,15 @@ QByteArray DocumentData::fileReference() const {
 
 void DocumentData::refreshFileReference(const QByteArray &value) {
 	_fileReference = value;
-	_thumbnail->refreshFileReference(value);
-	if (const auto data = sticker()) {
-		data->loc.refreshFileReference(value);
-	}
+	_thumbnailLocation.refreshFileReference(value);
 }
 
 void DocumentData::refreshStickerThumbFileReference() {
-	if (const auto data = sticker()) {
-		if (_thumbnail->loading()) {
-			data->loc.refreshFileReference(
-				_thumbnail->location().fileReference());
-		}
-	}
+	// #TODO optimize
+	//if (_thumbnailLoader) {
+	//	_thumbnailLocation.refreshFileReference(
+	//		_thumbnailLoader->fileReference());
+	//}
 }
 
 QString DocumentData::filename() const {
@@ -1460,11 +1501,6 @@ void DocumentData::recountIsImage() {
 	} else {
 		_flags &= ~Flag::ImageType;
 	}
-}
-
-bool DocumentData::thumbnailEnoughForSticker() const {
-	return !_thumbnail->isNull()
-		&& ((_thumbnail->width() >= 128) || (_thumbnail->height() >= 128));
 }
 
 void DocumentData::setRemoteLocation(

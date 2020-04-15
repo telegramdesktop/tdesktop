@@ -57,7 +57,7 @@ protected:
 
 private:
 	void updateBoxSize();
-	void prepareGifPreview(DocumentData* document = nullptr);
+	void prepareGifPreview();
 	void clipCallback(Media::Clip::Notification notification);
 
 	void setupEmojiPanel();
@@ -87,6 +87,7 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 	FullMsgId _msgId;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Image *_thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;
 	Fn<void()> _refreshThumbnail;
@@ -95,7 +96,6 @@ private:
 	bool _doc = false;
 
 	QPixmap _thumb;
-	std::shared_ptr<Data::DocumentMedia> _gifMedia;
 	Media::Clip::ReaderPointer _gifPreview;
 
 	object_ptr<Ui::InputField> _field = { nullptr };

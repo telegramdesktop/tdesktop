@@ -46,14 +46,10 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 			stream << qint32(StickerSetTypeEmpty);
 		} break;
 		}
-		writeStorageImageLocation(stream, document->sticker()->loc);
+		writeStorageImageLocation(stream, document->_thumbnailLocation);
 	} else {
 		stream << qint32(document->getDuration());
-		if (const auto thumb = document->thumbnail()) {
-			writeStorageImageLocation(stream, thumb->location());
-		} else {
-			writeStorageImageLocation(stream, StorageImageLocation());
-		}
+		writeStorageImageLocation(stream, document->thumbnailLocation());
 	}
 }
 
@@ -147,10 +143,9 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		attributes,
 		mime,
 		QByteArray(),
-		Images::Create(*thumb),
+		*thumb,
 		dc,
-		size,
-		*thumb);
+		size);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
@@ -176,18 +171,12 @@ int Document::sizeInStream(DocumentData *document) {
 	if (auto sticker = document->sticker()) { // type == StickerDocument
 		// + altlen + alt + type-of-set
 		result += stringSize(sticker->alt) + sizeof(qint32);
-		// + sticker loc
-		result += Serialize::storageImageLocationSize(document->sticker()->loc);
 	} else {
 		// + duration
 		result += sizeof(qint32);
-		// + thumb loc
-		if (const auto thumb = document->thumbnail()) {
-			result += Serialize::storageImageLocationSize(thumb->location());
-		} else {
-			result += Serialize::storageImageLocationSize(StorageImageLocation());
-		}
 	}
+	// + thumb loc
+	result += Serialize::storageImageLocationSize(document->thumbnailLocation());
 
 	return result;
 }

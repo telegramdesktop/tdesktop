@@ -613,6 +613,7 @@ void Element::checkHeavyPart() {
 }
 
 void Element::unloadHeavyPart() {
+	history()->owner().unregisterHeavyViewPart(this);
 	if (_media) {
 		_media->unloadHeavyPart();
 	}

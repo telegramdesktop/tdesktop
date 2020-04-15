@@ -61,7 +61,6 @@ EditCaptionBox::EditCaptionBox(
 
 	QSize dimensions;
 	auto image = (Image*)nullptr;
-	DocumentData *doc = nullptr;
 
 	const auto media = item->media();
 	if (const auto photo = media->photo()) {
@@ -69,7 +68,10 @@ EditCaptionBox::EditCaptionBox(
 		dimensions = QSize(photo->width(), photo->height());
 		image = photo->large();
 	} else if (const auto document = media->document()) {
-		image = document->thumbnail();
+		_documentMedia = document->createMediaView();
+		_documentMedia->thumbnailWanted(_msgId);
+		// #TODO optimize + streamed GIF view
+		image = _documentMedia->thumbnail();
 		dimensions = image
 			? image->size()
 			: document->dimensions;
@@ -82,11 +84,10 @@ EditCaptionBox::EditCaptionBox(
 		} else {
 			_doc = true;
 		}
-		doc = document;
 	}
 	const auto editData = PrepareEditText(item);
 
-	if (!_animated && (dimensions.isEmpty() || doc || !image)) {
+	if (!_animated && (dimensions.isEmpty() || _documentMedia || !image)) {
 		if (!image) {
 			_thumbw = 0;
 		} else {
@@ -114,13 +115,15 @@ EditCaptionBox::EditCaptionBox(
 			};
 		}
 
-		if (doc) {
-			const auto nameString = doc->isVoiceMessage()
+		if (_documentMedia) {
+			const auto document = _documentMedia->owner();
+			const auto nameString = document->isVoiceMessage()
 				? tr::lng_media_audio(tr::now)
-				: doc->composeNameString();
-			setName(nameString, doc->size);
-			_isImage = doc->isImage();
-			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
+				: document->composeNameString();
+			setName(nameString, document->size);
+			_isImage = document->isImage();
+			_isAudio = document->isVoiceMessage()
+				|| document->isAudioFile();
 		}
 		if (_refreshThumbnail) {
 			_refreshThumbnail();
@@ -158,10 +161,7 @@ EditCaptionBox::EditCaptionBox(
 					maxW,
 					maxH);
 			};
-			if (doc) {
-				_gifMedia = doc->createMediaView();
-			}
-			prepareGifPreview(doc);
+			prepareGifPreview();
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
@@ -209,7 +209,7 @@ EditCaptionBox::EditCaptionBox(
 			thumbX = (st::boxWideWidth - thumbWidth) / 2;
 		};
 
-		if (doc && doc->isAnimation()) {
+		if (_documentMedia && _documentMedia->owner()->isAnimation()) {
 			resizeDimensions(_gifw, _gifh, _gifx);
 		}
 		limitH = std::min(st::confirmMaxHeight, _gifh ? _gifh : INT_MAX);
@@ -252,12 +252,9 @@ EditCaptionBox::EditCaptionBox(
 			_refreshThumbnail();
 			update();
 		}
-		if (doc && doc->isAnimation()) {
-			if (!_gifMedia) {
-				_gifMedia = doc->createMediaView();
-			}
-			if (_gifMedia->loaded() && !_gifPreview) {
-				prepareGifPreview(doc);
+		if (_documentMedia && _documentMedia->owner()->isAnimation()) {
+			if (_documentMedia->loaded() && !_gifPreview) {
+				prepareGifPreview();
 			}
 		}
 	});
@@ -314,23 +311,23 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 		local.x() + _emojiToggle->width() * 3);
 }
 
-void EditCaptionBox::prepareGifPreview(DocumentData* document) {
-	Expects(!document || (_gifMedia != nullptr));
-
+void EditCaptionBox::prepareGifPreview() {
 	const auto isListEmpty = _preparedList.files.empty();
 	if (_gifPreview) {
 		return;
-	} else if (!document && isListEmpty) {
+	} else if (!_documentMedia && isListEmpty) {
 		return;
 	}
 	const auto callback = [=](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	};
-	if (document && document->isAnimation() && _gifMedia->loaded()) {
-		_gifPreview = Media::Clip::MakeReader(
-			_gifMedia.get(),
-			_msgId,
-			callback);
+	if (_documentMedia && _documentMedia->owner()->isAnimation()) {
+		if (_documentMedia->loaded()) {
+			_gifPreview = Media::Clip::MakeReader(
+				_documentMedia.get(),
+				_msgId,
+				callback);
+		}
 	} else if (!isListEmpty) {
 		const auto file = &_preparedList.files.front();
 		if (file->path.isEmpty()) {
@@ -343,7 +340,9 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 				callback);
 		}
 	}
-	if (_gifPreview) _gifPreview->setAutoplay();
+	if (_gifPreview) {
+		_gifPreview->setAutoplay();
+	}
 }
 
 void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {

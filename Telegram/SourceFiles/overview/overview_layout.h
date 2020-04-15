@@ -364,11 +364,14 @@ protected:
 	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
+	void ensureDocumentMediaCreated();
+
 	ClickHandlerPtr _photol;
 
 	QString _title, _letter;
 	int _titlew = 0;
 	WebPageData *_page = nullptr;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	int _pixw = 0;
 	int _pixh = 0;
 	Ui::Text::String _text = { st::msgMinWidth };

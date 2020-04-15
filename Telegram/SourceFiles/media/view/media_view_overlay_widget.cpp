@@ -1979,6 +1979,8 @@ void OverlayWidget::displayDocument(
 	_doc = doc;
 	if (_doc) {
 		_docMedia = _doc->createMediaView();
+		_docMedia->goodThumbnailWanted();
+		_docMedia->thumbnailWanted(fileOrigin());
 	}
 	_rotation = _doc ? _doc->owner().mediaRotation().get(_doc) : 0;
 	_themeCloudData = cloud;
@@ -1990,8 +1992,8 @@ void OverlayWidget::displayDocument(
 		if (_doc->sticker()) {
 			if (const auto image = _docMedia->getStickerLarge()) {
 				_staticContent = image->pix(fileOrigin());
-			} else if (_doc->hasThumbnail()) {
-				_staticContent = _doc->thumbnail()->pixBlurred(
+			} else if (const auto thumbnail = _docMedia->thumbnail()) {
+				_staticContent = thumbnail->pixBlurred(
 					fileOrigin(),
 					_doc->dimensions.width(),
 					_doc->dimensions.height());
@@ -2036,7 +2038,8 @@ void OverlayWidget::displayDocument(
 			}
 		} else {
 			_doc->loadThumbnail(fileOrigin());
-			int32 tw = _doc->thumbnail()->width(), th = _doc->thumbnail()->height();
+			const auto tw = _docMedia->thumbnailSize().width();
+			const auto th = _docMedia->thumbnailSize().height();
 			if (!tw || !th) {
 				_docThumbx = _docThumby = _docThumbw = 0;
 			} else if (tw > th) {
@@ -2187,22 +2190,18 @@ void OverlayWidget::startStreamingPlayer() {
 void OverlayWidget::initStreamingThumbnail() {
 	Expects(_doc != nullptr);
 
-	const auto media = _doc->activeMediaView();
-	const auto good = media ? media->goodThumbnail() : nullptr;
+	const auto good = _docMedia->goodThumbnail();
 	const auto useGood = (good && good->loaded());
-	const auto thumb = _doc->thumbnail();
-	const auto useThumb = (thumb && thumb->loaded());
-
-	// #TODO optimize
-	const auto blurred = media ? media->thumbnailInline() : nullptr;
-
+	const auto thumbnail = _docMedia->thumbnail();
+	const auto useThumb = (thumbnail != nullptr);
+	const auto blurred = _docMedia->thumbnailInline();
 	if (good && !useGood) {
 		good->load({});
-	} else if (thumb && !useThumb) {
-		thumb->load(fileOrigin());
+	} else if (thumbnail) {
+		thumbnail->load(fileOrigin());
 	}
 	const auto size = useGood ? good->size() : _doc->dimensions;
-	if (!useGood && !thumb && !blurred) {
+	if (!useGood && !thumbnail && !blurred) {
 		return;
 	} else if (size.isEmpty()) {
 		return;
@@ -2214,7 +2213,7 @@ void OverlayWidget::initStreamingThumbnail() {
 	_staticContent = (useGood
 		? good
 		: useThumb
-		? thumb
+		? thumbnail
 		: blurred
 		? blurred
 		: Image::BlankMedia().get())->pixNoCache(
@@ -2827,9 +2826,9 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 							p.drawText(_docIconRect.x() + (_docIconRect.width() - _docExtWidth) / 2, _docIconRect.y() + st::mediaviewFileExtTop + st::mediaviewFileExtFont->ascent, _docExt);
 						}
 					}
-				} else {
+				} else if (const auto thumbnail = _docMedia->thumbnail()) {
 					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), _doc->thumbnail()->pix(fileOrigin(), _docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
+					p.drawPixmap(_docIconRect.topLeft(), thumbnail->pix(fileOrigin(), _docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 				}
 
 				paintRadialLoading(p, radial, radialOpacity);

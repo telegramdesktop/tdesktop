@@ -63,9 +63,7 @@ int FileBase::content_width() const {
 		if (document->dimensions.width() > 0) {
 			return document->dimensions.width();
 		}
-		if (const auto thumb = document->thumbnail()) {
-			return style::ConvertScale(thumb->width());
-		}
+		return style::ConvertScale(document->thumbnailLocation().width());
 	}
 	return 0;
 }
@@ -75,9 +73,7 @@ int FileBase::content_height() const {
 		if (document->dimensions.height() > 0) {
 			return document->dimensions.height();
 		}
-		if (const auto thumb = document->thumbnail()) {
-			return style::ConvertScale(thumb->height());
-		}
+		return style::ConvertScale(document->thumbnailLocation().height());
 	}
 	return 0;
 }
@@ -89,15 +85,6 @@ int FileBase::content_duration() const {
 		}
 	}
 	return getResultDuration();
-}
-
-Image *FileBase::content_thumb() const {
-	if (const auto document = getShownDocument()) {
-		if (const auto thumb = document->thumbnail()) {
-			return thumb;
-		}
-	}
-	return getResultThumb();
 }
 
 Gif::Gif(not_null<Context*> context, Result *result) : FileBase(context, result) {
@@ -329,7 +316,7 @@ void Gif::validateThumbnail(
 void Gif::prepareThumbnail(QSize size, QSize frame) const {
 	if (const auto document = getShownDocument()) {
 		ensureDataMediaCreated(document);
-		validateThumbnail(document->thumbnail(), size, frame, true);
+		validateThumbnail(_dataMedia->thumbnail(), size, frame, true);
 		validateThumbnail(_dataMedia->thumbnailInline(), size, frame, false);
 	} else {
 		validateThumbnail(getResultThumb(), size, frame, true);
@@ -341,6 +328,7 @@ void Gif::ensureDataMediaCreated(not_null<DocumentData*> document) const {
 		return;
 	}
 	_dataMedia = document->createMediaView();
+	_dataMedia->thumbnailWanted(fileOrigin());
 }
 
 void Gif::ensureAnimation() const {
@@ -679,7 +667,8 @@ void Photo::prepareThumbnail(QSize size, QSize frame) const {
 	}
 }
 
-Video::Video(not_null<Context*> context, Result *result) : FileBase(context, result)
+Video::Video(not_null<Context*> context, Result *result)
+: FileBase(context, result)
 , _link(getResultPreviewHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
@@ -689,8 +678,17 @@ Video::Video(not_null<Context*> context, Result *result) : FileBase(context, res
 	}
 }
 
+bool Video::withThumbnail() const {
+	if (const auto document = getShownDocument()) {
+		if (document->hasThumbnail()) {
+			return true;
+		}
+	}
+	return getResultThumb() != nullptr;
+}
+
 void Video::initDimensions() {
-	const auto withThumb = (content_thumb() != nullptr);
+	const auto withThumb = withThumbnail();
 
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
@@ -719,7 +717,7 @@ void Video::initDimensions() {
 void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 
-	const auto withThumb = (content_thumb() != nullptr);
+	const auto withThumb = withThumbnail();
 	if (withThumb) {
 		prepareThumbnail({ st::inlineThumbSize, st::inlineThumbSize });
 		if (_thumb.isNull()) {
@@ -767,9 +765,22 @@ TextState Video::getState(
 }
 
 void Video::prepareThumbnail(QSize size) const {
-	Expects(content_thumb() != nullptr);
-
-	const auto thumb = content_thumb();
+	const auto document = getShownDocument();
+	if (document->hasThumbnail()) {
+		if (!_documentMedia) {
+			_documentMedia = document->createMediaView();
+			_documentMedia->thumbnailWanted(fileOrigin());
+		}
+		if (!_documentMedia->thumbnail()) {
+			return;
+		}
+	}
+	const auto thumb = document->hasThumbnail()
+		? _documentMedia->thumbnail()
+		: getResultThumb();
+	if (!thumb) {
+		return;
+	}
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.size() != size * cIntRetinaFactor()) {
@@ -1424,7 +1435,7 @@ void Game::prepareThumbnail(QSize size) const {
 		validateThumbnail(photo->thumbnailInline(), size, false);
 	} else if (const auto document = getResultDocument()) {
 		Assert(_dataMedia != nullptr);
-		validateThumbnail(document->thumbnail(), size, true);
+		validateThumbnail(_dataMedia->thumbnail(), size, true);
 		validateThumbnail(_dataMedia->thumbnailInline(), size, false);
 	}
 }
@@ -1434,6 +1445,7 @@ void Game::ensureDataMediaCreated(not_null<DocumentData*> document) const {
 		return;
 	}
 	_dataMedia = document->createMediaView();
+	_dataMedia->thumbnailWanted(fileOrigin());
 }
 
 void Game::validateThumbnail(Image *image, QSize size, bool good) const {

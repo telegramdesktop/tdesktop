@@ -748,7 +748,7 @@ void StickersListWidget::Footer::paintSetIcon(
 		const auto origin = icon.sticker->stickerSetOrigin();
 		const auto thumb = icon.thumbnail
 			? icon.thumbnail.get()
-			: icon.sticker->thumbnail();
+			: icon.stickerMedia->thumbnail();
 		if (!thumb) {
 			return;
 		}
@@ -988,7 +988,7 @@ void StickersListWidget::readVisibleFeatured(
 		int loaded = 0;
 		for (int j = 0; j < count; ++j) {
 			if (!set.stickers[j].document->hasThumbnail()
-				|| set.stickers[j].document->thumbnail()->loaded()
+				|| !set.stickers[j].document->thumbnailLoading()
 				|| set.stickers[j].documentMedia->loaded()) {
 				++loaded;
 			}
@@ -2602,7 +2602,9 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 		const auto size = thumbnail
 			? thumbnail->size()
 			: s->hasThumbnail()
-			? s->thumbnail()->size()
+			? QSize(
+				s->thumbnailLocation().width(),
+				s->thumbnailLocation().height())
 			: QSize();
 		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
 		if (availw * thumbh > availh * thumbw) {

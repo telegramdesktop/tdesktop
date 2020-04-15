@@ -61,7 +61,6 @@ struct StickerData : public DocumentAdditionalData {
 	bool animated = false;
 	QString alt;
 	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
-	StorageImageLocation loc; // doc thumb location
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -132,7 +131,6 @@ public:
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;
 	[[nodiscard]] Data::FileOrigin stickerOrGifOrigin() const;
 	[[nodiscard]] bool isStickerSetInstalled() const;
-	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 	[[nodiscard]] SongData *song();
 	[[nodiscard]] const SongData *song() const;
 	[[nodiscard]] VoiceData *voice();
@@ -158,11 +156,13 @@ public:
 	[[nodiscard]] bool isPatternWallPaper() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
+	[[nodiscard]] bool thumbnailLoading() const;
+	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail(Data::FileOrigin origin);
-	[[nodiscard]] Image *thumbnail() const;
 	void updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		ImagePtr thumbnail);
+		const StorageImageLocation &thumbnail);
+	const StorageImageLocation &thumbnailLocation() const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
@@ -248,6 +248,7 @@ private:
 		ImageType = 0x08,
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
+		ThumbnailFailed = 0x40,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
@@ -284,9 +285,11 @@ private:
 
 	void finishLoad();
 	void handleLoaderUpdates();
-	void destroyLoader() const;
+	void destroyLoader();
 
 	bool saveFromDataChecked();
+
+	const not_null<Data::Session*> _owner;
 
 	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;
@@ -298,19 +301,19 @@ private:
 	WebFileLocation _urlLocation;
 
 	QByteArray _inlineThumbnailBytes;
-	ImagePtr _thumbnail;
+	StorageImageLocation _thumbnailLocation;
+	std::unique_ptr<FileLoader> _thumbnailLoader;
+	int _thumbnailSize = 0;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;
-
-	not_null<Data::Session*> _owner;
 
 	FileLocation _location;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;
 	GoodThumbnailState _goodThumbnailState = GoodThumbnailState();
-	mutable std::unique_ptr<FileLoader> _loader;
+	std::unique_ptr<FileLoader> _loader;
 
 };
 

@@ -101,6 +101,9 @@ private:
 		const WebPageCollage &collage,
 		int index);
 	std::unique_ptr<Thumb> createThumb(Key key, Image *image);
+	std::unique_ptr<Thumb> createThumb(
+		Key key,
+		not_null<DocumentData*> document);
 
 	void update();
 	void countUpdatedRect();

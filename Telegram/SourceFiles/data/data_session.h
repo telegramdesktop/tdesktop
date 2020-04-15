@@ -499,10 +499,9 @@ public:
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const ImagePtr &thumbnail,
+		const StorageImageLocation &thumbnailLocation,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
+		int32 size);
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
@@ -754,10 +753,9 @@ private:
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const ImagePtr &thumbnail,
+		const StorageImageLocation &thumbnailLocation,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
+		int32 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
 		ImagePtr thumb);

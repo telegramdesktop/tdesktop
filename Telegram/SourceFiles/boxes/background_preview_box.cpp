@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
@@ -413,6 +414,9 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _paper(paper)
 , _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
+	if (_media) {
+		_media->thumbnailWanted(_paper.fileOrigin());
+	}
 	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 }
 
@@ -430,12 +434,15 @@ void BackgroundPreviewBox::prepare() {
 	}
 	updateServiceBg(_paper.backgroundColor());
 
-	_paper.loadThumbnail();
+	_paper.loadLocalThumbnail();
 	_paper.loadDocument();
-	if (_paper.document() && _paper.document()->loading()) {
+	const auto document = _paper.document();
+	if (document && document->loading()) {
 		_radial.start(_media->progress());
 	}
-	if (_paper.thumbnail() && !_paper.isPattern()) {
+	if (!_paper.isPattern()
+		&& (_paper.localThumbnail()
+			|| (document && document->hasThumbnail()))) {
 		createBlurCheckbox();
 	}
 	setScaledFromThumb();
@@ -647,7 +654,12 @@ void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 }
 
 bool BackgroundPreviewBox::setScaledFromThumb() {
-	const auto thumbnail = _paper.thumbnail();
+	const auto localThumbnail = _paper.localThumbnail();
+	const auto thumbnail = localThumbnail
+		? localThumbnail
+		: _media
+		? _media->thumbnail()
+		: nullptr;
 	if (!thumbnail || !thumbnail->loaded()) {
 		return false;
 	} else if (_paper.isPattern() && _paper.document() != nullptr) {

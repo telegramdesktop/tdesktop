@@ -3945,11 +3945,12 @@ void importOldRecentStickers() {
 			attributes,
 			mime,
 			QByteArray(),
-			ImagePtr(),
+			StorageImageLocation(),
 			dc,
-			size,
-			StorageImageLocation());
-		if (!doc->sticker()) continue;
+			size);
+		if (!doc->sticker()) {
+			continue;
+		}
 
 		if (value > 0) {
 			def.stickers.push_back(doc);

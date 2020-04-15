@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
 #include "app.h"
@@ -75,6 +77,7 @@ protected:
 private:
 	struct Paper {
 		Data::WallPaper data;
+		mutable std::shared_ptr<Data::DocumentMedia> dataMedia;
 		mutable QPixmap thumbnail;
 	};
 	struct Selected {
@@ -252,11 +255,21 @@ void BackgroundBox::Inner::resizeToContentAndPreload() {
 	const auto rows = (count / kBackgroundsInRow)
 		+ (count % kBackgroundsInRow ? 1 : 0);
 
-	resize(st::boxWideWidth, rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
+	resize(
+		st::boxWideWidth,
+		(rows * (st::backgroundSize.height() + st::backgroundPadding)
+			+ st::backgroundPadding));
 
 	const auto preload = kBackgroundsInRow * 3;
 	for (const auto &paper : _papers | ranges::view::take(preload)) {
-		paper.data.loadThumbnail();
+		if (paper.data.localThumbnail()) {
+			paper.data.loadLocalThumbnail();
+		} else if (const auto document = paper.data.document()) {
+			if (!paper.dataMedia) {
+				paper.dataMedia = document->createMediaView();
+				paper.dataMedia->thumbnailWanted(paper.data.fileOrigin());
+			}
+		}
 	}
 	update();
 }
@@ -292,15 +305,27 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 
 void BackgroundBox::Inner::validatePaperThumbnail(
 		const Paper &paper) const {
-	Expects(paper.data.thumbnail() != nullptr);
-
-	const auto thumbnail = paper.data.thumbnail();
 	if (!paper.thumbnail.isNull()) {
 		return;
-	} else if (!thumbnail->loaded()) {
-		thumbnail->load(paper.data.fileOrigin());
+	}
+	const auto localThumbnail = paper.data.localThumbnail();
+	if (!localThumbnail) {
+		if (const auto document = paper.data.document()) {
+			if (!paper.dataMedia) {
+				paper.dataMedia = document->createMediaView();
+				paper.dataMedia->thumbnailWanted(paper.data.fileOrigin());
+			}
+		}
+		if (!paper.dataMedia || !paper.dataMedia->thumbnail()) {
+			return;
+		}
+	} else if (!localThumbnail->loaded()) {
+		localThumbnail->load(paper.data.fileOrigin());
 		return;
 	}
+	const auto thumbnail = localThumbnail
+		? localThumbnail
+		: paper.dataMedia->thumbnail();
 	auto original = thumbnail->original();
 	if (paper.data.isPattern()) {
 		const auto color = *paper.data.backgroundColor();
@@ -314,6 +339,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		original,
 		st::backgroundSize));
 	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
+	paper.dataMedia = nullptr;
 }
 
 void BackgroundBox::Inner::paintPaper(

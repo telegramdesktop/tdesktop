@@ -130,6 +130,30 @@ Image *DocumentMedia::thumbnailInline() const {
 	return _inlineThumbnail.get();
 }
 
+Image *DocumentMedia::thumbnail() const {
+	return _thumbnail.get();
+}
+
+void DocumentMedia::thumbnailWanted(Data::FileOrigin origin) {
+	if (!_thumbnail) {
+		_owner->loadThumbnail(origin);
+	}
+}
+
+QSize DocumentMedia::thumbnailSize() const {
+	if (const auto image = _thumbnail.get()) {
+		return image->size();
+	}
+	const auto &location = _owner->thumbnailLocation();
+	return { location.width(), location.height() };
+}
+
+void DocumentMedia::setThumbnail(QImage thumbnail) {
+	_thumbnail = std::make_unique<Image>(
+		std::make_unique<Images::ImageSource>(std::move(thumbnail), "PNG"));
+	_owner->session().downloaderTaskFinished().notify();
+}
+
 void DocumentMedia::checkStickerLarge() {
 	if (_sticker) {
 		return;
@@ -224,9 +248,19 @@ bool DocumentMedia::canBePlayed() const {
 		&& (loaded() || _owner->canBeStreamed());
 }
 
+bool DocumentMedia::thumbnailEnoughForSticker() const {
+	const auto &location = owner()->thumbnailLocation();
+	const auto size = _thumbnail
+		? QSize(_thumbnail->width(), _thumbnail->height())
+		: location.valid()
+		? QSize(location.width(), location.height())
+		: QSize();
+	return (size.width() >= 128) || (size.height() >= 128);
+}
+
 void DocumentMedia::checkStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || _owner->thumbnailEnoughForSticker()) {
+	if ((data && data->animated) || thumbnailEnoughForSticker()) {
 		_owner->loadThumbnail(_owner->stickerSetOrigin());
 		if (data && data->animated) {
 			automaticLoad(_owner->stickerSetOrigin(), nullptr);
@@ -243,8 +277,8 @@ Image *DocumentMedia::getStickerLarge() {
 
 Image *DocumentMedia::getStickerSmall() {
 	const auto data = _owner->sticker();
-	if ((data && data->animated) || _owner->thumbnailEnoughForSticker()) {
-		return _owner->thumbnail();
+	if ((data && data->animated) || thumbnailEnoughForSticker()) {
+		return thumbnail();
 	}
 	return _sticker.get();
 }

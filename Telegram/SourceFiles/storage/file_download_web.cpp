@@ -453,7 +453,9 @@ webFileLoader::webFileLoader(
 }
 
 webFileLoader::~webFileLoader() {
-	cancelRequest();
+	if (!_finished) {
+		cancel();
+	}
 }
 
 QString webFileLoader::url() const {

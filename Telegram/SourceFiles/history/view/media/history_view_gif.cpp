@@ -103,10 +103,9 @@ QSize Gif::sizeForAspectRatio() const {
 	//if (!_data->dimensions.isEmpty()) {
 	//	return _data->dimensions;
 	//}
-	if (const auto thumb = _data->thumbnail()) {
-		if (!thumb->size().isEmpty()) {
-			return thumb->size();
-		}
+	if (_data->hasThumbnail()) {
+		const auto &location = _data->thumbnailLocation();
+		return { location.width(), location.height() };
 	}
 	return { 1, 1 };
 }
@@ -240,8 +239,9 @@ QSize Gif::videoSize() const {
 		return streamed->player().videoSize();
 	} else if (!_data->dimensions.isEmpty()) {
 		return _data->dimensions;
-	} else if (const auto thumbnail = _data->thumbnail()) {
-		return thumbnail->size();
+	} else if (_data->hasThumbnail()) {
+		const auto &location = _data->thumbnailLocation();
+		return QSize(location.width(), location.height());
 	} else {
 		return QSize(1, 1);
 	}
@@ -417,8 +417,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			if (good) {
 				good->load({});
 			}
-			const auto normal = _data->thumbnail();
-			if (normal && normal->loaded()) {
+			const auto normal = _dataMedia->thumbnail();
+			if (normal) {
 				if (normal->width() >= kUseNonBlurredThreshold
 					|| normal->height() >= kUseNonBlurredThreshold) {
 					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
@@ -1087,6 +1087,7 @@ void Gif::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->goodThumbnailWanted();
+	_dataMedia->thumbnailWanted(_realParent->fullId());
 	history()->owner().registerHeavyViewPart(_parent);
 }
 
@@ -1140,8 +1141,8 @@ void Gif::validateGroupedCache(
 
 	const auto good = _dataMedia->goodThumbnail();
 	const auto useGood = (good && good->loaded());
-	const auto thumb = _data->thumbnail();
-	const auto useThumb = (thumb && thumb->loaded());
+	const auto thumb = _dataMedia->thumbnail();
+	const auto useThumb = (thumb != nullptr);
 	const auto image = useGood
 		? good
 		: useThumb
@@ -1153,9 +1154,6 @@ void Gif::validateGroupedCache(
 				&& thumb->height() < kUseNonBlurredThreshold));
 	if (good && !useGood) {
 		good->load({});
-		if (!useThumb) {
-			_data->loadThumbnail(_realParent->fullId());
-		}
 	}
 
 	const auto loadLevel = useGood ? 3 : useThumb ? 2 : image ? 1 : 0;

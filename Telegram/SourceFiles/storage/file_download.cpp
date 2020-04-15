@@ -44,9 +44,7 @@ FileLoader::FileLoader(
 }
 
 FileLoader::~FileLoader() {
-	if (!_finished) {
-		cancel();
-	}
+	Expects(_finished);
 }
 
 Main::Session &FileLoader::session() const {

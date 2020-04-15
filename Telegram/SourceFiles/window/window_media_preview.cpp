@@ -116,6 +116,7 @@ void MediaPreviewWidget::showPreview(
 	_photo = nullptr;
 	_document = document;
 	_documentMedia = _document->createMediaView();
+	_documentMedia->thumbnailWanted(_origin);
 	fillEmojiString();
 	resetGifAndCache();
 }
@@ -255,9 +256,9 @@ QPixmap MediaPreviewWidget::currentImage() const {
 					_cacheStatus = CacheLoaded;
 				} else if (_cacheStatus != CacheThumbLoaded
 					&& _document->hasThumbnail()
-					&& _document->thumbnail()->loaded()) {
+					&& _documentMedia->thumbnail()) {
 					QSize s = currentDimensions();
-					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+					_cache = _documentMedia->thumbnail()->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				}
 			}
@@ -280,14 +281,13 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_cacheStatus != CacheThumbLoaded
 				&& _document->hasThumbnail()) {
 				QSize s = currentDimensions();
-				if (_document->thumbnail()->loaded()) {
-					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+				const auto thumbnail = _documentMedia->thumbnail();
+				if (thumbnail) {
+					_cache = thumbnail->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				} else if (const auto blurred = _documentMedia->thumbnailInline()) {
-					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+					_cache = blurred->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
-				} else {
-					_document->thumbnail()->load(_origin);
 				}
 			}
 		}

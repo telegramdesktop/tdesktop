@@ -78,6 +78,12 @@ mtpFileLoader::mtpFileLoader(
 	{ location }) {
 }
 
+mtpFileLoader::~mtpFileLoader() {
+	if (!_finished) {
+		cancel();
+	}
+}
+
 Data::FileOrigin mtpFileLoader::fileOrigin() const {
 	return DownloadMtprotoTask::fileOrigin();
 }

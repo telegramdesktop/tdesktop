@@ -38,7 +38,7 @@ protected:
 	int content_width() const;
 	int content_height() const;
 	int content_duration() const;
-	Image *content_thumb() const;
+
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -224,10 +224,12 @@ private:
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
+	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Ui::Text::String _title, _description;
 	QString _duration;
 	int _durationWidth = 0;
 
+	[[nodiscard]] bool withThumbnail() const;
 	void prepareThumbnail(QSize size) const;
 
 };

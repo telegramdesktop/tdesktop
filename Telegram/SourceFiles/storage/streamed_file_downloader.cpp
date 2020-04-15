@@ -63,7 +63,9 @@ StreamedFileDownloader::StreamedFileDownloader(
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
-	cancelHook();
+	if (!_finished) {
+		cancel();
+	}
 }
 
 uint64 StreamedFileDownloader::objId() const {

@@ -60,16 +60,15 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 
 Image *ReplyPreview::image(Data::FileOrigin origin) {
 	if (_document) {
-		const auto thumbnail = _document->thumbnail();
-		Assert(thumbnail != nullptr);
-		if (!_image || (!_good && thumbnail->loaded())) {
+		const auto thumbnail = _documentMedia->thumbnail();
+		if (!_image || (!_good && thumbnail)) {
 			const auto option = _document->isVideoMessage()
 				? Images::Option::Circled
 				: Images::Option::None;
-			if (thumbnail->loaded()) {
+			if (thumbnail) {
 				prepare(thumbnail, option);
 			} else {
-				thumbnail->load(origin);
+				_documentMedia->thumbnailWanted(origin);
 				if (const auto image = _documentMedia->thumbnailInline()) {
 					prepare(image, option | Images::Option::Blurred);
 				}

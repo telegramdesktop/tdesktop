@@ -64,8 +64,9 @@ QSize ThemeDocument::countOptimalSize() {
 	if (_data->isTheme()) {
 		return st::historyThemeSize;
 	}
-	auto tw = style::ConvertScale(_data->thumbnail()->width());
-	auto th = style::ConvertScale(_data->thumbnail()->height());
+	const auto &location = _data->thumbnailLocation();
+	auto tw = style::ConvertScale(location.width());
+	auto th = style::ConvertScale(location.height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -86,8 +87,9 @@ QSize ThemeDocument::countCurrentSize(int newWidth) {
 		_pixh = st::historyThemeSize.height();
 		return st::historyThemeSize;
 	}
-	auto tw = style::ConvertScale(_data->thumbnail()->width());
-	auto th = style::ConvertScale(_data->thumbnail()->height());
+	const auto &location = _data->thumbnailLocation();
+	auto tw = style::ConvertScale(location.width());
+	auto th = style::ConvertScale(location.height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -193,6 +195,7 @@ void ThemeDocument::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->goodThumbnailWanted();
+	_dataMedia->thumbnailWanted(_realParent->fullId());
 	_parent->history()->owner().registerHeavyViewPart(_parent);
 }
 
@@ -209,11 +212,11 @@ void ThemeDocument::validateThumbnail() const {
 			good->load({});
 		}
 	}
-	if (_thumbnailGood >= 0 || !_data->thumbnail()) {
+	if (_thumbnailGood >= 0 || !_dataMedia->thumbnail()) {
 		return;
 	}
-	if (_data->thumbnail()->loaded()) {
-		prepareThumbnailFrom(_data->thumbnail(), 0);
+	if (const auto normal = _dataMedia->thumbnail()) {
+		prepareThumbnailFrom(normal, 0);
 	} else if (_thumbnail.isNull()) {
 		if (const auto blurred = _dataMedia->thumbnailInline()) {
 			prepareThumbnailFrom(blurred, -1);
@@ -234,8 +237,9 @@ void ThemeDocument::prepareThumbnailFrom(
 			? Images::Option::TransparentBackground
 			: Images::Option(0));
 	auto original = image->original();
-	auto tw = isTheme ? _pixw : style::ConvertScale(_data->thumbnail()->width());
-	auto th = isTheme ? _pixh : style::ConvertScale(_data->thumbnail()->height());
+	const auto &location = _data->thumbnailLocation();
+	auto tw = isTheme ? _pixw : style::ConvertScale(location.width());
+	auto th = isTheme ? _pixh : style::ConvertScale(location.height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}

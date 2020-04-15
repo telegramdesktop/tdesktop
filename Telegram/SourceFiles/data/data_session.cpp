@@ -2381,9 +2381,11 @@ not_null<DocumentData*> Session::processDocument(
 	case mtpc_document: {
 		const auto &fields = data.c_document();
 		const auto mime = qs(fields.vmime_type());
+		// #TODO optimize
 		const auto format = Core::IsMimeSticker(mime)
 			? "WEBP"
 			: "JPG";
+		Images::Create(std::move(thumb), format);
 		return document(
 			fields.vid().v,
 			fields.vaccess_hash().v,
@@ -2392,10 +2394,9 @@ not_null<DocumentData*> Session::processDocument(
 			fields.vattributes().v,
 			mime,
 			QByteArray(),
-			Images::Create(std::move(thumb), format),
+			StorageImageLocation(),
 			fields.vdc_id().v,
-			fields.vsize().v,
-			StorageImageLocation());
+			fields.vsize().v);
 	} break;
 	}
 	Unexpected("Type in Session::document() with thumb.");
@@ -2409,10 +2410,9 @@ not_null<DocumentData*> Session::document(
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const ImagePtr &thumbnail,
+		const StorageImageLocation &thumbnailLocation,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation) {
+		int32 size) {
 	const auto result = document(id);
 	documentApplyFields(
 		result,
@@ -2422,10 +2422,9 @@ not_null<DocumentData*> Session::document(
 		attributes,
 		mime,
 		inlineThumbnailBytes,
-		thumbnail,
+		thumbnailLocation,
 		dc,
-		size,
-		thumbLocation);
+		size);
 	return result;
 }
 
@@ -2489,6 +2488,7 @@ DocumentData *Session::documentFromWeb(
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocument &data,
 		ImagePtr thumb) {
+	// #TODO optimize thumb
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2497,10 +2497,9 @@ DocumentData *Session::documentFromWeb(
 		data.vattributes().v,
 		data.vmime_type().v,
 		QByteArray(),
-		thumb,
+		StorageImageLocation(),
 		MTP::maindc(),
-		int32(0), // data.vsize().v
-		StorageImageLocation());
+		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
 		data.vurl().v,
 		data.vaccess_hash().v));
@@ -2510,6 +2509,7 @@ DocumentData *Session::documentFromWeb(
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
 		ImagePtr thumb) {
+	// #TODO optimize thumb
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2518,10 +2518,9 @@ DocumentData *Session::documentFromWeb(
 		data.vattributes().v,
 		data.vmime_type().v,
 		QByteArray(),
-		thumb,
+		StorageImageLocation(),
 		MTP::maindc(),
-		int32(0), // data.vsize().v
-		StorageImageLocation());
+		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
@@ -2539,7 +2538,8 @@ void Session::documentApplyFields(
 		const MTPDdocument &data) {
 	const auto inlineThumbnailBytes = FindDocumentInlineThumbnail(data);
 	const auto thumbnailSize = FindDocumentThumbnail(data);
-	const auto thumbnail = Images::Create(data, thumbnailSize);
+	// #TODO optimize
+	const auto thumbnail = Images::Create(data, thumbnailSize)->location();
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,
@@ -2550,8 +2550,7 @@ void Session::documentApplyFields(
 		inlineThumbnailBytes,
 		thumbnail,
 		data.vdc_id().v,
-		data.vsize().v,
-		thumbnail->location());
+		data.vsize().v);
 }
 
 void Session::documentApplyFields(
@@ -2562,16 +2561,15 @@ void Session::documentApplyFields(
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const ImagePtr &thumbnail,
+		const StorageImageLocation &thumbnailLocation,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation) {
+		int32 size) {
 	if (!date) {
 		return;
 	}
 	document->date = date;
 	document->setMimeString(mime);
-	document->updateThumbnails(inlineThumbnailBytes, thumbnail);
+	document->updateThumbnails(inlineThumbnailBytes, thumbnailLocation);
 	document->size = size;
 	document->setattributes(attributes);
 
@@ -2579,12 +2577,6 @@ void Session::documentApplyFields(
 	document->recountIsImage();
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
-	}
-
-	if (document->sticker()
-		&& !document->sticker()->loc.valid()
-		&& thumbLocation.valid()) {
-		document->sticker()->loc = thumbLocation;
 	}
 }
 
