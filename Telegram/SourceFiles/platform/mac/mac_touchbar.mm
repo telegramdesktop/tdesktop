@@ -17,6 +17,7 @@
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
@@ -656,6 +657,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
 	QSize _dimensions;
+	std::shared_ptr<Data::DocumentMedia> _media;
 	Image *_image;
 	@public
 	Data::FileOrigin fileOrigin;
@@ -675,11 +677,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	return self;
 }
 
-- (void)addDocument:(DocumentData *)document {
+- (void)addDocument:(not_null<DocumentData*>)document {
 	if (!document->sticker()) {
 		return;
 	}
-	_image = document->getStickerSmall();
+	_media = document->createMediaView();
+	_image = _media->getStickerSmall();
 	if (!_image) {
 		return;
 	}
