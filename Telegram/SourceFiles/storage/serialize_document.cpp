@@ -46,11 +46,10 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 			stream << qint32(StickerSetTypeEmpty);
 		} break;
 		}
-		writeStorageImageLocation(stream, document->_thumbnailLocation);
 	} else {
 		stream << qint32(document->getDuration());
-		writeStorageImageLocation(stream, document->thumbnailLocation());
 	}
+	writeImageLocation(stream, document->thumbnailLocation());
 }
 
 DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
@@ -77,14 +76,11 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 
 	qint32 duration = -1;
-	std::optional<StorageImageLocation> thumb;
+	std::optional<ImageLocation> thumb;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
 		stream >> alt >> typeOfSet;
-
-		thumb = readStorageImageLocation(streamAppVersion, stream);
-
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
@@ -113,8 +109,8 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		}
-		thumb = readStorageImageLocation(streamAppVersion, stream);
 	}
+	thumb = readImageLocation(streamAppVersion, stream);
 	if (width > 0 && height > 0) {
 		if (duration >= 0) {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
@@ -127,9 +123,12 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		}
 	}
 
+	const auto storage = base::get_if<StorageFileLocation>(
+		&thumb->file().data);
 	if ((!dc && !access)
 		|| !thumb
-		|| (thumb->valid() && !thumb->file().isDocumentThumbnail())) {
+		|| (thumb->valid()
+			&& (!storage || !storage->isDocumentThumbnail()))) {
 		stream.setStatus(QDataStream::ReadCorruptData);
 		// We can't convert legacy thumbnail location to modern, because
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
@@ -143,7 +142,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		attributes,
 		mime,
 		QByteArray(),
-		*thumb,
+		ImageWithLocation{ .location = *thumb },
 		dc,
 		size);
 }
@@ -176,7 +175,7 @@ int Document::sizeInStream(DocumentData *document) {
 		result += sizeof(qint32);
 	}
 	// + thumb loc
-	result += Serialize::storageImageLocationSize(document->thumbnailLocation());
+	result += Serialize::imageLocationSize(document->thumbnailLocation());
 
 	return result;
 }

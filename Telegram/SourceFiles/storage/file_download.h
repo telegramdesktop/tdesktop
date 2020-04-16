@@ -164,3 +164,14 @@ protected:
 	mutable QImage _imageData;
 
 };
+
+[[nodiscard]] std::unique_ptr<FileLoader> CreateFileLoader(
+	const DownloadLocation &location,
+	Data::FileOrigin origin,
+	const QString &toFile,
+	int size,
+	LocationType locationType,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag);

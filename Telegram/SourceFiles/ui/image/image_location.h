@@ -504,6 +504,13 @@ private:
 
 };
 
+struct ImageWithLocation {
+	ImageLocation location;
+	int bytesCount = 0;
+	QByteArray bytes;
+	QImage preloaded;
+};
+
 class Image;
 class ImagePtr {
 public:
@@ -599,7 +606,9 @@ private:
 
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {
-	return (a.name() == b.name()) && (a.modified == b.modified) && (a.size == b.size);
+	return (a.name() == b.name())
+		&& (a.modified == b.modified)
+		&& (a.size == b.size);
 }
 inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);

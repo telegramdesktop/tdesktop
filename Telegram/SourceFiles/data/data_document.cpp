@@ -606,16 +606,17 @@ bool DocumentData::checkWallPaperProperties() {
 
 void DocumentData::updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnail) {
+		const ImageWithLocation &thumbnail) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
-	if (thumbnail.valid()
+	if (thumbnail.location.valid()
 		&& (!_thumbnailLocation.valid()
-			|| _thumbnailLocation.width() < thumbnail.width()
-			|| _thumbnailLocation.height() < thumbnail.height())) {
-		_thumbnailLocation = thumbnail;
+			|| _thumbnailLocation.width() < thumbnail.location.width()
+			|| _thumbnailLocation.height() < thumbnail.location.height())) {
+		_thumbnailLocation = thumbnail.location;
+		_thumbnailByteSize = thumbnail.bytesCount;
 		if (_thumbnailLoader) {
 			const auto origin = base::take(_thumbnailLoader)->fileOrigin();
 			loadThumbnail(origin);
@@ -624,7 +625,7 @@ void DocumentData::updateThumbnails(
 	}
 }
 
-const StorageImageLocation &DocumentData::thumbnailLocation() const {
+const ImageLocation &DocumentData::thumbnailLocation() const {
 	return _thumbnailLocation;
 }
 
@@ -659,16 +660,17 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		}
 	}
 	const auto autoLoading = false;
-	_thumbnailLoader = std::make_unique<mtpFileLoader>(
+	_thumbnailLoader = CreateFileLoader(
 		_thumbnailLocation.file(),
 		origin,
-		UnknownFileLocation,
 		QString(),
-		_thumbnailSize,
+		_thumbnailByteSize,
+		UnknownFileLocation,
 		LoadToCacheAsWell,
 		LoadFromCloudOrLocal,
 		autoLoading,
 		Data::kImageCacheTag);
+
 	_thumbnailLoader->updates(
 	) | rpl::start_with_error_done([=](bool started) {
 		_thumbnailLoader = nullptr;
@@ -683,6 +685,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		}
 		_thumbnailLoader = nullptr;
 	}) | rpl::release();
+
 	_thumbnailLoader->start();
 }
 

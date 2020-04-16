@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "ui/image/image.h"
+#include "ui/image/image_location_factory.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 
@@ -40,7 +41,9 @@ QString GetContentUrl(const MTPWebDocument &document) {
 Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
 }
 
-std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
+std::unique_ptr<Result> Result::create(
+		uint64 queryId,
+		const MTPBotInlineResult &mtpData) {
 	using StringToTypeMap = QMap<QString, Result::Type>;
 	static StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
 		auto result = std::make_unique<StringToTypeMap>();
@@ -94,7 +97,9 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 			} else {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(*content),
-					result->_thumb);
+					(r.vthumb()
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()));
 			}
 		}
 		message = &r.vsend_message();

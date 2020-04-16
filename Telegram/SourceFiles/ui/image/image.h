@@ -13,10 +13,14 @@ class HistoryItem;
 
 namespace Images {
 
+[[nodiscard]] QByteArray ExpandInlineBytes(const QByteArray &bytes);
 [[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
 
 void ClearRemote();
 void ClearAll();
+
+[[nodiscard]] QSize GetSizeForDocument(
+	const QVector<MTPDocumentAttribute> &attributes);
 
 ImagePtr Create(const QString &file, QByteArray format);
 ImagePtr Create(const QString &url, QSize box);

@@ -490,7 +490,7 @@ public:
 	not_null<DocumentData*> processDocument(const MTPDdocument &data);
 	not_null<DocumentData*> processDocument(
 		const MTPdocument &data,
-		QImage &&thumb);
+		const ImageWithLocation &thumbnail);
 	[[nodiscard]] not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
@@ -499,7 +499,7 @@ public:
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnailLocation,
+		const ImageWithLocation &thumbnail,
 		int32 dc,
 		int32 size);
 	void documentConvert(
@@ -507,7 +507,7 @@ public:
 		const MTPDocument &data);
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation);
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
@@ -753,15 +753,15 @@ private:
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnailLocation,
+		const ImageWithLocation &thumbnail,
 		int32 dc,
 		int32 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation);
 
 	void webpageApplyFields(
 		not_null<WebPageData*> page,

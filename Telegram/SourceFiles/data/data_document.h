@@ -161,8 +161,8 @@ public:
 	void loadThumbnail(Data::FileOrigin origin);
 	void updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnail);
-	const StorageImageLocation &thumbnailLocation() const;
+		const ImageWithLocation &thumbnail);
+	const ImageLocation &thumbnailLocation() const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
@@ -301,9 +301,9 @@ private:
 	WebFileLocation _urlLocation;
 
 	QByteArray _inlineThumbnailBytes;
-	StorageImageLocation _thumbnailLocation;
+	ImageLocation _thumbnailLocation;
 	std::unique_ptr<FileLoader> _thumbnailLoader;
-	int _thumbnailSize = 0;
+	int _thumbnailByteSize = 0;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;

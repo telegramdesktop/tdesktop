@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
 #include "ui/image/image_source.h" // Images::LocalFileSource
+#include "ui/image/image_location_factory.h" // Images::FromPhotoSize
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -2355,14 +2356,11 @@ not_null<DocumentData*> Session::document(DocumentId id) {
 }
 
 not_null<DocumentData*> Session::processDocument(const MTPDocument &data) {
-	switch (data.type()) {
-	case mtpc_document:
-		return processDocument(data.c_document());
-
-	case mtpc_documentEmpty:
-		return document(data.c_documentEmpty().vid().v);
-	}
-	Unexpected("Type in Session::document().");
+	return data.match([&](const MTPDdocument &data) {
+		return processDocument(data);
+	}, [&](const MTPDdocumentEmpty &data) {
+		return document(data.vid().v);
+	});
 }
 
 not_null<DocumentData*> Session::processDocument(const MTPDdocument &data) {
@@ -2373,33 +2371,22 @@ not_null<DocumentData*> Session::processDocument(const MTPDdocument &data) {
 
 not_null<DocumentData*> Session::processDocument(
 		const MTPdocument &data,
-		QImage &&thumb) {
-	switch (data.type()) {
-	case mtpc_documentEmpty:
-		return document(data.c_documentEmpty().vid().v);
-
-	case mtpc_document: {
-		const auto &fields = data.c_document();
-		const auto mime = qs(fields.vmime_type());
-		// #TODO optimize
-		const auto format = Core::IsMimeSticker(mime)
-			? "WEBP"
-			: "JPG";
-		Images::Create(std::move(thumb), format);
+		const ImageWithLocation &thumbnail) {
+	return data.match([&](const MTPDdocument &data) {
 		return document(
-			fields.vid().v,
-			fields.vaccess_hash().v,
-			fields.vfile_reference().v,
-			fields.vdate().v,
-			fields.vattributes().v,
-			mime,
+			data.vid().v,
+			data.vaccess_hash().v,
+			data.vfile_reference().v,
+			data.vdate().v,
+			data.vattributes().v,
+			qs(data.vmime_type()),
 			QByteArray(),
-			StorageImageLocation(),
-			fields.vdc_id().v,
-			fields.vsize().v);
-	} break;
-	}
-	Unexpected("Type in Session::document() with thumb.");
+			thumbnail,
+			data.vdc_id().v,
+			data.vsize().v);
+	}, [&](const MTPDdocumentEmpty &data) {
+		return document(data.vid().v);
+	});
 }
 
 not_null<DocumentData*> Session::document(
@@ -2410,7 +2397,7 @@ not_null<DocumentData*> Session::document(
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnailLocation,
+		const ImageWithLocation &thumbnail,
 		int32 dc,
 		int32 size) {
 	const auto result = document(id);
@@ -2422,7 +2409,7 @@ not_null<DocumentData*> Session::document(
 		attributes,
 		mime,
 		inlineThumbnailBytes,
-		thumbnailLocation,
+		thumbnail,
 		dc,
 		size);
 	return result;
@@ -2473,22 +2460,15 @@ void Session::documentConvert(
 
 DocumentData *Session::documentFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb) {
-	switch (data.type()) {
-	case mtpc_webDocument:
-		return documentFromWeb(data.c_webDocument(), thumb);
-
-	case mtpc_webDocumentNoProxy:
-		return documentFromWeb(data.c_webDocumentNoProxy(), thumb);
-
-	}
-	Unexpected("Type in Session::documentFromWeb.");
+		const ImageLocation &thumbnailLocation) {
+	return data.match([&](const auto &data) {
+		return documentFromWeb(data, thumbnailLocation);
+	});
 }
 
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocument &data,
-		ImagePtr thumb) {
-	// #TODO optimize thumb
+		const ImageLocation &thumbnailLocation) {
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2497,7 +2477,7 @@ DocumentData *Session::documentFromWeb(
 		data.vattributes().v,
 		data.vmime_type().v,
 		QByteArray(),
-		StorageImageLocation(),
+		ImageWithLocation{ .location = thumbnailLocation },
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
@@ -2508,8 +2488,7 @@ DocumentData *Session::documentFromWeb(
 
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
-		ImagePtr thumb) {
-	// #TODO optimize thumb
+		const ImageLocation &thumbnailLocation) {
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2518,7 +2497,7 @@ DocumentData *Session::documentFromWeb(
 		data.vattributes().v,
 		data.vmime_type().v,
 		QByteArray(),
-		StorageImageLocation(),
+		ImageWithLocation{ .location = thumbnailLocation },
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
@@ -2538,8 +2517,10 @@ void Session::documentApplyFields(
 		const MTPDdocument &data) {
 	const auto inlineThumbnailBytes = FindDocumentInlineThumbnail(data);
 	const auto thumbnailSize = FindDocumentThumbnail(data);
-	// #TODO optimize
-	const auto thumbnail = Images::Create(data, thumbnailSize)->location();
+	const auto prepared = Images::FromPhotoSize(
+		_session,
+		data,
+		thumbnailSize);
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,
@@ -2548,7 +2529,7 @@ void Session::documentApplyFields(
 		data.vattributes().v,
 		qs(data.vmime_type()),
 		inlineThumbnailBytes,
-		thumbnail,
+		prepared,
 		data.vdc_id().v,
 		data.vsize().v);
 }
@@ -2561,7 +2542,7 @@ void Session::documentApplyFields(
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
-		const StorageImageLocation &thumbnailLocation,
+		const ImageWithLocation &thumbnail,
 		int32 dc,
 		int32 size) {
 	if (!date) {
@@ -2569,7 +2550,7 @@ void Session::documentApplyFields(
 	}
 	document->date = date;
 	document->setMimeString(mime);
-	document->updateThumbnails(inlineThumbnailBytes, thumbnailLocation);
+	document->updateThumbnails(inlineThumbnailBytes, thumbnail);
 	document->size = size;
 	document->setattributes(attributes);
 

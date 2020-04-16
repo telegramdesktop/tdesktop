@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "storage/localstorage.h"
+#include "storage/file_download_mtproto.h"
+#include "storage/file_download_web.h"
 #include "platform/platform_file_utilities.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -22,6 +24,67 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "facades.h"
 #include "app.h"
+
+namespace {
+
+class FromMemoryLoader final : public FileLoader {
+public:
+	FromMemoryLoader(
+		const QByteArray &data,
+		const QString &toFile,
+		int32 size,
+		LocationType locationType,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag);
+
+private:
+	Storage::Cache::Key cacheKey() const override;
+	std::optional<MediaKey> fileLocationKey() const override;
+	void cancelHook() override;
+	void startLoading() override;
+
+	QByteArray _data;
+
+};
+
+FromMemoryLoader::FromMemoryLoader(
+	const QByteArray &data,
+	const QString &toFile,
+	int32 size,
+	LocationType locationType,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag
+) : FileLoader(
+	toFile,
+	size,
+	locationType,
+	toCache,
+	fromCloud,
+	autoLoading,
+	cacheTag)
+, _data(data) {
+}
+
+Storage::Cache::Key FromMemoryLoader::cacheKey() const {
+	return {};
+}
+
+std::optional<MediaKey> FromMemoryLoader::fileLocationKey() const {
+	return std::nullopt;
+}
+
+void FromMemoryLoader::cancelHook() {
+}
+
+void FromMemoryLoader::startLoading() {
+	finishWithBytes(_data);
+}
+
+} // namespace
 
 FileLoader::FileLoader(
 	const QString &toFile,
@@ -220,14 +283,14 @@ bool FileLoader::tryLoadLocal() {
 		return true;
 	}
 
-	const auto weak = base::make_weak(this);
 	if (_toCache == LoadToCacheAsWell) {
-		loadLocal(cacheKey());
-		notifyAboutProgress();
+		const auto key = cacheKey();
+		if (key.low || key.high) {
+			loadLocal(key);
+			notifyAboutProgress();
+		}
 	}
-	if (!weak) {
-		return false;
-	} else if (_localStatus != LocalStatus::NotTried) {
+	if (_localStatus != LocalStatus::NotTried) {
 		return _finished;
 	} else if (_localLoading) {
 		_localStatus = LocalStatus::Loading;
@@ -361,8 +424,10 @@ bool FileLoader::finalizeResult() {
 				Local::writeFileLocation(*key, FileLocation(_filename));
 			}
 		}
+		const auto key = cacheKey();
 		if ((_toCache == LoadToCacheAsWell)
-			&& (_data.size() <= Storage::kMaxFileInMemory)) {
+			&& (_data.size() <= Storage::kMaxFileInMemory)
+			&& (key.low || key.high)) {
 			_session->data().cache().put(
 				cacheKey(),
 				Storage::Cache::Database::TaggedValue(
@@ -373,4 +438,63 @@ bool FileLoader::finalizeResult() {
 	_session->downloaderTaskFinished().notify();
 	_updates.fire_done();
 	return true;
+}
+
+std::unique_ptr<FileLoader> CreateFileLoader(
+		const DownloadLocation &location,
+		Data::FileOrigin origin,
+		const QString &toFile,
+		int size,
+		LocationType locationType,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag) {
+	auto result = std::unique_ptr<FileLoader>();
+	location.data.match([&](const StorageFileLocation &data) {
+		result = std::make_unique<mtpFileLoader>(
+			data,
+			origin,
+			locationType,
+			toFile,
+			size,
+			toCache,
+			fromCloud,
+			autoLoading,
+			cacheTag);
+	}, [&](const WebFileLocation &data) {
+		result = std::make_unique<mtpFileLoader>(
+			data,
+			size,
+			fromCloud,
+			autoLoading,
+			cacheTag);
+	}, [&](const GeoPointLocation &data) {
+		result = std::make_unique<mtpFileLoader>(
+			data,
+			size,
+			fromCloud,
+			autoLoading,
+			cacheTag);
+	}, [&](const PlainUrlLocation &data) {
+		result = std::make_unique<webFileLoader>(
+			data.url,
+			toFile,
+			fromCloud,
+			autoLoading,
+			cacheTag);
+	}, [&](const InMemoryLocation &data) {
+		result = std::make_unique<FromMemoryLoader>(
+			data.bytes,
+			toFile,
+			size,
+			locationType,
+			toCache,
+			fromCloud,
+			autoLoading,
+			cacheTag);
+	});
+
+	Ensures(result != nullptr);
+	return result;
 }

@@ -96,6 +96,34 @@ std::optional<StorageImageLocation> readStorageImageLocation(
 		: std::nullopt;
 }
 
+int imageLocationSize(const ImageLocation &location) {
+	// Modern image location tag + (size + content) of the serialization.
+	return sizeof(qint32) * 2 + location.serializeSize();
+}
+
+void writeImageLocation(QDataStream &stream, const ImageLocation &location) {
+	stream << kModernImageLocationTag << location.serialize();
+}
+
+std::optional<ImageLocation> readImageLocation(
+		int streamAppVersion,
+		QDataStream &stream) {
+	const auto legacy = readLegacyStorageImageLocationOrTag(
+		streamAppVersion,
+		stream);
+	if (legacy) {
+		return ImageLocation(
+			DownloadLocation{ legacy->file() },
+			legacy->width(),
+			legacy->height());
+	}
+	auto serialized = QByteArray();
+	stream >> serialized;
+	return (stream.status() == QDataStream::Ok)
+		? ImageLocation::FromSerialized(serialized)
+		: std::nullopt;
+}
+
 uint32 peerSize(not_null<PeerData*> peer) {
 	uint32 result = sizeof(quint64)
 		+ sizeof(quint64)
