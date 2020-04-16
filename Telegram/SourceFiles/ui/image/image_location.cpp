@@ -22,7 +22,15 @@ namespace {
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
 constexpr auto kSerializeTypeShift = quint8(0x08);
+constexpr auto kNonStorageLocationToken = quint8(0x10);
 const auto kInMediaCacheLocation = QString("*media_cache*");
+
+enum class NonStorageLocationType : quint8 {
+	Web,
+	Geo,
+	Url,
+	Memory,
+};
 
 MTPInputPeer GenerateInputPeer(
 		uint64 id,
@@ -264,8 +272,8 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 
 QByteArray StorageFileLocation::serialize() const {
 	auto result = QByteArray();
-	result.reserve(serializeSize());
 	if (valid()) {
+		result.reserve(serializeSize());
 		auto buffer = QBuffer(&result);
 		buffer.open(QIODevice::WriteOnly);
 		auto stream = QDataStream(&buffer);
@@ -311,7 +319,11 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 	stream.setVersion(QDataStream::Qt_5_1);
 	stream
 		>> dcId
-		>> type
+		>> type;
+	if (type == kNonStorageLocationToken) {
+		return std::nullopt;
+	}
+	stream
 		>> sizeLetter
 		>> localId
 		>> id
@@ -623,6 +635,234 @@ std::optional<StorageImageLocation> StorageImageLocation::FromSerialized(
 			return (stream.status() == QDataStream::Ok)
 				? StorageImageLocation(*file, width, height)
 				: std::optional<StorageImageLocation>();
+		}
+	}
+	return std::nullopt;
+}
+
+QByteArray DownloadLocation::serialize() const {
+	if (!valid() || data.is<StorageFileLocation>()) {
+		return data.get_unchecked<StorageFileLocation>().serialize();
+	}
+	auto result = QByteArray();
+	auto buffer = QBuffer(&result);
+	buffer.open(QIODevice::WriteOnly);
+	auto stream = QDataStream(&buffer);
+	stream.setVersion(QDataStream::Qt_5_1);
+	stream << quint16(0) << kNonStorageLocationToken;
+
+	data.match([&](const StorageFileLocation &data) {
+		Unexpected("Variant in DownloadLocation::serialize.");
+	}, [&](const WebFileLocation &data) {
+		stream
+			<< quint8(NonStorageLocationType::Web)
+			<< data.url()
+			<< quint64(data.accessHash());
+	}, [&](const GeoPointLocation &data) {
+		stream
+			<< quint8(NonStorageLocationType::Geo)
+			<< qreal(data.lat)
+			<< qreal(data.lon)
+			<< quint64(data.access)
+			<< qint32(data.width)
+			<< qint32(data.height)
+			<< qint32(data.zoom)
+			<< qint32(data.scale);
+	}, [&](const PlainUrlLocation &data) {
+		stream << quint8(NonStorageLocationType::Url) << data.url.toUtf8();
+	}, [&](const InMemoryLocation &data) {
+		stream << quint8(NonStorageLocationType::Memory) << data.bytes;
+	});
+	buffer.close();
+	return result;
+}
+
+int DownloadLocation::serializeSize() const {
+	if (!valid() || data.is<StorageFileLocation>()) {
+		return data.get_unchecked<StorageFileLocation>().serializeSize();
+	}
+	auto result = sizeof(quint16) + sizeof(quint8) + sizeof(quint8);
+	data.match([&](const StorageFileLocation &data) {
+		Unexpected("Variant in DownloadLocation::serializeSize.");
+	}, [&](const WebFileLocation &data) {
+		result += Serialize::bytearraySize(data.url()) + sizeof(quint64);
+	}, [&](const GeoPointLocation &data) {
+		result += 2 * sizeof(qreal) + sizeof(quint64) + 4 * sizeof(qint32);
+	}, [&](const PlainUrlLocation &data) {
+		result += Serialize::bytearraySize(data.url.toUtf8());
+	}, [&](const InMemoryLocation &data) {
+		result += Serialize::bytearraySize(data.bytes);
+	});
+	return result;
+}
+
+std::optional<DownloadLocation> DownloadLocation::FromSerialized(
+		const QByteArray &serialized) {
+	quint16 dcId = 0;
+	quint8 token = 0;
+	auto stream = QDataStream(serialized);
+	stream.setVersion(QDataStream::Qt_5_1);
+	stream >> dcId >> token;
+	if (dcId != 0 || token != kNonStorageLocationToken) {
+		const auto storage = StorageFileLocation::FromSerialized(serialized);
+		return storage
+			? std::make_optional(DownloadLocation{ *storage })
+			: std::nullopt;
+	}
+	quint8 type = 0;
+	stream >> type;
+	switch (NonStorageLocationType(type)) {
+	case NonStorageLocationType::Web: {
+		QByteArray url;
+		quint64 accessHash = 0;
+		stream >> url >> accessHash;
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(
+				DownloadLocation{ WebFileLocation(url, accessHash) })
+			: std::nullopt;
+	} break;
+
+	case NonStorageLocationType::Geo: {
+		qreal lat = 0.;
+		qreal lon = 0.;
+		quint64 access = 0;
+		qint32 width = 0;
+		qint32 height = 0;
+		qint32 zoom = 0;
+		qint32 scale = 0;
+		stream >> lat >> lon >> access >> width >> height >> zoom >> scale;
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(
+				DownloadLocation{ GeoPointLocation{
+					.lat = lat,
+					.lon = lon,
+					.access = access,
+					.width = width,
+					.height = height,
+					.zoom = zoom,
+					.scale = scale } })
+			: std::nullopt;
+	} break;
+
+	case NonStorageLocationType::Url: {
+		QByteArray utf;
+		stream >> utf;
+		const auto url = base::FromUtf8Safe(utf);
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(DownloadLocation{ PlainUrlLocation{ url } })
+			: std::nullopt;
+	} break;
+
+	case NonStorageLocationType::Memory: {
+		QByteArray bytes;
+		stream >> bytes;
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(
+				DownloadLocation{ InMemoryLocation{ bytes } })
+			: std::nullopt;
+	} break;
+	}
+	return std::nullopt;
+}
+
+DownloadLocation DownloadLocation::convertToModern(
+		StorageFileLocation::Type type,
+		uint64 id,
+		uint64 accessHash) const {
+	if (!data.is<StorageFileLocation>()) {
+		return *this;
+	}
+	auto &file = this->data.get_unchecked<StorageFileLocation>();
+	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
+}
+
+bool DownloadLocation::valid() const {
+	return data.match([](const GeoPointLocation &data) {
+		return true;
+	}, [](const StorageFileLocation &data) {
+		return data.valid();
+	}, [](const WebFileLocation &data) {
+		return !data.isNull();
+	}, [](const PlainUrlLocation &data) {
+		return !data.url.isEmpty();
+	}, [](const InMemoryLocation &data) {
+		return !data.bytes.isEmpty();
+	});
+}
+
+QByteArray DownloadLocation::fileReference() const {
+	if (!data.is<StorageFileLocation>()) {
+		return QByteArray();
+	}
+	return data.get_unchecked<StorageFileLocation>().fileReference();
+}
+
+bool DownloadLocation::refreshFileReference(const QByteArray &data) {
+	if (!this->data.is<StorageFileLocation>()) {
+		return false;
+	}
+	auto &file = this->data.get_unchecked<StorageFileLocation>();
+	return file.refreshFileReference(data);
+}
+
+bool DownloadLocation::refreshFileReference(
+	const Data::UpdatedFileReferences &updates) {
+	if (!data.is<StorageFileLocation>()) {
+		return false;
+	}
+	auto &file = data.get_unchecked<StorageFileLocation>();
+	return file.refreshFileReference(updates);
+}
+
+ImageLocation::ImageLocation(
+	const DownloadLocation &file,
+	int width,
+	int height)
+: _file(file)
+, _width(width)
+, _height(height) {
+}
+
+QByteArray ImageLocation::serialize() const {
+	auto result = _file.serialize();
+	if (!result.isEmpty() || (_width > 0) || (_height > 0)) {
+		result.reserve(result.size() + 2 * sizeof(qint32));
+		auto buffer = QBuffer(&result);
+		buffer.open(QIODevice::Append);
+		auto stream = QDataStream(&buffer);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(_width) << qint32(_height);
+	}
+	return result;
+}
+
+int ImageLocation::serializeSize() const {
+	const auto partial = _file.serializeSize();
+	return (partial > 0 || _width > 0 || _height > 0)
+		? (partial + 2 * sizeof(qint32))
+		: 0;
+}
+
+std::optional<ImageLocation> ImageLocation::FromSerialized(
+		const QByteArray &serialized) {
+	if (const auto file = DownloadLocation::FromSerialized(serialized)) {
+		const auto my = 2 * sizeof(qint32);
+		const auto full = serialized.size();
+		if (!full) {
+			return ImageLocation(*file, 0, 0);
+		} else if (full >= my) {
+			qint32 width = 0;
+			qint32 height = 0;
+
+			const auto dimensions = QByteArray::fromRawData(
+				serialized.data() + full - my, my);
+			auto stream = QDataStream(dimensions);
+			stream.setVersion(QDataStream::Qt_5_1);
+			stream >> width >> height;
+
+			return (stream.status() == QDataStream::Ok)
+				? ImageLocation(*file, width, height)
+				: std::optional<ImageLocation>();
 		}
 	}
 	return std::nullopt;

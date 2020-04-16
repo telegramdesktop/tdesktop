@@ -362,6 +362,148 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+struct PlainUrlLocation {
+	QString url;
+
+	friend inline bool operator==(
+			const PlainUrlLocation &a,
+			const PlainUrlLocation &b) {
+		return (a.url == b.url);
+	}
+	friend inline bool operator<(
+			const PlainUrlLocation &a,
+			const PlainUrlLocation &b) {
+		return (a.url < b.url);
+	}
+};
+
+struct InMemoryLocation {
+	QByteArray bytes;
+
+	friend inline bool operator==(
+			const InMemoryLocation &a,
+			const InMemoryLocation &b) {
+		return (a.bytes == b.bytes);
+	}
+	friend inline bool operator<(
+			const InMemoryLocation &a,
+			const InMemoryLocation &b) {
+		return (a.bytes < b.bytes);
+	}
+};
+
+class DownloadLocation {
+public:
+	base::variant<
+		StorageFileLocation,
+		WebFileLocation,
+		GeoPointLocation,
+		PlainUrlLocation,
+		InMemoryLocation> data;
+
+	[[nodiscard]] QByteArray serialize() const;
+	[[nodiscard]] int serializeSize() const;
+	[[nodiscard]] static std::optional<DownloadLocation> FromSerialized(
+		const QByteArray &serialized);
+
+	[[nodiscard]] DownloadLocation convertToModern(
+		StorageFileLocation::Type type,
+		uint64 id,
+		uint64 accessHash) const;
+
+	[[nodiscard]] bool valid() const;
+	[[nodiscard]] QByteArray fileReference() const;
+	bool refreshFileReference(const QByteArray &data);
+	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
+
+private:
+	friend inline bool operator==(
+			const DownloadLocation &a,
+			const DownloadLocation &b) {
+		return (a.data == b.data);
+	}
+	friend inline bool operator<(
+			const DownloadLocation &a,
+			const DownloadLocation &b) {
+		return (a.data < b.data);
+	}
+
+};
+
+class ImageLocation {
+public:
+	ImageLocation() = default;
+	ImageLocation(
+		const DownloadLocation &file,
+		int width,
+		int height);
+
+	[[nodiscard]] QByteArray serialize() const;
+	[[nodiscard]] int serializeSize() const;
+	[[nodiscard]] static std::optional<ImageLocation> FromSerialized(
+		const QByteArray &serialized);
+
+	[[nodiscard]] ImageLocation convertToModern(
+			StorageFileLocation::Type type,
+			uint64 id,
+			uint64 accessHash) const {
+		return ImageLocation(
+			_file.convertToModern(type, id, accessHash),
+			_width,
+			_height);
+	}
+
+	[[nodiscard]] const DownloadLocation &file() const {
+		return _file;
+	}
+	[[nodiscard]] int width() const {
+		return _width;
+	}
+	[[nodiscard]] int height() const {
+		return _height;
+	}
+
+	void setSize(int width, int height) {
+		_width = width;
+		_height = height;
+	}
+
+	[[nodiscard]] bool valid() const {
+		return _file.valid();
+	}
+	[[nodiscard]] QByteArray fileReference() const {
+		return _file.fileReference();
+	}
+	bool refreshFileReference(const QByteArray &data) {
+		return _file.refreshFileReference(data);
+	}
+	bool refreshFileReference(const Data::UpdatedFileReferences &updates) {
+		return _file.refreshFileReference(updates);
+	}
+
+	[[nodiscard]] static const ImageLocation &Invalid() {
+		static auto result = ImageLocation();
+		return result;
+	}
+
+private:
+	friend inline bool operator==(
+			const ImageLocation &a,
+			const ImageLocation &b) {
+		return (a._file == b._file);
+	}
+	friend inline bool operator<(
+			const ImageLocation &a,
+			const ImageLocation &b) {
+		return (a._file < b._file);
+	}
+
+	DownloadLocation _file;
+	int _width = 0;
+	int _height = 0;
+
+};
+
 class Image;
 class ImagePtr {
 public:
