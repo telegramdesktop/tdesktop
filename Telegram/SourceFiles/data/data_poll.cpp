@@ -147,14 +147,16 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}) | ranges::to_vector;
 			}
 		}
-		auto newSolution = TextWithEntities{
-			results.vsolution().value_or_empty(),
-			Api::EntitiesFromMTP(
-				results.vsolution_entities().value_or_empty())
-		};
-		if (solution != newSolution) {
-			solution = std::move(newSolution);
-			changed = true;
+		if (results.vsolution()) {
+			auto newSolution = TextWithEntities{
+				results.vsolution().value_or_empty(),
+				Api::EntitiesFromMTP(
+					results.vsolution_entities().value_or_empty())
+			};
+			if (solution != newSolution) {
+				solution = std::move(newSolution);
+				changed = true;
+			}
 		}
 		if (!changed) {
 			return false;
@@ -205,11 +207,9 @@ bool PollData::applyResultToAnswers(
 				changed = true;
 			}
 		}
-		if (!isMinResults || closed()) {
-			if (answer->correct != voters.is_correct()) {
-				answer->correct = voters.is_correct();
-				changed = true;
-			}
+		if (voters.is_correct() && !answer->correct) {
+			answer->correct = voters.is_correct();
+			changed = true;
 		}
 		return changed;
 	});
