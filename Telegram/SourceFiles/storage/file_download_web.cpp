@@ -495,9 +495,7 @@ void webFileLoader::loadProgress(qint64 ready, qint64 total) {
 void webFileLoader::loadFinished(const QByteArray &data) {
 	cancelRequest();
 	if (writeResultPart(0, bytes::make_span(data))) {
-		if (finalizeResult()) {
-			notifyAboutProgress();
-		}
+		finalizeResult();
 	}
 }
 

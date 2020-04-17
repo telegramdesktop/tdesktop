@@ -617,10 +617,17 @@ void DocumentData::updateThumbnails(
 			|| _thumbnailLocation.height() < thumbnail.location.height())) {
 		_thumbnailLocation = thumbnail.location;
 		_thumbnailByteSize = thumbnail.bytesCount;
-		if (_thumbnailLoader) {
+		if (!thumbnail.preloaded.isNull()) {
+			_thumbnailLoader = nullptr;
+			if (const auto media = activeMediaView()) {
+				media->setThumbnail(thumbnail.preloaded);
+			}
+		} else if (_thumbnailLoader) {
 			const auto origin = base::take(_thumbnailLoader)->fileOrigin();
 			loadThumbnail(origin);
-			// #TODO optimize replace thumbnail in activeMediaView().
+		}
+		if (!thumbnail.bytes.isEmpty()) {
+			// #TODO optimize put to cache
 		}
 	}
 }

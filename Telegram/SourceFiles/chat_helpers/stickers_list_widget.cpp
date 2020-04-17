@@ -67,15 +67,23 @@ struct StickerIcon {
 	: setId(setId)
 	, thumbnail(thumbnail)
 	, sticker(sticker)
-	, stickerMedia(sticker ? sticker->createMediaView() : nullptr)
 	, pixw(pixw)
 	, pixh(pixh) {
 	}
+
+	void ensureMediaCreated() const {
+		if (stickerMedia || !sticker) {
+			return;
+		}
+		stickerMedia = sticker->createMediaView();
+		stickerMedia->thumbnailWanted(sticker->stickerSetOrigin());
+	}
+
 	uint64 setId = 0;
 	ImagePtr thumbnail;
 	mutable Lottie::SinglePlayer *lottie = nullptr;
 	DocumentData *sticker = nullptr;
-	std::shared_ptr<Data::DocumentMedia> stickerMedia;
+	mutable std::shared_ptr<Data::DocumentMedia> stickerMedia;
 	ChannelData *megagroup = nullptr;
 	int pixw = 0;
 	int pixh = 0;
@@ -700,6 +708,7 @@ void StickersListWidget::Footer::paintSearchIcon(Painter &p) const {
 
 void StickersListWidget::Footer::validateIconLottieAnimation(
 		const StickerIcon &icon) {
+	icon.ensureMediaCreated();
 	if (icon.lottie
 		|| !Stickers::HasLottieThumbnail(
 			icon.thumbnail,
@@ -745,6 +754,7 @@ void StickersListWidget::Footer::paintSetIcon(
 		const StickerIcon &icon,
 		int x) const {
 	if (icon.sticker) {
+		icon.ensureMediaCreated();
 		const auto origin = icon.sticker->stickerSetOrigin();
 		const auto thumb = icon.thumbnail
 			? icon.thumbnail.get()
