@@ -209,6 +209,9 @@ parts:
       - --prefix=/usr
       - -Denable_tools=false
       - -Denable_tests=false
+    prime:
+      - -./usr/include
+      - -./usr/lib/*/pkgconfig
     after:
       - nasm
 
@@ -244,6 +247,7 @@ parts:
       - libvdpau1
     configflags:
       - --prefix=/usr
+      - --disable-static
       - --disable-debug
       - --disable-programs
       - --disable-doc
@@ -252,6 +256,7 @@ parts:
       - --disable-everything
       - --disable-neon
       - --disable-iconv
+      - --enable-shared
       - --enable-libdav1d
       - --enable-libopus
       - --enable-vaapi
@@ -347,6 +352,9 @@ parts:
     override-pull: |
       snapcraftctl pull
       patch -p1 < "$SNAPCRAFT_STAGE/ffmpeg.diff"
+    prime:
+      - -./usr/include
+      - -./usr/lib/pkgconfig
     after:
       - patches
       - nasm
@@ -365,6 +373,10 @@ parts:
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
       - -DWITH_DOC=OFF
+    prime:
+      - -./include
+      - -./lib/cmake
+      - -./lib/pkgconfig
 
   openal:
     source: https://github.com/kcat/openal-soft.git
@@ -387,6 +399,10 @@ parts:
       - -DALSOFT_TESTS=OFF
       - -DALSOFT_UTILS=OFF
       - -DALSOFT_CONFIG=OFF
+    prime:
+      - -./include
+      - -./lib/cmake
+      - -./lib/pkgconfig
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
@@ -449,4 +465,7 @@ parts:
     source-tag: v0.7.2
     plugin: make
     make-parameters: [PREFIX=]
-    prime: [-./bin/*]
+    prime:
+      - -./bin
+      - -./include
+      - -./share
