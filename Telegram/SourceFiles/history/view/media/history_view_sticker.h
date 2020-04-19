@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "base/weak_ptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 struct FileOrigin;
 } // namespace Data
@@ -54,6 +58,12 @@ public:
 		return _atTheEnd;
 	}
 	[[nodiscard]] bool readyToDrawLottie();
+
+	[[nodiscard]] static QSize GetAnimatedEmojiSize(
+		not_null<Main::Session*> session);
+	[[nodiscard]] static QSize GetAnimatedEmojiSize(
+		not_null<Main::Session*> session,
+		QSize documentSize);
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;

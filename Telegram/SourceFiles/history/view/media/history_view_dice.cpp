@@ -44,11 +44,13 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 : _parent(parent)
 , _dice(dice)
 , _link(_parent->data()->Has<HistoryMessageForwarded>()
-	? nullptr
-	: MakeDiceHandler(dice->emoji()))
-, _start(parent, Lookup(parent, dice->emoji(), 0)) {
+		? nullptr
+		: MakeDiceHandler(dice->emoji())) {
+	if (const auto document = Lookup(parent, dice->emoji(), 0)) {
+		_start.emplace(parent, document);
+		_start->setDiceIndex(_dice->emoji(), 0);
+	}
 	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
-	_start.setDiceIndex(_dice->emoji(), 0);
 	if (_showLastFrame) {
 		_drawingEnd = true;
 	}
@@ -57,7 +59,9 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 Dice::~Dice() = default;
 
 QSize Dice::size() {
-	return _start.size();
+	return _start
+		? _start->size()
+		: Sticker::GetAnimatedEmojiSize(&_parent->history()->session());
 }
 
 ClickHandlerPtr Dice::link() {
@@ -65,6 +69,13 @@ ClickHandlerPtr Dice::link() {
 }
 
 void Dice::draw(Painter &p, const QRect &r, bool selected) {
+	if (!_start) {
+		if (const auto document = Lookup(_parent, _dice->emoji(), 0)) {
+			_start.emplace(_parent, document);
+			_start->setDiceIndex(_dice->emoji(), 0);
+			_start->initSize();
+		}
+	}
 	if (const auto value = _end ? 0 : _dice->value()) {
 		if (const auto document = Lookup(_parent, _dice->emoji(), value)) {
 			_end.emplace(_parent, document);
@@ -77,9 +88,9 @@ void Dice::draw(Painter &p, const QRect &r, bool selected) {
 	}
 	if (_drawingEnd) {
 		_end->draw(p, r, selected);
-	} else {
-		_start.draw(p, r, selected);
-		if (_end && _end->readyToDrawLottie() && _start.atTheEnd()) {
+	} else if (_start) {
+		_start->draw(p, r, selected);
+		if (_end && _end->readyToDrawLottie() && _start->atTheEnd()) {
 			_drawingEnd = true;
 		}
 	}

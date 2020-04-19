@@ -29,7 +29,9 @@ public:
 	void clearStickerLoopPlayed() override {
 	}
 	void unloadHeavyPart() override {
-		_start.unloadHeavyPart();
+		if (_start) {
+			_start->unloadHeavyPart();
+		}
 		if (_end) {
 			_end->unloadHeavyPart();
 		}
@@ -42,8 +44,8 @@ private:
 	const not_null<Element*> _parent;
 	const not_null<Data::MediaDice*> _dice;
 	ClickHandlerPtr _link;
+	std::optional<Sticker> _start;
 	std::optional<Sticker> _end;
-	Sticker _start;
 	mutable bool _showLastFrame = false;
 	mutable bool _drawingEnd = false;
 

@@ -74,12 +74,7 @@ bool Sticker::isEmojiSticker() const {
 void Sticker::initSize() {
 	_size = _document->dimensions;
 	if (isEmojiSticker() || _diceIndex >= 0) {
-		constexpr auto kIdealStickerSize = 512;
-		const auto zoom = GetEmojiStickerZoom(&_document->session());
-		const auto convert = [&](int size) {
-			return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
-		};
-		_size = QSize(convert(_size.width()), convert(_size.height()));
+		_size = GetAnimatedEmojiSize(&_document->session(), _size);
 		[[maybe_unused]] bool result = readyToDrawLottie();
 	} else {
 		_size = DownscaledSize(
@@ -108,6 +103,21 @@ bool Sticker::readyToDrawLottie() {
 		setupLottie();
 	}
 	return (_lottie && _lottie->ready());
+}
+
+QSize Sticker::GetAnimatedEmojiSize(not_null<Main::Session*> session) {
+	return GetAnimatedEmojiSize(session, { 512, 512 });
+}
+
+QSize Sticker::GetAnimatedEmojiSize(
+		not_null<Main::Session*> session,
+		QSize documentSize) {
+	constexpr auto kIdealStickerSize = 512;
+	const auto zoom = GetEmojiStickerZoom(session);
+	const auto convert = [&](int size) {
+		return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
+	};
+	return { convert(documentSize.width()), convert(documentSize.height()) };
 }
 
 void Sticker::draw(Painter &p, const QRect &r, bool selected) {

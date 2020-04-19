@@ -35,11 +35,11 @@ DocumentData *DicePack::lookup(int value) {
 	if (!_requestId) {
 		load();
 	}
-	if (!value) {
-		ensureZeroGenerated();
-		return _zero;
-	}
 	const auto i = _map.find(value);
+	//if (!value) {
+	//	ensureZeroGenerated();
+	//	return _zero;
+	//}
 	return (i != end(_map)) ? i->second.get() : nullptr;
 }
 
@@ -59,13 +59,32 @@ void DicePack::load() {
 }
 
 void DicePack::applySet(const MTPDmessages_stickerSet &data) {
-	auto index = 0;
+	_map.clear();
+	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
 	for (const auto &sticker : data.vdocuments().v) {
 		const auto document = _session->data().processDocument(
 			sticker);
 		if (document->sticker()) {
-			_map.emplace(++index, document);
+			documents.emplace(document->id, document);
 		}
+	}
+	for (const auto pack : data.vpacks().v) {
+		pack.match([&](const MTPDstickerPack &data) {
+			const auto emoji = qs(data.vemoticon());
+			if (emoji.isEmpty()) {
+				return;
+			}
+			const auto ch = int(emoji[0].unicode());
+			const auto index = (ch == '#') ? 0 : (ch + 1 - '1');
+			if (index < 0 || index > 6) {
+				return;
+			}
+			for (const auto id : data.vdocuments().v) {
+				if (const auto document = documents.take(id.v)) {
+					_map.emplace(index, *document);
+				}
+			}
+		});
 	}
 }
 
