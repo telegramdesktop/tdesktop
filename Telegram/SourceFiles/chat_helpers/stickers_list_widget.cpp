@@ -138,7 +138,6 @@ private:
 	void finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintSearchIcon(Painter &p) const;
-	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
 	void paintSetIcon(Painter &p, const StickerIcon &icon, int x) const;
 	void paintSelectionBar(Painter &p) const;
 	void paintLeftRightFading(Painter &p) const;
@@ -694,18 +693,6 @@ void StickersListWidget::Footer::paintSearchIcon(Painter &p) const {
 	st::stickersSearch.paint(p, searchLeft + (st::stickerIconWidth - st::stickersSearch.width()) / 2, _iconsTop + st::emojiCategory.iconPosition.y(), width());
 }
 
-void StickersListWidget::Footer::paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const {
-	if (const auto unread = _pan->session().data().featuredStickerSetsUnreadCount()) {
-		Dialogs::Layout::UnreadBadgeStyle unreadSt;
-		unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInStickersPanel;
-		unreadSt.size = st::stickersSettingsUnreadSize;
-		int unreadRight = iconLeft + st::stickerIconWidth - st::stickersSettingsUnreadPosition.x();
-		if (rtl()) unreadRight = width() - unreadRight;
-		int unreadTop = _iconsTop + st::stickersSettingsUnreadPosition.y();
-		Dialogs::Layout::paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, unreadSt);
-	}
-}
-
 void StickersListWidget::Footer::validateIconLottieAnimation(
 		const StickerIcon &icon) {
 	if (icon.lottie
@@ -788,19 +775,22 @@ void StickersListWidget::Footer::paintSetIcon(
 	} else if (icon.megagroup) {
 		icon.megagroup->paintUserpicLeft(p, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
 	} else {
-		auto getSpecialSetIcon = [](uint64 setId) {
-			if (setId == Stickers::FeaturedSetId) {
-				return &st::stickersTrending;
+		const auto paintedIcon = [&] {
+			if (icon.setId == Stickers::FeaturedSetId) {
+				const auto session = &_pan->session();
+				return session->data().featuredStickerSetsUnreadCount()
+					? &st::stickersTrendingUnread
+					: &st::stickersTrending;
 			//} else if (setId == Stickers::FavedSetId) {
 			//	return &st::stickersFaved;
 			}
-			return &st::emojiRecent;
-		};
-		auto paintedIcon = getSpecialSetIcon(icon.setId);
-		paintedIcon->paint(p, x + (st::stickerIconWidth - paintedIcon->width()) / 2, _iconsTop + st::emojiCategory.iconPosition.y(), width());
-		if (icon.setId == Stickers::FeaturedSetId) {
-			paintFeaturedStickerSetsBadge(p, x);
-		}
+			return &st::stickersRecent;
+		}();
+		paintedIcon->paint(
+			p,
+			x + (st::stickerIconWidth - paintedIcon->width()) / 2,
+			_iconsTop + (st::emojiFooterHeight - paintedIcon->height()) / 2,
+			width());
 	}
 }
 
@@ -2487,8 +2477,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	icons.clear();
 	icons.reserve(_mySets.size() + 1);
-	if (session().data().featuredStickerSetsUnreadCount()
-		&& !_featuredSets.empty()) {
+	if (!_featuredSets.empty()) {
 		icons.push_back(StickerIcon(Stickers::FeaturedSetId));
 	}
 
@@ -2534,11 +2523,6 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 			s,
 			pixw,
 			pixh));
-	}
-
-	if (!session().data().featuredStickerSetsUnreadCount()
-		&& !_featuredSets.empty()) {
-		icons.push_back(StickerIcon(Stickers::FeaturedSetId));
 	}
 }
 
