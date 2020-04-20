@@ -1330,6 +1330,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_show_archive_in_search" = "With results from archive";
 
 "lng_about_random" = "Send a {emoji} emoji to any chat to get a random number from Telegram.";
+"lng_about_random_send" = "Send";
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";

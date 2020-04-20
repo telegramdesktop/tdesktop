@@ -23,6 +23,6 @@ void SendExistingPhoto(
 	Api::MessageToSend &&message,
 	not_null<PhotoData*> photo);
 
-[[nodiscard]] bool SendDice(Api::MessageToSend &message);
+bool SendDice(Api::MessageToSend &message);
 
 } // namespace Api
