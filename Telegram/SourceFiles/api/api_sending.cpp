@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "app.h"
@@ -199,13 +201,25 @@ void SendExistingPhoto(
 }
 
 bool SendDice(Api::MessageToSend &message) {
-	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-	static const auto kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
 	const auto full = message.textWithTags.text.midRef(0).trimmed();
-	if (full != kDiceString && full != kDartString) {
+	auto length = 0;
+	if (!Ui::Emoji::Find(full.data(), full.data() + full.size(), &length)
+		|| length != full.size()) {
 		return false;
 	}
+	auto &account = message.action.history->session().account();
+	auto &config = account.appConfig();
+	static const auto hardcoded = std::vector<QString>{
+		QString::fromUtf8("\xF0\x9F\x8E\xB2"),
+		QString::fromUtf8("\xF0\x9F\x8E\xAF")
+	};
+	const auto list = config.get<std::vector<QString>>(
+		"emojies_send_dice",
+		hardcoded);
 	const auto emoji = full.toString();
+	if (!ranges::contains(list, emoji)) {
+		return false;
+	}
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
