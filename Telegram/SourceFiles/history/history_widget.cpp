@@ -3102,6 +3102,8 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
 		toggleKeyboard();
 	}
+	App::main()->historyToDown(_history);
+	App::main()->dialogsToUp();
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
