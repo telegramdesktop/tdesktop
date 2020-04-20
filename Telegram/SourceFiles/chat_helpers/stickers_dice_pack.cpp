@@ -35,11 +35,8 @@ DocumentData *DicePack::lookup(int value) {
 	if (!_requestId) {
 		load();
 	}
+	tryGenerateLocalZero();
 	const auto i = _map.find(value);
-	//if (!value) {
-	//	ensureZeroGenerated();
-	//	return _zero;
-	//}
 	return (i != end(_map)) ? i->second.get() : nullptr;
 }
 
@@ -88,16 +85,21 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	}
 }
 
-void DicePack::ensureZeroGenerated() {
-	if (_zero) {
+void DicePack::tryGenerateLocalZero() {
+	if (!_map.empty()) {
 		return;
 	}
 
 	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
 	static const auto kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
-	const auto path = QString((_emoji == kDiceString)
-		? ":/gui/art/dice_idle.tgs"
-		: ":/gui/art/dart_idle.tgs");
+	const auto path = (_emoji == kDiceString)
+		? qsl(":/gui/art/dice_idle.tgs")
+		: (_emoji == kDartString)
+		? qsl(":/gui/art/dart_idle.tgs")
+		: QString();
+	if (path.isEmpty()) {
+		return;
+	}
 	auto task = FileLoadTask(
 		path,
 		QByteArray(),
@@ -108,13 +110,15 @@ void DicePack::ensureZeroGenerated() {
 	task.process();
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
-	_zero = _session->data().processDocument(
+	const auto document = _session->data().processDocument(
 		result->document,
 		std::move(result->thumb));
-	_zero->setLocation(FileLocation(path));
+	document->setLocation(FileLocation(path));
 
-	Ensures(_zero->sticker());
-	Ensures(_zero->sticker()->animated);
+	_map.emplace(0, document);
+
+	Ensures(document->sticker());
+	Ensures(document->sticker()->animated);
 }
 
 DicePacks::DicePacks(not_null<Main::Session*> session) : _session(session) {

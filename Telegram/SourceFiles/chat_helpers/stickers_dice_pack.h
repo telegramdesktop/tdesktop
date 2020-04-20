@@ -26,12 +26,11 @@ public:
 private:
 	void load();
 	void applySet(const MTPDmessages_stickerSet &data);
-	void ensureZeroGenerated();
+	void tryGenerateLocalZero();
 
 	const not_null<Main::Session*> _session;
 	QString _emoji;
 	base::flat_map<int, not_null<DocumentData*>> _map;
-	DocumentData *_zero = nullptr;
 	mtpRequestId _requestId = 0;
 
 };
