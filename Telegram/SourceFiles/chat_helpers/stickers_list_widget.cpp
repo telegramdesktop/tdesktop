@@ -44,6 +44,8 @@ namespace {
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kRecentDisplayLimit = 20;
+constexpr auto kPreloadOfficialPages = 4;
+constexpr auto kOfficialLoadLimit = 40;
 
 bool SetInMyList(MTPDstickerSet::Flags flags) {
 	return (flags & MTPDstickerSet::Flag::f_installed_date)
@@ -891,25 +893,86 @@ void StickersListWidget::checkVisibleFeatured(
 	readVisibleFeatured(visibleTop, visibleBottom);
 
 	const auto visibleHeight = visibleBottom - visibleTop;
+
+	if (visibleBottom > height() - visibleHeight * kPreloadOfficialPages) {
+		preloadMoreOfficial();
+	}
+
 	const auto rowHeight = featuredRowHeight();
-	const auto destroyAbove = floorclamp(visibleTop - visibleHeight, rowHeight, 0, _featuredSets.size());
-	const auto destroyBelow = ceilclamp(visibleBottom + visibleHeight, rowHeight, 0, _featuredSets.size());
+	const auto destroyAbove = floorclamp(visibleTop - visibleHeight, rowHeight, 0, _officialSets.size());
+	const auto destroyBelow = ceilclamp(visibleBottom + visibleHeight, rowHeight, 0, _officialSets.size());
 	for (auto i = 0; i != destroyAbove; ++i) {
-		destroyLottieIn(_featuredSets[i]);
+		destroyLottieIn(_officialSets[i]);
 	}
-	for (auto i = destroyBelow; i != _featuredSets.size(); ++i) {
-		destroyLottieIn(_featuredSets[i]);
+	for (auto i = destroyBelow; i != _officialSets.size(); ++i) {
+		destroyLottieIn(_officialSets[i]);
 	}
+}
+
+void StickersListWidget::preloadMoreOfficial() {
+	if (_officialRequestId) {
+		return;
+	}
+	_officialRequestId = _api.request(MTPmessages_GetOldFeaturedStickers(
+		MTP_int(_officialOffset),
+		MTP_int(kOfficialLoadLimit),
+		MTP_int(0)
+	)).done([=](const MTPmessages_FeaturedStickers &result) {
+		_officialRequestId = 0;
+		result.match([&](const MTPDmessages_featuredStickersNotModified &d) {
+			LOG(("Api Error: messages.featuredStickersNotModified."));
+		}, [&](const MTPDmessages_featuredStickers &data) {
+			const auto &list = data.vsets().v;
+			_officialOffset += list.size();
+			for (int i = 0, l = list.size(); i != l; ++i) {
+				auto &data = list[i];
+				const auto setData = data.match([&](const auto &data) {
+					return data.vset().match([](const MTPDstickerSet &data) {
+						return &data;
+					});
+				});
+				const auto covers = data.match([](const MTPDstickerSetCovered &) {
+					return Stickers::Pack();
+				}, [&](const MTPDstickerSetMultiCovered &data) {
+					auto result = Stickers::Pack();
+					for (const auto &cover : data.vcovers().v) {
+						const auto document = session().data().processDocument(cover);
+						if (document->sticker()) {
+							result.push_back(document);
+						}
+					}
+					return result;
+				});
+				if (const auto set = Stickers::FeedSet(*setData)) {
+					if (!covers.empty()) {
+						set->covers = covers;
+					}
+					if (set->stickers.empty() && set->covers.empty()) {
+						continue;
+					}
+					const auto externalLayout = true;
+					appendSet(
+						_officialSets,
+						set->id,
+						externalLayout,
+						AppendSkip::Installed);
+				}
+			}
+		});
+		resizeToWidth(width());
+		update();
+	}).fail([=](const RPCError &error) {
+	}).send();
 }
 
 void StickersListWidget::readVisibleFeatured(
 		int visibleTop,
 		int visibleBottom) {
 	const auto rowHeight = featuredRowHeight();
-	const auto rowFrom = floorclamp(visibleTop, rowHeight, 0, _featuredSets.size());
-	const auto rowTo = ceilclamp(visibleBottom, rowHeight, 0, _featuredSets.size());
+	const auto rowFrom = floorclamp(visibleTop, rowHeight, 0, _featuredSetsCount);
+	const auto rowTo = ceilclamp(visibleBottom, rowHeight, 0, _featuredSetsCount);
 	for (auto i = rowFrom; i < rowTo; ++i) {
-		auto &set = _featuredSets[i];
+		auto &set = _officialSets[i];
 		if (!(set.flags & MTPDstickerSet_ClientFlag::f_unread)) {
 			continue;
 		}
@@ -925,7 +988,7 @@ void StickersListWidget::readVisibleFeatured(
 				++loaded;
 			}
 		}
-		if (loaded == count) {
+		if (count > 0 && loaded == count) {
 			session().api().readFeaturedSetDelayed(set.id);
 		}
 	}
@@ -1217,7 +1280,7 @@ void StickersListWidget::addSearchRow(not_null<const Stickers::Set*> set) {
 
 auto StickersListWidget::shownSets() const -> const std::vector<Set> & {
 	switch (_section) {
-	case Section::Featured: return _featuredSets;
+	case Section::Featured: return _officialSets;
 	case Section::Search: return _searchSets;
 	case Section::Stickers: return _mySets;
 	}
@@ -1226,7 +1289,7 @@ auto StickersListWidget::shownSets() const -> const std::vector<Set> & {
 
 auto StickersListWidget::shownSets() -> std::vector<Set> & {
 	switch (_section) {
-	case Section::Featured: return _featuredSets;
+	case Section::Featured: return _officialSets;
 	case Section::Search: return _searchSets;
 	case Section::Stickers: return _mySets;
 	}
@@ -1339,10 +1402,11 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		}
 		auto &set = sets[info.section];
 		if (set.externalLayout) {
-			const auto size = (set.flags
+			const auto loadedCount = int(set.stickers.size());
+			const auto count = (set.flags
 				& MTPDstickerSet_ClientFlag::f_not_loaded)
 				? set.count
-				: int(set.stickers.size());
+				: loadedCount;
 
 			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::buttonRadius);
 			if (featuredHasAddButton(info.section)) {
@@ -1392,7 +1456,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				}
 			}
 
-			auto statusText = (size > 0) ? tr::lng_stickers_count(tr::now, lt_count, size) : tr::lng_contacts_loading(tr::now);
+			auto statusText = (count > 0) ? tr::lng_stickers_count(tr::now, lt_count, count) : tr::lng_contacts_loading(tr::now);
 			p.setFont(st::stickersTrendingSubheaderFont);
 			p.setPen(st::stickersTrendingSubheaderFg);
 			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::stickersTrendingSubheaderTop, width(), statusText);
@@ -1403,7 +1467,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 
 			for (int j = fromColumn; j < toColumn; ++j) {
 				int index = j;
-				if (index >= size) break;
+				if (index >= loadedCount) break;
 
 				auto selected = selectedSticker ? (selectedSticker->section == info.section && selectedSticker->index == index) : false;
 				auto deleteSelected = false;
@@ -2106,12 +2170,33 @@ void StickersListWidget::refreshMySets() {
 }
 
 void StickersListWidget::refreshFeaturedSets() {
-	_featuredSets.clear();
-	_featuredSets.reserve(session().data().featuredStickerSetsOrder().size());
-
+	auto wasFeaturedSetsCount = base::take(_featuredSetsCount);
+	auto wereOfficial = base::take(_officialSets);
+	_officialSets.reserve(
+		session().data().featuredStickerSetsOrder().size()
+		+ wereOfficial.size()
+		- wasFeaturedSetsCount);
 	for (const auto setId : session().data().featuredStickerSetsOrder()) {
 		const auto externalLayout = true;
-		appendSet(_featuredSets, setId, externalLayout, AppendSkip::Installed);
+		appendSet(_officialSets, setId, externalLayout, AppendSkip::Installed);
+	}
+	_featuredSetsCount = _officialSets.size();
+	if (wereOfficial.size() > wasFeaturedSetsCount) {
+		auto &sets = session().data().stickerSets();
+		const auto from = begin(wereOfficial) + wasFeaturedSetsCount;
+		const auto till = end(wereOfficial);
+		for (auto i = from; i != till; ++i) {
+			auto &set = *i;
+			auto it = sets.constFind(set.id);
+			if (it == sets.cend()
+				|| ((it->flags & MTPDstickerSet::Flag::f_installed_date)
+					&& !(it->flags & MTPDstickerSet::Flag::f_archived)
+					&& !_installedLocallySets.contains(set.id))) {
+				continue;
+			}
+			set.flags = it->flags;
+			_officialSets.push_back(std::move(set));
+		}
 	}
 }
 
@@ -2237,28 +2322,27 @@ uint64 StickersListWidget::currentSet(int yOffset) const {
 		: sets[sectionInfoByOffset(yOffset).section].id;
 }
 
-void StickersListWidget::appendSet(
+bool StickersListWidget::appendSet(
 		std::vector<Set> &to,
 		uint64 setId,
 		bool externalLayout,
 		AppendSkip skip) {
 	auto &sets = session().data().stickerSets();
 	auto it = sets.constFind(setId);
-	if (it == sets.cend() || it->stickers.isEmpty()) {
-		return;
+	if (it == sets.cend() || (!externalLayout && it->stickers.isEmpty())) {
+		return false;
 	}
 	if ((skip == AppendSkip::Archived)
 		&& (it->flags & MTPDstickerSet::Flag::f_archived)) {
-		return;
+		return false;
 	}
 	if ((skip == AppendSkip::Installed)
 		&& (it->flags & MTPDstickerSet::Flag::f_installed_date)
 		&& !(it->flags & MTPDstickerSet::Flag::f_archived)) {
 		if (!_installedLocallySets.contains(setId)) {
-			return;
+			return false;
 		}
 	}
-
 	to.emplace_back(
 		it->id,
 		it->flags,
@@ -2267,7 +2351,10 @@ void StickersListWidget::appendSet(
 		it->thumbnail,
 		externalLayout,
 		it->count,
-		PrepareStickers(it->stickers));
+		PrepareStickers((it->stickers.empty() && externalLayout)
+			? it->covers
+			: it->stickers));
+	return true;
 }
 
 void StickersListWidget::refreshRecent() {
@@ -2477,7 +2564,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	icons.clear();
 	icons.reserve(_mySets.size() + 1);
-	if (!_featuredSets.empty()) {
+	if (!_officialSets.empty()) {
 		icons.push_back(StickerIcon(Stickers::FeaturedSetId));
 	}
 
