@@ -579,6 +579,9 @@ ListController *CreateAnswerRows(
 		headerWrap->resize(headerWrap->width(), height);
 	}, header->lifetime());
 
+	auto moreTopWidget = object_ptr<Ui::RpWidget>(container);
+	moreTopWidget->resize(0, 0);
+	const auto moreTop = container->add(std::move(moreTopWidget));
 	const auto more = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
@@ -604,7 +607,7 @@ ListController *CreateAnswerRows(
 	rpl::combine(
 		std::move(visibleTop),
 		headerWrap->geometryValue(),
-		more->topValue()
+		moreTop->topValue()
 	) | rpl::filter([=](int, QRect headerRect, int moreTop) {
 		return moreTop >= headerRect.y() + headerRect.height();
 	}) | rpl::start_with_next([=](
