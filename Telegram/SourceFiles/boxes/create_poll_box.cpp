@@ -61,6 +61,7 @@ public:
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
+	[[nodiscard]] rpl::producer<> tabbed() const;
 
 private:
 	class Option {
@@ -148,6 +149,7 @@ private:
 	bool _hasCorrect = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
+	rpl::event_stream<> _tabbed;
 
 };
 
@@ -219,6 +221,7 @@ Options::Option::Option(
 	InitField(outer, _field, session);
 	_field->setMaxLength(kOptionLimit + kErrorLimit);
 	_field->show();
+	_field->customTab(true);
 
 	_wrap->hide(anim::type::instant);
 
@@ -499,6 +502,10 @@ rpl::producer<> Options::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
+rpl::producer<> Options::tabbed() const {
+	return _tabbed.events();
+}
+
 void Options::Option::show(anim::type animated) {
 	_wrap->show(animated);
 }
@@ -649,6 +656,14 @@ void Options::addEmptyOption() {
 	QObject::connect(field, &Ui::InputField::focused, [=] {
 		_scrollToWidget.fire_copy(field);
 	});
+	QObject::connect(field, &Ui::InputField::tabbed, [=] {
+		const auto index = findField(field);
+		if (index + 1 < _list.size()) {
+			_list[index + 1]->setFocus();
+		} else {
+			_tabbed.fire({});
+		}
+	});
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
 			|| !field->getLastText().isEmpty()) {
@@ -770,6 +785,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 	InitField(getDelegate()->outerContainer(), question, _session);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);
 	question->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	question->customTab(true);
 
 	const auto warning = CreateWarningLabel(
 		container,
@@ -825,6 +841,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
 		DefaultEditLinkCallback(_session, solution));
+	solution->customTab(true);
 
 	const auto warning = CreateWarningLabel(
 		inner,
@@ -900,6 +917,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
+	connect(question, &Ui::InputField::tabbed, [=] {
+		options->focusFirst();
+	});
+
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_polls_create_settings());
 
@@ -934,6 +955,19 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto solution = setupSolution(
 		container,
 		rpl::single(quiz->checked()) | rpl::then(quiz->checkedChanges()));
+
+	options->tabbed(
+	) | rpl::start_with_next([=] {
+		if (quiz->checked()) {
+			solution->setFocus();
+		} else {
+			question->setFocus();
+		}
+	}, question->lifetime());
+
+	connect(solution, &Ui::InputField::tabbed, [=] {
+		question->setFocus();
+	});
 
 	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
 	if (multiple) {
