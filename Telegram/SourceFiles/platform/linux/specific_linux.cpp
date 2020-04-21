@@ -266,7 +266,7 @@ bool UseXDGDesktopPortal() {
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 
-		return envVar && portalPresent;
+		return (DesktopEnvironment::IsKDE() || envVar) && portalPresent;
 	}();
 
 	return UsePortal;
