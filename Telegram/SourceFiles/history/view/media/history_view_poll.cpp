@@ -447,7 +447,7 @@ void Poll::showSolution() const {
 		return;
 	}
 	auto config = Ui::Toast::Config();
-	config.multiline = true;
+	config.multiline = config.dark = true;
 	config.minWidth = st::msgMinWidth;
 	config.maxWidth = st::windowMinWidth;
 	config.text = _poll->solution;
