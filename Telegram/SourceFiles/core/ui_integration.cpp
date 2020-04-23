@@ -66,6 +66,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		const QString &data,
 		const TextParseOptions &options) {
 	switch (type) {
+	case EntityType::Url:
+		return (!data.isEmpty() && UrlClickHandler::IsSuspicious(data))
+			? std::make_shared<HiddenUrlClickHandler>(data)
+			: nullptr;
+
 	case EntityType::CustomUrl:
 		return !data.isEmpty()
 			? std::make_shared<HiddenUrlClickHandler>(data)

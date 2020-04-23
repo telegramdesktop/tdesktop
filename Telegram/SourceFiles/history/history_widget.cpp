@@ -3649,7 +3649,7 @@ void HistoryWidget::botCallbackDone(
 					updateSendAction(item->history(), SendAction::Type::PlayGame);
 				}
 			} else {
-				UrlClickHandler(link).onClick({});
+				UrlClickHandler::Open(link);
 			}
 		}
 	});
