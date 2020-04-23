@@ -6831,12 +6831,9 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	p.setFont(st::msgServiceNameFont);
 	p.drawTextLeft(left, top + st::msgReplyPadding.top(), width(), tr::lng_edit_message(tr::now));
 
-	if (!_replyEditMsg || _replyEditMsg->history()->peer->isSelf()) return;
-
-	if (const auto megagroup = _replyEditMsg->history()->peer->asMegagroup()) {
-		if (megagroup->amCreator() || megagroup->hasAdminRights()) {
-			return;
-		}
+	if (!_replyEditMsg
+		|| _replyEditMsg->history()->peer->canEditMessagesIndefinitely()) {
+		return;
 	}
 
 	QString editTimeLeftText;

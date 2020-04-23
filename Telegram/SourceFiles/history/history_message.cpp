@@ -768,15 +768,8 @@ bool HistoryMessage::allowsSendNow() const {
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
-	const auto peer = _history->peer;
-	if (peer->isSelf()) {
-		return false;
-	} else if (const auto megagroup = peer->asMegagroup()) {
-		if (megagroup->canPinMessages()) {
-			return false;
-		}
-	}
-	return (now - date() >= Global::EditTimeLimit());
+	return !_history->peer->canEditMessagesIndefinitely()
+		&& (now - date() >= Global::EditTimeLimit());
 }
 
 bool HistoryMessage::allowsEdit(TimeId now) const {
