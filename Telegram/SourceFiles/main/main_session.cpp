@@ -69,9 +69,9 @@ Session::Session(
 		notifications().updateAll();
 	}, _lifetime);
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
-		_api->refreshProxyPromotion();
+		_api->refreshTopPromotion();
 	});
-	_api->refreshProxyPromotion();
+	_api->refreshTopPromotion();
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
 

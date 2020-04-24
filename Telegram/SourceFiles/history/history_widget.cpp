@@ -564,7 +564,7 @@ HistoryWidget::HistoryWidget(
 				}
 			}
 			if (update.flags & UpdateFlag::ChannelPromotedChanged) {
-				refreshAboutProxyPromotion();
+				refreshAboutTopPromotion();
 				updateHistoryGeometry();
 				updateControlsVisibility();
 				updateControlsGeometry();
@@ -2067,7 +2067,7 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_contactStatus) {
 		_contactStatus->show();
 	}
-	refreshAboutProxyPromotion();
+	refreshAboutTopPromotion();
 	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart())) {
 		if (isBlocked()) {
 			_joinChannel->hide();
@@ -2260,10 +2260,10 @@ void HistoryWidget::updateControlsVisibility() {
 	updateMouseTracking();
 }
 
-void HistoryWidget::refreshAboutProxyPromotion() {
-	if (_history->useProxyPromotion()) {
-		if (!_aboutProxyPromotion) {
-			_aboutProxyPromotion = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+void HistoryWidget::refreshAboutTopPromotion() {
+	if (_history->useTopPromotion()) {
+		if (!_aboutTopPromotion) {
+			_aboutTopPromotion = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				this,
 				object_ptr<Ui::FlatLabel>(
 					this,
@@ -2271,9 +2271,9 @@ void HistoryWidget::refreshAboutProxyPromotion() {
 					st::historyAboutProxy),
 				st::historyAboutProxyPadding);
 		}
-		_aboutProxyPromotion->show();
+		_aboutTopPromotion->show();
 	} else {
-		_aboutProxyPromotion.destroy();
+		_aboutTopPromotion.destroy();
 	}
 }
 
@@ -4188,10 +4188,10 @@ void HistoryWidget::moveFieldControls() {
 		_muteUnmute->setGeometry(fullWidthButtonRect);
 	}
 
-	if (_aboutProxyPromotion) {
-		_aboutProxyPromotion->moveToLeft(
+	if (_aboutTopPromotion) {
+		_aboutTopPromotion->moveToLeft(
 			0,
-			fullWidthButtonRect.y() - _aboutProxyPromotion->height());
+			fullWidthButtonRect.y() - _aboutTopPromotion->height());
 	}
 }
 
@@ -5197,9 +5197,9 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
-		if (_aboutProxyPromotion) {
-			_aboutProxyPromotion->resizeToWidth(width());
-			newScrollHeight -= _aboutProxyPromotion->height();
+		if (_aboutTopPromotion) {
+			_aboutTopPromotion->resizeToWidth(width());
+			newScrollHeight -= _aboutTopPromotion->height();
 		}
 	} else {
 		if (editingMessage() || _canSendMessages) {
@@ -6983,8 +6983,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		} else if (const auto error = writeRestriction()) {
 			drawRestrictedWrite(p, *error);
 		}
-		if (_aboutProxyPromotion) {
-			p.fillRect(_aboutProxyPromotion->geometry(), st::historyReplyBg);
+		if (_aboutTopPromotion) {
+			p.fillRect(_aboutTopPromotion->geometry(), st::historyReplyBg);
 		}
 		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {
 			drawPinnedBar(p);

@@ -3713,18 +3713,18 @@ MessageIdsList Session::takeMimeForwardIds() {
 	return std::move(_mimeForwardIds);
 }
 
-void Session::setProxyPromoted(PeerData *promoted) {
-	if (_proxyPromoted != promoted) {
-		if (const auto history = historyLoaded(_proxyPromoted)) {
-			history->cacheProxyPromoted(false);
+void Session::setTopPromoted(PeerData *promoted) {
+	if (_topPromoted != promoted) {
+		if (const auto history = historyLoaded(_topPromoted)) {
+			history->cacheTopPromoted(false);
 		}
-		const auto old = std::exchange(_proxyPromoted, promoted);
-		if (_proxyPromoted) {
-			const auto history = this->history(_proxyPromoted);
-			history->cacheProxyPromoted(true);
+		const auto old = std::exchange(_topPromoted, promoted);
+		if (_topPromoted) {
+			const auto history = this->history(_topPromoted);
+			history->cacheTopPromoted(true);
 			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
-				_proxyPromoted,
+				_topPromoted,
 				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
 		}
 		if (old) {
@@ -3735,8 +3735,8 @@ void Session::setProxyPromoted(PeerData *promoted) {
 	}
 }
 
-PeerData *Session::proxyPromoted() const {
-	return _proxyPromoted;
+PeerData *Session::topPromoted() const {
+	return _topPromoted;
 }
 
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {

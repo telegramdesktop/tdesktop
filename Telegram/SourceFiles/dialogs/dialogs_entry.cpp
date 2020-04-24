@@ -86,12 +86,12 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 	}
 }
 
-void Entry::cacheProxyPromoted(bool promoted) {
-	if (_isProxyPromoted != promoted) {
-		_isProxyPromoted = promoted;
+void Entry::cacheTopPromoted(bool promoted) {
+	if (_isTopPromoted != promoted) {
+		_isTopPromoted = promoted;
 		updateChatListSortPosition();
 		updateChatListEntry();
-		if (!_isProxyPromoted) {
+		if (!_isTopPromoted) {
 			updateChatListExistence();
 		}
 	}

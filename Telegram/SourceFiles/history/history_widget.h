@@ -380,7 +380,7 @@ private:
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
-	void refreshAboutProxyPromotion();
+	void refreshAboutTopPromotion();
 	void unreadCountUpdated();
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
@@ -734,7 +734,7 @@ private:
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::FlatButton> _discuss;
-	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
+	object_ptr<Ui::RpWidget> _aboutTopPromotion = { nullptr };
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;

@@ -253,7 +253,7 @@ bool Filler::showToggleArchived() {
 		return false;
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
-	if (history && history->useProxyPromotion()) {
+	if (history && history->useTopPromotion()) {
 		return false;
 	} else if (!_peer->isNotificationsUser() && !_peer->isSelf()) {
 		return true;

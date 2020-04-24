@@ -296,7 +296,7 @@ void paintRow(
 		namewidth,
 		st::msgNameFont->height);
 
-	const auto promoted = (history && history->useProxyPromotion())
+	const auto promoted = (history && history->useTopPromotion())
 		&& !(flags & (Flag::SearchResult/* | Flag::FeedSearchResult*/)); // #feed
 	if (promoted) {
 		const auto text = tr::lng_proxy_sponsor(tr::now);

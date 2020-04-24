@@ -2580,8 +2580,8 @@ void History::updateChatListExistence() {
 	//}
 }
 
-bool History::useProxyPromotion() const {
-	if (!isProxyPromoted()) {
+bool History::useTopPromotion() const {
+	if (!isTopPromoted()) {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
 		return !isPinnedDialog(FilterId()) && !channel->amIn();
@@ -2590,7 +2590,7 @@ bool History::useProxyPromotion() const {
 }
 
 int History::fixedOnTopIndex() const {
-	return useProxyPromotion() ? kProxyPromotionFixOnTopIndex : 0;
+	return useTopPromotion() ? kTopPromotionFixOnTopIndex : 0;
 }
 
 bool History::trackUnreadMessages() const {
@@ -2607,7 +2607,7 @@ bool History::shouldBeInChatList() const {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
-			return isProxyPromoted();
+			return isTopPromoted();
 		//} else if (const auto feed = channel->feed()) { // #feed
 		//	return !feed->needUpdateInChatList();
 		}

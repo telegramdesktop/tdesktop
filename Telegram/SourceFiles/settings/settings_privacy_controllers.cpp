@@ -150,7 +150,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTPint(), // channel_post
 			MTPstring(), // post_author
 			MTPPeer(), // saved_from_peer
-			MTPint()), // saved_from_msg_id
+			MTPint(), // saved_from_msg_id
+			MTPstring()), // psa_type
 		MTPint(), // via_bot_id
 		MTPint(), // reply_to_msg_id,
 		MTP_int(base::unixtime::now()), // date

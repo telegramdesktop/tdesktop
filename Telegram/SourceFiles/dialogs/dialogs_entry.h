@@ -120,10 +120,10 @@ public:
 		return lookupPinnedIndex(filterId) != 0;
 	}
 	void cachePinnedIndex(FilterId filterId, int index);
-	bool isProxyPromoted() const {
-		return _isProxyPromoted;
+	bool isTopPromoted() const {
+		return _isTopPromoted;
 	}
-	void cacheProxyPromoted(bool promoted);
+	void cacheTopPromoted(bool promoted);
 	[[nodiscard]] uint64 sortKeyInChatList(FilterId filterId) const {
 		return filterId
 			? computeSortPosition(filterId)
@@ -137,7 +137,7 @@ public:
 
 	virtual int fixedOnTopIndex() const = 0;
 	static constexpr auto kArchiveFixOnTopIndex = 1;
-	static constexpr auto kProxyPromotionFixOnTopIndex = 2;
+	static constexpr auto kTopPromotionFixOnTopIndex = 2;
 
 	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
@@ -211,7 +211,7 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
-	bool _isProxyPromoted = false;
+	bool _isTopPromoted = false;
 	TimeId _timeId = 0;
 
 };
