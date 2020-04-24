@@ -35,6 +35,7 @@ namespace {
 
 // Show all dates that are in the last 20 hours in time format.
 constexpr int kRecentlyInSeconds = 20 * 3600;
+const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 bool ShowUserBotIcon(not_null<UserData*> user) {
 	return user->isBot() && !user->isSupport();
@@ -299,7 +300,16 @@ void paintRow(
 	const auto promoted = (history && history->useTopPromotion())
 		&& !(flags & (Flag::SearchResult/* | Flag::FeedSearchResult*/)); // #feed
 	if (promoted) {
-		const auto text = tr::lng_proxy_sponsor(tr::now);
+		const auto type = history->topPromotionType();
+		const auto custom = type.isEmpty()
+			? QString()
+			: Lang::Current().getNonDefaultValue(
+				kPsaBadgePrefix + type.toUtf8());
+		const auto text = type.isEmpty()
+			? tr::lng_proxy_sponsor(tr::now)
+			: custom.isEmpty()
+			? tr::lng_badge_psa_default(tr::now)
+			: custom;
 		PaintRowTopRight(p, text, rectForName, active, selected);
 	} else if (from/* && !(flags & Flag::FeedSearchResult)*/) { // #feed
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {

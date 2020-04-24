@@ -3713,21 +3713,28 @@ MessageIdsList Session::takeMimeForwardIds() {
 	return std::move(_mimeForwardIds);
 }
 
-void Session::setTopPromoted(PeerData *promoted) {
-	if (_topPromoted != promoted) {
-		if (const auto history = historyLoaded(_topPromoted)) {
-			history->cacheTopPromoted(false);
+void Session::setTopPromoted(
+		PeerData *promoted,
+		const QString &type,
+		const QString &message) {
+	const auto changed = (_topPromoted != promoted);
+	const auto history = promoted ? this->history(promoted).get() : nullptr;
+	if (changed
+		|| (history && history->topPromotionMessage() != message)) {
+		if (changed) {
+			if (const auto history = historyLoaded(_topPromoted)) {
+				history->cacheTopPromoted(false, QString(), QString());
+			}
 		}
 		const auto old = std::exchange(_topPromoted, promoted);
-		if (_topPromoted) {
-			const auto history = this->history(_topPromoted);
-			history->cacheTopPromoted(true);
+		if (history) {
+			history->cacheTopPromoted(true, type, message);
 			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
 				_topPromoted,
 				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
 		}
-		if (old) {
+		if (changed && old) {
 			Notify::peerUpdatedDelayed(
 				old,
 				Notify::PeerUpdate::Flag::ChannelPromotedChanged);

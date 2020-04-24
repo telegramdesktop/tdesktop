@@ -678,7 +678,10 @@ public:
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
 
-	void setTopPromoted(PeerData *promoted);
+	void setTopPromoted(
+		PeerData *promoted,
+		const QString &type,
+		const QString &message);
 	PeerData *topPromoted() const;
 
 	bool updateWallpapers(const MTPaccount_WallPapers &data);

@@ -342,13 +342,16 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 		_topPromotionNextRequestTime);
 
 	proxy.match([&](const MTPDhelp_promoDataEmpty &data) {
-		_session->data().setTopPromoted(nullptr);
+		_session->data().setTopPromoted(nullptr, false, QString());
 	}, [&](const MTPDhelp_promoData &data) {
 		_session->data().processChats(data.vchats());
 		_session->data().processUsers(data.vusers());
 		const auto peerId = peerFromMTP(data.vpeer());
 		const auto peer = _session->data().peer(peerId);
-		_session->data().setTopPromoted(peer);
+		_session->data().setTopPromoted(
+			peer,
+			data.vpsa_type().value_or_empty(),
+			data.vpsa_message().value_or_empty());
 		if (const auto history = _session->data().historyLoaded(peer)) {
 			history->owner().histories().requestDialogEntry(history);
 		}

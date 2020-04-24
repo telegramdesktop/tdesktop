@@ -131,6 +131,7 @@ constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
 	| Qt::MetaModifier
 	| Qt::ControlModifier;
+const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -2262,17 +2263,29 @@ void HistoryWidget::updateControlsVisibility() {
 
 void HistoryWidget::refreshAboutTopPromotion() {
 	if (_history->useTopPromotion()) {
-		if (!_aboutTopPromotion) {
+		const auto type = _history->topPromotionType();
+		const auto custom = type.isEmpty()
+			? QString()
+			: Lang::Current().getNonDefaultValue(
+				kPsaAboutPrefix + type.toUtf8());
+		const auto text = type.isEmpty()
+			? tr::lng_proxy_sponsor_about(tr::now)
+			: custom.isEmpty()
+			? tr::lng_about_psa_default(tr::now)
+			: custom;
+		if (!_aboutTopPromotion || _aboutTopPromotionText != text) {
+			_aboutTopPromotionText = text;
 			_aboutTopPromotion = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				this,
 				object_ptr<Ui::FlatLabel>(
 					this,
-					tr::lng_proxy_sponsor_about(tr::now),
+					_aboutTopPromotionText,
 					st::historyAboutProxy),
 				st::historyAboutProxyPadding);
 		}
 		_aboutTopPromotion->show();
 	} else {
+		_aboutTopPromotionText = QString();
 		_aboutTopPromotion.destroy();
 	}
 }
