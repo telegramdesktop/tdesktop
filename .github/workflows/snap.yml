@@ -19,7 +19,7 @@ jobs:
     env:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "4"
+      MANUAL_CACHING: "5"
 
     steps:
       - name: Clone.
