@@ -428,6 +428,7 @@ parts:
       - libgtk-3-dev
     stage-packages:
       - libgtk-3-0
+      - cinnamon-desktop-data
     override-build: |
       KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
 
