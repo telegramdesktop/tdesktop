@@ -482,6 +482,27 @@ mtpMsgId SessionPrivate::placeToContainer(
 	return msgId;
 }
 
+MTPVector<MTPJSONObjectValue> SessionPrivate::prepareInitParams() {
+	const auto local = QDateTime::currentDateTime();
+	const auto utc = QDateTime(local.date(), local.time(), Qt::UTC);
+	const auto shift = base::unixtime::now() - (TimeId)::time(nullptr);
+	const auto delta = int(utc.toTime_t()) - int(local.toTime_t()) - shift;
+	auto sliced = delta;
+	while (sliced < -12 * 3600) {
+		sliced += 24 * 3600;
+	}
+	while (sliced > 14 * 3600) {
+		sliced -= 24 * 3600;
+	}
+	const auto sign = (sliced < 0) ? -1 : 1;
+	const auto rounded = std::round(std::abs(sliced) / 900.) * 900 * sign;
+	return MTP_vector<MTPJSONObjectValue>(
+		1,
+		MTP_jsonObjectValue(
+			MTP_string("tz_offset"),
+			MTP_jsonNumber(MTP_double(rounded))));
+}
+
 void SessionPrivate::tryToSend() {
 	DEBUG_LOG(("MTP Info: tryToSend for dc %1.").arg(_shiftedDcId));
 	if (!_connection) {
@@ -612,7 +633,8 @@ void SessionPrivate::tryToSend() {
 			: MTPInputClientProxy();
 		using Flag = MTPInitConnection<SerializedRequest>::Flag;
 		initWrapper = MTPInitConnection<SerializedRequest>(
-			MTP_flags(mtprotoProxy ? Flag::f_proxy : Flag(0)),
+			MTP_flags(Flag::f_params
+				| (mtprotoProxy ? Flag::f_proxy : Flag(0))),
 			MTP_int(ApiId),
 			MTP_string(deviceModel),
 			MTP_string(systemVersion),
@@ -621,6 +643,7 @@ void SessionPrivate::tryToSend() {
 			MTP_string(langPackName),
 			MTP_string(cloudLangCode),
 			clientProxyFields,
+			MTP_jsonObject(prepareInitParams()),
 			SerializedRequest());
 		initSizeInInts = (tl::count_length(initWrapper) >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
@@ -2007,9 +2030,9 @@ void SessionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse)
 				} else {
 					DEBUG_LOG(("Message Info: acked msgId %1 that was prepared to resend, requestId %2").arg(msgId).arg(requestId));
 				}
-				
+
 				_ackedIds.emplace(msgId, j->second->requestId);
-				
+
 				toSend.erase(j);
 				continue;
 			}

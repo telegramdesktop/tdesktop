@@ -4,11 +4,11 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
 
 jobs:
 
@@ -27,9 +27,9 @@ jobs:
       PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
       XZ: "xz-5.2.4"
-      QT: "5_12_5"
+      QT: "5_12_8"
       OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.5"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
       LIBICONV_VER: "libiconv-1.16"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -376,20 +376,20 @@ jobs:
           build/gyp_crashpad.py -Dmac_deployment_target=10.10
           ninja -C out/Debug
 
-      - name: Qt 5.12.5 cache.
+      - name: Qt 5.12.8 cache.
         id: cache-qt
         uses: actions/cache@v1
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_5.diff') }}
-      - name: Use cached Qt 5.12.5.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8.diff') }}
+      - name: Use cached Qt 5.12.8.
         if: steps.cache-qt.outputs.cache-hit == 'true'
         run: |
           cd $LibrariesPath
-          mv qt-cache Qt-5.12.5
+          mv qt-cache Qt-5.12.8
           sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.12.5 "$(dirname "$QT_PREFIX")"/
-      - name: Qt 5.12.5 build.
+          sudo mv -f Qt-5.12.8 "$(dirname "$QT_PREFIX")"/
+      - name: Qt 5.12.8 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
@@ -397,7 +397,7 @@ jobs:
           git clone git://code.qt.io/qt/qt5.git qt$QT
           cd qt$QT
           perl init-repository --module-subset=qtbase,qtimageformats
-          git checkout v5.12.5
+          git checkout v5.12.8
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
@@ -433,6 +433,9 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
+            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+          else
+            echo ::set-env name=ARTIFACT_NAME::Telegram
           fi
 
           ./configure.sh -D TDESKTOP_API_TEST=ON -D DESKTOP_APP_USE_PACKAGED=OFF $DEFINE
@@ -453,5 +456,5 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:
-          name: Telegram
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.REPO_NAME }}/out/Debug/artifact/

@@ -21,14 +21,24 @@ jobs:
           script: |
             let errorStr = "Version not found.";
 
+            function maxIndexOf(str, i) {
+              let index = str.indexOf(i);
+              return (index == -1) ? Number.MAX_SAFE_INTEGER : index;
+            }
+
             let item1 = "Version of Telegram Desktop";
-            let item2 = "Used theme";
+            let item2 = "Installation source";
+            let item3 = "Used theme";
+            let item4 = "<details>";
             let body = context.payload.issue.body;
 
             console.log("Body of issue:\n" + body);
             let index1 = body.indexOf(item1);
-            let index2 = body.indexOf(item2);
-            index2 = (index2 == -1) ? Number.MAX_SAFE_INTEGER : index2;
+            let index2 = Math.min(
+              Math.min(
+                maxIndexOf(body, item2),
+                maxIndexOf(body, item3)),
+              maxIndexOf(body, item4));
 
             console.log("Index 1: " + index1);
             console.log("Index 2: " + index2);

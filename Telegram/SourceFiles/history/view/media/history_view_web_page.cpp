@@ -127,7 +127,8 @@ QSize WebPage::countOptimalSize() {
 			}
 			return true;
 		}();
-		_openl = previewOfHiddenUrl
+		_openl = (previewOfHiddenUrl
+			|| UrlClickHandler::IsSuspicious(_data->url))
 			? std::make_shared<HiddenUrlClickHandler>(_data->url)
 			: std::make_shared<UrlClickHandler>(_data->url, true);
 		if (_data->document

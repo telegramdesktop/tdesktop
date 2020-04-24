@@ -822,6 +822,8 @@ private:
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
 
+	void checkPollsClosings();
+
 	not_null<Main::Session*> _session;
 
 	Storage::DatabasePointer _cache;
@@ -942,6 +944,9 @@ private:
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
+
+	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
+	base::Timer _pollsClosingTimer;
 
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed

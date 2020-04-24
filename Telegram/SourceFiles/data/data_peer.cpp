@@ -406,7 +406,8 @@ bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
 		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
 	} else if (const auto chat = asChat()) {
-		return chat->amIn() && !chat->amRestricted(ChatRestriction::f_pin_messages);
+		return chat->amIn()
+			&& !chat->amRestricted(ChatRestriction::f_pin_messages);
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
 			? !channel->amRestricted(ChatRestriction::f_pin_messages)
@@ -414,6 +415,19 @@ bool PeerData::canPinMessages() const {
 				|| channel->amCreator());
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+bool PeerData::canEditMessagesIndefinitely() const {
+	if (const auto user = asUser()) {
+		return user->isSelf();
+	} else if (const auto chat = asChat()) {
+		return false;
+	} else if (const auto channel = asChannel()) {
+		return channel->isMegagroup()
+			? channel->canPinMessages()
+			: channel->canEditMessages();
+	}
+	Unexpected("Peer type in PeerData::canEditMessagesIndefinitely.");
 }
 
 void PeerData::setPinnedMessageId(MsgId messageId) {

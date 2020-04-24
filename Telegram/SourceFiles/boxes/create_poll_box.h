@@ -36,7 +36,7 @@ public:
 		PollData::Flags disabled,
 		Api::SendType sendType);
 
-	rpl::producer<Result> submitRequests() const;
+	[[nodiscard]] rpl::producer<Result> submitRequests() const;
 	void submitFailed(const QString &error);
 
 	void setInnerFocus() override;
@@ -50,13 +50,17 @@ private:
 		Options  = 0x02,
 		Correct  = 0x04,
 		Other    = 0x08,
+		Solution = 0x10,
 	};
 	friend constexpr inline bool is_flag_type(Error) { return true; }
 	using Errors = base::flags<Error>;
 
-	object_ptr<Ui::RpWidget> setupContent();
-	not_null<Ui::InputField*> setupQuestion(
+	[[nodiscard]] object_ptr<Ui::RpWidget> setupContent();
+	[[nodiscard]] not_null<Ui::InputField*> setupQuestion(
 		not_null<Ui::VerticalLayout*> container);
+	[[nodiscard]] not_null<Ui::InputField*> setupSolution(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> shown);
 
 	const not_null<Main::Session*> _session;
 	const PollData::Flags _chosen = PollData::Flags();

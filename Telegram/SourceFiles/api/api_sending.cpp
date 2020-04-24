@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "app.h"
@@ -199,8 +201,23 @@ void SendExistingPhoto(
 }
 
 bool SendDice(Api::MessageToSend &message) {
-	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-	if (message.textWithTags.text.midRef(0).trimmed() != kDiceString) {
+	const auto full = message.textWithTags.text.midRef(0).trimmed();
+	auto length = 0;
+	if (!Ui::Emoji::Find(full.data(), full.data() + full.size(), &length)
+		|| length != full.size()) {
+		return false;
+	}
+	auto &account = message.action.history->session().account();
+	auto &config = account.appConfig();
+	static const auto hardcoded = std::vector<QString>{
+		QString::fromUtf8("\xF0\x9F\x8E\xB2"),
+		QString::fromUtf8("\xF0\x9F\x8E\xAF")
+	};
+	const auto list = config.get<std::vector<QString>>(
+		"emojies_send_dice",
+		hardcoded);
+	const auto emoji = full.toString();
+	if (!ranges::contains(list, emoji)) {
 		return false;
 	}
 	const auto history = message.action.history;
@@ -266,7 +283,7 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_int(HistoryItem::NewMessageDate(
 				message.action.options.scheduled)),
 			MTP_string(),
-			MTP_messageMediaDice(MTP_int(0)),
+			MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(1),
@@ -284,7 +301,7 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_flags(sendFlags),
 			peer->input,
 			MTP_int(replyTo),
-			MTP_inputMediaDice(),
+			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
 			MTPReplyMarkup(),

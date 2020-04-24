@@ -179,6 +179,11 @@ private:
 		bool externalLayout = false;
 		int count = 0;
 	};
+	struct FeaturedSet {
+		uint64 id = 0;
+		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
+		std::vector<Sticker> stickers;
+	};
 	struct LottieSet {
 		struct Item {
 			not_null<Lottie::Animation*> animation;
@@ -192,6 +197,7 @@ private:
 
 	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
 
+	void preloadMoreOfficial();
 	QSize boundingBoxSize() const;
 
 	template <typename Callback>
@@ -273,7 +279,7 @@ private:
 		Archived,
 		Installed,
 	};
-	void appendSet(
+	bool appendSet(
 		std::vector<Set> &to,
 		uint64 setId,
 		bool externalLayout,
@@ -303,12 +309,16 @@ private:
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
 	std::vector<Set> _mySets;
-	std::vector<Set> _featuredSets;
+	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
+	int _featuredSetsCount = 0;
 	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
+
+	mtpRequestId _officialRequestId = 0;
+	int _officialOffset = 0;
 
 	Section _section = Section::Stickers;
 

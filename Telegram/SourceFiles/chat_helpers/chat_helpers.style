@@ -89,11 +89,16 @@ stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
-stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
+stickersTrending: icon {{ "stickers_add", emojiIconFg }};
+stickersTrendingUnread: icon {
+	{ "stickers_add_unread", emojiIconFg },
+	{ "stickers_add_dot", dialogsUnreadBg }
+};
+stickersRecent: icon {{ "stickers_recent", emojiIconFg }};
 stickersSearch: icon {{ "stickers_search", emojiIconFg, point(0px, 1px) }};
 
-stickersSettingsUnreadSize: 17px;
-stickersSettingsUnreadPosition: point(4px, 5px);
+stickersSettingsUnreadSize: 6px;
+stickersSettingsUnreadPosition: point(6px, 10px);
 
 filtersRemove: IconButton(stickersRemove) {
 	ripple: defaultRippleAnimation;

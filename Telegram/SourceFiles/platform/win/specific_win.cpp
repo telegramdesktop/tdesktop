@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
+#include "base/call_delayed.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -70,6 +71,8 @@ using namespace Windows::Foundation;
 using namespace Platform;
 
 namespace {
+
+constexpr auto kRefreshBadLastUserInputTimeout = 10 * crl::time(1000);
 
 QStringList _initLogs;
 
@@ -336,9 +339,51 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 std::optional<crl::time> LastUserInputTime() {
 	auto lii = LASTINPUTINFO{ 0 };
 	lii.cbSize = sizeof(LASTINPUTINFO);
-	return GetLastInputInfo(&lii)
-		? std::make_optional(crl::now() + lii.dwTime - GetTickCount())
-		: std::nullopt;
+	if (!GetLastInputInfo(&lii)) {
+		return std::nullopt;
+	}
+	const auto now = crl::now();
+	const auto input = crl::time(lii.dwTime);
+	static auto LastTrackedInput = input;
+	static auto LastTrackedWhen = now;
+
+	const auto ticks32 = crl::time(GetTickCount());
+	const auto ticks64 = crl::time(GetTickCount64());
+	const auto elapsed = std::max(ticks32, ticks64) - input;
+	const auto good = (std::abs(ticks32 - ticks64) <= crl::time(1000))
+		&& (elapsed >= 0);
+	if (good) {
+		LastTrackedInput = input;
+		LastTrackedWhen = now;
+		return (now > elapsed) ? (now - elapsed) : crl::time(0);
+	}
+
+	static auto WaitingDelayed = false;
+	if (!WaitingDelayed) {
+		WaitingDelayed = true;
+		base::call_delayed(kRefreshBadLastUserInputTimeout, [=] {
+			WaitingDelayed = false;
+			[[maybe_unused]] const auto cheked = LastUserInputTime();
+		});
+	}
+	constexpr auto OverrunLimit = std::numeric_limits<DWORD>::max();
+	constexpr auto OverrunThreshold = OverrunLimit / 4;
+	if (LastTrackedInput == input) {
+		return LastTrackedWhen;
+	}
+	const auto guard = gsl::finally([&] {
+		LastTrackedInput = input;
+		LastTrackedWhen = now;
+	});
+	if (input > LastTrackedInput) {
+		const auto add = input - LastTrackedInput;
+		return std::min(LastTrackedWhen + add, now);
+	} else if (crl::time(OverrunLimit) + input - LastTrackedInput
+		< crl::time(OverrunThreshold)) {
+		const auto add = crl::time(OverrunLimit) + input - LastTrackedInput;
+		return std::min(LastTrackedWhen + add, now);
+	}
+	return LastTrackedWhen;
 }
 
 } // namespace Platform

@@ -512,7 +512,7 @@ bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 }
 
 bool VideoTrackObject::processFirstFrame() {
-	if (_stream.frame->width * _stream.frame->height >= kMaxFrameArea) {
+	if (_stream.frame->width * _stream.frame->height > kMaxFrameArea) {
 		return false;
 	}
 	auto frame = ConvertFrame(

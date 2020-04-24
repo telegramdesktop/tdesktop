@@ -267,8 +267,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto selected = (selection == FullSelection);
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _data->canBePlayed() && CanPlayInline(_data);
-	const auto autoplay = autoplayEnabled() && canBePlayed;
+	const auto canBePlayed = _data->canBePlayed();
+	const auto autoplay = autoplayEnabled()
+		&& canBePlayed
+		&& CanPlayInline(_data);
 	const auto activeRoundPlaying = activeRoundStreamed();
 	const auto startPlay = autoplay
 		&& !_streamed
@@ -871,8 +873,11 @@ void Gif::drawGrouped(
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
-	const auto canBePlayed = _data->canBePlayed() && CanPlayInline(_data);;
-	const auto autoplay = fullFeatured && autoplayEnabled() && canBePlayed;
+	const auto canBePlayed = _data->canBePlayed();
+	const auto autoplay = fullFeatured
+		&& autoplayEnabled()
+		&& canBePlayed
+		&& CanPlayInline(_data);
 	const auto startPlay = autoplay && !_streamed;
 	if (startPlay) {
 		const_cast<Gif*>(this)->playAnimation(true);

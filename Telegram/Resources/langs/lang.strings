@@ -1330,7 +1330,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_skip_archive_in_search" = "Skip results from archive";
 "lng_dialogs_show_archive_in_search" = "With results from archive";
 
-"lng_about_dice" = "Send a 🎲 emoji to any chat to get a random number from Telegram.";
+"lng_about_random" = "Send a {emoji} emoji to any chat to get a random number from Telegram.";
+"lng_about_random_send" = "Send";
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";
@@ -2234,6 +2235,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_choose_question" = "Please enter a question.";
 "lng_polls_choose_answers" = "Please enter at least two options.";
 "lng_polls_choose_correct" = "Please choose the correct answer.";
+"lng_polls_solution_title" = "Explanation";
+"lng_polls_solution_placeholder" = "Add a Comment (Optional)";
+"lng_polls_solution_about" = "Users will see this comment after choosing a wrong answer, good for educational purposes.";
 
 "lng_polls_poll_results_title" = "Poll results";
 "lng_polls_quiz_results_title" = "Quiz results";

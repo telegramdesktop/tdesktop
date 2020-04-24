@@ -1619,7 +1619,9 @@ const style::RoundCheckbox &Link::checkboxStyle() const {
 Link::LinkEntry::LinkEntry(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
-, lnk(std::make_shared<UrlClickHandler>(url)) {
+, lnk(UrlClickHandler::IsSuspicious(url)
+	? std::make_shared<HiddenUrlClickHandler>(url)
+	: std::make_shared<UrlClickHandler>(url)) {
 }
 
 } // namespace Layout

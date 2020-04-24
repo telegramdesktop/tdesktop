@@ -552,6 +552,7 @@ bool FileLoadTask::CheckForSong(
 		qstr("audio/aac"),
 		qstr("audio/ogg"),
 		qstr("audio/flac"),
+		qstr("audio/opus"),
 	};
 	static const auto extensions = {
 		qstr(".mp3"),
@@ -559,6 +560,8 @@ bool FileLoadTask::CheckForSong(
 		qstr(".aac"),
 		qstr(".ogg"),
 		qstr(".flac"),
+		qstr(".opus"),
+		qstr(".oga"),
 	};
 	if (!filepath.isEmpty()
 		&& !CheckMimeOrExtensions(

@@ -32,7 +32,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 395b620
+    git checkout 10aeaf6
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -64,7 +64,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 395b620
+    git checkout 10aeaf6
     cd ..
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3 range-v3
 
@@ -148,17 +148,17 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_5
-    cd qt_5_12_5
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
+    cd qt_5_12_8
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.5
+    git checkout v5.12.8
     git submodule update qtbase
     git submodule update qtimageformats
     cd qtbase
-    git apply ../../patches/qtbase_5_12_5.diff
+    git apply ../../patches/qtbase_5_12_8.diff
     cd ..
 
-    configure -prefix "%LibrariesPath%\Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%LibrariesPath%\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
+    configure -prefix "%LibrariesPath%\Qt-5.12.8" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%LibrariesPath%\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
 
     jom -j4
     jom -j4 install

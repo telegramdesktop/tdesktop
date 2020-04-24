@@ -40,6 +40,7 @@ struct PollData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
+	bool closeByTimer();
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
 	void checkResultsReload(not_null<HistoryItem*> item, crl::time now);
@@ -60,10 +61,11 @@ struct PollData {
 	QString question;
 	std::vector<PollAnswer> answers;
 	std::vector<not_null<UserData*>> recentVoters;
-	int totalVoters = 0;
 	std::vector<QByteArray> sendingVotes;
-	crl::time lastResultsUpdate = 0;
-
+	TextWithEntities solution;
+	TimeId closePeriod = 0;
+	TimeId closeDate = 0;
+	int totalVoters = 0;
 	int version = 0;
 
 	static constexpr auto kMaxOptions = 10;
@@ -73,9 +75,15 @@ private:
 		const MTPPollAnswerVoters &result,
 		bool isMinResults);
 
-	not_null<Data::Session*> _owner;
+	const not_null<Data::Session*> _owner;
 	Flags _flags = Flags();
+	crl::time _lastResultsUpdate = 0; // < 0 means force reload.
 
 };
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close = false);
+[[nodiscard]] MTPPoll PollDataToMTP(
+	not_null<const PollData*> poll,
+	bool close = false);
+[[nodiscard]] MTPInputMedia PollDataToInputMedia(
+	not_null<const PollData*> poll,
+	bool close = false);

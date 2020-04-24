@@ -407,11 +407,12 @@ private:
 
 class MediaDice final : public Media {
 public:
-	MediaDice(not_null<HistoryItem*> parent, int value);
+	MediaDice(not_null<HistoryItem*> parent, QString emoji, int value);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	int diceValue() const;
+	[[nodiscard]] QString emoji() const;
+	[[nodiscard]] int value() const;
 
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -423,6 +424,7 @@ public:
 		not_null<HistoryItem*> realParent) override;
 
 private:
+	QString _emoji;
 	int _value = 0;
 
 };

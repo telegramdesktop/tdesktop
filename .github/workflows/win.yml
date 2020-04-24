@@ -4,11 +4,11 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
 
 jobs:
 
@@ -24,7 +24,7 @@ jobs:
       SDK: "10.0.18362.0"
       VC: "call vcvars32.bat && cd Libraries"
       GIT: "https://github.com"
-      QT: "5_12_5"
+      QT: "5_12_8"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -263,13 +263,13 @@ jobs:
 
           rmdir /S /Q .git
 
-      - name: Qt 5.12.5 cache.
+      - name: Qt 5.12.8 cache.
         id: cache-qt
         uses: actions/cache@v1
         with:
-          path: ${{ env.LibrariesPath }}/Qt-5.12.5
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_5.diff') }}
-      - name: Configure Qt 5.12.5.
+          path: ${{ env.LibrariesPath }}/Qt-5.12.8
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8.diff') }}
+      - name: Configure Qt 5.12.8.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         shell: cmd
         run: |
@@ -278,7 +278,7 @@ jobs:
           git clone git://code.qt.io/qt/qt5.git qt_%QT%
           cd qt_%QT%
           perl init-repository --module-subset=qtbase,qtimageformats
-          git checkout v5.12.5
+          git checkout v5.12.8
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
@@ -289,7 +289,7 @@ jobs:
           SET LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
 
           configure ^
-          -prefix "%LibrariesPath%\Qt-5.12.5" ^
+          -prefix "%LibrariesPath%\Qt-5.12.8" ^
           -debug ^
           -force-debug-info ^
           -opensource ^
@@ -304,7 +304,7 @@ jobs:
           -nomake examples ^
           -nomake tests ^
           -platform win32-msvc
-      - name: Qt 5.12.5 build.
+      - name: Qt 5.12.8 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         shell: cmd
         run: |
@@ -324,6 +324,9 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
+            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+          else
+            echo ::set-env name=ARTIFACT_NAME::Telegram
           fi
           echo "::set-env name=TDESKTOP_BUILD_DEFINE::$DEFINE"
 
@@ -355,5 +358,5 @@ jobs:
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: Telegram
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.REPO_NAME }}\out\Debug\artifact\

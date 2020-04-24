@@ -630,7 +630,7 @@ void FolderFiller::addTogglesForArchive() {
 
 	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
 		auto toast = Ui::Toast::Config();
-		toast.text = tr::lng_context_archive_to_menu_info(tr::now);
+		toast.text = { tr::lng_context_archive_to_menu_info(tr::now) };
 		toast.minWidth = toast.maxWidth = st::boxWideWidth;
 		toast.multiline = true;
 		toast.durationMs = kArchivedToastDuration;
@@ -927,7 +927,7 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		auto config = Ui::Toast::Config();
 		config.multiline = true;
 		config.minWidth = st::msgMinWidth;
-		config.text = error;
+		config.text = { error };
 		Ui::Toast::Show(config);
 		return { nullptr };
 	}
@@ -1036,9 +1036,9 @@ void PeerMenuAddMuteAction(
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
 		auto toast = Ui::Toast::Config();
-		toast.text = archived
+		toast.text = { archived
 			? tr::lng_archived_added(tr::now)
-			: tr::lng_archived_removed(tr::now);
+			: tr::lng_archived_removed(tr::now) };
 		toast.minWidth = toast.maxWidth = st::boxWideWidth;
 		toast.multiline = true;
 		if (archived) {

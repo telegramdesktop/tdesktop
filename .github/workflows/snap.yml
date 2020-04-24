@@ -4,11 +4,11 @@ on:
   push:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
 
 jobs:
 
@@ -19,7 +19,7 @@ jobs:
     env:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "3"
+      MANUAL_CACHING: "4"
 
     steps:
       - name: Clone.
@@ -29,9 +29,6 @@ jobs:
 
       - name: First set up.
         run: |
-          # Workaround for Heroku
-          curl https://cli-assets.heroku.com/apt/release.key | sudo apt-key add -
-
           sudo apt-get update
           sudo apt-get install gcc-8 g++-8 -y
           sudo snap install --classic snapcraft
@@ -50,7 +47,7 @@ jobs:
             md5 $keyName
           }
 
-          snapcraft --version > CACHE_KEY.txt
+          snap run snapcraft --version > CACHE_KEY.txt
           gcc-8 --version >> CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
           md5 CACHE_KEY
@@ -67,7 +64,7 @@ jobs:
 
       - name: CMake build.
         if: steps.cache-cmake.outputs.cache-hit != 'true'
-        run: sudo snapcraft build --destructive-mode cmake
+        run: sudo snap run snapcraft build --destructive-mode cmake
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -78,11 +75,11 @@ jobs:
 
       - name: FFmpeg build.
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
-        run: sudo snapcraft build --destructive-mode ffmpeg
+        run: sudo snap run snapcraft build --destructive-mode ffmpeg
 
       - name: Telegram Desktop snap build.
         if: env.ONLY_CACHE == 'false'
-        run: sudo snapcraft --destructive-mode
+        run: sudo snap run snapcraft --destructive-mode
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -102,5 +99,5 @@ jobs:
 
       - name: Remove unneeded directories for cache.
         run: |
-          sudo rm -rf parts/{cmake,ffmpeg}/{build,src,ubuntu}
-          sudo rm -rf parts/{cmake,ffmpeg}/state/{stage,prime}
+          sudo rm -rf parts/*/{build,src,ubuntu}
+          sudo rm -rf parts/*/state/{stage,prime}

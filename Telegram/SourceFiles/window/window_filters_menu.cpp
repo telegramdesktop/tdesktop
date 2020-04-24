@@ -198,7 +198,7 @@ void FiltersMenu::setupList() {
 		_container,
 		-1,
 		tr::lng_filters_setup(tr::now),
-		Ui::FilterIcon::Setup);
+		Ui::FilterIcon::Edit);
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(_list, &_scroll);
 
 	_reorder->updates(

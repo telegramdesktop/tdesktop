@@ -10,11 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "base/call_delayed.h"
 #include "main/main_session.h"
+#include "api/api_text_entities.h"
+#include "ui/text_options.h"
 
 namespace {
 
 constexpr auto kShortPollTimeout = 30 * crl::time(1000);
+constexpr auto kReloadAfterAutoCloseDelay = crl::time(1000);
 
 const PollAnswer *AnswerByOption(
 		const std::vector<PollAnswer> &list,
@@ -41,6 +45,20 @@ PollData::PollData(not_null<Data::Session*> owner, PollId id)
 , _owner(owner) {
 }
 
+bool PollData::closeByTimer() {
+	if (closed()) {
+		return false;
+	}
+	_flags |= Flag::Closed;
+	++version;
+	base::call_delayed(kReloadAfterAutoCloseDelay, &_owner->session(), [=] {
+		_lastResultsUpdate = -1; // Force reload results.
+		++version;
+		_owner->notifyPollUpdateDelayed(this);
+	});
+	return true;
+}
+
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
@@ -49,6 +67,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
 		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
 		| (poll.is_quiz() ? Flag::Quiz : Flag(0));
+	const auto newCloseDate = poll.vclose_date().value_or_empty();
+	const auto newClosePeriod = poll.vclose_period().value_or_empty();
 	auto newAnswers = ranges::view::all(
 		poll.vanswers().v
 	) | ranges::view::transform([](const MTPPollAnswer &data) {
@@ -63,6 +83,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	) | ranges::to_vector;
 
 	const auto changed1 = (question != newQuestion)
+		|| (closeDate != newCloseDate)
+		|| (closePeriod != newClosePeriod)
 		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
 	if (!changed1 && !changed2) {
@@ -70,6 +92,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	}
 	if (changed1) {
 		question = newQuestion;
+		closeDate = newCloseDate;
+		closePeriod = newClosePeriod;
 		_flags = newFlags;
 	}
 	if (changed2) {
@@ -88,7 +112,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 
 bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
-		lastResultsUpdate = crl::now();
+		_lastResultsUpdate = crl::now();
 
 		const auto newTotalVoters =
 			results.vtotal_voters().value_or(totalVoters);
@@ -123,6 +147,15 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}) | ranges::to_vector;
 			}
 		}
+		auto newSolution = TextWithEntities{
+			results.vsolution().value_or_empty(),
+			Api::EntitiesFromMTP(
+				results.vsolution_entities().value_or_empty())
+		};
+		if (solution != newSolution) {
+			solution = std::move(newSolution);
+			changed = true;
+		}
 		if (!changed) {
 			return false;
 		}
@@ -132,13 +165,16 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	});
 }
 
-void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
-	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
+void PollData::checkResultsReload(
+		not_null<HistoryItem*> item,
+		crl::time now) {
+	if (_lastResultsUpdate > 0
+		&& _lastResultsUpdate + kShortPollTimeout > now) {
 		return;
-	} else if (closed()) {
+	} else if (closed() && _lastResultsUpdate >= 0) {
 		return;
 	}
-	lastResultsUpdate = now;
+	_lastResultsUpdate = now;
 	_owner->session().api().reloadPollResults(item);
 }
 
@@ -226,10 +262,49 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto flags = ((poll->closed() || close) ? Flag::f_closed : Flag(0))
 		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
 		| (poll->publicVotes() ? Flag::f_public_voters : Flag(0))
-		| (poll->quiz() ? Flag::f_quiz : Flag(0));
+		| (poll->quiz() ? Flag::f_quiz : Flag(0))
+		| (poll->closePeriod > 0 ? Flag::f_close_period : Flag(0))
+		| (poll->closeDate > 0 ? Flag::f_close_date : Flag(0));
 	return MTP_poll(
 		MTP_long(poll->id),
 		MTP_flags(flags),
 		MTP_string(poll->question),
-		MTP_vector<MTPPollAnswer>(answers));
+		MTP_vector<MTPPollAnswer>(answers),
+		MTP_int(poll->closePeriod),
+		MTP_int(poll->closeDate));
+}
+
+MTPInputMedia PollDataToInputMedia(
+		not_null<const PollData*> poll,
+		bool close) {
+	auto inputFlags = MTPDinputMediaPoll::Flag(0)
+		| (poll->quiz()
+			? MTPDinputMediaPoll::Flag::f_correct_answers
+			: MTPDinputMediaPoll::Flag(0));
+	auto correct = QVector<MTPbytes>();
+	for (const auto &answer : poll->answers) {
+		if (answer.correct) {
+			correct.push_back(MTP_bytes(answer.option));
+		}
+	}
+
+	auto solution = poll->solution;
+	const auto prepareFlags = Ui::ItemTextDefaultOptions().flags;
+	TextUtilities::PrepareForSending(solution, prepareFlags);
+	TextUtilities::Trim(solution);
+	const auto sentEntities = Api::EntitiesToMTP(
+		solution.entities,
+		Api::ConvertOption::SkipLocal);
+	if (!solution.text.isEmpty()) {
+		inputFlags |= MTPDinputMediaPoll::Flag::f_solution;
+	}
+	if (!sentEntities.v.isEmpty()) {
+		inputFlags |= MTPDinputMediaPoll::Flag::f_solution_entities;
+	}
+	return MTP_inputMediaPoll(
+		MTP_flags(inputFlags),
+		PollDataToMTP(poll, close),
+		MTP_vector<MTPbytes>(correct),
+		MTP_string(solution.text),
+		sentEntities);
 }

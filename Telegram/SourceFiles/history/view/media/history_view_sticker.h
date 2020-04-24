@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "base/weak_ptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 struct FileOrigin;
 } // namespace Data
@@ -49,11 +53,17 @@ public:
 	}
 	void refreshLink() override;
 
-	void setDiceIndex(int index);
+	void setDiceIndex(const QString &emoji, int index);
 	[[nodiscard]] bool atTheEnd() const {
 		return _atTheEnd;
 	}
 	[[nodiscard]] bool readyToDrawLottie();
+
+	[[nodiscard]] static QSize GetAnimatedEmojiSize(
+		not_null<Main::Session*> session);
+	[[nodiscard]] static QSize GetAnimatedEmojiSize(
+		not_null<Main::Session*> session,
+		QSize documentSize);
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;
@@ -71,6 +81,7 @@ private:
 	ClickHandlerPtr _link;
 	QSize _size;
 	QImage _lastDiceFrame;
+	QString _diceEmoji;
 	int _diceIndex = -1;
 	mutable bool _lottieOncePlayed = false;
 	mutable bool _atTheEnd = false;

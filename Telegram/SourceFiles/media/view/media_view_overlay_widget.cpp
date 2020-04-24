@@ -2396,9 +2396,9 @@ void OverlayWidget::initThemePreview() {
 					_themeShare->setClickedCallback([=] {
 						QGuiApplication::clipboard()->setText(
 							Core::App().createInternalLinkFull("addtheme/" + slug));
-						auto config = Ui::Toast::Config();
-						config.text = tr::lng_background_link_copied(tr::now);
-						Ui::Toast::Show(this, config);
+						Ui::Toast::Show(
+							this,
+							tr::lng_background_link_copied(tr::now));
 					});
 				} else {
 					_themeShare.destroy();

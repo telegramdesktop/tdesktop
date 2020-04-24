@@ -78,7 +78,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Local::writeArchivedStickers();
 
 	auto toast = Ui::Toast::Config();
-	toast.text = tr::lng_stickers_packs_archived(tr::now);
+	toast.text = { tr::lng_stickers_packs_archived(tr::now) };
 	toast.maxWidth = toast.minWidth = st::stickersToastMaxWidth;
 	toast.multiline = true;
 	toast.padding = st::stickersToastPadding;

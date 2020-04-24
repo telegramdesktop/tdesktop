@@ -57,7 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kImageAreaLimit = 6'016 * 3'384;
+constexpr auto kImageAreaLimit = 12'032 * 9'024;
 
 App::LaunchState _launchState = App::Launched;
 

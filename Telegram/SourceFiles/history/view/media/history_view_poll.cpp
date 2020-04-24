@@ -19,15 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/fireworks_animation.h"
+#include "ui/toast/toast.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
+#include "base/timer.h"
 #include "layout.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 namespace HistoryView {
 namespace {
@@ -38,6 +42,8 @@ constexpr auto kRotateAmplitude = 3.;
 constexpr auto kScaleSegments = 2;
 constexpr auto kScaleAmplitude = 0.03;
 constexpr auto kRollDuration = crl::time(400);
+constexpr auto kLargestRadialDuration = 30 * crl::time(1000);
+constexpr auto kCriticalCloseDuration = 5 * crl::time(1000);
 
 struct PercentCounterItem {
 	int index = 0;
@@ -116,6 +122,13 @@ void CountNicePercent(
 	}
 }
 
+[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
+	return std::clamp(
+		crl::time(1000) * text.text.size() / 14,
+		crl::time(1000) * 5,
+		crl::time(1000) * 8);
+}
+
 } // namespace
 
 struct Poll::AnswerAnimation {
@@ -161,6 +174,16 @@ struct Poll::Answer {
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
+struct Poll::CloseInformation {
+	CloseInformation(TimeId date, TimeId period, Fn<void()> repaint);
+
+	crl::time start = 0;
+	crl::time finish = 0;
+	crl::time duration = 0;
+	base::Timer timer;
+	Ui::Animations::Basic radial;
+};
+
 template <typename Callback>
 Poll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
@@ -186,6 +209,16 @@ void Poll::Answer::fillData(
 		st::historyPollAnswerStyle,
 		original.text,
 		Ui::WebpageTextTitleOptions());
+}
+
+Poll::CloseInformation::CloseInformation(
+	TimeId date,
+	TimeId period,
+	Fn<void()> repaint)
+: duration(period * crl::time(1000))
+, timer(std::move(repaint)) {
+	const auto left = std::clamp(date - base::unixtime::now(), 0, period);
+	finish = crl::now() + left * crl::time(1000);
 }
 
 Poll::Poll(
@@ -405,7 +438,21 @@ void Poll::checkQuizAnswered() {
 			1.,
 			kRollDuration,
 			anim::linear);
+		showSolution();
 	}
+}
+
+void Poll::showSolution() const {
+	if (_poll->solution.text.isEmpty()) {
+		return;
+	}
+	auto config = Ui::Toast::Config();
+	config.multiline = config.dark = true;
+	config.minWidth = st::msgMinWidth;
+	config.maxWidth = st::windowMinWidth;
+	config.text = _poll->solution;
+	config.durationMs = CountToastDuration(config.text);
+	Ui::Toast::Show(config);
 }
 
 void Poll::updateRecentVoters() {
@@ -653,6 +700,8 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 	p.setPen(regular);
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
 	paintRecentVoters(p, padding.left() + _subtitle.maxWidth(), tshift, selection);
+	paintCloseByTimer(p, padding.left() + paintw, tshift, selection);
+	paintShowSolution(p, padding.left() + paintw, tshift, selection);
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
@@ -797,6 +846,103 @@ void Poll::paintRecentVoters(
 		p.drawEllipse(x, y, size, size);
 		x -= st::historyPollRecentVoterSkip;
 	}
+}
+
+void Poll::paintCloseByTimer(
+		Painter &p,
+		int right,
+		int top,
+		TextSelection selection) const {
+	if (!canVote() || _poll->closeDate <= 0 || _poll->closePeriod <= 0) {
+		_close = nullptr;
+		return;
+	}
+	if (!_close) {
+		_close = std::make_unique<CloseInformation>(
+			_poll->closeDate,
+			_poll->closePeriod,
+			[=] { history()->owner().requestViewRepaint(_parent); });
+	}
+	const auto now = crl::now();
+	const auto left = std::max(_close->finish - now, crl::time(0));
+	const auto radial = std::min(_close->duration, kLargestRadialDuration);
+	if (!left) {
+		_close->radial.stop();
+	} else if (left < radial && !anim::Disabled()) {
+		if (!_close->radial.animating()) {
+			_close->radial.init([=] {
+				history()->owner().requestViewRepaint(_parent);
+			});
+			_close->radial.start();
+		}
+	} else {
+		_close->radial.stop();
+	}
+	const auto time = formatDurationText(int(std::ceil(left / 1000.)));
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = (selection == FullSelection);
+	const auto &icon = selected
+		? (outbg
+			? st::historyQuizTimerOutSelected
+			: st::historyQuizTimerInSelected)
+		: (outbg ? st::historyQuizTimerOut : st::historyQuizTimerIn);
+	const auto x = right - icon.width();
+	const auto y = top
+		+ (st::normalFont->height - icon.height()) / 2
+		- st::lineWidth;
+	const auto &regular = (left < kCriticalCloseDuration)
+		? st::boxTextFgError
+		: selected
+		? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
+		: (outbg ? st::msgOutDateFg : st::msgInDateFg);
+	p.setPen(regular);
+	const auto timeWidth = st::normalFont->width(time);
+	p.drawTextLeft(x - timeWidth, top, width(), time, timeWidth);
+	if (left < radial) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto part = std::max(
+			left / float64(radial),
+			1. / FullArcLength);
+		const auto length = int(std::round(FullArcLength * part));
+		auto pen = regular->p;
+		pen.setWidth(st::historyPollRadio.thickness);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		const auto size = icon.width() / 2;
+		const auto left = (x + (icon.width() - size) / 2);
+		const auto top = (y + (icon.height() - size) / 2) + st::lineWidth;
+		p.drawArc(left, top, size, size, (FullArcLength / 4), length);
+	} else {
+		icon.paint(p, x, y, width());
+	}
+
+	if (left > (anim::Disabled() ? 0 : (radial - 1))) {
+		const auto next = (left % 1000);
+		_close->timer.callOnce((next ? next : 1000) + 1);
+	}
+}
+
+void Poll::paintShowSolution(
+		Painter &p,
+		int right,
+		int top,
+		TextSelection selection) const {
+	if (!showVotes() || _poll->solution.text.isEmpty()) {
+		return;
+	}
+	if (!_showSolutionLink) {
+		_showSolutionLink = std::make_shared<LambdaClickHandler>(
+			crl::guard(this, [=] { showSolution(); }));
+	}
+	const auto outbg = _parent->hasOutLayout();
+	const auto &icon = (selection == FullSelection)
+		? (outbg
+			? st::historyQuizExplainOutSelected
+			: st::historyQuizExplainInSelected)
+		: (outbg ? st::historyQuizExplainOut : st::historyQuizExplainIn);
+	const auto x = right - icon.width();
+	const auto y = top + (st::normalFont->height - icon.height()) / 2;
+	icon.paint(p, x, y, width());
 }
 
 int Poll::paintAnswer(
@@ -1111,6 +1257,10 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 	paintw -= padding.left() + padding.right();
 
 	tshift += _question.countHeight(paintw) + st::historyPollSubtitleSkip;
+	if (inShowSolution(point, padding.left() + paintw, tshift)) {
+		result.link = _showSolutionLink;
+		return result;
+	}
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 	const auto awidth = paintw
 		- st::historyPollAnswerPadding.left()
@@ -1242,6 +1392,23 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 	} else if (answer.ripple) {
 		answer.ripple->lastStop();
 	}
+}
+
+bool Poll::canShowSolution() const {
+	return showVotes() && !_poll->solution.text.isEmpty();
+}
+
+bool Poll::inShowSolution(
+		QPoint point,
+		int right,
+		int top) const {
+	if (!canShowSolution()) {
+		return false;
+	}
+	const auto &icon = st::historyQuizExplainIn;
+	const auto x = right - icon.width();
+	const auto y = top + (st::normalFont->height - icon.height()) / 2;
+	return QRect(x, y, icon.width(), icon.height()).contains(point);
 }
 
 int Poll::bottomButtonHeight() const {

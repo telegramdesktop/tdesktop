@@ -38,6 +38,8 @@ constexpr auto kMaxOptionsCount = PollData::kMaxOptions;
 constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;
+constexpr auto kSolutionLimit = 200;
+constexpr auto kWarnSolutionLimit = 60;
 constexpr auto kErrorLimit = 99;
 
 class Options {
@@ -59,6 +61,7 @@ public:
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
+	[[nodiscard]] rpl::producer<> tabbed() const;
 
 private:
 	class Option {
@@ -146,6 +149,7 @@ private:
 	bool _hasCorrect = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
+	rpl::event_stream<> _tabbed;
 
 };
 
@@ -217,6 +221,7 @@ Options::Option::Option(
 	InitField(outer, _field, session);
 	_field->setMaxLength(kOptionLimit + kErrorLimit);
 	_field->show();
+	_field->customTab(true);
 
 	_wrap->hide(anim::type::instant);
 
@@ -497,6 +502,10 @@ rpl::producer<> Options::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
+rpl::producer<> Options::tabbed() const {
+	return _tabbed.events();
+}
+
 void Options::Option::show(anim::type animated) {
 	_wrap->show(animated);
 }
@@ -647,6 +656,14 @@ void Options::addEmptyOption() {
 	QObject::connect(field, &Ui::InputField::focused, [=] {
 		_scrollToWidget.fire_copy(field);
 	});
+	QObject::connect(field, &Ui::InputField::tabbed, [=] {
+		const auto index = findField(field);
+		if (index + 1 < _list.size()) {
+			_list[index + 1]->setFocus();
+		} else {
+			_tabbed.fire({});
+		}
+	});
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
 			|| !field->getLastText().isEmpty()) {
@@ -768,6 +785,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 	InitField(getDelegate()->outerContainer(), question, _session);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);
 	question->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	question->customTab(true);
 
 	const auto warning = CreateWarningLabel(
 		container,
@@ -792,6 +810,69 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 	}, warning->lifetime());
 
 	return question;
+}
+
+not_null<Ui::InputField*> CreatePollBox::setupSolution(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> shown) {
+	using namespace Settings;
+
+	const auto outer = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container))
+	)->setDuration(0)->toggleOn(std::move(shown));
+	const auto inner = outer->entity();
+
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_polls_solution_title());
+	const auto solution = inner->add(
+		object_ptr<Ui::InputField>(
+			inner,
+			st::createPollSolutionField,
+			Ui::InputField::Mode::MultiLine,
+			tr::lng_polls_solution_placeholder()),
+		st::createPollFieldPadding);
+	InitField(getDelegate()->outerContainer(), solution, _session);
+	solution->setMaxLength(kSolutionLimit + kErrorLimit);
+	solution->setInstantReplaces(Ui::InstantReplaces::Default());
+	solution->setInstantReplacesEnabled(
+		_session->settings().replaceEmojiValue());
+	solution->setMarkdownReplacesEnabled(rpl::single(true));
+	solution->setEditLinkCallback(
+		DefaultEditLinkCallback(_session, solution));
+	solution->customTab(true);
+
+	const auto warning = CreateWarningLabel(
+		inner,
+		solution,
+		kSolutionLimit,
+		kWarnSolutionLimit);
+	rpl::combine(
+		solution->geometryValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=](QRect geometry, QSize label) {
+		warning->moveToLeft(
+			(inner->width()
+				- label.width()
+				- st::createPollWarningPosition.x()),
+			(geometry.y()
+				- st::createPollFieldPadding.top()
+				- st::settingsSubsectionTitlePadding.bottom()
+				- st::settingsSubsectionTitle.style.font->height
+				+ st::settingsSubsectionTitle.style.font->ascent
+				- st::createPollWarning.style.font->ascent),
+			geometry.width());
+	}, warning->lifetime());
+
+	inner->add(
+		object_ptr<Ui::FlatLabel>(
+			inner,
+			tr::lng_polls_solution_about(),
+			st::boxDividerLabel),
+		st::createPollFieldTitlePadding);
+
+	return solution;
 }
 
 object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
@@ -836,6 +917,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
+	connect(question, &Ui::InputField::tabbed, [=] {
+		options->focusFirst();
+	});
+
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_polls_create_settings());
 
@@ -866,6 +951,24 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			(_chosen & PollData::Flag::Quiz),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
+
+	const auto solution = setupSolution(
+		container,
+		rpl::single(quiz->checked()) | rpl::then(quiz->checkedChanges()));
+
+	options->tabbed(
+	) | rpl::start_with_next([=] {
+		if (quiz->checked()) {
+			solution->setFocus();
+		} else {
+			question->setFocus();
+		}
+	}, question->lifetime());
+
+	connect(solution, &Ui::InputField::tabbed, [=] {
+		question->setFocus();
+	});
+
 	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
 	if (multiple) {
 		multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
@@ -911,6 +1014,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		auto result = PollData(&_session->data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
+		const auto solutionWithTags = quiz->checked()
+			? solution->getTextWithAppliedMarkdown()
+			: TextWithTags();
+		result.solution = TextWithEntities{
+			solutionWithTags.text,
+			TextUtilities::ConvertTextTagsToEntities(solutionWithTags.tags)
+		};
 		const auto publicVotes = (anonymous && !anonymous->checked());
 		const auto multiChoice = (multiple && multiple->checked());
 		result.setFlags(Flag(0)
@@ -937,6 +1047,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		} else {
 			*error &= ~Error::Correct;
 		}
+		if (quiz->checked()
+			&& solution->getLastText().trimmed().size() > kSolutionLimit) {
+			*error |= Error::Solution;
+		} else {
+			*error &= ~Error::Solution;
+		}
 	};
 	const auto showError = [=](const QString &text) {
 		Ui::Toast::Show(text);
@@ -951,6 +1067,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			options->focusFirst();
 		} else if (*error & Error::Correct) {
 			showError(tr::lng_polls_choose_correct(tr::now));
+		} else if (*error & Error::Solution) {
+			solution->showError();
 		} else if (!*error) {
 			_submitRequests.fire({ collectResult(), sendOptions });
 		}
