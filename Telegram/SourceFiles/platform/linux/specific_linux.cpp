@@ -634,7 +634,14 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
-	if(IsStaticBinary() 
+	if(IsStaticBinary()
+		|| InAppImage()
+		|| InSandbox()
+		|| InSnap()) {
+		qputenv("QT_WAYLAND_DECORATION", "material");
+	}
+
+	if(IsStaticBinary()
 		|| InAppImage()
 		|| InSnap()
 		|| IsGtkFileDialogForced()) {
