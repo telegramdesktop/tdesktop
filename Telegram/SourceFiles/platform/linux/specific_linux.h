@@ -22,11 +22,15 @@ inline void SetWatchingMediaKeys(bool watching) {
 
 bool InSandbox();
 bool InSnap();
+bool InAppImage();
+bool IsStaticBinary();
+bool IsGtkFileDialogForced();
 
 bool IsXDGDesktopPortalPresent();
 bool UseXDGDesktopPortal();
 
 QString ProcessNameByPID(const QString &pid);
+QString RealExecutablePath(int argc, char *argv[]);
 QString CurrentExecutablePath(int argc, char *argv[]);
 
 QString AppRuntimeDirectory();
