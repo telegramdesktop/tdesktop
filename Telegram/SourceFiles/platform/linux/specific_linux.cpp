@@ -194,30 +194,31 @@ bool GenerateDesktopFile(
 
 	QFile target(targetFile);
 	if (target.open(QIODevice::WriteOnly)) {
-#ifdef DESKTOP_APP_USE_PACKAGED
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^Exec=(.*) -- %u$"),
-				QRegularExpression::MultilineOption),
-			qsl("Exec=\\1")
-				+ (args.isEmpty() ? QString() : ' ' + args));
-#else // DESKTOP_APP_USE_PACKAGED
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^TryExec=.*$"),
-				QRegularExpression::MultilineOption),
-			qsl("TryExec=")
-				+ QFile::encodeName(cExeDir() + cExeName())
-					.replace('\\', qsl("\\\\")));
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^Exec=.*$"),
-				QRegularExpression::MultilineOption),
-			qsl("Exec=")
-				+ EscapeShell(QFile::encodeName(cExeDir() + cExeName()))
-					.replace('\\', qsl("\\\\"))
-				+ (args.isEmpty() ? QString() : ' ' + args));
-#endif // !DESKTOP_APP_USE_PACKAGED
+		if (IsStaticBinary() || InAppImage()) {
+			fileText = fileText.replace(
+				QRegularExpression(
+					qsl("^TryExec=.*$"),
+					QRegularExpression::MultilineOption),
+				qsl("TryExec=")
+					+ QFile::encodeName(cExeDir() + cExeName())
+						.replace('\\', qsl("\\\\")));
+			fileText = fileText.replace(
+				QRegularExpression(
+					qsl("^Exec=.*$"),
+					QRegularExpression::MultilineOption),
+				qsl("Exec=")
+					+ EscapeShell(QFile::encodeName(cExeDir() + cExeName()))
+						.replace('\\', qsl("\\\\"))
+					+ (args.isEmpty() ? QString() : ' ' + args));
+		} else {
+			fileText = fileText.replace(
+				QRegularExpression(
+					qsl("^Exec=(.*) -- %u$"),
+					QRegularExpression::MultilineOption),
+				qsl("Exec=\\1")
+					+ (args.isEmpty() ? QString() : ' ' + args));
+		}
+
 		target.write(fileText.toUtf8());
 		target.close();
 
@@ -249,6 +250,27 @@ bool InSnap() {
 	return Snap;
 }
 
+bool InAppImage() {
+	static const auto AppImage = qEnvironmentVariableIsSet("APPIMAGE");
+	return AppImage;
+}
+
+bool IsStaticBinary() {
+#ifdef DESKTOP_APP_USE_PACKAGED
+		return false;
+#else // DESKTOP_APP_USE_PACKAGED
+		return true;
+#endif // !DESKTOP_APP_USE_PACKAGED
+}
+
+bool IsGtkFileDialogForced() {
+#ifdef TDESKTOP_FORCE_GTK_FILE_DIALOG
+	return true;
+#else // TDESKTOP_FORCE_GTK_FILE_DIALOG
+	return false;
+#endif // !TDESKTOP_FORCE_GTK_FILE_DIALOG
+}
+
 bool IsXDGDesktopPortalPresent() {
 #ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	static const auto XDGDesktopPortalPresent = false;
@@ -266,7 +288,11 @@ bool UseXDGDesktopPortal() {
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 
-		return (DesktopEnvironment::IsKDE() || envVar) && portalPresent;
+		return (
+			DesktopEnvironment::IsKDE()
+				|| InSnap()
+				|| envVar
+			) && portalPresent;
 	}();
 
 	return UsePortal;
@@ -288,7 +314,7 @@ QString ProcessNameByPID(const QString &pid) {
 	return QString();
 }
 
-QString CurrentExecutablePath(int argc, char *argv[]) {
+QString RealExecutablePath(int argc, char *argv[]) {
 	const auto processName = ProcessNameByPID(qsl("self"));
 
 	// Fallback to the first command line argument.
@@ -297,6 +323,25 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 		: argc
 			? QFile::decodeName(argv[0])
 			: QString();
+}
+
+QString CurrentExecutablePath(int argc, char *argv[]) {
+	if (InAppImage()) {
+		const auto appimagePath = QString::fromUtf8(qgetenv("APPIMAGE"));
+		const auto appimagePathList = appimagePath.split('/');
+
+		if (qEnvironmentVariableIsSet("ARGV0")
+			&& appimagePathList.size() >= 5
+			&& appimagePathList[1] == qstr("run")
+			&& appimagePathList[2] == qstr("user")
+			&& appimagePathList[4] == qstr("appimagelauncherfs")) {
+			return QString::fromUtf8(qgetenv("ARGV0"));
+		}
+
+		return appimagePath;
+	}
+
+	return RealExecutablePath(argc, argv);
 }
 
 QString AppRuntimeDirectory() {
@@ -354,6 +399,20 @@ QString GetLauncherBasename() {
 			return qsl("%1_%2")
 				.arg(QString::fromLatin1(qgetenv(snapNameKey)))
 				.arg(cExeName());
+		}
+
+		if (InAppImage()) {
+			const auto appimagePath = qsl("file://%1%2")
+				.arg(cExeDir())
+				.arg(cExeName())
+				.toUtf8();
+
+			char md5Hash[33] = { 0 };
+			hashMd5Hex(appimagePath.constData(), appimagePath.size(), md5Hash);
+
+			return qsl("appimagekit_%1-%2")
+				.arg(md5Hash)
+				.arg(AppName.utf16().replace(' ', '_'));
 		}
 
 		const auto possibleBasenames = std::vector<QString>{
@@ -564,6 +623,10 @@ namespace Platform {
 void start() {
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
+	if (InAppImage()) {
+		qputenv("LIBGL_ALWAYS_INDIRECT", "1");
+	}
+
 #ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
 	FallbackFontConfig();
 #endif // TDESKTOP_USE_FONTCONFIG_FALLBACK
@@ -571,21 +634,24 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
-#ifdef TDESKTOP_FORCE_GTK_FILE_DIALOG
-	LOG(("Checking for XDG Desktop Portal..."));
-	// this can give us a chance to use a proper file dialog for current session
-	if (IsXDGDesktopPortalPresent()) {
-		LOG(("XDG Desktop Portal is present!"));
-		if (UseXDGDesktopPortal()) {
-			LOG(("Usage of XDG Desktop Portal is enabled."));
-			qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
+	if(IsStaticBinary() 
+		|| InAppImage()
+		|| InSnap()
+		|| IsGtkFileDialogForced()) {
+		LOG(("Checking for XDG Desktop Portal..."));
+		// this can give us a chance to use a proper file dialog for current session
+		if (IsXDGDesktopPortalPresent()) {
+			LOG(("XDG Desktop Portal is present!"));
+			if (UseXDGDesktopPortal()) {
+				LOG(("Usage of XDG Desktop Portal is enabled."));
+				qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
+			} else {
+				LOG(("Usage of XDG Desktop Portal is disabled."));
+			}
 		} else {
-			LOG(("Usage of XDG Desktop Portal is disabled."));
+			LOG(("XDG Desktop Portal is not present :("));
 		}
-	} else {
-		LOG(("XDG Desktop Portal is not present :("));
 	}
-#endif // TDESKTOP_FORCE_GTK_FILE_DIALOG
 }
 
 void finish() {
