@@ -19,7 +19,8 @@ apps:
     common-id: org.telegram.desktop
     desktop: share/applications/telegramdesktop.desktop
     environment:
-      QT_QPA_PLATFORMTHEME: xdgdesktopportal
+      # Use GTK3 cursor theme, icon theme and open/save file dialogs.
+      QT_QPA_PLATFORMTHEME: gtk3
     extensions:
       - kde-neon
     plugs:
