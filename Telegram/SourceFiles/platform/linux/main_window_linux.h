@@ -94,6 +94,7 @@ private:
 	Ui::PopupMenu *_trayIconMenuXEmbed = nullptr;
 
 	void updateIconCounters();
+	void updateWaylandDecorationColors();
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;

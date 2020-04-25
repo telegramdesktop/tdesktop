@@ -471,6 +471,18 @@ jobs:
           cd $LibrariesPath
           sudo cp -R qt-cache/. /
 
+      - name: Material Decoration.
+        run: |
+          cd $LibrariesPath
+
+          git clone --depth=1 $GIT/desktop-app/materialdecoration.git
+          cd materialdecoration
+          $QT_PREFIX/bin/qmake CONFIG+=static
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf materialdecoration
+
       - name: Breakpad cache.
         id: cache-breakpad
         uses: actions/cache@v1
