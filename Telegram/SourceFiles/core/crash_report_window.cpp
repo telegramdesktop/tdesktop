@@ -90,6 +90,7 @@ void PreLaunchLabel::setText(const QString &text) {
 
 PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
 	QFont logFont(font());
+	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 
@@ -107,6 +108,7 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 
 PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	QFont logFont(font());
+	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 
