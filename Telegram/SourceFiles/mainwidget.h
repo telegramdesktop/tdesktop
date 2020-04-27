@@ -210,7 +210,7 @@ public:
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
-	void searchMessages(const QString &query, Dialogs::Key inChat);
+	void searchMessages(const QString& query, Dialogs::Key inChat, UserData* from);
 	void itemEdited(not_null<HistoryItem*> item);
 
 	void checkLastUpdate(bool afterSleep);

@@ -1399,6 +1399,9 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 	result->addAction(
 		tr::lng_context_view_profile(tr::now),
 		crl::guard(this, [=] { _navigation->showPeerInfo(user); }));
+	result->addAction(
+		tr::lng_context_show_messages_from(tr::now),
+		crl::guard(this, [=] { App::searchByHashtag(QString(), _peer, user); }));
 	if (_role == Role::Kicked) {
 		if (_peer->isMegagroup()
 			&& _additional.canRestrictUser(user)) {

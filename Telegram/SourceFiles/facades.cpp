@@ -158,7 +158,7 @@ void activateBotCommand(
 	}
 }
 
-void searchByHashtag(const QString &tag, PeerData *inPeer) {
+void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
 	if (const auto window = App::wnd()) {
 		if (const auto controller = window->sessionController()) {
 			if (controller->openedFolder().current()) {
@@ -172,7 +172,8 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 				tag + ' ',
 				(inPeer && !inPeer->isUser())
 					? inPeer->owner().history(inPeer).get()
-					: Dialogs::Key());
+					: Dialogs::Key(),
+				from);
 		}
 	}
 }

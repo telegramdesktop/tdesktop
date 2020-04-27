@@ -913,7 +913,8 @@ void Widget::showMainMenu() {
 
 void Widget::searchMessages(
 		const QString &query,
-		Key inChat) {
+		Key inChat,
+		UserData *from) {
 	auto inChatChanged = [&] {
 		if (inChat == _searchInChat) {
 			return false;
@@ -929,13 +930,19 @@ void Widget::searchMessages(
 			onCancelSearch();
 			setSearchInChat(inChat);
 		}
-		_filter->setText(query);
+		if (!query.trimmed().isEmpty()) {
+			_filter->setText(query);
+		}
 		_filter->updatePlaceholder();
 		applyFilterUpdate(true);
 		_searchTimer.stop();
 		onSearchMessages();
 
 		Local::saveRecentSearchHashtags(query);
+	}
+	if (inChat && from) {
+		setSearchInChat(inChat, from);
+		applyFilterUpdate(true);
 	}
 }
 

@@ -1561,6 +1561,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			});
 		}
+		const auto peer = item->history()->peer;
+		if (peer->isChat() || peer->isMegagroup()) {
+			_menu->addAction(tr::lng_context_show_messages_from(tr::now), [=] {
+				App::searchByHashtag(QString(), peer, item->from()->asUser());
+			});
+		}
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
 		_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
