@@ -606,17 +606,33 @@ void Message::paintFromName(
 
 void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const {
 	if (displayForwardedFrom()) {
-		const auto &serviceFont = st::msgServiceFont;
-		const auto &serviceName = st::msgServiceNameFont;
-
 		const auto item = message();
 		const auto outbg = hasOutLayout();
-		p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
-		p.setFont(serviceFont);
-
 		auto forwarded = item->Get<HistoryMessageForwarded>();
-		auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * serviceFont->height);
-		p.setTextPalette(selected ? (outbg ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (outbg ? st::outFwdTextPalette : st::inFwdTextPalette));
+
+		const auto &serviceFont = st::msgServiceFont;
+		const auto &serviceName = st::msgServiceNameFont;
+		const auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * serviceFont->height);
+
+		p.setPen(!forwarded->psaType.isEmpty()
+			? st::boxTextFgGood
+			: selected
+			? (outbg
+				? st::msgOutServiceFgSelected
+				: st::msgInServiceFgSelected)
+			: (outbg
+				? st::msgOutServiceFg
+				: st::msgInServiceFg));
+		p.setFont(serviceFont);
+		p.setTextPalette(!forwarded->psaType.isEmpty()
+			? st::historyPsaForwardPalette
+			: selected
+			? (outbg
+				? st::outFwdTextPaletteSelected
+				: st::inFwdTextPaletteSelected)
+			: (outbg
+				? st::outFwdTextPalette
+				: st::inFwdTextPalette));
 		forwarded->text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
@@ -1367,8 +1383,12 @@ bool Message::hasFromName() const {
 }
 
 bool Message::displayFromName() const {
-	if (!hasFromName()) return false;
-	if (isAttachedToPrevious()) return false;
+	if (!hasFromName() || isAttachedToPrevious()) {
+		return false;
+	}
+	if (const auto forwarded = message()->Get<HistoryMessageForwarded>()) {
+		return forwarded->psaType.isEmpty();
+	}
 	return true;
 }
 

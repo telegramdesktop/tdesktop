@@ -2269,23 +2269,23 @@ void HistoryWidget::refreshAboutTopPromotion() {
 			: Lang::Current().getNonDefaultValue(
 				kPsaAboutPrefix + type.toUtf8());
 		const auto text = type.isEmpty()
-			? tr::lng_proxy_sponsor_about(tr::now)
+			? tr::lng_proxy_sponsor_about(tr::now, Ui::Text::RichLangValue)
 			: custom.isEmpty()
-			? tr::lng_about_psa_default(tr::now)
-			: custom;
+			? tr::lng_about_psa_default(tr::now, Ui::Text::RichLangValue)
+			: Ui::Text::RichLangValue(custom);
 		if (!_aboutTopPromotion || _aboutTopPromotionText != text) {
 			_aboutTopPromotionText = text;
 			_aboutTopPromotion = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				this,
 				object_ptr<Ui::FlatLabel>(
 					this,
-					_aboutTopPromotionText,
+					rpl::single(_aboutTopPromotionText),
 					st::historyAboutProxy),
 				st::historyAboutProxyPadding);
 		}
 		_aboutTopPromotion->show();
 	} else {
-		_aboutTopPromotionText = QString();
+		_aboutTopPromotionText = TextWithEntities();
 		_aboutTopPromotion.destroy();
 	}
 }
