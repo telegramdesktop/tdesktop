@@ -36,8 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_settings.h"
 
-#include <QtGui/QDesktopServices>
-
 namespace Settings {
 
 void SetupLanguageButton(
@@ -271,7 +269,7 @@ void SetupInterfaceScale(
 }
 
 void OpenFaq() {
-	QDesktopServices::openUrl(telegramFaqLink());
+	File::OpenUrl(telegramFaqLink());
 }
 
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {

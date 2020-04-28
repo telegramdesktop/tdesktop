@@ -118,6 +118,13 @@ QString filedialogNextFilename(
 
 namespace File {
 
+void OpenUrl(const QString &url) {
+	crl::on_main([=] {
+		Ui::PreventDelayedActivation();
+		Platform::File::UnsafeOpenUrl(url);
+	});
+}
+
 void OpenEmailLink(const QString &email) {
 	crl::on_main([=] {
 		Ui::PreventDelayedActivation();
@@ -161,6 +168,10 @@ QString DefaultDownloadPath() {
 }
 
 namespace internal {
+
+void UnsafeOpenUrlDefault(const QString &url) {
+	QDesktopServices::openUrl(url);
+}
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {
 	auto url = QUrl(qstr("mailto:") + email);

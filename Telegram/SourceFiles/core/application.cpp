@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
+#include "core/file_utilities.h"
 #include "main/main_account.h"
 #include "media/view/media_view_overlay_widget.h"
 #include "mtproto/dc_options.h"
@@ -300,7 +301,7 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 	if (cUseExternalVideoPlayer()
 		&& document->isVideoFile()
 		&& document->loaded()) {
-		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
+		File::Launch(document->location(false).fname);
 	} else {
 		_mediaView->showDocument(document, item);
 		_mediaView->activateWindow();
