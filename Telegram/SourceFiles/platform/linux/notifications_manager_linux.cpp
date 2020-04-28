@@ -31,7 +31,50 @@ constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
+bool NotificationsSupported = false;
 bool InhibitedNotSupported = false;
+
+void ComputeSupported(bool wait = false) {
+	const auto message = QDBusMessage::createMethodCall(
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kInterface.utf16(),
+		qsl("GetServerInformation"));
+
+	auto async = QDBusConnection::sessionBus().asyncCall(message);
+	auto watcher = new QDBusPendingCallWatcher(async);
+
+	QObject::connect(
+		watcher,
+		&QDBusPendingCallWatcher::finished,
+		[=](QDBusPendingCallWatcher *call) {
+			QDBusPendingReply<QString, QString, QString, QString> reply = *call;
+
+			if (reply.isValid()) {
+				NotificationsSupported = true;
+			}
+
+			call->deleteLater();
+		});
+
+	if (wait) {
+		watcher->waitForFinished();
+	}
+}
+
+void GetSupported() {
+	static auto Checked = false;
+	if (Checked) {
+		return;
+	}
+	Checked = true;
+
+	if (Global::NativeNotifications()) {
+		ComputeSupported(true);
+	} else {
+		ComputeSupported();
+	}
+}
 
 std::vector<QString> ComputeServerInformation() {
 	std::vector<QString> serverInformation;
@@ -427,20 +470,22 @@ bool SkipToast() {
 
 bool Supported() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto Available = !GetServerInformation().empty();
-	return Available;
-#else // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+	return NotificationsSupported;
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
 	return false;
-#endif // TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	GetSupported();
+
 	if (Global::NativeNotifications() && Supported()) {
 		return std::make_unique<Manager>(system);
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
 	return nullptr;
 }
 
