@@ -30,6 +30,7 @@ QString filedialogNextFilename(
 namespace File {
 
 // Those functions are async wrappers to Platform::File::Unsafe* calls.
+void OpenUrl(const QString &url);
 void OpenEmailLink(const QString &email);
 void OpenWith(const QString &filepath, QPoint menuPosition);
 void Launch(const QString &filepath);
@@ -43,6 +44,7 @@ inline QString UrlToLocalDefault(const QUrl &url) {
 	return url.toLocalFile();
 }
 
+void UnsafeOpenUrlDefault(const QString &url);
 void UnsafeOpenEmailLinkDefault(const QString &email);
 void UnsafeLaunchDefault(const QString &filepath);
 
