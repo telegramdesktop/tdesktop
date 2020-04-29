@@ -582,6 +582,9 @@ void InnerWidget::elementShowPollResults(
 	FullMsgId context) {
 }
 
+void InnerWidget::elementShowTooltip(const TextWithEntities &text) {
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

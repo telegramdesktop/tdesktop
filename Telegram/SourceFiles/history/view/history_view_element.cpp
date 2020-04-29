@@ -99,6 +99,10 @@ void SimpleElementDelegate::elementShowPollResults(
 	FullMsgId context) {
 }
 
+void SimpleElementDelegate::elementShowTooltip(
+	const TextWithEntities &text) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

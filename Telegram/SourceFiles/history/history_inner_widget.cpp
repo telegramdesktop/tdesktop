@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 
 #include <rpl/merge.h>
-#include "styles/style_history.h"
 #include "core/file_utilities.h"
 #include "core/crash_reports.h"
 #include "history/history.h"
@@ -57,6 +56,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_history.h"
+#include "styles/style_window.h" // st::windowMinWidth
 
 #include <QtGui/QClipboard>
 #include <QtWidgets/QApplication>
@@ -85,6 +86,13 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 		}
 	}
 	return start;
+}
+
+[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
+	return std::clamp(
+		crl::time(1000) * text.text.size() / 14,
+		crl::time(1000) * 5,
+		crl::time(1000) * 8);
 }
 
 } // namespace
@@ -2481,6 +2489,16 @@ void HistoryInner::elementShowPollResults(
 	_controller->showPollResults(poll, context);
 }
 
+void HistoryInner::elementShowTooltip(const TextWithEntities &text) {
+	auto config = Ui::Toast::Config();
+	config.multiline = config.dark = true;
+	config.minWidth = st::msgMinWidth;
+	config.maxWidth = st::windowMinWidth;
+	config.text = text;
+	config.durationMs = CountToastDuration(config.text);
+	Ui::Toast::Show(_widget, config);
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3346,6 +3364,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				FullMsgId context) override {
 			if (Instance) {
 				Instance->elementShowPollResults(poll, context);
+			}
+		}
+		void elementShowTooltip(const TextWithEntities &text) override {
+			if (Instance) {
+				Instance->elementShowTooltip(text);
 			}
 		}
 

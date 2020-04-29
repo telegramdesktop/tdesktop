@@ -394,6 +394,15 @@ historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOut
 
 historyPeerUserpicFont: semiboldFont;
 
+historyPsaIconIn: icon {{ "message_psa_tooltip", msgFileThumbLinkInFg }};
+historyPsaIconInSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkInFgSelected }};
+historyPsaIconOut: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFg }};
+historyPsaIconOutSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFgSelected }};
+historyPsaIconSkip1: 23px;
+historyPsaIconSkip2: 23px;
+historyPsaIconPosition1: point(-5px, 0px);
+historyPsaIconPosition2: point(-5px, 0px);
+
 historyStatusFg: windowSubTextFg;
 historyStatusFgActive: windowActiveTextFg;
 historyStatusFgTyping: historyStatusFgActive;

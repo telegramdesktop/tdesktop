@@ -602,6 +602,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 "lng_badge_psa_default" = "PSA";
 "lng_about_psa_default" = "This message provides you with a public service announcement. To remove it from your chats list, right click it and select **Hide**.";
+"lng_tooltip_psa_default" = "This message provides you with a public service announcement.";
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_no_blocked_users" = "None";

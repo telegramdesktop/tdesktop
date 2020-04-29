@@ -122,13 +122,6 @@ void CountNicePercent(
 	}
 }
 
-[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
-	return std::clamp(
-		crl::time(1000) * text.text.size() / 14,
-		crl::time(1000) * 5,
-		crl::time(1000) * 8);
-}
-
 } // namespace
 
 struct Poll::AnswerAnimation {
@@ -443,16 +436,9 @@ void Poll::checkQuizAnswered() {
 }
 
 void Poll::showSolution() const {
-	if (_poll->solution.text.isEmpty()) {
-		return;
+	if (!_poll->solution.text.isEmpty()) {
+		_parent->delegate()->elementShowTooltip(_poll->solution);
 	}
-	auto config = Ui::Toast::Config();
-	config.multiline = config.dark = true;
-	config.minWidth = st::msgMinWidth;
-	config.maxWidth = st::windowMinWidth;
-	config.text = _poll->solution;
-	config.durationMs = CountToastDuration(config.text);
-	Ui::Toast::Show(config);
 }
 
 void Poll::updateRecentVoters() {

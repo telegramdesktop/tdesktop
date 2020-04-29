@@ -1158,6 +1158,9 @@ void ListWidget::elementShowPollResults(
 	FullMsgId context) {
 }
 
+void ListWidget::elementShowTooltip(const TextWithEntities &text) {
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

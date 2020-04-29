@@ -85,6 +85,7 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
+	void elementShowTooltip(const TextWithEntities &text);
 
 	void updateBotInfo(bool recount = true);
 

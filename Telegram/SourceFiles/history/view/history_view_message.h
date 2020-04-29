@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_element.h"
+#include "base/weak_ptr.h"
 
 class HistoryMessage;
 struct HistoryMessageEdited;
+struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
@@ -28,7 +30,7 @@ struct LogEntryOriginal
 
 };
 
-class Message : public Element {
+class Message : public Element, public base::has_weak_ptr {
 public:
 	Message(
 		not_null<ElementDelegate*> delegate,
@@ -151,6 +153,9 @@ private:
 	int plainMaxWidth() const;
 
 	WebPage *logEntryOriginal() const;
+
+	void ensurePsaTooltipLink(
+		not_null<const HistoryMessageForwarded*> forwarded) const;
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;

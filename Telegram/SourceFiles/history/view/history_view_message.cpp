@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/history.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
+#include "ui/text/text_entity.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -31,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
+
+const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
 
 class KeyboardStyle : public ReplyKeyboard::Style {
 public:
@@ -311,7 +315,10 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, st::msgPadding.left() + via->maxWidth + st::msgPadding.right());
 			}
 			if (displayForwardedFrom()) {
-				auto namew = st::msgPadding.left() + forwarded->text.maxWidth() + st::msgPadding.right();
+				const auto skip1 = forwarded->psaType.isEmpty()
+					? 0
+					: st::historyPsaIconSkip1;
+				auto namew = st::msgPadding.left() + forwarded->text.maxWidth() + skip1 + st::msgPadding.right();
 				if (via) {
 					namew += st::msgServiceFont->spacew + via->maxWidth;
 				}
@@ -608,12 +615,21 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 	if (displayForwardedFrom()) {
 		const auto item = message();
 		const auto outbg = hasOutLayout();
-		auto forwarded = item->Get<HistoryMessageForwarded>();
+		const auto forwarded = item->Get<HistoryMessageForwarded>();
 
 		const auto &serviceFont = st::msgServiceFont;
 		const auto &serviceName = st::msgServiceNameFont;
-		const auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * serviceFont->height);
-
+		const auto skip1 = forwarded->psaType.isEmpty()
+			? 0
+			: st::historyPsaIconSkip1;
+		const auto skip2 = forwarded->psaType.isEmpty()
+			? 0
+			: st::historyPsaIconSkip2;
+		const auto fits = (forwarded->text.maxWidth() + skip1 <= trect.width());
+		const auto skip = fits ? skip1 : skip2;
+		const auto useWidth = trect.width() - skip;
+		const auto countedHeight = forwarded->text.countHeight(useWidth);
+		const auto breakEverywhere = (countedHeight > 2 * serviceFont->height);
 		p.setPen(!forwarded->psaType.isEmpty()
 			? st::boxTextFgGood
 			: selected
@@ -633,10 +649,26 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 			: (outbg
 				? st::outFwdTextPalette
 				: st::inFwdTextPalette));
-		forwarded->text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
+		forwarded->text.drawElided(p, trect.x(), trect.y(), useWidth, 2, style::al_left, 0, -1, 0, breakEverywhere);
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
-		trect.setY(trect.y() + (((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
+		if (!forwarded->psaType.isEmpty()) {
+			const auto &icon = selected
+				? (outbg
+					? st::historyPsaIconOutSelected
+					: st::historyPsaIconInSelected)
+				: (outbg ? st::historyPsaIconOut : st::historyPsaIconIn);
+			const auto position = fits
+				? st::historyPsaIconPosition1
+				: st::historyPsaIconPosition2;
+			icon.paint(
+				p,
+				trect.x() + trect.width() - position.x() - icon.width(),
+				trect.y() + position.y(),
+				trect.width());
+		}
+
+		trect.setY(trect.y() + ((fits ? 1 : 2) * serviceFont->height));
 	}
 }
 
@@ -959,17 +991,41 @@ bool Message::getStateForwardedInfo(
 		StateRequest request) const {
 	if (displayForwardedFrom()) {
 		const auto item = message();
-		auto forwarded = item->Get<HistoryMessageForwarded>();
-		auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+		const auto forwarded = item->Get<HistoryMessageForwarded>();
+		const auto skip1 = forwarded->psaType.isEmpty()
+			? 0
+			: st::historyPsaIconSkip1;
+		const auto skip2 = forwarded->psaType.isEmpty()
+			? 0
+			: st::historyPsaIconSkip2;
+		const auto fits = (forwarded->text.maxWidth() <= (trect.width() - skip1));
+		const auto fwdheight = (fits ? 1 : 2) * st::semiboldFont->height;
 		if (point.y() >= trect.top() && point.y() < trect.top() + fwdheight) {
-			auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
+			if (skip1) {
+				const auto &icon = st::historyPsaIconIn;
+				const auto position = fits
+					? st::historyPsaIconPosition1
+					: st::historyPsaIconPosition2;
+				const auto iconRect = QRect(
+					trect.x() + trect.width() - position.x() - icon.width(),
+					trect.y() + position.y(),
+					icon.width(),
+					icon.height());
+				if (iconRect.contains(point)) {
+					ensurePsaTooltipLink(forwarded);
+					outResult->link = forwarded->psaTooltipLink;
+					return true;
+				}
+			}
+			const auto useWidth = trect.width() - (fits ? skip1 : skip2);
+			const auto breakEverywhere = (forwarded->text.countHeight(useWidth) > 2 * st::semiboldFont->height);
 			auto textRequest = request.forText();
 			if (breakEverywhere) {
 				textRequest.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
 			}
 			*outResult = TextState(item, forwarded->text.getState(
 				point - trect.topLeft(),
-				trect.width(),
+				useWidth,
 				textRequest));
 			outResult->symbol = 0;
 			outResult->afterSymbol = false;
@@ -983,6 +1039,29 @@ bool Message::getStateForwardedInfo(
 		trect.setTop(trect.top() + fwdheight);
 	}
 	return false;
+}
+
+void Message::ensurePsaTooltipLink(
+		not_null<const HistoryMessageForwarded*> forwarded) const {
+	if (forwarded->psaTooltipLink) {
+		return;
+	}
+	const auto type = forwarded->psaType;
+	const auto handler = [=] {
+		const auto custom = type.isEmpty()
+			? QString()
+			: Lang::Current().getNonDefaultValue(
+				kPsaTooltipPrefix + type.toUtf8());
+		auto text = Ui::Text::RichLangValue(
+			(custom.isEmpty()
+				? tr::lng_tooltip_psa_default(tr::now)
+				: custom));
+		TextUtilities::ParseEntities(text, 0);
+		delegate()->elementShowTooltip(text);
+	};
+	forwarded->psaTooltipLink
+		= std::make_shared<LambdaClickHandler>(
+			crl::guard(this, handler));
 }
 
 bool Message::getStateReplyInfo(
@@ -1780,8 +1859,14 @@ int Message::resizeContentGetHeight(int newWidth) {
 		}
 
 		if (displayForwardedFrom()) {
-			auto forwarded = item->Get<HistoryMessageForwarded>();
-			auto fwdheight = ((forwarded->text.maxWidth() > (contentWidth - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
+			const auto forwarded = item->Get<HistoryMessageForwarded>();
+			const auto skip1 = forwarded->psaType.isEmpty()
+				? 0
+				: st::historyPsaIconSkip1;
+			const auto skip2 = forwarded->psaType.isEmpty()
+				? 0
+				: st::historyPsaIconSkip2;
+			const auto fwdheight = ((forwarded->text.maxWidth() > (contentWidth - st::msgPadding.left() - st::msgPadding.right() - skip1)) ? 2 : 1) * st::semiboldFont->height;
 			newHeight += fwdheight;
 		}
 

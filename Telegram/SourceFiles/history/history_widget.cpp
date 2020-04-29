@@ -4202,6 +4202,7 @@ void HistoryWidget::moveFieldControls() {
 	}
 
 	if (_aboutTopPromotion) {
+		_aboutTopPromotion->resizeToWidth(width());
 		_aboutTopPromotion->moveToLeft(
 			0,
 			fullWidthButtonRect.y() - _aboutTopPromotion->height());
@@ -5224,7 +5225,6 @@ void HistoryWidget::updateHistoryGeometry(
 		}
 	}
 	if (_aboutTopPromotion) {
-		_aboutTopPromotion->resizeToWidth(width());
 		newScrollHeight -= _aboutTopPromotion->height();
 	}
 	if (newScrollHeight <= 0) {
