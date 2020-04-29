@@ -342,7 +342,7 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 		_topPromotionNextRequestTime);
 
 	proxy.match([&](const MTPDhelp_promoDataEmpty &data) {
-		_session->data().setTopPromoted(nullptr, false, QString());
+		_session->data().setTopPromoted(nullptr, QString(), QString());
 	}, [&](const MTPDhelp_promoData &data) {
 		_session->data().processChats(data.vchats());
 		_session->data().processUsers(data.vusers());

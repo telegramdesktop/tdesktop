@@ -72,9 +72,11 @@ public:
 	void fill();
 
 private:
-	bool showInfo();
-	bool showToggleArchived();
-	bool showTogglePin();
+	[[nodiscard]] bool showInfo();
+	[[nodiscard]] bool showHidePromotion();
+	[[nodiscard]] bool showToggleArchived();
+	[[nodiscard]] bool showTogglePin();
+	void addHidePromotion();
 	void addTogglePin();
 	void addInfo();
 	//void addSearch();
@@ -248,6 +250,16 @@ bool Filler::showInfo() {
 	return false;
 }
 
+bool Filler::showHidePromotion() {
+	if (_source != PeerMenuSource::ChatsList) {
+		return false;
+	}
+	const auto history = _peer->owner().historyLoaded(_peer);
+	return history
+		&& history->useTopPromotion()
+		&& !history->topPromotionType().isEmpty();
+}
+
 bool Filler::showToggleArchived() {
 	if (_source != PeerMenuSource::ChatsList) {
 		return false;
@@ -267,6 +279,16 @@ bool Filler::showTogglePin() {
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
 	return history && !history->fixedOnTopIndex();
+}
+
+void Filler::addHidePromotion() {
+	const auto history = _peer->owner().history(_peer);
+	_addAction(tr::lng_context_hide_psa(tr::now), [=] {
+		history->cacheTopPromotion(false, QString(), QString());
+		history->session().api().request(MTPhelp_HidePromoData(
+			history->peer->input
+		)).send();
+	});
 }
 
 void Filler::addTogglePin() {
@@ -571,6 +593,9 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 }
 
 void Filler::fill() {
+	if (showHidePromotion()) {
+		addHidePromotion();
+	}
 	if (showToggleArchived()) {
 		addToggleArchive();
 	}
