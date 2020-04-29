@@ -200,13 +200,13 @@ autoDownloadLimitButton: SettingsButton(settingsButton) {
 settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
 }
-settingsAudioVolumeSliderPadding: margins(23px, 5px, 20px, 10px);
+settingsAudioVolumeSliderPadding: margins(22px, 5px, 20px, 10px);
 settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
 	font: boxTextFont;
 	textFg: windowBoldFg;
 }
 settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
-settingsLevelMeterPadding: margins(23px, 10px, 20px, 10px);
+settingsLevelMeterPadding: margins(22px, 10px, 20px, 10px);
 
 settingsForwardPrivacyPadding: 8px;
 settingsForwardPrivacyArrowSkip: 32px;

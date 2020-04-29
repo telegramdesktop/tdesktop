@@ -252,7 +252,7 @@ peerListBox: PeerList(defaultPeerList) {
 }
 
 localStorageRowHeight: 50px;
-localStorageRowPadding: margins(23px, 5px, 20px, 5px);
+localStorageRowPadding: margins(22px, 5px, 20px, 5px);
 localStorageRowTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	maxHeight: 20px;
@@ -275,11 +275,11 @@ localStorageClear: defaultBoxButton;
 localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
 	font: boxTextFont;
 }
-localStorageLimitLabelMargin: margins(23px, 10px, 20px, 5px);
+localStorageLimitLabelMargin: margins(22px, 10px, 20px, 5px);
 localStorageLimitSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
 }
-localStorageLimitMargin: margins(23px, 5px, 20px, 10px);
+localStorageLimitMargin: margins(22px, 5px, 20px, 10px);
 
 shareRowsTop: 12px;
 shareRowHeight: 108px;
@@ -340,7 +340,7 @@ sessionsHeight: 350px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
-sessionPadding: margins(23px, 10px, 23px, 0px);
+sessionPadding: margins(22px, 10px, 22px, 0px);
 sessionNameFont: msgNameFont;
 sessionNameFg: boxTextFg;
 sessionWhenFont: msgDateFont;
@@ -428,7 +428,7 @@ aboutLabel: FlatLabel(defaultFlatLabel) {
 }
 
 autoDownloadTopDelta: 10px;
-autoDownloadTitlePosition: point(23px, 18px);
+autoDownloadTitlePosition: point(22px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 autoDownloadLimitSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
@@ -562,7 +562,7 @@ passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 
-usernamePadding: margins(23px, 6px, 21px, 12px);
+usernamePadding: margins(22px, 6px, 21px, 12px);
 usernameSkip: 49px;
 usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
 }
@@ -642,9 +642,9 @@ rightsToggle: Toggle(defaultToggle) {
 }
 rightsDividerHeight: boxDividerHeight;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
-rightsHeaderMargin: margins(23px, 0px, 23px, 8px);
-rightsToggleMargin: margins(23px, 8px, 23px, 8px);
-rightsAboutMargin: margins(23px, 8px, 23px, 8px);
+rightsHeaderMargin: margins(22px, 0px, 22px, 8px);
+rightsToggleMargin: margins(22px, 8px, 22px, 8px);
+rightsAboutMargin: margins(22px, 8px, 22px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(60px, 60px);
 	photoSize: 60px;
@@ -773,8 +773,8 @@ markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
 termsContent: FlatLabel(defaultFlatLabel) {
 	minWidth: 285px;
 }
-termsPadding: margins(23px, 4px, 16px, 16px);
-termsAgePadding: margins(23px, 16px, 16px, 0px);
+termsPadding: margins(22px, 4px, 16px, 16px);
+termsAgePadding: margins(22px, 16px, 16px, 0px);
 
 themesSmallSkip: 10px;
 themesBackgroundSize: 120px;
@@ -860,7 +860,7 @@ createPollWarning: FlatLabel(defaultFlatLabel) {
 	}
 }
 createPollWarningPosition: point(16px, 6px);
-createPollCheckboxMargin: margins(23px, 10px, 23px, 10px);
+createPollCheckboxMargin: margins(22px, 10px, 22px, 10px);
 createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
 
 callSettingsButton: IconButton {

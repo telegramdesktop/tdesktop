@@ -271,7 +271,7 @@ autocompleteRowAnswer: defaultTextStyle;
 manageEmojiPreview: 22px;
 manageEmojiPreviewWidth: 48px;
 manageEmojiPreviewHeight: 48px;
-manageEmojiPreviewPadding: margins(23px, 9px, 19px, 9px);
+manageEmojiPreviewPadding: margins(22px, 9px, 19px, 9px);
 manageEmojiMarginRight: 21px;
 manageEmojiNameTop: 3px;
 manageEmojiStatusTop: 25px;
