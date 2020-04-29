@@ -1965,6 +1965,9 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (folder) {
 		folder->registerOne(this);
 	}
+	Notify::peerUpdatedDelayed(
+		peer,
+		Notify::PeerUpdate::Flag::FolderChanged);
 }
 
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {

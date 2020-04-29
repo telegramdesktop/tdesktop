@@ -384,20 +384,30 @@ void Filler::addToggleUnreadMark() {
 
 void Filler::addToggleArchive() {
 	const auto peer = _peer;
-	const auto archived = [&] {
+	const auto isArchived = [=] {
 		const auto history = peer->owner().historyLoaded(peer);
 		return history && history->folder();
-	}();
+	};
 	const auto toggle = [=] {
 		ToggleHistoryArchived(
 			peer->owner().history(peer),
-			!archived);
+			!isArchived());
 	};
-	_addAction(
-		(archived
+	const auto archiveAction = _addAction(
+		(isArchived()
 			? tr::lng_archived_remove(tr::now)
 			: tr::lng_archived_add(tr::now)),
 		toggle);
+
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(archiveAction);
+	Notify::PeerUpdateViewer(
+		peer,
+		Notify::PeerUpdate::Flag::FolderChanged
+	) | rpl::start_with_next([=] {
+		archiveAction->setText(isArchived()
+			? tr::lng_archived_remove(tr::now)
+			: tr::lng_archived_add(tr::now));
+	}, *lifetime);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
