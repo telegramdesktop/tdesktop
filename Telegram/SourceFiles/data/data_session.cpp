@@ -3732,12 +3732,12 @@ void Session::setTopPromoted(
 			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
 				_topPromoted,
-				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+				Notify::PeerUpdate::Flag::TopPromotedChanged);
 		}
 		if (changed && old) {
 			Notify::peerUpdatedDelayed(
 				old,
-				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+				Notify::PeerUpdate::Flag::TopPromotedChanged);
 		}
 	}
 }

@@ -520,13 +520,13 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::MigrationChanged
 		| UpdateFlag::UnavailableReasonChanged
 		| UpdateFlag::PinnedMessageChanged
+		| UpdateFlag::TopPromotedChanged
 		| UpdateFlag::UserIsBlocked
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged
 		| UpdateFlag::UserOnlineChanged
 		| UpdateFlag::NotificationsEnabled
 		| UpdateFlag::ChannelAmIn
-		| UpdateFlag::ChannelPromotedChanged
 		| UpdateFlag::ChannelLinkedChat
 		| UpdateFlag::ChannelSlowmode
 		| UpdateFlag::ChannelLocalMessages;
@@ -564,7 +564,7 @@ HistoryWidget::HistoryWidget(
 					this->update();
 				}
 			}
-			if (update.flags & UpdateFlag::ChannelPromotedChanged) {
+			if (update.flags & UpdateFlag::TopPromotedChanged) {
 				refreshAboutTopPromotion();
 				updateHistoryGeometry();
 				updateControlsVisibility();
@@ -5210,10 +5210,6 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
-		if (_aboutTopPromotion) {
-			_aboutTopPromotion->resizeToWidth(width());
-			newScrollHeight -= _aboutTopPromotion->height();
-		}
 	} else {
 		if (editingMessage() || _canSendMessages) {
 			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
@@ -5226,6 +5222,10 @@ void HistoryWidget::updateHistoryGeometry(
 		if (_kbShown) {
 			newScrollHeight -= _kbScroll->height();
 		}
+	}
+	if (_aboutTopPromotion) {
+		_aboutTopPromotion->resizeToWidth(width());
+		newScrollHeight -= _aboutTopPromotion->height();
 	}
 	if (newScrollHeight <= 0) {
 		return;

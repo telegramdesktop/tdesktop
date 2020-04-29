@@ -2585,6 +2585,8 @@ bool History::useTopPromotion() const {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
 		return !isPinnedDialog(FilterId()) && !channel->amIn();
+	} else if (const auto user = peer->asUser()) {
+		return !isPinnedDialog(FilterId()) && user->isBot();
 	}
 	return false;
 }
@@ -2615,6 +2617,10 @@ bool History::shouldBeInChatList() const {
 		return chat->amIn()
 			|| !lastMessageKnown()
 			|| (lastMessage() != nullptr);
+	} else if (const auto user = peer->asUser()) {
+		if (user->isBot() && isTopPromoted()) {
+			return true;
+		}
 	}
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
