@@ -379,6 +379,17 @@ botKbTinyButton: BotKeyboardButton {
 botKbScroll: defaultSolidScroll;
 
 historyDateFadeDuration: 200;
+historyDiceToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+	maxWidth: 640px;
+}
+historyErrorToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+}
+historyInfoToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+	maxWidth: 380px;
+}
 
 historyPhotoLeft: 14px;
 historyPhotoBubbleMinWidth: 200px;

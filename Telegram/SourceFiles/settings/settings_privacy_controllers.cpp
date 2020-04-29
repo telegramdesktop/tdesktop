@@ -828,7 +828,7 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 		}
 		Unexpected("Option value in ForwardsPrivacyController.");
 	}();
-	const auto &font = st::toastTextStyle.font;
+	const auto &font = st::defaultToast.style.font;
 	const auto textWidth = font->width(text);
 	const auto arrowSkip = st::settingsForwardPrivacyArrowSkip;
 	const auto arrowSize = st::settingsForwardPrivacyArrowSize;

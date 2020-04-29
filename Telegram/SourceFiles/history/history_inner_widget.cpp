@@ -2484,19 +2484,18 @@ void HistoryInner::elementStartStickerLoop(
 }
 
 void HistoryInner::elementShowPollResults(
-		not_null<PollData*> poll,
-		FullMsgId context) {
-	_controller->showPollResults(poll, context);
+	not_null<PollData*> poll,
+	FullMsgId context) {
 }
 
 void HistoryInner::elementShowTooltip(const TextWithEntities &text) {
-	auto config = Ui::Toast::Config();
-	config.multiline = config.dark = true;
-	config.minWidth = st::msgMinWidth;
-	config.maxWidth = st::windowMinWidth;
-	config.text = text;
-	config.durationMs = CountToastDuration(config.text);
-	Ui::Toast::Show(_widget, config);
+	Ui::Toast::Show(_widget, Ui::Toast::Config{
+		.text = text,
+		.st = &st::historyInfoToast,
+		.durationMs = CountToastDuration(text),
+		.multiline = true,
+		.dark = true,
+	});
 }
 
 auto HistoryInner::getSelectionState() const

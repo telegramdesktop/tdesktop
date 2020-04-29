@@ -236,11 +236,11 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 }
 
 void ShowErrorToast(const QString &text) {
-	auto config = Ui::Toast::Config();
-	config.multiline = true;
-	config.minWidth = st::msgMinWidth;
-	config.text = { text };
-	Ui::Toast::Show(config);
+	Ui::Toast::Show(Ui::Toast::Config{
+		.text = { text },
+		.st = &st::historyErrorToast,
+		.multiline = true,
+	});
 }
 
 } // namespace

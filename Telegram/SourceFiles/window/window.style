@@ -310,6 +310,11 @@ windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
 windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
 
+windowArchiveToast: Toast(defaultToast) {
+	minWidth: boxWideWidth;
+	maxWidth: boxWideWidth;
+}
+
 // Mac specific
 
 macAccessoryWidth: 450.;

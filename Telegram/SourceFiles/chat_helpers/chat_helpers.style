@@ -218,8 +218,11 @@ stickerGroupCategoryAbout: defaultTextStyle;
 stickerGroupCategoryAddMargin: margins(0px, 10px, 0px, 5px);
 stickerGroupCategoryAdd: stickersTrendingAdd;
 
-stickersToastMaxWidth: 340px;
-stickersToastPadding: margins(16px, 13px, 16px, 12px);
+stickersToast: Toast(defaultToast) {
+	minWidth: 340px;
+	maxWidth: 340px;
+	padding: margins(16px, 13px, 16px, 12px);
+}
 
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 

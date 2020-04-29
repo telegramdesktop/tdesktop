@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
+#include "styles/style_history.h" // st::historyErrorToast
 
 #include <QtWidgets/QAction>
 
@@ -654,12 +655,12 @@ void FolderFiller::addTogglesForArchive() {
 	});
 
 	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
-		auto toast = Ui::Toast::Config();
-		toast.text = { tr::lng_context_archive_to_menu_info(tr::now) };
-		toast.minWidth = toast.maxWidth = st::boxWideWidth;
-		toast.multiline = true;
-		toast.durationMs = kArchivedToastDuration;
-		Ui::Toast::Show(toast);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { tr::lng_context_archive_to_menu_info(tr::now) },
+			.st = &st::windowArchiveToast,
+			.durationMs = kArchivedToastDuration,
+			.multiline = true,
+		});
 
 		controller->session().settings().setArchiveInMainMenu(
 			!controller->session().settings().archiveInMainMenu());
@@ -949,11 +950,11 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		session->data().idsToItems(items),
 		TextWithTags());
 	if (!error.isEmpty()) {
-		auto config = Ui::Toast::Config();
-		config.multiline = true;
-		config.minWidth = st::msgMinWidth;
-		config.text = { error };
-		Ui::Toast::Show(config);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { error },
+			.st = &st::historyErrorToast,
+			.multiline = true,
+		});
 		return { nullptr };
 	}
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
@@ -1060,16 +1061,16 @@ void PeerMenuAddMuteAction(
 //
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
-		auto toast = Ui::Toast::Config();
-		toast.text = { archived
-			? tr::lng_archived_added(tr::now)
-			: tr::lng_archived_removed(tr::now) };
-		toast.minWidth = toast.maxWidth = st::boxWideWidth;
-		toast.multiline = true;
-		if (archived) {
-			toast.durationMs = kArchivedToastDuration;
-		}
-		Ui::Toast::Show(toast);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { (archived
+				? tr::lng_archived_added(tr::now)
+				: tr::lng_archived_removed(tr::now)) },
+			.st = &st::windowArchiveToast,
+			.durationMs = (archived
+				? kArchivedToastDuration
+				: Ui::Toast::kDefaultDuration),
+			.multiline = true,
+		});
 	};
 	history->session().api().toggleHistoryArchived(
 		history,
