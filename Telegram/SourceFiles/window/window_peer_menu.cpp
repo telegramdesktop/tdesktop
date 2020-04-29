@@ -209,6 +209,16 @@ void TogglePinnedDialog(Dialogs::Key key, FilterId filterId) {
 		return TogglePinnedDialog(key);
 	}
 	const auto owner = &key.entry()->owner();
+
+	// This can happen when you remove this filter from another client.
+	if (!ranges::contains(
+		(&owner->session())->data().chatsFilters().list(),
+		filterId,
+		&Data::ChatFilter::id)) {
+		Ui::Toast::Show(tr::lng_cant_do_this(tr::now));
+		return;
+	}
+
 	const auto isPinned = !key.entry()->isPinnedDialog(filterId);
 	if (isPinned && PinnedLimitReached(key, filterId)) {
 		return;
