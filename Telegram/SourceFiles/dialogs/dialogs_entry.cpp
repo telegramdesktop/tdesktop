@@ -86,34 +86,20 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 	}
 }
 
-void Entry::cacheTopPromoted(
-		bool promoted,
-		const QString &type,
-		const QString &message) {
-	if (_isTopPromoted != promoted
-		|| _topPromotedType != type
-		|| _topPromotedMessage != message) {
-		_isTopPromoted = promoted;
-		_topPromotedType = type;
-		_topPromotedMessage = message;
-		updateChatListSortPosition();
-		updateChatListEntry();
-		if (!_isTopPromoted) {
-			updateChatListExistence();
-		}
+void Entry::cacheTopPromoted(bool promoted) {
+	if (_isTopPromoted == promoted) {
+		return;
+	}
+	_isTopPromoted = promoted;
+	updateChatListSortPosition();
+	updateChatListEntry();
+	if (!_isTopPromoted) {
+		updateChatListExistence();
 	}
 }
 
 bool Entry::isTopPromoted() const {
 	return _isTopPromoted;
-}
-
-QString Entry::topPromotionType() const {
-	return _topPromotedType;
-}
-
-QString Entry::topPromotionMessage() const {
-	return _topPromotedMessage;
 }
 
 bool Entry::needUpdateInChatList() const {

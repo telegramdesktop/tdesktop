@@ -325,7 +325,18 @@ void paintRow(
 	auto texttop = st::dialogsPadding.y()
 		+ st::msgNameFont->height
 		+ st::dialogsSkip;
-	if (draft
+	if (promoted && !history->topPromotionMessage().isEmpty()) {
+		auto availableWidth = namewidth;
+		p.setFont(st::dialogsTextFont);
+		if (history->cloudDraftTextCache.isEmpty()) {
+			history->cloudDraftTextCache.setText(
+				st::dialogsTextStyle,
+				history->topPromotionMessage(),
+				Ui::DialogTextOptions());
+		}
+		p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
+		history->cloudDraftTextCache.drawElided(p, nameleft, texttop, availableWidth, 1);
+	} else if (draft
 		|| (supportMode
 			&& Auth().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {

@@ -237,6 +237,13 @@ public:
 		MsgId maxOutboxRead);
 	void dialogEntryApplied();
 
+	void cacheTopPromotion(
+		bool promoted,
+		const QString &type,
+		const QString &message);
+	[[nodiscard]] QString topPromotionType() const;
+	[[nodiscard]] QString topPromotionMessage() const;
+
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
@@ -558,6 +565,9 @@ private:
 	std::optional<QString> _lastSentDraftText;
 	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
+
+	QString _topPromotedMessage;
+	QString _topPromotedType;
 
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, SendAction> _sendActions;

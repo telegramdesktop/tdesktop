@@ -3723,12 +3723,12 @@ void Session::setTopPromoted(
 		|| (history && history->topPromotionMessage() != message)) {
 		if (changed) {
 			if (const auto history = historyLoaded(_topPromoted)) {
-				history->cacheTopPromoted(false, QString(), QString());
+				history->cacheTopPromotion(false, QString(), QString());
 			}
 		}
 		const auto old = std::exchange(_topPromoted, promoted);
 		if (history) {
-			history->cacheTopPromoted(true, type, message);
+			history->cacheTopPromotion(true, type, message);
 			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
 				_topPromoted,

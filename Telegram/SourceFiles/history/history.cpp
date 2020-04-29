@@ -2718,6 +2718,29 @@ void History::dialogEntryApplied() {
 	}
 }
 
+void History::cacheTopPromotion(
+		bool promoted,
+		const QString &type,
+		const QString &message) {
+	const auto changed = (isTopPromoted() != promoted);
+	cacheTopPromoted(promoted);
+	if (_topPromotedType != type || _topPromotedMessage != message) {
+		_topPromotedType = type;
+		_topPromotedMessage = message;
+		cloudDraftTextCache.clear();
+	} else if (changed) {
+		cloudDraftTextCache.clear();
+	}
+}
+
+QString History::topPromotionType() const {
+	return _topPromotedType;
+}
+
+QString History::topPromotionMessage() const {
+	return _topPromotedMessage;
+}
+
 bool History::clearUnreadOnClientSide() const {
 	if (!session().supportMode()) {
 		return false;

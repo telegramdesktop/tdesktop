@@ -120,13 +120,7 @@ public:
 		return lookupPinnedIndex(filterId) != 0;
 	}
 	void cachePinnedIndex(FilterId filterId, int index);
-	void cacheTopPromoted(
-		bool promoted,
-		const QString &type,
-		const QString &message);
 	[[nodiscard]] bool isTopPromoted() const;
-	[[nodiscard]] QString topPromotionType() const;
-	[[nodiscard]] QString topPromotionMessage() const;
 	[[nodiscard]] uint64 sortKeyInChatList(FilterId filterId) const {
 		return filterId
 			? computeSortPosition(filterId)
@@ -197,6 +191,8 @@ protected:
 
 	[[nodiscard]] int lookupPinnedIndex(FilterId filterId) const;
 
+	void cacheTopPromoted(bool promoted);
+
 private:
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(int was, int now);
@@ -214,10 +210,8 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
-	QString _topPromotedMessage;
-	QString _topPromotedType;
-	bool _isTopPromoted = false;
 	TimeId _timeId = 0;
+	bool _isTopPromoted = false;
 
 };
 
