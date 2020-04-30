@@ -46,6 +46,7 @@ public:
 		int y,
 		int outerWidth,
 		bool selected) override;
+	void refreshStatus() override;
 
 	not_null<UserData*> user() const;
 	bool canRemove() const {

@@ -109,7 +109,7 @@ public:
 		bool actionSelected) override;
 
 private:
-	void refreshStatus();
+	void refreshStatus() override;
 	static Type ComputeType(not_null<const HistoryItem*> item);
 
 	std::vector<not_null<HistoryItem*>> _items;
