@@ -166,6 +166,7 @@ void FiltersMenu::refresh() {
 	if (filters->list().empty() || _ignoreRefresh) {
 		return;
 	}
+	const auto oldTop = _scroll.scrollTop();
 
 	if (!_list) {
 		setupList();
@@ -185,6 +186,12 @@ void FiltersMenu::refresh() {
 	_reorder->start();
 
 	_container->resizeToWidth(_outer.width());
+
+	// After the filters are refreshed, the scroll is reset,
+	// so we have to restore it.
+	_scroll.scrollToY(oldTop);
+	const auto i = _filters.find(_activeFilterId);
+	scrollToButton((i != end(_filters)) ? i->second : _all);
 }
 
 void FiltersMenu::setupList() {
