@@ -529,13 +529,6 @@ historyGroupSkip: 4px;
 historyGroupRadialSize: 44px;
 historyGroupRadialLine: 3px;
 
-historyAboutProxy: FlatLabel(defaultFlatLabel) {
-	align: align(top);
-	textFg: windowSubTextFg;
-	minWidth: 300px;
-}
-historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);
-
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
 

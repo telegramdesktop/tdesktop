@@ -241,8 +241,10 @@ public:
 		bool promoted,
 		const QString &type,
 		const QString &message);
-	[[nodiscard]] QString topPromotionType() const;
+	[[nodiscard]] QStringRef topPromotionType() const;
 	[[nodiscard]] QString topPromotionMessage() const;
+	[[nodiscard]] bool topPromotionAboutShown() const;
+	void markTopPromotionAboutShown();
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;

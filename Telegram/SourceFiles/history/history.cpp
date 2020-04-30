@@ -2730,7 +2730,7 @@ void History::cacheTopPromotion(
 		const QString &message) {
 	const auto changed = (isTopPromoted() != promoted);
 	cacheTopPromoted(promoted);
-	if (_topPromotedType != type || _topPromotedMessage != message) {
+	if (topPromotionType() != type || _topPromotedMessage != message) {
 		_topPromotedType = type;
 		_topPromotedMessage = message;
 		cloudDraftTextCache.clear();
@@ -2739,8 +2739,20 @@ void History::cacheTopPromotion(
 	}
 }
 
-QString History::topPromotionType() const {
-	return _topPromotedType;
+QStringRef History::topPromotionType() const {
+	return topPromotionAboutShown()
+		? _topPromotedType.midRef(5)
+		: _topPromotedType.midRef(0);
+}
+
+bool History::topPromotionAboutShown() const {
+	return _topPromotedType.startsWith("seen^");
+}
+
+void History::markTopPromotionAboutShown() {
+	if (!topPromotionAboutShown()) {
+		_topPromotedType = "seen^" + _topPromotedType;
+	}
 }
 
 QString History::topPromotionMessage() const {

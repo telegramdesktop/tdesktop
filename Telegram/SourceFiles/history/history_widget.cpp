@@ -243,6 +243,13 @@ void ShowErrorToast(const QString &text) {
 	});
 }
 
+[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
+	return std::clamp(
+		crl::time(1000) * text.text.size() / 14,
+		crl::time(1000) * 5,
+		crl::time(1000) * 8);
+}
+
 } // namespace
 
 HistoryWidget::HistoryWidget(
@@ -565,7 +572,6 @@ HistoryWidget::HistoryWidget(
 				}
 			}
 			if (update.flags & UpdateFlag::TopPromotedChanged) {
-				refreshAboutTopPromotion();
 				updateHistoryGeometry();
 				updateControlsVisibility();
 				updateControlsGeometry();
@@ -1649,6 +1655,7 @@ void HistoryWidget::showHistory(
 	}
 
 	clearHighlightMessages();
+	hideInfoTooltip(anim::type::instant);
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
@@ -1903,6 +1910,7 @@ void HistoryWidget::showHistory(
 			}
 		}
 		unreadCountUpdated(); // set _historyDown badge.
+		showAboutTopPromotion();
 	} else {
 		_topBar->setActiveChat(
 			Dialogs::Key(),
@@ -2069,7 +2077,6 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_contactStatus) {
 		_contactStatus->show();
 	}
-	refreshAboutTopPromotion();
 	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart())) {
 		if (isBlocked()) {
 			_joinChannel->hide();
@@ -2262,33 +2269,25 @@ void HistoryWidget::updateControlsVisibility() {
 	updateMouseTracking();
 }
 
-void HistoryWidget::refreshAboutTopPromotion() {
-	if (_history->useTopPromotion()) {
-		const auto type = _history->topPromotionType();
-		const auto custom = type.isEmpty()
-			? QString()
-			: Lang::Current().getNonDefaultValue(
-				kPsaAboutPrefix + type.toUtf8());
-		const auto text = type.isEmpty()
-			? tr::lng_proxy_sponsor_about(tr::now, Ui::Text::RichLangValue)
-			: custom.isEmpty()
-			? tr::lng_about_psa_default(tr::now, Ui::Text::RichLangValue)
-			: Ui::Text::RichLangValue(custom);
-		if (!_aboutTopPromotion || _aboutTopPromotionText != text) {
-			_aboutTopPromotionText = text;
-			_aboutTopPromotion = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-				this,
-				object_ptr<Ui::FlatLabel>(
-					this,
-					rpl::single(_aboutTopPromotionText),
-					st::historyAboutProxy),
-				st::historyAboutProxyPadding);
-		}
-		_aboutTopPromotion->show();
-	} else {
-		_aboutTopPromotionText = TextWithEntities();
-		_aboutTopPromotion.destroy();
+void HistoryWidget::showAboutTopPromotion() {
+	Expects(_history != nullptr);
+	Expects(_list != nullptr);
+
+	if (!_history->useTopPromotion() || _history->topPromotionAboutShown()) {
+		return;
 	}
+	_history->markTopPromotionAboutShown();
+	const auto type = _history->topPromotionType();
+	const auto custom = type.isEmpty()
+		? QString()
+		: Lang::Current().getNonDefaultValue(
+			kPsaAboutPrefix + type.toUtf8());
+	const auto text = type.isEmpty()
+		? tr::lng_proxy_sponsor_about(tr::now, Ui::Text::RichLangValue)
+		: custom.isEmpty()
+		? tr::lng_about_psa_default(tr::now, Ui::Text::RichLangValue)
+		: Ui::Text::RichLangValue(custom);
+	showInfoTooltip(text, nullptr);
 }
 
 void HistoryWidget::updateMouseTracking() {
@@ -4201,13 +4200,6 @@ void HistoryWidget::moveFieldControls() {
 	} else {
 		_muteUnmute->setGeometry(fullWidthButtonRect);
 	}
-
-	if (_aboutTopPromotion) {
-		_aboutTopPromotion->resizeToWidth(width());
-		_aboutTopPromotion->moveToLeft(
-			0,
-			fullWidthButtonRect.y() - _aboutTopPromotion->height());
-	}
 }
 
 void HistoryWidget::updateFieldSize() {
@@ -5225,9 +5217,6 @@ void HistoryWidget::updateHistoryGeometry(
 			newScrollHeight -= _kbScroll->height();
 		}
 	}
-	if (_aboutTopPromotion) {
-		newScrollHeight -= _aboutTopPromotion->height();
-	}
 	if (newScrollHeight <= 0) {
 		return;
 	}
@@ -5930,6 +5919,37 @@ bool HistoryWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 
 	_field->setFocus();
 	return true;
+}
+
+void HistoryWidget::showInfoTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) {
+	hideInfoTooltip(anim::type::normal);
+	_topToast = Ui::Toast::Show(_scroll, Ui::Toast::Config{
+		.text = text,
+		.st = &st::historyInfoToast,
+		.durationMs = CountToastDuration(text),
+		.multiline = true,
+		.dark = true,
+		.slideSide = RectPart::Top,
+	});
+	if (const auto strong = _topToast.get()) {
+		if (hiddenCallback) {
+			connect(strong->widget(), &QObject::destroyed, hiddenCallback);
+		}
+	} else if (hiddenCallback) {
+		hiddenCallback();
+	}
+}
+
+void HistoryWidget::hideInfoTooltip(anim::type animated) {
+	if (const auto strong = _topToast.get()) {
+		if (animated == anim::type::normal) {
+			strong->hideAnimated();
+		} else {
+			strong->hide();
+		}
+	}
 }
 
 void HistoryWidget::setFieldText(
@@ -6996,9 +7016,6 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			}
 		} else if (const auto error = writeRestriction()) {
 			drawRestrictedWrite(p, *error);
-		}
-		if (_aboutTopPromotion) {
-			p.fillRect(_aboutTopPromotion->geometry(), st::historyReplyBg);
 		}
 		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {
 			drawPinnedBar(p);

@@ -88,13 +88,6 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 	return start;
 }
 
-[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
-	return std::clamp(
-		crl::time(1000) * text.text.size() / 14,
-		crl::time(1000) * 5,
-		crl::time(1000) * 8);
-}
-
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -2491,24 +2484,7 @@ void HistoryInner::elementShowPollResults(
 void HistoryInner::elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
-	if (const auto strong = _topToast.get()) {
-		strong->hideAnimated();
-	}
-	_topToast = Ui::Toast::Show(_scroll, Ui::Toast::Config{
-		.text = text,
-		.st = &st::historyInfoToast,
-		.durationMs = CountToastDuration(text),
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Top,
-	});
-	if (const auto strong = _topToast.get()) {
-		if (hiddenCallback) {
-			connect(strong->widget(), &QObject::destroyed, hiddenCallback);
-		}
-	} else if (hiddenCallback) {
-		hiddenCallback();
-	}
+	_widget->showInfoTooltip(text, std::move(hiddenCallback));
 }
 
 auto HistoryInner::getSelectionState() const

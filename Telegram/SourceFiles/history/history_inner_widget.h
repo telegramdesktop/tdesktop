@@ -34,9 +34,6 @@ class SessionController;
 
 namespace Ui {
 class PopupMenu;
-namespace Toast {
-class Instance;
-} // namespace Toast
 } // namespace Ui
 
 class HistoryWidget;
@@ -384,7 +381,6 @@ private:
 	QTimer _touchScrollTimer;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
-	base::weak_ptr<Ui::Toast::Instance> _topToast;
 
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;
