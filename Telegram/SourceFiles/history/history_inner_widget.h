@@ -34,6 +34,9 @@ class SessionController;
 
 namespace Ui {
 class PopupMenu;
+namespace Toast {
+class Instance;
+} // namespace Toast
 } // namespace Ui
 
 class HistoryWidget;
@@ -49,8 +52,8 @@ public:
 
 	HistoryInner(
 		not_null<HistoryWidget*> historyWidget,
+		not_null<Ui::ScrollArea*> scroll,
 		not_null<Window::SessionController*> controller,
-		Ui::ScrollArea *scroll,
 		not_null<History*> history);
 
 	Main::Session &session() const;
@@ -312,13 +315,19 @@ private:
 
 	static HistoryInner *Instance;
 
-	not_null<Window::SessionController*> _controller;
-
+	const not_null<HistoryWidget*> _widget;
+	const not_null<Ui::ScrollArea*> _scroll;
+	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
+
 	History *_migrated = nullptr;
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
+
+	// Save visible area coords for painting / pressing userpics.
+	int _visibleAreaTop = 0;
+	int _visibleAreaBottom = 0;
 
 	// With migrated history we perhaps do not need to display
 	// the first _history message date (just skip it by height).
@@ -327,8 +336,6 @@ private:
 	std::unique_ptr<BotAbout> _botAbout;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
 
-	HistoryWidget *_widget = nullptr;
-	Ui::ScrollArea *_scroll = nullptr;
 	mutable History *_curHistory = nullptr;
 	mutable int _curBlock = 0;
 	mutable int _curItem = 0;
@@ -375,10 +382,7 @@ private:
 	QTimer _touchScrollTimer;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
-
-	// save visible area coords for painting / pressing userpics
-	int _visibleAreaTop = 0;
-	int _visibleAreaBottom = 0;
+	base::weak_ptr<Ui::Toast::Instance> _topToast;
 
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;

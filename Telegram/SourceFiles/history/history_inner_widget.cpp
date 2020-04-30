@@ -140,16 +140,16 @@ void HistoryInner::BotAbout::clickHandlerPressedChanged(
 
 HistoryInner::HistoryInner(
 	not_null<HistoryWidget*> historyWidget,
+	not_null<Ui::ScrollArea*> scroll,
 	not_null<Window::SessionController*> controller,
-	Ui::ScrollArea *scroll,
 	not_null<History*> history)
 : RpWidget(nullptr)
+, _widget(historyWidget)
+, _scroll(scroll)
 , _controller(controller)
 , _peer(history->peer)
 , _history(history)
 , _migrated(history->migrateFrom())
-, _widget(historyWidget)
-, _scroll(scroll)
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
 	Instance = this;
@@ -2489,12 +2489,16 @@ void HistoryInner::elementShowPollResults(
 }
 
 void HistoryInner::elementShowTooltip(const TextWithEntities &text) {
-	Ui::Toast::Show(_widget, Ui::Toast::Config{
+	if (const auto strong = _topToast.get()) {
+		strong->hideAnimated();
+	}
+	_topToast = Ui::Toast::Show(_scroll, Ui::Toast::Config{
 		.text = text,
 		.st = &st::historyInfoToast,
 		.durationMs = CountToastDuration(text),
 		.multiline = true,
 		.dark = true,
+		.slideSide = RectPart::Top,
 	});
 }
 
