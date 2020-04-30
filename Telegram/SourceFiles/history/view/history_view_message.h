@@ -28,7 +28,6 @@ struct LogEntryOriginal
 	~LogEntryOriginal();
 
 	std::unique_ptr<WebPage> page;
-
 };
 
 struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {

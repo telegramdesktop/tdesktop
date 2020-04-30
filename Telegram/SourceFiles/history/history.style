@@ -389,6 +389,9 @@ historyErrorToast: Toast(defaultToast) {
 historyInfoToast: Toast(defaultToast) {
 	minWidth: msgMinWidth;
 	maxWidth: 380px;
+	padding: margins(54px, 13px, 19px, 12px);
+	icon: icon {{ "toast_info", toastFg }};
+	iconPosition: point(13px, 13px);
 }
 
 historyPhotoLeft: 14px;
