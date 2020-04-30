@@ -1158,7 +1158,9 @@ void ListWidget::elementShowPollResults(
 	FullMsgId context) {
 }
 
-void ListWidget::elementShowTooltip(const TextWithEntities &text) {
+void ListWidget::elementShowTooltip(
+	const TextWithEntities &text,
+	Fn<void()> hiddenCallback) {
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {

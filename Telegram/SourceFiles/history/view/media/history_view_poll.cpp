@@ -373,6 +373,7 @@ void Poll::updateTexts() {
 	if (_pollVersion == _poll->version) {
 		return;
 	}
+	const auto first = !_pollVersion;
 	_pollVersion = _poll->version;
 
 	const auto willStartAnimation = checkAnimationStart();
@@ -411,6 +412,9 @@ void Poll::updateTexts() {
 			checkQuizAnswered();
 		}
 	}
+	solutionToggled(
+		_solutionShown,
+		first ? anim::type::instant : anim::type::normal);
 }
 
 void Poll::checkQuizAnswered() {
@@ -437,7 +441,37 @@ void Poll::checkQuizAnswered() {
 
 void Poll::showSolution() const {
 	if (!_poll->solution.text.isEmpty()) {
-		_parent->delegate()->elementShowTooltip(_poll->solution);
+		solutionToggled(true);
+		_parent->delegate()->elementShowTooltip(
+			_poll->solution,
+			crl::guard(this, [=] { solutionToggled(false); }));
+	}
+}
+
+void Poll::solutionToggled(
+		bool solutionShown,
+		anim::type animated) const {
+	_solutionShown = solutionShown;
+	const auto visible = canShowSolution() && !_solutionShown;
+	if (_solutionButtonVisible == visible) {
+		if (animated == anim::type::instant
+			&& _solutionButtonAnimation.animating()) {
+			_solutionButtonAnimation.stop();
+			history()->owner().requestViewRepaint(_parent);
+		}
+		return;
+	}
+	_solutionButtonVisible = visible;
+	history()->owner().notifyViewLayoutChange(_parent);
+	if (animated == anim::type::instant) {
+		_solutionButtonAnimation.stop();
+		history()->owner().requestViewRepaint(_parent);
+	} else {
+		_solutionButtonAnimation.start(
+			[=] { history()->owner().requestViewRepaint(_parent); },
+			visible ? 0. : 1.,
+			visible ? 1. : 0.,
+			st::fadeWrapDuration);
 	}
 }
 
@@ -913,7 +947,9 @@ void Poll::paintShowSolution(
 		int right,
 		int top,
 		TextSelection selection) const {
-	if (!showVotes() || _poll->solution.text.isEmpty()) {
+	const auto shown = _solutionButtonAnimation.value(
+		_solutionButtonVisible ? 1. : 0.);
+	if (!shown) {
 		return;
 	}
 	if (!_showSolutionLink) {
@@ -928,7 +964,16 @@ void Poll::paintShowSolution(
 		: (outbg ? st::historyQuizExplainOut : st::historyQuizExplainIn);
 	const auto x = right - icon.width();
 	const auto y = top + (st::normalFont->height - icon.height()) / 2;
-	icon.paint(p, x, y, width());
+	if (shown == 1.) {
+		icon.paint(p, x, y, width());
+	} else {
+		p.save();
+		p.translate(x + icon.width() / 2, y + icon.height() / 2);
+		p.scale(shown, shown);
+		p.setOpacity(shown);
+		icon.paint(p, -icon.width() / 2, -icon.height() / 2, width());
+		p.restore();
+	}
 }
 
 int Poll::paintAnswer(
@@ -1388,7 +1433,7 @@ bool Poll::inShowSolution(
 		QPoint point,
 		int right,
 		int top) const {
-	if (!canShowSolution()) {
+	if (!canShowSolution() || !_solutionButtonVisible) {
 		return false;
 	}
 	const auto &icon = st::historyQuizExplainIn;

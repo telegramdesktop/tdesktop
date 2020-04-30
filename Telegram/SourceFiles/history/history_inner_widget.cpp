@@ -2488,7 +2488,9 @@ void HistoryInner::elementShowPollResults(
 	FullMsgId context) {
 }
 
-void HistoryInner::elementShowTooltip(const TextWithEntities &text) {
+void HistoryInner::elementShowTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) {
 	if (const auto strong = _topToast.get()) {
 		strong->hideAnimated();
 	}
@@ -2500,6 +2502,13 @@ void HistoryInner::elementShowTooltip(const TextWithEntities &text) {
 		.dark = true,
 		.slideSide = RectPart::Top,
 	});
+	if (const auto strong = _topToast.get()) {
+		if (hiddenCallback) {
+			connect(strong->widget(), &QObject::destroyed, hiddenCallback);
+		}
+	} else if (hiddenCallback) {
+		hiddenCallback();
+	}
 }
 
 auto HistoryInner::getSelectionState() const
@@ -3369,9 +3378,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				Instance->elementShowPollResults(poll, context);
 			}
 		}
-		void elementShowTooltip(const TextWithEntities &text) override {
+		void elementShowTooltip(
+				const TextWithEntities &text,
+				Fn<void()> hiddenCallback) override {
 			if (Instance) {
-				Instance->elementShowTooltip(text);
+				Instance->elementShowTooltip(text, hiddenCallback);
 			}
 		}
 

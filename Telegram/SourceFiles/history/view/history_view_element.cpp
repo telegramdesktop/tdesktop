@@ -100,7 +100,8 @@ void SimpleElementDelegate::elementShowPollResults(
 }
 
 void SimpleElementDelegate::elementShowTooltip(
-	const TextWithEntities &text) {
+	const TextWithEntities &text,
+	Fn<void()> hiddenCallback) {
 }
 
 TextSelection UnshiftItemSelection(

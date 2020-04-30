@@ -204,6 +204,7 @@ Message::Message(
 	not_null<HistoryMessage*> data)
 : Element(delegate, data) {
 	initLogEntryOriginal();
+	initPsa();
 }
 
 not_null<HistoryMessage*> Message::message() const {
@@ -653,19 +654,32 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
 		if (!forwarded->psaType.isEmpty()) {
-			const auto &icon = selected
-				? (outbg
-					? st::historyPsaIconOutSelected
-					: st::historyPsaIconInSelected)
-				: (outbg ? st::historyPsaIconOut : st::historyPsaIconIn);
-			const auto position = fits
-				? st::historyPsaIconPosition1
-				: st::historyPsaIconPosition2;
-			icon.paint(
-				p,
-				trect.x() + trect.width() - position.x() - icon.width(),
-				trect.y() + position.y(),
-				trect.width());
+			const auto entry = Get<PsaTooltipState>();
+			Assert(entry != nullptr);
+			const auto shown = entry->buttonVisibleAnimation.value(
+				entry->buttonVisible ? 1. : 0.);
+			if (shown > 0) {
+				const auto &icon = selected
+					? (outbg
+						? st::historyPsaIconOutSelected
+						: st::historyPsaIconInSelected)
+					: (outbg ? st::historyPsaIconOut : st::historyPsaIconIn);
+				const auto position = fits
+					? st::historyPsaIconPosition1
+					: st::historyPsaIconPosition2;
+				const auto x = trect.x() + trect.width() - position.x() - icon.width();
+				const auto y = trect.y() + position.y();
+				if (shown == 1) {
+					icon.paint(p, x, y, trect.width());
+				} else {
+					p.save();
+					p.translate(x + icon.width() / 2, y + icon.height() / 2);
+					p.scale(shown, shown);
+					p.setOpacity(shown);
+					icon.paint(p, -icon.width() / 2, -icon.height() / 2, width());
+					p.restore();
+				}
+			}
 		}
 
 		trect.setY(trect.y() + ((fits ? 1 : 2) * serviceFont->height));
@@ -1012,9 +1026,10 @@ bool Message::getStateForwardedInfo(
 					icon.width(),
 					icon.height());
 				if (iconRect.contains(point)) {
-					ensurePsaTooltipLink(forwarded);
-					outResult->link = forwarded->psaTooltipLink;
-					return true;
+					if (const auto link = psaTooltipLink()) {
+						outResult->link = link;
+						return true;
+					}
 				}
 			}
 			const auto useWidth = trect.width() - (fits ? skip1 : skip2);
@@ -1041,12 +1056,14 @@ bool Message::getStateForwardedInfo(
 	return false;
 }
 
-void Message::ensurePsaTooltipLink(
-		not_null<const HistoryMessageForwarded*> forwarded) const {
-	if (forwarded->psaTooltipLink) {
-		return;
+ClickHandlerPtr Message::psaTooltipLink() const {
+	const auto state = Get<PsaTooltipState>();
+	if (!state || !state->buttonVisible) {
+		return nullptr;
+	} else if (state->link) {
+		return state->link;
 	}
-	const auto type = forwarded->psaType;
+	const auto type = state->type;
 	const auto handler = [=] {
 		const auto custom = type.isEmpty()
 			? QString()
@@ -1057,11 +1074,29 @@ void Message::ensurePsaTooltipLink(
 				? tr::lng_tooltip_psa_default(tr::now)
 				: custom));
 		TextUtilities::ParseEntities(text, 0);
-		delegate()->elementShowTooltip(text);
+		psaTooltipToggled(true);
+		delegate()->elementShowTooltip(text, crl::guard(this, [=] {
+			psaTooltipToggled(false);
+		}));
 	};
-	forwarded->psaTooltipLink
-		= std::make_shared<LambdaClickHandler>(
-			crl::guard(this, handler));
+	state->link = std::make_shared<LambdaClickHandler>(
+		crl::guard(this, handler));
+	return state->link;
+}
+
+void Message::psaTooltipToggled(bool tooltipShown) const {
+	const auto visible = !tooltipShown;
+	const auto state = Get<PsaTooltipState>();
+	if (state->buttonVisible == visible) {
+		return;
+	}
+	state->buttonVisible = visible;
+	history()->owner().notifyViewLayoutChange(this);
+	state->buttonVisibleAnimation.start(
+		[=] { history()->owner().requestViewRepaint(this); },
+		visible ? 0. : 1.,
+		visible ? 1. : 0.,
+		st::fadeWrapDuration);
 }
 
 bool Message::getStateReplyInfo(
@@ -1437,6 +1472,15 @@ void Message::initLogEntryOriginal() {
 	}
 }
 
+void Message::initPsa() {
+	if (const auto forwarded = message()->Get<HistoryMessageForwarded>()) {
+		if (!forwarded->psaType.isEmpty()) {
+			AddComponents(PsaTooltipState::Bit());
+			Get<PsaTooltipState>()->type = forwarded->psaType;
+		}
+	}
+}
+
 WebPage *Message::logEntryOriginal() const {
 	if (const auto entry = Get<LogEntryOriginal>()) {
 		return entry->page.get();
@@ -1465,10 +1509,7 @@ bool Message::displayFromName() const {
 	if (!hasFromName() || isAttachedToPrevious()) {
 		return false;
 	}
-	if (const auto forwarded = message()->Get<HistoryMessageForwarded>()) {
-		return forwarded->psaType.isEmpty();
-	}
-	return true;
+	return !Has<PsaTooltipState>();
 }
 
 bool Message::displayForwardedFrom() const {

@@ -166,6 +166,9 @@ private:
 	void showResults();
 	void checkQuizAnswered();
 	void showSolution() const;
+	void solutionToggled(
+		bool solutionShown,
+		anim::type animated = anim::type::normal) const;
 
 	[[nodiscard]] bool canShowSolution() const;
 	[[nodiscard]] bool inShowSolution(
@@ -200,6 +203,10 @@ private:
 	mutable QPoint _lastLinkPoint;
 
 	mutable std::unique_ptr<CloseInformation> _close;
+
+	mutable Ui::Animations::Simple _solutionButtonAnimation;
+	mutable bool _solutionShown = false;
+	mutable bool _solutionButtonVisible = false;
 
 	bool _hasSelected = false;
 	bool _votedFromHere = false;

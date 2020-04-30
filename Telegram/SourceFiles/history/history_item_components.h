@@ -78,7 +78,6 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
 	QString originalAuthor;
 	QString psaType;
-	mutable ClickHandlerPtr psaTooltipLink;
 	MsgId originalId = 0;
 	mutable Ui::Text::String text = { 1 };
 

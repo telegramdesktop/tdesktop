@@ -582,7 +582,9 @@ void InnerWidget::elementShowPollResults(
 	FullMsgId context) {
 }
 
-void InnerWidget::elementShowTooltip(const TextWithEntities &text) {
+void InnerWidget::elementShowTooltip(
+	const TextWithEntities &text,
+	Fn<void()> hiddenCallback) {
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {

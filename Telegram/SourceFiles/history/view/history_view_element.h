@@ -54,7 +54,9 @@ public:
 	virtual void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) = 0;
-	virtual void elementShowTooltip(const TextWithEntities &text) = 0;
+	virtual void elementShowTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) = 0;
 
 };
 
@@ -78,7 +80,9 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) override;
-	void elementShowTooltip(const TextWithEntities &text) override;
+	void elementShowTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) override;
 
 };
 
