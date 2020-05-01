@@ -238,6 +238,7 @@ void EditorBlock::removeRow(const QString &name, bool removeCopyReferences) {
 			row.setCopyOf(QString());
 		}
 	}
+	removeFromSearch(_data[index]);
 	_data.erase(_data.begin() + index);
 	_indices.erase(it);
 	for (auto i = index, count = static_cast<int>(_data.size()); i != count; ++i) {
