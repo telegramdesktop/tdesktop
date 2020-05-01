@@ -835,7 +835,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 			channel,
 			MTPDchannelFull::Flag::f_can_view_participants),
 			(_1 > 0) && _2);
-	auto membersText = tr::lng_chat_status_members(
+	auto membersText = tr::lng_chat_status_subscribers(
 		lt_count_decimal,
 		MembersCountValue(channel) | tr::to_count());
 	auto membersCallback = [=] {

@@ -605,6 +605,11 @@ rpl::producer<QString> TitleValue(
 		return tr::lng_profile_common_groups_section();
 
 	case Section::Type::Members:
+		if (const auto channel = peer->asChannel()) {
+			return channel->isMegagroup()
+				? tr::lng_profile_participants_section()
+				: tr::lng_profile_subscribers_section();
+		}
 		return tr::lng_profile_participants_section();
 
 	//case Section::Type::Channels: // #feed
