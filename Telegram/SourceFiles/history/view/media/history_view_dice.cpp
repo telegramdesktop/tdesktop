@@ -42,22 +42,24 @@ namespace {
 			.durationMs = Ui::Toast::kDefaultDuration * 2,
 			.multiline = true,
 		};
-		auto link = Ui::Text::Link(
-			tr::lng_about_random_send(tr::now).toUpper());
-		link.entities.push_back(
-			EntityInText(EntityType::Bold, 0, link.text.size()));
-		config.text.append(' ').append(std::move(link));
-		config.filter = crl::guard(&history->session(), [=](
-				const ClickHandlerPtr &handler,
-				Qt::MouseButton button) {
-			if (button == Qt::LeftButton) {
-				auto message = Api::MessageToSend(history);
-				message.action.clearDraft = false;
-				message.textWithTags.text = emoji;
-				Api::SendDice(message);
-			}
-			return false;
-		});
+		if (history->peer->canWrite()) {
+			auto link = Ui::Text::Link(
+				tr::lng_about_random_send(tr::now).toUpper());
+			link.entities.push_back(
+				EntityInText(EntityType::Bold, 0, link.text.size()));
+			config.text.append(' ').append(std::move(link));
+			config.filter = crl::guard(&history->session(), [=](
+					const ClickHandlerPtr &handler,
+					Qt::MouseButton button) {
+				if (button == Qt::LeftButton) {
+					auto message = Api::MessageToSend(history);
+					message.action.clearDraft = false;
+					message.textWithTags.text = emoji;
+					Api::SendDice(message);
+				}
+				return false;
+			});
+		}
 		Ui::Toast::Show(config);
 	});
 }
