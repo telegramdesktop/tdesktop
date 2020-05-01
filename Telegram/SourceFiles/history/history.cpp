@@ -2589,7 +2589,7 @@ bool History::useTopPromotion() const {
 	} else if (const auto channel = peer->asChannel()) {
 		return !isPinnedDialog(FilterId()) && !channel->amIn();
 	} else if (const auto user = peer->asUser()) {
-		return !isPinnedDialog(FilterId()) && user->isBot();
+		return !isPinnedDialog(FilterId()) && user->isBot() && isEmpty();
 	}
 	return false;
 }
