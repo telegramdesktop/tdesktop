@@ -118,6 +118,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_status_online#one" = "{count} online";
 "lng_chat_status_online#other" = "{count} online";
 "lng_chat_status_members_online" = "{members_count}, {online_count}";
+"lng_chat_status_subscribers#one" = "{count} subscriber";
+"lng_chat_status_subscribers#other" = "{count} subscribers";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
@@ -767,6 +769,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_participants_section" = "Members";
+"lng_profile_subscribers_section" = "Subscribers";
 "lng_profile_mobile_number" = "Mobile:";
 "lng_profile_username" = "Username:";
 "lng_profile_link" = "Link:";
@@ -888,6 +891,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_channel_info" = "Channel Info";
 "lng_manage_peer_recent_actions" = "Recent Actions";
 "lng_manage_peer_members" = "Members";
+"lng_manage_peer_subscribers" = "Subscribers";
 "lng_manage_peer_administrators" = "Administrators";
 "lng_manage_peer_exceptions" = "Exceptions";
 "lng_manage_peer_removed_users" = "Removed users";

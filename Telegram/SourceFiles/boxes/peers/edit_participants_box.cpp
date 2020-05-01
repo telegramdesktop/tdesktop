@@ -1056,7 +1056,9 @@ void ParticipantsBoxController::prepare() {
 		switch (_role) {
 		case Role::Admins: return tr::lng_channel_admins();
 		case Role::Profile:
-		case Role::Members: return tr::lng_profile_participants_section();
+		case Role::Members: return (_peer->isChannel() && !_peer->isMegagroup()
+			? tr::lng_profile_subscribers_section()
+			: tr::lng_profile_participants_section());
 		case Role::Restricted: return tr::lng_exceptions_list_title();
 		case Role::Kicked: return tr::lng_removed_list_title();
 		}
