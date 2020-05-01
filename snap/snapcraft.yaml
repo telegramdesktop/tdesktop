@@ -15,7 +15,7 @@ architectures:
 
 apps:
   telegram-desktop:
-    command: telegram-desktop
+    command: telegram-launch
     common-id: org.telegram.desktop
     desktop: share/applications/telegramdesktop.desktop
     environment:
@@ -130,6 +130,12 @@ parts:
       - openal
       - range-v3
       - xxhash
+
+  telegram-launcher:
+    plugin: dump
+    source: snap/scripts
+    organize:
+      telegram-launch: bin/telegram-launch
 
   patches:
     plugin: dump
