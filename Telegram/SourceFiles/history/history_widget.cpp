@@ -4467,20 +4467,15 @@ bool HistoryWidget::confirmSendingFiles(
 bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 	if (!canWriteMessage()) {
 		return false;
-	}
-	if (const auto urls = data->urls(); !urls.empty()) {
+	} else if (const auto urls = data->urls(); !urls.empty()) {
 		if (ranges::find_if(
 			urls,
 			[](const QUrl &url) { return !url.isLocalFile(); }
 		) == urls.end()) {
 			return true;
 		}
-	}
-	if (data->hasImage()) {
-		const auto image = qvariant_cast<QImage>(data->imageData());
-		if (!image.isNull()) {
-			return true;
-		}
+	} else if (data->hasImage()) {
+		return true;
 	}
 	return false;
 }
