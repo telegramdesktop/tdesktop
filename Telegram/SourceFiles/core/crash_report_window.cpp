@@ -42,7 +42,9 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Background, QColor(255, 255, 255));
 	setPalette(p);
 
-	_size = QFontInfo(QApplication::font()).pixelSize();
+	QLabel tmp(this);
+	tmp.setText(qsl("Tmp"));
+	_size = tmp.sizeHint().height();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
@@ -90,6 +92,7 @@ void PreLaunchLabel::setText(const QString &text) {
 
 PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
 	QFont logFont(font());
+	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 
@@ -107,6 +110,7 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 
 PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	QFont logFont(font());
+	logFont.setFamily(style::internal::GetFontOverride());
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(logFont);
 

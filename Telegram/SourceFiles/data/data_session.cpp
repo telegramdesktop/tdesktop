@@ -3717,30 +3717,37 @@ MessageIdsList Session::takeMimeForwardIds() {
 	return std::move(_mimeForwardIds);
 }
 
-void Session::setProxyPromoted(PeerData *promoted) {
-	if (_proxyPromoted != promoted) {
-		if (const auto history = historyLoaded(_proxyPromoted)) {
-			history->cacheProxyPromoted(false);
+void Session::setTopPromoted(
+		PeerData *promoted,
+		const QString &type,
+		const QString &message) {
+	const auto changed = (_topPromoted != promoted);
+	const auto history = promoted ? this->history(promoted).get() : nullptr;
+	if (changed
+		|| (history && history->topPromotionMessage() != message)) {
+		if (changed) {
+			if (const auto history = historyLoaded(_topPromoted)) {
+				history->cacheTopPromotion(false, QString(), QString());
+			}
 		}
-		const auto old = std::exchange(_proxyPromoted, promoted);
-		if (_proxyPromoted) {
-			const auto history = this->history(_proxyPromoted);
-			history->cacheProxyPromoted(true);
+		const auto old = std::exchange(_topPromoted, promoted);
+		if (history) {
+			history->cacheTopPromotion(true, type, message);
 			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
-				_proxyPromoted,
-				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+				_topPromoted,
+				Notify::PeerUpdate::Flag::TopPromotedChanged);
 		}
-		if (old) {
+		if (changed && old) {
 			Notify::peerUpdatedDelayed(
 				old,
-				Notify::PeerUpdate::Flag::ChannelPromotedChanged);
+				Notify::PeerUpdate::Flag::TopPromotedChanged);
 		}
 	}
 }
 
-PeerData *Session::proxyPromoted() const {
-	return _proxyPromoted;
+PeerData *Session::topPromoted() const {
+	return _topPromoted;
 }
 
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {

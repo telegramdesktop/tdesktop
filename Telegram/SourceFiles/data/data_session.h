@@ -678,8 +678,11 @@ public:
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
 
-	void setProxyPromoted(PeerData *promoted);
-	PeerData *proxyPromoted() const;
+	void setTopPromoted(
+		PeerData *promoted,
+		const QString &type,
+		const QString &message);
+	PeerData *topPromoted() const;
 
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
@@ -957,7 +960,7 @@ private:
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
-	PeerData *_proxyPromoted = nullptr;
+	PeerData *_topPromoted = nullptr;
 
 	NotifySettings _defaultUserNotifySettings;
 	NotifySettings _defaultChatNotifySettings;

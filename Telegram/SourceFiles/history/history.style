@@ -379,6 +379,20 @@ botKbTinyButton: BotKeyboardButton {
 botKbScroll: defaultSolidScroll;
 
 historyDateFadeDuration: 200;
+historyDiceToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+	maxWidth: 640px;
+}
+historyErrorToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+}
+historyInfoToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+	maxWidth: 380px;
+	padding: margins(54px, 13px, 19px, 12px);
+	icon: icon {{ "toast_info", toastFg }};
+	iconPosition: point(13px, 13px);
+}
 
 historyPhotoLeft: 14px;
 historyPhotoBubbleMinWidth: 200px;
@@ -393,6 +407,15 @@ historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
 historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};
 
 historyPeerUserpicFont: semiboldFont;
+
+historyPsaIconIn: icon {{ "message_psa_tooltip", msgFileThumbLinkInFg }};
+historyPsaIconInSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkInFgSelected }};
+historyPsaIconOut: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFg }};
+historyPsaIconOutSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFgSelected }};
+historyPsaIconSkip1: 23px;
+historyPsaIconSkip2: 23px;
+historyPsaIconPosition1: point(-5px, 0px);
+historyPsaIconPosition2: point(-5px, 0px);
 
 historyStatusFg: windowSubTextFg;
 historyStatusFgActive: windowActiveTextFg;
@@ -506,14 +529,12 @@ historyGroupSkip: 4px;
 historyGroupRadialSize: 44px;
 historyGroupRadialLine: 3px;
 
-historyAboutProxy: FlatLabel(defaultFlatLabel) {
-	align: align(top);
-	textFg: windowSubTextFg;
-}
-historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);
-
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
+
+historyPsaForwardPalette: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+}
 
 webPageLeft: 10px;
 webPageBar: 2px;

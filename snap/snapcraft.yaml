@@ -15,11 +15,12 @@ architectures:
 
 apps:
   telegram-desktop:
-    command: telegram-desktop
+    command: telegram-launch
     common-id: org.telegram.desktop
     desktop: share/applications/telegramdesktop.desktop
     environment:
-      QT_QPA_PLATFORMTHEME: xdgdesktopportal
+      # Use GTK3 cursor theme, icon theme and open/save file dialogs.
+      QT_QPA_PLATFORMTHEME: gtk3
     extensions:
       - kde-neon
     plugs:
@@ -130,6 +131,12 @@ parts:
       - range-v3
       - xxhash
 
+  telegram-launcher:
+    plugin: dump
+    source: snap/scripts
+    organize:
+      telegram-launch: bin/telegram-launch
+
   patches:
     plugin: dump
     source: Telegram/Patches
@@ -140,7 +147,13 @@ parts:
     override-build: |
       KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
 
-      cat << EOF > "$SNAPCRAFT_STAGE/qt.conf"
+      install -d "$SNAPCRAFT_PART_INSTALL/usr/include/$SNAPCRAFT_ARCH_TRIPLET"
+      cp -a $KF5_DIR/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5 "$SNAPCRAFT_PART_INSTALL/usr/include/$SNAPCRAFT_ARCH_TRIPLET"
+
+      install -d "$SNAPCRAFT_PART_INSTALL/usr/lib/$SNAPCRAFT_ARCH_TRIPLET"
+      cp -a $KF5_DIR/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5 "$SNAPCRAFT_PART_INSTALL/usr/lib/$SNAPCRAFT_ARCH_TRIPLET"
+
+      cat << EOF > "$SNAPCRAFT_PART_INSTALL/qt.conf"
       [Paths]
       Prefix=$KF5_DIR/usr
       ArchData=lib/$SNAPCRAFT_ARCH_TRIPLET/qt5
@@ -148,9 +161,9 @@ parts:
       Data=share/qt5
       Documentation=share/qt5/doc
       Examples=lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
-      Headers=include/$SNAPCRAFT_ARCH_TRIPLET/qt5
+      Headers=$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5
       HostBinaries=lib/qt5/bin
-      HostData=lib/$SNAPCRAFT_ARCH_TRIPLET/qt5
+      HostData=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5
       HostLibraries=lib/$SNAPCRAFT_ARCH_TRIPLET
       Imports=lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/imports
       Libraries=lib/$SNAPCRAFT_ARCH_TRIPLET
@@ -160,6 +173,10 @@ parts:
       Settings=/etc/xdg
       Translations=share/qt5/translations
       EOF
+    stage:
+      - -usr/lib/x86_64-linux-gnu/qt5/plugins/platforms/libqwayland*
+      - -usr/lib/x86_64-linux-gnu/qt5/plugins/wayland*
+      - -usr/lib/x86_64-linux-gnu/qt5/qml/QtWayland
     prime: [-./*]
 
   cmake:
@@ -194,7 +211,7 @@ parts:
     override-build: |
       ./autogen.sh
       ./configure --prefix=
-      make
+      make -j$(nproc)
       install -d "$SNAPCRAFT_PART_INSTALL/bin"
       install nasm "$SNAPCRAFT_PART_INSTALL/bin/nasm"
       install ndisasm "$SNAPCRAFT_PART_INSTALL/bin/ndisasm"
@@ -378,6 +395,28 @@ parts:
       - -./lib/cmake
       - -./lib/pkgconfig
 
+  materialdecoration:
+    source: https://github.com/desktop-app/materialdecoration.git
+    source-depth: 1
+    plugin: dump
+    build-snaps:
+      - kde-frameworks-5-core18-sdk
+      - kde-frameworks-5-core18
+    build-packages:
+      - libglvnd-dev
+    override-build: |
+      KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
+
+      $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
+      make -j$(nproc)
+      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
+
+      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
+      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
+    after:
+      - qtconf
+      - qtwayland
+
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
@@ -428,14 +467,19 @@ parts:
       - libgtk-3-dev
     stage-packages:
       - libgtk-3-0
+      - cinnamon-desktop-data
     override-build: |
       KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
 
       $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
-      make sub-theme-all
-      install -D "$SNAPCRAFT_PART_BUILD/theme/libqgnomeplatform.so" "$SNAPCRAFT_PART_INSTALL/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes/libqgnomeplatform.so"
+      make -j$(nproc)
+      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
+
+      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
+      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
     after:
       - qtconf
+      - qtwayland
 
   qtimageformats:
     source: https://github.com/qt/qtimageformats.git
@@ -451,13 +495,37 @@ parts:
       KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
 
       $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
-      make
-      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
+      make -j$(nproc)
+      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
 
-      mv "$SNAPCRAFT_PART_INSTALL/$KF5_DIR/usr" "$SNAPCRAFT_PART_INSTALL/usr"
-      rmdir "$SNAPCRAFT_PART_INSTALL/$KF5_DIR"
+      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
+      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
     after:
       - qtconf
+
+  qtwayland:
+    source: https://github.com/qt/qtwayland.git
+    source-depth: 1
+    source-tag: v5.12.3
+    plugin: dump
+    build-snaps:
+      - kde-frameworks-5-core18-sdk
+      - kde-frameworks-5-core18
+    build-packages:
+      - libglvnd-dev
+    override-build: |
+      KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
+
+      $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
+      make -j$(nproc)
+      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
+
+      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
+      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$SNAPCRAFT_STAGE/." "$SNAPCRAFT_PART_INSTALL"
+      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
+    after:
+      - qtconf
+    prime: [-./*]
 
   xxhash:
     source: https://github.com/Cyan4973/xxHash.git

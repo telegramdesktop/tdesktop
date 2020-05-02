@@ -275,6 +275,13 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
+    git clone --depth=1 https://github.com/desktop-app/materialdecoration.git
+    cd materialdecoration
+    /usr/local/desktop-app/Qt-5.12.8/bin/qmake CONFIG+=static
+    make $MAKE_THREADS_CNT
+    sudo make install
+    cd ..
+
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git checkout 9f2a7bb1

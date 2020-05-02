@@ -1934,6 +1934,7 @@ void SendFilesBox::initSendWay() {
 		if (_albumPreview) {
 			_albumPreview->setSendWay(value);
 		}
+		updateEmojiPanelGeometry();
 		setInnerFocus();
 	});
 }

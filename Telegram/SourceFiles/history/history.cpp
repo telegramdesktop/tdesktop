@@ -1965,6 +1965,9 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (folder) {
 		folder->registerOne(this);
 	}
+	Notify::peerUpdatedDelayed(
+		peer,
+		Notify::PeerUpdate::Flag::FolderChanged);
 }
 
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
@@ -2580,17 +2583,19 @@ void History::updateChatListExistence() {
 	//}
 }
 
-bool History::useProxyPromotion() const {
-	if (!isProxyPromoted()) {
+bool History::useTopPromotion() const {
+	if (!isTopPromoted()) {
 		return false;
 	} else if (const auto channel = peer->asChannel()) {
 		return !isPinnedDialog(FilterId()) && !channel->amIn();
+	} else if (const auto user = peer->asUser()) {
+		return !isPinnedDialog(FilterId()) && user->isBot() && isEmpty();
 	}
 	return false;
 }
 
 int History::fixedOnTopIndex() const {
-	return useProxyPromotion() ? kProxyPromotionFixOnTopIndex : 0;
+	return useTopPromotion() ? kTopPromotionFixOnTopIndex : 0;
 }
 
 bool History::trackUnreadMessages() const {
@@ -2607,7 +2612,7 @@ bool History::shouldBeInChatList() const {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
-			return isProxyPromoted();
+			return isTopPromoted();
 		//} else if (const auto feed = channel->feed()) { // #feed
 		//	return !feed->needUpdateInChatList();
 		}
@@ -2615,6 +2620,10 @@ bool History::shouldBeInChatList() const {
 		return chat->amIn()
 			|| !lastMessageKnown()
 			|| (lastMessage() != nullptr);
+	} else if (const auto user = peer->asUser()) {
+		if (user->isBot() && isTopPromoted()) {
+			return true;
+		}
 	}
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
@@ -2716,6 +2725,41 @@ void History::dialogEntryApplied() {
 			}
 		}
 	}
+}
+
+void History::cacheTopPromotion(
+		bool promoted,
+		const QString &type,
+		const QString &message) {
+	const auto changed = (isTopPromoted() != promoted);
+	cacheTopPromoted(promoted);
+	if (topPromotionType() != type || _topPromotedMessage != message) {
+		_topPromotedType = type;
+		_topPromotedMessage = message;
+		cloudDraftTextCache.clear();
+	} else if (changed) {
+		cloudDraftTextCache.clear();
+	}
+}
+
+QStringRef History::topPromotionType() const {
+	return topPromotionAboutShown()
+		? _topPromotedType.midRef(5)
+		: _topPromotedType.midRef(0);
+}
+
+bool History::topPromotionAboutShown() const {
+	return _topPromotedType.startsWith("seen^");
+}
+
+void History::markTopPromotionAboutShown() {
+	if (!topPromotionAboutShown()) {
+		_topPromotedType = "seen^" + _topPromotedType;
+	}
+}
+
+QString History::topPromotionMessage() const {
+	return _topPromotedMessage;
 }
 
 bool History::clearUnreadOnClientSide() const {

@@ -86,15 +86,20 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 	}
 }
 
-void Entry::cacheProxyPromoted(bool promoted) {
-	if (_isProxyPromoted != promoted) {
-		_isProxyPromoted = promoted;
-		updateChatListSortPosition();
-		updateChatListEntry();
-		if (!_isProxyPromoted) {
-			updateChatListExistence();
-		}
+void Entry::cacheTopPromoted(bool promoted) {
+	if (_isTopPromoted == promoted) {
+		return;
 	}
+	_isTopPromoted = promoted;
+	updateChatListSortPosition();
+	updateChatListEntry();
+	if (!_isTopPromoted) {
+		updateChatListExistence();
+	}
+}
+
+bool Entry::isTopPromoted() const {
+	return _isTopPromoted;
 }
 
 bool Entry::needUpdateInChatList() const {

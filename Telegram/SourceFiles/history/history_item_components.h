@@ -77,6 +77,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	PeerData *originalSender = nullptr;
 	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
 	QString originalAuthor;
+	QString psaType;
 	MsgId originalId = 0;
 	mutable Ui::Text::String text = { 1 };
 

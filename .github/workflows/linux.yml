@@ -5,10 +5,40 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/linux.yml'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
   pull_request:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/linux.yml'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
 
 jobs:
 
@@ -440,6 +470,18 @@ jobs:
         run: |
           cd $LibrariesPath
           sudo cp -R qt-cache/. /
+
+      - name: Material Decoration.
+        run: |
+          cd $LibrariesPath
+
+          git clone --depth=1 $GIT/desktop-app/materialdecoration.git
+          cd materialdecoration
+          $QT_PREFIX/bin/qmake CONFIG+=static
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf materialdecoration
 
       - name: Breakpad cache.
         id: cache-breakpad

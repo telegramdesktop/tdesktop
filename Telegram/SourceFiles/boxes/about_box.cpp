@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
-#include "platform/platform_file_utilities.h"
+#include "core/file_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
-#include <QtGui/QDesktopServices>
 
 namespace {
 
@@ -109,7 +108,7 @@ void AboutBox::showVersionHistory() {
 
 		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
 	} else {
-		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/changelog"));
+		File::OpenUrl(qsl("https://desktop.telegram.org/changelog"));
 	}
 }
 

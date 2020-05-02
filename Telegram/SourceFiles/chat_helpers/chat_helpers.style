@@ -218,8 +218,11 @@ stickerGroupCategoryAbout: defaultTextStyle;
 stickerGroupCategoryAddMargin: margins(0px, 10px, 0px, 5px);
 stickerGroupCategoryAdd: stickersTrendingAdd;
 
-stickersToastMaxWidth: 340px;
-stickersToastPadding: margins(16px, 13px, 16px, 12px);
+stickersToast: Toast(defaultToast) {
+	minWidth: 340px;
+	maxWidth: 340px;
+	padding: margins(16px, 13px, 16px, 12px);
+}
 
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 
@@ -271,7 +274,7 @@ autocompleteRowAnswer: defaultTextStyle;
 manageEmojiPreview: 22px;
 manageEmojiPreviewWidth: 48px;
 manageEmojiPreviewHeight: 48px;
-manageEmojiPreviewPadding: margins(23px, 9px, 19px, 9px);
+manageEmojiPreviewPadding: margins(22px, 9px, 19px, 9px);
 manageEmojiMarginRight: 21px;
 manageEmojiNameTop: 3px;
 manageEmojiStatusTop: 25px;

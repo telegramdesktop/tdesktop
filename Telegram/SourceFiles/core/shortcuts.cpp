@@ -55,57 +55,81 @@ const auto SupportCommands = base::flat_set<Command>{
 };
 
 const auto CommandByName = base::flat_map<QString, Command>{
-	{ qsl("close_telegram")   , Command::Close },
-	{ qsl("lock_telegram")    , Command::Lock },
-	{ qsl("minimize_telegram"), Command::Minimize },
-	{ qsl("quit_telegram")    , Command::Quit },
+	{ qsl("close_telegram")    , Command::Close },
+	{ qsl("lock_telegram")     , Command::Lock },
+	{ qsl("minimize_telegram") , Command::Minimize },
+	{ qsl("quit_telegram")     , Command::Quit },
 
-	{ qsl("media_play")       , Command::MediaPlay },
-	{ qsl("media_pause")      , Command::MediaPause },
-	{ qsl("media_playpause")  , Command::MediaPlayPause },
-	{ qsl("media_stop")       , Command::MediaStop },
-	{ qsl("media_previous")   , Command::MediaPrevious },
-	{ qsl("media_next")       , Command::MediaNext },
+	{ qsl("media_play")        , Command::MediaPlay },
+	{ qsl("media_pause")       , Command::MediaPause },
+	{ qsl("media_playpause")   , Command::MediaPlayPause },
+	{ qsl("media_stop")        , Command::MediaStop },
+	{ qsl("media_previous")    , Command::MediaPrevious },
+	{ qsl("media_next")        , Command::MediaNext },
 
-	{ qsl("search")           , Command::Search },
+	{ qsl("search")            , Command::Search },
 
-	{ qsl("previous_chat")    , Command::ChatPrevious },
-	{ qsl("next_chat")        , Command::ChatNext },
-	{ qsl("first_chat")       , Command::ChatFirst },
-	{ qsl("last_chat")        , Command::ChatLast },
-	{ qsl("self_chat")        , Command::ChatSelf },
+	{ qsl("previous_chat")     , Command::ChatPrevious },
+	{ qsl("next_chat")         , Command::ChatNext },
+	{ qsl("first_chat")        , Command::ChatFirst },
+	{ qsl("last_chat")         , Command::ChatLast },
+	{ qsl("self_chat")         , Command::ChatSelf },
+	
+	{ qsl("previous_folder")   , Command::FolderPrevious },
+	{ qsl("next_folder")       , Command::FolderNext },
+	{ qsl("all_chats")         , Command::ShowAllChats },
+	
+	{ qsl("folder1")           , Command::ShowFolder1 },
+	{ qsl("folder2")           , Command::ShowFolder2 },
+	{ qsl("folder3")           , Command::ShowFolder3 },
+	{ qsl("folder4")           , Command::ShowFolder4 },
+	{ qsl("folder5")           , Command::ShowFolder5 },
+	{ qsl("folder6")           , Command::ShowFolder6 },
+	{ qsl("last_folder")       , Command::ShowFolderLast },
 
-	{ qsl("show_archive")     , Command::ShowArchive },
+	{ qsl("show_archive")      , Command::ShowArchive },
 
 	// Shortcuts that have no default values.
-	{ qsl("message")          , Command::JustSendMessage },
-	{ qsl("message_silently") , Command::SendSilentMessage },
-	{ qsl("message_scheduled"), Command::ScheduleMessage },
+	{ qsl("message")           , Command::JustSendMessage },
+	{ qsl("message_silently")  , Command::SendSilentMessage },
+	{ qsl("message_scheduled") , Command::ScheduleMessage },
 	//
 };
 
 const auto CommandNames = base::flat_map<Command, QString>{
-	{ Command::Close         , qsl("close_telegram") },
-	{ Command::Lock          , qsl("lock_telegram") },
-	{ Command::Minimize      , qsl("minimize_telegram") },
-	{ Command::Quit          , qsl("quit_telegram") },
+	{ Command::Close          , qsl("close_telegram") },
+	{ Command::Lock           , qsl("lock_telegram") },
+	{ Command::Minimize       , qsl("minimize_telegram") },
+	{ Command::Quit           , qsl("quit_telegram") },
 
-	{ Command::MediaPlay     , qsl("media_play") },
-	{ Command::MediaPause    , qsl("media_pause") },
-	{ Command::MediaPlayPause, qsl("media_playpause") },
-	{ Command::MediaStop     , qsl("media_stop") },
-	{ Command::MediaPrevious , qsl("media_previous") },
-	{ Command::MediaNext     , qsl("media_next") },
+	{ Command::MediaPlay      , qsl("media_play") },
+	{ Command::MediaPause     , qsl("media_pause") },
+	{ Command::MediaPlayPause , qsl("media_playpause") },
+	{ Command::MediaStop      , qsl("media_stop") },
+	{ Command::MediaPrevious  , qsl("media_previous") },
+	{ Command::MediaNext      , qsl("media_next") },
 
-	{ Command::Search        , qsl("search") },
+	{ Command::Search         , qsl("search") },
 
-	{ Command::ChatPrevious  , qsl("previous_chat") },
-	{ Command::ChatNext      , qsl("next_chat") },
-	{ Command::ChatFirst     , qsl("first_chat") },
-	{ Command::ChatLast      , qsl("last_chat") },
-	{ Command::ChatSelf      , qsl("self_chat") },
+	{ Command::ChatPrevious   , qsl("previous_chat") },
+	{ Command::ChatNext       , qsl("next_chat") },
+	{ Command::ChatFirst      , qsl("first_chat") },
+	{ Command::ChatLast       , qsl("last_chat") },
+	{ Command::ChatSelf       , qsl("self_chat") },
+	
+	{ Command::FolderPrevious , qsl("previous_folder") },
+	{ Command::FolderNext     , qsl("next_folder") },
+	{ Command::ShowAllChats   , qsl("all_chats") },
+	                                                   
+	{ Command::ShowFolder1    , qsl("folder1") },
+	{ Command::ShowFolder2    , qsl("folder2") },
+	{ Command::ShowFolder3    , qsl("folder3") },
+	{ Command::ShowFolder4    , qsl("folder4") },
+	{ Command::ShowFolder5    , qsl("folder5") },
+	{ Command::ShowFolder6    , qsl("folder6") },
+	{ Command::ShowFolderLast , qsl("last_folder") },
 
-	{ Command::ShowArchive   , qsl("show_archive") },
+	{ Command::ShowArchive    , qsl("show_archive") },
 };
 
 class Manager {

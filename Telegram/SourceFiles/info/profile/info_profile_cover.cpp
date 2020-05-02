@@ -146,10 +146,15 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 			lt_online_count,
 			OnlineStatusText(onlineCount));
 	} else if (fullCount > 0) {
-		return tr::lng_chat_status_members(
-			tr::now,
-			lt_count_decimal,
-			fullCount);
+		return isGroup
+			? tr::lng_chat_status_members(
+				tr::now,
+				lt_count_decimal,
+				fullCount)
+			: tr::lng_chat_status_subscribers(
+				tr::now,
+				lt_count_decimal,
+				fullCount);
 	}
 	return isGroup
 		? tr::lng_group_status(tr::now)

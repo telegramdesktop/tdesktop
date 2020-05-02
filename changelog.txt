@@ -1,3 +1,9 @@
+2.1.1 (01.05.20)
+
+- Improve quiz explanation tooltip layout.
+- Fix possible crash in theme editor.
+- Other minor bug fixes and improvements.
+
 2.1 (24.04.20)
 
 - Access a catalog of over 20,000 stickers made by professional artists from the updated Sticker Panel by clicking the '+' icon.

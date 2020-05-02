@@ -225,7 +225,7 @@ createThemeImportButton: SettingsButton {
 	font: semiboldFont;
 
 	height: 20px;
-	padding: margins(23px, 10px, 23px, 8px);
+	padding: margins(22px, 10px, 22px, 8px);
 
 	ripple: defaultRippleAnimation;
 }
@@ -309,6 +309,11 @@ windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 }
 windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
 windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
+
+windowArchiveToast: Toast(defaultToast) {
+	minWidth: boxWideWidth;
+	maxWidth: boxWideWidth;
+}
 
 // Mac specific
 

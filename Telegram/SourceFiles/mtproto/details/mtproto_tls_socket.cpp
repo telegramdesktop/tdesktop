@@ -707,7 +707,7 @@ int64 TlsSocket::read(bytes::span buffer) {
 		if (available <= 0) {
 			return written;
 		}
-		const auto write = std::min(index_type(available), buffer.size());
+		const auto write = std::min(std::size_t(available), buffer.size());
 		if (write <= 0) {
 			return written;
 		}

@@ -118,6 +118,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_status_online#one" = "{count} online";
 "lng_chat_status_online#other" = "{count} online";
 "lng_chat_status_members_online" = "{members_count}, {online_count}";
+"lng_chat_status_subscribers#one" = "{count} subscriber";
+"lng_chat_status_subscribers#other" = "{count} subscribers";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
@@ -601,6 +603,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor" = "Proxy sponsor";
 "lng_proxy_sponsor_about" = "This channel is shown by your proxy server.\nTo remove this channel from your chats list,\ndisable the proxy in Telegram Settings.";
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
+"lng_badge_psa_default" = "PSA";
+"lng_about_psa_default" = "This message provides you with a public service announcement. To remove it from your chats list, right click it and select **Hide**.";
+"lng_tooltip_psa_default" = "This message provides you with a public service announcement.";
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_no_blocked_users" = "None";
@@ -765,6 +770,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_participants_section" = "Members";
+"lng_profile_subscribers_section" = "Subscribers";
 "lng_profile_mobile_number" = "Mobile:";
 "lng_profile_username" = "Username:";
 "lng_profile_link" = "Link:";
@@ -886,6 +892,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_channel_info" = "Channel Info";
 "lng_manage_peer_recent_actions" = "Recent Actions";
 "lng_manage_peer_members" = "Members";
+"lng_manage_peer_subscribers" = "Subscribers";
 "lng_manage_peer_administrators" = "Administrators";
 "lng_manage_peer_exceptions" = "Exceptions";
 "lng_manage_peer_removed_users" = "Removed users";
@@ -1127,6 +1134,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forwarded" = "Forwarded from {user}";
 "lng_forwarded_date" = "Original: {date}";
 "lng_forwarded_channel" = "Forwarded from {channel}";
+"lng_forwarded_psa_default" = "Forwarded from {channel}";
 "lng_forwarded_via" = "Forwarded from {user} via {inline_bot}";
 "lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
@@ -1402,6 +1410,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
 //"lng_context_view_feed_info" = "View feed info";
+"lng_context_hide_psa" = "Hide this announcement";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
 "lng_context_mark_unread" = "Mark as unread";

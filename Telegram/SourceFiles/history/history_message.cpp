@@ -383,6 +383,7 @@ struct HistoryMessage::CreateConfig {
 	QString author;
 	PeerId senderOriginal = 0;
 	QString senderNameOriginal;
+	QString forwardPsaType;
 	MsgId originalId = 0;
 	PeerId savedFromPeer = 0;
 	MsgId savedFromMsgId = 0;
@@ -407,6 +408,7 @@ void HistoryMessage::FillForwardedInfo(
 	}
 	config.originalDate = data.vdate().v;
 	config.senderNameOriginal = qs(data.vfrom_name().value_or_empty());
+	config.forwardPsaType = qs(data.vpsa_type().value_or_empty());
 	config.originalId = data.vchannel_post().value_or_empty();
 	config.authorOriginal = qs(data.vpost_author().value_or_empty());
 	const auto savedFromPeer = data.vsaved_from_peer();
@@ -867,6 +869,7 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 	}
 	forwarded->originalId = config.originalId;
 	forwarded->originalAuthor = config.authorOriginal;
+	forwarded->psaType = config.forwardPsaType;
 	forwarded->savedFromPeer = history()->owner().peerLoaded(
 		config.savedFromPeer);
 	forwarded->savedFromMsgId = config.savedFromMsgId;

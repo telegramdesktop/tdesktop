@@ -16,5 +16,9 @@ inline QString UrlToLocal(const QUrl &url) {
 	return url.toLocalFile();
 }
 
+inline void UnsafeOpenUrl(const QString &url) {
+	return ::File::internal::UnsafeOpenUrlDefault(url);
+}
+
 } // namespace File
 } // namespace Platform

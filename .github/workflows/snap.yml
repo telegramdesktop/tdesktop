@@ -5,10 +5,40 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/snap.yml'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - '!Telegram/Patches/ffmpeg.diff'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
   pull_request:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/snap.yml'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - '!Telegram/Patches/ffmpeg.diff'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/mac/**'
+      - 'Telegram/Telegram/**'
+      - 'Telegram/configure.bat'
+      - 'Telegram/Telegram.plist'
 
 jobs:
 
@@ -19,7 +49,7 @@ jobs:
     env:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
-      MANUAL_CACHING: "4"
+      MANUAL_CACHING: "5"
 
     steps:
       - name: Clone.

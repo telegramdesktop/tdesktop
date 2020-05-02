@@ -95,7 +95,7 @@ public:
 	virtual bool allowsEdit() const;
 	virtual bool allowsEditCaption() const;
 	virtual bool allowsEditMedia() const;
-	virtual bool allowsRevoke() const;
+	virtual bool allowsRevoke(TimeId now) const;
 	virtual bool forwardedBecomesUnread() const;
 	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
 
@@ -414,6 +414,7 @@ public:
 	[[nodiscard]] QString emoji() const;
 	[[nodiscard]] int value() const;
 
+	bool allowsRevoke(TimeId now) const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;

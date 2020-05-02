@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
-#include <QtGui/QDesktopServices>
 #include <QtGui/QGuiApplication>
 
 namespace {

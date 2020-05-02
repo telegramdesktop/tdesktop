@@ -6,6 +6,11 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 
+"cloud_lng_badge_psa_covid" = "COVID-19";
+"cloud_lng_about_psa_covid" = "This message provides you with a public service announcement in relation to the ongoing COVID-19 pandemic. To remove it from your chats list, right click it and select **Hide**.";
+"cloud_lng_forwarded_psa_covid" = "COVID-19 Notification from {channel}";
+"cloud_lng_tooltip_psa_covid" = "This message provides you with a public service announcement in relation to the ongoing COVID-19 pandemic. Learn more about this initiative at https://telegram.org/blog/coronavirus";
+
 "cloud_lng_passport_in_ar" = "Arabic";
 "cloud_lng_passport_in_az" = "Azerbaijani";
 "cloud_lng_passport_in_bg" = "Bulgarian";

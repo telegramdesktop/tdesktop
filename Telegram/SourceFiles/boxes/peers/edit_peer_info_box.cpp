@@ -967,7 +967,7 @@ void Controller::fillManageSection() {
 	if (canViewMembers) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
-			tr::lng_manage_peer_members(),
+			(_isGroup ? tr::lng_manage_peer_members() : tr::lng_manage_peer_subscribers()),
 			Info::Profile::MigratedOrMeValue(
 				_peer
 			) | rpl::map(

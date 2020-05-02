@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
+#include "styles/style_history.h" // st::historyErrorToast
 
 #include <QtWidgets/QAction>
 
@@ -72,9 +73,11 @@ public:
 	void fill();
 
 private:
-	bool showInfo();
-	bool showToggleArchived();
-	bool showTogglePin();
+	[[nodiscard]] bool showInfo();
+	[[nodiscard]] bool showHidePromotion();
+	[[nodiscard]] bool showToggleArchived();
+	[[nodiscard]] bool showTogglePin();
+	void addHidePromotion();
 	void addTogglePin();
 	void addInfo();
 	//void addSearch();
@@ -206,6 +209,16 @@ void TogglePinnedDialog(Dialogs::Key key, FilterId filterId) {
 		return TogglePinnedDialog(key);
 	}
 	const auto owner = &key.entry()->owner();
+
+	// This can happen when you remove this filter from another client.
+	if (!ranges::contains(
+		(&owner->session())->data().chatsFilters().list(),
+		filterId,
+		&Data::ChatFilter::id)) {
+		Ui::Toast::Show(tr::lng_cant_do_this(tr::now));
+		return;
+	}
+
 	const auto isPinned = !key.entry()->isPinnedDialog(filterId);
 	if (isPinned && PinnedLimitReached(key, filterId)) {
 		return;
@@ -248,12 +261,22 @@ bool Filler::showInfo() {
 	return false;
 }
 
+bool Filler::showHidePromotion() {
+	if (_source != PeerMenuSource::ChatsList) {
+		return false;
+	}
+	const auto history = _peer->owner().historyLoaded(_peer);
+	return history
+		&& history->useTopPromotion()
+		&& !history->topPromotionType().isEmpty();
+}
+
 bool Filler::showToggleArchived() {
 	if (_source != PeerMenuSource::ChatsList) {
 		return false;
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
-	if (history && history->useProxyPromotion()) {
+	if (history && history->useTopPromotion()) {
 		return false;
 	} else if (!_peer->isNotificationsUser() && !_peer->isSelf()) {
 		return true;
@@ -267,6 +290,16 @@ bool Filler::showTogglePin() {
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
 	return history && !history->fixedOnTopIndex();
+}
+
+void Filler::addHidePromotion() {
+	const auto history = _peer->owner().history(_peer);
+	_addAction(tr::lng_context_hide_psa(tr::now), [=] {
+		history->cacheTopPromotion(false, QString(), QString());
+		history->session().api().request(MTPhelp_HidePromoData(
+			history->peer->input
+		)).send();
+	});
 }
 
 void Filler::addTogglePin() {
@@ -361,20 +394,30 @@ void Filler::addToggleUnreadMark() {
 
 void Filler::addToggleArchive() {
 	const auto peer = _peer;
-	const auto archived = [&] {
+	const auto isArchived = [=] {
 		const auto history = peer->owner().historyLoaded(peer);
 		return history && history->folder();
-	}();
+	};
 	const auto toggle = [=] {
 		ToggleHistoryArchived(
 			peer->owner().history(peer),
-			!archived);
+			!isArchived());
 	};
-	_addAction(
-		(archived
+	const auto archiveAction = _addAction(
+		(isArchived()
 			? tr::lng_archived_remove(tr::now)
 			: tr::lng_archived_add(tr::now)),
 		toggle);
+
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(archiveAction);
+	Notify::PeerUpdateViewer(
+		peer,
+		Notify::PeerUpdate::Flag::FolderChanged
+	) | rpl::start_with_next([=] {
+		archiveAction->setText(isArchived()
+			? tr::lng_archived_remove(tr::now)
+			: tr::lng_archived_add(tr::now));
+	}, *lifetime);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
@@ -571,6 +614,9 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 }
 
 void Filler::fill() {
+	if (showHidePromotion()) {
+		addHidePromotion();
+	}
 	if (showToggleArchived()) {
 		addToggleArchive();
 	}
@@ -629,12 +675,12 @@ void FolderFiller::addTogglesForArchive() {
 	});
 
 	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
-		auto toast = Ui::Toast::Config();
-		toast.text = { tr::lng_context_archive_to_menu_info(tr::now) };
-		toast.minWidth = toast.maxWidth = st::boxWideWidth;
-		toast.multiline = true;
-		toast.durationMs = kArchivedToastDuration;
-		Ui::Toast::Show(toast);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { tr::lng_context_archive_to_menu_info(tr::now) },
+			.st = &st::windowArchiveToast,
+			.durationMs = kArchivedToastDuration,
+			.multiline = true,
+		});
 
 		controller->session().settings().setArchiveInMainMenu(
 			!controller->session().settings().archiveInMainMenu());
@@ -924,11 +970,11 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		session->data().idsToItems(items),
 		TextWithTags());
 	if (!error.isEmpty()) {
-		auto config = Ui::Toast::Config();
-		config.multiline = true;
-		config.minWidth = st::msgMinWidth;
-		config.text = { error };
-		Ui::Toast::Show(config);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { error },
+			.st = &st::historyErrorToast,
+			.multiline = true,
+		});
 		return { nullptr };
 	}
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
@@ -1035,16 +1081,16 @@ void PeerMenuAddMuteAction(
 //
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
-		auto toast = Ui::Toast::Config();
-		toast.text = { archived
-			? tr::lng_archived_added(tr::now)
-			: tr::lng_archived_removed(tr::now) };
-		toast.minWidth = toast.maxWidth = st::boxWideWidth;
-		toast.multiline = true;
-		if (archived) {
-			toast.durationMs = kArchivedToastDuration;
-		}
-		Ui::Toast::Show(toast);
+		Ui::Toast::Show(Ui::Toast::Config{
+			.text = { (archived
+				? tr::lng_archived_added(tr::now)
+				: tr::lng_archived_removed(tr::now)) },
+			.st = &st::windowArchiveToast,
+			.durationMs = (archived
+				? kArchivedToastDuration
+				: Ui::Toast::kDefaultDuration),
+			.multiline = true,
+		});
 	};
 	history->session().api().toggleHistoryArchived(
 		history,

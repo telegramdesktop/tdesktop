@@ -99,6 +99,11 @@ void SimpleElementDelegate::elementShowPollResults(
 	FullMsgId context) {
 }
 
+void SimpleElementDelegate::elementShowTooltip(
+	const TextWithEntities &text,
+	Fn<void()> hiddenCallback) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -281,7 +286,7 @@ bool Element::isUnderCursor() const {
 }
 
 bool Element::isLastAndSelfMessage() const {
-	if (!hasOutLayout()) {
+	if (!hasOutLayout() || data()->_history->peer->isSelf()) {
 		return false;
 	}
 	if (const auto last = data()->_history->lastMessage()) {

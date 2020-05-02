@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "styles/style_history.h"
 
 namespace HistoryView {
 namespace {
@@ -35,28 +36,30 @@ namespace {
 		not_null<History*> history,
 		const QString &emoji) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		auto config = Ui::Toast::Config();
-		config.multiline = true;
-		config.minWidth = st::msgMinWidth;
-		config.maxWidth = st::toastMaxWidth + st::msgMinWidth;
-		config.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) };
-		config.durationMs = Ui::Toast::kDefaultDuration * 2;
-		auto link = Ui::Text::Link(
-			tr::lng_about_random_send(tr::now).toUpper());
-		link.entities.push_back(
-			EntityInText(EntityType::Bold, 0, link.text.size()));
-		config.text.append(' ').append(std::move(link));
-		config.filter = crl::guard(&history->session(), [=](
-				const ClickHandlerPtr &handler,
-				Qt::MouseButton button) {
-			if (button == Qt::LeftButton) {
-				auto message = Api::MessageToSend(history);
-				message.action.clearDraft = false;
-				message.textWithTags.text = emoji;
-				Api::SendDice(message);
-			}
-			return false;
-		});
+		auto config = Ui::Toast::Config{
+			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
+			.st = &st::historyDiceToast,
+			.durationMs = Ui::Toast::kDefaultDuration * 2,
+			.multiline = true,
+		};
+		if (history->peer->canWrite()) {
+			auto link = Ui::Text::Link(
+				tr::lng_about_random_send(tr::now).toUpper());
+			link.entities.push_back(
+				EntityInText(EntityType::Bold, 0, link.text.size()));
+			config.text.append(' ').append(std::move(link));
+			config.filter = crl::guard(&history->session(), [=](
+					const ClickHandlerPtr &handler,
+					Qt::MouseButton button) {
+				if (button == Qt::LeftButton) {
+					auto message = Api::MessageToSend(history);
+					message.action.clearDraft = false;
+					message.textWithTags.text = emoji;
+					Api::SendDice(message);
+				}
+				return false;
+			});
+		}
 		Ui::Toast::Show(config);
 	});
 }

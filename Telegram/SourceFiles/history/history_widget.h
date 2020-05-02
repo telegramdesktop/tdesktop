@@ -60,6 +60,9 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
+namespace Toast {
+class Instance;
+} // namespace Toast
 } // namespace Ui
 
 namespace Window {
@@ -242,6 +245,11 @@ public:
 	bool sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingPhoto(not_null<PhotoData*> photo);
 
+	void showInfoTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback);
+	void hideInfoTooltip(anim::type animated);
+
 	// Tabbed selector management.
 	void pushTabbedSelectorToThirdSection(
 		const Window::SectionShow &params) override;
@@ -380,7 +388,7 @@ private:
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
-	void refreshAboutProxyPromotion();
+	void showAboutTopPromotion();
 	void unreadCountUpdated();
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
@@ -734,7 +742,6 @@ private:
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::FlatButton> _discuss;
-	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
@@ -800,6 +807,8 @@ private:
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
+
+	base::weak_ptr<Ui::Toast::Instance> _topToast;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

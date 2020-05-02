@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_element.h"
+#include "ui/effects/animations.h"
+#include "base/weak_ptr.h"
 
 class HistoryMessage;
 struct HistoryMessageEdited;
+struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
@@ -25,10 +28,16 @@ struct LogEntryOriginal
 	~LogEntryOriginal();
 
 	std::unique_ptr<WebPage> page;
-
 };
 
-class Message : public Element {
+struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
+	QString type;
+	mutable ClickHandlerPtr link;
+	mutable Ui::Animations::Simple buttonVisibleAnimation;
+	mutable bool buttonVisible = true;
+};
+
+class Message : public Element, public base::has_weak_ptr {
 public:
 	Message(
 		not_null<ElementDelegate*> delegate,
@@ -95,6 +104,7 @@ private:
 	not_null<HistoryMessage*> message() const;
 
 	void initLogEntryOriginal();
+	void initPsa();
 	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
@@ -151,6 +161,9 @@ private:
 	int plainMaxWidth() const;
 
 	WebPage *logEntryOriginal() const;
+
+	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
+	void psaTooltipToggled(bool shown) const;
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;

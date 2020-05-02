@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
+#include "platform/linux/specific_linux.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "boxes/abstract_box.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <QtCore/QProcess>
+#include <QtGui/QDesktopServices>
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
@@ -56,6 +58,44 @@ QByteArray EscapeShell(const QByteArray &content) {
 }
 
 } // namespace internal
+
+void UnsafeOpenUrl(const QString &url) {
+	if (InSnap()) {
+		const QStringList arguments{
+			url
+		};
+		QProcess process;
+		process.startDetached(qsl("xdg-open"), arguments);
+	} else {
+		QDesktopServices::openUrl(url);
+	}
+}
+
+void UnsafeOpenEmailLink(const QString &email) {
+	const auto url = qstr("mailto:") + email;
+
+	if (InSnap()) {
+		const QStringList arguments{
+			url
+		};
+		QProcess process;
+		process.startDetached(qsl("xdg-open"), arguments);
+	} else {
+		QDesktopServices::openUrl(QUrl(url));
+	}
+}
+
+void UnsafeLaunch(const QString &filepath) {
+	if (InSnap()) {
+		const QStringList arguments{
+			QFileInfo(filepath).absoluteFilePath()
+		};
+		QProcess process;
+		process.startDetached(qsl("xdg-open"), arguments);
+	} else {
+		QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
+	}
+}
 
 void UnsafeShowInFolder(const QString &filepath) {
 	// Hide mediaview to make other apps visible.

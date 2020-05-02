@@ -5,10 +5,38 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
   pull_request:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Patches/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
 
 jobs:
 

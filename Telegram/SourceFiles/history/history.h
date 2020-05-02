@@ -237,6 +237,15 @@ public:
 		MsgId maxOutboxRead);
 	void dialogEntryApplied();
 
+	void cacheTopPromotion(
+		bool promoted,
+		const QString &type,
+		const QString &message);
+	[[nodiscard]] QStringRef topPromotionType() const;
+	[[nodiscard]] QString topPromotionMessage() const;
+	[[nodiscard]] bool topPromotionAboutShown() const;
+	void markTopPromotionAboutShown();
+
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
@@ -330,7 +339,7 @@ public:
 	void setForwardDraft(MessageIdsList &&items);
 
 	History *migrateSibling() const;
-	bool useProxyPromotion() const;
+	[[nodiscard]] bool useTopPromotion() const;
 	int fixedOnTopIndex() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
@@ -558,6 +567,9 @@ private:
 	std::optional<QString> _lastSentDraftText;
 	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
+
+	QString _topPromotedMessage;
+	QString _topPromotedType;
 
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, SendAction> _sendActions;
