@@ -457,6 +457,8 @@ void MainWindow::initHook() {
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
+	updateWaylandDecorationColors();
+
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		updateWaylandDecorationColors();
@@ -686,6 +688,9 @@ void MainWindow::updateWaylandDecorationColors() {
 	windowHandle()->setProperty("__material_decoration_foregroundColor", st::titleFgActive->c);
 	windowHandle()->setProperty("__material_decoration_backgroundInactiveColor", st::titleBg->c);
 	windowHandle()->setProperty("__material_decoration_foregroundInactiveColor", st::titleFg->c);
+
+	// Trigger a QtWayland client-side decoration update
+	windowHandle()->resize(windowHandle()->size());
 }
 
 void MainWindow::LibsLoaded() {
