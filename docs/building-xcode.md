@@ -49,7 +49,6 @@ Go to ***BuildPath*** and run
     cd patches
     git checkout 10aeaf6
     cd ..
-    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     xz_ver=5.2.4
     wget https://tukaani.org/xz/xz-$xz_ver.tar.gz

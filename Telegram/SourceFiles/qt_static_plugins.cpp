@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include <QtCore/QtPlugin>
 
+#ifndef DESKTOP_APP_USE_PACKAGED
 Q_IMPORT_PLUGIN(QWebpPlugin)
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
@@ -30,20 +31,41 @@ Q_IMPORT_PLUGIN(QWaylandXdgShellV5IntegrationPlugin)
 Q_IMPORT_PLUGIN(QWaylandXdgShellV6IntegrationPlugin)
 Q_IMPORT_PLUGIN(QWaylandXdgShellIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWaylandBradientDecorationPlugin)
-Q_IMPORT_PLUGIN(QWaylandMaterialDecorationPlugin)
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWaylandEglPlatformIntegrationPlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QSvgPlugin)
 Q_IMPORT_PLUGIN(QSvgIconPlugin)
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
 Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
 Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(QHimePlatformInputContextPlugin)
-Q_IMPORT_PLUGIN(NimfInputContextPlugin)
 Q_IMPORT_PLUGIN(QXdgDesktopPortalThemePlugin)
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 #endif // Q_OS_WIN | Q_OS_MAC | Q_OS_LINUX
+#endif // !DESKTOP_APP_USE_PACKAGED
+
+#ifdef Q_OS_LINUX
+#if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY
+Q_IMPORT_PLUGIN(QWaylandMaterialDecorationPlugin)
+Q_IMPORT_PLUGIN(NimfInputContextPlugin)
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QHimePlatformInputContextPlugin)
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
+
+#if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES
+Q_IMPORT_PLUGIN(Qt5CTPlatformThemePlugin)
+Q_IMPORT_PLUGIN(Qt5CTStylePlugin)
+#endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES
+
+// conflicts with Qt static link
+#ifdef DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+Q_IMPORT_PLUGIN(LXQtPlatformThemePlugin)
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES
+#endif // Q_OS_LINUX

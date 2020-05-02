@@ -54,7 +54,6 @@ Go to ***BuildPath*** and run
     cd patches
     git checkout 395b620
     cd ../
-    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     cd xz-5.0.5
     CFLAGS="-mmacosx-version-min=10.10" LDFLAGS="-mmacosx-version-min=10.10" ./configure
