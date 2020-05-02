@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-cmake.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -24,6 +25,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-cmake.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
