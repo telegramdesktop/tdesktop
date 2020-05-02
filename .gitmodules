@@ -67,3 +67,27 @@
 [submodule "Telegram/ThirdParty/hunspell"]
 	path = Telegram/ThirdParty/hunspell
 	url = https://github.com/hunspell/hunspell
+[submodule "Telegram/ThirdParty/materialdecoration"]
+	path = Telegram/ThirdParty/materialdecoration
+	url = https://github.com/desktop-app/materialdecoration.git
+[submodule "Telegram/ThirdParty/range-v3"]
+	path = Telegram/ThirdParty/range-v3
+	url = https://github.com/ericniebler/range-v3.git
+[submodule "Telegram/ThirdParty/fcitx-qt5"]
+	path = Telegram/ThirdParty/fcitx-qt5
+	url = https://github.com/fcitx/fcitx-qt5.git
+[submodule "Telegram/ThirdParty/nimf"]
+	path = Telegram/ThirdParty/nimf
+	url = https://github.com/hamonikr/nimf.git
+[submodule "Telegram/ThirdParty/hime"]
+	path = Telegram/ThirdParty/hime
+	url = https://github.com/hime-ime/hime.git
+[submodule "Telegram/ThirdParty/qt5ct"]
+	path = Telegram/ThirdParty/qt5ct
+	url = https://github.com/desktop-app/qt5ct.git
+[submodule "Telegram/ThirdParty/lxqt-qtplugin"]
+	path = Telegram/ThirdParty/lxqt-qtplugin
+	url = https://github.com/lxqt/lxqt-qtplugin.git
+[submodule "Telegram/ThirdParty/libqtxdg"]
+	path = Telegram/ThirdParty/libqtxdg
+	url = https://github.com/lxqt/libqtxdg.git
