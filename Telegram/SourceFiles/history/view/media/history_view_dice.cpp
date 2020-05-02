@@ -41,6 +41,7 @@ namespace {
 			.st = &st::historyDiceToast,
 			.durationMs = Ui::Toast::kDefaultDuration * 2,
 			.multiline = true,
+			.collapseKey = (void*)MakeDiceHandler,
 		};
 		if (history->peer->canWrite()) {
 			auto link = Ui::Text::Link(
@@ -56,6 +57,9 @@ namespace {
 					message.action.clearDraft = false;
 					message.textWithTags.text = emoji;
 					Api::SendDice(message);
+				}
+				if (auto hint = Ui::Toast::Last((void*)MakeDiceHandler)) {
+					hint->hide();
 				}
 				return false;
 			});
