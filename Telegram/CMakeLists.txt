@@ -126,10 +126,6 @@ PRIVATE
     desktop-app::external_openal
 )
 
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_link_libraries(Telegram PRIVATE desktop-app::external_opus)
-endif()
-
 # Telegram uses long atomic types, so on some architectures libatomic is needed.
 check_cxx_source_compiles("
 #include <atomic>
@@ -146,7 +142,6 @@ if (DESKTOP_APP_USE_PACKAGED)
 
     target_link_libraries(Telegram
     PRIVATE
-        ${CMAKE_DL_LIBS}
         Threads::Threads
     )
 endif()
@@ -1183,20 +1178,11 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${
 
 target_include_directories(Telegram PRIVATE ${src_loc})
 
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_include_directories(Telegram PRIVATE ${third_party_loc}/minizip)
-endif()
-
 target_compile_definitions(Telegram
 PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
-    AL_ALEXT_PROTOTYPES
 )
-
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_compile_definitions(Telegram PRIVATE AL_LIBTYPE_STATIC)
-endif()
 
 if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)")
     set(output_folder ${CMAKE_BINARY_DIR})

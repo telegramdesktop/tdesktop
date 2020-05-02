@@ -790,4 +790,12 @@ else()
         desktop-app::external_openssl
         desktop-app::external_opus
     )
+
+    if (LINUX)
+        target_link_libraries(lib_tgvoip
+        PRIVATE
+            ${CMAKE_DL_LIBS}
+            pthread
+        )
+    endif()
 endif()
