@@ -14,6 +14,22 @@ jobs:
           echo $tag
           echo ::set-env name=LATEST_TAG::$tag
 
+      - name: Get the latest macOS version.
+        shell: python
+        run: |
+          import subprocess;
+          from xml.dom import minidom;
+
+          url = "https://osx.telegram.org/updates/versions.xml";
+          subprocess.check_call("wget %s" % url, shell=True);
+
+          xmldoc = minidom.parse('versions.xml');
+          itemlist = xmldoc.getElementsByTagName('enclosure');
+          ver = itemlist[0].attributes['sparkle:shortVersionString'].value;
+          print(ver);
+
+          subprocess.check_call("echo ::set-env name=%s::%s" % ("LATEST_MACOS", ver), shell=True);
+
       - name: Check a version from an issue.
         uses: actions/github-script@0.4.0
         with:
@@ -75,8 +91,18 @@ jobs:
             let issueNum = firstNum(issueVer);
             let latestNum = firstNum(latestVer);
 
-            if (issueNum <= latestNum && issueNum < 5) {
+            let macos_ver = process.env.LATEST_MACOS;
+            console.log("Telegram for MacOS version from website: " + macos_ver);
+
+            if (issueNum <= latestNum && issueNum < macos_ver) {
               console.log("Seems the version of this issue is fine!");
+              return;
+            }
+            if (issueNum > macos_ver) {
+              let message = `Seems like it's neither the Telegram Desktop\
+              nor the Telegram for macOS version.
+              `;
+              console.log(message);
               return;
             }
 
@@ -87,7 +113,7 @@ jobs:
             You can report your issue to [the group](https://t.me/macswift) \
             or to [the repository of Telegram for macOS](https://github.com/overtake/TelegramSwift).
 
-            If I made a mistake and closed your issue wrongly, please reopen it. Thanks!
+            **If I made a mistake and closed your issue wrongly, please reopen it. Thanks!**
             `;
 
             let params = {
