@@ -53,7 +53,7 @@ namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
 
-MTPDmessage::Flags NewForwardedFlags(
+[[nodiscard]] MTPDmessage::Flags NewForwardedFlags(
 		not_null<PeerData*> peer,
 		UserId from,
 		not_null<HistoryMessage*> fwd) {
@@ -82,11 +82,11 @@ MTPDmessage::Flags NewForwardedFlags(
 	return result;
 }
 
-MTPDmessage_ClientFlags NewForwardedClientFlags() {
+[[nodiscard]] MTPDmessage_ClientFlags NewForwardedClientFlags() {
 	return NewMessageClientFlags();
 }
 
-bool CopyMarkupToForward(not_null<const HistoryItem*> item) {
+[[nodiscard]] bool CopyMarkupToForward(not_null<const HistoryItem*> item) {
 	auto mediaOriginal = item->media();
 	if (mediaOriginal && mediaOriginal->game()) {
 		// Copy inline keyboard when forwarding messages with a game.
@@ -111,13 +111,21 @@ bool CopyMarkupToForward(not_null<const HistoryItem*> item) {
 	return true;
 }
 
-bool HasInlineItems(const HistoryItemsList &items) {
+[[nodiscard]] bool HasInlineItems(const HistoryItemsList &items) {
 	for (const auto item : items) {
 		if (item->viaBot()) {
 			return true;
 		}
 	}
 	return false;
+}
+
+[[nodiscard]] TextWithEntities EnsureNonEmpty(
+		const TextWithEntities &text = TextWithEntities()) {
+	if (!text.text.isEmpty()) {
+		return text;
+	}
+	return { QString::fromUtf8(":-("), EntitiesInText() };
 }
 
 } // namespace
@@ -448,10 +456,11 @@ HistoryMessage::HistoryMessage(
 	if (const auto media = data.vmedia()) {
 		setMedia(*media);
 	}
-	setText({
+	const auto textWithEntities = TextWithEntities{
 		TextUtilities::Clean(qs(data.vmessage())),
 		Api::EntitiesFromMTP(data.ventities().value_or_empty())
-	});
+	};
+	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
@@ -477,17 +486,12 @@ HistoryMessage::HistoryMessage(
 
 	createComponents(config);
 
-	switch (data.vaction().type()) {
-	case mtpc_messageActionPhoneCall: {
-		_media = std::make_unique<Data::MediaCall>(
-			this,
-			data.vaction().c_messageActionPhoneCall());
-	} break;
-
-	default: Unexpected("Service message action type in HistoryMessage.");
-	}
-
-	setText(TextWithEntities {});
+	data.vaction().match([&](const MTPDmessageActionPhoneCall &data) {
+		_media = std::make_unique<Data::MediaCall>(this, data);
+		setEmptyText();
+	}, [](const auto &) {
+		Unexpected("Service message action type in HistoryMessage.");
+	});
 }
 
 HistoryMessage::HistoryMessage(
@@ -676,7 +680,7 @@ HistoryMessage::HistoryMessage(
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
 	_media = std::make_unique<Data::MediaGame>(this, game);
-	setText(TextWithEntities());
+	setEmptyText();
 }
 
 void HistoryMessage::createComponentsHelper(
@@ -1075,7 +1079,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		refreshMedia(message.vmedia());
 	}
 	setViewsCount(message.vviews().value_or(-1));
-	setText(textWithEntities);
+	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 
 	finishEdition(keyboardTop);
 }
@@ -1220,7 +1224,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		// just replace it with something so that UI won't look buggy.
 		_text.setMarkedText(
 			st::messageTextStyle,
-			{ QString::fromUtf8(":-("), EntitiesInText() },
+			EnsureNonEmpty(),
 			Ui::ItemTextOptions(this));
 	} else if (!_media) {
 		checkIsolatedEmoji();
