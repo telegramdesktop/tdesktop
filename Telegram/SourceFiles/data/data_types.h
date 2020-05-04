@@ -483,7 +483,7 @@ public:
 		_context = context;
 	}
 
-	FullMsgId context() const {
+	[[nodiscard]] FullMsgId context() const {
 		return _context;
 	}
 

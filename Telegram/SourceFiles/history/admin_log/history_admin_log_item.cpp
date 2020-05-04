@@ -71,6 +71,7 @@ MTPMessage PrepareLogMessage(
 			| MTPDmessage::Flag::f_reply_to_msg_id
 			| MTPDmessage::Flag::f_edit_date
 			| MTPDmessage::Flag::f_grouped_id
+			| MTPDmessage::Flag::f_views
 			//| MTPDmessage::Flag::f_reactions
 			| MTPDmessage::Flag::f_restriction_reason;
 		const auto flags = message.vflags().v & ~removeFlags;

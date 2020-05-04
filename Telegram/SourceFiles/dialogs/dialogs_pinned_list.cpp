@@ -49,7 +49,7 @@ int PinnedList::addPinnedGetPosition(const Key &key) {
 }
 
 void PinnedList::setPinned(const Key &key, bool pinned) {
-	Expects(key.entry()->folderKnown());
+	Expects(key.entry()->folderKnown() || _filterId != 0);
 
 	if (pinned) {
 		const int position = addPinnedGetPosition(key);
@@ -100,13 +100,21 @@ void PinnedList::applyList(
 void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
 	Expects(_filterId != 0);
 
-	clear();
+	const auto old = base::take(_data);
+
 	const auto count = int(list.size());
 	_data.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		const auto history = list[i];
 		_data.emplace_back(history);
 		history->cachePinnedIndex(_filterId, i + 1);
+	}
+
+	for (const auto &key : old) {
+		const auto history = key.history();
+		if (!history || !ranges::contains(_data, history, &Key::history)) {
+			key.entry()->cachePinnedIndex(_filterId, 0);
+		}
 	}
 }
 

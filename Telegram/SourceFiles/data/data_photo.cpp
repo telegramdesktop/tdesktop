@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "core/application.h"
 #include "facades.h"
@@ -250,22 +251,42 @@ int PhotoData::height() const {
 	return _large->height();
 }
 
+PhotoClickHandler::PhotoClickHandler(
+	not_null<PhotoData*> photo,
+	FullMsgId context,
+	PeerData *peer)
+: FileClickHandler(context)
+, _session(&photo->session())
+, _photo(photo)
+, _peer(peer) {
+}
+
 void PhotoOpenClickHandler::onClickImpl() const {
-	Core::App().showPhoto(this);
+	if (valid()) {
+		Core::App().showPhoto(this);
+	}
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
-	auto data = photo();
-	if (!data->date) return;
-
-	data->download(context());
+	if (!valid()) {
+		return;
+	}
+	const auto data = photo();
+	if (!data->date) {
+		return;
+	} else {
+		data->download(context());
+	}
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {
-	auto data = photo();
-	if (!data->date) return;
-
-	if (data->uploading()) {
+	if (!valid()) {
+		return;
+	}
+	const auto data = photo();
+	if (!data->date) {
+		return;
+	} else if (data->uploading()) {
 		if (const auto item = data->owner().message(context())) {
 			App::main()->cancelUploadLayer(item);
 		}

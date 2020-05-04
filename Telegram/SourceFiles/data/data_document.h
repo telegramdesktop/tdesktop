@@ -315,16 +315,19 @@ class DocumentClickHandler : public FileClickHandler {
 public:
 	DocumentClickHandler(
 		not_null<DocumentData*> document,
-		FullMsgId context = FullMsgId())
-	: FileClickHandler(context)
-	, _document(document) {
+		FullMsgId context = FullMsgId());
+
+	[[nodiscard]] bool valid() const {
+		return !_session.empty();
 	}
-	not_null<DocumentData*> document() const {
+
+	[[nodiscard]] not_null<DocumentData*> document() const {
 		return _document;
 	}
 
 private:
-	not_null<DocumentData*> _document;
+	const base::weak_ptr<Main::Session> _session;
+	const not_null<DocumentData*> _document;
 
 };
 

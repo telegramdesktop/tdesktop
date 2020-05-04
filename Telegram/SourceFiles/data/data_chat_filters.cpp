@@ -393,11 +393,11 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 			});
 		}
 	}
+	filter = std::move(updated);
 	if (pinnedChanged) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
-		filterList->pinned()->applyList(updated.pinned());
+		filterList->pinned()->applyList(filter.pinned());
 	}
-	filter = std::move(updated);
 	return true;
 }
 
