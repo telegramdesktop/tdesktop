@@ -87,12 +87,7 @@ parts:
       - libssl-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2
       - liblzma5
-      - libopus0
-      - libpulse0
-      - libssl1.1
-      - zlib1g
     configflags:
       - -DCMAKE_C_COMPILER=gcc-8
       - -DCMAKE_CXX_COMPILER=g++-8
@@ -235,12 +230,6 @@ parts:
       - libopus-dev
       - libva-dev
       - libvdpau-dev
-    stage-packages:
-      - libasound2
-      - libopus0
-      - libva2
-      - libva-drm2
-      - libvdpau1
     configflags:
       - --prefix=/usr
       - --disable-static
@@ -366,11 +355,6 @@ parts:
       - libpulse-dev
       - libsndio-dev
       - portaudio19-dev
-    stage-packages:
-      - libasound2
-      - libpulse0
-      - libportaudio2
-      - libsndio6.1
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
       - -DALSOFT_EXAMPLES=OFF
