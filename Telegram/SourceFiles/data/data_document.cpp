@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_good_thumbnail.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/media_active_cache.h"
@@ -296,6 +297,14 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
+DocumentClickHandler::DocumentClickHandler(
+	not_null<DocumentData*> document,
+	FullMsgId context)
+: FileClickHandler(context)
+, _session(&document->session())
+, _document(document) {
+}
+
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
@@ -345,7 +354,9 @@ void DocumentOpenClickHandler::Open(
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	Open(context(), document(), getActionItem());
+	if (valid()) {
+		Open(context(), document(), getActionItem());
+	}
 }
 
 void DocumentSaveClickHandler::Save(
@@ -385,14 +396,20 @@ void DocumentSaveClickHandler::Save(
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
-	Save(context(), document());
+	if (valid()) {
+		Save(context(), document());
+	}
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
-	const auto data = document();
-	if (!data->date) return;
+	if (!valid()) {
+		return;
+	}
 
-	if (data->uploading()) {
+	const auto data = document();
+	if (!data->date) {
+		return;
+	} else if (data->uploading()) {
 		if (const auto item = data->owner().message(context())) {
 			App::main()->cancelUploadLayer(item);
 		}
@@ -423,7 +440,9 @@ void DocumentOpenWithClickHandler::Open(
 }
 
 void DocumentOpenWithClickHandler::onClickImpl() const {
-	Open(context(), document());
+	if (valid()) {
+		Open(context(), document());
+	}
 }
 
 Data::FileOrigin StickerData::setOrigin() const {
