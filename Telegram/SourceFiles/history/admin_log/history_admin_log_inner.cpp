@@ -488,7 +488,9 @@ void InnerWidget::updateEmptyText() {
 			TextUtilities::Clean(_searchQuery))
 		: hasFilter
 		? tr::lng_admin_log_no_results_text(tr::now)
-		: tr::lng_admin_log_no_events_text(tr::now);
+		: _channel->isMegagroup()
+		? tr::lng_admin_log_no_events_text(tr::now)
+		: tr::lng_admin_log_no_events_text_channel(tr::now);
 	text.text.append(qstr("\n\n") + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text, options);
 }
