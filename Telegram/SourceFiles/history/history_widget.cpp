@@ -4467,6 +4467,8 @@ bool HistoryWidget::confirmSendingFiles(
 bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 	if (!canWriteMessage()) {
 		return false;
+	} else if (data->hasImage()) {
+		return true;
 	} else if (const auto urls = data->urls(); !urls.empty()) {
 		if (ranges::find_if(
 			urls,
@@ -4474,8 +4476,6 @@ bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 		) == urls.end()) {
 			return true;
 		}
-	} else if (data->hasImage()) {
-		return true;
 	}
 	return false;
 }
