@@ -244,7 +244,6 @@ Go to ***BuildPath*** and run
     git submodule update qtsvg
     cd qtbase
     git apply ../../patches/qtbase_5_12_8.diff
-    cd src/plugins/platforminputcontexts
     cd ..
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
