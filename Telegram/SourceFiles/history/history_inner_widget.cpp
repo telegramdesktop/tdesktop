@@ -1666,6 +1666,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
+					_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+						const auto api = &item->history()->peer->session().api();
+						auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+						action.clearDraft = false;
+						action.generateLocal = false;
+						api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+							Ui::Toast::Show(tr::lng_share_done(tr::now));
+						});
+					});
 				}
 				if (item->canDelete()) {
 					_menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
@@ -1805,6 +1814,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (canForward) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
+					});
+					_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+						const auto api = &item->history()->peer->session().api();
+						auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+						action.clearDraft = false;
+						action.generateLocal = false;
+						api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+							Ui::Toast::Show(tr::lng_share_done(tr::now));
+						});
 					});
 				}
 				if (canDelete) {

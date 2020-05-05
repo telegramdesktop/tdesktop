@@ -2397,5 +2397,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_copy_callback_data" = "Copy Callback Data";
 "lng_context_show_messages_from" = "Messages From User";
+"lng_context_repeat_msg" = "Repeat This Message";
 
 // Keys finished
