@@ -1,3 +1,10 @@
+2.1.2 (05.05.20)
+
+- Fix polls and quizes results viewing.
+- Fix memory leak in web page previews with autoplayed videos.
+- Fix running on OS X 10.10.
+- Other minor bug fixes and improvements.
+
 2.1.1 (01.05.20)
 
 - Improve quiz explanation tooltip layout.
