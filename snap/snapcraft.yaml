@@ -68,44 +68,35 @@ parts:
     source: .
     source-type: git
     parse-info: [share/metainfo/telegramdesktop.appdata.xml]
+    build-environment:
+      - CFLAGS: "$CFLAGS -I$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.3"
+      - CXXFLAGS: "$CXXFLAGS -I$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.3"
     build-snaps:
       - kde-frameworks-5-core18-sdk
       - kde-frameworks-5-core18
     build-packages:
       - gcc-8
       - g++-8
-      - libmapbox-variant-dev
       - libasound2-dev
+      - libglib2.0-dev
       - libglvnd-dev
-      - libhunspell-dev
-      - liblz4-dev
+      - libgtk-3-dev
       - liblzma-dev
-      - libminizip-dev
       - libopus-dev
       - libpulse-dev
       - libssl-dev
       - zlib1g-dev
     stage-packages:
-      - libasound2
-      - libhunspell-1.6-0
-      - liblz4-1
       - liblzma5
-      - libminizip1
-      - libopus0
-      - libpulse0
-      - libssl1.1
-      - zlib1g
     configflags:
       - -DCMAKE_C_COMPILER=gcc-8
       - -DCMAKE_CXX_COMPILER=g++-8
+      - -DCMAKE_AUTOMOC_MOC_OPTIONS=-I$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.3
       - -DCMAKE_BUILD_TYPE=Release
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
+      - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DDESKTOP_APP_USE_PACKAGED_FONTS=OFF
-      - -DDESKTOP_APP_USE_PACKAGED_GSL=OFF
-      - -DDESKTOP_APP_USE_PACKAGED_EXPECTED=OFF
-      - -DDESKTOP_APP_USE_PACKAGED_RLOTTIE=OFF
-      - -DTDESKTOP_USE_PACKAGED_TGVOIP=OFF
       - -DTDESKTOP_USE_FONTCONFIG_FALLBACK=ON
     override-pull: |
       snapcraftctl pull
@@ -126,10 +117,7 @@ parts:
     after:
       - cmake
       - ffmpeg
-      - libdbusmenu-qt
       - openal
-      - range-v3
-      - xxhash
 
   telegram-launcher:
     plugin: dump
@@ -232,20 +220,6 @@ parts:
     after:
       - nasm
 
-  fcitx-qt5:
-    source: https://github.com/fcitx/fcitx-qt5.git
-    source-depth: 1
-    source-tag: 1.2.4
-    plugin: cmake
-    build-snaps:
-      - kde-frameworks-5-core18-sdk
-      - kde-frameworks-5-core18
-    build-packages:
-      - libglvnd-dev
-    configflags:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DENABLE_LIBRARY=OFF
-
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
@@ -256,12 +230,6 @@ parts:
       - libopus-dev
       - libva-dev
       - libvdpau-dev
-    stage-packages:
-      - libasound2
-      - libopus0
-      - libva2
-      - libva-drm2
-      - libvdpau1
     configflags:
       - --prefix=/usr
       - --disable-static
@@ -377,46 +345,6 @@ parts:
       - nasm
       - dav1d
 
-  libdbusmenu-qt:
-    source: https://github.com/unity8-team/libdbusmenu-qt.git
-    source-depth: 1
-    source-tag: 0.9.3+16.04.20160218-0ubuntu1
-    plugin: cmake
-    build-snaps:
-      - kde-frameworks-5-core18-sdk
-      - kde-frameworks-5-core18
-    build-packages:
-      - libglvnd-dev
-    configflags:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DWITH_DOC=OFF
-    prime:
-      - -./include
-      - -./lib/cmake
-      - -./lib/pkgconfig
-
-  materialdecoration:
-    source: https://github.com/desktop-app/materialdecoration.git
-    source-depth: 1
-    plugin: dump
-    build-snaps:
-      - kde-frameworks-5-core18-sdk
-      - kde-frameworks-5-core18
-    build-packages:
-      - libglvnd-dev
-    override-build: |
-      KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
-
-      $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
-      make -j$(nproc)
-      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
-
-      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
-      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
-    after:
-      - qtconf
-      - qtwayland
-
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
@@ -427,11 +355,6 @@ parts:
       - libpulse-dev
       - libsndio-dev
       - portaudio19-dev
-    stage-packages:
-      - libasound2
-      - libpulse0
-      - libportaudio2
-      - libsndio6.1
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
       - -DALSOFT_EXAMPLES=OFF
@@ -442,17 +365,6 @@ parts:
       - -./include
       - -./lib/cmake
       - -./lib/pkgconfig
-
-  range-v3:
-    source: https://github.com/ericniebler/range-v3.git
-    source-depth: 1
-    source-tag: 0.10.0
-    plugin: cmake
-    configflags:
-      - -DRANGE_V3_TESTS=OFF
-      - -DRANGE_V3_EXAMPLES=OFF
-      - -DRANGE_V3_DOCS=OFF
-    prime: [-./*]
 
   qgnomeplatform:
     source: https://github.com/FedoraQt/QGnomePlatform.git
@@ -526,14 +438,3 @@ parts:
     after:
       - qtconf
     prime: [-./*]
-
-  xxhash:
-    source: https://github.com/Cyan4973/xxHash.git
-    source-depth: 1
-    source-tag: v0.7.2
-    plugin: make
-    make-parameters: [PREFIX=]
-    prime:
-      - -./bin
-      - -./include
-      - -./share

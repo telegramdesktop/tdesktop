@@ -46,8 +46,10 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 
 	// Tabbed selector management.
-	virtual void pushTabbedSelectorToThirdSection(
-		const Window::SectionShow &params) {
+	virtual bool pushTabbedSelectorToThirdSection(
+			not_null<PeerData*> peer,
+			const Window::SectionShow &params) {
+		return false;
 	}
 	virtual bool returnTabbedSelector() {
 		return false;

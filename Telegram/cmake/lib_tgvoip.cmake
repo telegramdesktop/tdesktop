@@ -4,7 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-if (TDESKTOP_USE_PACKAGED_TGVOIP)
+if (TDESKTOP_USE_PACKAGED_TGVOIP AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
     add_library(lib_tgvoip INTERFACE IMPORTED GLOBAL)
     add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
@@ -790,4 +790,12 @@ else()
         desktop-app::external_openssl
         desktop-app::external_opus
     )
+
+    if (LINUX)
+        target_link_libraries(lib_tgvoip
+        PRIVATE
+            ${CMAKE_DL_LIBS}
+            pthread
+        )
+    endif()
 endif()

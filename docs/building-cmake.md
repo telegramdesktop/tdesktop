@@ -54,9 +54,8 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 10aeaf6
+    git checkout e036126
     cd ../
-    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/xiph/opus
     cd opus
@@ -246,10 +245,7 @@ Go to ***BuildPath*** and run
     cd qtbase
     git apply ../../patches/qtbase_5_12_8.diff
     cd src/plugins/platforminputcontexts
-    git clone https://github.com/desktop-app/fcitx.git
-    git clone https://github.com/desktop-app/hime.git
-    git clone https://github.com/desktop-app/nimf.git
-    cd ../../../..
+    cd ..
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
@@ -271,13 +267,6 @@ Go to ***BuildPath*** and run
     -nomake examples \
     -nomake tests
 
-    make $MAKE_THREADS_CNT
-    sudo make install
-    cd ..
-
-    git clone --depth=1 https://github.com/desktop-app/materialdecoration.git
-    cd materialdecoration
-    /usr/local/desktop-app/Qt-5.12.8/bin/qmake CONFIG+=static
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..

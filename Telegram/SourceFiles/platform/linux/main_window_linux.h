@@ -46,6 +46,11 @@ public slots:
 		const QString &oldOwner,
 		const QString &newOwner);
 
+	void onAppMenuOwnerChanged(
+		const QString &service,
+		const QString &oldOwner,
+		const QString &newOwner);
+
 	void psLinuxUndo();
 	void psLinuxRedo();
 	void psLinuxCut();

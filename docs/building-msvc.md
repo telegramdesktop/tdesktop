@@ -32,7 +32,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 10aeaf6
+    git checkout e036126
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -64,9 +64,8 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 10aeaf6
+    git checkout e036126
     cd ..
-    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3 range-v3
 
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib

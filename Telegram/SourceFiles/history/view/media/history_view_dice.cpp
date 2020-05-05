@@ -35,6 +35,13 @@ namespace {
 [[nodiscard]] ClickHandlerPtr MakeDiceHandler(
 		not_null<History*> history,
 		const QString &emoji) {
+	static auto ShownToast = base::weak_ptr<Ui::Toast::Instance>();
+	static const auto HideExisting = [] {
+		if (const auto toast = ShownToast.get()) {
+			toast->hideAnimated();
+			ShownToast = nullptr;
+		}
+	};
 	return std::make_shared<LambdaClickHandler>([=] {
 		auto config = Ui::Toast::Config{
 			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
@@ -51,16 +58,20 @@ namespace {
 			config.filter = crl::guard(&history->session(), [=](
 					const ClickHandlerPtr &handler,
 					Qt::MouseButton button) {
-				if (button == Qt::LeftButton) {
+				if (button == Qt::LeftButton && !ShownToast.empty()) {
 					auto message = Api::MessageToSend(history);
 					message.action.clearDraft = false;
 					message.textWithTags.text = emoji;
+
 					Api::SendDice(message);
+					HideExisting();
 				}
 				return false;
 			});
 		}
-		Ui::Toast::Show(config);
+
+		HideExisting();
+		ShownToast = Ui::Toast::Show(config);
 	});
 }
 

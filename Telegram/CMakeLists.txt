@@ -67,12 +67,33 @@ generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
 
-if (LINUX AND NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+if (LINUX)
     target_link_libraries(Telegram
     PRIVATE
-        desktop-app::external_statusnotifieritem
-        desktop-app::external_dbusmenu_qt
+        desktop-app::external_materialdecoration
+        desktop-app::external_nimf_qt5
+        desktop-app::external_qt5ct
+        desktop-app::external_qt5ct_style
+        desktop-app::external_qt5ct_qtplugin
     )
+
+    if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+        # conflicts with Qt static link
+        if (DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES)
+            target_link_libraries(Telegram
+            PRIVATE
+                desktop-app::external_lxqt_qtplugin
+            )
+        endif()
+
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_statusnotifieritem
+            desktop-app::external_dbusmenu_qt
+            desktop-app::external_fcitx_qt5
+            desktop-app::external_hime_qt
+        )
+    endif()
 endif()
 
 if (add_hunspell_library)
@@ -105,10 +126,6 @@ PRIVATE
     desktop-app::external_openal
 )
 
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_link_libraries(Telegram PRIVATE desktop-app::external_opus)
-endif()
-
 # Telegram uses long atomic types, so on some architectures libatomic is needed.
 check_cxx_source_compiles("
 #include <atomic>
@@ -125,7 +142,6 @@ if (DESKTOP_APP_USE_PACKAGED)
 
     target_link_libraries(Telegram
     PRIVATE
-        ${CMAKE_DL_LIBS}
         Threads::Threads
     )
 endif()
@@ -1016,14 +1032,13 @@ PRIVATE
     mainwindow.h
     observer_peer.cpp
     observer_peer.h
+    qt_static_plugins.cpp
     settings.cpp
     settings.h
 )
 
 if (DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
-else()
-    nice_target_sources(Telegram ${src_loc} PRIVATE qt_static_plugins.cpp)
 endif()
 
 nice_target_sources(Telegram ${res_loc}
@@ -1169,20 +1184,11 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${
 
 target_include_directories(Telegram PRIVATE ${src_loc})
 
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_include_directories(Telegram PRIVATE ${third_party_loc}/minizip)
-endif()
-
 target_compile_definitions(Telegram
 PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
-    AL_ALEXT_PROTOTYPES
 )
-
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    target_compile_definitions(Telegram PRIVATE AL_LIBTYPE_STATIC)
-endif()
 
 if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)")
     set(output_folder ${CMAKE_BINARY_DIR})

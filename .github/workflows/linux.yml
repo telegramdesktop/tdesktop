@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-cmake.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -24,6 +25,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '!docs/building-cmake.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -130,14 +132,6 @@ jobs:
           mkdir -p Libraries
           cd Libraries
           echo ::set-env name=LibrariesPath::`pwd`
-
-      - name: Range-v3.
-        run: |
-          echo "Find necessary branch from doc."
-          cloneRange=$(grep -A 1 "range-v3" $REPO_NAME/$DOC_PATH | sed -n 1p)
-          cd $LibrariesPath
-          echo $cloneRange
-          eval $cloneRange
 
       - name: Patches.
         run: |
@@ -438,11 +432,7 @@ jobs:
           git submodule update qtbase qtwayland qtimageformats qtsvg
           cd qtbase
           git apply ../../patches/qtbase_${QT}.diff
-          cd src/plugins/platforminputcontexts
-          git clone $GIT/desktop-app/fcitx.git
-          git clone $GIT/desktop-app/hime.git
-          git clone $GIT/desktop-app/nimf.git
-          cd ../../../..
+          cd ../
 
           ./configure -prefix "$QT_PREFIX" \
           -release \
@@ -470,18 +460,6 @@ jobs:
         run: |
           cd $LibrariesPath
           sudo cp -R qt-cache/. /
-
-      - name: Material Decoration.
-        run: |
-          cd $LibrariesPath
-
-          git clone --depth=1 $GIT/desktop-app/materialdecoration.git
-          cd materialdecoration
-          $QT_PREFIX/bin/qmake CONFIG+=static
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf materialdecoration
 
       - name: Breakpad cache.
         id: cache-breakpad
