@@ -706,9 +706,10 @@ void ScheduledWidget::setInternalState(
 	restoreState(memento);
 }
 
-void ScheduledWidget::pushTabbedSelectorToThirdSection(
+bool ScheduledWidget::pushTabbedSelectorToThirdSection(
+		not_null<PeerData*> peer,
 		const Window::SectionShow &params) {
-	_composeControls->pushTabbedSelectorToThirdSection(params);
+	return _composeControls->pushTabbedSelectorToThirdSection(peer, params);
 }
 
 bool ScheduledWidget::returnTabbedSelector() {

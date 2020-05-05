@@ -76,7 +76,9 @@ public:
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
 
-	void pushTabbedSelectorToThirdSection(const Window::SectionShow &params);
+	bool pushTabbedSelectorToThirdSection(
+		not_null<PeerData*> peer,
+		const Window::SectionShow &params);
 	bool returnTabbedSelector();
 
 	void showForGrab();

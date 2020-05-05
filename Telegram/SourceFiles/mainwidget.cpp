@@ -2380,11 +2380,11 @@ void MainWidget::updateControlsGeometry() {
 				Window::SectionShow::Way::ClearStack,
 				anim::type::instant,
 				anim::activation::background);
-			if (session().settings().tabbedSelectorSectionEnabled()) {
-				_history->pushTabbedSelectorToThirdSection(params);
-			} else if (session().settings().thirdSectionInfoEnabled()) {
-				const auto active = _controller->activeChatCurrent();
-				if (const auto peer = active.peer()) {
+			const auto active = _controller->activeChatCurrent();
+			if (const auto peer = active.peer()) {
+				if (session().settings().tabbedSelectorSectionEnabled()) {
+					_history->pushTabbedSelectorToThirdSection(peer, params);
+				} else if (session().settings().thirdSectionInfoEnabled()) {
 					_controller->showSection(
 						Info::Memento::Default(peer),
 						params.withThirdColumn());
@@ -2633,9 +2633,9 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			std::move(*thirdSectionForCurrentMainSection(key)),
 			params.withThirdColumn());
 	};
-	auto switchTabbedFast = [&] {
+	auto switchTabbedFast = [&](not_null<PeerData*> peer) {
 		saveOldThirdSection();
-		_history->pushTabbedSelectorToThirdSection(params);
+		return _history->pushTabbedSelectorToThirdSection(peer, params);
 	};
 	if (Adaptive::ThreeColumn()
 		&& session().settings().tabbedSelectorSectionEnabled()
@@ -2644,9 +2644,10 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			switchInfoFast();
 			session().settings().setTabbedSelectorSectionEnabled(true);
 			session().settings().setTabbedReplacedWithInfo(true);
-		} else if (session().settings().tabbedReplacedWithInfo()) {
+		} else if (session().settings().tabbedReplacedWithInfo()
+			&& key.history()
+			&& switchTabbedFast(key.history()->peer)) {
 			session().settings().setTabbedReplacedWithInfo(false);
-			switchTabbedFast();
 		}
 	} else {
 		session().settings().setTabbedReplacedWithInfo(false);

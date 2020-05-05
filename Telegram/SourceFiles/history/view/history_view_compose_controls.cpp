@@ -337,10 +337,11 @@ void ComposeControls::escape() {
 	_cancelRequests.fire({});
 }
 
-void ComposeControls::pushTabbedSelectorToThirdSection(
+bool ComposeControls::pushTabbedSelectorToThirdSection(
+		not_null<PeerData*> peer,
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel) {
-		return;
+		return true;
 	//} else if (!_canSendMessages) {
 	//	session().settings().setTabbedReplacedWithInfo(true);
 	//	_window->showPeerInfo(_peer, params.withThirdColumn());
@@ -355,6 +356,7 @@ void ComposeControls::pushTabbedSelectorToThirdSection(
 	_window->showSection(
 		ChatHelpers::TabbedMemento(),
 		params.withThirdColumn());
+	return true;
 }
 
 bool ComposeControls::returnTabbedSelector() {
@@ -385,11 +387,15 @@ void ComposeControls::setTabbedPanel(
 }
 
 void ComposeControls::toggleTabbedSelectorMode() {
+	if (!_history) {
+		return;
+	}
 	if (_tabbedPanel) {
 		if (_window->canShowThirdSection() && !Adaptive::OneColumn()) {
 			session().settings().setTabbedSelectorSectionEnabled(true);
 			session().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
+				_history->peer,
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
