@@ -1042,6 +1042,8 @@ PRIVATE
     qrc/emoji_3.qrc
     qrc/emoji_4.qrc
     qrc/emoji_5.qrc
+    qrc/emoji_6.qrc
+    qrc/emoji_7.qrc
     qrc/emoji_preview.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
