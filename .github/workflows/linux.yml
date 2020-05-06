@@ -335,19 +335,6 @@ jobs:
 
           sudo cp -R ffmpeg-cache/. /
 
-      - name: PortAudio.
-        run: |
-          cd $LibrariesPath
-
-          git clone https://git.assembla.com/portaudio.git
-          cd portaudio
-          git checkout 396fe4b669
-          ./configure
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf portaudio
-
       - name: OpenAL Soft.
         run: |
           cd $LibrariesPath
