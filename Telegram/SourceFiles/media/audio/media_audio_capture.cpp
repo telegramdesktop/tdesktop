@@ -62,13 +62,13 @@ Instance::Instance() : _inner(new Inner(&_thread)) {
 
 void Instance::check() {
 	_available = false;
-	if (auto device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5)) {
-		auto error = ErrorHappened(device);
-		alcCaptureCloseDevice(device);
-		_available = !error;
-	} else {
-		LOG(("Audio Error: Could not open capture device!"));
+	if (auto device = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
+		if (!QString::fromLocal8Bit(device).isEmpty()) {
+			_available = true;
+			return;
+		}
 	}
+	LOG(("Audio Error: No capture device found!"));
 }
 
 Instance::~Instance() {
