@@ -40,9 +40,9 @@ bool ExtractZipFile(zlib::FileToRead &zip, const QString path) {
 } // namespace
 
 bool UnpackBlob(
-	const QString &path,
-	const QString &folder,
-	Fn<bool(const QString &)> checkNameCallback) {
+		const QString &path,
+		const QString &folder,
+		Fn<bool(const QString &)> checkNameCallback) {
 	const auto bytes = ReadFinalFile(path);
 	if (bytes.isEmpty()) {
 		return false;

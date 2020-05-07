@@ -21,5 +21,7 @@ protected:
 
 };
 
+void LoadAndSwitchTo(int id);
+
 } // namespace Emoji
 } // namespace Ui
