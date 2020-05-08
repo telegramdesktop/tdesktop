@@ -269,7 +269,7 @@ void QrWidget::setupControls() {
 			st::introQrStepMargins);
 		const auto number = Ui::CreateChild<Ui::FlatLabel>(
 			steps,
-			rpl::single(Ui::Text::Bold(QString::number(++index) + ".")),
+			rpl::single(Ui::Text::Semibold(QString::number(++index) + ".")),
 			st::defaultFlatLabel);
 		rpl::combine(
 			number->widthValue(),

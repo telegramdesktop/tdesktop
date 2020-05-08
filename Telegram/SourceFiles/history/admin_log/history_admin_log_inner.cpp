@@ -478,7 +478,7 @@ void InnerWidget::updateEmptyText() {
 	options.flags |= TextParseMarkdown;
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
-	auto text = Ui::Text::Bold((hasSearch || hasFilter)
+	auto text = Ui::Text::Semibold((hasSearch || hasFilter)
 		? tr::lng_admin_log_no_results_title(tr::now)
 		: tr::lng_admin_log_no_events_title(tr::now));
 	auto description = hasSearch

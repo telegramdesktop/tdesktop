@@ -544,7 +544,7 @@ void Widget::handleSongChange() {
 
 			textWithEntities.text = name + ' ' + date();
 			textWithEntities.entities.append(EntityInText(
-				EntityType::Bold,
+				EntityType::Semibold,
 				0,
 				name.size(),
 				QString()));
@@ -565,7 +565,12 @@ void Widget::handleSongChange() {
 				: TextUtilities::Clean(song->title);
 			auto dash = QString::fromUtf8(" \xe2\x80\x93 ");
 			textWithEntities.text = song->performer + dash + title;
-			textWithEntities.entities.append({ EntityType::Bold, 0, song->performer.size(), QString() });
+			textWithEntities.entities.append({
+				EntityType::Semibold,
+				0,
+				song->performer.size(),
+				QString()
+			});
 		}
 	}
 	_nameLabel->setMarkedText(textWithEntities);
