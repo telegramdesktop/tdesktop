@@ -623,10 +623,6 @@ namespace Platform {
 void start() {
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
-	if (InAppImage()) {
-		qputenv("LIBGL_ALWAYS_INDIRECT", "1");
-	}
-
 #ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
 	FallbackFontConfig();
 #endif // TDESKTOP_USE_FONTCONFIG_FALLBACK
