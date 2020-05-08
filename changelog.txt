@@ -1,3 +1,7 @@
+2.1.4 (08.05.20)
+
+- Improve bold font selection.
+
 2.1.3 (08.05.20)
 
 - Added support for new emoji.
