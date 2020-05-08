@@ -82,6 +82,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		if (entity.length() <= 0) continue;
 		if (option == ConvertOption::SkipLocal
 			&& entity.type() != EntityType::Bold
+			//&& entity.type() != EntityType::Semibold // Not in API.
 			&& entity.type() != EntityType::Italic
 			&& entity.type() != EntityType::Underline
 			&& entity.type() != EntityType::StrikeOut

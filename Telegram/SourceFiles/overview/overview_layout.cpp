@@ -55,13 +55,27 @@ TextWithEntities ComposeNameWithEntities(DocumentData *document) {
 		result.text = document->filename().isEmpty()
 			? qsl("Unknown File")
 			: document->filename();
-		result.entities.push_back({ EntityType::Bold, 0, result.text.size() });
+		result.entities.push_back({
+			EntityType::Semibold,
+			0,
+			result.text.size()
+		});
 	} else if (song->performer.isEmpty()) {
 		result.text = song->title;
-		result.entities.push_back({ EntityType::Bold, 0, result.text.size() });
+		result.entities.push_back({
+			EntityType::Semibold,
+			0,
+			result.text.size()
+		});
 	} else {
-		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({ EntityType::Bold, 0, song->performer.size() });
+		result.text = song->performer
+			+ QString::fromUtf8(" \xe2\x80\x93 ")
+			+ (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
+		result.entities.push_back({
+			EntityType::Semibold,
+			0,
+			song->performer.size()
+		});
 	}
 	return result;
 }

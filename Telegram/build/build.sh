@@ -13,6 +13,12 @@ if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   exit
 fi
 
+if [ "$1" == "request_uuid" ]; then
+  if [ "$2" != "" ]; then
+    NotarizeRequestId="$2"
+  fi
+fi
+
 Error () {
   cd $FullExecPath
   echo "$1"
@@ -260,96 +266,102 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
     Error "Backup path not found!"
   fi
 
-  ./configure.sh
+  if [ "$NotarizeRequestId" == "" ]; then
+    ./configure.sh
 
-  cd $ProjectPath
-  cmake --build . --config Release --target Telegram
-  cd $ReleasePath
+    cd $ProjectPath
+    cmake --build . --config Release --target Telegram
 
-  if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
-    Error "$BinaryName.app not found!"
-  fi
+    cd $ReleasePath
 
-  if [ ! -d "$ReleasePath/$BinaryName.app.dSYM" ]; then
-    Error "$BinaryName.app.dSYM not found!"
-  fi
-
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
-    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
-      Error "Updater not found!"
+    if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
+      Error "$BinaryName.app not found!"
     fi
-    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Helpers/crashpad_handler" ]; then
-      Error "crashpad_handler not found!"
+
+    if [ ! -d "$ReleasePath/$BinaryName.app.dSYM" ]; then
+      Error "$BinaryName.app.dSYM not found!"
     fi
-  fi
-  if [ "$BuildTarget" == "macstore" ]; then
-    if [ ! -d "$ReleasePath/$BinaryName.app/Contents/Frameworks/Breakpad.framework" ]; then
-      Error "Breakpad.framework not found!"
+
+    if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
+      if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
+        Error "Updater not found!"
+      fi
+      if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Helpers/crashpad_handler" ]; then
+        Error "crashpad_handler not found!"
+      fi
     fi
-  fi
-
-  echo "Dumping debug symbols.."
-  "$HomePath/../../Libraries/macos/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
-  echo "Done!"
-
-  echo "Stripping the executable.."
-  strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-  echo "Done!"
-
-  echo "Signing the application.."
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
-    codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram.entitlements"
-  elif [ "$BuildTarget" == "macstore" ]; then
-    codesign --force --deep --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram Lite.entitlements"
-    echo "Making an installer.."
-    productbuild --sign "3rd Party Mac Developer Installer: Telegram FZ-LLC (C67CF9S4VU)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
-  fi
-  echo "Done!"
-
-  AppUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" | awk -F " " '{print $2}'`
-  DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
-  if [ "$AppUUID" != "$DsymUUID" ]; then
-    Error "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
-  fi
-
-  if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns" ]; then
-    Error "Icon.icns not found in Resources!"
-  fi
-
-  if [ ! -f "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" ]; then
-    Error "$BinaryName not found in MacOS!"
-  fi
-
-  if [ ! -d "$ReleasePath/$BinaryName.app/Contents/_CodeSignature" ]; then
-    Error "$BinaryName signature not found!"
-  fi
-
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
-    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
-      Error "Updater not found in Frameworks!"
+    if [ "$BuildTarget" == "macstore" ]; then
+      if [ ! -d "$ReleasePath/$BinaryName.app/Contents/Frameworks/Breakpad.framework" ]; then
+        Error "Breakpad.framework not found!"
+      fi
     fi
-  elif [ "$BuildTarget" == "macstore" ]; then
-    if [ ! -f "$ReleasePath/$BinaryName.pkg" ]; then
-      Error "$BinaryName.pkg not found!"
-    fi
-  fi
 
-  SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
-  echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
-  cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
-  echo "Done!"
+    echo "Dumping debug symbols.."
+    "$HomePath/../../Libraries/macos/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
+    echo "Done!"
+
+    echo "Stripping the executable.."
+    strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
+    echo "Done!"
+
+    echo "Signing the application.."
+    if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
+      codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram.entitlements"
+    elif [ "$BuildTarget" == "macstore" ]; then
+      codesign --force --deep --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram Lite.entitlements"
+      echo "Making an installer.."
+      productbuild --sign "3rd Party Mac Developer Installer: Telegram FZ-LLC (C67CF9S4VU)" --component "$ReleasePath/$BinaryName.app" /Applications "$ReleasePath/$BinaryName.pkg"
+    fi
+    echo "Done!"
+
+    AppUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" | awk -F " " '{print $2}'`
+    DsymUUID=`dwarfdump -u "$ReleasePath/$BinaryName.app.dSYM" | awk -F " " '{print $2}'`
+    if [ "$AppUUID" != "$DsymUUID" ]; then
+      Error "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
+    fi
+
+    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Resources/Icon.icns" ]; then
+      Error "Icon.icns not found in Resources!"
+    fi
+
+    if [ ! -f "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName" ]; then
+      Error "$BinaryName not found in MacOS!"
+    fi
+
+    if [ ! -d "$ReleasePath/$BinaryName.app/Contents/_CodeSignature" ]; then
+      Error "$BinaryName signature not found!"
+    fi
+
+    if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
+      if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
+        Error "Updater not found in Frameworks!"
+      fi
+    elif [ "$BuildTarget" == "macstore" ]; then
+      if [ ! -f "$ReleasePath/$BinaryName.pkg" ]; then
+        Error "$BinaryName.pkg not found!"
+      fi
+    fi
+
+    SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
+    echo "Copying $BinaryName.sym to $DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+    mkdir -p "$DropboxSymbolsPath/$BinaryName/$SymbolsHash"
+    cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
+    echo "Done!"
+  fi
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     cd "$ReleasePath"
-    if [ "$AlphaVersion" == "0" ]; then
-      cp -f tsetup_template.dmg tsetup.temp.dmg
-      TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
-      cp -R "./$BinaryName.app" "$TempDiskPath/"
-      bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
-      hdiutil detach "$TempDiskPath"
-      hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
-      rm tsetup.temp.dmg
+
+    if [ "$NotarizeRequestId" == "" ]; then
+      if [ "$AlphaVersion" == "0" ]; then
+        cp -f tsetup_template.dmg tsetup.temp.dmg
+        TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
+        cp -R "./$BinaryName.app" "$TempDiskPath/"
+        bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
+        hdiutil detach "$TempDiskPath"
+        hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
+        rm tsetup.temp.dmg
+      fi
     fi
 
     if [ "$AlphaVersion" != "0" ]; then
@@ -366,33 +378,40 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
       UpdateFile="${UpdateFile}_${AlphaSignature}"
       SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
 
-      rm -rf "$ReleasePath/AlphaTemp"
-      mkdir "$ReleasePath/AlphaTemp"
-      mkdir "$ReleasePath/AlphaTemp/$BinaryName"
-      cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
-      cd "$ReleasePath/AlphaTemp"
-      zip -r "$SetupFile" "$BinaryName"
-      mv "$SetupFile" "$ReleasePath/"
-      cd "$ReleasePath"
+      if [ "$NotarizeRequestId" == "" ]; then
+        rm -rf "$ReleasePath/AlphaTemp"
+        mkdir "$ReleasePath/AlphaTemp"
+        mkdir "$ReleasePath/AlphaTemp/$BinaryName"
+        cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
+        cd "$ReleasePath/AlphaTemp"
+        zip -r "$SetupFile" "$BinaryName"
+        mv "$SetupFile" "$ReleasePath/"
+        cd "$ReleasePath"
+      fi
     fi
     if [ "$BuildTarget" == "mac" ]; then
-      echo "Beginning notarization process."
-      set +e
-      xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" > request_uuid.txt
-      set -e
-      while IFS='' read -r line || [[ -n "$line" ]]; do
-        Prefix=$(echo $line | cut -d' ' -f 1)
-        Value=$(echo $line | cut -d' ' -f 3)
-        if [ "$Prefix" == "RequestUUID" ]; then
-          RequestUUID=$Value
+      if [ "$NotarizeRequestId" == "" ]; then
+        echo "Beginning notarization process."
+        set +e
+        xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" > request_uuid.txt
+        set -e
+        while IFS='' read -r line || [[ -n "$line" ]]; do
+          Prefix=$(echo $line | cut -d' ' -f 1)
+          Value=$(echo $line | cut -d' ' -f 3)
+          if [ "$Prefix" == "RequestUUID" ]; then
+            RequestUUID=$Value
+          fi
+        done < "request_uuid.txt"
+        if [ "$RequestUUID" == "" ]; then
+          cat request_uuid.txt
+          Error "Could not extract Request UUID."
         fi
-      done < "request_uuid.txt"
-      if [ "$RequestUUID" == "" ]; then
-        cat request_uuid.txt
-        Error "Could not extract Request UUID."
+        echo "Request UUID: $RequestUUID"
+        rm request_uuid.txt
+      else
+        RequestUUID=$NotarizeRequestId
+        echo "Continue notarization process with Request UUID: $RequestUUID"
       fi
-      echo "Request UUID: $RequestUUID"
-      rm request_uuid.txt
 
       RequestStatus=
       LogFile=
@@ -419,7 +438,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
         echo "Notarization problems, response:"
         cat request_result.txt
         if [ "$LogFile" != "" ]; then
-          echo "Requesting log..."
+          echo "Requesting log: $LogFile"
           curl $LogFile
         fi
         Error "Notarization FAILED."
@@ -427,7 +446,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
       rm request_result.txt
 
       if [ "$LogFile" != "" ]; then
-        echo "Requesting log..."
+        echo "Requesting log: $LogFile"
         curl $LogFile > request_log.txt
       fi
 

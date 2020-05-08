@@ -40,15 +40,15 @@ inline auto PreviewPath(int i) {
 
 const auto kSets = {
 	Set{ {0,   0,         0, "Mac"},       PreviewPath(0) },
-	Set{ {1, 246, 7'336'383, "Android"},   PreviewPath(1) },
-	Set{ {2, 206, 5'038'738, "Twemoji"},   PreviewPath(2) },
-	Set{ {3, 238, 6'992'260, "JoyPixels"}, PreviewPath(3) },
+	Set{ {1, 713, 7'313'166, "Android"},   PreviewPath(1) },
+	Set{ {2, 714, 4'690'333, "Twemoji"},   PreviewPath(2) },
+	Set{ {3, 716, 5'968'021, "JoyPixels"}, PreviewPath(3) },
 };
 
 using Loading = MTP::DedicatedLoader::Progress;
 using SetState = BlobState;
 
-class Loader : public BlobLoader {
+class Loader final : public BlobLoader {
 public:
 	Loader(
 		QObject *parent,
@@ -59,6 +59,9 @@ public:
 
 	void destroy() override;
 	void unpack(const QString &path) override;
+
+private:
+	void fail() override;
 
 };
 
@@ -155,12 +158,14 @@ bool UnpackSet(const QString &path, const QString &folder) {
 	return UnpackBlob(path, folder, GoodSetPartName);
 }
 
+
 Loader::Loader(
 	QObject *parent,
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
-	int size) : BlobLoader(parent, id, location, folder, size) {
+	int size)
+: BlobLoader(parent, id, location, folder, size) {
 }
 
 void Loader::unpack(const QString &path) {
@@ -188,6 +193,11 @@ void Loader::destroy() {
 	Expects(GlobalLoader == this);
 
 	SetGlobalLoader(nullptr);
+}
+
+void Loader::fail() {
+	ClearNeedSwitchToId();
+	BlobLoader::fail();
 }
 
 Inner::Inner(QWidget *parent) : RpWidget(parent) {
@@ -401,12 +411,7 @@ void Row::setupHandler() {
 }
 
 void Row::load() {
-	SetGlobalLoader(base::make_unique_q<Loader>(
-		App::main(),
-		_id,
-		GetDownloadLocation(_id),
-		internal::SetDataPath(_id),
-		GetDownloadSize(_id)));
+	LoadAndSwitchTo(_id);
 }
 
 void Row::setupLabels(const Set &set) {
@@ -536,6 +541,21 @@ void ManageSetsBox::prepare() {
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
+}
+
+void LoadAndSwitchTo(int id) {
+	Expects(App::main() != nullptr);
+
+	if (!ranges::contains(kSets, id, &Set::id)) {
+		ClearNeedSwitchToId();
+		return;
+	}
+	SetGlobalLoader(base::make_unique_q<Loader>(
+		App::main(),
+		id,
+		GetDownloadLocation(id),
+		internal::SetDataPath(id),
+		GetDownloadSize(id)));
 }
 
 } // namespace Emoji

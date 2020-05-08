@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/toast/toast.h"
+#include "ui/emoji_config.h"
+#include "chat_helpers/emoji_sets_manager.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
@@ -82,6 +84,10 @@ void Controller::setupIntro() {
 
 void Controller::setupMain() {
 	_widget.setupMain();
+
+	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
+		Ui::Emoji::LoadAndSwitchTo(id);
+	}
 }
 
 void Controller::showSettings() {

@@ -53,7 +53,7 @@ namespace {
 			auto link = Ui::Text::Link(
 				tr::lng_about_random_send(tr::now).toUpper());
 			link.entities.push_back(
-				EntityInText(EntityType::Bold, 0, link.text.size()));
+				EntityInText(EntityType::Semibold, 0, link.text.size()));
 			config.text.append(' ').append(std::move(link));
 			config.filter = crl::guard(&history->session(), [=](
 					const ClickHandlerPtr &handler,

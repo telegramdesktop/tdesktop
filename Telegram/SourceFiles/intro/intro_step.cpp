@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "data/data_user.h"
 #include "data/data_auto_download.h"
+#include "window/window_controller.h"
 #include "window/themes/window_theme.h"
 #include "facades.h"
 #include "app.h"
@@ -140,7 +141,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	const auto weak = base::make_weak(account.get());
 	account->createSession(user);
 	Local::writeMtpData();
-	App::wnd()->setupMain();
+	App::wnd()->controller().setupMain();
 
 	// "this" is already deleted here by creating the main widget.
 	if (weak && account->sessionExists()) {
