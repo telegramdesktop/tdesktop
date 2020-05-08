@@ -42,6 +42,7 @@ DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareSetting(bool, UseExternalVideoPlayer);
+DeclareSetting(bool, UseFreeType);
 enum LaunchMode {
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,

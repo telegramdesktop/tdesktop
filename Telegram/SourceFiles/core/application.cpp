@@ -518,6 +518,21 @@ void Application::switchTestMode() {
 	App::restart();
 }
 
+void Application::switchFreeType() {
+	if (cUseFreeType()) {
+		QFile(cWorkingDir() + qsl("tdata/withfreetype")).remove();
+		cSetUseFreeType(false);
+	} else {
+		QFile f(cWorkingDir() + qsl("tdata/withfreetype"));
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write("1");
+			f.close();
+		}
+		cSetUseFreeType(true);
+	}
+	App::restart();
+}
+
 void Application::writeInstallBetaVersionsSetting() {
 	_launcher->writeInstallBetaVersionsSetting();
 }

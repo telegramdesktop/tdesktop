@@ -34,26 +34,47 @@ private:
 	static constexpr auto kForwardArgumentCount = 1;
 
 	int _count = 0;
-	char *_arguments[kForwardArgumentCount + 1] = { nullptr };
+	std::vector<QByteArray> _owned;
+	std::vector<char*> _arguments;
+
+	void pushArgument(const char *text);
 
 };
 
 FilteredCommandLineArguments::FilteredCommandLineArguments(
 	int argc,
-	char **argv)
-: _count(std::clamp(argc, 0, kForwardArgumentCount)) {
+	char **argv) {
 	// For now just pass only the first argument, the executable path.
-	for (auto i = 0; i != _count; ++i) {
-		_arguments[i] = argv[i];
+	for (auto i = 0; i != kForwardArgumentCount; ++i) {
+		pushArgument(argv[i]);
 	}
+
+#if defined Q_OS_WIN || defined Q_OS_MAC
+	if (cUseFreeType()) {
+		pushArgument("-platform");
+#ifdef Q_OS_WIN
+		pushArgument("windows:fontengine=freetype");
+#else // Q_OS_WIN
+		pushArgument("cocoa:fontengine=freetype");
+#endif // !Q_OS_WIN
+	}
+#endif // Q_OS_WIN || Q_OS_MAC
+
+	pushArgument(nullptr);
 }
 
 int &FilteredCommandLineArguments::count() {
+	_count = _arguments.size() - 1;
 	return _count;
 }
 
 char **FilteredCommandLineArguments::values() {
-	return _arguments;
+	return _arguments.data();
+}
+
+void FilteredCommandLineArguments::pushArgument(const char *text) {
+	_owned.emplace_back(text);
+	_arguments.push_back(_owned.back().data());
 }
 
 QString DebugModeSettingPath() {
@@ -79,6 +100,12 @@ void ComputeDebugMode() {
 void ComputeTestMode() {
 	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
 		cSetTestMode(true);
+	}
+}
+
+void ComputeFreeType() {
+	if (QFile(cWorkingDir() + qsl("tdata/withfreetype")).exists()) {
+		cSetUseFreeType(true);
 	}
 }
 
@@ -301,6 +328,7 @@ void Launcher::workingFolderReady() {
 
 	ComputeTestMode();
 	ComputeDebugMode();
+	ComputeFreeType();
 	ComputeInstallBetaVersions();
 	ComputeInstallationTag();
 }
@@ -382,6 +410,7 @@ void Launcher::processArguments() {
 	auto parseMap = std::map<QByteArray, KeyFormat> {
 		{ "-testmode"       , KeyFormat::NoValues },
 		{ "-debug"          , KeyFormat::NoValues },
+		{ "-freetype"       , KeyFormat::NoValues },
 		{ "-many"           , KeyFormat::NoValues },
 		{ "-key"            , KeyFormat::OneValue },
 		{ "-autostart"      , KeyFormat::NoValues },
@@ -423,6 +452,7 @@ void Launcher::processArguments() {
 		SetUpdaterDisabledAtStartup();
 	}
 	gTestMode = parseResult.contains("-testmode");
+	gUseFreeType = parseResult.contains("-freetype");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");
 	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
