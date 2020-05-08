@@ -13,18 +13,27 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Supported systems
 
-* Windows XP - Windows 10 (**not** RT)
-* Mac OS X 10.8 - Mac OS X 10.15
-* Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* Ubuntu 12.04 - Ubuntu 20.04
-* Fedora 22 - Fedora 31
-* [Snappy](https://snapcraft.io/telegram-desktop)
-* [Flathub](https://flathub.org/apps/details/org.telegram.desktop)
+The latest version is available for
+
+* [Windows 7 and above](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
+* [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
+* [OS X 10.10 and 10.11](https://telegram.org/dl/desktop/osx)
+* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux) ([32 bit](https://telegram.org/dl/desktop/linux32))
+* [Snap](https://snapcraft.io/telegram-desktop)
+* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
+
+## Old system versions
+
+Version **1.8.15** was the last that supports older systems
+
+* [Windows XP and Vista](https://updates.tdesktop.com/tsetup/tsetup.1.8.15.exe) ([portable](https://updates.tdesktop.com/tsetup/tportable.1.8.15.zip))
+* [OS X 10.8 and 10.9](https://updates.tdesktop.com/tmac/tsetup.1.8.15.dmg)
+* [OS X 10.6 and 10.7](https://updates.tdesktop.com/tmac32/tsetup32.1.8.15.dmg)
 
 ## Third-party
 
-* Qt 5.12.8 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
-* OpenSSL 1.1.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
+* Qt 5.12.8, 5.6.2 and 5.3.2 slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* OpenSSL 1.1.1 and 1.0.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
