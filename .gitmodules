@@ -91,3 +91,6 @@
 [submodule "Telegram/ThirdParty/libqtxdg"]
 	path = Telegram/ThirdParty/libqtxdg
 	url = https://github.com/lxqt/libqtxdg.git
+[submodule "Telegram/ThirdParty/fcitx5-qt"]
+	path = Telegram/ThirdParty/fcitx5-qt
+	url = https://github.com/fcitx/fcitx5-qt.git

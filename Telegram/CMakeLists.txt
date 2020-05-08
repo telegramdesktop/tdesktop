@@ -90,7 +90,7 @@ if (LINUX)
         PRIVATE
             desktop-app::external_statusnotifieritem
             desktop-app::external_dbusmenu_qt
-            desktop-app::external_fcitx_qt5
+            desktop-app::external_fcitx5_qt5
             desktop-app::external_hime_qt
         )
     endif()
@@ -138,7 +138,7 @@ endif()
 
 if (DESKTOP_APP_USE_PACKAGED)
     set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-    find_package(Threads)
+    find_package(Threads REQUIRED)
 
     target_link_libraries(Telegram
     PRIVATE
