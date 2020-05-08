@@ -15,11 +15,12 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * Windows 7 and higher (**not** RT)
 * Mac OS X Yosemite (10.10) and higher
-_Note: v1.7.4 beta is a latest version for Windows XP / Vista and Mac OS X 10.6 to 10.9_
 * Ubuntu 12.04 and higher
 * Fedora 22 and higher
 * [Snappy](https://snapcraft.io/telegram-desktop)
-* [Flathub](https://flathub.org/apps/details/org.telegram.desktop)
+* [Flathub](https://flathub.org/apps/details/org.telegram.desktop)  
+  
+_Note: v1.7.4 beta is a latest version for Windows XP / Vista and Mac OS X 10.6 to 10.9_
 
 ## Third-party
 
