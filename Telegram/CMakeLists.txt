@@ -1212,6 +1212,10 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR NOT LINUX) AND NOT build_macstore AND
 
     set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
+    if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        target_link_options(Updater PRIVATE -municode)
+    endif()
+
     if (LINUX)
         target_link_options(Updater PRIVATE -static-libstdc++)
     endif()

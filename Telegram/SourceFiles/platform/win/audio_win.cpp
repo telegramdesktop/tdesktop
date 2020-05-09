@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "media/audio/media_audio.h"
 
+#include <initguid.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 
