@@ -117,7 +117,13 @@ void UnsafeOpenEmailLink(const QString &email) {
 		auto wstringUrl = url.toString(QUrl::FullyEncoded).toStdWString();
 		if (Dlls::SHOpenWithDialog) {
 			OPENASINFO info;
-			info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC | OAIF_FILE_IS_URI | OAIF_URL_PROTOCOL;
+			info.oaifInFlags = OAIF_ALLOW_REGISTRATION
+				| OAIF_REGISTER_EXT
+				| OAIF_EXEC
+#if WINVER >= 0x0602
+				| OAIF_FILE_IS_URI
+#endif // WINVER >= 0x602
+				| OAIF_URL_PROTOCOL;
 			info.pcszClass = NULL;
 			info.pcszFile = wstringUrl.c_str();
 			Dlls::SHOpenWithDialog(0, &info);

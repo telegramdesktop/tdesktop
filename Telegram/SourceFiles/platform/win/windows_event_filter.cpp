@@ -191,7 +191,7 @@ bool EventFilter::mainWindowEvent(
 	} return false;
 
 	case WM_SHOWWINDOW: {
-		LONG style = GetWindowLong(hWnd, GWL_STYLE);
+		LONG style = GetWindowLongPtr(hWnd, GWL_STYLE);
 		auto changes = ShadowsChange::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? ShadowsChange::Shown : ShadowsChange::Hidden);
 		_window->shadowsUpdate(changes);
 	} return false;

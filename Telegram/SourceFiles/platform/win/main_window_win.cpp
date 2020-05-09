@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <roapi.h>
 #include <wrl/client.h>
-#include <windows.ui.notifications.h>
 
 #include <Windowsx.h>
 #include <VersionHelpers.h>
@@ -46,9 +45,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #undef min
 #undef max
 
+// WM_POINTER support from Windows 8 onwards (WINVER >= 0x0602)
+#ifndef WM_POINTERUPDATE
+#  define WM_NCPOINTERUPDATE 0x0241
+#  define WM_NCPOINTERDOWN   0x0242
+#  define WM_NCPOINTERUP     0x0243
+#  define WM_POINTERUPDATE   0x0245
+#  define WM_POINTERDOWN     0x0246
+#  define WM_POINTERUP       0x0247
+#  define WM_POINTERENTER    0x0249
+#  define WM_POINTERLEAVE    0x024A
+#  define WM_POINTERACTIVATE 0x024B
+#  define WM_POINTERCAPTURECHANGED 0x024C
+#  define WM_POINTERWHEEL    0x024E
+#  define WM_POINTERHWHEEL   0x024F
+#endif // WM_POINTERUPDATE
+
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
 using namespace Microsoft::WRL;
+
+Q_DECLARE_METATYPE(QMargins);
 
 namespace Platform {
 namespace {
@@ -225,7 +242,7 @@ public:
 				destroy();
 				return false;
 			}
-			SetWindowLong(hwnds[i], GWL_HWNDPARENT, (LONG)hwnd);
+			SetWindowLongPtr(hwnds[i], GWLP_HWNDPARENT, (LONG)hwnd);
 
 			dcs[i] = CreateCompatibleDC(screenDC);
 			if (!dcs[i]) {
@@ -711,18 +728,18 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	switch (mode) {
 	case dbiwmWindowAndTray: {
 		psSetupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, 0);
 			psRefreshTaskbarIcon();
 		}
 	} break;
 
 	case dbiwmTrayOnly: {
 		psSetupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (!psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, (LONG)ps_tbHider_hWnd);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (LONG)ps_tbHider_hWnd);
 		}
 	} break;
 
@@ -733,9 +750,9 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 		}
 		trayIcon = 0;
 
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
+		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, 0);
 			psRefreshTaskbarIcon();
 		}
 	} break;
@@ -873,7 +890,6 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 	}
 }
 
-Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psUpdateMargins() {
 	if (!ps_hWnd || _inUpdateMargins) return;
 
@@ -884,7 +900,7 @@ void MainWindow::psUpdateMargins() {
 	GetClientRect(ps_hWnd, &r);
 	a = r;
 
-	LONG style = GetWindowLong(ps_hWnd, GWL_STYLE), styleEx = GetWindowLong(ps_hWnd, GWL_EXSTYLE);
+	LONG style = GetWindowLongPtr(ps_hWnd, GWL_STYLE), styleEx = GetWindowLongPtr(ps_hWnd, GWL_EXSTYLE);
 	AdjustWindowRectEx(&a, style, false, styleEx);
 	QMargins margins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
 	if (style & WS_MAXIMIZE) {
