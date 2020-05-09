@@ -12,9 +12,17 @@ jobs:
       to_branch: "master"
     steps:
       - uses: actions/checkout@v1
+        if: env.SKIP == '0'
       - name: Push the code to the master branch.
+        if: env.SKIP == '0'
         run: |
-          url=https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          token=${{ secrets.TOKEN_FOR_MASTER_UPDATER }}
+          if [ -z "${token}" ]; then
+              echo "Token is unset. Nothing to do."
+              exit 0
+          fi
+
+          url=https://x-access-token:$token@github.com/$GITHUB_REPOSITORY
           latest_tag=$(git describe --tags --abbrev=0)
           echo "Latest tag: $latest_tag"
 
