@@ -767,6 +767,10 @@ topBarInfo: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_profile", menuIconFg }};
 	iconOver: icon {{ "top_bar_profile", menuIconFgOver }};
 }
+topBarRecentActions: IconButton(topBarSearch) {
+	icon: icon {{ "info_recent_actions", menuIconFg }};
+	iconOver: icon {{ "info_recent_actions", menuIconFgOver }};
+}
 topBarInfoActive: icon {{ "top_bar_profile", windowActiveTextFg }};
 topBarActionSkip: 10px;
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>
 #include "history/history.h"
+#include "history/admin_log/history_admin_log_section.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "info/info_memento.h"
@@ -59,6 +60,7 @@ TopBarWidget::TopBarWidget(
 , _back(this, st::historyTopBarBack)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
+, _recentActions(this, st::topBarRecentActions)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
 , _titlePeerText(st::windowMinWidth / 3)
@@ -75,6 +77,10 @@ TopBarWidget::TopBarWidget(
 	_clear->setClickedCallback([=] { _clearSelection.fire({}); });
 	_call->setClickedCallback([=] { onCall(); });
 	_search->setClickedCallback([=] { onSearch(); });
+	_recentActions->setClickedCallback([=] {
+		const auto channel = _activeChat.peer()->asChannel();
+		_controller->showSection(AdminLog::SectionMemento(channel)); 
+	});
 	_menuToggle->setClickedCallback([=] { showMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
 	_back->addClickHandler([=] { backClicked(); });
@@ -587,6 +593,10 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_infoToggle->isHidden()) {
 		_rightTaken += _infoToggle->width() + st::topBarSkip;
 	}
+	_recentActions->moveToRight(_rightTaken, otherButtonsTop);
+	if (!_recentActions->isHidden()) {
+		_rightTaken += _recentActions->width() + st::topBarSkip;
+	}
 	_search->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _search->width() + st::topBarCallSkip;
 	_call->moveToRight(_rightTaken, otherButtonsTop);
@@ -632,6 +642,18 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto historyMode = (_section == Section::History);
 	updateSearchVisibility();
 	_menuToggle->setVisible(historyMode && !_activeChat.folder());
+	const auto isAdmin = [&] {
+		if (const auto peer = _activeChat.peer()) {
+			if (peer->isMegagroup()) {
+				const auto channel = peer->asChannel();
+				if (channel->hasAdminRights() || channel->amCreator()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}();
+	_recentActions->setVisible(isAdmin);
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.folder()
 		&& !Adaptive::OneColumn()
