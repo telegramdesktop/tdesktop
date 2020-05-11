@@ -172,7 +172,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_caption_attach" = "Sorry, you can't attach a new media while you're editing your message.";
 
 "lng_intro_about" = "Welcome to the Official Telegram Desktop app.\nIt's fast and secure.";
-"lng_intro_about2" = "Welcome to the Unofficial Telegram Desktop app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
@@ -2371,6 +2370,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
+"lng_intro_about2" = "Welcome to the Unofficial Telegram Desktop app.\nIt's fast and secure.";
 "lng_profile_copy_id" = "Copy ID";
 "lng_profile_bot_id" = "Bot ID";
 "lng_profile_user_id" = "User ID";
