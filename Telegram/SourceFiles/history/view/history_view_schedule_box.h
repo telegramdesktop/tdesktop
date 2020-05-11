@@ -29,12 +29,13 @@ template <typename Guard, typename Submit>
 [[nodiscard]] object_ptr<Ui::GenericBox> PrepareScheduleBox(
 		Guard &&guard,
 		SendMenuType type,
-		Submit &&submit) {
+		Submit &&submit,
+		TimeId scheduleTime = DefaultScheduleTime()) {
 	return Box(
 		ScheduleBox,
 		type,
 		crl::guard(std::forward<Guard>(guard), std::forward<Submit>(submit)),
-		DefaultScheduleTime());
+		scheduleTime);
 }
 
 } // namespace HistoryView

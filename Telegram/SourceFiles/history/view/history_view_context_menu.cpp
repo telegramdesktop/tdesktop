@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_message.h"
 #include "history/history_item_text.h"
+#include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "ui/widgets/popup_menu.h"
@@ -385,6 +386,49 @@ bool AddSendNowMessageAction(
 	return true;
 }
 
+bool AddRescheduleMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request) {
+	const auto item = request.item;
+	if (!item || item->isSending() || !request.selectedItems.empty()) {
+		return false;
+	}
+	const auto peer = item->history()->peer;
+	if (const auto channel = peer->asChannel()) {
+		if (!channel->canEditMessages()) {
+			return false;
+		}
+	}
+	const auto owner = &item->history()->owner();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_reschedule(tr::now), [=] {
+		const auto item = owner->message(itemId);
+		if (!item) {
+			return;
+		}
+		const auto callback = [=](Api::SendOptions options) {
+			item->history()->session().api().rescheduleMessage(item, options);
+		};
+
+		const auto sendMenuType = !peer
+			? SendMenuType::Disabled
+			: peer->isSelf()
+			? SendMenuType::Reminder
+			: HistoryView::CanScheduleUntilOnline(peer)
+			? SendMenuType::ScheduledToUser
+			: SendMenuType::Scheduled;
+
+		Ui::show(
+			HistoryView::PrepareScheduleBox(
+				&request.navigation->session(),
+				sendMenuType,
+				callback,
+			item->date() + 600),
+			Ui::LayerOption::KeepOther);
+	});
+	return true;
+}
+
 void AddSendNowAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -531,6 +575,7 @@ void AddMessageActions(
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
+	AddRescheduleMessageAction(menu, request);
 }
 
 void AddCopyLinkAction(

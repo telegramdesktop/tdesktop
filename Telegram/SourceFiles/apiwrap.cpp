@@ -5857,6 +5857,43 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 	_pollCloseRequestIds.emplace(itemId, requestId);
 }
 
+void ApiWrap::rescheduleMessage(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options) {
+	const auto text = item->originalText().text;
+	const auto sentEntities = Api::EntitiesToMTP(
+		item->originalText().entities,
+		Api::ConvertOption::SkipLocal);
+	const auto media = item->media();
+
+	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
+	const auto flags = MTPmessages_EditMessage::Flag::f_schedule_date
+	| (!text.isEmpty()
+		? MTPmessages_EditMessage::Flag::f_message
+		: emptyFlag)
+	| ((!media || !media->webpage())
+		? MTPmessages_EditMessage::Flag::f_no_webpage
+		: emptyFlag)
+	| (!sentEntities.v.isEmpty()
+		? MTPmessages_EditMessage::Flag::f_entities
+		: emptyFlag);
+
+	const auto id = _session->data().scheduledMessages().lookupId(item);
+	request(MTPmessages_EditMessage(
+		MTP_flags(flags),
+		item->history()->peer->input,
+		MTP_int(id),
+		MTP_string(text),
+		MTPInputMedia(),
+		MTPReplyMarkup(),
+		sentEntities,
+		MTP_int(options.scheduled)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).fail([](const RPCError &error) {
+	}).send();
+}
+
 void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	if (!IsServerMsgId(item->id)
