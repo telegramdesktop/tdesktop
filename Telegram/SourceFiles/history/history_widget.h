@@ -104,7 +104,9 @@ class HistoryWidget final
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 
-	HistoryWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	HistoryWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	void start();
 
