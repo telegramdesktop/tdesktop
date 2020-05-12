@@ -674,7 +674,6 @@ void Widget::animationCallback() {
 
 		updateControlsVisibility(true);
 
-		applyFilterUpdate();
 		if (!_filter->hasFocus()) {
 			if (App::wnd()) App::wnd()->setInnerFocus();
 		}
