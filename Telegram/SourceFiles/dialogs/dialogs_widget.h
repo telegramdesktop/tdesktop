@@ -64,6 +64,7 @@ public:
 	void removeDialog(Key key);
 	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
+	void refreshDialogRow(RowDescriptor row);
 
 	void jumpToTop();
 

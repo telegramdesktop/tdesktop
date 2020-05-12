@@ -549,6 +549,10 @@ void Widget::repaintDialogRow(RowDescriptor row) {
 	_inner->repaintDialogRow(row);
 }
 
+void Widget::refreshDialogRow(RowDescriptor row) {
+	_inner->refreshDialogRow(row);
+}
+
 void Widget::jumpToTop() {
 	if (session().supportMode()) {
 		return;

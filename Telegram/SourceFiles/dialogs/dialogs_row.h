@@ -121,6 +121,11 @@ public:
 		return _item;
 	}
 
+	void invalidateCache() {
+		_cacheFor = nullptr;
+		_cache = Ui::Text::String();
+	}
+
 private:
 	friend class Layout::RowPainter;
 

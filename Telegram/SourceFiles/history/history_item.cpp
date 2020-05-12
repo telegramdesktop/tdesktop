@@ -267,7 +267,7 @@ PeerData *HistoryItem::displayFrom() const {
 void HistoryItem::invalidateChatListEntry() {
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
-		main->repaintDialogRow({ history(), fullId() });
+		main->refreshDialogRow({ history(), fullId() });
 	}
 
 	// invalidate cache for drawInDialog

@@ -137,6 +137,7 @@ public:
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(FilterId filterId, not_null<Dialogs::Row*> row);
 	void repaintDialogRow(Dialogs::RowDescriptor row);
+	void refreshDialogRow(Dialogs::RowDescriptor row);
 
 	void windowShown();
 
