@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <roapi.h>
 #include <wrl/client.h>
-#include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
 #include <Windowsx.h>
