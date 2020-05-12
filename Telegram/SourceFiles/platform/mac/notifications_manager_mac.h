@@ -13,9 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudio();
-bool SkipToast();
-
 class Manager : public Window::Notifications::NativeManager, public base::has_weak_ptr {
 public:
 	Manager(Window::Notifications::System *system);

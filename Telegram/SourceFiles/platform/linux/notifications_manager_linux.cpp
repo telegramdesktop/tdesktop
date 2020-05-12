@@ -457,15 +457,11 @@ bool SkipAudio() {
 }
 
 bool SkipToast() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	if (Supported()
-		&& GetCapabilities().contains(qsl("inhibitions"))
-		&& !InhibitedNotSupported) {
-		return Inhibited();
-	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+	return SkipAudio();
+}
 
-	return false;
+bool SkipFlashBounce() {
+	return SkipAudio();
 }
 
 bool Supported() {

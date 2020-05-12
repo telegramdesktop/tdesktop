@@ -321,21 +321,6 @@ std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::Sy
 	return nullptr;
 }
 
-void FlashBounce() {
-	auto window = App::wnd();
-	if (!window || GetForegroundWindow() == window->psHwnd()) {
-		return;
-	}
-
-	FLASHWINFO info;
-	info.cbSize = sizeof(info);
-	info.hwnd = window->psHwnd();
-	info.dwFlags = FLASHW_ALL;
-	info.dwTimeout = 0;
-	info.uCount = 1;
-	FlashWindowEx(&info);
-}
-
 class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
@@ -721,6 +706,10 @@ bool SkipToast() {
 		return true;
 	}
 	return false;
+}
+
+bool SkipFlashBounce() {
+	return SkipToast();
 }
 
 } // namespace Notifications

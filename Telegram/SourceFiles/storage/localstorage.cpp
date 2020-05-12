@@ -649,7 +649,7 @@ enum {
 	dbiSendKeyOld = 0x05,
 	dbiAutoStart = 0x06,
 	dbiStartMinimized = 0x07,
-	dbiSoundNotify = 0x08,
+	dbiSoundFlashBounceNotify = 0x08,
 	dbiWorkMode = 0x09,
 	dbiSeenTrayTooltip = 0x0a,
 	dbiDesktopNotify = 0x0b,
@@ -1189,12 +1189,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		anim::SetDisabled(disabled == 1);
 	} break;
 
-	case dbiSoundNotify: {
+	case dbiSoundFlashBounceNotify: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetSoundNotify(v == 1);
+		Global::SetSoundNotify((v & 0x01) == 0x01);
+		Global::SetFlashBounceNotify((v & 0x02) == 0x00);
 	} break;
 
 	case dbiAutoDownloadOld: {
@@ -2202,6 +2203,9 @@ void _writeUserSettings() {
 	}
 	size += sizeof(quint32) + Serialize::bytearraySize(callSettings);
 
+	const auto soundFlashBounce = (Global::SoundNotify() ? 0x01 : 0x00)
+		| (Global::FlashBounceNotify() ? 0x00 : 0x02);
+
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint32(dbiTileBackground)
@@ -2209,7 +2213,7 @@ void _writeUserSettings() {
 		<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
-	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
+	data.stream << quint32(dbiSoundFlashBounceNotify) << qint32(soundFlashBounce);
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());

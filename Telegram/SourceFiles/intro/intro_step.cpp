@@ -40,6 +40,7 @@ void PrepareSupportMode() {
 
 	Global::SetDesktopNotify(false);
 	Global::SetSoundNotify(false);
+	Global::SetFlashBounceNotify(false);
 	Auth().settings().autoDownload() = Full::FullDisabled();
 	Local::writeUserSettings();
 }

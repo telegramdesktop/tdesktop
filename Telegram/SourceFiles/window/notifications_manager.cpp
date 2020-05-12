@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
+#include <QtGui/QWindow>
+
 namespace Window {
 namespace Notifications {
 namespace {
@@ -290,7 +292,14 @@ void System::showNext() {
 		}
 	}
 	if (alert) {
-		Platform::Notifications::FlashBounce();
+		if (Global::FlashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
+			if (const auto widget = App::wnd()) {
+				if (const auto window = widget->windowHandle()) {
+					window->alert(0);
+					// (window, SLOT(_q_clearAlert())); in the future.
+				}
+			}
+		}
 		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();

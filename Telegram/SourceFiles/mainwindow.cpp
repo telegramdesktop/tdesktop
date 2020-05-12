@@ -757,13 +757,20 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		return;
 	}
 
-	bool soundNotifyChanged = false;
+	auto soundNotifyChanged = false;
+	auto flashBounceNotifyChanged = false;
 	Global::SetDesktopNotify(!Global::DesktopNotify());
 	if (Global::DesktopNotify()) {
 		if (Global::RestoreSoundNotifyFromTray() && !Global::SoundNotify()) {
 			Global::SetSoundNotify(true);
 			Global::SetRestoreSoundNotifyFromTray(false);
 			soundNotifyChanged = true;
+		}
+		if (Global::RestoreFlashBounceNotifyFromTray()
+			&& !Global::FlashBounceNotify()) {
+			Global::SetFlashBounceNotify(true);
+			Global::SetRestoreFlashBounceNotifyFromTray(false);
+			flashBounceNotifyChanged = true;
 		}
 	} else {
 		if (Global::SoundNotify()) {
@@ -773,13 +780,23 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		} else {
 			Global::SetRestoreSoundNotifyFromTray(false);
 		}
+		if (Global::FlashBounceNotify()) {
+			Global::SetFlashBounceNotify(false);
+			Global::SetRestoreFlashBounceNotifyFromTray(true);
+			flashBounceNotifyChanged = true;
+		} else {
+			Global::SetRestoreFlashBounceNotifyFromTray(false);
+		}
 	}
 	Local::writeUserSettings();
-	account().session().notifications().settingsChanged().notify(
-		Window::Notifications::ChangeType::DesktopEnabled);
+	using Change = Window::Notifications::ChangeType;
+	auto &changes = account().session().notifications().settingsChanged();
+	changes.notify(Change::DesktopEnabled);
 	if (soundNotifyChanged) {
-		account().session().notifications().settingsChanged().notify(
-			Window::Notifications::ChangeType::SoundEnabled);
+		changes.notify(Change::SoundEnabled);
+	}
+	if (flashBounceNotifyChanged) {
+		changes.notify(Change::FlashBounceEnabled);
 	}
 }
 
