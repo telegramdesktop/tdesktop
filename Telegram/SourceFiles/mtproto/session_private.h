@@ -139,6 +139,12 @@ private:
 	// if badTime received - search for ids in sessionData->haveSent and sessionData->wereAcked and sync time/salt, return true if found
 	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt);
 
+	// if we had a confirmed fast request use its unixtime as a correct one.
+	void correctUnixtimeByFastRequest(
+		const QVector<MTPlong> &ids,
+		TimeId serverTime);
+	void correctUnixtimeWithBadLocal(TimeId serverTime);
+
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
