@@ -915,7 +915,7 @@ blockUserConfirmation: FlatLabel(boxLabel) {
 	minWidth: 240px;
 }
 
-transferCheckWidth: 300px;
+transferCheckWidth: 320px;
 
 slowmodeLabelsMargin: margins(0px, 5px, 0px, 0px);
 slowmodeLabel: LabelSimple(defaultLabelSimple) {
