@@ -1,3 +1,9 @@
+2.1.5 (13.05.20)
+
+- Disable the taskbar icon flash or the dock icon bounce in Settings > Notifications.
+- View messages containing long monospace texts in wide bubbles.
+- Bug fixes and other minor improvements.
+
 2.1.4 (08.05.20)
 
 - Improve bold font selection.
