@@ -94,3 +94,6 @@
 [submodule "Telegram/ThirdParty/fcitx5-qt"]
 	path = Telegram/ThirdParty/fcitx5-qt
 	url = https://github.com/fcitx/fcitx5-qt.git
+[submodule "Telegram/lib_webrtc"]
+	path = Telegram/lib_webrtc
+	url = https://github.com/desktop-app/lib_webrtc.git

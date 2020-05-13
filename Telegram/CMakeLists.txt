@@ -18,6 +18,7 @@ endif()
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
+add_subdirectory(lib_webrtc)
 add_subdirectory(codegen)
 
 include(CheckCXXSourceCompiles)
@@ -111,6 +112,7 @@ PRIVATE
     desktop-app::lib_tl
     desktop-app::lib_storage
     desktop-app::lib_lottie
+    desktop-app::lib_webrtc
     desktop-app::lib_qr
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
