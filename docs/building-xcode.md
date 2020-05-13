@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e036126
+    git checkout b08b497
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -47,7 +47,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e036126
+    git checkout b08b497
     cd ..
 
     xz_ver=5.2.4
@@ -238,8 +238,7 @@ Go to ***BuildPath*** and run
     cd qt5_12_8
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.12.8
-    git submodule update qtbase
-    git submodule update qtimageformats
+    git submodule update qtbase qtimageformats
     cd qtbase
     git apply ../../patches/qtbase_5_12_8.diff
     cd ..

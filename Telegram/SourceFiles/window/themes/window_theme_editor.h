@@ -43,7 +43,7 @@ struct ParsedTheme {
 	const QByteArray &value);
 [[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud);
 [[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
-[[nodisacrd]] QByteArray StripCloudTextFields(const QByteArray &text);
+[[nodiscard]] QByteArray StripCloudTextFields(const QByteArray &text);
 
 class Editor : public TWidget {
 public:

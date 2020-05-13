@@ -549,6 +549,10 @@ void Widget::repaintDialogRow(RowDescriptor row) {
 	_inner->repaintDialogRow(row);
 }
 
+void Widget::refreshDialogRow(RowDescriptor row) {
+	_inner->refreshDialogRow(row);
+}
+
 void Widget::jumpToTop() {
 	if (session().supportMode()) {
 		return;
@@ -674,7 +678,6 @@ void Widget::animationCallback() {
 
 		updateControlsVisibility(true);
 
-		applyFilterUpdate();
 		if (!_filter->hasFocus()) {
 			if (App::wnd()) App::wnd()->setInnerFocus();
 		}

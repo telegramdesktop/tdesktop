@@ -300,6 +300,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notifications_position" = "Location on the screen";
 "lng_settings_notifications_count" = "Notifications count";
 "lng_settings_sound_notify" = "Play sound";
+"lng_settings_alert_windows" = "Flash the taskbar icon";
+"lng_settings_alert_mac" = "Bounce the dock icon";
+"lng_settings_alert_linux" = "Draw attention to the window";
 "lng_settings_badge_title" = "Badge counter";
 "lng_settings_include_muted" = "Include muted chats in unread count";
 "lng_settings_count_unread" = "Count unread messages";

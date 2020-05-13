@@ -328,6 +328,7 @@ private:
 
 	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
 	bool chatEntryHistoryMove(int steps);
+	void resetFakeUnreadWhileOpened();
 
 	const not_null<Controller*> _window;
 

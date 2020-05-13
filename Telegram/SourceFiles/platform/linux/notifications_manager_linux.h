@@ -19,9 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-inline void FlashBounce() {
-}
-
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 class NotificationData : public QObject {
 	Q_OBJECT

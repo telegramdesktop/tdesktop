@@ -1549,6 +1549,17 @@ void InnerWidget::repaintDialogRow(RowDescriptor row) {
 	updateDialogRow(row);
 }
 
+void InnerWidget::refreshDialogRow(RowDescriptor row) {
+	if (row.fullId) {
+		for (const auto &result : _searchResults) {
+			if (result->item()->fullId() == row.fullId) {
+				result->invalidateCache();
+			}
+		}
+	}
+	repaintDialogRow(row);
+}
+
 void InnerWidget::updateSearchResult(not_null<PeerData*> peer) {
 	if (_state == WidgetState::Filtered) {
 		if (!_peerSearchResults.empty()) {

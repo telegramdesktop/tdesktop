@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <RestartManager.h>
 #include <psapi.h>
 
+#ifdef __MINGW32__
+#define __in
+#endif
+
 namespace Platform {
 namespace Dlls {
 

@@ -1622,6 +1622,9 @@ bool History::readInboxTillNeedsRequest(MsgId tillId) {
 	if (unreadMark()) {
 		owner().histories().changeDialogUnreadMark(this, false);
 	}
+	DEBUG_LOG(("Reading: readInboxTillNeedsRequest is_server %1, before %2."
+		).arg(Logs::b(IsServerMsgId(tillId))
+		).arg(_inboxReadBefore.value_or(-666)));
 	return IsServerMsgId(tillId) && (_inboxReadBefore.value_or(1) <= tillId);
 }
 
@@ -1639,10 +1642,17 @@ bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
 
 std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	if (isEmpty() || !folderKnown()) {
+		DEBUG_LOG(("Reading: countStillUnreadLocal unknown %1 and %2."
+			).arg(Logs::b(isEmpty())
+			).arg(Logs::b(folderKnown())));
 		return std::nullopt;
 	}
 	if (_inboxReadBefore) {
 		const auto before = *_inboxReadBefore;
+		DEBUG_LOG(("Reading: check before %1 with min %2 and max %3."
+			).arg(before
+			).arg(minMsgId()
+			).arg(maxMsgId()));
 		if (minMsgId() <= before && maxMsgId() >= readTillId) {
 			auto result = 0;
 			for (const auto &block : blocks) {
@@ -1658,12 +1668,19 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 					}
 				}
 			}
+			DEBUG_LOG(("Reading: check before result %1 with existing %2"
+				).arg(result
+				).arg(_unreadCount.value_or(-666)));
 			if (_unreadCount) {
 				return std::max(*_unreadCount - result, 0);
 			}
 		}
 	}
 	const auto minimalServerId = minMsgId();
+	DEBUG_LOG(("Reading: check at end loaded from %1 loaded %2 - %3"
+		).arg(minimalServerId
+		).arg(Logs::b(loadedAtBottom())
+		).arg(Logs::b(loadedAtTop())));
 	if (!loadedAtBottom()
 		|| (!loadedAtTop() && !minimalServerId)
 		|| minimalServerId > readTillId) {
@@ -1682,6 +1699,7 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 			}
 		}
 	}
+	DEBUG_LOG(("Reading: check at end counted %1").arg(result));
 	return result;
 }
 

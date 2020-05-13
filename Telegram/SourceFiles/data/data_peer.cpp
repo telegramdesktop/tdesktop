@@ -770,7 +770,7 @@ int PeerData::slowmodeSecondsLeft() const {
 
 bool PeerData::canSendPolls() const {
 	if (const auto user = asUser()) {
-		return user->isBot();
+		return user->isBot() && !user->isSupport();
 	} else if (const auto chat = asChat()) {
 		return chat->canSendPolls();
 	} else if (const auto channel = asChannel()) {

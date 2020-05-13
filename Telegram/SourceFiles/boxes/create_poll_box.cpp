@@ -83,7 +83,7 @@ private:
 		void show(anim::type animated);
 		void destroy(FnMut<void()> done);
 
-		[[nodisacrd]] bool hasShadow() const;
+		[[nodiscard]] bool hasShadow() const;
 		void createShadow();
 		void destroyShadow();
 

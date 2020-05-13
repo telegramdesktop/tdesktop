@@ -29,8 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <roapi.h>
 #include <wrl/client.h>
-#include "platform/win/wrapper_wrl_implements_h.h"
-#include <windows.ui.notifications.h>
 
 #include <openssl/conf.h>
 #include <openssl/engine.h>
@@ -65,9 +63,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif
 
 using namespace Microsoft::WRL;
-using namespace ABI::Windows::UI::Notifications;
-using namespace ABI::Windows::Data::Xml::Dom;
-using namespace Windows::Foundation;
 using namespace Platform;
 
 namespace {
@@ -435,7 +430,7 @@ namespace {
 		WCHAR defaultStr[bufSize] = { 0 };
 		if (RegQueryValueEx(rkey, value, 0, &defaultType, (BYTE*)defaultStr, &defaultSize) != ERROR_SUCCESS || defaultType != REG_SZ || defaultSize != (v.size() + 1) * 2 || QString::fromStdWString(defaultStr) != v) {
 			WCHAR tmp[bufSize] = { 0 };
-			if (!v.isEmpty()) wsprintf(tmp, v.replace(QChar('%'), qsl("%%")).toStdWString().c_str());
+			if (!v.isEmpty()) StringCbPrintf(tmp, bufSize, v.replace(QChar('%'), qsl("%%")).toStdWString().c_str());
 			LSTATUS status = RegSetValueEx(rkey, value, 0, REG_SZ, (BYTE*)tmp, (wcslen(tmp) + 1) * sizeof(WCHAR));
 			if (status != ERROR_SUCCESS) {
 				QString msg = qsl("App Error: could not set %1, error %2").arg(value ? ('\'' + QString::fromStdWString(value) + '\'') : qsl("(Default)")).arg("%1: %2");

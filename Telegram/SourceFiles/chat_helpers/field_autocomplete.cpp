@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
-#include "main/main_session.h"
 #include "chat_helpers/stickers.h"
 #include "base/unixtime.h"
+#include "window/window_session_controller.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_history.h"
@@ -33,14 +33,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
-	not_null<Main::Session*> session)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
-, _session(session)
+, _controller(controller)
 , _scroll(this, st::mentionScroll) {
 	_scroll->setGeometry(rect());
 
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<internal::FieldAutocompleteInner>(
+			_controller,
 			this,
 			&_mrows,
 			&_hrows,
@@ -169,7 +170,7 @@ inline int indexOfInFirstN(const T &v, const U &elem, int last) {
 
 internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	const auto list = Stickers::GetListByEmoji(
-		_session,
+		&_controller->session(),
 		_emoji,
 		_stickersSeed
 	);
@@ -584,12 +585,14 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 namespace internal {
 
 FieldAutocompleteInner::FieldAutocompleteInner(
+	not_null<Window::SessionController*> controller,
 	not_null<FieldAutocomplete*> parent,
 	not_null<MentionRows*> mrows,
 	not_null<HashtagRows*> hrows,
 	not_null<BotCommandRows*> brows,
 	not_null<StickerRows*> srows)
-: _parent(parent)
+: _controller(controller)
+, _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
 , _brows(brows)
@@ -665,7 +668,6 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 				if (sticker.animated && sticker.animated->ready()) {
 					const auto frame = sticker.animated->frame();
-					sticker.animated->markFrameShown();
 					const auto size = frame.size() / cIntRetinaFactor();
 					const auto ppos = pos + QPoint(
 						(st::stickerPanSize.width() - size.width()) / 2,
@@ -673,6 +675,11 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					p.drawImage(
 						QRect(ppos, size),
 						frame);
+					const auto paused = _controller->isGifPausedAtLeastFor(
+						Window::GifPauseReason::SavedGifs);
+					if (!paused) {
+						sticker.animated->markFrameShown();
+					}
 				} else if (const auto image = document->getStickerSmall()) {
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));

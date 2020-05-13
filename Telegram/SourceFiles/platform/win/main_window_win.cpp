@@ -35,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <roapi.h>
 #include <wrl/client.h>
-#include "platform/win/wrapper_wrl_implements_h.h"
-#include <windows.ui.notifications.h>
 
 #include <Windowsx.h>
 #include <VersionHelpers.h>
@@ -47,9 +45,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #undef min
 #undef max
 
+// WM_POINTER support from Windows 8 onwards (WINVER >= 0x0602)
+#ifndef WM_POINTERUPDATE
+#  define WM_NCPOINTERUPDATE 0x0241
+#  define WM_NCPOINTERDOWN   0x0242
+#  define WM_NCPOINTERUP     0x0243
+#  define WM_POINTERUPDATE   0x0245
+#  define WM_POINTERDOWN     0x0246
+#  define WM_POINTERUP       0x0247
+#  define WM_POINTERENTER    0x0249
+#  define WM_POINTERLEAVE    0x024A
+#  define WM_POINTERACTIVATE 0x024B
+#  define WM_POINTERCAPTURECHANGED 0x024C
+#  define WM_POINTERWHEEL    0x024E
+#  define WM_POINTERHWHEEL   0x024F
+#endif // WM_POINTERUPDATE
+
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
 using namespace Microsoft::WRL;
+
+Q_DECLARE_METATYPE(QMargins);
 
 namespace Platform {
 namespace {
@@ -874,7 +890,6 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 	}
 }
 
-Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psUpdateMargins() {
 	if (!ps_hWnd || _inUpdateMargins) return;
 

@@ -37,8 +37,8 @@ public:
 
 	void process(std::vector<FFmpeg::Packet> &&packets);
 
-	[[nodisacrd]] rpl::producer<> checkNextFrame() const;
-	[[nodisacrd]] rpl::producer<> waitingForData() const;
+	[[nodiscard]] rpl::producer<> checkNextFrame() const;
+	[[nodiscard]] rpl::producer<> waitingForData() const;
 
 	void pause(crl::time time);
 	void resume(crl::time time);

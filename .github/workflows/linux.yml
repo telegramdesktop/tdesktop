@@ -415,8 +415,8 @@ jobs:
 
           git clone -b v5.12.8 --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
           cd qt_${QT}
-          perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
-          git submodule update qtbase qtwayland qtimageformats qtsvg
+          perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qtx11extras
+          git submodule update qtbase qtwayland qtimageformats qtsvg qtx11extras
           cd qtbase
           git apply ../../patches/qtbase_${QT}.diff
           cd ../

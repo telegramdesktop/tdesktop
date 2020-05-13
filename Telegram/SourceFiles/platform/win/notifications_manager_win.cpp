@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <roapi.h>
 #include <wrl/client.h>
+
+#ifndef __MINGW32__
 #include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
@@ -32,9 +34,12 @@ using namespace Microsoft::WRL;
 using namespace ABI::Windows::UI::Notifications;
 using namespace ABI::Windows::Data::Xml::Dom;
 using namespace Windows::Foundation;
+#endif // !__MINGW32__
 
 namespace Platform {
 namespace Notifications {
+
+#ifndef __MINGW32__
 namespace {
 
 class StringReferenceWrapper {
@@ -302,40 +307,33 @@ void Check() {
 }
 
 } // namespace
+#endif // !__MINGW32__
 
 bool Supported() {
+#ifndef __MINGW32__
 	if (!Checked) {
 		Checked = true;
 		Check();
 	}
 	return InitSucceeded;
+#endif // !__MINGW32__
+
+	return false;
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+#ifndef __MINGW32__
 	if (Global::NativeNotifications() && Supported()) {
 		auto result = std::make_unique<Manager>(system);
 		if (result->init()) {
 			return std::move(result);
 		}
 	}
+#endif // !__MINGW32__
 	return nullptr;
 }
 
-void FlashBounce() {
-	auto window = App::wnd();
-	if (!window || GetForegroundWindow() == window->psHwnd()) {
-		return;
-	}
-
-	FLASHWINFO info;
-	info.cbSize = sizeof(info);
-	info.hwnd = window->psHwnd();
-	info.dwFlags = FLASHW_ALL;
-	info.dwTimeout = 0;
-	info.uCount = 1;
-	FlashWindowEx(&info);
-}
-
+#ifndef __MINGW32__
 class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
@@ -612,6 +610,7 @@ void Manager::onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
 void Manager::onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
 	_private->afterNotificationActivated(peerId, msgId);
 }
+#endif // !__MINGW32__
 
 namespace {
 
@@ -721,6 +720,10 @@ bool SkipToast() {
 		return true;
 	}
 	return false;
+}
+
+bool SkipFlashBounce() {
+	return SkipToast();
 }
 
 } // namespace Notifications

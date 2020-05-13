@@ -126,6 +126,21 @@ auto GenerateCodes() {
 	codes.emplace(qsl("export"), [](SessionController *window) {
 		window->session().data().startExport();
 	});
+#if defined Q_OS_WIN || defined Q_OS_MAC
+	codes.emplace(qsl("freetype"), [](SessionController *window) {
+		auto text = cUseFreeType()
+#ifdef Q_OS_WIN
+			? qsl("Switch font engine to GDI?")
+#else // Q_OS_WIN
+			? qsl("Switch font engine to Cocoa?")
+#endif // !Q_OS_WIN
+			: qsl("Switch font engine to FreeType?");
+
+		Ui::show(Box<ConfirmBox>(text, [] {
+			Core::App().switchFreeType();
+		}));
+	});
+#endif // Q_OS_WIN || Q_OS_MAC
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
 	auto audioKeys = {

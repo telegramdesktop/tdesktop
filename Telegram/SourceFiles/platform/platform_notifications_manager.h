@@ -12,12 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudio();
-bool SkipToast();
+[[nodiscard]] bool SkipAudio();
+[[nodiscard]] bool SkipToast();
+[[nodiscard]] bool SkipFlashBounce();
 
-bool Supported();
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system);
-void FlashBounce();
+[[nodiscard]] bool Supported();
+[[nodiscard]] std::unique_ptr<Window::Notifications::Manager> Create(
+	Window::Notifications::System *system);
 
 } // namespace Notifications
 } // namespace Platform

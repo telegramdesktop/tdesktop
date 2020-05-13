@@ -463,6 +463,8 @@ void Panel::toggleOpacityAnimation(bool visible) {
 			_visible ? 1. : 0.,
 			st::callPanelDuration,
 			_visible ? anim::easeOutCirc : anim::easeInCirc);
+	} else if (!isHidden() && !_visible) {
+		hide();
 	}
 	if (isHidden() && _visible) {
 		show();

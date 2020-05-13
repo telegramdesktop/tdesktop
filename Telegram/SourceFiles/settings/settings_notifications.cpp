@@ -568,6 +568,13 @@ void SetupNotificationsContent(
 	const auto sound = addCheckbox(
 		tr::lng_settings_sound_notify(tr::now),
 		Global::SoundNotify());
+	const auto flashbounce = addCheckbox(
+		(Platform::IsWindows()
+			? tr::lng_settings_alert_windows
+			: Platform::IsMac()
+			? tr::lng_settings_alert_mac
+			: tr::lng_settings_alert_linux)(tr::now),
+		Global::FlashBounceNotify());
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
@@ -714,6 +721,14 @@ void SetupNotificationsContent(
 		changed(Change::SoundEnabled);
 	}, sound->lifetime());
 
+	flashbounce->checkedChanges(
+	) | rpl::filter([](bool checked) {
+		return (checked != Global::FlashBounceNotify());
+	}) | rpl::start_with_next([=](bool checked) {
+		Global::SetFlashBounceNotify(checked);
+		changed(Change::FlashBounceEnabled);
+	}, flashbounce->lifetime());
+
 	muted->checkedChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != session->settings().includeMutedCounter());
@@ -743,6 +758,8 @@ void SetupNotificationsContent(
 			preview->toggle(name->entity()->checked(), anim::type::normal);
 		} else if (change == Change::SoundEnabled) {
 			sound->setChecked(Global::SoundNotify());
+		} else if (change == Change::FlashBounceEnabled) {
+			flashbounce->setChecked(Global::FlashBounceNotify());
 		}
 	}, desktop->lifetime());
 

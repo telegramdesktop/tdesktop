@@ -6,7 +6,18 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "winres.h"
+#if defined(__MINGW64__) || defined(__MINGW32__)
+	// MinGW-w64, MinGW
+	#if defined(__has_include) && __has_include(<winres.h>)
+		#include <winres.h>
+	#else
+		#include <afxres.h>
+		#include <winresrc.h>
+	#endif
+#else
+	// MSVC, Windows SDK
+	#include <winres.h>
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -24,8 +35,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,1,4,0
- PRODUCTVERSION 2,1,4,0
+ FILEVERSION 2,1,5,0
+ PRODUCTVERSION 2,1,5,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -42,10 +53,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Telegram FZ-LLC"
             VALUE "FileDescription", "Telegram Desktop Updater"
-            VALUE "FileVersion", "2.1.4.0"
+            VALUE "FileVersion", "2.1.5.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2020"
             VALUE "ProductName", "Telegram Desktop"
-            VALUE "ProductVersion", "2.1.4.0"
+            VALUE "ProductVersion", "2.1.5.0"
         END
     END
     BLOCK "VarFileInfo"

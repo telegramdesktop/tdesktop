@@ -215,6 +215,7 @@ public:
 
 	void switchDebugMode();
 	void switchTestMode();
+	void switchFreeType();
 	void writeInstallBetaVersionsSetting();
 
 	void call_handleUnreadCounterUpdate();
