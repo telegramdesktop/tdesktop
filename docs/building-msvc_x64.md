@@ -32,7 +32,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e036126
+    git checkout b08b497
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -64,7 +64,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e036126
+    git checkout b08b497
     cd ..
     git clone --branch 0.10.0 https://github.com/ericniebler/range-v3 range-v3
 
@@ -152,8 +152,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd qt_5_12_8
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.12.8
-    git submodule update qtbase
-    git submodule update qtimageformats
+    git submodule update qtbase qtimageformats
     cd qtbase
     git apply ../../patches/qtbase_5_12_8.diff
     cd ..
