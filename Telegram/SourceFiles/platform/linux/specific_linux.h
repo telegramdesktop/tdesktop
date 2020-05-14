@@ -25,6 +25,7 @@ bool InSnap();
 bool InAppImage();
 bool IsStaticBinary();
 bool IsGtkFileDialogForced();
+bool IsQtPluginsBundled();
 
 bool IsXDGDesktopPortalPresent();
 bool UseXDGDesktopPortal();

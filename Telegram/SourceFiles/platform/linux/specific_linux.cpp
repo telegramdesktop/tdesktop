@@ -271,6 +271,14 @@ bool IsGtkFileDialogForced() {
 #endif // !TDESKTOP_FORCE_GTK_FILE_DIALOG
 }
 
+bool IsQtPluginsBundled() {
+#ifdef DESKTOP_APP_USE_PACKAGED_LAZY
+	return true;
+#else // DESKTOP_APP_USE_PACKAGED_LAZY
+	return false;
+#endif // !DESKTOP_APP_USE_PACKAGED_LAZY
+}
+
 bool IsXDGDesktopPortalPresent() {
 #ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	static const auto XDGDesktopPortalPresent = false;
@@ -633,14 +641,16 @@ void start() {
 	if(IsStaticBinary()
 		|| InAppImage()
 		|| InSandbox()
-		|| InSnap()) {
+		|| InSnap()
+		|| IsQtPluginsBundled()) {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
 	if(IsStaticBinary()
 		|| InAppImage()
 		|| InSnap()
-		|| IsGtkFileDialogForced()) {
+		|| IsGtkFileDialogForced()
+		|| IsQtPluginsBundled()) {
 		LOG(("Checking for XDG Desktop Portal..."));
 		// this can give us a chance to use a proper file dialog for current session
 		if (IsXDGDesktopPortalPresent()) {
