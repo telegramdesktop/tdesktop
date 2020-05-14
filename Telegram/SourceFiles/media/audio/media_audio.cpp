@@ -86,14 +86,14 @@ void EnumeratePlaybackDevices() {
 	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
-		auto deviceName = QString::fromLocal8Bit(deviceName8Bit);
+		auto deviceName = QString::fromUtf8(deviceName8Bit);
 		deviceNames.append(deviceName);
 		devices += deviceName8Bit.size() + 1;
 	}
 	LOG(("Audio Playback Devices: %1").arg(deviceNames.join(';')));
 
 	if (auto device = alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER)) {
-		LOG(("Audio Playback Default Device: %1").arg(QString::fromLocal8Bit(device)));
+		LOG(("Audio Playback Default Device: %1").arg(QString::fromUtf8(device)));
 	} else {
 		LOG(("Audio Playback Default Device: (null)"));
 	}
@@ -105,14 +105,14 @@ void EnumerateCaptureDevices() {
 	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
-		auto deviceName = QString::fromLocal8Bit(deviceName8Bit);
+		auto deviceName = QString::fromUtf8(deviceName8Bit);
 		deviceNames.append(deviceName);
 		devices += deviceName8Bit.size() + 1;
 	}
 	LOG(("Audio Capture Devices: %1").arg(deviceNames.join(';')));
 
 	if (auto device = alcGetString(nullptr, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		LOG(("Audio Capture Default Device: %1").arg(QString::fromLocal8Bit(device)));
+		LOG(("Audio Capture Default Device: %1").arg(QString::fromUtf8(device)));
 	} else {
 		LOG(("Audio Capture Default Device: (null)"));
 	}

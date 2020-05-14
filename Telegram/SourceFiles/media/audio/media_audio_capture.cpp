@@ -63,7 +63,7 @@ Instance::Instance() : _inner(new Inner(&_thread)) {
 void Instance::check() {
 	_available = false;
 	if (auto device = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		if (!QString::fromLocal8Bit(device).isEmpty()) {
+		if (!QString::fromUtf8(device).isEmpty()) {
 			_available = true;
 			return;
 		}
