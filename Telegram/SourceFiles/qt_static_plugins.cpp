@@ -53,6 +53,7 @@ Q_IMPORT_PLUGIN(QWaylandMaterialDecorationPlugin)
 Q_IMPORT_PLUGIN(NimfInputContextPlugin)
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QFcitx5PlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QHimePlatformInputContextPlugin)
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 #endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
