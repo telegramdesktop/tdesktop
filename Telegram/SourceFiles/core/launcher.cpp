@@ -283,6 +283,14 @@ void Launcher::init() {
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // OS_MAC_OLD
 
+	// fallback session management is useless for tdesktop since it doesn't have
+	// any "are you sure you want to close this window?" dialogs
+	// but it produces bugs like https://github.com/telegramdesktop/tdesktop/issues/5022
+	// and https://github.com/telegramdesktop/tdesktop/issues/7549
+	// and https://github.com/telegramdesktop/tdesktop/issues/948
+	// more info: https://doc.qt.io/qt-5/qguiapplication.html#isFallbackSessionManagementEnabled
+	QApplication::setFallbackSessionManagementEnabled(false);
+
 	initHook();
 }
 
