@@ -408,6 +408,12 @@ HistoryItem *ScheduledMessages::append(
 	if (i != end(list.itemById)) {
 		const auto existing = i->second;
 		message.match([&](const MTPDmessage &data) {
+			// Scheduled messages never have an edit date,
+			// so if we receive a flag about it,
+			// probably this message was edited.
+			if (data.is_edit_hide()) {
+				existing->applyEdition(data);
+			}
 			existing->updateSentContent({
 				qs(data.vmessage()),
 				Api::EntitiesFromMTP(
