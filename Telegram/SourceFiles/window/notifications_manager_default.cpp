@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "facades.h"
 #include "app.h"
+#include "mainwindow.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -374,7 +375,7 @@ Widget::Widget(
 	QPoint startPosition,
 	int shift,
 	Direction shiftDirection)
-: TWidget(nullptr)
+: TWidget(App::wnd())
 , _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
@@ -488,6 +489,8 @@ void Widget::addToHeight(int add) {
 
 void Widget::updateGeometry(int x, int y, int width, int height) {
 	setGeometry(x, y, width, height);
+	setMinimumSize(QSize(width, height));
+	setMaximumSize(QSize(width, height));
 	update();
 }
 
