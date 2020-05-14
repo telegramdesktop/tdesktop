@@ -264,6 +264,9 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
+    calls/calls_controller.cpp
+    calls/calls_controller.h
+    calls/calls_controller_tgvoip.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp
