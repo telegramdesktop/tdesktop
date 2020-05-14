@@ -299,7 +299,8 @@ QImage Panel::Button::prepareRippleMask() const {
 }
 
 Panel::Panel(not_null<Call*> call)
-: _call(call)
+:RpWidget(App::wnd())
+, _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
 , _decline(this, object_ptr<Button>(this, st::callHangup))
@@ -595,14 +596,18 @@ bool Panel::isGoodUserPhoto(PhotoData *photo) {
 }
 
 void Panel::initGeometry() {
-	auto center = Core::App().getPointForCallPanelCenter();
+	const auto center = Core::App().getPointForCallPanelCenter();
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
 	_contentTop = _padding.top() + st::callWidth;
-	auto screen = QApplication::desktop()->screenGeometry(center);
-	auto rect = QRect(0, 0, st::callWidth, st::callHeight);
-	setGeometry(rect.translated(center - rect.center()).marginsAdded(_padding));
+	const auto rect = [&] {
+		const QRect initRect(0, 0, st::callWidth, st::callHeight);
+		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
+	}();
+	setGeometry(rect);
+	setMinimumSize(rect.size());
+	setMaximumSize(rect.size());
 	createBottomImage();
 	updateControlsGeometry();
 }
