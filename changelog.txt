@@ -1,3 +1,7 @@
+2.1.6 (14.05.20)
+
+- Bug fixes and other minor improvements.
+
 2.1.5 (13.05.20)
 
 - Disable the taskbar icon flash or the dock icon bounce in Settings > Notifications.
