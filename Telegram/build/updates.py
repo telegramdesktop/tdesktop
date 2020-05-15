@@ -5,8 +5,10 @@ scriptPath = os.path.dirname(os.path.realpath(__file__))
 
 lastCommit = ''
 today = ''
+uuid = ''
 nextLast = False
 nextDate = False
+nextUuid = False
 building = True
 composing = False
 for arg in sys.argv:
@@ -16,6 +18,9 @@ for arg in sys.argv:
     elif nextDate:
         today = arg
         nextDate = False
+    elif nextUuid:
+        uuid = arg
+        nextUuid = False
     elif arg == 'send':
         building = False
         composing = False
@@ -25,6 +30,8 @@ for arg in sys.argv:
         composing = True
     elif arg == 'date':
         nextDate = True
+    elif arg == 'request_uuid':
+        nextUuid = True
 
 def finish(code, error = ''):
     if error != '':
@@ -51,61 +58,66 @@ if building:
     if os.path.exists('../out/Debug/' + outputFolder):
         finish(1, 'Todays updates version exists.')
 
-    result = subprocess.call('./configure.sh', shell=True)
-    if result != 0:
-        finish(1, 'While calling GYP.')
+    if uuid == '':
+        result = subprocess.call('./configure.sh', shell=True)
+        if result != 0:
+            finish(1, 'While calling GYP.')
 
     os.chdir('../out')
-    result = subprocess.call('cmake --build . --config Debug --target Telegram', shell=True)
-    if result != 0:
-        finish(1, 'While building Telegram.')
+    if uuid == '':
+        result = subprocess.call('cmake --build . --config Debug --target Telegram', shell=True)
+        if result != 0:
+            finish(1, 'While building Telegram.')
 
     os.chdir('Debug')
-    if not os.path.exists('Telegram.app'):
-        finish(1, 'Telegram.app not found.')
-
-    result = subprocess.call('strip Telegram.app/Contents/MacOS/Telegram', shell=True)
-    if result != 0:
-        finish(1, 'While stripping Telegram.')
-
-    result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
-    if result != 0:
-        finish(1, 'While signing Telegram.')
-
-    if not os.path.exists('Telegram.app/Contents/Frameworks/Updater'):
-        finish(1, 'Updater not found.')
-    elif not os.path.exists('Telegram.app/Contents/Helpers/crashpad_handler'):
-        finish(1, 'crashpad_handler not found.')
-    elif not os.path.exists('Telegram.app/Contents/Resources/Icon.icns'):
-        finish(1, 'Icon not found.')
-    elif not os.path.exists('Telegram.app/Contents/_CodeSignature'):
-        finish(1, 'Signature not found.')
-
-    if os.path.exists(today):
-        subprocess.call('rm -rf ' + today, shell=True)
-    result = subprocess.call('mkdir -p ' + today + '/TelegramForcePortable', shell=True)
-    if result != 0:
-        finish(1, 'Creating folder ' + today + '/TelegramForcePortable')
-
-    result = subprocess.call('cp -r Telegram.app ' + today + '/', shell=True)
-    if result != 0:
-        finish(1, 'Cloning Telegram.app to ' + today + '.')
-
-    result = subprocess.call('zip -r ' + archive + ' ' + today, shell=True)
-    if result != 0:
-        finish(1, 'Adding tdesktop to archive.')
-
-    print('Beginning notarization process.')
-    lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True)
-    print('Response received.')
-    uuid = ''
-    for line in lines.split('\n'):
-        parts = line.strip().split(' ')
-        if len(parts) > 2 and parts[0] == 'RequestUUID':
-            uuid = parts[2]
     if uuid == '':
-        finish(1, 'Could not extract Request UUID. Response: ' + lines)
-    print('Request UUID: ' + uuid)
+        if not os.path.exists('Telegram.app'):
+            finish(1, 'Telegram.app not found.')
+
+        result = subprocess.call('strip Telegram.app/Contents/MacOS/Telegram', shell=True)
+        if result != 0:
+            finish(1, 'While stripping Telegram.')
+
+        result = subprocess.call('codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" Telegram.app --entitlements "../../Telegram/Telegram/Telegram.entitlements"', shell=True)
+        if result != 0:
+            finish(1, 'While signing Telegram.')
+
+        if not os.path.exists('Telegram.app/Contents/Frameworks/Updater'):
+            finish(1, 'Updater not found.')
+        elif not os.path.exists('Telegram.app/Contents/Helpers/crashpad_handler'):
+            finish(1, 'crashpad_handler not found.')
+        elif not os.path.exists('Telegram.app/Contents/Resources/Icon.icns'):
+            finish(1, 'Icon not found.')
+        elif not os.path.exists('Telegram.app/Contents/_CodeSignature'):
+            finish(1, 'Signature not found.')
+
+        if os.path.exists(today):
+            subprocess.call('rm -rf ' + today, shell=True)
+        result = subprocess.call('mkdir -p ' + today + '/TelegramForcePortable', shell=True)
+        if result != 0:
+            finish(1, 'Creating folder ' + today + '/TelegramForcePortable')
+
+        result = subprocess.call('cp -r Telegram.app ' + today + '/', shell=True)
+        if result != 0:
+            finish(1, 'Cloning Telegram.app to ' + today + '.')
+
+        result = subprocess.call('zip -r ' + archive + ' ' + today, shell=True)
+        if result != 0:
+            finish(1, 'Adding tdesktop to archive.')
+
+        print('Beginning notarization process.')
+        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True)
+        print('Response received.')
+        uuid = ''
+        for line in lines.split('\n'):
+            parts = line.strip().split(' ')
+            if len(parts) > 2 and parts[0] == 'RequestUUID':
+                uuid = parts[2]
+        if uuid == '':
+            finish(1, 'Could not extract Request UUID. Response: ' + lines)
+        print('Request UUID: ' + uuid)
+    else:
+        print('Continue with request UUID: ' + uuid)
 
     requestStatus = ''
     logUrl = ''
