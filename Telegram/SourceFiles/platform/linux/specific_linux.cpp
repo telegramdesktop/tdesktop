@@ -346,7 +346,6 @@ bool UseXDGDesktopPortal() {
 
 		return (
 			DesktopEnvironment::IsKDE()
-				|| InSnap()
 				|| envVar
 			) && portalPresent;
 	}();
