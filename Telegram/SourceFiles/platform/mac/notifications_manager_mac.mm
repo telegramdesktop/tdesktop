@@ -34,7 +34,7 @@ void queryDoNotDisturbState() {
 
 	auto userDefaults = [NSUserDefaults alloc];
 	if ([userDefaults respondsToSelector:@selector(initWithSuiteName:)]) {
-		id userDefaultsValue = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.notificationcenterui_test"] objectForKey:@"doNotDisturb"];
+		id userDefaultsValue = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.notificationcenterui"] objectForKey:@"doNotDisturb"];
 		DoNotDisturbEnabled = ([userDefaultsValue boolValue] == YES);
 	} else {
 		DoNotDisturbEnabled = false;
