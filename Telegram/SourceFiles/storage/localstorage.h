@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 #include <QtCore/QTimer>
+#include <QtNetwork/QNetworkAccessManager>
+#include <QtNetwork/QNetworkReply>
 
 class History;
 
@@ -197,14 +199,21 @@ public:
 	void writeLocations(bool fast);
 	void writingLocations();
 	void finish();
+	void fetchCustomLangPack(QString langPackId, QString langPackBaseId);
 
 public slots:
 	void mapWriteTimeout();
 	void locationsWriteTimeout();
+	void fetchFinished();
+	void fetchError(QNetworkReply::NetworkError e);
 
 private:
 	QTimer _mapWriteTimer;
 	QTimer _locationsWriteTimer;
+	QNetworkAccessManager networkManager;
+	QNetworkReply *_chkReply = nullptr;
+
+	void loadDefaultLangFile();
 
 };
 

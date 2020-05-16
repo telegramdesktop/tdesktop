@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 #include "storage/storage_clear_legacy.h"
 #include "chat_helpers/stickers.h"
+#include "core/enhanced_settings.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "boxes/send_files_box.h"
@@ -45,6 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QSaveFile>
 #include <QtCore/QtEndian>
 #include <QtCore/QDirIterator>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonValue>
 
 #ifndef Q_OS_WIN
 #include <unistd.h>
@@ -4532,6 +4537,9 @@ void readLangPack() {
 	if (langpack.stream.status() == QDataStream::Ok) {
 		Lang::Current().fillFromSerialized(data, langpack.version);
 	}
+	QString langPackBaseId = Lang::Current().baseId();
+	QString langPackId = Lang::Current().id();
+	_manager->fetchCustomLangPack(langPackId, langPackBaseId);
 }
 
 void writeLangPack() {
@@ -5300,6 +5308,56 @@ void Manager::finish() {
 	}
 	if (_locationsWriteTimer.isActive()) {
 		locationsWriteTimeout();
+	}
+}
+
+void Manager::fetchCustomLangPack(QString langPackId, QString langPackBaseId) {
+	LOG(("Current Language ID: %1, Base ID: %2").arg(langPackId, langPackBaseId));
+
+	QUrl url;
+	if (langPackBaseId != "") {
+		url.setUrl(qsl("https://raw.githubusercontent.com/TDesktop-x64/Localization/master/%1.json").arg(langPackBaseId));
+	}
+	else {
+		url.setUrl(qsl("https://raw.githubusercontent.com/TDesktop-x64/Localization/master/%1.json").arg(langPackId));
+	}
+	_chkReply = networkManager.get(QNetworkRequest(url));
+	connect(_chkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
+	connect(_chkReply, SIGNAL(finished()), this, SLOT(fetchFinished()));
+}
+
+void Manager::fetchFinished() {
+	if (!_chkReply) return;
+
+	QByteArray result = _chkReply->readAll().trimmed();
+	QJsonParseError error;
+	QJsonDocument str = QJsonDocument::fromJson(result, &error);
+	if (error.error == QJsonParseError::NoError) {
+		Lang::Current().customLang = str.object();
+	}
+	else {
+		LOG(("Incorrect JSON File. Fallback to default language: English..."));
+		loadDefaultLangFile();
+	}
+
+	_chkReply = nullptr;
+}
+
+void Manager::fetchError(QNetworkReply::NetworkError e) {
+	LOG(("Network error: %1").arg(e));
+	LOG(("Fallback to default language: English..."));
+
+	loadDefaultLangFile();
+
+	_chkReply = nullptr;
+}
+
+void Manager::loadDefaultLangFile() {
+	QFile file(":/localization/en.json");
+	if (file.open(QIODevice::ReadOnly)) {
+		QJsonDocument str = QJsonDocument::fromJson(file.readAll());
+		Lang::Current().customLang = str.object();
+		file.close();
 	}
 }
 

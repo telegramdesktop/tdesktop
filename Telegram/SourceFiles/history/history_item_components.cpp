@@ -414,7 +414,7 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 			return tr::lng_context_copy_link(tr::now);
 		}
 		if (button->type == Type::Callback) {
-			return tr::lng_context_copy_callback_data(tr::now);
+			return Lang::Current().getCustomLangValue("lng_context_copy_callback_data");
 		}
 	}
 	return QString();

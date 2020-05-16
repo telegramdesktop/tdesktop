@@ -742,6 +742,10 @@ void Instance::resetValue(const QByteArray &key) {
 	}
 }
 
+QString Instance::getCustomLangValue(QString key) {
+	return customLang[key].toString();
+}
+
 Instance &Current() {
 	return Core::App().langpack();
 }

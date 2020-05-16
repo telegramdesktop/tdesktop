@@ -70,6 +70,8 @@ public:
 	QString id(Pack pack) const;
 	bool isCustom() const;
 	int version(Pack pack) const;
+	QJsonObject customLang;
+	QString getCustomLangValue(QString key);
 
 	QByteArray serialize() const;
 	void fillFromSerialized(const QByteArray &data, int dataAppVersion);

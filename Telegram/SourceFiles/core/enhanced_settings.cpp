@@ -13,12 +13,12 @@ https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 #include "base/parse_helper.h"
 #include "facades.h"
 #include "ui/widgets/input_fields.h"
+#include "lang/lang_cloud_manager.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonValue>
-#include <QtCore/QTimer>
 
 namespace EnhancedSettings {
 namespace {

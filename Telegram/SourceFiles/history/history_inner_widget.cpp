@@ -1564,7 +1564,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto peer = item->history()->peer;
 		if (peer->isChat() || peer->isMegagroup()) {
-			_menu->addAction(tr::lng_context_show_messages_from(tr::now), [=] {
+			_menu->addAction(Lang::Current().getCustomLangValue("lng_context_show_messages_from"), [=] {
 				App::searchByHashtag(QString(), peer, item->from()->asUser());
 			});
 		}
@@ -1666,7 +1666,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
-					_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+					_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
 						const auto api = &item->history()->peer->session().api();
 						auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 						action.clearDraft = false;
@@ -1815,7 +1815,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					});
-					_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+					_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
 						const auto api = &item->history()->peer->session().api();
 						auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 						action.clearDraft = false;

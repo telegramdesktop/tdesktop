@@ -20,7 +20,7 @@ NetBoostBox::NetBoostBox(QWidget* parent)
 }
 
 void NetBoostBox::prepare() {
-	setTitle(tr::lng_net_speed_boost_title());
+	setTitle(rpl::single(Lang::Current().getCustomLangValue("lng_net_speed_boost_title")));
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
@@ -28,7 +28,7 @@ void NetBoostBox::prepare() {
 	auto y = st::boxOptionListPadding.top();
 	_description.create(
 		this,
-		tr::lng_net_speed_boost_desc(tr::now),
+		Lang::Current().getCustomLangValue("lng_net_speed_boost_desc"),
 		st::boxLabel);
 	_description->moveToLeft(st::boxPadding.left(), y);
 
@@ -53,16 +53,16 @@ void NetBoostBox::prepare() {
 QString NetBoostBox::BoostLabel(int boost) {
 	switch (boost) {
 		case 0:
-			return tr::lng_net_speed_boost_default(tr::now);
+			return Lang::Current().getCustomLangValue("lng_net_speed_boost_default");
 
 		case 1:
-			return tr::lng_net_speed_boost_slight(tr::now);
+			return Lang::Current().getCustomLangValue("lng_net_speed_boost_slight");
 
 		case 2:
-			return tr::lng_net_speed_boost_medium(tr::now);
+			return Lang::Current().getCustomLangValue("lng_net_speed_boost_medium");
 
 		case 3:
-			return tr::lng_net_speed_boost_big(tr::now);
+			return Lang::Current().getCustomLangValue("lng_net_speed_boost_big");
 
 		default:
 			Unexpected("Boost in NetBoostBox::BoostLabel.");
@@ -81,7 +81,7 @@ void NetBoostBox::save() {
 
 	*box = getDelegate()->show(
 		Box<ConfirmBox>(
-			tr::lng_net_boost_restart_desc(tr::now),
+			Lang::Current().getCustomLangValue("lng_net_boost_restart_desc"),
 			tr::lng_settings_restart_now(tr::now),
 			tr::lng_cancel(tr::now),
 			changeBoost));

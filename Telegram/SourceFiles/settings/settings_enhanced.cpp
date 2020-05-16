@@ -39,11 +39,11 @@ namespace Settings {
 void SetupEnhancedNetwork(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_settings_network());
+	AddSubsectionTitle(container, rpl::single(Lang::Current().getCustomLangValue("lng_settings_network")));
 
 	AddButtonWithLabel(
 		container,
-		tr::lng_settings_net_speed_boost(),
+		rpl::single(Lang::Current().getCustomLangValue("lng_settings_net_speed_boost")),
 		rpl::single(NetBoostBox::BoostLabel(cNetSpeedBoost())),
 		st::settingsButton
 	)->addClickHandler([=] {
