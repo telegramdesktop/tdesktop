@@ -5,6 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#ifndef __MINGW32__
 #include "platform/win/windows_event_filter.h"
 
 #include "platform/win/windows_dlls.h"
@@ -264,3 +265,4 @@ bool EventFilter::mainWindowEvent(
 }
 
 } // namespace Platform
+#endif // !__MINGW32__

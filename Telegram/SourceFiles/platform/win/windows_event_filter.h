@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef __MINGW32__
 #include "base/platform/win/base_windows_h.h"
 
 #include <QtCore/QAbstractNativeEventFilter>
@@ -40,3 +41,4 @@ private:
 };
 
 } // namespace Platform
+#endif // !__MINGW32__

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef __MINGW32__
 #include "platform/platform_window_title.h"
 #include "base/object_ptr.h"
 
@@ -76,3 +77,4 @@ inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palet
 }
 
 } // namespace Platform
+#endif // !__MINGW32__

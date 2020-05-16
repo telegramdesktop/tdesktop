@@ -113,6 +113,7 @@ HWND createTaskbarHider() {
 	return hWnd;
 }
 
+#ifndef __MINGW32__
 enum {
 	_PsInitHor = 0x01,
 	_PsInitVer = 0x02,
@@ -621,6 +622,7 @@ LRESULT CALLBACK _PsShadowWindows::wndProc(HWND hwnd, UINT msg, WPARAM wParam, L
 	}
 	return 0;
 }
+#endif // !__MINGW32__
 
 ComPtr<ITaskbarList3> taskbarList;
 
@@ -633,17 +635,21 @@ UINT MainWindow::_taskbarCreatedMsgId = 0;
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , ps_tbHider_hWnd(createTaskbarHider()) {
+#ifndef __MINGW32__
 	QCoreApplication::instance()->installNativeEventFilter(
 		EventFilter::CreateInstance(this));
+#endif // !__MINGW32__
 
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
+#ifndef __MINGW32__
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			_psShadowWindows.setColor(st::windowShadowFg->c);
 		}
 	});
+#endif // !__MINGW32__
 }
 
 void MainWindow::TaskbarCreated() {
@@ -654,16 +660,22 @@ void MainWindow::TaskbarCreated() {
 }
 
 void MainWindow::shadowsUpdate(ShadowsChanges changes, WINDOWPOS *position) {
+#ifndef __MINGW32__
 	_psShadowWindows.update(changes, position);
+#endif // !__MINGW32__
 }
 
 void MainWindow::shadowsActivate() {
+#ifndef __MINGW32__
 //	_psShadowWindows.setColor(_shActive);
 	shadowsUpdate(ShadowsChange::Activate);
+#endif // !__MINGW32__
 }
 
 void MainWindow::shadowsDeactivate() {
+#ifndef __MINGW32__
 //	_psShadowWindows.setColor(_shInactive);
+#endif // !__MINGW32__
 }
 
 void MainWindow::psShowTrayMenu() {
@@ -825,16 +837,20 @@ void MainWindow::initHook() {
 }
 
 void MainWindow::initShadows() {
+#ifndef __MINGW32__
 	_psShadowWindows.init(this, st::windowShadowFg->c);
 	_shadowsWorking = true;
 	psUpdateMargins();
 	shadowsUpdate(ShadowsChange::Hidden);
+#endif // !__MINGW32__
 }
 
 void MainWindow::firstShadowsUpdate() {
+#ifndef __MINGW32__
 	if (!(windowState() & Qt::WindowMinimized) && !isHidden()) {
 		shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized | ShadowsChange::Shown);
 	}
+#endif // !__MINGW32__
 }
 
 void MainWindow::stateChangedHook(Qt::WindowState state) {
@@ -981,13 +997,19 @@ MainWindow::~MainWindow() {
 		taskbarList.Reset();
 	}
 
+#ifndef __MINGW32__
 	_shadowsWorking = false;
+#endif // !__MINGW32__
 	if (ps_menu) DestroyMenu(ps_menu);
 	psDestroyIcons();
+#ifndef __MINGW32__
 	_psShadowWindows.destroy();
+#endif // !__MINGW32__
 	if (ps_tbHider_hWnd) DestroyWindow(ps_tbHider_hWnd);
 
+#ifndef __MINGW32__
 	EventFilter::Destroy();
+#endif // !__MINGW32__
 }
 
 } // namespace Platform
