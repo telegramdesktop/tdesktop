@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
 
@@ -3271,6 +3271,9 @@ QString HistoryInner::tooltipText() const {
 				if (msgsigned->isElided) {
 					dateText += '\n' + tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 				}
+			}
+			if (const auto msgId = view->data()->fullId().msg) {
+				dateText += '\n' + Lang::Current().getCustomLangValue("lng_message_id") + QString::number(msgId);
 			}
 			return dateText;
 		}
