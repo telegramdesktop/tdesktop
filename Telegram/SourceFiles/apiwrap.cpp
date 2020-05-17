@@ -4328,15 +4328,7 @@ void ApiWrap::forwardMessages(
 	auto flags = MTPDmessage::Flags(0);
 	auto clientFlags = MTPDmessage_ClientFlags();
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
 	}
@@ -4489,15 +4481,7 @@ void ApiWrap::sendSharedContact(
 	if (action.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-		if (peer->asChannel()->addsSignature()) {
-			flags |= MTPDmessage::Flag::f_post_author;
-		}
-	} else {
-		flags |= MTPDmessage::Flag::f_from_id;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MTPDmessage::Flag::f_from_scheduled;
 	} else {
@@ -4874,15 +4858,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 		const auto silentPost = action.options.silent
 			|| (channelPost && _session->data().notifySilentPosts(peer));
-		if (channelPost) {
-			flags |= MTPDmessage::Flag::f_views;
-			flags |= MTPDmessage::Flag::f_post;
-		}
-		if (!channelPost) {
-			flags |= MTPDmessage::Flag::f_from_id;
-		} else if (peer->asChannel()->addsSignature()) {
-			flags |= MTPDmessage::Flag::f_post_author;
-		}
+		FillMessagePostFlags(action, peer, flags);
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
@@ -5019,15 +4995,7 @@ void ApiWrap::sendInlineResult(
 	bool channelPost = peer->isChannel() && !peer->isMegagroup();
 	bool silentPost = action.options.silent
 		|| (channelPost && _session->data().notifySilentPosts(peer));
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
 	}

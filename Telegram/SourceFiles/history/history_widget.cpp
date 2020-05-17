@@ -4677,15 +4677,7 @@ void HistoryWidget::sendFileConfirmed(
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = file->to.options.silent;
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	Api::FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}

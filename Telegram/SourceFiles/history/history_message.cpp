@@ -695,7 +695,7 @@ void HistoryMessage::createComponentsHelper(
 	if (flags & MTPDmessage::Flag::f_reply_to_msg_id) config.replyTo = replyTo;
 	if (flags & MTPDmessage::Flag::f_reply_markup) config.mtpMarkup = &markup;
 	if (flags & MTPDmessage::Flag::f_post_author) config.author = postAuthor;
-	if (isPost()) config.viewsCount = 1;
+	if (flags & MTPDmessage::Flag::f_views) config.viewsCount = 1;
 
 	createComponents(config);
 }
