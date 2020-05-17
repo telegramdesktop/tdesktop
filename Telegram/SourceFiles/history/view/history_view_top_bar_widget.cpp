@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "storage/storage_shared_media.h"
@@ -61,6 +62,7 @@ TopBarWidget::TopBarWidget(
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _recentActions(this, st::topBarRecentActions)
+, _admins(this, st::topBarAdmins)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
 , _titlePeerText(st::windowMinWidth / 3)
@@ -80,6 +82,12 @@ TopBarWidget::TopBarWidget(
 	_recentActions->setClickedCallback([=] {
 		const auto channel = _activeChat.peer()->asChannel();
 		_controller->showSection(AdminLog::SectionMemento(channel)); 
+	});
+	_admins->setClickedCallback([=] {
+		ParticipantsBoxController::Start(
+					controller,
+					_activeChat.peer(),
+					ParticipantsBoxController::Role::Admins);
 	});
 	_menuToggle->setClickedCallback([=] { showMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
@@ -593,6 +601,10 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_infoToggle->isHidden()) {
 		_rightTaken += _infoToggle->width() + st::topBarSkip;
 	}
+	_admins->moveToRight(_rightTaken, otherButtonsTop);
+	if (!_admins->isHidden()) {
+		_rightTaken += _admins->width() + st::topBarSkip;
+	}
 	_recentActions->moveToRight(_rightTaken, otherButtonsTop);
 	if (!_recentActions->isHidden()) {
 		_rightTaken += _recentActions->width() + st::topBarSkip;
@@ -654,6 +666,15 @@ void TopBarWidget::updateControlsVisibility() {
 		return false;
 	}();
 	_recentActions->setVisible(isAdmin);
+	const auto isGroup = [&] {
+		if (const auto peer = _activeChat.peer()) {
+			if (peer->isMegagroup()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	_admins->setVisible(isGroup);
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.folder()
 		&& !Adaptive::OneColumn()
