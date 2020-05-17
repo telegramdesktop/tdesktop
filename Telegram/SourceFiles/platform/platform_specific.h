@@ -22,6 +22,7 @@ enum class PermissionStatus {
 
 enum class PermissionType {
 	Microphone,
+	Camera,
 };
 
 enum class SystemSettingsType {

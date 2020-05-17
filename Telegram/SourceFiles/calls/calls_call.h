@@ -46,7 +46,7 @@ public:
 			Ended,
 		};
 		virtual void playSound(Sound sound) = 0;
-		virtual void requestMicrophonePermissionOrFail(Fn<void()> result) = 0;
+		virtual void requestPermissionsOrFail(Fn<void()> result) = 0;
 
 		virtual ~Delegate() = default;
 

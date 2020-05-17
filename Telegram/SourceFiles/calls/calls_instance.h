@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "calls/calls_call.h"
 
+namespace Platform {
+enum class PermissionType;
+} // namespace Platform
+
 namespace Media {
 namespace Audio {
 class Track;
@@ -57,7 +61,8 @@ private:
 	void createCall(not_null<UserData*> user, Call::Type type);
 	void destroyCall(not_null<Call*> call);
 	void destroyCurrentPanel();
-	void requestMicrophonePermissionOrFail(Fn<void()> onSuccess) override;
+	void requestPermissionsOrFail(Fn<void()> onSuccess) override;
+	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
 
 	void handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
 

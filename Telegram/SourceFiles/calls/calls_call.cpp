@@ -217,7 +217,7 @@ void Call::startIncoming() {
 }
 
 void Call::answer() {
-	_delegate->requestMicrophonePermissionOrFail(crl::guard(this, [=] {
+	_delegate->requestPermissionsOrFail(crl::guard(this, [=] {
 		actuallyAnswer();
 	}));
 }

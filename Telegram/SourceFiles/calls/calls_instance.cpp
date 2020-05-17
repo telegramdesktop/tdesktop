@@ -55,7 +55,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
 		return;
 	}
-	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
+	requestPermissionsOrFail(crl::guard(this, [=] {
 		createCall(user, Call::Type::Outgoing);
 	}));
 }
@@ -317,13 +317,23 @@ rpl::producer<Call*> Instance::currentCallValue() const {
 	return _currentCallChanges.events_starting_with(currentCall());
 }
 
-void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
-	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
-	if (status==Platform::PermissionStatus::Granted) {
+void Instance::requestPermissionsOrFail(Fn<void()> onSuccess) {
+	using Type = Platform::PermissionType;
+	requestPermissionOrFail(Type::Microphone, [=] {
+		requestPermissionOrFail(Type::Camera, [=] {
+			crl::on_main(onSuccess);
+		});
+	});
+}
+
+void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess) {
+	using Status = Platform::PermissionStatus;
+	const auto status = Platform::GetPermissionStatus(type);
+	if (status == Status::Granted) {
 		onSuccess();
-	} else if(status==Platform::PermissionStatus::CanRequest) {
-		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [=](Platform::PermissionStatus status) {
-			if (status==Platform::PermissionStatus::Granted) {
+	} else if (status == Status::CanRequest) {
+		Platform::RequestPermission(type, crl::guard(this, [=](Status status) {
+			if (status == Status::Granted) {
 				crl::on_main(onSuccess);
 			} else {
 				if (_currentCall) {
@@ -335,8 +345,8 @@ void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 		if (alreadyInCall()) {
 			_currentCall->hangup();
 		}
-		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [] {
-			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
+		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [=] {
+			Platform::OpenSystemSettingsForPermission(type);
 			Ui::hideLayer();
 		})));
 	}
