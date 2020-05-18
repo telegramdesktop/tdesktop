@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_scheduled_messages.h"
 #include "core/file_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_peer_menu.h"
@@ -61,6 +62,14 @@ constexpr auto kExportLocalTimeout = crl::time(1000);
 //			[=] { Window::ToggleChannelGrouping(channel, !grouped); });
 //	}
 //}
+
+MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
+	if (!item->isScheduled()) {
+		return item->id;
+	}
+	const auto session = &item->history()->session();
+	return session->data().scheduledMessages().lookupId(item);
+}
 
 void SavePhotoToFile(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !photo->loaded()) {
@@ -480,7 +489,8 @@ bool AddDeleteMessageAction(
 	if (asGroup) {
 		if (const auto group = owner->groups().find(item)) {
 			if (ranges::find_if(group->items, [](auto item) {
-				return !IsServerMsgId(item->id) || !item->canDelete();
+				const auto id = ItemIdAcrossData(item);
+				return !IsServerMsgId(id) || !item->canDelete();
 			}) != end(group->items)) {
 				return false;
 			}
@@ -539,7 +549,9 @@ bool AddSelectMessageAction(
 	const auto item = request.item;
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
-	} else if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
+	} else if (!item
+			|| !IsServerMsgId(ItemIdAcrossData(item))
+			|| item->serviceMsg()) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
