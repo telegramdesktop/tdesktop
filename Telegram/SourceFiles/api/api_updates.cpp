@@ -1811,9 +1811,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					return !session().data().folderLoaded(data.vfolder_id().v);
 				});
 			};
-			const auto allLoaded = ranges::find_if(order, notLoaded)
-				== order.end();
-			if (!allLoaded) {
+			if (!ranges::none_of(order, notLoaded)) {
 				return false;
 			}
 			session().data().applyPinnedChats(folder, order);

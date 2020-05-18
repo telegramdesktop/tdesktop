@@ -805,7 +805,7 @@ void AppendEmojiPacks(
 	};
 
 	const auto checkState = [&](const auto &states) {
-		return ranges::find(states, gesture.state) != end(states);
+		return ranges::contains(states, gesture.state);
 	};
 
 	if (checkState(kGestureStateProcessed)) {

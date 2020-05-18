@@ -416,7 +416,7 @@ QString PeerData::computeUnavailableReason() const {
 	auto &&filtered = ranges::view::all(
 		list
 	) | ranges::view::filter([&](const Data::UnavailableReason &reason) {
-		return ranges::find(skip, reason.reason) == end(skip);
+		return !ranges::contains(skip, reason.reason);
 	});
 	const auto first = filtered.begin();
 	return (first != filtered.end()) ? first->text : QString();

@@ -73,15 +73,14 @@ bool InlineDetails(
 	if (count != 1) {
 		return false;
 	}
-	const auto has = ranges::find_if(
+	return ranges::any_of(
 		request,
 		[&](const std::vector<Value::Type> &types) {
 			Expects(!types.empty());
 
 			return (types[0] == details);
 		}
-	) != end(request);
-	return has;
+	);
 }
 
 bool InlineDetails(const Form::Request &request, Value::Type details) {

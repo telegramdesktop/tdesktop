@@ -548,10 +548,9 @@ bool Histories::postponeHistoryRequest(const State &state) const {
 }
 
 bool Histories::postponeEntryRequest(const State &state) const {
-	const auto i = ranges::find_if(state.sent, [](const auto &pair) {
+	return ranges::any_of(state.sent, [](const auto &pair) {
 		return pair.second.type != RequestType::History;
 	});
-	return (i != end(state.sent));
 }
 
 void Histories::deleteMessages(

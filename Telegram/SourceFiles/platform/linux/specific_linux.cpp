@@ -879,9 +879,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
-		return ranges::find_if(options, [](const QString &command) {
+		return ranges::any_of(options, [](const QString &command) {
 			return QProcess::startDetached(command);
-		}) != end(options);
+		});
 	}
 	return true;
 }

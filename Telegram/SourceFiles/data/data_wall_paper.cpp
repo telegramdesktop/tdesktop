@@ -51,11 +51,11 @@ std::optional<QColor> MaybeColorFromSerialized(quint32 serialized) {
 std::optional<QColor> ColorFromString(const QString &string) {
 	if (string.size() != 6) {
 		return {};
-	} else if (ranges::find_if(string, [](QChar ch) {
+	} else if (ranges::any_of(string, [](QChar ch) {
 		return (ch < 'a' || ch > 'f')
 			&& (ch < 'A' || ch > 'F')
 			&& (ch < '0' || ch > '9');
-	}) != string.end()) {
+	})) {
 		return {};
 	}
 	const auto component = [](const QString &text, int index) {

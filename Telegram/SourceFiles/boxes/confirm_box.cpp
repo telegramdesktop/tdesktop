@@ -678,10 +678,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 	const auto cannotRevoke = [&](HistoryItem *item) {
 		return !item->canDeleteForEveryone(now);
 	};
-	const auto canRevokeAll = ranges::find_if(
-		items,
-		cannotRevoke
-	) == end(items);
+	const auto canRevokeAll = ranges::none_of(items, cannotRevoke);
 	auto outgoing = items | ranges::view::filter(&HistoryItem::out);
 	const auto canRevokeOutgoingCount = canRevokeAll
 		? -1

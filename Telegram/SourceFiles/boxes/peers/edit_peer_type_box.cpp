@@ -485,12 +485,12 @@ void Controller::usernameChanged() {
 		_checkUsernameTimer.cancel();
 		return;
 	}
-	const auto bad = ranges::find_if(username, [](QChar ch) {
+	const auto bad = ranges::any_of(username, [](QChar ch) {
 		return (ch < 'A' || ch > 'Z')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < '0' || ch > '9')
 			&& (ch != '_');
-	}) != username.end();
+	});
 	if (bad) {
 		showUsernameError(tr::lng_create_channel_link_bad_symbols());
 	} else if (username.size() < kMinUsernameLength) {

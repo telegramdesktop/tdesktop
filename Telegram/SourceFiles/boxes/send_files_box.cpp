@@ -62,10 +62,7 @@ enum class ButtonType {
 };
 
 inline bool CanAddUrls(const QList<QUrl> &urls) {
-	return !urls.isEmpty() && ranges::find_if(
-		urls,
-		[](const QUrl &url) { return !url.isLocalFile(); }
-	) == urls.end();
+	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
 }
 
 inline bool IsFirstAlbumItem(const Storage::PreparedList &list) {

@@ -186,16 +186,15 @@ bool EditScans::List::uploadMoreRequired() const {
 	if (!upload) {
 		return false;
 	}
-	const auto exists = ranges::find_if(
+	const auto exists = ranges::any_of(
 		files,
-		[](const ScanInfo &file) { return !file.deleted; }) != end(files);
+		[](const ScanInfo &file) { return !file.deleted; });
 	if (!exists) {
 		return true;
 	}
-	const auto errorExists = ranges::find_if(
+	const auto errorExists = ranges::any_of(
 		files,
-		[](const ScanInfo &file) { return !file.error.isEmpty(); }
-	) != end(files);
+		[](const ScanInfo &file) { return !file.error.isEmpty(); });
 	return (errorExists || uploadMoreError) && !uploadedSomeMore();
 }
 

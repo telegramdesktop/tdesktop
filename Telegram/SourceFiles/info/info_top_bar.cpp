@@ -480,10 +480,7 @@ void TopBar::createSelectionControls() {
 }
 
 bool TopBar::computeCanDelete() const {
-	return ranges::find_if(
-		_selectedItems.list,
-		[](const SelectedItem &item) { return !item.canDelete; }
-	) == _selectedItems.list.end();
+	return ranges::all_of(_selectedItems.list, &SelectedItem::canDelete);
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {

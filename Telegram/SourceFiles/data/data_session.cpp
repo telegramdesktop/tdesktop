@@ -3822,10 +3822,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			_wallpapers.push_back(*parsed);
 		}
 	}
-	const auto defaultFound = ranges::find_if(
-		_wallpapers,
-		Data::IsDefaultWallPaper);
-	if (defaultFound == end(_wallpapers)) {
+	if (ranges::none_of(_wallpapers, Data::IsDefaultWallPaper)) {
 		_wallpapers.push_back(Data::DefaultWallPaper());
 		_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
 			u":/gui/arg/bg.jpg"_q));

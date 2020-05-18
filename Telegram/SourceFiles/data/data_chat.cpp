@@ -145,8 +145,8 @@ void ChatData::refreshBotStatus() {
 	if (participants.empty()) {
 		botStatus = 0;
 	} else {
-		const auto bot = ranges::find_if(participants, &UserData::isBot);
-		botStatus = (bot == end(participants)) ? -1 : 2;
+		const auto bot = ranges::none_of(participants, &UserData::isBot);
+		botStatus = bot ? -1 : 2;
 	}
 }
 

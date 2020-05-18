@@ -1028,7 +1028,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				: QString());
 		*box = Ui::show(Box<ConfirmBox>(text, tr::lng_sure_enable(tr::now), [=] {
 			auto &proxies = Global::RefProxiesList();
-			if (ranges::find(proxies, proxy) == end(proxies)) {
+			if (!ranges::contains(proxies, proxy)) {
 				proxies.push_back(proxy);
 			}
 			Core::App().setCurrentProxy(

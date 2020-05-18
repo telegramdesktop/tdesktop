@@ -724,9 +724,8 @@ void Options::removeDestroyed(not_null<Option*> option) {
 void Options::validateState() {
 	checkLastOption();
 	_hasOptions = (ranges::count_if(_list, &Option::isGood) > 1);
-	_isValid = _hasOptions
-		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list));
-	_hasCorrect = ranges::find_if(_list, &Option::isCorrect) != end(_list);
+	_isValid = _hasOptions && ranges::none_of(_list, &Option::isTooLong);
+	_hasCorrect = ranges::any_of(_list, &Option::isCorrect);
 
 	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
 	_usedCount = _list.size() - (lastEmpty ? 1 : 0);

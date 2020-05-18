@@ -172,8 +172,7 @@ void ShowAddParticipantsError(
 			return;
 		}
 	}
-	const auto bot = ranges::find_if(users, &UserData::isBot);
-	const auto hasBot = (bot != end(users));
+	const auto hasBot = ranges::any_of(users, &UserData::isBot);
 	const auto text = [&] {
 		if (error == qstr("USER_BOT")) {
 			return tr::lng_cant_invite_bot_to_channel(tr::now);

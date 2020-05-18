@@ -1482,7 +1482,7 @@ bool DocumentData::isAudioFile() const {
 	}
 	const auto left = _mimeString.midRef(prefix.size()).toString();
 	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
-	return ranges::find(types, left) != end(types);
+	return ranges::contains(types, left);
 }
 
 bool DocumentData::isSharedMediaMusic() const {

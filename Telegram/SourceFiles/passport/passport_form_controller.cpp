@@ -502,15 +502,15 @@ bool Value::uploadingScan() const {
 	};
 	const auto uploadingInList = [&](FileType type) {
 		const auto &list = filesInEdit(type);
-		return ranges::find_if(list, uploading) != end(list);
+		return ranges::any_of(list, uploading);
 	};
 	if (uploadingInList(FileType::Scan)
 		|| uploadingInList(FileType::Translation)) {
 		return true;
 	}
-	if (ranges::find_if(specialScansInEdit, [&](const auto &pair) {
+	if (ranges::any_of(specialScansInEdit, [&](const auto &pair) {
 		return uploading(pair.second);
-	}) != end(specialScansInEdit)) {
+	})) {
 		return true;
 	}
 	return false;

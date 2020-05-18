@@ -268,11 +268,11 @@ void DownloadManagerMtproto::requestSucceeded(
 			).arg(data.maxWaitedAmount));
 	}
 	data.successes = std::min(data.successes + 1, kMaxTrackedSuccesses);
-	const auto notEnough = ranges::find_if(
+	const auto notEnough = ranges::any_of(
 		dc.sessions,
 		_1 < (dc.sessionRemoveTimes + 1) * kRetryAddSessionSuccesses,
 		&DcSessionBalanceData::successes);
-	if (notEnough != end(dc.sessions)) {
+	if (notEnough) {
 		return;
 	}
 	for (auto &session : dc.sessions) {

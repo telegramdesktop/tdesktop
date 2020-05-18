@@ -240,9 +240,9 @@ void CodesFeedString(SessionController *window, const QString &text) {
 		}
 		if (found) break;
 
-		found = ranges::find_if(codes, [&](const auto &pair) {
+		found = ranges::any_of(codes, [&](const auto &pair) {
 			return pair.first.startsWith(piece);
-		}) != end(codes);
+		});
 		if (found) break;
 
 		++from;

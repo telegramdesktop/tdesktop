@@ -172,26 +172,26 @@ void AutoDownloadBox::setupContent() {
 		}) | ranges::view::transform([](Pair pair) {
 			return pair.first;
 		});
-		const auto less = ranges::find_if(*autoPlayValues, [&](Pair pair) {
+		const auto less = ranges::any_of(*autoPlayValues, [&](Pair pair) {
 			const auto [type, enabled] = pair;
 			const auto value = enabled ? limitByType(type) : 0;
 			return value < settings->bytesLimit(_source, type);
-		}) != end(*autoPlayValues);
+		});
 		const auto allowMoreTypes = base::flat_set<Type>(
 			allowMore.begin(),
 			allowMore.end());
 
-		const auto changed = ranges::find_if(values, [&](Pair pair) {
+		const auto changed = ranges::any_of(values, [&](Pair pair) {
 			const auto [type, enabled] = pair;
 			const auto value = enabled ? limitByType(type) : 0;
 			return value != settings->bytesLimit(_source, type);
-		}) != end(values);
+		});
 
 		const auto &kHidden = kStreamedTypes;
-		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
+		const auto hiddenChanged = ranges::any_of(kHidden, [&](Type type) {
 			const auto now = settings->bytesLimit(_source, type);
 			return (now > 0) && (now != limitByType(type));
-		}) != end(kHidden);
+		});
 
 		if (changed) {
 			for (const auto [type, enabled] : values) {
@@ -216,8 +216,7 @@ void AutoDownloadBox::setupContent() {
 		if (allowMoreTypes.contains(Type::Photo)) {
 			_session->data().photoLoadSettingsChanged();
 		}
-		if (ranges::find_if(allowMoreTypes, _1 != Type::Photo)
-				!= allowMoreTypes.end()) {
+		if (ranges::any_of(allowMoreTypes, _1 != Type::Photo)) {
 			_session->data().documentLoadSettingsChanged();
 		}
 		if (less) {

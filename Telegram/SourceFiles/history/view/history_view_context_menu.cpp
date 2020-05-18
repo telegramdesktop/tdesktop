@@ -245,9 +245,9 @@ void AddPostLinkAction(
 MessageIdsList ExtractIdsList(const SelectedItems &items) {
 	return ranges::view::all(
 		items
-	) | ranges::view::transform([](const auto &item) {
-		return item.msgId;
-	}) | ranges::to_vector;
+	) | ranges::view::transform(
+		&SelectedItem::msgId
+	) | ranges::to_vector;
 }
 
 bool AddForwardSelectedAction(
@@ -257,9 +257,7 @@ bool AddForwardSelectedAction(
 	if (!request.overSelection || request.selectedItems.empty()) {
 		return false;
 	}
-	if (ranges::find_if(request.selectedItems, [](const auto &item) {
-		return !item.canForward;
-	}) != end(request.selectedItems)) {
+	if (!ranges::all_of(request.selectedItems, &SelectedItem::canForward)) {
 		return false;
 	}
 
@@ -292,9 +290,7 @@ bool AddForwardMessageAction(
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	if (asGroup) {
 		if (const auto group = owner->groups().find(item)) {
-			if (ranges::find_if(group->items, [](auto item) {
-				return !item->allowsForward();
-			}) != end(group->items)) {
+			if (!ranges::all_of(group->items, &HistoryItem::allowsForward)) {
 				return false;
 			}
 		}
@@ -327,9 +323,7 @@ bool AddSendNowSelectedAction(
 	if (!request.overSelection || request.selectedItems.empty()) {
 		return false;
 	}
-	if (ranges::find_if(request.selectedItems, [](const auto &item) {
-		return !item.canSendNow;
-	}) != end(request.selectedItems)) {
+	if (!ranges::all_of(request.selectedItems, &SelectedItem::canSendNow)) {
 		return false;
 	}
 
@@ -340,9 +334,9 @@ bool AddSendNowSelectedAction(
 		return session->data().message(item.msgId);
 	}) | ranges::view::filter([](HistoryItem *item) {
 		return item != nullptr;
-	}) | ranges::view::transform([](not_null<HistoryItem*> item) {
-		return item->history();
-	});
+	}) | ranges::view::transform(
+		&HistoryItem::history
+	);
 	if (histories.begin() == histories.end()) {
 		return false;
 	}
@@ -376,9 +370,7 @@ bool AddSendNowMessageAction(
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	if (asGroup) {
 		if (const auto group = owner->groups().find(item)) {
-			if (ranges::find_if(group->items, [](auto item) {
-				return !item->allowsSendNow();
-			}) != end(group->items)) {
+			if (!ranges::all_of(group->items, &HistoryItem::allowsSendNow)) {
 				return false;
 			}
 		}
@@ -464,9 +456,7 @@ bool AddDeleteSelectedAction(
 	if (!request.overSelection || request.selectedItems.empty()) {
 		return false;
 	}
-	if (ranges::find_if(request.selectedItems, [](const auto &item) {
-		return !item.canDelete;
-	}) != end(request.selectedItems)) {
+	if (!ranges::all_of(request.selectedItems, &SelectedItem::canDelete)) {
 		return false;
 	}
 
@@ -499,10 +489,10 @@ bool AddDeleteMessageAction(
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	if (asGroup) {
 		if (const auto group = owner->groups().find(item)) {
-			if (ranges::find_if(group->items, [](auto item) {
+			if (ranges::any_of(group->items, [](auto item) {
 				const auto id = ItemIdAcrossData(item);
 				return !IsServerMsgId(id) || !item->canDelete();
-			}) != end(group->items)) {
+			})) {
 				return false;
 			}
 		}

@@ -119,9 +119,9 @@ void EnsurePath() {
 }
 
 bool IsGoodPartName(const QString &name) {
-	return ranges::find_if(kDictExtensions, [&](const auto &ext) {
+	return ranges::any_of(kDictExtensions, [&](const auto &ext) {
 		return name.endsWith(ext);
-	}) != end(kDictExtensions);
+	});
 }
 
 using DictLoaderPtr = std::shared_ptr<base::unique_qptr<DictLoader>>;
@@ -268,11 +268,10 @@ bool DictionaryExists(int langId) {
 		return true;
 	}
 	const auto folder = DictPathByLangId(langId) + '/';
-	const auto bad = ranges::find_if(kDictExtensions, [&](const auto &ext) {
+	return ranges::none_of(kDictExtensions, [&](const auto &ext) {
 		const auto name = Spellchecker::LocaleFromLangId(langId).name();
 		return !QFile(folder + name + '.' + ext).exists();
 	});
-	return (bad == end(kDictExtensions));
 }
 
 bool RemoveDictionary(int langId) {

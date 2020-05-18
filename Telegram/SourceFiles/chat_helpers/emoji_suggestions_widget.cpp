@@ -101,8 +101,7 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 			return false;
 		}
 		// Suggest :D and :-P only as exact matches.
-		return ranges::find_if(_query, [](QChar ch) { return ch.isLower(); })
-			== _query.end();
+		return ranges::none_of(_query, [](QChar ch) { return ch.isLower(); });
 	}();
 	const auto exact = !middle || simple;
 	const auto list = Core::App().emojiKeywords().query(real, exact);

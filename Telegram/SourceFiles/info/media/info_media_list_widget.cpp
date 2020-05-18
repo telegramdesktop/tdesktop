@@ -1280,14 +1280,14 @@ void ListWidget::showContextMenu(
 	}
 
 	auto canDeleteAll = [&] {
-		return ranges::find_if(_selected, [](auto &&item) {
+		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canDelete;
-		}) == _selected.end();
+		});
 	};
 	auto canForwardAll = [&] {
-		return ranges::find_if(_selected, [](auto &&item) {
+		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canForward;
-		}) == _selected.end();
+		});
 	};
 
 	auto link = ClickHandler::getActive();

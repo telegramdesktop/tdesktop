@@ -3578,8 +3578,8 @@ void ApiWrap::addChatParticipants(
 			}).afterDelay(crl::time(5)).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
-		const auto bot = ranges::find_if(users, &UserData::isBot);
-		if (!peer->isMegagroup() && bot != end(users)) {
+		const auto hasBot = ranges::any_of(users, &UserData::isBot);
+		if (!peer->isMegagroup() && hasBot) {
 			ShowAddParticipantsError("USER_BOT", peer, users);
 			return;
 		}

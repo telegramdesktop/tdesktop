@@ -271,14 +271,14 @@ bool ServiceCheck::checkRippleStartPosition(QPoint position) const {
 	if (slug.isEmpty() || slug.size() > kMaxWallPaperSlugLength) {
 		return false;
 	}
-	return ranges::find_if(slug, [](QChar ch) {
+	return ranges::none_of(slug, [](QChar ch) {
 		return (ch != '.')
 			&& (ch != '_')
 			&& (ch != '-')
 			&& (ch < '0' || ch > '9')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < 'A' || ch > 'Z');
-	}) == slug.end();
+	});
 }
 
 AdminLog::OwnedItem GenerateTextItem(

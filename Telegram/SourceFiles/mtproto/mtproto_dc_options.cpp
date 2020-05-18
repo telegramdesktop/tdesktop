@@ -742,7 +742,7 @@ void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {
 		return (endpoint.flags & flag) != 0;
 	};
 	const auto has = [&](const std::vector<Endpoint> &list) {
-		return ranges::find_if(list, is) != end(list);
+		return ranges::any_of(list, is);
 	};
 	for (auto &byAddress : variants.data) {
 		for (auto &list : byAddress) {

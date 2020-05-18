@@ -400,13 +400,12 @@ bool CopyColorsToPalette(
 	if (slug.size() < kMinSlugSize || slug.size() > kMaxSlugSize) {
 		return false;
 	}
-	const auto i = ranges::find_if(slug, [](QChar ch) {
+	return ranges::none_of(slug, [](QChar ch) {
 		return (ch < 'A' || ch > 'Z')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < '0' || ch > '9')
 			&& (ch != '_');
 	});
-	return (i == slug.end());
 }
 
 SendMediaReady PrepareThemeMedia(

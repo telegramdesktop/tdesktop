@@ -514,10 +514,9 @@ bool Reader::Slices::checkFullInCache() const {
 	if (isFullInHeader()) {
 		return (_header.flags & Flag::FullInCache);
 	}
-	const auto i = ranges::find_if(_data, [](const Slice &slice) {
+	return ranges::none_of(_data, [](const Slice &slice) {
 		return !(slice.flags & Flag::FullInCache);
 	});
-	return (i == end(_data));
 }
 
 void Reader::Slices::processPart(

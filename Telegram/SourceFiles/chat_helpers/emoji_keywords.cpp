@@ -205,7 +205,7 @@ void AppendLegacySuggestions(
 			&& (ch != '-')
 			&& (ch != '+');
 	};
-	if (ranges::find_if(query, badSuggestionChar) != query.end()) {
+	if (ranges::any_of(query, badSuggestionChar)) {
 		return;
 	}
 
