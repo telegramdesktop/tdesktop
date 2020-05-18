@@ -197,34 +197,34 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 		if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
 			&& counter > 0) {
-			QPainter p(&iconImage);
-			int32 layerSize = -16;
-
-			if (iconSize >= 48) {
-				layerSize = -32;
-			} else if (iconSize >= 36) {
-				layerSize = -24;
-			} else if (iconSize >= 32) {
-				layerSize = -20;
-			}
-
-			auto &bg = muted
+			const auto &bg = muted
 				? st::trayCounterBgMute
 				: st::trayCounterBg;
+			const auto &fg = st::trayCounterFg;
+			if (iconSize >= 22) {
+				auto layerSize = -16;
+				if (iconSize >= 48) {
+					layerSize = -32;
+				} else if (iconSize >= 36) {
+					layerSize = -24;
+				} else if (iconSize >= 32) {
+					layerSize = -20;
+				}
+				const auto layer = App::wnd()->iconWithCounter(
+					layerSize,
+					counter,
+					bg,
+					fg,
+					false);
 
-			auto &fg = st::trayCounterFg;
-
-			auto layer = App::wnd()->iconWithCounter(
-				layerSize,
-				counter,
-				bg,
-				fg,
-				false);
-
-			p.drawImage(
-				iconImage.width() - layer.width() - 1,
-				iconImage.height() - layer.height() - 1,
-				layer);
+				QPainter p(&iconImage);
+				p.drawImage(
+					iconImage.width() - layer.width() - 1,
+					iconImage.height() - layer.height() - 1,
+					layer);
+			} else {
+				App::wnd()->placeSmallCounter(iconImage, 16, counter, bg, QPoint(), fg);
+			}
 		}
 
 		result.addPixmap(App::pixmapFromImageInPlace(

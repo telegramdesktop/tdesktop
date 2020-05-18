@@ -102,17 +102,17 @@ endif()
 
 target_link_libraries(Telegram
 PRIVATE
+    tdesktop::lib_tgvoip
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
     tdesktop::lib_export
-    tdesktop::lib_tgvoip
+    desktop-app::lib_webrtc
     desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::lib_ui
     desktop-app::lib_tl
     desktop-app::lib_storage
     desktop-app::lib_lottie
-    desktop-app::lib_webrtc
     desktop-app::lib_qr
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
@@ -1224,6 +1224,18 @@ elseif (APPLE)
                 COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
                 COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
             )
+        endif()
+    endif()
+elseif (LINUX)
+    if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
+        find_package(PkgConfig REQUIRED)
+
+        pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
+        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
+
+        if (DESKTOP_APP_USE_PACKAGED)
+            find_library(X11_LIBRARY X11)
+            target_link_libraries(Telegram PRIVATE ${X11_LIBRARY})
         endif()
     endif()
 endif()

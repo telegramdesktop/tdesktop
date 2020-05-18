@@ -176,9 +176,8 @@ else()
 
     target_link_libraries(lib_tgvoip
     PRIVATE
-        desktop-app::external_openssl
-        desktop-app::external_opus
         desktop-app::external_webrtc
+        desktop-app::external_opus
     )
 
     if (LINUX)

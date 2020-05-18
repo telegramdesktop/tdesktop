@@ -68,14 +68,14 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/01org/libva.git
     cd libva
-    ./autogen.sh --enable-static
+    CFLAGS=-fPIC CPPFLAGS=-fPIC LDFLAGS=-fPIC ./autogen.sh --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     git clone https://gitlab.freedesktop.org/vdpau/libvdpau.git --depth=1 -b libvdpau-1.2
     cd libvdpau
-    ./autogen.sh --enable-static
+    CFLAGS=-fPIC CPPFLAGS=-fPIC LDFLAGS=-fPIC ./autogen.sh --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -85,6 +85,9 @@ Go to ***BuildPath*** and run
     git checkout release/3.4
 
     ./configure \
+    --extra-cflags="-fPIC" \
+    --extra-cxxflags="-fPIC" \
+    --extra-ldflags="-fPIC" \
     --disable-programs \
     --disable-doc \
     --disable-network \
