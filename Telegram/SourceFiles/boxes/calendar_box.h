@@ -46,6 +46,7 @@ protected:
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
 
 private:
 	void monthChanged(QDate month);
