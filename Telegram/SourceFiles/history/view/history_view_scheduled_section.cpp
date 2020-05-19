@@ -898,6 +898,10 @@ void ScheduledWidget::listScrollTo(int top) {
 }
 
 void ScheduledWidget::listCancelRequest() {
+	if (_inner && !_inner->getSelectedItems().empty()) {
+		clearSelected();
+		return;
+	}
 	controller()->showBackFromStack();
 }
 
