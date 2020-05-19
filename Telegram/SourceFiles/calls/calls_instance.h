@@ -35,7 +35,7 @@ public:
 	void startOutgoingCall(not_null<UserData*> user);
 	void handleUpdate(
 		not_null<Main::Session*> session,
-		const MTPDupdatePhoneCall &update);
+		const MTPUpdate &update);
 	void showInfoPanel(not_null<Call*> call);
 	[[nodiscard]] Call *currentCall() const;
 	[[nodiscard]] rpl::producer<Call*> currentCallValue() const;
@@ -58,6 +58,8 @@ private:
 	void destroyCall(not_null<Call*> call);
 	void destroyCurrentPanel();
 	void requestMicrophonePermissionOrFail(Fn<void()> onSuccess) override;
+
+	void handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
 
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);

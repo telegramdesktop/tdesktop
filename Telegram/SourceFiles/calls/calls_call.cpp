@@ -32,6 +32,7 @@ namespace {
 constexpr auto kMinLayer = 65;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
+const auto kDefaultVersion = "2.4.4"_q;
 
 void AppendEndpoint(
 		std::vector<TgVoipEndpoint> &list,
@@ -71,10 +72,6 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 		| (gsl::to_integer<uint64>(hash[12]));
 }
 
-[[nodiscard]] std::vector<std::string> CollectVersions() {
-	return { TgVoip::getVersion() };
-}
-
 [[nodiscard]] QVector<MTPstring> WrapVersions(
 		const std::vector<std::string> &data) {
 	auto result = QVector<MTPstring>();
@@ -86,12 +83,10 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 }
 
 [[nodiscard]] QVector<MTPstring> CollectVersionsForApi() {
-	return WrapVersions(CollectVersions());
+	return WrapVersions(CollectControllerVersions());
 }
 
 } // namespace
-
-Call::Delegate::~Delegate() = default;
 
 Call::Call(
 	not_null<Delegate*> delegate,
@@ -170,7 +165,7 @@ void Call::startOutgoing() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(TgVoip::getConnectionMaxLayer()),
+			MTP_int(ControllerMaxLayer()),
 			MTP_vector(CollectVersionsForApi()))
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
@@ -251,7 +246,7 @@ void Call::actuallyAnswer() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(TgVoip::getConnectionMaxLayer()),
+			MTP_int(ControllerMaxLayer()),
 			MTP_vector(CollectVersionsForApi()))
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
@@ -320,6 +315,25 @@ void Call::startWaitingTrack() {
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
+}
+
+void Call::sendSignalingData(const QByteArray &data) {
+	_api.request(MTPphone_SendSignalingData(
+		MTP_inputPhoneCall(
+			MTP_long(_id),
+			MTP_long(_accessHash)),
+		MTP_bytes(data)
+	)).done([=](const MTPBool &result) {
+		if (!mtpIsTrue(result)) {
+			finish(FinishType::Failed);
+		}
+	}).fail([=](const RPCError &error) {
+		handleRequestError(error);
+	}).send();
+}
+
+void Call::displayNextFrame(QImage frame) {
+	_frames.fire(std::move(frame));
 }
 
 float64 Call::getWaitingSoundPeakValue() const {
@@ -462,6 +476,14 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 	Unexpected("phoneCall type inside an existing call handleUpdate()");
 }
 
+bool Call::handleSignalingData(
+		const MTPDupdatePhoneCallSignalingData &data) {
+	if (data.vphone_call_id().v != _id || !_controller) {
+		return false;
+	}
+	return _controller->receiveSignalingData(data.vdata().v);
+}
+
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
@@ -494,9 +516,9 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(TgVoip::getConnectionMaxLayer()),
+			MTP_int(ControllerMaxLayer()),
 			MTP_vector(CollectVersionsForApi()))
-	)).done([this](const MTPphone_PhoneCall &result) {
+	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		auto &call = result.c_phone_phoneCall();
@@ -508,7 +530,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 		}
 
 		createAndStartController(call.vphone_call().c_phoneCall());
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -597,14 +619,20 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return static_cast<uint8_t>(byte);
 	}) | ranges::to_vector;
 
+	const auto version = call.vprotocol().match([&](
+			const MTPDphoneCallProtocol &data) {
+		return data.vlibrary_versions().v;
+	}).value(0, MTP_bytes(kDefaultVersion)).v;
 	_controller = MakeController(
-		"2.4.4",
+		version.toStdString(),
 		config,
 		TgVoipPersistentState(),
 		endpoints,
 		proxy.host.empty() ? nullptr : &proxy,
 		TgVoipNetworkType::Unknown,
-		encryptionKey);
+		encryptionKey,
+		[=](QByteArray data) { sendSignalingData(data); },
+		[=](QImage frame) { displayNextFrame(frame); });
 
 	const auto raw = _controller.get();
 	raw->setOnStateUpdated([=](TgVoipState state) {

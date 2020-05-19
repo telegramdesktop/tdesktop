@@ -26,6 +26,7 @@ public:
 	virtual void setInputVolume(float level) = 0;
 	virtual void setOutputVolume(float level) = 0;
 	virtual void setAudioOutputDuckingEnabled(bool enabled) = 0;
+	virtual bool receiveSignalingData(const QByteArray &data) = 0;
 
 	virtual std::string getLastError() = 0;
 	virtual std::string getDebugInfo() = 0;
@@ -48,6 +49,11 @@ public:
 	const std::vector<TgVoipEndpoint> &endpoints,
 	const TgVoipProxy *proxy,
 	TgVoipNetworkType initialNetworkType,
-	const TgVoipEncryptionKey &encryptionKey);
+	const TgVoipEncryptionKey &encryptionKey,
+	Fn<void(QByteArray)> sendSignalingData,
+	Fn<void(QImage)> displayNextFrame);
+
+[[nodiscard]] std::vector<std::string> CollectControllerVersions();
+[[nodiscard]] int ControllerMaxLayer();
 
 } // namespace Calls

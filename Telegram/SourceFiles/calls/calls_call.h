@@ -48,7 +48,7 @@ public:
 		virtual void playSound(Sound sound) = 0;
 		virtual void requestMicrophonePermissionOrFail(Fn<void()> result) = 0;
 
-		virtual ~Delegate();
+		virtual ~Delegate() = default;
 
 	};
 
@@ -70,6 +70,7 @@ public:
 
 	void start(bytes::const_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
+	bool handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
 
 	enum State {
 		Starting,
@@ -110,6 +111,10 @@ public:
 		return _muteChanged;
 	}
 
+	rpl::producer<QImage> frames() const {
+		return _frames.events();
+	}
+
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
@@ -144,6 +149,8 @@ private:
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();
+	void sendSignalingData(const QByteArray &data);
+	void displayNextFrame(QImage frame);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
 	void handleControllerStateChange(
@@ -181,6 +188,7 @@ private:
 
 	bool _mute = false;
 	base::Observable<bool> _muteChanged;
+	rpl::event_stream<QImage> _frames;
 
 	DhConfig _dhConfig;
 	bytes::vector _ga;

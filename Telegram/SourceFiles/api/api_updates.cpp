@@ -1726,8 +1726,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateEncryptedMessagesRead();
 	} break;
 
-	case mtpc_updatePhoneCall: {
-		Core::App().calls().handleUpdate(&session(), update.c_updatePhoneCall());
+	case mtpc_updatePhoneCall:
+	case mtpc_updatePhoneCallSignalingData: {
+		Core::App().calls().handleUpdate(&session(), update);
 	} break;
 
 	case mtpc_updateUserBlocked: {

@@ -13,6 +13,8 @@ pacman --noconfirm -S pkg-config
 PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 ./configure --toolchain=msvc \
+--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
+--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
 --extra-ldflags="-libpath:$FullExecPath/../opus/win32/VS2015/Win32/Release" \
 --disable-programs \
 --disable-doc \

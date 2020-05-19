@@ -400,6 +400,11 @@ void Panel::initControls() {
 
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
+
+	_call->frames() | rpl::start_with_next([=](QImage frame) {
+		_videoFrame = std::move(frame);
+		update();
+	}, lifetime());
 }
 
 void Panel::reinitControls() {
@@ -740,6 +745,17 @@ void Panel::paintEvent(QPaintEvent *e) {
 		p.fillRect(myrtlrect(0, _padding.top(), _padding.left(), _contentTop - _padding.top()), brush);
 		p.fillRect(myrtlrect(width() - _padding.right(), _padding.top(), _padding.right(), _contentTop - _padding.top()), brush);
 		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
+	}
+
+	if (!_videoFrame.isNull()) {
+		const auto to = rect().marginsRemoved(_padding);
+		p.save();
+		p.setClipRect(to);
+		const auto big = _videoFrame.size().scaled(to.size(), Qt::KeepAspectRatioByExpanding);
+		const auto pos = QPoint((to.width() - big.width()) / 2, (to.height() - big.height()) / 2);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(QRect(pos, big), _videoFrame);
+		p.restore();
 	}
 
 	if (_signalBars->isDisplayed()) {

@@ -232,13 +232,19 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([=](const RPCError &error) {
 		_serverConfigRequestSession = nullptr;
-		}).send();
+	}).send();
 }
 
 void Instance::handleUpdate(
 		not_null<Main::Session*> session,
-		const MTPDupdatePhoneCall& update) {
-	handleCallUpdate(session, update.vphone_call());
+		const MTPUpdate &update) {
+	update.match([&](const MTPDupdatePhoneCall &data) {
+		handleCallUpdate(session, data.vphone_call());
+	}, [&](const MTPDupdatePhoneCallSignalingData &data) {
+		handleSignalingData(data);
+	}, [](const auto &) {
+		Unexpected("Update type in Calls::Instance::handleUpdate.");
+	});
 }
 
 void Instance::showInfoPanel(not_null<Call*> call) {
@@ -288,6 +294,14 @@ void Instance::handleCallUpdate(
 		}
 	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));
+	}
+}
+
+void Instance::handleSignalingData(
+		const MTPDupdatePhoneCallSignalingData &data) {
+	if (!_currentCall || !_currentCall->handleSignalingData(data)) {
+		DEBUG_LOG(("API Warning: unexpected call signaling data %1"
+			).arg(data.vphone_call_id().v));
 	}
 }
 
