@@ -480,6 +480,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		MTP_string("image/jpeg"),
 		MTP_int(jpeg.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
+		MTPVector<MTPVideoSize>(),
 		MTP_int(MTP::maindc()),
 		MTP_vector<MTPDocumentAttribute>(attributes));
 

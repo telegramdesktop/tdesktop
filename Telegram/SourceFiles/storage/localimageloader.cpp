@@ -909,6 +909,7 @@ void FileLoadTask::process() {
 			MTP_string(filemime),
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),
+			MTPVector<MTPVideoSize>(),
 			MTP_int(MTP::maindc()),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 	} else if (_type != SendMediaType::Photo) {
@@ -921,6 +922,7 @@ void FileLoadTask::process() {
 			MTP_string(filemime),
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),
+			MTPVector<MTPVideoSize>(),
 			MTP_int(MTP::maindc()),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 		_type = SendMediaType::File;
