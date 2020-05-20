@@ -27,8 +27,7 @@ class Loader {
 public:
 	static constexpr auto kPartSize = 128 * 1024;
 
-	[[nodiscard]] virtual auto baseCacheKey() const
-	-> std::optional<Storage::Cache::Key> = 0;
+	[[nodiscard]] virtual Storage::Cache::Key baseCacheKey() const = 0;
 	[[nodiscard]] virtual int size() const = 0;
 
 	virtual void load(int offset) = 0;

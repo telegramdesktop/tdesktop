@@ -91,8 +91,8 @@ const StorageImageLocation &ImageSource::location() {
 void ImageSource::refreshFileReference(const QByteArray &data) {
 }
 
-std::optional<Storage::Cache::Key> ImageSource::cacheKey() {
-	return std::nullopt;
+Storage::Cache::Key ImageSource::cacheKey() {
+	return Storage::Cache::Key();
 }
 
 void ImageSource::setDelayedStorageLocation(
@@ -220,8 +220,8 @@ const StorageImageLocation &LocalFileSource::location() {
 void LocalFileSource::refreshFileReference(const QByteArray &data) {
 }
 
-std::optional<Storage::Cache::Key> LocalFileSource::cacheKey() {
-	return std::nullopt;
+Storage::Cache::Key LocalFileSource::cacheKey() {
+	return Storage::Cache::Key();
 }
 
 void LocalFileSource::setDelayedStorageLocation(
@@ -455,10 +455,10 @@ const StorageImageLocation &StorageSource::location() {
 	return _location;
 }
 
-std::optional<Storage::Cache::Key> StorageSource::cacheKey() {
+Storage::Cache::Key StorageSource::cacheKey() {
 	return _location.valid()
-		? base::make_optional(_location.file().cacheKey())
-		: std::nullopt;
+		? _location.file().cacheKey()
+		: Storage::Cache::Key();
 }
 
 int StorageSource::width() {
@@ -524,10 +524,10 @@ WebCachedSource::WebCachedSource(
 , _size(size) {
 }
 
-std::optional<Storage::Cache::Key> WebCachedSource::cacheKey() {
+Storage::Cache::Key WebCachedSource::cacheKey() {
 	return _location.isNull()
-		? std::nullopt
-		: base::make_optional(Data::WebDocumentCacheKey(_location));
+		? Storage::Cache::Key()
+		: Data::WebDocumentCacheKey(_location);
 }
 
 int WebCachedSource::width() {
@@ -574,7 +574,7 @@ GeoPointSource::GeoPointSource(const GeoPointLocation &location)
 : _location(location) {
 }
 
-std::optional<Storage::Cache::Key> GeoPointSource::cacheKey() {
+Storage::Cache::Key GeoPointSource::cacheKey() {
 	return Data::GeoPointCacheKey(_location);
 }
 
@@ -712,7 +712,7 @@ WebUrlSource::WebUrlSource(const QString &url, int width, int height)
 , _height(height) {
 }
 
-std::optional<Storage::Cache::Key> WebUrlSource::cacheKey() {
+Storage::Cache::Key WebUrlSource::cacheKey() {
 	return Data::UrlCacheKey(_url);
 }
 

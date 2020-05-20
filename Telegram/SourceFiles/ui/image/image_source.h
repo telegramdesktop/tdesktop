@@ -33,7 +33,7 @@ public:
 
 	const StorageImageLocation &location() override;
 	void refreshFileReference(const QByteArray &data) override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
@@ -82,7 +82,7 @@ public:
 
 	const StorageImageLocation &location() override;
 	void refreshFileReference(const QByteArray &data) override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
@@ -168,7 +168,7 @@ public:
 		int size);
 
 	const StorageImageLocation &location() override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 
 	void refreshFileReference(const QByteArray &data) override;
 
@@ -198,7 +198,7 @@ public:
 		int height,
 		int size = 0);
 
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 
 	int width() override;
 	int height() override;
@@ -224,7 +224,7 @@ class GeoPointSource : public RemoteSource {
 public:
 	GeoPointSource(const GeoPointLocation &location);
 
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 
 	int width() override;
 	int height() override;
@@ -283,7 +283,7 @@ public:
 	explicit WebUrlSource(const QString &url, QSize box = QSize());
 	WebUrlSource(const QString &url, int width, int height);
 
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 
 	int width() override;
 	int height() override;

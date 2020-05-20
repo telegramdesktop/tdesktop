@@ -411,6 +411,7 @@ public:
 		uint64 id,
 		uint64 accessHash) const;
 
+	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const QByteArray &data);

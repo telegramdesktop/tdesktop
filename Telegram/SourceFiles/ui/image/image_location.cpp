@@ -776,6 +776,26 @@ DownloadLocation DownloadLocation::convertToModern(
 	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
 }
 
+Storage::Cache::Key DownloadLocation::cacheKey() const {
+	return data.match([](const GeoPointLocation &data) {
+		return Data::GeoPointCacheKey(data);
+	}, [](const StorageFileLocation &data) {
+		return data.valid()
+			? data.cacheKey()
+			: Storage::Cache::Key();
+	}, [](const WebFileLocation &data) {
+		return data.isNull()
+			? Storage::Cache::Key()
+			: Data::WebDocumentCacheKey(data);
+	}, [](const PlainUrlLocation &data) {
+		return data.url.isEmpty()
+			? Storage::Cache::Key()
+			: Data::UrlCacheKey(data.url);
+	}, [](const InMemoryLocation &data) {
+		return Storage::Cache::Key();
+	});
+}
+
 bool DownloadLocation::valid() const {
 	return data.match([](const GeoPointLocation &data) {
 		return true;

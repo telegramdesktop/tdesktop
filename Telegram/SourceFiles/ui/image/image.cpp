@@ -966,7 +966,7 @@ void Image::loadEvenCancelled(Data::FileOrigin origin) {
 	}
 }
 
-std::optional<Storage::Cache::Key> Image::cacheKey() const {
+Storage::Cache::Key Image::cacheKey() const {
 	return _source->cacheKey();
 }
 

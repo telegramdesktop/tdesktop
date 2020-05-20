@@ -155,7 +155,7 @@ void PhotoData::collectLocalData(not_null<PhotoData*> local) {
 	const auto copyImage = [&](const ImagePtr &src, const ImagePtr &dst) {
 		if (const auto from = src->cacheKey()) {
 			if (const auto to = dst->cacheKey()) {
-				_owner->cache().copyIfEmpty(*from, *to);
+				_owner->cache().copyIfEmpty(from, to);
 			}
 		}
 	};

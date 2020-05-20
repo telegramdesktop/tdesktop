@@ -226,7 +226,7 @@ private:
 	void refreshLoaderPriority();
 
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
-		std::optional<Storage::Cache::Key> baseKey);
+		Storage::Cache::Key baseKey);
 
 	const std::unique_ptr<Loader> _loader;
 	Storage::Cache::Database * const _cache = nullptr;

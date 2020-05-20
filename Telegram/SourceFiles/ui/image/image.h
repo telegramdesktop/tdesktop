@@ -80,7 +80,7 @@ public:
 
 	virtual const StorageImageLocation &location() = 0;
 	virtual void refreshFileReference(const QByteArray &data) = 0;
-	virtual std::optional<Storage::Cache::Key> cacheKey() = 0;
+	virtual Storage::Cache::Key cacheKey() = 0;
 	virtual void setDelayedStorageLocation(
 		const StorageImageLocation &location) = 0;
 	virtual void performDelayedLoad(Data::FileOrigin origin) = 0;
@@ -220,7 +220,7 @@ public:
 	void refreshFileReference(const QByteArray &data) {
 		_source->refreshFileReference(data);
 	}
-	std::optional<Storage::Cache::Key> cacheKey() const;
+	Storage::Cache::Key cacheKey() const;
 	QByteArray bytesForCache() const {
 		return _source->bytesForCache();
 	}

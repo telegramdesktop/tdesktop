@@ -182,8 +182,7 @@ public:
 	void setGoodThumbnailPhoto(not_null<PhotoData*> photo);
 	[[nodiscard]] PhotoData *goodThumbnailPhoto() const;
 
-	[[nodiscard]] auto bigFileBaseCacheKey() const
-	-> std::optional<Storage::Cache::Key>;
+	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 
 	void setRemoteLocation(
 		int32 dc,
@@ -197,7 +196,6 @@ public:
 	[[nodiscard]] MTPInputDocument mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
-	void refreshStickerThumbFileReference();
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)

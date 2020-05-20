@@ -141,7 +141,7 @@ public:
 
 	const StorageImageLocation &location() override;
 	void refreshFileReference(const QByteArray &data) override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
+	Storage::Cache::Key cacheKey() override;
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
@@ -256,8 +256,8 @@ const StorageImageLocation &ImageSource::location() {
 void ImageSource::refreshFileReference(const QByteArray &data) {
 }
 
-std::optional<Storage::Cache::Key> ImageSource::cacheKey() {
-	return std::nullopt;
+Storage::Cache::Key ImageSource::cacheKey() {
+	return {};
 }
 
 void ImageSource::setDelayedStorageLocation(

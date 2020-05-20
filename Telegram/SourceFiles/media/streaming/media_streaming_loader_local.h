@@ -20,8 +20,7 @@ class LoaderLocal : public Loader, public base::has_weak_ptr {
 public:
 	LoaderLocal(std::unique_ptr<QIODevice> device);
 
-	[[nodiscard]] auto baseCacheKey() const
-		->std::optional<Storage::Cache::Key> override;
+	[[nodiscard]] Storage::Cache::Key baseCacheKey() const override;
 	[[nodiscard]] int size() const override;
 
 	void load(int offset) override;

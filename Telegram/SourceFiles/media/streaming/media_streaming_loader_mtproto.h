@@ -23,8 +23,7 @@ public:
 		int size,
 		Data::FileOrigin origin);
 
-	[[nodiscard]] auto baseCacheKey() const
-	-> std::optional<Storage::Cache::Key> override;
+	[[nodiscard]] Storage::Cache::Key baseCacheKey() const override;
 	[[nodiscard]] int size() const override;
 
 	void load(int offset) override;

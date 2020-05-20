@@ -3518,7 +3518,6 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 		}
 
 		for (const auto sticker : set.stickers) {
-			sticker->refreshStickerThumbFileReference();
 			size += Serialize::Document::sizeInStream(sticker);
 		}
 

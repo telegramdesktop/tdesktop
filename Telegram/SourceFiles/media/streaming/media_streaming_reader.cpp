@@ -1109,15 +1109,15 @@ void Reader::refreshLoaderPriority() {
 }
 
 bool Reader::isRemoteLoader() const {
-	return _loader->baseCacheKey().has_value();
+	return _loader->baseCacheKey().valid();
 }
 
 std::shared_ptr<Reader::CacheHelper> Reader::InitCacheHelper(
-		std::optional<Storage::Cache::Key> baseKey) {
+		Storage::Cache::Key baseKey) {
 	if (!baseKey) {
 		return nullptr;
 	}
-	return std::make_shared<Reader::CacheHelper>(*baseKey);
+	return std::make_shared<Reader::CacheHelper>(baseKey);
 }
 
 // 0 is for headerData, slice index = sliceNumber - 1.

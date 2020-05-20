@@ -627,7 +627,11 @@ void DocumentData::updateThumbnails(
 			loadThumbnail(origin);
 		}
 		if (!thumbnail.bytes.isEmpty()) {
-			// #TODO optimize put to cache
+			owner().cache().putIfEmpty(
+				_thumbnailLocation.file().cacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					base::duplicate(thumbnail.bytes),
+					Data::kImageCacheTag));
 		}
 	}
 }
@@ -761,19 +765,17 @@ PhotoData *DocumentData::goodThumbnailPhoto() const {
 	return _goodThumbnailPhoto;
 }
 
-auto DocumentData::bigFileBaseCacheKey() const
--> std::optional<Storage::Cache::Key> {
-	if (hasRemoteLocation()) {
-		return StorageFileLocation(
+Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
+	return hasRemoteLocation()
+		? StorageFileLocation(
 			_dc,
 			session().userId(),
 			MTP_inputDocumentFileLocation(
 				MTP_long(id),
 				MTP_long(_access),
 				MTP_bytes(_fileReference),
-				MTP_string())).bigFileBaseCacheKey();
-	}
-	return std::nullopt;
+				MTP_string())).bigFileBaseCacheKey()
+		: Storage::Cache::Key();
 }
 
 bool DocumentData::saveToCache() const {
@@ -786,12 +788,6 @@ bool DocumentData::saveToCache() const {
 }
 
 void DocumentData::unload() {
-	// Forget thumb only when image cache limit exceeds.
-	//
-	// Also, you can't unload() images that you don't own
-	// from the destructor, because they're already destroyed.
-	//
-	//_thumbnail->unload();
 	_replyPreview = nullptr;
 }
 
@@ -1331,14 +1327,6 @@ QByteArray DocumentData::fileReference() const {
 void DocumentData::refreshFileReference(const QByteArray &value) {
 	_fileReference = value;
 	_thumbnailLocation.refreshFileReference(value);
-}
-
-void DocumentData::refreshStickerThumbFileReference() {
-	// #TODO optimize
-	//if (_thumbnailLoader) {
-	//	_thumbnailLocation.refreshFileReference(
-	//		_thumbnailLoader->fileReference());
-	//}
 }
 
 QString DocumentData::filename() const {

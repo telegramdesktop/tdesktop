@@ -1162,7 +1162,7 @@ auto LottieFromDocument(
 	if (const auto baseKey = document->bigFileBaseCacheKey()) {
 		return LottieCachedFromContent(
 			std::forward<Method>(method),
-			*baseKey,
+			baseKey,
 			keyShift,
 			&document->session(),
 			Lottie::ReadContent(data, filepath),
@@ -1239,7 +1239,7 @@ bool HasLottieThumbnail(
 		if (!media->loaded()) {
 			return false;
 		}
-		return document->bigFileBaseCacheKey().has_value();
+		return document->bigFileBaseCacheKey().valid();
 	}
 	return false;
 }
@@ -1269,7 +1269,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 	};
 	return LottieCachedFromContent(
 		method,
-		*baseKey,
+		baseKey,
 		uint8(sizeTag),
 		&document->session(),
 		content,
