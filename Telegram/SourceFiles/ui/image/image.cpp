@@ -1011,7 +1011,9 @@ void Image::invalidateSizeCache() const {
 
 Image::~Image() {
 	if (this != Empty() && this != BlankMedia()) {
-		unload();
+		invalidateSizeCache();
+		ActiveCache().decrement(ComputeUsage(_data));
+		_data = QImage();
 		ActiveCache().remove(this);
 	}
 }
