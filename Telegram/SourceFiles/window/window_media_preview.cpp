@@ -270,7 +270,6 @@ QPixmap MediaPreviewWidget::currentImage() const {
 					that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [=](Media::Clip::Notification notification) {
 						that->clipCallback(notification);
 					});
-					if (_gif) _gif->setAutoplay();
 				}
 			}
 			if (_gif && _gif->started()) {

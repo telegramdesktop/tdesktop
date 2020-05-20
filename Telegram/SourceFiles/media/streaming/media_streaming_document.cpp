@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 
 #include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_loader.h"
+#include "media/streaming/media_streaming_reader.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -32,21 +34,28 @@ constexpr auto kGoodThumbnailQuality = 87;
 Document::Document(
 	not_null<DocumentData*> document,
 	std::shared_ptr<Reader> reader)
-: _player(&document->owner(), reader)
+: Document(std::move(reader), document) {
+	_player.fullInCache(
+	) | rpl::start_with_next([=](bool fullInCache) {
+		_document->setLoadedInMediaCache(fullInCache);
+	}, _player.lifetime());
+}
+
+Document::Document(std::unique_ptr<Loader> loader)
+: Document(std::make_shared<Reader>(std::move(loader)), nullptr) {
+}
+
+Document::Document(std::shared_ptr<Reader> reader, DocumentData *document)
+: _document(document)
+, _player(std::move(reader))
 , _radial(
-	[=] { waitingCallback(); },
-	st::defaultInfiniteRadialAnimation)
-, _document(document) {
+		[=] { waitingCallback(); },
+		st::defaultInfiniteRadialAnimation) {
 	_player.updates(
 	) | rpl::start_with_next_error([=](Update &&update) {
 		handleUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleError(std::move(error));
-	}, _player.lifetime());
-
-	_player.fullInCache(
-	) | rpl::start_with_next([=](bool fullInCache) {
-		_document->setLoadedInMediaCache(fullInCache);
 	}, _player.lifetime());
 }
 
@@ -62,9 +71,9 @@ const Information &Document::info() const {
 	return _info;
 }
 
-not_null<DocumentData*> Document::data() const {
-	return _document;
-}
+//not_null<DocumentData*> Document::data() const {
+//	return _document;
+//}
 
 void Document::play(const PlaybackOptions &options) {
 	_player.play(options);
@@ -145,10 +154,12 @@ void Document::handleUpdate(Update &&update) {
 }
 
 void Document::handleError(Error &&error) {
-	if (error == Error::NotStreamable) {
-		_document->setNotSupportsStreaming();
-	} else if (error == Error::OpenFailed) {
-		_document->setInappPlaybackFailed();
+	if (_document) {
+		if (error == Error::NotStreamable) {
+			_document->setNotSupportsStreaming();
+		} else if (error == Error::OpenFailed) {
+			_document->setInappPlaybackFailed();
+		}
 	}
 	waitingChange(false);
 }
@@ -194,7 +205,9 @@ void Document::waitingChange(bool waiting) {
 }
 
 void Document::validateGoodThumbnail() {
-	if (_info.video.cover.isNull() || _document->goodThumbnailChecked()) {
+	if (_info.video.cover.isNull()
+		|| !_document
+		|| _document->goodThumbnailChecked()) {
 		return;
 	}
 	const auto document = _document;

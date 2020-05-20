@@ -145,7 +145,6 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
 		});
-		if (_gif) _gif->setAutoplay();
 	}
 
 	const auto animating = (_gif && _gif->started());
@@ -1360,7 +1359,6 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 			that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
 				that->clipCallback(notification);
 			});
-			if (_gif) _gif->setAutoplay();
 		}
 
 		bool animating = (_gif && _gif->started());

@@ -390,9 +390,7 @@ void File::Context::stopStreamingAsync() {
 	_reader->stopStreamingAsync();
 }
 
-File::File(
-	not_null<Data::Session*> owner,
-	std::shared_ptr<Reader> reader)
+File::File(std::shared_ptr<Reader> reader)
 : _reader(std::move(reader)) {
 }
 

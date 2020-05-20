@@ -67,13 +67,6 @@ public:
 	// Reader can be already deleted.
 	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
 
-	void setAutoplay() {
-		_autoplay = true;
-	}
-	bool autoplay() const {
-		return _autoplay;
-	}
-
 	AudioMsgId audioMsgId() const {
 		return _audioMsgId;
 	}
@@ -171,8 +164,6 @@ private:
 	QAtomicInt _autoPausedGif = 0;
 	QAtomicInt _videoPauseRequest = 0;
 	int32 _threadIndex;
-
-	bool _autoplay = false;
 
 	friend class Manager;
 
