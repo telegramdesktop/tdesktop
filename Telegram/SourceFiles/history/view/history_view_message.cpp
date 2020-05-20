@@ -1763,6 +1763,9 @@ void Message::fromNameUpdated(int width) const {
 }
 
 TextSelection Message::skipTextSelection(TextSelection selection) const {
+	if (selection.from == 0xFFFF) {
+		return selection;
+	}
 	return HistoryView::UnshiftItemSelection(selection, message()->_text);
 }
 
