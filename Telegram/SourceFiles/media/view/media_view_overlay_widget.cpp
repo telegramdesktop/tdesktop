@@ -3482,23 +3482,25 @@ void OverlayWidget::preloadData(int delta) {
 		auto entity = entityByIndex(forgetIndex);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			(*photo)->unload();
-		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			(*document)->unload();
 		}
 	}
 
+	auto medias = base::flat_set<std::shared_ptr<Data::DocumentMedia>>();
 	for (auto index = from; index != till; ++index) {
 		auto entity = entityByIndex(index);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			(*photo)->download(fileOrigin());
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(
 				&entity.data)) {
+			const auto [i, ok] = medias.emplace(
+				(*document)->createMediaView());
 			(*document)->loadThumbnail(fileOrigin());
-			//if (!(*document)->canBePlayed()) { // #TODO optimize
-			//	(*document)->automaticLoad(fileOrigin(), entity.item);
-			//}
+			if (!(*i)->canBePlayed()) {
+				(*i)->automaticLoad(fileOrigin(), entity.item);
+			}
 		}
 	}
+	_preloadMedias = std::move(medias);
 }
 
 void OverlayWidget::mousePressEvent(QMouseEvent *e) {
