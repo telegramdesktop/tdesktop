@@ -64,6 +64,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (Logs::DebugEnabled()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cTestMode()) [args addObject:@"-testmode"];
+		if (cUseFreeType()) [args addObject:@"-freetype"];
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (Core::UpdaterDisabled()) [args addObject:@"-externalupdater"];
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
