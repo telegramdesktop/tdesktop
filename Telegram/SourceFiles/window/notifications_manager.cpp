@@ -39,7 +39,7 @@ constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 
 #ifdef Q_OS_MAC
 constexpr auto kSystemAlertDuration = crl::time(1000);
-#elif // !Q_OS_MAC
+#else // !Q_OS_MAC
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
 
