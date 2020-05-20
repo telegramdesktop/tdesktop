@@ -71,6 +71,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cTestMode()) {
 		pushArgument(qsl("-testmode"));
 	}
+	if (cUseFreeType()) {
+		pushArgument(qsl("-freetype"));
+	}
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (Core::UpdaterDisabled()) {
 		pushArgument(qsl("-externalupdater"));
