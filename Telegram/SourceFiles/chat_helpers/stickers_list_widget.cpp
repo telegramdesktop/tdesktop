@@ -189,7 +189,7 @@ auto StickersListWidget::PrepareStickers(const Stickers::Pack &pack)
 	return ranges::view::all(
 		pack
 	) | ranges::view::transform([](DocumentData *document) {
-		return Sticker{ document, document->createMediaView() };
+		return Sticker{ document };
 	}) | ranges::to_vector;
 }
 
@@ -216,6 +216,14 @@ StickersListWidget::Set::Set(Set &&other) = default;
 StickersListWidget::Set &StickersListWidget::Set::operator=(
 	Set &&other) = default;
 StickersListWidget::Set::~Set() = default;
+
+
+void StickersListWidget::Sticker::ensureMediaCreated() {
+	if (documentMedia) {
+		return;
+	}
+	documentMedia = document->createMediaView();
+}
 
 StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent)
 : InnerFooter(parent)
@@ -932,10 +940,10 @@ void StickersListWidget::checkVisibleFeatured(
 	const auto destroyAbove = floorclamp(visibleTop - visibleHeight, rowHeight, 0, _officialSets.size());
 	const auto destroyBelow = ceilclamp(visibleBottom + visibleHeight, rowHeight, 0, _officialSets.size());
 	for (auto i = 0; i != destroyAbove; ++i) {
-		destroyLottieIn(_officialSets[i]);
+		clearHeavyIn(_officialSets[i]);
 	}
 	for (auto i = destroyBelow; i != _officialSets.size(); ++i) {
-		destroyLottieIn(_officialSets[i]);
+		clearHeavyIn(_officialSets[i]);
 	}
 }
 
@@ -1014,7 +1022,8 @@ void StickersListWidget::readVisibleFeatured(
 		for (int j = 0; j < count; ++j) {
 			if (!set.stickers[j].document->hasThumbnail()
 				|| !set.stickers[j].document->thumbnailLoading()
-				|| set.stickers[j].documentMedia->loaded()) {
+				|| (set.stickers[j].documentMedia
+					&& set.stickers[j].documentMedia->loaded())) {
 				++loaded;
 			}
 		}
@@ -1578,7 +1587,7 @@ void StickersListWidget::checkVisibleLottie() {
 	enumerateSections([&](const SectionInfo &info) {
 		if (destroyBelow <= info.rowsTop
 			|| destroyAbove >= info.rowsBottom) {
-			destroyLottieIn(shownSets()[info.section]);
+			clearHeavyIn(shownSets()[info.section]);
 		} else if ((visibleTop > info.rowsTop && visibleTop < info.rowsBottom)
 			|| (visibleBottom > info.rowsTop
 				&& visibleBottom < info.rowsBottom)) {
@@ -1588,13 +1597,11 @@ void StickersListWidget::checkVisibleLottie() {
 	});
 }
 
-void StickersListWidget::destroyLottieIn(Set &set) {
-	if (!set.lottiePlayer) {
-		return;
-	}
+void StickersListWidget::clearHeavyIn(Set &set) {
 	set.lottiePlayer = nullptr;
 	for (auto &sticker : set.stickers) {
 		sticker.animated = nullptr;
+		sticker.documentMedia = nullptr;
 	}
 	_lottieData.remove(set.id);
 }
@@ -1719,6 +1726,7 @@ void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	const auto document = sticker.document;
 
 	ensureLottiePlayer(set);
+	sticker.ensureMediaCreated();
 	sticker.animated = Stickers::LottieAnimationFromDocument(
 		set.lottiePlayer,
 		sticker.documentMedia.get(),
@@ -1737,6 +1745,7 @@ QSize StickersListWidget::boundingBoxSize() const {
 
 void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected) {
 	auto &sticker = set.stickers[index];
+	sticker.ensureMediaCreated();
 	const auto document = sticker.document;
 	const auto &media = sticker.documentMedia;
 	if (!document->sticker()) {
@@ -2130,7 +2139,7 @@ TabbedSelector::InnerFooter *StickersListWidget::getFooter() const {
 
 void StickersListWidget::processHideFinished() {
 	clearSelection();
-	clearLottieData();
+	clearHeavyData();
 	if (_footer) {
 		_footer->clearHeavyData();
 	}
@@ -2138,7 +2147,7 @@ void StickersListWidget::processHideFinished() {
 
 void StickersListWidget::processPanelHideFinished() {
 	clearInstalledLocally();
-	clearLottieData();
+	clearHeavyData();
 	if (_footer) {
 		_footer->clearHeavyData();
 	}
@@ -2154,13 +2163,13 @@ void StickersListWidget::setSection(Section section) {
 	if (_section == section) {
 		return;
 	}
-	clearLottieData();
+	clearHeavyData();
 	_section = section;
 }
 
-void StickersListWidget::clearLottieData() {
+void StickersListWidget::clearHeavyData() {
 	for (auto &set : shownSets()) {
-		destroyLottieIn(set);
+		clearHeavyIn(set);
 	}
 	_lottieData.clear();
 }
@@ -2322,23 +2331,6 @@ void StickersListWidget::refreshFooterIcons() {
 }
 
 void StickersListWidget::preloadImages() {
-	auto &sets = shownSets();
-	for (int i = 0, l = sets.size(), k = 0; i < l; ++i) {
-		int count = sets[i].stickers.size();
-		if (sets[i].externalLayout) {
-			accumulate_min(count, _columnCount);
-		}
-		for (int j = 0; j != count; ++j) {
-			if (++k > _columnCount * (_columnCount + 1)) break;
-
-			const auto document = sets[i].stickers[j].document;
-			const auto &media = sets[i].stickers[j].documentMedia;
-			if (!document || !document->sticker()) continue;
-
-			media->checkStickerSmall();
-		}
-		if (k > _columnCount * (_columnCount + 1)) break;
-	}
 	if (_footer) {
 		_footer->preloadImages();
 	}
@@ -2428,8 +2420,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 			}
 		} else if (!_favedStickersMap.contains(document)) {
 			result.push_back(Sticker{
-				document,
-				document->createMediaView()
+				document
 			});
 			_custom.push_back(custom);
 		}

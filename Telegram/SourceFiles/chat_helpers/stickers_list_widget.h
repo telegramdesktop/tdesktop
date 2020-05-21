@@ -157,6 +157,8 @@ private:
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *animated = nullptr;
+
+		void ensureMediaCreated();
 	};
 
 	struct Set {
@@ -265,10 +267,10 @@ private:
 	void markLottieFrameShown(Set &set);
 	void checkVisibleLottie();
 	void pauseInvisibleLottieIn(const SectionInfo &info);
-	void destroyLottieIn(Set &set);
+	void clearHeavyIn(Set &set);
 	void refillLottieData();
 	void refillLottieData(Set &set);
-	void clearLottieData();
+	void clearHeavyData();
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
