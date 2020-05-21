@@ -365,6 +365,7 @@ protected:
 
 private:
 	void ensureDocumentMediaCreated();
+	void validateThumbnail();
 
 	ClickHandlerPtr _photol;
 
@@ -375,6 +376,7 @@ private:
 	int _pixw = 0;
 	int _pixh = 0;
 	Ui::Text::String _text = { st::msgMinWidth };
+	QPixmap _thumbnail;
 
 	struct LinkEntry {
 		LinkEntry() : width(0) {

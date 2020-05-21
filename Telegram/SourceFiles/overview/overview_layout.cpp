@@ -1551,51 +1551,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	const auto pixLeft = 0;
 	const auto pixTop = st::linksMargin.top() + st::linksBorder;
 	if (clip.intersects(style::rtlrect(0, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width))) {
-		if (_page && _page->photo) {
-			QPixmap pix;
-			if (_page->photo->thumbnail()->loaded()) {
-				pix = _page->photo->thumbnail()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-			} else if (_page->photo->loaded()) {
-				pix = _page->photo->large()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-			} else if (_page->photo->thumbnailSmall()->loaded()) {
-				pix = _page->photo->thumbnailSmall()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-			} else if (const auto blurred = _page->photo->thumbnailInline()) {
-				pix = blurred->pixBlurredSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-			}
-			p.drawPixmapLeft(pixLeft, pixTop, _width, pix);
-		} else if (_page && _page->document && _page->document->hasThumbnail()) {
-			ensureDocumentMediaCreated();
-			if (const auto thumbnail = _documentMedia->thumbnail()) {
-				auto roundRadius = _page->document->isVideoMessage()
-					? ImageRoundRadius::Ellipse
-					: ImageRoundRadius::Small;
-				p.drawPixmapLeft(pixLeft, pixTop, _width, thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
-			}
-		} else {
-			const auto index = _letter.isEmpty()
-				? 0
-				: (_letter[0].unicode() % 4);
-			const auto fill = [&](style::color color, RoundCorners corners) {
-				auto pixRect = style::rtlrect(
-					pixLeft,
-					pixTop,
-					st::linksPhotoSize,
-					st::linksPhotoSize,
-					_width);
-				App::roundRect(p, pixRect, color, corners);
-			};
-			switch (index) {
-			case 0: fill(st::msgFile1Bg, Doc1Corners); break;
-			case 1: fill(st::msgFile2Bg, Doc2Corners); break;
-			case 2: fill(st::msgFile3Bg, Doc3Corners); break;
-			case 3: fill(st::msgFile4Bg, Doc4Corners); break;
-			}
-
-			if (!_letter.isEmpty()) {
-				p.setFont(st::linksLetterFont);
-				p.setPen(st::linksLetterFg);
-				p.drawText(style::rtlrect(pixLeft, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width), _letter, style::al_center);
-			}
+		validateThumbnail();
+		if (!_thumbnail.isNull()) {
+			p.drawPixmap(pixLeft, pixTop, _thumbnail);
 		}
 	}
 
@@ -1644,6 +1602,65 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	const auto checkLeft = pixLeft + checkDelta;
 	const auto checkTop = pixTop + checkDelta;
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
+}
+
+void Link::validateThumbnail() {
+	if (!_thumbnail.isNull()) {
+		return;
+	}
+	if (_page && _page->photo) {
+		if (_page->photo->thumbnail()->loaded()) {
+			_thumbnail = _page->photo->thumbnail()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (_page->photo->loaded()) {
+			_thumbnail = _page->photo->large()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (_page->photo->thumbnailSmall()->loaded()) {
+			_thumbnail = _page->photo->thumbnailSmall()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (const auto blurred = _page->photo->thumbnailInline()) {
+			_thumbnail = blurred->pixBlurredSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else {
+			return;
+		}
+	} else if (_page && _page->document && _page->document->hasThumbnail()) {
+		ensureDocumentMediaCreated();
+		if (const auto thumbnail = _documentMedia->thumbnail()) {
+			auto roundRadius = _page->document->isVideoMessage()
+				? ImageRoundRadius::Ellipse
+				: ImageRoundRadius::Small;
+			_thumbnail = thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
+			_documentMedia = nullptr;
+		}
+	} else {
+		const auto size = QSize(st::linksPhotoSize, st::linksPhotoSize);
+		_thumbnail = QPixmap(size * cIntRetinaFactor());
+		_thumbnail.fill(Qt::transparent);
+		auto p = Painter(&_thumbnail);
+		const auto index = _letter.isEmpty()
+			? 0
+			: (_letter[0].unicode() % 4);
+		const auto fill = [&](style::color color, RoundCorners corners) {
+			auto pixRect = QRect(
+				0,
+				0,
+				st::linksPhotoSize,
+				st::linksPhotoSize);
+			App::roundRect(p, pixRect, color, corners);
+		};
+		switch (index) {
+		case 0: fill(st::msgFile1Bg, Doc1Corners); break;
+		case 1: fill(st::msgFile2Bg, Doc2Corners); break;
+		case 2: fill(st::msgFile3Bg, Doc3Corners); break;
+		case 3: fill(st::msgFile4Bg, Doc4Corners); break;
+		}
+
+		if (!_letter.isEmpty()) {
+			p.setFont(st::linksLetterFont);
+			p.setPen(st::linksLetterFg);
+			p.drawText(
+				QRect(0, 0, st::linksPhotoSize, st::linksPhotoSize),
+				_letter,
+				style::al_center);
+		}
+	}
 }
 
 void Link::ensureDocumentMediaCreated() {
