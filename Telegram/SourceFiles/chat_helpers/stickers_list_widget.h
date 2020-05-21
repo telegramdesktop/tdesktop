@@ -67,7 +67,7 @@ public:
 
 	void refreshStickers();
 
-	void fillIcons(QList<StickerIcon> &icons);
+	std::vector<StickerIcon> fillIcons();
 	bool preventAutoHide();
 
 	uint64 currentSet(int yOffset) const;
