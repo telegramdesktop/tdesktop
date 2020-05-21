@@ -14,7 +14,8 @@ class ItemBase;
 
 class Delegate {
 public:
-	virtual void registerHeavyItem(not_null<ItemBase*> item) = 0;
+	virtual void registerHeavyItem(not_null<const ItemBase*> item) = 0;
+	virtual void unregisterHeavyItem(not_null<const ItemBase*> item) = 0;
 
 };
 

@@ -804,8 +804,19 @@ void ListWidget::invalidatePaletteCache() {
 	}
 }
 
-void ListWidget::registerHeavyItem(not_null<BaseLayout*> item) {
-	_heavyLayouts.emplace(item);
+void ListWidget::registerHeavyItem(not_null<const BaseLayout*> item) {
+	if (!_heavyLayouts.contains(item)) {
+		_heavyLayouts.emplace(item);
+		_heavyLayoutsInvalidated = true;
+	}
+}
+
+void ListWidget::unregisterHeavyItem(not_null<const BaseLayout*> item) {
+	const auto i = _heavyLayouts.find(item);
+	if (i != _heavyLayouts.end()) {
+		_heavyLayouts.erase(i);
+		_heavyLayoutsInvalidated = true;
+	}
 }
 
 SparseIdsMergedSlice::Key ListWidget::sliceKey(
@@ -1114,17 +1125,24 @@ void ListWidget::clearHeavyItems() {
 	if (!visibleHeight) {
 		return;
 	}
+	_heavyLayoutsInvalidated = false;
 	const auto above = _visibleTop - visibleHeight;
 	const auto below = _visibleBottom + visibleHeight;
 	for (auto i = _heavyLayouts.begin(); i != _heavyLayouts.end();) {
-		const auto item = *i;
+		const auto item = const_cast<BaseLayout*>(i->get());
 		const auto rect = findItemDetails(item).geometry;
 		if (rect.top() + rect.height() <= above || rect.top() >= below) {
 			i = _heavyLayouts.erase(i);
 			item->clearHeavyPart();
+			if (_heavyLayoutsInvalidated) {
+				break;
+			}
 		} else {
 			++i;
 		}
+	}
+	if (_heavyLayoutsInvalidated) {
+		clearHeavyItems();
 	}
 }
 

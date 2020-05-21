@@ -210,6 +210,8 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void clearHeavyPart() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -243,6 +245,8 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+
+	void clearHeavyPart() override;
 
 protected:
 	float64 dataProgress() const override;
@@ -283,6 +287,8 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+
+	void clearHeavyPart() override;
 
 protected:
 	float64 dataProgress() const override;
@@ -333,6 +339,8 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+
+	void clearHeavyPart() override;
 
 protected:
 	const style::RoundCheckbox &checkboxStyle() const override;

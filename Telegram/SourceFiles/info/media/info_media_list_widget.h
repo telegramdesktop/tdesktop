@@ -76,7 +76,8 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	void registerHeavyItem(not_null<BaseLayout*> item) override;
+	void registerHeavyItem(not_null<const BaseLayout*> item) override;
+	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 
 private:
 	struct Context;
@@ -289,8 +290,9 @@ private:
 	int _idsLimit = kMinimalIdsLimit;
 	SparseIdsMergedSlice _slice;
 
-	base::flat_map<UniversalMsgId, CachedItem> _layouts;
-	base::flat_set<not_null<BaseLayout*>> _heavyLayouts;
+	std::unordered_map<UniversalMsgId, CachedItem> _layouts;
+	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
+	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
 
 	int _visibleTop = 0;

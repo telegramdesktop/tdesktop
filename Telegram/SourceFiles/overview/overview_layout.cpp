@@ -533,6 +533,11 @@ void Video::ensureDataMediaCreated() const {
 	_dataMedia = _data->createMediaView();
 	_dataMedia->goodThumbnailWanted();
 	_dataMedia->thumbnailWanted(parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
+void Video::clearHeavyPart() {
+	_dataMedia = nullptr;
 }
 
 float64 Video::dataProgress() const {
@@ -828,6 +833,11 @@ void Voice::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
+	delegate()->registerHeavyItem(this);
+}
+
+void Voice::clearHeavyPart() {
+	_dataMedia = nullptr;
 }
 
 float64 Voice::dataProgress() const {
@@ -1298,6 +1308,11 @@ void Document::ensureDataMediaCreated() const {
 	}
 	_dataMedia = _data->createMediaView();
 	_dataMedia->thumbnailWanted(parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
+void Document::clearHeavyPart() {
+	_dataMedia = nullptr;
 }
 
 float64 Document::dataProgress() const {
@@ -1613,6 +1628,7 @@ void Link::validateThumbnail() {
 				: ImageRoundRadius::Small;
 			_thumbnail = thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
 			_documentMedia = nullptr;
+			delegate()->unregisterHeavyItem(this);
 		}
 	} else {
 		const auto size = QSize(st::linksPhotoSize, st::linksPhotoSize);
@@ -1654,6 +1670,11 @@ void Link::ensureDocumentMediaCreated() {
 	}
 	_documentMedia = _page->document->createMediaView();
 	_documentMedia->thumbnailWanted(parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
+void Link::clearHeavyPart() {
+	_documentMedia = nullptr;
 }
 
 TextState Link::getState(
