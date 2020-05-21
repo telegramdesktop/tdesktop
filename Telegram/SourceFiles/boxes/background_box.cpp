@@ -55,26 +55,30 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 
 } // namespace
 
-class BackgroundBox::Inner : public Ui::RpWidget, private base::Subscriber {
+class BackgroundBox::Inner final
+	: public Ui::RpWidget
+	, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
 		not_null<Main::Session*> session);
+	~Inner();
 
 	rpl::producer<Data::WallPaper> chooseEvents() const;
 	rpl::producer<Data::WallPaper> removeRequests() const;
 
 	void removePaper(const Data::WallPaper &data);
 
-	~Inner();
-
-protected:
+private:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
-private:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	struct Paper {
 		Data::WallPaper data;
 		mutable std::shared_ptr<Data::DocumentMedia> dataMedia;
@@ -339,7 +343,6 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		original,
 		st::backgroundSize));
 	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
-	paper.dataMedia = nullptr;
 }
 
 void BackgroundBox::Inner::paintPaper(
@@ -454,11 +457,34 @@ void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			if (base::get_if<DeleteSelected>(&_over)) {
 				_backgroundRemove.fire_copy(_papers[index].data);
 			} else if (base::get_if<Selected>(&_over)) {
-				_backgroundChosen.fire_copy(_papers[index].data);
+				auto &paper = _papers[index];
+				if (!paper.dataMedia) {
+					if (const auto document = paper.data.document()) {
+						// Keep it alive while it is on the screen.
+						paper.dataMedia = document->createMediaView();
+					}
+				}
+				_backgroundChosen.fire_copy(paper.data);
 			}
 		}
 	} else if (!_over.has_value()) {
 		setCursor(style::cur_default);
+	}
+}
+
+void BackgroundBox::Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	for (auto i = 0, count = int(_papers.size()); i != count; ++i) {
+		const auto row = (i / kBackgroundsInRow);
+		const auto height = st::backgroundSize.height();
+		const auto skip = st::backgroundPadding;
+		const auto top = skip + row * (height + skip);
+		const auto bottom = top + height;
+		if ((bottom <= visibleTop || top >= visibleBottom)
+			&& !_papers[i].thumbnail.isNull()) {
+			_papers[i].dataMedia = nullptr;
+		}
 	}
 }
 
