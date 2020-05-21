@@ -140,11 +140,6 @@ void Checkbox::startAnimation() {
 	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
 }
 
-MsgId AbstractItem::msgId() const {
-	auto item = getItem();
-	return item ? item->id : 0;
-}
-
 ItemBase::ItemBase(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent)
@@ -293,25 +288,6 @@ void StatusText::update(int newSize, int fullSize, int duration, crl::time realD
 
 void StatusText::setSize(int newSize) {
 	_size = newSize;
-}
-
-Date::Date(const QDate &date, bool month)
-: _date(date)
-, _text(month ? langMonthFull(date) : langDayOfMonthFull(date)) {
-	AddComponents(Info::Bit());
-}
-
-void Date::initDimensions() {
-	_maxw = st::normalFont->width(_text);
-	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
-}
-
-void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
-	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
-		p.setPen(st::linksDateColor);
-		p.setFont(st::semiboldFont);
-		p.drawTextLeft(0, st::linksDateMargin.top(), _width, _text);
-	}
 }
 
 Photo::Photo(

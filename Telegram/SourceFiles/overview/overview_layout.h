@@ -37,34 +37,16 @@ public:
 
 };
 
-class AbstractItem : public LayoutItemBase {
-public:
-	virtual void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) = 0;
-
-	virtual ItemBase *toMediaItem() {
-		return nullptr;
-	}
-	virtual const ItemBase *toMediaItem() const {
-		return nullptr;
-	}
-
-	virtual HistoryItem *getItem() const {
-		return nullptr;
-	}
-	virtual DocumentData *getDocument() const {
-		return nullptr;
-	}
-	MsgId msgId() const;
-
-	virtual void invalidateCache() {
-	}
-
-};
-
-class ItemBase : public AbstractItem {
+class ItemBase : public LayoutItemBase {
 public:
 	ItemBase(not_null<Delegate*> delegate, not_null<HistoryItem*> parent);
 	~ItemBase();
+
+	virtual void paint(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		const PaintContext *context) = 0;
 
 	QDateTime dateTime() const;
 
@@ -75,20 +57,14 @@ public:
 		return _position;
 	}
 
-	ItemBase *toMediaItem() final override {
-		return this;
-	}
-	const ItemBase *toMediaItem() const final override {
-		return this;
-	}
-	HistoryItem *getItem() const final override {
+	HistoryItem *getItem() const {
 		return _parent;
 	}
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
-	void invalidateCache() override;
+	void invalidateCache();
 
 	virtual void clearHeavyPart() {
 	}
@@ -192,19 +168,6 @@ private:
 
 struct Info : public RuntimeComponent<Info, LayoutItemBase> {
 	int top = 0;
-};
-
-class Date : public AbstractItem {
-public:
-	Date(const QDate &date, bool month);
-
-	void initDimensions() override;
-	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-
-private:
-	QDate _date;
-	QString _text;
-
 };
 
 class Photo final : public ItemBase {
@@ -320,10 +283,6 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
-
-	DocumentData *getDocument() const override {
-		return _data;
-	}
 
 protected:
 	float64 dataProgress() const override;

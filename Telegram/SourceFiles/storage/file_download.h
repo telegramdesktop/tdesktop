@@ -112,6 +112,10 @@ public:
 		return _updates.events();
 	}
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 protected:
 	enum class LocalStatus {
 		NotTried,
@@ -138,7 +142,6 @@ protected:
 	[[nodiscard]] QByteArray readLoadedPartBack(int offset, int size);
 
 	const not_null<Main::Session*> _session;
-	rpl::event_stream<rpl::empty_value, bool> _updates;
 
 	bool _autoLoading = false;
 	uint8 _cacheTag = 0;
@@ -162,6 +165,9 @@ protected:
 	base::binary_guard _localLoading;
 	mutable QByteArray _imageFormat;
 	mutable QImage _imageData;
+
+	rpl::lifetime _lifetime;
+	rpl::event_stream<rpl::empty_value, bool> _updates;
 
 };
 

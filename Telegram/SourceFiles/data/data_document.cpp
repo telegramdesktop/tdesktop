@@ -689,7 +689,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		_thumbnailLoader = nullptr;
 		_flags |= Flag::ThumbnailFailed;
 	}, [=] {
-		if (!_thumbnailLoader->cancelled()) {
+		if (_thumbnailLoader && !_thumbnailLoader->cancelled()) {
 			if (auto image = _thumbnailLoader->imageData(); image.isNull()) {
 				_flags |= Flag::ThumbnailFailed;
 			} else if (const auto active = activeMediaView()) {
@@ -697,7 +697,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 			}
 		}
 		_thumbnailLoader = nullptr;
-	}) | rpl::release();
+	}, _thumbnailLoader->lifetime());
 
 	_thumbnailLoader->start();
 }
@@ -806,7 +806,7 @@ void DocumentData::finishLoad() {
 	const auto guard = gsl::finally([&] {
 		destroyLoader();
 	});
-	if (_loader->cancelled()) {
+	if (!_loader || _loader->cancelled()) {
 		_flags |= Flag::DownloadCancelled;
 		return;
 	}
@@ -1004,7 +1004,7 @@ void DocumentData::handleLoaderUpdates() {
 	) | rpl::start_with_next_error_done([=] {
 		_owner->documentLoadProgress(this);
 	}, [=](bool started) {
-		if (started) {
+		if (started && _loader) {
 			const auto origin = _loader->fileOrigin();
 			const auto failedFileName = _loader->fileName();
 			const auto retry = [=] {
@@ -1035,7 +1035,7 @@ void DocumentData::handleLoaderUpdates() {
 	}, [=] {
 		finishLoad();
 		_owner->documentLoadDone(this);
-	}) | rpl::release();
+	}, _loader->lifetime());
 
 }
 

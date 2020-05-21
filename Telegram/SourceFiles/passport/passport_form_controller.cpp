@@ -1745,7 +1745,7 @@ void FormController::loadFile(File &file) {
 		fileLoadFail(key);
 	}, [=] {
 		fileLoadDone(key, loader->bytes());
-	}) | rpl::release();
+	}, loader->lifetime());
 	loader->start();
 }
 
