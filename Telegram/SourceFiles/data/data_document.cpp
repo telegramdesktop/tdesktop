@@ -627,11 +627,13 @@ void DocumentData::updateThumbnails(
 			loadThumbnail(origin);
 		}
 		if (!thumbnail.bytes.isEmpty()) {
-			owner().cache().putIfEmpty(
-				_thumbnailLocation.file().cacheKey(),
-				Storage::Cache::Database::TaggedValue(
-					base::duplicate(thumbnail.bytes),
-					Data::kImageCacheTag));
+			if (const auto cacheKey = _thumbnailLocation.file().cacheKey()) {
+				owner().cache().putIfEmpty(
+					cacheKey,
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(thumbnail.bytes),
+						Data::kImageCacheTag));
+			}
 		}
 	}
 }

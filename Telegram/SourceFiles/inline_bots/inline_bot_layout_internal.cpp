@@ -133,10 +133,12 @@ int Gif::resizeGetHeight(int width) {
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
+	const auto displayLoading = document->displayLoading();
+
 	ensureDataMediaCreated(document);
 	_dataMedia->automaticLoad(fileOrigin(), nullptr);
 
-	bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
+	bool loaded = _dataMedia->loaded(), loading = document->loading();
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()

@@ -27,6 +27,7 @@ private:
 
 	std::unique_ptr<Image> _image;
 	bool _good = false;
+	bool _checked = false;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	std::shared_ptr<DocumentMedia> _documentMedia;

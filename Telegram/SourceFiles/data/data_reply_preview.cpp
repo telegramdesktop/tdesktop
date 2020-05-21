@@ -17,8 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 ReplyPreview::ReplyPreview(not_null<DocumentData*> document)
-: _document(document)
-, _documentMedia(_document->createMediaView()) {
+: _document(document) {
 }
 
 ReplyPreview::ReplyPreview(not_null<PhotoData*> photo)
@@ -59,7 +58,13 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 }
 
 Image *ReplyPreview::image(Data::FileOrigin origin) {
+	if (_checked) {
+		return _image.get();
+	}
 	if (_document) {
+		if (!_documentMedia) {
+			_documentMedia = _document->createMediaView();
+		}
 		const auto thumbnail = _documentMedia->thumbnail();
 		if (!_image || (!_good && thumbnail)) {
 			const auto option = _document->isVideoMessage()
@@ -72,6 +77,10 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 				if (const auto image = _documentMedia->thumbnailInline()) {
 					prepare(image, option | Images::Option::Blurred);
 				}
+			}
+			if (thumbnail || !_document->hasThumbnail()) {
+				_checked = true;
+				_documentMedia = nullptr;
 			}
 		}
 	} else {
