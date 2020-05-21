@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "overview/overview_layout.h"
 
+#include "overview/overview_layout_delegate.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
@@ -144,10 +145,15 @@ MsgId AbstractItem::msgId() const {
 	return item ? item->id : 0;
 }
 
-ItemBase::ItemBase(not_null<HistoryItem*> parent)
-: _parent(parent)
+ItemBase::ItemBase(
+	not_null<Delegate*> delegate,
+	not_null<HistoryItem*> parent)
+: _delegate(delegate)
+, _parent(parent)
 , _dateTime(ItemDateTime(parent)) {
 }
+
+ItemBase::~ItemBase() = default;
 
 QDateTime ItemBase::dateTime() const {
 	return _dateTime;
@@ -203,8 +209,6 @@ void ItemBase::ensureCheckboxCreated() {
 	};
 	_check = std::make_unique<Checkbox>(repaint, checkboxStyle());
 }
-
-ItemBase::~ItemBase() = default;
 
 void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
@@ -311,9 +315,10 @@ void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 }
 
 Photo::Photo(
+	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<PhotoData*> photo)
-: ItemBase(parent)
+: ItemBase(delegate, parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
 	if (!_data->thumbnailInline()) {
@@ -413,9 +418,10 @@ TextState Photo::getState(
 }
 
 Video::Video(
+	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> video)
-: RadialProgressItem(parent)
+: RadialProgressItem(delegate, parent)
 , _data(video)
 , _duration(formatDurationText(_data->getDuration())) {
 	setDocumentLinks(_data);
@@ -610,10 +616,11 @@ void Video::updateStatusText() {
 }
 
 Voice::Voice(
+	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> voice,
 	const style::OverviewFileLayout &st)
-: RadialProgressItem(parent)
+: RadialProgressItem(delegate, parent)
 , _data(voice)
 , _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
@@ -914,10 +921,11 @@ bool Voice::updateStatusText() {
 }
 
 Document::Document(
+	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
 	const style::OverviewFileLayout &st)
-: RadialProgressItem(parent)
+: RadialProgressItem(delegate, parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
 , _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
@@ -1377,9 +1385,10 @@ bool Document::updateStatusText() {
 }
 
 Link::Link(
+	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	Data::Media *media)
-: ItemBase(parent) {
+: ItemBase(delegate, parent) {
 	AddComponents(Info::Bit());
 
 	auto textWithEntities = parent->originalText();

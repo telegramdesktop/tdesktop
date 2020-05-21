@@ -26,6 +26,8 @@ namespace Overview {
 namespace Layout {
 
 class Checkbox;
+class ItemBase;
+class Delegate;
 
 class PaintContext : public PaintContextBase {
 public:
@@ -35,7 +37,6 @@ public:
 
 };
 
-class ItemBase;
 class AbstractItem : public LayoutItemBase {
 public:
 	virtual void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) = 0;
@@ -62,7 +63,8 @@ public:
 
 class ItemBase : public AbstractItem {
 public:
-	ItemBase(not_null<HistoryItem*> parent);
+	ItemBase(not_null<Delegate*> delegate, not_null<HistoryItem*> parent);
+	~ItemBase();
 
 	QDateTime dateTime() const;
 
@@ -88,11 +90,15 @@ public:
 
 	void invalidateCache() override;
 
-	~ItemBase();
+	virtual void clearHeavyPart() {
+	}
 
 protected:
-	not_null<HistoryItem*> parent() const {
+	[[nodiscard]] not_null<HistoryItem*> parent() const {
 		return _parent;
+	}
+	[[nodiscard]] not_null<Delegate*> delegate() const {
+		return _delegate;
 	}
 	void paintCheckbox(
 		Painter &p,
@@ -104,16 +110,20 @@ protected:
 private:
 	void ensureCheckboxCreated();
 
-	int _position = 0;
+	const not_null<Delegate*> _delegate;
 	const not_null<HistoryItem*> _parent;
 	const QDateTime _dateTime;
 	std::unique_ptr<Checkbox> _check;
+	int _position = 0;
 
 };
 
 class RadialProgressItem : public ItemBase {
 public:
-	RadialProgressItem(not_null<HistoryItem*> parent) : ItemBase(parent) {
+	RadialProgressItem(
+		not_null<Delegate*> delegate,
+		not_null<HistoryItem*> parent)
+	: ItemBase(delegate, parent) {
 	}
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
@@ -197,9 +207,10 @@ private:
 
 };
 
-class Photo : public ItemBase {
+class Photo final : public ItemBase {
 public:
 	Photo(
+		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<PhotoData*> photo);
 
@@ -224,6 +235,7 @@ private:
 class Video final : public RadialProgressItem {
 public:
 	Video(
+		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> video);
 	~Video();
@@ -258,6 +270,7 @@ private:
 class Voice final : public RadialProgressItem {
 public:
 	Voice(
+		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> voice,
 		const style::OverviewFileLayout &st);
@@ -297,6 +310,7 @@ private:
 class Document final : public RadialProgressItem {
 public:
 	Document(
+		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
 		const style::OverviewFileLayout &st);
@@ -350,6 +364,7 @@ private:
 class Link final : public ItemBase {
 public:
 	Link(
+		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		Data::Media *media);
 
