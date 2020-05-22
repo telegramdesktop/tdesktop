@@ -379,15 +379,18 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		}
 	} else if (const auto document = item->getDocument()) {
 		const auto media = document->activeMediaView();
-		if ((media && media->loaded())
+		const auto preview = Data::VideoPreviewState(media.get());
+		if ((media && preview.loaded())
 			|| QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
 			_fileChosen.fire_copy(document);
-		} else if (document->loading()) {
-			document->cancel();
-		} else {
-			document->save(
-				document->stickerOrGifOrigin(),
-				QString());
+		} else if (!preview.usingThumbnail()) {
+			if (preview.loading()) {
+				document->cancel();
+			} else {
+				document->save(
+					document->stickerOrGifOrigin(),
+					QString());
+			}
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
