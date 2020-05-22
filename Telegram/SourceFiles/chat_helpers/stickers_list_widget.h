@@ -157,6 +157,7 @@ private:
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *animated = nullptr;
+		QPixmap savedFrame;
 
 		void ensureMediaCreated();
 	};
@@ -168,8 +169,8 @@ private:
 			const QString &title,
 			const QString &shortName,
 			ImagePtr thumbnail,
-			bool externalLayout,
 			int count,
+			bool externalLayout,
 			std::vector<Sticker> &&stickers = {});
 		Set(Set &&other);
 		Set &operator=(Set &&other);
@@ -182,24 +183,17 @@ private:
 		ImagePtr thumbnail;
 		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
-		Lottie::MultiPlayer *lottiePlayer = nullptr;
-		bool externalLayout = false;
+
+		std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
+		rpl::lifetime lottieLifetime;
+
 		int count = 0;
+		bool externalLayout = false;
 	};
 	struct FeaturedSet {
 		uint64 id = 0;
 		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
 		std::vector<Sticker> stickers;
-	};
-	struct LottieSet {
-		struct Item {
-			not_null<Lottie::Animation*> animation;
-			bool stale = false;
-		};
-		std::unique_ptr<Lottie::MultiPlayer> player;
-		base::flat_map<DocumentId, Item> items;
-		bool stale = false;
-		rpl::lifetime lifetime;
 	};
 
 	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
@@ -267,9 +261,10 @@ private:
 	void markLottieFrameShown(Set &set);
 	void checkVisibleLottie();
 	void pauseInvisibleLottieIn(const SectionInfo &info);
-	void clearHeavyIn(Set &set);
-	void refillLottieData();
-	void refillLottieData(Set &set);
+	void takeHeavyData(std::vector<Set> &to, std::vector<Set> &from);
+	void takeHeavyData(Set &to, Set &from);
+	void takeHeavyData(Sticker &to, Sticker &from);
+	void clearHeavyIn(Set &set, bool clearSavedFrames = true);
 	void clearHeavyData();
 
 	int stickersRight() const;
@@ -360,8 +355,6 @@ private:
 	base::Timer _searchRequestTimer;
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
-
-	base::flat_map<uint64, LottieSet> _lottieData;
 
 	rpl::event_stream<not_null<DocumentData*>> _chosen;
 	rpl::event_stream<> _scrollUpdated;
