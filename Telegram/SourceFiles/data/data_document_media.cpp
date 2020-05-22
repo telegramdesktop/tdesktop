@@ -85,6 +85,56 @@ enum class FileType {
 
 } // namespace
 
+VideoPreviewState::VideoPreviewState(DocumentMedia *media)
+: _media(media)
+, _usingThumbnail(media ? media->owner()->hasVideoThumbnail() : false) {
+}
+
+void VideoPreviewState::automaticLoad(Data::FileOrigin origin) const {
+	Expects(_media != nullptr);
+
+	if (_usingThumbnail) {
+		_media->videoThumbnailWanted(origin);
+	} else {
+		_media->automaticLoad(origin, nullptr);
+	}
+}
+
+::Media::Clip::ReaderPointer VideoPreviewState::makeAnimation(
+		Fn<void(::Media::Clip::Notification)> callback) const {
+	Expects(_media != nullptr);
+	Expects(loaded());
+
+	return _usingThumbnail
+		? ::Media::Clip::MakeReader(
+			_media->videoThumbnailContent(),
+			std::move(callback))
+		: ::Media::Clip::MakeReader(
+			_media,
+			FullMsgId(),
+			std::move(callback));
+}
+
+bool VideoPreviewState::usingThumbnail() const {
+	return _usingThumbnail;
+}
+
+bool VideoPreviewState::loading() const {
+	return _usingThumbnail
+		? _media->owner()->videoThumbnailLoading()
+		: _media
+		? _media->owner()->loading()
+		: false;
+}
+
+bool VideoPreviewState::loaded() const {
+	return _usingThumbnail
+		? !_media->videoThumbnailContent().isEmpty()
+		: _media
+		? _media->loaded()
+		: false;
+}
+
 DocumentMedia::DocumentMedia(not_null<DocumentData*> owner)
 : _owner(owner) {
 }

@@ -453,6 +453,7 @@ DocumentData::DocumentData(not_null<Data::Session*> owner, DocumentId id)
 
 DocumentData::~DocumentData() {
 	base::take(_thumbnailLoader).reset();
+	base::take(_videoThumbnailLoader).reset();
 	destroyLoader();
 	unload();
 }
@@ -672,7 +673,9 @@ bool DocumentData::thumbnailFailed() const {
 }
 
 void DocumentData::loadThumbnail(Data::FileOrigin origin) {
-	if (_thumbnailLoader || (_flags & Flag::ThumbnailFailed)) {
+	if (_thumbnailLoader
+		|| (_flags & Flag::ThumbnailFailed)
+		|| !_thumbnailLocation.valid()) {
 		return;
 	} else if (const auto active = activeMediaView()) {
 		if (active->thumbnail()) {
@@ -728,7 +731,9 @@ bool DocumentData::videoThumbnailFailed() const {
 }
 
 void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
-	if (_videoThumbnailLoader || (_flags & Flag::VideoThumbnailFailed)) {
+	if (_videoThumbnailLoader
+		|| (_flags & Flag::VideoThumbnailFailed)
+		|| !_videoThumbnailLocation.valid()) {
 		return;
 	} else if (const auto active = activeMediaView()) {
 		if (!active->videoThumbnailContent().isEmpty()) {

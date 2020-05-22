@@ -134,41 +134,28 @@ int Gif::resizeGetHeight(int width) {
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
 	const auto displayLoading = document->displayLoading();
-	const auto useVideoThumbnail = document->hasVideoThumbnail();
 	ensureDataMediaCreated(document);
-	if (!useVideoThumbnail) {
-		_dataMedia->automaticLoad(fileOrigin(), nullptr);
-	}
+	const auto preview = Data::VideoPreviewState(_dataMedia.get());
+	preview.automaticLoad(fileOrigin());
 
-	const auto loaded = useVideoThumbnail
-		? !_dataMedia->videoThumbnailContent().isEmpty()
-		: _dataMedia->loaded();
-	const auto loading = useVideoThumbnail
-		? document->videoThumbnailLoading()
-		: document->loading();
+	const auto loaded = preview.loaded();
+	const auto loading = preview.loading();
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()
 		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
-		const auto callback = [=](Media::Clip::Notification notification) {
+		that->_gif = preview.makeAnimation([=](
+				Media::Clip::Notification notification) {
 			that->clipCallback(notification);
-		};
-		that->_gif = useVideoThumbnail
-			? Media::Clip::MakeReader(
-				_dataMedia->videoThumbnailContent(),
-				callback)
-			: Media::Clip::MakeReader(
-				_dataMedia.get(),
-				FullMsgId(),
-				callback);
+		});
 	}
 
 	const auto animating = (_gif && _gif->started());
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_dataMedia->progress()); // #TODO video_thumbs
+			_animation->radial.start(_dataMedia->progress());
 		}
 	}
 	const auto radial = isRadialAnimation();
@@ -192,12 +179,15 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 			p.drawPixmap(r.topLeft(), _thumb);
 		}
 	}
-	if (useVideoThumbnail) {
-		AssertIsDebug();
+
+	AssertIsDebug();
+	if (preview.usingThumbnail()) {
 		p.fillRect(QRect(r.topLeft(), QSize(20, 20)), Qt::green);
 	}
 
-	if (radial || _gif.isBad() || (!_gif && !loaded && !loading)) {
+	if (radial
+		|| _gif.isBad()
+		|| (!_gif && !loaded && !loading && !preview.usingThumbnail())) {
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
 		if (_animation && _animation->_a_over.animating()) {
 			auto over = _animation->_a_over.value(1.);
@@ -269,10 +259,11 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		bool wasactive = (_state & StateFlag::Over);
 		if (active != wasactive) {
 			ensureDataMediaCreated(getShownDocument());
-			if (!_dataMedia->loaded()) { // #TODO video_thumbs
+			const auto preview = Data::VideoPreviewState(_dataMedia.get());
+			if (!preview.usingThumbnail() && !preview.loaded()) {
 				ensureAnimation();
 				auto from = active ? 0. : 1., to = active ? 1. : 0.;
-				_animation->_a_over.start([this] { update(); }, from, to, st::stickersRowDuration);
+				_animation->_a_over.start([=] { update(); }, from, to, st::stickersRowDuration);
 			}
 			if (active) {
 				_state |= StateFlag::Over;
@@ -369,7 +360,8 @@ bool Gif::isRadialAnimation() const {
 			return true;
 		} else {
 			ensureDataMediaCreated(getShownDocument());
-			if (_dataMedia->loaded()) { // #TODO video_thumbs
+			const auto preview = Data::VideoPreviewState(_dataMedia.get());
+			if (preview.usingThumbnail() || preview.loaded()) {
 				_animation = nullptr;
 			}
 		}
@@ -382,7 +374,7 @@ void Gif::radialAnimationCallback(crl::time now) const {
 	ensureDataMediaCreated(document);
 	const auto updated = [&] {
 		return _animation->radial.update(
-			_dataMedia->progress(), // #TODO video_thumbs
+			_dataMedia->progress(),
 			!document->loading() || _dataMedia->loaded(),
 			now);
 	}();

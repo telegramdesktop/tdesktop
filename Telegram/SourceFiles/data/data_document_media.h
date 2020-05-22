@@ -11,7 +11,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class FileLoader;
 
+namespace Media {
+namespace Clip {
+enum Notification : int;
+class ReaderPointer;
+} // namespace Clip
+} // namespace Media
+
 namespace Data {
+
+class DocumentMedia;
+
+class VideoPreviewState final {
+public:
+	explicit VideoPreviewState(DocumentMedia *media);
+
+	void automaticLoad(Data::FileOrigin origin) const;
+	[[nodiscard]] ::Media::Clip::ReaderPointer makeAnimation(
+		Fn<void(::Media::Clip::Notification)> callback) const;
+	[[nodiscard]] bool usingThumbnail() const;
+	[[nodiscard]] bool loading() const;
+	[[nodiscard]] bool loaded() const;
+
+private:
+	DocumentMedia *_media = nullptr;
+	bool _usingThumbnail = false;
+
+};
 
 class DocumentMedia final {
 public:

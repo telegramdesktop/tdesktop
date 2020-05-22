@@ -275,14 +275,17 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 		_type == Type::Gif)) {
 		if (_type == Type::Gif) {
 			const auto media = _document->activeMediaView();
-			if (!media || media->loaded()) {
+			const auto preview = Data::VideoPreviewState(media.get());
+			if (!media || preview.loaded()) {
 				return true;
-			} else if (_document->loading()) {
-				_document->cancel();
-			} else {
-				DocumentSaveClickHandler::Save(
-					Data::FileOriginSavedGifs(),
-					_document);
+			} else if (!preview.usingThumbnail()) {
+				if (preview.loading()) {
+					_document->cancel();
+				} else {
+					DocumentSaveClickHandler::Save(
+						Data::FileOriginSavedGifs(),
+						_document);
+				}
 			}
 			return false;
 		}

@@ -40,13 +40,13 @@ struct FrameRequest {
 	RectParts corners = RectPart::AllCorners;
 };
 
-enum ReaderSteps {
+enum ReaderSteps : int {
 	WaitingForDimensionsStep = -3, // before ReaderPrivate read the first image and got the original frame size
 	WaitingForRequestStep = -2, // before Reader got the original frame size and prepared the frame request
 	WaitingForFirstFrameStep = -1, // before ReaderPrivate got the frame request and started waiting for the 1-2 delay
 };
 
-enum Notification {
+enum Notification : int {
 	NotificationReinit,
 	NotificationRepaint,
 };
