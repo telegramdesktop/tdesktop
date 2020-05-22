@@ -431,9 +431,14 @@ TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 
 void GifsListWidget::processHideFinished() {
 	clearSelection();
+	clearHeavyData();
 }
 
 void GifsListWidget::processPanelHideFinished() {
+	clearHeavyData();
+}
+
+void GifsListWidget::clearHeavyData() {
 	const auto itemForget = [](const auto &item) {
 		if (const auto document = item->getDocument()) {
 			document->unload();

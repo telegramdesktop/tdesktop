@@ -163,8 +163,11 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 
 	QRect r(0, 0, _width, height);
 	if (animating) {
-		if (!_thumb.isNull()) _thumb = QPixmap();
-		auto pixmap = _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
+		const auto pixmap = _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
+		if (_thumb.isNull()) {
+			_thumb = pixmap;
+			_thumbGood = true;
+		}
 		p.drawPixmap(r.topLeft(), pixmap);
 	} else {
 		prepareThumbnail({ _width, height }, frame);
@@ -372,13 +375,9 @@ void Gif::radialAnimationCallback(crl::time now) const {
 }
 
 void Gif::unloadHeavyPart() {
-	unloadAnimation();
+	_gif.reset();
 	getShownDocument()->unload();
 	_dataMedia = nullptr;
-}
-
-void Gif::unloadAnimation() {
-	_gif.reset();
 }
 
 void Gif::clipCallback(Media::Clip::Notification notification) {
@@ -394,14 +393,14 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 					getShownDocument()->dimensions = QSize(
 						_gif->width(),
 						_gif->height());
-					unloadAnimation();
+					_gif.reset();
 				} else {
 					auto height = st::inlineMediaHeight;
 					auto frame = countFrameSize();
 					_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
 				}
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
-				unloadAnimation();
+				unloadHeavyPart();
 			}
 		}
 
@@ -1377,9 +1376,12 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		radial = isRadialAnimation();
 
 		if (animating) {
-			if (!_thumb.isNull()) _thumb = QPixmap();
-			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
-			p.drawPixmapLeft(rthumb.topLeft(), _width, animationThumb);
+			const auto pixmap = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
+			if (_thumb.isNull()) {
+				_thumb = pixmap;
+				_thumbGood = true;
+			}
+			p.drawPixmapLeft(rthumb.topLeft(), _width, pixmap);
 			thumbDisplayed = true;
 		}
 	}
@@ -1518,13 +1520,9 @@ void Game::radialAnimationCallback(crl::time now) const {
 }
 
 void Game::unloadHeavyPart() {
-	unloadAnimation();
+	_gif.reset();
 	getResultDocument()->unload();
 	_dataMedia = nullptr;
-}
-
-void Game::unloadAnimation() {
-	_gif.reset();
 }
 
 void Game::clipCallback(Media::Clip::Notification notification) {
@@ -1540,7 +1538,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 					getResultDocument()->dimensions = QSize(
 						_gif->width(),
 						_gif->height());
-					unloadAnimation();
+					_gif.reset();
 				} else {
 					_gif->start(
 						_frameSize.width(),
@@ -1551,7 +1549,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 						RectPart::None);
 				}
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
-				unloadAnimation();
+				unloadHeavyPart();
 			}
 		}
 

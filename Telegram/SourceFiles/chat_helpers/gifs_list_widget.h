@@ -102,6 +102,7 @@ private:
 		InlineResults results;
 	};
 
+	void clearHeavyData();
 	void cancelGifsSearch();
 	void switchToSavedGifs();
 	void refreshSavedGifs();

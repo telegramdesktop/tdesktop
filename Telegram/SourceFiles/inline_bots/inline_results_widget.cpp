@@ -292,24 +292,26 @@ void Inner::clearSelection() {
 	update();
 }
 
-void Inner::hideFinish(bool completely) {
-	if (completely) {
-		const auto unload = [](const auto &item) {
-			if (const auto document = item->getDocument()) {
-				document->unload();
-			}
-			if (const auto photo = item->getPhoto()) {
-				photo->unload();
-			}
-			if (const auto result = item->getResult()) {
-				result->unload();
-			}
-			item->unloadHeavyPart();
-		};
-		clearInlineRows(false);
-		for (const auto &[result, layout] : _inlineLayouts) {
-			unload(layout);
+void Inner::hideFinished() {
+	clearHeavyData();
+}
+
+void Inner::clearHeavyData() {
+	const auto unload = [](const auto &item) {
+		if (const auto document = item->getDocument()) {
+			document->unload();
 		}
+		if (const auto photo = item->getPhoto()) {
+			photo->unload();
+		}
+		if (const auto result = item->getResult()) {
+			result->unload();
+		}
+		item->unloadHeavyPart();
+	};
+	clearInlineRows(false);
+	for (const auto &[result, layout] : _inlineLayouts) {
+		unload(layout);
 	}
 }
 
@@ -964,7 +966,7 @@ void Widget::hideFinished() {
 	_controller->disableGifPauseReason(
 		Window::GifPauseReason::InlineResults);
 
-	_inner->hideFinish(true);
+	_inner->hideFinished();
 	_a_show.stop();
 	_showAnimation.reset();
 	_cache = QPixmap();

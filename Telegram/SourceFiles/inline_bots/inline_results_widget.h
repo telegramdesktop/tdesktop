@@ -61,7 +61,7 @@ class Inner
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	void hideFinish(bool completely);
+	void hideFinished();
 
 	void clearSelection();
 
@@ -121,6 +121,7 @@ private:
 	void updateSelected();
 	void checkRestrictedPeer();
 	bool isRestrictedView();
+	void clearHeavyData();
 
 	void paintInlineItems(Painter &p, const QRect &r);
 

@@ -100,7 +100,6 @@ private:
 	};
 
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
-	void unloadAnimation();
 	QSize countFrameSize() const;
 
 	void validateThumbnail(
@@ -393,7 +392,6 @@ public:
 
 private:
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
-	void unloadAnimation();
 	void countFrameSize();
 
 	void prepareThumbnail(QSize size) const;
