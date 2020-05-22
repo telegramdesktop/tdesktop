@@ -112,11 +112,14 @@ public:
 private:
 	struct Streamed;
 
+	void validateVideoThumbnail() const;
+
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 
 	void ensureDataMediaCreated() const;
+	void dataMediaCreated() const;
 	void refreshCaption();
 
 	[[nodiscard]] bool autoplayEnabled() const;
@@ -171,6 +174,7 @@ private:
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 
 	QString _downloadSize;
 

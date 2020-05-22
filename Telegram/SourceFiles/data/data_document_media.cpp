@@ -139,6 +139,9 @@ DocumentMedia::DocumentMedia(not_null<DocumentData*> owner)
 : _owner(owner) {
 }
 
+// NB! Right now DocumentMedia can outlive Main::Session!
+// In DocumentData::collectLocalData a shared_ptr is sent on_main.
+// In case this is a problem the ~Gif code should be rewritten.
 DocumentMedia::~DocumentMedia() = default;
 
 not_null<DocumentData*> DocumentMedia::owner() const {
@@ -289,6 +292,28 @@ void DocumentMedia::automaticLoad(
 		filename,
 		loadFromCloud,
 		true);
+}
+
+void DocumentMedia::collectLocalData(not_null<DocumentMedia*> local) {
+	if (const auto image = local->_goodThumbnail.get()) {
+		_goodThumbnail = std::make_unique<Image>(
+			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+	}
+	if (const auto image = local->_inlineThumbnail.get()) {
+		_inlineThumbnail = std::make_unique<Image>(
+			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+	}
+	if (const auto image = local->_thumbnail.get()) {
+		_thumbnail = std::make_unique<Image>(
+			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+	}
+	if (const auto image = local->_sticker.get()) {
+		_sticker = std::make_unique<Image>(
+			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+	}
+	_bytes = local->_bytes;
+	_videoThumbnailBytes = local->_videoThumbnailBytes;
+	_flags = local->_flags;
 }
 
 void DocumentMedia::setBytes(const QByteArray &bytes) {

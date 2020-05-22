@@ -85,7 +85,14 @@ Gif::Gif(
 	setStatusSize(FileStatusSizeReady);
 
 	refreshCaption();
-	_data->loadThumbnail(realParent->fullId());
+	if ((_dataMedia = _data->activeMediaView())) {
+		dataMediaCreated();
+	} else {
+		_data->loadThumbnail(realParent->fullId());
+		if (!autoplayEnabled()) {
+			_data->loadVideoThumbnail(realParent->fullId());
+		}
+	}
 }
 
 Gif::~Gif() {
@@ -427,7 +434,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 				}
 			} else {
 				_data->loadThumbnail(_realParent->fullId());
-				if (const auto blurred = _dataMedia->thumbnailInline()) {
+				validateVideoThumbnail();
+				if (_videoThumbnailFrame) {
+					p.drawPixmap(rthumb.topLeft(), _videoThumbnailFrame->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+				} else if (const auto blurred = _dataMedia->thumbnailInline()) {
 					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else if (!isRound) {
 					const auto roundTop = (roundCorners & RectPart::TopLeft);
@@ -630,6 +640,20 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void Gif::validateVideoThumbnail() const {
+	const auto content = _dataMedia->videoThumbnailContent();
+	if (_videoThumbnailFrame || content.isEmpty()) {
+		return;
+	}
+	auto info = ::Media::Clip::PrepareForSending(QString(), content);
+	_videoThumbnailFrame = std::make_unique<Image>(
+		std::make_unique<Images::ImageSource>(
+			(info.thumbnail.isNull()
+				? Image::BlankMedia()->original()
+				: info.thumbnail),
+			"PNG"));
 }
 
 void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
@@ -1086,8 +1110,17 @@ void Gif::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
+	dataMediaCreated();
+}
+
+void Gif::dataMediaCreated() const {
+	Expects(_dataMedia != nullptr);
+
 	_dataMedia->goodThumbnailWanted();
 	_dataMedia->thumbnailWanted(_realParent->fullId());
+	if (!autoplayEnabled()) {
+		_dataMedia->videoThumbnailWanted(_realParent->fullId());
+	}
 	history()->owner().registerHeavyViewPart(_parent);
 }
 

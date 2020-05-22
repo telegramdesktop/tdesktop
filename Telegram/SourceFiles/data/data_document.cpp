@@ -1621,11 +1621,14 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 	}
 
 	_owner->cache().copyIfEmpty(local->cacheKey(), cacheKey());
-	const auto localMedia = local->activeMediaView();
-	if (!localMedia->bytes().isEmpty()) {
-		if (const auto media = activeMediaView()) {
-			media->setBytes(localMedia->bytes());
-		}
+	if (const auto localMedia = local->activeMediaView()) {
+		const auto media = createMediaView();
+		media->collectLocalData(localMedia.get());
+
+		// Keep DocumentMedia alive for some more time.
+		// NB! This allows DocumentMedia to outlive Main::Session!
+		// In case this is a problem this code should be rewritten.
+		crl::on_main(&session(), [media] {});
 	}
 	if (!local->_location.inMediaCache() && !local->_location.isEmpty()) {
 		_location = local->_location;

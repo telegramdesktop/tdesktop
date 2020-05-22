@@ -76,6 +76,8 @@ public:
 
 	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
 
+	void collectLocalData(not_null<DocumentMedia*> local);
+
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);
 
@@ -93,6 +95,9 @@ private:
 
 	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 
+	// NB! Right now DocumentMedia can outlive Main::Session!
+	// In DocumentData::collectLocalData a shared_ptr is sent on_main.
+	// In case this is a problem the ~Gif code should be rewritten.
 	const not_null<DocumentData*> _owner;
 	std::unique_ptr<Image> _goodThumbnail;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
