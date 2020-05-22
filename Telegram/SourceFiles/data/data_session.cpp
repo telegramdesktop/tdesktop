@@ -2482,15 +2482,20 @@ void Session::documentConvert(
 
 DocumentData *Session::documentFromWeb(
 		const MTPWebDocument &data,
-		const ImageLocation &thumbnailLocation) {
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation) {
 	return data.match([&](const auto &data) {
-		return documentFromWeb(data, thumbnailLocation);
+		return documentFromWeb(
+			data,
+			thumbnailLocation,
+			videoThumbnailLocation);
 	});
 }
 
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocument &data,
-		const ImageLocation &thumbnailLocation) {
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation) {
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2500,7 +2505,7 @@ DocumentData *Session::documentFromWeb(
 		data.vmime_type().v,
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
-		ImageWithLocation(),
+		ImageWithLocation{ .location = videoThumbnailLocation },
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
@@ -2511,7 +2516,8 @@ DocumentData *Session::documentFromWeb(
 
 DocumentData *Session::documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
-		const ImageLocation &thumbnailLocation) {
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation) {
 	const auto result = document(
 		rand_value<DocumentId>(),
 		uint64(0),
@@ -2521,7 +2527,7 @@ DocumentData *Session::documentFromWeb(
 		data.vmime_type().v,
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
-		ImageWithLocation(),
+		ImageWithLocation{ .location = videoThumbnailLocation },
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));

@@ -721,9 +721,7 @@ int DocumentData::thumbnailByteSize() const {
 }
 
 bool DocumentData::hasVideoThumbnail() const {
-	return _videoThumbnailLocation.valid()
-		&& (_videoThumbnailLocation.width() > 0)
-		&& (_videoThumbnailLocation.height() > 0);
+	return _videoThumbnailLocation.valid();
 }
 
 bool DocumentData::videoThumbnailLoading() const {

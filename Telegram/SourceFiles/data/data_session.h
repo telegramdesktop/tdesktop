@@ -508,7 +508,8 @@ public:
 		const MTPDocument &data);
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
-		const ImageLocation &thumbnailLocation);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
@@ -760,10 +761,12 @@ private:
 		int32 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
-		const ImageLocation &thumbnailLocation);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
-		const ImageLocation &thumbnailLocation);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 
 	void webpageApplyFields(
 		not_null<WebPageData*> page,

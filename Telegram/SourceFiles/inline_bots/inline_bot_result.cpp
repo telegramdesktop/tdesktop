@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace InlineBots {
 namespace {
 
+const auto kVideoThumbMime = "video/mp4"_q;
+
 QString GetContentUrl(const MTPWebDocument &document) {
 	switch (document.type()) {
 	case mtpc_webDocument:
@@ -84,8 +86,19 @@ std::unique_ptr<Result> Result::create(
 		result->_title = qs(r.vtitle().value_or_empty());
 		result->_description = qs(r.vdescription().value_or_empty());
 		result->_url = qs(r.vurl().value_or_empty());
-		if (const auto thumb = r.vthumb()) {
-			result->_thumb = Images::Create(*thumb, result->thumbBox());
+		const auto thumbMime = [&] {
+			if (const auto thumb = r.vthumb()) {
+				return thumb->match([&](const auto &data) {
+					return data.vmime_type().v;
+				});
+			}
+			return QByteArray();
+		}();
+		const auto imageThumb = !thumbMime.isEmpty()
+			&& (thumbMime != kVideoThumbMime);
+		const auto videoThumb = !thumbMime.isEmpty() && !imageThumb;
+		if (imageThumb) {
+			result->_thumb = Images::Create(*r.vthumb(), result->thumbBox());
 		}
 		if (const auto content = r.vcontent()) {
 			result->_content_url = GetContentUrl(*content);
@@ -97,7 +110,10 @@ std::unique_ptr<Result> Result::create(
 			} else {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(*content),
-					(r.vthumb()
+					(imageThumb
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()),
+					(videoThumb
 						? Images::FromWebDocument(*r.vthumb())
 						: ImageLocation()));
 			}
