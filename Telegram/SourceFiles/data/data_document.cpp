@@ -716,6 +716,10 @@ const ImageLocation &DocumentData::thumbnailLocation() const {
 	return _thumbnailLocation;
 }
 
+int DocumentData::thumbnailByteSize() const {
+	return _thumbnailByteSize;
+}
+
 bool DocumentData::hasVideoThumbnail() const {
 	return _videoThumbnailLocation.valid()
 		&& (_videoThumbnailLocation.width() > 0)
@@ -773,6 +777,10 @@ void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
 
 const ImageLocation &DocumentData::videoThumbnailLocation() const {
 	return _videoThumbnailLocation;
+}
+
+int DocumentData::videoThumbnailByteSize() const {
+	return _videoThumbnailByteSize;
 }
 
 Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {

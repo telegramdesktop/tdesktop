@@ -160,12 +160,14 @@ public:
 	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail(Data::FileOrigin origin);
 	const ImageLocation &thumbnailLocation() const;
+	int thumbnailByteSize() const;
 
 	[[nodiscard]] bool hasVideoThumbnail() const;
 	[[nodiscard]] bool videoThumbnailLoading() const;
 	[[nodiscard]] bool videoThumbnailFailed() const;
 	void loadVideoThumbnail(Data::FileOrigin origin);
 	const ImageLocation &videoThumbnailLocation() const;
+	int videoThumbnailByteSize() const;
 
 	void updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,

@@ -13,7 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "main/main_session.h"
 
+namespace Serialize {
 namespace {
+
+constexpr auto kVersionTag = int32(0x7FFFFFFF);
+constexpr auto kVersion = 1;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -23,12 +27,9 @@ enum StickerSetType {
 
 } // namespace
 
-namespace Serialize {
-
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
-	const auto version = 0;
 	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
-	stream << document->_fileReference << qint32(version);
+	stream << document->_fileReference << qint32(kVersionTag) << qint32(kVersion);
 	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
@@ -50,20 +51,27 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		stream << qint32(document->getDuration());
 	}
 	writeImageLocation(stream, document->thumbnailLocation());
+	stream << qint32(document->thumbnailByteSize());
+	writeImageLocation(stream, document->videoThumbnailLocation());
+	stream << qint32(document->videoThumbnailByteSize());
 }
 
 DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
 	quint64 id, access;
 	QString name, mime;
-	qint32 date, dc, size, width, height, type, version;
+	qint32 date, dc, size, width, height, type, versionTag, version = 0;
 	QByteArray fileReference;
 	stream >> id >> access >> date;
 	if (streamAppVersion >= 9061) {
 		if (streamAppVersion >= 1003013) {
 			stream >> fileReference;
 		}
-		stream >> version;
+		stream >> versionTag;
+		if (versionTag == kVersionTag) {
+			stream >> version;
+		}
 	} else {
+		versionTag = 0;
 		version = 0;
 	}
 	stream >> name >> mime >> dc >> size;
@@ -76,7 +84,6 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 
 	qint32 duration = -1;
-	std::optional<ImageLocation> thumb;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -110,7 +117,16 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 			attributes.push_back(MTP_documentAttributeAnimated());
 		}
 	}
-	thumb = readImageLocation(streamAppVersion, stream);
+	std::optional<ImageLocation> videoThumb;
+	qint32 thumbnailByteSize = 0, videoThumbnailByteSize = 0;
+	const auto thumb = readImageLocation(streamAppVersion, stream);
+	if (version >= 1) {
+		stream >> thumbnailByteSize;
+		videoThumb = readImageLocation(streamAppVersion, stream);
+		stream >> videoThumbnailByteSize;
+	} else {
+		videoThumb = ImageLocation();
+	}
 	if (width > 0 && height > 0) {
 		if (duration >= 0) {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
@@ -125,7 +141,8 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 
 	const auto storage = base::get_if<StorageFileLocation>(
 		&thumb->file().data);
-	if ((!dc && !access)
+	if ((stream.status() != QDataStream::Ok)
+		|| (!dc && !access)
 		|| !thumb
 		|| (thumb->valid()
 			&& (!storage || !storage->isDocumentThumbnail()))) {
@@ -142,8 +159,14 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		attributes,
 		mime,
 		QByteArray(),
-		ImageWithLocation{ .location = *thumb },
-		ImageWithLocation(),
+		ImageWithLocation{
+			.location = *thumb,
+			.bytesCount = thumbnailByteSize
+		},
+		ImageWithLocation{
+			.location = *videoThumb,
+			.bytesCount = videoThumbnailByteSize
+		},
 		dc,
 		size);
 }
