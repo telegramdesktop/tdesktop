@@ -45,6 +45,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void validateGifAnimation();
+	void startGifAnimation(const Media::Clip::ReaderPointer &gif);
 	QSize currentDimensions() const;
 	QPixmap currentImage() const;
 	void setupLottie();
@@ -61,7 +63,8 @@ private:
 	DocumentData *_document = nullptr;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	PhotoData *_photo = nullptr;
-	Media::Clip::ReaderPointer _gif;
+	Media::Clip::ReaderPointer _gif, _gifThumbnail;
+	crl::time _gifLastPosition = 0;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 
 	int _emojiSize;

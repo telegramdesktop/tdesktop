@@ -117,6 +117,8 @@ void MediaPreviewWidget::showPreview(
 	_document = document;
 	_documentMedia = _document->createMediaView();
 	_documentMedia->thumbnailWanted(_origin);
+	_documentMedia->videoThumbnailWanted(_origin);
+	_documentMedia->automaticLoad(_origin, nullptr);
 	fillEmojiString();
 	resetGifAndCache();
 }
@@ -151,7 +153,9 @@ void MediaPreviewWidget::hidePreview() {
 	if (isHidden()) {
 		return;
 	}
-	if (_gif) _cache = currentImage();
+	if (_gif || _gifThumbnail) {
+		_cache = currentImage();
+	}
 	_hiding = true;
 	_a_shown.start([=] { update(); }, 1., 0., st::stickerPreviewDuration);
 	_photo = nullptr;
@@ -180,6 +184,8 @@ void MediaPreviewWidget::fillEmojiString() {
 void MediaPreviewWidget::resetGifAndCache() {
 	_lottie = nullptr;
 	_gif.reset();
+	_gifThumbnail.reset();
+	_gifLastPosition = 0;
 	_cacheStatus = CacheNotLoaded;
 	_cachedSize = QSize();
 }
@@ -199,8 +205,11 @@ QSize MediaPreviewWidget::currentDimensions() const {
 		box = QSize(width() - 2 * st::boxVerticalMargin, height() - 2 * st::boxVerticalMargin);
 	} else {
 		result = _document->dimensions;
-		if (_gif && _gif->ready()) {
-			result = QSize(_gif->width(), _gif->height());
+		if (result.isEmpty()) {
+			const auto &gif = (_gif && _gif->ready()) ? _gif : _gifThumbnail;
+			if (gif && gif->ready()) {
+				result = QSize(gif->width(), gif->height());
+			}
 		}
 		if (_document->sticker()) {
 			box = QSize(st::maxStickerSize, st::maxStickerSize);
@@ -263,19 +272,14 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				}
 			}
 		} else {
-			_documentMedia->automaticLoad(_origin, nullptr);
-			if (_documentMedia->loaded()) {
-				if (!_gif && !_gif.isBad()) {
-					auto that = const_cast<MediaPreviewWidget*>(this);
-					that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [=](Media::Clip::Notification notification) {
-						that->clipCallback(notification);
-					});
-				}
-			}
-			if (_gif && _gif->started()) {
+			const_cast<MediaPreviewWidget*>(this)->validateGifAnimation();
+			const auto &gif = (_gif && _gif->started())
+				? _gif
+				: _gifThumbnail;
+			if (gif && gif->started()) {
 				auto s = currentDimensions();
 				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
-				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
+				return gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 			}
 			if (_cacheStatus != CacheThumbLoaded
 				&& _document->hasThumbnail()) {
@@ -320,24 +324,91 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	return _cache;
 }
 
-void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
+void MediaPreviewWidget::startGifAnimation(
+		const Media::Clip::ReaderPointer &gif) {
+	const auto s = currentDimensions();
+	gif->start(
+		s.width(),
+		s.height(),
+		s.width(),
+		s.height(),
+		ImageRoundRadius::None,
+		RectPart::None);
+}
+
+void MediaPreviewWidget::validateGifAnimation() {
+	Expects(_documentMedia != nullptr);
+
+	if (_gifThumbnail && _gifThumbnail->started()) {
+		const auto position = _gifThumbnail->getPositionMs();
+		if (_gif
+			&& _gif->ready()
+			&& !_gif->started()
+			&& (_gifLastPosition > position)) {
+			startGifAnimation(_gif);
+			_gifThumbnail.reset();
+			_gifLastPosition = 0;
+			return;
+		} else {
+			_gifLastPosition = position;
+		}
+	} else if (_gif || _gif.isBad()) {
+		return;
+	}
+
+	const auto contentLoaded = _documentMedia->loaded();
+	const auto thumbContent = _documentMedia->videoThumbnailContent();
+	const auto thumbLoaded = !thumbContent.isEmpty();
+	if (!contentLoaded
+		&& (_gifThumbnail || _gifThumbnail.isBad() | !thumbLoaded)) {
+		return;
+	}
+	const auto callback = [=](Media::Clip::Notification notification) {
+		clipCallback(notification);
+	};
+	if (contentLoaded) {
+		_gif = Media::Clip::MakeReader(
+			_documentMedia.get(),
+			FullMsgId(),
+			std::move(callback));
+	} else {
+		_gifThumbnail = Media::Clip::MakeReader(
+			thumbContent,
+			std::move(callback));
+	}
+}
+
+void MediaPreviewWidget::clipCallback(
+		Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 	switch (notification) {
 	case NotificationReinit: {
+		if (_gifThumbnail && _gifThumbnail->state() == State::Error) {
+			_gifThumbnail.setBad();
+		}
 		if (_gif && _gif->state() == State::Error) {
 			_gif.setBad();
 		}
 
-		if (_gif && _gif->ready() && !_gif->started()) {
-			QSize s = currentDimensions();
-			_gif->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
+		if (_gif
+			&& _gif->ready()
+			&& !_gif->started()
+			&& (!_gifThumbnail || !_gifThumbnail->started())) {
+			startGifAnimation(_gif);
+		} else if (!_gif
+			&& _gifThumbnail
+			&& _gifThumbnail->ready()
+			&& !_gifThumbnail->started()) {
+			startGifAnimation(_gifThumbnail);
 		}
-
 		update();
 	} break;
 
 	case NotificationRepaint: {
-		if (_gif && !_gif->currentDisplayed()) {
+		if ((_gif && _gif->started() && !_gif->currentDisplayed())
+			|| (_gifThumbnail
+				&& _gifThumbnail->started()
+				&& !_gifThumbnail->currentDisplayed())) {
 			update(updateArea());
 		}
 	} break;

@@ -434,8 +434,9 @@ bool MainWindow::showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
 	const auto media = document->activeMediaView();
+	const auto preview = Data::VideoPreviewState(media.get());
 	if (!document->sticker()
-		&& (!document->isAnimation() || !media || !media->loaded())) {
+		&& (!document->isAnimation() || !preview.loaded())) {
 		return false;
 	}
 	if (!_mediaPreview) {
