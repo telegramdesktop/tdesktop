@@ -261,7 +261,7 @@ bool Should(
 		const Full &data,
 		Source source,
 		not_null<DocumentData*> document) {
-	if (document->sticker()) {
+	if (document->sticker() || document->isGifv()) {
 		return true;
 	} else if (document->isVoiceMessage()
 		|| document->isVideoMessage()
