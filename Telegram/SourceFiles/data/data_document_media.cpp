@@ -154,6 +154,25 @@ void DocumentMedia::setThumbnail(QImage thumbnail) {
 	_owner->session().downloaderTaskFinished().notify();
 }
 
+QByteArray DocumentMedia::videoThumbnailContent() const {
+	return _videoThumbnailBytes;
+}
+
+QSize DocumentMedia::videoThumbnailSize() const {
+	const auto &location = _owner->videoThumbnailLocation();
+	return { location.width(), location.height() };
+}
+
+void DocumentMedia::videoThumbnailWanted(Data::FileOrigin origin) {
+	if (_videoThumbnailBytes.isEmpty()) {
+		_owner->loadVideoThumbnail(origin);
+	}
+}
+
+void DocumentMedia::setVideoThumbnail(QByteArray content) {
+	_videoThumbnailBytes = std::move(content);
+}
+
 void DocumentMedia::checkStickerLarge() {
 	if (_sticker) {
 		return;

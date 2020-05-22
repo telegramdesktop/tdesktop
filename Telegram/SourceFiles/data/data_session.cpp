@@ -165,6 +165,25 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
 }
 
+std::optional<MTPVideoSize> FindDocumentVideoThumbnail(
+		const MTPDdocument &data) {
+	const auto area = [](const MTPVideoSize &size) {
+		static constexpr auto kInvalid = 0;
+		return size.match([](const MTPDvideoSize &data) {
+			return (data.vw().v * data.vh().v);
+		});
+	};
+	const auto thumbs = data.vvideo_thumbs();
+	if (!thumbs) {
+		return std::nullopt;
+	}
+	const auto &list = thumbs->v;
+	const auto i = ranges::max_element(list, std::less<>(), area);
+	return (i != list.end() && area(*i) > 0)
+		? std::make_optional(*i)
+		: std::nullopt;
+}
+
 rpl::producer<int> PinnedDialogsCountMaxValue(
 		not_null<Main::Session*> session) {
 	return rpl::single(
@@ -2382,6 +2401,7 @@ not_null<DocumentData*> Session::processDocument(
 			qs(data.vmime_type()),
 			QByteArray(),
 			thumbnail,
+			ImageWithLocation(),
 			data.vdc_id().v,
 			data.vsize().v);
 	}, [&](const MTPDdocumentEmpty &data) {
@@ -2398,6 +2418,7 @@ not_null<DocumentData*> Session::document(
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
 		int32 size) {
 	const auto result = document(id);
@@ -2410,6 +2431,7 @@ not_null<DocumentData*> Session::document(
 		mime,
 		inlineThumbnailBytes,
 		thumbnail,
+		videoThumbnail,
 		dc,
 		size);
 	return result;
@@ -2478,6 +2500,7 @@ DocumentData *Session::documentFromWeb(
 		data.vmime_type().v,
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
+		ImageWithLocation(),
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
@@ -2498,6 +2521,7 @@ DocumentData *Session::documentFromWeb(
 		data.vmime_type().v,
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
+		ImageWithLocation(),
 		MTP::maindc(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
@@ -2517,10 +2541,14 @@ void Session::documentApplyFields(
 		const MTPDdocument &data) {
 	const auto inlineThumbnailBytes = FindDocumentInlineThumbnail(data);
 	const auto thumbnailSize = FindDocumentThumbnail(data);
+	const auto videoThumbnailSize = FindDocumentVideoThumbnail(data);
 	const auto prepared = Images::FromPhotoSize(
 		_session,
 		data,
 		thumbnailSize);
+	const auto videoThumbnail = videoThumbnailSize
+		? Images::FromVideoSize(_session, data, *videoThumbnailSize)
+		: ImageWithLocation();
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,
@@ -2530,6 +2558,7 @@ void Session::documentApplyFields(
 		qs(data.vmime_type()),
 		inlineThumbnailBytes,
 		prepared,
+		videoThumbnail,
 		data.vdc_id().v,
 		data.vsize().v);
 }
@@ -2543,6 +2572,7 @@ void Session::documentApplyFields(
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
 		int32 size) {
 	if (!date) {
@@ -2550,7 +2580,10 @@ void Session::documentApplyFields(
 	}
 	document->date = date;
 	document->setMimeString(mime);
-	document->updateThumbnails(inlineThumbnailBytes, thumbnail);
+	document->updateThumbnails(
+		inlineThumbnailBytes,
+		thumbnail,
+		videoThumbnail);
 	document->size = size;
 	document->setattributes(attributes);
 

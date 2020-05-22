@@ -606,7 +606,8 @@ bool DocumentData::checkWallPaperProperties() {
 
 void DocumentData::updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		const ImageWithLocation &thumbnail) {
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
@@ -636,10 +637,16 @@ void DocumentData::updateThumbnails(
 			}
 		}
 	}
-}
-
-const ImageLocation &DocumentData::thumbnailLocation() const {
-	return _thumbnailLocation;
+	if (videoThumbnail.location.valid()
+		&& !_videoThumbnailLocation.valid()) {
+		_videoThumbnailLocation = videoThumbnail.location;
+		_videoThumbnailByteSize = videoThumbnail.bytesCount;
+		if (_videoThumbnailLoader) {
+			const auto origin
+				= base::take(_videoThumbnailLoader)->fileOrigin();
+			loadVideoThumbnail(origin);
+		}
+	}
 }
 
 bool DocumentData::isWallPaper() const {
@@ -700,6 +707,67 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 	}, _thumbnailLoader->lifetime());
 
 	_thumbnailLoader->start();
+}
+
+const ImageLocation &DocumentData::thumbnailLocation() const {
+	return _thumbnailLocation;
+}
+
+bool DocumentData::hasVideoThumbnail() const {
+	return _videoThumbnailLocation.valid()
+		&& (_videoThumbnailLocation.width() > 0)
+		&& (_videoThumbnailLocation.height() > 0);
+}
+
+bool DocumentData::videoThumbnailLoading() const {
+	return _videoThumbnailLoader != nullptr;
+}
+
+bool DocumentData::videoThumbnailFailed() const {
+	return (_flags & Flag::VideoThumbnailFailed);
+}
+
+void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
+	if (_videoThumbnailLoader || (_flags & Flag::VideoThumbnailFailed)) {
+		return;
+	} else if (const auto active = activeMediaView()) {
+		if (!active->videoThumbnailContent().isEmpty()) {
+			return;
+		}
+	}
+	const auto autoLoading = false;
+	_videoThumbnailLoader = CreateFileLoader(
+		_videoThumbnailLocation.file(),
+		origin,
+		QString(),
+		_videoThumbnailByteSize,
+		UnknownFileLocation,
+		LoadToCacheAsWell,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kAnimationCacheTag);
+
+	_videoThumbnailLoader->updates(
+	) | rpl::start_with_error_done([=](bool started) {
+		_videoThumbnailLoader = nullptr;
+		_flags |= Flag::VideoThumbnailFailed;
+	}, [=] {
+		if (_videoThumbnailLoader && !_videoThumbnailLoader->cancelled()) {
+			auto bytes = _videoThumbnailLoader->bytes();
+			if (bytes.isEmpty()) {
+				_flags |= Flag::VideoThumbnailFailed;
+			} else if (const auto active = activeMediaView()) {
+				active->setVideoThumbnail(std::move(bytes));
+			}
+		}
+		_videoThumbnailLoader = nullptr;
+	}, _videoThumbnailLoader->lifetime());
+
+	_videoThumbnailLoader->start();
+}
+
+const ImageLocation &DocumentData::videoThumbnailLocation() const {
+	return _videoThumbnailLocation;
 }
 
 Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {

@@ -143,6 +143,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		mime,
 		QByteArray(),
 		ImageWithLocation{ .location = *thumb },
+		ImageWithLocation(),
 		dc,
 		size);
 }

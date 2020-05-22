@@ -134,26 +134,41 @@ int Gif::resizeGetHeight(int width) {
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
 	const auto displayLoading = document->displayLoading();
-
+	const auto useVideoThumbnail = document->hasVideoThumbnail();
 	ensureDataMediaCreated(document);
-	_dataMedia->automaticLoad(fileOrigin(), nullptr);
+	if (!useVideoThumbnail) {
+		_dataMedia->automaticLoad(fileOrigin(), nullptr);
+	}
 
-	bool loaded = _dataMedia->loaded(), loading = document->loading();
+	const auto loaded = useVideoThumbnail
+		? !_dataMedia->videoThumbnailContent().isEmpty()
+		: _dataMedia->loaded();
+	const auto loading = useVideoThumbnail
+		? document->videoThumbnailLoading()
+		: document->loading();
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()
 		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
-		that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
+		const auto callback = [=](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
-		});
+		};
+		that->_gif = useVideoThumbnail
+			? Media::Clip::MakeReader(
+				_dataMedia->videoThumbnailContent(),
+				callback)
+			: Media::Clip::MakeReader(
+				_dataMedia.get(),
+				FullMsgId(),
+				callback);
 	}
 
 	const auto animating = (_gif && _gif->started());
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_dataMedia->progress());
+			_animation->radial.start(_dataMedia->progress()); // #TODO video_thumbs
 		}
 	}
 	const auto radial = isRadialAnimation();
@@ -176,6 +191,10 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		} else {
 			p.drawPixmap(r.topLeft(), _thumb);
 		}
+	}
+	if (useVideoThumbnail) {
+		AssertIsDebug();
+		p.fillRect(QRect(r.topLeft(), QSize(20, 20)), Qt::green);
 	}
 
 	if (radial || _gif.isBad() || (!_gif && !loaded && !loading)) {
@@ -250,7 +269,7 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		bool wasactive = (_state & StateFlag::Over);
 		if (active != wasactive) {
 			ensureDataMediaCreated(getShownDocument());
-			if (!_dataMedia->loaded()) {
+			if (!_dataMedia->loaded()) { // #TODO video_thumbs
 				ensureAnimation();
 				auto from = active ? 0. : 1., to = active ? 1. : 0.;
 				_animation->_a_over.start([this] { update(); }, from, to, st::stickersRowDuration);
@@ -333,6 +352,7 @@ void Gif::ensureDataMediaCreated(not_null<DocumentData*> document) const {
 	}
 	_dataMedia = document->createMediaView();
 	_dataMedia->thumbnailWanted(fileOrigin());
+	_dataMedia->videoThumbnailWanted(fileOrigin());
 }
 
 void Gif::ensureAnimation() const {
@@ -349,7 +369,7 @@ bool Gif::isRadialAnimation() const {
 			return true;
 		} else {
 			ensureDataMediaCreated(getShownDocument());
-			if (_dataMedia->loaded()) {
+			if (_dataMedia->loaded()) { // #TODO video_thumbs
 				_animation = nullptr;
 			}
 		}
@@ -362,7 +382,7 @@ void Gif::radialAnimationCallback(crl::time now) const {
 	ensureDataMediaCreated(document);
 	const auto updated = [&] {
 		return _animation->radial.update(
-			_dataMedia->progress(),
+			_dataMedia->progress(), // #TODO video_thumbs
 			!document->loading() || _dataMedia->loaded(),
 			now);
 	}();

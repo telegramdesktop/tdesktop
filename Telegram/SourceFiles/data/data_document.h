@@ -159,10 +159,18 @@ public:
 	[[nodiscard]] bool thumbnailLoading() const;
 	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail(Data::FileOrigin origin);
+	const ImageLocation &thumbnailLocation() const;
+
+	[[nodiscard]] bool hasVideoThumbnail() const;
+	[[nodiscard]] bool videoThumbnailLoading() const;
+	[[nodiscard]] bool videoThumbnailFailed() const;
+	void loadVideoThumbnail(Data::FileOrigin origin);
+	const ImageLocation &videoThumbnailLocation() const;
+
 	void updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,
-		const ImageWithLocation &thumbnail);
-	const ImageLocation &thumbnailLocation() const;
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail);
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
@@ -247,6 +255,7 @@ private:
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
 		ThumbnailFailed = 0x40,
+		VideoThumbnailFailed = 0x80,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
@@ -300,8 +309,11 @@ private:
 
 	QByteArray _inlineThumbnailBytes;
 	ImageLocation _thumbnailLocation;
+	ImageLocation _videoThumbnailLocation;
 	std::unique_ptr<FileLoader> _thumbnailLoader;
+	std::unique_ptr<FileLoader> _videoThumbnailLoader;
 	int _thumbnailByteSize = 0;
+	int _videoThumbnailByteSize = 0;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;

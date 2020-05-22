@@ -121,4 +121,26 @@ ImageLocation FromWebDocument(const MTPWebDocument &document) {
 	});
 }
 
+ImageWithLocation FromVideoSize(
+		not_null<Main::Session*> session,
+		const MTPDdocument &document,
+		const MTPVideoSize &size) {
+	return size.match([&](const MTPDvideoSize &data) {
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					document.vdc_id().v,
+					session->userId(),
+					MTP_inputDocumentFileLocation(
+						document.vid(),
+						document.vaccess_hash(),
+						document.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsize().v
+		};
+	});
+}
+
 } // namespace Images

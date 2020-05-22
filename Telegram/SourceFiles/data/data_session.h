@@ -500,6 +500,7 @@ public:
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
 		int32 size);
 	void documentConvert(
@@ -754,6 +755,7 @@ private:
 		const QString &mime,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
 		int32 size);
 	DocumentData *documentFromWeb(

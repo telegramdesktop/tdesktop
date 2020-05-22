@@ -25,10 +25,16 @@ public:
 	void setGoodThumbnail(QImage thumbnail);
 
 	[[nodiscard]] Image *thumbnailInline() const;
+
 	[[nodiscard]] Image *thumbnail() const;
 	[[nodiscard]] QSize thumbnailSize() const;
 	void thumbnailWanted(Data::FileOrigin origin);
 	void setThumbnail(QImage thumbnail);
+
+	[[nodiscard]] QByteArray videoThumbnailContent() const;
+	[[nodiscard]] QSize videoThumbnailSize() const;
+	void videoThumbnailWanted(Data::FileOrigin origin);
+	void setVideoThumbnail(QByteArray content);
 
 	void checkStickerLarge();
 	void checkStickerSmall();
@@ -67,6 +73,7 @@ private:
 	std::unique_ptr<Image> _thumbnail;
 	std::unique_ptr<Image> _sticker;
 	QByteArray _bytes;
+	QByteArray _videoThumbnailBytes;
 	Flags _flags;
 
 };

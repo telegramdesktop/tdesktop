@@ -3945,6 +3945,7 @@ void importOldRecentStickers() {
 			mime,
 			QByteArray(),
 			ImageWithLocation(),
+			ImageWithLocation(),
 			dc,
 			size);
 		if (!doc->sticker()) {
