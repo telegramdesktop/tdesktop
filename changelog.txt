@@ -1,3 +1,7 @@
+2.1.7 (24.05.20)
+
+- Fix the Fcitx input method plugin.
+
 2.1.6 (14.05.20)
 
 - Bug fixes and other minor improvements.
