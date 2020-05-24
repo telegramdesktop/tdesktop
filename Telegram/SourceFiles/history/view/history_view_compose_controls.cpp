@@ -110,6 +110,10 @@ rpl::producer<> ComposeControls::attachRequests() const {
 	});
 }
 
+void ComposeControls::setMimeDataHook(MimeDataHook hook) {
+	_field->setMimeDataHook(std::move(hook));
+}
+
 rpl::producer<not_null<DocumentData*>> ComposeControls::fileChosen() const {
 	return _fileChosen.events();
 }

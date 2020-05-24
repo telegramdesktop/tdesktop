@@ -25,4 +25,9 @@ void SendExistingPhoto(
 
 bool SendDice(Api::MessageToSend &message);
 
+void FillMessagePostFlags(
+	const SendAction &action,
+	not_null<PeerData*> peer,
+	MTPDmessage::Flags &flags);
+
 } // namespace Api

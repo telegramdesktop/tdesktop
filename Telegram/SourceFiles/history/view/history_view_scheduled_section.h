@@ -159,6 +159,10 @@ private:
 		Storage::PreparedList &&list,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(
+		not_null<const QMimeData*> data,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Storage::PreparedList &list) const;
 	void uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,

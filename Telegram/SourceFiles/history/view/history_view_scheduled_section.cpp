@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 
+#include <QtCore/QMimeData>
+
 namespace HistoryView {
 namespace {
 
@@ -53,6 +55,17 @@ void ShowErrorToast(const QString &text) {
 		.st = &st::historyErrorToast,
 		.multiline = true,
 	});
+}
+
+bool CanSendFiles(not_null<const QMimeData*> data) {
+	if (data->hasImage()) {
+		return true;
+	} else if (const auto urls = data->urls(); !urls.empty()) {
+		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -165,6 +178,20 @@ void ScheduledWidget::setupComposeControls() {
 			ChatHelpers::TabbedSelector::InlineChosen chosen) {
 		sendInlineResult(chosen.result, chosen.bot);
 	}, lifetime());
+
+	_composeControls->setMimeDataHook([=](
+			not_null<const QMimeData*> data,
+			Ui::InputField::MimeAction action) {
+		if (action == Ui::InputField::MimeAction::Check) {
+			return CanSendFiles(data);
+		} else if (action == Ui::InputField::MimeAction::Insert) {
+			return confirmSendingFiles(
+				data,
+				CompressConfirm::Auto,
+				data->text());
+		}
+		Unexpected("action in MimeData hook.");
+	});
 }
 
 void ScheduledWidget::chooseAttach() {
@@ -212,6 +239,43 @@ void ScheduledWidget::chooseAttach() {
 			}
 		}
 	}), nullptr);
+}
+
+bool ScheduledWidget::confirmSendingFiles(
+		not_null<const QMimeData*> data,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel) {
+	const auto hasImage = data->hasImage();
+
+	if (const auto urls = data->urls(); !urls.empty()) {
+		auto list = Storage::PrepareMediaList(
+			urls,
+			st::sendMediaPreviewSize);
+		if (list.error != Storage::PreparedList::Error::NonLocalUrl) {
+			if (list.error == Storage::PreparedList::Error::None
+				|| !hasImage) {
+				const auto emptyTextOnCancel = QString();
+				confirmSendingFiles(
+					std::move(list),
+					compressed,
+					emptyTextOnCancel);
+				return true;
+			}
+		}
+	}
+
+	if (hasImage) {
+		auto image = qvariant_cast<QImage>(data->imageData());
+		if (!image.isNull()) {
+			confirmSendingFiles(
+				std::move(image),
+				QByteArray(),
+				compressed,
+				insertTextOnCancel);
+			return true;
+		}
+	}
+	return false;
 }
 
 bool ScheduledWidget::confirmSendingFiles(
@@ -834,6 +898,10 @@ void ScheduledWidget::listScrollTo(int top) {
 }
 
 void ScheduledWidget::listCancelRequest() {
+	if (_inner && !_inner->getSelectedItems().empty()) {
+		clearSelected();
+		return;
+	}
 	controller()->showBackFromStack();
 }
 

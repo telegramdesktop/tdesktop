@@ -37,6 +37,12 @@ namespace {
 constexpr auto kMinimalAlertDelay = crl::time(500);
 constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 
+#ifdef Q_OS_MAC
+constexpr auto kSystemAlertDuration = crl::time(1000);
+#else // !Q_OS_MAC
+constexpr auto kSystemAlertDuration = crl::time(0);
+#endif // Q_OS_MAC
+
 } // namespace
 
 System::System(not_null<Main::Session*> session)
@@ -295,7 +301,7 @@ void System::showNext() {
 		if (Global::FlashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
 			if (const auto widget = App::wnd()) {
 				if (const auto window = widget->windowHandle()) {
-					window->alert(0);
+					window->alert(kSystemAlertDuration);
 					// (window, SLOT(_q_clearAlert())); in the future.
 				}
 			}

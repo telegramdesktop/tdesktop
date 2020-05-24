@@ -4328,15 +4328,7 @@ void ApiWrap::forwardMessages(
 	auto flags = MTPDmessage::Flags(0);
 	auto clientFlags = MTPDmessage_ClientFlags();
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
 	}
@@ -4489,15 +4481,7 @@ void ApiWrap::sendSharedContact(
 	if (action.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-		if (peer->asChannel()->addsSignature()) {
-			flags |= MTPDmessage::Flag::f_post_author;
-		}
-	} else {
-		flags |= MTPDmessage::Flag::f_from_id;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MTPDmessage::Flag::f_from_scheduled;
 	} else {
@@ -4874,15 +4858,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 		const auto silentPost = action.options.silent
 			|| (channelPost && _session->data().notifySilentPosts(peer));
-		if (channelPost) {
-			flags |= MTPDmessage::Flag::f_views;
-			flags |= MTPDmessage::Flag::f_post;
-		}
-		if (!channelPost) {
-			flags |= MTPDmessage::Flag::f_from_id;
-		} else if (peer->asChannel()->addsSignature()) {
-			flags |= MTPDmessage::Flag::f_post_author;
-		}
+		FillMessagePostFlags(action, peer, flags);
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
@@ -5019,15 +4995,7 @@ void ApiWrap::sendInlineResult(
 	bool channelPost = peer->isChannel() && !peer->isMegagroup();
 	bool silentPost = action.options.silent
 		|| (channelPost && _session->data().notifySilentPosts(peer));
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
 	}
@@ -5855,6 +5823,43 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		_pollCloseRequestIds.erase(itemId);
 	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
+}
+
+void ApiWrap::rescheduleMessage(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options) {
+	const auto text = item->originalText().text;
+	const auto sentEntities = Api::EntitiesToMTP(
+		item->originalText().entities,
+		Api::ConvertOption::SkipLocal);
+	const auto media = item->media();
+
+	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
+	const auto flags = MTPmessages_EditMessage::Flag::f_schedule_date
+	| (!text.isEmpty()
+		? MTPmessages_EditMessage::Flag::f_message
+		: emptyFlag)
+	| ((!media || !media->webpage())
+		? MTPmessages_EditMessage::Flag::f_no_webpage
+		: emptyFlag)
+	| (!sentEntities.v.isEmpty()
+		? MTPmessages_EditMessage::Flag::f_entities
+		: emptyFlag);
+
+	const auto id = _session->data().scheduledMessages().lookupId(item);
+	request(MTPmessages_EditMessage(
+		MTP_flags(flags),
+		item->history()->peer->input,
+		MTP_int(id),
+		MTP_string(text),
+		MTPInputMedia(),
+		MTPReplyMarkup(),
+		sentEntities,
+		MTP_int(options.scheduled)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).fail([](const RPCError &error) {
+	}).send();
 }
 
 void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {

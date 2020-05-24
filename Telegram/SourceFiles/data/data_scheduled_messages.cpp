@@ -414,6 +414,7 @@ HistoryItem *ScheduledMessages::append(
 			}, data.vmedia());
 			existing->updateReplyMarkup(data.vreply_markup());
 			existing->updateForwardedInfo(data.vfwd_from());
+			existing->updateDate(data.vdate().v);
 			history->owner().requestItemTextRefresh(existing);
 		}, [&](const auto &data) {});
 		return existing;

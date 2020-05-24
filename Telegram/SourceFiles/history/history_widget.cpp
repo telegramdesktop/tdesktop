@@ -4492,10 +4492,7 @@ bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 	} else if (data->hasImage()) {
 		return true;
 	} else if (const auto urls = data->urls(); !urls.empty()) {
-		if (ranges::find_if(
-			urls,
-			[](const QUrl &url) { return !url.isLocalFile(); }
-		) == urls.end()) {
+		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
 			return true;
 		}
 	}
@@ -4697,15 +4694,7 @@ void HistoryWidget::sendFileConfirmed(
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = file->to.options.silent;
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	Api::FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}

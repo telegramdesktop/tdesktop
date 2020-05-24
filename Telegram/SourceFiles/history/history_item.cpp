@@ -708,6 +708,17 @@ MsgId HistoryItem::idOriginal() const {
 	return id;
 }
 
+void HistoryItem::updateDate(TimeId newDate) {
+	if (canUpdateDate() && _date != newDate) {
+		_date = newDate;
+		_history->owner().requestItemViewRefresh(this);
+	}
+}
+
+bool HistoryItem::canUpdateDate() const {
+	return isScheduled();
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
 	Expects(!(_clientFlags & MTPDmessage_ClientFlag::f_failed));

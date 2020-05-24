@@ -937,6 +937,7 @@ void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
 			item,
 			SelectAction::Select);
 		pushSelectedItems();
+		update();
 	}
 }
 

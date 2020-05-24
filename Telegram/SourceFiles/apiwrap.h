@@ -476,6 +476,10 @@ public:
 	void closePoll(not_null<HistoryItem*> item);
 	void reloadPollResults(not_null<HistoryItem*> item);
 
+	void rescheduleMessage(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options);
+
 private:
 	struct MessageDataRequest {
 		using Callbacks = QList<RequestMessageDataCallback>;

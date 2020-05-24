@@ -90,6 +90,7 @@ if (LINUX)
         PRIVATE
             desktop-app::external_statusnotifieritem
             desktop-app::external_dbusmenu_qt
+            desktop-app::external_fcitx_qt5
             desktop-app::external_fcitx5_qt5
             desktop-app::external_hime_qt
         )

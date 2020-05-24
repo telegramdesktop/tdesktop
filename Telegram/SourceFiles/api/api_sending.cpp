@@ -30,6 +30,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+void InnerFillMessagePostFlags(
+		const Api::SendOptions &options,
+		not_null<PeerData*> peer,
+		MTPDmessage::Flags &flags) {
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	if (!channelPost) {
+		flags |= MTPDmessage::Flag::f_from_id;
+		return;
+	}
+	flags |= MTPDmessage::Flag::f_post;
+	// Don't display views and author of a new post when it's scheduled.
+	if (options.scheduled) {
+		return;
+	}
+	flags |= MTPDmessage::Flag::f_views;
+	if (peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
+	}
+}
+
 template <typename MediaData>
 void SendExistingMedia(
 		Api::MessageToSend &&message,
@@ -60,15 +80,7 @@ void SendExistingMedia(
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = message.action.options.silent
 		|| (channelPost && session->data().notifySilentPosts(peer));
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -246,15 +258,7 @@ bool SendDice(Api::MessageToSend &message) {
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = message.action.options.silent
 		|| (channelPost && session->data().notifySilentPosts(peer));
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
+	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -318,6 +322,13 @@ bool SendDice(Api::MessageToSend &message) {
 		return history->sendRequestId;
 	});
 	return true;
+}
+
+void FillMessagePostFlags(
+		const Api::SendAction &action,
+		not_null<PeerData*> peer,
+		MTPDmessage::Flags &flags) {
+	InnerFillMessagePostFlags(action.options, peer, flags);
 }
 
 } // namespace Api

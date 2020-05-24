@@ -1454,6 +1454,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_edit_msg" = "Edit";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_send_now_msg" = "Send now";
+"lng_context_reschedule" = "Reschedule";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
 "lng_context_report_msg" = "Report Message";
