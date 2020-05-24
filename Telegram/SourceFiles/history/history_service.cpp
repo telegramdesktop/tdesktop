@@ -27,10 +27,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text_options.h"
+#include "base/unixtime.h"
 
 namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
+
+QString GenerateServiceTime(TimeId date) {
+	if (date > 0) {
+		return qs(" ") + base::unixtime::parse(date).toString(cTimeFormat());
+	}
+	return QString();
+}
 
 } // namespace
 
@@ -577,7 +585,7 @@ ClickHandlerPtr HistoryService::fromLink() const {
 void HistoryService::setServiceText(const PreparedText &prepared) {
 	_text.setText(
 		st::serviceTextStyle,
-		prepared.text,
+		prepared.text + GenerateServiceTime(date()),
 		Ui::ItemTextServiceOptions());
 	auto linkIndex = 0;
 	for_const (auto &link, prepared.links) {
