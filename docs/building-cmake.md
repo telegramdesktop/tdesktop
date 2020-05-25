@@ -211,18 +211,25 @@ Go to ***BuildPath*** and run
     sudo make install_sw
     cd ..
 
-    git clone https://github.com/xkbcommon/libxkbcommon.git
-    cd libxkbcommon
-    git checkout xkbcommon-0.8.4
-    ./autogen.sh
-    make $MAKE_THREADS_CNT
+    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
+    cd wayland
+    ./autogen.sh \
+    --enable-static \
+    --disable-documentation \
+    --disable-dtd-validation
+    make -j$(nproc)
     sudo make install
     cd ..
 
-    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
-    cd wayland
-    ./autogen.sh --enable-static --disable-documentation  --disable-dtd-validation
-    make -j$(nproc)
+    git clone https://github.com/xkbcommon/libxkbcommon.git
+    cd libxkbcommon
+    git checkout xkbcommon-0.8.4
+    ./autogen.sh \
+    --disable-docs \
+    --disable-wayland \
+    --with-xkb-config-root=/usr/share/X11/xkb \
+    --with-x-locale-root=/usr/share/X11/locale
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
