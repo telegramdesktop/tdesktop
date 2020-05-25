@@ -798,6 +798,7 @@ void StickersListWidget::Footer::paintSetIcon(
 			const auto size = frame.size() / cIntRetinaFactor();
 			if (icon.savedFrame.isNull()) {
 				icon.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
+				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			}
 			p.drawImage(
 				QRect(
@@ -1850,6 +1851,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 			frame);
 		if (sticker.savedFrame.isNull()) {
 			sticker.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
+			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
 		}
 		set.lottiePlayer->unpause(sticker.animated);
 	} else {
