@@ -57,14 +57,6 @@ void ImageSource::unload() {
 	_data = QImage();
 }
 
-void ImageSource::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-}
-
-void ImageSource::automaticLoadSettingsChanged() {
-}
-
 bool ImageSource::loading() {
 	return false;
 }
@@ -184,14 +176,6 @@ QImage LocalFileSource::takeLoaded() {
 
 void LocalFileSource::unload() {
 	_data = QImage();
-}
-
-void LocalFileSource::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-}
-
-void LocalFileSource::automaticLoadSettingsChanged() {
 }
 
 bool LocalFileSource::loading() {
@@ -342,36 +326,6 @@ void RemoteSource::setImageBytes(const QByteArray &bytes) {
 
 bool RemoteSource::loading() {
 	return (_loader != nullptr);
-}
-
-void RemoteSource::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	if (!item || cancelled()) {
-		return;
-	}
-	const auto loadFromCloud = Data::AutoDownload::Should(
-		Auth().settings().autoDownload(),
-		item->history()->peer,
-		this);
-
-	if (_loader) {
-		if (loadFromCloud) {
-			_loader->permitLoadFromCloud();
-		}
-	} else {
-		_loader = createLoader(
-			origin,
-			loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly,
-			true);
-	}
-	if (_loader) {
-		_loader->start();
-	}
-}
-
-void RemoteSource::automaticLoadSettingsChanged() {
-	_cancelled = false;
 }
 
 void RemoteSource::load(Data::FileOrigin origin) {
@@ -645,33 +599,33 @@ void DelayedStorageSource::performDelayedLoad(Data::FileOrigin origin) {
 		loadLocal();
 	}
 }
-
-void DelayedStorageSource::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	if (_location.valid()) {
-		StorageSource::automaticLoad(origin, item);
-		return;
-	} else if (_loadCancelled || !item) {
-		return;
-	}
-	const auto loadFromCloud = Data::AutoDownload::Should(
-		Auth().settings().autoDownload(),
-		item->history()->peer,
-		this);
-
-	if (_loadRequested) {
-		if (loadFromCloud) _loadFromCloud = loadFromCloud;
-	} else {
-		_loadFromCloud = loadFromCloud;
-		_loadRequested = true;
-	}
-}
-
-void DelayedStorageSource::automaticLoadSettingsChanged() {
-	if (_loadCancelled) _loadCancelled = false;
-	StorageSource::automaticLoadSettingsChanged();
-}
+//
+//void DelayedStorageSource::automaticLoad(
+//		Data::FileOrigin origin,
+//		const HistoryItem *item) {
+//	if (_location.valid()) {
+//		StorageSource::automaticLoad(origin, item);
+//		return;
+//	} else if (_loadCancelled || !item) {
+//		return;
+//	}
+//	const auto loadFromCloud = Data::AutoDownload::Should(
+//		Auth().settings().autoDownload(),
+//		item->history()->peer,
+//		this);
+//
+//	if (_loadRequested) {
+//		if (loadFromCloud) _loadFromCloud = loadFromCloud;
+//	} else {
+//		_loadFromCloud = loadFromCloud;
+//		_loadRequested = true;
+//	}
+//}
+//
+//void DelayedStorageSource::automaticLoadSettingsChanged() {
+//	if (_loadCancelled) _loadCancelled = false;
+//	StorageSource::automaticLoadSettingsChanged();
+//}
 
 void DelayedStorageSource::load(Data::FileOrigin origin) {
 	if (_location.valid()) {

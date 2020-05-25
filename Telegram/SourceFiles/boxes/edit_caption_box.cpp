@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using namespace ::Media::Streaming;
+using Data::PhotoSize;
 
 } // namespace
 
@@ -75,9 +77,10 @@ EditCaptionBox::EditCaptionBox(
 
 	const auto media = item->media();
 	if (const auto photo = media->photo()) {
-		_photo = true;
-		dimensions = QSize(photo->width(), photo->height());
-		image = photo->large();
+		_photoMedia = photo->createMediaView();
+		_photoMedia->wanted(PhotoSize::Large, _msgId);
+		image = _photoMedia->image(PhotoSize::Large);
+		dimensions = _photoMedia->size(PhotoSize::Large);
 	} else if (const auto document = media->document()) {
 		_documentMedia = document->createMediaView();
 		_documentMedia->thumbnailWanted(_msgId);
@@ -97,7 +100,10 @@ EditCaptionBox::EditCaptionBox(
 	}
 	const auto editData = PrepareEditText(item);
 
-	if (!_animated && (dimensions.isEmpty() || _documentMedia || !image)) {
+	if (!_animated
+		&& (dimensions.isEmpty()
+			|| _documentMedia
+			|| (!_photoMedia && !image))) {
 		if (!image) {
 			_thumbw = 0;
 		} else {
@@ -139,7 +145,7 @@ EditCaptionBox::EditCaptionBox(
 			_refreshThumbnail();
 		}
 	} else {
-		if (!image) {
+		if (!image && !_photoMedia) {
 			image = Image::BlankMedia();
 		}
 		auto maxW = 0, maxH = 0;
@@ -177,7 +183,10 @@ EditCaptionBox::EditCaptionBox(
 			maxH = dimensions.height();
 			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
-				_thumb = image->pixNoCache(
+				if (!_thumbnailImage) {
+					return;
+				}
+				_thumb = _thumbnailImage->pixNoCache(
 					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
@@ -253,6 +262,8 @@ EditCaptionBox::EditCaptionBox(
 
 	_thumbnailImageLoaded = _thumbnailImage
 		? _thumbnailImage->loaded()
+		: _photoMedia
+		? false
 		: _documentMedia
 		? !_documentMedia->owner()->hasThumbnail()
 		: true;
@@ -260,6 +271,8 @@ EditCaptionBox::EditCaptionBox(
 		subscribe(_controller->session().downloaderTaskFinished(), [=] {
 			if (_thumbnailImageLoaded) {
 				return;
+			} else if (!_thumbnailImage && _photoMedia) {
+				_thumbnailImage = _photoMedia->image(PhotoSize::Large);
 			} else if (!_thumbnailImage
 				&& _documentMedia
 				&& _documentMedia->owner()->hasThumbnail()) {

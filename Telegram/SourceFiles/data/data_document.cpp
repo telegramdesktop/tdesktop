@@ -700,10 +700,10 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		_flags |= Flag::ThumbnailFailed;
 	}, [=] {
 		if (_thumbnailLoader && !_thumbnailLoader->cancelled()) {
-			if (auto image = _thumbnailLoader->imageData(); image.isNull()) {
+			if (auto read = _thumbnailLoader->imageData(); read.isNull()) {
 				_flags |= Flag::ThumbnailFailed;
 			} else if (const auto active = activeMediaView()) {
-				active->setThumbnail(std::move(image));
+				active->setThumbnail(std::move(read));
 			}
 		}
 		_thumbnailLoader = nullptr;

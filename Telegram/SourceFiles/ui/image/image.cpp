@@ -946,14 +946,6 @@ QImage Image::original() const {
 	return _data;
 }
 
-void Image::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	if (!loaded()) {
-		_source->automaticLoad(origin, item);
-	}
-}
-
 void Image::load(Data::FileOrigin origin) {
 	if (!loaded()) {
 		_source->load(origin);

@@ -20,11 +20,6 @@ public:
 	QImage takeLoaded() override;
 	void unload() override;
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
-
 	bool loading() override;
 	bool displayLoading() override;
 	void cancel() override;
@@ -69,11 +64,6 @@ public:
 	QImage takeLoaded() override;
 	void unload() override;
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
-
 	bool loading() override;
 	bool displayLoading() override;
 	void cancel() override;
@@ -114,11 +104,6 @@ public:
 	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
-
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
 
 	bool loading() override;
 	bool displayLoading() override;
@@ -255,11 +240,6 @@ public:
 		const StorageImageLocation &location) override;
 	bool isDelayedStorageImage() const override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
-
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override; // auto load photo
-	void automaticLoadSettingsChanged() override;
 
 	bool loading() override {
 		return _location.valid()

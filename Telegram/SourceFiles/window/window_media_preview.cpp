@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_media_preview.h"
 
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "ui/image/image.h"
@@ -114,6 +115,7 @@ void MediaPreviewWidget::showPreview(
 	startShow();
 	_origin = origin;
 	_photo = nullptr;
+	_photoMedia = nullptr;
 	_document = document;
 	_documentMedia = _document->createMediaView();
 	_documentMedia->thumbnailWanted(_origin);
@@ -128,9 +130,10 @@ void MediaPreviewWidget::showPreview(
 		not_null<PhotoData*> photo) {
 	startShow();
 	_origin = origin;
-	_photo = photo;
 	_document = nullptr;
 	_documentMedia = nullptr;
+	_photo = photo;
+	_photoMedia = _photo->createMediaView();
 	fillEmojiString();
 	resetGifAndCache();
 }
@@ -159,6 +162,7 @@ void MediaPreviewWidget::hidePreview() {
 	_hiding = true;
 	_a_shown.start([=] { update(); }, 1., 0., st::stickerPreviewDuration);
 	_photo = nullptr;
+	_photoMedia = nullptr;
 	_document = nullptr;
 	_documentMedia = nullptr;
 	resetGifAndCache();
@@ -296,30 +300,31 @@ QPixmap MediaPreviewWidget::currentImage() const {
 		}
 	} else if (_photo) {
 		if (_cacheStatus != CacheLoaded) {
-			if (_photo->loaded()) {
+			if (_photoMedia->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _photo->large()->pix(_origin, s.width(), s.height());
+				_cache = _photoMedia->image(Data::PhotoSize::Large)->pix(_origin, s.width(), s.height());
 				_cacheStatus = CacheLoaded;
 			} else {
 				_photo->load(_origin);
 				if (_cacheStatus != CacheThumbLoaded) {
 					QSize s = currentDimensions();
-					if (_photo->thumbnail()->loaded()) {
-						_cache = _photo->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+					if (const auto thumbnail = _photoMedia->image(
+							Data::PhotoSize::Thumbnail)) {
+						_cache = thumbnail->pixBlurred(_origin, s.width(), s.height());
 						_cacheStatus = CacheThumbLoaded;
-					} else if (_photo->thumbnailSmall()->loaded()) {
-						_cache = _photo->thumbnailSmall()->pixBlurred(_origin, s.width(), s.height());
+					} else if (const auto small = _photoMedia->image(
+							Data::PhotoSize::Small)) {
+						_cache = small->pixBlurred(_origin, s.width(), s.height());
 						_cacheStatus = CacheThumbLoaded;
-					} else if (const auto blurred = _photo->thumbnailInline()) {
+					} else if (const auto blurred = _photoMedia->thumbnailInline()) {
 						_cache = blurred->pixBlurred(_origin, s.width(), s.height());
 						_cacheStatus = CacheThumbLoaded;
 					} else {
-						_photo->thumbnailSmall()->load(_origin);
+						_photoMedia->wanted(Data::PhotoSize::Small, _origin);
 					}
 				}
 			}
 		}
-
 	}
 	return _cache;
 }

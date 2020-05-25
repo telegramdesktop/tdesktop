@@ -427,11 +427,16 @@ public:
 	void documentLoadSettingsChanged();
 
 	void notifyPhotoLayoutChanged(not_null<const PhotoData*> photo);
+	void requestPhotoViewRepaint(not_null<const PhotoData*> photo);
 	void notifyDocumentLayoutChanged(
 		not_null<const DocumentData*> document);
 	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
+
+	void photoLoadProgress(not_null<PhotoData*> photo);
+	void photoLoadDone(not_null<PhotoData*> photo);
+	void photoLoadFail(not_null<PhotoData*> photo, bool started);
 
 	void documentLoadProgress(not_null<DocumentData*> document);
 	void documentLoadDone(not_null<DocumentData*> document);
@@ -473,16 +478,16 @@ public:
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large);
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumbnail = ImagePtr(),
+		const ImageLocation &thumbnailLocation = ImageLocation(),
 		bool willBecomeNormal = false);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
@@ -736,10 +741,10 @@ private:
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large);
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,

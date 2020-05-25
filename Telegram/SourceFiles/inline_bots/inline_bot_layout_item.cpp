@@ -41,7 +41,7 @@ Result *ItemBase::getResult() const {
 }
 
 DocumentData *ItemBase::getDocument() const {
-	return _doc;
+	return _document;
 }
 
 PhotoData *ItemBase::getPhoto() const {
@@ -49,8 +49,8 @@ PhotoData *ItemBase::getPhoto() const {
 }
 
 DocumentData *ItemBase::getPreviewDocument() const {
-	if (_doc) {
-		return _doc;
+	if (_document) {
+		return _document;
 	} else if (_result) {
 		return _result->_document;
 	}
@@ -60,8 +60,7 @@ DocumentData *ItemBase::getPreviewDocument() const {
 PhotoData *ItemBase::getPreviewPhoto() const {
 	if (_photo) {
 		return _photo;
-	}
-	if (_result) {
+	} else if (_result) {
 		return _result->_photo;
 	}
 	return nullptr;
@@ -71,16 +70,16 @@ void ItemBase::preload() const {
 	const auto origin = fileOrigin();
 	if (_result) {
 		if (_result->_photo) {
-			_result->_photo->loadThumbnail(origin);
+			_result->_photo->load(Data::PhotoSize::Thumbnail, origin);
 		} else if (_result->_document) {
 			_result->_document->loadThumbnail(origin);
 		} else if (!_result->_thumb->isNull()) {
 			_result->_thumb->load(origin);
 		}
-	} else if (_doc) {
-		_doc->loadThumbnail(origin);
+	} else if (_document) {
+		_document->loadThumbnail(origin);
 	} else if (_photo) {
-		_photo->loadThumbnail(origin);
+		_photo->load(Data::PhotoSize::Thumbnail, origin);
 	}
 }
 
@@ -96,7 +95,10 @@ void ItemBase::layoutChanged() {
 	}
 }
 
-std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Result *result, bool forceThumb) {
+std::unique_ptr<ItemBase> ItemBase::createLayout(
+		not_null<Context*> context,
+		not_null<Result*> result,
+		bool forceThumb) {
 	using Type = Result::Type;
 
 	switch (result->_type) {
@@ -126,7 +128,9 @@ std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Res
 	return nullptr;
 }
 
-std::unique_ptr<ItemBase> ItemBase::createLayoutGif(not_null<Context*> context, DocumentData *document) {
+std::unique_ptr<ItemBase> ItemBase::createLayoutGif(
+		not_null<Context*> context,
+		not_null<DocumentData*> document) {
 	return std::make_unique<internal::Gif>(context, document, true);
 }
 
@@ -140,9 +144,7 @@ PhotoData *ItemBase::getResultPhoto() const {
 
 Image *ItemBase::getResultThumb() const {
 	if (_result) {
-		if (_result->_photo) {
-			return _result->_photo->thumbnail();
-		} else if (!_result->_thumb->isNull()) {
+		if (!_result->_thumb->isNull()) {
 			return _result->_thumb.get();
 		} else if (!_result->_locationThumb->isNull()) {
 			return _result->_locationThumb.get();

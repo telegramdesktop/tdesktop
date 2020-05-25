@@ -17,6 +17,10 @@ namespace Images {
 
 [[nodiscard]] ImageWithLocation FromPhotoSize(
 	not_null<Main::Session*> session,
+	const MTPDphoto &photo,
+	const MTPPhotoSize &size);
+[[nodiscard]] ImageWithLocation FromPhotoSize(
+	not_null<Main::Session*> session,
 	const MTPDdocument &document,
 	const MTPPhotoSize &size);
 [[nodiscard]] ImageWithLocation FromVideoSize(

@@ -381,98 +381,98 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	}
 	parent()->history()->owner().photoConvert(_photo, *content);
 
-	if (content->type() != mtpc_photo) {
-		return false;
-	}
-	const auto &photo = content->c_photo();
+	//if (content->type() != mtpc_photo) { // #TODO optimize
+	//	return false;
+	//}
+	//const auto &photo = content->c_photo();
 
-	struct SizeData {
-		MTPstring type = MTP_string();
-		int width = 0;
-		int height = 0;
-		QByteArray bytes;
-	};
-	const auto saveImageToCache = [&](
-			not_null<Image*> image,
-			SizeData size) {
-		Expects(!size.type.v.isEmpty());
+	//struct SizeData {
+	//	MTPstring type = MTP_string();
+	//	int width = 0;
+	//	int height = 0;
+	//	QByteArray bytes;
+	//};
+	//const auto saveImageToCache = [&](
+	//		not_null<Image*> image,
+	//		SizeData size) {
+	//	Expects(!size.type.v.isEmpty());
 
-		const auto key = StorageImageLocation(
-			StorageFileLocation(
-				photo.vdc_id().v,
-				_photo->session().userId(),
-				MTP_inputPhotoFileLocation(
-					photo.vid(),
-					photo.vaccess_hash(),
-					photo.vfile_reference(),
-					size.type)),
-			size.width,
-			size.height);
-		if (!key.valid() || image->isNull() || !image->loaded()) {
-			return;
-		}
-		if (size.bytes.isEmpty()) {
-			size.bytes = image->bytesForCache();
-		}
-		const auto length = size.bytes.size();
-		if (!length || length > Storage::kMaxFileInMemory) {
-			LOG(("App Error: Bad photo data for saving to cache."));
-			return;
-		}
-		parent()->history()->owner().cache().putIfEmpty(
-			key.file().cacheKey(),
-			Storage::Cache::Database::TaggedValue(
-				std::move(size.bytes),
-				Data::kImageCacheTag));
-		image->replaceSource(
-			std::make_unique<Images::StorageSource>(key, length));
-	};
-	auto &sizes = photo.vsizes().v;
-	auto max = 0;
-	auto maxSize = SizeData();
-	for (const auto &data : sizes) {
-		const auto size = data.match([](const MTPDphotoSize &data) {
-			return SizeData{
-				data.vtype(),
-				data.vw().v,
-				data.vh().v,
-				QByteArray()
-			};
-		}, [](const MTPDphotoCachedSize &data) {
-			return SizeData{
-				data.vtype(),
-				data.vw().v,
-				data.vh().v,
-				qba(data.vbytes())
-			};
-		}, [](const MTPDphotoSizeEmpty &) {
-			return SizeData();
-		}, [](const MTPDphotoStrippedSize &data) {
-			// No need to save stripped images to local cache.
-			return SizeData();
-		});
-		const auto letter = size.type.v.isEmpty() ? char(0) : size.type.v[0];
-		if (!letter) {
-			continue;
-		}
-		if (letter == 's') {
-			saveImageToCache(_photo->thumbnailSmall(), size);
-		} else if (letter == 'm') {
-			saveImageToCache(_photo->thumbnail(), size);
-		} else if (letter == 'x' && max < 1) {
-			max = 1;
-			maxSize = size;
-		} else if (letter == 'y' && max < 2) {
-			max = 2;
-			maxSize = size;
-		//} else if (letter == 'w' && max < 3) {
-		//	max = 3;
-		//	maxSize = size;
-		}
-	}
-	if (!maxSize.type.v.isEmpty()) {
-		saveImageToCache(_photo->large(), maxSize);
-	}
+	//	const auto key = StorageImageLocation(
+	//		StorageFileLocation(
+	//			photo.vdc_id().v,
+	//			_photo->session().userId(),
+	//			MTP_inputPhotoFileLocation(
+	//				photo.vid(),
+	//				photo.vaccess_hash(),
+	//				photo.vfile_reference(),
+	//				size.type)),
+	//		size.width,
+	//		size.height);
+	//	if (!key.valid() || image->isNull() || !image->loaded()) {
+	//		return;
+	//	}
+	//	if (size.bytes.isEmpty()) {
+	//		size.bytes = image->bytesForCache();
+	//	}
+	//	const auto length = size.bytes.size();
+	//	if (!length || length > Storage::kMaxFileInMemory) {
+	//		LOG(("App Error: Bad photo data for saving to cache."));
+	//		return;
+	//	}
+	//	parent()->history()->owner().cache().putIfEmpty(
+	//		key.file().cacheKey(),
+	//		Storage::Cache::Database::TaggedValue(
+	//			std::move(size.bytes),
+	//			Data::kImageCacheTag));
+	//	image->replaceSource(
+	//		std::make_unique<Images::StorageSource>(key, length));
+	//};
+	//auto &sizes = photo.vsizes().v;
+	//auto max = 0;
+	//auto maxSize = SizeData();
+	//for (const auto &data : sizes) {
+	//	const auto size = data.match([](const MTPDphotoSize &data) {
+	//		return SizeData{
+	//			data.vtype(),
+	//			data.vw().v,
+	//			data.vh().v,
+	//			QByteArray()
+	//		};
+	//	}, [](const MTPDphotoCachedSize &data) {
+	//		return SizeData{
+	//			data.vtype(),
+	//			data.vw().v,
+	//			data.vh().v,
+	//			qba(data.vbytes())
+	//		};
+	//	}, [](const MTPDphotoSizeEmpty &) {
+	//		return SizeData();
+	//	}, [](const MTPDphotoStrippedSize &data) {
+	//		// No need to save stripped images to local cache.
+	//		return SizeData();
+	//	});
+	//	const auto letter = size.type.v.isEmpty() ? char(0) : size.type.v[0];
+	//	if (!letter) {
+	//		continue;
+	//	}
+	//	if (letter == 's') {
+	//		saveImageToCache(_photo->thumbnailSmall(), size);
+	//	} else if (letter == 'm') {
+	//		saveImageToCache(_photo->thumbnail(), size);
+	//	} else if (letter == 'x' && max < 1) {
+	//		max = 1;
+	//		maxSize = size;
+	//	} else if (letter == 'y' && max < 2) {
+	//		max = 2;
+	//		maxSize = size;
+	//	//} else if (letter == 'w' && max < 3) {
+	//	//	max = 3;
+	//	//	maxSize = size;
+	//	}
+	//}
+	//if (!maxSize.type.v.isEmpty()) {
+	//	saveImageToCache(_photo->large(), maxSize);
+	//}
 	return true;
 }
 

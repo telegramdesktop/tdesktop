@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 
@@ -62,18 +63,18 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 		return _image.get();
 	}
 	if (_document) {
-		if (!_documentMedia) {
-			_documentMedia = _document->createMediaView();
-		}
-		const auto thumbnail = _documentMedia->thumbnail();
-		if (!_image || (!_good && thumbnail)) {
+		if (!_image || (!_good && _document->hasThumbnail())) {
+			if (!_documentMedia) {
+				_documentMedia = _document->createMediaView();
+				_documentMedia->thumbnailWanted(origin);
+			}
+			const auto thumbnail = _documentMedia->thumbnail();
 			const auto option = _document->isVideoMessage()
 				? Images::Option::Circled
 				: Images::Option::None;
 			if (thumbnail) {
 				prepare(thumbnail, option);
 			} else {
-				_documentMedia->thumbnailWanted(origin);
 				if (const auto image = _documentMedia->thumbnailInline()) {
 					prepare(image, option | Images::Option::Blurred);
 				}
@@ -85,22 +86,33 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 		}
 	} else {
 		Assert(_photo != nullptr);
-		const auto small = _photo->thumbnailSmall();
-		const auto large = _photo->large();
-		if (!_image || (!_good && (small->loaded() || large->loaded()))) {
-			if (small->isDelayedStorageImage()
-				&& !large->isNull()
-				&& !large->isDelayedStorageImage()
-				&& large->loaded()) {
-				prepare(large, Images::Option(0));
-			} else if (small->loaded()) {
-				prepare(small, Images::Option(0));
-			} else {
-				small->load(origin);
-				if (const auto blurred = _photo->thumbnailInline()) {
-					prepare(blurred, Images::Option::Blurred);
-				}
+		if (!_image || !_good) {
+			if (!_photoMedia) {
+				_photoMedia = _photo->createMediaView();
+				_photoMedia->wanted(PhotoSize::Small, origin);
 			}
+			if (const auto small = _photoMedia->image(PhotoSize::Small)) {
+				prepare(small, Images::Option(0));
+			} else if (const auto large = _photoMedia->image(
+					PhotoSize::Large)) {
+				prepare(large, Images::Option(0));
+			} else if (const auto blurred = _photoMedia->thumbnailInline()) {
+				prepare(blurred, Images::Option::Blurred);
+			}
+
+			//if (small->isDelayedStorageImage() // #TODO optimize
+			//	&& !large->isNull()
+			//	&& !large->isDelayedStorageImage()
+			//	&& large->loaded()) {
+			//	prepare(large, Images::Option(0));
+			//} else if (small->loaded()) {
+			//	prepare(small, Images::Option(0));
+			//} else {
+			//	small->load(origin);
+			//	if (const auto blurred = _photo->thumbnailInline()) {
+			//		prepare(blurred, Images::Option::Blurred);
+			//	}
+			//}
 		}
 	}
 	return _image.get();

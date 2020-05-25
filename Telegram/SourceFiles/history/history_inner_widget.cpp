@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_poll.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -1853,8 +1854,12 @@ void HistoryInner::copySelectedText() {
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
-	if (photo->isNull() || !photo->loaded()) return;
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
+		return;
+	}
 
+	const auto image = media->image(Data::PhotoSize::Large)->original();
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
@@ -1865,15 +1870,19 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 			qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->large()->original().save(result, "JPG");
+				image.save(result, "JPG");
 			}
 		}));
 }
 
 void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
-	if (photo->isNull() || !photo->loaded()) return;
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
+		return;
+	}
 
-	QGuiApplication::clipboard()->setImage(photo->large()->original());
+	const auto image = media->image(Data::PhotoSize::Large)->original();
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {

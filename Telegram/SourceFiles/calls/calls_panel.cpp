@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -299,7 +300,7 @@ QImage Panel::Button::prepareRippleMask() const {
 }
 
 Panel::Panel(not_null<Call*> call)
-:RpWidget(App::wnd())
+: RpWidget(App::wnd())
 , _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
@@ -318,6 +319,8 @@ Panel::Panel(not_null<Call*> call)
 	initLayout();
 	showAndActivate();
 }
+
+Panel::~Panel() = default;
 
 void Panel::showAndActivate() {
 	toggleOpacityAnimation(true);
@@ -515,26 +518,28 @@ void Panel::processUserPhoto() {
 		? _user->owner().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
-		photo->large()->load(_user->userpicPhotoOrigin());
-	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
-		_user->session().api().requestFullPeer(_user);
+		_photo = photo->createMediaView();
+		_photo->wanted(Data::PhotoSize::Large, _user->userpicPhotoOrigin());
+	} else {
+		_photo = nullptr;
+		if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
+			_user->session().api().requestFullPeer(_user);
+		}
 	}
 	refreshUserPhoto();
 }
 
 void Panel::refreshUserPhoto() {
-	const auto photo = _user->userpicPhotoId()
-		? _user->owner().photo(_user->userpicPhotoId()).get()
-		: nullptr;
-	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
-		return photo->large()->loaded()
-			&& (photo->id != _userPhotoId || !_userPhotoFull);
-	};
-	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
-		_userPhotoId = photo->id;
+	const auto isNewBigPhoto = [&] {
+		return _photo
+			&& _photo->loaded()
+			&& (_photo->owner()->id != _userPhotoId || !_userPhotoFull);
+	}();
+	if (isNewBigPhoto) {
+		_userPhotoId = _photo->owner()->id;
 		_userPhotoFull = true;
 		createUserpicCache(
-			photo->isNull() ? nullptr : photo->large().get(),
+			_photo->image(Data::PhotoSize::Large),
 			_user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
 		const auto userpic = _user->currentUserpic();

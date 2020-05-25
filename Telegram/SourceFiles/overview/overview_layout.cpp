@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
@@ -297,8 +298,8 @@ Photo::Photo(
 : ItemBase(delegate, parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
-	if (!_data->thumbnailInline()) {
-		_data->loadThumbnailSmall(parent->fullId());
+	if (_data->inlineThumbnailBytes().isEmpty()) {
+		_data->load(Data::PhotoSize::Small, parent->fullId());
 	}
 }
 
@@ -317,27 +318,25 @@ int32 Photo::resizeGetHeight(int32 width) {
 }
 
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
-	bool good = _data->loaded(), selected = (selection == FullSelection);
-	if (!good) {
-		_data->thumbnail()->automaticLoad(parent()->fullId(), parent());
-		good = _data->thumbnail()->loaded();
-	}
-	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
-		_goodLoaded = good;
-		_pix = QPixmap();
-		if (_goodLoaded) {
-			setPixFrom(_data->loaded()
-				? _data->large()
-				: _data->thumbnail());
-		} else if (_data->thumbnailSmall()->loaded()) {
-			setPixFrom(_data->thumbnailSmall());
-		} else if (const auto blurred = _data->thumbnailInline()) {
-			blurred->load({});
-			if (blurred->loaded()) {
+	const auto selected = (selection == FullSelection);
+	const auto widthChanged = _pix.width() != _width * cIntRetinaFactor();
+	if (!_goodLoaded || widthChanged) {
+		ensureDataMediaCreated();
+		const auto good = _dataMedia->loaded()
+			|| (_dataMedia->image(Data::PhotoSize::Thumbnail) != nullptr);
+		if ((good && !_goodLoaded) || widthChanged) {
+			_goodLoaded = good;
+			_pix = QPixmap();
+			if (_goodLoaded) {
+				setPixFrom(_dataMedia->image(Data::PhotoSize::Large)
+					? _dataMedia->image(Data::PhotoSize::Large)
+					: _dataMedia->image(Data::PhotoSize::Thumbnail));
+			} else if (const auto small = _dataMedia->image(
+					Data::PhotoSize::Small)) {
+				setPixFrom(small);
+			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
 				setPixFrom(blurred);
 			}
-		} else {
-			_data->loadThumbnailSmall(parent()->fullId());
 		}
 	}
 
@@ -377,11 +376,28 @@ void Photo::setPixFrom(not_null<Image*> image) {
 
 	// In case we have inline thumbnail we can unload all images and we still
 	// won't get a blank image in the media viewer when the photo is opened.
-	if (_data->thumbnailInline() != nullptr) {
-		_data->unload();
+	if (!_data->inlineThumbnailBytes().isEmpty()) {
+		_dataMedia = nullptr;
+		delegate()->unregisterHeavyItem(this);
 	}
 
 	_pix = App::pixmapFromImageInPlace(std::move(img));
+}
+
+void Photo::ensureDataMediaCreated() const {
+	if (_dataMedia) {
+		return;
+	}
+	_dataMedia = _data->createMediaView();
+	if (_data->inlineThumbnailBytes().isEmpty()) {
+		_dataMedia->wanted(Data::PhotoSize::Small, parent()->fullId());
+	}
+	_dataMedia->wanted(Data::PhotoSize::Thumbnail, parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
+void Photo::clearHeavyPart() {
+	_dataMedia = nullptr;
 }
 
 TextState Photo::getState(
@@ -1460,12 +1476,7 @@ Link::Link(
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		if (!_page->photo->loaded()
-			&& !_page->photo->thumbnail()->loaded()
-			&& !_page->photo->thumbnailSmall()->loaded()) {
-			_page->photo->loadThumbnailSmall(parent->fullId());
-		}
-
+		_page->photo->load(Data::PhotoSize::Small, parent->fullId());
 		tw = style::ConvertScale(_page->photo->width());
 		th = style::ConvertScale(_page->photo->height());
 	} else if (_page && _page->document && _page->document->hasThumbnail()) {
@@ -1609,17 +1620,21 @@ void Link::validateThumbnail() {
 		return;
 	}
 	if (_page && _page->photo) {
-		if (_page->photo->thumbnail()->loaded()) {
-			_thumbnail = _page->photo->thumbnail()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-		} else if (_page->photo->loaded()) {
-			_thumbnail = _page->photo->large()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-		} else if (_page->photo->thumbnailSmall()->loaded()) {
-			_thumbnail = _page->photo->thumbnailSmall()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-		} else if (const auto blurred = _page->photo->thumbnailInline()) {
+		using Data::PhotoSize;
+		ensurePhotoMediaCreated();
+		if (const auto thumbnail = _photoMedia->image(PhotoSize::Thumbnail)) {
+			_thumbnail = thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (const auto large = _photoMedia->image(PhotoSize::Large)) {
+			_thumbnail = large->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (const auto small = _photoMedia->image(PhotoSize::Small)) {
+			_thumbnail = small->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
 			_thumbnail = blurred->pixBlurredSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 		} else {
 			return;
 		}
+		_photoMedia = nullptr;
+		delegate()->unregisterHeavyItem(this);
 	} else if (_page && _page->document && _page->document->hasThumbnail()) {
 		ensureDocumentMediaCreated();
 		if (const auto thumbnail = _documentMedia->thumbnail()) {
@@ -1664,6 +1679,15 @@ void Link::validateThumbnail() {
 	}
 }
 
+void Link::ensurePhotoMediaCreated() {
+	if (_photoMedia) {
+		return;
+	}
+	_photoMedia = _page->photo->createMediaView();
+	_photoMedia->wanted(Data::PhotoSize::Small, parent()->fullId());
+	delegate()->registerHeavyItem(this);
+}
+
 void Link::ensureDocumentMediaCreated() {
 	if (_documentMedia) {
 		return;
@@ -1674,6 +1698,7 @@ void Link::ensureDocumentMediaCreated() {
 }
 
 void Link::clearHeavyPart() {
+	_photoMedia = nullptr;
 	_documentMedia = nullptr;
 }
 

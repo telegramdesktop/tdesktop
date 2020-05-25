@@ -393,6 +393,8 @@ PRIVATE
     data/data_peer_values.h
     data/data_photo.cpp
     data/data_photo.h
+    data/data_photo_media.cpp
+    data/data_photo_media.h
     data/data_poll.cpp
     data/data_poll.h
     data/data_pts_waiter.cpp

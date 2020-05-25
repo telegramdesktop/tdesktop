@@ -50,8 +50,8 @@ public:
 	: _result(result)
 	, _context(context) {
 	}
-	ItemBase(not_null<Context*> context, DocumentData *doc)
-	: _doc(doc)
+	ItemBase(not_null<Context*> context, not_null<DocumentData*> document)
+	: _document(document)
 	, _context(context) {
 	}
 	// Not used anywhere currently.
@@ -94,8 +94,13 @@ public:
 		update();
 	}
 
-	static std::unique_ptr<ItemBase> createLayout(not_null<Context*> context, Result *result, bool forceThumb);
-	static std::unique_ptr<ItemBase> createLayoutGif(not_null<Context*> context, DocumentData *document);
+	static std::unique_ptr<ItemBase> createLayout(
+		not_null<Context*> context,
+		not_null<Result*> result,
+		bool forceThumb);
+	static std::unique_ptr<ItemBase> createLayoutGif(
+		not_null<Context*> context,
+		not_null<DocumentData*> document);
 
 protected:
 	DocumentData *getResultDocument() const;
@@ -114,7 +119,7 @@ protected:
 	Data::FileOrigin fileOrigin() const;
 
 	Result *_result = nullptr;
-	DocumentData *_doc = nullptr;
+	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 
 	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };

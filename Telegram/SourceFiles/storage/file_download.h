@@ -66,29 +66,30 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
-	bool finished() const {
+	[[nodiscard]] bool finished() const {
 		return _finished;
 	}
 	void finishWithBytes(const QByteArray &data);
-	bool cancelled() const {
+	[[nodiscard]] bool cancelled() const {
 		return _cancelled;
 	}
-	const QByteArray &bytes() const {
+	[[nodiscard]] const QByteArray &bytes() const {
 		return _data;
 	}
-	virtual uint64 objId() const {
+	[[nodiscard]] virtual uint64 objId() const {
 		return 0;
 	}
-	QByteArray imageFormat(const QSize &shrinkBox = QSize()) const;
-	QImage imageData(const QSize &shrinkBox = QSize()) const;
-	QString fileName() const {
+	[[nodiscard]] QByteArray imageFormat(
+		const QSize &shrinkBox = QSize()) const;
+	[[nodiscard]] QImage imageData(const QSize &shrinkBox = QSize()) const;
+	[[nodiscard]] QString fileName() const {
 		return _filename;
 	}
 	// Used in MainWidget::documentLoadFailed.
 	[[nodiscard]] virtual Data::FileOrigin fileOrigin() const;
-	float64 currentProgress() const;
-	virtual int currentOffset() const;
-	int fullSize() const;
+	[[nodiscard]] float64 currentProgress() const;
+	[[nodiscard]] virtual int currentOffset() const;
+	[[nodiscard]] int fullSize() const;
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
@@ -96,10 +97,10 @@ public:
 	void start();
 	void cancel();
 
-	bool loadingLocal() const {
+	[[nodiscard]] bool loadingLocal() const {
 		return (_localStatus == LocalStatus::Loading);
 	}
-	bool autoLoading() const {
+	[[nodiscard]] bool autoLoading() const {
 		return _autoLoading;
 	}
 
@@ -112,7 +113,7 @@ public:
 		return _updates.events();
 	}
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 

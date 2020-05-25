@@ -162,9 +162,9 @@ private:
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
-	void savePhotoToFile(PhotoData *photo);
-	void saveDocumentToFile(DocumentData *document);
-	void copyContextImage(PhotoData *photo);
+	void savePhotoToFile(not_null<PhotoData*> photo);
+	void saveDocumentToFile(not_null<DocumentData*> document);
+	void copyContextImage(not_null<PhotoData*> photo);
 	void showStickerPackInfo(not_null<DocumentData*> document);
 	void cancelContextDownload(not_null<DocumentData*> document);
 	void showContextInFolder(not_null<DocumentData*> document);

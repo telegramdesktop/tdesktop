@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "mtproto/mtproto_rpc_sender.h"
 
+namespace Data {
+class PhotoMedia;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -230,7 +234,7 @@ private:
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
-	Image *_photo = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<not_null<UserData*>> _participants;
 	bool _isChannel = false;

@@ -159,8 +159,8 @@ public:
 	[[nodiscard]] bool thumbnailLoading() const;
 	[[nodiscard]] bool thumbnailFailed() const;
 	void loadThumbnail(Data::FileOrigin origin);
-	const ImageLocation &thumbnailLocation() const;
-	int thumbnailByteSize() const;
+	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
+	[[nodiscard]] int thumbnailByteSize() const;
 
 	[[nodiscard]] bool hasVideoThumbnail() const;
 	[[nodiscard]] bool videoThumbnailLoading() const;

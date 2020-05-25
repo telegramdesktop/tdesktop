@@ -75,10 +75,10 @@ using ViewElement = HistoryView::Element;
 // b: crop 320x320
 // c: crop 640x640
 // d: crop 1280x1280
-const auto InlineLevels = QByteArray::fromRawData("i", 1);
-const auto SmallLevels = QByteArray::fromRawData("sambcxydwi", 10);
-const auto ThumbnailLevels = QByteArray::fromRawData("mbcxasydwi", 10);
-const auto LargeLevels = QByteArray::fromRawData("yxwmsdcbai", 10);
+const auto InlineLevels = "i"_q;
+const auto SmallLevels = "sambcxydwi"_q;
+const auto ThumbnailLevels = "mbcxasydwi"_q;
+const auto LargeLevels = "yxwmsdcbai"_q;
 
 void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	if (item->out() || !item->hasSwitchInlineButton()) {
@@ -127,23 +127,22 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	}) | ranges::to_vector;
 }
 
-QByteArray FindDocumentInlineThumbnail(const MTPDdocument &data) {
-	const auto thumbs = data.vthumbs();
-	if (!thumbs) {
-		return QByteArray();
-	}
-	const auto &list = thumbs->v;
+[[nodiscard]] QByteArray FindInlineThumbnail(
+		const QVector<MTPPhotoSize> &sizes) {
 	const auto i = ranges::find(
-		list,
+		sizes,
 		mtpc_photoStrippedSize,
 		&MTPPhotoSize::type);
-	if (i == list.end()) {
-		return QByteArray();
-	}
-	return i->c_photoStrippedSize().vbytes().v;
+	return (i != sizes.end())
+		? i->c_photoStrippedSize().vbytes().v
+		: QByteArray();
 }
 
-MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
+[[nodiscard]] QByteArray FindDocumentInlineThumbnail(const MTPDdocument &data) {
+	return FindInlineThumbnail(data.vthumbs().value_or_empty());
+}
+
+[[nodiscard]] MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 	const auto area = [](const MTPPhotoSize &size) {
 		static constexpr auto kInvalid = 0;
 		return size.match([](const MTPDphotoSizeEmpty &) {
@@ -165,7 +164,7 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
 }
 
-std::optional<MTPVideoSize> FindDocumentVideoThumbnail(
+[[nodiscard]] std::optional<MTPVideoSize> FindDocumentVideoThumbnail(
 		const MTPDdocument &data) {
 	const auto area = [](const MTPVideoSize &size) {
 		static constexpr auto kInvalid = 0;
@@ -184,7 +183,11 @@ std::optional<MTPVideoSize> FindDocumentVideoThumbnail(
 		: std::nullopt;
 }
 
-rpl::producer<int> PinnedDialogsCountMaxValue(
+[[nodiscard]] QByteArray FindPhotoInlineThumbnail(const MTPDphoto &data) {
+	return FindInlineThumbnail(data.vsizes().v);
+}
+
+[[nodiscard]] rpl::producer<int> PinnedDialogsCountMaxValue(
 		not_null<Main::Session*> session) {
 	return rpl::single(
 		rpl::empty_value()
@@ -1099,6 +1102,15 @@ void Session::notifyPhotoLayoutChanged(not_null<const PhotoData*> photo) {
 	}
 }
 
+void Session::requestPhotoViewRepaint(not_null<const PhotoData*> photo) {
+	const auto i = _photoItems.find(photo);
+	if (i != end(_photoItems)) {
+		for (const auto item : i->second) {
+			requestItemRepaint(item);
+		}
+	}
+}
+
 void Session::notifyDocumentLayoutChanged(
 		not_null<const DocumentData*> document) {
 	const auto i = _documentItems.find(document);
@@ -1151,6 +1163,20 @@ void Session::documentLoadFail(
 		not_null<DocumentData*> document,
 		bool started) {
 	notifyDocumentLayoutChanged(document);
+}
+
+void Session::photoLoadProgress(not_null<PhotoData*> photo) {
+	requestPhotoViewRepaint(photo);
+}
+
+void Session::photoLoadDone(not_null<PhotoData*> photo) {
+	notifyPhotoLayoutChanged(photo);
+}
+
+void Session::photoLoadFail(
+		not_null<PhotoData*> photo,
+		bool started) {
+	notifyPhotoLayoutChanged(photo);
 }
 
 void Session::markMediaRead(not_null<const DocumentData*> document) {
@@ -2174,11 +2200,10 @@ not_null<PhotoData*> Session::processPhoto(
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
 		return (i == thumbs.end())
-			? ImagePtr()
-			: Images::Create(base::duplicate(i->second), "JPG");
+			? ImageWithLocation()
+			: Images::FromImageInMemory(i->second, "JPG");
 	};
-	const auto thumbnailInline = image(InlineLevels);
-	const auto thumbnailSmall = image(SmallLevels);
+	const auto small = image(SmallLevels);
 	const auto thumbnail = image(ThumbnailLevels);
 	const auto large = image(LargeLevels);
 	return data.match([&](const MTPDphoto &data) {
@@ -2189,8 +2214,8 @@ not_null<PhotoData*> Session::processPhoto(
 			data.vdate().v,
 			data.vdc_id().v,
 			data.is_has_stickers(),
-			thumbnailInline,
-			thumbnailSmall,
+			QByteArray(),
+			small,
 			thumbnail,
 			large);
 	}, [&](const MTPDphotoEmpty &data) {
@@ -2205,10 +2230,10 @@ not_null<PhotoData*> Session::photo(
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large) {
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large) {
 	const auto result = photo(id);
 	photoApplyFields(
 		result,
@@ -2217,8 +2242,8 @@ not_null<PhotoData*> Session::photo(
 		date,
 		dc,
 		hasSticker,
-		thumbnailInline,
-		thumbnailSmall,
+		inlineThumbnailBytes,
+		small,
 		thumbnail,
 		large);
 	return result;
@@ -2252,26 +2277,28 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumbnail,
+		const ImageLocation &thumbnailLocation,
 		bool willBecomeNormal) {
-	const auto large = Images::Create(data);
+	const auto large = Images::FromWebDocument(data);
 	const auto thumbnailInline = ImagePtr();
-	if (large->isNull()) {
+	if (!large.valid()) {
 		return nullptr;
 	}
-	auto thumbnailSmall = large;
+	auto small = large;
+	auto thumbnail = thumbnailLocation;
 	if (willBecomeNormal) {
-		const auto width = large->width();
-		const auto height = large->height();
+		const auto width = large.width();
+		const auto height = large.height();
 
-		auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-		thumbnailSmall = Images::Create(thumbsize.width(), thumbsize.height());
+		// #TODO optimize
+		//auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+		//small = Images::Create(thumbsize.width(), thumbsize.height());
 
-		if (thumbnail->isNull()) {
-			auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-			thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
-		}
-	} else if (thumbnail->isNull()) {
+		//if (!thumbnail.valid()) {
+		//	auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+		//	thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
+		//}
+	} else if (!thumbnail.valid()) {
 		thumbnail = large;
 	}
 
@@ -2282,10 +2309,10 @@ PhotoData *Session::photoFromWeb(
 		base::unixtime::now(),
 		0,
 		false,
-		thumbnailInline,
-		thumbnailSmall,
-		thumbnail,
-		large);
+		QByteArray(),
+		ImageWithLocation{ .location = small },
+		ImageWithLocation{ .location = thumbnail },
+		ImageWithLocation{ .location = large });
 }
 
 void Session::photoApplyFields(
@@ -2319,13 +2346,12 @@ void Session::photoApplyFields(
 	};
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
-		return (i == sizes.end()) ? ImagePtr() : Images::Create(data, *i);
+		return (i == sizes.end())
+			? ImageWithLocation()
+			: Images::FromPhotoSize(_session, data, *i);
 	};
-	const auto thumbnailInline = image(InlineLevels);
-	const auto thumbnailSmall = image(SmallLevels);
-	const auto thumbnail = image(ThumbnailLevels);
 	const auto large = image(LargeLevels);
-	if (thumbnailSmall && thumbnail && large) {
+	if (large.location.valid()) {
 		photoApplyFields(
 			photo,
 			data.vaccess_hash().v,
@@ -2333,9 +2359,9 @@ void Session::photoApplyFields(
 			data.vdate().v,
 			data.vdc_id().v,
 			data.is_has_stickers(),
-			thumbnailInline,
-			thumbnailSmall,
-			thumbnail,
+			FindPhotoInlineThumbnail(data),
+			image(SmallLevels),
+			image(ThumbnailLevels),
 			large);
 	}
 }
@@ -2347,10 +2373,10 @@ void Session::photoApplyFields(
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large) {
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large) {
 	if (!date) {
 		return;
 	}
@@ -2358,8 +2384,8 @@ void Session::photoApplyFields(
 	photo->date = date;
 	photo->hasSticker = hasSticker;
 	photo->updateImages(
-		thumbnailInline,
-		thumbnailSmall,
+		inlineThumbnailBytes,
+		small,
 		thumbnail,
 		large);
 }

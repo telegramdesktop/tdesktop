@@ -19,6 +19,7 @@ class SinglePlayer;
 } // namespace Lottie
 
 namespace Data {
+class PhotoMedia;
 class DocumentMedia;
 } // namespace Data
 
@@ -29,8 +30,9 @@ namespace internal {
 class FileBase : public ItemBase {
 public:
 	FileBase(not_null<Context*> context, not_null<Result*> result);
-	// for saved gif layouts
-	FileBase(not_null<Context*> context, DocumentData *doc);
+
+	// For saved gif layouts.
+	FileBase(not_null<Context*> context, not_null<DocumentData*> document);
 
 protected:
 	DocumentData *getShownDocument() const;
@@ -54,10 +56,13 @@ private:
 
 };
 
-class Gif : public FileBase {
+class Gif final : public FileBase {
 public:
-	Gif(not_null<Context*> context, Result *result);
-	Gif(not_null<Context*> context, DocumentData *doc, bool hasDeleteButton);
+	Gif(not_null<Context*> context, not_null<Result*> result);
+	Gif(
+		not_null<Context*> context,
+		not_null<DocumentData*> document,
+		bool hasDeleteButton);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
@@ -131,9 +136,9 @@ private:
 
 class Photo : public ItemBase {
 public:
-	Photo(not_null<Context*> context, Result *result);
+	Photo(not_null<Context*> context, not_null<Result*> result);
 	// Not used anywhere currently.
-	//Photo(not_null<Context*> context, PhotoData *photo);
+	//Photo(not_null<Context*> context, not_null<PhotoData*> photo);
 
 	void initDimensions() override;
 
@@ -149,6 +154,8 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void unloadHeavyPart() override;
+
 private:
 	PhotoData *getShownPhoto() const;
 
@@ -163,14 +170,16 @@ private:
 		QSize frame,
 		bool good) const;
 
+	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
+
 };
 
 class Sticker : public FileBase {
 public:
-	Sticker(not_null<Context*> context, Result *result);
+	Sticker(not_null<Context*> context, not_null<Result*> result);
 	~Sticker();
 	// Not used anywhere currently.
-	//Sticker(not_null<Context*> context, DocumentData *document);
+	//Sticker(not_null<Context*> context, not_null<DocumentData*> document);
 
 	void initDimensions() override;
 
@@ -189,6 +198,8 @@ public:
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+
+	void unloadHeavyPart() override;
 
 private:
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
@@ -210,7 +221,7 @@ private:
 
 class Video : public FileBase {
 public:
-	Video(not_null<Context*> context, Result *result);
+	Video(not_null<Context*> context, not_null<Result*> result);
 
 	void initDimensions() override;
 
@@ -218,6 +229,8 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+
+	void unloadHeavyPart() override;
 
 private:
 	ClickHandlerPtr _link;
@@ -262,6 +275,7 @@ private:
 class File : public FileBase {
 public:
 	File(not_null<Context*> context, not_null<Result*> result);
+	~File();
 
 	void initDimensions() override;
 
@@ -273,7 +287,7 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
-	~File();
+	void unloadHeavyPart() override;
 
 private:
 	void thumbAnimationCallback();
@@ -334,7 +348,7 @@ private:
 
 class Contact : public ItemBase {
 public:
-	Contact(not_null<Context*> context, Result *result);
+	Contact(not_null<Context*> context, not_null<Result*> result);
 
 	void initDimensions() override;
 
@@ -353,7 +367,7 @@ private:
 
 class Article : public ItemBase {
 public:
-	Article(not_null<Context*> context, Result *result, bool withThumb);
+	Article(not_null<Context*> context, not_null<Result*> result, bool withThumb);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -378,7 +392,7 @@ private:
 
 class Game : public ItemBase {
 public:
-	Game(not_null<Context*> context, Result *result);
+	Game(not_null<Context*> context, not_null<Result*> result);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
@@ -391,6 +405,7 @@ public:
 	void unloadHeavyPart() override;
 
 private:
+	void ensureDataMediaCreated(not_null<PhotoData*> photo) const;
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
 	void countFrameSize();
 
@@ -403,7 +418,8 @@ private:
 	void clipCallback(Media::Clip::Notification notification);
 
 	Media::Clip::ReaderPointer _gif;
-	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	mutable QPixmap _thumb;
 	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;

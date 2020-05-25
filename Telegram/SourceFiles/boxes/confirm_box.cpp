@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_photo_media.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "observer_peer.h"
@@ -894,12 +895,12 @@ ConfirmInviteBox::ConfirmInviteBox(
 
 	const auto photo = _session->data().processPhoto(data.vphoto());
 	if (!photo->isNull()) {
-		_photo = photo->thumbnail();
-		if (!_photo->loaded()) {
+		_photo = photo->createMediaView();
+		_photo->wanted(Data::PhotoSize::Small, Data::FileOrigin());
+		if (!_photo->image(Data::PhotoSize::Small)) {
 			subscribe(_session->downloaderTaskFinished(), [=] {
 				update();
 			});
-			_photo->load(Data::FileOrigin());
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
@@ -972,14 +973,16 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_photo) {
-		p.drawPixmap(
-			(width() - st::confirmInvitePhotoSize) / 2,
-			st::confirmInvitePhotoTop,
-			_photo->pixCircled(
-				Data::FileOrigin(),
-				st::confirmInvitePhotoSize,
-				st::confirmInvitePhotoSize));
-	} else {
+		if (const auto image = _photo->image(Data::PhotoSize::Small)) {
+			p.drawPixmap(
+				(width() - st::confirmInvitePhotoSize) / 2,
+				st::confirmInvitePhotoTop,
+				image->pixCircled(
+					Data::FileOrigin(),
+					st::confirmInvitePhotoSize,
+					st::confirmInvitePhotoSize));
+		}
+	} else if (_photoEmpty) {
 		_photoEmpty->paint(
 			p,
 			(width() - st::confirmInvitePhotoSize) / 2,

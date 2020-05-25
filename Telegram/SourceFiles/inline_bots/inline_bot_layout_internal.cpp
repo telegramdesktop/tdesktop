@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
@@ -47,7 +48,9 @@ FileBase::FileBase(not_null<Context*> context, not_null<Result*> result)
 : ItemBase(context, result) {
 }
 
-FileBase::FileBase(not_null<Context*> context, DocumentData *document)
+FileBase::FileBase(
+	not_null<Context*> context,
+	not_null<DocumentData*> document)
 : ItemBase(context, document) {
 }
 
@@ -87,10 +90,16 @@ int FileBase::content_duration() const {
 	return getResultDuration();
 }
 
-Gif::Gif(not_null<Context*> context, Result *result) : FileBase(context, result) {
+Gif::Gif(not_null<Context*> context, not_null<Result*> result)
+: FileBase(context, result) {
+	Expects(getResultDocument() != nullptr);
 }
 
-Gif::Gif(not_null<Context*> context, DocumentData *document, bool hasDeleteButton) : FileBase(context, document) {
+Gif::Gif(
+	not_null<Context*> context,
+	not_null<DocumentData*> document,
+	bool hasDeleteButton)
+: FileBase(context, document) {
 	if (hasDeleteButton) {
 		_delete = std::make_shared<DeleteSavedGifClickHandler>(document);
 	}
@@ -428,7 +437,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-Sticker::Sticker(not_null<Context*> context, Result *result)
+Sticker::Sticker(not_null<Context*> context, not_null<Result*> result)
 : FileBase(context, result) {
 }
 
@@ -453,6 +462,12 @@ void Sticker::ensureDataMediaCreated(not_null<DocumentData*> document) const {
 		return;
 	}
 	_dataMedia = document->createMediaView();
+}
+
+void Sticker::unloadHeavyPart() {
+	_dataMedia = nullptr;
+	_lifetime.destroy();
+	_lottie = nullptr;
 }
 
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
@@ -572,8 +587,9 @@ void Sticker::prepareThumbnail() const {
 	}
 }
 
-Photo::Photo(not_null<Context*> context, Result *result)
+Photo::Photo(not_null<Context*> context, not_null<Result*> result)
 : ItemBase(context, result) {
+	Expects(getShownPhoto() != nullptr);
 }
 
 void Photo::initDimensions() {
@@ -611,15 +627,20 @@ TextState Photo::getState(
 	return {};
 }
 
+void Photo::unloadHeavyPart() {
+	getShownPhoto()->unload();
+	_photoMedia = nullptr;
+}
+
 PhotoData *Photo::getShownPhoto() const {
-	if (PhotoData *result = getPhoto()) {
+	if (const auto result = getPhoto()) {
 		return result;
 	}
 	return getResultPhoto();
 }
 
 QSize Photo::countFrameSize() const {
-	PhotoData *photo = getShownPhoto();
+	const auto photo = getShownPhoto();
 	int32 framew = photo->width(), frameh = photo->height(), height = st::inlineMediaHeight;
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
@@ -672,15 +693,20 @@ void Photo::validateThumbnail(
 
 void Photo::prepareThumbnail(QSize size, QSize frame) const {
 	if (const auto photo = getShownPhoto()) {
-		validateThumbnail(photo->thumbnail(), size, frame, true);
-		validateThumbnail(photo->thumbnailSmall(), size, frame, false);
-		validateThumbnail(photo->thumbnailInline(), size, frame, false);
+		using PhotoSize = Data::PhotoSize;
+		if (!_photoMedia) {
+			_photoMedia = photo->createMediaView();
+			_photoMedia->wanted(PhotoSize::Thumbnail, fileOrigin());
+		}
+		validateThumbnail(_photoMedia->image(PhotoSize::Thumbnail), size, frame, true);
+		validateThumbnail(_photoMedia->image(PhotoSize::Small), size, frame, false);
+		validateThumbnail(_photoMedia->thumbnailInline(), size, frame, false);
 	} else if (const auto thumbnail = getResultThumb()) {
 		validateThumbnail(thumbnail, size, frame, true);
 	}
 }
 
-Video::Video(not_null<Context*> context, Result *result)
+Video::Video(not_null<Context*> context, not_null<Result*> result)
 : FileBase(context, result)
 , _link(getResultPreviewHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
@@ -763,6 +789,10 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	if (!context->lastRow) {
 		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
+}
+
+void Video::unloadHeavyPart() {
+	_documentMedia = nullptr;
 }
 
 TextState Video::getState(
@@ -951,6 +981,10 @@ void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	}
 }
 
+void File::unloadHeavyPart() {
+	_documentMedia = nullptr;
+}
+
 File::~File() {
 	unregDocumentItem(_document, this);
 }
@@ -1056,7 +1090,8 @@ void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 r
 	}
 }
 
-Contact::Contact(not_null<Context*> context, Result *result) : ItemBase(context, result)
+Contact::Contact(not_null<Context*> context, not_null<Result*> result)
+: ItemBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 }
@@ -1111,7 +1146,7 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb();
+	const auto thumb = getResultThumb(); // #TODO optimize
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -1142,7 +1177,11 @@ void Contact::prepareThumbnail(int width, int height) const {
 	}
 }
 
-Article::Article(not_null<Context*> context, Result *result, bool withThumb) : ItemBase(context, result)
+Article::Article(
+	not_null<Context*> context,
+	not_null<Result*> result,
+	bool withThumb)
+: ItemBase(context, result)
 , _url(getResultUrlHandler())
 , _link(getResultPreviewHandler())
 , _withThumb(withThumb)
@@ -1196,7 +1235,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
-			const auto thumb = getResultThumb();
+			const auto thumb = getResultThumb(); // #TODO optimize
 			if (!thumb && !_thumbLetter.isEmpty()) {
 				int32 index = (_thumbLetter.at(0).unicode() % 4);
 				style::color colors[] = {
@@ -1261,7 +1300,7 @@ TextState Article::getState(
 }
 
 void Article::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb();
+	const auto thumb = getResultThumb(); // #TODO optimize
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -1292,7 +1331,8 @@ void Article::prepareThumbnail(int width, int height) const {
 	}
 }
 
-Game::Game(not_null<Context*> context, Result *result) : ItemBase(context, result)
+Game::Game(not_null<Context*> context, not_null<Result*> result)
+: ItemBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	countFrameSize();
@@ -1359,18 +1399,21 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	// Gif thumb
 	auto thumbDisplayed = false, radial = false;
+	const auto photo = getResultPhoto();
 	const auto document = getResultDocument();
 	if (document) {
 		ensureDataMediaCreated(document);
+	} else if (photo) {
+		ensureDataMediaCreated(photo);
 	}
 	auto animatedThumb = document && document->isAnimation();
 	if (animatedThumb) {
-		_dataMedia->automaticLoad(fileOrigin(), nullptr);
+		_documentMedia->automaticLoad(fileOrigin(), nullptr);
 
-		bool loaded = _dataMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
+		bool loaded = _documentMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = Media::Clip::MakeReader(_dataMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
+			that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
 				that->clipCallback(notification);
 			});
 		}
@@ -1383,7 +1426,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 				});
 			}
 			if (!_radial->animating()) {
-				_radial->start(_dataMedia->progress());
+				_radial->start(_documentMedia->progress());
 			}
 		}
 		radial = isRadialAnimation();
@@ -1445,22 +1488,33 @@ TextState Game::getState(
 }
 
 void Game::prepareThumbnail(QSize size) const {
-	if (const auto photo = getResultPhoto()) {
-		validateThumbnail(photo->thumbnail(), size, true);
-		validateThumbnail(photo->thumbnailInline(), size, false);
-	} else if (const auto document = getResultDocument()) {
-		Assert(_dataMedia != nullptr);
-		validateThumbnail(_dataMedia->thumbnail(), size, true);
-		validateThumbnail(_dataMedia->thumbnailInline(), size, false);
+	if (const auto document = getResultDocument()) {
+		Assert(_documentMedia != nullptr);
+		validateThumbnail(_documentMedia->thumbnail(), size, true);
+		validateThumbnail(_documentMedia->thumbnailInline(), size, false);
+	} else if (const auto photo = getResultPhoto()) {
+		using Data::PhotoSize;
+		Assert(_photoMedia != nullptr);
+		validateThumbnail(_photoMedia->image(PhotoSize::Thumbnail), size, true);
+		validateThumbnail(_photoMedia->image(PhotoSize::Small), size, false);
+		validateThumbnail(_photoMedia->thumbnailInline(), size, false);
 	}
 }
 
 void Game::ensureDataMediaCreated(not_null<DocumentData*> document) const {
-	if (_dataMedia) {
+	if (_documentMedia) {
 		return;
 	}
-	_dataMedia = document->createMediaView();
-	_dataMedia->thumbnailWanted(fileOrigin());
+	_documentMedia = document->createMediaView();
+	_documentMedia->thumbnailWanted(fileOrigin());
+}
+
+void Game::ensureDataMediaCreated(not_null<PhotoData*> photo) const {
+	if (_photoMedia) {
+		return;
+	}
+	_photoMedia = photo->createMediaView();
+	_photoMedia->wanted(Data::PhotoSize::Thumbnail, fileOrigin());
 }
 
 void Game::validateThumbnail(Image *image, QSize size, bool good) const {
@@ -1507,7 +1561,7 @@ bool Game::isRadialAnimation() const {
 			return true;
 		} else {
 			ensureDataMediaCreated(getResultDocument());
-			if (_dataMedia->loaded()) {
+			if (_documentMedia->loaded()) {
 				_radial = nullptr;
 			}
 		}
@@ -1520,22 +1574,28 @@ void Game::radialAnimationCallback(crl::time now) const {
 	ensureDataMediaCreated(document);
 	const auto updated = [&] {
 		return _radial->update(
-			_dataMedia->progress(),
-			!document->loading() || _dataMedia->loaded(),
+			_documentMedia->progress(),
+			!document->loading() || _documentMedia->loaded(),
 			now);
 	}();
 	if (!anim::Disabled() || updated) {
 		update();
 	}
-	if (!_radial->animating() && _dataMedia->loaded()) {
+	if (!_radial->animating() && _documentMedia->loaded()) {
 		_radial = nullptr;
 	}
 }
 
 void Game::unloadHeavyPart() {
 	_gif.reset();
-	getResultDocument()->unload();
-	_dataMedia = nullptr;
+	if (const auto document = getResultDocument()) {
+		document->unload();
+		_documentMedia = nullptr;
+	}
+	if (const auto photo = getResultPhoto()) {
+		photo->unload();
+		_photoMedia = nullptr;
+	}
 }
 
 void Game::clipCallback(Media::Clip::Notification notification) {

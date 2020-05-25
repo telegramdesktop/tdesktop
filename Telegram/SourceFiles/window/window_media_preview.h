@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 namespace Data {
+class PhotoMedia;
 class DocumentMedia;
 } // namespace Data
 
@@ -60,9 +61,10 @@ private:
 	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;
 	Data::FileOrigin _origin;
-	DocumentData *_document = nullptr;
-	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	PhotoData *_photo = nullptr;
+	DocumentData *_document = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Media::Clip::ReaderPointer _gif, _gifThumbnail;
 	crl::time _gifLastPosition = 0;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;

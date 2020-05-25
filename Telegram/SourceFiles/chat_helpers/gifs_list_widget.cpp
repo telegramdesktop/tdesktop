@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -370,18 +371,23 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		return;
 	}
 
+	const auto ctrl = (QGuiApplication::keyboardModifiers()
+		== Qt::ControlModifier);
 	auto item = _rows[row].items[column];
 	if (const auto photo = item->getPhoto()) {
-		if (photo->thumbnail()->loaded()) {
+		using Data::PhotoSize;
+		const auto media = photo->activeMediaView();
+		if (ctrl
+			|| (media && media->image(PhotoSize::Thumbnail))
+			|| (media && media->image(PhotoSize::Large))) {
 			_photoChosen.fire_copy(photo);
-		} else if (!photo->thumbnail()->loading()) {
-			photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
+		} else if (!photo->loading(PhotoSize::Thumbnail)) {
+			photo->load(PhotoSize::Thumbnail, Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
 		const auto media = document->activeMediaView();
 		const auto preview = Data::VideoPreviewState(media.get());
-		if ((media && preview.loaded())
-			|| QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		if (ctrl || (media && preview.loaded())) {
 			_fileChosen.fire_copy(document);
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {
@@ -551,11 +557,13 @@ void GifsListWidget::clearInlineRows(bool resultsDeleted) {
 	_rows.clear();
 }
 
-GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
-	auto it = _gifLayouts.find(doc);
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(
+		not_null<DocumentData*> document,
+		int32 position) {
+	auto it = _gifLayouts.find(document);
 	if (it == _gifLayouts.cend()) {
-		if (auto layout = LayoutItem::createLayoutGif(this, doc)) {
-			it = _gifLayouts.emplace(doc, std::move(layout)).first;
+		if (auto layout = LayoutItem::createLayoutGif(this, document)) {
+			it = _gifLayouts.emplace(document, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
 			return nullptr;
@@ -567,7 +575,9 @@ GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *
 	return it->second.get();
 }
 
-GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(InlineResult *result, int32 position) {
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(
+		not_null<InlineResult*> result,
+		int32 position) {
 	auto it = _inlineLayouts.find(result);
 	if (it == _inlineLayouts.cend()) {
 		if (auto layout = LayoutItem::createLayout(this, result, _inlineWithThumb)) {

@@ -128,11 +128,6 @@ public:
 	QImage takeLoaded() override;
 	void unload() override;
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
-
 	bool loading() override;
 	bool displayLoading() override;
 	void cancel() override;
@@ -220,14 +215,6 @@ void ImageSource::unload() {
 		Assert(!_bytes.isEmpty());
 	}
 	_data = QImage();
-}
-
-void ImageSource::automaticLoad(
-	Data::FileOrigin origin,
-	const HistoryItem *item) {
-}
-
-void ImageSource::automaticLoadSettingsChanged() {
 }
 
 bool ImageSource::loading() {

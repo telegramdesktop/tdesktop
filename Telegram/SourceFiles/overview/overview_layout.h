@@ -19,6 +19,7 @@ struct RoundCheckbox;
 
 namespace Data {
 class Media;
+class PhotoMedia;
 class DocumentMedia;
 } // namespace Data
 
@@ -184,10 +185,14 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void clearHeavyPart() override;
+
 private:
+	void ensureDataMediaCreated() const;
 	void setPixFrom(not_null<Image*> image);
 
-	not_null<PhotoData*> _data;
+	const not_null<PhotoData*> _data;
+	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	ClickHandlerPtr _link;
 
 	QPixmap _pix;
@@ -222,7 +227,7 @@ private:
 	void ensureDataMediaCreated() const;
 	void updateStatusText();
 
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 
@@ -346,6 +351,7 @@ protected:
 	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
+	void ensurePhotoMediaCreated();
 	void ensureDocumentMediaCreated();
 	void validateThumbnail();
 
@@ -354,6 +360,7 @@ private:
 	QString _title, _letter;
 	int _titlew = 0;
 	WebPageData *_page = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	int _pixw = 0;
 	int _pixh = 0;

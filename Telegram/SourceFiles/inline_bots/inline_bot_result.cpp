@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
@@ -105,7 +106,9 @@ std::unique_ptr<Result> Result::create(
 			if (result->_type == Type::Photo) {
 				result->_photo = Auth().data().photoFromWeb(
 					*content,
-					result->_thumb,
+					(imageThumb
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()),
 					true);
 			} else {
 				result->_document = Auth().data().documentFromWeb(
@@ -276,10 +279,13 @@ std::unique_ptr<Result> Result::create(
 
 bool Result::onChoose(Layout::ItemBase *layout) {
 	if (_photo && _type == Type::Photo) {
-		if (_photo->thumbnail()->loaded()) {
+		const auto media = _photo->activeMediaView();
+		if (!media || media->image(Data::PhotoSize::Thumbnail)) {
 			return true;
-		} else if (!_photo->thumbnail()->loading()) {
-			_photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
+		} else if (!_photo->loading(Data::PhotoSize::Thumbnail)) {
+			_photo->load(
+				Data::PhotoSize::Thumbnail,
+				Data::FileOrigin());
 		}
 		return false;
 	}

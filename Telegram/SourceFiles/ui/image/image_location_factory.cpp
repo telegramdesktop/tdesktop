@@ -16,6 +16,65 @@ namespace Images {
 
 ImageWithLocation FromPhotoSize(
 		not_null<Main::Session*> session,
+		const MTPDphoto &photo,
+		const MTPPhotoSize &size) {
+	return size.match([&](const MTPDphotoSize &data) {
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					photo.vdc_id().v,
+					session->userId(),
+					MTP_inputPhotoFileLocation(
+						photo.vid(),
+						photo.vaccess_hash(),
+						photo.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsize().v
+		};
+	}, [&](const MTPDphotoCachedSize &data) {
+		const auto bytes = qba(data.vbytes());
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					photo.vdc_id().v,
+					session->userId(),
+					MTP_inputPhotoFileLocation(
+						photo.vid(),
+						photo.vaccess_hash(),
+						photo.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = bytes.size(),
+			.bytes = bytes
+		};
+	}, [&](const MTPDphotoStrippedSize &data) {
+		return ImageWithLocation();
+		//const auto bytes = ExpandInlineBytes(qba(data.vbytes()));
+		//return ImageWithLocation{
+		//	.location = ImageLocation(
+		//		DownloadLocation{ StorageFileLocation(
+		//			photo.vdc_id().v,
+		//			session->userId(),
+		//			MTP_inputPhotoFileLocation(
+		//				photo.vid(),
+		//				photo.vaccess_hash(),
+		//				photo.vfile_reference(),
+		//				data.vtype())) },
+		//		width, // ???
+		//		height), // ???
+		//	.bytesCount = bytes.size(),
+		//	.bytes = bytes
+		//};
+	}, [&](const MTPDphotoSizeEmpty &) {
+		return ImageWithLocation();
+	});
+}
+
+ImageWithLocation FromPhotoSize(
+		not_null<Main::Session*> session,
 		const MTPDdocument &document,
 		const MTPPhotoSize &size) {
 	return size.match([&](const MTPDphotoSize &data) {

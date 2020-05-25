@@ -22,6 +22,7 @@ class SessionController;
 
 namespace Data {
 class Media;
+class PhotoMedia;
 class DocumentMedia;
 } // namespace Data
 
@@ -103,6 +104,7 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 	FullMsgId _msgId;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Image *_thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;

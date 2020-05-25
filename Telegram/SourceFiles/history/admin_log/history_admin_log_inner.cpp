@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
@@ -1137,11 +1138,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 }
 
-void InnerWidget::savePhotoToFile(PhotoData *photo) {
-	if (!photo || photo->isNull() || !photo->loaded()) {
+void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
 
+	const auto image = media->image(Data::PhotoSize::Large)->original();
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
@@ -1150,22 +1153,26 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->large()->original().save(result, "JPG");
+				image.save(result, "JPG");
 			}
 		}));
 }
 
-void InnerWidget::saveDocumentToFile(DocumentData *document) {
+void InnerWidget::saveDocumentToFile(not_null<DocumentData*> document) {
 	DocumentSaveClickHandler::Save(
 		Data::FileOrigin(),
 		document,
 		DocumentSaveClickHandler::Mode::ToNewFile);
 }
 
-void InnerWidget::copyContextImage(PhotoData *photo) {
-	if (!photo || photo->isNull() || !photo->loaded()) return;
+void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
+		return;
+	}
 
-	QGuiApplication::clipboard()->setImage(photo->large()->original());
+	const auto image = media->image(Data::PhotoSize::Large)->original();
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void InnerWidget::copySelectedText() {

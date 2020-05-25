@@ -67,11 +67,6 @@ public:
 	virtual QImage takeLoaded() = 0;
 	virtual void unload() = 0;
 
-	virtual void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) = 0;
-	virtual void automaticLoadSettingsChanged() = 0;
-
 	virtual bool loading() = 0;
 	virtual bool displayLoading() = 0;
 	virtual void cancel() = 0;
@@ -178,10 +173,6 @@ public:
 		int32 w,
 		int32 h = 0) const;
 
-	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
-	void automaticLoadSettingsChanged() {
-		_source->automaticLoadSettingsChanged();
-	}
 	bool loading() const {
 		return _source->loading();
 	}

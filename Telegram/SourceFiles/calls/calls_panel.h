@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+namespace Data {
+class PhotoMedia;
+} // namespace Data
+
 namespace Ui {
 class IconButton;
 class FlatLabel;
@@ -56,6 +60,7 @@ class Panel
 
 public:
 	Panel(not_null<Call*> call);
+	~Panel();
 
 	void showAndActivate();
 	void replaceCall(not_null<Call*> call);
@@ -111,6 +116,7 @@ private:
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
+	std::shared_ptr<Data::PhotoMedia> _photo;
 
 	bool _useTransparency = true;
 	style::margins _padding;

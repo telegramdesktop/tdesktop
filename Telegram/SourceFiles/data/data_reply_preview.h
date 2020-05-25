@@ -12,6 +12,7 @@ class PhotoData;
 
 namespace Data {
 
+class PhotoMedia;
 class DocumentMedia;
 struct FileOrigin;
 
@@ -26,11 +27,12 @@ private:
 	void prepare(not_null<Image*> image, Images::Options options);
 
 	std::unique_ptr<Image> _image;
+	PhotoData *_photo = nullptr;
+	DocumentData *_document = nullptr;
+	std::shared_ptr<PhotoMedia> _photoMedia;
+	std::shared_ptr<DocumentMedia> _documentMedia;
 	bool _good = false;
 	bool _checked = false;
-	DocumentData *_document = nullptr;
-	PhotoData *_photo = nullptr;
-	std::shared_ptr<DocumentMedia> _documentMedia;
 
 };
 
