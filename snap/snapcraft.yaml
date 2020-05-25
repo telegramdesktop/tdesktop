@@ -226,7 +226,6 @@ parts:
     source-branch: release/4.2
     plugin: autotools
     build-packages:
-      - libasound2-dev
       - libopus-dev
       - libva-dev
       - libvdpau-dev
@@ -240,6 +239,7 @@ parts:
       - --disable-autodetect
       - --disable-everything
       - --disable-neon
+      - --disable-alsa
       - --disable-iconv
       - --enable-shared
       - --enable-libdav1d

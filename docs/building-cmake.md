@@ -91,6 +91,7 @@ Go to ***BuildPath*** and run
     --disable-autodetect \
     --disable-everything \
     --disable-neon \
+    --disable-alsa \
     --disable-iconv \
     --enable-libopus \
     --enable-vaapi \

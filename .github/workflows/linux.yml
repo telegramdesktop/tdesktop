@@ -221,6 +221,7 @@ jobs:
           --disable-autodetect \
           --disable-everything \
           --disable-neon \
+          --disable-alsa \
           --disable-iconv \
           --enable-libopus \
           --enable-vaapi \
