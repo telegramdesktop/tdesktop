@@ -479,12 +479,17 @@ std::optional<crl::time> LastUserInputTime() {
 		QDBusError::NotSupported,
 	};
 
+	const auto notSupportedErrorsToLog = {
+		QDBusError::Disconnected,
+		QDBusError::AccessDenied,
+	};
+
 	if (reply.isValid()) {
 		return (crl::now() - static_cast<crl::time>(reply.value()));
 	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
 		NotSupported = true;
 	} else {
-		if (reply.error().type() == QDBusError::AccessDenied) {
+		if (ranges::contains(notSupportedErrorsToLog, reply.error().type())) {
 			NotSupported = true;
 		}
 
