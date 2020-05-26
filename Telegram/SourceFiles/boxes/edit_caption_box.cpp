@@ -80,7 +80,17 @@ EditCaptionBox::EditCaptionBox(
 		_photoMedia = photo->createMediaView();
 		_photoMedia->wanted(PhotoSize::Large, _msgId);
 		image = _photoMedia->image(PhotoSize::Large);
+		if (!image) {
+			image = _photoMedia->image(PhotoSize::Thumbnail);
+			if (!image) {
+				image = _photoMedia->image(PhotoSize::Small);
+				if (!image) {
+					image = _photoMedia->thumbnailInline();
+				}
+			}
+		}
 		dimensions = _photoMedia->size(PhotoSize::Large);
+		_photo = true;
 	} else if (const auto document = media->document()) {
 		_documentMedia = document->createMediaView();
 		_documentMedia->thumbnailWanted(_msgId);
@@ -183,14 +193,23 @@ EditCaptionBox::EditCaptionBox(
 			maxH = dimensions.height();
 			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
-				if (!_thumbnailImage) {
-					return;
-				}
-				_thumb = _thumbnailImage->pixNoCache(
+				const auto photo = _photoMedia
+					? _photoMedia->image(Data::PhotoSize::Large)
+					: nullptr;
+				const auto use = photo
+					? photo
+					:  _thumbnailImage
+					? _thumbnailImage
+					: Image::BlankMedia().get();
+				const auto options = Images::Option::Smooth
+					| ((_photoMedia && !photo)
+						? Images::Option::Blurred
+						: Images::Option(0));
+				_thumb = use->pixNoCache(
 					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
-					Images::Option::Smooth,
+					options,
 					maxW,
 					maxH);
 			};
@@ -260,10 +279,10 @@ EditCaptionBox::EditCaptionBox(
 	}
 	Assert(_animated || _photo || _doc);
 
-	_thumbnailImageLoaded = _thumbnailImage
+	_thumbnailImageLoaded = _photoMedia
+		? _photoMedia->image(Data::PhotoSize::Large)
+		: _thumbnailImage
 		? _thumbnailImage->loaded()
-		: _photoMedia
-		? false
 		: _documentMedia
 		? !_documentMedia->owner()->hasThumbnail()
 		: true;
@@ -271,7 +290,9 @@ EditCaptionBox::EditCaptionBox(
 		subscribe(_controller->session().downloaderTaskFinished(), [=] {
 			if (_thumbnailImageLoaded) {
 				return;
-			} else if (!_thumbnailImage && _photoMedia) {
+			} else if (!_thumbnailImage
+				&& _photoMedia
+				&& _photoMedia->image(PhotoSize::Large)) {
 				_thumbnailImage = _photoMedia->image(PhotoSize::Large);
 			} else if (!_thumbnailImage
 				&& _documentMedia
@@ -279,9 +300,12 @@ EditCaptionBox::EditCaptionBox(
 				_thumbnailImage = _documentMedia->thumbnail();
 			}
 			if (_thumbnailImage && _thumbnailImage->loaded()) {
-				_thumbnailImageLoaded = true;
-				_refreshThumbnail();
-				update();
+				_thumbnailImageLoaded = !_photoMedia
+					|| _photoMedia->image(PhotoSize::Large);
+				if (_thumbnailImageLoaded) {
+					_refreshThumbnail();
+					update();
+				}
 			}
 		});
 	}

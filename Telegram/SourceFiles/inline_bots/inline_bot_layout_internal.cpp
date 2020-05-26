@@ -1125,7 +1125,6 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumbnail(int width, int height) const {
-	// #TODO optimize use photo / document thumbnail as well
 	const auto thumb = getResultThumb();
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
@@ -1215,7 +1214,6 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
-			// #TODO optimize use photo / document thumbnail as well
 			const auto thumb = getResultThumb();
 			if (!thumb && !_thumbLetter.isEmpty()) {
 				int32 index = (_thumbLetter.at(0).unicode() % 4);
@@ -1281,7 +1279,6 @@ TextState Article::getState(
 }
 
 void Article::prepareThumbnail(int width, int height) const {
-	// #TODO optimize use photo / document thumbnail as well
 	const auto thumb = getResultThumb();
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
