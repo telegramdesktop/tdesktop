@@ -210,12 +210,6 @@ ImagePtr Create(
 		std::move(image))));
 }
 
-ImagePtr Create(int width, int height) {
-	return ImagePtr(new Image(std::make_unique<DelayedStorageSource>(
-		width,
-		height)));
-}
-
 template <typename SourceType>
 ImagePtr Create(
 		const StorageImageLocation &location,

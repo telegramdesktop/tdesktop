@@ -338,13 +338,12 @@ void Gif::validateThumbnail(
 }
 
 void Gif::prepareThumbnail(QSize size, QSize frame) const {
-	if (const auto document = getShownDocument()) {
-		ensureDataMediaCreated(document);
-		validateThumbnail(_dataMedia->thumbnail(), size, frame, true);
-		validateThumbnail(_dataMedia->thumbnailInline(), size, frame, false);
-	} else {
-		validateThumbnail(getResultThumb(), size, frame, true);
-	}
+	const auto document = getShownDocument();
+	Assert(document != nullptr);
+
+	ensureDataMediaCreated(document);
+	validateThumbnail(_dataMedia->thumbnail(), size, frame, true);
+	validateThumbnail(_dataMedia->thumbnailInline(), size, frame, false);
 }
 
 void Gif::ensureDataMediaCreated(not_null<DocumentData*> document) const {
@@ -439,6 +438,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 
 Sticker::Sticker(not_null<Context*> context, not_null<Result*> result)
 : FileBase(context, result) {
+	Expects(getResultDocument() != nullptr);
 }
 
 Sticker::~Sticker() = default;
@@ -449,12 +449,11 @@ void Sticker::initDimensions() {
 }
 
 void Sticker::preload() const {
-	if (const auto document = getShownDocument()) {
-		ensureDataMediaCreated(document);
-		_dataMedia->checkStickerSmall();
-	} else if (const auto thumb = getResultThumb()) {
-		thumb->load(fileOrigin());
-	}
+	const auto document = getShownDocument();
+	Assert(document != nullptr);
+
+	ensureDataMediaCreated(document);
+	_dataMedia->checkStickerSmall();
 }
 
 void Sticker::ensureDataMediaCreated(not_null<DocumentData*> document) const {
@@ -549,40 +548,25 @@ void Sticker::setupLottie() const {
 }
 
 void Sticker::prepareThumbnail() const {
-	if (const auto document = getShownDocument()) {
-		ensureDataMediaCreated(document);
-		if (!_lottie
-			&& document->sticker()
-			&& document->sticker()->animated
-			&& _dataMedia->loaded()) {
-			setupLottie();
-		}
-		_dataMedia->checkStickerSmall();
-		if (const auto sticker = _dataMedia->getStickerSmall()) {
-			if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
-				const auto thumbSize = getThumbSize();
-				_thumb = sticker->pix(
-					document->stickerSetOrigin(),
-					thumbSize.width(),
-					thumbSize.height());
-				_thumbLoaded = true;
-			}
-		}
-	} else {
-		const auto origin = fileOrigin();
-		if (const auto thumb = getResultThumb()) {
-			if (thumb->loaded()) {
-				if (!_thumbLoaded) {
-					const auto thumbSize = getThumbSize();
-					_thumb = thumb->pix(
-						origin,
-						thumbSize.width(),
-						thumbSize.height());
-					_thumbLoaded = true;
-				}
-			} else {
-				thumb->load(origin);
-			}
+	const auto document = getShownDocument();
+	Assert(document != nullptr);
+
+	ensureDataMediaCreated(document);
+	if (!_lottie
+		&& document->sticker()
+		&& document->sticker()->animated
+		&& _dataMedia->loaded()) {
+		setupLottie();
+	}
+	_dataMedia->checkStickerSmall();
+	if (const auto sticker = _dataMedia->getStickerSmall()) {
+		if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
+			const auto thumbSize = getThumbSize();
+			_thumb = sticker->pix(
+				document->stickerSetOrigin(),
+				thumbSize.width(),
+				thumbSize.height());
+			_thumbLoaded = true;
 		}
 	}
 }
@@ -692,18 +676,18 @@ void Photo::validateThumbnail(
 }
 
 void Photo::prepareThumbnail(QSize size, QSize frame) const {
-	if (const auto photo = getShownPhoto()) {
-		using PhotoSize = Data::PhotoSize;
-		if (!_photoMedia) {
-			_photoMedia = photo->createMediaView();
-			_photoMedia->wanted(PhotoSize::Thumbnail, fileOrigin());
-		}
-		validateThumbnail(_photoMedia->image(PhotoSize::Thumbnail), size, frame, true);
-		validateThumbnail(_photoMedia->image(PhotoSize::Small), size, frame, false);
-		validateThumbnail(_photoMedia->thumbnailInline(), size, frame, false);
-	} else if (const auto thumbnail = getResultThumb()) {
-		validateThumbnail(thumbnail, size, frame, true);
+	using PhotoSize = Data::PhotoSize;
+
+	const auto photo = getShownPhoto();
+	Assert(photo != nullptr);
+
+	if (!_photoMedia) {
+		_photoMedia = photo->createMediaView();
+		_photoMedia->wanted(PhotoSize::Thumbnail, fileOrigin());
 	}
+	validateThumbnail(_photoMedia->image(PhotoSize::Thumbnail), size, frame, true);
+	validateThumbnail(_photoMedia->image(PhotoSize::Small), size, frame, false);
+	validateThumbnail(_photoMedia->thumbnailInline(), size, frame, false);
 }
 
 Video::Video(not_null<Context*> context, not_null<Result*> result)
@@ -711,6 +695,8 @@ Video::Video(not_null<Context*> context, not_null<Result*> result)
 , _link(getResultPreviewHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+	Assert(getResultDocument() != nullptr);
+
 	if (int duration = content_duration()) {
 		_duration = formatDurationText(duration);
 		_durationWidth = st::normalFont->width(_duration);
@@ -718,12 +704,10 @@ Video::Video(not_null<Context*> context, not_null<Result*> result)
 }
 
 bool Video::withThumbnail() const {
-	if (const auto document = getShownDocument()) {
-		if (document->hasThumbnail()) {
-			return true;
-		}
-	}
-	return getResultThumb() != nullptr;
+	const auto document = getShownDocument();
+	Assert(document != nullptr);
+
+	return document->hasThumbnail();
 }
 
 void Video::initDimensions() {
@@ -818,9 +802,7 @@ void Video::prepareThumbnail(QSize size) const {
 			return;
 		}
 	}
-	const auto thumb = document->hasThumbnail()
-		? _documentMedia->thumbnail()
-		: getResultThumb();
+	const auto thumb = _documentMedia->thumbnail();
 	if (!thumb) {
 		return;
 	}
@@ -864,6 +846,8 @@ File::File(not_null<Context*> context, not_null<Result*> result)
 , _open(std::make_shared<OpenFileClickHandler>(result))
 , _cancel(std::make_shared<CancelFileClickHandler>(result))
 , _document(getShownDocument()) {
+	Expects(getResultDocument() != nullptr);
+
 	updateStatusText();
 
 	// We have to save document, not read it from Result every time.
@@ -1146,7 +1130,8 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb(); // #TODO optimize
+	// #TODO optimize use photo / document thumbnail as well
+	const auto thumb = getResultThumb();
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -1235,7 +1220,8 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
-			const auto thumb = getResultThumb(); // #TODO optimize
+			// #TODO optimize use photo / document thumbnail as well
+			const auto thumb = getResultThumb();
 			if (!thumb && !_thumbLetter.isEmpty()) {
 				int32 index = (_thumbLetter.at(0).unicode() % 4);
 				style::color colors[] = {
@@ -1300,7 +1286,8 @@ TextState Article::getState(
 }
 
 void Article::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb(); // #TODO optimize
+	// #TODO optimize use photo / document thumbnail as well
+	const auto thumb = getResultThumb();
 	if (!thumb) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);

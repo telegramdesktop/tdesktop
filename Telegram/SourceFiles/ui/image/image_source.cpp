@@ -94,10 +94,6 @@ void ImageSource::setDelayedStorageLocation(
 void ImageSource::performDelayedLoad(Data::FileOrigin origin) {
 }
 
-bool ImageSource::isDelayedStorageImage() const {
-	return false;
-}
-
 void ImageSource::setImageBytes(const QByteArray &bytes) {
 }
 
@@ -213,10 +209,6 @@ void LocalFileSource::setDelayedStorageLocation(
 }
 
 void LocalFileSource::performDelayedLoad(Data::FileOrigin origin) {
-}
-
-bool LocalFileSource::isDelayedStorageImage() const {
-	return false;
 }
 
 void LocalFileSource::setImageBytes(const QByteArray &bytes) {
@@ -386,10 +378,6 @@ void RemoteSource::setDelayedStorageLocation(
 }
 
 void RemoteSource::performDelayedLoad(Data::FileOrigin origin) {
-}
-
-bool RemoteSource::isDelayedStorageImage() const {
-	return false;
 }
 
 QByteArray RemoteSource::bytesForCache() {
@@ -570,89 +558,6 @@ std::unique_ptr<FileLoader> GeoPointSource::createLoader(
 		fromCloud,
 		autoLoading,
 		Data::kImageCacheTag);
-}
-
-DelayedStorageSource::DelayedStorageSource()
-: StorageSource(StorageImageLocation(), 0) {
-}
-
-DelayedStorageSource::DelayedStorageSource(int w, int h)
-: StorageSource(StorageImageLocation(StorageFileLocation(), w, h), 0) {
-}
-
-void DelayedStorageSource::setDelayedStorageLocation(
-		const StorageImageLocation &location) {
-	_location = location;
-}
-
-void DelayedStorageSource::performDelayedLoad(Data::FileOrigin origin) {
-	if (!_loadRequested) {
-		return;
-	}
-	_loadRequested = false;
-	if (_loadCancelled) {
-		return;
-	}
-	if (base::take(_loadFromCloud)) {
-		load(origin);
-	} else {
-		loadLocal();
-	}
-}
-//
-//void DelayedStorageSource::automaticLoad(
-//		Data::FileOrigin origin,
-//		const HistoryItem *item) {
-//	if (_location.valid()) {
-//		StorageSource::automaticLoad(origin, item);
-//		return;
-//	} else if (_loadCancelled || !item) {
-//		return;
-//	}
-//	const auto loadFromCloud = Data::AutoDownload::Should(
-//		Auth().settings().autoDownload(),
-//		item->history()->peer,
-//		this);
-//
-//	if (_loadRequested) {
-//		if (loadFromCloud) _loadFromCloud = loadFromCloud;
-//	} else {
-//		_loadFromCloud = loadFromCloud;
-//		_loadRequested = true;
-//	}
-//}
-//
-//void DelayedStorageSource::automaticLoadSettingsChanged() {
-//	if (_loadCancelled) _loadCancelled = false;
-//	StorageSource::automaticLoadSettingsChanged();
-//}
-
-void DelayedStorageSource::load(Data::FileOrigin origin) {
-	if (_location.valid()) {
-		StorageSource::load(origin);
-	} else {
-		_loadRequested = _loadFromCloud = true;
-	}
-}
-
-void DelayedStorageSource::loadEvenCancelled(Data::FileOrigin origin) {
-	_loadCancelled = false;
-	StorageSource::loadEvenCancelled(origin);
-}
-
-bool DelayedStorageSource::displayLoading() {
-	return _location.valid() ? StorageSource::displayLoading() : true;
-}
-
-void DelayedStorageSource::cancel() {
-	if (_loadRequested) {
-		_loadRequested = false;
-	}
-	StorageSource::cancel();
-}
-
-bool DelayedStorageSource::isDelayedStorageImage() const {
-	return true;
 }
 
 WebUrlSource::WebUrlSource(const QString &url, QSize box)

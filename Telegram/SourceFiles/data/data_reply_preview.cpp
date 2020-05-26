@@ -74,7 +74,7 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 				: Images::Option::None;
 			if (thumbnail) {
 				prepare(thumbnail, option);
-			} else {
+			} else if (!_image) {
 				if (const auto image = _documentMedia->thumbnailInline()) {
 					prepare(image, option | Images::Option::Blurred);
 				}
@@ -96,23 +96,11 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 			} else if (const auto large = _photoMedia->image(
 					PhotoSize::Large)) {
 				prepare(large, Images::Option(0));
-			} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-				prepare(blurred, Images::Option::Blurred);
+			} else if (!_image) {
+				if (const auto blurred = _photoMedia->thumbnailInline()) {
+					prepare(blurred, Images::Option::Blurred);
+				}
 			}
-
-			//if (small->isDelayedStorageImage() // #TODO optimize
-			//	&& !large->isNull()
-			//	&& !large->isDelayedStorageImage()
-			//	&& large->loaded()) {
-			//	prepare(large, Images::Option(0));
-			//} else if (small->loaded()) {
-			//	prepare(small, Images::Option(0));
-			//} else {
-			//	small->load(origin);
-			//	if (const auto blurred = _photo->thumbnailInline()) {
-			//		prepare(blurred, Images::Option::Blurred);
-			//	}
-			//}
 		}
 	}
 	return _image.get();

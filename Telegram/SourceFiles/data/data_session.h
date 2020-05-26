@@ -487,8 +487,7 @@ public:
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
-		const ImageLocation &thumbnailLocation = ImageLocation(),
-		bool willBecomeNormal = false);
+		const ImageLocation &thumbnailLocation);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
 	not_null<DocumentData*> processDocument(const MTPDocument &data);

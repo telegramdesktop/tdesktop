@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
-//#include "facades.h"
-//#include "app.h"
 
 namespace Data {
 
@@ -48,11 +46,14 @@ Image *PhotoMedia::thumbnailInline() const {
 }
 
 Image *PhotoMedia::image(PhotoSize size) const {
-	return _images[PhotoSizeIndex(size)].get();
+	if (const auto image = _images[PhotoSizeIndex(size)].get()) {
+		return image;
+	}
+	return _images[_owner->validSizeIndex(size)].get();
 }
 
 void PhotoMedia::wanted(PhotoSize size, Data::FileOrigin origin) {
-	const auto index = PhotoSizeIndex(size);
+	const auto index = _owner->validSizeIndex(size);
 	if (!_images[index]) {
 		_owner->load(size, origin);
 	}
@@ -68,7 +69,16 @@ QSize PhotoMedia::size(PhotoSize size) const {
 }
 
 void PhotoMedia::set(PhotoSize size, QImage image) {
-	_images[PhotoSizeIndex(size)] = std::make_unique<Image>(
+	const auto index = PhotoSizeIndex(size);
+	const auto limit = PhotoData::SideLimit();
+	if (image.width() > limit || image.height() > limit) {
+		image = image.scaled(
+			limit,
+			limit,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	_images[index] = std::make_unique<Image>(
 		std::make_unique<Images::ImageSource>(std::move(image), "PNG"));
 	_owner->session().downloaderTaskFinished().notify();
 }

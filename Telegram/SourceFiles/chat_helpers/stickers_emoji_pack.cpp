@@ -140,7 +140,6 @@ public:
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
 	void setImageBytes(const QByteArray &bytes) override;
 
 	int width() override;
@@ -252,10 +251,6 @@ void ImageSource::setDelayedStorageLocation(
 }
 
 void ImageSource::performDelayedLoad(Data::FileOrigin origin) {
-}
-
-bool ImageSource::isDelayedStorageImage() const {
-	return false;
 }
 
 void ImageSource::setImageBytes(const QByteArray &bytes) {

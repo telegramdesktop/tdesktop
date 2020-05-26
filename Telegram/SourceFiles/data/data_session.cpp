@@ -76,9 +76,9 @@ using ViewElement = HistoryView::Element;
 // c: crop 640x640
 // d: crop 1280x1280
 const auto InlineLevels = "i"_q;
-const auto SmallLevels = "sambcxydwi"_q;
-const auto ThumbnailLevels = "mbcxasydwi"_q;
-const auto LargeLevels = "yxwmsdcbai"_q;
+const auto SmallLevels = "sa"_q;
+const auto ThumbnailLevels = "mbsa"_q;
+const auto LargeLevels = "ydxcwmbsa"_q;
 
 void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	if (item->out() || !item->hasSwitchInlineButton()) {
@@ -2277,31 +2277,11 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		const ImageLocation &thumbnailLocation,
-		bool willBecomeNormal) {
+		const ImageLocation &thumbnailLocation) {
 	const auto large = Images::FromWebDocument(data);
-	const auto thumbnailInline = ImagePtr();
 	if (!large.valid()) {
 		return nullptr;
 	}
-	auto small = large;
-	auto thumbnail = thumbnailLocation;
-	if (willBecomeNormal) {
-		const auto width = large.width();
-		const auto height = large.height();
-
-		// #TODO optimize
-		//auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-		//small = Images::Create(thumbsize.width(), thumbsize.height());
-
-		//if (!thumbnail.valid()) {
-		//	auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-		//	thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
-		//}
-	} else if (!thumbnail.valid()) {
-		thumbnail = large;
-	}
-
 	return photo(
 		rand_value<PhotoId>(),
 		uint64(0),
@@ -2310,8 +2290,8 @@ PhotoData *Session::photoFromWeb(
 		0,
 		false,
 		QByteArray(),
-		ImageWithLocation{ .location = small },
-		ImageWithLocation{ .location = thumbnail },
+		ImageWithLocation{},
+		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = large });
 }
 

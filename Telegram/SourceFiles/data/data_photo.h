@@ -84,6 +84,7 @@ public:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large);
+	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
@@ -94,6 +95,9 @@ public:
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 
+	[[nodiscard]] static int SideLimit();
+
+	[[nodiscard]] bool hasExact(Data::PhotoSize size) const;
 	[[nodiscard]] bool loading(Data::PhotoSize size) const;
 	[[nodiscard]] bool failed(Data::PhotoSize size) const;
 	void load(
@@ -102,6 +106,7 @@ public:
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 	[[nodiscard]] const ImageLocation &location(Data::PhotoSize size) const;
+	[[nodiscard]] std::optional<QSize> size(Data::PhotoSize size) const;
 	[[nodiscard]] int imageByteSize(Data::PhotoSize size) const;
 
 	// For now they return size of the 'large' image.

@@ -298,7 +298,9 @@ Photo::Photo(
 : ItemBase(delegate, parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
-	if (_data->inlineThumbnailBytes().isEmpty()) {
+	if (_data->inlineThumbnailBytes().isEmpty()
+		&& (_data->hasExact(Data::PhotoSize::Small)
+			|| _data->hasExact(Data::PhotoSize::Thumbnail))) {
 		_data->load(Data::PhotoSize::Small, parent->fullId());
 	}
 }
@@ -1476,9 +1478,14 @@ Link::Link(
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		_page->photo->load(Data::PhotoSize::Small, parent->fullId());
-		tw = style::ConvertScale(_page->photo->width());
-		th = style::ConvertScale(_page->photo->height());
+		const auto photo = _page->photo;
+		if (photo->inlineThumbnailBytes().isEmpty()
+			&& (photo->hasExact(Data::PhotoSize::Small)
+				|| photo->hasExact(Data::PhotoSize::Thumbnail))) {
+			photo->load(Data::PhotoSize::Small, parent->fullId());
+		}
+		tw = style::ConvertScale(photo->width());
+		th = style::ConvertScale(photo->height());
 	} else if (_page && _page->document && _page->document->hasThumbnail()) {
 		_page->document->loadThumbnail(parent->fullId());
 		const auto &location = _page->document->thumbnailLocation();

@@ -32,7 +32,6 @@ public:
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
 	void setImageBytes(const QByteArray &bytes) override;
 
 	int width() override;
@@ -76,7 +75,6 @@ public:
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
 	void setImageBytes(const QByteArray &bytes) override;
 
 	int width() override;
@@ -116,7 +114,6 @@ public:
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
 	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
 	void setImageBytes(const QByteArray &bytes) override;
 
 	QByteArray bytesForCache() override;
@@ -225,35 +222,6 @@ protected:
 
 	GeoPointLocation _location;
 	int _size = 0;
-
-};
-
-class DelayedStorageSource : public StorageSource {
-public:
-	DelayedStorageSource();
-	DelayedStorageSource(int width, int height);
-
-	void load(Data::FileOrigin origin) override;
-	void loadEvenCancelled(Data::FileOrigin origin) override;
-
-	void setDelayedStorageLocation(
-		const StorageImageLocation &location) override;
-	bool isDelayedStorageImage() const override;
-	void performDelayedLoad(Data::FileOrigin origin) override;
-
-	bool loading() override {
-		return _location.valid()
-			? StorageSource::loading()
-			: _loadRequested;
-	}
-	bool displayLoading() override;
-	void cancel() override;
-
-
-private:
-	bool _loadRequested = false;
-	bool _loadCancelled = false;
-	bool _loadFromCloud = false;
 
 };
 

@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kPhotoSideLimit = 1280;
+
 using Data::PhotoMedia;
 using Data::PhotoSize;
 using Data::PhotoSizeIndex;
@@ -68,20 +70,54 @@ bool PhotoData::loading() const {
 	return loading(PhotoSize::Large);
 }
 
+int PhotoData::validSizeIndex(PhotoSize size) const {
+	const auto index = PhotoSizeIndex(size);
+	for (auto i = index; i != kPhotoSizeCount; ++i) {
+		if (_images[i].location.valid()) {
+			if (i != index) {
+				int a = 0; AssertIsDebug();
+			}
+			return i;
+		}
+	}
+	return PhotoSizeIndex(PhotoSize::Large);
+}
+
+bool PhotoData::hasExact(PhotoSize size) const {
+	return _images[PhotoSizeIndex(size)].location.valid();
+}
+
 bool PhotoData::loading(PhotoSize size) const {
-	return (_images[PhotoSizeIndex(size)].loader != nullptr);
+	return (_images[validSizeIndex(size)].loader != nullptr);
 }
 
 bool PhotoData::failed(PhotoSize size) const {
-	return (_images[PhotoSizeIndex(size)].flags & ImageFlag::Failed);
+	return (_images[validSizeIndex(size)].flags & ImageFlag::Failed);
 }
 
 const ImageLocation &PhotoData::location(PhotoSize size) const {
-	return _images[PhotoSizeIndex(size)].location;
+	return _images[validSizeIndex(size)].location;
+}
+
+int PhotoData::SideLimit() {
+	return kPhotoSideLimit;
+}
+
+std::optional<QSize> PhotoData::size(PhotoSize size) const {
+	const auto &provided = location(size);
+	const auto result = QSize{ provided.width(), provided.height() };
+	const auto limit = SideLimit();
+	if (result.isEmpty()) {
+		return std::nullopt;
+	} else if (result.width() <= limit && result.height() <= limit) {
+		return result;
+	}
+	const auto scaled = result.scaled(limit, limit, Qt::KeepAspectRatio);
+	return QSize(std::max(scaled.width(), 1), std::max(scaled.height(), 1));
 }
 
 int PhotoData::imageByteSize(PhotoSize size) const {
-	return _images[PhotoSizeIndex(size)].byteSize;
+	return _images[validSizeIndex(size)].byteSize;
 }
 
 bool PhotoData::displayLoading() const {
@@ -212,7 +248,7 @@ void PhotoData::load(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	const auto index = PhotoSizeIndex(size);
+	const auto index = validSizeIndex(size);
 	auto &image = _images[index];
 	if (image.loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
@@ -227,6 +263,9 @@ void PhotoData::load(
 			return;
 		}
 	}
+	// Could've changed, if the requested size didn't have a location.
+	size = static_cast<PhotoSize>(index);
+
 	image.flags &= ~ImageFlag::Cancelled;
 	image.loader = CreateFileLoader(
 		image.location.file(),
@@ -320,38 +359,36 @@ void PhotoData::updateImages(
 	}
 	const auto update = [&](PhotoSize size, const ImageWithLocation &data) {
 		auto &image = _images[PhotoSizeIndex(size)];
-		if (data.location.valid()
-			&& (!image.location.valid()
-				|| image.location.width() != data.location.width()
-				|| image.location.height() != data.location.height())) {
-			image.location = data.location;
+		if (!data.location.valid()) {
+			return;
+		}
+		const auto changed = !image.location.valid()
+			|| (image.location.width() != data.location.width())
+			|| (image.location.height() != data.location.height());
+		if (changed || (data.bytesCount && !image.byteSize)) {
 			image.byteSize = data.bytesCount;
-			if (!data.preloaded.isNull()) {
-				image.loader = nullptr;
-				if (const auto media = activeMediaView()) {
-					media->set(size, data.preloaded);
-				}
-			} else if (image.loader) {
-				const auto origin = base::take(image.loader)->fileOrigin();
-				load(size, origin);
+		}
+		if (changed) {
+			image.location = data.location;
+		}
+		if (!data.preloaded.isNull()) {
+			image.loader = nullptr;
+			if (const auto media = activeMediaView()) {
+				media->set(size, data.preloaded);
 			}
-			if (!data.bytes.isEmpty()) {
-				if (const auto cacheKey = image.location.file().cacheKey()) {
-					owner().cache().putIfEmpty(
-						cacheKey,
-						Storage::Cache::Database::TaggedValue(
-							base::duplicate(data.bytes),
-							Data::kImageCacheTag));
-				}
+		} else if (changed && image.loader) {
+			const auto origin = base::take(image.loader)->fileOrigin();
+			load(size, origin);
+		}
+		if (!data.bytes.isEmpty()) {
+			if (const auto cacheKey = image.location.file().cacheKey()) {
+				owner().cache().putIfEmpty(
+					cacheKey,
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(data.bytes),
+						Data::kImageCacheTag));
 			}
 		}
-		//if (was->isDelayedStorageImage()) { // #TODO optimize
-		//	if (const auto location = now->location(); location.valid()) {
-		//		was->setDelayedStorageLocation(
-		//			Data::FileOrigin(),
-		//			location);
-		//	}
-		//}
 	};
 	update(PhotoSize::Small, small);
 	update(PhotoSize::Thumbnail, thumbnail);

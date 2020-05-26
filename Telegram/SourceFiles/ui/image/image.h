@@ -31,7 +31,6 @@ ImagePtr Create(
 	const QByteArray &filecontent,
 	QByteArray format,
 	QImage &&data);
-ImagePtr Create(int width, int height);
 ImagePtr Create(const StorageImageLocation &location, int size = 0);
 ImagePtr CreateStickerSetThumbnail(const StorageImageLocation &location);
 ImagePtr Create( // photoCachedSize
@@ -79,7 +78,6 @@ public:
 	virtual void setDelayedStorageLocation(
 		const StorageImageLocation &location) = 0;
 	virtual void performDelayedLoad(Data::FileOrigin origin) = 0;
-	virtual bool isDelayedStorageImage() const = 0;
 	virtual void setImageBytes(const QByteArray &bytes) = 0;
 
 	virtual int width() = 0;
@@ -214,9 +212,6 @@ public:
 	Storage::Cache::Key cacheKey() const;
 	QByteArray bytesForCache() const {
 		return _source->bytesForCache();
-	}
-	bool isDelayedStorageImage() const {
-		return _source->isDelayedStorageImage();
 	}
 
 	bool loaded() const;

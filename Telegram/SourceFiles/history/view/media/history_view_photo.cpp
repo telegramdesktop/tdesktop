@@ -61,7 +61,9 @@ void Photo::create(FullMsgId contextId, PeerData *chat) {
 		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
-	} else if (_data->inlineThumbnailBytes().isEmpty()) {
+	} else if (_data->inlineThumbnailBytes().isEmpty()
+		&& (_data->hasExact(PhotoSize::Small)
+			|| _data->hasExact(PhotoSize::Thumbnail))) {
 		_data->load(PhotoSize::Small, contextId);
 	}
 }
@@ -281,11 +283,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 		p.setOpacity(radialOpacity);
 		auto icon = [&]() -> const style::icon* {
 			if (radial || _data->loading()) {
-				if (_data->uploading()
-					|| _data->location(PhotoSize::Large).valid()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-				}
-				return nullptr;
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		}();
@@ -351,9 +349,7 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 		} else if (_dataMedia->loaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
-			if (_data->location(PhotoSize::Large).valid()) {
-				result.link = _cancell;
-			}
+			result.link = _cancell;
 		} else {
 			result.link = _savel;
 		}
@@ -456,11 +452,7 @@ void Photo::drawGrouped(
 			if (_data->waitingForAlbum()) {
 				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
 			} else if (radial || _data->loading()) {
-				if (_data->uploading()
-					|| _data->location(PhotoSize::Large).valid()) {
-					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-				}
-				return nullptr;
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		}();
@@ -504,9 +496,7 @@ TextState Photo::getStateGrouped(
 		: _dataMedia->loaded()
 		? _openl
 		: _data->loading()
-		? (_data->location(PhotoSize::Large).valid()
-			? _cancell
-			: nullptr)
+		? _cancell
 		: _savel);
 }
 

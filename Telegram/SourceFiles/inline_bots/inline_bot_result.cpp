@@ -47,33 +47,29 @@ Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creato
 std::unique_ptr<Result> Result::create(
 		uint64 queryId,
 		const MTPBotInlineResult &mtpData) {
-	using StringToTypeMap = QMap<QString, Result::Type>;
-	static StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
-		auto result = std::make_unique<StringToTypeMap>();
-		result->insert(qsl("photo"), Result::Type::Photo);
-		result->insert(qsl("video"), Result::Type::Video);
-		result->insert(qsl("audio"), Result::Type::Audio);
-		result->insert(qsl("voice"), Result::Type::Audio);
-		result->insert(qsl("sticker"), Result::Type::Sticker);
-		result->insert(qsl("file"), Result::Type::File);
-		result->insert(qsl("gif"), Result::Type::Gif);
-		result->insert(qsl("article"), Result::Type::Article);
-		result->insert(qsl("contact"), Result::Type::Contact);
-		result->insert(qsl("venue"), Result::Type::Venue);
-		result->insert(qsl("geo"), Result::Type::Geo);
-		result->insert(qsl("game"), Result::Type::Game);
-		return result.release();
-	})() };
+	using Type = Result::Type;
 
-	auto getInlineResultType = [](const MTPBotInlineResult &inlineResult) -> Type {
-		QString type;
-		switch (inlineResult.type()) {
-		case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype()); break;
-		case mtpc_botInlineMediaResult: type = qs(inlineResult.c_botInlineMediaResult().vtype()); break;
-		}
-		return stringToTypeMap->value(type, Type::Unknown);
-	};
-	Type type = getInlineResultType(mtpData);
+	const auto type = [&] {
+		static const auto kStringToTypeMap = base::flat_map<QString, Type>{
+			{ u"photo"_q, Type::Photo },
+			{ u"video"_q, Type::Video },
+			{ u"audio"_q, Type::Audio },
+			{ u"voice"_q, Type::Audio },
+			{ u"sticker"_q, Type::Sticker },
+			{ u"file"_q, Type::File },
+			{ u"gif"_q, Type::Gif },
+			{ u"article"_q, Type::Article },
+			{ u"contact"_q, Type::Contact },
+			{ u"venue"_q, Type::Venue },
+			{ u"geo"_q, Type::Geo },
+			{ u"game"_q, Type::Game },
+		};
+		const auto type = mtpData.match([](const auto &data) {
+			return qs(data.vtype());
+		});
+		const auto i = kStringToTypeMap.find(type);
+		return (i != kStringToTypeMap.end()) ? i->second : Type::Unknown;
+	}();
 	if (type == Type::Unknown) {
 		return nullptr;
 	}
@@ -95,12 +91,17 @@ std::unique_ptr<Result> Result::create(
 			}
 			return QByteArray();
 		}();
+		const auto contentMime = [&] {
+			if (const auto content = r.vcontent()) {
+				return content->match([&](const auto &data) {
+					return data.vmime_type().v;
+				});
+			}
+			return QByteArray();
+		}();
 		const auto imageThumb = !thumbMime.isEmpty()
 			&& (thumbMime != kVideoThumbMime);
 		const auto videoThumb = !thumbMime.isEmpty() && !imageThumb;
-		if (imageThumb) {
-			result->_thumb = Images::Create(*r.vthumb(), result->thumbBox());
-		}
 		if (const auto content = r.vcontent()) {
 			result->_content_url = GetContentUrl(*content);
 			if (result->_type == Type::Photo) {
@@ -108,9 +109,8 @@ std::unique_ptr<Result> Result::create(
 					*content,
 					(imageThumb
 						? Images::FromWebDocument(*r.vthumb())
-						: ImageLocation()),
-					true);
-			} else {
+						: ImageLocation()));
+			} else if (contentMime != "text/html"_q) {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(*content),
 					(imageThumb
@@ -120,6 +120,9 @@ std::unique_ptr<Result> Result::create(
 						? Images::FromWebDocument(*r.vthumb())
 						: ImageLocation()));
 			}
+		}
+		if (!result->_photo && !result->_document && imageThumb) {
+			result->_thumb = Images::Create(*r.vthumb(), result->thumbBox());
 		}
 		message = &r.vsend_message();
 	} break;
@@ -342,13 +345,13 @@ void Result::cancelFile() {
 }
 
 bool Result::hasThumbDisplay() const {
-	if (!_thumb->isNull()) {
+	if (!_thumb->isNull()
+		|| _photo
+		|| (_document && _document->hasThumbnail())) {
 		return true;
-	}
-	if (_type == Type::Contact) {
+	} else if (_type == Type::Contact) {
 		return true;
-	}
-	if (sendData->hasLocationCoords()) {
+	} else if (sendData->hasLocationCoords()) {
 		return true;
 	}
 	return false;

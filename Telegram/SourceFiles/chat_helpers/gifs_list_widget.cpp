@@ -580,7 +580,10 @@ GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(
 		int32 position) {
 	auto it = _inlineLayouts.find(result);
 	if (it == _inlineLayouts.cend()) {
-		if (auto layout = LayoutItem::createLayout(this, result, _inlineWithThumb)) {
+		if (auto layout = LayoutItem::createLayout(
+				this,
+				result,
+				_inlineWithThumb)) {
 			it = _inlineLayouts.emplace(result, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {

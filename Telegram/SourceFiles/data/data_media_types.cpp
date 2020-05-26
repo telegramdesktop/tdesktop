@@ -81,7 +81,9 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 	result.title = TextUtilities::SingleLine(qs(data.vtitle()));
 	result.receiptMsgId = data.vreceipt_msg_id().value_or_empty();
 	if (const auto photo = data.vphoto()) {
-		result.photo = item->history()->owner().photoFromWeb(*photo);
+		result.photo = item->history()->owner().photoFromWeb(
+			*photo,
+			ImageLocation());
 	}
 	return result;
 }
