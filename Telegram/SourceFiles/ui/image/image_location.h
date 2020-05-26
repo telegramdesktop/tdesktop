@@ -378,8 +378,6 @@ struct PlainUrlLocation {
 };
 
 struct InMemoryLocation {
-	~InMemoryLocation() = default;
-
 	QByteArray bytes;
 
 	friend inline bool operator==(

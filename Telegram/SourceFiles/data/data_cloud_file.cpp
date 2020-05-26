@@ -31,7 +31,7 @@ void UpdateCloudFile(
 	if (!update) {
 		return;
 	}
-	const auto cacheBytes = !data.bytes.isEmpty()
+	auto cacheBytes = !data.bytes.isEmpty()
 		? data.bytes
 		: file.location.file().data.is<InMemoryLocation>()
 		? file.location.file().data.get_unchecked<InMemoryLocation>().bytes
@@ -41,7 +41,7 @@ void UpdateCloudFile(
 			cache.putIfEmpty(
 				cacheKey,
 				Storage::Cache::Database::TaggedValue(
-					base::duplicate(data.bytes),
+					std::move(cacheBytes),
 					Data::kImageCacheTag));
 		}
 	}
