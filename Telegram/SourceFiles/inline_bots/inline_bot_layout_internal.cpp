@@ -190,11 +190,6 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		}
 	}
 
-	AssertIsDebug();
-	if (preview.usingThumbnail()) {
-		p.fillRect(QRect(r.topLeft(), QSize(20, 20)), Qt::green);
-	}
-
 	if (radial
 		|| _gif.isBad()
 		|| (!_gif && !loaded && !loading && !preview.usingThumbnail())) {

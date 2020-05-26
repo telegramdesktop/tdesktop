@@ -74,9 +74,6 @@ int PhotoData::validSizeIndex(PhotoSize size) const {
 	const auto index = PhotoSizeIndex(size);
 	for (auto i = index; i != kPhotoSizeCount; ++i) {
 		if (_images[i].location.valid()) {
-			if (i != index) {
-				int a = 0; AssertIsDebug();
-			}
 			return i;
 		}
 	}
