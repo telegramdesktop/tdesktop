@@ -41,8 +41,10 @@ ThemeDocument::ThemeDocument(
 }
 
 ThemeDocument::~ThemeDocument() {
-	_dataMedia = nullptr;
-	checkHeavyPart();
+	if (_dataMedia) {
+		_dataMedia = nullptr;
+		_parent->checkHeavyPart();
+	}
 }
 
 void ThemeDocument::fillPatternFieldsFrom(const QString &url) {
@@ -310,10 +312,8 @@ QString ThemeDocument::additionalInfoString() const {
 	return result;
 }
 
-void ThemeDocument::checkHeavyPart() {
-	if (!_dataMedia) {
-		_parent->history()->owner().unregisterHeavyViewPart(_parent);
-	}
+bool ThemeDocument::hasHeavyPart() const {
+	return (_dataMedia != nullptr);
 }
 
 void ThemeDocument::unloadHeavyPart() {

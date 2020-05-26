@@ -70,10 +70,8 @@ public:
 		return _attach.get();
 	}
 
-	void checkHeavyPart() override {
-		if (_attach) {
-			_attach->checkHeavyPart();
-		}
+	bool hasHeavyPart() const override {
+		return _attach ? _attach->hasHeavyPart() : false;
 	}
 	void unloadHeavyPart() override {
 		if (_attach) {

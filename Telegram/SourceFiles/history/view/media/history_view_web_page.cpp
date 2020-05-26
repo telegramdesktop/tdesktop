@@ -425,10 +425,8 @@ void WebPage::ensurePhotoMediaCreated() const {
 	history()->owner().registerHeavyViewPart(_parent);
 }
 
-void WebPage::checkHeavyPart() {
-	if (_attach) {
-		_attach->checkHeavyPart();
-	}
+bool WebPage::hasHeavyPart() const {
+	return _photoMedia || (_attach ? _attach->hasHeavyPart() : false);
 }
 
 void WebPage::unloadHeavyPart() {
@@ -821,6 +819,10 @@ QString WebPage::displayedSiteName() const {
 
 WebPage::~WebPage() {
 	history()->owner().unregisterWebPageView(_data, _parent);
+	if (_photoMedia) {
+		_photoMedia = nullptr;
+		_parent->checkHeavyPart();
+	}
 }
 
 } // namespace HistoryView

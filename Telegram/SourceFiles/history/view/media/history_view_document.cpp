@@ -84,6 +84,13 @@ Document::Document(
 	}
 }
 
+Document::~Document() {
+	if (_dataMedia) {
+		_dataMedia = nullptr;
+		_parent->checkHeavyPart();
+	}
+}
+
 float64 Document::dataProgress() const {
 	ensureDataMediaCreated();
 	return _dataMedia->progress();
@@ -494,10 +501,8 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 	}
 }
 
-void Document::checkHeavyPart() {
-	if (!_dataMedia) {
-		history()->owner().unregisterHeavyViewPart(_parent);
-	}
+bool Document::hasHeavyPart() const {
+	return (_dataMedia != nullptr);
 }
 
 void Document::unloadHeavyPart() {

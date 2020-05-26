@@ -28,7 +28,9 @@ public:
 
 	void clearStickerLoopPlayed() override {
 	}
-	void checkHeavyPart() override {
+	bool hasHeavyPart() const override {
+		return (_start ? _start->hasHeavyPart() : false)
+			|| (_end ? _end->hasHeavyPart() : false);
 	}
 	void unloadHeavyPart() override {
 		if (_start) {

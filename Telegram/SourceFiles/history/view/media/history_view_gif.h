@@ -104,7 +104,7 @@ public:
 
 	void parentTextUpdated() override;
 
-	void checkHeavyPart() override;
+	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;

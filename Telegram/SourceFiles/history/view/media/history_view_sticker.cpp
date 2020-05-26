@@ -65,9 +65,11 @@ Sticker::Sticker(
 }
 
 Sticker::~Sticker() {
-	unloadLottie();
-	_dataMedia = nullptr;
-	checkHeavyPart();
+	if (_lottie || _dataMedia) {
+		unloadLottie();
+		_dataMedia = nullptr;
+		_parent->checkHeavyPart();
+	}
 }
 
 bool Sticker::isEmojiSticker() const {
@@ -78,7 +80,9 @@ void Sticker::initSize() {
 	_size = _data->dimensions;
 	if (isEmojiSticker() || _diceIndex >= 0) {
 		_size = GetAnimatedEmojiSize(&_data->session(), _size);
-		[[maybe_unused]] bool result = readyToDrawLottie();
+		if (_diceIndex > 0) {
+			[[maybe_unused]] bool result = readyToDrawLottie();
+		}
 	} else {
 		_size = DownscaledSize(
 			_size,
@@ -292,10 +296,8 @@ void Sticker::setupLottie() {
 	}, _lifetime);
 }
 
-void Sticker::checkHeavyPart() {
-	if (!_dataMedia && !_lottie) {
-		_parent->history()->owner().unregisterHeavyViewPart(_parent);
-	}
+bool Sticker::hasHeavyPart() const {
+	return _lottie || _dataMedia;
 }
 
 void Sticker::unloadHeavyPart() {
@@ -312,7 +314,7 @@ void Sticker::unloadLottie() {
 		_lottieOncePlayed = false;
 	}
 	_lottie = nullptr;
-	checkHeavyPart();
+	_parent->checkHeavyPart();
 }
 
 } // namespace HistoryView

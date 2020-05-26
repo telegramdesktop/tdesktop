@@ -34,7 +34,8 @@ public:
 		}
 		virtual void clearStickerLoopPlayed() {
 		}
-		virtual void checkHeavyPart() {
+		virtual bool hasHeavyPart() const {
+			return false;
 		}
 		virtual void unloadHeavyPart() {
 		}
@@ -84,8 +85,8 @@ public:
 		_content->clearStickerLoopPlayed();
 	}
 
-	void checkHeavyPart() override {
-		_content->checkHeavyPart();
+	bool hasHeavyPart() const override {
+		return _content->hasHeavyPart();
 	}
 	void unloadHeavyPart() override {
 		_content->unloadHeavyPart();

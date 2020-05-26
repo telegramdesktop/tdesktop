@@ -490,7 +490,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			size,
 			locationType,
 			toCache,
-			fromCloud,
+			LoadFromCloudOrLocal,
 			autoLoading,
 			cacheTag);
 	});

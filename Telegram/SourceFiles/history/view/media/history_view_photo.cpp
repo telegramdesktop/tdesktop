@@ -52,7 +52,12 @@ Photo::Photo(
 	create(parent->data()->fullId(), chat);
 }
 
-Photo::~Photo() = default;
+Photo::~Photo() {
+	if (_dataMedia) {
+		_dataMedia = nullptr;
+		_parent->checkHeavyPart();
+	}
+}
 
 void Photo::create(FullMsgId contextId, PeerData *chat) {
 	setLinks(
@@ -86,10 +91,8 @@ void Photo::dataMediaCreated() const {
 	history()->owner().registerHeavyViewPart(_parent);
 }
 
-void Photo::checkHeavyPart() {
-	if (!_dataMedia) {
-		history()->owner().unregisterHeavyViewPart(_parent);
-	}
+bool Photo::hasHeavyPart() const {
+	return (_dataMedia != nullptr);
 }
 
 void Photo::unloadHeavyPart() {

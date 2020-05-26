@@ -31,6 +31,7 @@ public:
 	Document(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
+	~Document();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -67,7 +68,7 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 	void parentTextUpdated() override;
 
-	void checkHeavyPart() override;
+	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 protected:

@@ -96,12 +96,14 @@ Gif::Gif(
 }
 
 Gif::~Gif() {
-	if (_streamed) {
-		_data->owner().streaming().keepAlive(_data);
-		setStreamed(nullptr);
+	if (_streamed || _dataMedia) {
+		if (_streamed) {
+			_data->owner().streaming().keepAlive(_data);
+			setStreamed(nullptr);
+		}
+		_dataMedia = nullptr;
+		_parent->checkHeavyPart();
 	}
-	_dataMedia = nullptr;
-	checkHeavyPart();
 }
 
 QSize Gif::sizeForAspectRatio() const {
@@ -728,7 +730,6 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
-	ensureDataMediaCreated();
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
 
@@ -827,6 +828,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		}
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
+		ensureDataMediaCreated();
 		result.link = _data->uploading()
 			? _cancell
 			: _realParent->isSending()
@@ -1299,10 +1301,8 @@ void Gif::parentTextUpdated() {
 	}
 }
 
-void Gif::checkHeavyPart() {
-	if (!_dataMedia && !_streamed) {
-		history()->owner().unregisterHeavyViewPart(_parent);
-	}
+bool Gif::hasHeavyPart() const {
+	return _streamed || _dataMedia;
 }
 
 void Gif::unloadHeavyPart() {

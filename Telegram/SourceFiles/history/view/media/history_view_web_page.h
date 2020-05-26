@@ -86,7 +86,7 @@ public:
 		return _attach.get();
 	}
 
-	void checkHeavyPart() override;
+	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 	~WebPage();

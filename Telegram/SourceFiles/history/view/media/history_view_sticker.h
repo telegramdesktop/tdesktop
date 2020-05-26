@@ -50,7 +50,7 @@ public:
 		_lottieOncePlayed = false;
 	}
 
-	void checkHeavyPart() override;
+	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 	void refreshLink() override;

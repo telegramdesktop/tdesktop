@@ -607,8 +607,8 @@ auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
 }
 
 void Element::checkHeavyPart() {
-	if (_media) {
-		_media->checkHeavyPart();
+	if (_media && !_media->hasHeavyPart()) {
+		history()->owner().unregisterHeavyViewPart(this);
 	}
 }
 
@@ -745,6 +745,8 @@ void Element::clickHandlerPressedChanged(
 }
 
 Element::~Element() {
+	// Delete media while owner still exists.
+	_media = nullptr;
 	if (_data->mainView() == this) {
 		_data->clearMainView();
 	}
