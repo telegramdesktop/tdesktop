@@ -355,6 +355,8 @@ PRIVATE
     data/data_channel.h
     data/data_channel_admins.cpp
     data/data_channel_admins.h
+    data/data_cloud_file.cpp
+    data/data_cloud_file.h
     data/data_cloud_themes.cpp
     data/data_cloud_themes.h
     data/data_countries.cpp

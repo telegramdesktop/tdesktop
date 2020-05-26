@@ -18,6 +18,10 @@ ImageWithLocation FromPhotoSize(
 		not_null<Main::Session*> session,
 		const MTPDphoto &photo,
 		const MTPPhotoSize &size) {
+	if (!photo.vaccess_hash().v && photo.vfile_reference().v.isEmpty()) {
+		// Locally created fake photo.
+		return ImageWithLocation();
+	}
 	return size.match([&](const MTPDphotoSize &data) {
 		return ImageWithLocation{
 			.location = ImageLocation(

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/binary_guard.h"
 #include "data/data_types.h"
+#include "data/data_cloud_file.h"
 #include "ui/image/image.h"
 
 class mtpFileLoader;
@@ -310,12 +311,8 @@ private:
 	WebFileLocation _urlLocation;
 
 	QByteArray _inlineThumbnailBytes;
-	ImageLocation _thumbnailLocation;
-	ImageLocation _videoThumbnailLocation;
-	std::unique_ptr<FileLoader> _thumbnailLoader;
-	std::unique_ptr<FileLoader> _videoThumbnailLoader;
-	int _thumbnailByteSize = 0;
-	int _videoThumbnailByteSize = 0;
+	Data::CloudFile _thumbnail;
+	Data::CloudFile _videoThumbnail;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;

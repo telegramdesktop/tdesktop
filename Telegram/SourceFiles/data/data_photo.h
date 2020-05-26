@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_types.h"
+#include "data/data_cloud_file.h"
 
 namespace Main {
 class Session;
@@ -123,24 +124,11 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	enum class ImageFlag : uchar {
-		Cancelled = 0x01,
-		Failed = 0x02,
-	};
-	friend inline constexpr bool is_flag_type(ImageFlag) { return true; };
-
-	struct Image final {
-		ImageLocation location;
-		std::unique_ptr<FileLoader> loader;
-		int byteSize = 0;
-		base::flags<ImageFlag> flags;
-	};
-
 	void finishLoad(Data::PhotoSize size);
 	void destroyLoader(Data::PhotoSize size);
 
 	QByteArray _inlineThumbnailBytes;
-	std::array<Image, Data::kPhotoSizeCount> _images;
+	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
 
 	int32 _dc = 0;
 	uint64 _access = 0;

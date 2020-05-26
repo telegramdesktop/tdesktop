@@ -2255,7 +2255,8 @@ void Session::photoConvert(
 	const auto id = data.match([](const auto &data) {
 		return data.vid().v;
 	});
-	if (original->id != id) {
+	const auto idChanged = (original->id != id);
+	if (idChanged) {
 		auto i = _photos.find(id);
 		if (i == _photos.end()) {
 			const auto j = _photos.find(original->id);
@@ -2446,18 +2447,12 @@ not_null<DocumentData*> Session::document(
 void Session::documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data) {
-	const auto id = [&] {
-		switch (data.type()) {
-		case mtpc_document: return data.c_document().vid().v;
-		case mtpc_documentEmpty: return data.c_documentEmpty().vid().v;
-		}
-		Unexpected("Type in Session::documentConvert().");
-	}();
-	const auto oldKey = original->mediaKey();
+	const auto id = data.match([](const auto &data) {
+		return data.vid().v;
+	});
 	const auto oldCacheKey = original->cacheKey();
 	const auto oldGoodKey = original->goodThumbnailCacheKey();
 	const auto idChanged = (original->id != id);
-	const auto sentSticker = idChanged && (original->sticker() != nullptr);
 	if (idChanged) {
 		auto i = _documents.find(id);
 		if (i == _documents.end()) {

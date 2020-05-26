@@ -52,11 +52,11 @@ Main::Session &PhotoData::session() const {
 
 void PhotoData::automaticLoadSettingsChanged() {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	if (!(_images[index].flags & ImageFlag::Cancelled)) {
+	if (!(_images[index].flags & Data::CloudFile::Flag::Cancelled)) {
 		return;
 	}
 	_images[index].loader = nullptr;
-	_images[index].flags &= ~ImageFlag::Cancelled;
+	_images[index].flags &= ~Data::CloudFile::Flag::Cancelled;
 }
 
 void PhotoData::load(
@@ -92,7 +92,8 @@ bool PhotoData::loading(PhotoSize size) const {
 }
 
 bool PhotoData::failed(PhotoSize size) const {
-	return (_images[validSizeIndex(size)].flags & ImageFlag::Failed);
+	const auto flags = _images[validSizeIndex(size)].flags;
+	return (flags & Data::CloudFile::Flag::Failed);
 }
 
 const ImageLocation &PhotoData::location(PhotoSize size) const {
@@ -134,7 +135,7 @@ void PhotoData::cancel() {
 	}
 
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	_images[index].flags |= ImageFlag::Cancelled;
+	_images[index].flags |= Data::CloudFile::Flag::Cancelled;
 	destroyLoader(PhotoSize::Large);
 	_owner->photoLoadDone(this);
 }
@@ -154,7 +155,7 @@ float64 PhotoData::progress() const {
 
 bool PhotoData::cancelled() const {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	return (_images[index].flags & ImageFlag::Cancelled);
+	return (_images[index].flags & Data::CloudFile::Flag::Cancelled);
 }
 
 void PhotoData::setWaitingForAlbum() {
@@ -255,7 +256,7 @@ void PhotoData::load(
 			image.loader->permitLoadFromCloud();
 		}
 		return;
-	} else if ((image.flags & ImageFlag::Failed)
+	} else if ((image.flags & Data::CloudFile::Flag::Failed)
 		|| !image.location.valid()) {
 		return;
 	} else if (const auto active = activeMediaView()) {
@@ -266,7 +267,7 @@ void PhotoData::load(
 	// Could've changed, if the requested size didn't have a location.
 	size = static_cast<PhotoSize>(index);
 
-	image.flags &= ~ImageFlag::Cancelled;
+	image.flags &= ~Data::CloudFile::Flag::Cancelled;
 	image.loader = CreateFileLoader(
 		image.location.file(),
 		origin,
@@ -285,7 +286,7 @@ void PhotoData::load(
 		}
 	}, [=, &image](bool started) {
 		finishLoad(size);
-		image.flags |= ImageFlag::Failed;
+		image.flags |= Data::CloudFile::Flag::Failed;
 		if (size == PhotoSize::Large) {
 			_owner->photoLoadFail(this, started);
 		}
@@ -312,10 +313,10 @@ void PhotoData::finishLoad(PhotoSize size) {
 		destroyLoader(size);
 	});
 	if (!image.loader || image.loader->cancelled()) {
-		image.flags |= ImageFlag::Cancelled;
+		image.flags |= Data::CloudFile::Flag::Cancelled;
 		return;
 	} else if (auto read = image.loader->imageData(); read.isNull()) {
-		image.flags |= ImageFlag::Failed;
+		image.flags |= Data::CloudFile::Flag::Failed;
 	} else if (const auto active = activeMediaView()) {
 		active->set(size, std::move(read));
 	}
@@ -330,7 +331,7 @@ void PhotoData::destroyLoader(PhotoSize size) {
 		return;
 	}
 	const auto loader = base::take(image.loader);
-	if (image.flags & ImageFlag::Cancelled) {
+	if (image.flags & Data::CloudFile::Flag::Cancelled) {
 		loader->cancel();
 	}
 }
@@ -358,37 +359,16 @@ void PhotoData::updateImages(
 		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
 	const auto update = [&](PhotoSize size, const ImageWithLocation &data) {
-		auto &image = _images[PhotoSizeIndex(size)];
-		if (!data.location.valid()) {
-			return;
-		}
-		const auto changed = !image.location.valid()
-			|| (image.location.width() != data.location.width())
-			|| (image.location.height() != data.location.height());
-		if (changed || (data.bytesCount && !image.byteSize)) {
-			image.byteSize = data.bytesCount;
-		}
-		if (changed) {
-			image.location = data.location;
-		}
-		if (!data.preloaded.isNull()) {
-			image.loader = nullptr;
-			if (const auto media = activeMediaView()) {
-				media->set(size, data.preloaded);
-			}
-		} else if (changed && image.loader) {
-			const auto origin = base::take(image.loader)->fileOrigin();
-			load(size, origin);
-		}
-		if (!data.bytes.isEmpty()) {
-			if (const auto cacheKey = image.location.file().cacheKey()) {
-				owner().cache().putIfEmpty(
-					cacheKey,
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(data.bytes),
-						Data::kImageCacheTag));
-			}
-		}
+		Data::UpdateCloudFile(
+			_images[PhotoSizeIndex(size)],
+			data,
+			owner().cache(),
+			[=](Data::FileOrigin origin) { load(size, origin); },
+			[=](QImage preloaded) {
+				if (const auto media = activeMediaView()) {
+					media->set(size, data.preloaded);
+				}
+			});
 	};
 	update(PhotoSize::Small, small);
 	update(PhotoSize::Thumbnail, thumbnail);
