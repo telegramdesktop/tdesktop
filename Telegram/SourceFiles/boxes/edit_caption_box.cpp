@@ -280,7 +280,7 @@ EditCaptionBox::EditCaptionBox(
 	Assert(_animated || _photo || _doc);
 
 	_thumbnailImageLoaded = _photoMedia
-		? _photoMedia->image(Data::PhotoSize::Large)
+		? (_photoMedia->image(Data::PhotoSize::Large) != nullptr)
 		: _thumbnailImage
 		? _thumbnailImage->loaded()
 		: _documentMedia

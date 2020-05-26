@@ -283,7 +283,7 @@ void PhotoData::load(
 		if (size == PhotoSize::Large) {
 			_owner->photoLoadFail(this, started);
 		}
-	}, [=, &image] {
+	}, [=] {
 		finishLoad(size);
 		if (size == PhotoSize::Large) {
 			_owner->photoLoadDone(this);
