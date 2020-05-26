@@ -298,6 +298,28 @@ bool update() {
 
 	for (size_t i = 0; i < from.size(); ++i) {
 		string fname = from[i], tofname = to[i];
+
+		// it is necessary to remove the old file to not to get an error if appimage file is used by fuse
+		struct stat statbuf;
+		writeLog("Trying to get stat() for '%s'", tofname.c_str());
+		if (!stat(tofname.c_str(), &statbuf)) {
+			if (S_ISDIR(statbuf.st_mode)) {
+				writeLog("Fully clearing path '%s'..", tofname.c_str());
+				if (!remove_directory(tofname.c_str())) {
+					writeLog("Error: failed to clear path '%s'", tofname.c_str());
+					delFolder();
+					return false;
+				}
+			} else {
+				writeLog("Unlinking file '%s'", tofname.c_str());
+				if (unlink(tofname.c_str())) {
+					writeLog("Error: failed to unlink '%s'", tofname.c_str());
+					delFolder();
+					return false;
+				}
+			}
+		}
+
 		writeLog("Copying file '%s' to '%s'..", fname.c_str(), tofname.c_str());
 		int copyTries = 0, triesLimit = 30;
 		do {
