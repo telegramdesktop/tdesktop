@@ -63,6 +63,8 @@ class CloudThemes;
 class Streaming;
 class MediaRotation;
 class Histories;
+class DocumentMedia;
+class PhotoMedia;
 
 class Session final {
 public:
@@ -109,6 +111,9 @@ public:
 	}
 
 	void clear();
+
+	void keepAlive(std::shared_ptr<PhotoMedia> media);
+	void keepAlive(std::shared_ptr<DocumentMedia> media);
 
 	void startExport(PeerData *peer = nullptr);
 	void startExport(const MTPInputPeer &singlePeer);

@@ -67,7 +67,9 @@ Sticker::Sticker(
 Sticker::~Sticker() {
 	if (_lottie || _dataMedia) {
 		unloadLottie();
-		_dataMedia = nullptr;
+		if (_dataMedia) {
+			_data->owner().keepAlive(base::take(_dataMedia));
+		}
 		_parent->checkHeavyPart();
 	}
 }

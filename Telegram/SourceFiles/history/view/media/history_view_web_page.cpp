@@ -820,7 +820,7 @@ QString WebPage::displayedSiteName() const {
 WebPage::~WebPage() {
 	history()->owner().unregisterWebPageView(_data, _parent);
 	if (_photoMedia) {
-		_photoMedia = nullptr;
+		history()->owner().keepAlive(base::take(_photoMedia));
 		_parent->checkHeavyPart();
 	}
 }

@@ -63,7 +63,7 @@ GroupedMedia::GroupedMedia(
 
 GroupedMedia::~GroupedMedia() {
 	// Destroy all parts while the media object is still not destroyed.
-	base::take(_parts).clear();
+	base::take(_parts);
 }
 
 QSize GroupedMedia::countOptimalSize() {

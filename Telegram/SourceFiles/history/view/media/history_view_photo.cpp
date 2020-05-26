@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
+#include "main/main_session.h"
 #include "ui/image/image.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
@@ -54,7 +55,7 @@ Photo::Photo(
 
 Photo::~Photo() {
 	if (_dataMedia) {
-		_dataMedia = nullptr;
+		_data->owner().keepAlive(base::take(_dataMedia));
 		_parent->checkHeavyPart();
 	}
 }

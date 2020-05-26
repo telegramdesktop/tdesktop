@@ -86,7 +86,7 @@ Document::Document(
 
 Document::~Document() {
 	if (_dataMedia) {
-		_dataMedia = nullptr;
+		_data->owner().keepAlive(base::take(_dataMedia));
 		_parent->checkHeavyPart();
 	}
 }

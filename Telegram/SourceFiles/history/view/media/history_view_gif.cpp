@@ -101,7 +101,9 @@ Gif::~Gif() {
 			_data->owner().streaming().keepAlive(_data);
 			setStreamed(nullptr);
 		}
-		_dataMedia = nullptr;
+		if (_dataMedia) {
+			_data->owner().keepAlive(base::take(_dataMedia));
+		}
 		_parent->checkHeavyPart();
 	}
 }
@@ -479,7 +481,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			auto over = _animation->a_thumbOver.value(1.);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			const auto over = ClickHandler::showAsActive(
+				(_data->loading() || _data->uploading()) ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 		p.setOpacity(radialOpacity * p.opacity());
@@ -1013,7 +1016,8 @@ void Gif::drawGrouped(
 			auto over = _animation->a_thumbOver.value(1.);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			auto over = ClickHandler::showAsActive(
+				(_data->loading() || _data->uploading()) ? _cancell : _savel);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 		p.setOpacity(radialOpacity * p.opacity());

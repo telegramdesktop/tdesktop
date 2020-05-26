@@ -79,7 +79,7 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 					prepare(image, option | Images::Option::Blurred);
 				}
 			}
-			if (thumbnail || !_document->hasThumbnail()) {
+			if (_good || !_document->hasThumbnail()) {
 				_checked = true;
 				_documentMedia = nullptr;
 			}
@@ -100,6 +100,10 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 				if (const auto blurred = _photoMedia->thumbnailInline()) {
 					prepare(blurred, Images::Option::Blurred);
 				}
+			}
+			if (_good) {
+				_checked = true;
+				_photoMedia = nullptr;
 			}
 		}
 	}

@@ -47,7 +47,7 @@ public:
 		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
 			return false;
 		}
-		virtual ~Content() = 0;
+		virtual ~Content() = default;
 	};
 
 	UnwrappedMedia(

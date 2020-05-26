@@ -268,6 +268,18 @@ void Session::clear() {
 	_photos.clear();
 }
 
+void Session::keepAlive(std::shared_ptr<PhotoMedia> media) {
+	// NB! This allows PhotoMedia to outlive Main::Session!
+	// In case this is a problem this code should be rewritten.
+	crl::on_main(&session(), [media = std::move(media)]{});
+}
+
+void Session::keepAlive(std::shared_ptr<DocumentMedia> media) {
+	// NB! This allows DocumentMedia to outlive Main::Session!
+	// In case this is a problem this code should be rewritten.
+	crl::on_main(&session(), [media = std::move(media)] {});
+}
+
 not_null<PeerData*> Session::peer(PeerId id) {
 	const auto i = _peers.find(id);
 	if (i != _peers.cend()) {
@@ -3335,6 +3347,9 @@ void Session::registerItemView(not_null<ViewElement*> view) {
 }
 
 void Session::unregisterItemView(not_null<ViewElement*> view) {
+	Expects(!_playingVideoFiles.contains(view));
+	Expects(!_heavyViewParts.contains(view));
+
 	const auto i = _views.find(view->data());
 	if (i != end(_views)) {
 		auto &list = i->second;
