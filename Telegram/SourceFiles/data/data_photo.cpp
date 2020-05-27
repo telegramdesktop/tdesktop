@@ -127,14 +127,9 @@ bool PhotoData::displayLoading() const {
 }
 
 void PhotoData::cancel() {
-	if (!loading()) {
-		return;
+	if (loading()) {
+		_images[PhotoSizeIndex(PhotoSize::Large)].loader->cancel();
 	}
-
-	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	_images[index].flags |= Data::CloudFile::Flag::Cancelled;
-	destroyLoader(PhotoSize::Large);
-	_owner->photoLoadDone(this);
 }
 
 float64 PhotoData::progress() const {
@@ -244,88 +239,34 @@ void PhotoData::load(
 		bool autoLoading) {
 	const auto index = validSizeIndex(size);
 	auto &image = _images[index];
-	if (image.loader) {
-		if (fromCloud == LoadFromCloudOrLocal) {
-			image.loader->permitLoadFromCloud();
-		}
-		return;
-	} else if ((image.flags & Data::CloudFile::Flag::Failed)
-		|| !image.location.valid()) {
-		return;
-	} else if (const auto active = activeMediaView()) {
-		if (active->image(size)) {
-			return;
-		}
-	}
+
 	// Could've changed, if the requested size didn't have a location.
-	size = static_cast<PhotoSize>(index);
-
-	image.flags &= ~Data::CloudFile::Flag::Cancelled;
-	image.loader = CreateFileLoader(
-		image.location.file(),
-		origin,
-		QString(),
-		image.byteSize,
-		UnknownFileLocation,
-		LoadToCacheAsWell,
-		fromCloud,
-		autoLoading,
-		Data::kImageCacheTag);
-
-	image.loader->updates(
-	) | rpl::start_with_next_error_done([=] {
-		if (size == PhotoSize::Large) {
-			_owner->photoLoadProgress(this);
+	const auto loadingSize = static_cast<PhotoSize>(index);
+	const auto cacheTag = Data::kImageCacheTag;
+	Data::LoadCloudFile(image, origin, fromCloud, autoLoading, cacheTag, [=] {
+		if (const auto active = activeMediaView()) {
+			return !active->image(size);
 		}
-	}, [=, &image](bool started) {
-		finishLoad(size);
-		image.flags |= Data::CloudFile::Flag::Failed;
-		if (size == PhotoSize::Large) {
+		return true;
+	}, [=](QImage result) {
+		if (const auto active = activeMediaView()) {
+			active->set(loadingSize, std::move(result));
+		}
+		if (loadingSize == PhotoSize::Large) {
+			_owner->photoLoadDone(this);
+		}
+	}, [=](bool started) {
+		if (loadingSize == PhotoSize::Large) {
 			_owner->photoLoadFail(this, started);
 		}
 	}, [=] {
-		finishLoad(size);
-		if (size == PhotoSize::Large) {
-			_owner->photoLoadDone(this);
+		if (loadingSize == PhotoSize::Large) {
+			_owner->photoLoadProgress(this);
 		}
-	}, image.loader->lifetime());
-
-	image.loader->start();
+	});
 
 	if (size == PhotoSize::Large) {
 		_owner->notifyPhotoLayoutChanged(this);
-	}
-}
-
-void PhotoData::finishLoad(PhotoSize size) {
-	const auto index = PhotoSizeIndex(size);
-	auto &image = _images[index];
-
-	// NB! image.loader may be in ~FileLoader() already.
-	const auto guard = gsl::finally([&] {
-		destroyLoader(size);
-	});
-	if (!image.loader || image.loader->cancelled()) {
-		image.flags |= Data::CloudFile::Flag::Cancelled;
-		return;
-	} else if (auto read = image.loader->imageData(); read.isNull()) {
-		image.flags |= Data::CloudFile::Flag::Failed;
-	} else if (const auto active = activeMediaView()) {
-		active->set(size, std::move(read));
-	}
-}
-
-void PhotoData::destroyLoader(PhotoSize size) {
-	const auto index = PhotoSizeIndex(size);
-	auto &image = _images[index];
-
-	// NB! image.loader may be in ~FileLoader() already.
-	if (!image.loader) {
-		return;
-	}
-	const auto loader = base::take(image.loader);
-	if (image.flags & Data::CloudFile::Flag::Cancelled) {
-		loader->cancel();
 	}
 }
 
@@ -356,6 +297,7 @@ void PhotoData::updateImages(
 			_images[PhotoSizeIndex(size)],
 			data,
 			owner().cache(),
+			Data::kImageCacheTag,
 			[=](Data::FileOrigin origin) { load(size, origin); },
 			[=](QImage preloaded) {
 				if (const auto media = activeMediaView()) {

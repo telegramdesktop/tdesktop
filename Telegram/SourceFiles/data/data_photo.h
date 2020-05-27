@@ -124,9 +124,6 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	void finishLoad(Data::PhotoSize size);
-	void destroyLoader(Data::PhotoSize size);
-
 	QByteArray _inlineThumbnailBytes;
 	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
 

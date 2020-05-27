@@ -257,8 +257,6 @@ private:
 		ImageType = 0x08,
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
-		ThumbnailFailed = 0x40,
-		VideoThumbnailFailed = 0x80,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

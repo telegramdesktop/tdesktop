@@ -39,7 +39,30 @@ void UpdateCloudFile(
 	CloudFile &file,
 	const ImageWithLocation &data,
 	Storage::Cache::Database &cache,
+	uint8 cacheTag,
 	Fn<void(FileOrigin)> restartLoader,
 	Fn<void(QImage)> usePreloaded = nullptr);
+
+void LoadCloudFile(
+	CloudFile &file,
+	FileOrigin origin,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag,
+	Fn<bool()> finalCheck,
+	Fn<void(QImage)> done,
+	Fn<void(bool)> fail = nullptr,
+	Fn<void()> progress = nullptr);
+
+void LoadCloudFile(
+	CloudFile &file,
+	FileOrigin origin,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag,
+	Fn<bool()> finalCheck,
+	Fn<void(QByteArray)> done,
+	Fn<void(bool)> fail = nullptr,
+	Fn<void()> progress = nullptr);
 
 } // namespace Data

@@ -617,6 +617,7 @@ void DocumentData::updateThumbnails(
 		_thumbnail,
 		thumbnail,
 		owner().cache(),
+		Data::kImageCacheTag,
 		[&](Data::FileOrigin origin) { loadThumbnail(origin); },
 		[&](QImage preloaded) {
 			if (const auto media = activeMediaView()) {
@@ -627,6 +628,7 @@ void DocumentData::updateThumbnails(
 		_videoThumbnail,
 		videoThumbnail,
 		owner().cache(),
+		Data::kAnimationCacheTag,
 		[&](Data::FileOrigin origin) { loadVideoThumbnail(origin); });
 }
 
@@ -647,47 +649,24 @@ bool DocumentData::thumbnailLoading() const {
 }
 
 bool DocumentData::thumbnailFailed() const {
-	return (_flags & Flag::ThumbnailFailed);
+	return (_thumbnail.flags & Data::CloudFile::Flag::Failed);
 }
 
 void DocumentData::loadThumbnail(Data::FileOrigin origin) {
-	if (_thumbnail.loader
-		|| (_flags & Flag::ThumbnailFailed)
-		|| !_thumbnail.location.valid()) {
-		return;
-	} else if (const auto active = activeMediaView()) {
-		if (active->thumbnail()) {
-			return;
-		}
-	}
+	auto &file = _thumbnail;
+	const auto fromCloud = LoadFromCloudOrLocal;
+	const auto cacheTag = Data::kImageCacheTag;
 	const auto autoLoading = false;
-	_thumbnail.loader = CreateFileLoader(
-		_thumbnail.location.file(),
-		origin,
-		QString(),
-		_thumbnail.byteSize,
-		UnknownFileLocation,
-		LoadToCacheAsWell,
-		LoadFromCloudOrLocal,
-		autoLoading,
-		Data::kImageCacheTag);
-
-	_thumbnail.loader->updates(
-	) | rpl::start_with_error_done([=](bool started) {
-		_thumbnail.loader = nullptr;
-		_flags |= Flag::ThumbnailFailed;
-	}, [=] {
-		if (_thumbnail.loader && !_thumbnail.loader->cancelled()) {
-			if (auto read = _thumbnail.loader->imageData(); read.isNull()) {
-				_flags |= Flag::ThumbnailFailed;
-			} else if (const auto active = activeMediaView()) {
-				active->setThumbnail(std::move(read));
-			}
+	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+		if (const auto active = activeMediaView()) {
+			return !active->thumbnail();
 		}
-		_thumbnail.loader = nullptr;
-	}, _thumbnail.loader->lifetime());
-
-	_thumbnail.loader->start();
+		return true;
+	}, [=](QImage result) {
+		if (const auto active = activeMediaView()) {
+			active->setThumbnail(std::move(result));
+		}
+	});
 }
 
 const ImageLocation &DocumentData::thumbnailLocation() const {
@@ -707,48 +686,24 @@ bool DocumentData::videoThumbnailLoading() const {
 }
 
 bool DocumentData::videoThumbnailFailed() const {
-	return (_flags & Flag::VideoThumbnailFailed);
+	return (_videoThumbnail.flags & Data::CloudFile::Flag::Failed);
 }
 
 void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
-	if (_videoThumbnail.loader
-		|| (_flags & Flag::VideoThumbnailFailed)
-		|| !_videoThumbnail.location.valid()) {
-		return;
-	} else if (const auto active = activeMediaView()) {
-		if (!active->videoThumbnailContent().isEmpty()) {
-			return;
-		}
-	}
+	auto &file = _videoThumbnail;
+	const auto fromCloud = LoadFromCloudOrLocal;
+	const auto cacheTag = Data::kAnimationCacheTag;
 	const auto autoLoading = false;
-	_videoThumbnail.loader = CreateFileLoader(
-		_videoThumbnail.location.file(),
-		origin,
-		QString(),
-		_videoThumbnail.byteSize,
-		UnknownFileLocation,
-		LoadToCacheAsWell,
-		LoadFromCloudOrLocal,
-		autoLoading,
-		Data::kAnimationCacheTag);
-
-	_videoThumbnail.loader->updates(
-	) | rpl::start_with_error_done([=](bool started) {
-		_videoThumbnail.loader = nullptr;
-		_flags |= Flag::VideoThumbnailFailed;
-	}, [=] {
-		if (_videoThumbnail.loader && !_videoThumbnail.loader->cancelled()) {
-			auto bytes = _videoThumbnail.loader->bytes();
-			if (bytes.isEmpty()) {
-				_flags |= Flag::VideoThumbnailFailed;
-			} else if (const auto active = activeMediaView()) {
-				active->setVideoThumbnail(std::move(bytes));
-			}
+	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+		if (const auto active = activeMediaView()) {
+			return active->videoThumbnailContent().isEmpty();
 		}
-		_videoThumbnail.loader = nullptr;
-	}, _videoThumbnail.loader->lifetime());
-
-	_videoThumbnail.loader->start();
+		return true;
+	}, [=](QByteArray result) {
+		if (const auto active = activeMediaView()) {
+			active->setVideoThumbnail(std::move(result));
+		}
+	});
 }
 
 const ImageLocation &DocumentData::videoThumbnailLocation() const {

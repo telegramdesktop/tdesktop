@@ -71,7 +71,7 @@ namespace Media {
 namespace View {
 namespace {
 
-constexpr auto kPreloadCount = 4;
+constexpr auto kPreloadCount = 3;
 constexpr auto kMaxZoomLevel = 7; // x8
 constexpr auto kZoomToScreenLevel = 1024;
 constexpr auto kOverlayLoaderPriority = 2;
@@ -939,7 +939,7 @@ bool OverlayWidget::radialLoading() const {
 	if (_document) {
 		return _document->loading() && !_streamed;
 	} else if (_photo) {
-		return _photo->loading();
+		return _photo->displayLoading();
 	}
 	return false;
 }
@@ -1122,8 +1122,8 @@ void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	if (_photo != photo) {
 		_photo = photo;
 		_photoMedia = _photo->createMediaView();
-		_photoMedia->wanted(Data::PhotoSize::Large, fileOrigin());
 		_photoMedia->wanted(Data::PhotoSize::Small, fileOrigin());
+		_photo->load(fileOrigin(), LoadFromCloudOrLocal, true);
 	}
 }
 
@@ -1739,7 +1739,6 @@ void OverlayWidget::refreshMediaViewer() {
 	}
 	findCurrent();
 	updateControls();
-	preloadData(0);
 }
 
 void OverlayWidget::refreshFromLabel(HistoryItem *item) {
@@ -3463,7 +3462,7 @@ bool OverlayWidget::moveToNext(int delta) {
 		return false;
 	}
 	auto newIndex = *_index + delta;
-	return moveToEntity(entityByIndex(newIndex));
+	return moveToEntity(entityByIndex(newIndex), delta);
 }
 
 bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
@@ -3498,22 +3497,14 @@ void OverlayWidget::preloadData(int delta) {
 	auto till = *_index + (delta ? delta * kPreloadCount : 1);
 	if (from > till) std::swap(from, till);
 
-	if (delta != 0) {
-		auto forgetIndex = *_index - delta * 2;
-		auto entity = entityByIndex(forgetIndex);
-		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->unload();
-		}
-	}
-
 	auto photos = base::flat_set<std::shared_ptr<Data::PhotoMedia>>();
 	auto documents = base::flat_set<std::shared_ptr<Data::DocumentMedia>>();
-	for (auto index = from; index != till; ++index) {
+	for (auto index = from; index != till + 1; ++index) {
 		auto entity = entityByIndex(index);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			const auto [i, ok] = photos.emplace((*photo)->createMediaView());
 			(*i)->wanted(Data::PhotoSize::Small, fileOrigin());
-			(*i)->wanted(Data::PhotoSize::Large, fileOrigin());
+			(*photo)->load(fileOrigin(), LoadFromCloudOrLocal, true);
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(
 				&entity.data)) {
 			const auto [i, ok] = documents.emplace(
