@@ -101,6 +101,7 @@ public:
 	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
+	QWidget *getModalParent();
 
 	// Media view interface.
 	void checkMediaViewActivation();
