@@ -24,7 +24,6 @@ namespace {
 // After 128 MB of unpacked images we try to clear some memory.
 constexpr auto kMemoryForCache = 128 * 1024 * 1024;
 
-std::map<QString, std::unique_ptr<Image>> LocalFileImages;
 std::map<QString, std::unique_ptr<Image>> WebUrlImages;
 std::unordered_map<InMemoryKey, std::unique_ptr<Image>> StorageImages;
 std::unordered_map<InMemoryKey, std::unique_ptr<Image>> WebCachedImages;
@@ -123,40 +122,7 @@ void ClearRemote() {
 
 void ClearAll() {
 	ActiveCache().clear();
-	base::take(LocalFileImages);
 	ClearRemote();
-}
-
-ImagePtr Create(const QString &file, QByteArray format) {
-	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive)
-		|| file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-		const auto &key = file;
-		const auto i = WebUrlImages.find(key);
-		const auto image = (i != end(WebUrlImages))
-			? i->second.get()
-			: WebUrlImages.emplace(
-				key,
-				std::make_unique<Image>(std::make_unique<WebUrlSource>(file))
-			).first->second.get();
-		return ImagePtr(image);
-	}
-	QFileInfo f(file);
-	const auto key = qsl("//:%1//:%2//:"
-	).arg(f.size()
-	).arg(f.lastModified().toTime_t()
-	) + file;
-	const auto i = LocalFileImages.find(key);
-	const auto image = (i != end(LocalFileImages))
-		? i->second.get()
-		: LocalFileImages.emplace(
-			key,
-			std::make_unique<Image>(
-				std::make_unique<LocalFileSource>(
-					file,
-					QByteArray(),
-					format))
-		).first->second.get();
-	return ImagePtr(image);
 }
 
 ImagePtr Create(const QString &url, QSize box) {
@@ -171,43 +137,10 @@ ImagePtr Create(const QString &url, QSize box) {
 	return ImagePtr(image);
 }
 
-ImagePtr Create(const QString &url, int width, int height) {
-	const auto &key = url;
-	const auto i = WebUrlImages.find(key);
-	const auto found = (i != end(WebUrlImages));
-	const auto image = found
-		? i->second.get()
-		: WebUrlImages.emplace(
-			key,
-			std::make_unique<Image>(
-				std::make_unique<WebUrlSource>(url, width, height))
-		).first->second.get();
-	if (found) {
-		image->setInformation(0, width, height);
-	}
-	return ImagePtr(image);
-}
-
-ImagePtr Create(const QByteArray &filecontent, QByteArray format) {
-	auto image = App::readImage(filecontent, &format, false);
-	return Create(filecontent, format, std::move(image));
-}
-
 ImagePtr Create(QImage &&image, QByteArray format) {
 	return ImagePtr(new Image(std::make_unique<ImageSource>(
 		std::move(image),
 		format)));
-}
-
-ImagePtr Create(
-		const QByteArray &filecontent,
-		QByteArray format,
-		QImage &&image) {
-	return ImagePtr(new Image(std::make_unique<LocalFileSource>(
-		QString(),
-		filecontent,
-		format,
-		std::move(image))));
 }
 
 template <typename SourceType>
@@ -242,25 +175,6 @@ ImagePtr Create(const StorageImageLocation &location, int size) {
 	return Create<StorageSource>(location, size, QByteArray());
 }
 
-ImagePtr Create(
-		const StorageImageLocation &location,
-		const QByteArray &bytes) {
-	return Create<StorageSource>(location, bytes.size(), bytes);
-}
-
-struct CreateStorageImage {
-	ImagePtr operator()(
-			const StorageImageLocation &location,
-			int size) {
-		return Create(location, size);
-	}
-	ImagePtr operator()(
-			const StorageImageLocation &location,
-			const QByteArray &bytes) {
-		return Create(location, bytes);
-	}
-};
-
 struct CreateSetThumbnail {
 	using Source = Stickers::ThumbnailSource;
 	ImagePtr operator()(
@@ -275,7 +189,7 @@ struct CreateSetThumbnail {
 	}
 };
 
-template <typename CreateLocation, typename Method = CreateStorageImage>
+template <typename CreateLocation, typename Method>
 ImagePtr CreateFromPhotoSize(
 		CreateLocation &&createLocation,
 		const MTPPhotoSize &size,
@@ -329,38 +243,6 @@ ImagePtr CreateStickerSetThumbnail(const StorageImageLocation &location) {
 	return CreateSetThumbnail()(location, 0);
 }
 
-ImagePtr Create(const MTPDphoto &photo, const MTPPhotoSize &size) {
-	const auto create = [&](
-			const MTPstring &thumbSize,
-			const MTPDfileLocationToBeDeprecated &location) {
-		return StorageFileLocation(
-			photo.vdc_id().v,
-			Auth().userId(),
-			MTP_inputPhotoFileLocation(
-				photo.vid(),
-				photo.vaccess_hash(),
-				photo.vfile_reference(),
-				thumbSize));
-	};
-	return CreateFromPhotoSize(create, size);
-}
-
-ImagePtr Create(const MTPDdocument &document, const MTPPhotoSize &size) {
-	const auto create = [&](
-			const MTPstring &thumbSize,
-			const MTPDfileLocationToBeDeprecated &location) {
-		return StorageFileLocation(
-			document.vdc_id().v,
-			Auth().userId(),
-			MTP_inputDocumentFileLocation(
-				document.vid(),
-				document.vaccess_hash(),
-				document.vfile_reference(),
-				thumbSize));
-	};
-	return CreateFromPhotoSize(create, size);
-}
-
 QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 	for (const auto &attribute : attributes) {
 		if (attribute.type() == mtpc_documentAttributeImageSize) {
@@ -369,33 +251,6 @@ QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 		}
 	}
 	return QSize();
-}
-
-ImagePtr Create(const MTPDwebDocument &document) {
-	const auto size = GetSizeForDocument(document.vattributes().v);
-	if (size.isEmpty()) {
-		return ImagePtr();
-	}
-
-	// We don't use size from WebDocument, because it is not reliable.
-	// It can be > 0 and different from the real size that we get in upload.WebFile result.
-	auto filesize = 0; // document.vsize().v;
-	return Create(
-		WebFileLocation(
-			document.vurl().v,
-			document.vaccess_hash().v),
-		size.width(),
-		size.height(),
-		filesize);
-}
-
-ImagePtr Create(const MTPDwebDocumentNoProxy &document) {
-	const auto size = GetSizeForDocument(document.vattributes().v);
-	if (size.isEmpty()) {
-		return ImagePtr();
-	}
-
-	return Create(qs(document.vurl()), size.width(), size.height());
 }
 
 ImagePtr Create(const MTPDwebDocument &document, QSize box) {
@@ -424,16 +279,6 @@ ImagePtr Create(const MTPDwebDocumentNoProxy &document, QSize box) {
 	return Create(qs(document.vurl()), box);
 }
 
-ImagePtr Create(const MTPWebDocument &document) {
-	switch (document.type()) {
-	case mtpc_webDocument:
-		return Create(document.c_webDocument());
-	case mtpc_webDocumentNoProxy:
-		return Create(document.c_webDocumentNoProxy());
-	}
-	Unexpected("Type in getImage(MTPWebDocument).");
-}
-
 ImagePtr Create(const MTPWebDocument &document, QSize box) {
 	switch (document.type()) {
 	case mtpc_webDocument:
@@ -457,26 +302,6 @@ ImagePtr Create(
 			std::make_unique<Image>(std::make_unique<WebCachedSource>(
 				location,
 				box,
-				size))
-		).first->second.get();
-	return ImagePtr(image);
-}
-
-ImagePtr Create(
-		const WebFileLocation &location,
-		int width,
-		int height,
-		int size) {
-	const auto key = inMemoryKey(location);
-	const auto i = WebCachedImages.find(key);
-	const auto image = (i != end(WebCachedImages))
-		? i->second.get()
-		: WebCachedImages.emplace(
-			key,
-			std::make_unique<Image>(std::make_unique<WebCachedSource>(
-				location,
-				width,
-				height,
 				size))
 		).first->second.get();
 	return ImagePtr(image);

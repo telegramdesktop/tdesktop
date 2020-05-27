@@ -22,30 +22,12 @@ void ClearAll();
 [[nodiscard]] QSize GetSizeForDocument(
 	const QVector<MTPDocumentAttribute> &attributes);
 
-ImagePtr Create(const QString &file, QByteArray format);
 ImagePtr Create(const QString &url, QSize box);
-ImagePtr Create(const QString &url, int width, int height);
-ImagePtr Create(const QByteArray &filecontent, QByteArray format);
 ImagePtr Create(QImage &&data, QByteArray format);
-ImagePtr Create(
-	const QByteArray &filecontent,
-	QByteArray format,
-	QImage &&data);
 ImagePtr Create(const StorageImageLocation &location, int size = 0);
 ImagePtr CreateStickerSetThumbnail(const StorageImageLocation &location);
-ImagePtr Create( // photoCachedSize
-	const StorageImageLocation &location,
-	const QByteArray &bytes);
 ImagePtr Create(const MTPDstickerSet &set, const MTPPhotoSize &size);
-ImagePtr Create(const MTPDphoto &photo, const MTPPhotoSize &size);
-ImagePtr Create(const MTPDdocument &document, const MTPPhotoSize &size);
-ImagePtr Create(const MTPWebDocument &location);
 ImagePtr Create(const MTPWebDocument &location, QSize box);
-ImagePtr Create(
-	const WebFileLocation &location,
-	int width,
-	int height,
-	int size = 0);
 ImagePtr Create(
 	const WebFileLocation &location,
 	QSize box,
