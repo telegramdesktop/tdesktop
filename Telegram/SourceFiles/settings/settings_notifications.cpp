@@ -431,7 +431,7 @@ NotificationsCount::~NotificationsCount() {
 NotificationsCount::SampleWidget::SampleWidget(
 	NotificationsCount *owner,
 	const QPixmap &cache)
-: QWidget(App::wnd())
+: QWidget(Core::App().getModalParent())
 , _owner(owner)
 , _cache(cache) {
 	const QSize size(

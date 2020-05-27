@@ -767,6 +767,13 @@ void Application::notifyFileDialogShown(bool shown) {
 	}
 }
 
+QWidget *Application::getModalParent() {
+	return QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)
+		? App::wnd()
+		: nullptr;
+}
+
+
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->activateWindow();

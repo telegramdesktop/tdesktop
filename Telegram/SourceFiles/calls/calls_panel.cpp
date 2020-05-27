@@ -301,7 +301,7 @@ QImage Panel::Button::prepareRippleMask() const {
 }
 
 Panel::Panel(not_null<Call*> call)
-: RpWidget(App::wnd())
+: RpWidget(Core::App().getModalParent())
 , _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)

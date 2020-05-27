@@ -375,7 +375,7 @@ Widget::Widget(
 	QPoint startPosition,
 	int shift,
 	Direction shiftDirection)
-: TWidget(App::wnd())
+: TWidget(Core::App().getModalParent())
 , _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
