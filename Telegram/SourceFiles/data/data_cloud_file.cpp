@@ -8,10 +8,95 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/file_download.h"
+#include "ui/image/image.h"
+#include "main/main_session.h"
+
+#include <compare>
 
 namespace Data {
+
+void CloudImageView::set(
+		not_null<Main::Session*> session,
+		QImage image) {
+	_image = std::make_unique<Image>(
+		std::make_unique<Images::ImageSource>(std::move(image), "PNG"));
+	session->downloaderTaskFinished().notify();
+}
+
+CloudImage::CloudImage(not_null<Main::Session*> session)
+: _session(session) {
+}
+
+Image *CloudImageView::image() const {
+	return _image.get();
+}
+
+void CloudImage::set(const ImageWithLocation &data) {
+	UpdateCloudFile(
+		_file,
+		data,
+		_session->data().cache(),
+		kImageCacheTag,
+		[=](FileOrigin origin) { load(origin); },
+		[=](QImage preloaded) {
+			if (const auto view = activeView()) {
+				view->set(_session, data.preloaded);
+			}
+		});
+}
+
+bool CloudImage::empty() const {
+	return !_file.location.valid();
+}
+
+bool CloudImage::loading() const {
+	return (_file.loader != nullptr);
+}
+
+bool CloudImage::failed() const {
+	return (_file.flags & CloudFile::Flag::Failed);
+}
+
+void CloudImage::load(FileOrigin origin) {
+	const auto fromCloud = LoadFromCloudOrLocal;
+	const auto cacheTag = kImageCacheTag;
+	const auto autoLoading = false;
+	LoadCloudFile(_file, origin, fromCloud, autoLoading, cacheTag, [=] {
+		if (const auto active = activeView()) {
+			return !active->image();
+		}
+		return true;
+	}, [=](QImage result) {
+		if (const auto active = activeView()) {
+			active->set(_session, std::move(result));
+		}
+	});
+
+}
+
+const ImageLocation &CloudImage::location() const {
+	return _file.location;
+}
+
+int CloudImage::byteSize() const {
+	return _file.byteSize;
+}
+
+std::shared_ptr<CloudImageView> CloudImage::createView() {
+	if (auto active = activeView()) {
+		return active;
+	}
+	auto view = std::make_shared<CloudImageView>();
+	_view = view;
+	return view;
+}
+
+std::shared_ptr<CloudImageView> CloudImage::activeView() {
+	return _view.lock();
+}
 
 void UpdateCloudFile(
 		CloudFile &file,
@@ -167,7 +252,7 @@ void LoadCloudFile(
 		Fn<void()> progress) {
 	const auto callback = [=](CloudFile &file) {
 		if (auto bytes = file.loader->bytes(); bytes.isEmpty()) {
-			file.flags |= Data::CloudFile::Flag::Failed;
+			file.flags |= CloudFile::Flag::Failed;
 			if (const auto onstack = fail) {
 				onstack(true);
 			}

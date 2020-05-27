@@ -41,7 +41,11 @@ QString GetContentUrl(const MTPWebDocument &document) {
 
 } // namespace
 
-Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
+Result::Result(const Creator &creator)
+: _queryId(creator.queryId)
+, _type(creator.type)
+, _thumbnail(&Auth())
+, _locationThumbnail(&Auth()) {
 }
 
 std::unique_ptr<Result> Result::create(
@@ -122,7 +126,9 @@ std::unique_ptr<Result> Result::create(
 			}
 		}
 		if (!result->_photo && !result->_document && imageThumb) {
-			result->_thumb = Images::Create(*r.vthumb(), result->thumbBox());
+			result->_thumbnail.set(ImageWithLocation{
+				.location = Images::FromWebDocument(*r.vthumb())
+			});
 		}
 		message = &r.vsend_message();
 	} break;
@@ -274,7 +280,9 @@ std::unique_ptr<Result> Result::create(
 		location.height = h;
 		location.zoom = zoom;
 		location.scale = scale;
-		result->_locationThumb = Images::Create(location);
+		result->_locationThumbnail.set(ImageWithLocation{
+			.location = ImageLocation({ location }, w, h)
+		});
 	}
 
 	return result;
@@ -345,7 +353,7 @@ void Result::cancelFile() {
 }
 
 bool Result::hasThumbDisplay() const {
-	if (!_thumb->isNull()
+	if (!_thumbnail.empty()
 		|| _photo
 		|| (_document && _document->hasThumbnail())) {
 		return true;

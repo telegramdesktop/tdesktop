@@ -17,7 +17,42 @@ namespace {
 
 using namespace details;
 
-const char *(PublicRSAKeys[]) = { "\
+struct BuiltInDc {
+	int id;
+	const char *ip;
+	int port;
+};
+
+const BuiltInDc kBuiltInDcs[] = {
+	{ 1, "149.154.175.50" , 443 },
+	{ 2, "149.154.167.51" , 443 },
+	{ 2, "95.161.76.100"  , 443 },
+	{ 3, "149.154.175.100", 443 },
+	{ 4, "149.154.167.91" , 443 },
+	{ 5, "149.154.171.5"  , 443 },
+};
+
+const BuiltInDc kBuiltInDcsIPv6[] = {
+	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
+	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
+	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
+	{ 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
+	{ 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 },
+};
+
+const BuiltInDc kBuiltInDcsTest[] = {
+	{ 1, "149.154.175.10" , 443 },
+	{ 2, "149.154.167.40" , 443 },
+	{ 3, "149.154.175.117", 443 }
+};
+
+const BuiltInDc kBuiltInDcsIPv6Test[] = {
+	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
+	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
+	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
+};
+
+const char *(kPublicRSAKeys[]) = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
 lyDONS789sVoD/xCS9Y0hkkC3gtL1tSfTlgCMOOul9lcixlEKzwKENj1Yz/s7daS\n\
@@ -116,7 +151,7 @@ bool DcOptions::ValidateSecret(bytes::const_span secret) {
 }
 
 void DcOptions::readBuiltInPublicKeys() {
-	for (const auto key : PublicRSAKeys) {
+	for (const auto key : kPublicRSAKeys) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
 		auto parsed = RSAPublicKey(keyBytes);
 		if (parsed.valid()) {
@@ -134,22 +169,29 @@ void DcOptions::constructFromBuiltIn() {
 
 	readBuiltInPublicKeys();
 
-	auto bdcs = builtInDcs();
-	for (auto i = 0, l = builtInDcsCount(); i != l; ++i) {
+	const auto list = cTestMode()
+		? gsl::make_span(kBuiltInDcsTest)
+		: gsl::make_span(kBuiltInDcs).subspan(0);
+	for (const auto &entry : list) {
 		const auto flags = Flag::f_static | 0;
-		const auto bdc = bdcs[i];
-		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
-		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: "
-			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
+		applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});
+		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3"
+			).arg(entry.id
+			).arg(entry.ip
+			).arg(entry.port));
 	}
 
-	auto bdcsipv6 = builtInDcsIPv6();
-	for (auto i = 0, l = builtInDcsCountIPv6(); i != l; ++i) {
+	const auto listv6 = cTestMode()
+		? gsl::make_span(kBuiltInDcsIPv6Test)
+		: gsl::make_span(kBuiltInDcsIPv6).subspan(0);
+	for (const auto &entry : listv6) {
 		const auto flags = Flag::f_static | Flag::f_ipv6;
-		const auto bdc = bdcsipv6[i];
-		applyOneGuarded(bdc.id, flags, bdc.ip, bdc.port, {});
+		applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});
 		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: "
-			"%2:%3").arg(bdc.id).arg(bdc.ip).arg(bdc.port));
+			"%2:%3"
+			).arg(entry.id
+			).arg(entry.ip
+			).arg(entry.port));
 	}
 }
 

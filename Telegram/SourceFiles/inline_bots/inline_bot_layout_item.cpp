@@ -75,8 +75,8 @@ void ItemBase::preload() const {
 			}
 		} else if (const auto document = _result->_document) {
 			document->loadThumbnail(origin);
-		} else if (const auto thumb = _result->_thumb; !thumb->isNull()) {
-			thumb->load(origin);
+		} else if (auto &thumb = _result->_thumbnail; !thumb.empty()) {
+			thumb.load(origin);
 		}
 	} else if (_document) {
 		_document->loadThumbnail(origin);
@@ -144,15 +144,23 @@ PhotoData *ItemBase::getResultPhoto() const {
 	return _result ? _result->_photo : nullptr;
 }
 
-Image *ItemBase::getResultThumb() const {
-	if (_result) {
-		if (!_result->_thumb->isNull()) {
-			return _result->_thumb.get();
-		} else if (!_result->_locationThumb->isNull()) {
-			return _result->_locationThumb.get();
+bool ItemBase::hasResultThumb() const {
+	return _result
+		&& (!_result->_thumbnail.empty()
+			|| !_result->_locationThumbnail.empty());
+}
+
+Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
+	if (_result && !_thumbnail) {
+		if (!_result->_thumbnail.empty()) {
+			_thumbnail = _result->_thumbnail.createView();
+			_result->_thumbnail.load(origin);
+		} else if (!_result->_locationThumbnail.empty()) {
+			_thumbnail = _result->_locationThumbnail.createView();
+			_result->_locationThumbnail.load(origin);
 		}
 	}
-	return nullptr;
+	return _thumbnail->image();
 }
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {

@@ -1125,8 +1125,7 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb();
-	if (!thumb) {
+	if (!hasResultThumb()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
 		}
@@ -1134,26 +1133,26 @@ void Contact::prepareThumbnail(int width, int height) const {
 	}
 
 	const auto origin = fileOrigin();
-	if (thumb->loaded()) {
-		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			auto w = qMax(style::ConvertScale(thumb->width()), 1);
-			auto h = qMax(style::ConvertScale(thumb->height()), 1);
-			if (w * height > h * width) {
-				if (height < h) {
-					w = w * height / h;
-					h = height;
-				}
-			} else {
-				if (width < w) {
-					h = h * width / w;
-					w = width;
-				}
-			}
-			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	const auto thumb = getResultThumb(origin);
+	if (!thumb
+		|| ((_thumb.width() == width * cIntRetinaFactor())
+			&& (_thumb.height() == height * cIntRetinaFactor()))) {
+		return;
+	}
+	auto w = qMax(style::ConvertScale(thumb->width()), 1);
+	auto h = qMax(style::ConvertScale(thumb->height()), 1);
+	if (w * height > h * width) {
+		if (height < h) {
+			w = w * height / h;
+			h = height;
 		}
 	} else {
-		thumb->load(origin);
+		if (width < w) {
+			h = h * width / w;
+			w = width;
+		}
 	}
+	_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 }
 
 Article::Article(
@@ -1214,8 +1213,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
-			const auto thumb = getResultThumb();
-			if (!thumb && !_thumbLetter.isEmpty()) {
+			if (!hasResultThumb() && !_thumbLetter.isEmpty()) {
 				int32 index = (_thumbLetter.at(0).unicode() % 4);
 				style::color colors[] = {
 					st::msgFile3Bg,
@@ -1279,8 +1277,7 @@ TextState Article::getState(
 }
 
 void Article::prepareThumbnail(int width, int height) const {
-	const auto thumb = getResultThumb();
-	if (!thumb) {
+	if (!hasResultThumb()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
 		}
@@ -1288,26 +1285,26 @@ void Article::prepareThumbnail(int width, int height) const {
 	}
 
 	const auto origin = fileOrigin();
-	if (thumb->loaded()) {
-		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			auto w = qMax(style::ConvertScale(thumb->width()), 1);
-			auto h = qMax(style::ConvertScale(thumb->height()), 1);
-			if (w * height > h * width) {
-				if (height < h) {
-					w = w * height / h;
-					h = height;
-				}
-			} else {
-				if (width < w) {
-					h = h * width / w;
-					w = width;
-				}
-			}
-			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	const auto thumb = getResultThumb(origin);
+	if (!thumb
+		|| ((_thumb.width() == width * cIntRetinaFactor())
+			&& (_thumb.height() == height * cIntRetinaFactor()))) {
+		return;
+	}
+	auto w = qMax(style::ConvertScale(thumb->width()), 1);
+	auto h = qMax(style::ConvertScale(thumb->height()), 1);
+	if (w * height > h * width) {
+		if (height < h) {
+			w = w * height / h;
+			h = height;
 		}
 	} else {
-		thumb->load(origin);
+		if (width < w) {
+			h = h * width / w;
+			w = width;
+		}
 	}
+	_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 }
 
 Game::Game(not_null<Context*> context, not_null<Result*> result)

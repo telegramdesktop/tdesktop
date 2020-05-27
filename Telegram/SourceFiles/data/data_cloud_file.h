@@ -18,6 +18,10 @@ class Database;
 } // namespace Cache
 } // namespace Storage
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
 struct FileOrigin;
@@ -33,6 +37,40 @@ struct CloudFile final {
 	std::unique_ptr<FileLoader> loader;
 	int byteSize = 0;
 	base::flags<Flag> flags;
+};
+
+class CloudImageView final {
+public:
+	void set(not_null<Main::Session*> session, QImage image);
+
+	[[nodiscard]] Image *image() const;
+
+private:
+	std::unique_ptr<Image> _image;
+
+};
+
+class CloudImage final {
+public:
+	explicit CloudImage(not_null<Main::Session*> session);
+
+	void set(const ImageWithLocation &data);
+
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] bool loading() const;
+	[[nodiscard]] bool failed() const;
+	void load(FileOrigin origin);
+	[[nodiscard]] const ImageLocation &location() const;
+	[[nodiscard]] int byteSize() const;
+
+	[[nodiscard]] std::shared_ptr<CloudImageView> createView();
+	[[nodiscard]] std::shared_ptr<CloudImageView> activeView();
+
+private:
+	const not_null<Main::Session*> _session;
+	CloudFile _file;
+	std::weak_ptr<CloudImageView> _view;
+
 };
 
 void UpdateCloudFile(

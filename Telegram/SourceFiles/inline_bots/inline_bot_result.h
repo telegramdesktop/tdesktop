@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_cloud_file.h"
+
 class FileLoader;
 class History;
 
@@ -115,7 +117,8 @@ private:
 
 	std::unique_ptr<MTPReplyMarkup> _mtpKeyboard;
 
-	ImagePtr _thumb, _locationThumb;
+	Data::CloudImage _thumbnail;
+	Data::CloudImage _locationThumbnail;
 
 	std::unique_ptr<internal::SendData> sendData;
 

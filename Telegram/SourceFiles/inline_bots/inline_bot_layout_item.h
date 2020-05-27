@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "ui/text/text.h"
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace InlineBots {
 
 class Result;
@@ -81,6 +85,7 @@ public:
 
 	virtual void preload() const;
 	virtual void unloadHeavyPart() {
+		_thumbnail = nullptr;
 	}
 
 	void update() const;
@@ -105,7 +110,8 @@ public:
 protected:
 	DocumentData *getResultDocument() const;
 	PhotoData *getResultPhoto() const;
-	Image *getResultThumb() const;
+	bool hasResultThumb() const;
+	Image *getResultThumb(Data::FileOrigin origin) const;
 	QPixmap getResultContactAvatar(int width, int height) const;
 	int getResultDuration() const;
 	QString getResultUrl() const;
@@ -128,6 +134,7 @@ protected:
 
 private:
 	not_null<Context*> _context;
+	mutable std::shared_ptr<Data::CloudImageView> _thumbnail;
 
 };
 
