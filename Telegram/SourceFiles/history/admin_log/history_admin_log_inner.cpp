@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
+#include "data/data_cloud_file.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "facades.h"
@@ -59,6 +60,7 @@ constexpr auto kMaxChannelAdmins = 200;
 constexpr auto kScrollDateHideTimeout = 1000;
 constexpr auto kEventsFirstPage = 20;
 constexpr auto kEventsPerPage = 50;
+constexpr auto kClearUserpicsAfter = 50;
 
 } // namespace
 
@@ -310,6 +312,11 @@ void InnerWidget::visibleTopBottomUpdated(
 	auto scrolledUp = (visibleTop < _visibleTop);
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
+
+	// Unload userpics.
+	if (_userpics.size() > kClearUserpicsAfter) {
+		_userpicsCache = std::move(_userpics);
+	}
 
 	updateVisibleTopItem();
 	checkPreloadMore();
@@ -813,6 +820,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	const auto guard = gsl::finally([&] {
+		_userpicsCache.clear();
+	});
+
 	Painter p(this);
 
 	auto ms = crl::now();
@@ -855,7 +866,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					const auto message = view->data()->toHistoryMessage();
 					Assert(message != nullptr);
 
-					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, view->width(), st::msgPhotoSize);
+					const auto from = message->from();
+					from->paintUserpicLeft(
+						p,
+						_userpics[from],
+						st::historyPhotoLeft,
+						userpicTop,
+						view->width(),
+						st::msgPhotoSize);
 				}
 				return true;
 			});

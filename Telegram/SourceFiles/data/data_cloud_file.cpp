@@ -38,6 +38,36 @@ Image *CloudImageView::image() const {
 	return _image.get();
 }
 
+void CloudImage::set(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data) {
+	const auto &was = _file.location.file().data;
+	const auto &now = data.location.file().data;
+	if (!data.location.valid()) {
+		_file.flags |= CloudFile::Flag::Cancelled;
+		_file.loader = nullptr;
+		_file.location = ImageLocation();
+		_file.byteSize = 0;
+		_file.flags = CloudFile::Flag();
+		_view = std::weak_ptr<CloudImageView>();
+	} else if (was != now
+		&& (!was.is<InMemoryLocation>() || now.is<InMemoryLocation>())) {
+		_file.location = ImageLocation();
+		_view = std::weak_ptr<CloudImageView>();
+	}
+	UpdateCloudFile(
+		_file,
+		data,
+		session->data().cache(),
+		kImageCacheTag,
+		[=](FileOrigin origin) { load(session, origin); },
+		[=](QImage preloaded) {
+			if (const auto view = activeView()) {
+				view->set(session, data.preloaded);
+			}
+		});
+}
+
 void CloudImage::update(
 		not_null<Main::Session*> session,
 		const ImageWithLocation &data) {
@@ -101,6 +131,14 @@ std::shared_ptr<CloudImageView> CloudImage::createView() {
 
 std::shared_ptr<CloudImageView> CloudImage::activeView() {
 	return _view.lock();
+}
+
+bool CloudImage::isCurrentView(
+		const std::shared_ptr<CloudImageView> &view) const {
+	if (!view) {
+		return empty();
+	}
+	return !view.owner_before(_view) && !_view.owner_before(view);
 }
 
 void UpdateCloudFile(

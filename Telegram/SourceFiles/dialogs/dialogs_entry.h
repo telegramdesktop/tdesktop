@@ -18,6 +18,7 @@ class Session;
 namespace Data {
 class Session;
 class Folder;
+class CloudImageView;
 } // namespace Data
 
 namespace Dialogs {
@@ -158,16 +159,18 @@ public:
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const = 0;
 	void paintUserpicLeft(
 			Painter &p,
+			std::shared_ptr<Data::CloudImageView> &view,
 			int x,
 			int y,
 			int w,
 			int size) const {
-		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
+		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
 	}
 
 	TimeId chatListTimeId() const {

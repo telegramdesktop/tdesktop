@@ -138,12 +138,14 @@ void BasicRow::ensureOnlineUserpic() const {
 
 void BasicRow::PaintOnlineFrame(
 		not_null<OnlineUserpic*> data,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &view) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
 	peer->paintUserpic(
 		q,
+		view,
 		0,
 		0,
 		st::dialogsPhotoSize);
@@ -185,6 +187,7 @@ void BasicRow::paintUserpic(
 	if (!allowOnline || online == 0.) {
 		peer->paintUserpicLeft(
 			p,
+			_userpic,
 			st::dialogsPadding.x(),
 			st::dialogsPadding.y(),
 			fullWidth,
@@ -202,14 +205,14 @@ void BasicRow::paintUserpic(
 			QImage::Format_ARGB32_Premultiplied);
 		_onlineUserpic->frame.setDevicePixelRatio(cRetinaFactor());
 	}
-	const auto key = peer->userpicUniqueKey();
+	const auto key = peer->userpicUniqueKey(_userpic);
 	if (_onlineUserpic->online != online
 		|| _onlineUserpic->key != key
 		|| _onlineUserpic->active != active) {
 		_onlineUserpic->online = online;
 		_onlineUserpic->key = key;
 		_onlineUserpic->active = active;
-		PaintOnlineFrame(_onlineUserpic.get(), peer);
+		PaintOnlineFrame(_onlineUserpic.get(), peer, _userpic);
 	}
 	p.drawImage(st::dialogsPadding, _onlineUserpic->frame);
 }

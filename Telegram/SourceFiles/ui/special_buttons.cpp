@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
+#include "data/data_cloud_file.h"
 #include "history/history.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
@@ -633,15 +634,17 @@ void UserpicButton::setupPeerViewers() {
 	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::PhotoChanged
-	) | rpl::start_with_next([this] {
+	) | rpl::start_with_next([=] {
 		processNewPeerPhoto();
 		update();
 	}, lifetime());
 
 	base::ObservableViewer(
 		_peer->session().downloaderTaskFinished()
-	) | rpl::start_with_next([this] {
-		if (_waiting && _peer->userpicLoaded()) {
+	) | rpl::filter([=] {
+		return _waiting;
+	}) | rpl::start_with_next([=] {
+		if (!_userpicView || _userpicView->image()) {
 			_waiting = false;
 			startNewPhotoShowing();
 		}
@@ -776,7 +779,8 @@ QPoint UserpicButton::prepareRippleStartPosition() const {
 void UserpicButton::processPeerPhoto() {
 	Expects(_peer != nullptr);
 
-	_waiting = !_peer->userpicLoaded();
+	_userpicView = _peer->createUserpicView();
+	_waiting = _userpicView && !_userpicView->image();
 	if (_waiting) {
 		_peer->loadUserpic();
 	}
@@ -951,17 +955,17 @@ void UserpicButton::prepareUserpicPixmap() {
 		p.drawEllipse(0, 0, size, size);
 	};
 	_userpicHasImage = _peer
-		? (_peer->currentUserpic() || _role != Role::ChangePhoto)
+		? (_peer->currentUserpic(_userpicView) || _role != Role::ChangePhoto)
 		: false;
 	_userpic = CreateSquarePixmap(size, [&](Painter &p) {
 		if (_userpicHasImage) {
-			_peer->paintUserpic(p, 0, 0, _st.photoSize);
+			_peer->paintUserpic(p, _userpicView, 0, 0, _st.photoSize);
 		} else {
 			paintButton(p, _st.changeButton.textBg);
 		}
 	});
 	_userpicUniqueKey = _userpicHasImage
-		? _peer->userpicUniqueKey()
+		? _peer->userpicUniqueKey(_userpicView)
 		: InMemoryKey();
 }
 // // #feed

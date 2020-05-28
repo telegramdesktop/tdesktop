@@ -461,7 +461,9 @@ bool Manager::Private::showNotification(
 		const QString &msg,
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
-	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
+	if (!_notificationManager || !_notifier || !_notificationFactory) {
+		return false;
+	}
 
 	ComPtr<IXmlDocument> toastXml;
 	bool withSubtitle = !subtitle.isEmpty();
@@ -476,9 +478,10 @@ bool Manager::Private::showNotification(
 	hr = SetAudioSilent(toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
+	auto view = std::shared_ptr<Data::CloudImageView>(); // #TODO optimize
 	const auto key = hideNameAndPhoto
 		? InMemoryKey()
-		: peer->userpicUniqueKey();
+		: peer->userpicUniqueKey(view);
 	const auto userpicPath = _cachedUserpics.get(key, peer);
 	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 

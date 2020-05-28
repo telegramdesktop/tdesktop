@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
+#include "data/data_cloud_file.h"
 
 class PeerData;
 class UserData;
@@ -42,6 +43,8 @@ using ChatAdminRights = MTPDchatAdminRights::Flags;
 using ChatRestrictions = MTPDchatBannedRights::Flags;
 
 namespace Data {
+
+class CloudImageView;
 
 class RestrictionCheckResult {
 public:
@@ -234,44 +237,59 @@ public:
 		return _nameFirstLetters;
 	}
 
-	void setUserpic(
-		PhotoId photoId,
-		const StorageImageLocation &location,
-		ImagePtr userpic);
+	void setUserpic(PhotoId photoId, const ImageLocation &location);
 	void setUserpicPhoto(const MTPPhoto &data);
 	void paintUserpic(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const;
 	void paintUserpicLeft(
 			Painter &p,
+			std::shared_ptr<Data::CloudImageView> &view,
 			int x,
 			int y,
 			int w,
 			int size) const {
-		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
+		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
 	}
 	void paintUserpicRounded(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const;
 	void paintUserpicSquare(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const;
 	void loadUserpic();
-	[[nodiscard]] bool userpicLoaded() const;
-	[[nodiscard]] bool useEmptyUserpic() const;
-	[[nodiscard]] InMemoryKey userpicUniqueKey() const;
-	void saveUserpic(const QString &path, int size) const;
-	void saveUserpicRounded(const QString &path, int size) const;
-	[[nodiscard]] QPixmap genUserpic(int size) const;
-	[[nodiscard]] QPixmap genUserpicRounded(int size) const;
-	[[nodiscard]] StorageImageLocation userpicLocation() const {
-		return _userpicLocation;
+	[[nodiscard]] bool hasUserpic() const;
+	[[nodiscard]] std::shared_ptr<Data::CloudImageView> activeUserpicView();
+	[[nodiscard]] std::shared_ptr<Data::CloudImageView> createUserpicView();
+	[[nodiscard]] bool useEmptyUserpic(
+		std::shared_ptr<Data::CloudImageView> &view) const;
+	[[nodiscard]] InMemoryKey userpicUniqueKey(
+		std::shared_ptr<Data::CloudImageView> &view) const;
+	void saveUserpic(
+		std::shared_ptr<Data::CloudImageView> &view,
+		const QString &path,
+		int size) const;
+	void saveUserpicRounded(
+		std::shared_ptr<Data::CloudImageView> &view,
+		const QString &path,
+		int size) const;
+	[[nodiscard]] QPixmap genUserpic(
+		std::shared_ptr<Data::CloudImageView> &view,
+		int size) const;
+	[[nodiscard]] QPixmap genUserpicRounded(
+		std::shared_ptr<Data::CloudImageView> &view,
+		int size) const;
+	[[nodiscard]] ImageLocation userpicLocation() const {
+		return _userpic.location();
 	}
 	[[nodiscard]] bool userpicPhotoUnknown() const {
 		return (_userpicPhotoId == kUnknownPhotoId);
@@ -294,7 +312,8 @@ public:
 		return _openLink;
 	}
 
-	[[nodiscard]] ImagePtr currentUserpic() const;
+	[[nodiscard]] Image *currentUserpic(
+		std::shared_ptr<Data::CloudImageView> &view) const;
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
@@ -356,24 +375,19 @@ protected:
 
 private:
 	void fillNames();
-	std::unique_ptr<Ui::EmptyUserpic> createEmptyUserpic() const;
-	void refreshEmptyUserpic() const;
+	[[nodiscard]] not_null<Ui::EmptyUserpic*> ensureEmptyUserpic() const;
 	[[nodiscard]] virtual auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> &;
 
-	void setUserpicChecked(
-		PhotoId photoId,
-		const StorageImageLocation &location,
-		ImagePtr userpic);
+	void setUserpicChecked(PhotoId photoId, const ImageLocation &location);
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
 	const not_null<Data::Session*> _owner;
 
-	ImagePtr _userpic;
+	mutable Data::CloudImage _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
-	StorageImageLocation _userpicLocation;
 	Ui::Text::String _nameText;
 
 	Data::NotifySettings _notify;

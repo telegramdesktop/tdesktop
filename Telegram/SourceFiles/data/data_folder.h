@@ -64,6 +64,7 @@ public:
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const override;

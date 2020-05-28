@@ -536,9 +536,10 @@ Notification::Notification(
 	int shift,
 	Direction shiftDirection)
 : Widget(manager, startPosition, shift, shiftDirection)
+, _peer(peer)
 , _started(crl::now())
 , _history(history)
-, _peer(peer)
+, _userpicView(_peer->createUserpicView())
 , _author(author)
 , _item(item)
 , _forwardedCount(forwardedCount)
@@ -550,7 +551,7 @@ Notification::Notification(
 	auto position = computePosition(st::notifyMinHeight);
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyMinHeight);
 
-	_userpicLoaded = _peer ? _peer->userpicLoaded() : true;
+	_userpicLoaded = (_userpicView->image() != nullptr);
 	updateNotifyDisplay();
 
 	_hideTimer.setSingleShot(true);
@@ -674,7 +675,7 @@ void Notification::actionsOpacityCallback() {
 }
 
 void Notification::updateNotifyDisplay() {
-	if (!_history || !_peer || (!_item && _forwardedCount < 2)) return;
+	if (!_history || (!_item && _forwardedCount < 2)) return;
 
 	const auto options = Manager::getNotificationOptions(_item);
 	_hideReplyButton = options.hideReplyButton;
@@ -696,8 +697,9 @@ void Notification::updateNotifyDisplay() {
 				Ui::EmptyUserpic::PaintSavedMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 				_userpicLoaded = true;
 			} else {
+				_userpicView = _history->peer->createUserpicView();
 				_history->peer->loadUserpic();
-				_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+				_history->peer->paintUserpicLeft(p, _userpicView, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 			}
 		} else {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());
@@ -792,7 +794,11 @@ void Notification::updateNotifyDisplay() {
 }
 
 void Notification::updatePeerPhoto() {
-	if (_userpicLoaded || !_peer || !_peer->userpicLoaded()) {
+	if (_userpicLoaded) {
+		return;
+	}
+	_userpicView = _peer->createUserpicView();
+	if (_userpicView && !_userpicView->image()) {
 		return;
 	}
 	_userpicLoaded = true;
@@ -800,9 +806,16 @@ void Notification::updatePeerPhoto() {
 	auto img = _cache.toImage();
 	{
 		Painter p(&img);
-		_peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+		_peer->paintUserpicLeft(
+			p,
+			_userpicView,
+			st::notifyPhotoPos.x(),
+			st::notifyPhotoPos.y(),
+			width(),
+			st::notifyPhotoSize);
 	}
 	_cache = App::pixmapFromImageInPlace(std::move(img));
+	_userpicView = nullptr;
 	update();
 }
 

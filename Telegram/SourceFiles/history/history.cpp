@@ -2218,10 +2218,11 @@ void History::loadUserpic() {
 
 void History::paintUserpic(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const {
-	peer->paintUserpic(p, x, y, size);
+	peer->paintUserpic(p, view, x, y, size);
 }
 
 void History::startBuildingFrontBlock(int expectedItemsCount) {

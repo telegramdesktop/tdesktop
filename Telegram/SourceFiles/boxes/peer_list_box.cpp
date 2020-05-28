@@ -41,8 +41,9 @@ PaintRoundImageCallback PaintUserpicCallback(
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		};
 	}
-	return [=](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, x, y, outerWidth, size);
+	auto userpic = std::shared_ptr<Data::CloudImageView>();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 	};
 }
 
@@ -483,14 +484,22 @@ QString PeerListRow::generateShortName() {
 		: peer()->shortName();
 }
 
+std::shared_ptr<Data::CloudImageView> PeerListRow::ensureUserpicView() {
+	if (!_userpic) {
+		_userpic = peer()->createUserpicView();
+	}
+	return _userpic;
+}
+
 PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback() {
 	const auto saved = _isSavedMessagesChat;
 	const auto peer = this->peer();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+	auto userpic = saved ? nullptr : ensureUserpicView();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else {
-			peer->paintUserpicLeft(p, x, y, outerWidth, size);
+			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
 	};
 }
@@ -595,7 +604,7 @@ void PeerListRow::paintDisabledCheckUserpic(
 	if (_isSavedMessagesChat) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
 	} else {
-		peer()->paintUserpicLeft(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+		peer()->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
 	}
 
 	{

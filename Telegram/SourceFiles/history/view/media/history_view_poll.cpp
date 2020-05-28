@@ -479,9 +479,17 @@ void Poll::updateRecentVoters() {
 	auto &&sliced = ranges::view::all(
 		_poll->recentVoters
 	) | ranges::view::take(kShowRecentVotersCount);
-	const auto changed = !ranges::equal(_recentVoters, sliced);
+	const auto changed = !ranges::equal(
+		_recentVoters,
+		sliced,
+		ranges::equal_to(),
+		&RecentVoter::user);
 	if (changed) {
-		_recentVoters = sliced | ranges::to_vector;
+		_recentVoters = ranges::view::all(
+			sliced
+		) | ranges::views::transform([](not_null<UserData*> user) {
+			return RecentVoter{ user };
+		}) | ranges::to_vector;
 	}
 }
 
@@ -858,13 +866,22 @@ void Poll::paintRecentVoters(
 		? (outbg ? st::msgOutBgSelected : st::msgInBgSelected)
 		: (outbg ? st::msgOutBg : st::msgInBg))->p;
 	pen.setWidth(st::lineWidth);
-	for (const auto &recent : _recentVoters) {
-		recent->paintUserpic(p, x, y, size);
+
+	auto created = false;
+	for (auto &recent : _recentVoters) {
+		const auto was = (recent.userpic != nullptr);
+		recent.user->paintUserpic(p, recent.userpic, x, y, size);
+		if (!was && recent.userpic) {
+			created = true;
+		}
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 		x -= st::historyPollRecentVoterSkip;
+	}
+	if (created) {
+		history()->owner().registerHeavyViewPart(_parent);
 	}
 }
 
@@ -1399,6 +1416,21 @@ void Poll::clickHandlerPressedChanged(
 	} else if (handler == _sendVotesLink || handler == _showResultsLink) {
 		toggleLinkRipple(pressed);
 	}
+}
+
+void Poll::unloadHeavyPart() {
+	for (auto &recent : _recentVoters) {
+		recent.userpic = nullptr;
+	}
+}
+
+bool Poll::hasHeavyPart() const {
+	for (auto &recent : _recentVoters) {
+		if (recent.userpic) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Poll::toggleRipple(Answer &answer, bool pressed) {

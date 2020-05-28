@@ -96,7 +96,6 @@ public:
 
 	[[nodiscard]] static const StorageFileLocation &Invalid();
 
-private:
 	friend bool operator==(
 		const StorageFileLocation &a,
 		const StorageFileLocation &b);
@@ -104,6 +103,7 @@ private:
 		const StorageFileLocation &a,
 		const StorageFileLocation &b);
 
+private:
 	uint16 _dcId = 0;
 	Type _type = Type::Legacy;
 	uint8 _sizeLetter = 0;
@@ -203,7 +203,6 @@ public:
 		return result;
 	}
 
-private:
 	friend inline bool operator==(
 			const StorageImageLocation &a,
 			const StorageImageLocation &b) {
@@ -215,6 +214,7 @@ private:
 		return (a._file < b._file);
 	}
 
+private:
 	StorageFileLocation _file;
 	int _width = 0;
 	int _height = 0;
@@ -381,6 +381,30 @@ struct PlainUrlLocation {
 	}
 };
 
+inline bool operator!=(
+		const PlainUrlLocation &a,
+		const PlainUrlLocation &b) {
+	return !(a == b);
+}
+
+inline bool operator>(
+		const PlainUrlLocation &a,
+		const PlainUrlLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const PlainUrlLocation &a,
+		const PlainUrlLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const PlainUrlLocation &a,
+		const PlainUrlLocation &b) {
+	return !(a < b);
+}
+
 struct InMemoryLocation {
 	QByteArray bytes;
 
@@ -395,6 +419,30 @@ struct InMemoryLocation {
 		return (a.bytes < b.bytes);
 	}
 };
+
+inline bool operator!=(
+		const InMemoryLocation &a,
+		const InMemoryLocation &b) {
+	return !(a == b);
+}
+
+inline bool operator>(
+		const InMemoryLocation &a,
+		const InMemoryLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const InMemoryLocation &a,
+		const InMemoryLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const InMemoryLocation &a,
+		const InMemoryLocation &b) {
+	return !(a < b);
+}
 
 class DownloadLocation {
 public:
@@ -423,7 +471,6 @@ public:
 	bool refreshFileReference(const QByteArray &data);
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
 
-private:
 	friend inline bool operator==(
 			const DownloadLocation &a,
 			const DownloadLocation &b) {
@@ -436,6 +483,30 @@ private:
 	}
 
 };
+
+inline bool operator!=(
+		const DownloadLocation &a,
+		const DownloadLocation &b) {
+	return !(a == b);
+}
+
+inline bool operator>(
+		const DownloadLocation &a,
+		const DownloadLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const DownloadLocation &a,
+		const DownloadLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const DownloadLocation &a,
+		const DownloadLocation &b) {
+	return !(a < b);
+}
 
 class ImageLocation {
 public:
@@ -496,7 +567,6 @@ public:
 		return result;
 	}
 
-private:
 	friend inline bool operator==(
 			const ImageLocation &a,
 			const ImageLocation &b) {
@@ -508,11 +578,36 @@ private:
 		return (a._file < b._file);
 	}
 
+private:
 	DownloadLocation _file;
 	int _width = 0;
 	int _height = 0;
 
 };
+
+inline bool operator!=(
+		const ImageLocation &a,
+		const ImageLocation &b) {
+	return !(a == b);
+}
+
+inline bool operator>(
+		const ImageLocation &a,
+		const ImageLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const ImageLocation &a,
+		const ImageLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const ImageLocation &a,
+		const ImageLocation &b) {
+	return !(a < b);
+}
 
 struct ImageWithLocation {
 	ImageLocation location;
@@ -543,21 +638,14 @@ inline InMemoryKey inMemoryKey(const StorageImageLocation &location) {
 	return inMemoryKey(location.file());
 }
 
-inline InMemoryKey inMemoryKey(const WebFileLocation &location) {
-	auto result = InMemoryKey();
-	const auto &url = location.url();
-	const auto sha = hashSha1(url.data(), url.size());
-	bytes::copy(
-		bytes::object_as_span(&result),
-		bytes::make_span(sha).subspan(0, sizeof(result)));
-	return result;
-}
+InMemoryKey inMemoryKey(const WebFileLocation &location);
+InMemoryKey inMemoryKey(const GeoPointLocation &location);
+InMemoryKey inMemoryKey(const PlainUrlLocation &location);
+InMemoryKey inMemoryKey(const InMemoryLocation &location);
+InMemoryKey inMemoryKey(const DownloadLocation &location);
 
-inline InMemoryKey inMemoryKey(const GeoPointLocation &location) {
-	return InMemoryKey(
-		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
-		| uint64(std::round(std::abs(location.lon + 360.) * 1000000)),
-		(uint64(location.width) << 32) | uint64(location.height));
+inline InMemoryKey inMemoryKey(const ImageLocation &location) {
+	return inMemoryKey(location.file());
 }
 
 inline QSize shrinkToKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {

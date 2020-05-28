@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_cloud_file.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
@@ -89,9 +90,10 @@ struct StickerIcon {
 	mutable std::unique_ptr<Lottie::SinglePlayer> lottie;
 	mutable QPixmap savedFrame;
 	DocumentData *sticker = nullptr;
+	ChannelData *megagroup = nullptr;
 	mutable std::shared_ptr<Stickers::SetThumbnailView> thumbnailMedia;
 	mutable std::shared_ptr<Data::DocumentMedia> stickerMedia;
-	ChannelData *megagroup = nullptr;
+	mutable std::shared_ptr<Data::CloudImageView> megagroupUserpic;
 	int pixw = 0;
 	int pixh = 0;
 	mutable rpl::lifetime lifetime;
@@ -820,7 +822,7 @@ void StickersListWidget::Footer::paintSetIcon(
 			}
 		}
 	} else if (icon.megagroup) {
-		icon.megagroup->paintUserpicLeft(p, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
+		icon.megagroup->paintUserpicLeft(p, icon.megagroupUserpic, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
 	} else {
 		const auto paintedIcon = [&] {
 			if (icon.setId == Stickers::FeaturedSetId) {

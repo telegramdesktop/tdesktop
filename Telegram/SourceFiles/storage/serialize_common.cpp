@@ -127,7 +127,7 @@ std::optional<ImageLocation> readImageLocation(
 uint32 peerSize(not_null<PeerData*> peer) {
 	uint32 result = sizeof(quint64)
 		+ sizeof(quint64)
-		+ storageImageLocationSize(peer->userpicLocation());
+		+ imageLocationSize(peer->userpicLocation());
 	if (peer->isUser()) {
 		UserData *user = peer->asUser();
 
@@ -157,7 +157,7 @@ uint32 peerSize(not_null<PeerData*> peer) {
 
 void writePeer(QDataStream &stream, PeerData *peer) {
 	stream << quint64(peer->id) << quint64(peer->userpicPhotoId());
-	writeStorageImageLocation(stream, peer->userpicLocation());
+	writeImageLocation(stream, peer->userpicLocation());
 	if (const auto user = peer->asUser()) {
 		stream
 			<< user->firstName
@@ -207,7 +207,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		return nullptr;
 	}
 
-	const auto userpic = readStorageImageLocation(streamAppVersion, stream);
+	const auto userpic = readImageLocation(streamAppVersion, stream);
 	auto userpicAccessHash = uint64(0);
 	if (!userpic) {
 		return nullptr;
@@ -324,14 +324,13 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 	}
 	if (!loaded) {
 		using LocationType = StorageFileLocation::Type;
-		const auto location = (userpic->valid()
-			&& userpic->type() == LocationType::Legacy)
+		const auto location = (userpic->valid() && userpic->isLegacy())
 			? userpic->convertToModern(
 				LocationType::PeerPhoto,
 				result->id,
 				userpicAccessHash)
 			: *userpic;
-		result->setUserpic(photoId, location, Images::Create(location));
+		result->setUserpic(photoId, location);
 	}
 	return result;
 }

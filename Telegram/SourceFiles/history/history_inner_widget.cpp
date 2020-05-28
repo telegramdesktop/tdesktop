@@ -68,6 +68,7 @@ namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
 constexpr auto kUnloadHeavyPartsPages = 2;
+constexpr auto kClearUserpicsAfter = 50;
 
 // Helper binary search for an item in a list that is not completely
 // above the given top of the visible area or below the given bottom of the visible area
@@ -566,6 +567,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	const auto guard = gsl::finally([&] {
+		_userpicsCache.clear();
+	});
+
 	Painter p(this);
 	auto clip = e->rect();
 	auto ms = crl::now();
@@ -731,6 +736,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (const auto from = message->displayFrom()) {
 						from->paintUserpicLeft(
 							p,
+							_userpics[from],
 							st::historyPhotoLeft,
 							userpicTop,
 							width(),
@@ -2232,6 +2238,11 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 		_scrollDateCheck.call();
 	} else {
 		scrollDateHideByTimer();
+	}
+
+	// Unload userpics.
+	if (_userpics.size() > kClearUserpicsAfter) {
+		_userpicsCache = std::move(_userpics);
 	}
 
 	// Unload lottie animations.

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
@@ -55,6 +59,14 @@ public:
 	// Should be called only by Data::Session.
 	void updateSharedContactUserId(UserId userId) override;
 
+	void unloadHeavyPart() override {
+		_userpic = nullptr;
+	}
+
+	bool hasHeavyPart() const override {
+		return (_userpic != nullptr);
+	}
+
 private:
 	QSize countOptimalSize() override;
 
@@ -65,6 +77,7 @@ private:
 	QString _fname, _lname, _phone;
 	Ui::Text::String _name;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
+	mutable std::shared_ptr<Data::CloudImageView> _userpic;
 
 	ClickHandlerPtr _linkl;
 	int _linkw = 0;

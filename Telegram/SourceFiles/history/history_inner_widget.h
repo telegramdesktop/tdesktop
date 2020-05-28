@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct Group;
+class CloudImageView;
 } // namespace Data
 
 namespace HistoryView {
@@ -345,6 +346,9 @@ private:
 	SelectedItems _selected;
 
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

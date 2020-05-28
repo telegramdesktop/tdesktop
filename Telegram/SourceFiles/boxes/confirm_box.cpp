@@ -909,19 +909,20 @@ ConfirmInviteBox::ConfirmInviteBox(
 	}
 }
 
-std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
-		not_null<Main::Session*> session,
-		const MTPDchatInvite &data) {
+auto ConfirmInviteBox::GetParticipants(
+	not_null<Main::Session*> session,
+	const MTPDchatInvite &data)
+-> std::vector<Participant> {
 	const auto participants = data.vparticipants();
 	if (!participants) {
 		return {};
 	}
 	const auto &v = participants->v;
-	auto result = std::vector<not_null<UserData*>>();
+	auto result = std::vector<Participant>();
 	result.reserve(v.size());
 	for (const auto &participant : v) {
 		if (const auto user = session->data().processUser(participant)) {
-			result.push_back(user);
+			result.push_back(Participant{ user });
 		}
 	}
 	return result;
@@ -946,12 +947,12 @@ void ConfirmInviteBox::prepare() {
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (st::boxWideWidth - sumWidth) / 2;
-		for (const auto user : _participants) {
+		for (const auto &participant : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
-			name->setText(user->firstName.isEmpty()
-				? user->name
-				: user->firstName);
+			name->setText(participant.user->firstName.isEmpty()
+				? participant.user->name
+				: participant.user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
 			left += _userWidth;
 		}
@@ -993,9 +994,10 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 
 	int sumWidth = _participants.size() * _userWidth;
 	int left = (width() - sumWidth) / 2;
-	for_const (auto user, _participants) {
-		user->paintUserpicLeft(
+	for (auto &participant : _participants) {
+		participant.user->paintUserpicLeft(
 			p,
+			participant.userpic,
 			left + (_userWidth - st::confirmInviteUserPhotoSize) / 2,
 			st::confirmInviteUserPhotoTop,
 			width(),

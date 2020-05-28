@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
 #include "app.h"
@@ -56,6 +57,7 @@ void Location::ensureMediaCreated() const {
 	}
 	_media = _data->createView();
 	_data->load(&history()->session(), _parent->data()->fullId());
+	history()->owner().registerHeavyViewPart(_parent);
 }
 
 QSize Location::countOptimalSize() {

@@ -46,15 +46,16 @@ QString CachedUserpics::get(const InMemoryKey &key, PeerData *peer) {
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
 		if (key.first || key.second) {
+			auto userpic = std::shared_ptr<Data::CloudImageView>(); // #TODO optimize userpic
 			if (peer->isSelf()) {
-				const auto method = _type == Type::Rounded
+				const auto method = (_type == Type::Rounded)
 					? Ui::EmptyUserpic::GenerateSavedMessagesRounded
 					: Ui::EmptyUserpic::GenerateSavedMessages;
 				method(st::notifyMacPhotoSize).save(v.path, "PNG");
 			} else if (_type == Type::Rounded) {
-				peer->saveUserpicRounded(v.path, st::notifyMacPhotoSize);
+				peer->saveUserpicRounded(userpic, v.path, st::notifyMacPhotoSize);
 			} else {
-				peer->saveUserpic(v.path, st::notifyMacPhotoSize);
+				peer->saveUserpic(userpic, v.path, st::notifyMacPhotoSize);
 			}
 		} else {
 			Core::App().logoNoMargin().save(v.path, "PNG");

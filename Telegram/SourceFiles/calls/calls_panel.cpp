@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
+#include "data/data_cloud_file.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -490,6 +491,7 @@ void Panel::finishAnimating() {
 
 void Panel::showControls() {
 	Expects(_call != nullptr);
+
 	showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
@@ -511,9 +513,8 @@ void Panel::hideAndDestroy() {
 }
 
 void Panel::processUserPhoto() {
-	if (!_user->userpicLoaded()) {
-		_user->loadUserpic();
-	}
+	_userpic = _user->createUserpicView();
+	_user->loadUserpic();
 	const auto photo = _user->userpicPhotoId()
 		? _user->owner().photo(_user->userpicPhotoId()).get()
 		: nullptr;
@@ -542,9 +543,8 @@ void Panel::refreshUserPhoto() {
 			_photo->image(Data::PhotoSize::Large),
 			_user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
-		const auto userpic = _user->currentUserpic();
 		createUserpicCache(
-			userpic ? userpic.get() : nullptr,
+			_userpic ? _userpic->image() : nullptr,
 			_user->userpicOrigin());
 	}
 }

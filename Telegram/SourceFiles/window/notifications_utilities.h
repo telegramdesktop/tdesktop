@@ -36,7 +36,7 @@ private:
 
 	Type _type = Type::Rounded;
 	struct Image {
-		crl::time until;
+		crl::time until = 0;
 		QString path;
 	};
 	using Images = QMap<InMemoryKey, Image>;

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class PhotoMedia;
+class CloudImageView;
 } // namespace Data
 
 namespace Main {
@@ -225,7 +226,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	static std::vector<not_null<UserData*>> GetParticipants(
+	struct Participant {
+		not_null<UserData*> user;
+		std::shared_ptr<Data::CloudImageView> userpic;
+	};
+	static std::vector<Participant> GetParticipants(
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data);
 
@@ -236,7 +241,7 @@ private:
 	object_ptr<Ui::FlatLabel> _status;
 	std::shared_ptr<Data::PhotoMedia> _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
-	std::vector<not_null<UserData*>> _participants;
+	std::vector<Participant> _participants;
 	bool _isChannel = false;
 
 	int _userWidth = 0;

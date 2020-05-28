@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "profile/profile_block_widget.h"
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Ui {
 class RippleAnimation;
 class PopupMenu;
@@ -29,10 +33,11 @@ public:
 	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::PeerListItem &st, const QString &removeText);
 
 	struct Item {
-		explicit Item(PeerData *peer);
+		explicit Item(not_null<PeerData*> peer);
 		~Item();
 
-		PeerData * const peer;
+		const not_null<PeerData*> peer;
+		std::shared_ptr<Data::CloudImageView> userpic;
 		Ui::Text::String name;
 		QString statusText;
 		bool statusHasOnlineColor = false;

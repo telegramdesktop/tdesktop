@@ -2743,13 +2743,12 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Small), true);
 	validatePhotoImage(_photoMedia->thumbnailInline(), true);
 	if (_staticContent.isNull()
-		&& _peer
 		&& !_msgid
-		&& _peer->userpicLoaded()
-		&& _peer->userpicLocation().file().valid()) {
-		validatePhotoImage(
-			Images::Create(_peer->userpicLocation()).get(),
-			true);
+		&& _peer
+		&& _peer->hasUserpic()) {
+		if (const auto view = _peer->activeUserpicView()) {
+			validatePhotoImage(view->image(), true);
+		}
 	}
 	if (_staticContent.isNull()) {
 		_photoMedia->wanted(Data::PhotoSize::Small, fileOrigin());

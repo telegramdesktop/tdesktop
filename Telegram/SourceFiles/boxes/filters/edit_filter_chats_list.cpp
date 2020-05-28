@@ -180,11 +180,12 @@ QString ExceptionRow::generateShortName() {
 PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+	auto userpic = saved ? nullptr : ensureUserpicView();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 		} else {
-			peer->paintUserpicLeft(p, x, y, outerWidth, size);
+			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
 	};
 }

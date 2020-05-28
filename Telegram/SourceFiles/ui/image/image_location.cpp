@@ -590,6 +590,49 @@ InMemoryKey inMemoryKey(const StorageFileLocation &location) {
 	return { key.high, key.low };
 }
 
+InMemoryKey inMemoryKey(const WebFileLocation &location) {
+	auto result = InMemoryKey();
+	const auto &url = location.url();
+	const auto sha = hashSha1(url.data(), url.size());
+	bytes::copy(
+		bytes::object_as_span(&result),
+		bytes::make_span(sha).subspan(0, sizeof(result)));
+	return result;
+}
+
+InMemoryKey inMemoryKey(const GeoPointLocation &location) {
+	return InMemoryKey(
+		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
+		| uint64(std::round(std::abs(location.lon + 360.) * 1000000)),
+		(uint64(location.width) << 32) | uint64(location.height));
+}
+
+InMemoryKey inMemoryKey(const PlainUrlLocation &location) {
+	auto result = InMemoryKey();
+	const auto &url = location.url;
+	const auto sha = hashSha1(url.data(), url.size() * sizeof(QChar));
+	bytes::copy(
+		bytes::object_as_span(&result),
+		bytes::make_span(sha).subspan(0, sizeof(result)));
+	return result;
+}
+
+InMemoryKey inMemoryKey(const InMemoryLocation &location) {
+	auto result = InMemoryKey();
+	const auto &data = location.bytes;
+	const auto sha = hashSha1(data.data(), data.size());
+	bytes::copy(
+		bytes::object_as_span(&result),
+		bytes::make_span(sha).subspan(0, sizeof(result)));
+	return result;
+}
+
+InMemoryKey inMemoryKey(const DownloadLocation &location) {
+	return location.data.match([](const auto &data) {
+		return inMemoryKey(data);
+	});
+}
+
 StorageImageLocation::StorageImageLocation(
 	const StorageFileLocation &file,
 	int width,

@@ -32,11 +32,11 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 } // namespace
 
-GroupMembersWidget::Member::Member(UserData *user) : Item(user) {
+GroupMembersWidget::Member::Member(not_null<UserData*> user) : Item(user) {
 }
 
-UserData *GroupMembersWidget::Member::user() const {
-	return static_cast<UserData*>(peer);
+not_null<UserData*> GroupMembersWidget::Member::user() const {
+	return static_cast<UserData*>(peer.get());
 }
 
 GroupMembersWidget::GroupMembersWidget(

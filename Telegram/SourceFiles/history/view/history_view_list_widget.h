@@ -29,6 +29,7 @@ class SessionController;
 
 namespace Data {
 struct Group;
+class CloudImageView;
 } // namespace Data
 
 namespace HistoryView {
@@ -454,6 +455,9 @@ private:
 	int _itemsHeight = 0;
 	int _itemAverageHeight = 0;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

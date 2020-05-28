@@ -50,6 +50,7 @@ constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadIfLessThanScreens = 2;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
+constexpr auto kClearUserpicsAfter = 50;
 
 } // namespace
 
@@ -582,6 +583,11 @@ void ListWidget::visibleTopBottomUpdated(
 	const auto scrolledUp = (visibleTop < _visibleTop);
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
+
+	// Unload userpics.
+	if (_userpics.size() > kClearUserpicsAfter) {
+		_userpicsCache = std::move(_userpics);
+	}
 
 	if (initializing) {
 		checkUnreadBarCreation();
@@ -1305,6 +1311,10 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	const auto guard = gsl::finally([&] {
+		_userpicsCache.clear();
+	});
+
 	Painter p(this);
 
 	auto ms = crl::now();
@@ -1346,6 +1356,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				if (const auto from = message->displayFrom()) {
 					from->paintUserpicLeft(
 						p,
+						_userpics[from],
 						st::historyPhotoLeft,
 						userpicTop,
 						view->width(),

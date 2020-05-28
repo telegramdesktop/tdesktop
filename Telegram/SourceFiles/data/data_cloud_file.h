@@ -57,6 +57,11 @@ public:
 		not_null<Main::Session*> session,
 		const ImageWithLocation &data);
 
+	// This method will replace the location and zero the _view pointer.
+	void set(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data);
+
 	void update(
 		not_null<Main::Session*> session,
 		const ImageWithLocation &data);
@@ -70,6 +75,8 @@ public:
 
 	[[nodiscard]] std::shared_ptr<CloudImageView> createView();
 	[[nodiscard]] std::shared_ptr<CloudImageView> activeView();
+	[[nodiscard]] bool isCurrentView(
+		const std::shared_ptr<CloudImageView> &view) const;
 
 private:
 	CloudFile _file;

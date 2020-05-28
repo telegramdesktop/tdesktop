@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class PhotoMedia;
+class CloudImageView;
 } // namespace Data
 
 namespace Ui {
@@ -116,6 +117,7 @@ private:
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
+	std::shared_ptr<Data::CloudImageView> _userpic;
 	std::shared_ptr<Data::PhotoMedia> _photo;
 
 	bool _useTransparency = true;
