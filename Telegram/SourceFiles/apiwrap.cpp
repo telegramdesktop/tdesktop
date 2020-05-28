@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "api/api_hash.h"
+#include "api/api_media.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
@@ -110,63 +111,6 @@ constexpr auto kBlockedFirstSlice = 16;
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
-
-MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
-		not_null<DocumentData*> document) {
-	const auto filenameAttribute = MTP_documentAttributeFilename(
-		MTP_string(document->filename()));
-	const auto dimensions = document->dimensions;
-	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
-	if (dimensions.width() > 0 && dimensions.height() > 0) {
-		const auto duration = document->getDuration();
-		if (duration >= 0 && !document->hasMimeType(qstr("image/gif"))) {
-			auto flags = MTPDdocumentAttributeVideo::Flags(0);
-			if (document->isVideoMessage()) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
-			}
-			if (document->supportsStreaming()) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
-			}
-			attributes.push_back(MTP_documentAttributeVideo(
-				MTP_flags(flags),
-				MTP_int(duration),
-				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
-		} else {
-			attributes.push_back(MTP_documentAttributeImageSize(
-				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
-		}
-	}
-	if (document->type == AnimatedDocument) {
-		attributes.push_back(MTP_documentAttributeAnimated());
-	} else if (document->type == StickerDocument && document->sticker()) {
-		attributes.push_back(MTP_documentAttributeSticker(
-			MTP_flags(0),
-			MTP_string(document->sticker()->alt),
-			document->sticker()->set,
-			MTPMaskCoords()));
-	} else if (const auto song = document->song()) {
-		const auto flags = MTPDdocumentAttributeAudio::Flag::f_title
-			| MTPDdocumentAttributeAudio::Flag::f_performer;
-		attributes.push_back(MTP_documentAttributeAudio(
-			MTP_flags(flags),
-			MTP_int(song->duration),
-			MTP_string(song->title),
-			MTP_string(song->performer),
-			MTPstring()));
-	} else if (const auto voice = document->voice()) {
-		const auto flags = MTPDdocumentAttributeAudio::Flag::f_voice
-			| MTPDdocumentAttributeAudio::Flag::f_waveform;
-		attributes.push_back(MTP_documentAttributeAudio(
-			MTP_flags(flags),
-			MTP_int(voice->duration),
-			MTPstring(),
-			MTPstring(),
-			MTP_bytes(documentWaveformEncode5bit(voice->waveform))));
-	}
-	return MTP_vector<MTPDocumentAttribute>(attributes);
-}
 
 } // namespace
 
@@ -4339,11 +4283,7 @@ void ApiWrap::sendUploadedPhoto(
 		const MTPInputFile &file,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		const auto media = MTP_inputMediaUploadedPhoto(
-			MTP_flags(0),
-			file,
-			MTPVector<MTPInputDocument>(),
-			MTP_int(0));
+		const auto media = Api::PrepareUploadedPhoto(file);
 		if (const auto groupId = item->groupId()) {
 			uploadAlbumMedia(item, groupId, media);
 		} else {
@@ -4358,29 +4298,15 @@ void ApiWrap::sendUploadedDocument(
 		const std::optional<MTPInputFile> &thumb,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		auto media = item->media();
-		if (auto document = media ? media->document() : nullptr) {
-			const auto groupId = item->groupId();
-			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
-				| (thumb
-					? MTPDinputMediaUploadedDocument::Flag::f_thumb
-					: MTPDinputMediaUploadedDocument::Flag(0))
-				| (groupId
-					? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
-					: MTPDinputMediaUploadedDocument::Flag(0));
-			const auto media = MTP_inputMediaUploadedDocument(
-				MTP_flags(flags),
-				file,
-				thumb ? *thumb : MTPInputFile(),
-				MTP_string(document->mimeString()),
-				ComposeSendingDocumentAttributes(document),
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-			if (groupId) {
-				uploadAlbumMedia(item, groupId, media);
-			} else {
-				sendMedia(item, media, options);
-			}
+		if (!item->media() || !item->media()->document()) {
+			return;
+		}
+		const auto media = Api::PrepareUploadedDocument(item, file, thumb);
+		const auto groupId = item->groupId();
+		if (groupId) {
+			uploadAlbumMedia(item, groupId, media);
+		} else {
+			sendMedia(item, media, options);
 		}
 	}
 }
@@ -4409,43 +4335,9 @@ void ApiWrap::editUploadedFile(
 	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
 	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
 
-	const auto media = [&]() -> std::optional<MTPInputMedia> {
-		if (!isDocument) {
-			if (!item->media()->photo()) {
-				return std::nullopt;
-			}
-			return MTP_inputMediaUploadedPhoto(
-				MTP_flags(0),
-				file,
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-		}
-
-		const auto document = item->media()->document();
-		if (!document) {
-			return std::nullopt;
-		}
-
-		const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
-			| (thumb
-				? MTPDinputMediaUploadedDocument::Flag::f_thumb
-				: MTPDinputMediaUploadedDocument::Flag(0))
-			| (item->groupId()
-				? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
-				: MTPDinputMediaUploadedDocument::Flag(0));
-		return MTP_inputMediaUploadedDocument(
-			MTP_flags(flags),
-			file,
-			thumb ? *thumb : MTPInputFile(),
-			MTP_string(document->mimeString()),
-			ComposeSendingDocumentAttributes(document),
-			MTPVector<MTPInputDocument>(),
-			MTP_int(0));
-	}();
-
-	if (!media) {
-		return;
-	}
+	const auto media = isDocument
+		? Api::PrepareUploadedDocument(item, file, thumb)
+		: Api::PrepareUploadedPhoto(file);
 
 	const auto peer = item->history()->peer;
 	request(MTPmessages_EditMessage(
@@ -4453,7 +4345,7 @@ void ApiWrap::editUploadedFile(
 		peer->input,
 		MTP_int(item->id),
 		MTP_string(item->originalText().text),
-		*media,
+		media,
 		MTPReplyMarkup(),
 		sentEntities,
 		MTP_int(0) // schedule_date
