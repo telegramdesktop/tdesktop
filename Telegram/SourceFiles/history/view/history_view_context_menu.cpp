@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_context_menu.h"
 
+#include "api/api_editing.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
@@ -414,7 +415,7 @@ bool AddRescheduleMessageAction(
 			return;
 		}
 		const auto callback = [=](Api::SendOptions options) {
-			item->history()->session().api().rescheduleMessage(item, options);
+			Api::RescheduleMessage(item, options);
 		};
 
 		const auto sendMenuType = !peer
