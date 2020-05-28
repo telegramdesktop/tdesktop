@@ -133,6 +133,10 @@ HistoryItem *ScheduledMessages::lookupItem(PeerId peer, MsgId msg) const {
 	return (*j).get();
 }
 
+HistoryItem *ScheduledMessages::lookupItem(FullMsgId itemId) const {
+	return lookupItem(peerFromChannel(itemId.channel), itemId.msg);
+}
+
 int ScheduledMessages::count(not_null<History*> history) const {
 	const auto i = _data.find(history);
 	return (i != end(_data)) ? i->second.items.size() : 0;
