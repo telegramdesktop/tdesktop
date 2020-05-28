@@ -52,14 +52,19 @@ private:
 
 class CloudImage final {
 public:
-	explicit CloudImage(not_null<Main::Session*> session);
+	CloudImage();
+	CloudImage(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data);
 
-	void set(const ImageWithLocation &data);
+	void update(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data);
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool failed() const;
-	void load(FileOrigin origin);
+	void load(not_null<Main::Session*> session, FileOrigin origin);
 	[[nodiscard]] const ImageLocation &location() const;
 	[[nodiscard]] int byteSize() const;
 
@@ -67,7 +72,6 @@ public:
 	[[nodiscard]] std::shared_ptr<CloudImageView> activeView();
 
 private:
-	const not_null<Main::Session*> _session;
 	CloudFile _file;
 	std::weak_ptr<CloudImageView> _view;
 

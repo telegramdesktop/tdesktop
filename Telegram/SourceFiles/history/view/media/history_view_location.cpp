@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_location.h"
 
 #include "layout.h"
+#include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
@@ -54,7 +55,7 @@ void Location::ensureMediaCreated() const {
 		return;
 	}
 	_media = _data->createView();
-	_data->load(_parent->data()->fullId());
+	_data->load(&history()->session(), _parent->data()->fullId());
 }
 
 QSize Location::countOptimalSize() {

@@ -250,14 +250,18 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 				_inlineQuery,
 				std::make_unique<InlineCacheEntry>()).first;
 		}
-		auto entry = it->second.get();
+		const auto entry = it->second.get();
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
-		if (auto count = v.size()) {
+		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);
 		}
 		auto added = 0;
-		for_const (const auto &res, v) {
-			if (auto result = InlineBots::Result::create(queryId, res)) {
+		for (const auto &res : v) {
+			auto result = InlineBots::Result::Create(
+				&controller()->session(),
+				queryId,
+				res);
+			if (result) {
 				++added;
 				entry->results.push_back(std::move(result));
 			}

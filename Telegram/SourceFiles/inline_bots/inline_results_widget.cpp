@@ -59,7 +59,7 @@ Inner::Inner(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	subscribe(Auth().downloaderTaskFinished(), [this] {
+	subscribe(_controller->session().downloaderTaskFinished(), [this] {
 		update();
 	});
 	subscribe(controller->gifPauseLevelChanged(), [this] {
@@ -1056,13 +1056,15 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		Auth().data().processUsers(d.vusers());
+		_controller->session().data().processUsers(d.vusers());
 
 		auto &v = d.vresults().v;
 		auto queryId = d.vquery_id().v;
 
 		if (it == _inlineCache.cend()) {
-			it = _inlineCache.emplace(_inlineQuery, std::make_unique<internal::CacheEntry>()).first;
+			it = _inlineCache.emplace(
+				_inlineQuery,
+				std::make_unique<internal::CacheEntry>()).first;
 		}
 		auto entry = it->second.get();
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
@@ -1077,8 +1079,12 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 			entry->results.reserve(entry->results.size() + count);
 		}
 		auto added = 0;
-		for_const (const auto &res, v) {
-			if (auto result = InlineBots::Result::create(queryId, res)) {
+		for (const auto &res : v) {
+			auto result = InlineBots::Result::Create(
+				&_controller->session(),
+				queryId,
+				res);
+			if (result) {
 				++added;
 				entry->results.push_back(std::move(result));
 			}

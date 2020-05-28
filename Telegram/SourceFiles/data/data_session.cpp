@@ -3030,17 +3030,18 @@ not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 	if (i != _locations.cend()) {
 		return i->second.get();
 	}
-	const auto result = _locations.emplace(
-		point,
-		std::make_unique<Data::CloudImage>(_session)).first->second.get();
 	const auto location = Data::ComputeLocation(point);
-	result->set(ImageWithLocation{
+	const auto prepared = ImageWithLocation{
 		.location = ImageLocation(
 			{ location },
 			location.width,
 			location.height)
-	});
-	return result;
+	};
+	return _locations.emplace(
+		point,
+		std::make_unique<Data::CloudImage>(
+			_session,
+			prepared)).first->second.get();
 }
 
 void Session::registerPhotoItem(

@@ -246,7 +246,7 @@ private:
 	bool refreshInlineRows(int *added = nullptr);
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	int _contentMaxHeight = 0;

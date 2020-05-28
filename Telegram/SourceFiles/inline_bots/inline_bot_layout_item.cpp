@@ -76,7 +76,7 @@ void ItemBase::preload() const {
 		} else if (const auto document = _result->_document) {
 			document->loadThumbnail(origin);
 		} else if (auto &thumb = _result->_thumbnail; !thumb.empty()) {
-			thumb.load(origin);
+			thumb.load(_result->_session, origin);
 		}
 	} else if (_document) {
 		_document->loadThumbnail(origin);
@@ -154,10 +154,10 @@ Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 	if (_result && !_thumbnail) {
 		if (!_result->_thumbnail.empty()) {
 			_thumbnail = _result->_thumbnail.createView();
-			_result->_thumbnail.load(origin);
+			_result->_thumbnail.load(_result->_session, origin);
 		} else if (!_result->_locationThumbnail.empty()) {
 			_thumbnail = _result->_locationThumbnail.createView();
-			_result->_locationThumbnail.load(origin);
+			_result->_locationThumbnail.load(_result->_session, origin);
 		}
 	}
 	return _thumbnail->image();

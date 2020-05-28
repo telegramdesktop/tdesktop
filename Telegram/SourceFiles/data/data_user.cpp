@@ -73,12 +73,14 @@ void UserData::setIsContact(bool is) {
 
 // see Local::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
-	if (photo.type() == mtpc_userProfilePhoto) {
-		const auto &data = photo.c_userProfilePhoto();
-		updateUserpic(data.vphoto_id().v, data.vdc_id().v, data.vphoto_small());
-	} else {
+	photo.match([&](const MTPDuserProfilePhoto &data) {
+		updateUserpic(
+			data.vphoto_id().v,
+			data.vdc_id().v,
+			data.vphoto_small());
+	}, [&](const MTPDuserProfilePhotoEmpty &) {
 		clearUserpic();
-	}
+	});
 }
 
 auto UserData::unavailableReasons() const

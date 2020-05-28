@@ -41,14 +41,14 @@ QString GetContentUrl(const MTPWebDocument &document) {
 
 } // namespace
 
-Result::Result(const Creator &creator)
-: _queryId(creator.queryId)
-, _type(creator.type)
-, _thumbnail(&Auth())
-, _locationThumbnail(&Auth()) {
+Result::Result(not_null<Main::Session*> session, const Creator &creator)
+: _session(session)
+, _queryId(creator.queryId)
+, _type(creator.type) {
 }
 
-std::unique_ptr<Result> Result::create(
+std::unique_ptr<Result> Result::Create(
+		not_null<Main::Session*> session,
 		uint64 queryId,
 		const MTPBotInlineResult &mtpData) {
 	using Type = Result::Type;
@@ -78,7 +78,9 @@ std::unique_ptr<Result> Result::create(
 		return nullptr;
 	}
 
-	auto result = std::make_unique<Result>(Creator{ queryId, type });
+	auto result = std::make_unique<Result>(
+		session,
+		Creator{ queryId, type });
 	const MTPBotInlineMessage *message = nullptr;
 	switch (mtpData.type()) {
 	case mtpc_botInlineResult: {
@@ -126,7 +128,7 @@ std::unique_ptr<Result> Result::create(
 			}
 		}
 		if (!result->_photo && !result->_document && imageThumb) {
-			result->_thumbnail.set(ImageWithLocation{
+			result->_thumbnail.update(result->_session, ImageWithLocation{
 				.location = Images::FromWebDocument(*r.vthumb())
 			});
 		}
@@ -280,7 +282,7 @@ std::unique_ptr<Result> Result::create(
 		location.height = h;
 		location.zoom = zoom;
 		location.scale = scale;
-		result->_locationThumbnail.set(ImageWithLocation{
+		result->_locationThumbnail.update(result->_session, ImageWithLocation{
 			.location = ImageLocation({ location }, w, h)
 		});
 	}

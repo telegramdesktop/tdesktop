@@ -26,24 +26,30 @@ void CloudImageView::set(
 	session->downloaderTaskFinished().notify();
 }
 
-CloudImage::CloudImage(not_null<Main::Session*> session)
-: _session(session) {
+CloudImage::CloudImage() = default;
+
+CloudImage::CloudImage(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data) {
+	update(session, data);
 }
 
 Image *CloudImageView::image() const {
 	return _image.get();
 }
 
-void CloudImage::set(const ImageWithLocation &data) {
+void CloudImage::update(
+		not_null<Main::Session*> session,
+		const ImageWithLocation &data) {
 	UpdateCloudFile(
 		_file,
 		data,
-		_session->data().cache(),
+		session->data().cache(),
 		kImageCacheTag,
-		[=](FileOrigin origin) { load(origin); },
+		[=](FileOrigin origin) { load(session, origin); },
 		[=](QImage preloaded) {
 			if (const auto view = activeView()) {
-				view->set(_session, data.preloaded);
+				view->set(session, data.preloaded);
 			}
 		});
 }
@@ -60,7 +66,7 @@ bool CloudImage::failed() const {
 	return (_file.flags & CloudFile::Flag::Failed);
 }
 
-void CloudImage::load(FileOrigin origin) {
+void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 	const auto fromCloud = LoadFromCloudOrLocal;
 	const auto cacheTag = kImageCacheTag;
 	const auto autoLoading = false;
@@ -71,7 +77,7 @@ void CloudImage::load(FileOrigin origin) {
 		return true;
 	}, [=](QImage result) {
 		if (const auto active = activeView()) {
-			active->set(_session, std::move(result));
+			active->set(session, std::move(result));
 		}
 	});
 }

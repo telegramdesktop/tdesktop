@@ -32,13 +32,14 @@ private:
 	struct Creator;
 
 public:
-
 	// Constructor is public only for std::make_unique<>() to work.
 	// You should use create() static method instead.
-	explicit Result(const Creator &creator);
-	static std::unique_ptr<Result> create(uint64 queryId, const MTPBotInlineResult &mtpData);
-	Result(const Result &other) = delete;
-	Result &operator=(const Result &other) = delete;
+	Result(not_null<Main::Session*> session, const Creator &creator);
+
+	static std::unique_ptr<Result> Create(
+		not_null<Main::Session*> session,
+		uint64 queryId,
+		const MTPBotInlineResult &mtpData);
 
 	uint64 getQueryId() const {
 		return _queryId;
@@ -102,10 +103,11 @@ private:
 	friend class internal::SendData;
 	friend class Layout::ItemBase;
 	struct Creator {
-		uint64 queryId;
-		Type type;
+		uint64 queryId = 0;
+		Type type = Type::Unknown;
 	};
 
+	not_null<Main::Session*> _session;
 	uint64 _queryId = 0;
 	QString _id;
 	Type _type = Type::Unknown;
