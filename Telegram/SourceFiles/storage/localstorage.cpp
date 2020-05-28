@@ -3887,29 +3887,33 @@ void importOldRecentStickers() {
 	auto &recent = cRefRecentStickers();
 	recent.clear();
 
-	const auto def = sets.emplace(Stickers::DefaultSetId, std::make_unique<Stickers::Set>(
-		&Auth().data(),
+	const auto def = sets.emplace(
 		Stickers::DefaultSetId,
-		uint64(0),
-		tr::lng_stickers_default_set(tr::now),
-		QString(),
-		0, // count
-		0, // hash
-		(MTPDstickerSet::Flag::f_official
-			| MTPDstickerSet::Flag::f_installed_date
-			| MTPDstickerSet_ClientFlag::f_special),
-		kDefaultStickerInstallDate)).first->second.get();
-	const auto custom = sets.emplace(Stickers::CustomSetId, std::make_unique<Stickers::Set>(
-		&Auth().data(),
+		std::make_unique<Stickers::Set>(
+			&Auth().data(),
+			Stickers::DefaultSetId,
+			uint64(0),
+			tr::lng_stickers_default_set(tr::now),
+			QString(),
+			0, // count
+			0, // hash
+			(MTPDstickerSet::Flag::f_official
+				| MTPDstickerSet::Flag::f_installed_date
+				| MTPDstickerSet_ClientFlag::f_special),
+			kDefaultStickerInstallDate)).first->second.get();
+	const auto custom = sets.emplace(
 		Stickers::CustomSetId,
-		uint64(0),
-		qsl("Custom stickers"),
-		QString(),
-		0, // count
-		0, // hash
-		(MTPDstickerSet::Flag::f_installed_date
-			| MTPDstickerSet_ClientFlag::f_special),
-		kDefaultStickerInstallDate)).first->second.get();
+		std::make_unique<Stickers::Set>(
+			&Auth().data(),
+			Stickers::CustomSetId,
+			uint64(0),
+			qsl("Custom stickers"),
+			QString(),
+			0, // count
+			0, // hash
+			(MTPDstickerSet::Flag::f_installed_date
+				| MTPDstickerSet_ClientFlag::f_special),
+			kDefaultStickerInstallDate)).first->second.get();
 
 	QMap<uint64, bool> read;
 	while (!stickers.stream.atEnd()) {
@@ -4035,8 +4039,8 @@ int32 countDocumentVectorHash(const QVector<DocumentData*> vector) {
 }
 
 int32 countSpecialStickerSetHash(uint64 setId) {
-	auto &sets = Auth().data().stickerSets();
-	auto it = sets.find(setId);
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.find(setId);
 	if (it != sets.cend()) {
 		return countDocumentVectorHash(it->second->stickers);
 	}

@@ -24,9 +24,7 @@ namespace {
 // After 128 MB of unpacked images we try to clear some memory.
 constexpr auto kMemoryForCache = 128 * 1024 * 1024;
 
-std::map<QString, std::unique_ptr<Image>> WebUrlImages;
 std::unordered_map<InMemoryKey, std::unique_ptr<Image>> StorageImages;
-std::unordered_map<InMemoryKey, std::unique_ptr<Image>> WebCachedImages;
 std::unordered_map<InMemoryKey, std::unique_ptr<Image>> GeoPointImages;
 
 int64 ComputeUsage(QSize size) {
@@ -115,26 +113,12 @@ QImage FromInlineBytes(const QByteArray &bytes) {
 
 void ClearRemote() {
 	base::take(StorageImages);
-	base::take(WebUrlImages);
-	base::take(WebCachedImages);
 	base::take(GeoPointImages);
 }
 
 void ClearAll() {
 	ActiveCache().clear();
 	ClearRemote();
-}
-
-ImagePtr Create(const QString &url, QSize box) {
-	const auto key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
-	const auto i = WebUrlImages.find(key);
-	const auto image = (i != end(WebUrlImages))
-		? i->second.get()
-		: WebUrlImages.emplace(
-			key,
-			std::make_unique<Image>(std::make_unique<WebUrlSource>(url, box))
-		).first->second.get();
-	return ImagePtr(image);
 }
 
 ImagePtr Create(QImage &&image, QByteArray format) {
@@ -183,60 +167,6 @@ QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 		}
 	}
 	return QSize();
-}
-
-ImagePtr Create(const MTPDwebDocument &document, QSize box) {
-	//const auto size = GetSizeForDocument(document.vattributes().v);
-	//if (size.isEmpty()) {
-	//	return ImagePtr();
-	//}
-
-	// We don't use size from WebDocument, because it is not reliable.
-	// It can be > 0 and different from the real size that we get in upload.WebFile result.
-	auto filesize = 0; // document.vsize().v;
-	return Create(
-		WebFileLocation(
-			document.vurl().v,
-			document.vaccess_hash().v),
-		box,
-		filesize);
-}
-
-ImagePtr Create(const MTPDwebDocumentNoProxy &document, QSize box) {
-	//const auto size = GetSizeForDocument(document.vattributes().v);
-	//if (size.isEmpty()) {
-	//	return ImagePtr();
-	//}
-
-	return Create(qs(document.vurl()), box);
-}
-
-ImagePtr Create(const MTPWebDocument &document, QSize box) {
-	switch (document.type()) {
-	case mtpc_webDocument:
-		return Create(document.c_webDocument(), box);
-	case mtpc_webDocumentNoProxy:
-		return Create(document.c_webDocumentNoProxy(), box);
-	}
-	Unexpected("Type in getImage(MTPWebDocument).");
-}
-
-ImagePtr Create(
-		const WebFileLocation &location,
-		QSize box,
-		int size) {
-	const auto key = inMemoryKey(location);
-	const auto i = WebCachedImages.find(key);
-	const auto image = (i != end(WebCachedImages))
-		? i->second.get()
-		: WebCachedImages.emplace(
-			key,
-			std::make_unique<Image>(std::make_unique<WebCachedSource>(
-				location,
-				box,
-				size))
-		).first->second.get();
-	return ImagePtr(image);
 }
 
 ImagePtr Create(const GeoPointLocation &location) {

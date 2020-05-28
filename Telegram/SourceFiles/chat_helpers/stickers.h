@@ -46,6 +46,7 @@ constexpr auto FavedSetId = 0xFFFFFFFFFFFFFFFAULL; // for cloud-stored faved sti
 constexpr auto MegagroupSetId = 0xFFFFFFFFFFFFFFEFULL; // for setting up megagroup sticker set
 
 class Set;
+class SetThumbnailView;
 
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 bool ApplyArchivedResultFake(); // For testing.
@@ -112,11 +113,11 @@ enum class LottieSize : uchar {
 	QSize box);
 
 [[nodiscard]] bool HasLottieThumbnail(
-	ImagePtr thumbnail,
-	not_null<Data::DocumentMedia*> media);
+	SetThumbnailView *thumb,
+	Data::DocumentMedia *media);
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
-	ImagePtr thumbnail,
-	not_null<Data::DocumentMedia*> media,
+	SetThumbnailView *thumb,
+	Data::DocumentMedia *media,
 	LottieSize sizeTag,
 	QSize box,
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);

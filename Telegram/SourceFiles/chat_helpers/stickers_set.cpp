@@ -16,6 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stickers {
 
+SetThumbnailView::SetThumbnailView(not_null<Set*> owner) : _owner(owner) {
+}
+
+not_null<Set*> SetThumbnailView::owner() const {
+	return _owner;
+}
+
 void SetThumbnailView::set(
 		not_null<Main::Session*> session,
 		QByteArray content) {
@@ -58,6 +65,14 @@ Set::Set(
 , _owner(owner) {
 }
 
+Data::Session &Set::owner() const {
+	return *_owner;
+}
+
+Main::Session &Set::session() const {
+	return _owner->session();
+}
+
 MTPInputStickerSet Set::mtpInput() const {
 	return (id && access)
 		? MTP_inputStickerSetID(MTP_long(id), MTP_long(access))
@@ -70,7 +85,7 @@ void Set::setThumbnail(const ImageWithLocation &data) {
 		data,
 		_owner->cache(),
 		Data::kImageCacheTag,
-		[=](Data::FileOrigin origin) { loadThumbnail(origin); });
+		[=](Data::FileOrigin origin) { loadThumbnail(); });
 	if (!data.bytes.isEmpty()) {
 		if (_thumbnail.loader) {
 			_thumbnail.loader->cancel();
@@ -93,8 +108,9 @@ bool Set::thumbnailFailed() const {
 	return (_thumbnail.flags & Data::CloudFile::Flag::Failed);
 }
 
-void Set::loadThumbnail(Data::FileOrigin origin) {
+void Set::loadThumbnail() {
 	auto &file = _thumbnail;
+	const auto origin = Data::FileOriginStickerSet(id, access);
 	const auto fromCloud = LoadFromCloudOrLocal;
 	const auto cacheTag = Data::kImageCacheTag;
 	const auto autoLoading = false;
@@ -122,7 +138,7 @@ std::shared_ptr<SetThumbnailView> Set::createThumbnailView() {
 	if (auto active = activeThumbnailView()) {
 		return active;
 	}
-	auto view = std::make_shared<SetThumbnailView>();
+	auto view = std::make_shared<SetThumbnailView>(this);
 	_thumbnailView = view;
 	return view;
 }

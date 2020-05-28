@@ -3360,16 +3360,18 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.emplace(Stickers::CloudRecentSetId, std::make_unique<Stickers::Set>(
-				&session().data(),
+			it = sets.emplace(
 				Stickers::CloudRecentSetId,
-				uint64(0),
-				tr::lng_recent_stickers(tr::now),
-				QString(),
-				0, // count
-				0, // hash
-				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0))).first;
+				std::make_unique<Stickers::Set>(
+					&session().data(),
+					Stickers::CloudRecentSetId,
+					uint64(0),
+					tr::lng_recent_stickers(tr::now),
+					QString(),
+					0, // count
+					0, // hash
+					MTPDstickerSet_ClientFlag::f_special | 0,
+					TimeId(0))).first;
 		} else {
 			it->second->title = tr::lng_recent_stickers(tr::now);
 		}
@@ -4518,8 +4520,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
 		if (!d.is_masks()) {
-			auto &order = d.vorder().v;
-			auto &sets = session().data().stickerSets();
+			const auto &order = d.vorder().v;
+			const auto &sets = session().data().stickerSets();
 			Stickers::Order result;
 			for (const auto &item : order) {
 				if (sets.find(item.v) == sets.cend()) {

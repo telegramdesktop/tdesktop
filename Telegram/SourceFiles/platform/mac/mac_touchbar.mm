@@ -220,9 +220,9 @@ inline std::optional<QString> RestrictionToSendStickers() {
 
 QString TitleRecentlyUsed() {
 	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.constFind(Stickers::CloudRecentSetId);
+	const auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it != sets.cend()) {
-		return it->title;
+		return it->second->title;
 	}
 	return tr::lng_recent_stickers(tr::now);
 }
@@ -328,37 +328,37 @@ void SendKeyEvent(int command) {
 }
 
 void AppendStickerSet(std::vector<PickerScrubberItem> &to, uint64 setId) {
-	auto &sets = Auth().data().stickerSets();
-	auto it = sets.constFind(setId);
-	if (it == sets.cend() || it->stickers.isEmpty()) {
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.find(setId);
+	if (it == sets.cend() || it->second->stickers.isEmpty()) {
 		return;
 	}
-	if (it->flags & MTPDstickerSet::Flag::f_archived) {
+	const auto set = it->second.get();
+	if (set->flags & MTPDstickerSet::Flag::f_archived) {
 		return;
 	}
-	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)) {
+	if (!(set->flags & MTPDstickerSet::Flag::f_installed_date)) {
 		return;
 	}
 
-	to.emplace_back(PickerScrubberItem(it->title.isEmpty()
-		? it->shortName
-		: it->title));
-	for (const auto sticker : it->stickers) {
+	to.emplace_back(PickerScrubberItem(set->title.isEmpty()
+		? set->shortName
+		: set->title));
+	for (const auto sticker : set->stickers) {
 		to.emplace_back(PickerScrubberItem(sticker));
 	}
 }
 
 void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 	const auto &sets = Auth().data().stickerSets();
-	const auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
-	const auto favedIt = sets.constFind(Stickers::FavedSetId);
+	const auto cloudIt = sets.find(Stickers::CloudRecentSetId);
 	const auto cloudCount = (cloudIt != sets.cend())
-		? cloudIt->stickers.size()
+		? cloudIt->second->stickers.size()
 		: 0;
 	if (cloudCount > 0) {
-		to.emplace_back(PickerScrubberItem(cloudIt->title));
+		to.emplace_back(PickerScrubberItem(cloudIt->second->title));
 		auto count = 0;
-		for (const auto document : cloudIt->stickers) {
+		for (const auto document : cloudIt->second->stickers) {
 			if (Stickers::IsFaved(document)) {
 				continue;
 			}
@@ -372,16 +372,16 @@ void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 
 void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.constFind(Stickers::FavedSetId);
+	const auto it = sets.find(Stickers::FavedSetId);
 	const auto count = (it != sets.cend())
-		? it->stickers.size()
+		? it->second->stickers.size()
 		: 0;
 	if (!count) {
 		return;
 	}
 	to.emplace_back(PickerScrubberItem(
 		tr::lng_mac_touchbar_favorite_stickers(tr::now)));
-	for (const auto document : it->stickers) {
+	for (const auto document : it->second->stickers) {
 		to.emplace_back(PickerScrubberItem(document));
 	}
 }
@@ -1060,7 +1060,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	) | rpl::start_with_next([=] {
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->sessionController()) {
-				if (!Auth().data().stickerSets().size()) {
+				if (Auth().data().stickerSets().empty()) {
 					Auth().api().updateStickers();
 				}
 				_lifetimeSessionControllerChecker.destroy();

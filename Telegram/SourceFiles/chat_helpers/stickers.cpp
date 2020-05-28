@@ -93,7 +93,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 // For testing: Just apply random subset or your sticker sets as archived.
 bool ApplyArchivedResultFake() {
 	auto sets = QVector<MTPStickerSetCovered>();
-	for (const auto &[id, set] : Auth().data().stickerSetsRef()) {
+	for (const auto &[id, set] : Auth().data().stickerSets()) {
 		const auto raw = set.get();
 		if ((raw->flags & MTPDstickerSet::Flag::f_installed_date)
 			&& !(raw->flags & MTPDstickerSet_ClientFlag::f_special)) {
@@ -884,7 +884,7 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		if (inputSet.type() != mtpc_inputStickerSetID) {
 			return std::nullopt;
 		}
-		auto &sets = Auth().data().stickerSets();
+		const auto &sets = Auth().data().stickerSets();
 		auto it = sets.find(inputSet.c_inputStickerSetID().vid().v);
 		if (it == sets.cend()) {
 			return std::nullopt;
@@ -1231,19 +1231,15 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 }
 
 bool HasLottieThumbnail(
-		ImagePtr thumbnail,
-		not_null<Data::DocumentMedia*> media) {
+		SetThumbnailView *thumb,
+		Data::DocumentMedia *media) {
+	if (thumb) {
+		return !thumb->content().isEmpty();
+	} else if (!media) {
+		return false;
+	}
 	const auto document = media->owner();
-	if (thumbnail) {
-		if (!thumbnail->loaded()) {
-			return false;
-		}
-		const auto &location = thumbnail->location();
-		const auto &bytes = thumbnail->bytesForCache();
-		return location.valid()
-			&& location.type() == StorageFileLocation::Type::StickerSetThumb
-			&& !bytes.isEmpty();
-	} else if (const auto info = document->sticker()) {
+	if (const auto info = document->sticker()) {
 		if (!info->animated) {
 			return false;
 		}
@@ -1257,21 +1253,22 @@ bool HasLottieThumbnail(
 }
 
 std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
-		ImagePtr thumbnail,
-		not_null<Data::DocumentMedia*> media,
+		SetThumbnailView *thumb,
+		Data::DocumentMedia *media,
 		LottieSize sizeTag,
 		QSize box,
 		std::shared_ptr<Lottie::FrameRenderer> renderer) {
-	const auto document = media->owner();
-	const auto baseKey = thumbnail
-		? thumbnail->location().file().bigFileBaseCacheKey()
-		: document->bigFileBaseCacheKey();
+	const auto baseKey = thumb
+		? thumb->owner()->thumbnailLocation().file().bigFileBaseCacheKey()
+		: media
+		? media->owner()->bigFileBaseCacheKey()
+		: Storage::Cache::Key();
 	if (!baseKey) {
 		return nullptr;
 	}
-	const auto content = (thumbnail
-		? thumbnail->bytesForCache()
-		: Lottie::ReadContent(media->bytes(), document->filepath()));
+	const auto content = thumb
+		? thumb->content()
+		: Lottie::ReadContent(media->bytes(), media->owner()->filepath());
 	if (content.isEmpty()) {
 		return nullptr;
 	}
@@ -1279,11 +1276,16 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		return std::make_unique<Lottie::SinglePlayer>(
 			std::forward<decltype(args)>(args)...);
 	};
+	const auto session = thumb
+		? &thumb->owner()->session()
+		: media
+		? &media->owner()->session()
+		: nullptr;
 	return LottieCachedFromContent(
 		method,
 		baseKey,
 		uint8(sizeTag),
-		&document->session(),
+		session,
 		content,
 		box);
 }

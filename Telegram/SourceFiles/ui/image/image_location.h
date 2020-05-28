@@ -416,6 +416,7 @@ public:
 		uint64 accessHash) const;
 
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
+	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] bool isLegacy() const;
 	[[nodiscard]] QByteArray fileReference() const;

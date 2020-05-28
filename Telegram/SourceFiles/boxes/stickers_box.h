@@ -41,6 +41,10 @@ namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
 
+namespace Stickers {
+class Set;
+} // namespace Stickers
+
 class StickersBox final
 	: public Ui::BoxContent
 	, public RPCSender
@@ -181,7 +185,7 @@ public:
 	void rebuild();
 	void updateSize(int newWidth = 0);
 	void updateRows(); // refresh only pack cover stickers
-	bool appendSet(const Stickers::Set &set);
+	bool appendSet(not_null<Stickers::Set*> set);
 
 	Stickers::Order getOrder() const;
 	Stickers::Order getFullOrder() const;
@@ -227,9 +231,7 @@ public slots:
 private:
 	struct Row {
 		Row(
-			uint64 id,
-			uint64 accessHash,
-			ImagePtr thumbnail,
+			not_null<Stickers::Set*> set,
 			DocumentData *sticker,
 			int32 count,
 			const QString &title,
@@ -245,11 +247,10 @@ private:
 
 		bool isRecentSet() const;
 
-		uint64 id = 0;
-		uint64 accessHash = 0;
-		ImagePtr thumbnail;
+		const not_null<Stickers::Set*> set;
 		DocumentData *sticker = nullptr;
 		std::shared_ptr<Data::DocumentMedia> stickerMedia;
+		std::shared_ptr<Stickers::SetThumbnailView> thumbnailMedia;
 		int32 count = 0;
 		QString title;
 		int titleWidth = 0;
@@ -302,23 +303,24 @@ private:
 	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
 
 	bool shiftingAnimationCallback(crl::time now);
-	void paintRow(Painter &p, not_null<Row*> set, int index);
-	void paintRowThumbnail(Painter &p, not_null<Row*> set, int left);
-	void paintFakeButton(Painter &p, not_null<Row*> set, int index);
+	void paintRow(Painter &p, not_null<Row*> row, int index);
+	void paintRowThumbnail(Painter &p, not_null<Row*> row, int left);
+	void paintFakeButton(Painter &p, not_null<Row*> row, int index);
 	void clear();
+	void updateCursor();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;
-	void validateLottieAnimation(not_null<Row*> set);
-	void updateRowThumbnail(not_null<Row*> set);
+	void validateLottieAnimation(not_null<Row*> row);
+	void updateRowThumbnail(not_null<Row*> row);
 
 	void readVisibleSets();
 
 	void updateControlsGeometry();
-	void rebuildAppendSet(const Stickers::Set &set, int maxNameWidth);
-	void fillSetCover(const Stickers::Set &set, ImagePtr *thumbnail, DocumentData **outSticker, int *outWidth, int *outHeight) const;
-	int fillSetCount(const Stickers::Set &set) const;
-	QString fillSetTitle(const Stickers::Set &set, int maxNameWidth, int *outTitleWidth) const;
-	void fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived);
+	void rebuildAppendSet(not_null<Stickers::Set*> set, int maxNameWidth);
+	void fillSetCover(not_null<Stickers::Set*> set, DocumentData **outSticker, int *outWidth, int *outHeight) const;
+	int fillSetCount(not_null<Stickers::Set*> set) const;
+	QString fillSetTitle(not_null<Stickers::Set*> set, int maxNameWidth, int *outTitleWidth) const;
+	void fillSetFlags(not_null<Stickers::Set*> set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived);
 	void rebuildMegagroupSet();
 	void fixupMegagroupSetAddress();
 	void handleMegagroupSetAddressChange();

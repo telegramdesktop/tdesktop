@@ -776,7 +776,7 @@ DownloadLocation DownloadLocation::convertToModern(
 	if (!data.is<StorageFileLocation>()) {
 		return *this;
 	}
-	auto &file = this->data.get_unchecked<StorageFileLocation>();
+	auto &file = data.get_unchecked<StorageFileLocation>();
 	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
 }
 
@@ -798,6 +798,12 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 	}, [](const InMemoryLocation &data) {
 		return Storage::Cache::Key();
 	});
+}
+
+Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
+	return data.is<StorageFileLocation>()
+		? data.get_unchecked<StorageFileLocation>().bigFileBaseCacheKey()
+		: Storage::Cache::Key();
 }
 
 bool DownloadLocation::valid() const {

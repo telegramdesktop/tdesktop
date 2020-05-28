@@ -1865,7 +1865,7 @@ void ApiWrap::saveStickerSets(
 	auto &sets = _session->data().stickerSetsRef();
 
 	_stickersOrder = localOrder;
-	for_const (auto removedSetId, localRemoved) {
+	for (const auto removedSetId : localRemoved) {
 		if (removedSetId == Stickers::CloudRecentSetId) {
 			if (sets.remove(Stickers::CloudRecentSetId) != 0) {
 				writeCloudRecent = true;
@@ -3348,8 +3348,8 @@ void ApiWrap::readFeaturedSets() {
 	auto count = _session->data().featuredStickerSetsUnreadCount();
 	QVector<MTPlong> wrappedIds;
 	wrappedIds.reserve(_featuredSetsRead.size());
-	for (auto setId : _featuredSetsRead) {
-		auto it = sets.find(setId);
+	for (const auto setId : _featuredSetsRead) {
+		const auto it = sets.find(setId);
 		if (it != sets.cend()) {
 			it->second->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
 			wrappedIds.append(MTP_long(setId));

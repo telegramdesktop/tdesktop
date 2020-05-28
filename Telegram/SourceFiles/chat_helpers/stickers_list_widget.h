@@ -36,6 +36,10 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
+namespace Stickers {
+class Set;
+} // namespace Stickers
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -165,10 +169,10 @@ private:
 	struct Set {
 		Set(
 			uint64 id,
+			Stickers::Set *set,
 			MTPDstickerSet::Flags flags,
 			const QString &title,
 			const QString &shortName,
-			ImagePtr thumbnail,
 			int count,
 			bool externalLayout,
 			std::vector<Sticker> &&stickers = {});
@@ -177,10 +181,10 @@ private:
 		~Set();
 
 		uint64 id = 0;
+		Stickers::Set *set = nullptr;
 		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
 		QString title;
 		QString shortName;
-		ImagePtr thumbnail;
 		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 
@@ -304,7 +308,7 @@ private:
 	void refreshSearchRows(const std::vector<uint64> *cloudSets);
 	void fillLocalSearchRows(const QString &query);
 	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
-	void addSearchRow(not_null<const Stickers::Set*> set);
+	void addSearchRow(not_null<Stickers::Set*> set);
 
 	void showPreview();
 

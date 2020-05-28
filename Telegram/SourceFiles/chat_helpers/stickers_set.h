@@ -31,12 +31,17 @@ using Sets = base::flat_map<uint64, std::unique_ptr<Set>>;
 
 class SetThumbnailView final {
 public:
+	explicit SetThumbnailView(not_null<Set*> owner);
+
+	[[nodiscard]] not_null<Set*> owner() const;
+
 	void set(not_null<Main::Session*> session, QByteArray content);
 
 	[[nodiscard]] Image *image() const;
 	[[nodiscard]] QByteArray content() const;
 
 private:
+	const not_null<Set*> _owner;
 	std::unique_ptr<Image> _image;
 	QByteArray _content;
 
@@ -55,6 +60,9 @@ public:
 		MTPDstickerSet::Flags flags,
 		TimeId installDate);
 
+	[[nodiscard]] Data::Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
+
 	[[nodiscard]] MTPInputStickerSet mtpInput() const;
 
 	void setThumbnail(const ImageWithLocation &data);
@@ -62,7 +70,7 @@ public:
 	[[nodiscard]] bool hasThumbnail() const;
 	[[nodiscard]] bool thumbnailLoading() const;
 	[[nodiscard]] bool thumbnailFailed() const;
-	void loadThumbnail(Data::FileOrigin origin);
+	void loadThumbnail();
 	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
 	[[nodiscard]] int thumbnailByteSize() const;
 
