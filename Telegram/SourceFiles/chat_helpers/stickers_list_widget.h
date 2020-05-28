@@ -196,7 +196,8 @@ private:
 		std::vector<Sticker> stickers;
 	};
 
-	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
+	static std::vector<Sticker> PrepareStickers(
+		const QVector<DocumentData*> &pack);
 
 	void preloadMoreOfficial();
 	QSize boundingBoxSize() const;

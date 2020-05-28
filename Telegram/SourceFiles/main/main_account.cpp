@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/window_controller.h"
 #include "media/audio/media_audio.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "main/main_app_config.h"

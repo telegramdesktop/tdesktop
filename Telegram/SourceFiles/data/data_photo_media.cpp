@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "storage/file_download.h"
-#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 
 namespace Data {
 

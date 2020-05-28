@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/file_download.h"
-#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "main/main_session.h"
 
 #include <compare>
@@ -74,7 +74,6 @@ void CloudImage::load(FileOrigin origin) {
 			active->set(_session, std::move(result));
 		}
 	});
-
 }
 
 const ImageLocation &CloudImage::location() const {

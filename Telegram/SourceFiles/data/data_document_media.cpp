@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "window/themes/window_theme_preview.h"
 #include "storage/file_download.h"
-#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "facades.h"
 #include "app.h"
 

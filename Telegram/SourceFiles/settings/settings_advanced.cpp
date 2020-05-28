@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "mtproto/facade.h"
 #include "layout.h"
 #include "facades.h"
 #include "app.h"

@@ -3360,7 +3360,8 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(
+			it = sets.emplace(Stickers::CloudRecentSetId, std::make_unique<Stickers::Set>(
+				&session().data(),
 				Stickers::CloudRecentSetId,
 				uint64(0),
 				tr::lng_recent_stickers(tr::now),
@@ -3368,28 +3369,28 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 				0, // count
 				0, // hash
 				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0),
-				ImagePtr()));
+				TimeId(0))).first;
 		} else {
-			it->title = tr::lng_recent_stickers(tr::now);
+			it->second->title = tr::lng_recent_stickers(tr::now);
 		}
 	}
+	const auto set = it->second.get();
 	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();
-	auto index = it->stickers.indexOf(sticker);
+	auto index = set->stickers.indexOf(sticker);
 	if (index > 0) {
-		if (it->dates.empty()) {
+		if (set->dates.empty()) {
 			session().api().requestRecentStickersForce();
 		} else {
-			Assert(it->dates.size() == it->stickers.size());
-			it->dates.erase(it->dates.begin() + index);
+			Assert(set->dates.size() == set->stickers.size());
+			set->dates.erase(set->dates.begin() + index);
 		}
-		it->stickers.removeAt(index);
-		for (auto i = it->emoji.begin(); i != it->emoji.end();) {
+		set->stickers.removeAt(index);
+		for (auto i = set->emoji.begin(); i != set->emoji.end();) {
 			if (const auto index = i->indexOf(sticker); index >= 0) {
 				removedFromEmoji.emplace_back(i.key());
 				i->removeAt(index);
 				if (i->isEmpty()) {
-					i = it->emoji.erase(i);
+					i = set->emoji.erase(i);
 					continue;
 				}
 			}
@@ -3397,17 +3398,17 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		}
 	}
 	if (index) {
-		if (it->dates.size() == it->stickers.size()) {
-			it->dates.insert(it->dates.begin(), base::unixtime::now());
+		if (set->dates.size() == set->stickers.size()) {
+			set->dates.insert(set->dates.begin(), base::unixtime::now());
 		}
-		it->stickers.push_front(sticker);
+		set->stickers.push_front(sticker);
 		if (const auto emojiList = Stickers::GetEmojiListFromSet(sticker)) {
 			for (const auto emoji : *emojiList) {
-				it->emoji[emoji].push_front(sticker);
+				set->emoji[emoji].push_front(sticker);
 			}
 		} else if (!removedFromEmoji.empty()) {
 			for (const auto emoji : removedFromEmoji) {
-				it->emoji[emoji].push_front(sticker);
+				set->emoji[emoji].push_front(sticker);
 			}
 		} else {
 			session().api().requestRecentStickersForce();
@@ -3426,7 +3427,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			break;
 		}
 	}
-	while (!recent.isEmpty() && it->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
+	while (!recent.isEmpty() && set->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
 		writeOldRecent = true;
 		recent.pop_back();
 	}
@@ -3437,13 +3438,14 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
 	bool writeInstalledStickers = false;
-	auto custom = sets.find(Stickers::CustomSetId);
-	if (custom != sets.cend()) {
+	auto customIt = sets.find(Stickers::CustomSetId);
+	if (customIt != sets.cend()) {
+		const auto custom = customIt->second.get();
 		int removeIndex = custom->stickers.indexOf(sticker);
 		if (removeIndex >= 0) {
 			custom->stickers.removeAt(removeIndex);
 			if (custom->stickers.isEmpty()) {
-				sets.erase(custom);
+				sets.erase(customIt);
 			}
 			writeInstalledStickers = true;
 		}
@@ -4520,12 +4522,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &sets = session().data().stickerSets();
 			Stickers::Order result;
 			for (const auto &item : order) {
-				if (sets.constFind(item.v) == sets.cend()) {
+				if (sets.find(item.v) == sets.cend()) {
 					break;
 				}
 				result.push_back(item.v);
 			}
-			if (result.size() != session().data().stickerSetsOrder().size() || result.size() != order.size()) {
+			if (result.size() != session().data().stickerSetsOrder().size()
+				|| result.size() != order.size()) {
 				session().data().setLastStickersUpdate(0);
 				session().api().updateStickers();
 			} else {

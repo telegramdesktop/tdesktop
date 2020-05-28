@@ -378,6 +378,10 @@ bool StorageFileLocation::valid() const {
 	return false;
 }
 
+bool StorageFileLocation::isLegacy() const {
+	return (_type == Type::Legacy);
+}
+
 bool StorageFileLocation::isDocumentThumbnail() const {
 	return (_type == Type::Document) && (_sizeLetter != 0);
 }
@@ -808,6 +812,12 @@ bool DownloadLocation::valid() const {
 	}, [](const InMemoryLocation &data) {
 		return !data.bytes.isEmpty();
 	});
+}
+
+bool DownloadLocation::isLegacy() const {
+	return data.is<StorageFileLocation>()
+		? data.get_unchecked<StorageFileLocation>().isLegacy()
+		: false;
 }
 
 QByteArray DownloadLocation::fileReference() const {

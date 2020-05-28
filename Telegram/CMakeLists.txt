@@ -301,6 +301,8 @@ PRIVATE
     chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
+    chat_helpers/stickers_set.cpp
+    chat_helpers/stickers_set.h
     chat_helpers/tabbed_panel.cpp
     chat_helpers/tabbed_panel.h
     chat_helpers/tabbed_section.cpp

@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
-#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"

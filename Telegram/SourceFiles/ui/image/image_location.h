@@ -83,6 +83,7 @@ public:
 
 	[[nodiscard]] Type type() const;
 	[[nodiscard]] bool valid() const;
+	[[nodiscard]] bool isLegacy() const;
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 
@@ -183,6 +184,9 @@ public:
 	}
 	[[nodiscard]] bool valid() const {
 		return _file.valid();
+	}
+	[[nodiscard]] bool isLegacy() const {
+		return _file.isLegacy();
 	}
 	[[nodiscard]] QByteArray fileReference() const {
 		return _file.fileReference();
@@ -413,6 +417,7 @@ public:
 
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] bool valid() const;
+	[[nodiscard]] bool isLegacy() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const QByteArray &data);
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
@@ -471,6 +476,9 @@ public:
 
 	[[nodiscard]] bool valid() const {
 		return _file.valid();
+	}
+	[[nodiscard]] bool isLegacy() const {
+		return _file.isLegacy();
 	}
 	[[nodiscard]] QByteArray fileReference() const {
 		return _file.fileReference();

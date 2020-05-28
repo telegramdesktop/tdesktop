@@ -136,6 +136,68 @@ ImageWithLocation FromPhotoSize(
 	});
 }
 
+ImageWithLocation FromPhotoSize(
+		not_null<Main::Session*> session,
+		const MTPDstickerSet &set,
+		const MTPPhotoSize &size) {
+	if (!set.vthumb_dc_id()) {
+		return ImageWithLocation();
+	}
+	return size.match([&](const MTPDphotoSize &data) {
+		const auto &location = data.vlocation().c_fileLocationToBeDeprecated();
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					set.vthumb_dc_id()->v,
+					session->userId(),
+					MTP_inputStickerSetThumb(
+						MTP_inputStickerSetID(set.vid(), set.vaccess_hash()),
+						location.vvolume_id(),
+						location.vlocal_id())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsize().v
+		};
+	}, [&](const MTPDphotoCachedSize &data) {
+		const auto &location = data.vlocation().c_fileLocationToBeDeprecated();
+		const auto bytes = qba(data.vbytes());
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					set.vthumb_dc_id()->v,
+					session->userId(),
+					MTP_inputStickerSetThumb(
+						MTP_inputStickerSetID(set.vid(), set.vaccess_hash()),
+						location.vvolume_id(),
+						location.vlocal_id())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = bytes.size(),
+			.bytes = bytes
+		};
+	}, [&](const MTPDphotoStrippedSize &data) {
+		return ImageWithLocation();
+		//const auto bytes = ExpandInlineBytes(qba(data.vbytes()));
+		//return ImageWithLocation{
+		//	.location = ImageLocation(
+		//		DownloadLocation{ StorageFileLocation(
+		//			document.vdc_id().v,
+		//			session->userId(),
+		//			MTP_inputDocumentFileLocation(
+		//				document.vid(),
+		//				document.vaccess_hash(),
+		//				document.vfile_reference(),
+		//				data.vtype())) },
+		//		width, // ???
+		//		height), // ???
+		//	.bytesCount = bytes.size(),
+		//	.bytes = bytes
+		//};
+	}, [&](const MTPDphotoSizeEmpty &) {
+		return ImageWithLocation();
+	});
+}
+
 ImageWithLocation FromImageInMemory(
 		const QImage &image,
 		const char *format) {

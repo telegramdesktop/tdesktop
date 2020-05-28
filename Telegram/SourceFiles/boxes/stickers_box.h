@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
-#include "chat_helpers/stickers.h"
+#include "chat_helpers/stickers_set.h"
 #include "ui/effects/animations.h"
 #include "ui/special_fields.h"
 
@@ -32,6 +32,14 @@ class BoxContentDivider;
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
+namespace Lottie {
+class SinglePlayer;
+} // namespace Lottie
 
 class StickersBox final
 	: public Ui::BoxContent
@@ -235,9 +243,7 @@ private:
 			int32 pixh);
 		~Row();
 
-		bool isRecentSet() const {
-			return (id == Stickers::CloudRecentSetId);
-		}
+		bool isRecentSet() const;
 
 		uint64 id = 0;
 		uint64 accessHash = 0;

@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/media_active_cache.h"
 #include "core/mime_type.h"
+#include "chat_helpers/stickers.h"
+#include "chat_helpers/stickers_set.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
@@ -1182,16 +1184,16 @@ bool DocumentData::isStickerSetInstalled() const {
 
 	const auto &sets = _owner->stickerSets();
 	return sticker()->set.match([&](const MTPDinputStickerSetID &data) {
-		const auto i = sets.constFind(data.vid().v);
+		const auto i = sets.find(data.vid().v);
 		return (i != sets.cend())
-			&& !(i->flags & MTPDstickerSet::Flag::f_archived)
-			&& (i->flags & MTPDstickerSet::Flag::f_installed_date);
+			&& !(i->second->flags & MTPDstickerSet::Flag::f_archived)
+			&& (i->second->flags & MTPDstickerSet::Flag::f_installed_date);
 	}, [&](const MTPDinputStickerSetShortName &data) {
 		const auto name = qs(data.vshort_name()).toLower();
-		for (const auto &set : sets) {
-			if (set.shortName.toLower() == name) {
-				return !(set.flags & MTPDstickerSet::Flag::f_archived)
-					&& (set.flags & MTPDstickerSet::Flag::f_installed_date);
+		for (const auto &[id, set] : sets) {
+			if (set->shortName.toLower() == name) {
+				return !(set->flags & MTPDstickerSet::Flag::f_archived)
+					&& (set->flags & MTPDstickerSet::Flag::f_installed_date);
 			}
 		}
 		return false;
