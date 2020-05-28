@@ -14,58 +14,28 @@ struct FileOrigin;
 class LocationPoint {
 public:
 	LocationPoint() = default;
-	explicit LocationPoint(const MTPDgeoPoint &point)
-	: _lat(point.vlat().v)
-	, _lon(point.vlong().v)
-	, _access(point.vaccess_hash().v) {
-	}
+	explicit LocationPoint(const MTPDgeoPoint &point);
 
-	QString latAsString() const {
-		return AsString(_lat);
-	}
-	QString lonAsString() const {
-		return AsString(_lon);
-	}
-	MTPGeoPoint toMTP() const {
-		return MTP_geoPoint(
-			MTP_double(_lon),
-			MTP_double(_lat),
-			MTP_long(_access));
-	}
+	[[nodiscard]] QString latAsString() const;
+	[[nodiscard]] QString lonAsString() const;
+	[[nodiscard]] MTPGeoPoint toMTP() const;
 
-	float64 lat() const {
-		return _lat;
-	}
-	float64 lon() const {
-		return _lon;
-	}
-	uint64 accessHash() const {
-		return _access;
-	}
+	[[nodiscard]] float64 lat() const;
+	[[nodiscard]] float64 lon() const;
+	[[nodiscard]] uint64 accessHash() const;
 
-	inline size_t hash() const {
-#ifndef OS_MAC_OLD
-		return QtPrivate::QHashCombine().operator()(
-				std::hash<float64>()(_lat),
-				_lon);
-#else // OS_MAC_OLD
-		const auto h1 = std::hash<float64>()(_lat);
-		const auto h2 = std::hash<float64>()(_lon);
-		return ((h1 << 16) | (h1 >> 16)) ^ h2;
-#endif // OS_MAC_OLD
-	}
+	[[nodiscard]] size_t hash() const;
 
 private:
-	static QString AsString(float64 value) {
-		constexpr auto kPrecision = 6;
-		return QString::number(value, 'f', kPrecision);
-	}
-
-	friend inline bool operator==(const LocationPoint &a, const LocationPoint &b) {
+	friend inline bool operator==(
+			const LocationPoint &a,
+			const LocationPoint &b) {
 		return (a._lat == b._lat) && (a._lon == b._lon);
 	}
 
-	friend inline bool operator<(const LocationPoint &a, const LocationPoint &b) {
+	friend inline bool operator<(
+			const LocationPoint &a,
+			const LocationPoint &b) {
 		return (a._lat < b._lat) || ((a._lat == b._lat) && (a._lon < b._lon));
 	}
 
@@ -75,15 +45,7 @@ private:
 
 };
 
-struct LocationThumbnail {
-	LocationThumbnail(const LocationPoint &point);
-
-	LocationPoint point;
-	ImagePtr thumb;
-
-	void load(FileOrigin origin);
-
-};
+[[nodiscard]] GeoPointLocation ComputeLocation(const LocationPoint &point);
 
 } // namespace Data
 

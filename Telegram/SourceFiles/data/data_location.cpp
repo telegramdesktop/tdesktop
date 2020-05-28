@@ -13,7 +13,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-GeoPointLocation ComputeLocation(const Data::LocationPoint &point) {
+[[nodiscard]] QString AsString(float64 value) {
+	constexpr auto kPrecision = 6;
+	return QString::number(value, 'f', kPrecision);
+}
+
+} // namespace
+
+LocationPoint::LocationPoint(const MTPDgeoPoint &point)
+: _lat(point.vlat().v)
+, _lon(point.vlong().v)
+, _access(point.vaccess_hash().v) {
+}
+
+QString LocationPoint::latAsString() const {
+	return AsString(_lat);
+}
+
+QString LocationPoint::lonAsString() const {
+	return AsString(_lon);
+}
+
+MTPGeoPoint LocationPoint::toMTP() const {
+	return MTP_geoPoint(
+		MTP_double(_lon),
+		MTP_double(_lat),
+		MTP_long(_access));
+}
+
+float64 LocationPoint::lat() const {
+	return _lat;
+}
+
+float64 LocationPoint::lon() const {
+	return _lon;
+}
+
+uint64 LocationPoint::accessHash() const {
+	return _access;
+}
+
+size_t LocationPoint::hash() const {
+	return QtPrivate::QHashCombine().operator()(
+		std::hash<float64>()(_lat),
+		_lon);
+}
+
+GeoPointLocation ComputeLocation(const LocationPoint &point) {
 	const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
 	const auto zoom = 13 + (scale - 1);
 	const auto w = st::locationSize.width() / scale;
@@ -28,17 +74,6 @@ GeoPointLocation ComputeLocation(const Data::LocationPoint &point) {
 	result.zoom = zoom;
 	result.scale = scale;
 	return result;
-}
-
-} // namespace
-
-LocationThumbnail::LocationThumbnail(const LocationPoint &point)
-: point(point)
-, thumb(Images::Create(ComputeLocation(point))) {
-}
-
-void LocationThumbnail::load(FileOrigin origin) {
-	thumb->load(origin);
 }
 
 } // namespace Data

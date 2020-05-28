@@ -173,7 +173,7 @@ const Invoice *Media::invoice() const {
 	return nullptr;
 }
 
-LocationThumbnail *Media::location() const {
+Data::CloudImage *Media::location() const {
 	return nullptr;
 }
 
@@ -782,6 +782,7 @@ MediaLocation::MediaLocation(
 	const QString &title,
 	const QString &description)
 : Media(parent)
+, _point(point)
 , _location(parent->history()->owner().location(point))
 , _title(title)
 , _description(description) {
@@ -790,12 +791,12 @@ MediaLocation::MediaLocation(
 std::unique_ptr<Media> MediaLocation::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaLocation>(
 		parent,
-		_location->point,
+		_point,
 		_title,
 		_description);
 }
 
-LocationThumbnail *MediaLocation::location() const {
+Data::CloudImage *MediaLocation::location() const {
 	return _location;
 }
 
@@ -826,7 +827,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 	if (!descriptionResult.text.isEmpty()) {
 		result.append(std::move(descriptionResult));
 	}
-	result.append(LocationClickHandler(_location->point).dragText());
+	result.append(LocationClickHandler(_point).dragText());
 	return result;
 }
 
@@ -844,6 +845,7 @@ std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 	return std::make_unique<HistoryView::Location>(
 		message,
 		_location,
+		_point,
 		_title,
 		_description);
 }

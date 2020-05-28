@@ -3025,13 +3025,22 @@ void Session::applyUpdate(const MTPDupdateChatDefaultBannedRights &update) {
 	}
 }
 
-not_null<LocationThumbnail*> Session::location(const LocationPoint &point) {
+not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 	const auto i = _locations.find(point);
-	return (i != _locations.cend())
-		? i->second.get()
-		: _locations.emplace(
-			point,
-			std::make_unique<LocationThumbnail>(point)).first->second.get();
+	if (i != _locations.cend()) {
+		return i->second.get();
+	}
+	const auto result = _locations.emplace(
+		point,
+		std::make_unique<Data::CloudImage>(_session)).first->second.get();
+	const auto location = Data::ComputeLocation(point);
+	result->set(ImageWithLocation{
+		.location = ImageLocation(
+			{ location },
+			location.width,
+			location.height)
+	});
+	return result;
 }
 
 void Session::registerPhotoItem(

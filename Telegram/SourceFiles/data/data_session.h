@@ -561,7 +561,7 @@ public:
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
-	[[nodiscard]] not_null<LocationThumbnail*> location(
+	[[nodiscard]] not_null<Data::CloudImage*> location(
 		const LocationPoint &point);
 
 	void registerPhotoItem(
@@ -939,7 +939,7 @@ private:
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
 	std::unordered_map<
 		LocationPoint,
-		std::unique_ptr<LocationThumbnail>> _locations;
+		std::unique_ptr<Data::CloudImage>> _locations;
 	std::unordered_map<
 		PollId,
 		std::unique_ptr<PollData>> _polls;
