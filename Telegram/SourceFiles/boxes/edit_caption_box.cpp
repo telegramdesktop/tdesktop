@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_caption_box.h"
 
 #include "apiwrap.h"
+#include "api/api_editing.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -70,7 +71,6 @@ EditCaptionBox::EditCaptionBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item)
 : _controller(controller)
-, _api(&controller->session().mtp())
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
@@ -930,37 +930,13 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	auto flags = MTPmessages_EditMessage::Flag::f_message | 0;
-	if (_previewCancelled) {
-		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
-	}
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
-	auto sending = TextWithEntities{
+	const auto sending = TextWithEntities{
 		textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)
 	};
-	const auto prepareFlags = Ui::ItemTextOptions(
-		item->history(),
-		_controller->session().user()).flags;
-	TextUtilities::PrepareForSending(sending, prepareFlags);
-	TextUtilities::Trim(sending);
-
-	const auto sentEntities = Api::EntitiesToMTP(
-		&item->history()->session(),
-		sending.entities,
-		Api::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		flags |= MTPmessages_EditMessage::Flag::f_entities;
-	}
 
 	if (!_preparedList.files.empty()) {
-		const auto textWithTags = _field->getTextWithAppliedMarkdown();
-		auto sending = TextWithEntities{
-			textWithTags.text,
-			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)
-		};
-		item->setText(sending);
-
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
@@ -971,47 +947,43 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	_saveRequestId = _api.request(MTPmessages_EditMessage(
-		MTP_flags(flags),
-		item->history()->peer->input,
-		MTP_int(item->id),
-		MTP_string(sending.text),
-		MTPInputMedia(),
-		MTPReplyMarkup(),
-		sentEntities,
-		MTP_int(0)
-	)).done([=](const MTPUpdates &result) {
-		saveDone(result);
-	}).fail([=](const RPCError &error) {
-		saveFail(error);
-	}).send();
-}
-
-void EditCaptionBox::saveDone(const MTPUpdates &updates) {
-	_saveRequestId = 0;
-	const auto controller = _controller;
-	closeBox();
-	controller->session().api().applyUpdates(updates);
-}
-
-void EditCaptionBox::saveFail(const RPCError &error) {
-	_saveRequestId = 0;
-	const auto &type = error.type();
-	if (type == qstr("MESSAGE_ID_INVALID")
-		|| type == qstr("CHAT_ADMIN_REQUIRED")
-		|| type == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
-		_error = tr::lng_edit_error(tr::now);
-		update();
-	} else if (type == qstr("MESSAGE_NOT_MODIFIED")) {
+	const auto done = crl::guard(this, [=](const MTPUpdates &updates) {
+		_saveRequestId = 0;
 		closeBox();
-	} else if (type == qstr("MESSAGE_EMPTY")) {
-		_field->setFocus();
-		_field->showError();
-		update();
-	} else {
-		_error = tr::lng_edit_error(tr::now);
-		update();
-	}
+	});
+
+	const auto fail = crl::guard(this, [=](const RPCError &error) {
+		const auto defaultErrors = {
+			u"MESSAGE_ID_INVALID"_q,
+			u"CHAT_ADMIN_REQUIRED"_q,
+			u"MESSAGE_EDIT_TIME_EXPIRED"_q,
+		};
+
+		_saveRequestId = 0;
+		const auto &type = error.type();
+		if (ranges::contains(defaultErrors, type)) {
+			_error = tr::lng_edit_error(tr::now);
+			update();
+		} else if (type == u"MESSAGE_NOT_MODIFIED"_q) {
+			closeBox();
+		} else if (type == u"MESSAGE_EMPTY"_q) {
+			_field->setFocus();
+			_field->showError();
+			update();
+		} else {
+			_error = tr::lng_edit_error(tr::now);
+			update();
+		}
+	});
+
+	lifetime().add([=] {
+		if (_saveRequestId) {
+			auto &session = _controller->session();
+			session.api().request(base::take(_saveRequestId)).cancel();
+		}
+	});
+
+	_saveRequestId = Api::EditCaption(item, sending, done, fail);
 }
 
 void EditCaptionBox::setName(QString nameString, qint64 size) {

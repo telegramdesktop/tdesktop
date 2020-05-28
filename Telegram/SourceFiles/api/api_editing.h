@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class HistoryItem;
+class RPCError;
 
 namespace Api {
 
@@ -27,5 +28,11 @@ void EditMessageWithUploadedPhoto(
 	HistoryItem *item,
 	const MTPInputFile &file,
 	SendOptions options);
+
+mtpRequestId EditCaption(
+	not_null<HistoryItem*> item,
+	const TextWithEntities &caption,
+	Fn<void(const MTPUpdates &)> done,
+	Fn<void(const RPCError &)> fail);
 
 } // namespace Api

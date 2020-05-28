@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
-#include "mtproto/sender.h"
 
 class Image;
 
@@ -83,9 +82,6 @@ private:
 	void save();
 	void captionResized();
 
-	void saveDone(const MTPUpdates &updates);
-	void saveFail(const RPCError &error);
-
 	void setName(QString nameString, qint64 size);
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 	void updateEditPreview();
@@ -102,7 +98,6 @@ private:
 	}
 
 	const not_null<Window::SessionController*> _controller;
-	MTP::Sender _api;
 
 	FullMsgId _msgId;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
@@ -135,7 +130,6 @@ private:
 
 	Storage::PreparedList _preparedList;
 
-	bool _previewCancelled = false;
 	mtpRequestId _saveRequestId = 0;
 
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
