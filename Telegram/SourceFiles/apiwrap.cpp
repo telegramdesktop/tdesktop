@@ -4311,66 +4311,6 @@ void ApiWrap::sendUploadedDocument(
 	}
 }
 
-void ApiWrap::editUploadedFile(
-		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		Api::SendOptions options,
-		bool isDocument) {
-	const auto item = _session->data().message(localId);
-	if (!item) {
-		return;
-	}
-	if (!item->media()) {
-		return;
-	}
-
-	auto sentEntities = Api::EntitiesToMTP(
-		_session,
-		item->originalText().entities,
-		Api::ConvertOption::SkipLocal);
-
-	auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
-
-	const auto media = isDocument
-		? Api::PrepareUploadedDocument(item, file, thumb)
-		: Api::PrepareUploadedPhoto(file);
-
-	const auto peer = item->history()->peer;
-	request(MTPmessages_EditMessage(
-		MTP_flags(flagsEditMsg),
-		peer->input,
-		MTP_int(item->id),
-		MTP_string(item->originalText().text),
-		media,
-		MTPReplyMarkup(),
-		sentEntities,
-		MTP_int(0) // schedule_date
-	)).done([=](const MTPUpdates &result) {
-		item->clearSavedMedia();
-		item->setIsLocalUpdateMedia(true);
-		applyUpdates(result);
-		item->setIsLocalUpdateMedia(false);
-	}).fail([=](const RPCError &error) {
-		QString err = error.type();
-		if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-			item->returnSavedMedia();
-			_session->data().sendHistoryChangeNotifications();
-		} else if (err == qstr("MEDIA_NEW_INVALID")) {
-			item->returnSavedMedia();
-			_session->data().sendHistoryChangeNotifications();
-			Ui::show(
-				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-				Ui::LayerOption::KeepOther);
-		} else {
-			sendMessageFail(error, peer);
-		}
-	}).send();
-}
-
 void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 	Expects(!IsServerMsgId(item->id));
 
@@ -5409,44 +5349,6 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		_pollCloseRequestIds.erase(itemId);
 	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
-}
-
-void ApiWrap::rescheduleMessage(
-		not_null<HistoryItem*> item,
-		Api::SendOptions options) {
-	const auto text = item->originalText().text;
-	const auto sentEntities = Api::EntitiesToMTP(
-		_session,
-		item->originalText().entities,
-		Api::ConvertOption::SkipLocal);
-	const auto media = item->media();
-
-	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
-	const auto flags = MTPmessages_EditMessage::Flag::f_schedule_date
-	| (!text.isEmpty()
-		? MTPmessages_EditMessage::Flag::f_message
-		: emptyFlag)
-	| ((!media || !media->webpage())
-		? MTPmessages_EditMessage::Flag::f_no_webpage
-		: emptyFlag)
-	| (!sentEntities.v.isEmpty()
-		? MTPmessages_EditMessage::Flag::f_entities
-		: emptyFlag);
-
-	const auto id = _session->data().scheduledMessages().lookupId(item);
-	request(MTPmessages_EditMessage(
-		MTP_flags(flags),
-		item->history()->peer->input,
-		MTP_int(id),
-		MTP_string(text),
-		MTPInputMedia(),
-		MTPReplyMarkup(),
-		sentEntities,
-		MTP_int(options.scheduled)
-	)).done([=](const MTPUpdates &result) {
-		applyUpdates(result);
-	}).fail([](const RPCError &error) {
-	}).send();
 }
 
 void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {
