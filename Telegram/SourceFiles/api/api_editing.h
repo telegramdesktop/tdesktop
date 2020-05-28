@@ -17,4 +17,15 @@ void RescheduleMessage(
 	not_null<HistoryItem*> item,
 	SendOptions options);
 
+void EditMessageWithUploadedDocument(
+	HistoryItem *item,
+	const MTPInputFile &file,
+	const std::optional<MTPInputFile> &thumb,
+	SendOptions options);
+
+void EditMessageWithUploadedPhoto(
+	HistoryItem *item,
+	const MTPInputFile &file,
+	SendOptions options);
+
 } // namespace Api
