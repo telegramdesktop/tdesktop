@@ -22,12 +22,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+using namespace rpl::details;
+
+template <typename T>
+constexpr auto WithId =
+	is_callable_plain_v<T, const MTPUpdates &, Fn<void()>, mtpRequestId>;
+template <typename T>
+constexpr auto WithoutId =
+	is_callable_plain_v<T, const MTPUpdates &, Fn<void()>>;
+template <typename T>
+constexpr auto WithoutCallback =
+	is_callable_plain_v<T, const MTPUpdates &>;
+
+template <typename DoneCallback, typename FailCallback>
 mtpRequestId EditMessage(
 		not_null<HistoryItem*> item,
 		const TextWithEntities &textWithEntities,
 		SendOptions options,
-		Fn<void(const MTPUpdates &, Fn<void()>)> done,
-		Fn<void(const RPCError &)> fail,
+		DoneCallback &&done,
+		FailCallback &&fail,
 		std::optional<MTPInputMedia> inputMedia = std::nullopt) {
 	const auto session = &item->history()->session();
 	const auto api = &session->api();
@@ -69,21 +82,41 @@ mtpRequestId EditMessage(
 		MTPReplyMarkup(),
 		sentEntities,
 		MTP_int(options.scheduled)
-	)).done([=](const MTPUpdates &result) {
-		done(result, [=] { api->applyUpdates(result); });
+	)).done([=](
+			const MTPUpdates &result,
+			[[maybe_unused]] mtpRequestId requestId) {
+		const auto apply = [=] { api->applyUpdates(result); };
+
+		if constexpr (WithId<DoneCallback>) {
+			done(result, apply, requestId);
+		} else if constexpr (WithoutId<DoneCallback>) {
+			done(result, apply);
+		} else if constexpr (WithoutCallback<DoneCallback>) {
+			done(result);
+			apply();
+		} else {
+			apply();
+		}
 	}).fail(
 		fail
 	).send();
 }
 
+template <typename DoneCallback, typename FailCallback>
 mtpRequestId EditMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options,
-		Fn<void(const MTPUpdates &, Fn<void()>)> done,
-		Fn<void(const RPCError &)> fail,
+		DoneCallback &&done,
+		FailCallback &&fail,
 		std::optional<MTPInputMedia> inputMedia = std::nullopt) {
 	const auto &text = item->originalText();
-	return EditMessage(item, text, options, done, fail, inputMedia);
+	return EditMessage(
+		item,
+		text,
+		options,
+		std::forward<DoneCallback>(done),
+		std::forward<FailCallback>(fail),
+		inputMedia);
 }
 
 void EditMessageWithUploadedMedia(
@@ -124,12 +157,8 @@ void EditMessageWithUploadedMedia(
 void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
-	const auto done = [=](const auto &result, Fn<void()> applyUpdates) {
-		applyUpdates();
-	};
-	const auto fail = [](const RPCError &error) {};
-
-	EditMessage(item, options, done, fail);
+	const auto empty = [](const auto &r) {};
+	EditMessage(item, options, empty, empty);
 }
 
 void EditMessageWithUploadedDocument(
@@ -160,11 +189,7 @@ mtpRequestId EditCaption(
 		const TextWithEntities &caption,
 		Fn<void(const MTPUpdates &)> done,
 		Fn<void(const RPCError &)> fail) {
-	const auto callback = [=](const auto &result, Fn<void()> applyUpdates) {
-		done(result);
-		applyUpdates();
-	};
-	return EditMessage(item, caption, SendOptions(), callback, fail);
+	return EditMessage(item, caption, SendOptions(), done, fail);
 }
 
 
