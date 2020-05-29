@@ -80,6 +80,10 @@ Contact::Contact(
 
 Contact::~Contact() {
 	history()->owner().unregisterContactView(_userId, _parent);
+	if (_userpic) {
+		_userpic = nullptr;
+		_parent->checkHeavyPart();
+	}
 }
 
 void Contact::updateSharedContactUserId(UserId userId) {

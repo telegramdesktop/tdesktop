@@ -442,7 +442,6 @@ void Account::loggedOut() {
 	Local::reset();
 
 	cSetOtherOnline(0);
-	Images::ClearRemote();
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {

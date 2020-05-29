@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+class Image;
+
 namespace Data {
 class PhotoMedia;
 class CloudImageView;

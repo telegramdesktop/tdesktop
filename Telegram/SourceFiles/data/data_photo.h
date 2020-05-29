@@ -59,7 +59,6 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	void unload();
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
 
 	void setRemoteLocation(

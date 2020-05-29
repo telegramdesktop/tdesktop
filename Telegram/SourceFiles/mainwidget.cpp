@@ -1383,8 +1383,6 @@ float64 MainWidget::chatBackgroundProgress() const {
 			return 1.;
 		} else if (const auto document = _background->data.document()) {
 			return _background->dataMedia->progress();
-		} else if (const auto thumbnail = _background->data.localThumbnail()) {
-			return thumbnail->progress();
 		}
 	}
 	return 1.;

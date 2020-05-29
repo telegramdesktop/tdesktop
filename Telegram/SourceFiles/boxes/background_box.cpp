@@ -266,10 +266,8 @@ void BackgroundBox::Inner::resizeToContentAndPreload() {
 
 	const auto preload = kBackgroundsInRow * 3;
 	for (const auto &paper : _papers | ranges::view::take(preload)) {
-		if (paper.data.localThumbnail()) {
-			paper.data.loadLocalThumbnail();
-		} else if (const auto document = paper.data.document()) {
-			if (!paper.dataMedia) {
+		if (!paper.data.localThumbnail() && !paper.dataMedia) {
+			if (const auto document = paper.data.document()) {
 				paper.dataMedia = document->createMediaView();
 				paper.dataMedia->thumbnailWanted(paper.data.fileOrigin());
 			}
@@ -323,9 +321,6 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 		if (!paper.dataMedia || !paper.dataMedia->thumbnail()) {
 			return;
 		}
-	} else if (!localThumbnail->loaded()) {
-		localThumbnail->load(paper.data.fileOrigin());
-		return;
 	}
 	const auto thumbnail = localThumbnail
 		? localThumbnail

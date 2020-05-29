@@ -22,6 +22,7 @@ class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
 class History;
+class Image;
 
 namespace Api {
 struct SendAction;

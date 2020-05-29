@@ -213,9 +213,6 @@ QPixmap Sticker::paintedPixmap(bool selected) const {
 	const auto h = _size.height();
 	const auto &c = st::msgStickerOverlay;
 	const auto good = _dataMedia->goodThumbnail();
-	if (good && !good->loaded()) {
-		good->load({});
-	}
 	if (const auto image = _dataMedia->getStickerLarge()) {
 		return selected
 			? image->pixColored(o, c, w, h)
@@ -227,7 +224,7 @@ QPixmap Sticker::paintedPixmap(bool selected) const {
 	//	return selected
 	//		? blurred->pixBlurredColored(o, c, w, h)
 	//		: blurred->pixBlurred(o, w, h);
-	} else if (good && good->loaded()) {
+	} else if (good) {
 		return selected
 			? good->pixColored(o, c, w, h)
 			: good->pix(o, w, h);

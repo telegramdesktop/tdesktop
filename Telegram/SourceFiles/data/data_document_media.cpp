@@ -166,7 +166,7 @@ void DocumentMedia::setGoodThumbnail(QImage thumbnail) {
 		return;
 	}
 	_goodThumbnail = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(thumbnail), "PNG"));
+		std::make_unique<Images::ImageSource>(std::move(thumbnail)));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -175,9 +175,7 @@ Image *DocumentMedia::thumbnailInline() const {
 		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
 		if (!image.isNull()) {
 			_inlineThumbnail = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(
-					std::move(image),
-					"PNG"));
+				std::make_unique<Images::ImageSource>(std::move(image)));
 		}
 	}
 	return _inlineThumbnail.get();
@@ -203,7 +201,7 @@ QSize DocumentMedia::thumbnailSize() const {
 
 void DocumentMedia::setThumbnail(QImage thumbnail) {
 	_thumbnail = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(thumbnail), "PNG"));
+		std::make_unique<Images::ImageSource>(std::move(thumbnail)));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -243,18 +241,12 @@ void DocumentMedia::checkStickerLarge() {
 		const auto &loc = _owner->location(true);
 		if (loc.accessEnable()) {
 			_sticker = std::make_unique<Image>(
-				std::make_unique<Images::LocalFileSource>(loc.name()));
+				std::make_unique<Images::ImageSource>(loc.name()));
 			loc.accessDisable();
 		}
 	} else {
-		auto format = QByteArray();
-		auto image = App::readImage(_bytes, &format, false);
 		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::LocalFileSource>(
-				QString(),
-				_bytes,
-				format,
-				std::move(image)));
+			std::make_unique<Images::ImageSource>(_bytes));
 	}
 }
 
@@ -297,19 +289,19 @@ void DocumentMedia::automaticLoad(
 void DocumentMedia::collectLocalData(not_null<DocumentMedia*> local) {
 	if (const auto image = local->_goodThumbnail.get()) {
 		_goodThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+			std::make_unique<Images::ImageSource>(image->original()));
 	}
 	if (const auto image = local->_inlineThumbnail.get()) {
 		_inlineThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+			std::make_unique<Images::ImageSource>(image->original()));
 	}
 	if (const auto image = local->_thumbnail.get()) {
 		_thumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+			std::make_unique<Images::ImageSource>(image->original()));
 	}
 	if (const auto image = local->_sticker.get()) {
 		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+			std::make_unique<Images::ImageSource>(image->original()));
 	}
 	_bytes = local->_bytes;
 	_videoThumbnailBytes = local->_videoThumbnailBytes;
@@ -380,14 +372,9 @@ Image *DocumentMedia::getStickerSmall() {
 void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
 	if (_owner->sticker()
 		&& !_sticker
-		&& !loader->imageData().isNull()
-		&& !_bytes.isEmpty()) {
+		&& !loader->imageData().isNull()) {
 		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::LocalFileSource>(
-				QString(),
-				_bytes,
-				loader->imageFormat(),
-				loader->imageData()));
+			std::make_unique<Images::ImageSource>(loader->imageData()));
 	}
 }
 

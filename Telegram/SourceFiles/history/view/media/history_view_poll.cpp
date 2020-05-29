@@ -1523,6 +1523,10 @@ void Poll::toggleLinkRipple(bool pressed) {
 
 Poll::~Poll() {
 	history()->owner().unregisterPollView(_poll, _parent);
+	if (hasHeavyPart()) {
+		unloadHeavyPart();
+		_parent->checkHeavyPart();
+	}
 }
 
 } // namespace HistoryView

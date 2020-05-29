@@ -421,13 +421,9 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		}
 	} else {
 		ensureDataMediaCreated();
-		const auto good = _dataMedia->goodThumbnail();
-		if (good && good->loaded()) {
+		if (const auto good = _dataMedia->goodThumbnail()) {
 			p.drawPixmap(rthumb.topLeft(), good->pixSingle({}, _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 		} else {
-			if (good) {
-				good->load({});
-			}
 			const auto normal = _dataMedia->thumbnail();
 			if (normal) {
 				if (normal->width() >= kUseNonBlurredThreshold
@@ -657,8 +653,7 @@ void Gif::validateVideoThumbnail() const {
 		std::make_unique<Images::ImageSource>(
 			(info.thumbnail.isNull()
 				? Image::BlankMedia()->original()
-				: info.thumbnail),
-			"PNG"));
+				: info.thumbnail)));
 }
 
 void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
@@ -1179,23 +1174,18 @@ void Gif::validateGroupedCache(
 	ensureDataMediaCreated();
 
 	const auto good = _dataMedia->goodThumbnail();
-	const auto useGood = (good && good->loaded());
 	const auto thumb = _dataMedia->thumbnail();
-	const auto useThumb = (thumb != nullptr);
-	const auto image = useGood
+	const auto image = good
 		? good
-		: useThumb
+		: thumb
 		? thumb
 		: _dataMedia->thumbnailInline();
-	const auto blur = !useGood
-		&& (!useThumb
+	const auto blur = !good
+		&& (!thumb
 			|| (thumb->width() < kUseNonBlurredThreshold
 				&& thumb->height() < kUseNonBlurredThreshold));
-	if (good && !useGood) {
-		good->load({});
-	}
 
-	const auto loadLevel = useGood ? 3 : useThumb ? 2 : image ? 1 : 0;
+	const auto loadLevel = good ? 3 : thumb ? 2 : image ? 1 : 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
 	const auto options = Option::Smooth
@@ -1312,6 +1302,7 @@ bool Gif::hasHeavyPart() const {
 void Gif::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	_videoThumbnailFrame = nullptr;
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
@@ -1498,7 +1489,6 @@ void Gif::stopAnimation() {
 	if (_streamed) {
 		setStreamed(nullptr);
 		history()->owner().requestViewResize(_parent);
-		_data->unload();
 	}
 }
 

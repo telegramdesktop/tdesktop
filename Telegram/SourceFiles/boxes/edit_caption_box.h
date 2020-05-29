@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "mtproto/mtproto_rpc_sender.h"
 
+class Image;
+
 namespace ChatHelpers {
 class TabbedPanel;
 } // namespace ChatHelpers

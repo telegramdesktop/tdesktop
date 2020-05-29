@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "history/history.h"
@@ -217,6 +218,13 @@ Image *PeerData::currentUserpic(
 	const auto image = view ? view->image() : nullptr;
 	if (image) {
 		_userpicEmpty = nullptr;
+	} else if (isNotificationsUser()) {
+		static auto result = Image(
+			std::make_unique<Images::ImageSource>(
+				Core::App().logoNoMargin().scaledToWidth(
+					kUserpicSize,
+					Qt::SmoothTransformation)));
+		return &result;
 	}
 	return image;
 }
@@ -370,17 +378,6 @@ void PeerData::updateUserpic(
 }
 
 void PeerData::clearUserpic() {
-	//const auto photo = [&] { // #TODO optimize
-	//	if (isNotificationsUser()) {
-	//		auto image = Core::App().logoNoMargin().scaledToWidth(
-	//			kUserpicSize,
-	//			Qt::SmoothTransformation);
-	//		return _userpic
-	//			? _userpic
-	//			: Images::Create(std::move(image), "PNG");
-	//	}
-	//	return ImagePtr();
-	//}();
 	setUserpicChecked(PhotoId(), ImageLocation());
 }
 

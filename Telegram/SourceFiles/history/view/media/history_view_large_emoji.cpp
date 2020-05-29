@@ -72,7 +72,7 @@ void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
 	const auto o = Data::FileOrigin();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	for (const auto &image : images) {
-		image->load(Data::FileOrigin());
+		image->load();
 		const auto w = image->width() / cIntRetinaFactor();
 		if (image->loaded()) {
 			const auto h = image->height() / cIntRetinaFactor();

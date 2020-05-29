@@ -31,7 +31,7 @@ void SetThumbnailView::set(
 		_content = std::move(content);
 	} else {
 		_image = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(std::move(image), "PNG"));
+			std::make_unique<Images::ImageSource>(std::move(image)));
 	}
 	session->downloaderTaskFinished().notify();
 }

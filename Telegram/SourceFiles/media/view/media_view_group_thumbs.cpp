@@ -241,10 +241,6 @@ void GroupThumbs::Thumb::validateImage() {
 	if (!_full.isNull() || !_image) {
 		return;
 	}
-	_image->load(_origin);
-	if (!_image->loaded()) {
-		return;
-	}
 
 	const auto pixSize = wantedPixSize();
 	if (pixSize.width() > st::mediaviewGroupWidthMax) {

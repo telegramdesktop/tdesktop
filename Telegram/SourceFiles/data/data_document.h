@@ -125,7 +125,6 @@ public:
 
 	[[nodiscard]] bool saveToCache() const;
 
-	void unload();
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
 
 	[[nodiscard]] StickerData *sticker() const;

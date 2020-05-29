@@ -331,7 +331,6 @@ PRIVATE
     core/launcher.h
     core/local_url_handlers.cpp
     core/local_url_handlers.h
-    core/media_active_cache.h
     core/mime_type.cpp
     core/mime_type.h
     core/sandbox.cpp

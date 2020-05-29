@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_location.h"
 
+class Image;
 class HistoryItem;
 
 namespace base {

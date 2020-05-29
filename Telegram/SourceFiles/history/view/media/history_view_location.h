@@ -25,6 +25,7 @@ public:
 		Data::LocationPoint point,
 		const QString &title = QString(),
 		const QString &description = QString());
+	~Location();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;

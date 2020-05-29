@@ -22,7 +22,7 @@ void CloudImageView::set(
 		not_null<Main::Session*> session,
 		QImage image) {
 	_image = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(image), "PNG"));
+		std::make_unique<Images::ImageSource>(std::move(image)));
 	session->downloaderTaskFinished().notify();
 }
 

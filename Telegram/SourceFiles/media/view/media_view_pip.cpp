@@ -1379,16 +1379,14 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		? nullptr
 		: _data->createMediaView();
 	const auto good = use ? use->goodThumbnail() : nullptr;
-	const auto useGood = (good && good->loaded());
 	const auto thumb = use ? use->thumbnail() : nullptr;
-	const auto useThumb = (thumb && thumb->loaded());
 	const auto blurred = use ? use->thumbnailInline() : nullptr;
 
 	const auto state = !cover.isNull()
 		? ThumbState::Cover
-		: useGood
+		: good
 		? ThumbState::Good
-		: useThumb
+		: thumb
 		? ThumbState::Thumb
 		: blurred
 		? ThumbState::Inline
@@ -1406,14 +1404,9 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 				request,
 				std::move(_preparedCoverStorage));
 		} else if (!request.resize.isEmpty()) {
-			if (good && !useGood) {
-				good->load({});
-			} else if (thumb && !useThumb) {
-				thumb->load(_contextId);
-			}
 			using Option = Images::Option;
 			const auto options = Option::Smooth
-				| (useGood ? Option(0) : Option::Blurred)
+				| (good ? Option(0) : Option::Blurred)
 				| Option::RoundedLarge
 				| ((request.corners & RectPart::TopLeft)
 					? Option::RoundedTopLeft
@@ -1427,9 +1420,9 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 				| ((request.corners & RectPart::BottomLeft)
 					? Option::RoundedBottomLeft
 					: Option(0));
-			_preparedCoverStorage = (useGood
+			_preparedCoverStorage = (good
 				? good
-				: useThumb
+				: thumb
 				? thumb
 				: blurred
 				? blurred

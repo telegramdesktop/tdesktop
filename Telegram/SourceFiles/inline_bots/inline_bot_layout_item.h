@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "ui/text/text.h"
 
+class Image;
+
 namespace Data {
 class CloudImageView;
 } // namespace Data

@@ -434,7 +434,6 @@ void BackgroundPreviewBox::prepare() {
 	}
 	updateServiceBg(_paper.backgroundColor());
 
-	_paper.loadLocalThumbnail();
 	_paper.loadDocument();
 	const auto document = _paper.document();
 	if (document && document->loading()) {

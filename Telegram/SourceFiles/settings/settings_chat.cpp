@@ -630,9 +630,7 @@ void ChooseFromFile(
 		}
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
-			std::make_unique<Images::ImageSource>(
-				std::move(image),
-				"JPG")));
+			std::make_unique<Images::ImageSource>(std::move(image))));
 		Ui::show(Box<BackgroundPreviewBox>(session, local));
 	});
 	FileDialog::GetOpenPath(

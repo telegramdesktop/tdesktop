@@ -52,7 +52,6 @@ public:
 	// inline bot result. If it returns true you need to send this result.
 	bool onChoose(Layout::ItemBase *layout);
 
-	void unload();
 	void openFile();
 	void cancelFile();
 

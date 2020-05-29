@@ -34,7 +34,6 @@ public:
 	[[nodiscard]] QString shareUrl() const;
 
 	void loadDocument() const;
-	void loadLocalThumbnail() const;
 	void loadDocumentThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
 

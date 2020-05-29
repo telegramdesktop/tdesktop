@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 
 #include "ui/image/image_source.h"
-#include "core/media_active_cache.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
@@ -20,31 +19,6 @@ using namespace Images;
 
 namespace Images {
 namespace {
-
-// After 128 MB of unpacked images we try to clear some memory.
-constexpr auto kMemoryForCache = 128 * 1024 * 1024;
-
-std::unordered_map<InMemoryKey, std::unique_ptr<Image>> StorageImages;
-std::unordered_map<InMemoryKey, std::unique_ptr<Image>> GeoPointImages;
-
-int64 ComputeUsage(QSize size) {
-	return int64(size.width()) * size.height() * 4;
-}
-
-int64 ComputeUsage(const QPixmap &image) {
-	return ComputeUsage(image.size());
-}
-
-int64 ComputeUsage(const QImage &image) {
-	return ComputeUsage(image.size());
-}
-
-[[nodiscard]] Core::MediaActiveCache<const Image> &ActiveCache() {
-	static auto Instance = Core::MediaActiveCache<const Image>(
-		kMemoryForCache,
-		[](const Image *image) { image->unload(); });
-	return Instance;
-}
 
 uint64 PixKey(int width, int height, Options options) {
 	return static_cast<uint64>(width)
@@ -111,54 +85,6 @@ QImage FromInlineBytes(const QByteArray &bytes) {
 	return App::readImage(ExpandInlineBytes(bytes));
 }
 
-void ClearRemote() {
-	base::take(StorageImages);
-	base::take(GeoPointImages);
-}
-
-void ClearAll() {
-	ActiveCache().clear();
-	ClearRemote();
-}
-
-ImagePtr Create(QImage &&image, QByteArray format) {
-	return ImagePtr(new Image(std::make_unique<ImageSource>(
-		std::move(image),
-		format)));
-}
-
-template <typename SourceType>
-ImagePtr Create(
-		const StorageImageLocation &location,
-		int size,
-		const QByteArray &bytes) {
-	if (!location.valid()) {
-		return ImagePtr();
-	}
-	const auto key = inMemoryKey(location);
-	const auto i = StorageImages.find(key);
-	const auto found = (i != end(StorageImages));
-	const auto image = found
-		? i->second.get()
-		: StorageImages.emplace(
-			key,
-			std::make_unique<Image>(
-				std::make_unique<SourceType>(location, size))
-		).first->second.get();
-	if (found) {
-		image->refreshFileReference(location.fileReference());
-	}
-	if (!bytes.isEmpty()) {
-		image->setImageBytes(bytes);
-	}
-	return ImagePtr(image);
-
-}
-
-ImagePtr Create(const StorageImageLocation &location, int size) {
-	return Create<StorageSource>(location, size, QByteArray());
-}
-
 QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 	for (const auto &attribute : attributes) {
 		if (attribute.type() == mtpc_documentAttributeImageSize) {
@@ -169,33 +95,13 @@ QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 	return QSize();
 }
 
-ImagePtr Create(const GeoPointLocation &location) {
-	const auto key = inMemoryKey(location);
-	const auto i = GeoPointImages.find(key);
-	const auto image = (i != end(GeoPointImages))
-		? i->second.get()
-		: GeoPointImages.emplace(
-			key,
-			std::make_unique<Image>(
-				std::make_unique<GeoPointSource>(location))
-		).first->second.get();
-	return ImagePtr(image);
-}
-
 } // namespace Images
 
 Image::Image(std::unique_ptr<Source> &&source)
 : _source(std::move(source)) {
 }
 
-void Image::replaceSource(std::unique_ptr<Source> &&source) {
-	const auto width = _source->width();
-	const auto height = _source->height();
-	if (width > 0 && height > 0) {
-		source->setInformation(_source->bytesSize(), width, height);
-	}
-	_source = std::move(source);
-}
+Image::~Image() = default;
 
 not_null<Image*> Image::Empty() {
 	static auto result = [] {
@@ -206,7 +112,7 @@ not_null<Image*> Image::Empty() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::transparent);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Image(std::make_unique<ImageSource>(std::move(data), "GIF"));
+		return Image(std::make_unique<ImageSource>(std::move(data)));
 	}();
 	return &result;
 }
@@ -220,7 +126,7 @@ not_null<Image*> Image::BlankMedia() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::black);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Image(std::make_unique<ImageSource>(std::move(data), "GIF"));
+		return Image(std::make_unique<ImageSource>(std::move(data)));
 	}();
 	return &result;
 }
@@ -248,7 +154,6 @@ const QPixmap &Image::pix(
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -287,7 +192,6 @@ const QPixmap &Image::pixRounded(
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -311,7 +215,6 @@ const QPixmap &Image::pixCircled(
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -335,7 +238,6 @@ const QPixmap &Image::pixBlurredCircled(
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -359,7 +261,6 @@ const QPixmap &Image::pixBlurred(
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -384,7 +285,6 @@ const QPixmap &Image::pixColored(
 		auto p = pixColoredNoCache(origin, add, w, h, true);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -409,7 +309,6 @@ const QPixmap &Image::pixBlurredColored(
 		auto p = pixBlurredColoredNoCache(origin, add, w, h);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -453,13 +352,9 @@ const QPixmap &Image::pixSingle(
 	auto k = SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		if (i != _sizesCache.cend()) {
-			ActiveCache().decrement(ComputeUsage(*i));
-		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -499,13 +394,9 @@ const QPixmap &Image::pixBlurredSingle(
 	auto k = SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		if (i != _sizesCache.cend()) {
-			ActiveCache().decrement(ComputeUsage(*i));
-		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -518,9 +409,6 @@ QPixmap Image::pixNoCache(
 		int outerw,
 		int outerh,
 		const style::color *colored) const {
-	if (!loading()) {
-		const_cast<Image*>(this)->load(origin);
-	}
 	checkSource();
 
 	if (_data.isNull()) {
@@ -579,9 +467,6 @@ QPixmap Image::pixColoredNoCache(
 		int32 w,
 		int32 h,
 		bool smooth) const {
-	if (!loading()) {
-		const_cast<Image*>(this)->load(origin);
-	}
 	checkSource();
 
 	if (_data.isNull()) {
@@ -603,9 +488,6 @@ QPixmap Image::pixBlurredColoredNoCache(
 		style::color add,
 		int32 w,
 		int32 h) const {
-	if (!loading()) {
-		const_cast<Image*>(this)->load(origin);
-	}
 	checkSource();
 
 	if (_data.isNull()) {
@@ -627,20 +509,10 @@ QImage Image::original() const {
 	return _data;
 }
 
-void Image::load(Data::FileOrigin origin) {
+void Image::load() {
 	if (!loaded()) {
-		_source->load(origin);
+		_source->load();
 	}
-}
-
-void Image::loadEvenCancelled(Data::FileOrigin origin) {
-	if (!loaded()) {
-		_source->loadEvenCancelled(origin);
-	}
-}
-
-Storage::Cache::Key Image::cacheKey() const {
-	return _source->cacheKey();
 }
 
 bool Image::loaded() const {
@@ -653,46 +525,9 @@ void Image::checkSource() const {
 	if (_data.isNull() && !data.isNull()) {
 		invalidateSizeCache();
 		_data = std::move(data);
-		ActiveCache().increment(ComputeUsage(_data));
 	}
-
-	ActiveCache().up(this);
-}
-
-void Image::unload() const {
-	_source->unload();
-	invalidateSizeCache();
-	ActiveCache().decrement(ComputeUsage(_data));
-	_data = QImage();
-}
-
-void Image::setDelayedStorageLocation(
-		Data::FileOrigin origin,
-		const StorageImageLocation &location) {
-	_source->setDelayedStorageLocation(location);
-	if (!loaded()) {
-		_source->performDelayedLoad(origin);
-	}
-}
-
-void Image::setImageBytes(const QByteArray &bytes) {
-	_source->setImageBytes(bytes);
-	checkSource();
 }
 
 void Image::invalidateSizeCache() const {
-	auto &cache = ActiveCache();
-	for (const auto &image : std::as_const(_sizesCache)) {
-		cache.decrement(ComputeUsage(image));
-	}
 	_sizesCache.clear();
-}
-
-Image::~Image() {
-	if (this != Empty() && this != BlankMedia()) {
-		invalidateSizeCache();
-		ActiveCache().decrement(ComputeUsage(_data));
-		_data = QImage();
-		ActiveCache().remove(this);
-	}
 }

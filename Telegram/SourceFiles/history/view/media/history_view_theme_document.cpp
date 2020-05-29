@@ -207,14 +207,10 @@ void ThemeDocument::validateThumbnail() const {
 	}
 	ensureDataMediaCreated();
 	if (const auto good = _dataMedia->goodThumbnail()) {
-		if (good->loaded()) {
-			prepareThumbnailFrom(good, 1);
-			return;
-		} else {
-			good->load({});
-		}
+		prepareThumbnailFrom(good, 1);
+		return;
 	}
-	if (_thumbnailGood >= 0 || !_dataMedia->thumbnail()) {
+	if (_thumbnailGood >= 0) {
 		return;
 	}
 	if (const auto normal = _dataMedia->thumbnail()) {

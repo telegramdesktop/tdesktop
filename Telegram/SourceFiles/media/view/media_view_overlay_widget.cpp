@@ -2214,15 +2214,10 @@ void OverlayWidget::initStreamingThumbnail() {
 	Expects(_document != nullptr);
 
 	const auto good = _documentMedia->goodThumbnail();
-	const auto useGood = (good && good->loaded());
+	const auto useGood = (good != nullptr);
 	const auto thumbnail = _documentMedia->thumbnail();
 	const auto useThumb = (thumbnail != nullptr);
 	const auto blurred = _documentMedia->thumbnailInline();
-	if (good && !useGood) {
-		good->load({});
-	} else if (thumbnail) {
-		thumbnail->load(fileOrigin());
-	}
 	const auto size = useGood ? good->size() : _document->dimensions;
 	if (!useGood && !thumbnail && !blurred) {
 		return;

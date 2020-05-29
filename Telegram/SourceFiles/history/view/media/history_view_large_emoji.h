@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "ui/text/text_isolated_emoji.h"
 
+class Image;
+
 namespace Data {
 struct FileOrigin;
 } // namespace Data

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class Image;
 class DocumentData;
 class PhotoData;
 
@@ -20,6 +21,7 @@ class ReplyPreview {
 public:
 	explicit ReplyPreview(not_null<DocumentData*> document);
 	explicit ReplyPreview(not_null<PhotoData*> photo);
+	~ReplyPreview();
 
 	[[nodiscard]] Image *image(Data::FileOrigin origin);
 

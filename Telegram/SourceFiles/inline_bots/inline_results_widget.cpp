@@ -297,21 +297,9 @@ void Inner::hideFinished() {
 }
 
 void Inner::clearHeavyData() {
-	const auto unload = [](const auto &item) {
-		if (const auto document = item->getDocument()) {
-			document->unload();
-		}
-		if (const auto photo = item->getPhoto()) {
-			photo->unload();
-		}
-		if (const auto result = item->getResult()) {
-			result->unload();
-		}
-		item->unloadHeavyPart();
-	};
 	clearInlineRows(false);
 	for (const auto &[result, layout] : _inlineLayouts) {
-		unload(layout);
+		layout->unloadHeavyPart();
 	}
 }
 

@@ -616,22 +616,6 @@ struct ImageWithLocation {
 	QImage preloaded;
 };
 
-class Image;
-class ImagePtr {
-public:
-	ImagePtr();
-	explicit ImagePtr(not_null<Image*> data);
-
-	Image *operator->() const;
-	Image *get() const;
-
-	explicit operator bool() const;
-
-private:
-	not_null<Image*> _data;
-
-};
-
 InMemoryKey inMemoryKey(const StorageFileLocation &location);
 
 inline InMemoryKey inMemoryKey(const StorageImageLocation &location) {

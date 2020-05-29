@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location.h"
 
 class FileLoader;
+class Image;
 
 namespace Storage {
 namespace Cache {

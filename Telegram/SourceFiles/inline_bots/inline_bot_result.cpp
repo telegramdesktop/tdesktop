@@ -329,15 +329,6 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::unload() {
-	if (_document) {
-		_document->unload();
-	}
-	if (_photo) {
-		_photo->unload();
-	}
-}
-
 void Result::openFile() {
 	if (_document) {
 		DocumentOpenClickHandler(_document).onClick({});

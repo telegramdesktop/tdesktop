@@ -16,15 +16,8 @@ namespace Images {
 [[nodiscard]] QByteArray ExpandInlineBytes(const QByteArray &bytes);
 [[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
 
-void ClearRemote();
-void ClearAll();
-
 [[nodiscard]] QSize GetSizeForDocument(
 	const QVector<MTPDocumentAttribute> &attributes);
-
-ImagePtr Create(QImage &&data, QByteArray format);
-ImagePtr Create(const StorageImageLocation &location, int size = 0);
-ImagePtr Create(const GeoPointLocation &location);
 
 class Source {
 public:
@@ -35,31 +28,11 @@ public:
 	Source &operator=(Source &&other) = delete;
 	virtual ~Source() = default;
 
-	virtual void load(Data::FileOrigin origin) = 0;
-	virtual void loadEvenCancelled(Data::FileOrigin origin) = 0;
+	virtual void load() = 0;
 	virtual QImage takeLoaded() = 0;
-	virtual void unload() = 0;
-
-	virtual bool loading() = 0;
-	virtual bool displayLoading() = 0;
-	virtual void cancel() = 0;
-	virtual float64 progress() = 0;
-	virtual int loadOffset() = 0;
-
-	virtual const StorageImageLocation &location() = 0;
-	virtual void refreshFileReference(const QByteArray &data) = 0;
-	virtual Storage::Cache::Key cacheKey() = 0;
-	virtual void setDelayedStorageLocation(
-		const StorageImageLocation &location) = 0;
-	virtual void performDelayedLoad(Data::FileOrigin origin) = 0;
-	virtual void setImageBytes(const QByteArray &bytes) = 0;
 
 	virtual int width() = 0;
 	virtual int height() = 0;
-	virtual int bytesSize() = 0;
-	virtual void setInformation(int size, int width, int height) = 0;
-
-	virtual QByteArray bytesForCache() = 0;
 
 };
 
@@ -68,8 +41,6 @@ public:
 class Image final {
 public:
 	explicit Image(std::unique_ptr<Images::Source> &&source);
-
-	void replaceSource(std::unique_ptr<Images::Source> &&source);
 
 	static not_null<Image*> Empty(); // 1x1 transparent
 	static not_null<Image*> BlankMedia(); // 1x1 black
@@ -145,21 +116,6 @@ public:
 		int32 w,
 		int32 h = 0) const;
 
-	bool loading() const {
-		return _source->loading();
-	}
-	bool displayLoading() const {
-		return _source->displayLoading();
-	}
-	void cancel() {
-		_source->cancel();
-	}
-	float64 progress() const {
-		return loaded() ? 1. : _source->progress();
-	}
-	int loadOffset() const {
-		return _source->loadOffset();
-	}
 	int width() const {
 		return _source->width();
 	}
@@ -169,32 +125,10 @@ public:
 	QSize size() const {
 		return { width(), height() };
 	}
-	int bytesSize() const {
-		return _source->bytesSize();
-	}
-	void setInformation(int size, int width, int height) {
-		_source->setInformation(size, width, height);
-	}
-	void load(Data::FileOrigin origin);
-	void loadEvenCancelled(Data::FileOrigin origin);
-	const StorageImageLocation &location() const {
-		return _source->location();
-	}
-	void refreshFileReference(const QByteArray &data) {
-		_source->refreshFileReference(data);
-	}
-	Storage::Cache::Key cacheKey() const;
-	QByteArray bytesForCache() const {
-		return _source->bytesForCache();
-	}
+	void load();
 
 	bool loaded() const;
 	bool isNull() const;
-	void unload() const;
-	void setDelayedStorageLocation(
-		Data::FileOrigin origin,
-		const StorageImageLocation &location);
-	void setImageBytes(const QByteArray &bytes);
 
 	~Image();
 

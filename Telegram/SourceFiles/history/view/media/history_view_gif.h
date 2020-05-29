@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_file.h"
 #include "media/streaming/media_streaming_common.h"
 
+class Image;
 struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;

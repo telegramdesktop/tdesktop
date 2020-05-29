@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
-#include "core/media_active_cache.h"
 #include "core/mime_type.h"
 #include "chat_helpers/stickers.h"
 #include "chat_helpers/stickers_set.h"
@@ -457,7 +456,6 @@ DocumentData::~DocumentData() {
 	base::take(_thumbnail.loader).reset();
 	base::take(_videoThumbnail.loader).reset();
 	destroyLoader();
-	unload();
 }
 
 Data::Session &DocumentData::owner() const {
@@ -801,10 +799,6 @@ bool DocumentData::saveToCache() const {
 			|| isVoiceMessage()
 			|| (type == WallPaperDocument)
 			|| isTheme());
-}
-
-void DocumentData::unload() {
-	_replyPreview = nullptr;
 }
 
 void DocumentData::automaticLoadSettingsChanged() {

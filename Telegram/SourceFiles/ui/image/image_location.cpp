@@ -68,23 +68,6 @@ MTPInputPeer GenerateInputPeer(
 
 } // namespace
 
-ImagePtr::ImagePtr() : _data(Image::Empty()) {
-}
-
-ImagePtr::ImagePtr(not_null<Image*> data) : _data(data) {
-}
-
-Image *ImagePtr::operator->() const {
-	return _data;
-}
-Image *ImagePtr::get() const {
-	return _data;
-}
-
-ImagePtr::operator bool() const {
-	return !_data->isNull();
-}
-
 WebFileLocation WebFileLocation::Null;
 
 StorageFileLocation::StorageFileLocation(

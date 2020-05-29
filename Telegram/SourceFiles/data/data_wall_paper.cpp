@@ -183,12 +183,6 @@ QString WallPaper::shareUrl() const {
 		: base + '?' + params.join('&');
 }
 
-void WallPaper::loadLocalThumbnail() const {
-	if (_thumbnail) {
-		_thumbnail->load(fileOrigin());
-	}
-}
-
 void WallPaper::loadDocumentThumbnail() const {
 	if (_document) {
 		_document->loadThumbnail(fileOrigin());

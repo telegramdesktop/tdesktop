@@ -315,9 +315,6 @@ void Gif::validateThumbnail(
 		bool good) const {
 	if (!image || (_thumbGood && !good)) {
 		return;
-	} else if (!image->loaded()) {
-		image->load(fileOrigin());
-		return;
 	} else if ((_thumb.size() == size * cIntRetinaFactor())
 		&& (_thumbGood || !good)) {
 		return;
@@ -393,7 +390,6 @@ void Gif::radialAnimationCallback(crl::time now) const {
 
 void Gif::unloadHeavyPart() {
 	_gif.reset();
-	getShownDocument()->unload();
 	_dataMedia = nullptr;
 }
 
@@ -404,7 +400,6 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getShownDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				if (_gif->width() * _gif->height() > kMaxInlineArea) {
 					getShownDocument()->dimensions = QSize(
@@ -608,7 +603,6 @@ TextState Photo::getState(
 }
 
 void Photo::unloadHeavyPart() {
-	getShownPhoto()->unload();
 	_photoMedia = nullptr;
 }
 
@@ -652,9 +646,6 @@ void Photo::validateThumbnail(
 		QSize frame,
 		bool good) const {
 	if (!image || (_thumbGood && !good)) {
-		return;
-	} else if (!image->loaded()) {
-		image->load(fileOrigin());
 		return;
 	} else if ((_thumb.size() == size * cIntRetinaFactor())
 		&& (_thumbGood || !good)) {
@@ -802,28 +793,23 @@ void Video::prepareThumbnail(QSize size) const {
 	if (!thumb) {
 		return;
 	}
-	const auto origin = fileOrigin();
-	if (thumb->loaded()) {
-		if (_thumb.size() != size * cIntRetinaFactor()) {
-			const auto width = size.width();
-			const auto height = size.height();
-			auto w = qMax(style::ConvertScale(thumb->width()), 1);
-			auto h = qMax(style::ConvertScale(thumb->height()), 1);
-			if (w * height > h * width) {
-				if (height < h) {
-					w = w * height / h;
-					h = height;
-				}
-			} else {
-				if (width < w) {
-					h = h * width / w;
-					w = width;
-				}
+	if (_thumb.size() != size * cIntRetinaFactor()) {
+		const auto width = size.width();
+		const auto height = size.height();
+		auto w = qMax(style::ConvertScale(thumb->width()), 1);
+		auto h = qMax(style::ConvertScale(thumb->height()), 1);
+		if (w * height > h * width) {
+			if (height < h) {
+				w = w * height / h;
+				h = height;
 			}
-			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+		} else {
+			if (width < w) {
+				h = h * width / w;
+				w = width;
+			}
 		}
-	} else {
-		thumb->load(origin);
+		_thumb = thumb->pixNoCache({}, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 	}
 }
 
@@ -1497,9 +1483,6 @@ void Game::ensureDataMediaCreated(not_null<PhotoData*> photo) const {
 void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 	if (!image || (_thumbGood && !good)) {
 		return;
-	} else if (!image->loaded()) {
-		image->load(fileOrigin());
-		return;
 	} else if ((_thumb.size() == size * cIntRetinaFactor())
 		&& (_thumbGood || !good)) {
 		return;
@@ -1565,14 +1548,8 @@ void Game::radialAnimationCallback(crl::time now) const {
 
 void Game::unloadHeavyPart() {
 	_gif.reset();
-	if (const auto document = getResultDocument()) {
-		document->unload();
-		_documentMedia = nullptr;
-	}
-	if (const auto photo = getResultPhoto()) {
-		photo->unload();
-		_photoMedia = nullptr;
-	}
+	_documentMedia = nullptr;
+	_photoMedia = nullptr;
 }
 
 void Game::clipCallback(Media::Clip::Notification notification) {
@@ -1582,7 +1559,6 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getResultDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				if (_gif->width() * _gif->height() > kMaxInlineArea) {
 					getResultDocument()->dimensions = QSize(

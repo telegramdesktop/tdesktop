@@ -25,6 +25,8 @@ ReplyPreview::ReplyPreview(not_null<PhotoData*> photo)
 : _photo(photo) {
 }
 
+ReplyPreview::~ReplyPreview() = default;
+
 void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 	if (image->isNull() || !image->loaded()) {
 		return;
@@ -53,8 +55,7 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 		outerSize);
 	_image = std::make_unique<Image>(
 		std::make_unique<Images::ImageSource>(
-			bitmap.toImage(),
-			"PNG"));
+			bitmap.toImage()));
 	_good = ((options & Images::Option::Blurred) == 0);
 }
 

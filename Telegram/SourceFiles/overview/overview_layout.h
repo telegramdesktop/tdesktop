@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
+class Image;
+
 namespace style {
 struct RoundCheckbox;
 } // namespace style

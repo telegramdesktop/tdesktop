@@ -51,6 +51,13 @@ Location::Location(
 	}
 }
 
+Location::~Location() {
+	if (_media) {
+		_media = nullptr;
+		_parent->checkHeavyPart();
+	}
+}
+
 void Location::ensureMediaCreated() const {
 	if (_media) {
 		return;

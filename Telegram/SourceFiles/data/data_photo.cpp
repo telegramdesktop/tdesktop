@@ -169,10 +169,6 @@ bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-void PhotoData::unload() {
-	_replyPreview = nullptr;
-}
-
 Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
 	if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);

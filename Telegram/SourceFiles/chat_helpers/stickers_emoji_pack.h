@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl_object_on_queue.h>
 
+class Image;
 class HistoryItem;
 class DocumentData;
 

@@ -358,8 +358,6 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Photo::setPixFrom(not_null<Image*> image) {
-	Expects(image->loaded());
-
 	const auto size = _width * cIntRetinaFactor();
 	auto img = image->original();
 	if (!_goodLoaded) {

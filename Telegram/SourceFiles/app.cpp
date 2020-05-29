@@ -227,8 +227,6 @@ namespace App {
 		clearCorners();
 
 		Data::clearGlobalStructures();
-
-		Images::ClearAll();
 	}
 
 	void hoveredItem(HistoryView::Element *item) {

@@ -6921,7 +6921,6 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 
 	auto top = _topBar->bottomNoMargins();
 	bool serviceColor = false, hasForward = readyToForward();
-	ImagePtr preview;
 	p.fillRect(myrtlrect(0, top, width(), st::historyReplyHeight), st::historyPinnedBg);
 
 	top += st::msgReplyPadding.top();

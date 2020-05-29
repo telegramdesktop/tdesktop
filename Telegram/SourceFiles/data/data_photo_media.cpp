@@ -38,8 +38,7 @@ Image *PhotoMedia::thumbnailInline() const {
 		if (!image.isNull()) {
 			_inlineThumbnail = std::make_unique<Image>(
 				std::make_unique<Images::ImageSource>(
-					std::move(image),
-					"PNG"));
+					std::move(image)));
 		}
 	}
 	return _inlineThumbnail.get();
@@ -79,7 +78,7 @@ void PhotoMedia::set(PhotoSize size, QImage image) {
 			Qt::SmoothTransformation);
 	}
 	_images[index] = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(image), "PNG"));
+		std::make_unique<Images::ImageSource>(std::move(image)));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -114,14 +113,12 @@ void PhotoMedia::automaticLoad(
 void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 	if (const auto image = local->_inlineThumbnail.get()) {
 		_inlineThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original(), "PNG"));
+			std::make_unique<Images::ImageSource>(image->original()));
 	}
 	for (auto i = 0; i != kPhotoSizeCount; ++i) {
 		if (const auto image = local->_images[i].get()) {
 			_images[i] = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(
-					image->original(),
-					"PNG"));
+				std::make_unique<Images::ImageSource>(image->original()));
 		}
 	}
 }

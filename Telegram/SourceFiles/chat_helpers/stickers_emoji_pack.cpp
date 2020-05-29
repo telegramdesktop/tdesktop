@@ -123,31 +123,11 @@ public:
 		EmojiPtr emoji,
 		not_null<crl::object_on_queue<EmojiImageLoader>*> loader);
 
-	void load(Data::FileOrigin origin) override;
-	void loadEvenCancelled(Data::FileOrigin origin) override;
+	void load() override;
 	QImage takeLoaded() override;
-	void unload() override;
-
-	bool loading() override;
-	bool displayLoading() override;
-	void cancel() override;
-	float64 progress() override;
-	int loadOffset() override;
-
-	const StorageImageLocation &location() override;
-	void refreshFileReference(const QByteArray &data) override;
-	Storage::Cache::Key cacheKey() override;
-	void setDelayedStorageLocation(
-		const StorageImageLocation &location) override;
-	void performDelayedLoad(Data::FileOrigin origin) override;
-	void setImageBytes(const QByteArray &bytes) override;
 
 	int width() override;
 	int height() override;
-	int bytesSize() override;
-	void setInformation(int size, int width, int height) override;
-
-	QByteArray bytesForCache() override;
 
 private:
 	// While HistoryView::Element-s are almost never destroyed
@@ -155,8 +135,6 @@ private:
 	not_null<crl::object_on_queue<EmojiImageLoader>*> _loader;
 	EmojiPtr _emoji = nullptr;
 	QImage _data;
-	QByteArray _format;
-	QByteArray _bytes;
 	QSize _size;
 	base::binary_guard _loading;
 
@@ -170,90 +148,27 @@ ImageSource::ImageSource(
 , _size(SingleSize()) {
 }
 
-void ImageSource::load(Data::FileOrigin origin) {
-	if (!_data.isNull()) {
+void ImageSource::load() {
+	if (!_data.isNull() || _loading) {
 		return;
 	}
-	if (_bytes.isEmpty()) {
-		_loader->with([
-			this,
-			emoji = _emoji,
-			guard = _loading.make_guard()
-		](EmojiImageLoader &loader) mutable {
-			if (!guard) {
-				return;
-			}
-			crl::on_main(std::move(guard), [this, image = loader.prepare(emoji)]{
-				_data = image;
-				Auth().downloaderTaskFinished().notify();
-			});
+	_loader->with([
+		this,
+		emoji = _emoji,
+		guard = _loading.make_guard()
+	](EmojiImageLoader &loader) mutable {
+		if (!guard) {
+			return;
+		}
+		crl::on_main(std::move(guard), [this, image = loader.prepare(emoji)]{
+			_data = image;
+			Auth().downloaderTaskFinished().notify();
 		});
-	} else {
-		_data = App::readImage(_bytes, &_format, false);
-	}
-}
-
-void ImageSource::loadEvenCancelled(Data::FileOrigin origin) {
-	load(origin);
+	});
 }
 
 QImage ImageSource::takeLoaded() {
-	load({});
 	return _data;
-}
-
-void ImageSource::unload() {
-	if (_bytes.isEmpty() && !_data.isNull()) {
-		if (_format != "JPG") {
-			_format = "PNG";
-		}
-		{
-			QBuffer buffer(&_bytes);
-			_data.save(&buffer, _format);
-		}
-		Assert(!_bytes.isEmpty());
-	}
-	_data = QImage();
-}
-
-bool ImageSource::loading() {
-	return _data.isNull() && _bytes.isEmpty();
-}
-
-bool ImageSource::displayLoading() {
-	return false;
-}
-
-void ImageSource::cancel() {
-}
-
-float64 ImageSource::progress() {
-	return 1.;
-}
-
-int ImageSource::loadOffset() {
-	return 0;
-}
-
-const StorageImageLocation &ImageSource::location() {
-	return StorageImageLocation::Invalid();
-}
-
-void ImageSource::refreshFileReference(const QByteArray &data) {
-}
-
-Storage::Cache::Key ImageSource::cacheKey() {
-	return {};
-}
-
-void ImageSource::setDelayedStorageLocation(
-	const StorageImageLocation &location) {
-}
-
-void ImageSource::performDelayedLoad(Data::FileOrigin origin) {
-}
-
-void ImageSource::setImageBytes(const QByteArray &bytes) {
 }
 
 int ImageSource::width() {
@@ -262,29 +177,6 @@ int ImageSource::width() {
 
 int ImageSource::height() {
 	return _size.height();
-}
-
-int ImageSource::bytesSize() {
-	return _bytes.size();
-}
-
-void ImageSource::setInformation(int size, int width, int height) {
-	if (width && height) {
-		_size = QSize(width, height);
-	}
-}
-
-QByteArray ImageSource::bytesForCache() {
-	auto result = QByteArray();
-	{
-		QBuffer buffer(&result);
-		if (!_data.save(&buffer, _format)) {
-			if (_data.save(&buffer, "PNG")) {
-				_format = "PNG";
-			}
-		}
-	}
-	return result;
 }
 
 } // namespace

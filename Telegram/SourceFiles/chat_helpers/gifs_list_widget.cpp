@@ -452,25 +452,13 @@ void GifsListWidget::processPanelHideFinished() {
 }
 
 void GifsListWidget::clearHeavyData() {
-	const auto itemForget = [](const auto &item) {
-		if (const auto document = item->getDocument()) {
-			document->unload();
-		}
-		if (const auto photo = item->getPhoto()) {
-			photo->unload();
-		}
-		if (const auto result = item->getResult()) {
-			result->unload();
-		}
-		item->unloadHeavyPart();
-	};
 	// Preserve panel state through visibility toggles.
 	//clearInlineRows(false);
 	for (const auto &[document, layout] : _gifLayouts) {
-		itemForget(layout);
+		layout->unloadHeavyPart();
 	}
 	for (const auto &[document, layout] : _inlineLayouts) {
-		itemForget(layout);
+		layout->unloadHeavyPart();
 	}
 }
 
