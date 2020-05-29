@@ -709,7 +709,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
 			_image->pixSingle(
-				fileOrigin,
 				size.width(),
 				size.height(),
 				kCircleDiameter,

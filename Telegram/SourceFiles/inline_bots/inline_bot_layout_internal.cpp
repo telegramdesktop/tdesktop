@@ -321,7 +321,6 @@ void Gif::validateThumbnail(
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		fileOrigin(),
 		frame.width() * cIntRetinaFactor(),
 		frame.height() * cIntRetinaFactor(),
 		(Images::Option::Smooth
@@ -554,7 +553,6 @@ void Sticker::prepareThumbnail() const {
 		if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
 			const auto thumbSize = getThumbSize();
 			_thumb = sticker->pix(
-				document->stickerSetOrigin(),
 				thumbSize.width(),
 				thumbSize.height());
 			_thumbLoaded = true;
@@ -653,7 +651,6 @@ void Photo::validateThumbnail(
 	}
 	const auto origin = fileOrigin();
 	_thumb = image->pixNoCache(
-		origin,
 		frame.width() * cIntRetinaFactor(),
 		frame.height() * cIntRetinaFactor(),
 		Images::Option::Smooth | (good ? Images::Option(0) : Images::Option::Blurred),
@@ -809,7 +806,7 @@ void Video::prepareThumbnail(QSize size) const {
 				w = width;
 			}
 		}
-		_thumb = thumb->pixNoCache({}, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+		_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 	}
 }
 
@@ -1139,7 +1136,7 @@ void Contact::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 }
 
 Article::Article(
@@ -1291,7 +1288,7 @@ void Article::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+	_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 }
 
 Game::Game(not_null<Context*> context, not_null<Result*> result)
@@ -1506,7 +1503,6 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 	}
 	_thumbGood = good;
 	_thumb = image->pixNoCache(
-		fileOrigin(),
 		w * cIntRetinaFactor(),
 		h * cIntRetinaFactor(),
 		(Images::Option::Smooth

@@ -211,15 +211,15 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 	if (_serviceWidth > 0) {
 		const auto pix = [&] {
 			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixCircled(_realParent->fullId(), _pixw, _pixh);
+				return large->pixCircled(_pixw, _pixh);
 			} else if (const auto thumbnail = _dataMedia->image(
 					PhotoSize::Thumbnail)) {
-				return thumbnail->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+				return thumbnail->pixBlurredCircled(_pixw, _pixh);
 			} else if (const auto small = _dataMedia->image(
 					PhotoSize::Small)) {
-				return small->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+				return small->pixBlurredCircled(_pixw, _pixh);
 			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+				return blurred->pixBlurredCircled(_pixw, _pixh);
 			} else {
 				return QPixmap();
 			}
@@ -243,15 +243,15 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = [&] {
 			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return large->pixSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
 			} else if (const auto thumbnail = _dataMedia->image(
 					PhotoSize::Thumbnail)) {
-				return thumbnail->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return thumbnail->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
 			} else if (const auto small = _dataMedia->image(
 					PhotoSize::Small)) {
-				return small->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return small->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
 			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+				return blurred->pixBlurredSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
 			} else {
 				return QPixmap();
 			}
@@ -577,7 +577,7 @@ void Photo::validateGroupedCache(
 		: Image::BlankMedia().get();
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
+	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
 }
 
 TextForMimeData Photo::selectedText(TextSelection selection) const {

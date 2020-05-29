@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h" // Core::IsMimeSticker
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
-#include "ui/image/image_source.h" // Images::ImageSource
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
@@ -3822,8 +3821,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 
 	_wallpapers.push_back(Data::Legacy1DefaultWallPaper());
 	_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
-		std::make_unique<Images::ImageSource>(
-			u":/gui/art/bg_initial.jpg"_q)));
+		u":/gui/art/bg_initial.jpg"_q));
 	for (const auto &paper : data) {
 		if (const auto parsed = Data::WallPaper::Create(paper)) {
 			_wallpapers.push_back(*parsed);
@@ -3835,8 +3833,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	if (defaultFound == end(_wallpapers)) {
 		_wallpapers.push_back(Data::DefaultWallPaper());
 		_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
-			std::make_unique<Images::ImageSource>(
-				u":/gui/arg/bg.jpg"_q)));
+			u":/gui/arg/bg.jpg"_q));
 	}
 }
 

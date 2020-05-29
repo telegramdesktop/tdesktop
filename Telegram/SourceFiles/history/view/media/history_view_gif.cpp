@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
@@ -422,23 +422,23 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	} else {
 		ensureDataMediaCreated();
 		if (const auto good = _dataMedia->goodThumbnail()) {
-			p.drawPixmap(rthumb.topLeft(), good->pixSingle({}, _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+			p.drawPixmap(rthumb.topLeft(), good->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 		} else {
 			const auto normal = _dataMedia->thumbnail();
 			if (normal) {
 				if (normal->width() >= kUseNonBlurredThreshold
 					|| normal->height() >= kUseNonBlurredThreshold) {
-					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else {
-					p.drawPixmap(rthumb.topLeft(), normal->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), normal->pixBlurredSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				}
 			} else {
 				_data->loadThumbnail(_realParent->fullId());
 				validateVideoThumbnail();
 				if (_videoThumbnailFrame) {
-					p.drawPixmap(rthumb.topLeft(), _videoThumbnailFrame->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), _videoThumbnailFrame->pixSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else if (!isRound) {
 					const auto roundTop = (roundCorners & RectPart::TopLeft);
 					const auto roundBottom = (roundCorners & RectPart::BottomLeft);
@@ -649,11 +649,9 @@ void Gif::validateVideoThumbnail() const {
 		return;
 	}
 	auto info = ::Media::Clip::PrepareForSending(QString(), content);
-	_videoThumbnailFrame = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(
-			(info.thumbnail.isNull()
-				? Image::BlankMedia()->original()
-				: info.thumbnail)));
+	_videoThumbnailFrame = std::make_unique<Image>(info.thumbnail.isNull()
+		? Image::BlankMedia()->original()
+		: info.thumbnail);
 }
 
 void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
@@ -1214,7 +1212,6 @@ void Gif::validateGroupedCache(
 
 	*cacheKey = key;
 	*cache = (image ? image : Image::BlankMedia().get())->pixNoCache(
-		_realParent->fullId(),
 		pixWidth,
 		pixHeight,
 		options,

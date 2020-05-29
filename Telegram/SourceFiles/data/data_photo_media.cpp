@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "storage/file_download.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 
 namespace Data {
 
@@ -36,9 +36,7 @@ Image *PhotoMedia::thumbnailInline() const {
 	if (!_inlineThumbnail) {
 		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
 		if (!image.isNull()) {
-			_inlineThumbnail = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(
-					std::move(image)));
+			_inlineThumbnail = std::make_unique<Image>(std::move(image));
 		}
 	}
 	return _inlineThumbnail.get();
@@ -77,8 +75,7 @@ void PhotoMedia::set(PhotoSize size, QImage image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	_images[index] = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(image)));
+	_images[index] = std::make_unique<Image>(std::move(image));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -112,13 +109,11 @@ void PhotoMedia::automaticLoad(
 
 void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 	if (const auto image = local->_inlineThumbnail.get()) {
-		_inlineThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original()));
+		_inlineThumbnail = std::make_unique<Image>(image->original());
 	}
 	for (auto i = 0; i != kPhotoSizeCount; ++i) {
 		if (const auto image = local->_images[i].get()) {
-			_images[i] = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(image->original()));
+			_images[i] = std::make_unique<Image>(image->original());
 		}
 	}
 }

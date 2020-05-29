@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/text/text_entity.h"
 
 namespace {

@@ -838,8 +838,7 @@ void Pip::setupPanel() {
 		}
 		const auto media = _data->activeMediaView();
 		const auto good = media ? media->goodThumbnail() : nullptr;
-		const auto useGood = (good && good->loaded());
-		const auto original = useGood ? good->size() : _data->dimensions;
+		const auto original = good ? good->size() : _data->dimensions;
 		return original.isEmpty() ? QSize(1, 1) : original;
 	}();
 	_panel.setAspectRatio(FlipSizeByRotation(size, _rotation));
@@ -1427,7 +1426,6 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 				: blurred
 				? blurred
 				: Image::BlankMedia().get())->pixNoCache(
-					_contextId,
 					request.resize.width(),
 					request.resize.height(),
 					options,

@@ -248,7 +248,7 @@ void GroupThumbs::Thumb::validateImage() {
 		const auto originalHeight = _image->height();
 		const auto takeWidth = originalWidth * st::mediaviewGroupWidthMax
 			/ pixSize.width();
-		const auto original = _image->pixNoCache(_origin).toImage();
+		const auto original = _image->original();
 		_full = App::pixmapFromImageInPlace(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
@@ -261,7 +261,6 @@ void GroupThumbs::Thumb::validateImage() {
 			Qt::SmoothTransformation));
 	} else {
 		_full = _image->pixNoCache(
-			_origin,
 			pixSize.width() * cIntRetinaFactor(),
 			pixSize.height() * cIntRetinaFactor(),
 			Images::Option::Smooth);

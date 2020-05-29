@@ -665,7 +665,7 @@ void StickerSetBox::Inner::paintSticker(
 		p.drawPixmapLeft(
 			ppos,
 			width(),
-			image->pix(document->stickerSetOrigin(), w, h));
+			image->pix(w, h));
 	}
 }
 

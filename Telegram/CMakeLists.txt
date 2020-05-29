@@ -935,8 +935,6 @@ PRIVATE
     ui/image/image_location.h
     ui/image/image_location_factory.cpp
     ui/image/image_location_factory.h
-    ui/image/image_source.cpp
-    ui/image/image_source.h
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp

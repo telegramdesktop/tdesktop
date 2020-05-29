@@ -685,7 +685,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				} else if (const auto image = media->getStickerSmall()) {
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
-					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));
+					p.drawPixmapLeft(ppos, width(), image->pix(w, h));
 				}
 			}
 		}

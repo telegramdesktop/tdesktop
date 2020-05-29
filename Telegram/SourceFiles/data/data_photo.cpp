@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_reply_preview.h"
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "storage/file_download.h"

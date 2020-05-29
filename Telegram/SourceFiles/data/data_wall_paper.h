@@ -22,7 +22,7 @@ public:
 	[[nodiscard]] WallPaperId id() const;
 	[[nodiscard]] std::optional<QColor> backgroundColor() const;
 	[[nodiscard]] DocumentData *document() const;
-	[[nodiscard]] Image *localThumbnail() const; // #TODO optimize QImage-wrap
+	[[nodiscard]] Image *localThumbnail() const;
 	[[nodiscard]] bool isPattern() const;
 	[[nodiscard]] bool isDefault() const;
 	[[nodiscard]] bool isCreator() const;

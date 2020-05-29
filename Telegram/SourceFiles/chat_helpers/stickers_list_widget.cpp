@@ -788,8 +788,8 @@ void StickersListWidget::Footer::paintSetIcon(
 			|| (!icon.lottie->ready() && !icon.savedFrame.isNull())) {
 			const auto pixmap = !icon.savedFrame.isNull()
 				? icon.savedFrame
-				: (!icon.lottie && thumb && thumb->loaded())
-				? thumb->pix(origin, icon.pixw, icon.pixh)
+				: (!icon.lottie && thumb)
+				? thumb->pix(icon.pixw, icon.pixh)
 				: QPixmap();
 			if (pixmap.isNull()) {
 				return;
@@ -1866,9 +1866,8 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		const auto image = media->getStickerSmall();
 		const auto pixmap = !sticker.savedFrame.isNull()
 			? sticker.savedFrame
-			: (image && image->loaded())
+			: image
 			? image->pixSingle(
-				document->stickerSetOrigin(),
 				w,
 				h,
 				w,

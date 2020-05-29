@@ -483,12 +483,12 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		}
 		if (const auto thumbnail = _photoMedia->image(
 				Data::PhotoSize::Thumbnail)) {
-			pix = thumbnail->pixSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = thumbnail->pixSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		} else if (const auto small = _photoMedia->image(
 				Data::PhotoSize::Small)) {
-			pix = small->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = small->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-			pix = blurred->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = blurred->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {

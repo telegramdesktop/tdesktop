@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/file_download.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "main/main_session.h"
 
 #include <compare>
@@ -21,8 +21,7 @@ namespace Data {
 void CloudImageView::set(
 		not_null<Main::Session*> session,
 		QImage image) {
-	_image = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(image)));
+	_image.emplace(std::move(image));
 	session->downloaderTaskFinished().notify();
 }
 
@@ -34,8 +33,8 @@ CloudImage::CloudImage(
 	update(session, data);
 }
 
-Image *CloudImageView::image() const {
-	return _image.get();
+Image *CloudImageView::image() {
+	return _image ? &*_image : nullptr;
 }
 
 void CloudImage::set(

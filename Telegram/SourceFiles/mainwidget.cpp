@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "ui/text_options.h"
@@ -1354,8 +1353,7 @@ void MainWidget::setReadyChatBackground(
 
 	if (image.isNull()
 		&& !background.document()
-		&& background.localThumbnail()
-		&& background.localThumbnail()->loaded()) {
+		&& background.localThumbnail()) {
 		image = background.localThumbnail()->original();
 	}
 

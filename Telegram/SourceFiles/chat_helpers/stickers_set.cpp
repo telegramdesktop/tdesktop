@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "storage/file_download.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "app.h"
 
 namespace Stickers {
@@ -30,8 +30,7 @@ void SetThumbnailView::set(
 	if (image.isNull()) {
 		_content = std::move(content);
 	} else {
-		_image = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(std::move(image)));
+		_image = std::make_unique<Image>(std::move(image));
 	}
 	session->downloaderTaskFinished().notify();
 }

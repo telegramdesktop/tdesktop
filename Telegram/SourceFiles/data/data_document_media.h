@@ -48,7 +48,7 @@ public:
 	[[nodiscard]] not_null<DocumentData*> owner() const;
 
 	void goodThumbnailWanted();
-	[[nodiscard]] Image *goodThumbnail() const; // #TODO optimize QImage-wrap
+	[[nodiscard]] Image *goodThumbnail() const;
 	void setGoodThumbnail(QImage thumbnail);
 
 	[[nodiscard]] Image *thumbnailInline() const;

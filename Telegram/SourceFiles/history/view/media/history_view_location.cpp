@@ -180,7 +180,7 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 	auto rthumb = QRect(paintx, painty, paintw, painth);
 	ensureMediaCreated();
 	if (const auto thumbnail = _media->image()) {
-		const auto &pix = thumbnail->pixSingle({}, paintw, painth, paintw, painth, roundRadius, roundCorners);
+		const auto &pix = thumbnail->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
 		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);

@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 
 namespace Data {
 
@@ -28,7 +27,7 @@ ReplyPreview::ReplyPreview(not_null<PhotoData*> photo)
 ReplyPreview::~ReplyPreview() = default;
 
 void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
-	if (image->isNull() || !image->loaded()) {
+	if (image->isNull()) {
 		return;
 	}
 	int w = image->width(), h = image->height();
@@ -47,15 +46,12 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 		| options;
 	auto outerSize = st::msgReplyBarSize.height();
 	auto bitmap = image->pixNoCache(
-		FileOrigin(),
 		thumbSize.width(),
 		thumbSize.height(),
 		prepareOptions,
 		outerSize,
 		outerSize);
-	_image = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(
-			bitmap.toImage()));
+	_image = std::make_unique<Image>(bitmap.toImage());
 	_good = ((options & Images::Option::Blurred) == 0);
 }
 

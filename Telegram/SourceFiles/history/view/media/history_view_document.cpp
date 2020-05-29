@@ -285,9 +285,9 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		QRect rthumb(style::rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, width()));
 		QPixmap thumb;
 		if (const auto normal = _dataMedia->thumbnail()) {
-			thumb = normal->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+			thumb = normal->pixSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-			thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+			thumb = blurred->pixBlurredSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {

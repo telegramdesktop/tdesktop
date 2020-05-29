@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "history/history.h"
@@ -220,10 +219,9 @@ Image *PeerData::currentUserpic(
 		_userpicEmpty = nullptr;
 	} else if (isNotificationsUser()) {
 		static auto result = Image(
-			std::make_unique<Images::ImageSource>(
-				Core::App().logoNoMargin().scaledToWidth(
-					kUserpicSize,
-					Qt::SmoothTransformation)));
+			Core::App().logoNoMargin().scaledToWidth(
+				kUserpicSize,
+				Qt::SmoothTransformation));
 		return &result;
 	}
 	return image;
@@ -236,7 +234,7 @@ void PeerData::paintUserpic(
 		int y,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		p.drawPixmap(x, y, userpic->pixCircled(userpicOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pixCircled(size, size));
 	} else {
 		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
 	}
@@ -249,7 +247,7 @@ void PeerData::paintUserpicRounded(
 		int y,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		p.drawPixmap(x, y, userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small));
+		p.drawPixmap(x, y, userpic->pixRounded(size, size, ImageRoundRadius::Small));
 	} else {
 		ensureEmptyUserpic()->paintRounded(p, x, y, x + size + x, size);
 	}
@@ -262,7 +260,7 @@ void PeerData::paintUserpicSquare(
 		int y,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		p.drawPixmap(x, y, userpic->pix(userpicOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pix(size, size));
 	} else {
 		ensureEmptyUserpic()->paintSquare(p, x, y, x + size + x, size);
 	}
@@ -319,7 +317,7 @@ QPixmap PeerData::genUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		return userpic->pixCircled(userpicOrigin(), size, size);
+		return userpic->pixCircled(size, size);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
@@ -334,8 +332,8 @@ QPixmap PeerData::genUserpic(
 QPixmap PeerData::genUserpicRounded(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
-	if (auto userpic = currentUserpic(view)) {
-		return userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small);
+	if (const auto userpic = currentUserpic(view)) {
+		return userpic->pixRounded(size, size, ImageRoundRadius::Small);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());

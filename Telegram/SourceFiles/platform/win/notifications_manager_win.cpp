@@ -482,7 +482,7 @@ bool Manager::Private::showNotification(
 	const auto key = hideNameAndPhoto
 		? InMemoryKey()
 		: peer->userpicUniqueKey(view);
-	const auto userpicPath = _cachedUserpics.get(key, peer);
+	const auto userpicPath = _cachedUserpics.get(key, peer, view);
 	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
 	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());

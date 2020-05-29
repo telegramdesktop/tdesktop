@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "window/themes/window_theme_preview.h"
 #include "storage/file_download.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "facades.h"
 #include "app.h"
 
@@ -165,8 +165,7 @@ void DocumentMedia::setGoodThumbnail(QImage thumbnail) {
 	if (!(_flags & Flag::GoodThumbnailWanted)) {
 		return;
 	}
-	_goodThumbnail = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(thumbnail)));
+	_goodThumbnail = std::make_unique<Image>(std::move(thumbnail));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -174,8 +173,7 @@ Image *DocumentMedia::thumbnailInline() const {
 	if (!_inlineThumbnail) {
 		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
 		if (!image.isNull()) {
-			_inlineThumbnail = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(std::move(image)));
+			_inlineThumbnail = std::make_unique<Image>(std::move(image));
 		}
 	}
 	return _inlineThumbnail.get();
@@ -200,8 +198,7 @@ QSize DocumentMedia::thumbnailSize() const {
 }
 
 void DocumentMedia::setThumbnail(QImage thumbnail) {
-	_thumbnail = std::make_unique<Image>(
-		std::make_unique<Images::ImageSource>(std::move(thumbnail)));
+	_thumbnail = std::make_unique<Image>(std::move(thumbnail));
 	_owner->session().downloaderTaskFinished().notify();
 }
 
@@ -232,7 +229,6 @@ void DocumentMedia::checkStickerLarge() {
 	if (!data) {
 		return;
 	}
-
 	automaticLoad(_owner->stickerSetOrigin(), nullptr);
 	if (data->animated || !loaded()) {
 		return;
@@ -240,13 +236,11 @@ void DocumentMedia::checkStickerLarge() {
 	if (_bytes.isEmpty()) {
 		const auto &loc = _owner->location(true);
 		if (loc.accessEnable()) {
-			_sticker = std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(loc.name()));
+			_sticker = std::make_unique<Image>(loc.name());
 			loc.accessDisable();
 		}
 	} else {
-		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(_bytes));
+		_sticker = std::make_unique<Image>(_bytes);
 	}
 }
 
@@ -288,20 +282,16 @@ void DocumentMedia::automaticLoad(
 
 void DocumentMedia::collectLocalData(not_null<DocumentMedia*> local) {
 	if (const auto image = local->_goodThumbnail.get()) {
-		_goodThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original()));
+		_goodThumbnail = std::make_unique<Image>(image->original());
 	}
 	if (const auto image = local->_inlineThumbnail.get()) {
-		_inlineThumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original()));
+		_inlineThumbnail = std::make_unique<Image>(image->original());
 	}
 	if (const auto image = local->_thumbnail.get()) {
-		_thumbnail = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original()));
+		_thumbnail = std::make_unique<Image>(image->original());
 	}
 	if (const auto image = local->_sticker.get()) {
-		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(image->original()));
+		_sticker = std::make_unique<Image>(image->original());
 	}
 	_bytes = local->_bytes;
 	_videoThumbnailBytes = local->_videoThumbnailBytes;
@@ -373,8 +363,7 @@ void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
 	if (_owner->sticker()
 		&& !_sticker
 		&& !loader->imageData().isNull()) {
-		_sticker = std::make_unique<Image>(
-			std::make_unique<Images::ImageSource>(loader->imageData()));
+		_sticker = std::make_unique<Image>(loader->imageData());
 	}
 }
 

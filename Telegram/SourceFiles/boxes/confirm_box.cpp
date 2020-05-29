@@ -979,7 +979,6 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 				(width() - st::confirmInvitePhotoSize) / 2,
 				st::confirmInvitePhotoTop,
 				image->pixCircled(
-					Data::FileOrigin(),
 					st::confirmInvitePhotoSize,
 					st::confirmInvitePhotoSize));
 		}

@@ -71,7 +71,6 @@ void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
 	const auto &padding = st::largeEmojiPadding;
 	auto x = r.x() + (r.width() - _size.width()) / 2 + padding.left();
 	const auto y = r.y() + (r.height() - _size.height()) / 2 + padding.top();
-	const auto o = Data::FileOrigin();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	const auto size = EmojiImage::Size() / cIntRetinaFactor();
 	for (const auto &image : images) {
@@ -80,8 +79,8 @@ void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
 			const auto h = size.height();
 			const auto &c = st::msgStickerOverlay;
 			const auto pixmap = selected
-				? prepared->pixColored(o, c, w, h)
-				: prepared->pix(o, w, h);
+				? prepared->pixColored(c, w, h)
+				: prepared->pix(w, h);
 			p.drawPixmap(x, y, pixmap);
 		} else if (image->load) {
 			image->load();

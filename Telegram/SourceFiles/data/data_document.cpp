@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/text/text_utilities.h"
 #include "base/base_file_utilities.h"
 #include "mainwindow.h"

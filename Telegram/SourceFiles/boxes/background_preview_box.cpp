@@ -659,7 +659,7 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 		: _media
 		? _media->thumbnail()
 		: nullptr;
-	if (!thumbnail || !thumbnail->loaded()) {
+	if (!thumbnail) {
 		return false;
 	} else if (_paper.isPattern() && _paper.document() != nullptr) {
 		return false;

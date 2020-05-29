@@ -132,7 +132,7 @@ EditCaptionBox::EditCaptionBox(
 					| Images::Option::RoundedBottomLeft
 					| Images::Option::RoundedBottomRight;
 				_thumb = App::pixmapFromImageInPlace(Images::prepare(
-					image->pix(_msgId).toImage(),
+					image->original(),
 					_thumbw * cIntRetinaFactor(),
 					0,
 					options,
@@ -180,7 +180,6 @@ EditCaptionBox::EditCaptionBox(
 				const auto options = Images::Option::Smooth
 					| Images::Option::Blurred;
 				_thumb = image->pixNoCache(
-					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
 					options,
@@ -206,7 +205,6 @@ EditCaptionBox::EditCaptionBox(
 						? Images::Option::Blurred
 						: Images::Option(0));
 				_thumb = use->pixNoCache(
-					_msgId,
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
 					options,
@@ -282,7 +280,7 @@ EditCaptionBox::EditCaptionBox(
 	_thumbnailImageLoaded = _photoMedia
 		? (_photoMedia->image(Data::PhotoSize::Large) != nullptr)
 		: _thumbnailImage
-		? _thumbnailImage->loaded()
+		? true
 		: _documentMedia
 		? !_documentMedia->owner()->hasThumbnail()
 		: true;
@@ -299,7 +297,7 @@ EditCaptionBox::EditCaptionBox(
 				&& _documentMedia->owner()->hasThumbnail()) {
 				_thumbnailImage = _documentMedia->thumbnail();
 			}
-			if (_thumbnailImage && _thumbnailImage->loaded()) {
+			if (_thumbnailImage) {
 				_thumbnailImageLoaded = !_photoMedia
 					|| _photoMedia->image(PhotoSize::Large);
 				if (_thumbnailImageLoaded) {

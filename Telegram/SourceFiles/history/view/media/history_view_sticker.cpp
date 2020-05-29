@@ -208,30 +208,29 @@ void Sticker::paintPixmap(Painter &p, const QRect &r, bool selected) {
 }
 
 QPixmap Sticker::paintedPixmap(bool selected) const {
-	const auto o = _parent->data()->fullId();
 	const auto w = _size.width();
 	const auto h = _size.height();
 	const auto &c = st::msgStickerOverlay;
 	const auto good = _dataMedia->goodThumbnail();
 	if (const auto image = _dataMedia->getStickerLarge()) {
 		return selected
-			? image->pixColored(o, c, w, h)
-			: image->pix(o, w, h);
+			? image->pixColored(c, w, h)
+			: image->pix(w, h);
 	//
 	// Inline thumbnails can't have alpha channel.
 	//
 	//} else if (const auto blurred = _data->thumbnailInline()) {
 	//	return selected
-	//		? blurred->pixBlurredColored(o, c, w, h)
-	//		: blurred->pixBlurred(o, w, h);
+	//		? blurred->pixBlurredColored(c, w, h)
+	//		: blurred->pixBlurred(w, h);
 	} else if (good) {
 		return selected
-			? good->pixColored(o, c, w, h)
-			: good->pix(o, w, h);
+			? good->pixColored(c, w, h)
+			: good->pix(w, h);
 	} else if (const auto thumbnail = _dataMedia->thumbnail()) {
 		return selected
-			? thumbnail->pixBlurredColored(o, c, w, h)
-			: thumbnail->pixBlurred(o, w, h);
+			? thumbnail->pixBlurredColored(c, w, h)
+			: thumbnail->pixBlurred(w, h);
 	}
 	return QPixmap();
 }

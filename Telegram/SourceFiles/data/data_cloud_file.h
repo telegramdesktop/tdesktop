@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "ui/image/image.h"
 #include "ui/image/image_location.h"
 
 class FileLoader;
-class Image;
 
 namespace Storage {
 namespace Cache {
@@ -44,10 +44,10 @@ class CloudImageView final {
 public:
 	void set(not_null<Main::Session*> session, QImage image);
 
-	[[nodiscard]] Image *image() const;
+	[[nodiscard]] Image *image();
 
 private:
-	std::unique_ptr<Image> _image;
+	std::optional<Image> _image;
 
 };
 

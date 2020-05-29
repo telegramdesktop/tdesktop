@@ -439,8 +439,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto selected = (selection == FullSelection);
 	const auto blurred = _dataMedia->thumbnailInline();
 	const auto thumbnail = _dataMedia->thumbnail();
-	const auto goodLoaded = _dataMedia->goodThumbnail()
-		&& _dataMedia->goodThumbnail()->loaded();
+	const auto good = _dataMedia->goodThumbnail();
 
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
@@ -453,12 +452,12 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto radial = isRadialAnimation();
 	const auto radialOpacity = radial ? _radial->opacity() : 0.;
 
-	if ((blurred || thumbnail || goodLoaded)
+	if ((blurred || thumbnail || good)
 		&& ((_pix.width() != _width * cIntRetinaFactor())
-			|| (_pixBlurred && (thumbnail || goodLoaded)))) {
+			|| (_pixBlurred && (thumbnail || good)))) {
 		auto size = _width * cIntRetinaFactor();
-		auto img = goodLoaded
-			? _dataMedia->goodThumbnail()->original()
+		auto img = good
+			? good->original()
 			: thumbnail
 			? thumbnail->original()
 			: Images::prepareBlur(blurred->original());
@@ -474,7 +473,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		img.setDevicePixelRatio(cRetinaFactor());
 
 		_pix = App::pixmapFromImageInPlace(std::move(img));
-		_pixBlurred = !(thumbnail || goodLoaded);
+		_pixBlurred = !(thumbnail || good);
 	}
 
 	if (_pix.isNull()) {
@@ -695,14 +694,8 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setPen(Qt::NoPen);
 		if (thumbnail || blurred) {
 			const auto thumb = thumbnail
-				? thumbnail->pixCircled(
-					parent()->fullId(),
-					inner.width(),
-					inner.height())
-				: blurred->pixBlurredCircled(
-					parent()->fullId(),
-					inner.width(),
-					inner.height());
+				? thumbnail->pixCircled(inner.width(), inner.height())
+				: blurred->pixBlurredCircled(inner.width(), inner.height());
 			p.drawPixmap(inner.topLeft(), thumb);
 		} else if (_data->hasThumbnail()) {
 			PainterHighQualityEnabler hq(p);
@@ -1070,7 +1063,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 								? Images::Option::None
 								: Images::Option::Blurred);
 						const auto image = thumbnail ? thumbnail : blurred;
-						_thumb = image->pixNoCache(parent()->fullId(), _thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
+						_thumb = image->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1628,13 +1621,13 @@ void Link::validateThumbnail() {
 		using Data::PhotoSize;
 		ensurePhotoMediaCreated();
 		if (const auto thumbnail = _photoMedia->image(PhotoSize::Thumbnail)) {
-			_thumbnail = thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = thumbnail->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 		} else if (const auto large = _photoMedia->image(PhotoSize::Large)) {
-			_thumbnail = large->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = large->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 		} else if (const auto small = _photoMedia->image(PhotoSize::Small)) {
-			_thumbnail = small->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = small->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
-			_thumbnail = blurred->pixBlurredSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			_thumbnail = blurred->pixBlurredSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 		} else {
 			return;
 		}
@@ -1646,7 +1639,7 @@ void Link::validateThumbnail() {
 			auto roundRadius = _page->document->isVideoMessage()
 				? ImageRoundRadius::Ellipse
 				: ImageRoundRadius::Small;
-			_thumbnail = thumbnail->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
+			_thumbnail = thumbnail->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius);
 			_documentMedia = nullptr;
 			delegate()->unregisterHeavyItem(this);
 		}

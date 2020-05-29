@@ -940,7 +940,7 @@ void StickersBox::Inner::paintRowThumbnail(
 			left + (st::contactsPhotoSize - row->pixw) / 2,
 			st::contactsPadding.top() + (st::contactsPhotoSize - row->pixh) / 2,
 			width(),
-			thumb->pix(origin, row->pixw, row->pixh));
+			thumb->pix(row->pixw, row->pixh));
 	} else if (row->lottie->ready()) {
 		const auto frame = row->lottie->frame();
 		const auto size = frame.size() / cIntRetinaFactor();

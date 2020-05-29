@@ -7,10 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/image/image.h"
 
-#include "ui/image/image_source.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
-#include "data/data_file_origin.h"
 #include "chat_helpers/stickers.h"
 #include "main/main_session.h"
 #include "app.h"
@@ -20,14 +18,25 @@ using namespace Images;
 namespace Images {
 namespace {
 
-uint64 PixKey(int width, int height, Options options) {
+[[nodiscard]] uint64 PixKey(int width, int height, Options options) {
 	return static_cast<uint64>(width)
 		| (static_cast<uint64>(height) << 24)
 		| (static_cast<uint64>(options) << 48);
 }
 
-uint64 SinglePixKey(Options options) {
+[[nodiscard]] uint64 SinglePixKey(Options options) {
 	return PixKey(0, 0, options);
+}
+
+[[nodiscard]] QByteArray ReadContent(const QString &path) {
+	auto file = QFile(path);
+	const auto good = (file.size() <= App::kImageSizeLimit)
+		&& file.open(QIODevice::ReadOnly);
+	return good ? file.readAll() : QByteArray();
+}
+
+[[nodiscard]] QImage ReadImage(const QByteArray &content) {
+	return App::readImage(content, nullptr, false, nullptr);
 }
 
 } // namespace
@@ -97,14 +106,17 @@ QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 
 } // namespace Images
 
-Image::Image(std::unique_ptr<Source> &&source)
-: _source(std::move(source)) {
+Image::Image(const QString &path) : Image(ReadContent(path)) {
 }
 
-Image::~Image() = default;
+Image::Image(const QByteArray &content) : Image(ReadImage(content)) {
+}
+
+Image::Image(QImage &&data) : _data(std::move(data)) {
+}
 
 not_null<Image*> Image::Empty() {
-	static auto result = [] {
+	static auto result = Image([] {
 		const auto factor = cIntRetinaFactor();
 		auto data = QImage(
 			factor,
@@ -112,13 +124,13 @@ not_null<Image*> Image::Empty() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::transparent);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Image(std::make_unique<ImageSource>(std::move(data)));
-	}();
+		return data;
+	}());
 	return &result;
 }
 
 not_null<Image*> Image::BlankMedia() {
-	static auto result = [] {
+	static auto result = Image([] {
 		const auto factor = cIntRetinaFactor();
 		auto data = QImage(
 			factor,
@@ -126,21 +138,16 @@ not_null<Image*> Image::BlankMedia() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::black);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Image(std::make_unique<ImageSource>(std::move(data)));
-	}();
+		return data;
+	}());
 	return &result;
 }
 
-bool Image::isNull() const {
-	return (this == Empty());
+QImage Image::original() const {
+	return _data;
 }
 
-const QPixmap &Image::pix(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+const QPixmap &Image::pix(int w, int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width();
 	} else {
@@ -149,23 +156,20 @@ const QPixmap &Image::pix(
 	}
 	auto options = Option::Smooth | Option::None;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixNoCache(origin, w, h, options);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
 const QPixmap &Image::pixRounded(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h,
+		int w,
+		int h,
 		ImageRoundRadius radius,
 		RectParts corners) const {
-	checkSource();
-
 	if (w <= 0 || !width() || !height()) {
 		w = width();
 	} else {
@@ -187,21 +191,16 @@ const QPixmap &Image::pixRounded(
 		options |= Option::Circled | cornerOptions(corners);
 	}
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixNoCache(origin, w, h, options);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
-const QPixmap &Image::pixCircled(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+const QPixmap &Image::pixCircled(int w, int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width();
 	} else {
@@ -210,21 +209,16 @@ const QPixmap &Image::pixCircled(
 	}
 	auto options = Option::Smooth | Option::Circled;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixNoCache(origin, w, h, options);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
-const QPixmap &Image::pixBlurredCircled(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+const QPixmap &Image::pixBlurredCircled(int w, int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width();
 	} else {
@@ -233,21 +227,16 @@ const QPixmap &Image::pixBlurredCircled(
 	}
 	auto options = Option::Smooth | Option::Circled | Option::Blurred;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixNoCache(origin, w, h, options);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
-const QPixmap &Image::pixBlurred(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+const QPixmap &Image::pixBlurred(int w, int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -256,22 +245,16 @@ const QPixmap &Image::pixBlurred(
 	}
 	auto options = Option::Smooth | Option::Blurred;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixNoCache(origin, w, h, options);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
-const QPixmap &Image::pixColored(
-		Data::FileOrigin origin,
-		style::color add,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+const QPixmap &Image::pixColored(style::color add, int w, int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -280,22 +263,19 @@ const QPixmap &Image::pixColored(
 	}
 	auto options = Option::Smooth | Option::Colored;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixColoredNoCache(origin, add, w, h, true);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixColoredNoCache(add, w, h, true);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
 const QPixmap &Image::pixBlurredColored(
-		Data::FileOrigin origin,
 		style::color add,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+		int w,
+		int h) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -304,26 +284,23 @@ const QPixmap &Image::pixBlurredColored(
 	}
 	auto options = Option::Blurred | Option::Smooth | Option::Colored;
 	auto k = PixKey(w, h, options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto p = pixBlurredColoredNoCache(origin, add, w, h);
+	auto i = _cache.find(k);
+	if (i == _cache.cend()) {
+		auto p = pixBlurredColoredNoCache(add, w, h);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
 const QPixmap &Image::pixSingle(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h,
-		int32 outerw,
-		int32 outerh,
+		int w,
+		int h,
+		int outerw,
+		int outerh,
 		ImageRoundRadius radius,
 		RectParts corners,
 		const style::color *colored) const {
-	checkSource();
-
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -350,25 +327,22 @@ const QPixmap &Image::pixSingle(
 	}
 
 	auto k = SinglePixKey(options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		auto p = pixNoCache(origin, w, h, options, outerw, outerh, colored);
+	auto i = _cache.find(k);
+	if (i == _cache.cend() || i->second.width() != (outerw * cIntRetinaFactor()) || i->second.height() != (outerh * cIntRetinaFactor())) {
+		auto p = pixNoCache(w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
 const QPixmap &Image::pixBlurredSingle(
-		Data::FileOrigin origin,
-		int32 w,
-		int32 h,
-		int32 outerw,
-		int32 outerh,
+		int w,
+		int h,
+		int outerw,
+		int outerh,
 		ImageRoundRadius radius,
 		RectParts corners) const {
-	checkSource();
-
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -392,30 +366,27 @@ const QPixmap &Image::pixBlurredSingle(
 	}
 
 	auto k = SinglePixKey(options);
-	auto i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		auto p = pixNoCache(origin, w, h, options, outerw, outerh);
+	auto i = _cache.find(k);
+	if (i == _cache.cend() || i->second.width() != (outerw * cIntRetinaFactor()) || i->second.height() != (outerh * cIntRetinaFactor())) {
+		auto p = pixNoCache(w, h, options, outerw, outerh);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
+		i = _cache.emplace(k, p).first;
 	}
-	return i.value();
+	return i->second;
 }
 
 QPixmap Image::pixNoCache(
-		Data::FileOrigin origin,
 		int w,
 		int h,
 		Options options,
 		int outerw,
 		int outerh,
 		const style::color *colored) const {
-	checkSource();
-
 	if (_data.isNull()) {
 		if (h <= 0 && height() > 0) {
 			h = qRound(width() * w / float64(height()));
 		}
-		return Empty()->pixNoCache(origin, w, h, options, outerw, outerh);
+		return Empty()->pixNoCache(w, h, options, outerw, outerh);
 	}
 
 	if (isNull() && outerw > 0 && outerh > 0) {
@@ -462,15 +433,12 @@ QPixmap Image::pixNoCache(
 }
 
 QPixmap Image::pixColoredNoCache(
-		Data::FileOrigin origin,
 		style::color add,
-		int32 w,
-		int32 h,
+		int w,
+		int h,
 		bool smooth) const {
-	checkSource();
-
 	if (_data.isNull()) {
-		return Empty()->pix(origin);
+		return Empty()->pix();
 	}
 
 	auto img = _data;
@@ -484,14 +452,11 @@ QPixmap Image::pixColoredNoCache(
 }
 
 QPixmap Image::pixBlurredColoredNoCache(
-		Data::FileOrigin origin,
 		style::color add,
-		int32 w,
-		int32 h) const {
-	checkSource();
-
+		int w,
+		int h) const {
 	if (_data.isNull()) {
-		return Empty()->pix(origin);
+		return Empty()->pix();
 	}
 
 	auto img = prepareBlur(_data);
@@ -502,32 +467,4 @@ QPixmap Image::pixBlurredColoredNoCache(
 	}
 
 	return App::pixmapFromImageInPlace(prepareColored(add, img));
-}
-
-QImage Image::original() const {
-	checkSource();
-	return _data;
-}
-
-void Image::load() {
-	if (!loaded()) {
-		_source->load();
-	}
-}
-
-bool Image::loaded() const {
-	checkSource();
-	return !_data.isNull();
-}
-
-void Image::checkSource() const {
-	auto data = _source->takeLoaded();
-	if (_data.isNull() && !data.isNull()) {
-		invalidateSizeCache();
-		_data = std::move(data);
-	}
-}
-
-void Image::invalidateSizeCache() const {
-	_sizesCache.clear();
 }

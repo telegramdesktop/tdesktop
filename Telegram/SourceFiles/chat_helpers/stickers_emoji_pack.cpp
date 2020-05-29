@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "main/main_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
@@ -310,9 +310,7 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 					if (const auto strong = i->second.lock()) {
 						if (!strong->image) {
 							strong->load = nullptr;
-							strong->image.emplace(
-								std::make_unique<Images::ImageSource>(
-									std::move(image)));
+							strong->image.emplace(std::move(image));
 							_session->downloaderTaskFinished().notify();
 						}
 					}

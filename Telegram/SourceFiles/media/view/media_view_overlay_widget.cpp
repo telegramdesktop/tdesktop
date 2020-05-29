@@ -2014,10 +2014,9 @@ void OverlayWidget::displayDocument(
 	if (_document) {
 		if (_document->sticker()) {
 			if (const auto image = _documentMedia->getStickerLarge()) {
-				_staticContent = image->pix(fileOrigin());
+				_staticContent = image->pix();
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
 				_staticContent = thumbnail->pixBlurred(
-					fileOrigin(),
 					_document->dimensions.width(),
 					_document->dimensions.height());
 			}
@@ -2235,7 +2234,6 @@ void OverlayWidget::initStreamingThumbnail() {
 		: blurred
 		? blurred
 		: Image::BlankMedia().get())->pixNoCache(
-			fileOrigin(),
 			w,
 			h,
 			useGood ? goodOptions : options,
@@ -2715,7 +2713,7 @@ void OverlayWidget::updatePlaybackState() {
 }
 
 void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
-	if (!image || !image->loaded()) {
+	if (!image) {
 		return;
 	} else if (!_staticContent.isNull() && (blurred || !_blurred)) {
 		return;
@@ -2723,7 +2721,6 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	const auto use = flipSizeByRotation({ _width, _height })
 		* cIntRetinaFactor();
 	_staticContent = image->pixNoCache(
-		fileOrigin(),
 		use.width(),
 		use.height(),
 		Images::Option::Smooth
@@ -2842,7 +2839,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 					}
 				} else if (const auto thumbnail = _documentMedia->thumbnail()) {
 					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), thumbnail->pix(fileOrigin(), _docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
+					p.drawPixmap(_docIconRect.topLeft(), thumbnail->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 				}
 
 				paintRadialLoading(p, radial, radialOpacity);
