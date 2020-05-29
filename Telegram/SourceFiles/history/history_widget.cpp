@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
+#include "api/api_editing.h"
 #include "api/api_bot.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
@@ -3005,7 +3006,6 @@ void HistoryWidget::saveEditMsg() {
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	auto localEntities = Api::EntitiesToMTP(&session(), sending.entities);
 	auto sentEntities = Api::EntitiesToMTP(
 		&session(),
 		sending.entities,
@@ -3016,46 +3016,41 @@ void HistoryWidget::saveEditMsg() {
 
 	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
-	_saveEditMsgRequestId = history->session().api().request(
-		MTPmessages_EditMessage(
-			MTP_flags(sendFlags),
-			_history->peer->input,
-			MTP_int(_editMsgId),
-			MTP_string(sending.text),
-			MTPInputMedia(),
-			MTPReplyMarkup(),
-			sentEntities,
-			MTP_int(0)
-	)).done([history, weak](const MTPUpdates &result, mtpRequestId requestId) {
-		SaveEditMsgDone(history, result, requestId);
-		if (const auto strong = weak.data()) {
-			if (requestId == strong->_saveEditMsgRequestId) {
-				strong->_saveEditMsgRequestId = 0;
-				strong->cancelEdit();
+	_saveEditMsgRequestId = Api::EditTextMessage(
+		session().data().message(_channel, _editMsgId),
+		sending,
+		Api::SendOptions(),
+		[history, weak](const MTPUpdates &result, mtpRequestId requestId) {
+			SaveEditMsgDone(history, result, requestId);
+			if (const auto strong = weak.data()) {
+				if (requestId == strong->_saveEditMsgRequestId) {
+					strong->_saveEditMsgRequestId = 0;
+					strong->cancelEdit();
+				}
 			}
-		}
-	}).fail([history, weak](const RPCError &error, mtpRequestId requestId) {
-		SaveEditMsgFail(history, error, requestId);
-		if (const auto strong = weak.data()) {
-			if (requestId == strong->_saveEditMsgRequestId) {
-				strong->_saveEditMsgRequestId = 0;
+		},
+		[history, weak](const RPCError &error, mtpRequestId requestId) {
+			SaveEditMsgFail(history, error, requestId);
+			if (const auto strong = weak.data()) {
+				if (requestId == strong->_saveEditMsgRequestId) {
+					strong->_saveEditMsgRequestId = 0;
+				}
+				const auto &err = error.type();
+				if (err == qstr("MESSAGE_ID_INVALID")
+					|| err == qstr("CHAT_ADMIN_REQUIRED")
+					|| err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+					Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+				} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+					strong->cancelEdit();
+				} else if (err == qstr("MESSAGE_EMPTY")) {
+					strong->_field->selectAll();
+					strong->_field->setFocus();
+				} else {
+					Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+				}
+				strong->update();
 			}
-			const auto &err = error.type();
-			if (err == qstr("MESSAGE_ID_INVALID")
-				|| err == qstr("CHAT_ADMIN_REQUIRED")
-				|| err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
-				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-			} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-				strong->cancelEdit();
-			} else if (err == qstr("MESSAGE_EMPTY")) {
-				strong->_field->selectAll();
-				strong->_field->setFocus();
-			} else {
-				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-			}
-			strong->update();
-		}
-	}).send();
+		});
 }
 
 void HistoryWidget::SaveEditMsgDone(

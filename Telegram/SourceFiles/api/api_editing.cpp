@@ -192,5 +192,21 @@ mtpRequestId EditCaption(
 	return EditMessage(item, caption, SendOptions(), done, fail);
 }
 
+mtpRequestId EditTextMessage(
+		not_null<HistoryItem*> item,
+		const TextWithEntities &caption,
+		SendOptions options,
+		Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
+		Fn<void(const RPCError &, mtpRequestId requestId)> fail) {
+	const auto callback = [=](
+			const auto &result,
+			Fn<void()> applyUpdates,
+			auto id) {
+		applyUpdates();
+		done(result, id);
+	};
+	return EditMessage(item, caption, options, callback, fail);
+}
+
 
 } // namespace Api

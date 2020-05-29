@@ -35,4 +35,11 @@ mtpRequestId EditCaption(
 	Fn<void(const MTPUpdates &)> done,
 	Fn<void(const RPCError &)> fail);
 
+mtpRequestId EditTextMessage(
+	not_null<HistoryItem*> item,
+	const TextWithEntities &caption,
+	SendOptions options,
+	Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
+	Fn<void(const RPCError &, mtpRequestId requestId)> fail);
+
 } // namespace Api
