@@ -516,6 +516,13 @@ std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
 }
 
+bool AutostartSupported() {
+	// snap sandbox doesn't allow creating files in folders with names started with a dot
+	// and doesn't provide any api to add an app to autostart
+	// thus, autostart isn't supported in snap
+	return !InSnap();
+}
+
 void FallbackFontConfigCheckBegin() {
 	if (!CheckFontConfigCrash()) {
 		return;
