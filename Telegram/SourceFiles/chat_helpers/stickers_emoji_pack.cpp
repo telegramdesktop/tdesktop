@@ -117,68 +117,6 @@ constexpr auto kClearSourceTimeout = 10 * crl::time(1000);
 	return list[index - 1];
 }
 
-class ImageSource : public Images::Source {
-public:
-	explicit ImageSource(
-		EmojiPtr emoji,
-		not_null<crl::object_on_queue<EmojiImageLoader>*> loader);
-
-	void load() override;
-	QImage takeLoaded() override;
-
-	int width() override;
-	int height() override;
-
-private:
-	// While HistoryView::Element-s are almost never destroyed
-	// we make loading of the image lazy.
-	not_null<crl::object_on_queue<EmojiImageLoader>*> _loader;
-	EmojiPtr _emoji = nullptr;
-	QImage _data;
-	QSize _size;
-	base::binary_guard _loading;
-
-};
-
-ImageSource::ImageSource(
-	EmojiPtr emoji,
-	not_null<crl::object_on_queue<EmojiImageLoader>*> loader)
-: _loader(loader)
-, _emoji(emoji)
-, _size(SingleSize()) {
-}
-
-void ImageSource::load() {
-	if (!_data.isNull() || _loading) {
-		return;
-	}
-	_loader->with([
-		this,
-		emoji = _emoji,
-		guard = _loading.make_guard()
-	](EmojiImageLoader &loader) mutable {
-		if (!guard) {
-			return;
-		}
-		crl::on_main(std::move(guard), [this, image = loader.prepare(emoji)]{
-			_data = image;
-			Auth().downloaderTaskFinished().notify();
-		});
-	});
-}
-
-QImage ImageSource::takeLoaded() {
-	return _data;
-}
-
-int ImageSource::width() {
-	return _size.width();
-}
-
-int ImageSource::height() {
-	return _size.height();
-}
-
 } // namespace
 
 EmojiImageLoader::EmojiImageLoader(
@@ -264,6 +202,10 @@ std::shared_ptr<UniversalImages> EmojiImageLoader::releaseImages() {
 
 } // namespace details
 
+QSize LargeEmojiImage::Size() {
+	return details::SingleSize();
+}
+
 EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session)
 , _imageLoader(prepareSourceImages(), session->settings().largeEmoji())
@@ -347,13 +289,38 @@ auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	return Sticker();
 }
 
-std::shared_ptr<Image> EmojiPack::image(EmojiPtr emoji) {
-	const auto i = _images.emplace(emoji, std::weak_ptr<Image>()).first;
+std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
+	const auto i = _images.emplace(
+		emoji,
+		std::weak_ptr<LargeEmojiImage>()).first;
 	if (const auto result = i->second.lock()) {
 		return result;
 	}
-	auto result = std::make_shared<Image>(
-		std::make_unique<details::ImageSource>(emoji, &_imageLoader));
+	auto result = std::make_shared<LargeEmojiImage>();
+	const auto raw = result.get();
+	const auto weak = base::make_weak(_session.get());
+	raw->load = [=] {
+		_imageLoader.with([=](details::EmojiImageLoader &loader) mutable {
+			crl::on_main(weak, [
+				=,
+				image = loader.prepare(emoji)
+			]() mutable {
+				const auto i = _images.find(emoji);
+				if (i != end(_images)) {
+					if (const auto strong = i->second.lock()) {
+						if (!strong->image) {
+							strong->load = nullptr;
+							strong->image.emplace(
+								std::make_unique<Images::ImageSource>(
+									std::move(image)));
+							_session->downloaderTaskFinished().notify();
+						}
+					}
+				}
+			});
+		});
+		raw->load = nullptr;
+	};
 	i->second = result;
 	return result;
 }
