@@ -160,7 +160,7 @@ const QPixmap &Image::pix(int w, int h) const {
 	if (i == _cache.cend()) {
 		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -195,7 +195,7 @@ const QPixmap &Image::pixRounded(
 	if (i == _cache.cend()) {
 		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -213,7 +213,7 @@ const QPixmap &Image::pixCircled(int w, int h) const {
 	if (i == _cache.cend()) {
 		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -231,7 +231,7 @@ const QPixmap &Image::pixBlurredCircled(int w, int h) const {
 	if (i == _cache.cend()) {
 		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -249,7 +249,7 @@ const QPixmap &Image::pixBlurred(int w, int h) const {
 	if (i == _cache.cend()) {
 		auto p = pixNoCache(w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -267,7 +267,7 @@ const QPixmap &Image::pixColored(style::color add, int w, int h) const {
 	if (i == _cache.cend()) {
 		auto p = pixColoredNoCache(add, w, h, true);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -288,7 +288,7 @@ const QPixmap &Image::pixBlurredColored(
 	if (i == _cache.cend()) {
 		auto p = pixBlurredColoredNoCache(add, w, h);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -331,7 +331,7 @@ const QPixmap &Image::pixSingle(
 	if (i == _cache.cend() || i->second.width() != (outerw * cIntRetinaFactor()) || i->second.height() != (outerh * cIntRetinaFactor())) {
 		auto p = pixNoCache(w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
@@ -370,7 +370,7 @@ const QPixmap &Image::pixBlurredSingle(
 	if (i == _cache.cend() || i->second.width() != (outerw * cIntRetinaFactor()) || i->second.height() != (outerh * cIntRetinaFactor())) {
 		auto p = pixNoCache(w, h, options, outerw, outerh);
 		p.setDevicePixelRatio(cRetinaFactor());
-		i = _cache.emplace(k, p).first;
+		i = _cache.emplace_or_assign(k, p).first;
 	}
 	return i->second;
 }
