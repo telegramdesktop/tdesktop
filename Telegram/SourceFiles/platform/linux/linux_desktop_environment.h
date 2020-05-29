@@ -13,17 +13,24 @@ namespace DesktopEnvironment {
 enum class Type {
 	Other,
 	Gnome,
+	Cinnamon,
 	KDE3,
 	KDE4,
 	KDE5,
 	Unity,
+	XFCE,
 	MATE,
+	LXDE,
 };
 
 Type Get();
 
 inline bool IsGnome() {
 	return Get() == Type::Gnome;
+}
+
+inline bool IsCinnamon() {
+	return Get() == Type::Cinnamon;
 }
 
 inline bool IsKDE3() {
@@ -46,8 +53,25 @@ inline bool IsUnity() {
 	return Get() == Type::Unity;
 }
 
+inline bool IsXFCE() {
+	return Get() == Type::XFCE;
+}
+
 inline bool IsMATE() {
 	return Get() == Type::MATE;
+}
+
+inline bool IsLXDE() {
+	return Get() == Type::LXDE;
+}
+
+inline bool IsGtkBased() {
+	return IsGnome()
+		|| IsCinnamon()
+		|| IsUnity()
+		|| IsMATE()
+		|| IsXFCE()
+		|| IsLXDE();
 }
 
 } // namespace DesktopEnvironment
