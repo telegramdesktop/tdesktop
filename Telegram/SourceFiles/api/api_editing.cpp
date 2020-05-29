@@ -60,7 +60,7 @@ mtpRequestId EditMessage(
 	| ((media && inputMedia.has_value())
 		? MTPmessages_EditMessage::Flag::f_media
 		: emptyFlag)
-	| ((!media || !media->webpage())
+	| (options.removeWebPageId
 		? MTPmessages_EditMessage::Flag::f_no_webpage
 		: emptyFlag)
 	| (!sentEntities.v.isEmpty()

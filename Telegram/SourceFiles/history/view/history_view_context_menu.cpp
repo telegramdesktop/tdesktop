@@ -415,6 +415,9 @@ bool AddRescheduleMessageAction(
 			return;
 		}
 		const auto callback = [=](Api::SendOptions options) {
+			if (!item->media() || !item->media()->webpage()) {
+				options.removeWebPageId = true;
+			}
 			Api::RescheduleMessage(item, options);
 		};
 

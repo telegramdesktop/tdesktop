@@ -3002,24 +3002,15 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	auto sendFlags = MTPmessages_EditMessage::Flag::f_message | 0;
-	if (webPageId == CancelledWebPageId) {
-		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
-	}
-	auto sentEntities = Api::EntitiesToMTP(
-		&session(),
-		sending.entities,
-		Api::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
-	}
+	auto options = Api::SendOptions();
+	options.removeWebPageId = (webPageId == CancelledWebPageId);
 
 	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		session().data().message(_channel, _editMsgId),
 		sending,
-		Api::SendOptions(),
+		options,
 		[history, weak](const MTPUpdates &result, mtpRequestId requestId) {
 			SaveEditMsgDone(history, result, requestId);
 			if (const auto strong = weak.data()) {
