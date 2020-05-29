@@ -1,3 +1,4 @@
+
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -533,8 +534,8 @@ void Manager::Private::showNotification(
 		hideReplyButton);
 
 	if (!hideNameAndPhoto) {
-		const auto key = peer->userpicUniqueKey();
-		notification->setImage(_cachedUserpics.get(key, peer));
+		const auto key = peer->userpicUniqueKey(userpicView);
+		notification->setImage(_cachedUserpics.get(key, peer, userpicView));
 	}
 
 	auto i = _notifications.find(peer->id);

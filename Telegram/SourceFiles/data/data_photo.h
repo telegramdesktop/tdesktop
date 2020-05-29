@@ -29,8 +29,7 @@ enum class PhotoSize : uchar {
 };
 
 [[nodiscard]] inline int PhotoSizeIndex(PhotoSize size) {
-	Expects(static_cast<int>(size) >= 0
-		&& static_cast<int>(size) < kPhotoSizeCount);
+	Expects(static_cast<int>(size) < kPhotoSizeCount);
 
 	return static_cast<int>(size);
 }
