@@ -31,7 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 SeparatePanel::SeparatePanel()
-: _close(this, st::separatePanelClose)
+: RpWidget(Core::App().getModalParent())
+, _close(this, st::separatePanelClose)
 , _back(this, object_ptr<Ui::IconButton>(this, st::separatePanelBack))
 , _body(this) {
 	setMouseTracking(true);
@@ -359,18 +360,25 @@ void SeparatePanel::initGeometry(QSize size) {
 			st::lineWidth);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	const auto screen = QApplication::desktop()->screenGeometry(center);
-	const auto rect = QRect(QPoint(), size);
-	setGeometry(
-		rect.translated(center - rect.center()).marginsAdded(_padding));
+	const auto rect = [&] {
+		const QRect initRect(QPoint(), size);
+		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
+	}();
+	setGeometry(rect);
+	setMinimumSize(rect.size());
+	setMaximumSize(rect.size());
 	updateControlsGeometry();
 }
 
 void SeparatePanel::updateGeometry(QSize size) {
-	setGeometry(
+	const auto rect = QRect(
 		x(),
 		y(),
 		_padding.left() + size.width() + _padding.right(),
 		_padding.top() + size.height() + _padding.bottom());
+	setGeometry(rect);
+	setMinimumSize(rect.size());
+	setMaximumSize(rect.size());
 	updateControlsGeometry();
 	update();
 }

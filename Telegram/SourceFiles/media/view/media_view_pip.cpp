@@ -354,7 +354,8 @@ QImage RotateFrameImage(QImage image, int rotation) {
 PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest)> paint)
-: _parent(parent)
+: PipParent(Core::App().getModalParent())
+, _parent(parent)
 , _paint(std::move(paint)) {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
@@ -543,7 +544,11 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		geometry.moveTop(inner.y() + inner.height() - geometry.height());
 	}
 
-	setGeometry(geometry.marginsAdded(_padding));
+	geometry += _padding;
+
+	setGeometry(geometry);
+	setMinimumSize(geometry.size());
+	setMaximumSize(geometry.size());
 	updateDecorations();
 	update();
 }
@@ -714,8 +719,11 @@ void PipPanel::processDrag(QPoint point) {
 	if (clamped != valid.topLeft()) {
 		moveAnimated(clamped);
 	} else {
+		const auto newGeometry = valid.marginsAdded(_padding);
 		_positionAnimation.stop();
-		setGeometry(valid.marginsAdded(_padding));
+		setGeometry(newGeometry);
+		setMinimumSize(newGeometry.size());
+		setMaximumSize(newGeometry.size());
 	}
 }
 
@@ -802,6 +810,8 @@ void PipPanel::updateDecorations() {
 	_useTransparency = use;
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	setGeometry(newGeometry);
+	setMinimumSize(newGeometry.size());
+	setMaximumSize(newGeometry.size());
 	update();
 }
 
