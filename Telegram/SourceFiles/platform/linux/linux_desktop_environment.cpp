@@ -40,8 +40,12 @@ Type Compute() {
 				return Type::Gnome;
 			}
 			return Type::Unity;
+		} else if (list.contains("xfce")) {
+			return Type::XFCE;
 		} else if (list.contains("gnome")) {
 			return Type::Gnome;
+		} else if (list.contains("x-cinnamon")) {
+			return Type::Cinnamon;
 		} else if (list.contains("kde")) {
 			if (kdeSession == qstr("5")) {
 				return Type::KDE5;
@@ -49,12 +53,16 @@ Type Compute() {
 			return Type::KDE4;
 		} else if (list.contains("mate")) {
 			return Type::MATE;
+		} else if (list.contains("lxde")) {
+			return Type::LXDE;
 		}
 	}
 
 	if (!desktopSession.isEmpty()) {
 		if (desktopSession == qstr("gnome")) {
 			return Type::Gnome;
+		} else if (desktopSession == qstr("cinnamon")) {
+			return Type::Cinnamon;
 		} else if (desktopSession == qstr("kde4") || desktopSession == qstr("kde-plasma")) {
 			return Type::KDE4;
 		} else if (desktopSession == qstr("kde")) {
@@ -63,8 +71,12 @@ Type Compute() {
 				return Type::KDE4;
 			}
 			return Type::KDE3;
+		} else if (desktopSession == qstr("xfce")) {
+			return Type::XFCE;
 		} else if (desktopSession == qstr("mate")) {
 			return Type::MATE;
+		} else if (desktopSession == qstr("lxde")) {
+			return Type::LXDE;
 		}
 	}
 
@@ -88,11 +100,14 @@ Type ComputeAndLog() {
 		switch (result) {
 		case Type::Other: return "Other";
 		case Type::Gnome: return "Gnome";
+		case Type::Cinnamon: return "Cinnamon";
 		case Type::KDE3: return "KDE3";
 		case Type::KDE4: return "KDE4";
 		case Type::KDE5: return "KDE5";
 		case Type::Unity: return "Unity";
+		case Type::XFCE: return "XFCE";
 		case Type::MATE: return "MATE";
+		case Type::LXDE: return "LXDE";
 		}
 		return QString::number(static_cast<int>(result));
 	};

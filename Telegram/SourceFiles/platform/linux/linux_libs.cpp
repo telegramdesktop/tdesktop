@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
+#include "platform/linux/specific_linux.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -33,8 +34,26 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+template <typename T>
+T gtkSetting(const gchar *propertyName)
+{
+    GtkSettings *settings = Libs::gtk_settings_get_default();
+    T value;
+    Libs::g_object_get(settings, propertyName, &value, nullptr);
+    return value;
+}
+
+QString gtkSetting(const gchar *propertyName)
+{
+    gchararray value = gtkSetting<gchararray>(propertyName);
+    QString str = QString::fromUtf8(value);
+    Libs::g_free(value);
+    return str;
+}
+
 bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
+	if (!load(lib_gtk, "gtk_settings_get_default", gtk_settings_get_default)) return false;
 	if (!load(lib_gtk, "gtk_menu_new", gtk_menu_new)) return false;
 	if (!load(lib_gtk, "gtk_menu_get_type", gtk_menu_get_type)) return false;
 
@@ -90,6 +109,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_signal_connect_data", g_signal_connect_data)) return false;
 	if (!load(lib_gtk, "g_signal_handler_disconnect", g_signal_handler_disconnect)) return false;
 
+	if (!load(lib_gtk, "g_object_get", g_object_get)) return false;
 	if (!load(lib_gtk, "g_object_ref_sink", g_object_ref_sink)) return false;
 	if (!load(lib_gtk, "g_object_unref", g_object_unref)) return false;
 	if (!load(lib_gtk, "g_free", g_free)) return false;
@@ -132,6 +152,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 f_gtk_init_check gtk_init_check = nullptr;
+f_gtk_settings_get_default gtk_settings_get_default = nullptr;
 f_gtk_menu_new gtk_menu_new = nullptr;
 f_gtk_menu_get_type gtk_menu_get_type = nullptr;
 f_gtk_menu_item_new_with_label gtk_menu_item_new_with_label = nullptr;
@@ -203,6 +224,7 @@ f_gtk_status_icon_get_geometry gtk_status_icon_get_geometry = nullptr;
 f_gtk_status_icon_position_menu gtk_status_icon_position_menu = nullptr;
 f_gtk_menu_popup gtk_menu_popup = nullptr;
 f_gtk_get_current_event_time gtk_get_current_event_time = nullptr;
+f_g_object_get g_object_get = nullptr;
 f_g_object_ref_sink g_object_ref_sink = nullptr;
 f_g_object_unref g_object_unref = nullptr;
 f_g_idle_add g_idle_add = nullptr;
@@ -215,8 +237,8 @@ f_g_slist_free g_slist_free = nullptr;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
-	DEBUG_LOG(("Loading libraries"));
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	DEBUG_LOG(("Loading libraries"));
 
 	bool gtkLoaded = false;
 	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
@@ -253,6 +275,19 @@ void start() {
 		load(lib_gtk, "gtk_dialog_get_widget_for_response", gtk_dialog_get_widget_for_response);
 		load(lib_gtk, "gtk_button_set_label", gtk_button_set_label);
 		load(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
+
+		// change the icon theme only if it isn't already set by a platformtheme plugin
+		// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
+		if ((((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
+			&& QIcon::fallbackThemeName() == qstr("hicolor"))
+			|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
+			&& QIcon::fallbackThemeName() == qstr("gnome")))
+			&& DesktopEnvironment::IsGtkBased())
+			|| IsGtkIntegrationForced()) {
+			DEBUG_LOG(("Set GTK icon theme"));
+			QIcon::setThemeName(gtkSetting("gtk-icon-theme-name"));
+			QIcon::setFallbackThemeName(gtkSetting("gtk-fallback-icon-theme"));
+		}
 	} else {
 		LOG(("Could not load gtk-3 or gtk-x11-2.0!"));
 	}
