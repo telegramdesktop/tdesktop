@@ -174,6 +174,10 @@ void Application::run() {
 		psNewVersion();
 	}
 
+	if (cAutoStart() && !Platform::AutostartSupported()) {
+		cSetAutoStart(false);
+	}
+
 	if (cLaunchMode() == LaunchModeAutoStart && !cAutoStart()) {
 		psAutoStart(false, true);
 		App::quit();
