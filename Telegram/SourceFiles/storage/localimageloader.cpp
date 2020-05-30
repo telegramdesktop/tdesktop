@@ -497,7 +497,8 @@ FileLoadTask::FileLoadTask(
 , _type(type)
 , _caption(caption)
 , _msgIdToEdit(msgIdToEdit) {
-	Expects(_msgIdToEdit == 0 || IsServerMsgId(_msgIdToEdit));
+	Expects(to.options.scheduled
+		|| (_msgIdToEdit == 0 || IsServerMsgId(_msgIdToEdit)));
 }
 
 FileLoadTask::FileLoadTask(

@@ -71,7 +71,7 @@ void Groups::refreshMessage(
 		unregisterMessage(item);
 		return;
 	}
-	if (!IsServerMsgId(item->id)) {
+	if (!IsServerMsgId(item->id) && !item->isScheduled()) {
 		return;
 	}
 	const auto groupId = item->groupId();

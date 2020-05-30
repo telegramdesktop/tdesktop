@@ -936,12 +936,18 @@ void EditCaptionBox::save() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)
 	};
 
+	auto options = Api::SendOptions();
+	options.scheduled = item->isScheduled() ? item->date() : 0;
+
 	if (!_preparedList.files.empty()) {
+		auto action = Api::SendAction(item->history());
+		action.options = options;
+
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			Api::SendAction(item->history()),
+			action,
 			item->fullId().msg);
 		closeBox();
 		return;
@@ -977,7 +983,7 @@ void EditCaptionBox::save() {
 		}
 	});
 
-	_saveRequestId = Api::EditCaption(item, sending, done, fail);
+	_saveRequestId = Api::EditCaption(item, sending, options, done, fail);
 }
 
 void EditCaptionBox::setName(QString nameString, qint64 size) {

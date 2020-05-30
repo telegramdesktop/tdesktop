@@ -38,6 +38,7 @@ void EditMessageWithUploadedPhoto(
 mtpRequestId EditCaption(
 	not_null<HistoryItem*> item,
 	const TextWithEntities &caption,
+	SendOptions options,
 	Fn<void(const MTPUpdates &)> done,
 	Fn<void(const RPCError &)> fail);
 

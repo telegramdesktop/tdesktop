@@ -400,6 +400,8 @@ void SendConfirmedFile(
 	}
 	if (file->to.options.scheduled) {
 		flags |= MTPDmessage::Flag::f_from_scheduled;
+		// Scheduled messages have no the 'edited' badge.
+		flags |= MTPDmessage::Flag::f_edit_hide;
 	} else {
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}

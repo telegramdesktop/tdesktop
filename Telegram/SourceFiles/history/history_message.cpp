@@ -774,11 +774,12 @@ bool HistoryMessage::allowsForward() const {
 }
 
 bool HistoryMessage::allowsSendNow() const {
-	return isScheduled() && !isSending() && !hasFailed();
+	return isScheduled() && !isSending() && !hasFailed() && !isEditingMedia();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	return !_history->peer->canEditMessagesIndefinitely()
+		&& !isScheduled()
 		&& (now - date() >= _history->session().serverConfig().editTimeLimit);
 }
 
