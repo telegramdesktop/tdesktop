@@ -14,6 +14,12 @@ namespace Api {
 
 struct SendOptions;
 
+const auto kDefaultEditMessagesErrors = {
+	u"MESSAGE_ID_INVALID"_q,
+	u"CHAT_ADMIN_REQUIRED"_q,
+	u"MESSAGE_EDIT_TIME_EXPIRED"_q,
+};
+
 void RescheduleMessage(
 	not_null<HistoryItem*> item,
 	SendOptions options);

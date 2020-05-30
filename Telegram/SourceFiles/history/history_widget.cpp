@@ -2988,8 +2988,9 @@ void HistoryWidget::saveEditMsg() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
+	const auto item = session().data().message(_channel, _editMsgId);
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		if (const auto item = session().data().message(_channel, _editMsgId)) {
+		if (item) {
 			const auto suggestModerateActions = false;
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		} else {
@@ -3002,70 +3003,55 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	auto options = Api::SendOptions();
-	options.removeWebPageId = (webPageId == CancelledWebPageId);
-
 	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
+
+	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
+		crl::guard(weak, [=] {
+			if (requestId == _saveEditMsgRequestId) {
+				_saveEditMsgRequestId = 0;
+				cancelEdit();
+			}
+		})();
+		if (auto editDraft = history->editDraft()) {
+			if (editDraft->saveRequestId == requestId) {
+				history->clearEditDraft();
+				history->session().local().writeDrafts(history);
+			}
+		}
+	};
+
+	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+		if (const auto editDraft = history->editDraft()) {
+			if (editDraft->saveRequestId == requestId) {
+				editDraft->saveRequestId = 0;
+			}
+		}
+		crl::guard(weak, [=] {
+			if (requestId == _saveEditMsgRequestId) {
+				_saveEditMsgRequestId = 0;
+			}
+			const auto &err = error.type();
+			if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
+				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
+				cancelEdit();
+			} else if (err == u"MESSAGE_EMPTY"_q) {
+				_field->selectAll();
+				_field->setFocus();
+			} else {
+				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			}
+			update();
+		})();
+	};
+
 	_saveEditMsgRequestId = Api::EditTextMessage(
-		session().data().message(_channel, _editMsgId),
+		item,
 		sending,
-		options,
-		[history, weak](const MTPUpdates &result, mtpRequestId requestId) {
-			SaveEditMsgDone(history, result, requestId);
-			if (const auto strong = weak.data()) {
-				if (requestId == strong->_saveEditMsgRequestId) {
-					strong->_saveEditMsgRequestId = 0;
-					strong->cancelEdit();
-				}
-			}
-		},
-		[history, weak](const RPCError &error, mtpRequestId requestId) {
-			SaveEditMsgFail(history, error, requestId);
-			if (const auto strong = weak.data()) {
-				if (requestId == strong->_saveEditMsgRequestId) {
-					strong->_saveEditMsgRequestId = 0;
-				}
-				const auto &err = error.type();
-				if (err == qstr("MESSAGE_ID_INVALID")
-					|| err == qstr("CHAT_ADMIN_REQUIRED")
-					|| err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
-					Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-				} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-					strong->cancelEdit();
-				} else if (err == qstr("MESSAGE_EMPTY")) {
-					strong->_field->selectAll();
-					strong->_field->setFocus();
-				} else {
-					Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-				}
-				strong->update();
-			}
-		});
-}
-
-void HistoryWidget::SaveEditMsgDone(
-		not_null<History*> history,
-		const MTPUpdates &updates,
-		mtpRequestId requestId) {
-	history->session().api().applyUpdates(updates);
-	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == requestId) {
-			history->clearEditDraft();
-			history->session().local().writeDrafts(history);
-		}
-	}
-}
-
-void HistoryWidget::SaveEditMsgFail(
-		not_null<History*> history,
-		const RPCError &error,
-		mtpRequestId requestId) {
-	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == requestId) {
-			editDraft->saveRequestId = 0;
-		}
-	}
+		{ .removeWebPageId = (webPageId == CancelledWebPageId) },
+		done,
+		fail);
 }
 
 void HistoryWidget::hideSelectorControlsAnimated() {

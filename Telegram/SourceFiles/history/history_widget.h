@@ -525,8 +525,6 @@ private:
 	void createUnreadBarAndResize();
 
 	void saveEditMsg();
-	static void SaveEditMsgDone(not_null<History*> history, const MTPUpdates &updates, mtpRequestId requestId);
-	static void SaveEditMsgFail(not_null<History*> history, const RPCError &error, mtpRequestId requestId);
 
 	void checkPreview();
 	void requestPreview();

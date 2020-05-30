@@ -953,15 +953,9 @@ void EditCaptionBox::save() {
 	});
 
 	const auto fail = crl::guard(this, [=](const RPCError &error) {
-		const auto defaultErrors = {
-			u"MESSAGE_ID_INVALID"_q,
-			u"CHAT_ADMIN_REQUIRED"_q,
-			u"MESSAGE_EDIT_TIME_EXPIRED"_q,
-		};
-
 		_saveRequestId = 0;
 		const auto &type = error.type();
-		if (ranges::contains(defaultErrors, type)) {
+		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {
 			_error = tr::lng_edit_error(tr::now);
 			update();
 		} else if (type == u"MESSAGE_NOT_MODIFIED"_q) {
