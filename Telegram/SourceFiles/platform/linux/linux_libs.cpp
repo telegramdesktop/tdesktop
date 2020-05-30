@@ -125,10 +125,11 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		if(QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)) {
+		if(QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)
+			&& !lib_gtk.fileName().contains("gtk-x11-2.0")) {
 			DEBUG_LOG(("Limit allowed GDK backends to wayland"));
 			gdk_set_allowed_backends("wayland");
-		} else if (QGuiApplication::platformName() == qsl("xcb")) {
+		} else {
 			DEBUG_LOG(("Limit allowed GDK backends to x11"));
 			gdk_set_allowed_backends("x11");
 		}
@@ -239,13 +240,12 @@ void start() {
 	DEBUG_LOG(("Loading libraries"));
 
 	bool gtkLoaded = false;
-	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
 	QLibrary lib_gtk;
 
 	if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
-	if (!gtkLoaded && !isWayland && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+	if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
 
