@@ -902,11 +902,13 @@ void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 }
 
 void HistoryMessage::returnSavedMedia() {
-	if (!_savedMedia) {
+	if (!isEditingMedia()) {
 		return;
 	}
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
-	_media = std::move(_savedMedia);
+	_media = std::move(_savedLocalEditMediaData.media);
+	setText(_savedLocalEditMediaData.text);
+	clearSavedMedia();
 	if (wasGrouped) {
 		history()->owner().groups().refreshMessage(this, true);
 	} else {
@@ -1406,7 +1408,7 @@ std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
 
 HistoryMessage::~HistoryMessage() {
 	_media.reset();
-	_savedMedia.reset();
+	clearSavedMedia();
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
