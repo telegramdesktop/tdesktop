@@ -241,6 +241,7 @@ void start() {
 
 	bool gtkLoaded = false;
 	QLibrary lib_gtk;
+	lib_gtk.setLoadHints(QLibrary::DeepBindHint);
 
 	if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
