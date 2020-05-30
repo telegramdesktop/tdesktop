@@ -172,7 +172,7 @@ const auto kAdjectives = std::vector<const char*>{
 	"Majestic",
 	"Mambo",
 	"Midnight",
-	"Millenium",
+	"Millennium",
 	"Morning",
 	"Mystic",
 	"Natural",
