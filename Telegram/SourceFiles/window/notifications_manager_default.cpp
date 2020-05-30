@@ -551,7 +551,7 @@ Notification::Notification(
 	auto position = computePosition(st::notifyMinHeight);
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyMinHeight);
 
-	_userpicLoaded = (_userpicView->image() != nullptr);
+	_userpicLoaded = !_userpicView || (_userpicView->image() != nullptr);
 	updateNotifyDisplay();
 
 	_hideTimer.setSingleShot(true);
