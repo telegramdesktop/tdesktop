@@ -608,6 +608,9 @@ void FeaturedSetsReceived(
 		const auto title = GetSetTitle(*data);
 		const auto installDate = data->vinstalled_date().value_or_empty();
 		const auto thumb = data->vthumb();
+		const auto thumbnail = thumb
+			? Images::FromPhotoSize(&Auth(), *data, *thumb)
+			: ImageWithLocation();
 		if (it == sets.cend()) {
 			auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
 				| MTPDstickerSet_ClientFlag::f_not_loaded;
@@ -624,8 +627,7 @@ void FeaturedSetsReceived(
 				data->vhash().v,
 				data->vflags().v | setClientFlags,
 				installDate)).first;
-			it->second->setThumbnail(
-				Images::FromPhotoSize(&Auth(), *data, *thumb));
+			it->second->setThumbnail(thumbnail);
 		} else {
 			const auto set = it->second.get();
 			set->access = data->vaccess_hash().v;
@@ -635,8 +637,7 @@ void FeaturedSetsReceived(
 			set->flags = data->vflags().v | clientFlags;
 			set->flags |= MTPDstickerSet_ClientFlag::f_featured;
 			set->installDate = installDate;
-			set->setThumbnail(
-				Images::FromPhotoSize(&Auth(), *data, *thumb));
+			set->setThumbnail(thumbnail);
 			if (unreadMap.contains(set->id)) {
 				set->flags |= MTPDstickerSet_ClientFlag::f_unread;
 			} else {
@@ -910,6 +911,9 @@ Set *FeedSet(const MTPDstickerSet &data) {
 	auto title = GetSetTitle(data);
 	auto flags = MTPDstickerSet::Flags(0);
 	const auto thumb = data.vthumb();
+	const auto thumbnail = thumb
+		? Images::FromPhotoSize(&Auth(), data, *thumb)
+		: ImageWithLocation();
 	if (it == sets.cend()) {
 		it = sets.emplace(data.vid().v, std::make_unique<Set>(
 			&Auth().data(),
@@ -921,8 +925,7 @@ Set *FeedSet(const MTPDstickerSet &data) {
 			data.vhash().v,
 			data.vflags().v | MTPDstickerSet_ClientFlag::f_not_loaded,
 			data.vinstalled_date().value_or_empty())).first;
-		it->second->setThumbnail(
-			Images::FromPhotoSize(&Auth(), data, *thumb));
+		it->second->setThumbnail(thumbnail);
 	} else {
 		const auto set = it->second.get();
 		set->access = data.vaccess_hash().v;
@@ -939,8 +942,7 @@ Set *FeedSet(const MTPDstickerSet &data) {
 		set->installDate = installDate
 			? (installDate->v ? installDate->v : base::unixtime::now())
 			: TimeId(0);
-		it->second->setThumbnail(
-			Images::FromPhotoSize(&Auth(), data, *thumb));
+		it->second->setThumbnail(thumbnail);
 		if (set->count != data.vcount().v
 			|| set->hash != data.vhash().v
 			|| set->emoji.isEmpty()) {
