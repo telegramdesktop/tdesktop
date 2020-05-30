@@ -973,16 +973,19 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	const auto &s = d.vset().c_stickerSet();
 
 	auto &sets = Auth().data().stickerSetsRef();
-	auto it = sets.find(s.vid().v);
-	const auto wasArchived = (it->second->flags & MTPDstickerSet::Flag::f_archived);
+	const auto wasArchived = [&] {
+		auto it = sets.find(s.vid().v);
+		return (it != sets.end())
+			&& (it->second->flags & MTPDstickerSet::Flag::f_archived);
+	}();
 
 	auto set = FeedSet(s);
 
 	set->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
-	auto &d_docs = d.vdocuments().v;
+	const auto &d_docs = d.vdocuments().v;
 	auto customIt = sets.find(Stickers::CustomSetId);
-	auto inputSet = MTP_inputStickerSetID(
+	const auto inputSet = MTP_inputStickerSetID(
 		MTP_long(set->id),
 		MTP_long(set->access));
 
@@ -1055,7 +1058,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (set) {
-		const auto isArchived = (set->flags & MTPDstickerSet::Flag::f_archived);
+		const auto isArchived = !!(set->flags & MTPDstickerSet::Flag::f_archived);
 		if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
 			if (!isArchived) {
 				Local::writeInstalledStickers();
