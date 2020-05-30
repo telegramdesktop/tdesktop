@@ -120,8 +120,6 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_error_free", g_error_free)) return false;
 	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
-	DEBUG_LOG(("Library gtk functions loaded!"));
-
 	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
 		// We work only with X11 GDK backend.
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
