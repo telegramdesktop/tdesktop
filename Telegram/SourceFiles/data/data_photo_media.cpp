@@ -34,9 +34,14 @@ not_null<PhotoData*> PhotoMedia::owner() const {
 
 Image *PhotoMedia::thumbnailInline() const {
 	if (!_inlineThumbnail) {
-		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
-		if (!image.isNull()) {
-			_inlineThumbnail = std::make_unique<Image>(std::move(image));
+		const auto bytes = _owner->inlineThumbnailBytes();
+		if (!bytes.isEmpty()) {
+			auto image = Images::FromInlineBytes(bytes);
+			if (image.isNull()) {
+				_owner->clearInlineThumbnailBytes();
+			} else {
+				_inlineThumbnail = std::make_unique<Image>(std::move(image));
+			}
 		}
 	}
 	return _inlineThumbnail.get();

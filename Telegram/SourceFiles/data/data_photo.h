@@ -88,6 +88,9 @@ public:
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
 	}
+	void clearInlineThumbnailBytes() {
+		_inlineThumbnailBytes = QByteArray();
+	}
 
 	void load(
 		Data::FileOrigin origin,

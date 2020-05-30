@@ -320,6 +320,9 @@ namespace App {
 	}
 
 	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
+		if (data.isEmpty()) {
+			return QImage();
+		}
 		QByteArray tmpFormat;
 		QImage result;
 		QBuffer buffer(&data);

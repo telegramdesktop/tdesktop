@@ -177,6 +177,9 @@ public:
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
 	}
+	void clearInlineThumbnailBytes() {
+		_inlineThumbnailBytes = QByteArray();
+	}
 
 	[[nodiscard]] Storage::Cache::Key goodThumbnailCacheKey() const;
 	[[nodiscard]] bool goodThumbnailChecked() const;

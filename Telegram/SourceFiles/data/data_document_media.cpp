@@ -171,9 +171,14 @@ void DocumentMedia::setGoodThumbnail(QImage thumbnail) {
 
 Image *DocumentMedia::thumbnailInline() const {
 	if (!_inlineThumbnail) {
-		auto image = Images::FromInlineBytes(_owner->inlineThumbnailBytes());
-		if (!image.isNull()) {
-			_inlineThumbnail = std::make_unique<Image>(std::move(image));
+		const auto bytes = _owner->inlineThumbnailBytes();
+		if (!bytes.isEmpty()) {
+			auto image = Images::FromInlineBytes(bytes);
+			if (image.isNull()) {
+				_owner->clearInlineThumbnailBytes();
+			} else {
+				_inlineThumbnail = std::make_unique<Image>(std::move(image));
+			}
 		}
 	}
 	return _inlineThumbnail.get();
@@ -360,10 +365,11 @@ Image *DocumentMedia::getStickerSmall() {
 }
 
 void DocumentMedia::checkStickerLarge(not_null<FileLoader*> loader) {
-	if (_owner->sticker()
-		&& !_sticker
-		&& !loader->imageData().isNull()) {
-		_sticker = std::make_unique<Image>(loader->imageData());
+	if (_sticker || !_owner->sticker()) {
+		return;
+	}
+	if (auto image = loader->imageData(); !image.isNull()) {
+		_sticker = std::make_unique<Image>(std::move(image));
 	}
 }
 

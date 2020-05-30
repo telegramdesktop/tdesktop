@@ -112,7 +112,9 @@ Image::Image(const QString &path) : Image(ReadContent(path)) {
 Image::Image(const QByteArray &content) : Image(ReadImage(content)) {
 }
 
-Image::Image(QImage &&data) : _data(std::move(data)) {
+Image::Image(QImage &&data)
+: _data(data.isNull() ? Empty()->original() : std::move(data)) {
+	Expects(!_data.isNull());
 }
 
 not_null<Image*> Image::Empty() {
