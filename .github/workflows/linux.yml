@@ -415,7 +415,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8.diff') }}
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qt*_5_12_8.diff') }}
       - name: Qt 5.12.8 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
@@ -427,7 +427,12 @@ jobs:
           git submodule update qtbase qtwayland qtimageformats qtsvg qtx11extras
           cd qtbase
           git apply ../../patches/qtbase_${QT}.diff
-          cd ../
+          git apply ../../patches/qtbase_xkbfix_${QT}.diff
+          cd ..
+          cd qtwayland
+          git apply ../../patches/qtwayland_${QT}.diff
+          git apply ../../patches/qtwayland_xkbfix_${QT}.diff
+          cd ..
 
           ./configure -prefix "$QT_PREFIX" \
           -release \
