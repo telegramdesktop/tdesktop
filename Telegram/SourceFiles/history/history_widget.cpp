@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_schedule_box.h"
+#include "history/view/history_view_webpage_preview.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
@@ -5965,38 +5966,22 @@ void HistoryWidget::updatePreview() {
 			const auto timeout = (_previewData->pendingTill - base::unixtime::now());
 			_previewTimer.callOnce(std::max(timeout, 0) * crl::time(1000));
 		} else {
-			QString title, desc;
-			if (_previewData->siteName.isEmpty()) {
-				if (_previewData->title.isEmpty()) {
-					if (_previewData->description.text.isEmpty()) {
-						title = _previewData->author;
-						desc = ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url);
-					} else {
-						title = _previewData->description.text;
-						desc = _previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author;
-					}
-				} else {
-					title = _previewData->title;
-					desc = _previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author) : _previewData->description.text;
-				}
-			} else {
-				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author) : _previewData->description.text) : _previewData->title;
-			}
-			if (title.isEmpty()) {
+			auto preview =
+				HistoryView::TitleAndDescriptionFromWebPage(_previewData);
+			if (preview.title.isEmpty()) {
 				if (_previewData->document) {
-					title = tr::lng_attach_file(tr::now);
+					preview.title = tr::lng_attach_file(tr::now);
 				} else if (_previewData->photo) {
-					title = tr::lng_attach_photo(tr::now);
+					preview.title = tr::lng_attach_photo(tr::now);
 				}
 			}
 			_previewTitle.setText(
 				st::msgNameStyle,
-				title,
+				preview.title,
 				Ui::NameTextOptions());
 			_previewDescription.setText(
 				st::messageTextStyle,
-				TextUtilities::Clean(desc),
+				TextUtilities::Clean(preview.description),
 				Ui::DialogTextOptions());
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
