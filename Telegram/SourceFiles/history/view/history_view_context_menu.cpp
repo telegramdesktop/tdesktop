@@ -553,6 +553,7 @@ bool AddSelectMessageAction(
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
 	} else if (!item
+			|| item->isSending()
 			|| !IsServerMsgId(ItemIdAcrossData(item))
 			|| item->serviceMsg()) {
 		return false;
