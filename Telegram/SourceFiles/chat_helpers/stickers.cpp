@@ -173,8 +173,8 @@ void InstallLocally(uint64 setId) {
 }
 
 void UndoInstallLocally(uint64 setId) {
-	auto &sets = Auth().data().stickerSetsRef();
-	auto it = sets.find(setId);
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.find(setId);
 	if (it == sets.end()) {
 		return;
 	}
@@ -400,7 +400,7 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	}
 	auto writeRecent = false;
 	auto &recent = GetRecentPack();
-	for (auto it = sets.begin(), e = sets.end(); it != e;) {
+	for (auto it = sets.begin(); it != sets.end();) {
 		const auto set = it->second.get();
 		bool installed = (set->flags & MTPDstickerSet::Flag::f_installed_date);
 		bool featured = (set->flags & MTPDstickerSet_ClientFlag::f_featured);
@@ -657,7 +657,7 @@ void FeaturedSetsReceived(
 	}
 
 	auto unreadCount = 0;
-	for (auto it = sets.begin(), e = sets.end(); it != e;) {
+	for (auto it = sets.begin(); it != sets.end();) {
 		const auto set = it->second.get();
 		bool installed = (set->flags & MTPDstickerSet::Flag::f_installed_date);
 		bool featured = (set->flags & MTPDstickerSet_ClientFlag::f_featured);

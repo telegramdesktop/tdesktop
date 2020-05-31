@@ -2638,7 +2638,6 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 			result.emplace_back(Stickers::RecentSetId);
 		}
 	}
-	const auto &sets = session().data().stickerSets();
 	for (auto l = _mySets.size(); i != l; ++i) {
 		if (_mySets[i].id == Stickers::MegagroupSetId) {
 			result.emplace_back(Stickers::MegagroupSetId);

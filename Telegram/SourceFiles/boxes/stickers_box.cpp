@@ -497,8 +497,8 @@ QPixmap StickersBox::grabContentCache() {
 }
 
 void StickersBox::installSet(uint64 setId) {
-	auto &sets = _session->data().stickerSetsRef();
-	auto it = sets.find(setId);
+	const auto &sets = _session->data().stickerSets();
+	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
 		rebuildList();
 		return;
@@ -535,8 +535,8 @@ void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result)
 bool StickersBox::installFail(uint64 setId, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	auto &sets = _session->data().stickerSetsRef();
-	auto it = sets.find(setId);
+	const auto &sets = _session->data().stickerSets();
+	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
 		rebuildList();
 		return true;

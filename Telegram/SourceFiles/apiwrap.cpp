@@ -3344,7 +3344,7 @@ void ApiWrap::readFeaturedSetDelayed(uint64 setId) {
 }
 
 void ApiWrap::readFeaturedSets() {
-	auto &sets = _session->data().stickerSetsRef();
+	const auto &sets = _session->data().stickerSets();
 	auto count = _session->data().featuredStickerSetsUnreadCount();
 	QVector<MTPlong> wrappedIds;
 	wrappedIds.reserve(_featuredSetsRead.size());

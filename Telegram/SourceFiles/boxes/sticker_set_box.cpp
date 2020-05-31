@@ -307,7 +307,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			} else {
 				_setThumbnail = ImageWithLocation();
 			}
-			auto &sets = _controller->session().data().stickerSetsRef();
+			const auto &sets = _controller->session().data().stickerSets();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				const auto set = it->second.get();
