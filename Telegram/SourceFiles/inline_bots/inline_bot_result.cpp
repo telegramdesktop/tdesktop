@@ -12,17 +12,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
+#include "data/data_document_media.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "storage/file_download.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "ui/image/image.h"
+#include "ui/image/image_location_factory.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 
 namespace InlineBots {
 namespace {
+
+const auto kVideoThumbMime = "video/mp4"_q;
 
 QString GetContentUrl(const MTPWebDocument &document) {
 	switch (document.type()) {
@@ -36,42 +41,46 @@ QString GetContentUrl(const MTPWebDocument &document) {
 
 } // namespace
 
-Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
+Result::Result(not_null<Main::Session*> session, const Creator &creator)
+: _session(session)
+, _queryId(creator.queryId)
+, _type(creator.type) {
 }
 
-std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
-	using StringToTypeMap = QMap<QString, Result::Type>;
-	static StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
-		auto result = std::make_unique<StringToTypeMap>();
-		result->insert(qsl("photo"), Result::Type::Photo);
-		result->insert(qsl("video"), Result::Type::Video);
-		result->insert(qsl("audio"), Result::Type::Audio);
-		result->insert(qsl("voice"), Result::Type::Audio);
-		result->insert(qsl("sticker"), Result::Type::Sticker);
-		result->insert(qsl("file"), Result::Type::File);
-		result->insert(qsl("gif"), Result::Type::Gif);
-		result->insert(qsl("article"), Result::Type::Article);
-		result->insert(qsl("contact"), Result::Type::Contact);
-		result->insert(qsl("venue"), Result::Type::Venue);
-		result->insert(qsl("geo"), Result::Type::Geo);
-		result->insert(qsl("game"), Result::Type::Game);
-		return result.release();
-	})() };
+std::unique_ptr<Result> Result::Create(
+		not_null<Main::Session*> session,
+		uint64 queryId,
+		const MTPBotInlineResult &mtpData) {
+	using Type = Result::Type;
 
-	auto getInlineResultType = [](const MTPBotInlineResult &inlineResult) -> Type {
-		QString type;
-		switch (inlineResult.type()) {
-		case mtpc_botInlineResult: type = qs(inlineResult.c_botInlineResult().vtype()); break;
-		case mtpc_botInlineMediaResult: type = qs(inlineResult.c_botInlineMediaResult().vtype()); break;
-		}
-		return stringToTypeMap->value(type, Type::Unknown);
-	};
-	Type type = getInlineResultType(mtpData);
+	const auto type = [&] {
+		static const auto kStringToTypeMap = base::flat_map<QString, Type>{
+			{ u"photo"_q, Type::Photo },
+			{ u"video"_q, Type::Video },
+			{ u"audio"_q, Type::Audio },
+			{ u"voice"_q, Type::Audio },
+			{ u"sticker"_q, Type::Sticker },
+			{ u"file"_q, Type::File },
+			{ u"gif"_q, Type::Gif },
+			{ u"article"_q, Type::Article },
+			{ u"contact"_q, Type::Contact },
+			{ u"venue"_q, Type::Venue },
+			{ u"geo"_q, Type::Geo },
+			{ u"game"_q, Type::Game },
+		};
+		const auto type = mtpData.match([](const auto &data) {
+			return qs(data.vtype());
+		});
+		const auto i = kStringToTypeMap.find(type);
+		return (i != kStringToTypeMap.end()) ? i->second : Type::Unknown;
+	}();
 	if (type == Type::Unknown) {
 		return nullptr;
 	}
 
-	auto result = std::make_unique<Result>(Creator{ queryId, type });
+	auto result = std::make_unique<Result>(
+		session,
+		Creator{ queryId, type });
 	const MTPBotInlineMessage *message = nullptr;
 	switch (mtpData.type()) {
 	case mtpc_botInlineResult: {
@@ -80,21 +89,48 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		result->_title = qs(r.vtitle().value_or_empty());
 		result->_description = qs(r.vdescription().value_or_empty());
 		result->_url = qs(r.vurl().value_or_empty());
-		if (const auto thumb = r.vthumb()) {
-			result->_thumb = Images::Create(*thumb, result->thumbBox());
-		}
+		const auto thumbMime = [&] {
+			if (const auto thumb = r.vthumb()) {
+				return thumb->match([&](const auto &data) {
+					return data.vmime_type().v;
+				});
+			}
+			return QByteArray();
+		}();
+		const auto contentMime = [&] {
+			if (const auto content = r.vcontent()) {
+				return content->match([&](const auto &data) {
+					return data.vmime_type().v;
+				});
+			}
+			return QByteArray();
+		}();
+		const auto imageThumb = !thumbMime.isEmpty()
+			&& (thumbMime != kVideoThumbMime);
+		const auto videoThumb = !thumbMime.isEmpty() && !imageThumb;
 		if (const auto content = r.vcontent()) {
 			result->_content_url = GetContentUrl(*content);
 			if (result->_type == Type::Photo) {
 				result->_photo = Auth().data().photoFromWeb(
 					*content,
-					result->_thumb,
-					true);
-			} else {
+					(imageThumb
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()));
+			} else if (contentMime != "text/html"_q) {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(*content),
-					result->_thumb);
+					(imageThumb
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()),
+					(videoThumb
+						? Images::FromWebDocument(*r.vthumb())
+						: ImageLocation()));
 			}
+		}
+		if (!result->_photo && !result->_document && imageThumb) {
+			result->_thumbnail.update(result->_session, ImageWithLocation{
+				.location = Images::FromWebDocument(*r.vthumb())
+			});
 		}
 		message = &r.vsend_message();
 	} break;
@@ -246,7 +282,9 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		location.height = h;
 		location.zoom = zoom;
 		location.scale = scale;
-		result->_locationThumb = Images::Create(location);
+		result->_locationThumbnail.update(result->_session, ImageWithLocation{
+			.location = ImageLocation({ location }, w, h)
+		});
 	}
 
 	return result;
@@ -254,10 +292,13 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 
 bool Result::onChoose(Layout::ItemBase *layout) {
 	if (_photo && _type == Type::Photo) {
-		if (_photo->thumbnail()->loaded()) {
+		const auto media = _photo->activeMediaView();
+		if (!media || media->image(Data::PhotoSize::Thumbnail)) {
 			return true;
-		} else if (!_photo->thumbnail()->loading()) {
-			_photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
+		} else if (!_photo->loading(Data::PhotoSize::Thumbnail)) {
+			_photo->load(
+				Data::PhotoSize::Thumbnail,
+				Data::FileOrigin());
 		}
 		return false;
 	}
@@ -268,29 +309,24 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 		_type == Type::File ||
 		_type == Type::Gif)) {
 		if (_type == Type::Gif) {
-			if (_document->loaded()) {
+			const auto media = _document->activeMediaView();
+			const auto preview = Data::VideoPreviewState(media.get());
+			if (!media || preview.loaded()) {
 				return true;
-			} else if (_document->loading()) {
-				_document->cancel();
-			} else {
-				DocumentSaveClickHandler::Save(
-					Data::FileOriginSavedGifs(),
-					_document);
+			} else if (!preview.usingThumbnail()) {
+				if (preview.loading()) {
+					_document->cancel();
+				} else {
+					DocumentSaveClickHandler::Save(
+						Data::FileOriginSavedGifs(),
+						_document);
+				}
 			}
 			return false;
 		}
 		return true;
 	}
 	return true;
-}
-
-void Result::unload() {
-	if (_document) {
-		_document->unload();
-	}
-	if (_photo) {
-		_photo->unload();
-	}
 }
 
 void Result::openFile() {
@@ -310,13 +346,13 @@ void Result::cancelFile() {
 }
 
 bool Result::hasThumbDisplay() const {
-	if (!_thumb->isNull()) {
+	if (!_thumbnail.empty()
+		|| _photo
+		|| (_document && _document->hasThumbnail())) {
 		return true;
-	}
-	if (_type == Type::Contact) {
+	} else if (_type == Type::Contact) {
 		return true;
-	}
-	if (sendData->hasLocationCoords()) {
+	} else if (sendData->hasLocationCoords()) {
 		return true;
 	}
 	return false;

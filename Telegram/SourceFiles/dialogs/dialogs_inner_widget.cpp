@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
+#include "data/data_cloud_file.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -734,7 +735,7 @@ void InnerWidget::paintPeerSearchResult(
 
 	auto peer = result->peer;
 	auto userpicPeer = (peer->migrateTo() ? peer->migrateTo() : peer);
-	userpicPeer->paintUserpicLeft(p, st::dialogsPadding.x(), st::dialogsPadding.y(), width(), st::dialogsPhotoSize);
+	userpicPeer->paintUserpicLeft(p, result->row.userpicView(), st::dialogsPadding.x(), st::dialogsPadding.y(), width(), st::dialogsPhotoSize);
 
 	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
 	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
@@ -810,7 +811,7 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 		if (peer->isSelf()) {
 			paintSearchInSaved(p, top, _searchInChatText);
 		} else {
-			paintSearchInPeer(p, peer, top, _searchInChatText);
+			paintSearchInPeer(p, peer, _searchInChatUserpic, top, _searchInChatText);
 		}
 	//} else if (const auto feed = _searchInChat.feed()) { // #feed
 	//	paintSearchInFeed(p, feed, top, fullWidth, _searchInChatText);
@@ -821,7 +822,7 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 		top += st::dialogsSearchInHeight + st::lineWidth;
 		p.setPen(st::dialogsTextFg);
 		p.setTextPalette(st::dialogsSearchFromPalette);
-		paintSearchInPeer(p, from, top, _searchFromUserText);
+		paintSearchInPeer(p, from, _searchFromUserUserpic, top, _searchFromUserText);
 		p.restoreTextPalette();
 	}
 }
@@ -866,10 +867,11 @@ void InnerWidget::paintSearchInFilter(
 void InnerWidget::paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpic,
 		int top,
 		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-		peer->paintUserpicLeft(p, x, y, width(), size);
+		peer->paintUserpicLeft(p, userpic, x, y, width(), size);
 	};
 	const auto icon = Layout::ChatTypeIcon(peer, false, false);
 	paintSearchInFilter(p, paintUserpic, top, icon, text);
@@ -2334,9 +2336,18 @@ void InnerWidget::searchInChat(Key key, UserData *from) {
 	}
 	if (_searchFromUser) {
 		_cancelSearchFromUser->show();
+		_searchFromUserUserpic = _searchFromUser->createUserpicView();
 	} else {
 		_cancelSearchFromUser->hide();
+		_searchFromUserUserpic = nullptr;
 	}
+
+	if (const auto peer = _searchInChat.peer()) {
+		_searchInChatUserpic = peer->createUserpicView();
+	} else {
+		_searchInChatUserpic = nullptr;
+	}
+
 	_controller->dialogsListDisplayForced().set(
 		_searchInChat || !_filter.isEmpty(),
 		true);

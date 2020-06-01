@@ -19,11 +19,11 @@ class Track;
 } // namespace Audio
 } // namespace Media
 
-namespace tgvoip {
-class VoIPController;
-} // namespace tgvoip
+enum class TgVoipState;
 
 namespace Calls {
+
+class Controller;
 
 struct DhConfig {
 	int32 version = 0;
@@ -129,30 +129,13 @@ public:
 	~Call();
 
 private:
-	class ControllerPointer {
-	public:
-		void create();
-		void reset();
-		bool empty() const;
-
-		bool operator==(std::nullptr_t) const;
-		explicit operator bool() const;
-		tgvoip::VoIPController *operator->() const;
-		tgvoip::VoIPController &operator*() const;
-
-		~ControllerPointer();
-
-	private:
-		std::unique_ptr<tgvoip::VoIPController> _data;
-
-	};
 	enum class FinishType {
 		None,
 		Ended,
 		Failed,
 	};
 	void handleRequestError(const RPCError &error);
-	void handleControllerError(int error);
+	void handleControllerError(const QString &error);
 	void finish(FinishType type, const MTPPhoneCallDiscardReason &reason = MTP_phoneCallDiscardReasonDisconnect());
 	void startOutgoing();
 	void startIncoming();
@@ -160,11 +143,9 @@ private:
 
 	void generateModExpFirst(bytes::const_span randomSeed);
 	void handleControllerStateChange(
-		tgvoip::VoIPController *controller,
-		int state);
-	void handleControllerBarCountChange(
-		tgvoip::VoIPController *controller,
-		int count);
+		not_null<Controller*> controller,
+		TgVoipState state);
+	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
 	template <typename T>
@@ -177,7 +158,7 @@ private:
 	void startConfirmedCall(const MTPDphoneCall &call);
 	void setState(State state);
 	void setStateQueued(State state);
-	void setFailedQueued(int error);
+	void setFailedQueued(const QString &error);
 	void setSignalBarCount(int count);
 	void destroyController();
 
@@ -210,12 +191,12 @@ private:
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
-	ControllerPointer _controller;
+	std::unique_ptr<Controller> _controller;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 
 };
 
-void UpdateConfig(const std::string& data);
+void UpdateConfig(const std::string &data);
 
 } // namespace Calls

@@ -33,6 +33,10 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Dialogs {
 
 class Row;
@@ -283,6 +287,7 @@ private:
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	void paintSearchInSaved(
@@ -394,6 +399,8 @@ private:
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
+	mutable std::shared_ptr<Data::CloudImageView> _searchInChatUserpic;
+	mutable std::shared_ptr<Data::CloudImageView> _searchFromUserUserpic;
 	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
 	RowDescriptor _menuRow;

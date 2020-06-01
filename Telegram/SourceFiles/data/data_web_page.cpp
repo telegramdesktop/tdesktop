@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/text/text_entity.h"
 
 namespace {
@@ -237,15 +236,7 @@ bool WebPageData::applyChanges(
 }
 
 void WebPageData::replaceDocumentGoodThumbnail() {
-	if (!document || !photo || !document->goodThumbnail()) {
-		return;
+	if (document && photo) {
+		document->setGoodThumbnailPhoto(photo);
 	}
-	const auto &location = photo->large()->location();
-	if (location.valid()) {
-		document->replaceGoodThumbnail(
-			std::make_unique<Images::StorageSource>(
-				location,
-				photo->large()->bytesSize()));
-	}
-
 }

@@ -12,10 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
-namespace Data {
-class Session;
-} // namespace Data
-
 namespace Media {
 namespace Player {
 struct TrackState;
@@ -34,7 +30,7 @@ class Instance;
 class Player final : private FileDelegate {
 public:
 	// Public interfaces is used from the main thread.
-	Player(not_null<Data::Session*> owner, std::shared_ptr<Reader> reader);
+	explicit Player(std::shared_ptr<Reader> reader);
 
 	// Because we remember 'this' in calls to crl::on_main.
 	Player(const Player &other) = delete;

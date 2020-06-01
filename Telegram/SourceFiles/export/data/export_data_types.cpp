@@ -36,6 +36,7 @@ namespace {
 constexpr auto kUserPeerIdShift = (1ULL << 32);
 constexpr auto kChatPeerIdShift = (2ULL << 32);
 constexpr auto kMaxImageSize = 10000;
+constexpr auto kMigratedMessagesIdShift = -1'000'000'000;
 
 QString PrepareFileNameDatePart(TimeId date) {
 	return date
@@ -712,6 +713,12 @@ Chat ParseChat(const MTPChat &data) {
 		result.id = data.vid().v;
 		result.title = ParseString(data.vtitle());
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
+		if (const auto migratedTo = data.vmigrated_to()) {
+			result.migratedToChannelId = migratedTo->match(
+			[](const MTPDinputChannel &data) {
+				return data.vchannel_id().v;
+			}, [](auto&&) { return 0; });
+		}
 	}, [&](const MTPDchatEmpty &data) {
 		result.id = data.vid().v;
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
@@ -1477,6 +1484,9 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 					? peer.user()->info.lastName
 					: Utf8String();
 				info.input = peer.input();
+				info.migratedToChannelId = peer.chat()
+					? peer.chat()->migratedToChannelId
+					: 0;
 			}
 			info.topMessageId = fields.vtop_message().v;
 			const auto shift = IsChatPeerId(info.peerId)
@@ -1515,6 +1525,7 @@ DialogInfo DialogInfoFromChat(const Chat &data) {
 	result.topMessageDate = 0;
 	result.topMessageId = 0;
 	result.type = DialogTypeFromChat(data);
+	result.migratedToChannelId = data.migratedToChannelId;
 	return result;
 }
 
@@ -1590,6 +1601,34 @@ DialogsInfo ParseDialogsInfo(
 	return result;
 }
 
+bool AddMigrateFromSlice(
+		DialogInfo &to,
+		const DialogInfo &from,
+		int splitIndex,
+		int splitsCount) {
+	Expects(splitIndex < splitsCount);
+
+	const auto good = to.migratedFromInput.match([](
+			const MTPDinputPeerEmpty &) {
+		return true;
+	}, [&](const MTPDinputPeerChat & data) {
+		return (ChatPeerId(data.vchat_id().v) == from.peerId);
+	}, [](auto&&) { return false; });
+	if (!good) {
+		return false;
+	}
+	Assert(from.splits.size() == from.messagesCountPerSplit.size());
+	for (auto i = 0, count = int(from.splits.size()); i != count; ++i) {
+		Assert(from.splits[i] < splitsCount);
+		to.splits.push_back(from.splits[i] - splitsCount);
+		to.messagesCountPerSplit.push_back(from.messagesCountPerSplit[i]);
+	}
+	to.migratedFromInput = from.input;
+	to.splits.push_back(splitIndex - splitsCount);
+	to.messagesCountPerSplit.push_back(0);
+	return true;
+}
+
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 	auto &chats = info.chats;
 	auto &left = info.left;
@@ -1619,7 +1658,7 @@ void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings) {
 		}();
 		dialog.onlyMyMessages = ((settings.fullChats & setting) != setting);
 
-		ranges::reverse(dialog.splits);
+		ranges::sort(dialog.splits);
 	}
 	for (auto &dialog : left) {
 		Assert(!settings.onlySinglePeer());
@@ -1645,6 +1684,16 @@ MessagesSlice ParseMessagesSlice(
 	}
 	result.peers = ParsePeersLists(users, chats);
 	return result;
+}
+
+MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice) {
+	for (auto &message : slice.list) {
+		message.id += kMigratedMessagesIdShift;
+		if (message.replyToMsgId) {
+			message.replyToMsgId += kMigratedMessagesIdShift;
+		}
+	}
+	return slice;
 }
 
 TimeId SingleMessageDate(const MTPmessages_Messages &data) {

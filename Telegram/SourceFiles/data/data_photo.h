@@ -8,40 +8,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_types.h"
+#include "data/data_cloud_file.h"
 
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Data {
+
 class Session;
+class ReplyPreview;
+class PhotoMedia;
+
+inline constexpr auto kPhotoSizeCount = 3;
+
+enum class PhotoSize : uchar {
+	Small,
+	Thumbnail,
+	Large,
+};
+
+[[nodiscard]] inline int PhotoSizeIndex(PhotoSize size) {
+	Expects(static_cast<int>(size) < kPhotoSizeCount);
+
+	return static_cast<int>(size);
+}
+
 } // namespace Data
 
-class PhotoData {
+class PhotoData final {
 public:
 	PhotoData(not_null<Data::Session*> owner, PhotoId id);
+	~PhotoData();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] bool isNull() const;
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
-	void download(Data::FileOrigin origin);
-	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool displayLoading() const;
 	void cancel();
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] int32 loadOffset() const;
 	[[nodiscard]] bool uploading() const;
+	[[nodiscard]] bool cancelled() const;
 
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	void unload();
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
 
 	void setRemoteLocation(
@@ -58,26 +74,46 @@ public:
 	// to (this) received from the server "same" photo.
 	void collectLocalData(not_null<PhotoData*> local);
 
-	bool isNull() const;
+	[[nodiscard]] std::shared_ptr<Data::PhotoMedia> createMediaView();
+	[[nodiscard]] auto activeMediaView() const
+		-> std::shared_ptr<Data::PhotoMedia>;
 
-	void loadThumbnail(Data::FileOrigin origin);
-	void loadThumbnailSmall(Data::FileOrigin origin);
-	Image *thumbnailInline() const;
-	not_null<Image*> thumbnailSmall() const;
-	not_null<Image*> thumbnail() const;
+	void updateImages(
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large);
+	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
 
-	void load(Data::FileOrigin origin);
-	not_null<Image*> large() const;
+	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
+		return _inlineThumbnailBytes;
+	}
+	void clearInlineThumbnailBytes() {
+		_inlineThumbnailBytes = QByteArray();
+	}
+
+	void load(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
+		bool autoLoading = false);
+
+	[[nodiscard]] static int SideLimit();
+
+	[[nodiscard]] bool hasExact(Data::PhotoSize size) const;
+	[[nodiscard]] bool loading(Data::PhotoSize size) const;
+	[[nodiscard]] bool failed(Data::PhotoSize size) const;
+	void load(
+		Data::PhotoSize size,
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
+		bool autoLoading = false);
+	[[nodiscard]] const ImageLocation &location(Data::PhotoSize size) const;
+	[[nodiscard]] std::optional<QSize> size(Data::PhotoSize size) const;
+	[[nodiscard]] int imageByteSize(Data::PhotoSize size) const;
 
 	// For now they return size of the 'large' image.
 	int width() const;
 	int height() const;
-
-	void updateImages(
-		ImagePtr thumbnailInline,
-		ImagePtr thumbnailSmall,
-		ImagePtr thumbnail,
-		ImagePtr large);
 
 	PhotoId id = 0;
 	TimeId date = 0;
@@ -89,15 +125,14 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	ImagePtr _thumbnailInline;
-	ImagePtr _thumbnailSmall;
-	ImagePtr _thumbnail;
-	ImagePtr _large;
+	QByteArray _inlineThumbnailBytes;
+	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
 
 	int32 _dc = 0;
 	uint64 _access = 0;
 	QByteArray _fileReference;
-	Data::ReplyPreview _replyPreview;
+	std::unique_ptr<Data::ReplyPreview> _replyPreview;
+	std::weak_ptr<Data::PhotoMedia> _media;
 
 	not_null<Data::Session*> _owner;
 

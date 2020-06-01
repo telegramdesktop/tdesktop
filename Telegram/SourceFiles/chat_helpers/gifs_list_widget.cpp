@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
+#include "data/data_document_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
@@ -248,14 +250,18 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 				_inlineQuery,
 				std::make_unique<InlineCacheEntry>()).first;
 		}
-		auto entry = it->second.get();
+		const auto entry = it->second.get();
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
-		if (auto count = v.size()) {
+		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);
 		}
 		auto added = 0;
-		for_const (const auto &res, v) {
-			if (auto result = InlineBots::Result::create(queryId, res)) {
+		for (const auto &res : v) {
+			auto result = InlineBots::Result::Create(
+				&controller()->session(),
+				queryId,
+				res);
+			if (result) {
 				++added;
 				entry->results.push_back(std::move(result));
 			}
@@ -369,23 +375,32 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		return;
 	}
 
+	const auto ctrl = (QGuiApplication::keyboardModifiers()
+		== Qt::ControlModifier);
 	auto item = _rows[row].items[column];
 	if (const auto photo = item->getPhoto()) {
-		if (photo->thumbnail()->loaded()) {
+		using Data::PhotoSize;
+		const auto media = photo->activeMediaView();
+		if (ctrl
+			|| (media && media->image(PhotoSize::Thumbnail))
+			|| (media && media->image(PhotoSize::Large))) {
 			_photoChosen.fire_copy(photo);
-		} else if (!photo->thumbnail()->loading()) {
-			photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
+		} else if (!photo->loading(PhotoSize::Thumbnail)) {
+			photo->load(PhotoSize::Thumbnail, Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
-		if (document->loaded()
-			|| QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		const auto media = document->activeMediaView();
+		const auto preview = Data::VideoPreviewState(media.get());
+		if (ctrl || (media && preview.loaded())) {
 			_fileChosen.fire_copy(document);
-		} else if (document->loading()) {
-			document->cancel();
-		} else {
-			document->save(
-				document->stickerOrGifOrigin(),
-				QString());
+		} else if (!preview.usingThumbnail()) {
+			if (preview.loading()) {
+				document->cancel();
+			} else {
+				document->save(
+					document->stickerOrGifOrigin(),
+					QString());
+			}
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
@@ -429,28 +444,21 @@ TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 
 void GifsListWidget::processHideFinished() {
 	clearSelection();
+	clearHeavyData();
 }
 
 void GifsListWidget::processPanelHideFinished() {
-	const auto itemForget = [](const auto &item) {
-		if (const auto document = item->getDocument()) {
-			document->unload();
-		}
-		if (const auto photo = item->getPhoto()) {
-			photo->unload();
-		}
-		if (const auto result = item->getResult()) {
-			result->unload();
-		}
-		item->unloadAnimation();
-	};
+	clearHeavyData();
+}
+
+void GifsListWidget::clearHeavyData() {
 	// Preserve panel state through visibility toggles.
 	//clearInlineRows(false);
 	for (const auto &[document, layout] : _gifLayouts) {
-		itemForget(layout);
+		layout->unloadHeavyPart();
 	}
 	for (const auto &[document, layout] : _inlineLayouts) {
-		itemForget(layout);
+		layout->unloadHeavyPart();
 	}
 }
 
@@ -541,11 +549,13 @@ void GifsListWidget::clearInlineRows(bool resultsDeleted) {
 	_rows.clear();
 }
 
-GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
-	auto it = _gifLayouts.find(doc);
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(
+		not_null<DocumentData*> document,
+		int32 position) {
+	auto it = _gifLayouts.find(document);
 	if (it == _gifLayouts.cend()) {
-		if (auto layout = LayoutItem::createLayoutGif(this, doc)) {
-			it = _gifLayouts.emplace(doc, std::move(layout)).first;
+		if (auto layout = LayoutItem::createLayoutGif(this, document)) {
+			it = _gifLayouts.emplace(document, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
 			return nullptr;
@@ -557,10 +567,15 @@ GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *
 	return it->second.get();
 }
 
-GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(InlineResult *result, int32 position) {
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(
+		not_null<InlineResult*> result,
+		int32 position) {
 	auto it = _inlineLayouts.find(result);
 	if (it == _inlineLayouts.cend()) {
-		if (auto layout = LayoutItem::createLayout(this, result, _inlineWithThumb)) {
+		if (auto layout = LayoutItem::createLayout(
+				this,
+				result,
+				_inlineWithThumb)) {
 			it = _inlineLayouts.emplace(result, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
@@ -1026,15 +1041,13 @@ void GifsListWidget::showPreview() {
 		auto layout = _rows[row].items[col];
 		if (const auto w = App::wnd()) {
 			if (const auto previewDocument = layout->getPreviewDocument()) {
-				w->showMediaPreview(
+				_previewShown = w->showMediaPreview(
 					Data::FileOriginSavedGifs(),
 					previewDocument);
-				_previewShown = true;
 			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				w->showMediaPreview(
+				_previewShown = w->showMediaPreview(
 					Data::FileOrigin(),
 					previewPhoto);
-				_previewShown = true;
 			}
 		}
 	}

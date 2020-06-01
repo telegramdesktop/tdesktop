@@ -888,7 +888,6 @@ void SingleMediaPreview::prepareAnimatedPreview(
 		_gifPreview = Media::Clip::MakeReader(
 			animatedPreviewPath,
 			std::move(callback));
-		if (_gifPreview) _gifPreview->setAutoplay();
 	}
 }
 

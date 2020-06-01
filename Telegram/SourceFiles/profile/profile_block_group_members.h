@@ -55,8 +55,8 @@ private:
 	void refreshUserOnline(UserData *user);
 
 	struct Member : public Item {
-		explicit Member(UserData *user);
-		UserData *user() const;
+		explicit Member(not_null<UserData*> user);
+		not_null<UserData*> user() const;
 
 		TimeId onlineTextTill = 0;
 		TimeId onlineTill = 0;

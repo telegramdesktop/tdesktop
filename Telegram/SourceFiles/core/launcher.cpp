@@ -98,13 +98,29 @@ void ComputeDebugMode() {
 }
 
 void ComputeTestMode() {
-	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
+	if (QFile::exists(cWorkingDir() + qsl("tdata/withtestmode"))) {
 		cSetTestMode(true);
 	}
 }
 
+void ComputeExternalUpdater() {
+	QFile file(qsl("/etc/tdesktop/externalupdater"));
+
+	if (file.exists() && file.open(QIODevice::ReadOnly)) {
+		QTextStream fileStream(&file);
+		while (!fileStream.atEnd()) {
+			const auto path = fileStream.readLine();
+
+			if (path == (cWorkingDir() + cExeName())) {
+				SetUpdaterDisabledAtStartup();
+				return;
+			}
+		}
+	}
+}
+
 void ComputeFreeType() {
-	if (QFile(cWorkingDir() + qsl("tdata/withfreetype")).exists()) {
+	if (QFile::exists(cWorkingDir() + qsl("tdata/withfreetype"))) {
 		cSetUseFreeType(true);
 	}
 }
@@ -124,7 +140,7 @@ void ComputeInstallBetaVersions() {
 	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
 	if (cAlphaVersion()) {
 		cSetInstallBetaVersion(false);
-	} else if (QFile(installBetaSettingPath).exists()) {
+	} else if (QFile::exists(installBetaSettingPath)) {
 		QFile f(installBetaSettingPath);
 		if (f.open(QIODevice::ReadOnly)) {
 			cSetInstallBetaVersion(f.read(1) != "0");
@@ -168,7 +184,7 @@ bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
 	if (QDir(was).exists() && !QDir(now).exists()) {
 		const auto oldFile = was + "/tdata/" + file;
 		const auto newFile = was + "/tdata/alpha";
-		if (QFile(oldFile).exists() && !QFile(newFile).exists()) {
+		if (QFile::exists(oldFile) && !QFile::exists(newFile)) {
 			if (!QFile(oldFile).copy(newFile)) {
 				LOG(("FATAL: Could not copy '%1' to '%2'"
 					).arg(oldFile
@@ -283,6 +299,14 @@ void Launcher::init() {
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // OS_MAC_OLD
 
+	// fallback session management is useless for tdesktop since it doesn't have
+	// any "are you sure you want to close this window?" dialogs
+	// but it produces bugs like https://github.com/telegramdesktop/tdesktop/issues/5022
+	// and https://github.com/telegramdesktop/tdesktop/issues/7549
+	// and https://github.com/telegramdesktop/tdesktop/issues/948
+	// more info: https://doc.qt.io/qt-5/qguiapplication.html#isFallbackSessionManagementEnabled
+	QApplication::setFallbackSessionManagementEnabled(false);
+
 	initHook();
 }
 
@@ -328,6 +352,7 @@ void Launcher::workingFolderReady() {
 
 	ComputeTestMode();
 	ComputeDebugMode();
+	ComputeExternalUpdater();
 	ComputeFreeType();
 	ComputeInstallBetaVersions();
 	ComputeInstallationTag();

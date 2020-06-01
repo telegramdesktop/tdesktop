@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_document_media.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h" // Core::App().showTheme.
@@ -178,9 +179,11 @@ void CloudThemes::showPreview(const CloudTheme &cloud) {
 
 void CloudThemes::applyFromDocument(const CloudTheme &cloud) {
 	const auto document = _session->data().document(cloud.documentId);
-	loadDocumentAndInvoke(_updatingFrom, cloud, document, [=] {
+	loadDocumentAndInvoke(_updatingFrom, cloud, document, [=](
+			std::shared_ptr<Data::DocumentMedia> media) {
+		const auto document = media->owner();
 		auto preview = Window::Theme::PreviewFromFile(
-			document->data(),
+			media->bytes(),
 			document->location().name(),
 			cloud);
 		if (preview) {
@@ -192,7 +195,9 @@ void CloudThemes::applyFromDocument(const CloudTheme &cloud) {
 
 void CloudThemes::previewFromDocument(const CloudTheme &cloud) {
 	const auto document = _session->data().document(cloud.documentId);
-	loadDocumentAndInvoke(_previewFrom, cloud, document, [=] {
+	loadDocumentAndInvoke(_previewFrom, cloud, document, [=](
+			std::shared_ptr<Data::DocumentMedia> media) {
+		const auto document = media->owner();
 		Core::App().showTheme(document, cloud);
 	});
 }
@@ -201,25 +206,26 @@ void CloudThemes::loadDocumentAndInvoke(
 		LoadingDocument &value,
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document,
-		Fn<void()> callback) {
+		Fn<void(std::shared_ptr<Data::DocumentMedia>)> callback) {
 	const auto alreadyWaiting = (value.document != nullptr);
 	if (alreadyWaiting) {
 		value.document->cancel();
 	}
 	value.document = document;
+	value.documentMedia = document->createMediaView();
 	value.document->save(
 		Data::FileOriginTheme(cloud.id, cloud.accessHash),
 		QString());
 	value.callback = std::move(callback);
-	if (document->loaded()) {
+	if (value.documentMedia->loaded()) {
 		invokeForLoaded(value);
 		return;
 	}
 	if (!alreadyWaiting) {
 		base::ObservableViewer(
 			_session->downloaderTaskFinished()
-		) | rpl::filter([=] {
-			return document->loaded();
+		) | rpl::filter([=, &value] {
+			return value.documentMedia->loaded();
 		}) | rpl::start_with_next([=, &value] {
 			invokeForLoaded(value);
 		}, value.subscription);
@@ -228,8 +234,9 @@ void CloudThemes::loadDocumentAndInvoke(
 
 void CloudThemes::invokeForLoaded(LoadingDocument &value) {
 	const auto onstack = std::move(value.callback);
+	auto media = std::move(value.documentMedia);
 	value = LoadingDocument();
-	onstack();
+	onstack(std::move(media));
 }
 
 void CloudThemes::scheduleReload() {

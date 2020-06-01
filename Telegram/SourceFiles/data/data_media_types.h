@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_location.h"
+
+class Image;
 class HistoryItem;
 
 namespace base {
@@ -27,8 +30,7 @@ class Media;
 
 namespace Data {
 
-class LocationPoint;
-struct LocationThumbnail;
+class CloudImage;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -77,7 +79,7 @@ public:
 	virtual const Call *call() const;
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
-	virtual LocationThumbnail *location() const;
+	virtual Data::CloudImage *location() const;
 	virtual PollData *poll() const;
 
 	virtual bool uploading() const;
@@ -236,7 +238,7 @@ public:
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	LocationThumbnail *location() const override;
+	Data::CloudImage *location() const override;
 	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -249,7 +251,8 @@ public:
 		not_null<HistoryItem*> realParent) override;
 
 private:
-	not_null<LocationThumbnail*> _location;
+	LocationPoint _point;
+	not_null<Data::CloudImage*> _location;
 	QString _title;
 	QString _description;
 

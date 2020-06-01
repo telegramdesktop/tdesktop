@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
@@ -439,7 +438,6 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(0, 0, _background);
 		} else {
 			const auto &pix = backThumb->pixBlurred(
-				Data::FileOrigin(),
 				st::settingsBackgroundThumb);
 			const auto factor = cIntRetinaFactor();
 			p.drawPixmap(
@@ -630,9 +628,7 @@ void ChooseFromFile(
 		}
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
-			std::make_unique<Images::ImageSource>(
-				std::move(image),
-				"JPG")));
+			std::move(image)));
 		Ui::show(Box<BackgroundPreviewBox>(session, local));
 	});
 	FileDialog::GetOpenPath(

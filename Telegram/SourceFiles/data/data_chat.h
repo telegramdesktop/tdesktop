@@ -175,7 +175,6 @@ public:
 	std::deque<not_null<UserData*>> lastAuthors;
 	base::flat_set<not_null<PeerData*>> markupSenders;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
-//	ImagePtr photoFull;
 
 private:
 	Flags _flags;

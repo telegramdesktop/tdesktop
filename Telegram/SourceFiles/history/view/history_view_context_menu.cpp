@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -72,10 +73,12 @@ MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 }
 
 void SavePhotoToFile(not_null<PhotoData*> photo) {
-	if (photo->isNull() || !photo->loaded()) {
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
 
+	const auto image = media->image(Data::PhotoSize::Large)->original();
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
 		tr::lng_save_photo(tr::now),
@@ -83,17 +86,19 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(&photo->session(), [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->large()->original().save(result, "JPG");
+				image.save(result, "JPG");
 			}
 		}));
 }
 
 void CopyImage(not_null<PhotoData*> photo) {
-	if (photo->isNull() || !photo->loaded()) {
+	const auto media = photo->activeMediaView();
+	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
 
-	QGuiApplication::clipboard()->setImage(photo->large()->original());
+	const auto image = media->image(Data::PhotoSize::Large)->original();
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
@@ -134,8 +139,7 @@ void OpenGif(FullMsgId itemId) {
 }
 
 void ShowInFolder(not_null<DocumentData*> document) {
-	const auto filepath = document->filepath(
-		DocumentData::FilePathResolve::Checked);
+	const auto filepath = document->filepath(true);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 	}
@@ -205,8 +209,7 @@ void AddDocumentActions(
 				: tr::lng_faved_stickers_add(tr::now)),
 			[=] { ToggleFavedSticker(document, contextId); });
 	}
-	if (!document->filepath(
-			DocumentData::FilePathResolve::Checked).isEmpty()) {
+	if (!document->filepath(true).isEmpty()) {
 		menu->addAction(
 			(Platform::IsMac()
 				? tr::lng_context_show_in_finder(tr::now)
@@ -550,6 +553,7 @@ bool AddSelectMessageAction(
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
 	} else if (!item
+			|| item->isSending()
 			|| !IsServerMsgId(ItemIdAcrossData(item))
 			|| item->serviceMsg()) {
 		return false;

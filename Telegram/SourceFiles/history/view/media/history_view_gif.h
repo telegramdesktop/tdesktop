@@ -10,10 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_file.h"
 #include "media/streaming/media_streaming_common.h"
 
+class Image;
 struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 class Painter;
+
+namespace Data {
+class DocumentMedia;
+} // namespace Data
 
 namespace Media {
 namespace View {
@@ -100,19 +105,22 @@ public:
 
 	void parentTextUpdated() override;
 
-	void unloadHeavyPart() override {
-		stopAnimation();
-	}
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 private:
 	struct Streamed;
 
+	void validateVideoThumbnail() const;
+
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 
+	void ensureDataMediaCreated() const;
+	void dataMediaCreated() const;
 	void refreshCaption();
 
 	[[nodiscard]] bool autoplayEnabled() const;
@@ -161,11 +169,13 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 
 	QString _downloadSize;
 

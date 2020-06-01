@@ -102,6 +102,15 @@ std::optional<StorageImageLocation> readStorageImageLocation(
 	int streamAppVersion,
 	QDataStream &stream);
 
+int imageLocationSize(const ImageLocation &location);
+void writeImageLocation(QDataStream &stream, const ImageLocation &location);
+
+// NB! This method can return StorageFileLocation with Type::Generic!
+// The reader should discard it or convert to one of the valid modern types.
+std::optional<ImageLocation> readImageLocation(
+	int streamAppVersion,
+	QDataStream &stream);
+
 template <typename T>
 inline T read(QDataStream &stream) {
 	auto result = T();

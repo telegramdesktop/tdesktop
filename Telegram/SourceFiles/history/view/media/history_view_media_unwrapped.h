@@ -34,6 +34,9 @@ public:
 		}
 		virtual void clearStickerLoopPlayed() {
 		}
+		virtual bool hasHeavyPart() const {
+			return false;
+		}
 		virtual void unloadHeavyPart() {
 		}
 		virtual void refreshLink() {
@@ -44,7 +47,7 @@ public:
 		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
 			return false;
 		}
-		virtual ~Content() = 0;
+		virtual ~Content() = default;
 	};
 
 	UnwrappedMedia(
@@ -82,6 +85,9 @@ public:
 		_content->clearStickerLoopPlayed();
 	}
 
+	bool hasHeavyPart() const override {
+		return _content->hasHeavyPart();
+	}
 	void unloadHeavyPart() override {
 		_content->unloadHeavyPart();
 	}

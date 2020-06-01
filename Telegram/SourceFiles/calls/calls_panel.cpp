@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
+#include "data/data_cloud_file.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -299,7 +301,8 @@ QImage Panel::Button::prepareRippleMask() const {
 }
 
 Panel::Panel(not_null<Call*> call)
-: _call(call)
+: RpWidget(Core::App().getModalParent())
+, _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
 , _decline(this, object_ptr<Button>(this, st::callHangup))
@@ -317,6 +320,8 @@ Panel::Panel(not_null<Call*> call)
 	initLayout();
 	showAndActivate();
 }
+
+Panel::~Panel() = default;
 
 void Panel::showAndActivate() {
 	toggleOpacityAnimation(true);
@@ -486,6 +491,7 @@ void Panel::finishAnimating() {
 
 void Panel::showControls() {
 	Expects(_call != nullptr);
+
 	showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
@@ -507,43 +513,39 @@ void Panel::hideAndDestroy() {
 }
 
 void Panel::processUserPhoto() {
-	if (!_user->userpicLoaded()) {
-		_user->loadUserpic();
-	}
+	_userpic = _user->createUserpicView();
+	_user->loadUserpic();
 	const auto photo = _user->userpicPhotoId()
 		? _user->owner().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
-		photo->large()->load(_user->userpicPhotoOrigin());
-	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
-		_user->session().api().requestFullPeer(_user);
+		_photo = photo->createMediaView();
+		_photo->wanted(Data::PhotoSize::Large, _user->userpicPhotoOrigin());
+	} else {
+		_photo = nullptr;
+		if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
+			_user->session().api().requestFullPeer(_user);
+		}
 	}
 	refreshUserPhoto();
 }
 
 void Panel::refreshUserPhoto() {
-	const auto photo = _user->userpicPhotoId()
-		? _user->owner().photo(_user->userpicPhotoId()).get()
-		: nullptr;
-	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
-		return photo->large()->loaded()
-			&& (photo->id != _userPhotoId || !_userPhotoFull);
-	};
-	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
-		_userPhotoId = photo->id;
+	const auto isNewBigPhoto = [&] {
+		return _photo
+			&& _photo->loaded()
+			&& (_photo->owner()->id != _userPhotoId || !_userPhotoFull);
+	}();
+	if (isNewBigPhoto) {
+		_userPhotoId = _photo->owner()->id;
 		_userPhotoFull = true;
-		createUserpicCache(
-			photo->isNull() ? nullptr : photo->large().get(),
-			_user->userpicPhotoOrigin());
+		createUserpicCache(_photo->image(Data::PhotoSize::Large));
 	} else if (_userPhoto.isNull()) {
-		const auto userpic = _user->currentUserpic();
-		createUserpicCache(
-			userpic ? userpic.get() : nullptr,
-			_user->userpicOrigin());
+		createUserpicCache(_userpic ? _userpic->image() : nullptr);
 	}
 }
 
-void Panel::createUserpicCache(Image *image, Data::FileOrigin origin) {
+void Panel::createUserpicCache(Image *image) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
@@ -557,7 +559,6 @@ void Panel::createUserpicCache(Image *image, Data::FileOrigin origin) {
 			width = size;
 		}
 		_userPhoto = image->pixNoCache(
-			origin,
 			width,
 			height,
 			options,
@@ -595,14 +596,18 @@ bool Panel::isGoodUserPhoto(PhotoData *photo) {
 }
 
 void Panel::initGeometry() {
-	auto center = Core::App().getPointForCallPanelCenter();
+	const auto center = Core::App().getPointForCallPanelCenter();
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
 	_contentTop = _padding.top() + st::callWidth;
-	auto screen = QApplication::desktop()->screenGeometry(center);
-	auto rect = QRect(0, 0, st::callWidth, st::callHeight);
-	setGeometry(rect.translated(center - rect.center()).marginsAdded(_padding));
+	const auto rect = [&] {
+		const QRect initRect(0, 0, st::callWidth, st::callHeight);
+		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
+	}();
+	setGeometry(rect);
+	setMinimumSize(rect.size());
+	setMaximumSize(rect.size());
 	createBottomImage();
 	updateControlsGeometry();
 }

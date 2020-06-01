@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_cloud_file.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -222,6 +223,7 @@ private:
 		}
 
 		not_null<PeerData*> peer;
+		mutable std::shared_ptr<Data::CloudImageView> userpic;
 		Ui::Text::String name, status;
 	};
 	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
@@ -1438,7 +1440,7 @@ void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
 
 void RevokePublicLinkBox::Inner::paintChat(Painter &p, const ChatRow &row, bool selected) const {
 	auto peer = row.peer;
-	peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
+	peer->paintUserpicLeft(p, row.userpic, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 
 	p.setPen(st::contactsNameFg);
 

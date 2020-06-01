@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
-#include "ui/image/image_source.h"
-#include "ui/image/image.h"
 
 #include <QtCore/QBuffer>
 
@@ -261,7 +259,7 @@ bool Should(
 		const Full &data,
 		Source source,
 		not_null<DocumentData*> document) {
-	if (document->sticker()) {
+	if (document->sticker() || document->isGifv()) {
 		return true;
 	} else if (document->isVoiceMessage()
 		|| document->isVideoMessage()
@@ -294,11 +292,11 @@ bool Should(
 bool Should(
 		const Full &data,
 		not_null<PeerData*> peer,
-		not_null<Images::Source*> image) {
+		not_null<PhotoData*> photo) {
 	return data.shouldDownload(
 		SourceFromPeer(peer),
 		Type::Photo,
-		image->bytesSize());
+		photo->imageByteSize(PhotoSize::Large));
 }
 
 bool ShouldAutoPlay(

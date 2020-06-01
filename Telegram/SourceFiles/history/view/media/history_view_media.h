@@ -253,6 +253,9 @@ public:
 		crl::time ms) const {
 	}
 
+	virtual bool hasHeavyPart() const {
+		return false;
+	}
 	virtual void unloadHeavyPart() {
 	}
 

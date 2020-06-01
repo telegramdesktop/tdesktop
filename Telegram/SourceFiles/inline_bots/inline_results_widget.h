@@ -61,7 +61,7 @@ class Inner
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	void hideFinish(bool completely);
+	void hideFinished();
 
 	void clearSelection();
 
@@ -121,6 +121,7 @@ private:
 	void updateSelected();
 	void checkRestrictedPeer();
 	bool isRestrictedView();
+	void clearHeavyData();
 
 	void paintInlineItems(Painter &p, const QRect &r);
 
@@ -245,7 +246,7 @@ private:
 	bool refreshInlineRows(int *added = nullptr);
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	int _contentMaxHeight = 0;

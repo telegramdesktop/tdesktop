@@ -100,7 +100,11 @@ private:
 		Key key,
 		const WebPageCollage &collage,
 		int index);
-	std::unique_ptr<Thumb> createThumb(Key key, Image *image);
+	std::unique_ptr<Thumb> createThumb(Key key, not_null<PhotoData*> photo);
+	std::unique_ptr<Thumb> createThumb(
+		Key key,
+		not_null<DocumentData*> document);
+	std::unique_ptr<Thumb> createThumb(Key key, std::nullptr_t);
 
 	void update();
 	void countUpdatedRect();

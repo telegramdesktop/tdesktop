@@ -20,11 +20,12 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
-bool InSandbox();
+bool InFlatpak();
 bool InSnap();
 bool InAppImage();
 bool IsStaticBinary();
-bool IsGtkFileDialogForced();
+bool IsGtkIntegrationForced();
+bool UseGtkFileDialog();
 bool IsQtPluginsBundled();
 
 bool IsXDGDesktopPortalPresent();

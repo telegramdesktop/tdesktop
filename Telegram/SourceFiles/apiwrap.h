@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 #include "mtproto/sender.h"
-#include "chat_helpers/stickers.h"
+#include "chat_helpers/stickers_set.h"
 #include "data/data_messages.h"
 
 class TaskQueue;

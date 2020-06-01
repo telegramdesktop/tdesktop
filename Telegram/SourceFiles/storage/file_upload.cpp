@@ -10,8 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "ui/image/image_location_factory.h"
+#include "core/mime_type.h"
 #include "main/main_session.h"
 
 namespace Storage {
@@ -42,6 +45,10 @@ constexpr auto kUploadRequestInterval = crl::time(500);
 
 // How much time without upload causes additional session kill.
 constexpr auto kKillSessionTimeout = 15 * crl::time(000);
+
+[[nodiscard]] const char *ThumbnailFormat(const QString &mime) {
+	return Core::IsMimeSticker(mime) ? "WEBP" : "JPG";
+}
 
 } // namespace
 
@@ -159,7 +166,9 @@ void Uploader::uploadMedia(
 			? Auth().data().processDocument(media.document)
 			: Auth().data().processDocument(
 				media.document,
-				base::duplicate(media.photoThumbs.front().second));
+				Images::FromImageInMemory(
+					media.photoThumbs.front().second,
+					"JPG"));
 		if (!media.data.isEmpty()) {
 			document->setDataAndCache(media.data);
 			if (media.type == SendMediaType::ThemeFile) {
@@ -190,20 +199,34 @@ void Uploader::upload(
 			? Auth().data().processDocument(file->document)
 			: Auth().data().processDocument(
 				file->document,
-				std::move(file->thumb));
+				Images::FromImageInMemory(
+					file->thumb,
+					ThumbnailFormat(file->filemime)));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
-		document->setGoodThumbnailOnUpload(
-			std::move(file->goodThumbnail),
-			std::move(file->goodThumbnailBytes));
+		if (const auto active = document->activeMediaView()) {
+			if (!file->goodThumbnail.isNull()) {
+				active->setGoodThumbnail(std::move(file->goodThumbnail));
+			}
+			if (!file->thumb.isNull()) {
+				active->setThumbnail(file->thumb);
+			}
+		}
+		if (!file->goodThumbnailBytes.isEmpty()) {
+			document->owner().cache().putIfEmpty(
+				document->goodThumbnailCacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					std::move(file->goodThumbnailBytes),
+					Data::kImageCacheTag));
+		}
 		if (!file->content.isEmpty()) {
 			document->setDataAndCache(file->content);
-			if (file->type == SendMediaType::ThemeFile) {
-				document->checkWallPaperProperties();
-			}
 		}
 		if (!file->filepath.isEmpty()) {
 			document->setLocation(FileLocation(file->filepath));
+		}
+		if (file->type == SendMediaType::ThemeFile) {
+			document->checkWallPaperProperties();
 		}
 	}
 	queue.emplace(msgId, File(file));

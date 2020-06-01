@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_progress.h"
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_media_rotation.h"
@@ -353,7 +354,8 @@ QImage RotateFrameImage(QImage image, int rotation) {
 PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest)> paint)
-: _parent(parent)
+: PipParent(Core::App().getModalParent())
+, _parent(parent)
 , _paint(std::move(paint)) {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
@@ -542,7 +544,11 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		geometry.moveTop(inner.y() + inner.height() - geometry.height());
 	}
 
-	setGeometry(geometry.marginsAdded(_padding));
+	geometry += _padding;
+
+	setGeometry(geometry);
+	setMinimumSize(geometry.size());
+	setMaximumSize(geometry.size());
 	updateDecorations();
 	update();
 }
@@ -713,8 +719,11 @@ void PipPanel::processDrag(QPoint point) {
 	if (clamped != valid.topLeft()) {
 		moveAnimated(clamped);
 	} else {
+		const auto newGeometry = valid.marginsAdded(_padding);
 		_positionAnimation.stop();
-		setGeometry(valid.marginsAdded(_padding));
+		setGeometry(newGeometry);
+		setMinimumSize(newGeometry.size());
+		setMaximumSize(newGeometry.size());
 	}
 }
 
@@ -801,25 +810,27 @@ void PipPanel::updateDecorations() {
 	_useTransparency = use;
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	setGeometry(newGeometry);
+	setMinimumSize(newGeometry.size());
+	setMaximumSize(newGeometry.size());
 	update();
 }
 
 Pip::Pip(
 	not_null<Delegate*> delegate,
-	not_null<DocumentData*> document,
+	not_null<DocumentData*> data,
 	FullMsgId contextId,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
 : _delegate(delegate)
-, _document(document)
+, _data(data)
 , _contextId(contextId)
 , _instance(std::move(shared), [=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
 , _playbackProgress(std::make_unique<PlaybackProgress>())
-, _rotation(document->owner().mediaRotation().get(document))
+, _rotation(data->owner().mediaRotation().get(data))
 , _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
@@ -835,9 +846,9 @@ void Pip::setupPanel() {
 		if (!_instance.info().video.size.isEmpty()) {
 			return _instance.info().video.size;
 		}
-		const auto good = _document->goodThumbnail();
-		const auto useGood = (good && good->loaded());
-		const auto original = useGood ? good->size() : _document->dimensions;
+		const auto media = _data->activeMediaView();
+		const auto good = media ? media->goodThumbnail() : nullptr;
+		const auto original = good ? good->size() : _data->dimensions;
 		return original.isEmpty() ? QSize(1, 1) : original;
 	}();
 	_panel.setAspectRatio(FlipSizeByRotation(size, _rotation));
@@ -1369,16 +1380,22 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		return _instance.frame(request);
 	}
 	const auto &cover = _instance.info().video.cover;
-	const auto good = _document->goodThumbnail();
-	const auto useGood = (good && good->loaded());
-	const auto thumb = _document->thumbnail();
-	const auto useThumb = (thumb && thumb->loaded());
-	const auto blurred = _document->thumbnailInline();
+
+	const auto media = _data->activeMediaView();
+	const auto use = media
+		? media
+		: _data->inlineThumbnailBytes().isEmpty()
+		? nullptr
+		: _data->createMediaView();
+	const auto good = use ? use->goodThumbnail() : nullptr;
+	const auto thumb = use ? use->thumbnail() : nullptr;
+	const auto blurred = use ? use->thumbnailInline() : nullptr;
+
 	const auto state = !cover.isNull()
 		? ThumbState::Cover
-		: useGood
+		: good
 		? ThumbState::Good
-		: useThumb
+		: thumb
 		? ThumbState::Thumb
 		: blurred
 		? ThumbState::Inline
@@ -1396,14 +1413,9 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 				request,
 				std::move(_preparedCoverStorage));
 		} else if (!request.resize.isEmpty()) {
-			if (good && !useGood) {
-				good->load({});
-			} else if (thumb && !useThumb) {
-				thumb->load(_contextId);
-			}
 			using Option = Images::Option;
 			const auto options = Option::Smooth
-				| (useGood ? Option(0) : Option::Blurred)
+				| (good ? Option(0) : Option::Blurred)
 				| Option::RoundedLarge
 				| ((request.corners & RectPart::TopLeft)
 					? Option::RoundedTopLeft
@@ -1417,14 +1429,13 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 				| ((request.corners & RectPart::BottomLeft)
 					? Option::RoundedBottomLeft
 					: Option(0));
-			_preparedCoverStorage = (useGood
+			_preparedCoverStorage = (good
 				? good
-				: useThumb
+				: thumb
 				? thumb
 				: blurred
 				? blurred
 				: Image::BlankMedia().get())->pixNoCache(
-					_contextId,
 					request.resize.width(),
 					request.resize.height(),
 					options,

@@ -14,9 +14,9 @@ namespace Data {
 struct FileOrigin;
 } // namespace Data
 
-namespace Lottie {
-class SinglePlayer;
-} // namespace Lottie
+namespace Stickers {
+struct LargeEmojiImage;
+} // namespace Stickers
 
 namespace HistoryView {
 
@@ -36,7 +36,7 @@ public:
 private:
 	const not_null<Element*> _parent;
 	const std::array<
-		std::shared_ptr<Image>,
+		std::shared_ptr<Stickers::LargeEmojiImage>,
 		Ui::Text::kIsolatedEmojiLimit> _images;
 	QSize _size;
 

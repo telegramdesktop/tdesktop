@@ -9,10 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 
-namespace Images {
-class Source;
-} // namespace Images
-
 namespace Data {
 namespace AutoDownload {
 
@@ -118,7 +114,7 @@ private:
 [[nodiscard]] bool Should(
 	const Full &data,
 	not_null<PeerData*> peer,
-	not_null<Images::Source*> image);
+	not_null<PhotoData*> photo);
 
 [[nodiscard]] bool ShouldAutoPlay(
 	const Full &data,

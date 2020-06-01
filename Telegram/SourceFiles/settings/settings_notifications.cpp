@@ -431,12 +431,16 @@ NotificationsCount::~NotificationsCount() {
 NotificationsCount::SampleWidget::SampleWidget(
 	NotificationsCount *owner,
 	const QPixmap &cache)
-: QWidget(nullptr)
+: QWidget(Core::App().getModalParent())
 , _owner(owner)
 , _cache(cache) {
-	resize(
+	const QSize size(
 		cache.width() / cache.devicePixelRatio(),
 		cache.height() / cache.devicePixelRatio());
+
+	resize(size);
+	setMinimumSize(size);
+	setMaximumSize(size);
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint

@@ -17,10 +17,12 @@
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
+#include "data/data_cloud_file.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/emoji_config.h"
 #include "history/history.h"
@@ -177,12 +179,12 @@ inline bool CurrentSongExists() {
 	return Media::Player::instance()->current(kSongType).audio() != nullptr;
 }
 
-inline bool UseEmptyUserpic(PeerData *peer) {
-	return (peer && (peer->useEmptyUserpic() || peer->isSelf()));
+inline bool UseEmptyUserpic(PeerData *peer, std::shared_ptr<Data::CloudImageView> &userpic) {
+	return peer && (peer->useEmptyUserpic(userpic) || peer->isSelf());
 }
 
 inline bool IsSelfPeer(PeerData *peer) {
-	return (peer && peer->isSelf());
+	return peer && peer->isSelf();
 }
 
 inline int UnreadCount(not_null<PeerData*> peer) {
@@ -219,9 +221,9 @@ inline std::optional<QString> RestrictionToSendStickers() {
 
 QString TitleRecentlyUsed() {
 	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.constFind(Stickers::CloudRecentSetId);
+	const auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it != sets.cend()) {
-		return it->title;
+		return it->second->title;
 	}
 	return tr::lng_recent_stickers(tr::now);
 }
@@ -327,37 +329,37 @@ void SendKeyEvent(int command) {
 }
 
 void AppendStickerSet(std::vector<PickerScrubberItem> &to, uint64 setId) {
-	auto &sets = Auth().data().stickerSets();
-	auto it = sets.constFind(setId);
-	if (it == sets.cend() || it->stickers.isEmpty()) {
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.find(setId);
+	if (it == sets.cend() || it->second->stickers.isEmpty()) {
 		return;
 	}
-	if (it->flags & MTPDstickerSet::Flag::f_archived) {
+	const auto set = it->second.get();
+	if (set->flags & MTPDstickerSet::Flag::f_archived) {
 		return;
 	}
-	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)) {
+	if (!(set->flags & MTPDstickerSet::Flag::f_installed_date)) {
 		return;
 	}
 
-	to.emplace_back(PickerScrubberItem(it->title.isEmpty()
-		? it->shortName
-		: it->title));
-	for (const auto sticker : it->stickers) {
+	to.emplace_back(PickerScrubberItem(set->title.isEmpty()
+		? set->shortName
+		: set->title));
+	for (const auto sticker : set->stickers) {
 		to.emplace_back(PickerScrubberItem(sticker));
 	}
 }
 
 void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 	const auto &sets = Auth().data().stickerSets();
-	const auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
-	const auto favedIt = sets.constFind(Stickers::FavedSetId);
+	const auto cloudIt = sets.find(Stickers::CloudRecentSetId);
 	const auto cloudCount = (cloudIt != sets.cend())
-		? cloudIt->stickers.size()
+		? cloudIt->second->stickers.size()
 		: 0;
 	if (cloudCount > 0) {
-		to.emplace_back(PickerScrubberItem(cloudIt->title));
+		to.emplace_back(PickerScrubberItem(cloudIt->second->title));
 		auto count = 0;
-		for (const auto document : cloudIt->stickers) {
+		for (const auto document : cloudIt->second->stickers) {
 			if (Stickers::IsFaved(document)) {
 				continue;
 			}
@@ -371,16 +373,16 @@ void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 
 void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.constFind(Stickers::FavedSetId);
+	const auto it = sets.find(Stickers::FavedSetId);
 	const auto count = (it != sets.cend())
-		? it->stickers.size()
+		? it->second->stickers.size()
 		: 0;
 	if (!count) {
 		return;
 	}
 	to.emplace_back(PickerScrubberItem(
 		tr::lng_mac_touchbar_favorite_stickers(tr::now)));
-	for (const auto document : it->stickers) {
+	for (const auto document : it->second->stickers) {
 		to.emplace_back(PickerScrubberItem(document));
 	}
 }
@@ -483,6 +485,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	rpl::lifetime _lifetime;
 	rpl::lifetime _peerChangedLifetime;
 	base::has_weak_ptr _guard;
+	std::shared_ptr<Data::CloudImageView> _userpicView;
 
 	bool isWaitingUserpicLoad;
 }
@@ -522,7 +525,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return update.paletteChanged();
 	}) | rpl::start_with_next([=] {
 		crl::on_main(&_guard, [=] {
-			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer)) {
+			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer, _userpicView)) {
 				[self updateUserpic];
 			} else if (_peer
 				&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer))) {
@@ -555,8 +558,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	_peerChangedLifetime.destroy();
 	_peer = newPeer;
 	if (!_peer || IsSelfPeer(_peer)) {
+		_userpicView = nullptr;
 		return;
 	}
+	_userpicView = _peer->createUserpicView();
 	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::PhotoChanged
@@ -612,7 +617,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
 		} else if (const auto folder =
 				Auth().data().folderLoaded(Data::Folder::kId)) {
-			folder->paintUserpic(paint, 0, 0, s);
+			// Not used in the folders.
+			auto view = std::shared_ptr<Data::CloudImageView>();
+			folder->paintUserpic(paint, view, 0, 0, s);
 		}
 		_userpic.setDevicePixelRatio(cRetinaFactor());
 		[self updateImage:_userpic];
@@ -621,8 +628,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!self.peer) {
 		return;
 	}
-	isWaitingUserpicLoad = !self.peer->userpicLoaded();
-	_userpic = self.peer->genUserpic(kIdealIconSize);
+	isWaitingUserpicLoad = _userpicView && !_userpicView->image();
+	_userpic = self.peer->genUserpic(_userpicView, kIdealIconSize);
 	_userpic.setDevicePixelRatio(cRetinaFactor());
 	[self updateBadge];
 }
@@ -656,6 +663,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
 	QSize _dimensions;
+	std::shared_ptr<Data::DocumentMedia> _media;
 	Image *_image;
 	@public
 	Data::FileOrigin fileOrigin;
@@ -675,27 +683,24 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	return self;
 }
 
-- (void)addDocument:(DocumentData *)document {
+- (void)addDocument:(not_null<DocumentData*>)document {
 	if (!document->sticker()) {
 		return;
 	}
-	_image = document->getStickerSmall();
-	if (!_image) {
-		return;
-	}
-	fileOrigin = document->stickerSetOrigin();
-	documentData = std::move(document);
-	_dimensions = document->dimensions;
-	_image->load(fileOrigin);
-	if (_image->loaded()) {
+	documentData = document;
+	_media = document->createMediaView();
+	_media->checkStickerSmall();
+	_image = _media->getStickerSmall();
+	if (_image) {
+		_dimensions = document->dimensions;
 		[self updateImage];
 		return;
 	}
-
 	base::ObservableViewer(
 		Auth().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
-		if (_image->loaded()) {
+		_image = _media->getStickerSmall();
+		if (_image) {
 			[self updateImage];
 			_lifetime.destroy();
 		}
@@ -705,14 +710,13 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	const auto size = _dimensions
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
-			_image->pixSingle(
-				fileOrigin,
-				size.width(),
-				size.height(),
-				kCircleDiameter,
-				kCircleDiameter,
-				ImageRoundRadius::None))
-		autorelease];
+		_image->pixSingle(
+			size.width(),
+			size.height(),
+			kCircleDiameter,
+			kCircleDiameter,
+			ImageRoundRadius::None))
+	autorelease];
 }
 @end // @implementation PickerScrubberItemView
 
@@ -1057,7 +1061,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	) | rpl::start_with_next([=] {
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->sessionController()) {
-				if (!Auth().data().stickerSets().size()) {
+				if (Auth().data().stickerSets().empty()) {
 					Auth().api().updateStickers();
 				}
 				_lifetimeSessionControllerChecker.destroy();

@@ -381,6 +381,10 @@ std::optional<crl::time> LastUserInputTime() {
 	return LastTrackedWhen;
 }
 
+bool AutostartSupported() {
+	return !IsWindowsStoreBuild();
+}
+
 } // namespace Platform
 
 namespace {

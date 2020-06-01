@@ -27,6 +27,7 @@ public:
 	GroupedMedia(
 		not_null<Element*> parent,
 		const std::vector<not_null<HistoryItem*>> &items);
+	~GroupedMedia();
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
@@ -88,6 +89,7 @@ public:
 
 	void stopAnimation() override;
 	int checkAnimationCount() override;
+	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
 	void parentTextUpdated() override;

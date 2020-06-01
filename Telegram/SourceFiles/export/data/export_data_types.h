@@ -220,6 +220,7 @@ std::map<int32, User> ParseUsersList(const MTPVector<MTPUser> &data);
 
 struct Chat {
 	int32 id = 0;
+	int32 migratedToChannelId = 0;
 	Utf8String title;
 	Utf8String username;
 	bool isBroadcast = false;
@@ -564,6 +565,9 @@ struct DialogInfo {
 	TimeId topMessageDate = 0;
 	PeerId peerId = 0;
 
+	MTPInputPeer migratedFromInput = MTP_inputPeerEmpty();
+	int32 migratedToChannelId = 0;
+
 	// User messages splits which contained that dialog.
 	std::vector<int> splits;
 
@@ -594,6 +598,11 @@ DialogsInfo ParseDialogsInfo(
 	const MTPInputPeer &singlePeer,
 	const MTPmessages_Chats &data);
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data);
+bool AddMigrateFromSlice(
+	DialogInfo &to,
+	const DialogInfo &from,
+	int splitIndex,
+	int splitsCount);
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
 
 struct MessagesSlice {
@@ -607,6 +616,7 @@ MessagesSlice ParseMessagesSlice(
 	const MTPVector<MTPUser> &users,
 	const MTPVector<MTPChat> &chats,
 	const QString &mediaFolder);
+MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice);
 
 bool SingleMessageBefore(
 	const MTPmessages_Messages &data,

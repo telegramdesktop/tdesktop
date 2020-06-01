@@ -845,11 +845,11 @@ Reader::SerializedSlice Reader::Slices::unloadToCache() {
 }
 
 Reader::Reader(
-	not_null<Storage::Cache::Database*> cache,
-	std::unique_ptr<Loader> loader)
-: _cache(cache)
-, _loader(std::move(loader))
-, _cacheHelper(InitCacheHelper(_loader->baseCacheKey()))
+	std::unique_ptr<Loader> loader,
+	Storage::Cache::Database *cache)
+: _loader(std::move(loader))
+, _cache(cache)
+, _cacheHelper(cache ? InitCacheHelper(_loader->baseCacheKey()) : nullptr)
 , _slices(_loader->size(), _cacheHelper != nullptr) {
 	_loader->parts(
 	) | rpl::start_with_next([=](LoadedPart &&part) {
@@ -1109,19 +1109,20 @@ void Reader::refreshLoaderPriority() {
 }
 
 bool Reader::isRemoteLoader() const {
-	return _loader->baseCacheKey().has_value();
+	return _loader->baseCacheKey().valid();
 }
 
 std::shared_ptr<Reader::CacheHelper> Reader::InitCacheHelper(
-		std::optional<Storage::Cache::Key> baseKey) {
+		Storage::Cache::Key baseKey) {
 	if (!baseKey) {
 		return nullptr;
 	}
-	return std::make_shared<Reader::CacheHelper>(*baseKey);
+	return std::make_shared<Reader::CacheHelper>(baseKey);
 }
 
 // 0 is for headerData, slice index = sliceNumber - 1.
 void Reader::readFromCache(int sliceNumber) {
+	Expects(_cache != nullptr);
 	Expects(_cacheHelper != nullptr);
 	Expects(!sliceNumber || !_slices.headerModeUnknown());
 
@@ -1182,6 +1183,7 @@ bool Reader::readFromCacheForDownloader(int sliceNumber) {
 }
 
 void Reader::putToCache(SerializedSlice &&slice) {
+	Expects(_cache != nullptr);
 	Expects(_cacheHelper != nullptr);
 	Expects(slice.number >= 0);
 
@@ -1375,6 +1377,7 @@ void Reader::finalizeCache() {
 	if (!_cacheHelper) {
 		return;
 	}
+	Assert(_cache != nullptr);
 	if (_cacheHelper->waiting != nullptr) {
 		QMutexLocker lock(&_cacheHelper->mutex);
 		_cacheHelper->waiting.store(nullptr, std::memory_order_release);

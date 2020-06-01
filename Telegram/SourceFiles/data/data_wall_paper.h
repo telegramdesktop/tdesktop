@@ -22,7 +22,7 @@ public:
 	[[nodiscard]] WallPaperId id() const;
 	[[nodiscard]] std::optional<QColor> backgroundColor() const;
 	[[nodiscard]] DocumentData *document() const;
-	[[nodiscard]] Image *thumbnail() const;
+	[[nodiscard]] Image *localThumbnail() const;
 	[[nodiscard]] bool isPattern() const;
 	[[nodiscard]] bool isDefault() const;
 	[[nodiscard]] bool isCreator() const;
@@ -34,7 +34,7 @@ public:
 	[[nodiscard]] QString shareUrl() const;
 
 	void loadDocument() const;
-	void loadThumbnail() const;
+	void loadDocumentThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
 
 	[[nodiscard]] MTPInputWallPaper mtpInput() const;

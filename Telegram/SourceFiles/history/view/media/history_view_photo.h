@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_file.h"
 
+namespace Data {
+class PhotoMedia;
+} // namespace Data
+
 namespace HistoryView {
 
 class Photo : public File {
@@ -22,6 +26,7 @@ public:
 		not_null<PeerData*> chat,
 		not_null<PhotoData*> photo,
 		int width);
+	~Photo();
 
 	void draw(Painter &p, const QRect &clip, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -75,6 +80,9 @@ public:
 
 	void parentTextUpdated() override;
 
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -82,6 +90,9 @@ protected:
 
 private:
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
+
+	void ensureDataMediaCreated() const;
+	void dataMediaCreated() const;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -98,6 +109,7 @@ private:
 	int _pixw = 1;
 	int _pixh = 1;
 	Ui::Text::String _caption;
+	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 
 };
 

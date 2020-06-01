@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
+#include "base/weak_ptr.h"
 
 #include <QtNetwork/QNetworkReply>
 
@@ -30,11 +31,8 @@ struct Key;
 // This value is used in local cache database settings!
 constexpr auto kMaxFileInMemory = 10 * 1024 * 1024;
 
-// 2 MB audio is hold in memory and auto loaded
-constexpr auto kMaxVoiceInMemory = 2 * 1024 * 1024;
-
 // 2 MB stickers hold in memory, auto loaded and displayed inline
-constexpr auto kMaxStickerInMemory = 2 * 1024 * 1024;
+constexpr auto kMaxStickerBytesSize = 2 * 1024 * 1024;
 
 // 10 MB GIF and mp4 animations held in memory while playing
 constexpr auto kMaxWallPaperInMemory = kMaxFileInMemory;
@@ -54,9 +52,7 @@ struct StorageImageSaved {
 
 };
 
-class FileLoader : public QObject {
-	Q_OBJECT
-
+class FileLoader : public base::has_weak_ptr {
 public:
 	FileLoader(
 		const QString &toFile,
@@ -70,29 +66,30 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
-	bool finished() const {
+	[[nodiscard]] bool finished() const {
 		return _finished;
 	}
 	void finishWithBytes(const QByteArray &data);
-	bool cancelled() const {
+	[[nodiscard]] bool cancelled() const {
 		return _cancelled;
 	}
-	const QByteArray &bytes() const {
+	[[nodiscard]] const QByteArray &bytes() const {
 		return _data;
 	}
-	virtual uint64 objId() const {
+	[[nodiscard]] virtual uint64 objId() const {
 		return 0;
 	}
-	QByteArray imageFormat(const QSize &shrinkBox = QSize()) const;
-	QImage imageData(const QSize &shrinkBox = QSize()) const;
-	QString fileName() const {
+	[[nodiscard]] QByteArray imageFormat(
+		const QSize &shrinkBox = QSize()) const;
+	[[nodiscard]] QImage imageData(const QSize &shrinkBox = QSize()) const;
+	[[nodiscard]] QString fileName() const {
 		return _filename;
 	}
 	// Used in MainWidget::documentLoadFailed.
 	[[nodiscard]] virtual Data::FileOrigin fileOrigin() const;
-	float64 currentProgress() const;
-	virtual int currentOffset() const;
-	int fullSize() const;
+	[[nodiscard]] float64 currentProgress() const;
+	[[nodiscard]] virtual int currentOffset() const;
+	[[nodiscard]] int fullSize() const;
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
@@ -100,10 +97,10 @@ public:
 	void start();
 	void cancel();
 
-	bool loadingLocal() const {
+	[[nodiscard]] bool loadingLocal() const {
 		return (_localStatus == LocalStatus::Loading);
 	}
-	bool autoLoading() const {
+	[[nodiscard]] bool autoLoading() const {
 		return _autoLoading;
 	}
 
@@ -112,9 +109,13 @@ public:
 		const QByteArray &imageFormat,
 		const QImage &imageData);
 
-signals:
-	void progress(FileLoader *loader);
-	void failed(FileLoader *loader, bool started);
+	[[nodiscard]] rpl::producer<rpl::empty_value, bool> updates() const {
+		return _updates.events();
+	}
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 protected:
 	enum class LocalStatus {
@@ -166,4 +167,18 @@ protected:
 	mutable QByteArray _imageFormat;
 	mutable QImage _imageData;
 
+	rpl::lifetime _lifetime;
+	rpl::event_stream<rpl::empty_value, bool> _updates;
+
 };
+
+[[nodiscard]] std::unique_ptr<FileLoader> CreateFileLoader(
+	const DownloadLocation &location,
+	Data::FileOrigin origin,
+	const QString &toFile,
+	int size,
+	LocationType locationType,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag);

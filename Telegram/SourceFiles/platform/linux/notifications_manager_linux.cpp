@@ -1,3 +1,4 @@
+
 /*
 This file is part of Telegram Desktop,
 the official desktop application for the Telegram messaging service.
@@ -104,8 +105,8 @@ std::vector<QString> ComputeServerInformation() {
 }
 
 std::vector<QString> GetServerInformation() {
-	static const auto ServerInformation = ComputeServerInformation();
-	return ServerInformation;
+	static const auto Result = ComputeServerInformation();
+	return Result;
 }
 
 QStringList ComputeCapabilities() {
@@ -128,8 +129,8 @@ QStringList ComputeCapabilities() {
 }
 
 QStringList GetCapabilities() {
-	static const auto Capabilities = ComputeCapabilities();
-	return Capabilities;
+	static const auto Result = ComputeCapabilities();
+	return Result;
 }
 
 bool Inhibited() {
@@ -147,14 +148,14 @@ bool Inhibited() {
 	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 		message);
 
-	const auto notSupportedErrors = {
+	static const auto NotSupportedErrors = {
 		QDBusError::ServiceUnknown,
 		QDBusError::InvalidArgs,
 	};
 
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
+	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
 		InhibitedNotSupported = true;
 	} else {
 		if (reply.error().type() == QDBusError::AccessDenied) {
@@ -516,6 +517,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -532,8 +534,8 @@ void Manager::Private::showNotification(
 		hideReplyButton);
 
 	if (!hideNameAndPhoto) {
-		const auto key = peer->userpicUniqueKey();
-		notification->setImage(_cachedUserpics.get(key, peer));
+		const auto key = peer->userpicUniqueKey(userpicView);
+		notification->setImage(_cachedUserpics.get(key, peer, userpicView));
 	}
 
 	auto i = _notifications.find(peer->id);
@@ -607,6 +609,7 @@ Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -615,6 +618,7 @@ void Manager::doShowNativeNotification(
 		bool hideReplyButton) {
 	_private->showNotification(
 		peer,
+		userpicView,
 		msgId,
 		title,
 		subtitle,

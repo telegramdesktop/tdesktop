@@ -9,17 +9,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_reply_preview.h"
+#include "data/data_photo_media.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "storage/file_download.h"
 #include "core/application.h"
 #include "facades.h"
 #include "app.h"
 
+namespace {
+
+constexpr auto kPhotoSideLimit = 1280;
+
+using Data::PhotoMedia;
+using Data::PhotoSize;
+using Data::PhotoSizeIndex;
+using Data::kPhotoSizeCount;
+
+} // namespace
+
 PhotoData::PhotoData(not_null<Data::Session*> owner, PhotoId id)
 : id(id)
 , _owner(owner) {
+}
+
+PhotoData::~PhotoData() {
+	for (auto &image : _images) {
+		base::take(image.loader).reset();
+	}
 }
 
 Data::Session &PhotoData::owner() const {
@@ -30,55 +49,104 @@ Main::Session &PhotoData::session() const {
 	return _owner->session();
 }
 
-void PhotoData::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	_large->automaticLoad(origin, item);
-}
-
 void PhotoData::automaticLoadSettingsChanged() {
-	_large->automaticLoadSettingsChanged();
-}
-
-void PhotoData::download(Data::FileOrigin origin) {
-	_large->loadEvenCancelled(origin);
-	_owner->notifyPhotoLayoutChanged(this);
-}
-
-bool PhotoData::loaded() const {
-	bool wasLoading = loading();
-	if (_large->loaded()) {
-		if (wasLoading) {
-			_owner->notifyPhotoLayoutChanged(this);
-		}
-		return true;
+	const auto index = PhotoSizeIndex(PhotoSize::Large);
+	if (!(_images[index].flags & Data::CloudFile::Flag::Cancelled)) {
+		return;
 	}
-	return false;
+	_images[index].loader = nullptr;
+	_images[index].flags &= ~Data::CloudFile::Flag::Cancelled;
+}
+
+void PhotoData::load(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	load(PhotoSize::Large, origin, fromCloud, autoLoading);
 }
 
 bool PhotoData::loading() const {
-	return _large->loading();
+	return loading(PhotoSize::Large);
+}
+
+int PhotoData::validSizeIndex(PhotoSize size) const {
+	const auto index = PhotoSizeIndex(size);
+	for (auto i = index; i != kPhotoSizeCount; ++i) {
+		if (_images[i].location.valid()) {
+			return i;
+		}
+	}
+	return PhotoSizeIndex(PhotoSize::Large);
+}
+
+bool PhotoData::hasExact(PhotoSize size) const {
+	return _images[PhotoSizeIndex(size)].location.valid();
+}
+
+bool PhotoData::loading(PhotoSize size) const {
+	return (_images[validSizeIndex(size)].loader != nullptr);
+}
+
+bool PhotoData::failed(PhotoSize size) const {
+	const auto flags = _images[validSizeIndex(size)].flags;
+	return (flags & Data::CloudFile::Flag::Failed);
+}
+
+const ImageLocation &PhotoData::location(PhotoSize size) const {
+	return _images[validSizeIndex(size)].location;
+}
+
+int PhotoData::SideLimit() {
+	return kPhotoSideLimit;
+}
+
+std::optional<QSize> PhotoData::size(PhotoSize size) const {
+	const auto &provided = location(size);
+	const auto result = QSize{ provided.width(), provided.height() };
+	const auto limit = SideLimit();
+	if (result.isEmpty()) {
+		return std::nullopt;
+	} else if (result.width() <= limit && result.height() <= limit) {
+		return result;
+	}
+	const auto scaled = result.scaled(limit, limit, Qt::KeepAspectRatio);
+	return QSize(std::max(scaled.width(), 1), std::max(scaled.height(), 1));
+}
+
+int PhotoData::imageByteSize(PhotoSize size) const {
+	return _images[validSizeIndex(size)].byteSize;
 }
 
 bool PhotoData::displayLoading() const {
-	return _large->loading()
-		? _large->displayLoading()
+	const auto index = PhotoSizeIndex(PhotoSize::Large);
+	return _images[index].loader
+		? (!_images[index].loader->loadingLocal()
+			|| !_images[index].loader->autoLoading())
 		: (uploading() && !waitingForAlbum());
 }
 
 void PhotoData::cancel() {
-	_large->cancel();
-	_owner->notifyPhotoLayoutChanged(this);
+	if (loading()) {
+		_images[PhotoSizeIndex(PhotoSize::Large)].loader->cancel();
+	}
 }
 
 float64 PhotoData::progress() const {
 	if (uploading()) {
 		if (uploadingData->size > 0) {
-			return float64(uploadingData->offset) / uploadingData->size;
+			const auto result = float64(uploadingData->offset)
+				/ uploadingData->size;
+			return snap(result, 0., 1.);
 		}
-		return 0;
+		return 0.;
 	}
-	return _large->progress();
+	const auto index = PhotoSizeIndex(PhotoSize::Large);
+	return loading() ? _images[index].loader->currentProgress() : 0.;
+}
+
+bool PhotoData::cancelled() const {
+	const auto index = PhotoSizeIndex(PhotoSize::Large);
+	return (_images[index].flags & Data::CloudFile::Flag::Cancelled);
 }
 
 void PhotoData::setWaitingForAlbum() {
@@ -92,50 +160,19 @@ bool PhotoData::waitingForAlbum() const {
 }
 
 int32 PhotoData::loadOffset() const {
-	return _large->loadOffset();
+	const auto index = PhotoSizeIndex(PhotoSize::Large);
+	return loading() ? _images[index].loader->currentOffset() : 0;
 }
 
 bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-void PhotoData::unload() {
-	// Forget thumbnail only when image cache limit exceeds.
-	//_thumbnailInline->unload();
-	_thumbnailSmall->unload();
-	_thumbnail->unload();
-	_large->unload();
-	_replyPreview.clear();
-}
-
 Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
-	if (_replyPreview
-		&& (_replyPreview.good() || !_thumbnailSmall->loaded())) {
-		return _replyPreview.image();
+	if (!_replyPreview) {
+		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	if (_thumbnailSmall->isDelayedStorageImage()
-		&& !_large->isNull()
-		&& !_large->isDelayedStorageImage()
-		&& _large->loaded()) {
-		_replyPreview.prepare(
-			_large.get(),
-			origin,
-			Images::Option(0));
-	} else if (_thumbnailSmall->loaded()) {
-		_replyPreview.prepare(
-			_thumbnailSmall.get(),
-			origin,
-			Images::Option(0));
-	} else {
-		_thumbnailSmall->load(origin);
-		if (_thumbnailInline) {
-			_replyPreview.prepare(
-				_thumbnailInline.get(),
-				origin,
-				Images::Option::Blurred);
-		}
-	}
-	return _replyPreview.image();
+	return _replyPreview->image(origin);
 }
 
 void PhotoData::setRemoteLocation(
@@ -162,9 +199,9 @@ QByteArray PhotoData::fileReference() const {
 
 void PhotoData::refreshFileReference(const QByteArray &value) {
 	_fileReference = value;
-	_thumbnailSmall->refreshFileReference(value);
-	_thumbnail->refreshFileReference(value);
-	_large->refreshFileReference(value);
+	for (auto &image : _images) {
+		image.location.refreshFileReference(value);
+	}
 }
 
 void PhotoData::collectLocalData(not_null<PhotoData*> local) {
@@ -172,83 +209,108 @@ void PhotoData::collectLocalData(not_null<PhotoData*> local) {
 		return;
 	}
 
-	const auto copyImage = [&](const ImagePtr &src, const ImagePtr &dst) {
-		if (const auto from = src->cacheKey()) {
-			if (const auto to = dst->cacheKey()) {
-				_owner->cache().copyIfEmpty(*from, *to);
+	for (auto i = 0; i != kPhotoSizeCount; ++i) {
+		if (const auto from = local->_images[i].location.file().cacheKey()) {
+			if (const auto to = _images[i].location.file().cacheKey()) {
+				_owner->cache().copyIfEmpty(from, to);
 			}
 		}
-	};
-	copyImage(local->_thumbnailSmall, _thumbnailSmall);
-	copyImage(local->_thumbnail, _thumbnail);
-	copyImage(local->_large, _large);
+	}
+	if (const auto localMedia = local->activeMediaView()) {
+		auto media = createMediaView();
+		media->collectLocalData(localMedia.get());
+		_owner->keepAlive(std::move(media));
+	}
 }
 
 bool PhotoData::isNull() const {
-	return _large->isNull();
+	return !_images[PhotoSizeIndex(PhotoSize::Large)].location.valid();
 }
 
-void PhotoData::loadThumbnail(Data::FileOrigin origin) {
-	_thumbnail->load(origin);
+void PhotoData::load(
+		PhotoSize size,
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	const auto index = validSizeIndex(size);
+	auto &image = _images[index];
+
+	// Could've changed, if the requested size didn't have a location.
+	const auto loadingSize = static_cast<PhotoSize>(index);
+	const auto cacheTag = Data::kImageCacheTag;
+	Data::LoadCloudFile(image, origin, fromCloud, autoLoading, cacheTag, [=] {
+		if (const auto active = activeMediaView()) {
+			return !active->image(size);
+		}
+		return true;
+	}, [=](QImage result) {
+		if (const auto active = activeMediaView()) {
+			active->set(loadingSize, std::move(result));
+		}
+		if (loadingSize == PhotoSize::Large) {
+			_owner->photoLoadDone(this);
+		}
+	}, [=](bool started) {
+		if (loadingSize == PhotoSize::Large) {
+			_owner->photoLoadFail(this, started);
+		}
+	}, [=] {
+		if (loadingSize == PhotoSize::Large) {
+			_owner->photoLoadProgress(this);
+		}
+	});
+
+	if (size == PhotoSize::Large) {
+		_owner->notifyPhotoLayoutChanged(this);
+	}
 }
 
-void PhotoData::loadThumbnailSmall(Data::FileOrigin origin) {
-	_thumbnailSmall->load(origin);
+std::shared_ptr<PhotoMedia> PhotoData::createMediaView() {
+	if (auto result = activeMediaView()) {
+		return result;
+	}
+	auto result = std::make_shared<PhotoMedia>(this);
+	_media = result;
+	return result;
 }
 
-Image *PhotoData::thumbnailInline() const {
-	return _thumbnailInline ? _thumbnailInline.get() : nullptr;
-}
-
-not_null<Image*> PhotoData::thumbnailSmall() const {
-	return _thumbnailSmall.get();
-}
-
-not_null<Image*> PhotoData::thumbnail() const {
-	return _thumbnail.get();
-}
-
-void PhotoData::load(Data::FileOrigin origin) {
-	_large->load(origin);
-}
-
-not_null<Image*> PhotoData::large() const {
-	return _large.get();
+std::shared_ptr<PhotoMedia> PhotoData::activeMediaView() const {
+	return _media.lock();
 }
 
 void PhotoData::updateImages(
-		ImagePtr thumbnailInline,
-		ImagePtr thumbnailSmall,
-		ImagePtr thumbnail,
-		ImagePtr large) {
-	if (!thumbnailSmall || !thumbnail || !large) {
-		return;
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large) {
+	if (!inlineThumbnailBytes.isEmpty()
+		&& _inlineThumbnailBytes.isEmpty()) {
+		_inlineThumbnailBytes = inlineThumbnailBytes;
 	}
-	if (thumbnailInline && !_thumbnailInline) {
-		_thumbnailInline = thumbnailInline;
-	}
-	const auto update = [](ImagePtr &was, ImagePtr now) {
-		if (!was) {
-			was = now;
-		} else if (was->isDelayedStorageImage()) {
-			if (const auto location = now->location(); location.valid()) {
-				was->setDelayedStorageLocation(
-					Data::FileOrigin(),
-					location);
-			}
-		}
+	const auto update = [&](PhotoSize size, const ImageWithLocation &data) {
+		Data::UpdateCloudFile(
+			_images[PhotoSizeIndex(size)],
+			data,
+			owner().cache(),
+			Data::kImageCacheTag,
+			[=](Data::FileOrigin origin) { load(size, origin); },
+			[=](QImage preloaded) {
+				if (const auto media = activeMediaView()) {
+					media->set(size, data.preloaded);
+				}
+			});
 	};
-	update(_thumbnailSmall, thumbnailSmall);
-	update(_thumbnail, thumbnail);
-	update(_large, large);
+	update(PhotoSize::Small, small);
+	update(PhotoSize::Thumbnail, thumbnail);
+	update(PhotoSize::Large, large);
 }
 
 int PhotoData::width() const {
-	return _large->width();
+	return _images[PhotoSizeIndex(PhotoSize::Large)].location.width();
 }
 
 int PhotoData::height() const {
-	return _large->height();
+	return _images[PhotoSizeIndex(PhotoSize::Large)].location.height();
 }
 
 PhotoClickHandler::PhotoClickHandler(
@@ -275,7 +337,7 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	if (!data->date) {
 		return;
 	} else {
-		data->download(context());
+		data->load(context());
 	}
 }
 

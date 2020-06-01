@@ -66,8 +66,8 @@ std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
 		return nullptr;
 	}
 	auto result = std::make_shared<Reader>(
-		&_owner->cacheBigFile(),
-		std::move(loader));
+		std::move(loader),
+		&_owner->cacheBigFile());
 	if (!PruneDestroyedAndSet(_readers, document, result)) {
 		_readers.emplace_or_assign(document, result);
 	}

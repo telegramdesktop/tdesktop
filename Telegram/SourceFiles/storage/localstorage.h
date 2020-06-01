@@ -20,6 +20,7 @@ class History;
 
 namespace Data {
 class WallPaper;
+class DocumentMedia;
 } // namespace Data
 
 namespace Lang {
@@ -131,7 +132,7 @@ Storage::EncryptionKey cacheBigFileKey();
 QString cacheBigFilePath();
 Storage::Cache::Database::Settings cacheBigFileSettings();
 
-void countVoiceWaveform(DocumentData *document);
+void countVoiceWaveform(not_null<Data::DocumentMedia*> media);
 
 void cancelTask(TaskId id);
 

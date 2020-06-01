@@ -48,8 +48,6 @@ jobs:
 
     env:
       UPLOAD_ARTIFACT: "false"
-      ONLY_CACHE: "false"
-      MANUAL_CACHING: "5"
 
     steps:
       - name: Clone.
@@ -59,56 +57,17 @@ jobs:
 
       - name: First set up.
         run: |
+          # Workaround for permanent problems with third-party repository keys
+          sudo rm -rf /etc/apt/sources.list.d/*
+
           sudo apt-get update
-          sudo apt-get install gcc-8 g++-8 -y
           sudo snap install --classic snapcraft
 
           # Workaround for snapcraft
           # See https://forum.snapcraft.io/t/13258
           sudo chown root:root /
 
-          md5() {
-            md5cache=$(md5sum $1.txt | cut -c -32)
-            echo ::set-env name=$1::$md5cache
-          }
-          keyFor() {
-            keyName="${1^^}_CACHE_KEY"
-            awk -v RS="" -v ORS="\n\n" '/^  '"$1"':/' snap/snapcraft.yaml > $keyName.txt
-            md5 $keyName
-          }
-
-          snap run snapcraft --version > CACHE_KEY.txt
-          gcc-8 --version >> CACHE_KEY.txt
-          echo $MANUAL_CACHING >> CACHE_KEY.txt
-          md5 CACHE_KEY
-
-          keyFor cmake
-          keyFor ffmpeg
-
-      - name: CMake cache.
-        id: cache-cmake
-        uses: actions/cache@v1
-        with:
-          path: parts/cmake
-          key: ${{ runner.OS }}-cmake-${{ env.CACHE_KEY }}-${{ env.CMAKE_CACHE_KEY }}
-
-      - name: CMake build.
-        if: steps.cache-cmake.outputs.cache-hit != 'true'
-        run: sudo snap run snapcraft build --destructive-mode cmake
-
-      - name: FFmpeg cache.
-        id: cache-ffmpeg
-        uses: actions/cache@v1
-        with:
-          path: parts/ffmpeg
-          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-${{ env.FFMPEG_CACHE_KEY }}
-
-      - name: FFmpeg build.
-        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
-        run: sudo snap run snapcraft build --destructive-mode ffmpeg
-
       - name: Telegram Desktop snap build.
-        if: env.ONLY_CACHE == 'false'
         run: sudo snap run snapcraft --destructive-mode
 
       - name: Move artifact.
@@ -126,8 +85,3 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: artifact
-
-      - name: Remove unneeded directories for cache.
-        run: |
-          sudo rm -rf parts/*/{build,src,ubuntu}
-          sudo rm -rf parts/*/state/{stage,prime}

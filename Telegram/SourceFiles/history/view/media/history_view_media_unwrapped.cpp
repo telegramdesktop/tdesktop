@@ -24,8 +24,6 @@ constexpr auto kMaxForwardedBarLines = 4;
 
 } // namespace
 
-UnwrappedMedia::Content::~Content() = default;
-
 UnwrappedMedia::UnwrappedMedia(
 	not_null<Element*> parent,
 	std::unique_ptr<Content> content)

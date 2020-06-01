@@ -17,6 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace AdminLog {
 namespace {
 
@@ -59,7 +63,8 @@ private:
 
 	QRect _checkRect;
 
-	not_null<UserData*> _user;
+	const not_null<UserData*> _user;
+	std::shared_ptr<Data::CloudImageView> _userpic;
 	QString _statusText;
 	bool _statusOnline = false;
 
@@ -113,7 +118,7 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 
 	auto userpicLeft = _checkRect.x() + _checkRect.width() + st::adminLogFilterUserpicLeft;
 	auto userpicTop = 0;
-	_user->paintUserpicLeft(p, userpicLeft, userpicTop, width(), st::contactsPhotoSize);
+	_user->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, width(), st::contactsPhotoSize);
 
 	auto nameLeft = userpicLeft + st::contactsPhotoSize + st::contactsPadding.left();
 	auto nameTop = userpicTop + st::contactsNameTop;

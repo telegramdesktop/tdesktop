@@ -26,17 +26,34 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Data {
+class DocumentMedia;
+class CloudImageView;
+} // namespace Data
+
 namespace internal {
 
 struct StickerSuggestion {
 	not_null<DocumentData*> document;
+	std::shared_ptr<Data::DocumentMedia> documentMedia;
 	std::unique_ptr<Lottie::SinglePlayer> animated;
 };
 
-using MentionRows = QList<UserData*>;
-using HashtagRows = QList<QString>;
-using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
+struct MentionRow {
+	not_null<UserData*> user;
+	std::shared_ptr<Data::CloudImageView> userpic;
+};
+
+struct BotCommandRow {
+	not_null<UserData*> user;
+	not_null<const BotCommand*> command;
+	std::shared_ptr<Data::CloudImageView> userpic;
+};
+
+using HashtagRows = std::vector<QString>;
+using BotCommandRows = std::vector<BotCommandRow>;
 using StickerRows = std::vector<StickerSuggestion>;
+using MentionRows = std::vector<MentionRow>;
 
 class FieldAutocompleteInner;
 
@@ -89,7 +106,7 @@ public:
 	void hideFast();
 
 signals:
-	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
+	void mentionChosen(not_null<UserData*> user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
 	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
@@ -177,7 +194,7 @@ public:
 	void rowsUpdated();
 
 signals:
-	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
+	void mentionChosen(not_null<UserData*> user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
 	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;

@@ -177,6 +177,10 @@ void Application::run() {
 		psNewVersion();
 	}
 
+	if (cAutoStart() && !Platform::AutostartSupported()) {
+		cSetAutoStart(false);
+	}
+
 	if (cLaunchMode() == LaunchModeAutoStart && !cAutoStart()) {
 		psAutoStart(false, true);
 		App::quit();
@@ -303,7 +307,7 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 
 	if (cUseExternalVideoPlayer()
 		&& document->isVideoFile()
-		&& document->loaded()) {
+		&& !document->filepath().isEmpty()) {
 		File::Launch(document->location(false).fname);
 	} else {
 		_mediaView->showDocument(document, item);
@@ -769,6 +773,13 @@ void Application::notifyFileDialogShown(bool shown) {
 		_mediaView->notifyFileDialogShown(shown);
 	}
 }
+
+QWidget *Application::getModalParent() {
+	return QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)
+		? App::wnd()
+		: nullptr;
+}
+
 
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {

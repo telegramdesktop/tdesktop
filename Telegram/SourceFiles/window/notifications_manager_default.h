@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Ui {
 class IconButton;
 class RoundButton;
@@ -232,6 +236,8 @@ private:
 	void updateGeometry(int x, int y, int width, int height) override;
 	void actionsOpacityCallback();
 
+	const not_null<PeerData*> _peer;
+
 	QPixmap _cache;
 
 	bool _hideReplyButton = false;
@@ -242,7 +248,7 @@ private:
 	crl::time _started;
 
 	History *_history = nullptr;
-	PeerData *_peer = nullptr;
+	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;
 	HistoryItem *_item = nullptr;
 	int _forwardedCount = 0;

@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
-#include "media/clip/media_clip_reader.h"
 #include "mtproto/mtproto_rpc_sender.h"
+
+class Image;
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -23,6 +24,8 @@ class SessionController;
 
 namespace Data {
 class Media;
+class PhotoMedia;
+class DocumentMedia;
 } // namespace Data
 
 namespace Ui {
@@ -36,6 +39,16 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Media {
+namespace Streaming {
+class Instance;
+class Document;
+struct Update;
+enum class Error;
+struct Information;
+} // namespace Streaming
+} // namespace Media
+
 class EditCaptionBox
 	: public Ui::BoxContent
 	, public RPCSender
@@ -45,6 +58,7 @@ public:
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item);
+	~EditCaptionBox();
 
 protected:
 	void prepare() override;
@@ -56,8 +70,14 @@ protected:
 
 private:
 	void updateBoxSize();
-	void prepareGifPreview(DocumentData* document = nullptr);
-	void clipCallback(Media::Clip::Notification notification);
+	void prepareStreamedPreview();
+	void checkStreamedIsStarted();
+	void setupStreamedPreview(
+		std::shared_ptr<::Media::Streaming::Document> shared);
+	void handleStreamingUpdate(::Media::Streaming::Update &&update);
+	void handleStreamingError(::Media::Streaming::Error &&error);
+	void streamingReady(::Media::Streaming::Information &&info);
+	void startStreamedPlayer();
 
 	void setupEmojiPanel();
 	void updateEmojiPanelGeometry();
@@ -86,6 +106,8 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 	FullMsgId _msgId;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	Image *_thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;
 	Fn<void()> _refreshThumbnail;
@@ -94,7 +116,7 @@ private:
 	bool _doc = false;
 
 	QPixmap _thumb;
-	Media::Clip::ReaderPointer _gifPreview;
+	std::unique_ptr<::Media::Streaming::Instance> _streamed;
 
 	object_ptr<Ui::InputField> _field = { nullptr };
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };

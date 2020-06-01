@@ -61,6 +61,11 @@ GroupedMedia::GroupedMedia(
 	Ensures(result);
 }
 
+GroupedMedia::~GroupedMedia() {
+	// Destroy all parts while the media object is still not destroyed.
+	base::take(_parts);
+}
+
 QSize GroupedMedia::countOptimalSize() {
 	if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
@@ -420,6 +425,15 @@ int GroupedMedia::checkAnimationCount() {
 		result += part.content->checkAnimationCount();
 	}
 	return result;
+}
+
+bool GroupedMedia::hasHeavyPart() const {
+	for (auto &part : _parts) {
+		if (part.content->hasHeavyPart()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void GroupedMedia::unloadHeavyPart() {

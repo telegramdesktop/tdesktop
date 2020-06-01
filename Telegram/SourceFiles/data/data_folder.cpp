@@ -248,6 +248,7 @@ void Folder::loadUserpic() {
 
 void Folder::paintUserpic(
 		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &view,
 		int x,
 		int y,
 		int size) const {

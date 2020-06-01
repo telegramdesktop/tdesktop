@@ -17,6 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
 
+namespace Data {
+class PhotoMedia;
+class DocumentMedia;
+} // namespace Data
+
 namespace Ui {
 class PopupMenu;
 class LinkButton;
@@ -189,6 +194,9 @@ private:
 	void playbackPauseMusic();
 	void switchToPip();
 
+	void assignMediaPointer(DocumentData *document);
+	void assignMediaPointer(not_null<PhotoData*> photo);
+
 	void updateOver(QPoint mpos);
 	void moveToScreen(bool force = false);
 	bool moveToNext(int delta);
@@ -347,7 +355,11 @@ private:
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
-	DocumentData *_doc = nullptr;
+	DocumentData *_document = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
+	base::flat_set<std::shared_ptr<Data::PhotoMedia>> _preloadPhotos;
+	base::flat_set<std::shared_ptr<Data::DocumentMedia>> _preloadDocuments;
 	int _rotation = 0;
 	std::unique_ptr<SharedMedia> _sharedMedia;
 	std::optional<SharedMediaWithLastSlice> _sharedMediaData;

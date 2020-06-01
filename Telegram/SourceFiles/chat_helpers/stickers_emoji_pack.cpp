@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
-#include "ui/image/image_source.h"
+#include "ui/image/image.h"
 #include "main/main_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
@@ -117,194 +117,6 @@ constexpr auto kClearSourceTimeout = 10 * crl::time(1000);
 	return list[index - 1];
 }
 
-class ImageSource : public Images::Source {
-public:
-	explicit ImageSource(
-		EmojiPtr emoji,
-		not_null<crl::object_on_queue<EmojiImageLoader>*> loader);
-
-	void load(Data::FileOrigin origin) override;
-	void loadEvenCancelled(Data::FileOrigin origin) override;
-	QImage takeLoaded() override;
-	void unload() override;
-
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
-
-	bool loading() override;
-	bool displayLoading() override;
-	void cancel() override;
-	float64 progress() override;
-	int loadOffset() override;
-
-	const StorageImageLocation &location() override;
-	void refreshFileReference(const QByteArray &data) override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
-	void setDelayedStorageLocation(
-		const StorageImageLocation &location) override;
-	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
-	void setImageBytes(const QByteArray &bytes) override;
-
-	int width() override;
-	int height() override;
-	int bytesSize() override;
-	void setInformation(int size, int width, int height) override;
-
-	QByteArray bytesForCache() override;
-
-private:
-	// While HistoryView::Element-s are almost never destroyed
-	// we make loading of the image lazy.
-	not_null<crl::object_on_queue<EmojiImageLoader>*> _loader;
-	EmojiPtr _emoji = nullptr;
-	QImage _data;
-	QByteArray _format;
-	QByteArray _bytes;
-	QSize _size;
-	base::binary_guard _loading;
-
-};
-
-ImageSource::ImageSource(
-	EmojiPtr emoji,
-	not_null<crl::object_on_queue<EmojiImageLoader>*> loader)
-: _loader(loader)
-, _emoji(emoji)
-, _size(SingleSize()) {
-}
-
-void ImageSource::load(Data::FileOrigin origin) {
-	if (!_data.isNull()) {
-		return;
-	}
-	if (_bytes.isEmpty()) {
-		_loader->with([
-			this,
-			emoji = _emoji,
-			guard = _loading.make_guard()
-		](EmojiImageLoader &loader) mutable {
-			if (!guard) {
-				return;
-			}
-			crl::on_main(std::move(guard), [this, image = loader.prepare(emoji)]{
-				_data = image;
-				Auth().downloaderTaskFinished().notify();
-			});
-		});
-	} else {
-		_data = App::readImage(_bytes, &_format, false);
-	}
-}
-
-void ImageSource::loadEvenCancelled(Data::FileOrigin origin) {
-	load(origin);
-}
-
-QImage ImageSource::takeLoaded() {
-	load({});
-	return _data;
-}
-
-void ImageSource::unload() {
-	if (_bytes.isEmpty() && !_data.isNull()) {
-		if (_format != "JPG") {
-			_format = "PNG";
-		}
-		{
-			QBuffer buffer(&_bytes);
-			_data.save(&buffer, _format);
-		}
-		Assert(!_bytes.isEmpty());
-	}
-	_data = QImage();
-}
-
-void ImageSource::automaticLoad(
-	Data::FileOrigin origin,
-	const HistoryItem *item) {
-}
-
-void ImageSource::automaticLoadSettingsChanged() {
-}
-
-bool ImageSource::loading() {
-	return _data.isNull() && _bytes.isEmpty();
-}
-
-bool ImageSource::displayLoading() {
-	return false;
-}
-
-void ImageSource::cancel() {
-}
-
-float64 ImageSource::progress() {
-	return 1.;
-}
-
-int ImageSource::loadOffset() {
-	return 0;
-}
-
-const StorageImageLocation &ImageSource::location() {
-	return StorageImageLocation::Invalid();
-}
-
-void ImageSource::refreshFileReference(const QByteArray &data) {
-}
-
-std::optional<Storage::Cache::Key> ImageSource::cacheKey() {
-	return std::nullopt;
-}
-
-void ImageSource::setDelayedStorageLocation(
-	const StorageImageLocation &location) {
-}
-
-void ImageSource::performDelayedLoad(Data::FileOrigin origin) {
-}
-
-bool ImageSource::isDelayedStorageImage() const {
-	return false;
-}
-
-void ImageSource::setImageBytes(const QByteArray &bytes) {
-}
-
-int ImageSource::width() {
-	return _size.width();
-}
-
-int ImageSource::height() {
-	return _size.height();
-}
-
-int ImageSource::bytesSize() {
-	return _bytes.size();
-}
-
-void ImageSource::setInformation(int size, int width, int height) {
-	if (width && height) {
-		_size = QSize(width, height);
-	}
-}
-
-QByteArray ImageSource::bytesForCache() {
-	auto result = QByteArray();
-	{
-		QBuffer buffer(&result);
-		if (!_data.save(&buffer, _format)) {
-			if (_data.save(&buffer, "PNG")) {
-				_format = "PNG";
-			}
-		}
-	}
-	return result;
-}
-
 } // namespace
 
 EmojiImageLoader::EmojiImageLoader(
@@ -390,6 +202,10 @@ std::shared_ptr<UniversalImages> EmojiImageLoader::releaseImages() {
 
 } // namespace details
 
+QSize LargeEmojiImage::Size() {
+	return details::SingleSize();
+}
+
 EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session)
 , _imageLoader(prepareSourceImages(), session->settings().largeEmoji())
@@ -473,13 +289,36 @@ auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	return Sticker();
 }
 
-std::shared_ptr<Image> EmojiPack::image(EmojiPtr emoji) {
-	const auto i = _images.emplace(emoji, std::weak_ptr<Image>()).first;
+std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
+	const auto i = _images.emplace(
+		emoji,
+		std::weak_ptr<LargeEmojiImage>()).first;
 	if (const auto result = i->second.lock()) {
 		return result;
 	}
-	auto result = std::make_shared<Image>(
-		std::make_unique<details::ImageSource>(emoji, &_imageLoader));
+	auto result = std::make_shared<LargeEmojiImage>();
+	const auto raw = result.get();
+	const auto weak = base::make_weak(_session.get());
+	raw->load = [=] {
+		_imageLoader.with([=](details::EmojiImageLoader &loader) mutable {
+			crl::on_main(weak, [
+				=,
+				image = loader.prepare(emoji)
+			]() mutable {
+				const auto i = _images.find(emoji);
+				if (i != end(_images)) {
+					if (const auto strong = i->second.lock()) {
+						if (!strong->image) {
+							strong->load = nullptr;
+							strong->image.emplace(std::move(image));
+							_session->downloaderTaskFinished().notify();
+						}
+					}
+				}
+			});
+		});
+		raw->load = nullptr;
+	};
 	i->second = result;
 	return result;
 }

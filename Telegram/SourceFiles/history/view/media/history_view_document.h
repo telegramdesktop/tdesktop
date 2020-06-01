@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryDocumentNamed;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Ui {
 namespace Text {
 class String;
@@ -20,13 +24,14 @@ class String;
 
 namespace HistoryView {
 
-class Document
+class Document final
 	: public File
 	, public RuntimeComposer<Document> {
 public:
 	Document(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
+	~Document();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -63,6 +68,9 @@ public:
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 	void parentTextUpdated() override;
 
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
+
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -74,6 +82,8 @@ private:
 		bool showPause = false;
 		int realDuration = 0;
 	};
+
+	void ensureDataMediaCreated() const;
 
 	[[nodiscard]] Ui::Text::String createCaption();
 
@@ -93,6 +103,7 @@ private:
 		StateRequest request) const;
 
 	not_null<DocumentData*> _data;
+	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 };
 

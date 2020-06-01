@@ -1738,16 +1738,14 @@ void FormController::loadFile(File &file) {
 			false,
 			Data::kImageCacheTag));
 	const auto loader = j->second.get();
-	loader->connect(loader, &mtpFileLoader::progress, [=] {
-		if (loader->finished()) {
-			fileLoadDone(key, loader->bytes());
-		} else {
-			fileLoadProgress(key, loader->currentOffset());
-		}
-	});
-	loader->connect(loader, &mtpFileLoader::failed, [=] {
+	loader->updates(
+	) | rpl::start_with_next_error_done([=] {
+		fileLoadProgress(key, loader->currentOffset());
+	}, [=](bool started) {
 		fileLoadFail(key);
-	});
+	}, [=] {
+		fileLoadDone(key, loader->bytes());
+	}, loader->lifetime());
 	loader->start();
 }
 

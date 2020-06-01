@@ -34,8 +34,8 @@ LoaderLocal::LoaderLocal(std::unique_ptr<QIODevice> device)
 	}
 }
 
-std::optional<Storage::Cache::Key> LoaderLocal::baseCacheKey() const {
-	return std::nullopt;
+Storage::Cache::Key LoaderLocal::baseCacheKey() const {
+	return {};
 }
 
 int LoaderLocal::size() const {

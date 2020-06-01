@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
@@ -81,7 +80,9 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 	result.title = TextUtilities::SingleLine(qs(data.vtitle()));
 	result.receiptMsgId = data.vreceipt_msg_id().value_or_empty();
 	if (const auto photo = data.vphoto()) {
-		result.photo = item->history()->owner().photoFromWeb(*photo);
+		result.photo = item->history()->owner().photoFromWeb(
+			*photo,
+			ImageLocation());
 	}
 	return result;
 }
@@ -171,7 +172,7 @@ const Invoice *Media::invoice() const {
 	return nullptr;
 }
 
-LocationThumbnail *Media::location() const {
+Data::CloudImage *Media::location() const {
 	return nullptr;
 }
 
@@ -380,99 +381,6 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	parent()->history()->owner().photoConvert(_photo, *content);
-
-	if (content->type() != mtpc_photo) {
-		return false;
-	}
-	const auto &photo = content->c_photo();
-
-	struct SizeData {
-		MTPstring type = MTP_string();
-		int width = 0;
-		int height = 0;
-		QByteArray bytes;
-	};
-	const auto saveImageToCache = [&](
-			not_null<Image*> image,
-			SizeData size) {
-		Expects(!size.type.v.isEmpty());
-
-		const auto key = StorageImageLocation(
-			StorageFileLocation(
-				photo.vdc_id().v,
-				_photo->session().userId(),
-				MTP_inputPhotoFileLocation(
-					photo.vid(),
-					photo.vaccess_hash(),
-					photo.vfile_reference(),
-					size.type)),
-			size.width,
-			size.height);
-		if (!key.valid() || image->isNull() || !image->loaded()) {
-			return;
-		}
-		if (size.bytes.isEmpty()) {
-			size.bytes = image->bytesForCache();
-		}
-		const auto length = size.bytes.size();
-		if (!length || length > Storage::kMaxFileInMemory) {
-			LOG(("App Error: Bad photo data for saving to cache."));
-			return;
-		}
-		parent()->history()->owner().cache().putIfEmpty(
-			key.file().cacheKey(),
-			Storage::Cache::Database::TaggedValue(
-				std::move(size.bytes),
-				Data::kImageCacheTag));
-		image->replaceSource(
-			std::make_unique<Images::StorageSource>(key, length));
-	};
-	auto &sizes = photo.vsizes().v;
-	auto max = 0;
-	auto maxSize = SizeData();
-	for (const auto &data : sizes) {
-		const auto size = data.match([](const MTPDphotoSize &data) {
-			return SizeData{
-				data.vtype(),
-				data.vw().v,
-				data.vh().v,
-				QByteArray()
-			};
-		}, [](const MTPDphotoCachedSize &data) {
-			return SizeData{
-				data.vtype(),
-				data.vw().v,
-				data.vh().v,
-				qba(data.vbytes())
-			};
-		}, [](const MTPDphotoSizeEmpty &) {
-			return SizeData();
-		}, [](const MTPDphotoStrippedSize &data) {
-			// No need to save stripped images to local cache.
-			return SizeData();
-		});
-		const auto letter = size.type.v.isEmpty() ? char(0) : size.type.v[0];
-		if (!letter) {
-			continue;
-		}
-		if (letter == 's') {
-			saveImageToCache(_photo->thumbnailSmall(), size);
-		} else if (letter == 'm') {
-			saveImageToCache(_photo->thumbnail(), size);
-		} else if (letter == 'x' && max < 1) {
-			max = 1;
-			maxSize = size;
-		} else if (letter == 'y' && max < 2) {
-			max = 2;
-			maxSize = size;
-		//} else if (letter == 'w' && max < 3) {
-		//	max = 3;
-		//	maxSize = size;
-		}
-	}
-	if (!maxSize.type.v.isEmpty()) {
-		saveImageToCache(_photo->large(), maxSize);
-	}
 	return true;
 }
 
@@ -750,23 +658,6 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	parent()->history()->owner().documentConvert(_document, *content);
-
-	if (const auto good = _document->goodThumbnail()) {
-		auto bytes = good->bytesForCache();
-		if (const auto length = bytes.size()) {
-			if (length > Storage::kMaxFileInMemory) {
-				LOG(("App Error: Bad thumbnail data for saving to cache."));
-			} else {
-				parent()->history()->owner().cache().putIfEmpty(
-					_document->goodThumbnailCacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						std::move(bytes),
-						Data::kImageCacheTag));
-				_document->refreshGoodThumbnail();
-			}
-		}
-	}
-
 	return true;
 }
 
@@ -890,6 +781,7 @@ MediaLocation::MediaLocation(
 	const QString &title,
 	const QString &description)
 : Media(parent)
+, _point(point)
 , _location(parent->history()->owner().location(point))
 , _title(title)
 , _description(description) {
@@ -898,12 +790,12 @@ MediaLocation::MediaLocation(
 std::unique_ptr<Media> MediaLocation::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaLocation>(
 		parent,
-		_location->point,
+		_point,
 		_title,
 		_description);
 }
 
-LocationThumbnail *MediaLocation::location() const {
+Data::CloudImage *MediaLocation::location() const {
 	return _location;
 }
 
@@ -934,7 +826,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 	if (!descriptionResult.text.isEmpty()) {
 		result.append(std::move(descriptionResult));
 	}
-	result.append(LocationClickHandler(_location->point).dragText());
+	result.append(LocationClickHandler(_point).dragText());
 	return result;
 }
 
@@ -952,6 +844,7 @@ std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 	return std::make_unique<HistoryView::Location>(
 		message,
 		_location,
+		_point,
 		_title,
 		_description);
 }

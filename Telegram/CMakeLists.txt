@@ -266,6 +266,9 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
+    calls/calls_controller.cpp
+    calls/calls_controller.h
+    calls/calls_controller_tgvoip.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp
@@ -300,6 +303,8 @@ PRIVATE
     chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
+    chat_helpers/stickers_set.cpp
+    chat_helpers/stickers_set.h
     chat_helpers/tabbed_panel.cpp
     chat_helpers/tabbed_panel.h
     chat_helpers/tabbed_section.cpp
@@ -330,7 +335,6 @@ PRIVATE
     core/launcher.h
     core/local_url_handlers.cpp
     core/local_url_handlers.h
-    core/media_active_cache.h
     core/mime_type.cpp
     core/mime_type.h
     core/sandbox.cpp
@@ -356,14 +360,16 @@ PRIVATE
     data/data_channel.h
     data/data_channel_admins.cpp
     data/data_channel_admins.h
+    data/data_cloud_file.cpp
+    data/data_cloud_file.h
     data/data_cloud_themes.cpp
     data/data_cloud_themes.h
     data/data_countries.cpp
     data/data_countries.h
     data/data_document.cpp
     data/data_document.h
-    data/data_document_good_thumbnail.cpp
-    data/data_document_good_thumbnail.h
+    data/data_document_media.cpp
+    data/data_document_media.h
     data/data_drafts.cpp
     data/data_drafts.h
     data/data_folder.cpp
@@ -394,10 +400,14 @@ PRIVATE
     data/data_peer_values.h
     data/data_photo.cpp
     data/data_photo.h
+    data/data_photo_media.cpp
+    data/data_photo_media.h
     data/data_poll.cpp
     data/data_poll.h
     data/data_pts_waiter.cpp
     data/data_pts_waiter.h
+    data/data_reply_preview.cpp
+    data/data_reply_preview.h
     data/data_search_controller.cpp
     data/data_search_controller.h
     data/data_session.cpp
@@ -758,6 +768,7 @@ PRIVATE
     mtproto/type_utils.h
     overview/overview_layout.cpp
     overview/overview_layout.h
+    overview/overview_layout_delegate.h
     passport/passport_encryption.cpp
     passport/passport_encryption.h
     passport/passport_form_controller.cpp
@@ -800,7 +811,6 @@ PRIVATE
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
     platform/mac/launcher_mac.h
-    platform/mac/mac_iconv_helper.c
     platform/mac/main_window_mac.mm
     platform/mac/main_window_mac.h
     platform/mac/notifications_manager_mac.mm
@@ -929,8 +939,8 @@ PRIVATE
     ui/image/image.h
     ui/image/image_location.cpp
     ui/image/image_location.h
-    ui/image/image_source.cpp
-    ui/image/image_source.h
+    ui/image/image_location_factory.cpp
+    ui/image/image_location_factory.h
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
@@ -1040,6 +1050,8 @@ PRIVATE
 
 if (DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
+else()
+    nice_target_sources(Telegram ${src_loc} PRIVATE platform/mac/mac_iconv_helper.c)
 endif()
 
 nice_target_sources(Telegram ${res_loc}
@@ -1075,11 +1087,11 @@ if (WIN32)
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
 elseif (APPLE)
-    target_link_libraries(Telegram
-    PRIVATE
-        desktop-app::external_sp_media_key_tap
-        desktop-app::external_iconv
-    )
+    target_link_libraries(Telegram PRIVATE desktop-app::external_sp_media_key_tap)
+
+    if (NOT DESKTOP_APP_USE_PACKAGED)
+        target_link_libraries(Telegram PRIVATE desktop-app::external_iconv)
+    endif()
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
     set_target_properties(Telegram PROPERTIES RESOURCE ${icons_path})

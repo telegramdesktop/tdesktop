@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
 #include "data/data_shared_media.h"
+#include "overview/overview_layout_delegate.h"
 
 class DeleteMessagesBox;
 
@@ -47,11 +48,14 @@ namespace Media {
 using BaseLayout = Overview::Layout::ItemBase;
 using UniversalMsgId = int32;
 
-class ListWidget : public Ui::RpWidget {
+class ListWidget final
+	: public Ui::RpWidget
+	, public Overview::Layout::Delegate {
 public:
 	ListWidget(
 		QWidget *parent,
 		not_null<AbstractController*> controller);
+	~ListWidget();
 
 	Main::Session &session() const;
 
@@ -72,22 +76,8 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	~ListWidget();
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
-
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+	void registerHeavyItem(not_null<const BaseLayout*> item) override;
+	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 
 private:
 	struct Context;
@@ -104,6 +94,8 @@ private:
 	};
 	struct CachedItem {
 		CachedItem(std::unique_ptr<BaseLayout> item);
+		CachedItem(CachedItem &&other);
+		CachedItem &operator=(CachedItem &&other);
 		~CachedItem();
 
 		std::unique_ptr<BaseLayout> item;
@@ -155,6 +147,20 @@ private:
 		UniversalMsgId item = 0;
 		int shift = 0;
 	};
+
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	void start();
 	int recountHeight();
@@ -237,7 +243,7 @@ private:
 		int bottom) const;
 	FoundItem findItemByPoint(QPoint point) const;
 	std::optional<FoundItem> findItemById(UniversalMsgId universalId);
-	std::optional<FoundItem> findItemDetails(BaseLayout *item);
+	FoundItem findItemDetails(not_null<BaseLayout*> item);
 	FoundItem foundItemInSection(
 		const FoundItem &item,
 		const Section &section) const;
@@ -269,6 +275,7 @@ private:
 	void switchToWordSelection();
 	void validateTrippleClickStartTime();
 	void checkMoveToOtherViewer();
+	void clearHeavyItems();
 
 	void setActionBoxWeak(QPointer<Ui::RpWidget> box);
 
@@ -283,7 +290,9 @@ private:
 	int _idsLimit = kMinimalIdsLimit;
 	SparseIdsMergedSlice _slice;
 
-	std::map<UniversalMsgId, CachedItem> _layouts;
+	std::unordered_map<UniversalMsgId, CachedItem> _layouts;
+	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
+	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
 
 	int _visibleTop = 0;

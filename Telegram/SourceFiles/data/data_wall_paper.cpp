@@ -118,12 +118,8 @@ DocumentData *WallPaper::document() const {
 	return _document;
 }
 
-Image *WallPaper::thumbnail() const {
-	return _thumbnail
-		? _thumbnail.get()
-		: _document
-		? _document->thumbnail()
-		: nullptr;
+Image *WallPaper::localThumbnail() const {
+	return _thumbnail.get();
 }
 
 bool WallPaper::isPattern() const {
@@ -143,7 +139,7 @@ bool WallPaper::isDark() const {
 }
 
 bool WallPaper::isLocal() const {
-	return !document() && thumbnail();
+	return !document() && _thumbnail;
 }
 
 bool WallPaper::isBlurred() const {
@@ -187,10 +183,7 @@ QString WallPaper::shareUrl() const {
 		: base + '?' + params.join('&');
 }
 
-void WallPaper::loadThumbnail() const {
-	if (_thumbnail) {
-		_thumbnail->load(fileOrigin());
-	}
+void WallPaper::loadDocumentThumbnail() const {
 	if (_document) {
 		_document->loadThumbnail(fileOrigin());
 	}

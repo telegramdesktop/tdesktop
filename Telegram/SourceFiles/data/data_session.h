@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/storage_databases.h"
-#include "chat_helpers/stickers.h"
+#include "chat_helpers/stickers_set.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
@@ -63,6 +63,8 @@ class CloudThemes;
 class Streaming;
 class MediaRotation;
 class Histories;
+class DocumentMedia;
+class PhotoMedia;
 
 class Session final {
 public:
@@ -109,6 +111,9 @@ public:
 	}
 
 	void clear();
+
+	void keepAlive(std::shared_ptr<PhotoMedia> media);
+	void keepAlive(std::shared_ptr<DocumentMedia> media);
 
 	void startExport(PeerData *peer = nullptr);
 	void startExport(const MTPInputPeer &singlePeer);
@@ -427,11 +432,20 @@ public:
 	void documentLoadSettingsChanged();
 
 	void notifyPhotoLayoutChanged(not_null<const PhotoData*> photo);
+	void requestPhotoViewRepaint(not_null<const PhotoData*> photo);
 	void notifyDocumentLayoutChanged(
 		not_null<const DocumentData*> document);
 	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
+
+	void photoLoadProgress(not_null<PhotoData*> photo);
+	void photoLoadDone(not_null<PhotoData*> photo);
+	void photoLoadFail(not_null<PhotoData*> photo, bool started);
+
+	void documentLoadProgress(not_null<DocumentData*> document);
+	void documentLoadDone(not_null<DocumentData*> document);
+	void documentLoadFail(not_null<DocumentData*> document, bool started);
 
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
@@ -469,24 +483,23 @@ public:
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large);
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumbnail = ImagePtr(),
-		bool willBecomeNormal = false);
+		const ImageLocation &thumbnailLocation);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
 	not_null<DocumentData*> processDocument(const MTPDocument &data);
 	not_null<DocumentData*> processDocument(const MTPDdocument &data);
 	not_null<DocumentData*> processDocument(
 		const MTPdocument &data,
-		QImage &&thumb);
+		const ImageWithLocation &thumbnail);
 	[[nodiscard]] not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
@@ -494,17 +507,18 @@ public:
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnail,
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
+		int32 size);
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
@@ -547,7 +561,7 @@ public:
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
-	[[nodiscard]] not_null<LocationThumbnail*> location(
+	[[nodiscard]] not_null<Data::CloudImage*> location(
 		const LocationPoint &point);
 
 	void registerPhotoItem(
@@ -731,10 +745,10 @@ private:
 		TimeId date,
 		int32 dc,
 		bool hasSticker,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnailSmall,
-		const ImagePtr &thumbnail,
-		const ImagePtr &large);
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &small,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &large);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,
@@ -749,17 +763,19 @@ private:
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumbnailInline,
-		const ImagePtr &thumbnail,
+		const QByteArray &inlineThumbnailBytes,
+		const ImageWithLocation &thumbnail,
+		const ImageWithLocation &videoThumbnail,
 		int32 dc,
-		int32 size,
-		const StorageImageLocation &thumbLocation);
+		int32 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocumentNoProxy &data,
-		ImagePtr thumb);
+		const ImageLocation &thumbnailLocation,
+		const ImageLocation &videoThumbnailLocation);
 
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
@@ -923,7 +939,7 @@ private:
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
 	std::unordered_map<
 		LocationPoint,
-		std::unique_ptr<LocationThumbnail>> _locations;
+		std::unique_ptr<Data::CloudImage>> _locations;
 	std::unordered_map<
 		PollId,
 		std::unique_ptr<PollData>> _polls;

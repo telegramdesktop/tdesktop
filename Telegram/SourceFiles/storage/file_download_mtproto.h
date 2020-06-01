@@ -36,6 +36,7 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+	~mtpFileLoader();
 
 	Data::FileOrigin fileOrigin() const override;
 	uint64 objId() const override;

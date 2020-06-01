@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout fd42dc2
     cd ../
 
     git clone https://github.com/xiph/opus
@@ -91,6 +91,7 @@ Go to ***BuildPath*** and run
     --disable-autodetect \
     --disable-everything \
     --disable-neon \
+    --disable-alsa \
     --disable-iconv \
     --enable-libopus \
     --enable-vaapi \
@@ -211,18 +212,25 @@ Go to ***BuildPath*** and run
     sudo make install_sw
     cd ..
 
-    git clone https://github.com/xkbcommon/libxkbcommon.git
-    cd libxkbcommon
-    git checkout xkbcommon-0.8.4
-    ./autogen.sh
-    make $MAKE_THREADS_CNT
+    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
+    cd wayland
+    ./autogen.sh \
+    --enable-static \
+    --disable-documentation \
+    --disable-dtd-validation
+    make -j$(nproc)
     sudo make install
     cd ..
 
-    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
-    cd wayland
-    ./autogen.sh --enable-static --disable-documentation  --disable-dtd-validation
-    make -j$(nproc)
+    git clone https://github.com/xkbcommon/libxkbcommon.git
+    cd libxkbcommon
+    git checkout xkbcommon-0.8.4
+    ./autogen.sh \
+    --disable-docs \
+    --disable-wayland \
+    --with-xkb-config-root=/usr/share/X11/xkb \
+    --with-x-locale-root=/usr/share/X11/locale
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -233,6 +241,11 @@ Go to ***BuildPath*** and run
     git submodule update qtbase qtwayland qtimageformats qtsvg qtx11extras
     cd qtbase
     git apply ../../patches/qtbase_5_12_8.diff
+    git apply ../../patches/qtbase_xkbfix_5_12_8.diff
+    cd ..
+    cd qtwayland
+    git apply ../../patches/qtwayland_5_12_8.diff
+    git apply ../../patches/qtwayland_xkbfix_5_12_8.diff
     cd ..
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1

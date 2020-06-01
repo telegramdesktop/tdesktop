@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/popup_menu.h"
@@ -560,11 +561,12 @@ void CloudList::refreshColors(Element &element) {
 			&& (!document || !document->isTheme()))) {
 		element.check->setColors(ColorsFromCurrentTheme());
 	} else if (document) {
+		element.media = document ? document->createMediaView() : nullptr;
 		document->save(
 			Data::FileOriginTheme(theme.id, theme.accessHash),
 			QString());
-		if (document->loaded()) {
-			refreshColorsFromDocument(element, document);
+		if (element.media->loaded()) {
+			refreshColorsFromDocument(element);
 		} else {
 			setWaiting(element, true);
 			subscribeToDownloadFinished();
@@ -634,12 +636,13 @@ bool CloudList::amCreator(const Data::CloudTheme &theme) const {
 	return (_window->session().userId() == theme.createdBy);
 }
 
-void CloudList::refreshColorsFromDocument(
-		Element &element,
-		not_null<DocumentData*> document) {
+void CloudList::refreshColorsFromDocument(Element &element) {
+	Expects(element.media != nullptr);
+	Expects(element.media->loaded());
+
 	const auto id = element.id();
-	const auto path = document->filepath();
-	const auto data = document->data();
+	const auto path = element.media->owner()->filepath();
+	const auto data = base::take(element.media)->bytes();
 	crl::async([=, guard = element.generating.make_guard()]() mutable {
 		crl::on_main(std::move(guard), [
 			=,
@@ -668,12 +671,13 @@ void CloudList::subscribeToDownloadFinished() {
 	) | rpl::start_with_next([=] {
 		auto &&waiting = _elements | ranges::view::filter(&Element::waiting);
 		const auto still = ranges::count_if(waiting, [&](Element &element) {
-			const auto id = element.theme.documentId;
-			const auto document = _window->session().data().document(id);
-			if (!document->loaded()) {
+			if (!element.media) {
+				element.waiting = false;
+				return false;
+			} else if (!element.media->loaded()) {
 				return true;
 			}
-			refreshColorsFromDocument(element, document);
+			refreshColorsFromDocument(element);
 			element.waiting = false;
 			return false;
 		});

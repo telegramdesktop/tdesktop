@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/image/image.h"
 #include "base/timer.h"
 
 #include <crl/crl_object_on_queue.h>
@@ -39,6 +40,13 @@ class EmojiImageLoader;
 
 using IsolatedEmoji = Ui::Text::IsolatedEmoji;
 
+struct LargeEmojiImage {
+	std::optional<Image> image;
+	FnMut<void()> load;
+
+	[[nodiscard]] static QSize Size();
+};
+
 class EmojiPack final {
 public:
 	struct Sticker {
@@ -60,7 +68,7 @@ public:
 	void remove(not_null<const HistoryItem*> item);
 
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
-	[[nodiscard]] std::shared_ptr<Image> image(EmojiPtr emoji);
+	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 
 private:
 	class ImageLoader;
@@ -84,7 +92,7 @@ private:
 	base::flat_map<
 		IsolatedEmoji,
 		base::flat_set<not_null<HistoryItem*>>> _items;
-	base::flat_map<EmojiPtr, std::weak_ptr<Image>> _images;
+	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
 	mtpRequestId _requestId = 0;
 
 	crl::object_on_queue<details::EmojiImageLoader> _imageLoader;

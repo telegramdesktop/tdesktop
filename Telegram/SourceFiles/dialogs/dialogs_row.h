@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryItem;
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Ui {
 class RippleAnimation;
 } // namespace Ui
@@ -48,6 +52,10 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
+	std::shared_ptr<Data::CloudImageView> &userpicView() const {
+		return _userpic;
+	}
+
 private:
 	struct OnlineUserpic {
 		InMemoryKey key;
@@ -60,8 +68,10 @@ private:
 	void ensureOnlineUserpic() const;
 	static void PaintOnlineFrame(
 		not_null<OnlineUserpic*> data,
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &view);
 
+	mutable std::shared_ptr<Data::CloudImageView> _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 	mutable std::unique_ptr<OnlineUserpic> _onlineUserpic;
 	mutable bool _online = false;

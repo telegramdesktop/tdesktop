@@ -33,9 +33,9 @@ enum class Error;
 class Reader final : public base::has_weak_ptr {
 public:
 	// Main thread.
-	Reader(
-		not_null<Storage::Cache::Database*> cache,
-		std::unique_ptr<Loader> loader);
+	explicit Reader(
+		std::unique_ptr<Loader> loader,
+		Storage::Cache::Database *cache = nullptr);
 
 	void setLoaderPriority(int priority);
 
@@ -226,10 +226,12 @@ private:
 	void refreshLoaderPriority();
 
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
-		std::optional<Storage::Cache::Key> baseKey);
+		Storage::Cache::Key baseKey);
 
-	const not_null<Storage::Cache::Database*> _cache;
 	const std::unique_ptr<Loader> _loader;
+	Storage::Cache::Database * const _cache = nullptr;
+
+	// shared_ptr is used to be able to have weak_ptr.
 	const std::shared_ptr<CacheHelper> _cacheHelper;
 
 	base::thread_safe_queue<LoadedPart, std::vector> _loadedParts;

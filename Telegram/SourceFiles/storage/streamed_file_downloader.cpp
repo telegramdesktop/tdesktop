@@ -63,7 +63,9 @@ StreamedFileDownloader::StreamedFileDownloader(
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
-	cancelHook();
+	if (!_finished) {
+		cancel();
+	}
 }
 
 uint64 StreamedFileDownloader::objId() const {
@@ -151,14 +153,13 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 	if (!writeResultPart(offset, bytes::make_span(part.bytes))) {
 		return;
 	}
-	if (_partsSaved == _partsCount) {
-		if (!finalizeResult()) {
-			return;
-		}
-	}
 	_reader->doneForDownloader(offset);
-	requestParts();
-	notifyAboutProgress();
+	if (_partsSaved == _partsCount) {
+		finalizeResult();
+	} else {
+		requestParts();
+		notifyAboutProgress();
+	}
 }
 
 } // namespace Storage

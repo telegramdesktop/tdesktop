@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
 #include "app.h"
 #include "styles/style_history.h"
@@ -32,15 +33,17 @@ namespace {
 constexpr auto kMaxOriginalEntryLines = 8192;
 
 int articleThumbWidth(not_null<PhotoData*> thumb, int height) {
-	auto w = thumb->thumbnail()->width();
-	auto h = thumb->thumbnail()->height();
-	return qMax(qMin(height * w / h, height), 1);
+	const auto size = thumb->location(Data::PhotoSize::Thumbnail);
+	return size.height()
+		? qMax(qMin(height * size.width() / size.height(), height), 1)
+		: 1;
 }
 
-int articleThumbHeight(not_null<PhotoData*> thumb, int width) {
-	return qMax(
-		thumb->thumbnail()->height() * width / thumb->thumbnail()->width(),
-		1);
+int articleThumbHeight(not_null<Data::PhotoMedia*> thumb, int width) {
+	const auto size = thumb->size(Data::PhotoSize::Thumbnail);
+	return size.width()
+		? std::max(size.height() * width / size.width(), 1)
+		: 1;
 }
 
 std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
@@ -410,6 +413,29 @@ void WebPage::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
+void WebPage::ensurePhotoMediaCreated() const {
+	Expects(_data->photo != nullptr);
+
+	if (_photoMedia) {
+		return;
+	}
+	_photoMedia = _data->photo->createMediaView();
+	const auto contextId = _parent->data()->fullId();
+	_photoMedia->wanted(Data::PhotoSize::Thumbnail, contextId);
+	history()->owner().registerHeavyViewPart(_parent);
+}
+
+bool WebPage::hasHeavyPart() const {
+	return _photoMedia || (_attach ? _attach->hasHeavyPart() : false);
+}
+
+void WebPage::unloadHeavyPart() {
+	if (_attach) {
+		_attach->unloadHeavyPart();
+	}
+	_photoMedia = nullptr;
+}
+
 void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -440,26 +466,29 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 
 	auto lineHeight = unitedLineHeight();
 	if (asArticle()) {
+		ensurePhotoMediaCreated();
+
 		const auto contextId = _parent->data()->fullId();
-		_data->photo->loadThumbnail(contextId);
-		bool full = _data->photo->thumbnail()->loaded();
 		QPixmap pix;
 		auto pw = qMax(_pixw, lineHeight);
 		auto ph = _pixh;
-		auto pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
-		const auto maxw = style::ConvertScale(_data->photo->thumbnail()->width());
-		const auto maxh = style::ConvertScale(_data->photo->thumbnail()->height());
+		auto pixw = _pixw, pixh = articleThumbHeight(_photoMedia.get(), _pixw);
+		const auto maxsize = _photoMedia->size(Data::PhotoSize::Thumbnail);
+		const auto maxw = style::ConvertScale(maxsize.width());
+		const auto maxh = style::ConvertScale(maxsize.height());
 		if (pixw * ph != pixh * pw) {
 			float64 coef = (pixw * ph > pixh * pw) ? qMin(ph / float64(pixh), maxh / float64(pixh)) : qMin(pw / float64(pixw), maxw / float64(pixw));
 			pixh = qRound(pixh * coef);
 			pixw = qRound(pixw * coef);
 		}
-		if (full) {
-			pix = _data->photo->thumbnail()->pixSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
-		} else if (_data->photo->thumbnailSmall()->loaded()) {
-			pix = _data->photo->thumbnailSmall()->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
-		} else if (const auto blurred = _data->photo->thumbnailInline()) {
-			pix = blurred->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+		if (const auto thumbnail = _photoMedia->image(
+				Data::PhotoSize::Thumbnail)) {
+			pix = thumbnail->pixSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+		} else if (const auto small = _photoMedia->image(
+				Data::PhotoSize::Small)) {
+			pix = small->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
+		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
+			pix = blurred->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {
@@ -790,6 +819,10 @@ QString WebPage::displayedSiteName() const {
 
 WebPage::~WebPage() {
 	history()->owner().unregisterWebPageView(_data, _parent);
+	if (_photoMedia) {
+		history()->owner().keepAlive(base::take(_photoMedia));
+		_parent->checkHeavyPart();
+	}
 }
 
 } // namespace HistoryView

@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/rp_widget.h"
 
+namespace Data {
+class PhotoMedia;
+class DocumentMedia;
+} // namespace Data
+
 namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
@@ -41,6 +46,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void validateGifAnimation();
+	void startGifAnimation(const Media::Clip::ReaderPointer &gif);
 	QSize currentDimensions() const;
 	QPixmap currentImage() const;
 	void setupLottie();
@@ -54,9 +61,12 @@ private:
 	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;
 	Data::FileOrigin _origin;
-	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
-	Media::Clip::ReaderPointer _gif;
+	DocumentData *_document = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	std::shared_ptr<Data::DocumentMedia> _documentMedia;
+	Media::Clip::ReaderPointer _gif, _gifThumbnail;
+	crl::time _gifLastPosition = 0;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 
 	int _emojiSize;

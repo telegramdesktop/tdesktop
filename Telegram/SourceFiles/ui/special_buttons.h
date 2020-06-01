@@ -15,15 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
-namespace Ui {
-class InfiniteRadialAnimation;
-} // namespace Ui
+namespace Data {
+class CloudImageView;
+} // namespace Data
 
 namespace Window {
 class SessionController;
 } // namespace Window
 
 namespace Ui {
+
+class InfiniteRadialAnimation;
 
 class HistoryDownButton : public RippleButton {
 public:
@@ -220,6 +222,7 @@ private:
 	const style::UserpicButton &_st;
 	Window::SessionController *_controller = nullptr;
 	PeerData *_peer = nullptr;
+	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _cropTitle;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;

@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -71,6 +75,7 @@ private:
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
 	Data::WallPaper _paper;
+	std::shared_ptr<Data::DocumentMedia> _media;
 	QImage _full;
 	QPixmap _scaled, _blurred, _fadeOutThumbnail;
 	Ui::Animations::Simple _fadeIn;

@@ -40,6 +40,7 @@ bool OpenSystemSettings(SystemSettingsType type);
 }
 
 void IgnoreApplicationActivationRightNow();
+bool AutostartSupported();
 
 namespace ThirdParty {
 

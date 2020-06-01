@@ -8,9 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 
 #include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_loader.h"
+#include "media/streaming/media_streaming_reader.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "main/main_session.h"
 #include "storage/file_download.h" // Storage::kMaxFileInMemory.
 #include "styles/style_widgets.h"
 
@@ -30,21 +34,28 @@ constexpr auto kGoodThumbnailQuality = 87;
 Document::Document(
 	not_null<DocumentData*> document,
 	std::shared_ptr<Reader> reader)
-: _player(&document->owner(), reader)
+: Document(std::move(reader), document) {
+	_player.fullInCache(
+	) | rpl::start_with_next([=](bool fullInCache) {
+		_document->setLoadedInMediaCache(fullInCache);
+	}, _player.lifetime());
+}
+
+Document::Document(std::unique_ptr<Loader> loader)
+: Document(std::make_shared<Reader>(std::move(loader)), nullptr) {
+}
+
+Document::Document(std::shared_ptr<Reader> reader, DocumentData *document)
+: _document(document)
+, _player(std::move(reader))
 , _radial(
-	[=] { waitingCallback(); },
-	st::defaultInfiniteRadialAnimation)
-, _document(document) {
+		[=] { waitingCallback(); },
+		st::defaultInfiniteRadialAnimation) {
 	_player.updates(
 	) | rpl::start_with_next_error([=](Update &&update) {
 		handleUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleError(std::move(error));
-	}, _player.lifetime());
-
-	_player.fullInCache(
-	) | rpl::start_with_next([=](bool fullInCache) {
-		_document->setLoadedInMediaCache(fullInCache);
 	}, _player.lifetime());
 }
 
@@ -60,9 +71,9 @@ const Information &Document::info() const {
 	return _info;
 }
 
-not_null<DocumentData*> Document::data() const {
-	return _document;
-}
+//not_null<DocumentData*> Document::data() const {
+//	return _document;
+//}
 
 void Document::play(const PlaybackOptions &options) {
 	_player.play(options);
@@ -143,10 +154,12 @@ void Document::handleUpdate(Update &&update) {
 }
 
 void Document::handleError(Error &&error) {
-	if (error == Error::NotStreamable) {
-		_document->setNotSupportsStreaming();
-	} else if (error == Error::OpenFailed) {
-		_document->setInappPlaybackFailed();
+	if (_document) {
+		if (error == Error::NotStreamable) {
+			_document->setNotSupportsStreaming();
+		} else if (error == Error::OpenFailed) {
+			_document->setInappPlaybackFailed();
+		}
 	}
 	waitingChange(false);
 }
@@ -192,48 +205,55 @@ void Document::waitingChange(bool waiting) {
 }
 
 void Document::validateGoodThumbnail() {
-	const auto good = _document->goodThumbnail();
 	if (_info.video.cover.isNull()
-		|| (good && good->loaded())
-		|| _document->uploading()) {
+		|| !_document
+		|| _document->goodThumbnailChecked()) {
 		return;
 	}
-	auto image = [&] {
-		auto result = _info.video.cover;
-		if (_info.video.rotation != 0) {
-			auto transform = QTransform();
-			transform.rotate(_info.video.rotation);
-			result = result.transformed(transform);
+	const auto document = _document;
+	const auto information = _info.video;
+	const auto key = document->goodThumbnailCacheKey();
+	const auto guard = base::make_weak(&document->session());
+	document->owner().cache().get(key, [=](QByteArray value) {
+		if (!value.isEmpty()) {
+			return;
 		}
-		if (result.size() != _info.video.size) {
-			result = result.scaled(
-				_info.video.size,
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
+		const auto image = [&] {
+			auto result = information.cover;
+			if (information.rotation != 0) {
+				auto transform = QTransform();
+				transform.rotate(information.rotation);
+				result = result.transformed(transform);
+			}
+			if (result.size() != information.size) {
+				result = result.scaled(
+					information.size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			return result;
+		}();
+		auto bytes = QByteArray();
+		{
+			auto buffer = QBuffer(&bytes);
+			image.save(&buffer, "JPG", kGoodThumbnailQuality);
 		}
-		return result;
-	}();
-
-	auto bytes = QByteArray();
-	{
-		auto buffer = QBuffer(&bytes);
-		image.save(&buffer, "JPG", kGoodThumbnailQuality);
-	}
-	const auto length = bytes.size();
-	if (!length || length > Storage::kMaxFileInMemory) {
-		LOG(("App Error: Bad thumbnail data for saving to cache."));
-	} else if (_document->uploading()) {
-		_document->setGoodThumbnailOnUpload(
-			std::move(image),
-			std::move(bytes));
-	} else {
-		_document->owner().cache().putIfEmpty(
-			_document->goodThumbnailCacheKey(),
-			Storage::Cache::Database::TaggedValue(
-				std::move(bytes),
-				Data::kImageCacheTag));
-		_document->refreshGoodThumbnail();
-	}
+		const auto length = bytes.size();
+		if (!length || length > Storage::kMaxFileInMemory) {
+			LOG(("App Error: Bad thumbnail data for saving to cache."));
+			bytes = "(failed)";
+		}
+		crl::on_main(guard, [=] {
+			if (const auto active = document->activeMediaView()) {
+				active->setGoodThumbnail(image);
+			}
+			document->owner().cache().putIfEmpty(
+				document->goodThumbnailCacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					base::duplicate(bytes),
+					Data::kImageCacheTag));
+		});
+	});
 }
 
 void Document::waitingCallback() {

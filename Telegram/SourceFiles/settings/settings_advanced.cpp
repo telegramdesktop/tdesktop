@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "mtproto/facade.h"
 #include "layout.h"
 #include "facades.h"
 #include "app.h"
@@ -403,8 +404,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		}, taskbar->lifetime());
 	}
 
-#ifndef OS_WIN_STORE
-	if (Platform::IsWindows() || Platform::IsLinux()) {
+	if (Platform::AutostartSupported()) {
 		const auto minimizedToggled = [] {
 			return cStartMinimized() && !Global::LocalPasscode();
 		};
@@ -453,6 +453,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		}, minimized->lifetime());
 	}
 
+#ifndef OS_WIN_STORE
 	if (Platform::IsWindows()) {
 		const auto sendto = addCheckbox(
 			tr::lng_settings_add_sendto(tr::now),

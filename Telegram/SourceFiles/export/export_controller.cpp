@@ -24,7 +24,6 @@ Settings NormalizeSettings(const Settings &settings) {
 		return base::duplicate(settings);
 	}
 	auto result = base::duplicate(settings);
-	result.format = Output::Format::Html;
 	result.types = result.fullChats = Settings::Type::AnyChatsMask;
 	return result;
 }
@@ -352,7 +351,9 @@ void ControllerObject::initialized(const ApiWrap::StartInfo &info) {
 void ControllerObject::collectDialogsList() {
 	setState(stateDialogsList(0));
 	_api.requestDialogsList([=](int count) {
-		setState(stateDialogsList(count));
+		if (count > 0) {
+			setState(stateDialogsList(count - 1));
+		}
 		return true;
 	}, [=](Data::DialogsInfo &&result) {
 		_dialogsInfo = std::move(result);

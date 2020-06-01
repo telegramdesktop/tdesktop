@@ -445,7 +445,7 @@ void EditorBlock::enumerateRows(Callback callback) const {
 			}
 		}
 	} else {
-		for_const (auto &row, _data) {
+		for (const auto &row : _data) {
 			if (!callback(row)) {
 				break;
 			}

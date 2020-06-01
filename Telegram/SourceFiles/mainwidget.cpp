@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_peer_values.h"
@@ -33,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
-#include "ui/image/image_source.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "ui/text_options.h"
@@ -365,6 +365,7 @@ struct MainWidget::SettingBackground {
 	explicit SettingBackground(const Data::WallPaper &data);
 
 	Data::WallPaper data;
+	std::shared_ptr<Data::DocumentMedia> dataMedia;
 	base::binary_guard generating;
 };
 
@@ -1252,53 +1253,6 @@ void MainWidget::exportTopBarHeightUpdated() {
 	}
 }
 
-void MainWidget::documentLoadProgress(FileLoader *loader) {
-	if (const auto documentId = loader ? loader->objId() : 0) {
-		documentLoadProgress(session().data().document(documentId));
-	}
-}
-
-void MainWidget::documentLoadProgress(DocumentData *document) {
-	session().data().requestDocumentViewRepaint(document);
-	session().documentUpdated.notify(document, true);
-
-	if (!document->loaded() && document->isAudioFile()) {
-		Media::Player::instance()->documentLoadProgress(document);
-	}
-}
-
-void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
-	const auto documentId = loader ? loader->objId() : 0;
-	if (!documentId) return;
-
-	const auto document = session().data().document(documentId);
-	if (started) {
-		const auto origin = loader->fileOrigin();
-		const auto failedFileName = loader->fileName();
-		Ui::show(Box<ConfirmBox>(tr::lng_download_finish_failed(tr::now), crl::guard(this, [=] {
-			Ui::hideLayer();
-			if (document) {
-				document->save(origin, failedFileName);
-			}
-		})));
-	} else {
-		// Sometimes we have LOCATION_INVALID error in documents / stickers.
-		// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
-		//
-		//Ui::show(Box<ConfirmBox>(tr::lng_download_path_failed(tr::now), tr::lng_download_path_settings(tr::now), crl::guard(this, [=] {
-		//	Global::SetDownloadPath(QString());
-		//	Global::SetDownloadPathBookmark(QByteArray());
-		//	Ui::show(Box<DownloadPathBox>());
-		//	Global::RefDownloadPathChanged().notify();
-		//})));
-	}
-
-	if (document) {
-		if (document->loading()) document->cancel();
-		document->status = FileDownloadFailed;
-	}
-}
-
 void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
 	//InlineBots::Result *result = InlineBots::resultFromLoader(loader);
 	//if (!result) return;
@@ -1373,6 +1327,11 @@ void MainWidget::setChatBackground(
 	}
 
 	_background = std::make_unique<SettingBackground>(background);
+	if (const auto document = _background->data.document()) {
+		_background->dataMedia = document->createMediaView();
+		_background->dataMedia->thumbnailWanted(
+			_background->data.fileOrigin());
+	}
 	_background->data.loadDocument();
 	checkChatBackground();
 
@@ -1394,9 +1353,8 @@ void MainWidget::setReadyChatBackground(
 
 	if (image.isNull()
 		&& !background.document()
-		&& background.thumbnail()
-		&& background.thumbnail()->loaded()) {
-		image = background.thumbnail()->original();
+		&& background.localThumbnail()) {
+		image = background.localThumbnail()->original();
 	}
 
 	const auto resetToDefault = image.isNull()
@@ -1422,9 +1380,7 @@ float64 MainWidget::chatBackgroundProgress() const {
 		if (_background->generating) {
 			return 1.;
 		} else if (const auto document = _background->data.document()) {
-			return document->progress();
-		} else if (const auto thumbnail = _background->data.thumbnail()) {
-			return thumbnail->progress();
+			return _background->dataMedia->progress();
 		}
 	}
 	return 1.;
@@ -1434,11 +1390,14 @@ void MainWidget::checkChatBackground() {
 	if (!_background || _background->generating) {
 		return;
 	}
-	const auto document = _background->data.document();
-	Assert(document != nullptr);
-	if (!document->loaded()) {
+	const auto &media = _background->dataMedia;
+	Assert(media != nullptr);
+	if (!media->loaded()) {
 		return;
 	}
+
+	const auto document = _background->data.document();
+	Assert(document != nullptr);
 
 	const auto generateCallback = [=](QImage &&image) {
 		const auto background = base::take(_background);
@@ -1448,13 +1407,19 @@ void MainWidget::checkChatBackground() {
 		setReadyChatBackground(ready, std::move(image));
 	};
 	_background->generating = Data::ReadImageAsync(
-		document,
+		media.get(),
 		Window::Theme::ProcessBackgroundImage,
 		generateCallback);
 }
 
 Image *MainWidget::newBackgroundThumb() {
-	return _background ? _background->data.thumbnail() : nullptr;
+	return !_background
+		? nullptr
+		: _background->data.localThumbnail()
+		? _background->data.localThumbnail()
+		: _background->dataMedia
+		? _background->dataMedia->thumbnail()
+		: nullptr;
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
@@ -3391,36 +3356,39 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(
+			it = sets.emplace(
 				Stickers::CloudRecentSetId,
-				uint64(0),
-				tr::lng_recent_stickers(tr::now),
-				QString(),
-				0, // count
-				0, // hash
-				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0),
-				ImagePtr()));
+				std::make_unique<Stickers::Set>(
+					&session().data(),
+					Stickers::CloudRecentSetId,
+					uint64(0),
+					tr::lng_recent_stickers(tr::now),
+					QString(),
+					0, // count
+					0, // hash
+					MTPDstickerSet_ClientFlag::f_special | 0,
+					TimeId(0))).first;
 		} else {
-			it->title = tr::lng_recent_stickers(tr::now);
+			it->second->title = tr::lng_recent_stickers(tr::now);
 		}
 	}
+	const auto set = it->second.get();
 	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();
-	auto index = it->stickers.indexOf(sticker);
+	auto index = set->stickers.indexOf(sticker);
 	if (index > 0) {
-		if (it->dates.empty()) {
+		if (set->dates.empty()) {
 			session().api().requestRecentStickersForce();
 		} else {
-			Assert(it->dates.size() == it->stickers.size());
-			it->dates.erase(it->dates.begin() + index);
+			Assert(set->dates.size() == set->stickers.size());
+			set->dates.erase(set->dates.begin() + index);
 		}
-		it->stickers.removeAt(index);
-		for (auto i = it->emoji.begin(); i != it->emoji.end();) {
+		set->stickers.removeAt(index);
+		for (auto i = set->emoji.begin(); i != set->emoji.end();) {
 			if (const auto index = i->indexOf(sticker); index >= 0) {
 				removedFromEmoji.emplace_back(i.key());
 				i->removeAt(index);
 				if (i->isEmpty()) {
-					i = it->emoji.erase(i);
+					i = set->emoji.erase(i);
 					continue;
 				}
 			}
@@ -3428,17 +3396,17 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		}
 	}
 	if (index) {
-		if (it->dates.size() == it->stickers.size()) {
-			it->dates.insert(it->dates.begin(), base::unixtime::now());
+		if (set->dates.size() == set->stickers.size()) {
+			set->dates.insert(set->dates.begin(), base::unixtime::now());
 		}
-		it->stickers.push_front(sticker);
+		set->stickers.push_front(sticker);
 		if (const auto emojiList = Stickers::GetEmojiListFromSet(sticker)) {
 			for (const auto emoji : *emojiList) {
-				it->emoji[emoji].push_front(sticker);
+				set->emoji[emoji].push_front(sticker);
 			}
 		} else if (!removedFromEmoji.empty()) {
 			for (const auto emoji : removedFromEmoji) {
-				it->emoji[emoji].push_front(sticker);
+				set->emoji[emoji].push_front(sticker);
 			}
 		} else {
 			session().api().requestRecentStickersForce();
@@ -3457,7 +3425,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			break;
 		}
 	}
-	while (!recent.isEmpty() && it->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
+	while (!recent.isEmpty() && set->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
 		writeOldRecent = true;
 		recent.pop_back();
 	}
@@ -3468,13 +3436,14 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
 	bool writeInstalledStickers = false;
-	auto custom = sets.find(Stickers::CustomSetId);
-	if (custom != sets.cend()) {
+	auto customIt = sets.find(Stickers::CustomSetId);
+	if (customIt != sets.cend()) {
+		const auto custom = customIt->second.get();
 		int removeIndex = custom->stickers.indexOf(sticker);
 		if (removeIndex >= 0) {
 			custom->stickers.removeAt(removeIndex);
 			if (custom->stickers.isEmpty()) {
-				sets.erase(custom);
+				sets.erase(customIt);
 			}
 			writeInstalledStickers = true;
 		}
@@ -4547,16 +4516,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
 		if (!d.is_masks()) {
-			auto &order = d.vorder().v;
-			auto &sets = session().data().stickerSets();
+			const auto &order = d.vorder().v;
+			const auto &sets = session().data().stickerSets();
 			Stickers::Order result;
 			for (const auto &item : order) {
-				if (sets.constFind(item.v) == sets.cend()) {
+				if (sets.find(item.v) == sets.cend()) {
 					break;
 				}
 				result.push_back(item.v);
 			}
-			if (result.size() != session().data().stickerSetsOrder().size() || result.size() != order.size()) {
+			if (result.size() != session().data().stickerSetsOrder().size()
+				|| result.size() != order.size()) {
 				session().data().setLastStickersUpdate(0);
 				session().api().updateStickers();
 			} else {

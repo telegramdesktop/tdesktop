@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class Media;
+class PhotoMedia;
 } // namespace Data
 
 namespace HistoryView {
@@ -81,15 +82,12 @@ public:
 	}
 	bool enforceBubbleWidth() const override;
 
-	void unloadHeavyPart() override {
-		if (_attach) {
-			_attach->unloadHeavyPart();
-		}
-	}
-
 	Media *attach() const {
 		return _attach.get();
 	}
+
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
 
 	~WebPage();
 
@@ -97,6 +95,8 @@ private:
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+
+	void ensurePhotoMediaCreated() const;
 
 	TextSelection toTitleSelection(TextSelection selection) const;
 	TextSelection fromTitleSelection(TextSelection selection) const;
@@ -114,6 +114,7 @@ private:
 	std::vector<std::unique_ptr<Data::Media>> _collage;
 	ClickHandlerPtr _openl;
 	std::unique_ptr<Media> _attach;
+	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
 
 	bool _asArticle = false;
 	int _dataVersion = -1;

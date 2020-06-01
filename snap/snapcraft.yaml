@@ -18,9 +18,6 @@ apps:
     command: telegram-launch
     common-id: org.telegram.desktop
     desktop: share/applications/telegramdesktop.desktop
-    environment:
-      # Use GTK3 cursor theme, icon theme and open/save file dialogs.
-      QT_QPA_PLATFORMTHEME: gtk3
     extensions:
       - kde-neon
     plugs:
@@ -87,6 +84,7 @@ parts:
       - libssl-dev
       - zlib1g-dev
     stage-packages:
+      - libgtk-3-0
       - liblzma5
     configflags:
       - -DCMAKE_C_COMPILER=gcc-8
@@ -98,6 +96,7 @@ parts:
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DDESKTOP_APP_USE_PACKAGED_FONTS=OFF
       - -DTDESKTOP_USE_FONTCONFIG_FALLBACK=ON
+      - -DTDESKTOP_USE_GTK_FILE_DIALOG=ON
     override-pull: |
       snapcraftctl pull
 
@@ -118,6 +117,7 @@ parts:
       - cmake
       - ffmpeg
       - openal
+      - qtwayland
 
   telegram-launcher:
     plugin: dump
@@ -226,7 +226,6 @@ parts:
     source-branch: release/4.2
     plugin: autotools
     build-packages:
-      - libasound2-dev
       - libopus-dev
       - libva-dev
       - libvdpau-dev
@@ -240,6 +239,7 @@ parts:
       - --disable-autodetect
       - --disable-everything
       - --disable-neon
+      - --disable-alsa
       - --disable-iconv
       - --enable-shared
       - --enable-libdav1d
@@ -365,33 +365,6 @@ parts:
       - -./include
       - -./lib/cmake
       - -./lib/pkgconfig
-
-  qgnomeplatform:
-    source: https://github.com/FedoraQt/QGnomePlatform.git
-    source-depth: 1
-    source-tag: 0.6.0
-    plugin: dump
-    build-snaps:
-      - kde-frameworks-5-core18-sdk
-      - kde-frameworks-5-core18
-    build-packages:
-      - libglvnd-dev
-      - libgtk-3-dev
-    stage-packages:
-      - libgtk-3-0
-      - cinnamon-desktop-data
-    override-build: |
-      KF5_DIR=/snap/kde-frameworks-5-core18-sdk/current
-
-      $KF5_DIR/usr/lib/qt5/bin/qmake -qtconf "$SNAPCRAFT_STAGE/qt.conf"
-      make -j$(nproc)
-      make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL/tmp" install
-
-      cp -a "$SNAPCRAFT_PART_INSTALL/tmp/$KF5_DIR/." "$SNAPCRAFT_PART_INSTALL"
-      rm -r "$SNAPCRAFT_PART_INSTALL/tmp"
-    after:
-      - qtconf
-      - qtwayland
 
   qtimageformats:
     source: https://github.com/qt/qtimageformats.git

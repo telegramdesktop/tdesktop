@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class FileLocation;
 
+namespace Data {
+class DocumentMedia;
+} // namespace Data
+
 namespace Media {
 namespace Clip {
 
@@ -36,13 +40,13 @@ struct FrameRequest {
 	RectParts corners = RectPart::AllCorners;
 };
 
-enum ReaderSteps {
+enum ReaderSteps : int {
 	WaitingForDimensionsStep = -3, // before ReaderPrivate read the first image and got the original frame size
 	WaitingForRequestStep = -2, // before Reader got the original frame size and prepared the frame request
 	WaitingForFirstFrameStep = -1, // before ReaderPrivate got the frame request and started waiting for the 1-2 delay
 };
 
-enum Notification {
+enum Notification : int {
 	NotificationReinit,
 	NotificationRepaint,
 };
@@ -56,19 +60,12 @@ public:
 		Video,
 	};
 
+	Reader(not_null<Data::DocumentMedia*> media, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
-	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 
 	// Reader can be already deleted.
 	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
-
-	void setAutoplay() {
-		_autoplay = true;
-	}
-	bool autoplay() const {
-		return _autoplay;
-	}
 
 	AudioMsgId audioMsgId() const {
 		return _audioMsgId;
@@ -167,8 +164,6 @@ private:
 	QAtomicInt _autoPausedGif = 0;
 	QAtomicInt _videoPauseRequest = 0;
 	int32 _threadIndex;
-
-	bool _autoplay = false;
 
 	friend class Manager;
 

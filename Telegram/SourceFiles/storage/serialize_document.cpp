@@ -13,7 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "main/main_session.h"
 
+namespace Serialize {
 namespace {
+
+constexpr auto kVersionTag = int32(0x7FFFFFFF);
+constexpr auto kVersion = 1;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -23,12 +27,9 @@ enum StickerSetType {
 
 } // namespace
 
-namespace Serialize {
-
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
-	const auto version = 0;
 	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
-	stream << document->_fileReference << qint32(version);
+	stream << document->_fileReference << qint32(kVersionTag) << qint32(kVersion);
 	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
@@ -46,29 +47,31 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 			stream << qint32(StickerSetTypeEmpty);
 		} break;
 		}
-		writeStorageImageLocation(stream, document->sticker()->loc);
 	} else {
 		stream << qint32(document->getDuration());
-		if (const auto thumb = document->thumbnail()) {
-			writeStorageImageLocation(stream, thumb->location());
-		} else {
-			writeStorageImageLocation(stream, StorageImageLocation());
-		}
 	}
+	writeImageLocation(stream, document->thumbnailLocation());
+	stream << qint32(document->thumbnailByteSize());
+	writeImageLocation(stream, document->videoThumbnailLocation());
+	stream << qint32(document->videoThumbnailByteSize());
 }
 
 DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
 	quint64 id, access;
 	QString name, mime;
-	qint32 date, dc, size, width, height, type, version;
+	qint32 date, dc, size, width, height, type, versionTag, version = 0;
 	QByteArray fileReference;
 	stream >> id >> access >> date;
 	if (streamAppVersion >= 9061) {
 		if (streamAppVersion >= 1003013) {
 			stream >> fileReference;
 		}
-		stream >> version;
+		stream >> versionTag;
+		if (versionTag == kVersionTag) {
+			stream >> version;
+		}
 	} else {
+		versionTag = 0;
 		version = 0;
 	}
 	stream >> name >> mime >> dc >> size;
@@ -81,14 +84,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 
 	qint32 duration = -1;
-	std::optional<StorageImageLocation> thumb;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
 		stream >> alt >> typeOfSet;
-
-		thumb = readStorageImageLocation(streamAppVersion, stream);
-
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
@@ -117,7 +116,16 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		}
-		thumb = readStorageImageLocation(streamAppVersion, stream);
+	}
+	std::optional<ImageLocation> videoThumb;
+	qint32 thumbnailByteSize = 0, videoThumbnailByteSize = 0;
+	const auto thumb = readImageLocation(streamAppVersion, stream);
+	if (version >= 1) {
+		stream >> thumbnailByteSize;
+		videoThumb = readImageLocation(streamAppVersion, stream);
+		stream >> videoThumbnailByteSize;
+	} else {
+		videoThumb = ImageLocation();
 	}
 	if (width > 0 && height > 0) {
 		if (duration >= 0) {
@@ -131,9 +139,13 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		}
 	}
 
-	if ((!dc && !access)
+	const auto storage = base::get_if<StorageFileLocation>(
+		&thumb->file().data);
+	if ((stream.status() != QDataStream::Ok)
+		|| (!dc && !access)
 		|| !thumb
-		|| (thumb->valid() && !thumb->file().isDocumentThumbnail())) {
+		|| (thumb->valid()
+			&& (!storage || !storage->isDocumentThumbnail()))) {
 		stream.setStatus(QDataStream::ReadCorruptData);
 		// We can't convert legacy thumbnail location to modern, because
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
@@ -146,11 +158,17 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		date,
 		attributes,
 		mime,
-		ImagePtr(),
-		Images::Create(*thumb),
+		QByteArray(),
+		ImageWithLocation{
+			.location = *thumb,
+			.bytesCount = thumbnailByteSize
+		},
+		ImageWithLocation{
+			.location = *videoThumb,
+			.bytesCount = videoThumbnailByteSize
+		},
 		dc,
-		size,
-		*thumb);
+		size);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
@@ -176,18 +194,12 @@ int Document::sizeInStream(DocumentData *document) {
 	if (auto sticker = document->sticker()) { // type == StickerDocument
 		// + altlen + alt + type-of-set
 		result += stringSize(sticker->alt) + sizeof(qint32);
-		// + sticker loc
-		result += Serialize::storageImageLocationSize(document->sticker()->loc);
 	} else {
 		// + duration
 		result += sizeof(qint32);
-		// + thumb loc
-		if (const auto thumb = document->thumbnail()) {
-			result += Serialize::storageImageLocationSize(thumb->location());
-		} else {
-			result += Serialize::storageImageLocationSize(StorageImageLocation());
-		}
 	}
+	// + thumb loc
+	result += Serialize::imageLocationSize(document->thumbnailLocation());
 
 	return result;
 }

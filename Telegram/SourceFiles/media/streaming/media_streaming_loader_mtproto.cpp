@@ -30,7 +30,7 @@ LoaderMtproto::LoaderMtproto(
 , _api(api().instance()) {
 }
 
-std::optional<Storage::Cache::Key> LoaderMtproto::baseCacheKey() const {
+Storage::Cache::Key LoaderMtproto::baseCacheKey() const {
 	return location().data.get<StorageFileLocation>().bigFileBaseCacheKey();
 }
 

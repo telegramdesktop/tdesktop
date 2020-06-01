@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_location.h"
 
 #include "layout.h"
+#include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
@@ -15,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "data/data_session.h"
 #include "data/data_file_origin.h"
-#include "data/data_location.h"
+#include "data/data_cloud_file.h"
 #include "app.h"
 #include "styles/style_history.h"
 
@@ -24,14 +26,15 @@ namespace HistoryView {
 
 Location::Location(
 	not_null<Element*> parent,
-	not_null<Data::LocationThumbnail*> location,
+	not_null<Data::CloudImage*> data,
+	Data::LocationPoint point,
 	const QString &title,
 	const QString &description)
 : Media(parent)
-, _data(location)
+, _data(data)
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(std::make_shared<LocationClickHandler>(_data->point)) {
+, _link(std::make_shared<LocationClickHandler>(point)) {
 	if (!title.isEmpty()) {
 		_title.setText(
 			st::webPageTitleStyle,
@@ -46,6 +49,22 @@ Location::Location(
 				TextParseLinks | TextParseMultiline | TextParseRichText),
 			Ui::WebpageTextDescriptionOptions());
 	}
+}
+
+Location::~Location() {
+	if (_media) {
+		_media = nullptr;
+		_parent->checkHeavyPart();
+	}
+}
+
+void Location::ensureMediaCreated() const {
+	if (_media) {
+		return;
+	}
+	_media = _data->createView();
+	_data->load(&history()->session(), _parent->data()->fullId());
+	history()->owner().registerHeavyViewPart(_parent);
 }
 
 QSize Location::countOptimalSize() {
@@ -155,14 +174,13 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
-	const auto contextId = _parent->data()->fullId();
-	_data->load(contextId);
 	auto roundRadius = ImageRoundRadius::Large;
 	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 		| (isBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
 	auto rthumb = QRect(paintx, painty, paintw, painth);
-	if (_data && !_data->thumb->isNull()) {
-		const auto &pix = _data->thumb->pixSingle(contextId, paintw, painth, paintw, painth, roundRadius, roundCorners);
+	ensureMediaCreated();
+	if (const auto thumbnail = _media->image()) {
+		const auto &pix = thumbnail->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
 		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);

@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
@@ -410,7 +412,11 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)
+, _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
+	if (_media) {
+		_media->thumbnailWanted(_paper.fileOrigin());
+	}
 	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 }
 
@@ -428,12 +434,14 @@ void BackgroundPreviewBox::prepare() {
 	}
 	updateServiceBg(_paper.backgroundColor());
 
-	_paper.loadThumbnail();
 	_paper.loadDocument();
-	if (_paper.document() && _paper.document()->loading()) {
-		_radial.start(_paper.document()->progress());
+	const auto document = _paper.document();
+	if (document && document->loading()) {
+		_radial.start(_media->progress());
 	}
-	if (_paper.thumbnail() && !_paper.isPattern()) {
+	if (!_paper.isPattern()
+		&& (_paper.localThumbnail()
+			|| (document && document->hasThumbnail()))) {
 		createBlurCheckbox();
 	}
 	setScaledFromThumb();
@@ -634,7 +642,7 @@ void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 	const auto document = _paper.document();
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
-		document->progress(),
+		_media->progress(),
 		!document->loading(),
 		now);
 	if ((wasAnimating || _radial.animating())
@@ -645,8 +653,13 @@ void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 }
 
 bool BackgroundPreviewBox::setScaledFromThumb() {
-	const auto thumbnail = _paper.thumbnail();
-	if (!thumbnail || !thumbnail->loaded()) {
+	const auto localThumbnail = _paper.localThumbnail();
+	const auto thumbnail = localThumbnail
+		? localThumbnail
+		: _media
+		? _media->thumbnail()
+		: nullptr;
+	if (!thumbnail) {
 		return false;
 	} else if (_paper.isPattern() && _paper.document() != nullptr) {
 		return false;
@@ -710,7 +723,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 	const auto document = _paper.document();
 	if (!_full.isNull()
 		|| !document
-		|| !document->loaded(DocumentData::FilePathResolve::Checked)
+		|| !_media->loaded(true)
 		|| _generating) {
 		return;
 	}
@@ -744,7 +757,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		});
 	};
 	_generating = Data::ReadImageAsync(
-		document,
+		_media.get(),
 		Window::Theme::ProcessBackgroundImage,
 		generateCallback);
 }

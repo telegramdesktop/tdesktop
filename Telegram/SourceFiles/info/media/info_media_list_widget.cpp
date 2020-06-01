@@ -112,6 +112,7 @@ public:
 
 	bool removeItem(UniversalMsgId universalId);
 	FoundItem findItemNearId(UniversalMsgId universalId) const;
+	FoundItem findItemDetails(not_null<BaseLayout*> item) const;
 	FoundItem findItemByPoint(QPoint point) const;
 
 	void paint(
@@ -189,6 +190,11 @@ bool ListWidget::SkipSelectTillItem(const MouseState &state) {
 ListWidget::CachedItem::CachedItem(std::unique_ptr<BaseLayout> item)
 : item(std::move(item)) {
 }
+
+ListWidget::CachedItem::CachedItem(CachedItem &&other) = default;
+
+ListWidget::CachedItem &ListWidget::CachedItem::operator=(
+	CachedItem && other) = default;
 
 ListWidget::CachedItem::~CachedItem() = default;
 
@@ -306,9 +312,10 @@ auto ListWidget::Section::findItemByPoint(
 	return { item, rect, rect.contains(point) };
 }
 
-auto ListWidget::Section::findItemNearId(
-		UniversalMsgId universalId) const -> FoundItem {
+auto ListWidget::Section::findItemNearId(UniversalMsgId universalId) const
+-> FoundItem {
 	Expects(!_items.empty());
+
 	auto itemIt = ranges::lower_bound(
 		_items,
 		universalId,
@@ -320,6 +327,11 @@ auto ListWidget::Section::findItemNearId(
 	auto item = itemIt->second;
 	auto exact = (GetUniversalId(item) == universalId);
 	return { item, findItemRect(item), exact };
+}
+
+auto ListWidget::Section::findItemDetails(not_null<BaseLayout*> item) const
+-> FoundItem {
+	return { item, findItemRect(item), true };
 }
 
 auto ListWidget::Section::findItemAfterTop(
@@ -621,6 +633,7 @@ void ListWidget::restart() {
 	_overLayout = nullptr;
 	_sections.clear();
 	_layouts.clear();
+	_heavyLayouts.clear();
 
 	_universalAroundId = kDefaultAroundId;
 	_idsLimit = kMinimalIdsLimit;
@@ -631,11 +644,11 @@ void ListWidget::restart() {
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (isMyItem(item)) {
-		auto universalId = GetUniversalId(item);
+		auto id = GetUniversalId(item);
 
-		auto sectionIt = findSectionByItem(universalId);
+		auto sectionIt = findSectionByItem(id);
 		if (sectionIt != _sections.end()) {
-			if (sectionIt->removeItem(universalId)) {
+			if (sectionIt->removeItem(id)) {
 				auto top = sectionIt->top();
 				if (sectionIt->empty()) {
 					_sections.erase(sectionIt);
@@ -648,11 +661,13 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 			_overLayout = nullptr;
 		}
 
-		_layouts.erase(universalId);
-		_dragSelected.remove(universalId);
+		if (const auto i = _layouts.find(id); i != _layouts.end()) {
+			_heavyLayouts.remove(i->second.item.get());
+			_layouts.erase(i);
+		}
+		_dragSelected.remove(id);
 
-		auto i = _selected.find(universalId);
-		if (i != _selected.cend()) {
+		if (const auto i = _selected.find(id); i != _selected.cend()) {
 			removeItemSelection(i);
 		}
 
@@ -789,6 +804,21 @@ void ListWidget::invalidatePaletteCache() {
 	}
 }
 
+void ListWidget::registerHeavyItem(not_null<const BaseLayout*> item) {
+	if (!_heavyLayouts.contains(item)) {
+		_heavyLayouts.emplace(item);
+		_heavyLayoutsInvalidated = true;
+	}
+}
+
+void ListWidget::unregisterHeavyItem(not_null<const BaseLayout*> item) {
+	const auto i = _heavyLayouts.find(item);
+	if (i != _heavyLayouts.end()) {
+		_heavyLayouts.erase(i);
+		_heavyLayoutsInvalidated = true;
+	}
+}
+
 SparseIdsMergedSlice::Key ListWidget::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;
@@ -871,31 +901,31 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 	switch (type) {
 	case Type::Photo:
 		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(item, photo);
+			return std::make_unique<Photo>(this, item, photo);
 		}
 		return nullptr;
 	case Type::Video:
 		if (const auto file = getFile()) {
-			return std::make_unique<Video>(item, file);
+			return std::make_unique<Video>(this, item, file);
 		}
 		return nullptr;
 	case Type::File:
 		if (const auto file = getFile()) {
-			return std::make_unique<Document>(item, file, songSt);
+			return std::make_unique<Document>(this, item, file, songSt);
 		}
 		return nullptr;
 	case Type::MusicFile:
 		if (const auto file = getFile()) {
-			return std::make_unique<Document>(item, file, songSt);
+			return std::make_unique<Document>(this, item, file, songSt);
 		}
 		return nullptr;
 	case Type::RoundVoiceFile:
 		if (const auto file = getFile()) {
-			return std::make_unique<Voice>(item, file, songSt);
+			return std::make_unique<Voice>(this, item, file, songSt);
 		}
 		return nullptr;
 	case Type::Link:
-		return std::make_unique<Link>(item, item->media());
+		return std::make_unique<Link>(this, item, item->media());
 	case Type::RoundFile:
 		return nullptr;
 	}
@@ -1005,16 +1035,17 @@ auto ListWidget::findItemById(
 	return std::nullopt;
 }
 
-auto ListWidget::findItemDetails(
-		BaseLayout *item) -> std::optional<FoundItem> {
-	return item
-		? findItemById(GetUniversalId(item))
-		: std::nullopt;
+auto ListWidget::findItemDetails(not_null<BaseLayout*> item)
+-> FoundItem {
+	const auto sectionIt = findSectionByItem(GetUniversalId(item));
+	Assert(sectionIt != _sections.end());
+	return foundItemInSection(sectionIt->findItemDetails(item), *sectionIt);
 }
 
 auto ListWidget::foundItemInSection(
-		const FoundItem &item,
-		const Section &section) const -> FoundItem {
+	const FoundItem &item,
+	const Section &section) const
+-> FoundItem {
 	return {
 		item.layout,
 		item.geometry.translated(0, section.top()),
@@ -1028,6 +1059,7 @@ void ListWidget::visibleTopBottomUpdated(
 	_visibleBottom = visibleBottom;
 
 	checkMoveToOtherViewer();
+	clearHeavyItems();
 }
 
 void ListWidget::checkMoveToOtherViewer() {
@@ -1085,6 +1117,32 @@ void ListWidget::checkMoveToOtherViewer() {
 		preloadAroundItem(topItem);
 	} else if (preloadBottom && !bottomLoaded) {
 		preloadAroundItem(bottomItem);
+	}
+}
+
+void ListWidget::clearHeavyItems() {
+	const auto visibleHeight = _visibleBottom - _visibleTop;
+	if (!visibleHeight) {
+		return;
+	}
+	_heavyLayoutsInvalidated = false;
+	const auto above = _visibleTop - visibleHeight;
+	const auto below = _visibleBottom + visibleHeight;
+	for (auto i = _heavyLayouts.begin(); i != _heavyLayouts.end();) {
+		const auto item = const_cast<BaseLayout*>(i->get());
+		const auto rect = findItemDetails(item).geometry;
+		if (rect.top() + rect.height() <= above || rect.top() >= below) {
+			i = _heavyLayouts.erase(i);
+			item->clearHeavyPart();
+			if (_heavyLayoutsInvalidated) {
+				break;
+			}
+		} else {
+			++i;
+		}
+	}
+	if (_heavyLayoutsInvalidated) {
+		clearHeavyItems();
 	}
 }
 
@@ -1270,7 +1328,7 @@ void ListWidget::showContextMenu(
 							document->cancel();
 						});
 				} else {
-					auto filepath = document->filepath(DocumentData::FilePathResolve::Checked);
+					auto filepath = document->filepath(true);
 					if (!filepath.isEmpty()) {
 						auto handler = App::LambdaDelayed(
 							st::defaultDropdownMenu.menu.ripple.hideDuration,
@@ -1979,7 +2037,7 @@ void ListWidget::performDrag() {
 	//		auto mimeData = std::make_unique<QMimeData>();
 	//		mimeData->setData(forwardMimeType, "1");
 	//		if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-	//			auto filepath = document->filepath(DocumentData::FilePathResolve::Checked);
+	//			auto filepath = document->filepath(true);
 	//			if (!filepath.isEmpty()) {
 	//				QList<QUrl> urls;
 	//				urls.push_back(QUrl::fromLocalFile(filepath));
@@ -2105,6 +2163,7 @@ void ListWidget::clearStaleLayouts() {
 			if (i->second.item.get() == _overLayout) {
 				_overLayout = nullptr;
 			}
+			_heavyLayouts.erase(i->second.item.get());
 			i = _layouts.erase(i);
 		} else {
 			++i;

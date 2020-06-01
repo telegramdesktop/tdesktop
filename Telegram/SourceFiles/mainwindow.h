@@ -110,10 +110,10 @@ public:
 	void ui_hideSettingsAndLayer(anim::type animated);
 	void ui_removeLayerBlackout();
 	bool ui_isLayerShown();
-	void showMediaPreview(
+	bool showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document);
-	void showMediaPreview(
+	bool showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();

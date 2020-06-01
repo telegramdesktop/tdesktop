@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -49,9 +50,9 @@ FieldAutocomplete::FieldAutocomplete(
 			&_srows));
 	_inner->setGeometry(rect());
 
-	connect(_inner, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(mentionChosen(not_null<UserData*>,FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(not_null<UserData*>,FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(stickerChosen(not_null<DocumentData*>,FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(not_null<DocumentData*>,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
 
@@ -151,7 +152,9 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 }
 
 bool FieldAutocomplete::clearFilteredBotCommands() {
-	if (_brows.isEmpty()) return false;
+	if (_brows.empty()) {
+		return false;
+	}
 	_brows.clear();
 	return true;
 }
@@ -159,8 +162,8 @@ bool FieldAutocomplete::clearFilteredBotCommands() {
 namespace {
 template <typename T, typename U>
 inline int indexOfInFirstN(const T &v, const U &elem, int last) {
-	for (auto b = v.cbegin(), i = b, e = b + qMax(v.size(), last); i != e; ++i) {
-		if (*i == elem) {
+	for (auto b = v.cbegin(), i = b, e = b + std::max(int(v.size()), last); i != e; ++i) {
+		if (i->user == elem) {
 			return (i - b);
 		}
 	}
@@ -177,7 +180,10 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	auto result = ranges::view::all(
 		list
 	) | ranges::view::transform([](not_null<DocumentData*> sticker) {
-		return internal::StickerSuggestion{ sticker };
+		return internal::StickerSuggestion{
+			sticker,
+			sticker->createMediaView()
+		};
 	}) | ranges::to_vector;
 	for (auto &suggestion : _srows) {
 		if (!suggestion.animated) {
@@ -237,12 +243,12 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			for_const (auto user, cRecentInlineBots()) {
 				if (user->isInaccessible()) continue;
 				if (!listAllSuggestions && filterNotPassedByUsername(user)) continue;
-				mrows.push_back(user);
+				mrows.push_back({ user });
 				++recentInlineBots;
 			}
 		}
 		if (_chat) {
-			auto ordered = QMultiMap<TimeId, not_null<UserData*>>();
+			auto sorted = base::flat_multi_map<TimeId, not_null<UserData*>>();
 			const auto byOnline = [&](not_null<UserData*> user) {
 				return Data::SortByOnlineValue(user, now);
 			};
@@ -254,23 +260,19 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
-					ordered.insertMulti(byOnline(user), user);
+					sorted.emplace(byOnline(user), user);
 				}
 			}
 			for (const auto user : _chat->lastAuthors) {
 				if (user->isInaccessible()) continue;
 				if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
-				mrows.push_back(user);
-				if (!ordered.isEmpty()) {
-					ordered.remove(byOnline(user), user);
-				}
+				mrows.push_back({ user });
+				sorted.remove(byOnline(user), user);
 			}
-			if (!ordered.isEmpty()) {
-				for (auto i = ordered.cend(), b = ordered.cbegin(); i != b;) {
-					--i;
-					mrows.push_back(i.value());
-				}
+			for (auto i = sorted.cend(), b = sorted.cbegin(); i != b;) {
+				--i;
+				mrows.push_back({ i->second });
 			}
 		} else if (_channel && _channel->isMegagroup()) {
 			QMultiMap<int32, UserData*> ordered;
@@ -282,7 +284,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
-					mrows.push_back(user);
+					mrows.push_back({ user });
 				}
 			}
 		}
@@ -374,7 +376,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 								continue;
 							}
 						}
-						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
+						brows.push_back({ user, &user->botInfo->commands.at(j) });
 					}
 				}
 			}
@@ -386,7 +388,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
 						}
-						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
+						brows.push_back({ user, &user->botInfo->commands.at(j) });
 					}
 				}
 			}
@@ -407,7 +409,7 @@ void FieldAutocomplete::rowsUpdated(
 		internal::BotCommandRows &&brows,
 		internal::StickerRows &&srows,
 		bool resetScroll) {
-	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.empty()) {
+	if (mrows.empty() && hrows.empty() && brows.empty() && srows.empty()) {
 		if (!isHidden()) {
 			hideAnimated();
 		}
@@ -448,11 +450,11 @@ void FieldAutocomplete::recount(bool resetScroll) {
 		int32 stickersPerRow = qMax(1, int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
 		int32 rows = rowscount(_srows.size(), stickersPerRow);
 		h = st::stickerPanPadding + rows * st::stickerPanSize.height();
-	} else if (!_mrows.isEmpty()) {
+	} else if (!_mrows.empty()) {
 		h = _mrows.size() * st::mentionHeight;
-	} else if (!_hrows.isEmpty()) {
+	} else if (!_hrows.empty()) {
 		h = _hrows.size() * st::mentionHeight;
-	} else if (!_brows.isEmpty()) {
+	} else if (!_brows.empty()) {
 		h = _brows.size() * st::mentionHeight;
 	}
 
@@ -634,11 +636,12 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 				auto &sticker = (*_srows)[index];
 				const auto document = sticker.document;
+				const auto &media = sticker.documentMedia;
 				if (!document->sticker()) continue;
 
 				if (document->sticker()->animated
 					&& !sticker.animated
-					&& document->loaded()) {
+					&& media->loaded()) {
 					setupLottie(sticker);
 				}
 
@@ -649,7 +652,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 				}
 
-				document->checkStickerSmall();
+				media->checkStickerSmall();
 				auto w = 1;
 				auto h = 1;
 				if (sticker.animated && !document->dimensions.isEmpty()) {
@@ -680,15 +683,19 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					if (!paused) {
 						sticker.animated->markFrameShown();
 					}
-				} else if (const auto image = document->getStickerSmall()) {
+				} else if (const auto image = media->getStickerSmall()) {
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
-					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));
+					p.drawPixmapLeft(ppos, width(), image->pix(w, h));
 				}
 			}
 		}
 	} else {
 		int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
-		int32 last = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
+		int32 last = !_mrows->empty()
+			? _mrows->size()
+			: !_hrows->empty()
+			? _hrows->size()
+			: _brows->size();
 		auto filter = _parent->filter();
 		bool hasUsername = filter.indexOf('@') > 0;
 		int filterSize = filter.size();
@@ -700,12 +707,13 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver);
 				int skip = (st::mentionHeight - st::smallCloseIconOver.height()) / 2;
-				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
+				if (!_hrows->empty() || (!_mrows->empty() && i < _recentInlineBotsInRows)) {
 					st::smallCloseIconOver.paint(p, QPoint(width() - st::smallCloseIconOver.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
-			if (!_mrows->isEmpty()) {
-				const auto user = _mrows->at(i);
+			if (!_mrows->empty()) {
+				auto &row = _mrows->at(i);
+				const auto user = row.user;
 				auto first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
 				auto second = first.isEmpty() ? (user->username.isEmpty() ? QString() : ('@' + user->username)) : user->username.mid(filterSize);
 				auto firstwidth = st::mentionFont->width(first);
@@ -727,7 +735,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
+				user->paintUserpicLeft(p, row.userpic, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				user->nameText().drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
@@ -739,7 +747,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					p.setPen(selected ? st::mentionFgOver : st::mentionFg);
 					p.drawText(mentionleft + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 				}
-			} else if (!_hrows->isEmpty()) {
+			} else if (!_hrows->empty()) {
 				QString hrow = _hrows->at(i);
 				QString first = filterIsEmpty ? QString() : ('#' + hrow.mid(0, filterSize));
 				QString second = filterIsEmpty ? ('#' + hrow) : hrow.mid(filterSize);
@@ -763,16 +771,17 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 				}
 			} else {
-				UserData *user = _brows->at(i).first;
+				auto &row = _brows->at(i);
+				const auto user = row.user;
 
-				const BotCommand *command = _brows->at(i).second;
-				QString toHighlight = command->command;
+				const auto command = row.command;
+				auto toHighlight = command->command;
 				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 				if (hasUsername || botStatus == 0 || botStatus == 2) {
 					toHighlight += '@' + user->username;
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
+				user->paintUserpicLeft(p, row.userpic, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				auto commandText = '/' + toHighlight;
 
@@ -815,7 +824,7 @@ void FieldAutocompleteInner::clearSel(bool hidden) {
 	_overDelete = false;
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
+	setSel((_mrows->empty() && _brows->empty() && _hrows->empty()) ? -1 : 0);
 	if (hidden) {
 		_down = -1;
 		_previewShown = false;
@@ -826,7 +835,13 @@ bool FieldAutocompleteInner::moveSel(int key) {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
 
-	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? (_brows->isEmpty() ? _srows->size() : _brows->size()) : _hrows->size()) : _mrows->size());
+	int32 maxSel = !_mrows->empty()
+		? _mrows->size()
+		: !_hrows->empty()
+		? _hrows->size()
+		: !_brows->empty()
+		? _brows->size()
+		: _srows->size();
 	int32 direction = (key == Qt::Key_Up) ? -1 : (key == Qt::Key_Down ? 1 : 0);
 	if (!_srows->empty()) {
 		if (key == Qt::Key_Left) {
@@ -857,20 +872,20 @@ bool FieldAutocompleteInner::chooseSelected(FieldAutocomplete::ChooseMethod meth
 			emit stickerChosen((*_srows)[_sel].document, method);
 			return true;
 		}
-	} else if (!_mrows->isEmpty()) {
+	} else if (!_mrows->empty()) {
 		if (_sel >= 0 && _sel < _mrows->size()) {
-			emit mentionChosen(_mrows->at(_sel), method);
+			emit mentionChosen(_mrows->at(_sel).user, method);
 			return true;
 		}
-	} else if (!_hrows->isEmpty()) {
+	} else if (!_hrows->empty()) {
 		if (_sel >= 0 && _sel < _hrows->size()) {
 			emit hashtagChosen('#' + _hrows->at(_sel), method);
 			return true;
 		}
-	} else if (!_brows->isEmpty()) {
+	} else if (!_brows->empty()) {
 		if (_sel >= 0 && _sel < _brows->size()) {
-			UserData *user = _brows->at(_sel).first;
-			const BotCommand *command(_brows->at(_sel).second);
+			const auto user = _brows->at(_sel).user;
+			const auto command = _brows->at(_sel).command;
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 0) {
 				emit botCommandChosen('/' + command->command + '@' + user->username, method);
@@ -890,9 +905,9 @@ void FieldAutocompleteInner::setRecentInlineBotsInRows(int32 bots) {
 void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
 	if (e->button() == Qt::LeftButton) {
-		if (_overDelete && _sel >= 0 && _sel < (_mrows->isEmpty() ? _hrows->size() : _recentInlineBotsInRows)) {
+		if (_overDelete && _sel >= 0 && _sel < (_mrows->empty() ? _hrows->size() : _recentInlineBotsInRows)) {
 			bool removed = false;
-			if (_mrows->isEmpty()) {
+			if (_mrows->empty()) {
 				QString toRemove = _hrows->at(_sel);
 				RecentHashtagPack &recent(cRefRecentWriteHashtags());
 				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
@@ -904,7 +919,7 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 					}
 				}
 			} else {
-				UserData *toRemove = _mrows->at(_sel);
+				UserData *toRemove = _mrows->at(_sel).user;
 				RecentInlineBots &recent(cRefRecentInlineBots());
 				int32 index = recent.indexOf(toRemove);
 				if (index >= 0) {
@@ -1003,7 +1018,7 @@ auto FieldAutocompleteInner::getLottieRenderer()
 void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	const auto document = suggestion.document;
 	suggestion.animated = Stickers::LottiePlayerFromDocument(
-		document,
+		suggestion.documentMedia.get(),
 		Stickers::LottieSize::InlineResults,
 		stickerBoundingBox() * cIntRetinaFactor(),
 		Lottie::Quality::Default,
@@ -1061,8 +1076,12 @@ void FieldAutocompleteInner::selectByMouse(QPoint globalPosition) {
 		_overDelete = false;
 	} else {
 		sel = mouse.y() / int32(st::mentionHeight);
-		maxSel = _mrows->isEmpty() ? (_hrows->isEmpty() ? _brows->size() : _hrows->size()) : _mrows->size();
-		_overDelete = (!_hrows->isEmpty() || (!_mrows->isEmpty() && sel < _recentInlineBotsInRows)) ? (mouse.x() >= width() - st::mentionHeight) : false;
+		maxSel = !_mrows->empty()
+			? _mrows->size()
+			: !_hrows->empty()
+			? _hrows->size()
+			: _brows->size();
+		_overDelete = (!_hrows->empty() || (!_mrows->empty() && sel < _recentInlineBotsInRows)) ? (mouse.x() >= width() - st::mentionHeight) : false;
 	}
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;

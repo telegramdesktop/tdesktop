@@ -21,9 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
-#include <AL/al.h>
-#include <AL/alc.h>
-#include <AL/alext.h>
+#include <al.h>
+#include <alc.h>
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+#include <alext.h>
+#endif // !TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 #include <numeric>
 
@@ -82,7 +84,13 @@ bool PlaybackErrorHappened() {
 
 void EnumeratePlaybackDevices() {
 	auto deviceNames = QStringList();
-	auto devices = alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER);
+	auto devices = [&] {
+		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {
+			return alcGetString(nullptr, alcGetEnumValue(nullptr, "ALC_ALL_DEVICES_SPECIFIER"));
+		} else {
+			return alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
+		}
+	}();
 	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
@@ -92,7 +100,14 @@ void EnumeratePlaybackDevices() {
 	}
 	LOG(("Audio Playback Devices: %1").arg(deviceNames.join(';')));
 
-	if (auto device = alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER)) {
+	auto device = [&] {
+		if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT")) {
+			return alcGetString(nullptr, alcGetEnumValue(nullptr, "ALC_DEFAULT_ALL_DEVICES_SPECIFIER"));
+		} else {
+			return alcGetString(nullptr, ALC_DEFAULT_DEVICE_SPECIFIER);
+		}
+	}();
+	if (device) {
 		LOG(("Audio Playback Default Device: %1").arg(QString::fromUtf8(device)));
 	} else {
 		LOG(("Audio Playback Default Device: (null)"));
@@ -746,7 +761,6 @@ void Mixer::play(
 
 	auto type = audio.type();
 	AudioMsgId stopped;
-	auto notLoadedYet = false;
 	{
 		QMutexLocker lock(&AudioMutex);
 		Audio::AttachToDevice();
@@ -784,42 +798,18 @@ void Mixer::play(
 		current->state.id = audio;
 		current->lastUpdateWhen = 0;
 		current->lastUpdatePosition = 0;
-		if (externalData) {
-			current->setExternalData(std::move(externalData));
-		} else {
-			current->setExternalData(nullptr);
-			current->file = audio.audio()->location(true);
-			current->data = audio.audio()->data();
-			notLoadedYet = (current->file.isEmpty() && current->data.isEmpty());
-		}
-		if (notLoadedYet) {
-			auto newState = (type == AudioMsgId::Type::Song)
-				? State::Stopped
-				: State::StoppedAtError;
-			setStoppedState(current, newState);
-		} else {
-			current->state.position = (positionMs * current->state.frequency)
-				/ 1000LL;
-			current->state.state = current->externalData
-				? State::Paused
-				: fadedStart
-				? State::Starting
-				: State::Playing;
-			current->loading = true;
-			emit loaderOnStart(current->state.id, positionMs);
-			if (type == AudioMsgId::Type::Voice) {
-				emit suppressSong();
-			}
-		}
-	}
-	if (notLoadedYet) {
-		if (type == AudioMsgId::Type::Song || type == AudioMsgId::Type::Video) {
-			DocumentOpenClickHandler::Open(
-				audio.contextId(),
-				audio.audio(),
-				Auth().data().message(audio.contextId()));
-		} else {
-			onError(audio);
+		current->setExternalData(std::move(externalData));
+		current->state.position = (positionMs * current->state.frequency)
+			/ 1000LL;
+		current->state.state = current->externalData
+			? State::Paused
+			: fadedStart
+			? State::Starting
+			: State::Playing;
+		current->loading = true;
+		emit loaderOnStart(current->state.id, positionMs);
+		if (type == AudioMsgId::Type::Voice) {
+			emit suppressSong();
 		}
 	}
 	if (stopped) {
@@ -1498,8 +1488,11 @@ bool audioDeviceIsConnected() {
 	if (!AudioDevice) {
 		return false;
 	}
-	auto isConnected = ALint(0);
-	alcGetIntegerv(AudioDevice, ALC_CONNECTED, 1, &isConnected);
+	// always connected in the basic OpenAL, disconnect status is an extension
+	auto isConnected = ALint(1);
+	if (alcIsExtensionPresent(nullptr, "ALC_EXT_disconnect")) {
+		alcGetIntegerv(AudioDevice, alcGetEnumValue(nullptr, "ALC_CONNECTED"), 1, &isConnected);
+	}
 	if (Audio::ContextErrorHappened()) {
 		return false;
 	}

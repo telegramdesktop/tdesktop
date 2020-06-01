@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "mtproto/mtproto_rpc_sender.h"
 
+namespace Data {
+class PhotoMedia;
+class CloudImageView;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -221,7 +226,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	static std::vector<not_null<UserData*>> GetParticipants(
+	struct Participant {
+		not_null<UserData*> user;
+		std::shared_ptr<Data::CloudImageView> userpic;
+	};
+	static std::vector<Participant> GetParticipants(
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data);
 
@@ -230,9 +239,9 @@ private:
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
-	Image *_photo = nullptr;
+	std::shared_ptr<Data::PhotoMedia> _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
-	std::vector<not_null<UserData*>> _participants;
+	std::vector<Participant> _participants;
 	bool _isChannel = false;
 
 	int _userWidth = 0;

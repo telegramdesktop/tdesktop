@@ -59,7 +59,7 @@ Inner::Inner(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	subscribe(Auth().downloaderTaskFinished(), [this] {
+	subscribe(_controller->session().downloaderTaskFinished(), [this] {
 		update();
 	});
 	subscribe(controller->gifPauseLevelChanged(), [this] {
@@ -292,24 +292,14 @@ void Inner::clearSelection() {
 	update();
 }
 
-void Inner::hideFinish(bool completely) {
-	if (completely) {
-		const auto unload = [](const auto &item) {
-			if (const auto document = item->getDocument()) {
-				document->unload();
-			}
-			if (const auto photo = item->getPhoto()) {
-				photo->unload();
-			}
-			if (const auto result = item->getResult()) {
-				result->unload();
-			}
-			item->unloadAnimation();
-		};
-		clearInlineRows(false);
-		for (const auto &[result, layout] : _inlineLayouts) {
-			unload(layout);
-		}
+void Inner::hideFinished() {
+	clearHeavyData();
+}
+
+void Inner::clearHeavyData() {
+	clearInlineRows(false);
+	for (const auto &[result, layout] : _inlineLayouts) {
+		layout->unloadHeavyPart();
 	}
 }
 
@@ -723,11 +713,9 @@ void Inner::showPreview() {
 		auto layout = _rows.at(row).items.at(col);
 		if (const auto w = App::wnd()) {
 			if (const auto previewDocument = layout->getPreviewDocument()) {
-				w->showMediaPreview(Data::FileOrigin(), previewDocument);
-				_previewShown = true;
+				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewDocument);
 			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-				_previewShown = true;
+				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewPhoto);
 			}
 		}
 	}
@@ -966,7 +954,7 @@ void Widget::hideFinished() {
 	_controller->disableGifPauseReason(
 		Window::GifPauseReason::InlineResults);
 
-	_inner->hideFinish(true);
+	_inner->hideFinished();
 	_a_show.stop();
 	_showAnimation.reset();
 	_cache = QPixmap();
@@ -1056,13 +1044,15 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		Auth().data().processUsers(d.vusers());
+		_controller->session().data().processUsers(d.vusers());
 
 		auto &v = d.vresults().v;
 		auto queryId = d.vquery_id().v;
 
 		if (it == _inlineCache.cend()) {
-			it = _inlineCache.emplace(_inlineQuery, std::make_unique<internal::CacheEntry>()).first;
+			it = _inlineCache.emplace(
+				_inlineQuery,
+				std::make_unique<internal::CacheEntry>()).first;
 		}
 		auto entry = it->second.get();
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
@@ -1077,8 +1067,12 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 			entry->results.reserve(entry->results.size() + count);
 		}
 		auto added = 0;
-		for_const (const auto &res, v) {
-			if (auto result = InlineBots::Result::create(queryId, res)) {
+		for (const auto &res : v) {
+			auto result = InlineBots::Result::Create(
+				&_controller->session(),
+				queryId,
+				res);
+			if (result) {
 				++added;
 				entry->results.push_back(std::move(result));
 			}

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_photo_media.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "observer_peer.h"
@@ -894,12 +895,12 @@ ConfirmInviteBox::ConfirmInviteBox(
 
 	const auto photo = _session->data().processPhoto(data.vphoto());
 	if (!photo->isNull()) {
-		_photo = photo->thumbnail();
-		if (!_photo->loaded()) {
+		_photo = photo->createMediaView();
+		_photo->wanted(Data::PhotoSize::Small, Data::FileOrigin());
+		if (!_photo->image(Data::PhotoSize::Small)) {
 			subscribe(_session->downloaderTaskFinished(), [=] {
 				update();
 			});
-			_photo->load(Data::FileOrigin());
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
@@ -908,19 +909,20 @@ ConfirmInviteBox::ConfirmInviteBox(
 	}
 }
 
-std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
-		not_null<Main::Session*> session,
-		const MTPDchatInvite &data) {
+auto ConfirmInviteBox::GetParticipants(
+	not_null<Main::Session*> session,
+	const MTPDchatInvite &data)
+-> std::vector<Participant> {
 	const auto participants = data.vparticipants();
 	if (!participants) {
 		return {};
 	}
 	const auto &v = participants->v;
-	auto result = std::vector<not_null<UserData*>>();
+	auto result = std::vector<Participant>();
 	result.reserve(v.size());
 	for (const auto &participant : v) {
 		if (const auto user = session->data().processUser(participant)) {
-			result.push_back(user);
+			result.push_back(Participant{ user });
 		}
 	}
 	return result;
@@ -945,12 +947,12 @@ void ConfirmInviteBox::prepare() {
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (st::boxWideWidth - sumWidth) / 2;
-		for (const auto user : _participants) {
+		for (const auto &participant : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
-			name->setText(user->firstName.isEmpty()
-				? user->name
-				: user->firstName);
+			name->setText(participant.user->firstName.isEmpty()
+				? participant.user->name
+				: participant.user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
 			left += _userWidth;
 		}
@@ -972,14 +974,15 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_photo) {
-		p.drawPixmap(
-			(width() - st::confirmInvitePhotoSize) / 2,
-			st::confirmInvitePhotoTop,
-			_photo->pixCircled(
-				Data::FileOrigin(),
-				st::confirmInvitePhotoSize,
-				st::confirmInvitePhotoSize));
-	} else {
+		if (const auto image = _photo->image(Data::PhotoSize::Small)) {
+			p.drawPixmap(
+				(width() - st::confirmInvitePhotoSize) / 2,
+				st::confirmInvitePhotoTop,
+				image->pixCircled(
+					st::confirmInvitePhotoSize,
+					st::confirmInvitePhotoSize));
+		}
+	} else if (_photoEmpty) {
 		_photoEmpty->paint(
 			p,
 			(width() - st::confirmInvitePhotoSize) / 2,
@@ -990,9 +993,10 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 
 	int sumWidth = _participants.size() * _userWidth;
 	int left = (width() - sumWidth) / 2;
-	for_const (auto user, _participants) {
-		user->paintUserpicLeft(
+	for (auto &participant : _participants) {
+		participant.user->paintUserpicLeft(
 			p,
+			participant.userpic,
 			left + (_userWidth - st::confirmInviteUserPhotoSize) / 2,
 			st::confirmInviteUserPhotoTop,
 			width(),

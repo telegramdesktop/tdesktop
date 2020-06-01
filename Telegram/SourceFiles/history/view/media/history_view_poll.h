@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "base/weak_ptr.h"
 
+namespace Data {
+class CloudImageView;
+} // namespace Data
+
 namespace Ui {
 class RippleAnimation;
 class FireworksAnimation;
@@ -54,12 +58,20 @@ public:
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
+	void unloadHeavyPart() override;
+	bool hasHeavyPart() const override;
+
 private:
 	struct AnswerAnimation;
 	struct AnswersAnimation;
 	struct SendingAnimation;
 	struct Answer;
 	struct CloseInformation;
+
+	struct RecentVoter {
+		not_null<UserData*> user;
+		mutable std::shared_ptr<Data::CloudImageView> userpic;
+	};
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -186,7 +198,7 @@ private:
 
 	Ui::Text::String _question;
 	Ui::Text::String _subtitle;
-	std::vector<not_null<UserData*>> _recentVoters;
+	std::vector<RecentVoter> _recentVoters;
 	QImage _recentVotersImage;
 
 	std::vector<Answer> _answers;
