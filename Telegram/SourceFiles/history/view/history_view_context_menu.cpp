@@ -477,7 +477,8 @@ bool AddEditMessageAction(
 		if (!item) {
 			return;
 		}
-		if (const auto media = item->media()) {
+		const auto media = item->media();
+		if (media && !media->webpage()) {
 			if (media->allowsEditCaption()) {
 				Ui::show(Box<EditCaptionBox>(
 					App::wnd()->sessionController(),

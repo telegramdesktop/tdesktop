@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_compose_controls.h"
 
+#include "data/data_web_page.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
 #include "ui/text_options.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/history_view_webpage_preview.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -43,6 +45,8 @@ class FieldHeader : public Ui::RpWidget {
 public:
 	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
 
+	void init();
+
 	void editMessage(FullMsgId edit);
 
 	bool isDisplayed() const;
@@ -55,6 +59,16 @@ protected:
 
 private:
 	void updateControlsGeometry(QSize size);
+
+	struct Preview {
+		WebPageData *data = nullptr;
+		Ui::Text::String title;
+		Ui::Text::String description;
+	};
+
+	Preview _preview;
+
+	bool hasPreview() const;
 
 	Ui::Text::String _editMsgText;
 	rpl::variable<FullMsgId> _editMsgId;
@@ -69,11 +83,40 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 , _data(data)
 , _cancel(Ui::CreateChild<Ui::IconButton>(this, st::historyReplyCancel)) {
 	resize(QSize(parent->width(), st::historyReplyHeight));
+	init();
+}
 
+void FieldHeader::init() {
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry(size);
 	}, lifetime());
+
+	const auto checkPreview = [=](not_null<const HistoryItem*> item) {
+		_preview = {};
+		if (const auto media = item->media()) {
+			if (const auto page = media->webpage()) {
+				_preview.data = page;
+				auto preview =
+					HistoryView::TitleAndDescriptionFromWebPage(page);
+				if (preview.title.isEmpty()) {
+					if (page->document) {
+						preview.title = tr::lng_attach_file(tr::now);
+					} else if (page->photo) {
+						preview.title = tr::lng_attach_photo(tr::now);
+					}
+				}
+				_preview.title.setText(
+					st::msgNameStyle,
+					preview.title,
+					Ui::NameTextOptions());
+				_preview.description.setText(
+					st::messageTextStyle,
+					TextUtilities::Clean(preview.description),
+					Ui::DialogTextOptions());
+			}
+		}
+	};
 
 	_editMsgId.value(
 	) | rpl::start_with_next([=] {
@@ -84,11 +127,17 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 				st::messageTextStyle,
 				item->inReplyText(),
 				Ui::DialogTextOptions());
+			checkPreview(item);
 		}
 	}, lifetime());
 
 	_cancel->addClickHandler([=] {
-		_editMsgId = {};
+		if (hasPreview()) {
+			_preview = {};
+			update();
+		} else {
+			_editMsgId = {};
+		}
 	});
 }
 
@@ -96,10 +145,53 @@ void FieldHeader::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto replySkip = st::historyReplySkip;
+	const auto drawWebPagePreview =
+		(hasPreview() && _preview.data->pendingTill >= 0);
 
 	p.fillRect(rect(), st::historyComposeAreaBg);
 
 	st::historyEditIcon.paint(p, st::historyReplyIconPosition, width());
+
+	if (drawWebPagePreview) {
+		const auto textTop = st::msgReplyPadding.top();
+		auto previewLeft = st::historyReplySkip + st::webPageLeft;
+		p.fillRect(
+			st::historyReplySkip,
+			textTop,
+			st::webPageBar,
+			st::msgReplyBarSize.height(),
+			st::msgInReplyBarColor);
+
+		const QRect to(
+			previewLeft,
+			textTop,
+			st::msgReplyBarSize.height(),
+			st::msgReplyBarSize.height());
+		if (HistoryView::DrawWebPageDataPreview(p, _preview.data, to)) {
+			previewLeft += st::msgReplyBarSize.height()
+				+ st::msgReplyBarSkip
+				- st::msgReplyBarSize.width()
+				- st::msgReplyBarPos.x();
+		}
+		p.setPen(st::historyReplyNameFg);
+		const auto elidedWidth = width()
+			- previewLeft
+			- _cancel->width()
+			- st::msgReplyPadding.right();
+
+		_preview.title.drawElided(
+			p,
+			previewLeft,
+			textTop,
+			elidedWidth);
+		p.setPen(st::historyComposeAreaFg);
+		_preview.description.drawElided(
+			p,
+			previewLeft,
+			textTop + st::msgServiceNameFont->height,
+			elidedWidth);
+		return;
+	}
 
 	p.setPen(st::historyReplyNameFg);
 	p.setFont(st::msgServiceNameFont);
@@ -127,6 +219,10 @@ bool FieldHeader::isEditingMessage() const {
 	return !!_editMsgId.current();
 }
 
+bool FieldHeader::hasPreview() const {
+	return _preview.data != nullptr;
+}
+
 void FieldHeader::updateControlsGeometry(QSize size) {
 	_cancel->moveToRight(0, 0);
 }
@@ -150,7 +246,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 			item->isScheduled() ? item->date() : 0,
 			false,
 			false,
-			false,
+			!hasPreview(),
 		},
 	};
 }
