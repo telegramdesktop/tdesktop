@@ -241,18 +241,18 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 bool InFlatpak() {
-	static const auto Flatpak = QFileInfo::exists(qsl("/.flatpak-info"));
-	return Flatpak;
+	static const auto Result = QFileInfo::exists(qsl("/.flatpak-info"));
+	return Result;
 }
 
 bool InSnap() {
-	static const auto Snap = qEnvironmentVariableIsSet("SNAP");
-	return Snap;
+	static const auto Result = qEnvironmentVariableIsSet("SNAP");
+	return Result;
 }
 
 bool InAppImage() {
-	static const auto AppImage = qEnvironmentVariableIsSet("APPIMAGE");
-	return AppImage;
+	static const auto Result = qEnvironmentVariableIsSet("APPIMAGE");
+	return Result;
 }
 
 bool IsStaticBinary() {
@@ -265,13 +265,13 @@ bool IsStaticBinary() {
 
 bool IsGtkIntegrationForced() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	static const auto GtkIntegration = [&] {
+	static const auto Result = [&] {
 		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME")).split(':');
 		return platformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
 			|| platformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
 	}();
 
-	return GtkIntegration;
+	return Result;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	return false;
@@ -294,19 +294,19 @@ bool IsQtPluginsBundled() {
 }
 
 bool IsXDGDesktopPortalPresent() {
-#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto XDGDesktopPortalPresent = false;
-#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static const auto XDGDesktopPortalPresent = QDBusInterface(
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	static const auto Result = QDBusInterface(
 		"org.freedesktop.portal.Desktop",
 		"/org/freedesktop/portal/desktop").isValid();
+
+	return Result;
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	return XDGDesktopPortalPresent;
+	return false;
 }
 
 bool UseXDGDesktopPortal() {
-	static const auto UsePortal = [&] {
+	static const auto Result = [&] {
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 
@@ -317,7 +317,7 @@ bool UseXDGDesktopPortal() {
 			) && portalPresent;
 	}();
 
-	return UsePortal;
+	return Result;
 }
 
 QString ProcessNameByPID(const QString &pid) {
@@ -367,7 +367,7 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 }
 
 QString AppRuntimeDirectory() {
-	static const auto RuntimeDirectory = [&] {
+	static const auto Result = [&] {
 		auto runtimeDir = QStandardPaths::writableLocation(
 			QStandardPaths::RuntimeLocation);
 
@@ -399,7 +399,7 @@ QString AppRuntimeDirectory() {
 		return runtimeDir;
 	}();
 
-	return RuntimeDirectory;
+	return Result;
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
@@ -411,7 +411,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 }
 
 QString GetLauncherBasename() {
-	static const auto LauncherBasename = [&] {
+	static const auto Result = [&] {
 		if (InSnap()) {
 			const auto snapNameKey =
 				qEnvironmentVariableIsSet("SNAP_INSTANCE_NAME")
@@ -453,20 +453,20 @@ QString GetLauncherBasename() {
 		return possibleBasenames[0];
 	}();
 
-	return LauncherBasename;
+	return Result;
 }
 
 QString GetLauncherFilename() {
-	static const auto LauncherFilename = GetLauncherBasename()
+	static const auto Result = GetLauncherBasename()
 		+ qsl(".desktop");
-	return LauncherFilename;
+	return Result;
 }
 
 QString GetIconName() {
-	static const auto IconName = InFlatpak()
+	static const auto Result = InFlatpak()
 		? GetLauncherBasename()
 		: kIconName.utf16();
-	return IconName;
+	return Result;
 }
 
 std::optional<crl::time> LastUserInputTime() {
@@ -479,14 +479,14 @@ std::optional<crl::time> LastUserInputTime() {
 		return std::nullopt;
 	}
 
-	static const auto message = QDBusMessage::createMethodCall(
+	static const auto Message = QDBusMessage::createMethodCall(
 		qsl("org.freedesktop.ScreenSaver"),
 		qsl("/org/freedesktop/ScreenSaver"),
 		qsl("org.freedesktop.ScreenSaver"),
 		qsl("GetSessionIdleTime"));
 
 	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
-		message);
+		Message);
 
 	const auto notSupportedErrors = {
 		QDBusError::ServiceUnknown,
@@ -695,11 +695,11 @@ void RegisterCustomScheme(bool force) {
 	if (home.isEmpty() || cExeName().isEmpty())
 		return;
 
-	static const auto disabledByEnv = qEnvironmentVariableIsSet(
+	static const auto DisabledByEnv = qEnvironmentVariableIsSet(
 		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
 
 	// don't update desktop file for alpha version or if updater is disabled
-	if ((cAlphaVersion() || Core::UpdaterDisabled() || disabledByEnv)
+	if ((cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
 		&& !force)
 		return;
 

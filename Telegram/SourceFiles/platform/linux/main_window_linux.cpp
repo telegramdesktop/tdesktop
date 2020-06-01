@@ -239,7 +239,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 bool IsIndicatorApplication() {
 	// Hack for indicator-application, which doesn't handle icons sent across D-Bus:
 	// save the icon to a temp file and set the icon name to that filename.
-	static const auto IndicatorApplication = [] {
+	static const auto Result = [] {
 		const auto interface = QDBusConnection::sessionBus().interface();
 
 		if (!interface) {
@@ -255,7 +255,7 @@ bool IsIndicatorApplication() {
 		return ubuntuIndicator || ayatanaIndicator;
 	}();
 
-	return IndicatorApplication;
+	return Result;
 }
 
 std::unique_ptr<QTemporaryFile> TrayIconFile(
@@ -298,11 +298,11 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 }
 
 bool UseUnityCounter() {
-	static const auto UnityCounter = QDBusInterface(
+	static const auto Result = QDBusInterface(
 		"com.canonical.Unity",
 		"/").isValid();
 
-	return UnityCounter;
+	return Result;
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 

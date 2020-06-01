@@ -105,8 +105,8 @@ std::vector<QString> ComputeServerInformation() {
 }
 
 std::vector<QString> GetServerInformation() {
-	static const auto ServerInformation = ComputeServerInformation();
-	return ServerInformation;
+	static const auto Result = ComputeServerInformation();
+	return Result;
 }
 
 QStringList ComputeCapabilities() {
@@ -129,8 +129,8 @@ QStringList ComputeCapabilities() {
 }
 
 QStringList GetCapabilities() {
-	static const auto Capabilities = ComputeCapabilities();
-	return Capabilities;
+	static const auto Result = ComputeCapabilities();
+	return Result;
 }
 
 bool Inhibited() {
