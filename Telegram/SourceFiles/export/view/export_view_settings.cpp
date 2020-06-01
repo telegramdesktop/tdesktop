@@ -54,7 +54,7 @@ constexpr auto kMegabyte = 1024 * 1024;
 	});
 }
 
-[[nodiscard]] void ChooseFormatBox(
+void ChooseFormatBox(
 		not_null<Ui::GenericBox*> box,
 		Output::Format format,
 		Fn<void(Output::Format)> done) {
