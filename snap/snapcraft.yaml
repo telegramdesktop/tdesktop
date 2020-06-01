@@ -117,6 +117,7 @@ parts:
       - cmake
       - ffmpeg
       - openal
+      - qtwayland
 
   telegram-launcher:
     plugin: dump
