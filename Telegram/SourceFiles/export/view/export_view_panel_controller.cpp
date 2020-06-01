@@ -280,7 +280,7 @@ void PanelController::showProgress() {
 	auto progress = base::make_unique_q<ProgressWidget>(
 		_panel.get(),
 		rpl::single(
-			ContentFromState(ProcessingState())
+			ContentFromState(_settings.get(), ProcessingState())
 		) | rpl::then(progressState()));
 
 	progress->cancelClicks(

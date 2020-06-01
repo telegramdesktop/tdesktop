@@ -46,7 +46,7 @@ public:
 	}
 
 	auto progressState() const {
-		return ContentFromState(_process->state());
+		return ContentFromState(_settings.get(), _process->state());
 	}
 
 private:
