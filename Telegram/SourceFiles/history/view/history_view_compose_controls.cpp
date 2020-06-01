@@ -9,13 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
+#include "ui/text_options.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
 #include "base/qt_signal_producer.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -46,6 +49,7 @@ protected:
 private:
 	void updateControlsGeometry(QSize size);
 
+	Ui::Text::String _editMsgText;
 	rpl::variable<FullMsgId> _editMsgId;
 
 	const not_null<Data::Session*> _data;
@@ -67,11 +71,20 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 	_editMsgId.value(
 	) | rpl::start_with_next([=] {
 		isDisplayed() ? show() : hide();
+
+		if (const auto item = _data->message(_editMsgId.current())) {
+			_editMsgText.setText(
+				st::messageTextStyle,
+				item->inReplyText(),
+				Ui::DialogTextOptions());
+		}
 	}, lifetime());
 }
 
 void FieldHeader::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	const auto replySkip = st::historyReplySkip;
 
 	p.fillRect(rect(), st::historyComposeAreaBg);
 
@@ -80,10 +93,19 @@ void FieldHeader::paintEvent(QPaintEvent *e) {
 	p.setPen(st::historyReplyNameFg);
 	p.setFont(st::msgServiceNameFont);
 	p.drawTextLeft(
-		st::historyReplySkip,
+		replySkip,
 		st::msgReplyPadding.top(),
 		width(),
 		tr::lng_edit_message(tr::now));
+
+	p.setPen(st::historyComposeAreaFg);
+	p.setTextPalette(st::historyComposeAreaPalette);
+	_editMsgText.drawElided(
+		p,
+		replySkip,
+		st::msgReplyPadding.top() + st::msgServiceNameFont->height,
+		width() - replySkip - _cancel->width() - st::msgReplyPadding.right());
+	p.restoreTextPalette();
 }
 
 bool FieldHeader::isDisplayed() const {
