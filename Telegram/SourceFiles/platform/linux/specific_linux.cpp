@@ -52,7 +52,7 @@ constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
 constexpr auto kIconName = "telegram"_cs;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-void SandboxAutostart(bool autostart, bool silent = false) {
+void PortalAutostart(bool autostart, bool silent = false) {
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
 	options["autostart"] = autostart;
@@ -804,7 +804,7 @@ void psAutoStart(bool start, bool silent) {
 
 	if (InFlatpak()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		SandboxAutostart(start, silent);
+		PortalAutostart(start, silent);
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 	} else {
 		const auto autostart = [&] {
