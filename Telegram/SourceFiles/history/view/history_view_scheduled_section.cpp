@@ -17,10 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "api/api_common.h"
+#include "api/api_editing.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_user.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -161,6 +164,15 @@ void ScheduledWidget::setupComposeControls() {
 	_composeControls->sendRequests(
 	) | rpl::start_with_next([=] {
 		send();
+	}, lifetime());
+
+	_composeControls->editRequests(
+	) | rpl::start_with_next([=](auto data) {
+		if (const auto item = session().data().message(data.fullId)) {
+			if (item->isScheduled()) {
+				edit(item, data.options);
+			}
+		}
 	}, lifetime());
 
 	_composeControls->attachRequests(
@@ -503,6 +515,71 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	_composeControls->hidePanelsAnimated();
 
 	//if (_previewData && _previewData->pendingTill) previewCancel();
+	_composeControls->focus();
+}
+
+void ScheduledWidget::edit(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options) {
+
+	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history,
+		session().user()).flags;
+	auto sending = TextWithEntities();
+	auto left = TextWithEntities {
+		textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
+
+	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		if (item) {
+			Ui::show(Box<DeleteMessagesBox>(item, false));
+		} else {
+			_composeControls->focus();
+		}
+		return;
+	} else if (!left.text.isEmpty()) {
+		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		return;
+	}
+
+	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
+
+	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
+		if (requestId == *saveEditMsgRequestId) {
+			*saveEditMsgRequestId = 0;
+			_composeControls->cancelEditMessage();
+		}
+	};
+
+	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+		if (requestId == *saveEditMsgRequestId) {
+			*saveEditMsgRequestId = 0;
+		}
+
+		const auto &err = error.type();
+		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
+			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
+			_composeControls->cancelEditMessage();
+		} else if (err == u"MESSAGE_EMPTY"_q) {
+			_composeControls->focus();
+		} else {
+			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+		}
+		update();
+		return true;
+	};
+
+	*saveEditMsgRequestId = Api::EditTextMessage(
+		item,
+		sending,
+		options,
+		crl::guard(this, done),
+		crl::guard(this, fail));
+
+	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 }
 

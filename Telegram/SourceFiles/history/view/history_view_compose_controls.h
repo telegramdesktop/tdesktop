@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -54,6 +55,12 @@ public:
 		Scheduled,
 	};
 
+	struct MessageToEdit {
+		FullMsgId fullId;
+		Api::SendOptions options;
+		TextWithTags textWithTags;
+	};
+
 	ComposeControls(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> window,
@@ -72,6 +79,7 @@ public:
 	void focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> sendRequests() const;
+	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<> attachRequests() const;
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
 	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
@@ -93,6 +101,7 @@ public:
 	void showFinished();
 
 	void editMessage(FullMsgId edit);
+	void cancelEditMessage();
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	void clear();

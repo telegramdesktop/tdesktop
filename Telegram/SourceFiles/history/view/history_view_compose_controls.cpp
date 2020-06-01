@@ -33,6 +33,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+namespace {
+
+using MessageToEdit = ComposeControls::MessageToEdit;
+
+} // namespace
+
 class FieldHeader : public Ui::RpWidget {
 public:
 	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
@@ -42,6 +48,7 @@ public:
 	bool isDisplayed() const;
 	bool isEditingMessage() const;
 	rpl::producer<FullMsgId> editMsgId() const;
+	MessageToEdit queryToEdit();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -81,7 +88,7 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 	}, lifetime());
 
 	_cancel->addClickHandler([=] {
-		_editMsgId = nullptr;
+		_editMsgId = {};
 	});
 }
 
@@ -130,6 +137,22 @@ void FieldHeader::editMessage(FullMsgId id) {
 
 rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
 	return _editMsgId.value();
+}
+
+MessageToEdit FieldHeader::queryToEdit() {
+	const auto item = _data->message(_editMsgId.current());
+	if (!isEditingMessage() || !item) {
+		return {};
+	}
+	return {
+		item->fullId(),
+		{
+			item->isScheduled() ? item->date() : 0,
+			false,
+			false,
+			false,
+		},
+	};
 }
 
 ComposeControls::ComposeControls(
@@ -202,12 +225,28 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 }
 
 rpl::producer<> ComposeControls::sendRequests() const {
+	auto filter = rpl::filter([=] {
+		return _send->type() == Ui::SendButton::Type::Schedule;
+	});
 	auto submits = base::qt_signal_producer(
 		_field.get(),
 		&Ui::InputField::submitted);
 	return rpl::merge(
-		_send->clicks() | rpl::to_empty,
-		std::move(submits) | rpl::to_empty);
+		_send->clicks() | filter | rpl::to_empty,
+		std::move(submits) | filter | rpl::to_empty);
+}
+
+rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
+	auto toValue = rpl::map([=] { return _header->queryToEdit(); });
+	auto filter = rpl::filter([=] {
+		return _send->type() == Ui::SendButton::Type::Save;
+	});
+	auto submits = base::qt_signal_producer(
+		_field.get(),
+		&Ui::InputField::submitted);
+	return rpl::merge(
+		_send->clicks() | filter | toValue,
+		std::move(submits) | filter | toValue);
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
@@ -307,12 +346,12 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	_header->editMsgId(
-	) | rpl::start_with_next([=](auto item) {
+	) | rpl::start_with_next([=](auto id) {
 		updateHeight();
 		updateSendButtonType();
 
 		if (_header->isEditingMessage()) {
-			setTextFromEditingMessage(item);
+			setTextFromEditingMessage(_window->session().data().message(id));
 		} else {
 			setText(_localSavedText);
 			_localSavedText = {};
@@ -552,7 +591,12 @@ void ComposeControls::updateHeight() {
 }
 
 void ComposeControls::editMessage(FullMsgId edit) {
+	cancelEditMessage();
 	_header->editMessage(std::move(edit));
+}
+
+void ComposeControls::cancelEditMessage() {
+	_header->editMessage({});
 }
 
 } // namespace HistoryView
