@@ -263,6 +263,20 @@ bool IsStaticBinary() {
 #endif // !DESKTOP_APP_USE_PACKAGED
 }
 
+bool IsGtkIntegrationForced() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	static const auto GtkIntegration = [&] {
+		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME")).split(':');
+		return platformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
+			|| platformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
+	}();
+
+	return GtkIntegration;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	return false;
+}
+
 bool IsGtkFileDialogForced() {
 #ifdef TDESKTOP_FORCE_GTK_FILE_DIALOG
 	return true;

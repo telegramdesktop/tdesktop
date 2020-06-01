@@ -24,6 +24,7 @@ bool InSandbox();
 bool InSnap();
 bool InAppImage();
 bool IsStaticBinary();
+bool IsGtkIntegrationForced();
 bool IsGtkFileDialogForced();
 bool IsQtPluginsBundled();
 
