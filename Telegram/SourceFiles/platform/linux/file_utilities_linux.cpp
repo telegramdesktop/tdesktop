@@ -127,13 +127,14 @@ using Type = ::FileDialog::internal::Type;
 bool NativeSupported(Type type = Type::ReadFile) {
 	// use gtk file dialog on gtk-based desktop environments
 	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
-	// or if portals is used and operation is not to open folder
-	// (it isn't supported by portals yet)
+	// or if portals is used and operation is to open folder
+	// and portal doesn't support folder choosing
 	return Platform::UseGtkFileDialog()
 		&& (Platform::DesktopEnvironment::IsGtkBased()
 			|| Platform::IsGtkIntegrationForced()
 			|| Platform::UseXDGDesktopPortal())
-		&& (!Platform::UseXDGDesktopPortal() || type == Type::ReadFolder)
+		&& (!Platform::UseXDGDesktopPortal()
+			|| (type == Type::ReadFolder && !Platform::CanOpenDirectoryWithPortal()))
 		&& Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
