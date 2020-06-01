@@ -115,6 +115,8 @@ private:
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 	void setText(const TextWithTags &text);
 
+	void setTextFromEditingMessage(not_null<HistoryItem*> item);
+
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;
@@ -136,6 +138,8 @@ private:
 	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
 	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
+
+	TextWithTags _localSavedText;
 
 	//bool _recording = false;
 	//bool _inField = false;

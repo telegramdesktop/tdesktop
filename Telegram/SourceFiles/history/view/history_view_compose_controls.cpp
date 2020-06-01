@@ -79,6 +79,10 @@ FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
 				Ui::DialogTextOptions());
 		}
 	}, lifetime());
+
+	_cancel->addClickHandler([=] {
+		_editMsgId = nullptr;
+	});
 }
 
 void FieldHeader::paintEvent(QPaintEvent *e) {
@@ -303,9 +307,30 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	_header->editMsgId(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](auto item) {
 		updateHeight();
+		updateSendButtonType();
+
+		if (_header->isEditingMessage()) {
+			setTextFromEditingMessage(item);
+		} else {
+			setText(_localSavedText);
+			_localSavedText = {};
+		}
 	}, _wrap->lifetime());
+}
+
+void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
+	if (!_header->isEditingMessage()) {
+		return;
+	}
+	_localSavedText = getTextWithAppliedMarkdown();
+	const auto t = item->originalText();
+	const auto text = TextWithTags{
+		t.text,
+		TextUtilities::ConvertEntitiesToTextTags(t.entities)
+	};
+	setText(text);
 }
 
 void ComposeControls::initField() {
@@ -369,13 +394,13 @@ void ComposeControls::initSendButton() {
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
 	const auto type = [&] {
-		//if (_editMsgId) {
-		//	return Type::Save;
+		if (_header->isEditingMessage()) {
+			return Type::Save;
 		//} else if (_isInlineBot) {
 		//	return Type::Cancel;
 		//} else if (showRecordButton()) {
 		//	return Type::Record;
-		//}
+		}
 		return Type::Schedule;
 	}();
 	_send->setType(type);
