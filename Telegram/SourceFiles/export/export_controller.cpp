@@ -24,7 +24,6 @@ Settings NormalizeSettings(const Settings &settings) {
 		return base::duplicate(settings);
 	}
 	auto result = base::duplicate(settings);
-	result.format = Output::Format::Html;
 	result.types = result.fullChats = Settings::Type::AnyChatsMask;
 	return result;
 }
