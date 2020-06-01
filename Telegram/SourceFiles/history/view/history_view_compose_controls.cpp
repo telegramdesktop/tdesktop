@@ -346,7 +346,7 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	_header->editMsgId(
-	) | rpl::start_with_next([=](auto id) {
+	) | rpl::start_with_next([=](const auto &id) {
 		updateHeight();
 		updateSendButtonType();
 
@@ -357,6 +357,24 @@ void ComposeControls::init() {
 			_localSavedText = {};
 		}
 	}, _wrap->lifetime());
+
+	{
+		const auto lastMsgId = _wrap->lifetime().make_state<FullMsgId>();
+
+		_header->editMsgId(
+		) | rpl::filter([=](const auto &id) {
+			return !!id;
+		}) | rpl::start_with_next([=](const auto &id) {
+			*lastMsgId = id;
+		}, _wrap->lifetime());
+
+		_window->session().data().itemRemoved(
+		) | rpl::filter([=](not_null<const HistoryItem*> item) {
+			return item->id && ((*lastMsgId) == item->fullId());
+		}) | rpl::start_with_next([=] {
+			cancelEditMessage();
+		}, _wrap->lifetime());
+	}
 }
 
 void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
