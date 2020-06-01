@@ -468,6 +468,9 @@ bool PeerData::canExportChatHistory() const {
 			}
 		}
 	}
+	if (const auto from = migrateFrom()) {
+		return from->canExportChatHistory();
+	}
 	return false;
 }
 
