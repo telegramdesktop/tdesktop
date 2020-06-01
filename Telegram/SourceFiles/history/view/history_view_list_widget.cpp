@@ -2550,6 +2550,14 @@ QPoint ListWidget::mapPointToItem(
 	return point - QPoint(0, itemTop(view));
 }
 
+rpl::producer<FullMsgId> ListWidget::editMessageRequested() const {
+	return _requestedToEditMessage.events();
+}
+
+void ListWidget::editMessageRequestNotify(FullMsgId item) {
+	_requestedToEditMessage.fire(std::move(item));
+}
+
 ListWidget::~ListWidget() = default;
 
 } // namespace HistoryView

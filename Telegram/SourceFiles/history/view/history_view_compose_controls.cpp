@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/qt_signal_producer.h"
 #include "history/history.h"
+#include "main/main_session.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -28,6 +29,82 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 
 namespace HistoryView {
+
+class FieldHeader : public Ui::RpWidget {
+public:
+	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
+
+	void editMessage(FullMsgId edit);
+
+	bool isDisplayed() const;
+	bool isEditingMessage() const;
+	rpl::producer<FullMsgId> editMsgId() const;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void updateControlsGeometry(QSize size);
+
+	rpl::variable<FullMsgId> _editMsgId;
+
+	const not_null<Data::Session*> _data;
+	const not_null<Ui::IconButton*> _cancel;
+
+};
+
+FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
+: RpWidget(parent)
+, _data(data)
+, _cancel(Ui::CreateChild<Ui::IconButton>(this, st::historyReplyCancel)) {
+	resize(QSize(parent->width(), st::historyReplyHeight));
+
+	sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		updateControlsGeometry(size);
+	}, lifetime());
+
+	_editMsgId.value(
+	) | rpl::start_with_next([=] {
+		isDisplayed() ? show() : hide();
+	}, lifetime());
+}
+
+void FieldHeader::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(rect(), st::historyComposeAreaBg);
+
+	st::historyEditIcon.paint(p, st::historyReplyIconPosition, width());
+
+	p.setPen(st::historyReplyNameFg);
+	p.setFont(st::msgServiceNameFont);
+	p.drawTextLeft(
+		st::historyReplySkip,
+		st::msgReplyPadding.top(),
+		width(),
+		tr::lng_edit_message(tr::now));
+}
+
+bool FieldHeader::isDisplayed() const {
+	return isEditingMessage();
+}
+
+bool FieldHeader::isEditingMessage() const {
+	return !!_editMsgId.current();
+}
+
+void FieldHeader::updateControlsGeometry(QSize size) {
+	_cancel->moveToRight(0, 0);
+}
+
+void FieldHeader::editMessage(FullMsgId id) {
+	_editMsgId = id;
+}
+
+rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
+	return _editMsgId.value();
+}
 
 ComposeControls::ComposeControls(
 	not_null<QWidget*> parent,
@@ -49,7 +126,10 @@ ComposeControls::ComposeControls(
 		_wrap.get(),
 		st::historyComposeField,
 		Ui::InputField::Mode::MultiLine,
-		tr::lng_message_ph())) {
+		tr::lng_message_ph()))
+, _header(std::make_unique<FieldHeader>(
+		_wrap.get(),
+		&_window->session().data())) {
 	init();
 }
 
@@ -199,6 +279,11 @@ void ComposeControls::init() {
 	) | rpl::start_with_next([=](QRect clip) {
 		paintBackground(clip);
 	}, _wrap->lifetime());
+
+	_header->editMsgId(
+	) | rpl::start_with_next([=] {
+		updateHeight();
+	}, _wrap->lifetime());
 }
 
 void ComposeControls::initField() {
@@ -312,6 +397,11 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		left,
 		size.height() - _field->height() - st::historySendPadding);
 
+	_header->resizeToWidth(size.width());
+	_header->moveToLeft(
+		0,
+		_field->y() - _header->height() - st::historySendPadding);
+
 	auto right = st::historySendRight;
 	_send->moveToRight(right, buttonsTop);
 	right += _send->width();
@@ -408,8 +498,14 @@ void ComposeControls::toggleTabbedSelectorMode() {
 }
 
 void ComposeControls::updateHeight() {
-	const auto height = _field->height() + 2 * st::historySendPadding;
+	const auto height = _field->height()
+		+ (_header->isDisplayed() ? _header->height() : 0)
+		+ 2 * st::historySendPadding;
 	_wrap->resize(_wrap->width(), height);
+}
+
+void ComposeControls::editMessage(FullMsgId edit) {
+	_header->editMessage(std::move(edit));
 }
 
 } // namespace HistoryView

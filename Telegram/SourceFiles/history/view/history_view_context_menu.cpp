@@ -477,11 +477,15 @@ bool AddEditMessageAction(
 		if (!item) {
 			return;
 		}
-		if (!item->media() || !item->media()->allowsEditCaption()) {
-			return;
+		if (const auto media = item->media()) {
+			if (media->allowsEditCaption()) {
+				Ui::show(Box<EditCaptionBox>(
+					App::wnd()->sessionController(),
+					item));
+			}
+		} else {
+			list->editMessageRequestNotify(item->fullId());
 		}
-
-		Ui::show(Box<EditCaptionBox>(App::wnd()->sessionController(), item));
 	});
 	return true;
 }

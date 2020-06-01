@@ -45,6 +45,8 @@ struct SectionShow;
 
 namespace HistoryView {
 
+class FieldHeader;
+
 class ComposeControls final {
 public:
 	enum class Mode {
@@ -90,6 +92,8 @@ public:
 	void showStarted();
 	void showFinished();
 
+	void editMessage(FullMsgId edit);
+
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	void clear();
 	void hidePanelsAnimated();
@@ -124,6 +128,9 @@ private:
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
+
+	friend class FieldHeader;
+	const std::unique_ptr<FieldHeader> _header;
 
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<not_null<DocumentData*>> _fileChosen;

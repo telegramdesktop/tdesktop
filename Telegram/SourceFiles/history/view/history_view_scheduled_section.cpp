@@ -130,6 +130,11 @@ ScheduledWidget::ScheduledWidget(
 	_scroll->show();
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
+	_inner->editMessageRequested(
+	) | rpl::start_with_next([=](auto id) {
+		_composeControls->editMessage(id);
+	}, _inner->lifetime());
+
 	setupScrollDownButton();
 	setupComposeControls();
 }
