@@ -488,22 +488,22 @@ std::optional<crl::time> LastUserInputTime() {
 	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
 		Message);
 
-	const auto notSupportedErrors = {
+	static const auto NotSupportedErrors = {
 		QDBusError::ServiceUnknown,
 		QDBusError::NotSupported,
 	};
 
-	const auto notSupportedErrorsToLog = {
+	static const auto NotSupportedErrorsToLog = {
 		QDBusError::Disconnected,
 		QDBusError::AccessDenied,
 	};
 
 	if (reply.isValid()) {
 		return (crl::now() - static_cast<crl::time>(reply.value()));
-	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
+	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
 		NotSupported = true;
 	} else {
-		if (ranges::contains(notSupportedErrorsToLog, reply.error().type())) {
+		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
 			NotSupported = true;
 		}
 
