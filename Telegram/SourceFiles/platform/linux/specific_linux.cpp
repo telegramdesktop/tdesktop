@@ -240,9 +240,9 @@ void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
 
-bool InSandbox() {
-	static const auto Sandbox = QFileInfo::exists(qsl("/.flatpak-info"));
-	return Sandbox;
+bool InFlatpak() {
+	static const auto Flatpak = QFileInfo::exists(qsl("/.flatpak-info"));
+	return Flatpak;
 }
 
 bool InSnap() {
@@ -371,7 +371,7 @@ QString AppRuntimeDirectory() {
 		auto runtimeDir = QStandardPaths::writableLocation(
 			QStandardPaths::RuntimeLocation);
 
-		if (InSandbox()) {
+		if (InFlatpak()) {
 			const auto flatpakId = [&] {
 				if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
 					return QString::fromLatin1(qgetenv("FLATPAK_ID"));
@@ -403,7 +403,7 @@ QString AppRuntimeDirectory() {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	if (InSandbox() || InSnap()) {
+	if (InFlatpak() || InSnap()) {
 		return AppRuntimeDirectory() + hash;
 	} else {
 		return AppRuntimeDirectory() + hash + '-' + cGUIDStr();
@@ -463,7 +463,7 @@ QString GetLauncherFilename() {
 }
 
 QString GetIconName() {
-	static const auto IconName = InSandbox()
+	static const auto IconName = InFlatpak()
 		? GetLauncherBasename()
 		: kIconName.utf16();
 	return IconName;
@@ -659,7 +659,7 @@ void start() {
 
 	if(IsStaticBinary()
 		|| InAppImage()
-		|| InSandbox()
+		|| InFlatpak()
 		|| InSnap()
 		|| IsQtPluginsBundled()) {
 		qputenv("QT_WAYLAND_DECORATION", "material");
@@ -802,7 +802,7 @@ void psAutoStart(bool start, bool silent) {
 	if (home.isEmpty() || cExeName().isEmpty())
 		return;
 
-	if (InSandbox()) {
+	if (InFlatpak()) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		SandboxAutostart(start, silent);
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
