@@ -148,14 +148,14 @@ bool Inhibited() {
 	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 		message);
 
-	const auto notSupportedErrors = {
+	static const auto NotSupportedErrors = {
 		QDBusError::ServiceUnknown,
 		QDBusError::InvalidArgs,
 	};
 
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (ranges::contains(notSupportedErrors, reply.error().type())) {
+	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
 		InhibitedNotSupported = true;
 	} else {
 		if (reply.error().type() == QDBusError::AccessDenied) {
