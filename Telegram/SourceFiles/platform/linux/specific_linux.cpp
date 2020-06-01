@@ -277,12 +277,12 @@ bool IsGtkIntegrationForced() {
 	return false;
 }
 
-bool IsGtkFileDialogForced() {
-#ifdef TDESKTOP_FORCE_GTK_FILE_DIALOG
+bool UseGtkFileDialog() {
+#ifdef TDESKTOP_USE_GTK_FILE_DIALOG
 	return true;
-#else // TDESKTOP_FORCE_GTK_FILE_DIALOG
+#else // TDESKTOP_USE_GTK_FILE_DIALOG
 	return false;
-#endif // !TDESKTOP_FORCE_GTK_FILE_DIALOG
+#endif // !TDESKTOP_USE_GTK_FILE_DIALOG
 }
 
 bool IsQtPluginsBundled() {
@@ -668,7 +668,7 @@ void start() {
 	if(IsStaticBinary()
 		|| InAppImage()
 		|| InSnap()
-		|| IsGtkFileDialogForced()
+		|| UseGtkFileDialog()
 		|| IsQtPluginsBundled()) {
 		LOG(("Checking for XDG Desktop Portal..."));
 		// this can give us a chance to use a proper file dialog for current session

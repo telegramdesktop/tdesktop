@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
 #include "core/application.h"
 #include "mainwindow.h"
@@ -124,10 +125,15 @@ using Type = ::FileDialog::internal::Type;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 bool NativeSupported(Type type = Type::ReadFile) {
-#ifndef TDESKTOP_FORCE_GTK_FILE_DIALOG
-	return false;
-#endif // TDESKTOP_FORCE_GTK_FILE_DIALOG
-	return (!Platform::UseXDGDesktopPortal() || type == Type::ReadFolder)
+	// use gtk file dialog on gtk-based desktop environments
+	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
+	// or if portals is used and operation is not to open folder
+	// (it isn't supported by portals yet)
+	return Platform::UseGtkFileDialog()
+		&& (Platform::DesktopEnvironment::IsGtkBased()
+			|| Platform::IsGtkIntegrationForced()
+			|| Platform::UseXDGDesktopPortal())
+		&& (!Platform::UseXDGDesktopPortal() || type == Type::ReadFolder)
 		&& Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
