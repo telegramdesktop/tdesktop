@@ -146,7 +146,11 @@ void ScheduledWidget::setupComposeControls() {
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
+		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
 		updateControlsGeometry();
+		if (wasMax) {
+			listScrollTo(_scroll->scrollTopMax());
+		}
 	}, lifetime());
 
 	_composeControls->cancelRequests(
