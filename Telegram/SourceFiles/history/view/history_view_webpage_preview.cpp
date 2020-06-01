@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_webpage_preview.h"
 
+#include "data/data_file_origin.h"
 #include "data/data_web_page.h"
 
 namespace HistoryView {
@@ -54,6 +55,34 @@ WebPageText TitleAndDescriptionFromWebPage(not_null<WebPageData*> d) {
 			: title;
 	}
 	return { resultTitle, resultDescription };
+}
+
+bool DrawWebPageDataPreview(Painter &p, not_null<WebPageData*> d, QRect to) {
+	const auto document = d->document;
+	const auto photo = d->photo;
+	if ((!photo || photo->isNull())
+		&& (!document
+			|| !document->hasThumbnail()
+			|| document->isPatternWallPaper())) {
+		return false;
+	}
+
+	const auto preview = photo
+		? photo->getReplyPreview(Data::FileOrigin())
+		: document->getReplyPreview(Data::FileOrigin());
+	const auto w = preview->width();
+	const auto h = preview->height();
+	if (preview) {
+		if (w == h) {
+			p.drawPixmap(to.x(), to.y(), preview->pix());
+		} else {
+			const auto from = (w > h)
+				? QRect((w - h) / 2, 0, h, h)
+				: QRect(0, (h - w) / 2, w, w);
+			p.drawPixmap(to, preview->pix(), from);
+		}
+	}
+	return true;
 }
 
 } // namespace HistoryView
