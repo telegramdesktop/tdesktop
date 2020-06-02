@@ -424,7 +424,7 @@ jobs:
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
-          git apply ../../patches/qtbase_$QT.diff
+          find ../../patches/qtbase_$QT -type f -print0 | sort -z | xargs -0 git apply
           cd ..
 
           ./configure \

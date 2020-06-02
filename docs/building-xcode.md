@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout 2b9afa7
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -240,7 +240,7 @@ Go to ***BuildPath*** and run
     git checkout v5.12.8
     git submodule update qtbase qtimageformats
     cd qtbase
-    git apply ../../patches/qtbase_5_12_8.diff
+    find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
