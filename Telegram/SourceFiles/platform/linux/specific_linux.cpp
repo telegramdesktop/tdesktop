@@ -712,11 +712,12 @@ void start() {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if(IsStaticBinary()
+	if((IsStaticBinary()
 		|| InAppImage()
 		|| InSnap()
 		|| UseGtkFileDialog()
-		|| IsQtPluginsBundled()) {
+		|| IsQtPluginsBundled())
+		&& !InFlatpak()) {
 		LOG(("Checking for XDG Desktop Portal..."));
 		// this can give us a chance to use a proper file dialog for current session
 		if (IsXDGDesktopPortalPresent()) {
