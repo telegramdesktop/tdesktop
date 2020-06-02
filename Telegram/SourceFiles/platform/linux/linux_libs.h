@@ -353,6 +353,12 @@ extern f_g_error_free g_error_free;
 
 typedef void (*f_g_slist_free)(GSList *list);
 extern f_g_slist_free g_slist_free;
+
+typedef guint (*f_g_log_set_handler)(const gchar *log_domain, GLogLevelFlags log_levels, GLogFunc log_func, gpointer user_data);
+extern f_g_log_set_handler g_log_set_handler;
+
+typedef void (*f_g_log_default_handler)(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer unused_data);
+extern f_g_log_default_handler g_log_default_handler;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs
