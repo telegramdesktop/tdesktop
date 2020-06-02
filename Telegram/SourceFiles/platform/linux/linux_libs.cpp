@@ -35,20 +35,32 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 template <typename T>
-T gtkSetting(const gchar *propertyName)
-{
-    GtkSettings *settings = Libs::gtk_settings_get_default();
-    T value;
-    Libs::g_object_get(settings, propertyName, &value, nullptr);
-    return value;
+T gtkSetting(const gchar *propertyName) {
+	GtkSettings *settings = gtk_settings_get_default();
+	T value;
+	g_object_get(settings, propertyName, &value, nullptr);
+	return value;
 }
 
-QString gtkSetting(const gchar *propertyName)
-{
-    gchararray value = gtkSetting<gchararray>(propertyName);
-    QString str = QString::fromUtf8(value);
-    Libs::g_free(value);
-    return str;
+QString gtkSetting(const gchar *propertyName) {
+	gchararray value = gtkSetting<gchararray>(propertyName);
+	QString str = QString::fromUtf8(value);
+	g_free(value);
+	return str;
+}
+
+void gtkMessageHandler(
+		const gchar *log_domain,
+		GLogLevelFlags log_level,
+		const gchar *message,
+		gpointer unused_data) {
+	// Silence false-positive Gtk warnings (we are using Xlib to set
+	// the WM_TRANSIENT_FOR hint).
+	if (message != qstr("GtkDialog mapped without a transient parent. "
+		"This is discouraged.")) {
+		// For other messages, call the default handler.
+		g_log_default_handler(log_domain, log_level, message, unused_data);
+	}
 }
 
 bool setupGtkBase(QLibrary &lib_gtk) {
@@ -120,6 +132,9 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_error_free", g_error_free)) return false;
 	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
+	if (!load(lib_gtk, "g_log_set_handler", g_log_set_handler)) return false;
+	if (!load(lib_gtk, "g_log_default_handler", g_log_default_handler)) return false;
+
 	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
 		// We work only with X11 GDK backend.
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
@@ -141,8 +156,11 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
 		return false;
 	}
-
 	DEBUG_LOG(("Checked gtk with gtk_init_check!"));
+
+	// Use our custom log handler.
+	g_log_set_handler("Gtk", G_LOG_LEVEL_MESSAGE, gtkMessageHandler, nullptr);
+
 	return true;
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -233,6 +251,8 @@ f_g_list_free g_list_free = nullptr;
 f_g_list_free_full g_list_free_full = nullptr;
 f_g_error_free g_error_free = nullptr;
 f_g_slist_free g_slist_free = nullptr;
+f_g_log_set_handler g_log_set_handler = nullptr;
+f_g_log_default_handler g_log_default_handler = nullptr;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
