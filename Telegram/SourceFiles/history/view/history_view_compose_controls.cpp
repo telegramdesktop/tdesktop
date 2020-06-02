@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_compose_controls.h"
 
+#include "base/unixtime.h"
 #include "data/data_web_page.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
@@ -39,6 +40,22 @@ namespace {
 
 using MessageToEdit = ComposeControls::MessageToEdit;
 
+[[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
+	return page && (page->pendingTill >= 0);
+}
+
+WebPageText ProcessWebPageData(WebPageData *page) {
+	auto previewText = HistoryView::TitleAndDescriptionFromWebPage(page);
+	if (previewText.title.isEmpty()) {
+		if (page->document) {
+			previewText.title = tr::lng_attach_file(tr::now);
+		} else if (page->photo) {
+			previewText.title = tr::lng_attach_photo(tr::now);
+		}
+	}
+	return previewText;
+}
+
 } // namespace
 
 class FieldHeader : public Ui::RpWidget {
@@ -48,23 +65,33 @@ public:
 	void init();
 
 	void editMessage(FullMsgId edit);
+	void previewRequested(
+		rpl::producer<QString> title,
+		rpl::producer<QString> description,
+		rpl::producer<WebPageData*> page);
 
 	bool isDisplayed() const;
 	bool isEditingMessage() const;
 	rpl::producer<FullMsgId> editMsgId() const;
 	MessageToEdit queryToEdit();
 
+	rpl::producer<bool> visibleChanged();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void updateControlsGeometry(QSize size);
+	void updateVisible();
 
 	struct Preview {
 		WebPageData *data = nullptr;
 		Ui::Text::String title;
 		Ui::Text::String description;
 	};
+
+	rpl::variable<QString> _title;
+	rpl::variable<QString> _description;
 
 	Preview _preview;
 
@@ -75,6 +102,8 @@ private:
 
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
+
+	rpl::event_stream<bool> _visibleChanged;
 
 };
 
@@ -96,32 +125,17 @@ void FieldHeader::init() {
 		_preview = {};
 		if (const auto media = item->media()) {
 			if (const auto page = media->webpage()) {
+				const auto preview = ProcessWebPageData(page);
+				_title = preview.title;
+				_description = preview.description;
 				_preview.data = page;
-				auto preview =
-					HistoryView::TitleAndDescriptionFromWebPage(page);
-				if (preview.title.isEmpty()) {
-					if (page->document) {
-						preview.title = tr::lng_attach_file(tr::now);
-					} else if (page->photo) {
-						preview.title = tr::lng_attach_photo(tr::now);
-					}
-				}
-				_preview.title.setText(
-					st::msgNameStyle,
-					preview.title,
-					Ui::NameTextOptions());
-				_preview.description.setText(
-					st::messageTextStyle,
-					TextUtilities::Clean(preview.description),
-					Ui::DialogTextOptions());
 			}
 		}
 	};
 
 	_editMsgId.value(
 	) | rpl::start_with_next([=] {
-		isDisplayed() ? show() : hide();
-
+		updateVisible();
 		if (const auto item = _data->message(_editMsgId.current())) {
 			_editMsgText.setText(
 				st::messageTextStyle,
@@ -139,14 +153,56 @@ void FieldHeader::init() {
 			_editMsgId = {};
 		}
 	});
+
+	_title.value(
+	) | rpl::start_with_next([=](const auto &t) {
+		_preview.title.setText(
+			st::msgNameStyle,
+			t,
+			Ui::NameTextOptions());
+	}, lifetime());
+
+	_description.value(
+	) | rpl::start_with_next([=](const auto &d) {
+		_preview.description.setText(
+			st::messageTextStyle,
+			TextUtilities::Clean(d),
+			Ui::DialogTextOptions());
+	}, lifetime());
+
+}
+
+void FieldHeader::previewRequested(
+	rpl::producer<QString> title,
+	rpl::producer<QString> description,
+	rpl::producer<WebPageData*> page) {
+
+	std::move(
+		title
+	) | rpl::start_with_next([=](const QString &t) {
+		_title = t;
+	}, lifetime());
+
+	std::move(
+		description
+	) | rpl::start_with_next([=](const QString &d) {
+		_description = d;
+	}, lifetime());
+
+	std::move(
+		page
+	) | rpl::start_with_next([=](WebPageData *p) {
+		_preview.data = p;
+		updateVisible();
+	}, lifetime());
+
 }
 
 void FieldHeader::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto replySkip = st::historyReplySkip;
-	const auto drawWebPagePreview =
-		(hasPreview() && _preview.data->pendingTill >= 0);
+	const auto drawWebPagePreview = ShowWebPagePreview(_preview.data);
 
 	p.fillRect(rect(), st::historyComposeAreaBg);
 
@@ -211,8 +267,17 @@ void FieldHeader::paintEvent(QPaintEvent *e) {
 	p.restoreTextPalette();
 }
 
+void FieldHeader::updateVisible() {
+	isDisplayed() ? show() : hide();
+	_visibleChanged.fire(isVisible());
+}
+
+rpl::producer<bool> FieldHeader::visibleChanged() {
+	return _visibleChanged.events();
+}
+
 bool FieldHeader::isDisplayed() const {
-	return isEditingMessage();
+	return isEditingMessage() || hasPreview();
 }
 
 bool FieldHeader::isEditingMessage() const {
@@ -293,6 +358,7 @@ void ComposeControls::setHistory(History *history) {
 	_history = history;
 	_window->tabbedSelector()->setCurrentPeer(
 		history ? history->peer.get() : nullptr);
+	initWebpageProcess();
 }
 
 void ComposeControls::move(int x, int y) {
@@ -443,15 +509,18 @@ void ComposeControls::init() {
 
 	_header->editMsgId(
 	) | rpl::start_with_next([=](const auto &id) {
-		updateHeight();
-		updateSendButtonType();
-
 		if (_header->isEditingMessage()) {
 			setTextFromEditingMessage(_window->session().data().message(id));
 		} else {
 			setText(_localSavedText);
 			_localSavedText = {};
 		}
+		updateSendButtonType();
+	}, _wrap->lifetime());
+
+	_header->visibleChanged(
+	) | rpl::start_with_next([=] {
+		updateHeight();
 	}, _wrap->lifetime());
 
 	{
@@ -701,7 +770,9 @@ void ComposeControls::updateHeight() {
 	const auto height = _field->height()
 		+ (_header->isDisplayed() ? _header->height() : 0)
 		+ 2 * st::historySendPadding;
-	_wrap->resize(_wrap->width(), height);
+	if (height != _wrap->height()) {
+		_wrap->resize(_wrap->width(), height);
+	}
 }
 
 void ComposeControls::editMessage(FullMsgId edit) {
@@ -711,6 +782,155 @@ void ComposeControls::editMessage(FullMsgId edit) {
 
 void ComposeControls::cancelEditMessage() {
 	_header->editMessage({});
+}
+
+void ComposeControls::initWebpageProcess() {
+	const auto peer = _history->peer;
+	auto &lifetime = _wrap->lifetime();
+	const auto requestRepaint = crl::guard(_header.get(), [=] {
+		_header->update();
+	});
+
+	const auto parsedLinks = lifetime.make_state<QStringList>();
+	const auto previewLinks = lifetime.make_state<QString>();
+	const auto previewData = lifetime.make_state<WebPageData*>(nullptr);
+	using PreviewCache = std::map<QString, WebPageId>;
+	const auto previewCache = lifetime.make_state<PreviewCache>();
+	const auto previewRequest = lifetime.make_state<mtpRequestId>(0);
+	const auto previewCancelled = lifetime.make_state<bool>(false);
+	const auto mtpSender =
+		lifetime.make_state<MTP::Sender>(&_window->session().mtp());
+
+	const auto title = std::make_shared<rpl::event_stream<QString>>();
+	const auto description = std::make_shared<rpl::event_stream<QString>>();
+	const auto pageData = std::make_shared<rpl::event_stream<WebPageData*>>();
+
+	const auto previewTimer = lifetime.make_state<base::Timer>();
+
+	const auto updatePreview = [=] {
+		previewTimer->cancel();
+		auto t = QString();
+		auto d = QString();
+		if (ShowWebPagePreview(*previewData)) {
+//			updateMouseTracking();
+			if (const auto till = (*previewData)->pendingTill) {
+				t = tr::lng_preview_loading(tr::now);
+				d = (*previewLinks).splitRef(' ').at(0).toString();
+
+				const auto timeout = till - base::unixtime::now();
+				previewTimer->callOnce(
+					std::max(timeout, 0) * crl::time(1000));
+			} else {
+				const auto preview = ProcessWebPageData(*previewData);
+				t = preview.title;
+				d = preview.description;
+			}
+		}
+		title->fire_copy(t);
+		description->fire_copy(d);
+		pageData->fire_copy(*previewData);
+		requestRepaint();
+	};
+
+	const auto gotPreview = crl::guard(_wrap.get(), [=](
+			const auto &result,
+			QString links) {
+		if (*previewRequest) {
+			*previewRequest = 0;
+		}
+		result.match([=](const MTPDmessageMediaWebPage &d) {
+			const auto page = _history->owner().processWebpage(d.vwebpage());
+			previewCache->insert({ links, page->id });
+			auto &till = page->pendingTill;
+			if (till > 0 && till <= base::unixtime::now()) {
+				till = -1;
+			}
+			if (links == *previewLinks && !*previewCancelled) {
+				*previewData = (page->id && page->pendingTill >= 0)
+					? page.get()
+					: nullptr;
+				updatePreview();
+			}
+		}, [=](const MTPDmessageMediaEmpty &d) {
+			previewCache->insert({ links, 0 });
+			if (links == *previewLinks && !*previewCancelled) {
+				*previewData = nullptr;
+				updatePreview();
+			}
+		}, [](const auto &d) {
+		});
+	});
+
+	const auto previewCancel = [=] {
+		mtpSender->request(base::take(*previewRequest)).cancel();
+		*previewData = nullptr;
+		previewLinks->clear();
+		updatePreview();
+	};
+
+	const auto getWebPagePreview = [=] {
+		const auto links = *previewLinks;
+		*previewRequest = mtpSender->request(MTPmessages_GetWebPagePreview(
+			MTP_flags(0),
+			MTP_string(links),
+			MTPVector<MTPMessageEntity>()
+		)).done([=](const MTPMessageMedia &result) {
+			gotPreview(result, links);
+		}).send();
+	};
+
+	const auto checkPreview = crl::guard(_wrap.get(), [=] {
+		const auto previewRestricted = peer
+			&& peer->amRestricted(ChatRestriction::f_embed_links);
+		if (/*_previewCancelled ||*/ previewRestricted) {
+			previewCancel();
+			return;
+		}
+		const auto newLinks = parsedLinks->join(' ');
+		if (*previewLinks == newLinks) {
+			return;
+		}
+		mtpSender->request(base::take(*previewRequest)).cancel();
+		*previewLinks = newLinks;
+		if (previewLinks->isEmpty()) {
+			if (ShowWebPagePreview(*previewData)) {
+				previewCancel();
+			}
+		} else {
+			const auto i = previewCache->find(*previewLinks);
+			if (i == previewCache->end()) {
+				getWebPagePreview();
+			} else if (i->second) {
+				*previewData = _history->owner().webpage(i->second);
+				updatePreview();
+			} else if (ShowWebPagePreview(*previewData)) {
+				previewCancel();
+			}
+		}
+	});
+
+	previewTimer->setCallback([=] {
+		if (!ShowWebPagePreview(*previewData) || previewLinks->isEmpty()) {
+			return;
+		}
+		getWebPagePreview();
+	});
+
+	const auto fieldLinksParser =
+		lifetime.make_state<MessageLinksParser>(_field);
+
+	fieldLinksParser->list().changes(
+	) | rpl::start_with_next([=](QStringList &&parsed) {
+		*parsedLinks = std::move(parsed);
+
+		checkPreview();
+	}, lifetime);
+
+	_header->previewRequested(
+		title->events(),
+		description->events(),
+		pageData->events());
+
 }
 
 } // namespace HistoryView

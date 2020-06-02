@@ -112,6 +112,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
+	void initWebpageProcess();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateControlsGeometry(QSize size);
