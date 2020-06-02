@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout fd42dc2
+    git checkout 2b9afa7
     cd ../
 
     git clone https://github.com/xiph/opus
@@ -240,12 +240,10 @@ Go to ***BuildPath*** and run
     git checkout v5.12.8
     git submodule update qtbase qtwayland qtimageformats qtsvg qtx11extras
     cd qtbase
-    git apply ../../patches/qtbase_5_12_8.diff
-    git apply ../../patches/qtbase_xkbfix_5_12_8.diff
+    find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -r0 git apply
     cd ..
     cd qtwayland
-    git apply ../../patches/qtwayland_5_12_8.diff
-    git apply ../../patches/qtwayland_xkbfix_5_12_8.diff
+    find ../../patches/qtwayland_5_12_8 -type f -print0 | sort -z | xargs -r0 git apply
     cd ..
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1

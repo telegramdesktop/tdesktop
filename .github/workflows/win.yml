@@ -308,7 +308,7 @@ jobs:
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
-          git apply ../../patches/qtbase_%QT%.diff
+          for /r %%i in (..\..\patches\qtbase_%QT%\*) do git apply %%i
           cd ..
 
           SET SSL=%LibrariesPath%\openssl_1_1_1
