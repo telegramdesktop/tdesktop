@@ -5530,7 +5530,15 @@ void HistoryWidget::updateUnreadMentionsVisibility() {
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
-	_replyForwardPressed = QRect(0, _field->y() - st::historySendPadding - st::historyReplyHeight, st::historyReplySkip, st::historyReplyHeight).contains(e->pos());
+	const auto hasSecondLayer = (_editMsgId
+		|| _replyToId
+		|| readyToForward()
+		|| _kbReplyTo);
+	_replyForwardPressed = hasSecondLayer && QRect(
+		0,
+		_field->y() - st::historySendPadding - st::historyReplyHeight,
+		st::historyReplySkip,
+		st::historyReplyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_fieldBarCancel->isHidden()) {
 		updateField();
 	} else if (_inReplyEditForward) {
