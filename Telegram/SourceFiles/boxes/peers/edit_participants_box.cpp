@@ -354,6 +354,16 @@ bool ParticipantsAdditionalData::canRestrictUser(
 	Unexpected("Peer in ParticipantsAdditionalData::canRestrictUser.");
 }
 
+bool ParticipantsAdditionalData::canRemoveUser(
+		not_null<UserData*> user) const {
+	if (canRestrictUser(user)) {
+		return true;
+	} else if (const auto chat = _peer->asChat()) {
+		return chat->invitedByMe.contains(user);
+	}
+	return false;
+}
+
 auto ParticipantsAdditionalData::adminRights(
 	not_null<UserData*> user) const
 -> std::optional<MTPChatAdminRights> {
@@ -1436,6 +1446,8 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				tr::lng_context_restrict_user(tr::now),
 				crl::guard(this, [=] { showRestricted(user); }));
 		}
+	}
+	if (_additional.canRemoveUser(user)) {
 		if (!_additional.isKicked(user)) {
 			const auto isGroup = _peer->isChat() || _peer->isMegagroup();
 			result->addAction(
@@ -1806,7 +1818,7 @@ auto ParticipantsBoxController::computeType(
 		: _additional.adminRights(user).has_value()
 		? Rights::Admin
 		: Rights::Normal;
-	result.canRemove = _additional.canRestrictUser(user);
+	result.canRemove = _additional.canRemoveUser(user);
 	return result;
 }
 

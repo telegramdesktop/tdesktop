@@ -88,6 +88,7 @@ public:
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canAddOrEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
+	[[nodiscard]] bool canRemoveUser(not_null<UserData*> user) const;
 	[[nodiscard]] std::optional<MTPChatAdminRights> adminRights(
 		not_null<UserData*> user) const;
 	QString adminRank(not_null<UserData*> user) const;
