@@ -484,7 +484,7 @@ void ScheduledWidget::send() {
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
-	const auto webPageId = 0;/* _previewCancelled
+	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
 			? _previewData->id

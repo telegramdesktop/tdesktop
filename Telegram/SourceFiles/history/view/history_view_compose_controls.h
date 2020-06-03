@@ -104,6 +104,7 @@ public:
 	void cancelEditMessage();
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
+	[[nodiscard]] WebPageId webPageId() const;
 	void clear();
 	void hidePanelsAnimated();
 

@@ -74,15 +74,18 @@ public:
 	bool isEditingMessage() const;
 	rpl::producer<FullMsgId> editMsgId() const;
 	MessageToEdit queryToEdit();
+	WebPageId webPageId() const;
 
 	rpl::producer<bool> visibleChanged();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void updateControlsGeometry(QSize size);
 	void updateVisible();
+
+	void paintWebPage(Painter &p);
+	void paintEditMessage(Painter &p);
 
 	struct Preview {
 		WebPageData *data = nullptr;
@@ -121,6 +124,21 @@ void FieldHeader::init() {
 		updateControlsGeometry(size);
 	}, lifetime());
 
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		p.fillRect(rect(), st::historyComposeAreaBg);
+
+		if (isEditingMessage()) {
+			const auto position = st::historyReplyIconPosition;
+			st::historyEditIcon.paint(p, position, width());
+		}
+
+		ShowWebPagePreview(_preview.data)
+			? paintWebPage(p)
+			: paintEditMessage(p);
+	}, lifetime());
+
 	const auto checkPreview = [=](not_null<const HistoryItem*> item) {
 		_preview = {};
 		if (const auto media = item->media()) {
@@ -152,6 +170,7 @@ void FieldHeader::init() {
 		} else {
 			_editMsgId = {};
 		}
+		updateVisible();
 	});
 
 	_title.value(
@@ -198,57 +217,51 @@ void FieldHeader::previewRequested(
 
 }
 
-void FieldHeader::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+void FieldHeader::paintWebPage(Painter &p) {
+	Expects(ShowWebPagePreview(_preview.data));
 
-	const auto replySkip = st::historyReplySkip;
-	const auto drawWebPagePreview = ShowWebPagePreview(_preview.data);
+	const auto textTop = st::msgReplyPadding.top();
+	auto previewLeft = st::historyReplySkip + st::webPageLeft;
+	p.fillRect(
+		st::historyReplySkip,
+		textTop,
+		st::webPageBar,
+		st::msgReplyBarSize.height(),
+		st::msgInReplyBarColor);
 
-	p.fillRect(rect(), st::historyComposeAreaBg);
-
-	st::historyEditIcon.paint(p, st::historyReplyIconPosition, width());
-
-	if (drawWebPagePreview) {
-		const auto textTop = st::msgReplyPadding.top();
-		auto previewLeft = st::historyReplySkip + st::webPageLeft;
-		p.fillRect(
-			st::historyReplySkip,
-			textTop,
-			st::webPageBar,
-			st::msgReplyBarSize.height(),
-			st::msgInReplyBarColor);
-
-		const QRect to(
-			previewLeft,
-			textTop,
-			st::msgReplyBarSize.height(),
-			st::msgReplyBarSize.height());
-		if (HistoryView::DrawWebPageDataPreview(p, _preview.data, to)) {
-			previewLeft += st::msgReplyBarSize.height()
-				+ st::msgReplyBarSkip
-				- st::msgReplyBarSize.width()
-				- st::msgReplyBarPos.x();
-		}
-		p.setPen(st::historyReplyNameFg);
-		const auto elidedWidth = width()
-			- previewLeft
-			- _cancel->width()
-			- st::msgReplyPadding.right();
-
-		_preview.title.drawElided(
-			p,
-			previewLeft,
-			textTop,
-			elidedWidth);
-		p.setPen(st::historyComposeAreaFg);
-		_preview.description.drawElided(
-			p,
-			previewLeft,
-			textTop + st::msgServiceNameFont->height,
-			elidedWidth);
-		return;
+	const QRect to(
+		previewLeft,
+		textTop,
+		st::msgReplyBarSize.height(),
+		st::msgReplyBarSize.height());
+	if (HistoryView::DrawWebPageDataPreview(p, _preview.data, to)) {
+		previewLeft += st::msgReplyBarSize.height()
+			+ st::msgReplyBarSkip
+			- st::msgReplyBarSize.width()
+			- st::msgReplyBarPos.x();
 	}
+	const auto elidedWidth = width()
+		- previewLeft
+		- _cancel->width()
+		- st::msgReplyPadding.right();
 
+	p.setPen(st::historyReplyNameFg);
+	_preview.title.drawElided(
+		p,
+		previewLeft,
+		textTop,
+		elidedWidth);
+
+	p.setPen(st::historyComposeAreaFg);
+	_preview.description.drawElided(
+		p,
+		previewLeft,
+		textTop + st::msgServiceNameFont->height,
+		elidedWidth);
+}
+
+void FieldHeader::paintEditMessage(Painter &p) {
+	const auto replySkip = st::historyReplySkip;
 	p.setPen(st::historyReplyNameFg);
 	p.setFont(st::msgServiceNameFont);
 	p.drawTextLeft(
@@ -286,6 +299,10 @@ bool FieldHeader::isEditingMessage() const {
 
 bool FieldHeader::hasPreview() const {
 	return _preview.data != nullptr;
+}
+
+WebPageId FieldHeader::webPageId() const {
+	return hasPreview() ? _preview.data->id : CancelledWebPageId;
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
@@ -931,6 +948,10 @@ void ComposeControls::initWebpageProcess() {
 		description->events(),
 		pageData->events());
 
+}
+
+WebPageId ComposeControls::webPageId() const {
+	return _header->webPageId();
 }
 
 } // namespace HistoryView
