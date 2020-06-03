@@ -70,7 +70,7 @@ QByteArray SerializeString(const QByteArray &value) {
 }
 
 QByteArray SerializeDate(TimeId date) {
-	return SerializeString(
+	return date == 0 ? QByteArray("null") : SerializeString(
 		QDateTime::fromTime_t(date).toString(Qt::ISODate).toUtf8());
 }
 
