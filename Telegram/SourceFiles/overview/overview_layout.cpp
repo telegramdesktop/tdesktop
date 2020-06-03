@@ -1433,6 +1433,11 @@ Link::Link(
 		}
 	}
 
+	const auto createHandler = [](const QString &url) {
+		return UrlClickHandler::IsSuspicious(url)
+			? std::make_shared<HiddenUrlClickHandler>(url)
+			: std::make_shared<UrlClickHandler>(url);
+	};
 	_page = media ? media->webpage() : nullptr;
 	if (_page) {
 		mainUrl = _page->url;
@@ -1442,7 +1447,7 @@ Link::Link(
 				parent->fullId());
 		} else if (_page->photo) {
 			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
-				_photol = std::make_shared<UrlClickHandler>(_page->url);
+				_photol = createHandler(_page->url);
 			} else if (_page->type == WebPageType::Photo
 				|| _page->siteName == qstr("Twitter")
 				|| _page->siteName == qstr("Facebook")) {
@@ -1450,13 +1455,13 @@ Link::Link(
 					_page->photo,
 					parent->fullId());
 			} else {
-				_photol = std::make_shared<UrlClickHandler>(_page->url);
+				_photol = createHandler(_page->url);
 			}
 		} else {
-			_photol = std::make_shared<UrlClickHandler>(_page->url);
+			_photol = createHandler(_page->url);
 		}
 	} else if (!mainUrl.isEmpty()) {
-		_photol = std::make_shared<UrlClickHandler>(mainUrl);
+		_photol = createHandler(mainUrl);
 	}
 	if (from >= till && _page) {
 		text = _page->description.text;
