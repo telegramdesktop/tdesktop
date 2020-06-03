@@ -298,7 +298,9 @@ bool IsStaticBinary() {
 bool IsGtkIntegrationForced() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static const auto Result = [&] {
-		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME")).split(':');
+		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
+			.split(':', QString::SkipEmptyParts);
+
 		return platformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
 			|| platformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
 	}();
