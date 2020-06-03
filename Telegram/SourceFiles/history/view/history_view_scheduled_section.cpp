@@ -202,6 +202,11 @@ void ScheduledWidget::setupComposeControls() {
 		sendInlineResult(chosen.result, chosen.bot);
 	}, lifetime());
 
+	_composeControls->scrollRequests(
+	) | rpl::start_with_next([=](Data::MessagePosition pos) {
+		showAtPosition(pos);
+	}, lifetime());
+
 	_composeControls->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {

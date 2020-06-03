@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_compose_controls.h"
 
 #include "base/unixtime.h"
+#include "data/data_messages.h"
 #include "data/data_web_page.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
@@ -39,6 +40,12 @@ namespace HistoryView {
 namespace {
 
 using MessageToEdit = ComposeControls::MessageToEdit;
+
+constexpr auto kMouseEvent = {
+	QEvent::MouseMove,
+	QEvent::MouseButtonPress,
+	QEvent::MouseButtonRelease
+};
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
 	return page && (page->pendingTill >= 0);
@@ -73,6 +80,7 @@ public:
 	bool isDisplayed() const;
 	bool isEditingMessage() const;
 	rpl::producer<FullMsgId> editMsgId() const;
+	rpl::producer<FullMsgId> scrollToItemRequests() const;
 	MessageToEdit queryToEdit();
 	WebPageId webPageId() const;
 
@@ -107,6 +115,7 @@ private:
 	const not_null<Ui::IconButton*> _cancel;
 
 	rpl::event_stream<bool> _visibleChanged;
+	rpl::event_stream<FullMsgId> _scrollToItemRequests;
 
 };
 
@@ -124,6 +133,7 @@ void FieldHeader::init() {
 		updateControlsGeometry(size);
 	}, lifetime());
 
+	const auto leftIconPressed = lifetime().make_state<bool>(false);
 	paintRequest(
 	) | rpl::start_with_next([=] {
 		Painter p(this);
@@ -134,9 +144,9 @@ void FieldHeader::init() {
 			st::historyEditIcon.paint(p, position, width());
 		}
 
-		ShowWebPagePreview(_preview.data)
-			? paintWebPage(p)
-			: paintEditMessage(p);
+		(!ShowWebPagePreview(_preview.data) || *leftIconPressed)
+			? paintEditMessage(p)
+			: paintWebPage(p);
 	}, lifetime());
 
 	const auto checkPreview = [=](not_null<const HistoryItem*> item) {
@@ -189,6 +199,49 @@ void FieldHeader::init() {
 			Ui::DialogTextOptions());
 	}, lifetime());
 
+	setMouseTracking(true);
+	const auto inClickable = lifetime().make_state<bool>(false);
+	events(
+	) | rpl::filter([=](not_null<QEvent*> event) {
+		return ranges::contains(kMouseEvent, event->type())
+			&& isEditingMessage();
+	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		const auto e = static_cast<QMouseEvent*>(event.get());
+		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
+		const auto inPreviewRect = QRect(
+			st::historyReplySkip,
+			0,
+			width() - st::historyReplySkip - _cancel->width(),
+			height()).contains(pos);
+
+		if (type == QEvent::MouseMove) {
+			const auto inEdit = inPreviewRect;
+
+			if (inEdit != *inClickable) {
+				*inClickable = inEdit;
+				setCursor(*inClickable
+					? style::cur_pointer
+					: style::cur_default);
+			}
+			return;
+		}
+		const auto isLeftIcon = (pos.x() < st::historyReplySkip);
+		const auto isLeftButton = (e->button() == Qt::LeftButton);
+		if (type == QEvent::MouseButtonPress) {
+			if (isLeftButton && isLeftIcon) {
+				*leftIconPressed = true;
+				update();
+			} else if (isLeftButton && inPreviewRect) {
+				_scrollToItemRequests.fire(_editMsgId.current());
+			}
+		} else if (type == QEvent::MouseButtonRelease) {
+			if (isLeftButton && *leftIconPressed) {
+				*leftIconPressed = false;
+				update();
+			}
+		}
+	}, lifetime());
 }
 
 void FieldHeader::previewRequested(
@@ -315,6 +368,10 @@ void FieldHeader::editMessage(FullMsgId id) {
 
 rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
 	return _editMsgId.value();
+}
+
+rpl::producer<FullMsgId> FieldHeader::scrollToItemRequests() const {
+	return _scrollToItemRequests.events();
 }
 
 MessageToEdit FieldHeader::queryToEdit() {
@@ -952,6 +1009,16 @@ void ComposeControls::initWebpageProcess() {
 
 WebPageId ComposeControls::webPageId() const {
 	return _header->webPageId();
+}
+
+rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
+	return _header->scrollToItemRequests(
+		) | rpl::map([=](FullMsgId id) -> Data::MessagePosition {
+			if (const auto item = _window->session().data().message(id)) {
+				return item->position();
+			}
+			return {};
+		});
 }
 
 } // namespace HistoryView

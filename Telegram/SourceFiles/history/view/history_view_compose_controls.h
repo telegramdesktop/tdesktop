@@ -21,6 +21,10 @@ class TabbedPanel;
 class TabbedSelector;
 } // namespace ChatHelpers
 
+namespace Data {
+struct MessagePosition;
+} // namespace Data
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -83,6 +87,7 @@ public:
 	[[nodiscard]] rpl::producer<> attachRequests() const;
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
 	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
 
