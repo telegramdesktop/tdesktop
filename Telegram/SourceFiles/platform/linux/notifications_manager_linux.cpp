@@ -182,15 +182,11 @@ QVersionNumber ParseSpecificationVersion(
 
 QString GetImageKey(const QVersionNumber &specificationVersion) {
 	if (!specificationVersion.isNull()) {
-		const auto majorVersion = specificationVersion.majorVersion();
-		const auto minorVersion = specificationVersion.minorVersion();
-
-		if ((majorVersion == 1 && minorVersion >= 2) || majorVersion > 1) {
+		if (specificationVersion >= QVersionNumber(1, 2)) {
 			return qsl("image-data");
-		} else if (majorVersion == 1 && minorVersion == 1) {
+		} else if (specificationVersion == QVersionNumber(1, 1)) {
 			return qsl("image_data");
-		} else if ((majorVersion == 1 && minorVersion < 1)
-			|| majorVersion < 1) {
+		} else if (specificationVersion < QVersionNumber(1, 1)) {
 			return qsl("icon_data");
 		} else {
 			LOG(("Native notification error: unknown specification version"));
