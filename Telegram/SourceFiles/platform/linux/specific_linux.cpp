@@ -51,6 +51,10 @@ constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
 constexpr auto kIconName = "telegram"_cs;
 
+constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
+constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
 	QVariantMap options;
@@ -63,8 +67,8 @@ void PortalAutostart(bool autostart, bool silent = false) {
 	options["dbus-activatable"] = false;
 
 	auto message = QDBusMessage::createMethodCall(
-		qsl("org.freedesktop.portal.Desktop"),
-		qsl("/org/freedesktop/portal/desktop"),
+		kXDGDesktopPortalService.utf16(),
+		kXDGDesktopPortalObjectPath.utf16(),
 		qsl("org.freedesktop.portal.Background"),
 		qsl("RequestBackground"));
 
@@ -83,6 +87,34 @@ void PortalAutostart(bool autostart, bool silent = false) {
 			LOG(("Flatpak autostart error: %1").arg(reply.error().message()));
 		}
 	}
+}
+
+uint FileChooserPortalVersion() {
+	static const auto Result = [&]() -> uint {
+		auto message = QDBusMessage::createMethodCall(
+			kXDGDesktopPortalService.utf16(),
+			kXDGDesktopPortalObjectPath.utf16(),
+			kPropertiesInterface.utf16(),
+			qsl("Get"));
+
+		message.setArguments({
+			qsl("org.freedesktop.portal.FileChooser"),
+			qsl("version")
+		});
+
+		const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(message);
+
+		if (reply.isValid()) {
+			return reply.value();
+		} else {
+			LOG(("Error getting FileChooser portal version: %1")
+				.arg(reply.error().message()));
+		}
+
+		return 0;
+	}();
+
+	return Result;
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
@@ -266,7 +298,9 @@ bool IsStaticBinary() {
 bool IsGtkIntegrationForced() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static const auto Result = [&] {
-		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME")).split(':');
+		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
+			.split(':', QString::SkipEmptyParts);
+
 		return platformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
 			|| platformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
 	}();
@@ -296,8 +330,8 @@ bool IsQtPluginsBundled() {
 bool IsXDGDesktopPortalPresent() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = QDBusInterface(
-		"org.freedesktop.portal.Desktop",
-		"/org/freedesktop/portal/desktop").isValid();
+		kXDGDesktopPortalService.utf16(),
+		kXDGDesktopPortalObjectPath.utf16()).isValid();
 
 	return Result;
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -318,6 +352,14 @@ bool UseXDGDesktopPortal() {
 	}();
 
 	return Result;
+}
+
+bool CanOpenDirectoryWithPortal() {
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED) && !defined TDESKTOP_DISABLE_DBUS_INTEGRATION
+	return FileChooserPortalVersion() >= 3;
+#else // (Qt >= 5.15 || DESKTOP_APP_QT_PATCHED) && !TDESKTOP_DISABLE_DBUS_INTEGRATION
+	return false;
+#endif // (Qt < 5.15 && !DESKTOP_APP_QT_PATCHED) || TDESKTOP_DISABLE_DBUS_INTEGRATION
 }
 
 QString ProcessNameByPID(const QString &pid) {
@@ -672,20 +714,21 @@ void start() {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if(IsStaticBinary()
+	if((IsStaticBinary()
 		|| InAppImage()
 		|| InSnap()
 		|| UseGtkFileDialog()
-		|| IsQtPluginsBundled()) {
+		|| IsQtPluginsBundled())
+		&& !InFlatpak()) {
 		LOG(("Checking for XDG Desktop Portal..."));
 		// this can give us a chance to use a proper file dialog for current session
 		if (IsXDGDesktopPortalPresent()) {
 			LOG(("XDG Desktop Portal is present!"));
 			if (UseXDGDesktopPortal()) {
-				LOG(("Usage of XDG Desktop Portal is enabled."));
+				LOG(("Using XDG Desktop Portal."));
 				qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 			} else {
-				LOG(("Usage of XDG Desktop Portal is disabled."));
+				LOG(("Not using XDG Desktop Portal."));
 			}
 		} else {
 			LOG(("XDG Desktop Portal is not present :("));

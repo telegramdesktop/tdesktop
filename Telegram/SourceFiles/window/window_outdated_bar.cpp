@@ -42,11 +42,18 @@ private:
 
 };
 
+[[nodiscard]] rpl::producer<QString> OutdatedReasonPhrase() {
+	const auto why = Platform::WhySystemBecomesOutdated();
+	return (why == Platform::OutdateReason::Is32Bit)
+		? tr::lng_outdated_title_bits()
+		: tr::lng_outdated_title();
+}
+
 Bar::Bar(not_null<QWidget*> parent, QDate date)
 : _date(date)
 , _title(
 	this,
-	tr::lng_outdated_title() | Ui::Text::ToUpper(),
+	OutdatedReasonPhrase() | Ui::Text::ToUpper(),
 	st::windowOutdatedTitle)
 , _details(this,
 	QString(),
@@ -144,6 +151,7 @@ void Closed() {
 } // namespace
 
 object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
+#ifdef DESKTOP_APP_SPECIAL_TARGET
 	const auto date = Platform::WhenSystemBecomesOutdated();
 	if (date.isNull()) {
 		return { nullptr };
@@ -163,6 +171,9 @@ object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
 	}, wrap->lifetime());
 
 	return result;
+#else // DESKTOP_APP_SPECIAL_TARGET
+	return { nullptr };
+#endif // DESKTOP_APP_SPECIAL_TARGET
 }
 
 } // namespace Window

@@ -30,6 +30,7 @@ bool IsQtPluginsBundled();
 
 bool IsXDGDesktopPortalPresent();
 bool UseXDGDesktopPortal();
+bool CanOpenDirectoryWithPortal();
 
 QString ProcessNameByPID(const QString &pid);
 QString RealExecutablePath(int argc, char *argv[]);

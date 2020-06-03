@@ -1,3 +1,8 @@
+2.1.8 beta (03.06.20)
+
+- Add support for full group message history export.
+- Allow export of a single chat message history in JSON format.
+
 2.1.7 (24.05.20)
 
 - Fix the Fcitx input method plugin.

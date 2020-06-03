@@ -439,6 +439,10 @@ void Widget::updateControlsVisibility(bool fast) {
 
 void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 	_a_show.stop();
+
+	if (isHidden()) {
+		animated = anim::type::instant;
+	}
 	if (animated == anim::type::normal) {
 		_showDirection = folder
 			? Window::SlideDirection::FromRight

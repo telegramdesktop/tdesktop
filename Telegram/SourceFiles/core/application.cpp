@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "storage/localstorage.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
@@ -775,9 +776,13 @@ void Application::notifyFileDialogShown(bool shown) {
 }
 
 QWidget *Application::getModalParent() {
-	return QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)
+#ifdef Q_OS_LINUX
+	return Platform::IsWayland()
 		? App::wnd()
 		: nullptr;
+#endif // Q_OS_LINUX
+
+	return nullptr;
 }
 
 

@@ -34,6 +34,8 @@ struct CloudFile final {
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 
+	~CloudFile();
+
 	ImageLocation location;
 	std::unique_ptr<FileLoader> loader;
 	int byteSize = 0;

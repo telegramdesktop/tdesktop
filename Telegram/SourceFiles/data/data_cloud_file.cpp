@@ -16,6 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+CloudFile::~CloudFile() {
+	// Destroy loader with still alive CloudFile with already zero '.loader'.
+	// Otherwise in ~FileLoader it tries to clear file.loader and crashes.
+	base::take(loader);
+}
+
 void CloudImageView::set(
 		not_null<Main::Session*> session,
 		QImage image) {
@@ -224,7 +230,8 @@ void LoadCloudFile(
 		}
 		// NB! file.loader may be in ~FileLoader() already.
 		if (const auto loader = base::take(file.loader)) {
-			if (file.flags & CloudFile::Flag::Cancelled) {
+			if ((file.flags & CloudFile::Flag::Cancelled)
+				&& !loader->cancelled()) {
 				loader->cancel();
 			}
 		}
