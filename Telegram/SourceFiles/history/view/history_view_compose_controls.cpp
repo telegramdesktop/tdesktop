@@ -1005,6 +1005,14 @@ void ComposeControls::initWebpageProcess() {
 		return (update.peer.get() == peer);
 	}) | rpl::start_with_next(checkPreview, lifetime);
 
+	_window->session().downloaderTaskFinished(
+	) | rpl::filter([=] {
+		return (*previewData)
+			&& ((*previewData)->document || (*previewData)->photo);
+	}) | rpl::start_with_next((
+		requestRepaint
+	), lifetime);
+
 	const auto fieldLinksParser =
 		lifetime.make_state<MessageLinksParser>(_field);
 
