@@ -257,9 +257,7 @@ QByteArray SerializeMessage(
 		SerializeString(message.action.content ? "service" : "message")
 	},
 	{ "date", SerializeDate(message.date) },
-	{ "edited", SerializeDate(message.edited) },
 	};
-
 	context.nesting.push_back(Context::kObject);
 	const auto serialized = [&] {
 		context.nesting.pop_back();
@@ -273,6 +271,10 @@ QByteArray SerializeMessage(
 			values.emplace_back(key, value);
 		}
 	};
+	if (message.edited) {
+		pushBare("edited", SerializeDate(message.edited));
+	}
+
 	const auto push = [&](const QByteArray &key, const auto &value) {
 		if constexpr (std::is_arithmetic_v<std::decay_t<decltype(value)>>) {
 			pushBare(key, Data::NumberToString(value));
