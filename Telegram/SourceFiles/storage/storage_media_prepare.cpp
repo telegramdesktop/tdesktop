@@ -322,15 +322,15 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 		auto filteredFiles = ranges::view::all(
 			temp.files
 		) | ranges::view::filter([&](const auto &file) {
-			if (!isAlbum) {
-				return true;
-			}
 			const auto info = QFileInfo(file.path);
 			if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
 				if (isSingleFile) {
 					errorCallback(tr::lng_edit_media_invalid_file);
 				}
 				return false;
+			}
+			if (!isAlbum) {
+				return true;
 			}
 			using Info = FileMediaInformation;
 
