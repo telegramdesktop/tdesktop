@@ -1,3 +1,7 @@
+2.1.9 beta (04.06.20)
+
+- Several crash fixes.
+
 2.1.8 beta (03.06.20)
 
 - Add support for full group message history export.
