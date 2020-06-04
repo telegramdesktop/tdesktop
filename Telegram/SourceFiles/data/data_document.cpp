@@ -913,7 +913,7 @@ void DocumentData::save(
 		const QString &toFile,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	if (const auto media = activeMediaView(); media->loaded(true)) {
+	if (const auto media = activeMediaView(); media && media->loaded(true)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
 			if (!media->bytes().isEmpty()) {
