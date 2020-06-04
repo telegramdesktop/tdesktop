@@ -1726,8 +1726,6 @@ void HistoryWidget::showHistory(
 		cancelTypingAction();
 	}
 
-	session().data().stopPlayingVideoFiles();
-
 	clearReplyReturns();
 	if (_history) {
 		if (Ui::InFocusChain(_list)) {

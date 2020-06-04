@@ -414,21 +414,19 @@ void GroupedMedia::updateNeedBubbleState() {
 }
 
 void GroupedMedia::stopAnimation() {
-	for (auto &part : _parts) {
+	for (const auto &part : _parts) {
 		part.content->stopAnimation();
 	}
 }
 
-int GroupedMedia::checkAnimationCount() {
-	auto result = 0;
-	for (auto &part : _parts) {
-		result += part.content->checkAnimationCount();
+void GroupedMedia::checkAnimation() {
+	for (const auto &part : _parts) {
+		part.content->checkAnimation();
 	}
-	return result;
 }
 
 bool GroupedMedia::hasHeavyPart() const {
-	for (auto &part : _parts) {
+	for (const auto &part : _parts) {
 		if (part.content->hasHeavyPart()) {
 			return true;
 		}
@@ -437,7 +435,7 @@ bool GroupedMedia::hasHeavyPart() const {
 }
 
 void GroupedMedia::unloadHeavyPart() {
-	for (auto &part : _parts) {
+	for (const auto &part : _parts) {
 		part.content->unloadHeavyPart();
 	}
 }

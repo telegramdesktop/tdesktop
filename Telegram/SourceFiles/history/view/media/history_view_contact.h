@@ -59,13 +59,8 @@ public:
 	// Should be called only by Data::Session.
 	void updateSharedContactUserId(UserId userId) override;
 
-	void unloadHeavyPart() override {
-		_userpic = nullptr;
-	}
-
-	bool hasHeavyPart() const override {
-		return (_userpic != nullptr);
-	}
+	void unloadHeavyPart() override;
+	bool hasHeavyPart() const override;
 
 private:
 	QSize countOptimalSize() override;

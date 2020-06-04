@@ -3224,43 +3224,19 @@ void Session::unregisterContactItem(
 	}
 }
 
-void Session::registerPlayingVideoFile(not_null<ViewElement*> view) {
-	if (++_playingVideoFiles[view] == 1) {
-		registerHeavyViewPart(view);
-	}
-}
-
-void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
-	const auto i = _playingVideoFiles.find(view);
-	if (i != _playingVideoFiles.end()) {
-		if (!--i->second) {
-			_playingVideoFiles.erase(i);
-			view->checkHeavyPart();
-		}
-	} else {
-		view->checkHeavyPart();
-	}
-}
-
-void Session::stopPlayingVideoFiles() {
-	for (const auto &[view, count] : base::take(_playingVideoFiles)) {
+void Session::checkPlayingAnimations() {
+	auto check = base::flat_set<not_null<ViewElement*>>();
+	for (const auto view : _heavyViewParts) {
 		if (const auto media = view->media()) {
-			media->stopAnimation();
-		}
-	}
-}
-
-void Session::checkPlayingVideoFiles() {
-	const auto old = base::take(_playingVideoFiles);
-	for (const auto &[view, count] : old) {
-		if (const auto media = view->media()) {
-			if (const auto left = media->checkAnimationCount()) {
-				_playingVideoFiles.emplace(view, left);
-				registerHeavyViewPart(view);
-				continue;
+			if (const auto document = media->getDocument()) {
+				if (document->isAnimation() || document->isVideoFile()) {
+					check.emplace(view);
+				}
 			}
 		}
-		view->checkHeavyPart();
+	}
+	for (const auto view : check) {
+		view->media()->checkAnimation();
 	}
 }
 
@@ -3355,7 +3331,6 @@ void Session::registerItemView(not_null<ViewElement*> view) {
 }
 
 void Session::unregisterItemView(not_null<ViewElement*> view) {
-	Expects(!_playingVideoFiles.contains(view));
 	Expects(!_heavyViewParts.contains(view));
 
 	const auto i = _views.find(view->data());

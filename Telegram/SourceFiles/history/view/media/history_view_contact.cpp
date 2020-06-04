@@ -229,4 +229,12 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
+void Contact::unloadHeavyPart() {
+	_userpic = nullptr;
+}
+
+bool Contact::hasHeavyPart() const {
+	return (_userpic != nullptr);
+}
+
 } // namespace HistoryView

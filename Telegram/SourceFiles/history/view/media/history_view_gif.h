@@ -87,7 +87,7 @@ public:
 		StateRequest request) const override;
 
 	void stopAnimation() override;
-	int checkAnimationCount() override;
+	void checkAnimation() override;
 
 	TextWithEntities getCaption() const override {
 		return _caption.toTextWithEntities();
