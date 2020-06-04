@@ -559,7 +559,15 @@ bool AddDeleteMessageAction(
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		}
 	});
-	menu->addAction(tr::lng_context_delete_msg(tr::now), callback);
+	const auto text = [&] {
+		if (const auto message = item->toHistoryMessage()) {
+			if (message->uploading()) {
+				return tr::lng_context_cancel_upload;
+			}
+		}
+		return tr::lng_context_delete_msg;
+	}()(tr::now);
+	menu->addAction(text, callback);
 	return true;
 }
 
