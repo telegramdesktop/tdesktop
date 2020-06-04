@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/window_title.h"
+#include "window/window_title_qt.h"
 #include "window/themes/window_theme_preview.h"
 #include "base/object_ptr.h"
 
@@ -26,11 +27,15 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 #include "platform/mac/window_title_mac.h"
 #elif defined Q_OS_WIN // Q_OS_MAC
 #include "platform/win/window_title_win.h"
-#elif defined Q_OS_WINRT || defined Q_OS_UNIX // Q_OS_MAC || Q_OS_WIN
+#else // Q_OS_MAC || Q_OS_WIN
 
 namespace Platform {
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+	return object_ptr<Window::TitleWidgetQt>(parent);
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+
 	return { nullptr };
 }
 
@@ -44,4 +49,4 @@ inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palet
 
 } // namespace Platform
 
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_WINRT || Q_OS_UNIX
+#endif // Q_OS_MAC || Q_OS_WIN

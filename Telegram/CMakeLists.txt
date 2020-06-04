@@ -1020,6 +1020,8 @@ PRIVATE
     window/window_session_controller.h
     window/window_slide_animation.cpp
     window/window_slide_animation.h
+    window/window_title_qt.cpp
+    window/window_title_qt.h
     window/window_title.h
     window/window_top_bar_wrap.h
     window/themes/window_theme.cpp
