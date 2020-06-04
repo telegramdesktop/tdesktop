@@ -65,6 +65,8 @@ StreamedFileDownloader::StreamedFileDownloader(
 StreamedFileDownloader::~StreamedFileDownloader() {
 	if (!_finished) {
 		cancel();
+	} else {
+		_reader->cancelForDownloader(this);
 	}
 }
 

@@ -847,6 +847,9 @@ void Pip::setupPanel() {
 			return _instance.info().video.size;
 		}
 		const auto media = _data->activeMediaView();
+		if (media) {
+			media->goodThumbnailWanted();
+		}
 		const auto good = media ? media->goodThumbnail() : nullptr;
 		const auto original = good ? good->size() : _data->dimensions;
 		return original.isEmpty() ? QSize(1, 1) : original;
@@ -1387,6 +1390,9 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		: _data->inlineThumbnailBytes().isEmpty()
 		? nullptr
 		: _data->createMediaView();
+	if (use) {
+		use->goodThumbnailWanted();
+	}
 	const auto good = use ? use->goodThumbnail() : nullptr;
 	const auto thumb = use ? use->thumbnail() : nullptr;
 	const auto blurred = use ? use->thumbnailInline() : nullptr;

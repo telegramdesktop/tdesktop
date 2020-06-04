@@ -88,7 +88,7 @@ public:
 	}
 
 	void stopAnimation() override;
-	int checkAnimationCount() override;
+	void checkAnimation() override;
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 

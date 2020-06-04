@@ -141,8 +141,7 @@ public:
 	}
 	virtual void clearStickerLoopPlayed() {
 	}
-	virtual int checkAnimationCount() {
-		return 0;
+	virtual void checkAnimation() {
 	}
 
 	[[nodiscard]] virtual QSize sizeForGrouping() const {

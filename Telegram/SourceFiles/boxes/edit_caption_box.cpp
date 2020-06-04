@@ -72,31 +72,21 @@ EditCaptionBox::EditCaptionBox(
 	_isAllowedEditMedia = item->media()->allowsEditMedia();
 	_isAlbum = !item->groupId().empty();
 
-	QSize dimensions;
-	auto image = (Image*)nullptr;
-
+	auto dimensions = QSize();
 	const auto media = item->media();
 	if (const auto photo = media->photo()) {
 		_photoMedia = photo->createMediaView();
 		_photoMedia->wanted(PhotoSize::Large, _msgId);
-		image = _photoMedia->image(PhotoSize::Large);
-		if (!image) {
-			image = _photoMedia->image(PhotoSize::Thumbnail);
-			if (!image) {
-				image = _photoMedia->image(PhotoSize::Small);
-				if (!image) {
-					image = _photoMedia->thumbnailInline();
-				}
-			}
-		}
 		dimensions = _photoMedia->size(PhotoSize::Large);
+		if (dimensions.isEmpty()) {
+			dimensions = QSize(1, 1);
+		}
 		_photo = true;
 	} else if (const auto document = media->document()) {
 		_documentMedia = document->createMediaView();
 		_documentMedia->thumbnailWanted(_msgId);
-		image = _documentMedia->thumbnail();
-		dimensions = image
-			? image->size()
+		dimensions = _documentMedia->thumbnail()
+			? _documentMedia->thumbnail()->size()
 			: document->dimensions;
 		if (document->isAnimation()) {
 			_gifw = style::ConvertScale(document->dimensions.width());
@@ -107,24 +97,42 @@ EditCaptionBox::EditCaptionBox(
 		} else {
 			_doc = true;
 		}
+	} else {
+		Unexpected("Photo or document should be set.");
 	}
 	const auto editData = PrepareEditText(item);
 
-	if (!_animated
-		&& (dimensions.isEmpty()
-			|| _documentMedia
-			|| (!_photoMedia && !image))) {
-		if (!image) {
-			_thumbw = 0;
+	const auto computeImage = [=] {
+		if (_documentMedia) {
+			return _documentMedia->thumbnail();
+		} else if (const auto large = _photoMedia->image(PhotoSize::Large)) {
+			return large;
+		} else if (const auto thumbnail = _photoMedia->image(
+				PhotoSize::Thumbnail)) {
+			return thumbnail;
+		} else if (const auto small = _photoMedia->image(PhotoSize::Small)) {
+			return small;
 		} else {
-			const auto tw = image->width(), th = image->height();
+			return _photoMedia->thumbnailInline();
+		}
+	};
+
+	if (!_animated && _documentMedia) {
+		if (dimensions.isEmpty()) {
+			_thumbw = 0;
+			_thumbnailImageLoaded = true;
+		} else {
+			const auto tw = dimensions.width(), th = dimensions.height();
 			if (tw > th) {
 				_thumbw = (tw * st::msgFileThumbSize) / th;
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
+				const auto image = computeImage();
+				if (!image) {
+					return;
+				}
 				const auto options = Images::Option::Smooth
 					| Images::Option::RoundedSmall
 					| Images::Option::RoundedTopLeft
@@ -138,7 +146,9 @@ EditCaptionBox::EditCaptionBox(
 					options,
 					st::msgFileThumbSize,
 					st::msgFileThumbSize));
+				_thumbnailImageLoaded = true;
 			};
+			_refreshThumbnail();
 		}
 
 		if (_documentMedia) {
@@ -151,13 +161,7 @@ EditCaptionBox::EditCaptionBox(
 			_isAudio = document->isVoiceMessage()
 				|| document->isAudioFile();
 		}
-		if (_refreshThumbnail) {
-			_refreshThumbnail();
-		}
 	} else {
-		if (!image && !_photoMedia) {
-			image = Image::BlankMedia();
-		}
 		auto maxW = 0, maxH = 0;
 		const auto limitW = st::sendMediaPreviewSize;
 		auto limitH = std::min(st::confirmMaxHeight, _gifh ? _gifh : INT_MAX);
@@ -175,35 +179,38 @@ EditCaptionBox::EditCaptionBox(
 					maxH = limitH;
 				}
 			}
-			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
+				const auto image = computeImage();
+				const auto use = image ? image : Image::BlankMedia().get();
 				const auto options = Images::Option::Smooth
 					| Images::Option::Blurred;
-				_thumb = image->pixNoCache(
+				_thumb = use->pixNoCache(
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
 					options,
 					maxW,
 					maxH);
+				_thumbnailImageLoaded = true;
 			};
 			prepareStreamedPreview();
 		} else {
+			Assert(_photoMedia != nullptr);
+
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumbnailImage = image;
 			_refreshThumbnail = [=] {
-				const auto photo = _photoMedia
-					? _photoMedia->image(Data::PhotoSize::Large)
-					: nullptr;
+				const auto image = computeImage();
+				const auto photo = _photoMedia->image(Data::PhotoSize::Large);
 				const auto use = photo
 					? photo
-					:  _thumbnailImage
-					? _thumbnailImage
+					: image
+					? image
 					: Image::BlankMedia().get();
 				const auto options = Images::Option::Smooth
-					| ((_photoMedia && !photo)
-						? Images::Option::Blurred
-						: Images::Option(0));
+					| (photo
+						? Images::Option(0)
+						: Images::Option::Blurred);
+				_thumbnailImageLoaded = (photo != nullptr);
 				_thumb = use->pixNoCache(
 					maxW * cIntRetinaFactor(),
 					maxH * cIntRetinaFactor(),
@@ -276,35 +283,17 @@ EditCaptionBox::EditCaptionBox(
 		scaleThumbDown();
 	}
 	Assert(_animated || _photo || _doc);
+	Assert(_thumbnailImageLoaded || _refreshThumbnail);
 
-	_thumbnailImageLoaded = _photoMedia
-		? (_photoMedia->image(Data::PhotoSize::Large) != nullptr)
-		: _thumbnailImage
-		? true
-		: _documentMedia
-		? !_documentMedia->owner()->hasThumbnail()
-		: true;
 	if (!_thumbnailImageLoaded) {
 		subscribe(_controller->session().downloaderTaskFinished(), [=] {
-			if (_thumbnailImageLoaded) {
+			if (_thumbnailImageLoaded
+				|| (_photoMedia && !_photoMedia->image(PhotoSize::Large))
+				|| (_documentMedia && !_documentMedia->thumbnail())) {
 				return;
-			} else if (!_thumbnailImage
-				&& _photoMedia
-				&& _photoMedia->image(PhotoSize::Large)) {
-				_thumbnailImage = _photoMedia->image(PhotoSize::Large);
-			} else if (!_thumbnailImage
-				&& _documentMedia
-				&& _documentMedia->owner()->hasThumbnail()) {
-				_thumbnailImage = _documentMedia->thumbnail();
 			}
-			if (_thumbnailImage) {
-				_thumbnailImageLoaded = !_photoMedia
-					|| _photoMedia->image(PhotoSize::Large);
-				if (_thumbnailImageLoaded) {
-					_refreshThumbnail();
-					update();
-				}
-			}
+			_refreshThumbnail();
+			update();
 		});
 	}
 	_field.create(

@@ -1921,20 +1921,28 @@ void StickersBox::Inner::readVisibleSets() {
 	int rowFrom = floorclamp(itemsVisibleTop, _rowHeight, 0, _rows.size());
 	int rowTo = ceilclamp(itemsVisibleBottom, _rowHeight, 0, _rows.size());
 	for (int i = rowFrom; i < rowTo; ++i) {
-		if (!_rows[i]->unread) {
+		const auto row = _rows[i].get();
+		if (!row->unread) {
 			continue;
 		}
-		if (i * _rowHeight < itemsVisibleTop || (i + 1) * _rowHeight > itemsVisibleBottom) {
+		if ((i * _rowHeight < itemsVisibleTop)
+			|| ((i + 1) * _rowHeight > itemsVisibleBottom)) {
 			continue;
 		}
-		const auto thumbnailLoading = _rows[i]->set->hasThumbnail()
-			? _rows[i]->set->thumbnailLoading()
-			: _rows[i]->sticker
-			? ((_rows[i]->stickerMedia && _rows[i]->stickerMedia->loaded())
-				|| _rows[i]->sticker->thumbnailLoading())
+		const auto thumbnailLoading = row->set->hasThumbnail()
+			? row->set->thumbnailLoading()
+			: row->sticker
+			? row->sticker->thumbnailLoading()
 			: false;
-		if (!thumbnailLoading || _rows[i]->stickerMedia->loaded()) {
-			_session->api().readFeaturedSetDelayed(_rows[i]->set->id);
+		const auto thumbnailLoaded = row->set->hasThumbnail()
+			? (row->thumbnailMedia
+				&& (row->thumbnailMedia->image()
+					|| !row->thumbnailMedia->content().isEmpty()))
+			: row->sticker
+			? (row->stickerMedia && row->stickerMedia->loaded())
+			: true;
+		if (!thumbnailLoading || thumbnailLoaded) {
+			_session->api().readFeaturedSetDelayed(row->set->id);
 		}
 	}
 }

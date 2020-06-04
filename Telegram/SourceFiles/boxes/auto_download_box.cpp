@@ -216,11 +216,11 @@ void AutoDownloadBox::setupContent() {
 			_session->data().photoLoadSettingsChanged();
 		}
 		if (ranges::find_if(allowMoreTypes, _1 != Type::Photo)
-			!= allowMoreTypes.end()) {
+				!= allowMoreTypes.end()) {
 			_session->data().documentLoadSettingsChanged();
 		}
 		if (less) {
-			_session->data().checkPlayingVideoFiles();
+			_session->data().checkPlayingAnimations();
 		}
 		closeBox();
 	});

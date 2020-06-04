@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using namespace Ui::Text;
+
 using EditLinkAction = Ui::InputField::EditLinkAction;
 using EditLinkSelection = Ui::InputField::EditLinkSelection;
 
@@ -298,7 +300,7 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 		if (code != ' '
 			&& code != '\n'
 			&& code != '\r'
-			&& !chReplacedBySpace(code)) {
+			&& !IsReplacedBySpace(code)) {
 			return true;
 		}
 	}
@@ -585,13 +587,14 @@ void MessageLinksParser::parse() {
 		const QChar *domainEnd = start + m.capturedEnd(), *p = domainEnd;
 		for (; p < end; ++p) {
 			QChar ch(*p);
-			if (chIsLinkEnd(ch)) break; // link finished
-			if (chIsAlmostLinkEnd(ch)) {
+			if (IsLinkEnd(ch)) {
+				break; // link finished
+			} else if (IsAlmostLinkEnd(ch)) {
 				const QChar *endTest = p + 1;
-				while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
+				while (endTest < end && IsAlmostLinkEnd(*endTest)) {
 					++endTest;
 				}
-				if (endTest >= end || chIsLinkEnd(*endTest)) {
+				if (endTest >= end || IsLinkEnd(*endTest)) {
 					break; // link finished at p
 				}
 				p = endTest;

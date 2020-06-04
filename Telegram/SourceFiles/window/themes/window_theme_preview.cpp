@@ -41,7 +41,7 @@ QString fillLetters(const QString &name) {
 			}
 		} else if (!letterFound && ch->isLetterOrNumber()) {
 			letterFound = true;
-			if (ch + 1 != end && chIsDiac(*(ch + 1))) {
+			if (ch + 1 != end && Ui::Text::IsDiac(*(ch + 1))) {
 				letters.push_back(QString(ch, 2));
 				levels.push_back(level);
 				++ch;

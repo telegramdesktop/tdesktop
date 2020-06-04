@@ -58,12 +58,8 @@ public:
 		return isBubbleBottom();
 	}
 
-	void unloadHeavyPart() override {
-		_media = nullptr;
-	}
-	bool hasHeavyPart() const override {
-		return (_media != nullptr);
-	}
+	void unloadHeavyPart() override;
+	bool hasHeavyPart() const override;
 
 private:
 	void ensureMediaCreated() const;
