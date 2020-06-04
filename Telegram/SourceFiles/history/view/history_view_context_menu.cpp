@@ -86,7 +86,7 @@ bool HasEditScheduledMessageAction(const ContextMenuRequest &request) {
 	}
 	const auto peer = item->history()->peer;
 	if (const auto channel = peer->asChannel()) {
-		if (!channel->canEditMessages()) {
+		if (!channel->isMegagroup() && !channel->canEditMessages()) {
 			return false;
 		}
 	}

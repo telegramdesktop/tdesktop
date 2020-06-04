@@ -7,33 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_compose_controls.h"
 
-#include "base/unixtime.h"
-#include "data/data_messages.h"
-#include "data/data_web_page.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/special_buttons.h"
-#include "ui/text_options.h"
-#include "ui/ui_utility.h"
-#include "lang/lang_keys.h"
 #include "base/event_filter.h"
-#include "base/call_delayed.h"
 #include "base/qt_signal_producer.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "history/view/history_view_webpage_preview.h"
-#include "main/main_session.h"
-#include "data/data_session.h"
+#include "base/unixtime.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
-#include "chat_helpers/message_field.h"
-#include "chat_helpers/emoji_suggestions_widget.h"
-#include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "inline_bots/inline_results_widget.h"
+#include "data/data_changes.h"
+#include "data/data_messages.h"
+#include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "facades.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/view/history_view_webpage_preview.h"
+#include "inline_bots/inline_results_widget.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "styles/style_history.h"
+#include "ui/special_buttons.h"
+#include "ui/text_options.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/input_fields.h"
+#include "window/window_session_controller.h"
 
 namespace HistoryView {
 
@@ -859,6 +859,7 @@ void ComposeControls::cancelEditMessage() {
 }
 
 void ComposeControls::initWebpageProcess() {
+	Expects(_history);
 	const auto peer = _history->peer;
 	auto &lifetime = _wrap->lifetime();
 	const auto requestRepaint = crl::guard(_header.get(), [=] {
@@ -886,7 +887,6 @@ void ComposeControls::initWebpageProcess() {
 		auto t = QString();
 		auto d = QString();
 		if (ShowWebPagePreview(*previewData)) {
-//			updateMouseTracking();
 			if (const auto till = (*previewData)->pendingTill) {
 				t = tr::lng_preview_loading(tr::now);
 				d = (*previewLinks).splitRef(' ').at(0).toString();
@@ -989,6 +989,12 @@ void ComposeControls::initWebpageProcess() {
 		}
 		getWebPagePreview();
 	});
+
+	_window->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == peer);
+	}) | rpl::start_with_next(checkPreview, lifetime);
 
 	const auto fieldLinksParser =
 		lifetime.make_state<MessageLinksParser>(_field);
