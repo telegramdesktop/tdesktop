@@ -285,6 +285,12 @@ ListWidget::ListWidget(
 			}
 		}
 	}, lifetime());
+
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
