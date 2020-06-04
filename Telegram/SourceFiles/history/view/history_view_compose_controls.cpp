@@ -460,6 +460,15 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }
 
+rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
+	return _wrap->events(
+	) | rpl::map([=](not_null<QEvent*> e) -> not_null<QKeyEvent*> {
+		return static_cast<QKeyEvent*>(e.get());
+	}) | rpl::filter([=](not_null<QEvent*> event) {
+		return (event->type() == QEvent::KeyPress);
+	});
+}
+
 rpl::producer<> ComposeControls::sendRequests() const {
 	auto filter = rpl::filter([=] {
 		return _send->type() == Ui::SendButton::Type::Schedule;
@@ -1025,6 +1034,10 @@ rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
 			}
 			return {};
 		});
+}
+
+bool ComposeControls::isEditingMessage() const {
+	return _header->isEditingMessage();
 }
 
 } // namespace HistoryView

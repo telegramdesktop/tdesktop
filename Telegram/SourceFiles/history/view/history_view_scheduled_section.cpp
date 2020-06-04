@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
+#include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -134,8 +135,17 @@ ScheduledWidget::ScheduledWidget(
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
 	_inner->editMessageRequested(
-	) | rpl::start_with_next([=](auto id) {
-		_composeControls->editMessage(id);
+	) | rpl::start_with_next([=](auto fullId) {
+		if (const auto item = session().data().message(fullId)) {
+			const auto media = item->media();
+			if (media && !media->webpage()) {
+				if (media->allowsEditCaption()) {
+					Ui::show(Box<EditCaptionBox>(controller, item));
+				}
+			} else {
+				_composeControls->editMessage(fullId);
+			}
+		}
 	}, _inner->lifetime());
 
 	setupScrollDownButton();
@@ -205,6 +215,26 @@ void ScheduledWidget::setupComposeControls() {
 	_composeControls->scrollRequests(
 	) | rpl::start_with_next([=](Data::MessagePosition pos) {
 		showAtPosition(pos);
+	}, lifetime());
+
+	_composeControls->keyEvents(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		if (e->key() == Qt::Key_Up) {
+			if (!_composeControls->isEditingMessage()) {
+				auto &messages = session().data().scheduledMessages();
+				if (const auto item = messages.lastSentMessage(_history)) {
+					_inner->editMessageRequestNotify(item->fullId());
+				} else {
+					_scroll->keyPressEvent(e);
+				}
+			} else {
+				_scroll->keyPressEvent(e);
+			}
+			e->accept();
+		} else if (e->key() == Qt::Key_Down) {
+			_scroll->keyPressEvent(e);
+			e->accept();
+		}
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](

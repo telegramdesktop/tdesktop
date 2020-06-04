@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/confirm_box.h"
-#include "boxes/edit_caption_box.h"
 #include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -477,16 +476,7 @@ bool AddEditMessageAction(
 		if (!item) {
 			return;
 		}
-		const auto media = item->media();
-		if (media && !media->webpage()) {
-			if (media->allowsEditCaption()) {
-				Ui::show(Box<EditCaptionBox>(
-					App::wnd()->sessionController(),
-					item));
-			}
-		} else {
-			list->editMessageRequestNotify(item->fullId());
-		}
+		list->editMessageRequestNotify(item->fullId());
 	});
 	return true;
 }

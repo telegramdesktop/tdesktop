@@ -527,4 +527,19 @@ int32 ScheduledMessages::countListHash(const List &list) const {
 	return HashFinalize(hash);
 }
 
+HistoryItem *ScheduledMessages::lastSentMessage(not_null<History*> history) {
+	const auto i = _data.find(history);
+	if (i == end(_data)) {
+		return nullptr;
+	}
+	auto &list = i->second;
+
+	sort(list);
+	const auto items = ranges::view::reverse(list.items);
+	const auto it = ranges::find_if(
+		items,
+		&HistoryItem::canBeEditedFromHistory);
+	return (it == end(items)) ? nullptr : (*it).get();
+}
+
 } // namespace Data

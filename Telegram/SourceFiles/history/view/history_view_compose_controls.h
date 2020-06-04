@@ -88,6 +88,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
 	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
 	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
+	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
 
@@ -100,6 +101,8 @@ public:
 		not_null<PeerData*> peer,
 		const Window::SectionShow &params);
 	bool returnTabbedSelector();
+
+	bool isEditingMessage() const;
 
 	void showForGrab();
 	void showStarted();
