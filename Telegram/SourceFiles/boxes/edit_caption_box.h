@@ -108,7 +108,6 @@ private:
 	FullMsgId _msgId;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
-	Image *_thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;
 	Fn<void()> _refreshThumbnail;
 	bool _animated = false;
