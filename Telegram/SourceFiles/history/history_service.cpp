@@ -35,7 +35,7 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 QString GenerateServiceTime(TimeId date) {
 	if (date > 0) {
-		return qs(" ") + base::unixtime::parse(date).toString(cTimeFormat());
+		return qs(" (") + base::unixtime::parse(date).toString(cTimeFormat()) + qs(")");
 	}
 	return QString();
 }
