@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
+class ChannelData;
+
+namespace Main {
+class Session;
+} // namespace Main
+
 enum class WebPageType {
 	Photo,
 	Video,
@@ -49,6 +55,11 @@ struct WebPageData {
 		int newDuration,
 		const QString &newAuthor,
 		int newPendingTill);
+
+	static void ApplyChanges(
+		not_null<Main::Session*> session,
+		ChannelData *channel,
+		const MTPmessages_Messages &result);
 
 	WebPageId id = 0;
 	WebPageType type = WebPageType::Article;

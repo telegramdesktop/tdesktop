@@ -2633,7 +2633,9 @@ void ApiWrap::resolveWebPages() {
 	if (!ids.isEmpty()) {
 		requestId = request(MTPmessages_GetMessages(
 			MTP_vector<MTPInputMessage>(ids)
-		)).done([=](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		)).done([=](
+				const MTPmessages_Messages &result,
+				mtpRequestId requestId) {
 			gotWebPages(nullptr, result, requestId);
 		}).afterDelay(kSmallDelayMs).send();
 	}
@@ -2642,7 +2644,9 @@ void ApiWrap::resolveWebPages() {
 		reqsByIndex[i.value().first] = request(MTPchannels_GetMessages(
 			i.key()->inputChannel,
 			MTP_vector<MTPInputMessage>(i.value().second)
-		)).done([=, channel = i.key()](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		)).done([=, channel = i.key()](
+				const MTPmessages_Messages &result,
+				mtpRequestId requestId) {
 			gotWebPages(channel, result, requestId);
 		}).afterDelay(kSmallDelayMs).send();
 	}
@@ -2957,58 +2961,8 @@ void ApiWrap::refreshFileReference(
 	});
 }
 
-void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
-	const QVector<MTPMessage> *v = 0;
-	switch (msgs.type()) {
-	case mtpc_messages_messages: {
-		auto &d = msgs.c_messages_messages();
-		_session->data().processUsers(d.vusers());
-		_session->data().processChats(d.vchats());
-		v = &d.vmessages().v;
-	} break;
-
-	case mtpc_messages_messagesSlice: {
-		auto &d = msgs.c_messages_messagesSlice();
-		_session->data().processUsers(d.vusers());
-		_session->data().processChats(d.vchats());
-		v = &d.vmessages().v;
-	} break;
-
-	case mtpc_messages_channelMessages: {
-		auto &d = msgs.c_messages_channelMessages();
-		if (channel) {
-			channel->ptsReceived(d.vpts().v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotWebPages)"));
-		}
-		_session->data().processUsers(d.vusers());
-		_session->data().processChats(d.vchats());
-		v = &d.vmessages().v;
-	} break;
-
-	case mtpc_messages_messagesNotModified: {
-		LOG(("API Error: received messages.messagesNotModified! (ApiWrap::gotWebPages)"));
-	} break;
-	}
-
-	if (!v) return;
-
-	auto indices = base::flat_map<uint64, int>(); // copied from feedMsgs
-	for (auto i = 0, l = v->size(); i != l; ++i) {
-		const auto msgId = IdFromMessage(v->at(i));
-		indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
-	}
-
-	for (const auto &[position, index] : indices) {
-		const auto item = _session->data().addNewMessage(
-			v->at(index),
-			MTPDmessage_ClientFlags(),
-			NewMessageType::Existing);
-		if (item) {
-			_session->data().requestItemResize(item);
-		}
-	}
-
+void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req) {
+	WebPageData::ApplyChanges(&session(), channel, result);
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i.value() == req) {
 			if (i.key()->pendingTill > 0) {
