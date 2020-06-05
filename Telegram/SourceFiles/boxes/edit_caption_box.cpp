@@ -192,7 +192,6 @@ EditCaptionBox::EditCaptionBox(
 					maxH);
 				_thumbnailImageLoaded = true;
 			};
-			prepareStreamedPreview();
 		} else {
 			Assert(_photoMedia != nullptr);
 
@@ -328,6 +327,10 @@ EditCaptionBox::EditCaptionBox(
 	) | rpl::start_with_next([&](bool checked) {
 		_asFile = checked;
 	}, _wayWrap->lifetime());
+
+	if (_animated) {
+		prepareStreamedPreview();
+	}
 }
 
 EditCaptionBox::~EditCaptionBox() = default;

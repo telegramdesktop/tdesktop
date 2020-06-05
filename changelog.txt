@@ -1,3 +1,9 @@
+2.1.10 (05.06.20)
+
+- Improve memory usage.
+- Add support for full group message history export.
+- Allow export of a single chat message history in JSON format.
+
 2.1.9 beta (04.06.20)
 
 - Several crash fixes.

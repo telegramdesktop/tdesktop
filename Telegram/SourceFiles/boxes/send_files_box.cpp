@@ -1831,11 +1831,7 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(
-		(_sendType == Api::SendType::Normal
-			? tr::lng_send_button()
-			: tr::lng_schedule_button()),
-		[=] { send({}); });
+	_send = addButton(tr::lng_send_button(), [=] { send({}); });
 	if (_sendType == Api::SendType::Normal) {
 		SetupSendMenuAndShortcuts(
 			_send,
@@ -1853,9 +1849,8 @@ void SendFilesBox::prepare() {
 		}
 	}, lifetime());
 
-	const auto title = tr::lng_stickers_featured_add(tr::now) + qsl("...");
 	_addFileToAlbum = addLeftButton(
-		rpl::single(title),
+		tr::lng_stickers_featured_add(),
 		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
 			openDialogToAddFileToAlbum();
 		}));
