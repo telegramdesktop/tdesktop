@@ -169,6 +169,7 @@ private:
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void restartAtSeekPosition(crl::time position);
 
+	[[nodiscard]] bool canUseVideoFrame() const;
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
 	[[nodiscard]] QImage videoFrameForDirectPaint(
 		const FrameRequest &request) const;

@@ -1152,7 +1152,7 @@ void Pip::paint(QPainter &p, FrameRequest request) {
 	} else {
 		p.drawImage(rect, RotateFrameImage(image, _rotation));
 	}
-	if (_instance.player().ready()) {
+	if (canUseVideoFrame()) {
 		_instance.markFrameShown();
 	}
 	paintRadialLoading(p);
@@ -1377,8 +1377,13 @@ void Pip::restartAtSeekPosition(crl::time position) {
 	updatePlaybackState();
 }
 
+bool Pip::canUseVideoFrame() const {
+	return _instance.player().ready()
+		&& !_instance.info().video.cover.isNull();
+}
+
 QImage Pip::videoFrame(const FrameRequest &request) const {
-	if (_instance.player().ready()) {
+	if (canUseVideoFrame()) {
 		_preparedCoverStorage = QImage();
 		return _instance.frame(request);
 	}
