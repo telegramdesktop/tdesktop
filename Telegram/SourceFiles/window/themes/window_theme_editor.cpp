@@ -702,20 +702,20 @@ void Editor::showMenu() {
 	if (_menu) {
 		return;
 	}
-	_menu.create(this);
-	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
+	_menu = base::make_unique_q<Ui::DropdownMenu>(this);
+	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.get()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;
 			weak->_menuToggle->setForceRippled(false);
 		}
 	});
-	_menu->setShowStartCallback(crl::guard(this, [this, menu = _menu.data()]{
+	_menu->setShowStartCallback(crl::guard(this, [this, menu = _menu.get()]{
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(true);
 		}
 	}));
-	_menu->setHideStartCallback(crl::guard(this, [this, menu = _menu.data()]{
+	_menu->setHideStartCallback(crl::guard(this, [this, menu = _menu.get()]{
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(false);
 		}

@@ -80,7 +80,7 @@ private:
 	QPointer<Inner> _inner;
 	object_ptr<Ui::CrossButton> _close;
 	object_ptr<Ui::IconButton> _menuToggle;
-	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
+	base::unique_qptr<Ui::DropdownMenu> _menu;
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::PlainShadow> _leftShadow;
 	object_ptr<Ui::PlainShadow> _topShadow;
