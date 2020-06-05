@@ -383,7 +383,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
+          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
           cd wayland
           ./autogen.sh \
           --enable-static \

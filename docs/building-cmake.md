@@ -212,7 +212,7 @@ Go to ***BuildPath*** and run
     sudo make install_sw
     cd ..
 
-    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
+    git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
     cd wayland
     ./autogen.sh \
     --enable-static \
