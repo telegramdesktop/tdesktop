@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_calls.h"
 
+#include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 
@@ -553,9 +554,13 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 		st::separatePanelTitleHeight);
 	if (e->button() == Qt::LeftButton) {
 		if (dragArea.contains(e->pos())) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+			windowHandle()->startSystemMove();
+#else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
 			_dragging = true;
 			_dragStartMousePosition = e->globalPos();
 			_dragStartMyPosition = QPoint(x(), y());
+#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 		} else if (!rect().contains(e->pos()) && _hideOnDeactivate) {
 			LOG(("Export Info: Panel Hide On Click."));
 			hideGetDuration();
@@ -564,6 +569,7 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 }
 
 void SeparatePanel::mouseMoveEvent(QMouseEvent *e) {
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	if (_dragging) {
 		if (!(e->buttons() & Qt::LeftButton)) {
 			_dragging = false;
@@ -572,12 +578,15 @@ void SeparatePanel::mouseMoveEvent(QMouseEvent *e) {
 				+ (e->globalPos() - _dragStartMousePosition));
 		}
 	}
+#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 }
 
 void SeparatePanel::mouseReleaseEvent(QMouseEvent *e) {
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	if (e->button() == Qt::LeftButton) {
 		_dragging = false;
 	}
+#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 }
 
 void SeparatePanel::leaveEventHook(QEvent *e) {
