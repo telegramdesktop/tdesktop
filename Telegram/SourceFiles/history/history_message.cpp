@@ -555,7 +555,7 @@ HistoryMessage::HistoryMessage(
 	const auto fwdViewsCount = original->viewsCount();
 	if (fwdViewsCount > 0) {
 		config.viewsCount = fwdViewsCount;
-	} else if (isPost()
+	} else if ((isPost() && !isScheduled())
 		|| (original->senderOriginal()
 			&& original->senderOriginal()->isChannel())) {
 		config.viewsCount = 1;
