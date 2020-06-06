@@ -176,11 +176,12 @@ void ScheduledWidget::setupComposeControls() {
 		send();
 	}, lifetime());
 
+	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
 	_composeControls->editRequests(
 	) | rpl::start_with_next([=](auto data) {
 		if (const auto item = session().data().message(data.fullId)) {
 			if (item->isScheduled()) {
-				edit(item, data.options);
+				edit(item, data.options, saveEditMsgRequestId);
 			}
 		}
 	}, lifetime());
@@ -555,8 +556,11 @@ void ScheduledWidget::send(Api::SendOptions options) {
 
 void ScheduledWidget::edit(
 		not_null<HistoryItem*> item,
-		Api::SendOptions options) {
-
+		Api::SendOptions options,
+		mtpRequestId *const saveEditMsgRequestId) {
+	if (*saveEditMsgRequestId) {
+		return;
+	}
 	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	const auto prepareFlags = Ui::ItemTextOptions(
 		_history,
@@ -579,7 +583,12 @@ void ScheduledWidget::edit(
 		return;
 	}
 
-	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
+	lifetime().add([=] {
+		if (!*saveEditMsgRequestId) {
+			return;
+		}
+		session().api().request(base::take(*saveEditMsgRequestId)).cancel();
+	});
 
 	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
 		if (requestId == *saveEditMsgRequestId) {

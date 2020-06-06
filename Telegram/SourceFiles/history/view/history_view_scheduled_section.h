@@ -143,7 +143,8 @@ private:
 	void send(Api::SendOptions options);
 	void edit(
 		not_null<HistoryItem*> item,
-		Api::SendOptions options);
+		Api::SendOptions options,
+		mtpRequestId *const saveEditMsgRequestId);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
 	[[nodiscard]] SendMenuType sendMenuType() const;
