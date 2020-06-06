@@ -468,7 +468,6 @@ private:
 
 	Ui::PopupMenu *_menu = nullptr;
 	object_ptr<Ui::DropdownMenu> _dropdown;
-	object_ptr<QTimer> _dropdownShowTimer;
 
 	struct ActionData {
 		QString text;

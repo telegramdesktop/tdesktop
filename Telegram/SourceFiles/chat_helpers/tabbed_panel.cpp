@@ -231,10 +231,6 @@ void TabbedPanel::leaveEventHook(QEvent *e) {
 	return TWidget::leaveEventHook(e);
 }
 
-void TabbedPanel::otherEnter() {
-	showAnimated();
-}
-
 void TabbedPanel::otherLeave() {
 	if (preventAutoHide()) {
 		return;
@@ -402,9 +398,7 @@ void TabbedPanel::showStarted() {
 }
 
 bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
-	if (e->type() == QEvent::Enter) {
-		otherEnter();
-	} else if (e->type() == QEvent::Leave) {
+	if (e->type() == QEvent::Leave) {
 		otherLeave();
 	}
 	return false;

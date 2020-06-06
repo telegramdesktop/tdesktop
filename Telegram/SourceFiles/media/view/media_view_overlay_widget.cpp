@@ -296,8 +296,7 @@ OverlayWidget::OverlayWidget()
 , _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
-, _dropdown(this, st::mediaviewDropdownMenu)
-, _dropdownShowTimer(this) {
+, _dropdown(this, st::mediaviewDropdownMenu) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	_lastPositiveVolume = (Global::VideoVolume() > 0.)
@@ -388,8 +387,6 @@ OverlayWidget::OverlayWidget()
 	_docCancel->addClickHandler([=] { onSaveCancel(); });
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
-	_dropdownShowTimer->setSingleShot(true);
-	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
 }
 
 void OverlayWidget::refreshLang() {
@@ -3616,11 +3613,6 @@ void OverlayWidget::updateOverRect(OverState state) {
 bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
-		if (newState == OverMore && !_ignoringDropdown) {
-			_dropdownShowTimer->start(0);
-		} else {
-			_dropdownShowTimer->stop();
-		}
 		updateOverRect(_over);
 		updateOverRect(newState);
 		if (_over != OverNone) {

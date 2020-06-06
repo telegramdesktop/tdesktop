@@ -227,8 +227,13 @@ void ComposeControls::initTabbedSelector() {
 		setTabbedPanel(nullptr);
 	}
 
-	_tabbedSelectorToggle->addClickHandler([=] {
-		toggleTabbedSelectorMode();
+	_tabbedSelectorToggle->setAcceptBoth();
+	_tabbedSelectorToggle->addClickHandler([=](Qt::MouseButton mod) {
+		if (mod == Qt::LeftButton) {
+			_tabbedPanel->toggleAnimated();
+		} else if (mod == Qt::RightButton) {
+			toggleTabbedSelectorMode();
+		}
 	});
 
 	const auto selector = _window->tabbedSelector();

@@ -60,7 +60,6 @@ public:
 protected:
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
-	void otherEnter();
 	void otherLeave();
 
 	void paintEvent(QPaintEvent *e) override;
