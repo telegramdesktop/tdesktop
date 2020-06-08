@@ -199,6 +199,10 @@ public:
 	rpl::producer<bool> lockChanges() const;
 	rpl::producer<bool> lockValue() const;
 
+	void checkAutoLock();
+	void checkAutoLockIn(crl::time time);
+	void localPasscodeChanged();
+
 	[[nodiscard]] crl::time lastNonIdleTime() const;
 	void updateNonIdle();
 
@@ -287,6 +291,9 @@ private:
 	rpl::variable<bool> _passcodeLock;
 	rpl::event_stream<bool> _termsLockChanges;
 	std::unique_ptr<Window::TermsLock> _termsLock;
+
+	crl::time _shouldLockAt = 0;
+	base::Timer _autoLockTimer;
 
 	base::Timer _saveSettingsTimer;
 

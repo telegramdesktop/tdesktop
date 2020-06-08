@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
-constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 constexpr auto kVersionTag = -1;
 constexpr auto kVersion = 1;

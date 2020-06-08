@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "core/application.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -519,7 +520,7 @@ void PasscodeBox::save(bool force) {
 		const auto weak = Ui::MakeWeak(this);
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());
-		_session->localPasscodeChanged();
+		Core::App().localPasscodeChanged();
 		if (weak) {
 			closeBox();
 		}

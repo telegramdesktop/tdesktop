@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/windows_dlls.h"
 #include "core/sandbox.h"
+#include "core/application.h"
 #include "ui/inactive_press.h"
 #include "mainwindow.h"
-#include "main/main_session.h"
 #include "facades.h"
 #include "app.h"
 
@@ -95,9 +95,7 @@ bool EventFilter::mainWindowEvent(
 	switch (msg) {
 
 	case WM_TIMECHANGE: {
-		if (Main::Session::Exists()) {
-			Auth().checkAutoLockIn(100);
-		}
+		Core::App().checkAutoLockIn(100);
 	} return false;
 
 	case WM_WTSSESSION_CHANGE: {

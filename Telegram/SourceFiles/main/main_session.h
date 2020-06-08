@@ -121,9 +121,6 @@ public:
 		return *_calls;
 	}
 
-	void checkAutoLock();
-	void checkAutoLockIn(crl::time time);
-	void localPasscodeChanged();
 	void termsDeleteNow();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -144,9 +141,6 @@ private:
 
 	Settings _settings;
 	base::Timer _saveSettingsTimer;
-
-	crl::time _shouldLockAt = 0;
-	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Calls::Instance> _calls;

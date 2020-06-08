@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
 #include "facades.h"
@@ -45,6 +46,6 @@ void AutoLockBox::durationChanged(int seconds) {
 	Local::writeUserSettings();
 	Global::RefLocalPasscodeChanged().notify();
 
-	_session->checkAutoLock();
+	Core::App().checkAutoLock();
 	closeBox();
 }

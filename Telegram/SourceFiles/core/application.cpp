@@ -75,7 +75,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-constexpr auto kQuitPreventTimeoutMs = 1500;
+constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
+constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 
 } // namespace
 
@@ -99,11 +100,17 @@ Application::Application(not_null<Launcher*> launcher)
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
-, _logoNoMargin(Window::LoadLogoNoMargin()) {
+, _logoNoMargin(Window::LoadLogoNoMargin())
+, _autoLockTimer([=] { checkAutoLock(); }) {
 	Expects(!_logo.isNull());
 	Expects(!_logoNoMargin.isNull());
 
 	Ui::Integration::Set(&_private->uiIntegration);
+
+	passcodeLockChanges(
+	) | rpl::start_with_next([=] {
+		_shouldLockAt = 0;
+	}, _lifetime);
 
 	activeAccount().sessionChanges(
 	) | rpl::start_with_next([=] {
@@ -695,6 +702,43 @@ void Application::lockByTerms(const Window::TermsLock &data) {
 		_termsLock = std::make_unique<Window::TermsLock>(data);
 		_termsLockChanges.fire(true);
 	}
+}
+
+void Application::checkAutoLock() {
+	if (!Global::LocalPasscode()
+		|| passcodeLocked()
+		|| !_account->sessionExists()) {
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
+		return;
+	}
+
+	checkLocalTime();
+	const auto now = crl::now();
+	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
+	const auto checkTimeMs = now - lastNonIdleTime();
+	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
+		lockByPasscode();
+	} else {
+		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
+		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);
+	}
+}
+
+void Application::checkAutoLockIn(crl::time time) {
+	if (_autoLockTimer.isActive()) {
+		auto remain = _autoLockTimer.remainingTime();
+		if (remain > 0 && remain <= time) return;
+	}
+	_autoLockTimer.callOnce(time);
+}
+
+void Application::localPasscodeChanged() {
+	_shouldLockAt = 0;
+	_autoLockTimer.cancel();
+	checkAutoLock();
 }
 
 void Application::unlockTerms() {

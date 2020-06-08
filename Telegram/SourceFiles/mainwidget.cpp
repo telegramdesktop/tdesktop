@@ -3061,7 +3061,7 @@ void MainWidget::feedDifference(
 		const MTPVector<MTPChat> &chats,
 		const MTPVector<MTPMessage> &msgs,
 		const MTPVector<MTPUpdate> &other) {
-	session().checkAutoLock();
+	Core::App().checkAutoLock();
 	session().data().processUsers(users);
 	session().data().processChats(chats);
 	feedMessageIds(other);
@@ -3523,8 +3523,7 @@ MainWidget::~MainWidget() {
 }
 
 void MainWidget::updateOnline(bool gotOtherOffline) {
-	if (this != App::main()) return;
-	InvokeQueued(this, [=] { session().checkAutoLock(); });
+	crl::on_main(this, [] { Core::App().checkAutoLock(); });
 
 	bool isOnline = !App::quitting() && App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
@@ -3660,7 +3659,7 @@ void MainWidget::checkIdleFinish() {
 }
 
 void MainWidget::mtpNewSessionCreated() {
-	session().checkAutoLock();
+	Core::App().checkAutoLock();
 	updSeq = 0;
 	MTP_LOG(0, ("getDifference { after new_session_created }%1"
 		).arg(cTestMode() ? " TESTMODE" : ""));
@@ -3668,7 +3667,7 @@ void MainWidget::mtpNewSessionCreated() {
 }
 
 void MainWidget::mtpUpdateReceived(const MTPUpdates &updates) {
-	session().checkAutoLock();
+	Core::App().checkAutoLock();
 	_lastUpdateTime = crl::now();
 	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	if (!requestingDifference()

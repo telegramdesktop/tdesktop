@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
-constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
@@ -47,7 +46,6 @@ Session::Session(
 : _account(account)
 , _settings(std::move(settings))
 , _saveSettingsTimer([=] { Local::writeUserSettings(); })
-, _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
@@ -60,10 +58,6 @@ Session::Session(
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
 , _changelogs(Core::Changelogs::Create(this))
 , _supportHelper(Support::Helper::Create(this)) {
-	Core::App().passcodeLockChanges(
-	) | rpl::start_with_next([=] {
-		_shouldLockAt = 0;
-	}, _lifetime);
 	Core::App().lockChanges(
 	) | rpl::start_with_next([=] {
 		notifications().updateAll();
@@ -157,46 +151,10 @@ not_null<MTP::Instance*> Session::mtp() {
 	return _account->mtp();
 }
 
-void Session::localPasscodeChanged() {
-	_shouldLockAt = 0;
-	_autoLockTimer.cancel();
-	checkAutoLock();
-}
-
 void Session::termsDeleteNow() {
 	api().request(MTPaccount_DeleteAccount(
 		MTP_string("Decline ToS update")
 	)).send();
-}
-
-void Session::checkAutoLock() {
-	if (!Global::LocalPasscode()
-		|| Core::App().passcodeLocked()) {
-		_shouldLockAt = 0;
-		_autoLockTimer.cancel();
-		return;
-	}
-
-	Core::App().checkLocalTime();
-	const auto now = crl::now();
-	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
-	const auto checkTimeMs = now - Core::App().lastNonIdleTime();
-	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		_shouldLockAt = 0;
-		_autoLockTimer.cancel();
-		Core::App().lockByPasscode();
-	} else {
-		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
-		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);
-	}
-}
-
-void Session::checkAutoLockIn(crl::time time) {
-	if (_autoLockTimer.isActive()) {
-		auto remain = _autoLockTimer.remainingTime();
-		if (remain > 0 && remain <= time) return;
-	}
-	_autoLockTimer.callOnce(time);
 }
 
 bool Session::supportMode() const {
