@@ -1,3 +1,7 @@
+2.1.11 (08.06.20)
+
+- Fix launching on old Linux systems.
+
 2.1.10 (05.06.20)
 
 - Improve memory usage.

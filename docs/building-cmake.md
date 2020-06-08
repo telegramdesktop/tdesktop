@@ -192,7 +192,7 @@ Go to ***BuildPath*** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout openal-soft-1.20.1
+    git checkout openal-soft-1.19.1
     cd build
     cmake .. \
     -DLIBTYPE:STRING=STATIC \
