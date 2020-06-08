@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 #include "mtproto/sender.h"
-#include "chat_helpers/stickers_set.h"
+#include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
 
 class TaskQueue;
@@ -260,8 +260,8 @@ public:
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
 	void saveStickerSets(
-		const Stickers::Order &localOrder,
-		const Stickers::Order &localRemoved);
+		const Data::StickersSetsOrder &localOrder,
+		const Data::StickersSetsOrder &localRemoved);
 	void updateStickers();
 	void requestRecentStickersForce();
 	void setGroupStickerSet(
@@ -724,7 +724,7 @@ private:
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
-	Stickers::Order _stickersOrder;
+	Data::StickersSetsOrder _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
 

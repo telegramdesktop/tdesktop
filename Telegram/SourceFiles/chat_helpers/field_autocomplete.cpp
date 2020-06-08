@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "storage/localstorage.h"
@@ -21,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
-#include "chat_helpers/stickers.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
@@ -172,8 +174,7 @@ inline int indexOfInFirstN(const T &v, const U &elem, int last) {
 }
 
 internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
-	const auto list = Stickers::GetListByEmoji(
-		&_controller->session(),
+	const auto list = _controller->session().data().stickers().getListByEmoji(
 		_emoji,
 		_stickersSeed
 	);
@@ -1019,9 +1020,9 @@ auto FieldAutocompleteInner::getLottieRenderer()
 
 void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	const auto document = suggestion.document;
-	suggestion.animated = Stickers::LottiePlayerFromDocument(
+	suggestion.animated = ChatHelpers::LottiePlayerFromDocument(
 		suggestion.documentMedia.get(),
-		Stickers::LottieSize::InlineResults,
+		ChatHelpers::StickerLottieSize::InlineResults,
 		stickerBoundingBox() * cIntRetinaFactor(),
 		Lottie::Quality::Default,
 		getLottieRenderer());

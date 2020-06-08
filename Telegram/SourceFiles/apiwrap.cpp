@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_histories.h"
+#include "data/stickers/data_stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
@@ -55,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/message_field.h"
-#include "chat_helpers/stickers.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
 #include "support/support_helper.h"
@@ -1852,8 +1853,8 @@ void ApiWrap::requestStickerSets() {
 }
 
 void ApiWrap::saveStickerSets(
-		const Stickers::Order &localOrder,
-		const Stickers::Order &localRemoved) {
+		const Data::StickersSetsOrder &localOrder,
+		const Data::StickersSetsOrder &localRemoved) {
 	for (auto requestId : base::take(_stickerSetDisenableRequests)) {
 		request(requestId).cancel();
 	}
@@ -1861,16 +1862,16 @@ void ApiWrap::saveStickerSets(
 	request(base::take(_stickersClearRecentRequestId)).cancel();
 
 	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeFaved = false, writeArchived = false;
-	auto &recent = Stickers::GetRecentPack();
-	auto &sets = _session->data().stickerSetsRef();
+	auto &recent = _session->data().stickers().getRecentPack();
+	auto &sets = _session->data().stickers().setsRef();
 
 	_stickersOrder = localOrder;
 	for (const auto removedSetId : localRemoved) {
-		if (removedSetId == Stickers::CloudRecentSetId) {
-			if (sets.remove(Stickers::CloudRecentSetId) != 0) {
+		if (removedSetId == Data::Stickers::CloudRecentSetId) {
+			if (sets.remove(Data::Stickers::CloudRecentSetId) != 0) {
 				writeCloudRecent = true;
 			}
-			if (sets.remove(Stickers::CustomSetId)) {
+			if (sets.remove(Data::Stickers::CustomSetId)) {
 				writeInstalled = true;
 			}
 			if (!recent.isEmpty()) {
@@ -1910,8 +1911,8 @@ void ApiWrap::saveStickerSets(
 
 				_stickerSetDisenableRequests.insert(requestId);
 
-				int removeIndex = _session->data().stickerSetsOrder().indexOf(set->id);
-				if (removeIndex >= 0) _session->data().stickerSetsOrderRef().removeAt(removeIndex);
+				int removeIndex = _session->data().stickers().setsOrder().indexOf(set->id);
+				if (removeIndex >= 0) _session->data().stickers().setsOrderRef().removeAt(removeIndex);
 				if (!(set->flags & MTPDstickerSet_ClientFlag::f_featured)
 					&& !(set->flags & MTPDstickerSet_ClientFlag::f_special)) {
 					sets.erase(it);
@@ -1933,7 +1934,7 @@ void ApiWrap::saveStickerSets(
 		}
 	}
 
-	auto &order = _session->data().stickerSetsOrderRef();
+	auto &order = _session->data().stickers().setsOrderRef();
 	order.clear();
 	for (const auto setId : std::as_const(_stickersOrder)) {
 		auto it = sets.find(setId);
@@ -1984,7 +1985,7 @@ void ApiWrap::saveStickerSets(
 	if (writeArchived) Local::writeArchivedStickers();
 	if (writeCloudRecent) Local::writeRecentStickers();
 	if (writeFaved) Local::writeFavedStickers();
-	_session->data().notifyStickersUpdated();
+	_session->data().stickers().notifyUpdated();
 
 	if (_stickerSetDisenableRequests.empty()) {
 		stickersSaveOrder();
@@ -2567,7 +2568,7 @@ void ApiWrap::applyNotifySettings(
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
-	Stickers::FeedSetFull(result);
+	_session->data().stickers().feedSetFull(result);
 }
 
 void ApiWrap::requestWebPageDelayed(WebPageData *page) {
@@ -2921,13 +2922,13 @@ void ApiWrap::refreshFileReference(
 	}, [&](Data::FileOriginPeerPhoto data) {
 		fail();
 	}, [&](Data::FileOriginStickerSet data) {
-		if (data.setId == Stickers::CloudRecentSetId
-			|| data.setId == Stickers::RecentSetId) {
+		if (data.setId == Data::Stickers::CloudRecentSetId
+			|| data.setId == Data::Stickers::RecentSetId) {
 			request(MTPmessages_GetRecentStickers(
 				MTP_flags(0),
 				MTP_int(0)),
 				[] { crl::on_main([] { Local::writeRecentStickers(); }); });
-		} else if (data.setId == Stickers::FavedSetId) {
+		} else if (data.setId == Data::Stickers::FavedSetId) {
 			request(MTPmessages_GetFavedStickers(MTP_int(0)),
 				[] { crl::on_main([] { Local::writeFavedStickers(); }); });
 		} else {
@@ -2979,21 +2980,25 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &resu
 }
 
 void ApiWrap::stickersSaveOrder() {
-	if (_stickersOrder.size() > 1) {
-		QVector<MTPlong> mtpOrder;
-		mtpOrder.reserve(_stickersOrder.size());
-		for_const (auto setId, _stickersOrder) {
-			mtpOrder.push_back(MTP_long(setId));
-		}
-
-		_stickersReorderRequestId = request(MTPmessages_ReorderStickerSets(MTP_flags(0), MTP_vector<MTPlong>(mtpOrder))).done([this](const MTPBool &result) {
-			_stickersReorderRequestId = 0;
-		}).fail([this](const RPCError &error) {
-			_stickersReorderRequestId = 0;
-			_session->data().setLastStickersUpdate(0);
-			updateStickers();
-		}).send();
+	if (_stickersOrder.size() < 2) {
+		return;
 	}
+	QVector<MTPlong> mtpOrder;
+	mtpOrder.reserve(_stickersOrder.size());
+	for (const auto setId : std::as_const(_stickersOrder)) {
+		mtpOrder.push_back(MTP_long(setId));
+	}
+
+	_stickersReorderRequestId = request(MTPmessages_ReorderStickerSets(
+		MTP_flags(0),
+		MTP_vector<MTPlong>(mtpOrder)
+	)).done([=](const MTPBool &result) {
+		_stickersReorderRequestId = 0;
+	}).fail([=](const RPCError &error) {
+		_stickersReorderRequestId = 0;
+		_session->data().stickers().setLastUpdate(0);
+		updateStickers();
+	}).send();
 }
 
 void ApiWrap::updateStickers() {
@@ -3014,7 +3019,7 @@ void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInpu
 
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
-	_session->data().notifyStickersUpdated();
+	_session->data().stickers().notifyUpdated();
 }
 
 std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
@@ -3054,7 +3059,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			}
 			entry.hash = data.vhash().v;
 			entry.received = crl::now();
-			_session->data().notifyStickersUpdated();
+			_session->data().stickers().notifyUpdated();
 		}).send();
 	}
 	if (it == _stickersByEmoji.end()) {
@@ -3081,7 +3086,7 @@ void ApiWrap::toggleFavedSticker(
 			MTP_bool(!faved)
 		)).done([=](const MTPBool &result) {
 			if (mtpIsTrue(result)) {
-				Stickers::SetFaved(document, faved);
+				_session->data().stickers().setFaved(document, faved);
 			}
 		}).fail([=](const RPCError &error) {
 			(*failHandler)(error, usedFileReference);
@@ -3118,7 +3123,7 @@ void ApiWrap::toggleSavedGif(
 		)).done([=](const MTPBool &result) {
 			if (mtpIsTrue(result)) {
 				if (saved) {
-					session().data().addSavedGif(document);
+					_session->data().stickers().addSavedGif(document);
 				}
 			}
 		}).fail([=](const RPCError &error) {
@@ -3140,19 +3145,21 @@ void ApiWrap::toggleSavedGif(
 }
 
 void ApiWrap::requestStickers(TimeId now) {
-	if (!_session->data().stickersUpdateNeeded(now)
+	if (!_session->data().stickers().updateNeeded(now)
 		|| _stickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_AllStickers &result) {
-		_session->data().setLastStickersUpdate(crl::now());
+		_session->data().stickers().setLastUpdate(crl::now());
 		_stickersUpdateRequest = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_allStickersNotModified: return;
 		case mtpc_messages_allStickers: {
 			auto &d = result.c_messages_allStickers();
-			Stickers::SetsReceived(d.vsets().v, d.vhash().v);
+			_session->data().stickers().setsReceived(
+				d.vsets().v,
+				d.vhash().v);
 		} return;
 		default: Unexpected("Type in ApiWrap::stickersDone()");
 		}
@@ -3166,7 +3173,7 @@ void ApiWrap::requestStickers(TimeId now) {
 }
 
 void ApiWrap::requestRecentStickers(TimeId now) {
-	if (!_session->data().recentStickersUpdateNeeded(now)) {
+	if (!_session->data().stickers().recentUpdateNeeded(now)) {
 		return;
 	}
 	requestRecentStickersWithHash(Local::countRecentStickersHash());
@@ -3180,15 +3187,15 @@ void ApiWrap::requestRecentStickersWithHash(int32 hash) {
 		MTP_flags(0),
 		MTP_int(hash)
 	)).done([=](const MTPmessages_RecentStickers &result) {
-		_session->data().setLastRecentStickersUpdate(crl::now());
+		_session->data().stickers().setLastRecentUpdate(crl::now());
 		_recentStickersUpdateRequest = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_recentStickersNotModified: return;
 		case mtpc_messages_recentStickers: {
 			auto &d = result.c_messages_recentStickers();
-			Stickers::SpecialSetReceived(
-				Stickers::CloudRecentSetId,
+			_session->data().stickers().specialSetReceived(
+				Data::Stickers::CloudRecentSetId,
 				tr::lng_recent_stickers(tr::now),
 				d.vstickers().v,
 				d.vhash().v,
@@ -3198,7 +3205,7 @@ void ApiWrap::requestRecentStickersWithHash(int32 hash) {
 		default: Unexpected("Type in ApiWrap::recentStickersDone()");
 		}
 	}).fail([=](const RPCError &error) {
-		_session->data().setLastRecentStickersUpdate(crl::now());
+		_session->data().stickers().setLastRecentUpdate(crl::now());
 		_recentStickersUpdateRequest = 0;
 
 		LOG(("App Fail: Failed to get recent stickers!"));
@@ -3206,22 +3213,22 @@ void ApiWrap::requestRecentStickersWithHash(int32 hash) {
 }
 
 void ApiWrap::requestFavedStickers(TimeId now) {
-	if (!_session->data().favedStickersUpdateNeeded(now)
+	if (!_session->data().stickers().favedUpdateNeeded(now)
 		|| _favedStickersUpdateRequest) {
 		return;
 	}
 	_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(
 		MTP_int(Local::countFavedStickersHash())
 	)).done([=](const MTPmessages_FavedStickers &result) {
-		_session->data().setLastFavedStickersUpdate(crl::now());
+		_session->data().stickers().setLastFavedUpdate(crl::now());
 		_favedStickersUpdateRequest = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_favedStickersNotModified: return;
 		case mtpc_messages_favedStickers: {
 			auto &d = result.c_messages_favedStickers();
-			Stickers::SpecialSetReceived(
-				Stickers::FavedSetId,
+			_session->data().stickers().specialSetReceived(
+				Data::Stickers::FavedSetId,
 				Lang::Hard::FavedSetTitle(),
 				d.vstickers().v,
 				d.vhash().v,
@@ -3230,7 +3237,7 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 		default: Unexpected("Type in ApiWrap::favedStickersDone()");
 		}
 	}).fail([=](const RPCError &error) {
-		_session->data().setLastFavedStickersUpdate(crl::now());
+		_session->data().stickers().setLastFavedUpdate(crl::now());
 		_favedStickersUpdateRequest = 0;
 
 		LOG(("App Fail: Failed to get faved stickers!"));
@@ -3238,26 +3245,29 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 }
 
 void ApiWrap::requestFeaturedStickers(TimeId now) {
-	if (!_session->data().featuredStickersUpdateNeeded(now)
+	if (!_session->data().stickers().featuredUpdateNeeded(now)
 		|| _featuredStickersUpdateRequest) {
 		return;
 	}
 	_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(
 		MTP_int(Local::countFeaturedStickersHash())
 	)).done([=](const MTPmessages_FeaturedStickers &result) {
-		_session->data().setLastFeaturedStickersUpdate(crl::now());
+		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		_featuredStickersUpdateRequest = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_featuredStickersNotModified: return;
 		case mtpc_messages_featuredStickers: {
 			auto &d = result.c_messages_featuredStickers();
-			Stickers::FeaturedSetsReceived(d.vsets().v, d.vunread().v, d.vhash().v);
+			_session->data().stickers().featuredSetsReceived(
+				d.vsets().v,
+				d.vunread().v,
+				d.vhash().v);
 		} return;
 		default: Unexpected("Type in ApiWrap::featuredStickersDone()");
 		}
 	}).fail([=](const RPCError &error) {
-		_session->data().setLastFeaturedStickersUpdate(crl::now());
+		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		_featuredStickersUpdateRequest = 0;
 
 		LOG(("App Fail: Failed to get featured stickers!"));
@@ -3265,26 +3275,28 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 }
 
 void ApiWrap::requestSavedGifs(TimeId now) {
-	if (!_session->data().savedGifsUpdateNeeded(now)
+	if (!_session->data().stickers().savedGifsUpdateNeeded(now)
 		|| _savedGifsUpdateRequest) {
 		return;
 	}
 	_savedGifsUpdateRequest = request(MTPmessages_GetSavedGifs(
 		MTP_int(Local::countSavedGifsHash())
 	)).done([=](const MTPmessages_SavedGifs &result) {
-		_session->data().setLastSavedGifsUpdate(crl::now());
+		_session->data().stickers().setLastSavedGifsUpdate(crl::now());
 		_savedGifsUpdateRequest = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_savedGifsNotModified: return;
 		case mtpc_messages_savedGifs: {
 			auto &d = result.c_messages_savedGifs();
-			Stickers::GifsReceived(d.vgifs().v, d.vhash().v);
+			_session->data().stickers().gifsReceived(
+				d.vgifs().v,
+				d.vhash().v);
 		} return;
 		default: Unexpected("Type in ApiWrap::savedGifsDone()");
 		}
 	}).fail([=](const RPCError &error) {
-		_session->data().setLastSavedGifsUpdate(crl::now());
+		_session->data().stickers().setLastSavedGifsUpdate(crl::now());
 		_savedGifsUpdateRequest = 0;
 
 		LOG(("App Fail: Failed to get saved gifs!"));
@@ -3299,8 +3311,8 @@ void ApiWrap::readFeaturedSetDelayed(uint64 setId) {
 }
 
 void ApiWrap::readFeaturedSets() {
-	const auto &sets = _session->data().stickerSets();
-	auto count = _session->data().featuredStickerSetsUnreadCount();
+	const auto &sets = _session->data().stickers().sets();
+	auto count = _session->data().stickers().featuredSetsUnreadCount();
 	QVector<MTPlong> wrappedIds;
 	wrappedIds.reserve(_featuredSetsRead.size());
 	for (const auto setId : _featuredSetsRead) {
@@ -3320,10 +3332,10 @@ void ApiWrap::readFeaturedSets() {
 			MTP_vector<MTPlong>(wrappedIds));
 		request(std::move(requestData)).done([=](const MTPBool &result) {
 			Local::writeFeaturedStickers();
-			_session->data().notifyStickersUpdated();
+			_session->data().stickers().notifyUpdated();
 		}).send();
 
-		_session->data().setFeaturedStickerSetsUnreadCount(count);
+		_session->data().stickers().setFeaturedSetsUnreadCount(count);
 	}
 }
 

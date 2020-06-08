@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_inner_widget.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -1056,7 +1057,7 @@ void History::applyMessageChanges(
 	if (data.type() == mtpc_messageService) {
 		applyServiceChanges(item, data.c_messageService());
 	}
-	owner().checkSavedGif(item);
+	owner().stickers().checkSavedGif(item);
 }
 
 void History::applyServiceChanges(

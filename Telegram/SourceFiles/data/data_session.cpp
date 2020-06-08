@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
+#include "data/stickers/data_stickers.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -222,7 +223,8 @@ Session::Session(not_null<Main::Session*> session)
 , _cloudThemes(std::make_unique<CloudThemes>(session))
 , _streaming(std::make_unique<Streaming>(this))
 , _mediaRotation(std::make_unique<MediaRotation>())
-, _histories(std::make_unique<Histories>(this)) {
+, _histories(std::make_unique<Histories>(this))
+, _stickers(std::make_unique<Stickers>(this)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -1378,6 +1380,14 @@ void Session::sendHistoryChangeNotifications() {
 	}
 }
 
+void Session::notifyPinnedDialogsOrderUpdated() {
+	_pinnedDialogsOrderUpdated.fire({});
+}
+
+rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
+	return _pinnedDialogsOrderUpdated.events();
+}
+
 void Session::registerHeavyViewPart(not_null<ViewElement*> view) {
 	_heavyViewParts.emplace(view);
 }
@@ -1471,38 +1481,6 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	}) | rpl::map([](auto updateChannel, auto user) {
 		return user;
 	});
-}
-
-void Session::notifyStickersUpdated() {
-	_stickersUpdated.fire({});
-}
-
-rpl::producer<> Session::stickersUpdated() const {
-	return _stickersUpdated.events();
-}
-
-void Session::notifyRecentStickersUpdated() {
-	_recentStickersUpdated.fire({});
-}
-
-rpl::producer<> Session::recentStickersUpdated() const {
-	return _recentStickersUpdated.events();
-}
-
-void Session::notifySavedGifsUpdated() {
-	_savedGifsUpdated.fire({});
-}
-
-rpl::producer<> Session::savedGifsUpdated() const {
-	return _savedGifsUpdated.events();
-}
-
-void Session::notifyPinnedDialogsOrderUpdated() {
-	_pinnedDialogsOrderUpdated.fire({});
-}
-
-rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
-	return _pinnedDialogsOrderUpdated.events();
 }
 
 void Session::userIsContactUpdated(not_null<UserData*> user) {
@@ -1716,46 +1694,12 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		requestItemTextRefresh(existing);
 		updateDependentMessages(existing);
 		if (existing->mainView()) {
-			checkSavedGif(existing);
+			stickers().checkSavedGif(existing);
 			return true;
 		}
 		return false;
 	}
 	return false;
-}
-
-void Session::addSavedGif(not_null<DocumentData*> document) {
-	const auto index = _savedGifs.indexOf(document);
-	if (!index) {
-		return;
-	}
-	if (index > 0) {
-		_savedGifs.remove(index);
-	}
-	_savedGifs.push_front(document);
-	if (_savedGifs.size() > Global::SavedGifsLimit()) {
-		_savedGifs.pop_back();
-	}
-	Local::writeSavedGifs();
-
-	notifySavedGifsUpdated();
-	setLastSavedGifsUpdate(0);
-	session().api().updateStickers();
-}
-
-void Session::checkSavedGif(not_null<HistoryItem*> item) {
-	if (item->Has<HistoryMessageForwarded>()
-		|| (!item->out()
-			&& item->history()->peer != session().user())) {
-		return;
-	}
-	if (const auto media = item->media()) {
-		if (const auto document = media->document()) {
-			if (document->isGifv()) {
-				addSavedGif(document);
-			}
-		}
-	}
 }
 
 void Session::updateEditedMessage(const MTPMessage &data) {
@@ -2488,7 +2432,7 @@ void Session::documentConvert(
 	if (idChanged) {
 		cache().moveIfEmpty(oldCacheKey, original->cacheKey());
 		cache().moveIfEmpty(oldGoodKey, original->goodThumbnailCacheKey());
-		if (savedGifs().indexOf(original) >= 0) {
+		if (stickers().savedGifs().indexOf(original) >= 0) {
 			Local::writeSavedGifs();
 		}
 	}

@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/stickers/data_stickers.h"
 #include "lang/lang_keys.h"
-#include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
 #include "mtproto/sender.h"
@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "lottie/lottie_multi_player.h"
 #include "lottie/lottie_animation.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
@@ -42,6 +43,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kStickersPanelPerRow = 5;
+
+using Data::StickersSet;
+using Data::StickersPack;
+using Data::StickersByEmojiMap;
 
 } // namespace
 
@@ -106,8 +111,8 @@ private:
 	MTP::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
-	Stickers::Pack _pack;
-	Stickers::ByEmojiMap _emoji;
+	StickersPack _pack;
+	StickersByEmojiMap _emoji;
 	bool _loaded = false;
 	uint64 _setId = 0;
 	uint64 _setAccess = 0;
@@ -159,7 +164,7 @@ void StickerSetBox::prepare() {
 	_inner = setInnerWidget(
 		object_ptr<Inner>(this, _controller, _set),
 		st::stickersScroll);
-	_controller->session().data().stickersUpdated(
+	_controller->session().data().stickers().updated(
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
@@ -278,7 +283,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 					const auto original = emoji->original();
 					auto &stickers = pack.vdocuments().v;
 
-					auto p = Stickers::Pack();
+					auto p = StickersPack();
 					p.reserve(stickers.size());
 					for (auto j = 0, c = stickers.size(); j != c; ++j) {
 						auto doc = _controller->session().data().document(stickers[j].v);
@@ -291,7 +296,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			});
 		}
 		data.vset().match([&](const MTPDstickerSet &set) {
-			_setTitle = Stickers::GetSetTitle(set);
+			_setTitle = _controller->session().data().stickers().getSetTitle(
+				set);
 			_setShortName = qs(set.vshort_name());
 			_setId = set.vid().v;
 			_setAccess = set.vaccess_hash().v;
@@ -307,7 +313,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			} else {
 				_setThumbnail = ImageWithLocation();
 			}
-			const auto &sets = _controller->session().data().stickerSets();
+			const auto &sets = _controller->session().data().stickers().sets();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				const auto set = it->second.get();
@@ -350,13 +356,13 @@ rpl::producer<> StickerSetBox::Inner::updateControls() const {
 
 void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
-	auto &sets = _controller->session().data().stickerSetsRef();
+	auto &sets = _controller->session().data().stickers().setsRef();
 
 	bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
 	if (wasArchived) {
-		auto index = _controller->session().data().archivedStickerSetsOrderRef().indexOf(_setId);
+		auto index = _controller->session().data().stickers().archivedSetsOrderRef().indexOf(_setId);
 		if (index >= 0) {
-			_controller->session().data().archivedStickerSetsOrderRef().removeAt(index);
+			_controller->session().data().stickers().archivedSetsOrderRef().removeAt(index);
 		}
 	}
 	_setInstallDate = base::unixtime::now();
@@ -366,7 +372,7 @@ void StickerSetBox::Inner::installDone(
 	if (it == sets.cend()) {
 		it = sets.emplace(
 			_setId,
-			std::make_unique<Stickers::Set>(
+			std::make_unique<StickersSet>(
 				&_controller->session().data(),
 				_setId,
 				_setAccess,
@@ -385,7 +391,7 @@ void StickerSetBox::Inner::installDone(
 	set->stickers = _pack;
 	set->emoji = _emoji;
 
-	auto &order = _controller->session().data().stickerSetsOrderRef();
+	auto &order = _controller->session().data().stickers().setsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(_setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -394,7 +400,7 @@ void StickerSetBox::Inner::installDone(
 		order.insert(insertAtIndex, _setId);
 	}
 
-	const auto customIt = sets.find(Stickers::CustomSetId);
+	const auto customIt = sets.find(Data::Stickers::CustomSetId);
 	if (customIt != sets.cend()) {
 		const auto custom = customIt->second.get();
 		for (const auto sticker : std::as_const(_pack)) {
@@ -407,13 +413,14 @@ void StickerSetBox::Inner::installDone(
 	}
 
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		_controller->session().data().stickers().applyArchivedResult(
+			result.c_messages_stickerSetInstallResultArchive());
 	} else {
 		if (wasArchived) {
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		_controller->session().data().notifyStickersUpdated();
+		_controller->session().data().stickers().notifyUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -610,10 +617,10 @@ void StickerSetBox::Inner::setupLottie(int index) {
 	auto &element = _elements[index];
 	const auto document = element.document;
 
-	element.animated = Stickers::LottieAnimationFromDocument(
+	element.animated = ChatHelpers::LottieAnimationFromDocument(
 		getLottiePlayer(),
 		element.documentMedia.get(),
-		Stickers::LottieSize::StickerSet,
+		ChatHelpers::StickerLottieSize::StickerSet,
 		boundingBoxSize() * cIntRetinaFactor());
 }
 
@@ -677,7 +684,7 @@ bool StickerSetBox::Inner::notInstalled() const {
 	if (!_loaded) {
 		return false;
 	}
-	const auto &sets = _controller->session().data().stickerSets();
+	const auto &sets = _controller->session().data().stickers().sets();
 	const auto it = sets.find(_setId);
 	if ((it == sets.cend())
 		|| !(it->second->flags & MTPDstickerSet::Flag::f_installed_date)

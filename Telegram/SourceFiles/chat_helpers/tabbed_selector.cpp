@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
-#include "chat_helpers/stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
@@ -366,7 +366,7 @@ TabbedSelector::TabbedSelector(
 			_showRequests.fire({});
 		}, lifetime());
 
-		session().data().stickersUpdated(
+		session().data().stickers().updated(
 		) | rpl::start_with_next([=] {
 			refreshStickers();
 		}, lifetime());

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
-#include "chat_helpers/stickers.h"
+#include "data/stickers/data_stickers.h"
 
 class ConfirmBox;
 

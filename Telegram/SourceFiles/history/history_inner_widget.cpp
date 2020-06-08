@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
-#include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
@@ -55,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/stickers/data_stickers.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_history.h"
@@ -1731,11 +1731,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_menu->addAction(document->isStickerSetInstalled() ? tr::lng_context_pack_info(tr::now) : tr::lng_context_pack_add(tr::now), [=] {
 								showStickerPackInfo(document);
 							});
-							_menu->addAction(Stickers::IsFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
+							_menu->addAction(session().data().stickers().isFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
 								session().api().toggleFavedSticker(
 									document,
 									itemId,
-									!Stickers::IsFaved(document));
+									!session().data().stickers().isFaved(document));
 							});
 						}
 						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {

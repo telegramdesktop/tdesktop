@@ -571,7 +571,9 @@ QString ChatOccupiedString(not_null<History*> history) {
 		: hand + ' ' + name + " is here";
 }
 
-QString InterpretSendPath(const QString &path) {
+QString InterpretSendPath(
+		not_null<Window::SessionController*> window,
+		const QString &path) {
 	QFile f(path);
 	if (!f.open(QIODevice::ReadOnly)) {
 		return "App Error: Could not open interpret file: " + path;
@@ -584,7 +586,7 @@ QString InterpretSendPath(const QString &path) {
 	auto caption = QString();
 	for (const auto &line : lines) {
 		if (line.startsWith(qstr("from: "))) {
-			if (Auth().userId() != line.mid(qstr("from: ").size()).toInt()) {
+			if (window->session().userId() != line.mid(qstr("from: ").size()).toInt()) {
 				return "App Error: Wrong current user.";
 			}
 		} else if (line.startsWith(qstr("channel: "))) {
@@ -604,7 +606,7 @@ QString InterpretSendPath(const QString &path) {
 			return "App Error: Invalid command: " + line;
 		}
 	}
-	const auto history = Auth().data().historyLoaded(toId);
+	const auto history = window->session().data().historyLoaded(toId);
 	if (!history) {
 		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
 	}

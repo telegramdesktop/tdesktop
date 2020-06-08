@@ -996,11 +996,11 @@ int HistoryWidget::itemTopForHighlight(
 }
 
 void HistoryWidget::start() {
-	session().data().stickersUpdated(
+	session().data().stickers().updated(
 	) | rpl::start_with_next([=] {
 		updateStickersByEmoji();
 	}, lifetime());
-	session().data().notifySavedGifsUpdated();
+	session().data().stickers().notifySavedGifsUpdated();
 	subscribe(session().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
 	});

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_document.h"
 
 #include "storage/serialize_common.h"
-#include "chat_helpers/stickers.h"
 #include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
 
@@ -91,10 +91,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
-			if (info->setId == Stickers::DefaultSetId
-				|| info->setId == Stickers::CloudRecentSetId
-				|| info->setId == Stickers::FavedSetId
-				|| info->setId == Stickers::CustomSetId) {
+			if (info->setId == Data::Stickers::DefaultSetId
+				|| info->setId == Data::Stickers::CloudRecentSetId
+				|| info->setId == Data::Stickers::FavedSetId
+				|| info->setId == Data::Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 

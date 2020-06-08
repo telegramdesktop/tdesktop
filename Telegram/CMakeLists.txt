@@ -293,16 +293,14 @@ PRIVATE
     chat_helpers/message_field.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
-    chat_helpers/stickers.cpp
-    chat_helpers/stickers.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
-    chat_helpers/stickers_set.cpp
-    chat_helpers/stickers_set.h
+    chat_helpers/stickers_lottie.cpp
+    chat_helpers/stickers_lottie.h
     chat_helpers/tabbed_panel.cpp
     chat_helpers/tabbed_panel.h
     chat_helpers/tabbed_section.cpp
@@ -344,6 +342,10 @@ PRIVATE
     core/utils.cpp
     core/utils.h
     core/version.h
+    data/stickers/data_stickers_set.cpp
+    data/stickers/data_stickers_set.h
+    data/stickers/data_stickers.cpp
+    data/stickers/data_stickers.h
     data/data_abstract_structure.cpp
     data/data_abstract_structure.h
     data/data_auto_download.cpp

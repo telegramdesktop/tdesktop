@@ -17,8 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "chat_helpers/stickers.h"
-#include "chat_helpers/stickers_set.h"
+#include "data/stickers/data_stickers.h"
+#include "data/stickers/data_stickers_set.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
@@ -1208,7 +1208,7 @@ bool DocumentData::saveFromDataChecked() {
 bool DocumentData::isStickerSetInstalled() const {
 	Expects(sticker() != nullptr);
 
-	const auto &sets = _owner->stickerSets();
+	const auto &sets = _owner->stickers().sets();
 	return sticker()->set.match([&](const MTPDinputStickerSetID &data) {
 		const auto i = sets.find(data.vid().v);
 		return (i != sets.cend())
@@ -1251,8 +1251,8 @@ Data::FileOrigin DocumentData::stickerSetOrigin() const {
 	if (const auto data = sticker()) {
 		if (const auto result = data->setOrigin()) {
 			return result;
-		} else if (Stickers::IsFaved(this)) {
-			return Data::FileOriginStickerSet(Stickers::FavedSetId, 0);
+		} else if (owner().stickers().isFaved(this)) {
+			return Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0);
 		}
 	}
 	return Data::FileOrigin();

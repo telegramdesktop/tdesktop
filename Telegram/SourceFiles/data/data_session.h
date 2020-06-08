@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/storage_databases.h"
-#include "chat_helpers/stickers_set.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
+#include "data/data_cloud_file.h"
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
@@ -65,6 +65,7 @@ class MediaRotation;
 class Histories;
 class DocumentMedia;
 class PhotoMedia;
+class Stickers;
 
 class Session final {
 public:
@@ -105,6 +106,9 @@ public:
 	}
 	[[nodiscard]] Histories &histories() const {
 		return *_histories;
+	}
+	[[nodiscard]] Stickers &stickers() const {
+		return *_stickers;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -240,6 +244,9 @@ public:
 	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void sendHistoryChangeNotifications();
 
+	void notifyPinnedDialogsOrderUpdated();
+	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
+
 	void registerHeavyViewPart(not_null<ViewElement*> view);
 	void unregisterHeavyViewPart(not_null<ViewElement*> view);
 	void unloadHeavyViewParts(
@@ -264,91 +271,6 @@ public:
 	[[nodiscard]] rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
 	[[nodiscard]] rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
-
-	void notifyStickersUpdated();
-	[[nodiscard]] rpl::producer<> stickersUpdated() const;
-	void notifyRecentStickersUpdated();
-	[[nodiscard]] rpl::producer<> recentStickersUpdated() const;
-	void notifySavedGifsUpdated();
-	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
-	void notifyPinnedDialogsOrderUpdated();
-	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
-
-	bool stickersUpdateNeeded(crl::time now) const {
-		return stickersUpdateNeeded(_lastStickersUpdate, now);
-	}
-	void setLastStickersUpdate(crl::time update) {
-		_lastStickersUpdate = update;
-	}
-	bool recentStickersUpdateNeeded(crl::time now) const {
-		return stickersUpdateNeeded(_lastRecentStickersUpdate, now);
-	}
-	void setLastRecentStickersUpdate(crl::time update) {
-		if (update) {
-			notifyRecentStickersUpdated();
-		}
-		_lastRecentStickersUpdate = update;
-	}
-	bool favedStickersUpdateNeeded(crl::time now) const {
-		return stickersUpdateNeeded(_lastFavedStickersUpdate, now);
-	}
-	void setLastFavedStickersUpdate(crl::time update) {
-		_lastFavedStickersUpdate = update;
-	}
-	bool featuredStickersUpdateNeeded(crl::time now) const {
-		return stickersUpdateNeeded(_lastFeaturedStickersUpdate, now);
-	}
-	void setLastFeaturedStickersUpdate(crl::time update) {
-		_lastFeaturedStickersUpdate = update;
-	}
-	bool savedGifsUpdateNeeded(crl::time now) const {
-		return stickersUpdateNeeded(_lastSavedGifsUpdate, now);
-	}
-	void setLastSavedGifsUpdate(crl::time update) {
-		_lastSavedGifsUpdate = update;
-	}
-	int featuredStickerSetsUnreadCount() const {
-		return _featuredStickerSetsUnreadCount.current();
-	}
-	void setFeaturedStickerSetsUnreadCount(int count) {
-		_featuredStickerSetsUnreadCount = count;
-	}
-	[[nodiscard]] rpl::producer<int> featuredStickerSetsUnreadCountValue() const {
-		return _featuredStickerSetsUnreadCount.value();
-	}
-	const Stickers::Sets &stickerSets() const {
-		return _stickerSets;
-	}
-	Stickers::Sets &stickerSetsRef() {
-		return _stickerSets;
-	}
-	const Stickers::Order &stickerSetsOrder() const {
-		return _stickerSetsOrder;
-	}
-	Stickers::Order &stickerSetsOrderRef() {
-		return _stickerSetsOrder;
-	}
-	const Stickers::Order &featuredStickerSetsOrder() const {
-		return _featuredStickerSetsOrder;
-	}
-	Stickers::Order &featuredStickerSetsOrderRef() {
-		return _featuredStickerSetsOrder;
-	}
-	const Stickers::Order &archivedStickerSetsOrder() const {
-		return _archivedStickerSetsOrder;
-	}
-	Stickers::Order &archivedStickerSetsOrderRef() {
-		return _archivedStickerSetsOrder;
-	}
-	const Stickers::SavedGifs &savedGifs() const {
-		return _savedGifs;
-	}
-	Stickers::SavedGifs &savedGifsRef() {
-		return _savedGifs;
-	}
-
-	void addSavedGif(not_null<DocumentData*> document);
-	void checkSavedGif(not_null<HistoryItem*> item);
 
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
@@ -808,11 +730,6 @@ private:
 		not_null<Folder*> folder,
 		const MTPDfolder &data);
 
-	bool stickersUpdateNeeded(crl::time lastUpdate, crl::time now) const {
-		constexpr auto kStickersUpdateTimeout = crl::time(3600'000);
-		return (lastUpdate == 0)
-			|| (now >= lastUpdate + kStickersUpdateTimeout);
-	}
 	void userIsContactUpdated(not_null<UserData*> user);
 
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
@@ -875,22 +792,6 @@ private:
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
-
-	rpl::event_stream<> _stickersUpdated;
-	rpl::event_stream<> _recentStickersUpdated;
-	rpl::event_stream<> _savedGifsUpdated;
-	rpl::event_stream<> _pinnedDialogsOrderUpdated;
-	crl::time _lastStickersUpdate = 0;
-	crl::time _lastRecentStickersUpdate = 0;
-	crl::time _lastFavedStickersUpdate = 0;
-	crl::time _lastFeaturedStickersUpdate = 0;
-	crl::time _lastSavedGifsUpdate = 0;
-	rpl::variable<int> _featuredStickerSetsUnreadCount = 0;
-	Stickers::Sets _stickerSets;
-	Stickers::Order _stickerSetsOrder;
-	Stickers::Order _featuredStickerSetsOrder;
-	Stickers::Order _archivedStickerSetsOrder;
-	Stickers::SavedGifs _savedGifs;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
@@ -970,6 +871,8 @@ private:
 		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
 
+	rpl::event_stream<> _pinnedDialogsOrderUpdated;
+
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
 	PeerData *_topPromoted = nullptr;
@@ -1006,6 +909,7 @@ private:
 	std::unique_ptr<Streaming> _streaming;
 	std::unique_ptr<MediaRotation> _mediaRotation;
 	std::unique_ptr<Histories> _histories;
+	std::unique_ptr<Stickers> _stickers;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

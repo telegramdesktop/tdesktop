@@ -111,7 +111,7 @@ void ToggleFavedSticker(
 	document->session().api().toggleFavedSticker(
 		document,
 		contextId,
-		!Stickers::IsFaved(document));
+		!document->owner().stickers().isFaved(document));
 }
 
 void AddPhotoActions(
@@ -204,7 +204,7 @@ void AddDocumentActions(
 				: tr::lng_context_pack_add(tr::now)),
 			[=] { ShowStickerPackInfo(document); });
 		menu->addAction(
-			(Stickers::IsFaved(document)
+			(document->owner().stickers().isFaved(document)
 				? tr::lng_faved_stickers_remove(tr::now)
 				: tr::lng_faved_stickers_add(tr::now)),
 			[=] { ToggleFavedSticker(document, contextId); });

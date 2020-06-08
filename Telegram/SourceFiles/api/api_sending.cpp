@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_message.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
@@ -192,7 +193,7 @@ void SendExistingDocument(
 	if (document->sticker()) {
 		if (const auto main = App::main()) {
 			main->incrementSticker(document);
-			document->owner().notifyRecentStickersUpdated();
+			document->owner().stickers().notifyRecentUpdated();
 		}
 	}
 }

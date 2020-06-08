@@ -11,29 +11,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
-namespace Data {
-class Session;
-} // namespace Data
-
 namespace Main {
 class Session;
 } // namespace Main
 
-namespace Stickers {
+namespace Data {
 
-using Order = QList<uint64>;
+class Session;
+
+using StickersSetsOrder = QList<uint64>;
 using SavedGifs = QVector<DocumentData*>;
-using Pack = QVector<DocumentData*>;
-using ByEmojiMap = QMap<EmojiPtr, Pack>;
+using StickersPack = QVector<DocumentData*>;
+using StickersByEmojiMap = QMap<EmojiPtr, StickersPack>;
 
-class Set;
-using Sets = base::flat_map<uint64, std::unique_ptr<Set>>;
+class StickersSet;
+using StickersSets = base::flat_map<uint64, std::unique_ptr<StickersSet>>;
 
-class SetThumbnailView final {
+class StickersSetThumbnailView final {
 public:
-	explicit SetThumbnailView(not_null<Set*> owner);
+	explicit StickersSetThumbnailView(not_null<StickersSet*> owner);
 
-	[[nodiscard]] not_null<Set*> owner() const;
+	[[nodiscard]] not_null<StickersSet*> owner() const;
 
 	void set(not_null<Main::Session*> session, QByteArray content);
 
@@ -41,15 +39,15 @@ public:
 	[[nodiscard]] QByteArray content() const;
 
 private:
-	const not_null<Set*> _owner;
+	const not_null<StickersSet*> _owner;
 	std::unique_ptr<Image> _image;
 	QByteArray _content;
 
 };
 
-class Set final {
+class StickersSet final {
 public:
-	Set(
+	StickersSet(
 		not_null<Data::Session*> owner,
 		uint64 id,
 		uint64 access,
@@ -74,8 +72,8 @@ public:
 	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
 	[[nodiscard]] int thumbnailByteSize() const;
 
-	[[nodiscard]] std::shared_ptr<SetThumbnailView> createThumbnailView();
-	[[nodiscard]] std::shared_ptr<SetThumbnailView> activeThumbnailView();
+	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> createThumbnailView();
+	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> activeThumbnailView();
 
 	uint64 id = 0;
 	uint64 access = 0;
@@ -84,16 +82,16 @@ public:
 	int32 hash = 0;
 	MTPDstickerSet::Flags flags;
 	TimeId installDate = 0;
-	Pack stickers;
+	StickersPack covers;
+	StickersPack stickers;
 	std::vector<TimeId> dates;
-	Pack covers;
-	ByEmojiMap emoji;
+	StickersByEmojiMap emoji;
 
 private:
 	const not_null<Data::Session*> _owner;
 
-	Data::CloudFile _thumbnail;
-	std::weak_ptr<SetThumbnailView> _thumbnailView;
+	CloudFile _thumbnail;
+	std::weak_ptr<StickersSetThumbnailView> _thumbnailView;
 
 };
 

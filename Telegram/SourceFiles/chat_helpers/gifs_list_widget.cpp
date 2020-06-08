@@ -15,13 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "data/stickers/data_stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
-#include "chat_helpers/stickers.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -149,8 +149,8 @@ GifsListWidget::GifsListWidget(
 		this,
 		[=] { sendInlineRequest(); });
 
-	controller->session().data().savedGifsUpdated(
-	) | rpl::start_with_next([this] {
+	controller->session().data().stickers().savedGifsUpdated(
+	) | rpl::start_with_next([=] {
 		refreshSavedGifs();
 	}, lifetime());
 
@@ -511,13 +511,13 @@ void GifsListWidget::refreshSavedGifs() {
 	if (_section == Section::Gifs) {
 		clearInlineRows(false);
 
-		auto &saved = controller()->session().data().savedGifs();
+		const auto &saved = controller()->session().data().stickers().savedGifs();
 		if (!saved.isEmpty()) {
 			_rows.reserve(saved.size());
 			auto row = Row();
 			row.items.reserve(kInlineItemsMaxPerRow);
 			auto sumWidth = 0;
-			for_const (auto &gif, saved) {
+			for (const auto &gif : saved) {
 				inlineRowsAddItem(gif, 0, row, sumWidth);
 			}
 			inlineRowFinalize(row, sumWidth, true);
@@ -540,8 +540,8 @@ void GifsListWidget::clearInlineRows(bool resultsDeleted) {
 		_selected = _pressed = -1;
 	} else {
 		clearSelection();
-		for_const (auto &row, _rows) {
-			for_const (auto &item, row.items) {
+		for (const auto &row : std::as_const(_rows)) {
+			for (const auto &item : std::as_const(row.items)) {
 				item->setPosition(-1);
 			}
 		}

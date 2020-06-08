@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/stickers/data_stickers.h"
 #include "api/api_text_entities.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
@@ -43,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_connecting_widget.h"
 #include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
 #include "chat_helpers/message_field.h"
-#include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "observer_peer.h"
@@ -3212,8 +3212,8 @@ void MainWidget::start() {
 	if (const auto availableAt = Local::ReadExportSettings().availableAt) {
 		session().data().suggestStartExport(availableAt);
 	}
-	session().data().notifyStickersUpdated();
-	session().data().notifySavedGifsUpdated();
+	session().data().stickers().notifyUpdated();
+	session().data().stickers().notifySavedGifsUpdated();
 
 	_history->start();
 
@@ -3362,15 +3362,15 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 
 	bool writeRecentStickers = false;
-	auto &sets = session().data().stickerSetsRef();
-	auto it = sets.find(Stickers::CloudRecentSetId);
+	auto &sets = session().data().stickers().setsRef();
+	auto it = sets.find(Data::Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
 			it = sets.emplace(
-				Stickers::CloudRecentSetId,
-				std::make_unique<Stickers::Set>(
+				Data::Stickers::CloudRecentSetId,
+				std::make_unique<Data::StickersSet>(
 					&session().data(),
-					Stickers::CloudRecentSetId,
+					Data::Stickers::CloudRecentSetId,
 					uint64(0),
 					tr::lng_recent_stickers(tr::now),
 					QString(),
@@ -3410,7 +3410,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			set->dates.insert(set->dates.begin(), base::unixtime::now());
 		}
 		set->stickers.push_front(sticker);
-		if (const auto emojiList = Stickers::GetEmojiListFromSet(sticker)) {
+		if (const auto emojiList = session().data().stickers().getEmojiListFromSet(sticker)) {
 			for (const auto emoji : *emojiList) {
 				set->emoji[emoji].push_front(sticker);
 			}
@@ -3427,7 +3427,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 	// Remove that sticker from old recent, now it is in cloud recent stickers.
 	bool writeOldRecent = false;
-	auto &recent = Stickers::GetRecentPack();
+	auto &recent = session().data().stickers().getRecentPack();
 	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
 		if (i->first == sticker) {
 			writeOldRecent = true;
@@ -3446,7 +3446,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
 	bool writeInstalledStickers = false;
-	auto customIt = sets.find(Stickers::CustomSetId);
+	auto customIt = sets.find(Data::Stickers::CustomSetId);
 	if (customIt != sets.cend()) {
 		const auto custom = customIt->second.get();
 		int removeIndex = custom->stickers.indexOf(sticker);
@@ -3469,8 +3469,9 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 }
 
 void MainWidget::activate() {
-	if (_a_show.animating()) return;
-	if (!_mainSection) {
+	if (_a_show.animating()) {
+		return;
+	} else if (!_mainSection) {
 		if (_hider) {
 			_dialogs->setInnerFocus();
 		} else if (App::wnd() && !Ui::isLayerShown()) {
@@ -3479,7 +3480,9 @@ void MainWidget::activate() {
 				const auto path = cSendPaths()[0];
 				if (path.startsWith(interpret)) {
 					cSetSendPaths(QStringList());
-					const auto error = Support::InterpretSendPath(path.mid(interpret.size()));
+					const auto error = Support::InterpretSendPath(
+						_controller,
+						path.mid(interpret.size()));
 					if (!error.isEmpty()) {
 						Ui::show(Box<InformBox>(error));
 					}
@@ -4519,45 +4522,45 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
 		const auto &d = update.c_updateNewStickerSet();
-		Stickers::NewSetReceived(d.vstickerset());
+		session().data().stickers().newSetReceived(d.vstickerset());
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
 		if (!d.is_masks()) {
 			const auto &order = d.vorder().v;
-			const auto &sets = session().data().stickerSets();
-			Stickers::Order result;
+			const auto &sets = session().data().stickers().sets();
+			Data::StickersSetsOrder result;
 			for (const auto &item : order) {
 				if (sets.find(item.v) == sets.cend()) {
 					break;
 				}
 				result.push_back(item.v);
 			}
-			if (result.size() != session().data().stickerSetsOrder().size()
+			if (result.size() != session().data().stickers().setsOrder().size()
 				|| result.size() != order.size()) {
-				session().data().setLastStickersUpdate(0);
+				session().data().stickers().setLastUpdate(0);
 				session().api().updateStickers();
 			} else {
-				session().data().stickerSetsOrderRef() = std::move(result);
+				session().data().stickers().setsOrderRef() = std::move(result);
 				Local::writeInstalledStickers();
-				session().data().notifyStickersUpdated();
+				session().data().stickers().notifyUpdated();
 			}
 		}
 	} break;
 
 	case mtpc_updateStickerSets: {
-		session().data().setLastStickersUpdate(0);
+		session().data().stickers().setLastUpdate(0);
 		session().api().updateStickers();
 	} break;
 
 	case mtpc_updateRecentStickers: {
-		session().data().setLastRecentStickersUpdate(0);
+		session().data().stickers().setLastRecentUpdate(0);
 		session().api().updateStickers();
 	} break;
 
 	case mtpc_updateFavedStickers: {
-		session().data().setLastFavedStickersUpdate(0);
+		session().data().stickers().setLastFavedUpdate(0);
 		session().api().updateStickers();
 	} break;
 
@@ -4565,13 +4568,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// We read some of the featured stickers, perhaps not all of them.
 		// Here we don't know what featured sticker sets were read, so we
 		// request all of them once again.
-		session().data().setLastFeaturedStickersUpdate(0);
+		session().data().stickers().setLastFeaturedUpdate(0);
 		session().api().updateStickers();
 	} break;
 
 	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
-		session().data().setLastSavedGifsUpdate(0);
+		session().data().stickers().setLastSavedGifsUpdate(0);
 		session().api().updateStickers();
 	} break;
 

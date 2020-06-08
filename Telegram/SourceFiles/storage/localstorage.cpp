@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "storage/storage_encrypted_file.h"
 #include "storage/storage_clear_legacy.h"
-#include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_document_media.h"
+#include "data/stickers/data_stickers.h"
 #include "boxes/send_files_box.h"
 #include "base/flags.h"
 #include "base/platform/base_platform_file_utilities.h"
@@ -2182,6 +2182,14 @@ void _writeUserSettings() {
 		: QByteArray();
 	auto callSettings = serializeCallSettings();
 
+	auto recentStickers = cRecentStickersPreload();
+	if (recentStickers.isEmpty() && Main::Session::Exists()) {
+		recentStickers.reserve(Auth().data().stickers().getRecentPack().size());
+		for (const auto &pair : std::as_const(Auth().data().stickers().getRecentPack())) {
+			recentStickers.push_back(qMakePair(pair.first->id, pair.second));
+		}
+	}
+
 	uint32 size = 24 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
@@ -2191,7 +2199,7 @@ void _writeUserSettings() {
 	}
 
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
-	size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+	size += sizeof(quint32) + sizeof(qint32) + recentStickers.size() * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
@@ -2233,21 +2241,9 @@ void _writeUserSettings() {
 		data.stream << quint32(dbiSessionSettings) << userData;
 	}
 	data.stream << quint32(dbiPlaybackSpeed) << qint32(Global::VoiceMsgPlaybackDoubled() ? 2 : 1);
-
-	{
-		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
-	}
+	data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
 	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
-	{
-		auto v = cRecentStickersPreload();
-		if (v.isEmpty()) {
-			v.reserve(Stickers::GetRecentPack().size());
-			for_const (auto &pair, Stickers::GetRecentPack()) {
-				v.push_back(qMakePair(pair.first->id, pair.second));
-			}
-		}
-		data.stream << quint32(dbiRecentStickers) << v;
-	}
+	data.stream << quint32(dbiRecentStickers) << recentStickers;
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		data.stream << quint32(dbiHiddenPinnedMessages) << Global::HiddenPinnedMessages();
 	}
@@ -3427,7 +3423,7 @@ void cancelTask(TaskId id) {
 	}
 }
 
-void _writeStickerSet(QDataStream &stream, const Stickers::Set &set) {
+void _writeStickerSet(QDataStream &stream, const Data::StickersSet &set) {
 	const auto writeInfo = [&](int count) {
 		stream
 			<< quint64(set.id)
@@ -3475,12 +3471,15 @@ enum class StickerSetCheckResult {
 	Abort,
 };
 
-// CheckSet is a functor on Stickers::Set, which returns a StickerSetCheckResult.
+// CheckSet is a functor on Data::StickersSet, which returns a StickerSetCheckResult.
 template <typename CheckSet>
-void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::Order &order) {
+void _writeStickerSets(
+		FileKey &stickersKey,
+		CheckSet checkSet,
+		const Data::StickersSetsOrder &order) {
 	if (!_working()) return;
 
-	const auto &sets = Auth().data().stickerSets();
+	const auto &sets = Auth().data().stickers().sets();
 	if (sets.empty()) {
 		if (stickersKey) {
 			ClearKey(stickersKey);
@@ -3567,7 +3566,10 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	file.writeEncrypted(data);
 }
 
-void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr, MTPDstickerSet::Flags readingFlags = 0) {
+void _readStickerSets(
+		FileKey &stickersKey,
+		Data::StickersSetsOrder *outOrder = nullptr,
+		MTPDstickerSet::Flags readingFlags = 0) {
 	FileReadDescriptor stickers;
 	if (!ReadEncryptedFile(stickers, stickersKey)) {
 		ClearKey(stickersKey);
@@ -3581,7 +3583,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		stickersKey = 0;
 	};
 
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = Auth().data().stickers().setsRef();
 	if (outOrder) outOrder->clear();
 
 	quint32 versionTag = 0;
@@ -3635,16 +3637,16 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		}
 
 		setFlags = MTPDstickerSet::Flags::from_raw(setFlagsValue);
-		if (setId == Stickers::DefaultSetId) {
+		if (setId == Data::Stickers::DefaultSetId) {
 			setTitle = tr::lng_stickers_default_set(tr::now);
 			setFlags |= MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special;
-		} else if (setId == Stickers::CustomSetId) {
+		} else if (setId == Data::Stickers::CustomSetId) {
 			setTitle = qsl("Custom stickers");
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
-		} else if (setId == Stickers::CloudRecentSetId) {
+		} else if (setId == Data::Stickers::CloudRecentSetId) {
 			setTitle = tr::lng_recent_stickers(tr::now);
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
-		} else if (setId == Stickers::FavedSetId) {
+		} else if (setId == Data::Stickers::FavedSetId) {
 			setTitle = Lang::Hard::FavedSetTitle();
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (!setId) {
@@ -3655,7 +3657,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		if (it == sets.cend()) {
 			// We will set this flags from order lists when reading those stickers.
 			setFlags &= ~(MTPDstickerSet::Flag::f_installed_date | MTPDstickerSet_ClientFlag::f_featured);
-			it = sets.emplace(setId, std::make_unique<Stickers::Set>(
+			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
 				&Auth().data(),
 				setId,
 				setAccess,
@@ -3713,7 +3715,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			if (datesCount != scnt) {
 				return failed();
 			}
-			const auto fillDates = (set->id == Stickers::CloudRecentSetId)
+			const auto fillDates = (set->id == Data::Stickers::CloudRecentSetId)
 				&& (set->stickers.size() == datesCount);
 			if (fillDates) {
 				set->dates.clear();
@@ -3737,7 +3739,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			QString emojiString;
 			qint32 stickersCount;
 			stickers.stream >> emojiString >> stickersCount;
-			Stickers::Pack pack;
+			Data::StickersPack pack;
 			pack.reserve(stickersCount);
 			for (int32 k = 0; k < stickersCount; ++k) {
 				quint64 id;
@@ -3797,8 +3799,8 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 void writeInstalledStickers() {
 	if (!Global::started()) return;
 
-	_writeStickerSets(_installedStickersKey, [](const Stickers::Set &set) {
-		if (set.id == Stickers::CloudRecentSetId || set.id == Stickers::FavedSetId) { // separate files for them
+	_writeStickerSets(_installedStickersKey, [](const Data::StickersSet &set) {
+		if (set.id == Data::Stickers::CloudRecentSetId || set.id == Data::Stickers::FavedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			if (set.stickers.isEmpty()) { // all other special are "installed"
@@ -3812,14 +3814,15 @@ void writeInstalledStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().stickerSetsOrder());
+	}, Auth().data().stickers().setsOrder());
 }
 
 void writeFeaturedStickers() {
 	if (!Global::started()) return;
 
-	_writeStickerSets(_featuredStickersKey, [](const Stickers::Set &set) {
-		if (set.id == Stickers::CloudRecentSetId || set.id == Stickers::FavedSetId) { // separate files for them
+	_writeStickerSets(_featuredStickersKey, [](const Data::StickersSet &set) {
+		if (set.id == Data::Stickers::CloudRecentSetId
+			|| set.id == Data::Stickers::FavedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			return StickerSetCheckResult::Skip;
@@ -3831,40 +3834,40 @@ void writeFeaturedStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().featuredStickerSetsOrder());
+	}, Auth().data().stickers().featuredSetsOrder());
 }
 
 void writeRecentStickers() {
 	if (!Global::started()) return;
 
-	_writeStickerSets(_recentStickersKey, [](const Stickers::Set &set) {
-		if (set.id != Stickers::CloudRecentSetId || set.stickers.isEmpty()) {
+	_writeStickerSets(_recentStickersKey, [](const Data::StickersSet &set) {
+		if (set.id != Data::Stickers::CloudRecentSetId || set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Stickers::Order());
+	}, Data::StickersSetsOrder());
 }
 
 void writeFavedStickers() {
 	if (!Global::started()) return;
 
-	_writeStickerSets(_favedStickersKey, [](const Stickers::Set &set) {
-		if (set.id != Stickers::FavedSetId || set.stickers.isEmpty()) {
+	_writeStickerSets(_favedStickersKey, [](const Data::StickersSet &set) {
+		if (set.id != Data::Stickers::FavedSetId || set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Stickers::Order());
+	}, Data::StickersSetsOrder());
 }
 
 void writeArchivedStickers() {
 	if (!Global::started()) return;
 
-	_writeStickerSets(_archivedStickersKey, [](const Stickers::Set &set) {
+	_writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
 		if (!(set.flags & MTPDstickerSet::Flag::f_archived) || set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().archivedStickerSetsOrder());
+	}, Auth().data().stickers().archivedSetsOrder());
 }
 
 void importOldRecentStickers() {
@@ -3878,20 +3881,20 @@ void importOldRecentStickers() {
 		return;
 	}
 
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = Auth().data().stickers().setsRef();
 	sets.clear();
 
-	auto &order = Auth().data().stickerSetsOrderRef();
+	auto &order = Auth().data().stickers().setsOrderRef();
 	order.clear();
 
 	auto &recent = cRefRecentStickers();
 	recent.clear();
 
 	const auto def = sets.emplace(
-		Stickers::DefaultSetId,
-		std::make_unique<Stickers::Set>(
+		Data::Stickers::DefaultSetId,
+		std::make_unique<Data::StickersSet>(
 			&Auth().data(),
-			Stickers::DefaultSetId,
+			Data::Stickers::DefaultSetId,
 			uint64(0),
 			tr::lng_stickers_default_set(tr::now),
 			QString(),
@@ -3902,10 +3905,10 @@ void importOldRecentStickers() {
 				| MTPDstickerSet_ClientFlag::f_special),
 			kDefaultStickerInstallDate)).first->second.get();
 	const auto custom = sets.emplace(
-		Stickers::CustomSetId,
-		std::make_unique<Stickers::Set>(
+		Data::Stickers::CustomSetId,
+		std::make_unique<Data::StickersSet>(
 			&Auth().data(),
-			Stickers::CustomSetId,
+			Data::Stickers::CustomSetId,
 			uint64(0),
 			qsl("Custom stickers"),
 			QString(),
@@ -3967,12 +3970,12 @@ void importOldRecentStickers() {
 		}
 	}
 	if (def->stickers.isEmpty()) {
-		sets.remove(Stickers::DefaultSetId);
+		sets.remove(Data::Stickers::DefaultSetId);
 	} else {
-		order.push_front(Stickers::DefaultSetId);
+		order.push_front(Data::Stickers::DefaultSetId);
 	}
 	if (custom->stickers.isEmpty()) {
-		sets.remove(Stickers::CustomSetId);
+		sets.remove(Data::Stickers::CustomSetId);
 	}
 
 	writeInstalledStickers();
@@ -3988,21 +3991,21 @@ void readInstalledStickers() {
 		return importOldRecentStickers();
 	}
 
-	Auth().data().stickerSetsRef().clear();
+	Auth().data().stickers().setsRef().clear();
 	_readStickerSets(
 		_installedStickersKey,
-		&Auth().data().stickerSetsOrderRef(),
+		&Auth().data().stickers().setsOrderRef(),
 		MTPDstickerSet::Flag::f_installed_date);
 }
 
 void readFeaturedStickers() {
 	_readStickerSets(
 		_featuredStickersKey,
-		&Auth().data().featuredStickerSetsOrderRef(),
+		&Auth().data().stickers().featuredSetsOrderRef(),
 		MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
-	const auto &sets = Auth().data().stickerSets();
-	const auto &order = Auth().data().featuredStickerSetsOrder();
+	const auto &sets = Auth().data().stickers().sets();
+	const auto &order = Auth().data().stickers().featuredSetsOrder();
 	int unreadCount = 0;
 	for (const auto setId : order) {
 		auto it = sets.find(setId);
@@ -4011,7 +4014,7 @@ void readFeaturedStickers() {
 			++unreadCount;
 		}
 	}
-	Auth().data().setFeaturedStickerSetsUnreadCount(unreadCount);
+	Auth().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
 }
 
 void readRecentStickers() {
@@ -4025,7 +4028,7 @@ void readFavedStickers() {
 void readArchivedStickers() {
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
-		_readStickerSets(_archivedStickersKey, &Auth().data().archivedStickerSetsOrderRef());
+		_readStickerSets(_archivedStickersKey, &Auth().data().stickers().archivedSetsOrderRef());
 		archivedStickersRead = true;
 	}
 }
@@ -4039,7 +4042,7 @@ int32 countDocumentVectorHash(const QVector<DocumentData*> vector) {
 }
 
 int32 countSpecialStickerSetHash(uint64 setId) {
-	const auto &sets = Auth().data().stickerSets();
+	const auto &sets = Auth().data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it != sets.cend()) {
 		return countDocumentVectorHash(it->second->stickers);
@@ -4050,13 +4053,13 @@ int32 countSpecialStickerSetHash(uint64 setId) {
 int32 countStickersHash(bool checkOutdatedInfo) {
 	auto result = Api::HashInit();
 	bool foundOutdated = false;
-	const auto &sets = Auth().data().stickerSets();
-	const auto &order = Auth().data().stickerSetsOrder();
+	const auto &sets = Auth().data().stickers().sets();
+	const auto &order = Auth().data().stickers().setsOrder();
 	for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
 		auto it = sets.find(*i);
 		if (it != sets.cend()) {
 			const auto set = it->second.get();
-			if (set->id == Stickers::DefaultSetId) {
+			if (set->id == Data::Stickers::DefaultSetId) {
 				foundOutdated = true;
 			} else if (!(set->flags & MTPDstickerSet_ClientFlag::f_special)
 				&& !(set->flags & MTPDstickerSet::Flag::f_archived)) {
@@ -4070,17 +4073,17 @@ int32 countStickersHash(bool checkOutdatedInfo) {
 }
 
 int32 countRecentStickersHash() {
-	return countSpecialStickerSetHash(Stickers::CloudRecentSetId);
+	return countSpecialStickerSetHash(Data::Stickers::CloudRecentSetId);
 }
 
 int32 countFavedStickersHash() {
-	return countSpecialStickerSetHash(Stickers::FavedSetId);
+	return countSpecialStickerSetHash(Data::Stickers::FavedSetId);
 }
 
 int32 countFeaturedStickersHash() {
 	auto result = Api::HashInit();
-	const auto &sets = Auth().data().stickerSets();
-	const auto &featured = Auth().data().featuredStickerSetsOrder();
+	const auto &sets = Auth().data().stickers().sets();
+	const auto &featured = Auth().data().stickers().featuredSetsOrder();
 	for (const auto setId : featured) {
 		Api::HashUpdate(result, setId);
 
@@ -4094,13 +4097,13 @@ int32 countFeaturedStickersHash() {
 }
 
 int32 countSavedGifsHash() {
-	return countDocumentVectorHash(Auth().data().savedGifs());
+	return countDocumentVectorHash(Auth().data().stickers().savedGifs());
 }
 
 void writeSavedGifs() {
 	if (!_working()) return;
 
-	auto &saved = Auth().data().savedGifs();
+	auto &saved = Auth().data().stickers().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			ClearKey(_savedGifsKey);
@@ -4140,7 +4143,7 @@ void readSavedGifs() {
 		return;
 	}
 
-	auto &saved = Auth().data().savedGifsRef();
+	auto &saved = Auth().data().stickers().savedGifsRef();
 	const auto failed = [&] {
 		ClearKey(_savedGifsKey);
 		_savedGifsKey = 0;

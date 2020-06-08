@@ -23,6 +23,7 @@
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_cloud_file.h"
+#include "data/stickers/data_stickers.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/emoji_config.h"
 #include "history/history.h"
@@ -31,7 +32,6 @@
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "base/platform/mac/base_utilities_mac.h"
-#include "chat_helpers/stickers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
 #include "styles/style_settings.h"
@@ -220,8 +220,8 @@ inline std::optional<QString> RestrictionToSendStickers() {
 }
 
 QString TitleRecentlyUsed() {
-	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.find(Stickers::CloudRecentSetId);
+	const auto &sets = Auth().data().stickers().sets();
+	const auto it = sets.find(Data::Stickers::CloudRecentSetId);
 	if (it != sets.cend()) {
 		return it->second->title;
 	}
@@ -351,8 +351,8 @@ void AppendStickerSet(std::vector<PickerScrubberItem> &to, uint64 setId) {
 }
 
 void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
-	const auto &sets = Auth().data().stickerSets();
-	const auto cloudIt = sets.find(Stickers::CloudRecentSetId);
+	const auto &sets = Auth().data().stickers().sets();
+	const auto cloudIt = sets.find(Data::Stickers::CloudRecentSetId);
 	const auto cloudCount = (cloudIt != sets.cend())
 		? cloudIt->second->stickers.size()
 		: 0;
@@ -360,20 +360,20 @@ void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 		to.emplace_back(PickerScrubberItem(cloudIt->second->title));
 		auto count = 0;
 		for (const auto document : cloudIt->second->stickers) {
-			if (Stickers::IsFaved(document)) {
+			if (document->owner().stickers().isFaved(document)) {
 				continue;
 			}
 			to.emplace_back(PickerScrubberItem(document));
 		}
 	}
-	for (const auto recent : Stickers::GetRecentPack()) {
+	for (const auto recent : Auth().data().stickers().getRecentPack()) {
 		to.emplace_back(PickerScrubberItem(recent.first));
 	}
 }
 
 void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
-	const auto &sets = Auth().data().stickerSets();
-	const auto it = sets.find(Stickers::FavedSetId);
+	const auto &sets = Auth().data().stickers().sets();
+	const auto it = sets.find(Data::Stickers::FavedSetId);
 	const auto count = (it != sets.cend())
 		? it->second->stickers.size()
 		: 0;

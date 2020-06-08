@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "lottie/lottie_single_player.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -293,10 +294,10 @@ void Sticker::setDiceIndex(const QString &emoji, int index) {
 void Sticker::setupLottie() {
 	Expects(_dataMedia != nullptr);
 
-	_lottie = Stickers::LottiePlayerFromDocument(
+	_lottie = ChatHelpers::LottiePlayerFromDocument(
 		_dataMedia.get(),
 		_replacements,
-		Stickers::LottieSize::MessageHistory,
+		ChatHelpers::StickerLottieSize::MessageHistory,
 		_size * cIntRetinaFactor(),
 		Lottie::Quality::High);
 	lottieCreated();

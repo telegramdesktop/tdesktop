@@ -11,11 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
-#include "chat_helpers/stickers.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
@@ -174,7 +175,7 @@ void MediaPreviewWidget::fillEmojiString() {
 		return;
 	}
 	if (auto sticker = _document->sticker()) {
-		if (auto list = Stickers::GetEmojiListFromSet(_document)) {
+		if (auto list = _document->owner().stickers().getEmojiListFromSet(_document)) {
 			_emojiList = std::move(*list);
 			while (_emojiList.size() > kStickerPreviewEmojiLimit) {
 				_emojiList.pop_back();
