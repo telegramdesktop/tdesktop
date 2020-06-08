@@ -168,7 +168,7 @@ void ScheduledWidget::setupComposeControls() {
 
 	_composeControls->cancelRequests(
 	) | rpl::start_with_next([=] {
-		controller()->showBackFromStack();
+		listCancelRequest();
 	}, lifetime());
 
 	_composeControls->sendRequests(
@@ -1035,6 +1035,10 @@ void ScheduledWidget::listScrollTo(int top) {
 void ScheduledWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
+		return;
+	}
+	if (_composeControls->isEditingMessage()) {
+		_composeControls->cancelEditMessage();
 		return;
 	}
 	controller()->showBackFromStack();
