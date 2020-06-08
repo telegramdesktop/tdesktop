@@ -2984,8 +2984,9 @@ void HistoryWidget::saveEditMsg() {
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	auto localEntities = Api::EntitiesToMTP(sending.entities);
+	auto localEntities = Api::EntitiesToMTP(&session(), sending.entities);
 	auto sentEntities = Api::EntitiesToMTP(
+		&session(),
 		sending.entities,
 		Api::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {
@@ -4660,7 +4661,7 @@ void HistoryWidget::sendFileConfirmed(
 		session().user()).flags;
 	TextUtilities::PrepareForSending(caption, prepareFlags);
 	TextUtilities::Trim(caption);
-	auto localEntities = Api::EntitiesToMTP(caption.entities);
+	auto localEntities = Api::EntitiesToMTP(&session(), caption.entities);
 
 	if (itemToEdit) {
 		if (const auto id = itemToEdit->groupId()) {

@@ -453,7 +453,7 @@ void Helper::applyInfo(
 		info.date = data.vdate().v;
 		info.text = TextWithEntities{
 			qs(data.vmessage()),
-			Api::EntitiesFromMTP(data.ventities().v) };
+			Api::EntitiesFromMTP(&user->session(), data.ventities().v) };
 		if (info.text.empty()) {
 			remove();
 		} else if (_userInformation[user] != info) {
@@ -544,6 +544,7 @@ void Helper::saveInfo(
 	TextUtilities::Trim(text);
 
 	const auto entities = Api::EntitiesToMTP(
+		&user->session(),
 		text.entities,
 		Api::ConvertOption::SkipLocal);
 	_userInfoSaving[user].requestId = _api.request(MTPhelp_EditUserInfo(

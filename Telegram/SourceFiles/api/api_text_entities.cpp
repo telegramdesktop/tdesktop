@@ -18,11 +18,13 @@ using namespace TextUtilities;
 
 } // namespace
 
-EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
+EntitiesInText EntitiesFromMTP(
+		Main::Session *session,
+		const QVector<MTPMessageEntity> &entities) {
 	auto result = EntitiesInText();
 	if (!entities.isEmpty()) {
 		result.reserve(entities.size());
-		for_const (auto &entity, entities) {
+		for (const auto &entity : entities) {
 			switch (entity.type()) {
 			case mtpc_messageEntityUrl: { auto &d = entity.c_messageEntityUrl(); result.push_back({ EntityType::Url, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back({ EntityType::CustomUrl, d.voffset().v, d.vlength().v, Clean(qs(d.vurl())) }); } break;
@@ -32,28 +34,30 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityPhone: break; // Skipping phones.
 			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back({ EntityType::Mention, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityMentionName: {
-				auto &d = entity.c_messageEntityMentionName();
-				auto data = [&d] {
-					if (auto user = Auth().data().userLoaded(d.vuser_id().v)) {
-						return MentionNameDataFromFields({
-							d.vuser_id().v,
-							user->accessHash() });
+				const auto &d = entity.c_messageEntityMentionName();
+				const auto data = [&] {
+					if (session) {
+						if (const auto user = session->data().userLoaded(d.vuser_id().v)) {
+							return MentionNameDataFromFields({
+								d.vuser_id().v,
+								user->accessHash() });
+						}
 					}
 					return MentionNameDataFromFields(d.vuser_id().v);
-				};
-				result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data() });
+				}();
+				result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
 			} break;
 			case mtpc_inputMessageEntityMentionName: {
-				auto &d = entity.c_inputMessageEntityMentionName();
-				auto data = ([&d]() -> QString {
-					if (d.vuser_id().type() == mtpc_inputUserSelf) {
-						return MentionNameDataFromFields(Auth().userId());
+				const auto &d = entity.c_inputMessageEntityMentionName();
+				const auto data = [&] {
+					if (session && d.vuser_id().type() == mtpc_inputUserSelf) {
+						return MentionNameDataFromFields(session->userId());
 					} else if (d.vuser_id().type() == mtpc_inputUser) {
 						auto &user = d.vuser_id().c_inputUser();
 						return MentionNameDataFromFields({ user.vuser_id().v, user.vaccess_hash().v });
 					}
 					return QString();
-				})();
+				}();
 				if (!data.isEmpty()) {
 					result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
 				}
@@ -74,11 +78,12 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 }
 
 MTPVector<MTPMessageEntity> EntitiesToMTP(
+		not_null<Main::Session*> session,
 		const EntitiesInText &entities,
 		ConvertOption option) {
 	auto v = QVector<MTPMessageEntity>();
 	v.reserve(entities.size());
-	for_const (auto &entity, entities) {
+	for (const auto &entity : entities) {
 		if (entity.length() <= 0) continue;
 		if (option == ConvertOption::SkipLocal
 			&& entity.type() != EntityType::Bold
@@ -103,15 +108,15 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::Cashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
 		case EntityType::Mention: v.push_back(MTP_messageEntityMention(offset, length)); break;
 		case EntityType::MentionName: {
-			auto inputUser = ([](const QString &data) -> MTPInputUser {
+			auto inputUser = [&](const QString &data) -> MTPInputUser {
 				auto fields = MentionNameDataToFields(data);
-				if (fields.userId == Auth().userId()) {
+				if (session && fields.userId == session->userId()) {
 					return MTP_inputUserSelf();
 				} else if (fields.userId) {
 					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));
 				}
 				return MTP_inputUserEmpty();
-			})(entity.data());
+			}(entity.data());
 			if (inputUser.type() != mtpc_inputUserEmpty) {
 				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
 			}

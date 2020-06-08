@@ -3788,7 +3788,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 				}
 				item->updateSentContent({
 					sent.text,
-					Api::EntitiesFromMTP(list.value_or_empty())
+					Api::EntitiesFromMTP(&session(), list.value_or_empty())
 				}, d.vmedia());
 				item->contributeToSlowmode(d.vdate().v);
 				if (!wasAlready) {
@@ -4297,7 +4297,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateServiceNotification();
 		const auto text = TextWithEntities {
 			qs(d.vmessage()),
-			Api::EntitiesFromMTP(d.ventities().v)
+			Api::EntitiesFromMTP(&session(), d.ventities().v)
 		};
 		if (IsForceLogoutNotification(d)) {
 			Core::App().forceLogOut(text);
@@ -4571,9 +4571,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &data = update.c_updateDraftMessage();
 		const auto peerId = peerFromMTP(data.vpeer());
 		data.vdraft().match([&](const MTPDdraftMessage &data) {
-			Data::applyPeerCloudDraft(peerId, data);
+			Data::ApplyPeerCloudDraft(&session(), peerId, data);
 		}, [&](const MTPDdraftMessageEmpty &data) {
-			Data::clearPeerCloudDraft(
+			Data::ClearPeerCloudDraft(
+				&session(),
 				peerId,
 				data.vdate().value_or_empty());
 		});

@@ -934,6 +934,7 @@ void EditCaptionBox::save() {
 	TextUtilities::Trim(sending);
 
 	const auto sentEntities = Api::EntitiesToMTP(
+		&item->history()->session(),
 		sending.entities,
 		Api::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {

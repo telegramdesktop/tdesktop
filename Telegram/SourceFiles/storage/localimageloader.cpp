@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "mtproto/facade.h"
 #include "lottie/lottie_animation.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "boxes/send_files_box.h"
 #include "boxes/confirm_box.h"
@@ -129,6 +130,7 @@ MTPInputSingleMedia PrepareAlbumItemMedia(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	auto sentEntities = Api::EntitiesToMTP(
+		&item->history()->session(),
 		caption.entities,
 		Api::ConvertOption::SkipLocal);
 	const auto flags = !sentEntities.v.isEmpty()

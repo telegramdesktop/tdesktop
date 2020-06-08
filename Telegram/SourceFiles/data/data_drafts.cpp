@@ -45,14 +45,19 @@ Draft::Draft(
 , previewCancelled(previewCancelled) {
 }
 
-void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
-	const auto history = Auth().data().history(peerId);
+void ApplyPeerCloudDraft(
+		not_null<Main::Session*> session,
+		PeerId peerId,
+		const MTPDdraftMessage &draft) {
+	const auto history = session->data().history(peerId);
 	const auto textWithTags = TextWithTags {
 		qs(draft.vmessage()),
 		TextUtilities::ConvertEntitiesToTextTags(
-			Api::EntitiesFromMTP(draft.ventities().value_or_empty()))
+			Api::EntitiesFromMTP(
+				session,
+				draft.ventities().value_or_empty()))
 	};
-	auto replyTo = draft.vreply_to_msg_id().value_or_empty();
+	const auto replyTo = draft.vreply_to_msg_id().value_or_empty();
 	if (history->skipCloudDraft(textWithTags.text, replyTo, draft.vdate().v)) {
 		return;
 	}
@@ -67,8 +72,11 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	history->applyCloudDraft();
 }
 
-void clearPeerCloudDraft(PeerId peerId, TimeId date) {
-	const auto history = Auth().data().history(peerId);
+void ClearPeerCloudDraft(
+		not_null<Main::Session*> session,
+		PeerId peerId,
+		TimeId date) {
+	const auto history = session->data().history(peerId);
 	if (history->skipCloudDraft(QString(), MsgId(0), date)) {
 		return;
 	}

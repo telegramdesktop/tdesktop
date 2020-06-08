@@ -2700,7 +2700,10 @@ void History::applyDialog(
 
 	const auto draft = data.vdraft();
 	if (draft && draft->type() == mtpc_draftMessage) {
-		Data::applyPeerCloudDraft(peer->id, draft->c_draftMessage());
+		Data::ApplyPeerCloudDraft(
+			&session(),
+			peer->id,
+			draft->c_draftMessage());
 	}
 	owner().histories().dialogEntryApplied(this);
 }

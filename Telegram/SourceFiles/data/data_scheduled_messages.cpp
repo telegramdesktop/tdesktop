@@ -152,7 +152,7 @@ void ScheduledMessages::sendNowSimpleMessage(
 	// we know for sure that a message can't have fields such as the author,
 	// views count, etc.
 
-	const auto &history = local->history();
+	const auto history = local->history();
 	auto flags = NewMessageFlags(history->peer)
 		| MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
@@ -175,7 +175,9 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTP_string(local->originalText().text),
 			MTP_messageMediaEmpty(),
 			MTPReplyMarkup(),
-			Api::EntitiesToMTP(local->originalText().entities),
+			Api::EntitiesToMTP(
+				&history->session(),
+				local->originalText().entities),
 			MTP_int(1),
 			MTPint(),
 			MTP_string(),
@@ -234,7 +236,7 @@ void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 	Assert(existing->date() == kScheduledUntilOnlineTimestamp);
 	existing->updateSentContent({
 		qs(data.vmessage()),
-		Api::EntitiesFromMTP(data.ventities().value_or_empty())
+		Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
 	}, data.vmedia());
 	existing->updateReplyMarkup(data.vreply_markup());
 	existing->updateForwardedInfo(data.vfwd_from());
@@ -410,7 +412,9 @@ HistoryItem *ScheduledMessages::append(
 		message.match([&](const MTPDmessage &data) {
 			existing->updateSentContent({
 				qs(data.vmessage()),
-				Api::EntitiesFromMTP(data.ventities().value_or_empty())
+				Api::EntitiesFromMTP(
+					_session,
+					data.ventities().value_or_empty())
 			}, data.vmedia());
 			existing->updateReplyMarkup(data.vreply_markup());
 			existing->updateForwardedInfo(data.vfwd_from());
