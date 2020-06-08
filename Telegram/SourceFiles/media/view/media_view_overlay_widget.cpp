@@ -1883,8 +1883,6 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) 
 	_firstOpenedPeerPhoto = false;
 	assignMediaPointer(photo);
 
-	refreshMediaViewer();
-
 	displayPhoto(photo, context);
 	preloadData(0);
 	activateControls();
@@ -1896,8 +1894,6 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> co
 	clearControlsState();
 	_firstOpenedPeerPhoto = true;
 	assignMediaPointer(photo);
-
-	refreshMediaViewer();
 
 	displayPhoto(photo, nullptr);
 	preloadData(0);
