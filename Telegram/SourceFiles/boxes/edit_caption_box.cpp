@@ -327,10 +327,6 @@ EditCaptionBox::EditCaptionBox(
 	) | rpl::start_with_next([&](bool checked) {
 		_asFile = checked;
 	}, _wayWrap->lifetime());
-
-	if (_animated) {
-		prepareStreamedPreview();
-	}
 }
 
 EditCaptionBox::~EditCaptionBox() = default;
@@ -590,6 +586,10 @@ void EditCaptionBox::createEditMediaButton() {
 }
 
 void EditCaptionBox::prepare() {
+	if (_animated) {
+		prepareStreamedPreview();
+	}
+
 	addButton(tr::lng_settings_save(), [this] { save(); });
 	if (_isAllowedEditMedia) {
 		createEditMediaButton();
