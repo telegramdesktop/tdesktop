@@ -45,7 +45,8 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
+, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+, _ptsWaiter(&owner->session()) {
 	Data::PeerFlagValue(
 		this,
 		MTPDchannel::Flag::f_megagroup

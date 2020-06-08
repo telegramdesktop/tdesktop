@@ -355,6 +355,7 @@ private:
 
 	QBrush _transparentBrush;
 
+	Main::Session *_session = nullptr;
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;

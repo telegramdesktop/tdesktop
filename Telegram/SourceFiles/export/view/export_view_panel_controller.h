@@ -17,6 +17,10 @@ class SeparatePanel;
 class BoxContent;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Export {
 
 struct Environment;
@@ -24,16 +28,18 @@ struct Environment;
 namespace View {
 
 Environment PrepareEnvironment();
-QPointer<Ui::BoxContent> SuggestStart();
-void ClearSuggestStart();
-bool IsDefaultPath(const QString &path);
-void ResolveSettings(Settings &settings);
+QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session);
+void ClearSuggestStart(not_null<Main::Session*> session);
+bool IsDefaultPath(not_null<Main::Session*> session, const QString &path);
+void ResolveSettings(not_null<Main::Session*> session, Settings &settings);
 
 class Panel;
 
 class PanelController {
 public:
-	PanelController(not_null<Controller*> process);
+	PanelController(
+		not_null<Main::Session*> session,
+		not_null<Controller*> process);
 	~PanelController();
 
 	void activatePanel();
@@ -63,7 +69,8 @@ private:
 
 	void saveSettings() const;
 
-	not_null<Controller*> _process;
+	const not_null<Main::Session*> _session;
+	const not_null<Controller*> _process;
 	std::unique_ptr<Settings> _settings;
 	base::Timer _saveSettingsTimer;
 

@@ -97,8 +97,11 @@ public:
 
 	};
 
-	SharedMediaWithLastSlice(Key key);
 	SharedMediaWithLastSlice(
+		not_null<Main::Session*> session,
+		Key key);
+	SharedMediaWithLastSlice(
+		not_null<Main::Session*> session,
 		Key key,
 		SparseIdsMergedSlice slice,
 		std::optional<SparseIdsMergedSlice> ending);
@@ -137,8 +140,11 @@ private:
 			: std::nullopt;
 	}
 
-	static std::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
+	static std::optional<PhotoId> LastPeerPhotoId(
+		not_null<Main::Session*> session,
+		PeerId peerId);
 	static std::optional<bool> IsLastIsolated(
+		not_null<Main::Session*> session,
 		const SparseIdsMergedSlice &slice,
 		const std::optional<SparseIdsMergedSlice> &ending,
 		std::optional<PhotoId> lastPeerPhotoId);
@@ -175,6 +181,7 @@ private:
 	std::optional<int> skippedAfterImpl() const;
 	std::optional<int> indexOfImpl(Value fullId) const;
 
+	not_null<Main::Session*> _session;
 	Key _key;
 	SparseIdsMergedSlice _slice;
 	std::optional<SparseIdsMergedSlice> _ending;

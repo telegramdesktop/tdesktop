@@ -428,7 +428,7 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	if (moveCaption) {
 		const auto caption = item->originalText();
 		const auto firstId = items.front().msgId;
-		if (const auto first = Auth().data().message(firstId)) {
+		if (const auto first = item->history()->owner().message(firstId)) {
 			// We don't need to finishEdition() here, because the whole
 			// album will be rebuilt after one item was removed from it.
 			first->setText(caption);

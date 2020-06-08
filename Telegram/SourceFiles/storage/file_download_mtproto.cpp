@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 mtpFileLoader::mtpFileLoader(
+	not_null<Main::Session*> session,
 	const StorageFileLocation &location,
 	Data::FileOrigin origin,
 	LocationType type,
@@ -28,6 +29,7 @@ mtpFileLoader::mtpFileLoader(
 	bool autoLoading,
 	uint8 cacheTag)
 : FileLoader(
+	session,
 	to,
 	size,
 	type,
@@ -35,16 +37,18 @@ mtpFileLoader::mtpFileLoader(
 	fromCloud,
 	autoLoading,
 	cacheTag)
-, DownloadMtprotoTask(&session().downloader(), location, origin) {
+, DownloadMtprotoTask(&session->downloader(), location, origin) {
 }
 
 mtpFileLoader::mtpFileLoader(
+	not_null<Main::Session*> session,
 	const WebFileLocation &location,
 	int32 size,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
 : FileLoader(
+	session,
 	QString(),
 	size,
 	UnknownFileLocation,
@@ -53,18 +57,20 @@ mtpFileLoader::mtpFileLoader(
 	autoLoading,
 	cacheTag)
 , DownloadMtprotoTask(
-	&session().downloader(),
+	&session->downloader(),
 	Global::WebFileDcId(),
 	{ location }) {
 }
 
 mtpFileLoader::mtpFileLoader(
+	not_null<Main::Session*> session,
 	const GeoPointLocation &location,
 	int32 size,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
 : FileLoader(
+	session,
 	QString(),
 	size,
 	UnknownFileLocation,
@@ -73,7 +79,7 @@ mtpFileLoader::mtpFileLoader(
 	autoLoading,
 	cacheTag)
 , DownloadMtprotoTask(
-	&session().downloader(),
+	&session->downloader(),
 	Global::WebFileDcId(),
 	{ location }) {
 }

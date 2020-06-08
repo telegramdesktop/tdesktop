@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
 enum PtsSkippedQueue {
 	SkippedUpdate,
 	SkippedUpdates,
@@ -14,7 +18,7 @@ enum PtsSkippedQueue {
 
 class PtsWaiter {
 public:
-	PtsWaiter() = default;
+	explicit PtsWaiter(not_null<Main::Session*> session);
 
 	// 1s wait for skipped seq or pts in updates.
 	static constexpr auto kWaitForSkippedTimeout = 1000;
@@ -84,9 +88,10 @@ private:
 	uint64 ptsKey(PtsSkippedQueue queue, int32 pts);
 	void checkForWaiting(ChannelData *channel);
 
-	QMap<uint64, PtsSkippedQueue> _queue;
-	QMap<uint64, MTPUpdate> _updateQueue;
-	QMap<uint64, MTPUpdates> _updatesQueue;
+	const not_null<Main::Session*> _session;
+	base::flat_map<uint64, PtsSkippedQueue> _queue;
+	base::flat_map<uint64, MTPUpdate> _updateQueue;
+	base::flat_map<uint64, MTPUpdates> _updatesQueue;
 	int32 _good = 0;
 	int32 _last = 0;
 	int32 _count = 0;

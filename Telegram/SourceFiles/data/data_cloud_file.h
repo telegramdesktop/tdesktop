@@ -96,6 +96,7 @@ void UpdateCloudFile(
 	Fn<void(QImage)> usePreloaded = nullptr);
 
 void LoadCloudFile(
+	not_null<Main::Session*> session,
 	CloudFile &file,
 	FileOrigin origin,
 	LoadFromCloudSetting fromCloud,
@@ -107,6 +108,7 @@ void LoadCloudFile(
 	Fn<void()> progress = nullptr);
 
 void LoadCloudFile(
+	not_null<Main::Session*> session,
 	CloudFile &file,
 	FileOrigin origin,
 	LoadFromCloudSetting fromCloud,

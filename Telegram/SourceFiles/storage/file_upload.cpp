@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "core/mime_type.h"
 #include "main/main_session.h"
+#include "apiwrap.h"
 
 namespace Storage {
 namespace {
@@ -154,17 +155,25 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
 }
 
+Uploader::~Uploader() {
+	clear();
+}
+
+Main::Session &Uploader::session() const {
+	return _api->session();
+}
+
 void Uploader::uploadMedia(
 		const FullMsgId &msgId,
 		const SendMediaReady &media) {
 	if (media.type == SendMediaType::Photo) {
-		Auth().data().processPhoto(media.photo, media.photoThumbs);
+		session().data().processPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File
 		|| media.type == SendMediaType::ThemeFile
 		|| media.type == SendMediaType::Audio) {
 		const auto document = media.photoThumbs.empty()
-			? Auth().data().processDocument(media.document)
-			: Auth().data().processDocument(
+			? session().data().processDocument(media.document)
+			: session().data().processDocument(
 				media.document,
 				Images::FromImageInMemory(
 					media.photoThumbs.front().second,
@@ -187,7 +196,7 @@ void Uploader::upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
-		const auto photo = Auth().data().processPhoto(
+		const auto photo = session().data().processPhoto(
 			file->photo,
 			file->photoThumbs);
 		photo->uploadingData = std::make_unique<Data::UploadState>(
@@ -196,8 +205,8 @@ void Uploader::upload(
 		|| file->type == SendMediaType::ThemeFile
 		|| file->type == SendMediaType::Audio) {
 		const auto document = file->thumb.isNull()
-			? Auth().data().processDocument(file->document)
-			: Auth().data().processDocument(
+			? session().data().processDocument(file->document)
+			: session().data().processDocument(
 				file->document,
 				Images::FromImageInMemory(
 					file->thumb,
@@ -241,7 +250,7 @@ void Uploader::currentFailed() {
 		} else if (j->second.type() == SendMediaType::File
 			|| j->second.type() == SendMediaType::ThemeFile
 			|| j->second.type() == SendMediaType::Audio) {
-			const auto document = Auth().data().document(j->second.id());
+			const auto document = session().data().document(j->second.id());
 			if (document->uploading()) {
 				document->status = FileUploadFailed;
 			}
@@ -552,7 +561,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			sentSizes[dc] -= sentPartSize;
 			if (file.type() == SendMediaType::Photo) {
 				file.fileSentSize += sentPartSize;
-				const auto photo = Auth().data().photo(file.id());
+				const auto photo = session().data().photo(file.id());
 				if (photo->uploading() && file.file) {
 					photo->uploadingData->size = file.file->partssize;
 					photo->uploadingData->offset = file.fileSentSize;
@@ -561,7 +570,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			} else if (file.type() == SendMediaType::File
 				|| file.type() == SendMediaType::ThemeFile
 				|| file.type() == SendMediaType::Audio) {
-				const auto document = Auth().data().document(file.id());
+				const auto document = session().data().document(file.id());
 				if (document->uploading()) {
 					const auto doneParts = file.docSentParts
 						- int(docRequestsSent.size());
@@ -593,10 +602,6 @@ bool Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
 	}
 	sendNext();
 	return true;
-}
-
-Uploader::~Uploader() {
-	clear();
 }
 
 } // namespace Storage

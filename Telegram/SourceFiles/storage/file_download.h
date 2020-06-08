@@ -55,6 +55,7 @@ struct StorageImageSaved {
 class FileLoader : public base::has_weak_ptr {
 public:
 	FileLoader(
+		not_null<Main::Session*> session,
 		const QString &toFile,
 		int32 size,
 		LocationType locationType,
@@ -173,6 +174,7 @@ protected:
 };
 
 [[nodiscard]] std::unique_ptr<FileLoader> CreateFileLoader(
+	not_null<Main::Session*> session,
 	const DownloadLocation &location,
 	Data::FileOrigin origin,
 	const QString &toFile,

@@ -836,7 +836,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		}
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {
-		via->create(config.viaBotId);
+		via->create(&history()->owner(), config.viaBotId);
 	}
 	if (const auto views = Get<HistoryMessageViews>()) {
 		views->_views = config.viewsCount;

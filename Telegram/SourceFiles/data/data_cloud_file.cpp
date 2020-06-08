@@ -103,16 +103,26 @@ void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 	const auto fromCloud = LoadFromCloudOrLocal;
 	const auto cacheTag = kImageCacheTag;
 	const auto autoLoading = false;
-	LoadCloudFile(_file, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeView()) {
 			return !active->image();
 		}
 		return true;
-	}, [=](QImage result) {
+	};
+	const auto done = [=](QImage result) {
 		if (const auto active = activeView()) {
 			active->set(session, std::move(result));
 		}
-	});
+	};
+	LoadCloudFile(
+		session,
+		_file,
+		origin,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		kImageCacheTag,
+		finalCheck,
+		done);
 }
 
 const ImageLocation &CloudImage::location() const {
@@ -191,6 +201,7 @@ void UpdateCloudFile(
 }
 
 void LoadCloudFile(
+		not_null<Main::Session*> session,
 		CloudFile &file,
 		FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
@@ -212,6 +223,7 @@ void LoadCloudFile(
 	}
 	file.flags &= ~CloudFile::Flag::Cancelled;
 	file.loader = CreateFileLoader(
+		session,
 		file.location.file(),
 		origin,
 		QString(),
@@ -256,6 +268,7 @@ void LoadCloudFile(
 }
 
 void LoadCloudFile(
+		not_null<Main::Session*> session,
 		CloudFile &file,
 		FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
@@ -276,6 +289,7 @@ void LoadCloudFile(
 		}
 	};
 	LoadCloudFile(
+		session,
 		file,
 		origin,
 		fromCloud,
@@ -288,6 +302,7 @@ void LoadCloudFile(
 }
 
 void LoadCloudFile(
+		not_null<Main::Session*> session,
 		CloudFile &file,
 		FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
@@ -308,6 +323,7 @@ void LoadCloudFile(
 		}
 	};
 	LoadCloudFile(
+		session,
 		file,
 		origin,
 		fromCloud,

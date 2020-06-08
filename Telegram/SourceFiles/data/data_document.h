@@ -432,6 +432,7 @@ private:
 };
 
 QString FileNameForSave(
+	not_null<Main::Session*> session,
 	const QString &title,
 	const QString &filter,
 	const QString &prefix,

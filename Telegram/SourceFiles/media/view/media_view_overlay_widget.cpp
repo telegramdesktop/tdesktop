@@ -554,7 +554,9 @@ void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
 }
 
 void OverlayWidget::updateDocSize() {
-	if (!_document || !documentBubbleShown()) return;
+	if (!_document || !documentBubbleShown()) {
+		return;
+	}
 
 	if (_document->loading()) {
 		quint64 ready = _document->loadOffset(), total = _document->size;
@@ -646,7 +648,9 @@ void OverlayWidget::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (const auto item = Auth().data().message(_msgid)) {
+		if (!_session) {
+			return dNow;
+		} else if (const auto item = _session->data().message(_msgid)) {
 			return ItemDateTime(item);
 		} else if (_photo) {
 			return base::unixtime::parse(_photo->date);
@@ -752,10 +756,13 @@ void OverlayWidget::updateActions() {
 	if (_canForwardItem) {
 		_actions.push_back({ tr::lng_mediaview_forward(tr::now), SLOT(onForward()) });
 	}
-	auto canDelete = [&] {
+	const auto canDelete = [&] {
 		if (_canDeleteItem) {
 			return true;
-		} else if (!_msgid && _photo && _user && _user == Auth().user()) {
+		} else if (!_msgid
+			&& _photo
+			&& _user
+			&& _user == _user->session().user()) {
 			return _userPhotosData && _fullIndex && _fullCount;
 		} else if (_photo && _photo->peer && _photo->peer->userpicPhotoId() == _photo->id) {
 			if (auto chat = _photo->peer->asChat()) {
@@ -1096,6 +1103,7 @@ void OverlayWidget::clearData() {
 	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
+	_session = nullptr;
 }
 
 OverlayWidget::~OverlayWidget() {
@@ -1224,7 +1232,10 @@ void OverlayWidget::onScreenResized(int screen) {
 }
 
 void OverlayWidget::onToMessage() {
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return;
+	}
+	if (const auto item = _session->data().message(_msgid)) {
 		close();
 		Ui::showPeerHistoryAtItem(item);
 	}
@@ -1263,7 +1274,14 @@ void OverlayWidget::onSaveAs() {
 				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
-			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
+			file = FileNameForSave(
+				_session,
+				tr::lng_save_file(tr::now),
+				filter,
+				qsl("doc"),
+				name,
+				true,
+				alreadyDir);
 			if (!file.isEmpty() && file != location.name()) {
 				if (bytes.isEmpty()) {
 					QFile(file).remove();
@@ -1319,7 +1337,7 @@ void OverlayWidget::onDocClick() {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
 			_document,
-			Auth().data().message(_msgid));
+			_document->owner().message(_msgid));
 		if (_document->loading() && !_radial.animating()) {
 			_radial.start(_documentMedia->progress());
 		}
@@ -1331,13 +1349,17 @@ PeerData *OverlayWidget::ui_getPeerForMouseAction() {
 }
 
 void OverlayWidget::onDownload() {
+	if (!_photo && !_document) {
+		return;
+	}
 	if (Global::AskDownloadPath()) {
 		return onSaveAs();
 	}
 
 	QString path;
+	const auto session = _photo ? &_photo->session() : &_document->session();
 	if (Global::DownloadPath().isEmpty()) {
-		path = File::DefaultDownloadPath();
+		path = File::DefaultDownloadPath(session);
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
@@ -1418,7 +1440,10 @@ void OverlayWidget::onShowInFolder() {
 }
 
 void OverlayWidget::onForward() {
-	auto item = Auth().data().message(_msgid);
+	if (!_session) {
+		return;
+	}
+	const auto item = _session->data().message(_msgid);
 	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return;
 	}
@@ -1430,6 +1455,11 @@ void OverlayWidget::onForward() {
 }
 
 void OverlayWidget::onDelete() {
+	const auto session = _session;
+	if (!session) {
+		return;
+	}
+
 	close();
 	const auto deletingPeerPhoto = [this] {
 		if (!_msgid) {
@@ -1445,7 +1475,7 @@ void OverlayWidget::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else if (const auto item = Auth().data().message(_msgid)) {
+	} else if (const auto item = session->data().message(_msgid)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
@@ -1474,13 +1504,20 @@ void OverlayWidget::onCopy() {
 }
 
 void OverlayWidget::onAttachedStickers() {
+	const auto session = _session;
+	if (!session) {
+		return;
+	}
 	close();
-	Auth().api().requestAttachedStickerSets(_photo);
+	session->api().requestAttachedStickerSets(_photo);
 }
 
-std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() const {
+auto OverlayWidget::sharedMediaType() const
+-> std::optional<SharedMediaType> {
 	using Type = SharedMediaType;
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return std::nullopt;
+	} else if (const auto item = _session->data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (media->webpage()) {
 				return std::nullopt;
@@ -1503,8 +1540,12 @@ std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() c
 	return std::nullopt;
 }
 
-std::optional<OverlayWidget::SharedMediaKey> OverlayWidget::sharedMediaKey() const {
-	if (!_msgid && _peer && !_user && _photo && _peer->userpicPhotoId() == _photo->id) {
+auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
+	if (!_msgid
+		&& _peer
+		&& !_user
+		&& _photo
+		&& _peer->userpicPhotoId() == _photo->id) {
 		return SharedMediaKey {
 			_history->peer->id,
 			_migrated ? _migrated->peer->id : 0,
@@ -1689,7 +1730,9 @@ void OverlayWidget::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 }
 
 std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return std::nullopt;
+	} else if (const auto item = _session->data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (const auto page = media->webpage()) {
 				for (const auto &item : page->collage.items) {
@@ -1735,7 +1778,7 @@ void OverlayWidget::validateCollage() {
 	if (const auto key = collageKey()) {
 		_collage = std::make_unique<Collage>(*key);
 		_collageData = WebPageCollage();
-		if (const auto item = Auth().data().message(_msgid)) {
+		if (const auto item = _session->data().message(_msgid)) {
 			if (const auto media = item->media()) {
 				if (const auto page = media->webpage()) {
 					_collageData = page->collage;
@@ -1816,18 +1859,21 @@ void OverlayWidget::refreshGroupThumbs() {
 	const auto existed = (_groupThumbs != nullptr);
 	if (_index && _sharedMediaData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			*_sharedMediaData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _userPhotosData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			*_userPhotosData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _collageData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			{ _msgid, &*_collageData },
 			*_index,
@@ -1859,7 +1905,7 @@ void OverlayWidget::initGroupThumbs() {
 	) | rpl::start_with_next([this](View::GroupThumbs::Key key) {
 		using CollageKey = View::GroupThumbs::CollageKey;
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
-			const auto photo = Auth().data().photo(*photoId);
+			const auto photo = _session->data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
@@ -1894,6 +1940,8 @@ void OverlayWidget::clearControlsState() {
 }
 
 void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
+	_session = &photo->session();
+
 	if (context) {
 		setContext(context);
 	} else {
@@ -1910,6 +1958,8 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) 
 }
 
 void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context) {
+	_session = &photo->session();
+
 	setContext(context);
 
 	clearControlsState();
@@ -1938,6 +1988,8 @@ void OverlayWidget::showDocument(
 		HistoryItem *context,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
+	_session = &document->session();
+
 	if (context) {
 		setContext(context);
 	} else {
@@ -1997,10 +2049,10 @@ void OverlayWidget::destroyThemePreview() {
 }
 
 void OverlayWidget::redisplayContent() {
-	if (isHidden()) {
+	if (isHidden() || !_session) {
 		return;
 	}
-	const auto item = Auth().data().message(_msgid);
+	const auto item = _session->data().message(_msgid);
 	if (_photo) {
 		displayPhoto(_photo, item);
 	} else {
@@ -3367,11 +3419,13 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 
 OverlayWidget::Entity OverlayWidget::entityForUserPhotos(int index) const {
 	Expects(_userPhotosData.has_value());
+	Expects(_session != nullptr);
 
 	if (index < 0 || index >= _userPhotosData->size()) {
 		return { std::nullopt, nullptr };
 	}
-	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
+	const auto id = (*_userPhotosData)[index];
+	if (const auto photo = _session->data().photo(id)) {
 		return { photo, nullptr };
 	}
 	return { std::nullopt, nullptr };
@@ -3395,8 +3449,9 @@ OverlayWidget::Entity OverlayWidget::entityForSharedMedia(int index) const {
 
 OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 	Expects(_collageData.has_value());
+	Expects(_session != nullptr);
 
-	const auto item = Auth().data().message(_msgid);
+	const auto item = _session->data().message(_msgid);
 	const auto &items = _collageData->items;
 	if (!item || index < 0 || index >= items.size()) {
 		return { std::nullopt, nullptr };
@@ -3410,7 +3465,9 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 }
 
 OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) const {
-	if (const auto item = Auth().data().message(itemId)) {
+	Expects(_session != nullptr);
+
+	if (const auto item = _session->data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
 				return { photo, item };

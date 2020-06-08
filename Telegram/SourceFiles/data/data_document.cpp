@@ -123,6 +123,7 @@ bool fileIsImage(const QString &name, const QString &mime) {
 }
 
 QString FileNameUnsafe(
+		not_null<Main::Session*> session,
 		const QString &title,
 		const QString &filter,
 		const QString &prefix,
@@ -176,7 +177,7 @@ QString FileNameUnsafe(
 
 	QString path;
 	if (Global::DownloadPath().isEmpty()) {
-		path = File::DefaultDownloadPath();
+		path = File::DefaultDownloadPath(session);
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
@@ -210,6 +211,7 @@ QString FileNameUnsafe(
 }
 
 QString FileNameForSave(
+		not_null<Main::Session*> session,
 		const QString &title,
 		const QString &filter,
 		const QString &prefix,
@@ -217,6 +219,7 @@ QString FileNameForSave(
 		bool savingAs,
 		const QDir &dir) {
 	const auto result = FileNameUnsafe(
+		session,
 		title,
 		filter,
 		prefix,
@@ -285,7 +288,14 @@ QString DocumentFileNameForSave(
 		prefix = qsl("doc");
 	}
 
-	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
+	return FileNameForSave(
+		&data->session(),
+		caption,
+		filter,
+		prefix,
+		name,
+		forceSavingAs,
+		dir);
 }
 
 DocumentClickHandler::DocumentClickHandler(
@@ -655,20 +665,27 @@ bool DocumentData::thumbnailFailed() const {
 }
 
 void DocumentData::loadThumbnail(Data::FileOrigin origin) {
-	auto &file = _thumbnail;
-	const auto fromCloud = LoadFromCloudOrLocal;
-	const auto cacheTag = Data::kImageCacheTag;
 	const auto autoLoading = false;
-	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeMediaView()) {
 			return !active->thumbnail();
 		}
 		return true;
-	}, [=](QImage result) {
+	};
+	const auto done = [=](QImage result) {
 		if (const auto active = activeMediaView()) {
 			active->setThumbnail(std::move(result));
 		}
-	});
+	};
+	Data::LoadCloudFile(
+		&session(),
+		_thumbnail,
+		origin,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kImageCacheTag,
+		finalCheck,
+		done);
 }
 
 const ImageLocation &DocumentData::thumbnailLocation() const {
@@ -692,20 +709,27 @@ bool DocumentData::videoThumbnailFailed() const {
 }
 
 void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
-	auto &file = _videoThumbnail;
-	const auto fromCloud = LoadFromCloudOrLocal;
-	const auto cacheTag = Data::kAnimationCacheTag;
 	const auto autoLoading = false;
-	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeMediaView()) {
 			return active->videoThumbnailContent().isEmpty();
 		}
 		return true;
-	}, [=](QByteArray result) {
+	};
+	const auto done = [=](QByteArray result) {
 		if (const auto active = activeMediaView()) {
 			active->setVideoThumbnail(std::move(result));
 		}
-	});
+	};
+	Data::LoadCloudFile(
+		&session(),
+		_videoThumbnail,
+		origin,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kAnimationCacheTag,
+		finalCheck,
+		done);
 }
 
 const ImageLocation &DocumentData::videoThumbnailLocation() const {
@@ -957,6 +981,7 @@ void DocumentData::save(
 		auto reader = owner().streaming().sharedReader(this, origin, true);
 		if (reader) {
 			_loader = std::make_unique<Storage::StreamedFileDownloader>(
+				&session(),
 				id,
 				_dc,
 				origin,
@@ -972,6 +997,7 @@ void DocumentData::save(
 				cacheTag());
 		} else if (hasWebLocation()) {
 			_loader = std::make_unique<mtpFileLoader>(
+				&session(),
 				_urlLocation,
 				size,
 				fromCloud,
@@ -979,6 +1005,7 @@ void DocumentData::save(
 				cacheTag());
 		} else if (!_access && !_url.isEmpty()) {
 			_loader = std::make_unique<webFileLoader>(
+				&session(),
 				_url,
 				toFile,
 				fromCloud,
@@ -986,6 +1013,7 @@ void DocumentData::save(
 				cacheTag());
 		} else {
 			_loader = std::make_unique<mtpFileLoader>(
+				&session(),
 				StorageFileLocation(
 					_dc,
 					session().userId(),

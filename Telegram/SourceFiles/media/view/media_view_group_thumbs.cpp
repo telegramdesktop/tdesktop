@@ -57,7 +57,10 @@ Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	});
 }
 
-Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
+Context ComputeContext(
+		not_null<Main::Session*> session,
+		const SharedMediaWithLastSlice &slice,
+		int index) {
 	Expects(index >= 0 && index < slice.size());
 
 	const auto value = slice[index];
@@ -67,7 +70,7 @@ Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 		}
 		return std::nullopt;
 	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
-		if (const auto item = Auth().data().message(*msgId)) {
+		if (const auto item = session->data().message(*msgId)) {
 			if (!item->toHistoryMessage()) {
 				return item->history()->peer->id;
 			} else if (const auto groupId = item->groupId()) {
@@ -79,11 +82,17 @@ Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 	Unexpected("Variant in ComputeContext(SharedMediaWithLastSlice::Value)");
 }
 
-Context ComputeContext(const UserPhotosSlice &slice, int index) {
+Context ComputeContext(
+		not_null<Main::Session*> session,
+		const UserPhotosSlice &slice,
+		int index) {
 	return peerFromUser(slice.key().userId);
 }
 
-Context ComputeContext(const GroupThumbs::CollageSlice &slice, int index) {
+Context ComputeContext(
+		not_null<Main::Session*> session,
+		const GroupThumbs::CollageSlice &slice,
+		int index) {
 	return slice.context;
 }
 
@@ -96,7 +105,7 @@ Key ComputeKey(const SharedMediaWithLastSlice &slice, int index) {
 	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
 		return *msgId;
 	}
-	Unexpected("Variant in ComputeContext(SharedMediaWithLastSlice::Value)");
+	Unexpected("Variant in ComputeKey(SharedMediaWithLastSlice::Value)");
 }
 
 Key ComputeKey(const UserPhotosSlice &slice, int index) {
@@ -410,8 +419,9 @@ int GroupThumbs::CollageSlice::size() const {
 	return data->items.size();
 }
 
-GroupThumbs::GroupThumbs(Context context)
-: _context(context) {
+GroupThumbs::GroupThumbs(not_null<Main::Session*> session, Context context)
+: _session(session)
+, _context(context) {
 }
 
 void GroupThumbs::updateContext(Context context) {
@@ -423,11 +433,12 @@ void GroupThumbs::updateContext(Context context) {
 
 template <typename Slice>
 void GroupThumbs::RefreshFromSlice(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const Slice &slice,
 		int index,
 		int availableWidth) {
-	const auto context = ComputeContext(slice, index);
+	const auto context = ComputeContext(session, slice, index);
 	if (instance) {
 		instance->updateContext(context);
 	}
@@ -441,7 +452,7 @@ void GroupThumbs::RefreshFromSlice(
 	const auto from = [&] {
 		const auto edge = std::max(index - limit, 0);
 		for (auto result = index; result != edge; --result) {
-			if (ComputeContext(slice, result - 1) != context) {
+			if (ComputeContext(session, slice, result - 1) != context) {
 				return result;
 			}
 		}
@@ -450,7 +461,7 @@ void GroupThumbs::RefreshFromSlice(
 	const auto till = [&] {
 		const auto edge = std::min(index + limit + 1, slice.size());
 		for (auto result = index + 1; result != edge; ++result) {
-			if (ComputeContext(slice, result) != context) {
+			if (ComputeContext(session, slice, result) != context) {
 				return result;
 			}
 		}
@@ -458,7 +469,7 @@ void GroupThumbs::RefreshFromSlice(
 	}();
 	if (from + 1 < till) {
 		if (!instance) {
-			instance = std::make_unique<GroupThumbs>(context);
+			instance = std::make_unique<GroupThumbs>(session, context);
 		}
 		instance->fillItems(slice, from, index, till);
 		instance->resizeToWidth(availableWidth);
@@ -554,10 +565,10 @@ void GroupThumbs::animatePreviouslyAlive(
 auto GroupThumbs::createThumb(Key key)
 -> std::unique_ptr<Thumb> {
 	if (const auto photoId = base::get_if<PhotoId>(&key)) {
-		const auto photo = Auth().data().photo(*photoId);
+		const auto photo = _session->data().photo(*photoId);
 		return createThumb(key, photo);
 	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
-		if (const auto item = Auth().data().message(*msgId)) {
+		if (const auto item = _session->data().message(*msgId)) {
 			if (const auto media = item->media()) {
 				if (const auto photo = media->photo()) {
 					return createThumb(key, photo);
@@ -569,7 +580,7 @@ auto GroupThumbs::createThumb(Key key)
 		return createThumb(key, nullptr);
 	} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
 		if (const auto itemId = base::get_if<FullMsgId>(&_context)) {
-			if (const auto item = Auth().data().message(*itemId)) {
+			if (const auto item = _session->data().message(*itemId)) {
 				if (const auto media = item->media()) {
 					if (const auto page = media->webpage()) {
 						return createThumb(
@@ -651,27 +662,30 @@ void GroupThumbs::markCacheStale() {
 }
 
 void GroupThumbs::Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const SharedMediaWithLastSlice &slice,
 		int index,
 		int availableWidth) {
-	RefreshFromSlice(instance, slice, index, availableWidth);
+	RefreshFromSlice(session, instance, slice, index, availableWidth);
 }
 
 void GroupThumbs::Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const UserPhotosSlice &slice,
 		int index,
 		int availableWidth) {
-	RefreshFromSlice(instance, slice, index, availableWidth);
+	RefreshFromSlice(session, instance, slice, index, availableWidth);
 }
 
 void GroupThumbs::Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const CollageSlice &slice,
 		int index,
 		int availableWidth) {
-	RefreshFromSlice(instance, slice, index, availableWidth);
+	RefreshFromSlice(session, instance, slice, index, availableWidth);
 }
 
 void GroupThumbs::clear() {

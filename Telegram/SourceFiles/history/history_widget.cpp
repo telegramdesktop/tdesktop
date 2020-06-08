@@ -3644,11 +3644,14 @@ void HistoryWidget::botCallbackDone(
 		const MTPmessages_BotCallbackAnswer &answer,
 		mtpRequestId req) {
 	const auto item = session().data().message(info.msgId);
-	if (const auto button = HistoryMessageMarkupButton::Get(info.msgId, info.row, info.col)) {
-		if (button->requestId == req) {
-			button->requestId = 0;
-			session().data().requestItemRepaint(item);
-		}
+	const auto button = HistoryMessageMarkupButton::Get(
+		&session().data(),
+		info.msgId,
+		info.row,
+		info.col);
+	if (button && button->requestId == req) {
+		button->requestId = 0;
+		session().data().requestItemRepaint(item);
 	}
 	answer.match([&](const MTPDmessages_botCallbackAnswer &data) {
 		if (const auto message = data.vmessage()) {
@@ -3677,11 +3680,14 @@ bool HistoryWidget::botCallbackFail(
 		const RPCError &error,
 		mtpRequestId req) {
 	// show error?
-	if (const auto button = HistoryMessageMarkupButton::Get(info.msgId, info.row, info.col)) {
-		if (button->requestId == req) {
-			button->requestId = 0;
-			session().data().requestItemRepaint(session().data().message(info.msgId));
-		}
+	const auto button = HistoryMessageMarkupButton::Get(
+		&session().data(),
+		info.msgId,
+		info.row,
+		info.col);
+	if (button && button->requestId == req) {
+		button->requestId = 0;
+		session().data().requestItemRepaint(session().data().message(info.msgId));
 	}
 	return true;
 }

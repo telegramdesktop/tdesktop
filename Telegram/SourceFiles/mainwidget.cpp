@@ -386,6 +386,7 @@ MainWidget::MainWidget(
 , _history(this, _controller)
 , _playerPlaylist(this, _controller)
 , _noUpdatesTimer([=] { sendPing(); })
+, _ptsWaiter(&controller->session())
 , _byPtsTimer([=] { getDifferenceByPts(); })
 , _bySeqTimer([=] { getDifference(); })
 , _byMinChannelTimer([=] { getDifference(); })
@@ -1095,8 +1096,8 @@ void MainWidget::createPlayer() {
 		) | rpl::start_with_next(
 			[this] { playerHeightUpdated(); },
 			_player->lifetime());
-		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
-		_playerVolume.create(this);
+		_player->entity()->setCloseCallback([=] { closeBothPlayers(); });
+		_playerVolume.create(this, _controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		orderWidgets();
 		if (_a_show.animating()) {

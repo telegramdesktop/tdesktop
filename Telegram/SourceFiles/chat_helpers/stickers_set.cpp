@@ -108,21 +108,27 @@ bool Set::thumbnailFailed() const {
 }
 
 void Set::loadThumbnail() {
-	auto &file = _thumbnail;
-	const auto origin = Data::FileOriginStickerSet(id, access);
-	const auto fromCloud = LoadFromCloudOrLocal;
-	const auto cacheTag = Data::kImageCacheTag;
 	const auto autoLoading = false;
-	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeThumbnailView()) {
 			return !active->image() && active->content().isEmpty();
 		}
 		return true;
-	}, [=](QByteArray result) {
+	};
+	const auto done = [=](QByteArray result) {
 		if (const auto active = activeThumbnailView()) {
 			active->set(&_owner->session(), std::move(result));
 		}
-	});
+	};
+	Data::LoadCloudFile(
+		&_owner->session(),
+		_thumbnail,
+		Data::FileOriginStickerSet(id, access),
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kImageCacheTag,
+		finalCheck,
+		done);
 }
 
 const ImageLocation &Set::thumbnailLocation() const {

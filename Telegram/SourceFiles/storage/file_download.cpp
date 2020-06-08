@@ -30,6 +30,7 @@ namespace {
 class FromMemoryLoader final : public FileLoader {
 public:
 	FromMemoryLoader(
+		not_null<Main::Session*> session,
 		const QByteArray &data,
 		const QString &toFile,
 		int32 size,
@@ -50,6 +51,7 @@ private:
 };
 
 FromMemoryLoader::FromMemoryLoader(
+	not_null<Main::Session*> session,
 	const QByteArray &data,
 	const QString &toFile,
 	int32 size,
@@ -59,6 +61,7 @@ FromMemoryLoader::FromMemoryLoader(
 	bool autoLoading,
 	uint8 cacheTag
 ) : FileLoader(
+	session,
 	toFile,
 	size,
 	locationType,
@@ -87,6 +90,7 @@ void FromMemoryLoader::startLoading() {
 } // namespace
 
 FileLoader::FileLoader(
+	not_null<Main::Session*> session,
 	const QString &toFile,
 	int32 size,
 	LocationType locationType,
@@ -94,7 +98,7 @@ FileLoader::FileLoader(
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
-: _session(&Auth())
+: _session(session)
 , _autoLoading(autoLoading)
 , _cacheTag(cacheTag)
 , _filename(toFile)
@@ -441,6 +445,7 @@ bool FileLoader::finalizeResult() {
 }
 
 std::unique_ptr<FileLoader> CreateFileLoader(
+		not_null<Main::Session*> session,
 		const DownloadLocation &location,
 		Data::FileOrigin origin,
 		const QString &toFile,
@@ -453,6 +458,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 	auto result = std::unique_ptr<FileLoader>();
 	location.data.match([&](const StorageFileLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			origin,
 			locationType,
@@ -464,6 +470,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const WebFileLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			size,
 			fromCloud,
@@ -471,6 +478,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const GeoPointLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			size,
 			fromCloud,
@@ -478,6 +486,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const PlainUrlLocation &data) {
 		result = std::make_unique<webFileLoader>(
+			session,
 			data.url,
 			toFile,
 			fromCloud,
@@ -485,6 +494,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const InMemoryLocation &data) {
 		result = std::make_unique<FromMemoryLoader>(
+			session,
 			data.bytes,
 			toFile,
 			size,

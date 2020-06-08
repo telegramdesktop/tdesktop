@@ -15,6 +15,7 @@ class mtpFileLoader final
 	, private Storage::DownloadMtprotoTask {
 public:
 	mtpFileLoader(
+		not_null<Main::Session*> session,
 		const StorageFileLocation &location,
 		Data::FileOrigin origin,
 		LocationType type,
@@ -25,12 +26,14 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
+		not_null<Main::Session*> session,
 		const WebFileLocation &location,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
+		not_null<Main::Session*> session,
 		const GeoPointLocation &location,
 		int32 size,
 		LoadFromCloudSetting fromCloud,

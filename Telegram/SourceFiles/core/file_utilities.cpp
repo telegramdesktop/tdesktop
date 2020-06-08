@@ -157,13 +157,15 @@ void ShowInFolder(const QString &filepath) {
 	});
 }
 
-QString DefaultDownloadPath() {
+QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
+	return session->supportMode() ? u"Tsupport Desktop"_q : AppName.utf16();
+}
+
+QString DefaultDownloadPath(not_null<Main::Session*> session) {
 	return QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
-		+ (Main::Session::Exists() && Auth().supportMode()
-			? "Tsupport Desktop"_cs
-			: AppName).utf16()
+		+ DefaultDownloadPathFolder(session)
 		+ '/';
 }
 

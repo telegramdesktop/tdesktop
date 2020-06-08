@@ -243,9 +243,11 @@ TextWithEntities GenerateBannedChangeText(
 	return result;
 }
 
-auto GenerateUserString(MTPint userId) {
+auto GenerateUserString(
+		not_null<Main::Session*> session,
+		MTPint userId) {
 	// User name in "User name (@username)" format with entities.
-	auto user = Auth().data().user(userId.v);
+	auto user = session->data().user(userId.v);
 	auto name = TextWithEntities { user->name };
 	auto entityData = QString::number(user->id)
 		+ '.'
@@ -283,10 +285,10 @@ auto GenerateParticipantChangeTextInner(
 		return tr::lng_admin_log_transferred(
 			tr::now,
 			lt_user,
-			GenerateUserString(data.vuser_id()),
+			GenerateUserString(&channel->session(), data.vuser_id()),
 			Ui::Text::WithEntities);
 	}, [&](const MTPDchannelParticipantAdmin &data) {
-		auto user = GenerateUserString(data.vuser_id());
+		auto user = GenerateUserString(&channel->session(), data.vuser_id());
 		return GenerateAdminChangeText(
 			channel,
 			user,
@@ -295,7 +297,7 @@ auto GenerateParticipantChangeTextInner(
 				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
 				: nullptr);
 	}, [&](const MTPDchannelParticipantBanned &data) {
-		auto user = GenerateUserString(data.vuser_id());
+		auto user = GenerateUserString(&channel->session(), data.vuser_id());
 		return GenerateBannedChangeText(
 			user,
 			&data.vbanned_rights(),
@@ -303,7 +305,7 @@ auto GenerateParticipantChangeTextInner(
 				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
 				: nullptr);
 	}, [&](const auto &data) {
-		auto user = GenerateUserString(data.vuser_id());
+		auto user = GenerateUserString(&channel->session(), data.vuser_id());
 		if (oldType == mtpc_channelParticipantAdmin) {
 			return GenerateAdminChangeText(
 				channel,
@@ -380,7 +382,7 @@ void GenerateItems(
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
-	const auto from = Auth().data().user(event.vuser_id().v);
+	const auto from = history->owner().user(event.vuser_id().v);
 	const auto channel = history->peer->asChannel();
 	const auto &action = event.vaction();
 	const auto date = event.vdate().v;
@@ -490,7 +492,7 @@ void GenerateItems(
 
 	auto createChangePhoto = [&](const MTPDchannelAdminLogEventActionChangePhoto &action) {
 		action.vnew_photo().match([&](const MTPDphoto &data) {
-			auto photo = Auth().data().processPhoto(data);
+			auto photo = history->owner().processPhoto(data);
 			auto text = (channel->isMegagroup()
 				? tr::lng_admin_log_changed_photo_group
 				: tr::lng_admin_log_changed_photo_channel)(

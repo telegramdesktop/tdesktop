@@ -170,23 +170,28 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 		std::move(createSimpleViewer));
 }
 
-SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key)
+SharedMediaWithLastSlice::SharedMediaWithLastSlice(
+	not_null<Main::Session*> session,
+	Key key)
 : SharedMediaWithLastSlice(
+	session,
 	key,
 	SparseIdsMergedSlice(ViewerKey(key)),
 	EndingSlice(key)) {
 }
 
 SharedMediaWithLastSlice::SharedMediaWithLastSlice(
+	not_null<Main::Session*> session,
 	Key key,
 	SparseIdsMergedSlice slice,
 	std::optional<SparseIdsMergedSlice> ending)
-: _key(key)
+: _session(session)
+, _key(key)
 , _slice(std::move(slice))
 , _ending(std::move(ending))
-, _lastPhotoId(LastPeerPhotoId(key.peerId))
+, _lastPhotoId(LastPeerPhotoId(session, key.peerId))
 , _isolatedLastPhoto(_key.type == Type::ChatPhoto
-	? IsLastIsolated(_slice, _ending, _lastPhotoId)
+	? IsLastIsolated(session, _slice, _ending, _lastPhotoId)
 	: false) {
 }
 
@@ -296,7 +301,7 @@ SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) 
 	}
 	return (index < _slice.size())
 		? Value(_slice[index])
-		: Value(Auth().data().photo(*_lastPhotoId));
+		: Value(_session->data().photo(*_lastPhotoId));
 }
 
 std::optional<int> SharedMediaWithLastSlice::distance(
@@ -315,8 +320,9 @@ void SharedMediaWithLastSlice::reverse() {
 }
 
 std::optional<PhotoId> SharedMediaWithLastSlice::LastPeerPhotoId(
+		not_null<Main::Session*> session,
 		PeerId peerId) {
-	if (const auto peer = Auth().data().peerLoaded(peerId)) {
+	if (const auto peer = session->data().peerLoaded(peerId)) {
 		return peer->userpicPhotoUnknown()
 			? std::nullopt
 			: base::make_optional(peer->userpicPhotoId());
@@ -325,6 +331,7 @@ std::optional<PhotoId> SharedMediaWithLastSlice::LastPeerPhotoId(
 }
 
 std::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
+		not_null<Main::Session*> session,
 		const SparseIdsMergedSlice &slice,
 		const std::optional<SparseIdsMergedSlice> &ending,
 		std::optional<PhotoId> lastPeerPhotoId) {
@@ -334,7 +341,7 @@ std::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 		return false;
 	}
 	return LastFullMsgId(ending ? *ending : slice)
-		| [](FullMsgId msgId) {	return Auth().data().message(msgId); }
+		| [&](FullMsgId msgId) { return session->data().message(msgId); }
 		| [](HistoryItem *item) { return item ? item->media() : nullptr; }
 		| [](Data::Media *media) { return media ? media->photo() : nullptr; }
 		| [](PhotoData *photo) { return photo ? photo->id : 0; }
@@ -367,6 +374,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 				limitAfter
 			) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
 				consumer.put_next(SharedMediaWithLastSlice(
+					session,
 					key,
 					std::move(update),
 					std::nullopt));
@@ -391,6 +399,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 				SparseIdsMergedSlice &&viewer,
 				SparseIdsMergedSlice &&ending) {
 			consumer.put_next(SharedMediaWithLastSlice(
+				session,
 				key,
 				std::move(viewer),
 				std::move(ending)));

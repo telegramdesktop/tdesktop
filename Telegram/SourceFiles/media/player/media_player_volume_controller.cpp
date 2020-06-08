@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_media_player.h"
@@ -23,7 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Player {
 
-VolumeController::VolumeController(QWidget *parent)
+VolumeController::VolumeController(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : TWidget(parent)
 , _slider(this, st::mediaPlayerPanelPlayback) {
 	_slider->setMoveByWheel(true);
@@ -35,7 +38,7 @@ VolumeController::VolumeController(QWidget *parent)
 			Global::SetRememberedSongVolume(volume);
 		}
 		applyVolumeChange(volume);
-		Auth().saveSettingsDelayed();
+		controller->session().saveSettingsDelayed();
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] {
 		if (!_slider->isChanging()) {
@@ -73,9 +76,11 @@ void VolumeController::applyVolumeChange(float64 volume) {
 	}
 }
 
-VolumeWidget::VolumeWidget(QWidget *parent)
+VolumeWidget::VolumeWidget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
-, _controller(this) {
+, _controller(this, controller) {
 	hide();
 	_controller->setIsVertical(true);
 

@@ -13,13 +13,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct WebPageData;
 
+namespace Data {
+class Session;
+} // namespace Data
+
 namespace HistoryView {
 class Element;
 class Document;
 } // namespace HistoryView
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
-	void create(UserId userId);
+	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;
 
 	UserData *bot = nullptr;
@@ -181,6 +185,7 @@ struct HistoryMessageMarkupButton {
 		int32 buttonId = 0);
 
 	static HistoryMessageMarkupButton *Get(
+		not_null<Data::Session*> owner,
 		FullMsgId itemId,
 		int row,
 		int column);

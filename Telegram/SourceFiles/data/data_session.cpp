@@ -906,6 +906,7 @@ void Session::startExport(const MTPInputPeer &singlePeer) {
 	}
 	_export = std::make_unique<Export::Controller>(singlePeer);
 	_exportPanel = std::make_unique<Export::View::PanelController>(
+		&session(),
 		_export.get());
 
 	_exportViewChanges.fire(_exportPanel.get());
@@ -944,9 +945,9 @@ void Session::suggestStartExport() {
 			_session,
 			[=] { suggestStartExport(); });
 	} else if (_export) {
-		Export::View::ClearSuggestStart();
+		Export::View::ClearSuggestStart(&session());
 	} else {
-		_exportSuggestion = Export::View::SuggestStart();
+		_exportSuggestion = Export::View::SuggestStart(&session());
 	}
 }
 

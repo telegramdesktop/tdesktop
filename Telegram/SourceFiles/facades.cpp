@@ -58,8 +58,14 @@ void activateBotCommand(
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
-	const auto button = HistoryMessageMarkupButton::Get(msg->fullId(), row, column);
-	if (!button) return;
+	const auto button = HistoryMessageMarkupButton::Get(
+		&msg->history()->owner(),
+		msg->fullId(),
+		row,
+		column);
+	if (!button) {
+		return;
+	}
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
 	switch (button->type) {
@@ -67,7 +73,11 @@ void activateBotCommand(
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
-		sendBotCommand(msg->history()->peer, msg->fromOriginal()->asUser(), QString(button->text), replyTo);
+		sendBotCommand(
+			msg->history()->peer,
+			msg->fromOriginal()->asUser(),
+			QString(button->text),
+			replyTo);
 	} break;
 
 	case ButtonType::Callback:
@@ -98,7 +108,8 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<InformBox>(tr::lng_bot_share_location_unavailable(tr::now)));
+		Ui::show(Box<InformBox>(
+			tr::lng_bot_share_location_unavailable(tr::now)));
 	} break;
 
 	case ButtonType::RequestPhone: {

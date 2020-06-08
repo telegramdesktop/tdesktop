@@ -1740,6 +1740,7 @@ void FormController::loadFile(File &file) {
 	const auto [j, ok] = _fileLoaders.emplace(
 		key,
 		std::make_unique<mtpFileLoader>(
+			&_controller->session(),
 			StorageFileLocation(
 				file.dcId,
 				session().userId(),

@@ -32,14 +32,18 @@ constexpr auto kSaveSettingsTimeout = crl::time(1000);
 
 class SuggestBox : public Ui::BoxContent {
 public:
-	SuggestBox(QWidget*);
+	SuggestBox(QWidget*, not_null<Main::Session*> session);
 
 protected:
 	void prepare() override;
 
+private:
+	const not_null<Main::Session*> _session;
+
 };
 
-SuggestBox::SuggestBox(QWidget*) {
+SuggestBox::SuggestBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
 }
 
 void SuggestBox::prepare() {
@@ -47,7 +51,7 @@ void SuggestBox::prepare() {
 
 	addButton(tr::lng_box_ok(), [=] {
 		closeBox();
-		Auth().data().startExport(Local::ReadExportSettings().singlePeer);
+		_session->data().startExport(Local::ReadExportSettings().singlePeer);
 	});
 	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });
 	setCloseByOutsideClick(false);
@@ -85,13 +89,15 @@ Environment PrepareEnvironment() {
 	return result;
 }
 
-QPointer<Ui::BoxContent> SuggestStart() {
-	ClearSuggestStart();
-	return Ui::show(Box<SuggestBox>(), Ui::LayerOption::KeepOther).data();
+QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
+	ClearSuggestStart(session);
+	return Ui::show(
+		Box<SuggestBox>(session),
+		Ui::LayerOption::KeepOther).data();
 }
 
-void ClearSuggestStart() {
-	Auth().data().clearExportSuggestion();
+void ClearSuggestStart(not_null<Main::Session*> session) {
+	session->data().clearExportSuggestion();
 
 	auto settings = Local::ReadExportSettings();
 	if (settings.availableAt) {
@@ -100,33 +106,36 @@ void ClearSuggestStart() {
 	}
 }
 
-bool IsDefaultPath(const QString &path) {
+bool IsDefaultPath(not_null<Main::Session*> session, const QString &path) {
 	const auto check = [](const QString &value) {
 		const auto result = value.endsWith('/')
 			? value.mid(0, value.size() - 1)
 			: value;
 		return Platform::IsWindows() ? result.toLower() : result;
 	};
-	return (check(path) == check(File::DefaultDownloadPath()));
+	return (check(path) == check(File::DefaultDownloadPath(session)));
 }
 
-void ResolveSettings(Settings &settings) {
+void ResolveSettings(not_null<Main::Session*> session, Settings &settings) {
 	if (settings.path.isEmpty()) {
-		settings.path = File::DefaultDownloadPath();
+		settings.path = File::DefaultDownloadPath(session);
 		settings.forceSubPath = true;
 	} else {
-		settings.forceSubPath = IsDefaultPath(settings.path);
+		settings.forceSubPath = IsDefaultPath(session, settings.path);
 	}
 	if (!settings.onlySinglePeer()) {
 		settings.singlePeerFrom = settings.singlePeerTill = 0;
 	}
 }
 
-PanelController::PanelController(not_null<Controller*> process)
-: _process(process)
+PanelController::PanelController(
+	not_null<Main::Session*> session,
+	not_null<Controller*> process)
+: _session(session)
+, _process(process)
 , _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
 , _saveSettingsTimer([=] { saveSettings(); }) {
-	ResolveSettings(*_settings);
+	ResolveSettings(session, *_settings);
 
 	_process->state(
 	) | rpl::start_with_next([=](State &&state) {
@@ -165,6 +174,7 @@ void PanelController::createPanel() {
 void PanelController::showSettings() {
 	auto settings = base::make_unique_q<SettingsWidget>(
 		_panel,
+		_session,
 		*_settings);
 	settings->setShowBoxCallback([=](object_ptr<Ui::BoxContent> box) {
 		_panel->showBox(
@@ -220,7 +230,7 @@ void PanelController::showError(const ApiErrorState &error) {
 		_settings->availableAt = base::unixtime::now() + seconds;
 		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
 
-		Auth().data().suggestStartExport(_settings->availableAt);
+		_session->data().suggestStartExport(_settings->availableAt);
 	} else {
 		showCriticalError("API Error happened :(\n"
 			+ QString::number(error.data.code()) + ": " + error.data.type()
@@ -273,7 +283,7 @@ void PanelController::showError(const QString &text) {
 
 void PanelController::showProgress() {
 	_settings->availableAt = 0;
-	ClearSuggestStart();
+	ClearSuggestStart(_session);
 
 	_panel->setTitle(tr::lng_export_progress_title());
 
@@ -388,7 +398,7 @@ void PanelController::saveSettings() const {
 		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	auto settings = *_settings;
-	if (check(settings.path) == check(File::DefaultDownloadPath())) {
+	if (check(settings.path) == check(File::DefaultDownloadPath(_session))) {
 		settings.path = QString();
 	}
 	Local::WriteExportSettings(settings);

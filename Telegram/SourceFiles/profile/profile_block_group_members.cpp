@@ -71,7 +71,7 @@ GroupMembersWidget::GroupMembersWidget(
 }
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
-	auto user = selectedPeer->asUser();
+	const auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
 
 	auto text = tr::lng_profile_sure_kick(tr::now, lt_user, user->firstName);
@@ -84,18 +84,24 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 		}
 		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	}();
-	Ui::show(Box<ConfirmBox>(text, tr::lng_box_remove(tr::now), [user, currentRestrictedRights, peer = peer()] {
+
+	const auto peer = this->peer();
+	const auto callback = [=] {
 		Ui::hideLayer();
 		if (const auto chat = peer->asChat()) {
-			Auth().api().kickParticipant(chat, user);
+			chat->session().api().kickParticipant(chat, user);
 			Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
 		} else if (const auto channel = peer->asChannel()) {
-			Auth().api().kickParticipant(
+			channel->session().api().kickParticipant(
 				channel,
 				user,
 				currentRestrictedRights);
 		}
-	}));
+	};
+	Ui::show(Box<ConfirmBox>(
+		text,
+		tr::lng_box_remove(tr::now),
+		crl::guard(&peer->session(), callback)));
 }
 
 void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -152,7 +158,7 @@ void GroupMembersWidget::preloadMore() {
 	//if (auto megagroup = peer()->asMegagroup()) {
 	//	auto &megagroupInfo = megagroup->mgInfo;
 	//	if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
-	//		Auth().api().requestLastParticipants(megagroup, false);
+	//		peer()->session().api().requestLastParticipants(megagroup, false);
 	//	}
 	//}
 }
@@ -187,13 +193,13 @@ void GroupMembersWidget::refreshMembers() {
 	if (const auto chat = peer()->asChat()) {
 		checkSelfAdmin(chat);
 		if (chat->noParticipantInfo()) {
-			Auth().api().requestFullPeer(chat);
+			chat->session().api().requestFullPeer(chat);
 		}
 		fillChatMembers(chat);
 	} else if (const auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroup->lastParticipantsRequestNeeded()) {
-			Auth().api().requestLastParticipants(megagroup);
+			megagroup->session().api().requestLastParticipants(megagroup);
 		}
 		fillMegagroupMembers(megagroup);
 	}

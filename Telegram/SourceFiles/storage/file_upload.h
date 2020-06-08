@@ -16,6 +16,10 @@ class ApiWrap;
 struct FileLoadResult;
 struct SendMediaReady;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Storage {
 
 // MTP big files methods used for files greater than 10mb.
@@ -61,6 +65,8 @@ class Uploader : public QObject, public RPCSender {
 public:
 	explicit Uploader(not_null<ApiWrap*> api);
 	~Uploader();
+
+	[[nodiscard]] Main::Session &session() const;
 
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
