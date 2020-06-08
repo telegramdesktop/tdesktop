@@ -430,12 +430,17 @@ bool AddRescheduleMessageAction(
 			? SendMenuType::ScheduledToUser
 			: SendMenuType::Scheduled;
 
+		using S = Data::ScheduledMessages;
+		const auto date = (item->date() == S::kScheduledUntilOnlineTimestamp)
+			? HistoryView::DefaultScheduleTime()
+			: item->date() + 600;
+
 		Ui::show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				sendMenuType,
 				callback,
-			item->date() + 600),
+				date),
 			Ui::LayerOption::KeepOther);
 	});
 	return true;
