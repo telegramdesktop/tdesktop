@@ -687,7 +687,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				history()->session().api().requestMessageData(
 					history()->peer->asChannel(),
 					dependent->msgId,
-					HistoryDependentItemCallback(fullId()));
+					HistoryDependentItemCallback(this));
 			}
 		}
 	}

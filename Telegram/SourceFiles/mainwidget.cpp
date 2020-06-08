@@ -2571,7 +2571,7 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::move(_thirdSectionFromStack);
 	} else if (const auto peer = key.peer()) {
 		return std::make_unique<Info::Memento>(
-			peer->id,
+			peer,
 			Info::Memento::DefaultSection(peer));
 	//} else if (const auto feed = key.feed()) { // #feed
 	//	return std::make_unique<Info::Memento>(

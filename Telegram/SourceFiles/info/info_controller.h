@@ -114,7 +114,7 @@ public:
 	virtual PeerData *migrated() const = 0;
 	virtual Section section() const = 0;
 
-	PeerId peerId() const;
+	PeerData *peer() const;
 	PeerId migratedPeerId() const;
 	//Data::Feed *feed() const { // #feed
 	//	return key().feed();

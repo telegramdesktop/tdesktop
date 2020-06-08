@@ -73,9 +73,9 @@ private:
 class MentionNameClickHandler : public ClickHandler {
 public:
 	MentionNameClickHandler(QString text, UserId userId, uint64 accessHash)
-		: _text(text)
-		, _userId(userId)
-		, _accessHash(accessHash) {
+	: _text(text)
+	, _userId(userId)
+	, _accessHash(accessHash) {
 	}
 
 	void onClick(ClickContext context) const override;

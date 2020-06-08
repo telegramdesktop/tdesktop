@@ -43,8 +43,6 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	virtual void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) = 0;
 	virtual crl::time elementHighlightTime(
 		not_null<const Element*> element) = 0;
 	virtual bool elementInSelectionMode() = 0;
@@ -71,8 +69,6 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) override;
 	crl::time elementHighlightTime(
 		not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;

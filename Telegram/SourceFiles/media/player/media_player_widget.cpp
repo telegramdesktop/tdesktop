@@ -302,9 +302,13 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 	if (auto downLabels = base::take(_labelsDown)) {
 		if (_labelsOver == downLabels) {
 			if (_type == AudioMsgId::Type::Voice) {
-				auto current = instance()->current(_type);
-				if (auto item = Auth().data().message(current.contextId())) {
-					Ui::showPeerHistoryAtItem(item);
+				const auto current = instance()->current(_type);
+				const auto document = current.audio();
+				const auto context = current.contextId();
+				if (document && context) {
+					if (const auto item = document->owner().message(context)) {
+						Ui::showPeerHistoryAtItem(item);
+					}
 				}
 			}
 		}
@@ -516,7 +520,7 @@ void Widget::handleSongChange() {
 
 	TextWithEntities textWithEntities;
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		if (const auto item = Auth().data().message(current.contextId())) {
+		if (const auto item = document->owner().message(current.contextId())) {
 			const auto name = item->fromOriginal()->name;
 			const auto date = [item] {
 				const auto parsed = ItemDateTime(item);

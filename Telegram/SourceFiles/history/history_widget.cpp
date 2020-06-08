@@ -371,7 +371,9 @@ HistoryWidget::HistoryWidget(
 	_topBar->hide();
 	_scroll->hide();
 
-	_keyboard = _kbScroll->setOwnedWidget(object_ptr<BotKeyboard>(this));
+	_keyboard = _kbScroll->setOwnedWidget(object_ptr<BotKeyboard>(
+		&session(),
+		this));
 	_kbScroll->hide();
 
 	updateScrollColors();
@@ -1039,7 +1041,7 @@ void HistoryWidget::updateInlineBotQuery() {
 	if (!_history) {
 		return;
 	}
-	const auto query = ParseInlineBotQuery(_field);
+	const auto query = ParseInlineBotQuery(&session(), _field);
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
 		if (_inlineBotResolveRequestId) {
@@ -1780,7 +1782,7 @@ void HistoryWidget::showHistory(
 	_contactStatus = nullptr;
 
 	// Unload lottie animations.
-	Auth().data().unloadHeavyViewParts(HistoryInner::ElementDelegate());
+	session().data().unloadHeavyViewParts(HistoryInner::ElementDelegate());
 
 	if (peerId) {
 		_peer = session().data().peer(peerId);
@@ -3841,7 +3843,7 @@ void HistoryWidget::inlineBotResolveDone(
 	}();
 	session().data().processChats(data.vchats());
 
-	const auto query = ParseInlineBotQuery(_field);
+	const auto query = ParseInlineBotQuery(&session(), _field);
 	if (_inlineBotUsername == query.username) {
 		applyInlineBotQuery(
 			query.lookingUpBot ? resolvedBot : query.bot,

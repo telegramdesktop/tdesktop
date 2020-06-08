@@ -52,7 +52,9 @@ struct InlineBotQuery {
 	UserData *bot = nullptr;
 	bool lookingUpBot = false;
 };
-InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field);
+InlineBotQuery ParseInlineBotQuery(
+	not_null<Main::Session*> session,
+	not_null<const Ui::InputField*> field);
 
 struct AutocompleteQuery {
 	QString query;

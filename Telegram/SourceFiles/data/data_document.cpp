@@ -65,11 +65,14 @@ QString JoinStringList(const QStringList &list, const QString &separator) {
 	return result;
 }
 
-void LaunchWithWarning(const QString &name, HistoryItem *item) {
+void LaunchWithWarning(
+		not_null<Main::Session*> session,
+		const QString &name,
+		HistoryItem *item) {
 	const auto warn = [&] {
 		if (!Data::IsExecutableName(name)) {
 			return false;
-		} else if (!Auth().settings().exeLaunchWarning()) {
+		} else if (!session->settings().exeLaunchWarning()) {
 			return false;
 		} else if (item && item->history()->peer->isVerified()) {
 			return false;
@@ -81,13 +84,13 @@ void LaunchWithWarning(const QString &name, HistoryItem *item) {
 		return;
 	}
 	const auto extension = '.' + Data::FileExtension(name);
-	const auto callback = [=](bool checked) {
+	const auto callback = crl::guard(session, [=](bool checked) {
 		if (checked) {
-			Auth().settings().setExeLaunchWarning(false);
-			Auth().saveSettingsDelayed();
+			session->settings().setExeLaunchWarning(false);
+			session->saveSettingsDelayed();
 		}
 		File::Launch(name);
-	};
+	});
 	Ui::show(Box<ConfirmDontWarnBox>(
 		tr::lng_launch_exe_warning(
 			lt_extension,
@@ -313,7 +316,7 @@ void DocumentOpenClickHandler::Open(
 				return;
 			}
 		}
-		LaunchWithWarning(location.name(), context);
+		LaunchWithWarning(&data->session(), location.name(), context);
 	};
 	const auto media = data->createMediaView();
 	const auto &location = data->location(true);

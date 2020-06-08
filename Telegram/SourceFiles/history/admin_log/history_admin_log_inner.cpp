@@ -553,19 +553,6 @@ bool InnerWidget::elementUnderCursor(
 	return (App::hoveredItem() == view);
 }
 
-void InnerWidget::elementAnimationAutoplayAsync(
-		not_null<const HistoryView::Element*> view) {
-	crl::on_main(this, [this, msgId = view->data()->fullId()] {
-		if (const auto item = session().data().message(msgId)) {
-			if (const auto view = viewForItem(item)) {
-				if (const auto media = view->media()) {
-					media->autoplayAnimation();
-				}
-			}
-		}
-	});
-}
-
 crl::time InnerWidget::elementHighlightTime(
 		not_null<const HistoryView::Element*> element) {
 	return crl::time(0);

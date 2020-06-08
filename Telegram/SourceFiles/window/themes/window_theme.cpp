@@ -598,7 +598,7 @@ void ChatBackground::checkUploadWallPaper() {
 				LOG(("API Error: "
 					"Got wallPaperNoFile after account.UploadWallPaper."));
 			});
-			if (const auto paper = Data::WallPaper::Create(result)) {
+			if (const auto paper = Data::WallPaper::Create(_session, result)) {
 				setPaper(*paper);
 				writeNewBackgroundSettings();
 				notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));

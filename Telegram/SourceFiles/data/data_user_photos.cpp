@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_user_photos.h"
 
@@ -194,10 +195,11 @@ UserPhotosSlice UserPhotosSliceBuilder::snapshot() const {
 }
 
 rpl::producer<UserPhotosSlice> UserPhotosViewer(
+		not_null<Main::Session*> session,
 		UserPhotosSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
-	return [key, limitBefore, limitAfter](auto consumer) {
+	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		auto builder = lifetime.make_state<UserPhotosSliceBuilder>(
 			key,
@@ -208,17 +210,17 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 				consumer.put_next(builder->snapshot());
 			}
 		};
-		auto requestPhotosAround = [user = Auth().data().user(key.userId)](
+		auto requestPhotosAround = [user = session->data().user(key.userId)](
 				PhotoId photoId) {
-			Auth().api().requestUserPhotos(user, photoId);
+			user->session().api().requestUserPhotos(user, photoId);
 		};
 		builder->insufficientPhotosAround()
 			| rpl::start_with_next(requestPhotosAround, lifetime);
 
-		Auth().storage().userPhotosSliceUpdated()
+		session->storage().userPhotosSliceUpdated()
 			| rpl::start_with_next(applyUpdate, lifetime);
 
-		Auth().storage().query(Storage::UserPhotosQuery(
+		session->storage().query(Storage::UserPhotosQuery(
 			key,
 			limitBefore,
 			limitAfter
@@ -233,10 +235,12 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 
 
 rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
+		not_null<Main::Session*> session,
 		UserPhotosSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
 	return UserPhotosViewer(
+		session,
 		key,
 		limitBefore,
 		limitAfter

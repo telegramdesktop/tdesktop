@@ -230,7 +230,7 @@ void paintRow(
 		crl::time ms,
 		PaintItemCallback &&paintItemCallback,
 		PaintCounterCallback &&paintCounterCallback) {
-	const auto supportMode = Auth().supportMode();
+	const auto supportMode = entry->session().supportMode();
 	if (supportMode) {
 		draft = nullptr;
 	}
@@ -339,7 +339,7 @@ void paintRow(
 		history->cloudDraftTextCache.drawElided(p, nameleft, texttop, availableWidth, 1);
 	} else if (draft
 		|| (supportMode
-			&& Auth().supportHelper().isOccupiedBySomeone(history))) {
+			&& entry->session().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
 			PaintRowDate(p, date, rectForName, active, selected);
 		}

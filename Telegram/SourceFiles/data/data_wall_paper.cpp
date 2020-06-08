@@ -302,18 +302,22 @@ WallPaper WallPaper::withoutImageData() const {
 	return result;
 }
 
-std::optional<WallPaper> WallPaper::Create(const MTPWallPaper &data) {
-	return data.match([](const MTPDwallPaper &data) {
-		return Create(data);
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const MTPWallPaper &data) {
+	return data.match([&](const MTPDwallPaper &data) {
+		return Create(session, data);
 	}, [](const MTPDwallPaperNoFile &data) {
 		return std::optional<WallPaper>(); // #TODO themes
 	});
 }
 
-std::optional<WallPaper> WallPaper::Create(const MTPDwallPaper &data) {
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const MTPDwallPaper &data) {
 	using Flag = MTPDwallPaper::Flag;
 
-	const auto document = Auth().data().processDocument(
+	const auto document = session->data().processDocument(
 		data.vdocument());
 	if (!document->checkWallPaperProperties()) {
 		return std::nullopt;

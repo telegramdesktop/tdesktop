@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ChannelData;
 
-namespace Main {
+namespace Data {
 class Session;
-} // namespace Main
+} // namespace Data
 
 enum class WebPageType {
 	Photo,
@@ -32,15 +32,19 @@ struct WebPageCollage {
 	using Item = base::variant<PhotoData*, DocumentData*>;
 
 	WebPageCollage() = default;
-	explicit WebPageCollage(const MTPDwebPage &data);
+	explicit WebPageCollage(
+		not_null<Data::Session*> owner,
+		const MTPDwebPage &data);
 
 	std::vector<Item> items;
 
 };
 
 struct WebPageData {
-	WebPageData(const WebPageId &id) : id(id) {
-	}
+	WebPageData(not_null<Data::Session*> owner, const WebPageId &id);
+
+	[[nodiscard]] Data::Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
 
 	bool applyChanges(
 		WebPageType newType,
@@ -78,5 +82,7 @@ struct WebPageData {
 
 private:
 	void replaceDocumentGoodThumbnail();
+
+	const not_null<Data::Session*> _owner;
 
 };

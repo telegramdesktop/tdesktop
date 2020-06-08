@@ -32,7 +32,7 @@ namespace Intro {
 namespace details {
 namespace {
 
-void PrepareSupportMode() {
+void PrepareSupportMode(not_null<Main::Session*> session) {
 	using ::Data::AutoDownload::Full;
 
 	anim::SetDisabled(true);
@@ -41,7 +41,7 @@ void PrepareSupportMode() {
 	Global::SetDesktopNotify(false);
 	Global::SetSoundNotify(false);
 	Global::SetFlashBounceNotify(false);
-	Auth().settings().autoDownload() = Full::FullDisabled();
+	session->settings().autoDownload() = Full::FullDisabled();
 	Local::writeUserSettings();
 }
 
@@ -151,7 +151,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 			session.api().uploadPeerPhoto(session.user(), std::move(photo));
 		}
 		if (session.supportMode()) {
-			PrepareSupportMode();
+			PrepareSupportMode(&session);
 		}
 	}
 }

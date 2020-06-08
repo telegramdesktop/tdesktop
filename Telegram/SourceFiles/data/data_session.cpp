@@ -2616,7 +2616,9 @@ void Session::documentApplyFields(
 not_null<WebPageData*> Session::webpage(WebPageId id) {
 	auto i = _webpages.find(id);
 	if (i == _webpages.cend()) {
-		i = _webpages.emplace(id, std::make_unique<WebPageData>(id)).first;
+		i = _webpages.emplace(
+			id,
+			std::make_unique<WebPageData>(this, id)).first;
 	}
 	return i->second.get();
 }
@@ -2773,7 +2775,7 @@ void Session::webpageApplyFields(
 		description,
 		photo ? processPhoto(*photo).get() : nullptr,
 		document ? processDocument(*document).get() : lookupThemeDocument(),
-		WebPageCollage(data),
+		WebPageCollage(this, data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		pendingTill);
@@ -3800,7 +3802,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
 		u":/gui/art/bg_initial.jpg"_q));
 	for (const auto &paper : data) {
-		if (const auto parsed = Data::WallPaper::Create(paper)) {
+		if (const auto parsed = Data::WallPaper::Create(&session(), paper)) {
 			_wallpapers.push_back(*parsed);
 		}
 	}

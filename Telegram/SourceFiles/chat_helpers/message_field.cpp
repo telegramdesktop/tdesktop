@@ -48,17 +48,13 @@ constexpr auto kParseLinksTimeout = crl::time(1000);
 // For mention tags save and validate userId, ignore tags for different userId.
 class FieldTagMimeProcessor : public Ui::InputField::TagMimeProcessor {
 public:
-	QString tagFromMimeTag(const QString &mimeTag) override {
-		if (TextUtilities::IsMentionLink(mimeTag)) {
-			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-			if (!match.hasMatch()
-				|| match.capturedRef(1).toInt() != Auth().userId()) {
-				return QString();
-			}
-			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
-		}
-		return mimeTag;
-	}
+	explicit FieldTagMimeProcessor(
+		not_null<Window::SessionController*> controller);
+
+	QString tagFromMimeTag(const QString &mimeTag) override;
+
+private:
+	const not_null<Window::SessionController*> _controller;
 
 };
 
@@ -84,6 +80,24 @@ private:
 	Fn<void()> _setInnerFocus;
 
 };
+
+FieldTagMimeProcessor::FieldTagMimeProcessor(
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
+
+QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
+	if (TextUtilities::IsMentionLink(mimeTag)) {
+		const auto userId = _controller->session().userId();
+		auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
+		if (!match.hasMatch()
+			|| match.capturedRef(1).toInt() != userId) {
+			return QString();
+		}
+		return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
+	}
+	return mimeTag;
+}
 
 //bool ValidateUrl(const QString &value) {
 //	const auto match = qthelp::RegExpDomain().match(value);
@@ -264,7 +278,8 @@ void InitMessageField(
 	field->setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-	field->setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
+	field->setTagMimeProcessor(
+		std::make_unique<FieldTagMimeProcessor>(controller));
 
 	field->document()->setDocumentMargin(4.);
 	field->setAdditionalMargin(style::ConvertScale(4) - 4);
@@ -307,7 +322,9 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 	return false;
 }
 
-InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
+InlineBotQuery ParseInlineBotQuery(
+		not_null<Main::Session*> session,
+		not_null<const Ui::InputField*> field) {
 	auto result = InlineBotQuery();
 
 	const auto &full = field->getTextWithTags();
@@ -345,7 +362,7 @@ InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
 			if (username != result.username) {
 				result.username = username.toString();
-				if (const auto peer = Auth().data().peerByUsername(result.username)) {
+				if (const auto peer = session->data().peerByUsername(result.username)) {
 					if (const auto user = peer->asUser()) {
 						result.bot = peer->asUser();
 					} else {

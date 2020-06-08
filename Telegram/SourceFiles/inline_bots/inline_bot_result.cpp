@@ -111,13 +111,13 @@ std::unique_ptr<Result> Result::Create(
 		if (const auto content = r.vcontent()) {
 			result->_content_url = GetContentUrl(*content);
 			if (result->_type == Type::Photo) {
-				result->_photo = Auth().data().photoFromWeb(
+				result->_photo = session->data().photoFromWeb(
 					*content,
 					(imageThumb
 						? Images::FromWebDocument(*r.vthumb())
 						: ImageLocation()));
 			} else if (contentMime != "text/html"_q) {
-				result->_document = Auth().data().documentFromWeb(
+				result->_document = session->data().documentFromWeb(
 					result->adjustAttributes(*content),
 					(imageThumb
 						? Images::FromWebDocument(*r.vthumb())
@@ -140,10 +140,10 @@ std::unique_ptr<Result> Result::Create(
 		result->_title = qs(r.vtitle().value_or_empty());
 		result->_description = qs(r.vdescription().value_or_empty());
 		if (const auto photo = r.vphoto()) {
-			result->_photo = Auth().data().processPhoto(*photo);
+			result->_photo = session->data().processPhoto(*photo);
 		}
 		if (const auto document = r.vdocument()) {
-			result->_document = Auth().data().processDocument(*document);
+			result->_document = session->data().processDocument(*document);
 		}
 		message = &r.vsend_message();
 	} break;
@@ -186,7 +186,7 @@ std::unique_ptr<Result> Result::Create(
 				message,
 				entities);
 		} else if (result->_type == Type::Game) {
-			result->createGame();
+			result->createGame(session);
 			result->sendData = std::make_unique<internal::SendGame>(
 				session,
 				result->_game);
@@ -412,11 +412,13 @@ QString Result::getLayoutDescription() const {
 Result::~Result() {
 }
 
-void Result::createGame() {
-	if (_game) return;
+void Result::createGame(not_null<Main::Session*> session) {
+	if (_game) {
+		return;
+	}
 
 	const auto gameId = rand_value<GameId>();
-	_game = Auth().data().game(
+	_game = session->data().game(
 		gameId,
 		0,
 		QString(),

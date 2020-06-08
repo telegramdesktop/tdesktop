@@ -288,7 +288,7 @@ void Panel::refreshList() {
 		}, weak->lifetime());
 
 		auto memento = Info::Media::Memento(
-			peerId(),
+			peer,
 			migratedPeerId(),
 			section().mediaType());
 		memento.setAroundId(contextId);

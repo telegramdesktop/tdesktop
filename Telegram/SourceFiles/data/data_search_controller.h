@@ -102,7 +102,7 @@ private:
 	using SliceUpdate = Storage::SparseIdsSliceUpdate;
 
 	struct CacheEntry {
-		CacheEntry(const Query &query);
+		CacheEntry(not_null<Main::Session*> session, const Query &query);
 
 		Data peerData;
 		std::optional<Data> migratedData;

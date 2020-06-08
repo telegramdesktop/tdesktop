@@ -339,6 +339,7 @@ FormRequest::FormRequest(
 }
 
 EditFile::EditFile(
+	not_null<Main::Session*> session,
 	not_null<const Value*> value,
 	FileType type,
 	const File &fields,
@@ -346,13 +347,15 @@ EditFile::EditFile(
 : value(value)
 , type(type)
 , fields(std::move(fields))
-, uploadData(std::move(uploadData))
+, uploadData(session, std::move(uploadData))
 , guard(std::make_shared<bool>(true)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
+	not_null<Main::Session*> session,
 	std::unique_ptr<UploadScanData> &&value)
-: _value(std::move(value)) {
+: _session(session)
+, _value(std::move(value)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
@@ -364,7 +367,7 @@ UploadScanDataPointer &UploadScanDataPointer::operator=(
 UploadScanDataPointer::~UploadScanDataPointer() {
 	if (const auto value = _value.get()) {
 		if (const auto fullId = value->fullId) {
-			Auth().uploader().cancel(fullId);
+			_session->uploader().cancel(fullId);
 		}
 	}
 }
@@ -460,12 +463,12 @@ int Value::whatNotFilled() const {
 	return result;
 }
 
-void Value::saveInEdit() {
+void Value::saveInEdit(not_null<Main::Session*> session) {
 	const auto saveList = [&](FileType type) {
 		filesInEdit(type) = ranges::view::all(
 			files(type)
 		) | ranges::view::transform([=](const File &file) {
-			return EditFile(this, type, file, nullptr);
+			return EditFile(session, this, type, file, nullptr);
 		}) | ranges::to_vector;
 	};
 	saveList(FileType::Scan);
@@ -474,6 +477,7 @@ void Value::saveInEdit() {
 	specialScansInEdit.clear();
 	for (const auto &[type, scan] : specialScans) {
 		specialScansInEdit.emplace(type, EditFile(
+			session,
 			this,
 			type,
 			scan,
@@ -625,6 +629,10 @@ FormController::FormController(
 , _request(PreprocessRequest(request))
 , _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {
+}
+
+Main::Session &FormController::session() const {
+	return _controller->session();
 }
 
 void FormController::show() {
@@ -876,7 +884,7 @@ void FormController::submitPassword(
 				saved.hashForAuth = base::take(_passwordCheckHash);
 				saved.hashForSecret = hashForSecret;
 				saved.secretId = _secretId;
-				Auth().data().rememberPassportCredentials(
+				session().data().rememberPassportCredentials(
 					std::move(saved),
 					kRememberCredentialsDelay);
 			}
@@ -963,7 +971,7 @@ void FormController::checkSavedPasswordSettings(
 			}
 		}
 		if (_secret.empty()) {
-			Auth().data().forgetPassportCredentials();
+			session().data().forgetPassportCredentials();
 			showForm();
 		}
 	}).fail([=](const RPCError &error) {
@@ -971,7 +979,7 @@ void FormController::checkSavedPasswordSettings(
 		if (error.type() != qstr("SRP_ID_INVALID")
 			|| !handleSrpIdInvalid(_passwordCheckRequestId)) {
 		} else {
-			Auth().data().forgetPassportCredentials();
+			session().data().forgetPassportCredentials();
 			showForm();
 		}
 	}).send();
@@ -1366,7 +1374,12 @@ void FormController::uploadScan(
 	}
 	const auto nonconst = findValue(value);
 	const auto fileIndex = [&]() -> std::optional<int> {
-		auto scanInEdit = EditFile{ nonconst, type, File(), nullptr };
+		auto scanInEdit = EditFile(
+			&session(),
+			nonconst,
+			type,
+			File(),
+			nullptr);
 		if (type == FileType::Scan || type == FileType::Translation) {
 			auto &list = nonconst->filesInEdit(type);
 			auto scanIndex = int(list.size());
@@ -1494,17 +1507,17 @@ void FormController::subscribeToUploader() {
 
 	using namespace Storage;
 
-	Auth().uploader().secureReady(
+	session().uploader().secureReady(
 	) | rpl::start_with_next([=](const UploadSecureDone &data) {
 		scanUploadDone(data);
 	}, _uploaderSubscriptions);
 
-	Auth().uploader().secureProgress(
+	session().uploader().secureProgress(
 	) | rpl::start_with_next([=](const UploadSecureProgress &data) {
 		scanUploadProgress(data);
 	}, _uploaderSubscriptions);
 
-	Auth().uploader().secureFailed(
+	session().uploader().secureFailed(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		scanUploadFail(fullId);
 	}, _uploaderSubscriptions);
@@ -1515,7 +1528,9 @@ void FormController::uploadEncryptedFile(
 		UploadScanData &&data) {
 	subscribeToUploader();
 
-	file.uploadData = std::make_unique<UploadScanData>(std::move(data));
+	file.uploadData = UploadScanDataPointer(
+		&session(),
+		std::make_unique<UploadScanData>(std::move(data)));
 
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
@@ -1532,8 +1547,10 @@ void FormController::uploadEncryptedFile(
 
 	file.uploadData->fullId = FullMsgId(
 		0,
-		Auth().data().nextLocalMessageId());
-	Auth().uploader().upload(file.uploadData->fullId, std::move(prepared));
+		session().data().nextLocalMessageId());
+	session().uploader().upload(
+		file.uploadData->fullId,
+		std::move(prepared));
 }
 
 void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
@@ -1583,7 +1600,7 @@ QString FormController::defaultEmail() const {
 }
 
 QString FormController::defaultPhoneNumber() const {
-	return Auth().user()->phone();
+	return session().user()->phone();
 }
 
 auto FormController::scanUpdated() const
@@ -1705,7 +1722,7 @@ void FormController::startValueEdit(not_null<const Value*> value) {
 			loadFile(scan);
 		}
 	}
-	nonconst->saveInEdit();
+	nonconst->saveInEdit(&session());
 }
 
 void FormController::loadFile(File &file) {
@@ -1725,7 +1742,7 @@ void FormController::loadFile(File &file) {
 		std::make_unique<mtpFileLoader>(
 			StorageFileLocation(
 				file.dcId,
-				Auth().userId(),
+				session().userId(),
 				MTP_inputSecureFileLocation(
 					MTP_long(file.id),
 					MTP_long(file.accessHash))),
@@ -2235,7 +2252,7 @@ void FormController::saveSecret(
 				MTP_bytes(encryptedSecret),
 				MTP_long(saved.secretId)))
 	)).done([=](const MTPBool &result) {
-		Auth().data().rememberPassportCredentials(
+		session().data().rememberPassportCredentials(
 			std::move(saved),
 			kRememberCredentialsDelay);
 
@@ -2342,7 +2359,7 @@ void FormController::fillDownloadedFile(
 	if (bytes.size() > Storage::kMaxFileInMemory) {
 		return;
 	}
-	Auth().data().cache().put(
+	session().data().cache().put(
 		Data::DocumentCacheKey(destination.dcId, destination.id),
 		Storage::Cache::Database::TaggedValue(
 			QByteArray(
@@ -2495,7 +2512,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 	const auto &data = result.c_account_authorizationForm();
 
-	Auth().data().processUsers(data.vusers());
+	session().data().processUsers(data.vusers());
 
 	for (const auto &value : data.vvalues().v) {
 		auto parsed = parseValue(value);
@@ -2529,7 +2546,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	if (!ValidateForm(_form)) {
 		return false;
 	}
-	_bot = Auth().data().userLoaded(_request.botId);
+	_bot = session().data().userLoaded(_request.botId);
 	_form.pendingErrors = data.verrors().v;
 	return true;
 }
@@ -2597,7 +2614,7 @@ void FormController::showForm() {
 	} else if (_password.request) {
 		if (!_savedPasswordValue.isEmpty()) {
 			submitPassword(base::duplicate(_savedPasswordValue));
-		} else if (const auto saved = Auth().data().passportCredentials()) {
+		} else if (const auto saved = session().data().passportCredentials()) {
 			checkSavedPasswordSettings(*saved);
 		} else {
 			_view->showAskPassword();

@@ -68,18 +68,18 @@ Main::Session &SessionNavigation::session() const {
 void SessionNavigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
-	//if (Adaptive::ThreeColumn()
-	//	&& !_session->settings().thirdSectionInfoEnabled()) {
-	//	_session->settings().setThirdSectionInfoEnabled(true);
-	//	_session->saveSettingsDelayed();
-	//}
-	showSection(Info::Memento(peerId), params);
+	showPeerInfo(_session->data().peer(peerId), params);
 }
 
 void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
-	showPeerInfo(peer->id, params);
+	//if (Adaptive::ThreeColumn()
+	//	&& !_session->settings().thirdSectionInfoEnabled()) {
+	//	_session->settings().setThirdSectionInfoEnabled(true);
+	//	_session->saveSettingsDelayed();
+	//}
+	showSection(Info::Memento(peer), params);
 }
 
 void SessionNavigation::showPeerInfo(

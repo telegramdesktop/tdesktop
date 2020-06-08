@@ -150,9 +150,9 @@ rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
 			peer,
 			Notify::PeerUpdate::Flag::NotificationsEnabled
 		) | rpl::map([] { return rpl::empty_value(); }),
-		Auth().data().defaultNotifyUpdates(peer)
-	) | rpl::map([peer] {
-		return !Auth().data().notifyIsMuted(peer);
+		peer->owner().defaultNotifyUpdates(peer)
+	) | rpl::map([=] {
+		return !peer->owner().notifyIsMuted(peer);
 	}) | rpl::distinct_until_changed();
 }
 
@@ -322,6 +322,7 @@ rpl::producer<int> SharedMediaCountValue(
 	auto aroundId = 0;
 	auto limit = 0;
 	auto updated = SharedMediaMergedViewer(
+		&peer->session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				peer->id,
@@ -391,7 +392,7 @@ rpl::producer<bool> ScamValue(not_null<PeerData*> peer) {
 //	return rpl::single(
 //		Data::FeedUpdate{ feed, Flag::Channels }
 //	) | rpl::then(
-//		Auth().data().feedUpdated()
+//		feed->owner().feedUpdated()
 //	) | rpl::filter([=](const Data::FeedUpdate &update) {
 //		return (update.feed == feed) && (update.flag == Flag::Channels);
 //	}) | rpl::filter([=] {

@@ -164,10 +164,10 @@ bool LayerWidget::takeToThirdSection() {
 	//// shrink the window size.
 	////
 	//// See https://github.com/telegramdesktop/tdesktop/issues/4091
-	//Auth().settings().setThirdSectionExtendedBy(0);
+	//localCopy->session()().settings().setThirdSectionExtendedBy(0);
 
-	//Auth().settings().setThirdSectionInfoEnabled(true);
-	//Auth().saveSettingsDelayed();
+	//localCopy->session()().settings().setThirdSectionInfoEnabled(true);
+	//localCopy->session()().saveSettingsDelayed();
 	//localCopy->showSection(
 	//	std::move(memento),
 	//	Window::SectionShow(

@@ -455,7 +455,7 @@ void TopBarWidget::infoClicked() {
 	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (_activeChat.peer()->isSelf()) {
 		_controller->showSection(Info::Memento(
-			_activeChat.peer()->id,
+			_activeChat.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else {
 		_controller->showPeerInfo(_activeChat.peer());

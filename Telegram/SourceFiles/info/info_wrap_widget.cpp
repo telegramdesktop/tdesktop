@@ -138,9 +138,9 @@ void WrapWidget::injectActiveProfile(Dialogs::Key key) {
 }
 
 void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
-	const auto firstPeerId = hasStackHistory()
-		? _historyStack.front().section->peerId()
-		: _controller->peerId();
+	const auto firstPeer = hasStackHistory()
+		? _historyStack.front().section->peer()
+		: _controller->peer();
 	const auto firstSectionType = hasStackHistory()
 		? _historyStack.front().section->section().type()
 		: _controller->section().type();
@@ -160,12 +160,12 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		: Section::MediaType::kCount;
 	if (firstSectionType != expectedType
 		|| firstSectionMediaType != expectedMediaType
-		|| firstPeerId != peer->id) {
+		|| firstPeer != peer) {
 		auto section = peer->isSelf()
 			? Section(Section::MediaType::Photo)
 			: Section(Section::Type::Profile);
 		injectActiveProfileMemento(std::move(
-			Memento(peer->id, section).takeStack().front()));
+			Memento(peer, section).takeStack().front()));
 	}
 }
 // // #feed
@@ -519,11 +519,11 @@ void WrapWidget::addProfileNotificationsButton() {
 			(wrap() == Wrap::Layer
 				? st::infoLayerTopBarNotifications
 				: st::infoTopBarNotifications)));
-	notifications->addClickHandler([peer] {
-		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+	notifications->addClickHandler([=] {
+		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
 			? 0
 			: Data::NotifySettings::kDefaultMutePeriod;
-		Auth().data().updateNotifySettings(peer, muteForSeconds);
+		peer->owner().updateNotifySettings(peer, muteForSeconds);
 	});
 	Profile::NotificationsEnabledValue(
 		peer
@@ -908,9 +908,9 @@ bool WrapWidget::returnToFirstStackFrame(
 	if (!hasStackHistory()) {
 		return false;
 	}
-	auto firstPeerId = _historyStack.front().section->peerId();
+	auto firstPeer = _historyStack.front().section->peer();
 	auto firstSection = _historyStack.front().section->section();
-	if (firstPeerId == memento->peerId()
+	if (firstPeer == memento->peer()
 		&& firstSection.type() == memento->section().type()
 		&& firstSection.type() == Section::Type::Profile) {
 		_historyStack.resize(1);

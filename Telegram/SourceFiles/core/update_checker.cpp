@@ -1579,7 +1579,7 @@ void UpdateApplication() {
 			if (const auto controller = window->sessionController()) {
 				controller->showSection(
 					Info::Memento(
-						Info::Settings::Tag{ Auth().user() },
+						Info::Settings::Tag{ controller->session().user() },
 						Info::Section::SettingsType::Advanced),
 					Window::SectionShow());
 			} else {

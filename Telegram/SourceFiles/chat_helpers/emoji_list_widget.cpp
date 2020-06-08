@@ -698,7 +698,7 @@ void EmojiListWidget::colorChosen(EmojiPtr emoji) {
 		cRefEmojiVariants().insert(
 			emoji->nonColoredId(),
 			emoji->variantIndex(emoji));
-		Auth().saveSettingsDelayed();
+		controller()->session().saveSettingsDelayed();
 	}
 	if (_pickerSel >= 0) {
 		auto section = (_pickerSel / MatrixRowShift);

@@ -1060,7 +1060,7 @@ void ApiWrap::requestWallPaper(
 	)).done([=](const MTPWallPaper &result) {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
-		if (const auto paper = Data::WallPaper::Create(result)) {
+		if (const auto paper = Data::WallPaper::Create(&session(), result)) {
 			if (const auto done = base::take(_wallPaperDone)) {
 				done(*paper);
 			}

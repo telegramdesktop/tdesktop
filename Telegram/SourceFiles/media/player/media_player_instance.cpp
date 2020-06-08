@@ -176,7 +176,9 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		data->current = audioId;
 		data->isPlaying = false;
 
-		const auto item = Auth().data().message(data->current.contextId());
+		const auto item = (audioId.audio() && audioId.contextId())
+			? audioId.audio()->owner().message(audioId.contextId())
+			: nullptr;
 		if (item) {
 			data->history = item->history()->migrateToOrMe();
 			data->migrated = data->history->migrateFrom();
@@ -264,6 +266,7 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 	if (const auto key = playlistKey(data)) {
 		data->playlistRequestedKey = key;
 		SharedMediaMergedViewer(
+			&data->history->session(),
 			SharedMediaMergedKey(*key, data->overview),
 			kIdsLimit,
 			kIdsLimit
@@ -302,8 +305,9 @@ HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
 		|| index >= data->playlistSlice->size()) {
 		return nullptr;
 	}
+	Assert(data->history != nullptr);
 	const auto fullId = (*data->playlistSlice)[index];
-	return Auth().data().message(fullId);
+	return data->history->owner().message(fullId);
 }
 
 bool Instance::moveInPlaylist(
@@ -740,20 +744,21 @@ void Instance::handleStreamingUpdate(
 HistoryItem *Instance::roundVideoItem() const {
 	const auto data = getData(AudioMsgId::Type::Voice);
 	return (data->streamed
-		&& !data->streamed->instance.info().video.size.isEmpty())
-		? Auth().data().message(data->streamed->id.contextId())
+		&& !data->streamed->instance.info().video.size.isEmpty()
+		&& data->history)
+		? data->history->owner().message(data->streamed->id.contextId())
 		: nullptr;
 }
 
 void Instance::requestRoundVideoResize() const {
 	if (const auto item = roundVideoItem()) {
-		Auth().data().requestItemResize(item);
+		item->history()->owner().requestItemResize(item);
 	}
 }
 
 void Instance::requestRoundVideoRepaint() const {
 	if (const auto item = roundVideoItem()) {
-		Auth().data().requestItemRepaint(item);
+		item->history()->owner().requestItemRepaint(item);
 	}
 }
 

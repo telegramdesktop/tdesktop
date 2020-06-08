@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
 struct FileOrigin;
@@ -49,8 +53,10 @@ public:
 	[[nodiscard]] WallPaper withoutImageData() const;
 
 	[[nodiscard]] static std::optional<WallPaper> Create(
+		not_null<Main::Session*> session,
 		const MTPWallPaper &data);
 	[[nodiscard]] static std::optional<WallPaper> Create(
+		not_null<Main::Session*> session,
 		const MTPDwallPaper &data);
 
 	[[nodiscard]] QByteArray serialize() const;

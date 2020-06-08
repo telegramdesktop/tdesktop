@@ -48,7 +48,7 @@ void SharedMediaShowOverview(
 		not_null<History*> history) {
 	if (SharedMediaOverviewType(type)) {
 		App::wnd()->sessionController()->showSection(Info::Memento(
-			history->peer->id,
+			history->peer,
 			Info::Section(type)));
 	}
 }
@@ -63,6 +63,7 @@ bool SharedMediaAllowSearch(Storage::SharedMediaType type) {
 }
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(
+		not_null<Main::Session*> session,
 		Storage::SharedMediaKey key,
 		int limitBefore,
 		int limitAfter) {
@@ -76,10 +77,10 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			limitBefore,
 			limitAfter);
 		auto requestMediaAround = [
-			peer = Auth().data().peer(key.peerId),
+			peer = session->data().peer(key.peerId),
 			type = key.type
 		](const SparseIdsSliceBuilder::AroundData &data) {
-			Auth().api().requestSharedMedia(
+			peer->session().api().requestSharedMedia(
 				peer,
 				type,
 				data.aroundId,
@@ -93,7 +94,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		};
 
 		using SliceUpdate = Storage::SharedMediaSliceUpdate;
-		Auth().storage().sharedMediaSliceUpdated(
+		session->storage().sharedMediaSliceUpdated(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return (update.peerId == key.peerId)
 				&& (update.type == key.type);
@@ -102,7 +103,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using OneRemoved = Storage::SharedMediaRemoveOne;
-		Auth().storage().sharedMediaOneRemoved(
+		session->storage().sharedMediaOneRemoved(
 		) | rpl::filter([=](const OneRemoved &update) {
 			return (update.peerId == key.peerId)
 				&& update.types.test(key.type);
@@ -111,7 +112,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using AllRemoved = Storage::SharedMediaRemoveAll;
-		Auth().storage().sharedMediaAllRemoved(
+		session->storage().sharedMediaAllRemoved(
 		) | rpl::filter([=](const AllRemoved &update) {
 			return (update.peerId == key.peerId);
 		}) | rpl::filter([=] {
@@ -119,7 +120,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using InvalidateBottom = Storage::SharedMediaInvalidateBottom;
-		Auth().storage().sharedMediaBottomInvalidated(
+		session->storage().sharedMediaBottomInvalidated(
 		) | rpl::filter([=](const InvalidateBottom &update) {
 			return (update.peerId == key.peerId);
 		}) | rpl::filter([=] {
@@ -127,7 +128,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::SharedMediaResult;
-		Auth().storage().query(Storage::SharedMediaQuery(
+		session->storage().query(Storage::SharedMediaQuery(
 			key,
 			limitBefore,
 			limitAfter
@@ -143,6 +144,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 }
 
 rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
+		not_null<Main::Session*> session,
 		SharedMediaMergedKey key,
 		int limitBefore,
 		int limitAfter) {
@@ -152,6 +154,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 			int limitBefore,
 			int limitAfter) {
 		return SharedMediaViewer(
+			session,
 			Storage::SharedMediaKey(
 				peerId,
 				key.type,
@@ -349,12 +352,14 @@ std::optional<FullMsgId> SharedMediaWithLastSlice::LastFullMsgId(
 }
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
+		not_null<Main::Session*> session,
 		SharedMediaWithLastSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
 	return [=](auto consumer) {
 		if (base::get_if<not_null<PhotoData*>>(&key.universalId)) {
 			return SharedMediaMergedViewer(
+				session,
 				SharedMediaMergedKey(
 					SharedMediaWithLastSlice::ViewerKey(key),
 					key.type),
@@ -369,12 +374,14 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 		}
 		return rpl::combine(
 			SharedMediaMergedViewer(
+				session,
 				SharedMediaMergedKey(
 					SharedMediaWithLastSlice::ViewerKey(key),
 					key.type),
 				limitBefore,
 				limitAfter),
 			SharedMediaMergedViewer(
+				session,
 				SharedMediaMergedKey(
 					SharedMediaWithLastSlice::EndingKey(key),
 					key.type),
@@ -392,10 +399,12 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 }
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastReversedViewer(
+		not_null<Main::Session*> session,
 		SharedMediaWithLastSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
 	return SharedMediaWithLastViewer(
+		session,
 		key,
 		limitBefore,
 		limitAfter

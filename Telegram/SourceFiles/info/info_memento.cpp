@@ -27,12 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info {
 
-Memento::Memento(PeerId peerId)
-: Memento(peerId, Section::Type::Profile) {
+Memento::Memento(not_null<PeerData*> peer)
+: Memento(peer, Section::Type::Profile) {
 }
 
-Memento::Memento(PeerId peerId, Section section)
-: Memento(DefaultStack(peerId, section)) {
+Memento::Memento(not_null<PeerData*> peer, Section section)
+: Memento(DefaultStack(peer, section)) {
 }
 
 //Memento::Memento(not_null<Data::Feed*> feed, Section section) // #feed
@@ -52,10 +52,10 @@ Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
 }
 
 std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
-		PeerId peerId,
+		not_null<PeerData*> peer,
 		Section section) {
 	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(DefaultContent(peerId, section));
+	result.push_back(DefaultContent(peer, section));
 	return result;
 }
 
@@ -102,7 +102,7 @@ Section Memento::DefaultSection(not_null<PeerData*> peer) {
 //}
 
 Memento Memento::Default(not_null<PeerData*> peer) {
-	return Memento(peer->id, DefaultSection(peer));
+	return Memento(peer, DefaultSection(peer));
 }
 // // #feed
 //Memento Memento::Default(Dialogs::Key key) {
@@ -113,35 +113,29 @@ Memento Memento::Default(not_null<PeerData*> peer) {
 //}
 
 std::unique_ptr<ContentMemento> Memento::DefaultContent(
-		PeerId peerId,
+		not_null<PeerData*> peer,
 		Section section) {
-	Expects(peerId != 0);
-
-	auto peer = Auth().data().peer(peerId);
 	if (auto to = peer->migrateTo()) {
 		peer = to;
 	}
 	auto migrated = peer->migrateFrom();
-	peerId = peer->id;
 	auto migratedPeerId = migrated ? migrated->id : PeerId(0);
 
 	switch (section.type()) {
 	case Section::Type::Profile:
 		return std::make_unique<Profile::Memento>(
-			peerId,
+			peer,
 			migratedPeerId);
 	case Section::Type::Media:
 		return std::make_unique<Media::Memento>(
-			peerId,
+			peer,
 			migratedPeerId,
 			section.mediaType());
 	case Section::Type::CommonGroups:
-		Assert(peerIsUser(peerId));
-		return std::make_unique<CommonGroups::Memento>(
-			peerToUser(peerId));
+		return std::make_unique<CommonGroups::Memento>(peer->asUser());
 	case Section::Type::Members:
 		return std::make_unique<Members::Memento>(
-			peerId,
+			peer,
 			migratedPeerId);
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");

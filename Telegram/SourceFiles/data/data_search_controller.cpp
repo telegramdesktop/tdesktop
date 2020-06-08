@@ -186,10 +186,12 @@ SearchResult ParseSearchResult(
 	return result;
 }
 
-SearchController::CacheEntry::CacheEntry(const Query &query)
-: peerData(Auth().data().peer(query.peerId))
+SearchController::CacheEntry::CacheEntry(
+	not_null<Main::Session*> session,
+	const Query &query)
+: peerData(session->data().peer(query.peerId))
 , migratedData(query.migratedPeerId
-	? base::make_optional(Data(Auth().data().peer(query.migratedPeerId)))
+	? base::make_optional(Data(session->data().peer(query.migratedPeerId)))
 	: std::nullopt) {
 }
 
@@ -211,7 +213,7 @@ void SearchController::setQuery(const Query &query) {
 	if (_current == _cache.end()) {
 		_current = _cache.emplace(
 			query,
-			std::make_unique<CacheEntry>(query)).first;
+			std::make_unique<CacheEntry>(_session, query)).first;
 	}
 }
 
@@ -286,14 +288,14 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 			return builder->applyUpdate(update);
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
-		Auth().data().itemRemoved(
+		_session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (item->history()->peer->id == peerId);
 		}) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return builder->removeOne(item->id);
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
-		Auth().data().historyCleared(
+		_session->data().historyCleared(
 		) | rpl::filter([=](not_null<const History*> history) {
 			return (history->peer->id == peerId);
 		}) | rpl::filter([=] {
@@ -337,7 +339,7 @@ void SearchController::restoreState(SavedState &&state) {
 	if (it == _cache.end()) {
 		it = _cache.emplace(
 			state.query,
-			std::make_unique<CacheEntry>(state.query)).first;
+			std::make_unique<CacheEntry>(_session, state.query)).first;
 	}
 	auto replace = Data(it->second->peerData.peer);
 	replace.list = std::move(state.peerList);

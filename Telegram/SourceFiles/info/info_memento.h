@@ -32,8 +32,8 @@ class WrapWidget;
 
 class Memento final : public Window::SectionMemento {
 public:
-	explicit Memento(PeerId peerId);
-	Memento(PeerId peerId, Section section);
+	explicit Memento(not_null<PeerData*> peer);
+	Memento(not_null<PeerData*> peer, Section section);
 	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
 	Memento(Settings::Tag settings, Section section);
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
@@ -69,7 +69,7 @@ public:
 
 private:
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
-		PeerId peerId,
+		not_null<PeerData*> peer,
 		Section section);
 	//static std::vector<std::unique_ptr<ContentMemento>> DefaultStack( // #feed
 	//	not_null<Data::Feed*> feed,
@@ -85,7 +85,7 @@ private:
 	//	not_null<Data::Feed*> feed,
 	//	Section section);
 	static std::unique_ptr<ContentMemento> DefaultContent(
-		PeerId peerId,
+		not_null<PeerData*> peer,
 		Section section);
 
 	std::vector<std::unique_ptr<ContentMemento>> _stack;

@@ -3333,18 +3333,6 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				not_null<const HistoryView::Element*> view) override {
 			return (App::hoveredItem() == view);
 		}
-		void elementAnimationAutoplayAsync(
-				not_null<const HistoryView::Element*> view) override {
-			crl::on_main(&Auth(), [msgId = view->data()->fullId()] {
-				if (const auto item = Auth().data().message(msgId)) {
-					if (const auto view = item->mainView()) {
-						if (const auto media = view->media()) {
-							media->autoplayAnimation();
-						}
-					}
-				}
-			});
-		}
 		crl::time elementHighlightTime(
 				not_null<const HistoryView::Element*> view) override {
 			const auto fullAnimMs = App::main()->highlightStartTime(

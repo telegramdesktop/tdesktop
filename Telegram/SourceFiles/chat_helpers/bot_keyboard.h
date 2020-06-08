@@ -9,18 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/tooltip.h"
 
+class ReplyKeyboard;
+
 namespace style {
 struct BotKeyboardButton;
 } // namespace style
 
-class ReplyKeyboard;
+namespace Main {
+class Session;
+} // namespace Main
 
 class BotKeyboard
 	: public TWidget
 	, public Ui::AbstractTooltipShower
 	, public ClickHandlerHost {
 public:
-	BotKeyboard(QWidget *parent);
+	BotKeyboard(not_null<Main::Session*> session, QWidget *parent);
 
 	bool moderateKeyActivate(int index);
 
@@ -70,6 +74,7 @@ private:
 	void updateStyle(int newWidth);
 	void clearSelection();
 
+	const not_null<Main::Session*> _session;
 	FullMsgId _wasForMsgId;
 	int _height = 0;
 	int _maxOuterHeight = 0;

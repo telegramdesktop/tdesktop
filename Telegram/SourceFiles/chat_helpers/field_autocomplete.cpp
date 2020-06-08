@@ -254,7 +254,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			};
 			mrows.reserve(mrows.size() + (_chat->participants.empty() ? _chat->lastAuthors.size() : _chat->participants.size()));
 			if (_chat->noParticipantInfo()) {
-				Auth().api().requestFullPeer(_chat);
+				_chat->session().api().requestFullPeer(_chat);
 			} else if (!_chat->participants.empty()) {
 				for (const auto user : _chat->participants) {
 					if (user->isInaccessible()) continue;
@@ -277,7 +277,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		} else if (_channel && _channel->isMegagroup()) {
 			QMultiMap<int32, UserData*> ordered;
 			if (_channel->lastParticipantsRequestNeeded()) {
-				Auth().api().requestLastParticipants(_channel);
+				_channel->session().api().requestLastParticipants(_channel);
 			} else {
 				mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
 				for (const auto user : _channel->mgInfo->lastParticipants) {
@@ -600,7 +600,9 @@ FieldAutocompleteInner::FieldAutocompleteInner(
 , _brows(brows)
 , _srows(srows)
 , _previewTimer([=] { showPreview(); }) {
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(
+		controller->session().downloaderTaskFinished(),
+		[=] { update(); });
 }
 
 void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {

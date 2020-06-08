@@ -23,6 +23,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Passport {
 
 struct Config {
@@ -73,7 +77,9 @@ struct UploadScanData {
 
 class UploadScanDataPointer {
 public:
-	UploadScanDataPointer(std::unique_ptr<UploadScanData> &&value);
+	UploadScanDataPointer(
+		not_null<Main::Session*> session,
+		std::unique_ptr<UploadScanData> &&value);
 	UploadScanDataPointer(UploadScanDataPointer &&other);
 	UploadScanDataPointer &operator=(UploadScanDataPointer &&other);
 	~UploadScanDataPointer();
@@ -84,6 +90,7 @@ public:
 	UploadScanData *operator->() const;
 
 private:
+	not_null<Main::Session*> _session;
 	std::unique_ptr<UploadScanData> _value;
 
 };
@@ -115,6 +122,7 @@ struct File {
 
 struct EditFile {
 	EditFile(
+		not_null<Main::Session*> session,
 		not_null<const Value*> value,
 		FileType type,
 		const File &fields,
@@ -188,7 +196,7 @@ struct Value {
 	bool requiresSpecialScan(FileType type) const;
 	bool requiresScan(FileType type) const;
 	bool scansAreFilled() const;
-	void saveInEdit();
+	void saveInEdit(not_null<Main::Session*> session);
 	void clearEditData();
 	bool uploadingScan() const;
 	bool saving() const;
@@ -324,9 +332,10 @@ public:
 		not_null<Window::SessionController*> controller,
 		const FormRequest &request);
 
-	not_null<Window::SessionController*> window() const {
+	[[nodiscard]] not_null<Window::SessionController*> window() const {
 		return _controller;
 	}
+	[[nodiscard]] Main::Session &session() const;
 
 	void show();
 	UserData *bot() const;

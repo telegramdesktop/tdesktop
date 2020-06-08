@@ -354,9 +354,11 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 }
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
-		const FullMsgId &msgId) {
-	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
-		if (const auto item = Auth().data().message(dependent)) {
+		not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	const auto dependent = item->fullId();
+	return [=](ChannelData *channel, MsgId msgId) {
+		if (const auto item = session->data().message(dependent)) {
 			item->updateDependencyItem();
 		}
 	};
@@ -830,7 +832,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 			history()->session().api().requestMessageData(
 				history()->peer->asChannel(),
 				reply->replyToMsgId,
-				HistoryDependentItemCallback(fullId()));
+				HistoryDependentItemCallback(this));
 		}
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {

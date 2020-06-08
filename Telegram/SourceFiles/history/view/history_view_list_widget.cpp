@@ -1123,17 +1123,6 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-void ListWidget::elementAnimationAutoplayAsync(
-		not_null<const Element*> view) {
-	crl::on_main(this, [this, msgId = view->data()->fullId()]{
-		if (const auto view = viewForItem(msgId)) {
-			if (const auto media = view->media()) {
-				media->autoplayAnimation();
-			}
-		}
-	});
-}
-
 crl::time ListWidget::elementHighlightTime(
 		not_null<const HistoryView::Element*> element) {
 	if (element->data()->fullId() == _highlightedMessageId) {

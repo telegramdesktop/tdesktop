@@ -72,10 +72,6 @@ bool SimpleElementDelegate::elementUnderCursor(
 	return false;
 }
 
-void SimpleElementDelegate::elementAnimationAutoplayAsync(
-	not_null<const Element*> element) {
-}
-
 crl::time SimpleElementDelegate::elementHighlightTime(
 	not_null<const Element*> element) {
 	return crl::time(0);

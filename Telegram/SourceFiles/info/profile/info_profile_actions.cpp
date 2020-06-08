@@ -840,7 +840,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		MembersCountValue(channel) | tr::to_count());
 	auto membersCallback = [=] {
 		controller->showSection(Info::Memento(
-			channel->id,
+			channel,
 			Section::Type::Members));
 	};
 

@@ -190,8 +190,6 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const Element*> view) override;
 	crl::time elementHighlightTime(
 		not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;

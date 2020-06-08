@@ -527,7 +527,7 @@ void EmojiKeywords::handleSessionChanges() {
 void EmojiKeywords::apiChanged(ApiWrap *api) {
 	_api = api;
 	if (_api) {
-		crl::on_main(&Auth(), crl::guard(&_guard, [=] {
+		crl::on_main(&_api->session(), crl::guard(&_guard, [=] {
 			base::ObservableViewer(
 				Lang::CurrentCloudManager().firstLanguageSuggestion()
 			) | rpl::filter([=] {

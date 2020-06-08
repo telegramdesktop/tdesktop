@@ -1589,12 +1589,15 @@ bool OverlayWidget::validSharedMedia() const {
 }
 
 void OverlayWidget::validateSharedMedia() {
-	if (auto key = sharedMediaKey()) {
+	if (const auto key = sharedMediaKey()) {
+		Assert(_history != nullptr);
+
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
 		auto viewer = (key->type == SharedMediaType::ChatPhoto)
 			? SharedMediaWithLastReversedViewer
 			: SharedMediaWithLastViewer;
 		viewer(
+			&_history->session(),
 			*key,
 			kIdsLimit,
 			kIdsLimit
@@ -1656,8 +1659,11 @@ bool OverlayWidget::validUserPhotos() const {
 
 void OverlayWidget::validateUserPhotos() {
 	if (const auto key = userPhotosKey()) {
+		Assert(_user != nullptr);
+
 		_userPhotos = std::make_unique<UserPhotos>(*key);
 		UserPhotosReversedViewer(
+			&_user->session(),
 			*key,
 			kIdsLimit,
 			kIdsLimit
