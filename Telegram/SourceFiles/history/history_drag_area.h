@@ -10,11 +10,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
-class DragArea : public TWidget {
+class DragArea : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
 	DragArea(QWidget *parent);
+
+	struct Areas {
+		DragArea *document;
+		DragArea *photo;
+	};
+	static Areas SetupDragAreaToContainer(
+		not_null<Ui::RpWidget*> container,
+		Fn<bool()> &&dragEnterFilter = nullptr,
+		Fn<void(bool)> &&setAcceptDropsField = nullptr,
+		Fn<void()> &&updateControlsGeometry = nullptr);
 
 	void setText(const QString &text, const QString &subtext);
 
@@ -32,10 +42,11 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void dragMoveEvent(QDragMoveEvent *e) override;
+	// These events should be filtered by parent!
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dragLeaveEvent(QDragLeaveEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
-	void dragMoveEvent(QDragMoveEvent *e) override;
 
 public slots:
 	void hideStart();
