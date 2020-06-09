@@ -70,12 +70,14 @@ public:
 	using MaskedInputField::MaskedInputField;
 
 	void setMaxValue(int value);
+	void setWheelStep(int value);
 
 	rpl::producer<> erasePrevious() const;
 	rpl::producer<QChar> putNext() const;
 
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
 
 	void correctValue(
 		const QString &was,
@@ -86,10 +88,20 @@ protected:
 private:
 	int _maxValue = 0;
 	int _maxDigits = 0;
+	int _wheelStep = 0;
 	rpl::event_stream<> _erasePrevious;
 	rpl::event_stream<QChar> _putNext;
 
 };
+
+int Number(not_null<TimePart*> field) {
+	const auto text = field->getLastText();
+	auto ref = text.midRef(0);
+	while (!ref.isEmpty() && ref.at(0) == '0') {
+		ref = ref.mid(1);
+	}
+	return ref.toInt();
+}
 
 class TimeInput final : public Ui::RpWidget {
 public:
@@ -121,7 +133,6 @@ private:
 
 	int hour() const;
 	int minute() const;
-	int number(const object_ptr<TimePart> &field) const;
 
 	object_ptr<TimePart> _hour;
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _separator1;
@@ -181,6 +192,10 @@ void TimePart::setMaxValue(int value) {
 	}
 }
 
+void TimePart::setWheelStep(int value) {
+	_wheelStep = value;
+}
+
 rpl::producer<> TimePart::erasePrevious() const {
 	return _erasePrevious.events();
 }
@@ -197,6 +212,25 @@ void TimePart::keyPressEvent(QKeyEvent *e) {
 	} else {
 		MaskedInputField::keyPressEvent(e);
 	}
+}
+
+void TimePart::wheelEvent(QWheelEvent *e) {
+	// Only a mouse wheel is accepted.
+	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+	const auto delta = e->angleDelta().y();
+	const auto absDelta = std::abs(delta);
+	if (absDelta != step) {
+		return;
+	}
+
+	auto time = Number(this) + ((delta / absDelta) * _wheelStep);
+	const auto max = _maxValue + 1;
+	if (time < 0) {
+		time += max;
+	} else if (time >= max) {
+		time -= max;
+	}
+	setText(QString::number(time));
 }
 
 void TimePart::correctValue(
@@ -290,10 +324,12 @@ TimeInput::TimeInput(QWidget *parent, const QString &value)
 	connect(_hour, &Ui::MaskedInputField::changed, changed);
 	connect(_minute, &Ui::MaskedInputField::changed, changed);
 	_hour->setMaxValue(23);
+	_hour->setWheelStep(1);
 	_hour->putNext() | rpl::start_with_next([=](QChar ch) {
 		putNext(_minute, ch);
 	}, lifetime());
 	_minute->setMaxValue(59);
+	_minute->setWheelStep(10);
 	_minute->erasePrevious() | rpl::start_with_next([=] {
 		erasePrevious(_hour);
 	}, lifetime());
@@ -356,21 +392,12 @@ bool TimeInput::setFocusFast() {
 	return true;
 }
 
-int TimeInput::number(const object_ptr<TimePart> &field) const {
-	const auto text = field->getLastText();
-	auto ref = text.midRef(0);
-	while (!ref.isEmpty() && ref.at(0) == '0') {
-		ref = ref.mid(1);
-	}
-	return ref.toInt();
-}
-
 int TimeInput::hour() const {
-	return number(_hour);
+	return Number(_hour);
 }
 
 int TimeInput::minute() const {
-	return number(_minute);
+	return Number(_minute);
 }
 
 QString TimeInput::valueCurrent() const {
