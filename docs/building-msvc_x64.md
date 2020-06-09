@@ -118,8 +118,8 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd client\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\..
-    ninja -C out/Debug common crash_generation_client exception_handler
-    ninja -C out/Release common crash_generation_client exception_handler
+    ninja -C out/Debug_x64 common crash_generation_client exception_handler
+    ninja -C out/Release_x64 common crash_generation_client exception_handler
     cd tools\windows\dump_syms
     gyp dump_syms.gyp
     msbuild dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
