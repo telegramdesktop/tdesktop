@@ -16,16 +16,16 @@ class LocationPoint;
 
 namespace Platform {
 
-QString CurrentExecutablePath(int argc, char *argv[]);
-
-QString SingleInstanceLocalServerName(const QString &hash);
-
 void RemoveQuarantine(const QString &path);
 
 inline void FallbackFontConfigCheckBegin() {
 }
 
 inline void FallbackFontConfigCheckEnd() {
+}
+
+inline QImage GetImageFromClipboard() {
+	return {};
 }
 
 namespace ThirdParty {

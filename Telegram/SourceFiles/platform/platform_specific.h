@@ -28,6 +28,8 @@ enum class SystemSettingsType {
 
 void SetWatchingMediaKeys(bool watching);
 void SetApplicationIcon(const QIcon &icon);
+QString CurrentExecutablePath(int argc, char *argv[]);
+QString SingleInstanceLocalServerName(const QString &hash);
 void RegisterCustomScheme(bool force = false);
 PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
@@ -41,6 +43,7 @@ bool OpenSystemSettings(SystemSettingsType type);
 
 void IgnoreApplicationActivationRightNow();
 bool AutostartSupported();
+QImage GetImageFromClipboard();
 
 namespace ThirdParty {
 
