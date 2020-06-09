@@ -485,7 +485,7 @@ void MainWindow::initTouchBar() {
 				if (auto view = reinterpret_cast<NSView*>(winId())) {
 					// Create TouchBar.
 					[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-					_private->_touchBar = [[TouchBar alloc] init:view];
+					_private->_touchBar = [[TouchBar alloc] init:view session:session];
 				}
 			}
 		} else {

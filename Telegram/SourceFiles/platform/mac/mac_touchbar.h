@@ -24,7 +24,8 @@ enum class TouchBarType {
 
 @property(retain) NSDictionary * _Nullable touchBarItems;
 
-- (id _Nonnull) init:(NSView * _Nonnull)view;
+- (id _Nonnull) init:(NSView * _Nonnull)view
+	session:(not_null<Main::Session*>)session;
 - (void) handleTrackStateChange:(Media::Player::TrackState)state;
 - (void) setTouchBar:(Platform::TouchBarType)type;
 - (void) showInputFieldItem:(bool)show;

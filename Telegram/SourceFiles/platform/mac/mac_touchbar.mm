@@ -219,8 +219,7 @@ inline std::optional<QString> RestrictionToSendStickers() {
 	return std::nullopt;
 }
 
-QString TitleRecentlyUsed() {
-	const auto &sets = Auth().data().stickers().sets();
+QString TitleRecentlyUsed(const Data::StickersSets &sets) {
 	const auto it = sets.find(Data::Stickers::CloudRecentSetId);
 	if (it != sets.cend()) {
 		return it->second->title;
@@ -328,8 +327,10 @@ void SendKeyEvent(int command) {
 	QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifier));
 }
 
-void AppendStickerSet(std::vector<PickerScrubberItem> &to, uint64 setId) {
-	const auto &sets = Auth().data().stickerSets();
+void AppendStickerSet(
+		const Data::StickersSets &sets,
+		std::vector<PickerScrubberItem> &to,
+		uint64 setId) {
 	const auto it = sets.find(setId);
 	if (it == sets.cend() || it->second->stickers.isEmpty()) {
 		return;
@@ -350,8 +351,10 @@ void AppendStickerSet(std::vector<PickerScrubberItem> &to, uint64 setId) {
 	}
 }
 
-void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
-	const auto &sets = Auth().data().stickers().sets();
+void AppendRecentStickers(
+		const Data::StickersSets &sets,
+		RecentStickerPack &recentPack,
+		std::vector<PickerScrubberItem> &to) {
 	const auto cloudIt = sets.find(Data::Stickers::CloudRecentSetId);
 	const auto cloudCount = (cloudIt != sets.cend())
 		? cloudIt->second->stickers.size()
@@ -366,13 +369,14 @@ void AppendRecentStickers(std::vector<PickerScrubberItem> &to) {
 			to.emplace_back(PickerScrubberItem(document));
 		}
 	}
-	for (const auto recent : Auth().data().stickers().getRecentPack()) {
+	for (const auto recent : recentPack) {
 		to.emplace_back(PickerScrubberItem(recent.first));
 	}
 }
 
-void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
-	const auto &sets = Auth().data().stickers().sets();
+void AppendFavedStickers(
+		const Data::StickersSets &sets,
+		std::vector<PickerScrubberItem> &to) {
 	const auto it = sets.find(Data::Stickers::FavedSetId);
 	const auto count = (it != sets.cend())
 		? it->second->stickers.size()
@@ -387,14 +391,16 @@ void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 	}
 }
 
-void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
+void AppendEmojiPacks(
+		const Data::StickersSets &sets,
+		std::vector<PickerScrubberItem> &to) {
 	for (auto i = 0; i != ChatHelpers::kEmojiSectionCount; ++i) {
 		const auto section = static_cast<Ui::Emoji::Section>(i);
 		const auto list = (section == Ui::Emoji::Section::Recent)
 			? GetRecentEmojiSection()
 			: Ui::Emoji::GetSection(section);
 		const auto title = (section == Ui::Emoji::Section::Recent)
-			? TitleRecentlyUsed()
+			? TitleRecentlyUsed(sets)
 			: ChatHelpers::EmojiCategoryTitle(i)(tr::now);
 		to.emplace_back(title);
 		for (const auto &emoji : list) {
@@ -412,6 +418,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	int _startPosition;
 	int _tempIndex;
 	bool _orderChanged;
+	Main::Session *_session;
 }
 
 - (void)touchesBeganWithEvent:(NSEvent *)event {
@@ -425,7 +432,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void)touchesMovedWithEvent:(NSEvent *)event {
-	if (self.tag <= kSavedMessagesId) {
+	if (!_session || self.tag <= kSavedMessagesId) {
 		return;
 	}
 	if ([event.allTouches allObjects].count > 1) {
@@ -436,7 +443,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (std::abs(_startPosition - currentPosition) > step) {
 		const auto delta = (currentPosition > _startPosition) ? 1 : -1;
 		const auto newIndex = _tempIndex + delta;
-		const auto &order = Auth().data().pinnedChatsOrder(nullptr, FilterId());
+		const auto &order = _session->data().pinnedChatsOrder(nullptr, FilterId());
 
 		// In case the order has been changed from another device
 		// while the user is dragging the dialog.
@@ -445,7 +452,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		}
 
 		if (newIndex >= 0 && newIndex < order.size()) {
-			Auth().data().reorderTwoPinnedChats(
+			_session->data().reorderTwoPinnedChats(
 				FilterId(),
 				order.at(_tempIndex).history(),
 				order.at(newIndex).history());
@@ -456,9 +463,13 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}
 }
 
+- (void)setSession:(not_null<Main::Session*>)session {
+	_session = session;
+}
+
 - (void)touchesEndedWithEvent:(NSEvent *)event {
-	if (_orderChanged) {
-		Auth().api().savePinnedOrder(nullptr);
+	if (_orderChanged && _session) {
+		_session->api().savePinnedOrder(nullptr);
 	}
 	[super touchesEndedWithEvent:event];
 }
@@ -475,7 +486,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @property(nonatomic, assign) bool isDeletedFromView;
 @property(nonatomic, assign) QPixmap userpic;
 
-- (id) init:(int)num;
+- (id) init:(int)num session:(not_null<Main::Session*>)session;
 - (void)buttonActionPin:(NSButton *)sender;
 - (void)updateUserpic;
 
@@ -486,11 +497,13 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	rpl::lifetime _peerChangedLifetime;
 	base::has_weak_ptr _guard;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
+	Main::Session* _session;
 
 	bool isWaitingUserpicLoad;
 }
 
-- (id) init:(int)num {
+- (id) init:(int)num session:(not_null<Main::Session*>)session {
+	_session = session;
 	if (num == kSavedMessagesId) {
 		self = [super initWithIdentifier:kSavedMessagesItemIdentifier];
 		isWaitingUserpicLoad = false;
@@ -511,6 +524,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	self.number = num;
 
 	PinButton *button = [[PinButton alloc] initWithFrame:NSZeroRect];
+	[button setSession:_session];
 	NSButtonCell *cell = [[NSButtonCell alloc] init];
 	[cell setBezelStyle:NSBezelStyleCircular];
 	button.cell = cell;
@@ -540,7 +554,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}
 
 	base::ObservableViewer(
-		Auth().downloaderTaskFinished()
+		_session->downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		if (isWaitingUserpicLoad) {
 			[self updateUserpic];
@@ -592,7 +606,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		if (!App::wnd()) {
 			return;
 		}
-		if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+		if (const auto folder = _session->data().folderLoaded(Data::Folder::kId)) {
 			App::wnd()->sessionController()->openFolder(folder);
 		}
 	};
@@ -600,7 +614,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		self.number == kArchiveId
 			? openFolder()
 			: App::main()->choosePeer(self.number == kSavedMessagesId
-				? Auth().userPeerId()
+				? _session->userPeerId()
 				: self.peer->id, ShowAtUnreadMsgId);
 	});
 }
@@ -616,7 +630,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		if (self.number != kArchiveId) {
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
 		} else if (const auto folder =
-				Auth().data().folderLoaded(Data::Folder::kId)) {
+				_session->data().folderLoaded(Data::Folder::kId)) {
 			// Not used in the folders.
 			auto view = std::shared_ptr<Data::CloudImageView>();
 			folder->paintUserpic(paint, view, 0, 0, s);
@@ -683,7 +697,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	return self;
 }
 
-- (void)addDocument:(not_null<DocumentData*>)document {
+- (void)addDocument:(not_null<DocumentData*>)document
+	loadProducer:(rpl::producer<>)loadProducer {
 	if (!document->sticker()) {
 		return;
 	}
@@ -696,8 +711,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		[self updateImage];
 		return;
 	}
-	base::ObservableViewer(
-		Auth().downloaderTaskFinished()
+	std::move(
+		loadProducer
 	) | rpl::start_with_next([=] {
 		_image = _media->getStickerSmall();
 		if (_image) {
@@ -733,15 +748,19 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	std::vector<PickerScrubberItem> _stickers;
 	NSPopoverTouchBarItem *_parentPopover;
 	DocumentId _lastPreviewedSticker;
+	Main::Session* _session;
 }
 
-- (id) init:(ScrubberItemType)type popover:(NSPopoverTouchBarItem *)popover {
+- (id) init:(ScrubberItemType)type
+	popover:(NSPopoverTouchBarItem *)popover
+	session:(not_null<Main::Session*>)session {
 	self = [super initWithIdentifier:IsSticker(type)
 		? kScrubberStickersItemIdentifier
 		: kScrubberEmojiItemIdentifier];
 	if (!self) {
 		return self;
 	}
+	_session = session;
 	_parentPopover = popover;
 	IsSticker(type) ? [self updateStickers] : [self updateEmoji];
 	NSScrubber *scrubber = [[[NSScrubber alloc] initWithFrame:NSZeroRect] autorelease];
@@ -831,7 +850,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	const auto item = _stickers[index];
 	if (const auto document = item.document) {
 		PickerScrubberItemView *itemView = [scrubber makeItemWithIdentifier:kStickerItemIdentifier owner:nil];
-		[itemView addDocument:(std::move(document))];
+		auto loadProducer = base::ObservableViewer(
+			_session->downloaderTaskFinished());
+		[itemView addDocument:(std::move(document))
+			loadProducer:(std::move(loadProducer))];
 		return itemView;
 	} else if (const auto emoji = item.emoji) {
 		NSScrubberImageItemView *itemView = [scrubber makeItemWithIdentifier:kEmojiItemIdentifier owner:nil];
@@ -889,6 +911,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void)updateStickers {
+	auto &stickers = _session->data().stickers();
 	std::vector<PickerScrubberItem> temp;
 	if (const auto error = RestrictionToSendStickers()) {
 		temp.emplace_back(PickerScrubberItem(
@@ -896,11 +919,11 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		_stickers = std::move(temp);
 		return;
 	}
-	AppendFavedStickers(temp);
-	AppendRecentStickers(temp);
+	AppendFavedStickers(stickers.sets(), temp);
+	AppendRecentStickers(stickers.sets(), stickers.getRecentPack(), temp);
 	auto count = 0;
-	for (const auto setId : Auth().data().stickerSetsOrder()) {
-		AppendStickerSet(temp, setId);
+	for (const auto setId : stickers.setsOrderRef()) {
+		AppendStickerSet(stickers.sets(), temp, setId);
 		if (++count == kMaxStickerSets) {
 			break;
 		}
@@ -914,7 +937,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 - (void)updateEmoji {
 	std::vector<PickerScrubberItem> temp;
-	AppendEmojiPacks(temp);
+	AppendEmojiPacks(_session->data().stickers().sets(), temp);
 	_stickers = std::move(temp);
 }
 
@@ -936,6 +959,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	Platform::TouchBarType _touchBarType;
 	Platform::TouchBarType _touchBarTypeBeforeLock;
 
+	Main::Session* _session;
+
 	double _duration;
 	double _position;
 
@@ -943,11 +968,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	rpl::lifetime _lifetimeSessionControllerChecker;
 }
 
-- (id) init:(NSView *)view {
+- (id) init:(NSView *)view session:(not_null<Main::Session*>)session {
 	self = [super init];
 	if (!self) {
 		return nil;
 	}
+	_session = session;
 
 	const auto iconSize = kIdealIconSize / 3;
 	_position = 0;
@@ -1038,12 +1064,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		}
 	}, _lifetime);
 
-	Auth().data().pinnedDialogsOrderUpdated(
+	_session->data().pinnedDialogsOrderUpdated(
 	) | rpl::start_with_next([self] {
 		[self updatePinnedButtons];
 	}, _lifetime);
 
-	Auth().data().chatsListChanges(
+	_session->data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder
 			&& folder->chatsList()
@@ -1057,12 +1083,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	// not yet exist. But at the time of chatsListChanges event
 	// the sessionController is valid and we can work with it.
 	// So _lifetimeSessionControllerChecker is needed only once.
-	Auth().data().chatsListChanges(
+	_session->data().chatsListChanges(
 	) | rpl::start_with_next([=] {
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->sessionController()) {
-				if (Auth().data().stickerSets().empty()) {
-					Auth().api().updateStickers();
+				if (_session->data().stickers().setsRef().empty()) {
+					_session->api().updateStickers();
 				}
 				_lifetimeSessionControllerChecker.destroy();
 				controller->activeChatChanges(
@@ -1077,8 +1103,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}, _lifetimeSessionControllerChecker);
 
 	rpl::merge(
-		Auth().data().stickersUpdated(),
-		Auth().data().recentStickersUpdated()
+		_session->data().stickers().updated(),
+		_session->data().stickers().recentUpdated()
 	) | rpl::start_with_next([=] {
 		[self updatePickerPopover:ScrubberItemType::Sticker];
 	}, _lifetime);
@@ -1178,7 +1204,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			? _popoverPicker
 			: nil;
 		PickerCustomTouchBarItem *item = [[PickerCustomTouchBarItem alloc]
-			init:type popover:popover];
+			init:type popover:popover session:_session];
 		return item;
 	} else if (isType(kTypePicker)) {
 		NSPopoverTouchBarItem *item = [[NSPopoverTouchBarItem alloc] initWithIdentifier:identifier];
@@ -1206,7 +1232,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
 			PinnedDialogButton *button =
-				[[[PinnedDialogButton alloc] init:i] autorelease];
+				[[[PinnedDialogButton alloc]
+					init:i
+					session:_session] autorelease];
 			[_mainPinnedButtons addObject:button];
 			if (i == kArchiveId) {
 				button.isDeletedFromView = true;
@@ -1298,7 +1326,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	const auto popover = IsSticker(type)
 		? _popoverPicker
 		: nil;
-	[[PickerCustomTouchBarItem alloc] init:type popover:popover];
+	[[PickerCustomTouchBarItem alloc] init:type popover:popover session:_session];
 	const auto identifier = IsSticker(type)
 		? kScrubberStickersItemIdentifier
 		: kScrubberEmojiItemIdentifier;
@@ -1329,7 +1357,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void) updatePinnedButtons {
-	const auto &order = Auth().data().pinnedChatsOrder(nullptr, FilterId());
+	const auto &order = _session->data().pinnedChatsOrder(nullptr, FilterId());
 	auto isSelfPeerPinned = false;
 	auto isArchivePinned = false;
 	PinnedDialogButton *selfChatButton;
@@ -1356,7 +1384,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		if (const auto history = pinned.history()) {
 			button.peer = history->peer;
 			[button updateUserpic];
-			if (history->peer->id == Auth().userPeerId()) {
+			if (history->peer->id == _session->userPeerId()) {
 				isSelfPeerPinned = true;
 			}
 		}

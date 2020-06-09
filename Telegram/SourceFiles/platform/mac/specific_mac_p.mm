@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
-#include "platform/mac/mac_touchbar.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
