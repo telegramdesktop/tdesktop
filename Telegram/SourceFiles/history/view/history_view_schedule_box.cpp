@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "lang/lang_keys.h"
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "boxes/calendar_box.h"
 #include "ui/widgets/input_fields.h"
@@ -63,6 +64,17 @@ QString TimeString(TimeId time) {
 	return QString("%1:%2"
 	).arg(parsed.hour()
 	).arg(parsed.minute(), 2, 10, QLatin1Char('0'));
+}
+
+int ProcessWheelEvent(not_null<QWheelEvent*> e) {
+	// Only a mouse wheel is accepted.
+	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
+	const auto delta = e->angleDelta().y();
+	const auto absDelta = std::abs(delta);
+	if (absDelta != step) {
+		return 0;
+	}
+	return (delta / absDelta);
 }
 
 class TimePart final : public Ui::MaskedInputField {
@@ -215,15 +227,8 @@ void TimePart::keyPressEvent(QKeyEvent *e) {
 }
 
 void TimePart::wheelEvent(QWheelEvent *e) {
-	// Only a mouse wheel is accepted.
-	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
-	const auto delta = e->angleDelta().y();
-	const auto absDelta = std::abs(delta);
-	if (absDelta != step) {
-		return;
-	}
-
-	auto time = Number(this) + ((delta / absDelta) * _wheelStep);
+	const auto direction = ProcessWheelEvent(e);
+	auto time = Number(this) + (direction * _wheelStep);
 	const auto max = _maxValue + 1;
 	if (time < 0) {
 		time += max;
@@ -628,6 +633,24 @@ void ScheduleBox(
 		timeInput->setFocusFast();
 	}, dayInput->lifetime());
 
+	const auto minDate = QDate::currentDate();
+	const auto maxDate = minDate.addYears(1).addDays(-1);
+
+	const auto &dayViewport = dayInput->rawTextEdit()->viewport();
+	base::install_event_filter(dayViewport, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::Wheel) {
+			const auto e = static_cast<QWheelEvent*>(event.get());
+			const auto direction = ProcessWheelEvent(e);
+			if (!direction) {
+				return base::EventFilterResult::Continue;
+			}
+			const auto d = date->current().addDays(direction);
+			*date = std::clamp(d, minDate, maxDate);
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto paddings = width
@@ -656,9 +679,8 @@ void ScheduleBox(
 			(*calendar)->closeBox();
 		};
 		const auto finalize = [=](not_null<CalendarBox*> box) {
-			const auto now = QDate::currentDate();
-			box->setMinDate(now);
-			box->setMaxDate(now.addYears(1).addDays(-1));
+			box->setMinDate(minDate);
+			box->setMaxDate(maxDate);
 		};
 		*calendar = box->getDelegate()->show(Box<CalendarBox>(
 			date->current(),
