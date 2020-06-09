@@ -72,10 +72,10 @@ bool GdkHelperLoadGtk3(QLibrary &lib) {
 
 void GdkHelperLoad(QLibrary &lib) {
 	gdk_helper_loaded = GtkLoaded::GtkNone;
-	if (GdkHelperLoadGtk2(lib)) {
-		gdk_helper_loaded = GtkLoaded::Gtk2;
-	} else if (GdkHelperLoadGtk3(lib)) {
+	if (GdkHelperLoadGtk3(lib)) {
 		gdk_helper_loaded = GtkLoaded::Gtk3;
+	} else if (GdkHelperLoadGtk2(lib)) {
+		gdk_helper_loaded = GtkLoaded::Gtk2;
 	}
 }
 

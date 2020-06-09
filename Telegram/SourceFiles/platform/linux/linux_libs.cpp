@@ -87,6 +87,10 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_widget_destroy", gtk_widget_destroy)) return false;
 	if (!load(lib_gtk, "gtk_clipboard_get", gtk_clipboard_get)) return false;
 	if (!load(lib_gtk, "gtk_clipboard_store", gtk_clipboard_store)) return false;
+	if (!load(lib_gtk, "gtk_clipboard_wait_for_contents", gtk_clipboard_wait_for_contents)) return false;
+	if (!load(lib_gtk, "gtk_clipboard_wait_for_image", gtk_clipboard_wait_for_image)) return false;
+	if (!load(lib_gtk, "gtk_selection_data_targets_include_image", gtk_selection_data_targets_include_image)) return false;
+	if (!load(lib_gtk, "gtk_selection_data_free", gtk_selection_data_free)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_dialog_new", gtk_file_chooser_dialog_new)) return false;
 	if (!load(lib_gtk, "gtk_file_chooser_get_type", gtk_file_chooser_get_type)) return false;
 	if (!load(lib_gtk, "gtk_image_get_type", gtk_image_get_type)) return false;
@@ -137,6 +141,13 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 
 	if (!load(lib_gtk, "g_log_set_handler", g_log_set_handler)) return false;
 	if (!load(lib_gtk, "g_log_default_handler", g_log_default_handler)) return false;
+
+	if (!load(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
+	if (!load(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha)) return false;
+	if (!load(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels)) return false;
+	if (!load(lib_gtk, "gdk_pixbuf_get_width", gdk_pixbuf_get_width)) return false;
+	if (!load(lib_gtk, "gdk_pixbuf_get_height", gdk_pixbuf_get_height)) return false;
+	if (!load(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride)) return false;
 
 	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
 		// We work only with X11 GDK backend.
@@ -195,6 +206,10 @@ f_gtk_widget_hide_on_delete gtk_widget_hide_on_delete = nullptr;
 f_gtk_widget_destroy gtk_widget_destroy = nullptr;
 f_gtk_clipboard_get gtk_clipboard_get = nullptr;
 f_gtk_clipboard_store gtk_clipboard_store = nullptr;
+f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents = nullptr;
+f_gtk_clipboard_wait_for_image gtk_clipboard_wait_for_image = nullptr;
+f_gtk_selection_data_targets_include_image gtk_selection_data_targets_include_image = nullptr;
+f_gtk_selection_data_free gtk_selection_data_free = nullptr;
 f_gtk_file_chooser_dialog_new gtk_file_chooser_dialog_new = nullptr;
 f_gtk_file_chooser_get_type gtk_file_chooser_get_type = nullptr;
 f_gtk_image_get_type gtk_image_get_type = nullptr;
@@ -234,9 +249,15 @@ f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
 f_g_signal_connect_data g_signal_connect_data = nullptr;
 f_g_signal_handler_disconnect g_signal_handler_disconnect = nullptr;
 f_gdk_init_check gdk_init_check = nullptr;
+f_gdk_atom_intern gdk_atom_intern = nullptr;
 f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
 f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file = nullptr;
 f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
+f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha = nullptr;
+f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
+f_gdk_pixbuf_get_width gdk_pixbuf_get_width = nullptr;
+f_gdk_pixbuf_get_height gdk_pixbuf_get_height = nullptr;
+f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
 f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf = nullptr;
 f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf = nullptr;
 f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file = nullptr;
@@ -265,6 +286,10 @@ f_g_log_default_handler g_log_default_handler = nullptr;
 
 void start() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (!UseGtkIntegration()) {
+		return;
+	}
+
 	DEBUG_LOG(("Loading libraries"));
 
 	bool gtkLoaded = false;

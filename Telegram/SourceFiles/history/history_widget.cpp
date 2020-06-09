@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
+#include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -4512,7 +4513,10 @@ bool HistoryWidget::confirmSendingFiles(
 	}
 
 	if (hasImage) {
-		auto image = qvariant_cast<QImage>(data->imageData());
+		auto image = Platform::GetImageFromClipboard();
+		if (image.isNull()) {
+			image = qvariant_cast<QImage>(data->imageData());
+		}
 		if (!image.isNull()) {
 			confirmSendingFiles(
 				std::move(image),

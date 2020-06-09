@@ -98,6 +98,18 @@ extern f_gtk_clipboard_get gtk_clipboard_get;
 typedef void (*f_gtk_clipboard_store)(GtkClipboard *clipboard);
 extern f_gtk_clipboard_store gtk_clipboard_store;
 
+typedef GtkSelectionData* (*f_gtk_clipboard_wait_for_contents)(GtkClipboard *clipboard, GdkAtom target);
+extern f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents;
+
+typedef GdkPixbuf* (*f_gtk_clipboard_wait_for_image)(GtkClipboard *clipboard);
+extern f_gtk_clipboard_wait_for_image gtk_clipboard_wait_for_image;
+
+typedef gboolean (*f_gtk_selection_data_targets_include_image)(const GtkSelectionData *selection_data, gboolean writable);
+extern f_gtk_selection_data_targets_include_image gtk_selection_data_targets_include_image;
+
+typedef void (*f_gtk_selection_data_free)(GtkSelectionData *data);
+extern f_gtk_selection_data_free gtk_selection_data_free;
+
 typedef GtkWidget* (*f_gtk_file_chooser_dialog_new)(const gchar *title, GtkWindow *parent, GtkFileChooserAction action, const gchar *first_button_text, ...) G_GNUC_NULL_TERMINATED;
 extern f_gtk_file_chooser_dialog_new gtk_file_chooser_dialog_new;
 
@@ -279,6 +291,9 @@ extern f_g_signal_handler_disconnect g_signal_handler_disconnect;
 typedef gboolean (*f_gdk_init_check)(gint *argc, gchar ***argv);
 extern f_gdk_init_check gdk_init_check;
 
+typedef GdkAtom (*f_gdk_atom_intern)(const gchar *atom_name, gboolean only_if_exists);
+extern f_gdk_atom_intern gdk_atom_intern;
+
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
 extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
 
@@ -287,6 +302,21 @@ extern f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file;
 
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file_at_size)(const gchar *filename, int width, int height, GError **error);
 extern f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size;
+
+typedef gboolean (*f_gdk_pixbuf_get_has_alpha)(const GdkPixbuf *pixbuf);
+extern f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha;
+
+typedef guchar* (*f_gdk_pixbuf_get_pixels)(const GdkPixbuf *pixbuf);
+extern f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels;
+
+typedef int (*f_gdk_pixbuf_get_width)(const GdkPixbuf *pixbuf);
+extern f_gdk_pixbuf_get_width gdk_pixbuf_get_width;
+
+typedef int (*f_gdk_pixbuf_get_height)(const GdkPixbuf *pixbuf);
+extern f_gdk_pixbuf_get_height gdk_pixbuf_get_height;
+
+typedef int (*f_gdk_pixbuf_get_rowstride)(const GdkPixbuf *pixbuf);
+extern f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride;
 
 typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_pixbuf)(GdkPixbuf *pixbuf);
 extern f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf;

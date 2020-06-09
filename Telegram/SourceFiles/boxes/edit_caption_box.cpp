@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -656,7 +657,10 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		if (result.error == Error::None) {
 			return result;
 		} else if (data->hasImage()) {
-			auto image = qvariant_cast<QImage>(data->imageData());
+			auto image = Platform::GetImageFromClipboard();
+			if (image.isNull()) {
+				image = qvariant_cast<QImage>(data->imageData());
+			}
 			if (!image.isNull()) {
 				_isImage = true;
 				_photo = true;
