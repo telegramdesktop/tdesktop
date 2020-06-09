@@ -672,8 +672,12 @@ void ScheduleBox(
 			width);
 	}, content->lifetime());
 
+	const auto calendar =
+		content->lifetime().make_state<QPointer<CalendarBox>>();
 	QObject::connect(dayInput, &Ui::InputField::focused, [=] {
-		const auto calendar = std::make_shared<QPointer<CalendarBox>>();
+		if (*calendar) {
+			return;
+		}
 		const auto chosen = [=](QDate chosen) {
 			*date = chosen;
 			(*calendar)->closeBox();
