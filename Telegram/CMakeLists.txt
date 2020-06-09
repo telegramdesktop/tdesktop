@@ -1070,6 +1070,7 @@ PRIVATE
     winrc/Telegram.manifest
     langs/lang.strings
     langs/cloud_lang.strings
+    langs/localization/en.json
     numbers.txt
 )
 
