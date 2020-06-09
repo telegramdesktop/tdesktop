@@ -112,8 +112,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 
 	case EntityType::MentionName: {
 		auto fields = TextUtilities::MentionNameDataToFields(data.data);
-		if (fields.userId) {
+		if (!my || !my->session) {
+			LOG(("Mention name without a session: %1").arg(data.data));
+		} else if (fields.userId) {
 			return std::make_shared<MentionNameClickHandler>(
+				my->session,
 				data.text,
 				fields.userId,
 				fields.accessHash);

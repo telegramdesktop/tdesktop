@@ -120,7 +120,7 @@ auto MentionClickHandler::getTextEntity() const -> TextEntity {
 void MentionNameClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (auto user = Auth().data().userLoaded(_userId)) {
+		if (auto user = _session->data().userLoaded(_userId)) {
 			Ui::showPeerProfile(user);
 		}
 	}
@@ -132,7 +132,7 @@ auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
 }
 
 QString MentionNameClickHandler::tooltip() const {
-	if (const auto user = Auth().data().userLoaded(_userId)) {
+	if (const auto user = _session->data().userLoaded(_userId)) {
 		const auto name = user->name;
 		if (name != _text) {
 			return name;

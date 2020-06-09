@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text_options.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "layout.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
@@ -219,7 +220,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyCallback = [=]() {
 		if (const auto item = owner->message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
-				HistoryView::CopyPostLink(item->fullId());
+				HistoryView::CopyPostLink(
+					&item->history()->session(),
+					item->fullId());
 			} else if (const auto bot = item->getMessageBot()) {
 				if (const auto media = item->media()) {
 					if (const auto game = media->game()) {
@@ -1206,7 +1209,7 @@ TextWithEntities HistoryMessage::withLocalEntities(
 }
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
-	for_const (auto &entity, textWithEntities.entities) {
+	for (const auto &entity : textWithEntities.entities) {
 		auto type = entity.type();
 		if (type == EntityType::Url
 			|| type == EntityType::CustomUrl
@@ -1220,11 +1223,16 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		setEmptyText();
 		return;
 	}
+
 	clearIsolatedEmoji();
+	const auto context = Core::UiIntegration::Context{
+		.session = &history()->session()
+	};
 	_text.setMarkedText(
 		st::messageTextStyle,
 		withLocalEntities(textWithEntities),
-		Ui::ItemTextOptions(this));
+		Ui::ItemTextOptions(this),
+		context);
 	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
 		// If server has allowed some text that we've trim-ed entirely,
 		// just replace it with something so that UI won't look buggy.
@@ -1235,6 +1243,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	} else if (!_media) {
 		checkIsolatedEmoji();
 	}
+
 	_textWidth = -1;
 	_textHeight = 0;
 }

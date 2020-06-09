@@ -329,22 +329,16 @@ PhotoClickHandler::PhotoClickHandler(
 	not_null<PhotoData*> photo,
 	FullMsgId context,
 	PeerData *peer)
-: FileClickHandler(context)
-, _session(&photo->session())
+: FileClickHandler(&photo->session(), context)
 , _photo(photo)
 , _peer(peer) {
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	if (valid()) {
-		Core::App().showPhoto(this);
-	}
+	Core::App().showPhoto(this);
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
-	if (!valid()) {
-		return;
-	}
 	const auto data = photo();
 	if (!data->date) {
 		return;
@@ -354,9 +348,6 @@ void PhotoSaveClickHandler::onClickImpl() const {
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {
-	if (!valid()) {
-		return;
-	}
 	const auto data = photo();
 	if (!data->date) {
 		return;

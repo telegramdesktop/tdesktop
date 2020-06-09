@@ -136,7 +136,7 @@ void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
 }
 
 HistoryItem *FileClickHandler::getActionItem() const {
-	return Auth().data().message(context());
+	return _session->data().message(context());
 }
 
 PeerId PeerFromMessage(const MTPmessage &message) {

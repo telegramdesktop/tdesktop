@@ -128,8 +128,8 @@ void AddPhotoActions(
 	});
 }
 
-void OpenGif(FullMsgId itemId) {
-	if (const auto item = Auth().data().message(itemId)) {
+void OpenGif(not_null<Main::Session*> session, FullMsgId itemId) {
+	if (const auto item = session->data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Core::App().showDocument(document, item);
@@ -182,7 +182,8 @@ void AddDocumentActions(
 		});
 		return;
 	}
-	if (const auto item = document->session().data().message(contextId)) {
+	const auto session = &document->session();
+	if (const auto item = session->data().message(contextId)) {
 		const auto notAutoplayedGif = [&] {
 			return document->isGifv()
 				&& !Data::AutoDownload::ShouldAutoPlay(
@@ -192,7 +193,7 @@ void AddDocumentActions(
 		}();
 		if (notAutoplayedGif) {
 			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-				OpenGif(contextId);
+				OpenGif(session, contextId);
 			});
 		}
 	}
@@ -231,12 +232,13 @@ void AddPostLinkAction(
 		&& !request.link->copyToClipboardContextItemText().isEmpty()) {
 		return;
 	}
+	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
 	menu->addAction(
 		(item->history()->peer->isMegagroup()
 			? tr::lng_context_copy_link
 			: tr::lng_context_copy_post_link)(tr::now),
-		[=] { CopyPostLink(itemId); });
+		[=] { CopyPostLink(session, itemId); });
 }
 
 MessageIdsList ExtractIdsList(const SelectedItems &items) {
@@ -698,8 +700,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	return result;
 }
 
-void CopyPostLink(FullMsgId itemId) {
-	const auto item = Auth().data().message(itemId);
+void CopyPostLink(not_null<Main::Session*> session, FullMsgId itemId) {
+	const auto item = session->data().message(itemId);
 	if (!item || !item->hasDirectLink()) {
 		return;
 	}
@@ -714,11 +716,11 @@ void CopyPostLink(FullMsgId itemId) {
 		: tr::lng_context_about_private_link(tr::now));
 }
 
-void StopPoll(FullMsgId itemId) {
+void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
 	const auto stop = [=] {
 		Ui::hideLayer();
-		if (const auto item = Auth().data().message(itemId)) {
-			item->history()->session().api().closePoll(item);
+		if (const auto item = session->data().message(itemId)) {
+			session->api().closePoll(item);
 		}
 	};
 	Ui::show(Box<ConfirmBox>(

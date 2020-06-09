@@ -301,8 +301,7 @@ QString DocumentFileNameForSave(
 DocumentClickHandler::DocumentClickHandler(
 	not_null<DocumentData*> document,
 	FullMsgId context)
-: FileClickHandler(context)
-, _session(&document->session())
+: FileClickHandler(&document->session(), context)
 , _document(document) {
 }
 
@@ -353,9 +352,7 @@ void DocumentOpenClickHandler::Open(
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	if (valid()) {
-		Open(context(), document(), getActionItem());
-	}
+	Open(context(), document(), getActionItem());
 }
 
 void DocumentSaveClickHandler::Save(
@@ -393,16 +390,10 @@ void DocumentSaveClickHandler::Save(
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
-	if (valid()) {
-		Save(context(), document());
-	}
+	Save(context(), document());
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
-	if (!valid()) {
-		return;
-	}
-
 	const auto data = document();
 	if (!data->date) {
 		return;
@@ -435,9 +426,7 @@ void DocumentOpenWithClickHandler::Open(
 }
 
 void DocumentOpenWithClickHandler::onClickImpl() const {
-	if (valid()) {
-		Open(context(), document());
-	}
+	Open(context(), document());
 }
 
 Data::FileOrigin StickerData::setOrigin() const {

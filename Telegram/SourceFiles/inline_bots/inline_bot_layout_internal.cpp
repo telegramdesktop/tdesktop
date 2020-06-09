@@ -126,14 +126,17 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	Auth().api().toggleSavedGif(_data, Data::FileOriginSavedGifs(), false);
+	_data->session().api().toggleSavedGif(
+		_data,
+		Data::FileOriginSavedGifs(),
+		false);
 
-	const auto index = Auth().data().stickers().savedGifs().indexOf(_data);
+	const auto index = _data->owner().stickers().savedGifs().indexOf(_data);
 	if (index >= 0) {
-		Auth().data().stickers().savedGifsRef().remove(index);
+		_data->owner().stickers().savedGifsRef().remove(index);
 		Local::writeSavedGifs();
 	}
-	Auth().data().stickers().notifySavedGifsUpdated();
+	_data->owner().stickers().notifySavedGifsUpdated();
 }
 
 int Gif::resizeGetHeight(int width) {

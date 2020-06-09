@@ -407,7 +407,7 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 	auto result = PreparedText {};
 	auto gamescore = Get<HistoryServiceGameScore>();
 
-	auto computeGameTitle = [gamescore, &result]() -> QString {
+	auto computeGameTitle = [&]() -> QString {
 		if (gamescore && gamescore->msg) {
 			if (const auto media = gamescore->msg->media()) {
 				if (const auto game = media->game()) {
@@ -415,6 +415,7 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 					const auto column = 0;
 					result.links.push_back(
 						std::make_shared<ReplyMarkupClickHandler>(
+							&history()->owner(),
 							row,
 							column,
 							gamescore->msg->fullId()));

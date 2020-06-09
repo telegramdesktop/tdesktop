@@ -45,14 +45,14 @@ protected:
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
 public:
-	DeleteSavedGifClickHandler(DocumentData *data) : _data(data) {
+	DeleteSavedGifClickHandler(not_null<DocumentData*> data) : _data(data) {
 	}
 
 protected:
 	void onClickImpl() const override;
 
 private:
-	DocumentData  *_data;
+	const not_null<DocumentData*> _data;
 
 };
 

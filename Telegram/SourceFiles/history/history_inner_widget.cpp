@@ -1539,6 +1539,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	const auto session = &this->session();
 
 	const auto addItemActions = [&](HistoryItem *item) {
 		if (!item
@@ -1578,7 +1579,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		});
 		if (photo->hasSticker) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
-				session().api().requestAttachedStickerSets(photo);
+				session->api().requestAttachedStickerSets(photo);
 			});
 		}
 	};
@@ -1599,7 +1600,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				return item
 					&& document->isGifv()
 					&& !Data::AutoDownload::ShouldAutoPlay(
-						document->session().settings().autoDownload(),
+						session->settings().autoDownload(),
 						item->history()->peer,
 						document);
 			}();
@@ -1642,7 +1643,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
-				HistoryView::CopyPostLink(itemId);
+				HistoryView::CopyPostLink(session, itemId);
 			});
 		}
 		if (isUponSelected > 1) {
@@ -1680,7 +1681,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			if (IsServerMsgId(item->id) && !item->serviceMsg()) {
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
-					if (const auto item = session().data().message(itemId)) {
+					if (const auto item = session->data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelection(&_selected, item, SelectAction::Select);
 							repaintItem(item);
@@ -1697,7 +1698,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				: App::hoveredLinkItem()
 				? App::hoveredLinkItem()->data().get()
 				: nullptr) {
-				if (const auto group = session().data().groups().find(result)) {
+				if (const auto group = session->data().groups().find(result)) {
 					return group->items.front();
 				}
 				return result;
@@ -1731,11 +1732,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_menu->addAction(document->isStickerSetInstalled() ? tr::lng_context_pack_info(tr::now) : tr::lng_context_pack_add(tr::now), [=] {
 								showStickerPackInfo(document);
 							});
-							_menu->addAction(session().data().stickers().isFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
-								session().api().toggleFavedSticker(
+							_menu->addAction(session->data().stickers().isFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
+								session->api().toggleFavedSticker(
 									document,
 									itemId,
-									!session().data().stickers().isFaved(document));
+									!session->data().stickers().isFaved(document));
 							});
 						}
 						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
@@ -1748,12 +1749,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						if (!poll->closed()) {
 							if (poll->voted() && !poll->quiz()) {
 								_menu->addAction(tr::lng_polls_retract(tr::now), [=] {
-									session().api().sendPollVotes(itemId, {});
+									session->api().sendPollVotes(itemId, {});
 								});
 							}
 							if (item->canStopPoll()) {
 								_menu->addAction(tr::lng_polls_stop(tr::now), [=] {
-									HistoryView::StopPoll(itemId);
+									HistoryView::StopPoll(session, itemId);
 								});
 							}
 						}
@@ -1783,7 +1784,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				});
 		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
-				HistoryView::CopyPostLink(itemId);
+				HistoryView::CopyPostLink(session, itemId);
 			});
 		}
 		if (isUponSelected > 1) {
@@ -1820,7 +1821,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			if (item->id > 0 && !item->serviceMsg()) {
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
-					if (const auto item = session().data().message(itemId)) {
+					if (const auto item = session->data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
 							repaintItem(view);
@@ -1835,7 +1836,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&& !App::mousedItem()->data()->serviceMsg()) {
 				const auto itemId = App::mousedItem()->data()->fullId();
 				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
-					if (const auto item = session().data().message(itemId)) {
+					if (const auto item = session->data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
 							repaintItem(item);

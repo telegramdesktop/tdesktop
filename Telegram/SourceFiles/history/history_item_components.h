@@ -223,7 +223,11 @@ private:
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
 public:
-	ReplyMarkupClickHandler(int row, int column, FullMsgId context);
+	ReplyMarkupClickHandler(
+		not_null<Data::Session*> owner,
+		int row,
+		int column,
+		FullMsgId context);
 
 	QString tooltip() const override {
 		return _fullDisplayed ? QString() : buttonText();
@@ -253,6 +257,7 @@ protected:
 	void onClickImpl() const override;
 
 private:
+	const not_null<Data::Session*> _owner;
 	FullMsgId _itemId;
 	int _row = 0;
 	int _column = 0;

@@ -10,27 +10,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/value_ordering.h"
 #include "ui/text/text.h" // For QFIXED_MAX
 
+class HistoryItem;
+using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
+
+class StorageImageLocation;
+class WebFileLocation;
+struct GeoPointLocation;
+
 namespace Storage {
 namespace Cache {
 struct Key;
 } // namespace Cache
 } // namespace Storage
 
-class HistoryItem;
-using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
-
 namespace Ui {
 class InputField;
 } // namespace Ui
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Images {
 enum class Option;
 using Options = base::flags<Option>;
 } // namespace Images
-
-class StorageImageLocation;
-class WebFileLocation;
-struct GeoPointLocation;
 
 namespace Data {
 
@@ -449,7 +453,15 @@ struct SendAction {
 
 class FileClickHandler : public LeftButtonClickHandler {
 public:
-	FileClickHandler(FullMsgId context) : _context(context) {
+	FileClickHandler(
+		not_null<Main::Session*> session,
+		FullMsgId context)
+	: _session(session)
+	, _context(context) {
+	}
+
+	[[nodiscard]] Main::Session &session() const {
+		return *_session;
 	}
 
 	void setMessageId(FullMsgId context) {
@@ -464,6 +476,7 @@ protected:
 	HistoryItem *getActionItem() const;
 
 private:
+	const not_null<Main::Session*> _session;
 	FullMsgId _context;
 
 };

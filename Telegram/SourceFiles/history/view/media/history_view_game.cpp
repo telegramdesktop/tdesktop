@@ -48,6 +48,7 @@ QSize Game::countOptimalSize() {
 		const auto row = 0;
 		const auto column = 0;
 		_openl = std::make_shared<ReplyMarkupClickHandler>(
+			&item->history()->owner(),
 			row,
 			column,
 			item->fullId());
