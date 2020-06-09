@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "storage/storage_media_prepare.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -942,7 +942,7 @@ void Widget::searchMessages(
 		_searchTimer.stop();
 		onSearchMessages();
 
-		Local::saveRecentSearchHashtags(query);
+		session().local().saveRecentSearchHashtags(query);
 	}
 }
 

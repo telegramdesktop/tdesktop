@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "storage/localstorage.h"
+#include "main/main_session.h"
+#include "storage/storage_account.h"
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
@@ -931,7 +932,7 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 				}
 			}
 			if (removed) {
-				Local::writeRecentHashtagsAndBots();
+				_controller->session().local().writeRecentHashtagsAndBots();
 			}
 			_parent->updateFiltered();
 

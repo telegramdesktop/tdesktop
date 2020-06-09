@@ -210,7 +210,7 @@ void AutoDownloadBox::setupContent() {
 			}
 		}
 		if (changed || hiddenChanged) {
-			Local::writeUserSettings();
+			_session->saveSettingsDelayed();
 		}
 		if (allowMoreTypes.contains(Type::Photo)) {
 			_session->data().photoLoadSettingsChanged();

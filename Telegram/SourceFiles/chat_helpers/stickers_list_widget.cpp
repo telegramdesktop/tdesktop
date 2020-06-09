@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_layout.h"
@@ -2127,7 +2127,7 @@ void StickersListWidget::removeRecentSticker(int section, int index) {
 	for (int32 i = 0, l = recent.size(); i < l; ++i) {
 		if (recent.at(i).first == document) {
 			recent.removeAt(i);
-			Local::writeUserSettings();
+			session().local().writeSettings();
 			refresh = true;
 			break;
 		}
@@ -2142,7 +2142,7 @@ void StickersListWidget::removeRecentSticker(int section, int index) {
 				if (set->stickers.isEmpty()) {
 					sets.erase(it);
 				}
-				Local::writeInstalledStickers();
+				session().local().writeInstalledStickers();
 				refresh = true;
 				break;
 			}
@@ -2573,7 +2573,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	auto removeHiddenForGroup = [this, &hidden] {
 		if (hidden) {
 			session().settings().removeGroupStickersSectionHidden(_megagroupSet->id);
-			Local::writeUserSettings();
+			session().local().writeSettings();
 			hidden = false;
 		}
 	};
@@ -2984,7 +2984,7 @@ void StickersListWidget::sendInstallRequest(
 void StickersListWidget::removeMegagroupSet(bool locally) {
 	if (locally) {
 		session().settings().setGroupStickersSectionHidden(_megagroupSet->id);
-		Local::writeUserSettings();
+		session().local().writeSettings();
 		refreshStickers();
 		return;
 	}
@@ -3044,8 +3044,8 @@ void StickersListWidget::removeSet(uint64 setId) {
 				int removeIndex = session().data().stickers().setsOrder().indexOf(_removingSetId);
 				if (removeIndex >= 0) session().data().stickers().setsOrderRef().removeAt(removeIndex);
 				refreshStickers();
-				Local::writeInstalledStickers();
-				if (writeRecent) Local::writeUserSettings();
+				session().local().writeInstalledStickers();
+				if (writeRecent) session().local().writeSettings();
 			}
 			_removingSetId = 0;
 			_checkForHide.fire({});

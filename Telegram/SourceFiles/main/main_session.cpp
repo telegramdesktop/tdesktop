@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/storage_facade.h"
+#include "storage/storage_account.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "window/notifications_manager.h"
@@ -45,7 +46,7 @@ Session::Session(
 	Settings &&settings)
 : _account(account)
 , _settings(std::move(settings))
-, _saveSettingsTimer([=] { Local::writeUserSettings(); })
+, _saveSettingsTimer([=] { local().writeSettings(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
@@ -82,7 +83,7 @@ Session::Session(
 				events,
 				[=](const Notify::PeerUpdate &update) {
 					if (update.peer == _user) {
-						Local::writeSelf();
+						local().writeSelf();
 					}
 				}));
 
@@ -110,6 +111,10 @@ Session::~Session() {
 
 Main::Account &Session::account() const {
 	return *_account;
+}
+
+Storage::Account &Session::local() const {
+	return _account->local();
 }
 
 bool Session::Exists() {
@@ -174,7 +179,7 @@ Support::Templates& Session::supportTemplates() const {
 void Session::saveSettingsNowIfNeeded() {
 	if (_saveSettingsTimer.isActive()) {
 		_saveSettingsTimer.cancel();
-		Local::writeUserSettings();
+		local().writeSettings();
 	}
 }
 

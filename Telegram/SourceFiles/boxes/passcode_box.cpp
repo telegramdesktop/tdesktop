@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "core/application.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -451,7 +451,7 @@ void PasscodeBox::save(bool force) {
 			return;
 		}
 
-		if (Local::checkPasscode(old.toUtf8())) {
+		if (_session->local().checkPasscode(old.toUtf8())) {
 			cSetPasscodeBadTries(0);
 			if (_turningOff) pwd = conf = QString();
 		} else {
@@ -519,7 +519,7 @@ void PasscodeBox::save(bool force) {
 		closeReplacedBy();
 		const auto weak = Ui::MakeWeak(this);
 		cSetPasscodeBadTries(0);
-		Local::setPasscode(pwd.toUtf8());
+		_session->local().setPasscode(pwd.toUtf8());
 		Core::App().localPasscodeChanged();
 		if (weak) {
 			closeBox();

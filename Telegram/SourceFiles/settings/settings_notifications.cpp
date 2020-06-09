@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "platform/platform_notifications_manager.h"
@@ -187,7 +186,7 @@ void NotificationsCount::setCount(int count) {
 		Global::SetNotificationsCount(count);
 		_controller->session().notifications().settingsChanged().notify(
 			ChangeType::MaxCount);
-		Local::writeUserSettings();
+		_controller->session().saveSettingsDelayed();
 	}
 }
 
@@ -414,7 +413,7 @@ void NotificationsCount::mouseReleaseEvent(QMouseEvent *e) {
 			Global::SetNotificationsCorner(_chosenCorner);
 			_controller->session().notifications().settingsChanged().notify(
 				ChangeType::Corner);
-			Local::writeUserSettings();
+			_controller->session().saveSettingsDelayed();
 		}
 	}
 }
@@ -679,7 +678,7 @@ void SetupNotificationsContent(
 
 	using Change = Window::Notifications::ChangeType;
 	const auto changed = [=](Change change) {
-		Local::writeUserSettings();
+		session->saveSettingsDelayed();
 		session->notifications().settingsChanged().notify(change);
 	};
 	desktop->checkedChanges(
@@ -776,8 +775,7 @@ void SetupNotificationsContent(
 			return (checked != Global::NativeNotifications());
 		}) | rpl::start_with_next([=](bool checked) {
 			Global::SetNativeNotifications(checked);
-			Local::writeUserSettings();
-
+			session->saveSettingsDelayed();
 			session->notifications().createManager();
 
 			if (advancedSlide) {

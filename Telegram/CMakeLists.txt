@@ -155,6 +155,7 @@ PRIVATE
     api/api_chat_filters.cpp
     api/api_chat_filters.h
     api/api_common.h
+    api/api_hash.cpp
     api/api_hash.h
     api/api_self_destruct.cpp
     api/api_self_destruct.h
@@ -883,6 +884,10 @@ PRIVATE
     settings/settings_privacy_controllers.h
     settings/settings_privacy_security.cpp
     settings/settings_privacy_security.h
+    storage/details/storage_file_utilities.cpp
+    storage/details/storage_file_utilities.h
+    storage/details/storage_settings_scheme.cpp
+    storage/details/storage_settings_scheme.h
     storage/download_manager_mtproto.cpp
     storage/download_manager_mtproto.h
     storage/file_download.cpp
@@ -901,6 +906,8 @@ PRIVATE
     storage/serialize_common.h
     storage/serialize_document.cpp
     storage/serialize_document.h
+    storage/storage_account.cpp
+    storage/storage_account.h
     storage/storage_cloud_blob.cpp
     storage/storage_cloud_blob.h
     storage/storage_facade.cpp

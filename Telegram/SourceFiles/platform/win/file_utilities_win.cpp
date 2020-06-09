@@ -417,7 +417,7 @@ bool Get(
 		const auto path = dialog.directory().absolutePath();
 		if (path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
-			Local::writeUserSettings();
+			Local::writeSettings();
 		}
 	}
 

@@ -79,7 +79,6 @@ public:
 		TempDirEmpty,
 	};
 	TempDirState tempDirState();
-	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
 	void sendPaths();

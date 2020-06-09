@@ -32,6 +32,7 @@ namespace Storage {
 class DownloadManagerMtproto;
 class Uploader;
 class Facade;
+class Account;
 } // namespace Storage
 
 namespace Window {
@@ -73,6 +74,7 @@ public:
 	[[nodiscard]] static bool Exists();
 
 	[[nodiscard]] Main::Account &account() const;
+	[[nodiscard]] Storage::Account &local() const;
 
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/connection_box.h"
 #include "observer_peer.h"
+#include "storage/storage_account.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_intro.h"
@@ -791,7 +792,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 			Global::SetRestoreFlashBounceNotifyFromTray(false);
 		}
 	}
-	Local::writeUserSettings();
+	account().local().writeSettings();
 	using Change = Window::Notifications::ChangeType;
 	auto &changes = account().session().notifications().settingsChanged();
 	changes.notify(Change::DesktopEnabled);
@@ -848,13 +849,6 @@ MainWindow::TempDirState MainWindow::tempDirState() {
 		return TempDirRemoving;
 	}
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
-}
-
-MainWindow::TempDirState MainWindow::localStorageState() {
-	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
-		return TempDirRemoving;
-	}
-	return TempDirEmpty;
 }
 
 void MainWindow::tempDirDelete(int task) {

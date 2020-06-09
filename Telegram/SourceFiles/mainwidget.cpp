@@ -68,7 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/download_path_box.h"
 #include "boxes/connection_box.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
@@ -1089,7 +1089,9 @@ void MainWidget::closeBothPlayers() {
 
 void MainWidget::createPlayer() {
 	if (!_player) {
-		_player.create(this, object_ptr<Media::Player::Widget>(this));
+		_player.create(
+			this,
+			object_ptr<Media::Player::Widget>(this, &session()));
 		rpl::merge(
 			_player->heightValue() | rpl::map([] { return true; }),
 			_player->shownValue()
@@ -2507,7 +2509,7 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 			session().settings().setDialogsWidthRatio(
 				float64(_dialogsWidth) / width());
 		}
-		Local::writeUserSettings();
+		session().local().writeSettings();
 	};
 	createResizeArea(
 		_firstColumnResizeArea,
@@ -2531,7 +2533,7 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 			session().settings().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));
-		Local::writeUserSettings();
+		session().local().writeSettings();
 	};
 	createResizeArea(
 		_thirdColumnResizeArea,
@@ -3193,9 +3195,10 @@ void MainWidget::sendPing() {
 }
 
 void MainWidget::start() {
-	session().api().requestNotifySettings(MTP_inputNotifyUsers());
-	session().api().requestNotifySettings(MTP_inputNotifyChats());
-	session().api().requestNotifySettings(MTP_inputNotifyBroadcasts());
+	auto &api = session().api();
+	api.requestNotifySettings(MTP_inputNotifyUsers());
+	api.requestNotifySettings(MTP_inputNotifyChats());
+	api.requestNotifySettings(MTP_inputNotifyBroadcasts());
 
 	cSetOtherOnline(0);
 	session().user()->loadUserpic();
@@ -3204,16 +3207,19 @@ void MainWidget::start() {
 	update();
 
 	_started = true;
-	Local::readInstalledStickers();
-	Local::readFeaturedStickers();
-	Local::readRecentStickers();
-	Local::readFavedStickers();
-	Local::readSavedGifs();
-	if (const auto availableAt = Local::ReadExportSettings().availableAt) {
-		session().data().suggestStartExport(availableAt);
+	auto &local = session().local();
+	local.readInstalledStickers();
+	local.readFeaturedStickers();
+	local.readRecentStickers();
+	local.readFavedStickers();
+	local.readSavedGifs();
+	auto &data = session().data();
+	if (const auto availableAt = local.readExportSettings().availableAt) {
+		data.suggestStartExport(availableAt);
 	}
-	session().data().stickers().notifyUpdated();
-	session().data().stickers().notifySavedGifsUpdated();
+	auto &stickers = data.stickers();
+	stickers.notifyUpdated();
+	stickers.notifySavedGifsUpdated();
 
 	_history->start();
 
@@ -3441,7 +3447,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 
 	if (writeOldRecent) {
-		Local::writeUserSettings();
+		session().local().writeSettings();
 	}
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
@@ -3460,10 +3466,10 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 
 	if (writeInstalledStickers) {
-		Local::writeInstalledStickers();
+		session().local().writeInstalledStickers();
 	}
 	if (writeRecentStickers) {
-		Local::writeRecentStickers();
+		session().local().writeRecentStickers();
 	}
 	_controller->tabbedSelector()->refreshStickers();
 }
@@ -3623,30 +3629,32 @@ void MainWidget::applyCloudDraft(History *history) {
 }
 
 void MainWidget::writeDrafts(History *history) {
-	Local::MessageDraft storedLocalDraft, storedEditDraft;
+	Storage::MessageDraft storedLocalDraft, storedEditDraft;
 	MessageCursor localCursor, editCursor;
 	if (const auto localDraft = history->localDraft()) {
 		if (session().supportMode()
 			|| !Data::draftsAreEqual(localDraft, history->cloudDraft())) {
-			storedLocalDraft = Local::MessageDraft(
+			storedLocalDraft = Storage::MessageDraft{
 				localDraft->msgId,
 				localDraft->textWithTags,
-				localDraft->previewCancelled);
+				localDraft->previewCancelled
+			};
 			localCursor = localDraft->cursor;
 		}
 	}
 	if (const auto editDraft = history->editDraft()) {
-		storedEditDraft = Local::MessageDraft(
+		storedEditDraft = Storage::MessageDraft{
 			editDraft->msgId,
 			editDraft->textWithTags,
-			editDraft->previewCancelled);
+			editDraft->previewCancelled
+		};
 		editCursor = editDraft->cursor;
 	}
-	Local::writeDrafts(
+	session().local().writeDrafts(
 		history->peer->id,
 		storedLocalDraft,
 		storedEditDraft);
-	Local::writeDraftCursors(history->peer->id, localCursor, editCursor);
+	session().local().writeDraftCursors(history->peer->id, localCursor, editCursor);
 }
 
 void MainWidget::checkIdleFinish() {
@@ -4543,7 +4551,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				session().api().updateStickers();
 			} else {
 				session().data().stickers().setsOrderRef() = std::move(result);
-				Local::writeInstalledStickers();
+				session().local().writeInstalledStickers();
 				session().data().stickers().notifyUpdated();
 			}
 		}

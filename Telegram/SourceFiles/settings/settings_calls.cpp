@@ -17,8 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/single_choice_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
 #include "layout.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -43,13 +43,14 @@ namespace Settings {
 Calls::Calls(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Section(parent) {
-	setupContent(controller);
+: Section(parent)
+, _controller(controller) {
+	setupContent();
 }
 
 Calls::~Calls() {
 	if (_needWriteSettings) {
-		Local::writeUserSettings();
+		_controller->session().saveSettingsDelayed();
 	}
 }
 
@@ -60,7 +61,7 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 	done();
 }
 
-void Calls::setupContent(not_null<Window::SessionController*> controller) {
+void Calls::setupContent() {
 	using VoIP = tgvoip::VoIPController;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -129,8 +130,8 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 				? devices[option - 1].id
 				: "default";
 			Global::SetCallOutputDeviceID(QString::fromStdString(deviceId));
-			Local::writeUserSettings();
-			if (const auto call = controller->session().calls().currentCall()) {
+			_controller->session().saveSettingsDelayed();
+			if (const auto call = _controller->session().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
 			}
 		});
@@ -160,7 +161,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		_needWriteSettings = true;
 		updateOutputLabel(value);
 		Global::SetCallOutputVolume(value);
-		if (const auto call = controller->session().calls().currentCall()) {
+		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioVolume(false, value / 100.0f);
 		}
 	};
@@ -204,11 +205,11 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 				? devices[option - 1].id
 				: "default";
 			Global::SetCallInputDeviceID(QString::fromStdString(deviceId));
-			Local::writeUserSettings();
+			_controller->session().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
 			}
-			if (const auto call = controller->session().calls().currentCall()) {
+			if (const auto call = _controller->session().calls().currentCall()) {
 				call->setCurrentAudioDevice(true, deviceId);
 			}
 		});
@@ -238,7 +239,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		_needWriteSettings = true;
 		updateInputLabel(value);
 		Global::SetCallInputVolume(value);
-		if (const auto call = controller->session().calls().currentCall()) {
+		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioVolume(true, value / 100.0f);
 		}
 	};
@@ -292,8 +293,8 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		return (enabled != Global::CallAudioDuckingEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
 		Global::SetCallAudioDuckingEnabled(enabled);
-		Local::writeUserSettings();
-		if (const auto call = controller->session().calls().currentCall()) {
+		_controller->session().saveSettingsDelayed();
+		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioDuckingEnabled(enabled);
 		}
 	}, content->lifetime());

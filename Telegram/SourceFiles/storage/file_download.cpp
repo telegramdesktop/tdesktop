@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
 #include "platform/platform_file_utilities.h"
@@ -425,7 +425,9 @@ bool FileLoader::finalizeResult() {
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = fileLocationKey()) {
 			if (!_filename.isEmpty()) {
-				Local::writeFileLocation(*key, FileLocation(_filename));
+				_session->local().writeFileLocation(
+					*key,
+					FileLocation(_filename));
 			}
 		}
 		const auto key = cacheKey();

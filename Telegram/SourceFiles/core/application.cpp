@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
+#include "storage/storage_account.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -124,6 +125,11 @@ Application::Application(not_null<Launcher*> launcher)
 	) | rpl::filter([=](MTP::Instance *instance) {
 		return instance != nullptr;
 	}) | rpl::start_with_next([=](not_null<MTP::Instance*> mtp) {
+		if (_window) {
+			// This should be called when user settings are read.
+			// Right now after they are read the startMtp() is called.
+			_window->widget()->updateTrayMenu();
+		}
 		if (!UpdaterDisabled()) {
 			UpdateChecker().setMtproto(mtp.get());
 		}
@@ -232,8 +238,8 @@ void Application::run() {
 	startShortcuts();
 	App::initMedia();
 
-	Local::ReadMapState state = Local::readMap(QByteArray());
-	if (state == Local::ReadMapPassNeeded) {
+	const auto state = activeAccount().local().start(QByteArray());
+	if (state == Storage::StartResult::IncorrectPasscode) {
 		Global::SetLocalPasscode(true);
 		Global::RefLocalPasscodeChanged().notify();
 		lockByPasscode();

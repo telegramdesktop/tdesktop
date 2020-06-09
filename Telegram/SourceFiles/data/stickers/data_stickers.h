@@ -165,7 +165,7 @@ public:
 
 	QString getSetTitle(const MTPDstickerSet &s);
 
-	RecentStickerPack &getRecentPack();
+	RecentStickerPack &getRecentPack() const;
 
 private:
 	bool updateNeeded(crl::time lastUpdate, crl::time now) const {

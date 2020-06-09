@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -51,7 +51,8 @@ void SuggestBox::prepare() {
 
 	addButton(tr::lng_box_ok(), [=] {
 		closeBox();
-		_session->data().startExport(Local::ReadExportSettings().singlePeer);
+		_session->data().startExport(
+			_session->local().readExportSettings().singlePeer);
 	});
 	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });
 	setCloseByOutsideClick(false);
@@ -99,10 +100,10 @@ QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
 void ClearSuggestStart(not_null<Main::Session*> session) {
 	session->data().clearExportSuggestion();
 
-	auto settings = Local::ReadExportSettings();
+	auto settings = session->local().readExportSettings();
 	if (settings.availableAt) {
 		settings.availableAt = 0;
-		Local::WriteExportSettings(settings);
+		session->local().writeExportSettings(settings);
 	}
 }
 
@@ -133,7 +134,8 @@ PanelController::PanelController(
 	not_null<Controller*> process)
 : _session(session)
 , _process(process)
-, _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
+, _settings(
+	std::make_unique<Settings>(_session->local().readExportSettings()))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	ResolveSettings(session, *_settings);
 
@@ -401,7 +403,7 @@ void PanelController::saveSettings() const {
 	if (check(settings.path) == check(File::DefaultDownloadPath(_session))) {
 		settings.path = QString();
 	}
-	Local::WriteExportSettings(settings);
+	_session->local().writeExportSettings(settings);
 }
 
 } // namespace View

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include "api/api_hash.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
@@ -45,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 //#include "history/feed/history_feed_section.h" // #feed
-#include "storage/localstorage.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/storage_account.h"
 #include "facades.h"
 #include "app.h"
 //#include "storage/storage_feed_messages.h" // #feed
@@ -265,6 +266,10 @@ ApiWrap::~ApiWrap() = default;
 
 Main::Session &ApiWrap::session() const {
 	return *_session;
+}
+
+Storage::Account &ApiWrap::local() const {
+	return _session->local();
 }
 
 void ApiWrap::setupSupportMode() {
@@ -1980,11 +1985,12 @@ void ApiWrap::saveStickerSets(
 		}
 	}
 
-	if (writeInstalled) Local::writeInstalledStickers();
-	if (writeRecent) Local::writeUserSettings();
-	if (writeArchived) Local::writeArchivedStickers();
-	if (writeCloudRecent) Local::writeRecentStickers();
-	if (writeFaved) Local::writeFavedStickers();
+	auto &storage = local();
+	if (writeInstalled) storage.writeInstalledStickers();
+	if (writeRecent) storage.writeSettings();
+	if (writeArchived) storage.writeArchivedStickers();
+	if (writeCloudRecent) storage.writeRecentStickers();
+	if (writeFaved) storage.writeFavedStickers();
 	_session->data().stickers().notifyUpdated();
 
 	if (_stickerSetDisenableRequests.empty()) {
@@ -2927,25 +2933,25 @@ void ApiWrap::refreshFileReference(
 			request(MTPmessages_GetRecentStickers(
 				MTP_flags(0),
 				MTP_int(0)),
-				[] { crl::on_main([] { Local::writeRecentStickers(); }); });
+				[=] { crl::on_main(&session(), [=] { local().writeRecentStickers(); }); });
 		} else if (data.setId == Data::Stickers::FavedSetId) {
 			request(MTPmessages_GetFavedStickers(MTP_int(0)),
-				[] { crl::on_main([] { Local::writeFavedStickers(); }); });
+				[=] { crl::on_main(&session(), [=] { local().writeFavedStickers(); }); });
 		} else {
 			request(MTPmessages_GetStickerSet(
 				MTP_inputStickerSetID(
 					MTP_long(data.setId),
 					MTP_long(data.accessHash))),
-				[] { crl::on_main([] {
-					Local::writeInstalledStickers();
-					Local::writeRecentStickers();
-					Local::writeFavedStickers();
+				[=] { crl::on_main(&session(), [=] {
+					local().writeInstalledStickers();
+					local().writeRecentStickers();
+					local().writeFavedStickers();
 				}); });
 		}
 	}, [&](Data::FileOriginSavedGifs data) {
 		request(
 			MTPmessages_GetSavedGifs(MTP_int(0)),
-			[] { crl::on_main([] { Local::writeSavedGifs(); }); });
+			[=] { crl::on_main(&session(), [=] { local().writeSavedGifs(); }); });
 	}, [&](Data::FileOriginWallpaper data) {
 		request(MTPaccount_GetWallPaper(
 			MTP_inputWallPaper(
@@ -3165,7 +3171,7 @@ void ApiWrap::requestStickers(TimeId now) {
 		}
 	};
 	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(
-		MTP_int(Local::countStickersHash(true))
+		MTP_int(Api::CountStickersHash(&session(), true))
 	)).done(onDone).fail([=](const RPCError &error) {
 		LOG(("App Fail: Failed to get stickers!"));
 		onDone(MTP_messages_allStickersNotModified());
@@ -3176,7 +3182,8 @@ void ApiWrap::requestRecentStickers(TimeId now) {
 	if (!_session->data().stickers().recentUpdateNeeded(now)) {
 		return;
 	}
-	requestRecentStickersWithHash(Local::countRecentStickersHash());
+	requestRecentStickersWithHash(
+		Api::CountRecentStickersHash(&session()));
 }
 
 void ApiWrap::requestRecentStickersWithHash(int32 hash) {
@@ -3218,7 +3225,7 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 		return;
 	}
 	_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(
-		MTP_int(Local::countFavedStickersHash())
+		MTP_int(Api::CountFavedStickersHash(&session()))
 	)).done([=](const MTPmessages_FavedStickers &result) {
 		_session->data().stickers().setLastFavedUpdate(crl::now());
 		_favedStickersUpdateRequest = 0;
@@ -3250,7 +3257,7 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 		return;
 	}
 	_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(
-		MTP_int(Local::countFeaturedStickersHash())
+		MTP_int(Api::CountFeaturedStickersHash(&session()))
 	)).done([=](const MTPmessages_FeaturedStickers &result) {
 		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		_featuredStickersUpdateRequest = 0;
@@ -3280,7 +3287,7 @@ void ApiWrap::requestSavedGifs(TimeId now) {
 		return;
 	}
 	_savedGifsUpdateRequest = request(MTPmessages_GetSavedGifs(
-		MTP_int(Local::countSavedGifsHash())
+		MTP_int(Api::CountSavedGifsHash(&session()))
 	)).done([=](const MTPmessages_SavedGifs &result) {
 		_session->data().stickers().setLastSavedGifsUpdate(crl::now());
 		_savedGifsUpdateRequest = 0;
@@ -3331,7 +3338,7 @@ void ApiWrap::readFeaturedSets() {
 		auto requestData = MTPmessages_ReadFeaturedStickers(
 			MTP_vector<MTPlong>(wrappedIds));
 		request(std::move(requestData)).done([=](const MTPBool &result) {
-			Local::writeFeaturedStickers();
+			local().writeFeaturedStickers();
 			_session->data().stickers().notifyUpdated();
 		}).send();
 
@@ -4786,7 +4793,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	if (!peer->canWrite() || Api::SendDice(message)) {
 		return;
 	}
-	Local::saveRecentSentHashtags(textWithTags.text);
+	local().saveRecentSentHashtags(textWithTags.text);
 
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities {

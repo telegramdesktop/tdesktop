@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_mtproto.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/streamed_file_downloader.h"
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
@@ -138,7 +139,7 @@ QString FileNameUnsafe(
 			QString path = dir.absolutePath();
 			if (path != cDialogLastPath()) {
 				cSetDialogLastPath(path);
-				Local::writeUserSettings();
+				Local::writeSettings();
 			}
 		}
 
@@ -901,11 +902,11 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 	_flags = flags;
 	if (filepath().isEmpty()) {
 		if (loadedInMediaCache()) {
-			Local::writeFileLocation(
+			session().local().writeFileLocation(
 				mediaKey(),
 				FileLocation::InMediaCacheLocation());
 		} else {
-			Local::removeFileLocation(mediaKey());
+			session().local().removeFileLocation(mediaKey());
 		}
 		owner().requestDocumentViewRepaint(this);
 	}
@@ -941,7 +942,9 @@ void DocumentData::save(
 				f.close();
 
 				setLocation(FileLocation(toFile));
-				Local::writeFileLocation(mediaKey(), FileLocation(toFile));
+				session().local().writeFileLocation(
+					mediaKey(),
+					FileLocation(toFile));
 			} else if (l.accessEnable()) {
 				const auto &alreadyName = l.name();
 				if (alreadyName != toFile) {
@@ -1136,7 +1139,7 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 
 const FileLocation &DocumentData::location(bool check) const {
 	if (check && !_location.check()) {
-		const auto location = Local::readFileLocation(mediaKey());
+		const auto location = session().local().readFileLocation(mediaKey());
 		const auto that = const_cast<DocumentData*>(this);
 		if (location.inMediaCache()) {
 			that->setLoadedInMediaCacheLocation();
@@ -1190,7 +1193,7 @@ bool DocumentData::saveFromDataChecked() {
 	}
 	file.close();
 	_location = FileLocation(path);
-	Local::writeFileLocation(mediaKey(), _location);
+	session().local().writeFileLocation(mediaKey(), _location);
 	return true;
 }
 
@@ -1543,13 +1546,13 @@ void DocumentData::setRemoteLocation(
 		_access = access;
 		if (!isNull()) {
 			if (_location.check()) {
-				Local::writeFileLocation(mediaKey(), _location);
+				session().local().writeFileLocation(mediaKey(), _location);
 			} else {
-				_location = Local::readFileLocation(mediaKey());
+				_location = session().local().readFileLocation(mediaKey());
 				if (_location.inMediaCache()) {
 					setLoadedInMediaCacheLocation();
 				} else if (_location.isEmpty() && loadedInMediaCache()) {
-					Local::writeFileLocation(
+					session().local().writeFileLocation(
 						mediaKey(),
 						FileLocation::InMediaCacheLocation());
 				}
@@ -1579,7 +1582,7 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 	}
 	if (!local->_location.inMediaCache() && !local->_location.isEmpty()) {
 		_location = local->_location;
-		Local::writeFileLocation(mediaKey(), _location);
+		session().local().writeFileLocation(mediaKey(), _location);
 	}
 }
 

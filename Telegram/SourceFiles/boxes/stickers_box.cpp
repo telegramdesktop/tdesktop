@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "apiwrap.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "dialogs/dialogs_layout.h"
 #include "lottie/lottie_single_player.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -498,7 +498,7 @@ void StickersBox::getArchivedDone(
 void StickersBox::prepare() {
 	if (_section == Section::Installed) {
 		if (_tabs) {
-			Local::readArchivedStickers();
+			_session->local().readArchivedStickers();
 		} else {
 			setTitle(tr::lng_stickers_group_set());
 		}
@@ -866,7 +866,7 @@ void StickersBox::saveChanges() {
 	rebuildList(&_installed);
 
 	if (_someArchivedLoaded) {
-		Local::writeArchivedStickers();
+		_session->local().writeArchivedStickers();
 	}
 	_session->api().saveStickerSets(_installed.widget()->getOrder(), _installed.widget()->getRemovedSets());
 }

@@ -60,6 +60,7 @@ public:
 	[[nodiscard]] QString cloudLangCode() const;
 	[[nodiscard]] QString langPackName() const;
 
+	[[nodiscard]] rpl::producer<> writeKeysRequests() const;
 	[[nodiscard]] rpl::producer<> allKeysDestroyed() const;
 
 	// Thread-safe.
@@ -194,6 +195,8 @@ public:
 			needsLayer,
 			afterRequestId);
 	}
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 signals:
 	void proxyDomainResolved(

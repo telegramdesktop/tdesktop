@@ -207,7 +207,7 @@ bool GetNative(
 	QString path = dialog.directory().absolutePath();
 	if (path != cDialogLastPath()) {
 		cSetDialogLastPath(path);
-		Local::writeUserSettings();
+		Local::writeSettings();
 	}
 
 	if (res == QDialog::Accepted) {

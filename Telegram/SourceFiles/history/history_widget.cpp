@@ -68,7 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localimageloader.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/file_upload.h"
 #include "storage/storage_media_prepare.h"
 #include "media/audio/media_audio.h"
@@ -1180,7 +1180,7 @@ void HistoryWidget::onDraftSaveDelayed() {
 	if (!_field->textCursor().position()
 		&& !_field->textCursor().anchor()
 		&& !_field->scrollTop().current()) {
-		if (!Local::hasDraftCursors(_peer->id)) {
+		if (!session().local().hasDraftCursors(_peer->id)) {
 			return;
 		}
 	}
@@ -1231,24 +1231,40 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 	_saveDraftTimer.stop();
 	if (_saveDraftText) {
 		if (save) {
-			Local::MessageDraft storedLocalDraft, storedEditDraft;
+			Storage::MessageDraft storedLocalDraft, storedEditDraft;
 			if (localDraft) {
 				if (*localDraft) {
-					storedLocalDraft = Local::MessageDraft((*localDraft)->msgId, (*localDraft)->textWithTags, (*localDraft)->previewCancelled);
+					storedLocalDraft = Storage::MessageDraft{
+						(*localDraft)->msgId,
+						(*localDraft)->textWithTags,
+						(*localDraft)->previewCancelled
+					};
 				}
 			} else {
-				storedLocalDraft = Local::MessageDraft(_replyToId, _field->getTextWithTags(), _previewCancelled);
+				storedLocalDraft = Storage::MessageDraft{
+					_replyToId,
+					_field->getTextWithTags(),
+					_previewCancelled
+				};
 			}
 			if (editDraft) {
 				if (*editDraft) {
-					storedEditDraft = Local::MessageDraft((*editDraft)->msgId, (*editDraft)->textWithTags, (*editDraft)->previewCancelled);
+					storedEditDraft = Storage::MessageDraft{
+						(*editDraft)->msgId,
+						(*editDraft)->textWithTags,
+						(*editDraft)->previewCancelled
+					};
 				}
 			} else if (_editMsgId) {
-				storedEditDraft = Local::MessageDraft(_editMsgId, _field->getTextWithTags(), _previewCancelled);
+				storedEditDraft = Storage::MessageDraft{
+					_editMsgId,
+					_field->getTextWithTags(),
+					_previewCancelled
+				};
 			}
-			Local::writeDrafts(_peer->id, storedLocalDraft, storedEditDraft);
+			session().local().writeDrafts(_peer->id, storedLocalDraft, storedEditDraft);
 			if (_migrated) {
-				Local::writeDrafts(_migrated->peer->id, Local::MessageDraft(), Local::MessageDraft());
+				session().local().writeDrafts(_migrated->peer->id, {}, {});
 			}
 		}
 		_saveDraftText = false;
@@ -1269,9 +1285,9 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 		} else if (_editMsgId) {
 			editCursor = MessageCursor(_field);
 		}
-		Local::writeDraftCursors(_peer->id, localCursor, editCursor);
+		session().local().writeDraftCursors(_peer->id, localCursor, editCursor);
 		if (_migrated) {
-			Local::writeDraftCursors(_migrated->peer->id, MessageCursor(), MessageCursor());
+			session().local().writeDraftCursors(_migrated->peer->id, {}, {});
 		}
 	}
 
@@ -1869,9 +1885,9 @@ void HistoryWidget::showHistory(
 
 		handlePeerUpdate();
 
-		Local::readDraftsWithCursors(_history);
+		session().local().readDraftsWithCursors(_history);
 		if (_migrated) {
-			Local::readDraftsWithCursors(_migrated);
+			session().local().readDraftsWithCursors(_migrated);
 			_migrated->clearEditDraft();
 			_history->takeLocalDraft(_migrated);
 		}
@@ -4283,10 +4299,10 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 		if (autocomplete.query[0] == '#'
 			&& cRecentWriteHashtags().isEmpty()
 			&& cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentHashtagsAndBots();
+			session().local().readRecentHashtagsAndBots();
 		} else if (autocomplete.query[0] == '@'
 			&& cRecentInlineBots().isEmpty()) {
-			Local::readRecentHashtagsAndBots();
+			session().local().readRecentHashtagsAndBots();
 		} else if (autocomplete.query[0] == '/'
 			&& _peer->isUser()
 			&& !_peer->asUser()->isBot()) {
@@ -5764,7 +5780,7 @@ void HistoryWidget::sendInlineResult(
 			bots.resize(RecentInlineBotsLimit - 1);
 		}
 		bots.push_front(bot);
-		Local::writeRecentHashtagsAndBots();
+		session().local().writeRecentHashtagsAndBots();
 	}
 
 	hideSelectorControlsAnimated();
@@ -5823,7 +5839,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 				pinnedId = 0;
 			} else {
 				Global::RefHiddenPinnedMessages().remove(_peer->id);
-				Local::writeUserSettings();
+				session().local().writeSettings();
 			}
 		}
 	}
@@ -6151,7 +6167,7 @@ void HistoryWidget::hidePinnedMessage() {
 			pinnedId));
 	} else {
 		Global::RefHiddenPinnedMessages().insert(_peer->id, pinnedId);
-		Local::writeUserSettings();
+		session().local().writeSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
 			update();

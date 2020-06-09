@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "data/data_session.h"
-#include "storage/localstorage.h"
+#include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
@@ -76,10 +76,13 @@ auto GenerateCodes() {
 		Unexpected("Crashed in Settings!");
 	});
 	codes.emplace(qsl("moderate"), [](SessionController *window) {
+		if (!window) {
+			return;
+		}
 		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
-		Ui::show(Box<ConfirmBox>(text, [] {
+		Ui::show(Box<ConfirmBox>(text, [=] {
 			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
-			Local::writeUserSettings();
+			window->session().saveSettingsDelayed();
 			Ui::hideLayer();
 		}));
 	});
@@ -96,10 +99,13 @@ auto GenerateCodes() {
 		});
 	});
 	codes.emplace(qsl("videoplayer"), [](SessionController *window) {
+		if (!window) {
+			return;
+		}
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
-		Ui::show(Box<ConfirmBox>(text, [] {
+		Ui::show(Box<ConfirmBox>(text, [=] {
 			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
-			Local::writeUserSettings();
+			window->session().saveSettingsDelayed();
 			Ui::hideLayer();
 		}));
 	});
@@ -168,7 +174,7 @@ auto GenerateCodes() {
 						window->session().settings().setSoundOverride(
 							key,
 							result.paths.front());
-						Local::writeUserSettings();
+						window->session().saveSettingsDelayed();
 					}
 				}
 			}));
@@ -177,7 +183,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("sounds_reset"), [](SessionController *window) {
 		if (window) {
 			window->session().settings().clearSoundOverrides();
-			Local::writeUserSettings();
+			window->session().saveSettingsDelayed();
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}
 	});

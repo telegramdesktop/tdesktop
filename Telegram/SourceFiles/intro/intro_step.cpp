@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/intro_widget.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "main/main_account.h"
@@ -42,7 +43,7 @@ void PrepareSupportMode(not_null<Main::Session*> session) {
 	Global::SetSoundNotify(false);
 	Global::SetFlashBounceNotify(false);
 	session->settings().autoDownload() = Full::FullDisabled();
-	Local::writeUserSettings();
+	session->local().writeSettings();
 }
 
 } // namespace
@@ -141,7 +142,9 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	const auto account = _account;
 	const auto weak = base::make_weak(account.get());
 	account->createSession(user);
-	Local::writeMtpData();
+	if (weak) {
+		account->local().writeMtpData();
+	}
 	App::wnd()->controller().setupMain();
 
 	// "this" is already deleted here by creating the main widget.

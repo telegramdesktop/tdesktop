@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
@@ -1902,7 +1902,7 @@ void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	}
 	_hashtagFilter = newFilter.toString();
 	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
-		Local::readRecentHashtagsAndBots();
+		session().local().readRecentHashtagsAndBots();
 	}
 	auto &recent = cRecentSearchHashtags();
 	_hashtagResults.clear();
@@ -2665,11 +2665,11 @@ bool InnerWidget::chooseHashtag() {
 			}
 		}
 		cSetRecentSearchHashtags(recent);
-		Local::writeRecentHashtagsAndBots();
+		session().local().writeRecentHashtagsAndBots();
 		emit refreshHashtags();
 		selectByMouse(QCursor::pos());
 	} else {
-		Local::saveRecentSearchHashtags('#' + hashtag->tag);
+		session().local().saveRecentSearchHashtags('#' + hashtag->tag);
 		emit completeHashtag(hashtag->tag);
 	}
 	return true;
@@ -2723,7 +2723,7 @@ bool InnerWidget::chooseRow() {
 	const auto chosen = computeChosenRow();
 	if (chosen.key) {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
-			Local::saveRecentSearchHashtags(_filter);
+			session().local().saveRecentSearchHashtags(_filter);
 		}
 		_chosenRow.fire_copy(chosen);
 		return true;

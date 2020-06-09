@@ -38,6 +38,7 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 struct PreparedList;
 class DownloadMtprotoTask;
+class Account;
 } // namespace Storage
 
 namespace Dialogs {
@@ -136,7 +137,8 @@ public:
 	explicit ApiWrap(not_null<Main::Session*> session);
 	~ApiWrap();
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] Storage::Account &local() const;
 
 	void applyUpdates(
 		const MTPUpdates &updates,

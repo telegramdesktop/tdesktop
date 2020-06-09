@@ -791,7 +791,7 @@ void SetupMessages(
 		if (App::main()) {
 			App::main()->ctrlEnterSubmitUpdated();
 		}
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
@@ -863,8 +863,8 @@ void SetupDataStorage(
 		std::move(pathtext),
 		st::settingsButton,
 		tr::lng_download_path());
-	path->entity()->addClickHandler([] {
-		Ui::show(Box<DownloadPathBox>());
+	path->entity()->addClickHandler([=] {
+		Ui::show(Box<DownloadPathBox>(controller));
 	});
 	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
@@ -874,7 +874,7 @@ void SetupDataStorage(
 		return (checked != Global::AskDownloadPath());
 	}) | rpl::start_with_next([=](bool checked) {
 		Global::SetAskDownloadPath(checked);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 
 #ifndef OS_WIN_STORE
 		showpath->fire_copy(!checked);
@@ -979,10 +979,10 @@ void SetupChatBackground(
 	}));
 
 	adaptive->entity()->checkedChanges(
-	) | rpl::start_with_next([](bool checked) {
+	) | rpl::start_with_next([=](bool checked) {
 		Global::SetAdaptiveForWide(checked);
 		Adaptive::Changed().notify();
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	}, adaptive->lifetime());
 }
 
@@ -1285,7 +1285,7 @@ void SetupSupportSwitchSettings(
 	add(SwitchType::Previous, "Send and switch to previous");
 	group->setChangedCallback([=](SwitchType value) {
 		controller->session().settings().setSupportSwitch(value);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	});
 }
 
@@ -1325,7 +1325,7 @@ void SetupSupportChatsLimitSlice(
 	group->setChangedCallback([=](int days) {
 		controller->session().settings().setSupportChatsTimeSlice(
 			days * kDayDuration);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	});
 }
 
@@ -1362,7 +1362,7 @@ void SetupSupport(
 	) | rpl::start_with_next([=](bool checked) {
 		controller->session().settings().setSupportTemplatesAutocomplete(
 			checked);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	}, inner->lifetime());
 
 	AddSkip(inner, st::settingsCheckboxesSkip);

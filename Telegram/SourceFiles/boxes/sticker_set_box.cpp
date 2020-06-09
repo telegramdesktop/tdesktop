@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/application.h"
 #include "mtproto/sender.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -417,9 +417,9 @@ void StickerSetBox::Inner::installDone(
 			result.c_messages_stickerSetInstallResultArchive());
 	} else {
 		if (wasArchived) {
-			Local::writeArchivedStickers();
+			_controller->session().local().writeArchivedStickers();
 		}
-		Local::writeInstalledStickers();
+		_controller->session().local().writeInstalledStickers();
 		_controller->session().data().stickers().notifyUpdated();
 	}
 	_setInstalled.fire_copy(_setId);

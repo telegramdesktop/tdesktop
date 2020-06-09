@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "support/support_templates.h"
 #include "settings/settings_common.h"
 #include "base/qt_signal_producer.h"
@@ -281,7 +282,7 @@ void MainMenu::refreshMenu() {
 			(*fix)->setChecked(!(*fix)->isChecked());
 			_controller->session().settings().setSupportFixChatsOrder(
 				(*fix)->isChecked());
-			Local::writeUserSettings();
+			_controller->session().local().writeSettings();
 		}, &st::mainMenuFixOrder, &st::mainMenuFixOrderOver);
 		(*fix)->setCheckable(true);
 		(*fix)->setChecked(

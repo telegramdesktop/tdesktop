@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "storage/localstorage.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "history/admin_log/history_admin_log_item.h"
@@ -515,7 +514,7 @@ void LastSeenPrivacyController::confirmSave(
 			}
 			saveCallback();
 			session->settings().setLastSeenWarningSeen(true);
-			Local::writeUserSettings();
+			session->saveSettingsDelayed();
 		};
 		auto box = Box<ConfirmBox>(
 			tr::lng_edit_privacy_lastseen_warning(tr::now),

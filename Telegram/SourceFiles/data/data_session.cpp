@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
 #include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
@@ -203,11 +203,11 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _cache(Core::App().databases().get(
-	Local::cachePath(),
-	Local::cacheSettings()))
+	_session->local().cachePath(),
+	_session->local().cacheSettings()))
 , _bigFileCache(Core::App().databases().get(
-	Local::cacheBigFilePath(),
-	Local::cacheBigFileSettings()))
+	_session->local().cacheBigFilePath(),
+	_session->local().cacheBigFileSettings()))
 , _chatsList(FilterId(), PinnedDialogsCountMaxValue(session))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
@@ -225,11 +225,11 @@ Session::Session(not_null<Main::Session*> session)
 , _mediaRotation(std::make_unique<MediaRotation>())
 , _histories(std::make_unique<Histories>(this))
 , _stickers(std::make_unique<Stickers>(this)) {
-	_cache->open(Local::cacheKey());
-	_bigFileCache->open(Local::cacheBigFileKey());
+	_cache->open(_session->local().cacheKey());
+	_bigFileCache->open(_session->local().cacheBigFileKey());
 
 	if constexpr (Platform::IsLinux()) {
-		const auto wasVersion = Local::oldMapVersion();
+		const auto wasVersion = _session->local().oldMapVersion();
 		if (wasVersion >= 1007011 && wasVersion < 1007015) {
 			_bigFileCache->clear();
 			_cache->clearByTag(Data::kImageCacheTag);
@@ -446,7 +446,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					&& (result->id != _session->userPeerId());
 			}
 
-			// see also Local::readPeer
+			// see also Serialize::readPeer
 
 			const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
 				? ((showPhone && !phone.isEmpty())
@@ -2433,7 +2433,7 @@ void Session::documentConvert(
 		cache().moveIfEmpty(oldCacheKey, original->cacheKey());
 		cache().moveIfEmpty(oldGoodKey, original->goodThumbnailCacheKey());
 		if (stickers().savedGifs().indexOf(original) >= 0) {
-			Local::writeSavedGifs();
+			_session->local().writeSavedGifs();
 		}
 	}
 }

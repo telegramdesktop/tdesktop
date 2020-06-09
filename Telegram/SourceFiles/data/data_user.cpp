@@ -71,7 +71,7 @@ void UserData::setIsContact(bool is) {
 	}
 }
 
-// see Local::readPeer as well
+// see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
 		updateUserpic(

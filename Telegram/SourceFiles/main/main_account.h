@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "base/weak_ptr.h"
 
+namespace Storage {
+class Account;
+} // namespace Storage
+
 namespace Main {
 
 class Session;
@@ -36,8 +40,11 @@ public:
 	void logOut();
 	void forcedLogOut();
 
-	[[nodiscard]] AppConfig &appConfig() {
+	[[nodiscard]] AppConfig &appConfig() const {
 		return *_appConfig;
+	}
+	[[nodiscard]] Storage::Account &local() const {
+		return *_local;
 	}
 
 	[[nodiscard]] bool sessionExists() const;
@@ -90,6 +97,8 @@ private:
 	void resetAuthorizationKeys();
 
 	void loggedOut();
+
+	const std::unique_ptr<Storage::Account> _local;
 
 	std::unique_ptr<MTP::Instance> _mtp;
 	rpl::variable<MTP::Instance*> _mtpValue;

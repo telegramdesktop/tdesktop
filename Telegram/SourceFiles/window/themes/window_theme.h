@@ -14,6 +14,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Storage {
+class Account;
+} // namespace Storage
+
 namespace Window {
 namespace Theme {
 
@@ -176,6 +180,8 @@ private:
 		style::color item;
 		QColor original;
 	};
+
+	Storage::Account &local() const;
 
 	void ensureStarted();
 	void saveForRevert();

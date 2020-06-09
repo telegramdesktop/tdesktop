@@ -64,6 +64,8 @@ public:
 	void setMainDcId(DcId mainDcId);
 	[[nodiscard]] DcId mainDcId() const;
 
+	[[nodiscard]] rpl::producer<> writeKeysRequests() const;
+
 	void dcPersistentKeyChanged(DcId dcId, const AuthKeyPtr &persistentKey);
 	void dcTemporaryKeyChanged(DcId dcId);
 	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
@@ -159,6 +161,8 @@ public:
 
 	void prepareToDestroy();
 
+	[[nodiscard]] rpl::lifetime &lifetime();
+
 private:
 	bool hasAuthorization();
 	void importDone(const MTPauth_Authorization &result, mtpRequestId requestId);
@@ -224,6 +228,7 @@ private:
 	base::flat_map<DcId, AuthKeyPtr> _keysForWrite;
 	base::flat_map<ShiftedDcId, mtpRequestId> _logoutGuestRequestIds;
 
+	rpl::event_stream<> _writeKeysRequests;
 	rpl::event_stream<> _allKeysDestroyed;
 
 	// holds dcWithShift for request to this dc or -dc for request to main dc
@@ -252,6 +257,8 @@ private:
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
 	base::Timer _checkDelayedTimer;
+
+	rpl::lifetime _lifetime;
 
 };
 
@@ -404,7 +411,7 @@ void Instance::Private::setMainDcId(DcId mainDcId) {
 	if (oldMainDcId != _mainDcId) {
 		killSession(oldMainDcId);
 	}
-	Local::writeMtpData();
+	_writeKeysRequests.fire({});
 }
 
 DcId Instance::Private::mainDcId() const {
@@ -724,8 +731,9 @@ void Instance::Private::dcPersistentKeyChanged(
 	} else {
 		_keysForWrite.emplace(dcId, persistentKey);
 	}
-	DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
-	Local::writeMtpData();
+	DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1"
+		).arg(dcId));
+	_writeKeysRequests.fire({});
 }
 
 void Instance::Private::dcTemporaryKeyChanged(DcId dcId) {
@@ -767,6 +775,10 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 
 rpl::producer<> Instance::Private::allKeysDestroyed() const {
 	return _allKeysDestroyed.events();
+}
+
+rpl::producer<> Instance::Private::writeKeysRequests() const {
+	return _writeKeysRequests.events();
 }
 
 not_null<DcOptions*> Instance::Private::dcOptions() {
@@ -1419,6 +1431,10 @@ not_null<Session*> Instance::Private::getSession(
 	return startSession(shiftedDcId);
 }
 
+rpl::lifetime &Instance::Private::lifetime() {
+	return _lifetime;
+}
+
 Session *Instance::Private::findSession(ShiftedDcId shiftedDcId) {
 	const auto i = _sessions.find(shiftedDcId);
 	return (i != _sessions.end()) ? i->second.get() : nullptr;
@@ -1666,6 +1682,10 @@ QString Instance::langPackName() const {
 	return Lang::Current().langPackName();
 }
 
+rpl::producer<> Instance::writeKeysRequests() const {
+	return _private->writeKeysRequests();
+}
+
 rpl::producer<> Instance::allKeysDestroyed() const {
 	return _private->allKeysDestroyed();
 }
@@ -1860,6 +1880,10 @@ void Instance::sendRequest(
 
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
 	_private->getSession(shiftedDcId)->sendAnything(msCanWait);
+}
+
+rpl::lifetime &Instance::lifetime() {
+	return _private->lifetime();
 }
 
 Instance::~Instance() {

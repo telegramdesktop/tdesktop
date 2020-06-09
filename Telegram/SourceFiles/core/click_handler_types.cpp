@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "data/data_user.h"
@@ -83,12 +83,14 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	};
 	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		open();
-	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
+	} else if (!_bot
+		|| _bot->isVerified()
+		|| _bot->session().local().isBotTrusted(_bot)) {
 		open();
 	} else {
 		const auto callback = [=, bot = _bot] {
 			Ui::hideLayer();
-			Local::makeBotTrusted(bot);
+			bot->session().local().markBotTrusted(bot);
 			open();
 		};
 		Ui::show(Box<ConfirmBox>(

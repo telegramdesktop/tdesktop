@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_cursor_state.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -134,7 +134,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 	const auto index = _data->owner().stickers().savedGifs().indexOf(_data);
 	if (index >= 0) {
 		_data->owner().stickers().savedGifsRef().remove(index);
-		Local::writeSavedGifs();
+		_data->session().local().writeSavedGifs();
 	}
 	_data->owner().stickers().notifySavedGifsUpdated();
 }

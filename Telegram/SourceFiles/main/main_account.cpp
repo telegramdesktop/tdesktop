@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/launcher.h"
 #include "core/shortcuts.h"
+#include "storage/storage_account.h"
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -25,10 +26,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 
-Account::Account(const QString &dataName) {
+Account::Account(const QString &dataName)
+: _local(std::make_unique<Storage::Account>(this, dataName))
+, _appConfig(std::make_unique<AppConfig>(this)) {
 	watchProxyChanges();
 	watchSessionChanges();
-	_appConfig = std::make_unique<AppConfig>(this);
 }
 
 Account::~Account() = default;
@@ -128,7 +130,7 @@ void Account::createSession(
 
 	if (!serialized.isEmpty()) {
 		// For now it depends on Auth() which depends on _sessionValue.
-		Local::readSelf(serialized, streamVersion);
+		local().readSelf(serialized, streamVersion);
 	}
 }
 
@@ -337,6 +339,10 @@ void Account::startMtp() {
 		MTP::Instance::Mode::Normal,
 		std::move(config));
 	_mtp->setUserPhone(cLoggedPhoneNumber());
+	_mtp->writeKeysRequests(
+	) | rpl::start_with_next([=] {
+		local().writeMtpData();
+	}, _mtp->lifetime());
 	_mtpConfig.mainDcId = _mtp->mainDcId();
 
 	_mtp->setUpdatesHandler(::rpcDone([=](
@@ -376,7 +382,7 @@ void Account::startMtp() {
 	_storedSettings = nullptr;
 
 	if (sessionExists()) {
-		// Skip all pending self updates so that we won't Local::writeSelf.
+		// Skip all pending self updates so that we won't local().writeSelf.
 		Notify::peerUpdatedSendDelayed();
 	}
 
@@ -439,6 +445,7 @@ void Account::loggedOut() {
 		session().data().clearLocalStorage();
 	}
 	destroySession();
+	local().reset();
 	Local::reset();
 
 	cSetOtherOnline(0);
@@ -450,7 +457,7 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	}
 	if (_mtpForKeysDestroy) {
 		_mtpForKeysDestroy->addKeysForDestroy(std::move(keys));
-		Local::writeMtpData();
+		local().writeMtpData();
 		return;
 	}
 	auto destroyConfig = MTP::Instance::Config();
@@ -462,14 +469,18 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 		Core::App().dcOptions(),
 		MTP::Instance::Mode::KeysDestroyer,
 		std::move(destroyConfig));
+	_mtpForKeysDestroy->writeKeysRequests(
+	) | rpl::start_with_next([=] {
+		local().writeMtpData();
+	}, _mtpForKeysDestroy->lifetime());
 	_mtpForKeysDestroy->allKeysDestroyed(
 	) | rpl::start_with_next([=] {
 		LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
 		crl::on_main(this, [=] {
 			_mtpForKeysDestroy = nullptr;
-			Local::writeMtpData();
+			local().writeMtpData();
 		});
-	}, _lifetime);
+	}, _mtpForKeysDestroy->lifetime());
 }
 
 void Account::suggestMainDcId(MTP::DcId mainDcId) {
@@ -508,7 +519,7 @@ void Account::resetAuthorizationKeys() {
 	_mtpValue = nullptr;
 	_mtp = nullptr;
 	startMtp();
-	Local::writeMtpData();
+	local().writeMtpData();
 }
 
 void Account::clearMtp() {

@@ -43,7 +43,7 @@ void AutoLockBox::prepare() {
 
 void AutoLockBox::durationChanged(int seconds) {
 	Global::SetAutoLock(seconds);
-	Local::writeUserSettings();
+	_session->saveSettingsDelayed();
 	Global::RefLocalPasscodeChanged().notify();
 
 	Core::App().checkAutoLock();

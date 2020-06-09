@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "api/api_text_entities.h"
@@ -147,9 +147,11 @@ void PasscodeLockWidget::submit() {
 	}
 
 	const auto passcode = _passcode->text().toUtf8();
-	const auto correct = window()->account().sessionExists()
-		? Local::checkPasscode(passcode)
-		: (Local::readMap(passcode) != Local::ReadMapPassNeeded);
+	auto &account = window()->account();
+	auto &local = window()->account().local();
+	const auto correct = account.sessionExists()
+		? local.checkPasscode(passcode)
+		: (local.start(passcode) != Storage::StartResult::IncorrectPasscode);
 	if (!correct) {
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());

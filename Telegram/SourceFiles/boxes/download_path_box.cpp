@@ -8,17 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/download_path_box.h"
 
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "platform/platform_specific.h"
 #include "facades.h"
+#include "window/window_session_controller.h"
+#include "main/main_session.h"
+#include "storage/storage_account.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
-DownloadPathBox::DownloadPathBox(QWidget *parent)
-: _path(Global::DownloadPath())
+DownloadPathBox::DownloadPathBox(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: _controller(controller)
+, _path(Global::DownloadPath())
 , _pathBookmark(Global::DownloadPathBookmark())
 , _group(std::make_shared<Ui::RadioenumGroup<Directory>>(typeFromPath(_path)))
 , _default(this, _group, Directory::Downloads, tr::lng_download_path_default_radio(tr::now), st::defaultBoxCheckbox)
@@ -119,7 +124,7 @@ void DownloadPathBox::save() {
 	};
 	Global::SetDownloadPath(computePath());
 	Global::SetDownloadPathBookmark((value == Directory::Custom) ? _pathBookmark : QByteArray());
-	Local::writeUserSettings();
+	_controller->session().local().writeSettings();
 	Global::RefDownloadPathChanged().notify();
 	closeBox();
 #endif // OS_WIN_STORE

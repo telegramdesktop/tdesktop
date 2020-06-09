@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "layout.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -80,7 +80,9 @@ QPoint Widget::PlayButton::prepareRippleStartPosition() const {
 	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
 }
 
-Widget::Widget(QWidget *parent) : RpWidget(parent)
+Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
+: RpWidget(parent)
+, _session(session)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _playPause(this)
@@ -141,7 +143,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 		Global::SetVoiceMsgPlaybackDoubled(doubled);
 		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
-		Local::writeUserSettings();
+		_session->local().writeSettings();
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {

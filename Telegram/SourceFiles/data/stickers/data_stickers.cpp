@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/stickers/data_stickers.h"
 
+#include "api/api_hash.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -16,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "apiwrap.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "main/main_session.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
@@ -73,7 +74,7 @@ void Stickers::addSavedGif(not_null<DocumentData*> document) {
 	if (_savedGifs.size() > Global::SavedGifsLimit()) {
 		_savedGifs.pop_back();
 	}
-	Local::writeSavedGifs();
+	session().local().writeSavedGifs();
 
 	notifySavedGifsUpdated();
 	setLastSavedGifsUpdate(0);
@@ -136,8 +137,8 @@ void Stickers::applyArchivedResult(
 		}
 		session().api().requestStickerSets();
 	}
-	Local::writeInstalledStickers();
-	Local::writeArchivedStickers();
+	session().local().writeInstalledStickers();
+	session().local().writeArchivedStickers();
 
 	Ui::Toast::Show(Ui::Toast::Config{
 		.text = { tr::lng_stickers_packs_archived(tr::now) },
@@ -219,15 +220,15 @@ void Stickers::installLocally(uint64 setId) {
 			sets.erase(customIt);
 		}
 	}
-	Local::writeInstalledStickers();
+	session().local().writeInstalledStickers();
 	if (changedFlags & MTPDstickerSet_ClientFlag::f_unread) {
-		Local::writeFeaturedStickers();
+		session().local().writeFeaturedStickers();
 	}
 	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
 		auto index = archivedSetsOrderRef().indexOf(setId);
 		if (index >= 0) {
 			archivedSetsOrderRef().removeAt(index);
-			Local::writeArchivedStickers();
+			session().local().writeArchivedStickers();
 		}
 	}
 	notifyUpdated();
@@ -250,7 +251,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 		order.removeAt(currentIndex);
 	}
 
-	Local::writeInstalledStickers();
+	session().local().writeInstalledStickers();
 	notifyUpdated();
 
 	Ui::show(
@@ -353,7 +354,7 @@ void Stickers::setIsFaved(
 		requestSetToPushFaved(document);
 		return;
 	}
-	Local::writeFavedStickers();
+	session().local().writeFavedStickers();
 	notifyUpdated();
 	session().api().stickerSetInstalled(FavedSetId);
 }
@@ -423,7 +424,7 @@ void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
 	if (set->stickers.empty()) {
 		sets.erase(it);
 	}
-	Local::writeFavedStickers();
+	session().local().writeFavedStickers();
 	notifyUpdated();
 }
 
@@ -492,11 +493,14 @@ void Stickers::setsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 		api.requestStickerSets();
 	}
 
-	Local::writeInstalledStickers();
-	if (writeRecent) Local::writeUserSettings();
+	session().local().writeInstalledStickers();
+	if (writeRecent) session().local().writeSettings();
 
-	if (Local::countStickersHash() != hash) {
-		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countStickersHash()));
+	const auto counted = Api::CountStickersHash(&session());
+	if (counted != hash) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2"
+			).arg(hash
+			).arg(counted));
 	}
 
 	notifyUpdated();
@@ -613,22 +617,30 @@ void Stickers::specialSetReceived(
 		}
 
 		if (writeRecent) {
-			Local::writeUserSettings();
+			session().local().writeSettings();
 		}
 	}
 
 	switch (setId) {
 	case CloudRecentSetId: {
-		if (Local::countRecentStickersHash() != hash) {
-			LOG(("API Error: received recent stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countRecentStickersHash()));
+		const auto counted = Api::CountRecentStickersHash(&session());
+		if (counted != hash) {
+			LOG(("API Error: "
+				"received recent stickers hash %1 while counted hash is %2"
+				).arg(hash
+				).arg(counted));
 		}
-		Local::writeRecentStickers();
+		session().local().writeRecentStickers();
 	} break;
 	case FavedSetId: {
-		if (Local::countFavedStickersHash() != hash) {
-			LOG(("API Error: received faved stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFavedStickersHash()));
+		const auto counted = Api::CountFavedStickersHash(&session());
+		if (counted != hash) {
+			LOG(("API Error: "
+				"received faved stickers hash %1 while counted hash is %2"
+				).arg(hash
+				).arg(counted));
 		}
-		Local::writeFavedStickers();
+		session().local().writeFavedStickers();
 	} break;
 	default: Unexpected("setId in SpecialSetReceived()");
 	}
@@ -735,8 +747,12 @@ void Stickers::featuredSetsReceived(
 	}
 	setFeaturedSetsUnreadCount(unreadCount);
 
-	if (Local::countFeaturedStickersHash() != hash) {
-		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFeaturedStickersHash()));
+	const auto counted = Api::CountFeaturedStickersHash(&session());
+	if (counted != hash) {
+		LOG(("API Error: "
+			"received featured stickers hash %1 while counted hash is %2"
+			).arg(hash
+			).arg(counted));
 	}
 
 	if (!setsToRequest.empty()) {
@@ -747,7 +763,7 @@ void Stickers::featuredSetsReceived(
 		api.requestStickerSets();
 	}
 
-	Local::writeFeaturedStickers();
+	session().local().writeFeaturedStickers();
 
 	notifyUpdated();
 }
@@ -767,11 +783,15 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 
 		saved.push_back(document);
 	}
-	if (Local::countSavedGifsHash() != hash) {
-		LOG(("API Error: received saved gifs hash %1 while counted hash is %2").arg(hash).arg(Local::countSavedGifsHash()));
+	const auto counted = Api::CountSavedGifsHash(&session());
+	if (counted != hash) {
+		LOG(("API Error: "
+			"received saved gifs hash %1 while counted hash is %2"
+			).arg(hash
+			).arg(counted));
 	}
 
-	Local::writeSavedGifs();
+	session().local().writeSavedGifs();
 
 	notifySavedGifsUpdated();
 }
@@ -1118,21 +1138,21 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (writeRecent) {
-		Local::writeUserSettings();
+		session().local().writeSettings();
 	}
 
 	if (set) {
 		const auto isArchived = !!(set->flags & MTPDstickerSet::Flag::f_archived);
 		if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
 			if (!isArchived) {
-				Local::writeInstalledStickers();
+				session().local().writeInstalledStickers();
 			}
 		}
 		if (set->flags & MTPDstickerSet_ClientFlag::f_featured) {
-			Local::writeFeaturedStickers();
+			session().local().writeFeaturedStickers();
 		}
 		if (wasArchived != isArchived) {
-			Local::writeArchivedStickers();
+			session().local().writeArchivedStickers();
 		}
 	}
 
@@ -1176,7 +1196,7 @@ QString Stickers::getSetTitle(const MTPDstickerSet &s) {
 	return title;
 }
 
-RecentStickerPack &Stickers::getRecentPack() {
+RecentStickerPack &Stickers::getRecentPack() const {
 	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
 		const auto p = cRecentStickersPreload();
 		cSetRecentStickersPreload(RecentStickerPreload());
