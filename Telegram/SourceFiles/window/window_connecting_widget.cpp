@@ -74,7 +74,10 @@ void Progress::animationStep() {
 
 class ConnectionState::Widget : public Ui::AbstractButton {
 public:
-	Widget(QWidget *parent, const Layout &layout);
+	Widget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		const Layout &layout);
 
 	void refreshRetryLink(bool hasRetry);
 	void setLayout(const Layout &layout);
@@ -201,8 +204,10 @@ bool ConnectionState::State::operator==(const State &other) const {
 
 ConnectionState::ConnectionState(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Main::Account*> account,
 	rpl::producer<bool> shown)
-: _parent(parent)
+: _account(account)
+, _parent(parent)
 , _refreshTimer([=] { refreshState(); })
 , _currentLayout(computeLayout(_state)) {
 	rpl::combine(
@@ -232,7 +237,7 @@ ConnectionState::ConnectionState(
 }
 
 void ConnectionState::createWidget() {
-	_widget = base::make_unique_q<Widget>(_parent, _currentLayout);
+	_widget = base::make_unique_q<Widget>(_parent, _account, _currentLayout);
 	_widget->setVisible(!_forceHidden);
 
 	updateWidth();
@@ -469,14 +474,17 @@ void ConnectionState::updateWidth() {
 	refreshProgressVisibility();
 }
 
-ConnectionState::Widget::Widget(QWidget *parent, const Layout &layout)
+ConnectionState::Widget::Widget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	const Layout &layout)
 : AbstractButton(parent)
 , _currentLayout(layout) {
 	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
 	_progress = Ui::CreateChild<Progress>(this);
 
 	addClickHandler([=] {
-		Ui::show(ProxiesBoxController::CreateOwningBox());
+		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
 }
 

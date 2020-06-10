@@ -182,19 +182,17 @@ rpl::producer<> Account::mtpNewSessionCreated() const {
 	return _mtpNewSessionCreated.events();
 }
 
-void Account::setMtpMainDcId(MTP::DcId mainDcId) {
+void Account::setLegacyMtpMainDcId(MTP::DcId mainDcId) {
 	Expects(!_mtp);
 
 	_mtpConfig.mainDcId = mainDcId;
 }
 
-void Account::setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData) {
+void Account::setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key) {
 	Expects(!_mtp);
+	Expects(key != nullptr);
 
-	_mtpConfig.keys.push_back(std::make_shared<MTP::AuthKey>(
-		MTP::AuthKey::Type::ReadFromFile,
-		dcId,
-		keyData));
+	_mtpConfig.keys.push_back(std::move(key));
 }
 
 QByteArray Account::serializeMtpAuthorization() const {

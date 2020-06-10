@@ -114,7 +114,7 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue(
+	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {

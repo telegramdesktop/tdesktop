@@ -158,7 +158,7 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 
 CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
-	Core::App().activeAccount().mtpValue(
+	Core::App().activeAccount().mtpValue( // #TODO multi activeAccountValue
 	) | rpl::start_with_next([=](MTP::Instance *instance) {
 		if (instance) {
 			_api.emplace(instance);

@@ -304,6 +304,7 @@ OverlayWidget::OverlayWidget()
 		? Global::VideoVolume()
 		: Global::kDefaultVolume;
 
+	// #TODO multi activeSessionValue change icon on show?
 	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
@@ -320,7 +321,7 @@ OverlayWidget::OverlayWidget()
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
 	// While we have one mediaview for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue(
+	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->downloaderTaskFinished(), [=] {

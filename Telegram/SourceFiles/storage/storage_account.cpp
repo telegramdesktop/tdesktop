@@ -906,7 +906,20 @@ std::unique_ptr<Main::Settings> Account::applyReadContext(
 	_cacheBigFileTotalSizeLimit = context.cacheBigFileTotalSizeLimit;
 	_cacheBigFileTotalTimeLimit = context.cacheBigFileTotalTimeLimit;
 
-	deserializeCallSettings(context.callSettings);
+	if (!context.callSettings.isEmpty()) {
+		deserializeCallSettings(context.callSettings);
+	}
+	if (!context.mtpAuthorization.isEmpty()) {
+		_owner->setMtpAuthorization(context.mtpAuthorization);
+	} else {
+		for (auto &key : context.mtpLegacyKeys) {
+			_owner->setLegacyMtpKey(std::move(key));
+		}
+		if (context.mtpLegacyMainDcId) {
+			_owner->setLegacyMtpMainDcId(context.mtpLegacyMainDcId);
+			_owner->setSessionUserId(context.mtpLegacyUserId);
+		}
+	}
 
 	return std::move(context.sessionSettingsStorage);
 }
@@ -918,7 +931,7 @@ void Account::writeMtpData() {
 		return;
 	}
 
-	auto mtpAuthorizationSerialized = Core::App().activeAccount().serializeMtpAuthorization();
+	auto mtpAuthorizationSerialized = _owner->serializeMtpAuthorization();
 
 	quint32 size = sizeof(quint32) + Serialize::bytearraySize(mtpAuthorizationSerialized);
 

@@ -516,7 +516,7 @@ void EmojiKeywords::langPackRefreshed() {
 }
 
 void EmojiKeywords::handleSessionChanges() {
-	Core::App().activeAccount().sessionValue(
+	Core::App().activeAccount().sessionValue( // #TODO multi someSessionValue
 	) | rpl::map([](Main::Session *session) {
 		return session ? &session->api() : nullptr;
 	}) | rpl::start_with_next([=](ApiWrap *api) {

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_settings.h"
 #include "storage/storage_account.h"
 
+namespace MTP {
+class AuthKey;
+} // namespace MTP
+
 namespace Storage {
 namespace details {
 
@@ -42,6 +46,11 @@ struct ReadSettingsContext {
 	FileKey languagesKey = 0;
 
 	QByteArray callSettings;
+
+	QByteArray mtpAuthorization;
+	std::vector<std::shared_ptr<MTP::AuthKey>> mtpLegacyKeys;
+	qint32 mtpLegacyMainDcId = 0;
+	qint32 mtpLegacyUserId = 0;
 };
 
 [[nodiscard]] bool ReadSetting(

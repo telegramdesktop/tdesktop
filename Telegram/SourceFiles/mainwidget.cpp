@@ -529,6 +529,7 @@ void MainWidget::setupConnectingWidget() {
 	using namespace rpl::mappers;
 	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
+		&session().account(),
 		Window::AdaptiveIsOneColumn() | rpl::map(!_1));
 }
 

@@ -39,7 +39,7 @@ void unpause() {
 } // namespace details
 
 Instance *MainInstance() {
-	return Core::IsAppLaunched()
+	return Core::IsAppLaunched() // #TODO multi
 		? Core::App().activeAccount().mtp()
 		: nullptr;
 }

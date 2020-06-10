@@ -169,7 +169,7 @@ public:
 	[[nodiscard]] Lang::CloudManager *langCloudManager() {
 		return _langCloudManager.get();
 	}
-	[[nodiscard]] bool offerLangPackSwitch() const;
+	[[nodiscard]] bool offerLegacyLangPackSwitch() const;
 	[[nodiscard]] bool canApplyLangPackWithoutRestart() const;
 	[[nodiscard]] ChatHelpers::EmojiKeywords &emojiKeywords() {
 		return *_emojiKeywords;

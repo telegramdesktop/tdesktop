@@ -56,6 +56,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	object_ptr<Ui::RoundButton>(this, nullptr, st::introNextButton))
 , _connecting(std::make_unique<Window::ConnectionState>(
 		this,
+		account,
 		rpl::single(true))) {
 	appendStep(new StartWidget(this, _account, getData()));
 	fixOrder();

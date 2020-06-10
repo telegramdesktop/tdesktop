@@ -854,7 +854,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		data.vlang_pack_version().value_or_empty(),
 		data.vbase_lang_pack_version().value_or_empty());
 
-	Core::App().activeAccount().configUpdated();
+	Core::App().activeAccount().configUpdated(); // #TODO multi
 
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));

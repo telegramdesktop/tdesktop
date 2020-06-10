@@ -48,7 +48,9 @@ bool HasConnectionType() {
 	return false;
 }
 
-void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
+void SetupConnectionType(
+		not_null<Main::Account*> account,
+		not_null<Ui::VerticalLayout*> container) {
 	if (!HasConnectionType()) {
 		return;
 	}
@@ -74,8 +76,8 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 			Global::RefConnectionTypeChanged()
 		)) | rpl::map(connectionType),
 		st::settingsButton);
-	button->addClickHandler([] {
-		Ui::show(ProxiesBoxController::CreateOwningBox());
+	button->addClickHandler([=] {
+		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
@@ -563,7 +565,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 		addDivider();
 		AddSkip(content);
 		AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-		SetupConnectionType(content);
+		SetupConnectionType(&controller->session().account(), content);
 		AddSkip(content);
 	}
 	SetupDataStorage(controller, content);

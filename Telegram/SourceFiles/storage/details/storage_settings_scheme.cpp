@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/details/storage_file_utilities.h"
 #include "storage/cache/storage_cache_database.h"
 #include "core/application.h"
-#include "main/main_account.h"
 #include "storage/serialize_common.h"
 #include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"
@@ -134,8 +133,8 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
-		Core::App().activeAccount().setMtpMainDcId(dcId);
-		Core::App().activeAccount().setSessionUserId(userId);
+		context.mtpLegacyMainDcId = dcId;
+		context.mtpLegacyUserId = userId;
 	} break;
 
 	case dbiKey: {
@@ -144,7 +143,10 @@ bool ReadSetting(
 		auto key = Serialize::read<MTP::AuthKey::Data>(stream);
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().activeAccount().setMtpKey(dcId, key);
+		context.mtpLegacyKeys.push_back(std::make_shared<MTP::AuthKey>(
+			MTP::AuthKey::Type::ReadFromFile,
+			dcId,
+			key));
 	} break;
 
 	case dbiMtpAuthorization: {
@@ -152,7 +154,7 @@ bool ReadSetting(
 		stream >> serialized;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().activeAccount().setMtpAuthorization(serialized);
+		context.mtpAuthorization = serialized;
 	} break;
 
 	case dbiAutoStart: {

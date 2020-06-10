@@ -305,10 +305,12 @@ void MainWindow::showSettings() {
 		return;
 	}
 
-	if (const auto controller = sessionController()) {
-		controller->showSettings();
+	if (const auto session = sessionController()) {
+		session->showSettings();
 	} else {
-		showSpecialLayer(Box<Settings::LayerWidget>(), anim::type::normal);
+		showSpecialLayer(
+			Box<Settings::LayerWidget>(&controller()),
+			anim::type::normal);
 	}
 }
 

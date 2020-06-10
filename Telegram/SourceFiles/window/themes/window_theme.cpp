@@ -547,7 +547,7 @@ void ChatBackground::start() {
 		set(Data::ThemeWallPaper());
 	}
 
-	Core::App().activeAccount().sessionValue(
+	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
 	) | rpl::filter([=](Main::Session *session) {
 		return session != _session;
 	}) | rpl::start_with_next([=](Main::Session *session) {

@@ -113,13 +113,13 @@ Application::Application(not_null<Launcher*> launcher)
 		_shouldLockAt = 0;
 	}, _lifetime);
 
-	activeAccount().sessionChanges(
+	activeAccount().sessionChanges( // #TODO multi activeSessionValue
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (_mediaView) {
 			hideMediaView();
 			_mediaView->clearData();
 		}
-		if (session && !UpdaterDisabled()) {
+		if (session && !UpdaterDisabled()) { // #TODO multi someSessionValue
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
@@ -578,7 +578,7 @@ bool Application::unreadBadgeMuted() const {
 		: false;
 }
 
-bool Application::offerLangPackSwitch() const {
+bool Application::offerLegacyLangPackSwitch() const {
 	// #TODO multi we offer only if we were upgraded from an old authed app.
 	return activeAccount().sessionExists();
 }

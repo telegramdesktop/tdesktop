@@ -15,12 +15,17 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Window {
 
 class ConnectionState : private base::Subscriber {
 public:
 	ConnectionState(
 		not_null<Ui::RpWidget*> parent,
+		not_null<Main::Account*> account,
 		rpl::producer<bool> shown);
 
 	void raise();
@@ -71,6 +76,7 @@ private:
 	void updateVisibility();
 	void refreshProgressVisibility();
 
+	const not_null<Main::Account*> _account;
 	not_null<Ui::RpWidget*> _parent;
 	base::unique_qptr<Widget> _widget;
 	bool _forceHidden = false;
