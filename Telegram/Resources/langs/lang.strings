@@ -2406,4 +2406,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_show_messages_from" = "Messages From User";
 "lng_context_repeat_msg" = "Repeat This Message";
 
+"lng_media_selected_gif#one" = "{count} Gif";
+"lng_media_selected_gif#other" = "{count} Gifs";
+"lng_media_type_gifs" = "Gifs";
+"lng_profile_gifs#one" = "{count} gif";
+"lng_profile_gifs#other" = "{count} gifs";
+"lng_profile_gifs_header" = "Gifs";
+"lng_media_gif_empty" = "No gifs here yet";
+
 // Keys finished
