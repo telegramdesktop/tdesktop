@@ -164,7 +164,7 @@ void SetupPrivacy(
 	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
-		[=] { return std::make_unique<ForwardsPrivacyController>(session); });
+		[=] { return std::make_unique<ForwardsPrivacyController>(controller); });
 	add(
 		tr::lng_settings_profile_photo_privacy(),
 		Key::ProfilePhoto,

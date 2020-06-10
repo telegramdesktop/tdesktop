@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -748,11 +749,11 @@ void Options::checkLastOption() {
 
 CreatePollBox::CreatePollBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	PollData::Flags chosen,
 	PollData::Flags disabled,
 	Api::SendType sendType)
-: _session(session)
+: _controller(controller)
 , _chosen(chosen)
 , _disabled(disabled)
 , _sendType(sendType) {
@@ -774,6 +775,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
+	const auto session = &_controller->session();
 	AddSubsectionTitle(container, tr::lng_polls_create_question());
 	const auto question = container->add(
 		object_ptr<Ui::InputField>(
@@ -782,7 +784,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			Ui::InputField::Mode::MultiLine,
 			tr::lng_polls_create_question_placeholder()),
 		st::createPollFieldPadding);
-	InitField(getDelegate()->outerContainer(), question, _session);
+	InitField(getDelegate()->outerContainer(), question, session);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);
 	question->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	question->customTab(true);
@@ -824,6 +826,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	)->setDuration(0)->toggleOn(std::move(shown));
 	const auto inner = outer->entity();
 
+	const auto session = &_controller->session();
 	AddSkip(inner);
 	AddSubsectionTitle(inner, tr::lng_polls_solution_title());
 	const auto solution = inner->add(
@@ -833,14 +836,14 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 			Ui::InputField::Mode::MultiLine,
 			tr::lng_polls_solution_placeholder()),
 		st::createPollFieldPadding);
-	InitField(getDelegate()->outerContainer(), solution, _session);
+	InitField(getDelegate()->outerContainer(), solution, session);
 	solution->setMaxLength(kSolutionLimit + kErrorLimit);
 	solution->setInstantReplaces(Ui::InstantReplaces::Default());
 	solution->setInstantReplacesEnabled(
-		_session->settings().replaceEmojiValue());
+		session->settings().replaceEmojiValue());
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
-		DefaultEditLinkCallback(_session, solution));
+		DefaultEditLinkCallback(_controller, solution));
 	solution->customTab(true);
 
 	const auto warning = CreateWarningLabel(
@@ -896,7 +899,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
 		container,
-		_session,
+		&_controller->session(),
 		(_chosen & PollData::Flag::Quiz));
 	auto limit = options->usedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
@@ -1011,7 +1014,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 
 	const auto collectResult = [=] {
 		using Flag = PollData::Flag;
-		auto result = PollData(&_session->data(), id);
+		auto result = PollData(&_controller->session().data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
 		const auto solutionWithTags = quiz->checked()

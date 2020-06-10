@@ -199,10 +199,10 @@ Widget::Widget(
 	});
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
-		const auto openSearchResult = !App::main()->selectingPeer()
+		const auto openSearchResult = !controller->content()->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
-			App::main()->choosePeer(
+			controller->content()->choosePeer(
 				history->peer->id,
 				(controller->uniqueChatsInSearchResults()
 					? ShowAtUnreadMsgId
@@ -642,7 +642,7 @@ void Widget::showAnimated(Window::SlideDirection direction, const Window::Sectio
 
 	_cacheUnder = params.oldContentCache;
 	showFast();
-	_cacheOver = App::main()->grabForShowAnimation(params);
+	_cacheOver = controller()->content()->grabForShowAnimation(params);
 
 	if (_updateTelegram) {
 		_updateTelegram->hide();
@@ -698,7 +698,7 @@ void Widget::escape() {
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
-	} else if (!_searchInChat && !App::main()->selectingPeer()) {
+	} else if (!_searchInChat && !controller()->content()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
 			emit cancelled();
 		}
@@ -1243,7 +1243,9 @@ bool Widget::peopleFailed(const RPCError &error, mtpRequestId req) {
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
 
-	if (App::main()->selectingPeer()) return;
+	if (controller()->content()->selectingPeer()) {
+		return;
+	}
 
 	const auto data = e->mimeData();
 	_dragInScroll = false;
@@ -1295,9 +1297,9 @@ void Widget::updateDragInScroll(bool inScroll) {
 	if (_dragInScroll != inScroll) {
 		_dragInScroll = inScroll;
 		if (_dragInScroll) {
-			App::main()->showForwardLayer({});
+			controller()->content()->showForwardLayer({});
 		} else {
-			App::main()->dialogsCancelled();
+			controller()->content()->dialogsCancelled();
 		}
 	}
 }
@@ -1307,7 +1309,9 @@ void Widget::dropEvent(QDropEvent *e) {
 	if (_scroll->geometry().contains(e->pos())) {
 		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
-			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
+			controller()->content()->onFilesOrForwardDrop(
+				peer->id,
+				e->mimeData());
 			controller()->widget()->activateWindow();
 		}
 	}
@@ -1556,7 +1560,7 @@ void Widget::updateControlsGeometry() {
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
-	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
+	auto addToScroll = controller()->content()->contentScrollAddToY();
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
@@ -1589,14 +1593,16 @@ void Widget::updateControlsGeometry() {
 }
 
 void Widget::updateForwardBar() {
-	auto selecting = App::main()->selectingPeer();
+	auto selecting = controller()->content()->selectingPeer();
 	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
 	if (!oneColumnSelecting == !_forwardCancel) {
 		return;
 	}
 	if (oneColumnSelecting) {
 		_forwardCancel.create(this, st::dialogsForwardCancel);
-		_forwardCancel->setClickedCallback([] { Global::RefPeerChooseCancel().notify(true); });
+		_forwardCancel->setClickedCallback([] {
+			Global::RefPeerChooseCancel().notify(true);
+		});
 		if (!_a_show.animating()) _forwardCancel->show();
 	} else {
 		_forwardCancel.destroyDelayed();
@@ -1737,7 +1743,7 @@ bool Widget::onCancelSearch() {
 void Widget::onCancelSearchInChat() {
 	cancelSearchRequest();
 	if (_searchInChat) {
-		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
+		if (Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 			//} else if (const auto feed = _searchInChat.feed()) { // #feed
@@ -1752,7 +1758,7 @@ void Widget::onCancelSearchInChat() {
 	_filter->clear();
 	_filter->updatePlaceholder();
 	applyFilterUpdate();
-	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
+	if (!Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
 		emit cancelled();
 	}
 }

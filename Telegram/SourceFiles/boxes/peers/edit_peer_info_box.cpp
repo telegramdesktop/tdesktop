@@ -1440,15 +1440,22 @@ void Controller::deleteChannel() {
 	const auto channel = _peer->asChannel();
 	const auto chat = channel->migrateFrom();
 
+	const auto session = &_peer->session();
+
 	Ui::hideLayer();
 	Ui::showChatsList();
 	if (chat) {
-		chat->session().api().deleteConversation(chat, false);
+		session->api().deleteConversation(chat, false);
 	}
-	MTP::send(
-		MTPchannels_DeleteChannel(channel->inputChannel),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::deleteChannelFailed));
+	session->api().request(MTPchannels_DeleteChannel(
+		channel->inputChannel
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+	//}).fail([=](const RPCError &error) {
+	//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
+	//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+	//	}
+	}).send();
 }
 
 } // namespace

@@ -94,6 +94,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 					using ButtonType = HistoryMessageMarkupButton::Type;
 					if (button.type == ButtonType::SwitchInline) {
 						Notify::switchInlineBotButtonReceived(
+							&item->history()->session(),
 							QString::fromUtf8(button.data));
 						return;
 					}
@@ -887,6 +888,25 @@ void Session::chatsListDone(Data::Folder *folder) {
 		_chatsList.setLoaded();
 	}
 	_chatsListLoadedEvents.fire_copy(folder);
+}
+
+void Session::userIsBotChanged(not_null<UserData*> user) {
+	if (const auto history = this->history(user)) {
+		chatsFilters().refreshHistory(history);
+	}
+	_userIsBotChanges.fire_copy(user);
+}
+
+rpl::producer<not_null<UserData*>> Session::userIsBotChanges() const {
+	return _userIsBotChanges.events();
+}
+
+void Session::botCommandsChanged(not_null<UserData*> user) {
+	_botCommandsChanges.fire_copy(user);
+}
+
+rpl::producer<not_null<UserData*>> Session::botCommandsChanges() const {
+	return _botCommandsChanges.events();
 }
 
 Storage::Cache::Database &Session::cache() {

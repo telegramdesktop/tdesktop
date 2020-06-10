@@ -313,7 +313,7 @@ void SetupSpellchecker(
 		Spellchecker::ButtonManageDictsState(session),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<Ui::ManageDictionariesBox>(session));
+		Ui::show(Box<Ui::ManageDictionariesBox>(controller));
 	});
 
 	button->toggledValue(

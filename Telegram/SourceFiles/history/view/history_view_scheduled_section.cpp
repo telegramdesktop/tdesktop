@@ -852,7 +852,7 @@ void ScheduledWidget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(this, e->rect());
+	SectionWidget::PaintBackground(controller(), this, e->rect());
 }
 
 void ScheduledWidget::onScroll() {

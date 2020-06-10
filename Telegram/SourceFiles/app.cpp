@@ -207,16 +207,16 @@ namespace App {
 			if (update.paletteChanged()) {
 				createPaletteCorners();
 
-				if (App::main()) {
-					App::main()->updateScrollColors();
+				if (const auto m = App::main()) { // multi good
+					m->updateScrollColors();
 				}
 				HistoryView::serviceColorsUpdated();
 			} else if (update.type == Update::Type::New) {
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 
-				if (App::main()) {
-					App::main()->updateScrollColors();
+				if (const auto m = App::main()) { // multi good
+					m->updateScrollColors();
 				}
 				HistoryView::serviceColorsUpdated();
 			}

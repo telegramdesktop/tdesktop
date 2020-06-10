@@ -1019,7 +1019,9 @@ bool Widget::overlaps(const QRect &globalRect) const {
 }
 
 void Widget::inlineBotChanged() {
-	if (!_inlineBot) return;
+	if (!_inlineBot) {
+		return;
+	}
 
 	if (!isHidden() && !_hiding) {
 		hideAnimated();
@@ -1033,12 +1035,12 @@ void Widget::inlineBotChanged() {
 	_inner->inlineBotChanged();
 	_inner->hideInlineRowsPanel();
 
-	Notify::inlineBotRequesting(false);
+	_requesting.fire(false);
 }
 
 void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
-	Notify::inlineBotRequesting(false);
+	_requesting.fire(false);
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
@@ -1104,7 +1106,7 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 		if (_inlineRequestId) {
 			MTP::cancel(_inlineRequestId);
 			_inlineRequestId = 0;
-			Notify::inlineBotRequesting(false);
+			_requesting.fire(false);
 		}
 		if (_inlineCache.find(query) != _inlineCache.cend()) {
 			_inlineRequestTimer.stop();
@@ -1129,7 +1131,7 @@ void Widget::onInlineRequest() {
 			return;
 		}
 	}
-	Notify::inlineBotRequesting(true);
+	_requesting.fire(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_inlineBot->inputUser,
@@ -1141,7 +1143,7 @@ void Widget::onInlineRequest() {
 		inlineResultsDone(result);
 	}).fail([=](const RPCError &error) {
 		// show error?
-		Notify::inlineBotRequesting(false);
+		_requesting.fire(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 }

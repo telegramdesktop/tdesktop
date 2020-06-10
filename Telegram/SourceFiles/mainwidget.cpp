@@ -525,6 +525,10 @@ Main::Session &MainWidget::session() const {
 	return _controller->session();
 }
 
+not_null<Window::SessionController*> MainWidget::controller() const {
+	return _controller;
+}
+
 void MainWidget::setupConnectingWidget() {
 	using namespace rpl::mappers;
 	_connecting = std::make_unique<Window::ConnectionState>(
@@ -772,28 +776,16 @@ void MainWidget::onFilesOrForwardDrop(
 	}
 }
 
-void MainWidget::notify_botCommandsChanged(UserData *bot) {
-	_history->notify_botCommandsChanged(bot);
-}
-
-void MainWidget::notify_inlineBotRequesting(bool requesting) {
-	_history->notify_inlineBotRequesting(requesting);
-}
-
-void MainWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
+void MainWidget::notify_replyMarkupUpdated(not_null<const HistoryItem*> item) {
 	_history->notify_replyMarkupUpdated(item);
 }
 
-void MainWidget::notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
+void MainWidget::notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop) {
 	_history->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
 }
 
 bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
 	return _history->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
-}
-
-void MainWidget::notify_userIsBotChanged(UserData *bot) {
-	_history->notify_userIsBotChanged(bot);
 }
 
 void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
@@ -1010,7 +1002,11 @@ MsgId MainWidget::currentReplyToIdFor(not_null<History*> history) const {
 	return 0;
 }
 
-void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
+void MainWidget::sendBotCommand(
+		not_null<PeerData*> peer,
+		UserData *bot,
+		const QString &cmd,
+		MsgId replyTo) {
 	_history->sendBotCommand(peer, bot, cmd, replyTo);
 }
 
@@ -1433,10 +1429,6 @@ Image *MainWidget::newBackgroundThumb() {
 		: _background->dataMedia
 		? _background->dataMedia->thumbnail()
 		: nullptr;
-}
-
-void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
-	_history->messageDataReceived(channel, msgId);
 }
 
 void MainWidget::updateBotKeyboard(History *h) {
@@ -2178,16 +2170,6 @@ void MainWidget::windowShown() {
 
 void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) {
 	feedUpdates(result, randomId);
-}
-
-bool MainWidget::deleteChannelFailed(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	//if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-	//	Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
-	//}
-
-	return true;
 }
 
 void MainWidget::historyToDown(History *history) {
@@ -2984,7 +2966,11 @@ void MainWidget::gotDifference(const MTPupdates_Difference &difference) {
 	};
 }
 
-bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, crl::time &curTime) {
+bool MainWidget::getDifferenceTimeChanged(
+		ChannelData *channel,
+		int32 ms,
+		ChannelGetDifferenceTime &channelCurTime,
+		crl::time &curTime) {
 	if (channel) {
 		if (ms <= 0) {
 			ChannelGetDifferenceTime::iterator i = channelCurTime.find(channel);
@@ -3133,11 +3119,11 @@ void MainWidget::getDifferenceAfterFail() {
 }
 
 void MainWidget::getDifference() {
-	if (this != App::main()) return;
-
 	_getDifferenceTimeByPts = 0;
 
-	if (requestingDifference()) return;
+	if (requestingDifference()) {
+		return;
+	}
 
 	_bySeqUpdates.clear();
 	_bySeqTimer.cancel();
@@ -3158,9 +3144,9 @@ void MainWidget::getDifference() {
 		rpcFail(&MainWidget::failDifference));
 }
 
-void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from) {
-	if (this != App::main() || !channel) return;
-
+void MainWidget::getChannelDifference(
+		not_null<ChannelData*> channel,
+		ChannelDifferenceRequest from) {
 	if (from != ChannelDifferenceRequest::PtsGapOrShortPoll) {
 		_channelGetDifferenceTimeByPts.remove(channel);
 	}
@@ -3187,8 +3173,8 @@ void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceReq
 			filter,
 			MTP_int(channel->pts()),
 			MTP_int(kChannelGetDifferenceLimit)),
-		rpcDone(&MainWidget::gotChannelDifference, channel),
-		rpcFail(&MainWidget::failChannelDifference, channel));
+		rpcDone(&MainWidget::gotChannelDifference, channel.get()),
+		rpcFail(&MainWidget::failChannelDifference, channel.get()));
 }
 
 void MainWidget::sendPing() {
@@ -4628,7 +4614,7 @@ namespace App {
 
 MainWidget *main() {
 	if (const auto window = wnd()) {
-		return window->mainWidget();
+		return window->sessionContent();
 	}
 	return nullptr;
 }

@@ -2069,13 +2069,13 @@ void SendFilesBox::setupCaption() {
 		_controller->session().settings().replaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
 	_caption->setEditLinkCallback(
-		DefaultEditLinkCallback(&_controller->session(), _caption));
+		DefaultEditLinkCallback(_controller, _caption));
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_caption,
 		&_controller->session());
 
-	InitSpellchecker(&_controller->session(), _caption);
+	InitSpellchecker(_controller, _caption);
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();

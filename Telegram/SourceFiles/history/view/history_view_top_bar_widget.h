@@ -51,7 +51,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~TopBarWidget();
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
 	void updateControlsVisibility();
 	void finishAnimating();

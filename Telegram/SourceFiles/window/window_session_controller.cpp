@@ -158,7 +158,7 @@ auto SessionController::tabbedSelector() const
 void SessionController::takeTabbedSelectorOwnershipFrom(
 		not_null<QWidget*> parent) {
 	if (_tabbedSelector->parent() == parent) {
-		if (const auto chats = widget()->chatsWidget()) {
+		if (const auto chats = widget()->sessionContent()) {
 			chats->returnTabbedSelector();
 		}
 		if (_tabbedSelector->parent() == parent) {
@@ -395,7 +395,7 @@ bool SessionController::forceWideDialogs() const {
 	} else if (dialogsListFocused().value()) {
 		return true;
 	}
-	return !App::main()->isMainSectionShown();
+	return !content()->isMainSectionShown();
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
@@ -499,7 +499,7 @@ bool SessionController::canShowThirdSectionWithoutResize() const {
 }
 
 bool SessionController::takeThirdSectionFromLayer() {
-	return App::wnd()->takeThirdSectionFromLayer();
+	return widget()->takeThirdSectionFromLayer();
 }
 
 void SessionController::resizeForThirdSection() {
@@ -682,14 +682,14 @@ void SessionController::clearPassportForm() {
 }
 
 void SessionController::updateColumnLayout() {
-	App::main()->updateColumnLayout();
+	content()->updateColumnLayout();
 }
 
 void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
-	App::main()->ui_showPeerHistory(
+	content()->ui_showPeerHistory(
 		peerId,
 		params,
 		msgId);
@@ -718,30 +718,30 @@ void SessionController::showPeerHistory(
 void SessionController::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
-	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
+	if (!params.thirdColumn && widget()->showSectionInExistingLayer(
 			&memento,
 			params)) {
 		return;
 	}
-	App::main()->showSection(std::move(memento), params);
+	content()->showSection(std::move(memento), params);
 }
 
 void SessionController::showBackFromStack(const SectionShow &params) {
-	chats()->showBackFromStack(params);
+	content()->showBackFromStack(params);
 }
 
 void SessionController::showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated) {
-	App::wnd()->showSpecialLayer(std::move(layer), animated);
+	widget()->showSpecialLayer(std::move(layer), animated);
 }
 
 void SessionController::removeLayerBlackout() {
-	App::wnd()->ui_removeLayerBlackout();
+	widget()->ui_removeLayerBlackout();
 }
 
-not_null<MainWidget*> SessionController::chats() const {
-	return App::wnd()->chatsWidget();
+not_null<MainWidget*> SessionController::content() const {
+	return widget()->sessionContent();
 }
 
 void SessionController::setDefaultFloatPlayerDelegate(

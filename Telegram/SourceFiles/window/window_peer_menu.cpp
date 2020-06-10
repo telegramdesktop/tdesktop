@@ -460,7 +460,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->session().supportMode()) {
 			_addAction("Edit support info", [=] {
-				user->session().supportHelper().editInfo(user);
+				user->session().supportHelper().editInfo(controller, user);
 			});
 		}
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
@@ -490,7 +490,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (user->canSendPolls()) {
 			_addAction(
 				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(user); });
+				[=] { PeerMenuCreatePoll(controller, user); });
 		}
 		if (user->canExportChatHistory()) {
 			_addAction(
@@ -528,7 +528,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 		if (chat->canSendPolls()) {
 			_addAction(
 				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(chat); });
+				[=] { PeerMenuCreatePoll(controller, chat); });
 		}
 		if (chat->canExportChatHistory()) {
 			_addAction(
@@ -574,7 +574,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		if (channel->canSendPolls()) {
 			_addAction(
 				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(channel); });
+				[=] { PeerMenuCreatePoll(navigation, channel); });
 		}
 		if (channel->canExportChatHistory()) {
 			_addAction(
@@ -790,6 +790,7 @@ void PeerMenuShareContactBox(
 }
 
 void PeerMenuCreatePoll(
+		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		PollData::Flags chosen,
 		PollData::Flags disabled) {
@@ -798,7 +799,7 @@ void PeerMenuCreatePoll(
 		disabled |= PollData::Flag::PublicVotes;
 	}
 	const auto box = Ui::show(Box<CreatePollBox>(
-		&peer->session(),
+		controller,
 		chosen,
 		disabled,
 		Api::SendType::Normal));
@@ -811,7 +812,7 @@ void PeerMenuCreatePoll(
 		auto action = Api::SendAction(peer->owner().history(peer));
 		action.clearDraft = false;
 		action.options = result.options;
-		if (const auto id = App::main()->currentReplyToIdFor(action.history)) {
+		if (const auto id = controller->content()->currentReplyToIdFor(action.history)) {
 			action.replyTo = id;
 		}
 		if (const auto localDraft = action.history->localDraft()) {
@@ -919,7 +920,8 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	auto callback = [
 		ids = std::move(items),
 		callback = std::move(successCallback),
-		weak
+		weak,
+		navigation
 	](not_null<PeerData*> peer) mutable {
 		if (peer->isSelf()) {
 			auto items = peer->owner().idsToItems(ids);
@@ -932,7 +934,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}
-		} else if (!App::main()->setForwardDraft(peer->id, std::move(ids))) {
+		} else if (!navigation->parentController()->content()->setForwardDraft(peer->id, std::move(ids))) {
 			return;
 		}
 		if (const auto strong = *weak) {

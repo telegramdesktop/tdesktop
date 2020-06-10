@@ -239,7 +239,7 @@ InnerWidget::InnerWidget(
 		}
 		if (update.flags & (UpdateFlag::PhotoChanged | UpdateFlag::UserOccupiedChanged)) {
 			this->update();
-			emit App::main()->dialogsUpdated();
+			emit controller->content()->dialogsUpdated();
 		}
 		if (update.flags & UpdateFlag::UserIsContact) {
 			if (update.peer->isUser()) {
@@ -1498,7 +1498,7 @@ void InnerWidget::removeDialog(Key key) {
 		refresh();
 	}
 
-	emit App::main()->dialogsUpdated();
+	emit _controller->content()->dialogsUpdated();
 
 	refresh();
 }
@@ -3019,7 +3019,7 @@ void InnerWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		if (App::main()->selectingPeer()) {
+		if (_controller->content()->selectingPeer()) {
 			return;
 		}
 		const auto row = _controller->activeChatEntryCurrent();
@@ -3059,7 +3059,9 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			App::main()->choosePeer(session().userPeerId(), ShowAtUnreadMsgId);
+			_controller->content()->choosePeer(
+				session().userPeerId(),
+				ShowAtUnreadMsgId);
 			return true;
 		});
 		request->check(Command::ShowArchive) && request->handle([=] {

@@ -681,8 +681,8 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() 
 }
 
 ForwardsPrivacyController::ForwardsPrivacyController(
-	not_null<::Main::Session*> session)
-: _session(session) {
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
 }
 
 ApiWrap::Privacy::Key ForwardsPrivacyController::key() {
@@ -735,7 +735,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	auto message = GenerateForwardedItem(
 		delegate(),
-		_session->data().history(
+		_controller->session().data().history(
 			peerFromUser(PeerData::kServiceNotificationsId)),
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
@@ -760,7 +760,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	widget->paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
-		Window::SectionWidget::PaintBackground(widget, rect);
+		Window::SectionWidget::PaintBackground(_controller, widget, rect);
 
 		Painter p(widget);
 		p.translate(0, padding + view->marginBottom());

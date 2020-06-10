@@ -62,7 +62,7 @@ class EditLinkBox : public Ui::BoxContent {
 public:
 	EditLinkBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const QString &text,
 		const QString &link,
 		Fn<void(QString, QString)> callback);
@@ -73,7 +73,7 @@ protected:
 	void prepare() override;
 
 private:
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	QString _startText;
 	QString _startLink;
 	Fn<void(QString, QString)> _callback;
@@ -111,11 +111,11 @@ QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
 
 EditLinkBox::EditLinkBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const QString &text,
 	const QString &link,
 	Fn<void(QString, QString)> callback)
-: _session(session)
+: _controller(controller)
 , _startText(text)
 , _startLink(link)
 , _callback(std::move(callback)) {
@@ -131,6 +131,7 @@ void EditLinkBox::setInnerFocus() {
 void EditLinkBox::prepare() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	const auto session = &_controller->session();
 	const auto text = content->add(
 		object_ptr<Ui::InputField>(
 			content,
@@ -140,12 +141,12 @@ void EditLinkBox::prepare() {
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(
-		_session->settings().replaceEmojiValue());
+		session->settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		text,
-		_session);
-	InitSpellchecker(_session, text);
+		session);
+	InitSpellchecker(_controller, text);
 
 	const auto url = content->add(
 		object_ptr<Ui::InputField>(
@@ -249,7 +250,7 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
 	const auto weak = Ui::MakeWeak(field);
 	return [=](
@@ -261,7 +262,7 @@ Fn<bool(
 			return Ui::InputField::IsValidMarkdownLink(link)
 				&& !TextUtilities::IsMentionLink(link);
 		}
-		Ui::show(Box<EditLinkBox>(session, text, link, [=](
+		Ui::show(Box<EditLinkBox>(controller, text, link, [=](
 				const QString &text,
 				const QString &link) {
 			if (const auto strong = weak.data()) {
@@ -289,20 +290,19 @@ void InitMessageField(
 	field->setInstantReplacesEnabled(
 		controller->session().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(
-		DefaultEditLinkCallback(&controller->session(), field));
+	field->setEditLinkCallback(DefaultEditLinkCallback(controller, field));
 }
 
 void InitSpellchecker(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
 		field.get(),
-		session->settings().spellcheckerEnabledValue(),
+		controller->session().settings().spellcheckerEnabledValue(),
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
-			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(session)); }
+			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(controller)); }
 		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK

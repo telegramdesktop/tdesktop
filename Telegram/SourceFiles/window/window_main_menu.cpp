@@ -135,7 +135,7 @@ MainMenu::MainMenu(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	const auto showSelfChat = [=] {
-		App::main()->choosePeer(
+		controller->content()->choosePeer(
 			_controller->session().userPeerId(),
 			ShowAtUnreadMsgId);
 	};
@@ -143,7 +143,7 @@ MainMenu::MainMenu(
 		const auto folder = _controller->session().data().folderLoaded(
 			Data::Folder::kId);
 		if (folder) {
-			App::wnd()->sessionController()->openFolder(folder);
+			controller->openFolder(folder);
 			Ui::hideSettingsAndLayer();
 		}
 	};

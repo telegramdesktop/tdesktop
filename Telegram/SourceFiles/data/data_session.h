@@ -200,6 +200,11 @@ public:
 	void chatsListChanged(Data::Folder *folder);
 	void chatsListDone(Data::Folder *folder);
 
+	void userIsBotChanged(not_null<UserData*> user);
+	[[nodiscard]] rpl::producer<not_null<UserData*>> userIsBotChanges() const;
+	void botCommandsChanged(not_null<UserData*> user);
+	[[nodiscard]] rpl::producer<not_null<UserData*>> botCommandsChanges() const;
+
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
@@ -771,6 +776,8 @@ private:
 	rpl::variable<bool> _contactsLoaded = false;
 	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;
 	rpl::event_stream<Data::Folder*> _chatsListChanged;
+	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
+	rpl::event_stream<not_null<UserData*>> _botCommandsChanges;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;

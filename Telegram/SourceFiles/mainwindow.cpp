@@ -405,8 +405,8 @@ void MainWindow::ui_removeLayerBlackout() {
 	}
 }
 
-MainWidget *MainWindow::mainWidget() {
-	return _main;
+MainWidget *MainWindow::sessionContent() const {
+	return _main.data();
 }
 
 void MainWindow::ui_showBox(

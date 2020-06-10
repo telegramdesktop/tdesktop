@@ -48,7 +48,7 @@ class EditInfoBox : public Ui::BoxContent {
 public:
 	EditInfoBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const TextWithTags &text,
 		Fn<void(TextWithTags, Fn<void(bool success)>)> submit);
 
@@ -57,7 +57,7 @@ protected:
 	void setInnerFocus() override;
 
 private:
-	not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	object_ptr<Ui::InputField> _field = { nullptr };
 	Fn<void(TextWithTags, Fn<void(bool success)>)> _submit;
 
@@ -65,10 +65,10 @@ private:
 
 EditInfoBox::EditInfoBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const TextWithTags &text,
 	Fn<void(TextWithTags, Fn<void(bool success)>)> submit)
-: _session(session)
+: _controller(controller)
 , _field(
 	this,
 	st::supportInfoField,
@@ -77,12 +77,13 @@ EditInfoBox::EditInfoBox(
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
-	_field->setSubmitSettings(session->settings().sendSubmitWay());
+	_field->setSubmitSettings(
+		controller->session().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
-		session->settings().replaceEmojiValue());
+		controller->session().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(DefaultEditLinkCallback(session, _field));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(controller, _field));
 }
 
 void EditInfoBox::prepare() {
@@ -106,7 +107,7 @@ void EditInfoBox::prepare() {
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
-		_session);
+		&_controller->session());
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
@@ -427,9 +428,10 @@ void Helper::refreshInfo(not_null<UserData*> user) {
 		user->inputUser
 	)).done([=](const MTPhelp_UserInfo &result) {
 		applyInfo(user, result);
-		if (_userInfoEditPending.contains(user)) {
-			_userInfoEditPending.erase(user);
-			showEditInfoBox(user);
+		if (const auto controller = _userInfoEditPending.take(user)) {
+			if (const auto strong = controller->get()) {
+				showEditInfoBox(strong, user);
+			}
 		}
 	}).send();
 }
@@ -497,14 +499,18 @@ UserInfo Helper::infoCurrent(not_null<UserData*> user) const {
 	return (i != end(_userInformation)) ? i->second : UserInfo();
 }
 
-void Helper::editInfo(not_null<UserData*> user) {
+void Helper::editInfo(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
 	if (!_userInfoEditPending.contains(user)) {
-		_userInfoEditPending.emplace(user);
+		_userInfoEditPending.emplace(user, controller.get());
 		refreshInfo(user);
 	}
 }
 
-void Helper::showEditInfoBox(not_null<UserData*> user) {
+void Helper::showEditInfoBox(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
 	const auto info = infoCurrent(user);
 	const auto editData = TextWithTags{
 		info.text.text,
@@ -518,7 +524,7 @@ void Helper::showEditInfoBox(not_null<UserData*> user) {
 		}, done);
 	};
 	Ui::show(
-		Box<EditInfoBox>(&user->session(), editData, save),
+		Box<EditInfoBox>(controller, editData, save),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -309,9 +309,9 @@ EditCaptionBox::EditCaptionBox(
 		_controller->session().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(&_controller->session(), _field));
+		DefaultEditLinkCallback(_controller, _field));
 
-	InitSpellchecker(&_controller->session(), _field);
+	InitSpellchecker(_controller, _field);
 
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,

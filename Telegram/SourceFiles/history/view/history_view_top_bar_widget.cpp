@@ -145,7 +145,6 @@ TopBarWidget::TopBarWidget(
 		lifetime());
 
 	setCursor(style::cur_pointer);
-	updateControlsVisibility();
 }
 
 TopBarWidget::~TopBarWidget() = default;
@@ -182,7 +181,7 @@ void TopBarWidget::refreshLang() {
 
 void TopBarWidget::onSearch() {
 	if (_activeChat) {
-		App::main()->searchInChat(_activeChat);
+		_controller->content()->searchInChat(_activeChat);
 	}
 }
 
@@ -620,7 +619,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_sendNow->setVisible(_canSendNow);
 
 	auto backVisible = Adaptive::OneColumn()
-		|| (App::main() && !App::main()->stackIsEmpty())
+		|| !_controller->content()->stackIsEmpty()
 		|| _activeChat.folder();
 	_back->setVisible(backVisible);
 	if (_info) {
@@ -653,11 +652,8 @@ void TopBarWidget::updateControlsVisibility() {
 }
 
 void TopBarWidget::updateMembersShowArea() {
-	if (!App::main()) {
-		return;
-	}
-	auto membersShowAreaNeeded = [this]() {
-		auto peer = App::main()->peer();
+	const auto membersShowAreaNeeded = [&] {
+		auto peer = _controller->content()->peer();
 		if ((_selectedCount > 0) || !peer) {
 			return false;
 		}
@@ -668,8 +664,8 @@ void TopBarWidget::updateMembersShowArea() {
 			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
 		}
 		return false;
-	};
-	if (!membersShowAreaNeeded()) {
+	}();
+	if (!membersShowAreaNeeded) {
 		if (_membersShowArea) {
 			_membersShowAreaActive.fire(false);
 			_membersShowArea.destroy();

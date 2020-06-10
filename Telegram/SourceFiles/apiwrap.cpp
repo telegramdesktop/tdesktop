@@ -477,7 +477,7 @@ void ApiWrap::importChatInvite(const QString &hash) {
 			handleChats(data.vchats());
 		}, [&](auto &&) {
 			LOG(("API Error: unexpected update cons %1 "
-				"(MainWidget::inviteImportDone)").arg(result.type()));
+				"(ApiWrap::importChatInvite)").arg(result.type()));
 		});
 	}).fail([=](const RPCError &error) {
 		const auto &type = error.type();

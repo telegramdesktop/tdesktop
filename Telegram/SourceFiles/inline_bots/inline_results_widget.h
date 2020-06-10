@@ -199,6 +199,10 @@ public:
 		_inner->setResultSelectedCallback(std::move(callback));
 	}
 
+	[[nodiscard]] rpl::producer<bool> requesting() const {
+		return _requesting.events();
+	}
+
 	~Widget();
 
 protected:
@@ -275,6 +279,8 @@ private:
 	PeerData *_inlineQueryPeer = nullptr;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId = 0;
+
+	rpl::event_stream<bool> _requesting;
 
 };
 

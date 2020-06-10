@@ -56,11 +56,7 @@ public:
 	void setupIntro();
 	void setupMain();
 
-	MainWidget *chatsWidget() {
-		return mainWidget();
-	}
-
-	MainWidget *mainWidget();
+	MainWidget *sessionContent() const;
 
 	[[nodiscard]] bool doWeMarkAsRead();
 

@@ -131,22 +131,15 @@ void UserData::setPhone(const QString &newPhone) {
 
 void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
-		if (botInfo) {
-			if (!botInfo->commands.isEmpty()) {
-				botInfo->commands.clear();
-				Notify::botCommandsChanged(this);
-			}
-			botInfo = nullptr;
-			Notify::userIsBotChanged(this);
-		}
+		// We don't support bots becoming non-bots.
 	} else if (!botInfo) {
 		botInfo = std::make_unique<BotInfo>();
 		botInfo->version = version;
-		Notify::userIsBotChanged(this);
+		owner().userIsBotChanged(this);
 	} else if (botInfo->version < version) {
 		if (!botInfo->commands.isEmpty()) {
 			botInfo->commands.clear();
-			Notify::botCommandsChanged(this);
+			owner().botCommandsChanged(this);
 		}
 		botInfo->description.clear();
 		botInfo->version = version;
@@ -199,7 +192,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		botInfo->inited = true;
 
 		if (changedCommands) {
-			Notify::botCommandsChanged(this);
+			owner().botCommandsChanged(this);
 		}
 	} break;
 	}

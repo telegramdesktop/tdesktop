@@ -205,10 +205,10 @@ void ShareBox::prepareCommentField() {
 		_navigation->session().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
-		DefaultEditLinkCallback(&_navigation->session(), field));
+		DefaultEditLinkCallback(_navigation->parentController(), field));
 	field->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
 
-	InitSpellchecker(&_navigation->session(), field);
+	InitSpellchecker(_navigation->parentController(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
 

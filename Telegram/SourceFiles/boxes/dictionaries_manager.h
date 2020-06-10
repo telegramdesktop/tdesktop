@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Ui {
 
@@ -21,14 +21,14 @@ class ManageDictionariesBox : public Ui::BoxContent {
 public:
 	ManageDictionariesBox(
 		QWidget*,
-		not_null<Main::Session*> session);
+		not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
 private:
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	Fn<void()> _setInnerFocus;
 
 };

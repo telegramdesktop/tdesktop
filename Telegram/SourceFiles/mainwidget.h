@@ -113,6 +113,7 @@ public:
 		not_null<Window::SessionController*> controller);
 
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
@@ -149,7 +150,6 @@ public:
 	void sentUpdatesReceived(const MTPUpdates &updates) {
 		return sentUpdatesReceived(0, updates);
 	}
-	bool deleteChannelFailed(const RPCError &error);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void checkHistoryActivation();
@@ -211,7 +211,11 @@ public:
 
 	MsgId currentReplyToIdFor(not_null<History*> history) const;
 
-	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
+	void sendBotCommand(
+		not_null<PeerData*> peer,
+		UserData *bot,
+		const QString &cmd,
+		MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
@@ -233,7 +237,6 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -284,12 +287,9 @@ public:
 		MsgId msgId);
 	PeerData *ui_getPeerForMouseAction();
 
-	void notify_botCommandsChanged(UserData *bot);
-	void notify_inlineBotRequesting(bool requesting);
-	void notify_replyMarkupUpdated(const HistoryItem *item);
-	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+	void notify_replyMarkupUpdated(not_null<const HistoryItem*> item);
+	void notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
-	void notify_userIsBotChanged(UserData *bot);
 
 	void closeBothPlayers();
 
@@ -381,7 +381,9 @@ private:
 
 	void saveSectionInStack();
 
-	void getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
+	void getChannelDifference(
+		not_null<ChannelData*> channel,
+		ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
 	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);

@@ -633,7 +633,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				view->draw(p, clip.translated(0, -y), selection, ms);
 
 				if (item->hasViews()) {
-					App::main()->scheduleViewIncrement(item);
+					_controller->content()->scheduleViewIncrement(item);
 				}
 				if (item->isUnreadMention() && !item->isUnreadMedia()) {
 					readMentions.insert(item);
@@ -689,7 +689,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (_visibleAreaBottom >= middle
 						&& _visibleAreaTop <= middle) {
 						if (item->hasViews()) {
-							App::main()->scheduleViewIncrement(item);
+							_controller->content()->scheduleViewIncrement(item);
 						}
 						if (item->isUnreadMention() && !item->isUnreadMedia()) {
 							readMentions.insert(item);
@@ -1277,9 +1277,6 @@ void HistoryInner::performDrag() {
 
 void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 	if (_history != item->history() && _migrated != item->history()) {
-		return;
-	}
-	if (!App::main()) {
 		return;
 	}
 
@@ -2495,6 +2492,18 @@ void HistoryInner::elementStartStickerLoop(
 	_animatedStickersPlayed.emplace(view->data());
 }
 
+crl::time HistoryInner::elementHighlightTime(not_null<const Element*> view) {
+	const auto fullAnimMs = _controller->content()->highlightStartTime(
+		view->data());
+	if (fullAnimMs > 0) {
+		const auto now = crl::now();
+		if (fullAnimMs < now) {
+			return now - fullAnimMs;
+		}
+	}
+	return 0;
+}
+
 void HistoryInner::elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) {
@@ -3117,7 +3126,7 @@ void HistoryInner::deleteItem(FullMsgId itemId) {
 void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 	if (auto message = item->toHistoryMessage()) {
 		if (message->uploading()) {
-			App::main()->cancelUploadLayer(item);
+			_controller->content()->cancelUploadLayer(item);
 			return;
 		}
 	}
@@ -3331,20 +3340,12 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				replacing);
 		}
 		bool elementUnderCursor(
-				not_null<const HistoryView::Element*> view) override {
+				not_null<const Element*> view) override {
 			return (App::hoveredItem() == view);
 		}
 		crl::time elementHighlightTime(
-				not_null<const HistoryView::Element*> view) override {
-			const auto fullAnimMs = App::main()->highlightStartTime(
-				view->data());
-			if (fullAnimMs > 0) {
-				const auto now = crl::now();
-				if (fullAnimMs < now) {
-					return now - fullAnimMs;
-				}
-			}
-			return crl::time(0);
+				not_null<const Element*> view) override {
+			return Instance ? Instance->elementHighlightTime(view) : 0;
 		}
 		bool elementInSelectionMode() override {
 			return Instance ? Instance->inSelectionMode() : false;

@@ -182,7 +182,6 @@ public:
 	void unpinMessage(FullMsgId itemId);
 
 	MsgId replyToId() const;
-	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
 	bool cancelReply(bool lastKeyboardUsed = false);
@@ -204,7 +203,11 @@ public:
 
 	void escape();
 
-	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
+	void sendBotCommand(
+		not_null<PeerData*> peer,
+		UserData *bot,
+		const QString &cmd,
+		MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
@@ -270,12 +273,10 @@ public:
 
 	PeerData *ui_getPeerForMouseAction();
 
-	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
-	void notify_replyMarkupUpdated(const HistoryItem *item);
-	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
+	void notify_replyMarkupUpdated(not_null<const HistoryItem*> item);
+	void notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
-	void notify_userIsBotChanged(UserData *user);
 
 	~HistoryWidget();
 
@@ -375,6 +376,9 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
+
+	void requestMessageData(MsgId msgId);
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
 
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);

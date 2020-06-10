@@ -38,7 +38,7 @@ template <typename Guard, typename Lambda>
 }
 
 void sendBotCommand(
-	PeerData *peer,
+	not_null<PeerData*> peer,
 	UserData *bot,
 	const QString &cmd,
 	MsgId replyTo = 0);
@@ -63,7 +63,7 @@ void showPeerProfile(not_null<const History*> history);
 void showPeerHistory(const PeerId &peer, MsgId msgId);
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 
-void showPeerHistory(const PeerData *peer, MsgId msgId);
+void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 inline void showChatsList() {
 	showPeerHistory(PeerId(0), 0);
@@ -81,13 +81,16 @@ enum ClipStopperType {
 
 namespace Notify {
 
-void userIsBotChanged(UserData *user);
-void botCommandsChanged(UserData *user);
-
-void inlineBotRequesting(bool requesting);
-void replyMarkupUpdated(const HistoryItem *item);
-void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
-bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot = nullptr, MsgId samePeerReplyTo = 0);
+void replyMarkupUpdated(not_null<const HistoryItem*> item);
+void inlineKeyboardMoved(
+	not_null<const HistoryItem*> item,
+	int oldKeyboardTop,
+	int newKeyboardTop);
+bool switchInlineBotButtonReceived(
+	not_null<Main::Session*> session,
+	const QString &query,
+	UserData *samePeerBot = nullptr,
+	MsgId samePeerReplyTo = 0);
 
 void unreadCounterUpdated();
 

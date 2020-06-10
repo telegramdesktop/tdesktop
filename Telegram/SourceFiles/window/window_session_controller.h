@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/observer.h"
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
 
@@ -163,6 +164,7 @@ private:
 
 class SessionController
 	: public SessionNavigation
+	, public base::has_weak_ptr
 	, private base::Subscriber {
 public:
 	SessionController(
@@ -173,6 +175,7 @@ public:
 		return *_window;
 	}
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
+	[[nodiscard]] not_null<MainWidget*> content() const;
 
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;
@@ -314,7 +317,6 @@ private:
 	void checkOpenedFilter();
 
 	int minimalThreeColumnWidth() const;
-	not_null<MainWidget*> chats() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;
 	int countThirdColumnWidthFromRatio(int bodyWidth) const;
 	struct ShrinkResult {

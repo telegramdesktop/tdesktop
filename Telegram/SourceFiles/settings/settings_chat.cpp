@@ -393,7 +393,7 @@ private:
 };
 
 void ChooseFromFile(
-	not_null<::Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	not_null<QWidget*> parent);
 
 BackgroundRow::BackgroundRow(
@@ -409,10 +409,10 @@ BackgroundRow::BackgroundRow(
 	updateImage();
 
 	_chooseFromGallery->addClickHandler([=] {
-		Ui::show(Box<BackgroundBox>(&controller->session()));
+		Ui::show(Box<BackgroundBox>(controller));
 	});
 	_chooseFromFile->addClickHandler([=] {
-		ChooseFromFile(&controller->session(), this);
+		ChooseFromFile(controller, this);
 	});
 
 	using Update = const Window::Theme::BackgroundUpdate;
@@ -594,7 +594,7 @@ void BackgroundRow::updateImage() {
 }
 
 void ChooseFromFile(
-		not_null<::Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent) {
 	const auto &imgExtensions = cImgExtensions();
 	auto filters = QStringList(
@@ -602,7 +602,7 @@ void ChooseFromFile(
 		+ imgExtensions.join(qsl(" *"))
 		+ qsl(")"));
 	filters.push_back(FileDialog::AllFilesFilter());
-	const auto callback = crl::guard(session, [=](
+	const auto callback = crl::guard(controller, [=](
 			const FileDialog::OpenResult &result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
@@ -629,7 +629,7 @@ void ChooseFromFile(
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
 			std::move(image)));
-		Ui::show(Box<BackgroundPreviewBox>(session, local));
+		Ui::show(Box<BackgroundPreviewBox>(controller, local));
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),

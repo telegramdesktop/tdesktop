@@ -44,6 +44,9 @@ public:
 	}
 
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
+		return _controller;
+	}
 
 	// Tabbed selector management.
 	virtual bool pushTabbedSelectorToThirdSection(
@@ -61,11 +64,6 @@ public:
 	}
 	[[nodiscard]] virtual QRect rectForFloatPlayer() const {
 		return mapToGlobal(rect());
-	}
-
-protected:
-	[[nodiscard]] not_null<Window::SessionController*> controller() const {
-		return _controller;
 	}
 
 private:
@@ -88,7 +86,9 @@ struct SectionSlideParams {
 
 class SectionWidget : public AbstractSectionWidget {
 public:
-	SectionWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	SectionWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};
@@ -140,7 +140,10 @@ public:
 		return nullptr;
 	}
 
-	static void PaintBackground(not_null<QWidget*> widget, QRect clip);
+	static void PaintBackground(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> widget,
+		QRect clip);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

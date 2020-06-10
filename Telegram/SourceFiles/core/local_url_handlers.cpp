@@ -241,7 +241,7 @@ bool ShowWallPaper(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
-		session,
+		App::wnd()->sessionController(),
 		params.value(qsl("slug")),
 		params);
 }
