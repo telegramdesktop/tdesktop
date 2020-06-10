@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/history_drag_area.h"
 #include "ui/widgets/tooltip.h"
 #include "mainwidget.h"
 #include "chat_helpers/field_autocomplete.h"
@@ -124,9 +125,6 @@ public:
 	void checkHistoryActivation();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void dragEnterEvent(QDragEnterEvent *e) override;
-	void dragLeaveEvent(QDragLeaveEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
 
 	bool isItemCompletelyHidden(HistoryItem *item) const;
 	void updateTopBarSelection();
@@ -328,7 +326,6 @@ private slots:
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
-	using DragState = Storage::MimeDataState;
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
 		~PinnedBar();
@@ -567,8 +564,6 @@ private:
 	void animatedScrollToItem(MsgId msgId);
 	void animatedScrollToY(int scrollTo, HistoryItem *attachTo = nullptr);
 
-	void updateDragAreas();
-
 	// when scroll position or scroll area size changed this method
 	// updates the boundings of the visible area in HistoryInner
 	void visibleAreaUpdated();
@@ -728,8 +723,8 @@ private:
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	std::unique_ptr<TabbedPanel> _tabbedPanel;
-	DragState _attachDragState;
-	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
+
+	DragArea::Areas _attachDragAreas;
 
 	Fn<void()> _raiseEmojiSuggestions;
 

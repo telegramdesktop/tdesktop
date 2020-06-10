@@ -299,9 +299,6 @@ HistoryWidget::HistoryWidget(
 	return recordingAnimationCallback(now);
 })
 , _kbScroll(this, st::botKbScroll)
-, _attachDragState(DragState::None)
-, _attachDragDocument(this)
-, _attachDragPhoto(this)
 , _topShadow(this) {
 	setAcceptDrops(true);
 
@@ -455,16 +452,18 @@ HistoryWidget::HistoryWidget(
 	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
 	_botCommandStart->addClickHandler([=] { startBotCommand(); });
 
-	_attachDragDocument->hide();
-	_attachDragPhoto->hide();
-
 	_topShadow->hide();
 
-	_attachDragDocument->setDroppedCallback([=](const QMimeData *data) {
+	_attachDragAreas = DragArea::SetupDragAreaToContainer(
+		this,
+		crl::guard(this, [=] { return (!_history || !_canSendMessages); }),
+		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
+		crl::guard(this, [=] { updateControlsGeometry(); }));
+	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::No);
 		ActivateWindow(controller);
 	});
-	_attachDragPhoto->setDroppedCallback([=](const QMimeData *data) {
+	_attachDragAreas.photo->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
 		ActivateWindow(controller);
 	});
@@ -1239,8 +1238,8 @@ void HistoryWidget::orderWidgets() {
 		_tabbedPanel->raise();
 	}
 	_raiseEmojiSuggestions();
-	_attachDragDocument->raise();
-	_attachDragPhoto->raise();
+	_attachDragAreas.document->raise();
+	_attachDragAreas.photo->raise();
 }
 
 void HistoryWidget::updateStickersByEmoji() {
@@ -2068,8 +2067,8 @@ void HistoryWidget::refreshScheduledToggle() {
 }
 
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
-	return (_attachDragDocument->overlaps(globalRect)
-			|| _attachDragPhoto->overlaps(globalRect)
+	return (_attachDragAreas.document->overlaps(globalRect)
+			|| _attachDragAreas.photo->overlaps(globalRect)
 			|| _fieldAutocomplete->overlaps(globalRect)
 			|| (_tabbedPanel && _tabbedPanel->overlaps(globalRect))
 			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
@@ -3411,30 +3410,7 @@ void HistoryWidget::sendButtonClicked() {
 	}
 }
 
-void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
-	if (!_history || !_canSendMessages) return;
-
-	_attachDragState = Storage::ComputeMimeDataState(e->mimeData());
-	updateDragAreas();
-
-	if (_attachDragState != DragState::None) {
-		e->setDropAction(Qt::IgnoreAction);
-		e->accept();
-	}
-}
-
-void HistoryWidget::dragLeaveEvent(QDragLeaveEvent *e) {
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
-	}
-}
-
 void HistoryWidget::leaveEventHook(QEvent *e) {
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
-	}
 	if (hasMouseTracking()) {
 		mouseMoveEvent(nullptr);
 	}
@@ -3504,10 +3480,6 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
-	}
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
 	}
 	if (_recording) {
 		stopRecording(_peer && _inField);
@@ -3685,34 +3657,6 @@ QRect HistoryWidget::floatPlayerAvailableRect() {
 	return _peer ? mapToGlobal(_scroll->geometry()) : mapToGlobal(rect());
 }
 
-void HistoryWidget::updateDragAreas() {
-	_field->setAcceptDrops(_attachDragState == DragState::None);
-	updateControlsGeometry();
-
-	switch (_attachDragState) {
-	case DragState::None:
-		_attachDragDocument->otherLeave();
-		_attachDragPhoto->otherLeave();
-	break;
-	case DragState::Files:
-		_attachDragDocument->setText(tr::lng_drag_files_here(tr::now), tr::lng_drag_to_send_files(tr::now));
-		_attachDragDocument->otherEnter();
-		_attachDragPhoto->hideFast();
-	break;
-	case DragState::PhotoFiles:
-		_attachDragDocument->setText(tr::lng_drag_images_here(tr::now), tr::lng_drag_to_send_no_compression(tr::now));
-		_attachDragPhoto->setText(tr::lng_drag_photos_here(tr::now), tr::lng_drag_to_send_quick(tr::now));
-		_attachDragDocument->otherEnter();
-		_attachDragPhoto->otherEnter();
-	break;
-	case DragState::Image:
-		_attachDragPhoto->setText(tr::lng_drag_images_here(tr::now), tr::lng_drag_to_send_quick(tr::now));
-		_attachDragDocument->hideFast();
-		_attachDragPhoto->otherEnter();
-	break;
-	};
-}
-
 bool HistoryWidget::readyToForward() const {
 	return _canSendMessages && !_toForward.empty();
 }
@@ -3849,12 +3793,6 @@ bool HistoryWidget::updateCmdStartShown() {
 
 bool HistoryWidget::kbWasHidden() const {
 	return _history && (_keyboard->forMsgId() == FullMsgId(_history->channelId(), _history->lastKeyboardHiddenId));
-}
-
-void HistoryWidget::dropEvent(QDropEvent *e) {
-	_attachDragState = DragState::None;
-	updateDragAreas();
-	e->acceptProposedAction();
 }
 
 void HistoryWidget::toggleKeyboard(bool manual) {
@@ -4596,23 +4534,6 @@ void HistoryWidget::updateControlsGeometry() {
 
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
-	}
-
-	switch (_attachDragState) {
-	case DragState::Files:
-		_attachDragDocument->resize(width() - st::dragMargin.left() - st::dragMargin.right(), height() - st::dragMargin.top() - st::dragMargin.bottom());
-		_attachDragDocument->move(st::dragMargin.left(), st::dragMargin.top());
-	break;
-	case DragState::PhotoFiles:
-		_attachDragDocument->resize(width() - st::dragMargin.left() - st::dragMargin.right(), (height() - st::dragMargin.top() - st::dragMargin.bottom()) / 2);
-		_attachDragDocument->move(st::dragMargin.left(), st::dragMargin.top());
-		_attachDragPhoto->resize(_attachDragDocument->width(), _attachDragDocument->height());
-		_attachDragPhoto->move(st::dragMargin.left(), height() - _attachDragPhoto->height() - st::dragMargin.bottom());
-	break;
-	case DragState::Image:
-		_attachDragPhoto->resize(width() - st::dragMargin.left() - st::dragMargin.right(), height() - st::dragMargin.top() - st::dragMargin.bottom());
-		_attachDragPhoto->move(st::dragMargin.left(), st::dragMargin.top());
-	break;
 	}
 
 	auto topShadowLeft = (Adaptive::OneColumn() || _inGrab) ? 0 : st::lineWidth;
