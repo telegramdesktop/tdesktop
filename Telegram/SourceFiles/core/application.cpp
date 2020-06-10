@@ -114,24 +114,26 @@ Application::Application(not_null<Launcher*> launcher)
 	}, _lifetime);
 
 	activeAccount().sessionChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		if (_mediaView) {
 			hideMediaView();
 			_mediaView->clearData();
+		}
+		if (session && !UpdaterDisabled()) {
+			if (const auto mtp = activeAccount().mtp()) {
+				UpdateChecker().setMtproto(mtp, session->userId());
+			}
 		}
 	}, _lifetime);
 
 	activeAccount().mtpChanges(
 	) | rpl::filter([=](MTP::Instance *instance) {
 		return instance != nullptr;
-	}) | rpl::start_with_next([=](not_null<MTP::Instance*> mtp) {
+	}) | rpl::start_with_next([=] {
 		if (_window) {
 			// This should be called when user settings are read.
 			// Right now after they are read the startMtp() is called.
 			_window->widget()->updateTrayMenu();
-		}
-		if (!UpdaterDisabled()) {
-			UpdateChecker().setMtproto(mtp.get());
 		}
 	}, _lifetime);
 }

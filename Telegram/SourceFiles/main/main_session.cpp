@@ -147,8 +147,6 @@ bool Session::validateSelf(const MTPUser &user) {
 }
 
 void Session::saveSettingsDelayed(crl::time delay) {
-	Expects(this == &Auth());
-
 	_saveSettingsTimer.callOnce(delay);
 }
 
@@ -184,7 +182,3 @@ void Session::saveSettingsNowIfNeeded() {
 }
 
 } // namespace Main
-
-Main::Session &Auth() {
-	return Core::App().activeAccount().session();
-}

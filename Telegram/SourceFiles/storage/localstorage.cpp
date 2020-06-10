@@ -582,7 +582,7 @@ public:
 				voice->waveform[0] = -2;
 				voice->wavemax = 0;
 			}
-			Auth().data().requestDocumentViewRepaint(_doc);
+			_doc->owner().requestDocumentViewRepaint(_doc);
 		}
 	}
 	~CountWaveformTask() {

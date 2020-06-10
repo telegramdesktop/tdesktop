@@ -365,6 +365,7 @@ Fn<void(const RPCError &)> DedicatedLoader::failHandler() {
 
 void ResolveChannel(
 		not_null<MTP::WeakInstance*> mtp,
+		int32 userId,
 		const QString &username,
 		Fn<void(const MTPInputChannel &channel)> done,
 		Fn<void()> fail) {
@@ -373,20 +374,20 @@ void ResolveChannel(
 			).arg(username));
 		fail();
 	};
-	if (!Main::Session::Exists()) {
+	if (!userId) {
 		failed();
 		return;
 	}
 
 	struct ResolveResult {
-		base::weak_ptr<Main::Session> auth;
+		int32 userId = 0;
 		MTPInputChannel channel;
 	};
 	static std::map<QString, ResolveResult> ResolveCache;
 
 	const auto i = ResolveCache.find(username);
 	if (i != end(ResolveCache)) {
-		if (i->second.auth.get() == &Auth()) {
+		if (i->second.userId == userId) {
 			done(i->second.channel);
 			return;
 		}
@@ -399,7 +400,7 @@ void ResolveChannel(
 		if (const auto channel = ExtractChannel(result)) {
 			ResolveCache.emplace(
 				username,
-				ResolveResult { base::make_weak(&Auth()), *channel });
+				ResolveResult { userId, *channel });
 			done(*channel);
 		} else {
 			failed();
@@ -429,6 +430,7 @@ std::optional<MTPMessage> GetMessagesElement(
 
 void StartDedicatedLoader(
 		not_null<MTP::WeakInstance*> mtp,
+		int32 userId,
 		const DedicatedLoader::Location &location,
 		const QString &folder,
 		Fn<void(std::unique_ptr<DedicatedLoader>)> ready) {
@@ -448,7 +450,7 @@ void StartDedicatedLoader(
 	};
 
 	const auto [username, postId] = location;
-	ResolveChannel(mtp, username, [=, postId = postId](
+	ResolveChannel(mtp, userId, username, [=, postId = postId](
 			const MTPInputChannel &channel) {
 		mtp->send(
 			MTPchannels_GetMessages(

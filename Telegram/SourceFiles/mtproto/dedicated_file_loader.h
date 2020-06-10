@@ -143,6 +143,7 @@ private:
 
 void ResolveChannel(
 	not_null<MTP::WeakInstance*> mtp,
+	int32 userId,
 	const QString &username,
 	Fn<void(const MTPInputChannel &channel)> done,
 	Fn<void()> fail);
@@ -152,6 +153,7 @@ std::optional<MTPMessage> GetMessagesElement(
 
 void StartDedicatedLoader(
 	not_null<MTP::WeakInstance*> mtp,
+	int32 userId,
 	const DedicatedLoader::Location &location,
 	const QString &folder,
 	Fn<void(std::unique_ptr<DedicatedLoader>)> ready);

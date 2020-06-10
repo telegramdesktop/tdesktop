@@ -200,7 +200,10 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 	}
 }
 
-PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
+PeerData *readPeer(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream) {
 	quint64 peerId = 0, photoId = 0;
 	stream >> peerId >> photoId;
 	if (!peerId) {
@@ -213,8 +216,8 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		return nullptr;
 	}
 
-	const auto loaded = Auth().data().peerLoaded(peerId);
-	const auto result = loaded ? loaded : Auth().data().peer(peerId).get();
+	const auto loaded = session->data().peerLoaded(peerId);
+	const auto result = loaded ? loaded : session->data().peer(peerId).get();
 	if (!loaded) {
 		result->loadedStatus = PeerData::FullLoaded;
 	}
@@ -234,7 +237,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		userpicAccessHash = access;
 
 		const auto showPhone = !user->isServiceUser()
-			&& (user->id != Auth().userPeerId())
+			&& (user->id != session->userPeerId())
 			&& (contact <= 0);
 		const auto pname = (showPhone && !phone.isEmpty())
 			? App::formatPhone(phone)
@@ -253,7 +256,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 
-			if (user->id == Auth().userPeerId()) {
+			if (user->id == session->userPeerId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {

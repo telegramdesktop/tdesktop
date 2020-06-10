@@ -421,12 +421,12 @@ void Account::writeMap() {
 	map.writeData(_passcodeKeyEncrypted);
 
 	uint32 mapSize = 0;
-	const auto self = [] {
-		if (!Main::Session::Exists()) {
+	const auto self = [&] {
+		if (!_owner->sessionExists()) {
 			DEBUG_LOG(("AuthSelf Warning: Session does not exist."));
 			return QByteArray();
 		}
-		const auto self = Auth().user();
+		const auto self = _owner->session().user();
 		if (self->phone().isEmpty()) {
 			DEBUG_LOG(("AuthSelf Error: Phone is empty."));
 			return QByteArray();
@@ -1343,7 +1343,7 @@ void Account::writeStickerSets(
 		FileKey &stickersKey,
 		CheckSet checkSet,
 		const Data::StickersSetsOrder &order) {
-	const auto &sets = Auth().data().stickers().sets();
+	const auto &sets = _owner->session().data().stickers().sets();
 	if (sets.empty()) {
 		if (stickersKey) {
 			ClearKey(stickersKey, _basePath);
@@ -1444,7 +1444,7 @@ void Account::readStickerSets(
 		stickersKey = 0;
 	};
 
-	auto &sets = Auth().data().stickers().setsRef();
+	auto &sets = _owner->session().data().stickers().setsRef();
 	if (outOrder) outOrder->clear();
 
 	quint32 versionTag = 0;
@@ -1519,7 +1519,7 @@ void Account::readStickerSets(
 			// We will set this flags from order lists when reading those stickers.
 			setFlags &= ~(MTPDstickerSet::Flag::f_installed_date | MTPDstickerSet_ClientFlag::f_featured);
 			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
-				&Auth().data(),
+				&_owner->session().data(),
 				setId,
 				setAccess,
 				setTitle,
@@ -1550,7 +1550,10 @@ void Account::readStickerSets(
 		Serialize::Document::StickerSetInfo info(setId, setAccess, setShortName);
 		base::flat_set<DocumentId> read;
 		for (int32 j = 0; j < scnt; ++j) {
-			auto document = Serialize::Document::readStickerFromStream(stickers.version, stickers.stream, info);
+			auto document = Serialize::Document::readStickerFromStream(
+				&_owner->session(),
+				stickers.version,
+				stickers.stream, info);
 			if (!CheckStreamStatus(stickers.stream)) {
 				return failed();
 			} else if (!document
@@ -1605,7 +1608,7 @@ void Account::readStickerSets(
 			for (int32 k = 0; k < stickersCount; ++k) {
 				quint64 id;
 				stickers.stream >> id;
-				const auto doc = Auth().data().document(id);
+				const auto doc = _owner->session().data().document(id);
 				if (!doc->sticker()) continue;
 
 				pack.push_back(doc);
@@ -1673,7 +1676,7 @@ void Account::writeInstalledStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().stickers().setsOrder());
+	}, _owner->session().data().stickers().setsOrder());
 }
 
 void Account::writeFeaturedStickers() {
@@ -1691,7 +1694,7 @@ void Account::writeFeaturedStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().stickers().featuredSetsOrder());
+	}, _owner->session().data().stickers().featuredSetsOrder());
 }
 
 void Account::writeRecentStickers() {
@@ -1718,7 +1721,7 @@ void Account::writeArchivedStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Auth().data().stickers().archivedSetsOrder());
+	}, _owner->session().data().stickers().archivedSetsOrder());
 }
 
 void Account::importOldRecentStickers() {
@@ -1734,10 +1737,10 @@ void Account::importOldRecentStickers() {
 		return;
 	}
 
-	auto &sets = Auth().data().stickers().setsRef();
+	auto &sets = _owner->session().data().stickers().setsRef();
 	sets.clear();
 
-	auto &order = Auth().data().stickers().setsOrderRef();
+	auto &order = _owner->session().data().stickers().setsOrderRef();
 	order.clear();
 
 	auto &recent = cRefRecentStickers();
@@ -1746,7 +1749,7 @@ void Account::importOldRecentStickers() {
 	const auto def = sets.emplace(
 		Data::Stickers::DefaultSetId,
 		std::make_unique<Data::StickersSet>(
-			&Auth().data(),
+			&_owner->session().data(),
 			Data::Stickers::DefaultSetId,
 			uint64(0),
 			tr::lng_stickers_default_set(tr::now),
@@ -1760,7 +1763,7 @@ void Account::importOldRecentStickers() {
 	const auto custom = sets.emplace(
 		Data::Stickers::CustomSetId,
 		std::make_unique<Data::StickersSet>(
-			&Auth().data(),
+			&_owner->session().data(),
 			Data::Stickers::CustomSetId,
 			uint64(0),
 			qsl("Custom stickers"),
@@ -1795,7 +1798,7 @@ void Account::importOldRecentStickers() {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 		}
 
-		const auto doc = Auth().data().document(
+		const auto doc = _owner->session().data().document(
 			id,
 			access,
 			QByteArray(),
@@ -1844,21 +1847,21 @@ void Account::readInstalledStickers() {
 		return importOldRecentStickers();
 	}
 
-	Auth().data().stickers().setsRef().clear();
+	_owner->session().data().stickers().setsRef().clear();
 	readStickerSets(
 		_installedStickersKey,
-		&Auth().data().stickers().setsOrderRef(),
+		&_owner->session().data().stickers().setsOrderRef(),
 		MTPDstickerSet::Flag::f_installed_date);
 }
 
 void Account::readFeaturedStickers() {
 	readStickerSets(
 		_featuredStickersKey,
-		&Auth().data().stickers().featuredSetsOrderRef(),
+		&_owner->session().data().stickers().featuredSetsOrderRef(),
 		MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
-	const auto &sets = Auth().data().stickers().sets();
-	const auto &order = Auth().data().stickers().featuredSetsOrder();
+	const auto &sets = _owner->session().data().stickers().sets();
+	const auto &order = _owner->session().data().stickers().featuredSetsOrder();
 	int unreadCount = 0;
 	for (const auto setId : order) {
 		auto it = sets.find(setId);
@@ -1867,7 +1870,7 @@ void Account::readFeaturedStickers() {
 			++unreadCount;
 		}
 	}
-	Auth().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
+	_owner->session().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
 }
 
 void Account::readRecentStickers() {
@@ -1881,13 +1884,13 @@ void Account::readFavedStickers() {
 void Account::readArchivedStickers() {
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
-		readStickerSets(_archivedStickersKey, &Auth().data().stickers().archivedSetsOrderRef());
+		readStickerSets(_archivedStickersKey, &_owner->session().data().stickers().archivedSetsOrderRef());
 		archivedStickersRead = true;
 	}
 }
 
 void Account::writeSavedGifs() {
-	auto &saved = Auth().data().stickers().savedGifs();
+	auto &saved = _owner->session().data().stickers().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			ClearKey(_savedGifsKey, _basePath);
@@ -1925,7 +1928,7 @@ void Account::readSavedGifs() {
 		return;
 	}
 
-	auto &saved = Auth().data().stickers().savedGifsRef();
+	auto &saved = _owner->session().data().stickers().savedGifsRef();
 	const auto failed = [&] {
 		ClearKey(_savedGifsKey, _basePath);
 		_savedGifsKey = 0;
@@ -1938,7 +1941,10 @@ void Account::readSavedGifs() {
 	saved.reserve(cnt);
 	OrderedSet<DocumentId> read;
 	for (uint32 i = 0; i < cnt; ++i) {
-		auto document = Serialize::Document::readFromStream(gifs.version, gifs.stream);
+		auto document = Serialize::Document::readFromStream(
+			&_owner->session(),
+			gifs.version,
+			gifs.stream);
 		if (!CheckStreamStatus(gifs.stream)) {
 			return failed();
 		} else if (!document || !document->isGifv()) {
@@ -2229,6 +2235,7 @@ void Account::readRecentHashtagsAndBots() {
 			bots.reserve(botsCount);
 			for (auto i = 0; i < botsCount; ++i) {
 				const auto peer = Serialize::readPeer(
+					&_owner->session(),
 					hashtags.version,
 					hashtags.stream);
 				if (!peer) {
@@ -2439,11 +2446,14 @@ void Account::writeSelf() {
 
 void Account::readSelf(const QByteArray &serialized, int32 streamVersion) {
 	QDataStream stream(serialized);
-	const auto user = Auth().user();
+	const auto user = _owner->session().user();
 	const auto wasLoadedStatus = std::exchange(
 		user->loadedStatus,
 		PeerData::NotLoaded);
-	const auto self = Serialize::readPeer(streamVersion, stream);
+	const auto self = Serialize::readPeer(
+		&_owner->session(),
+		streamVersion,
+		stream);
 	if (!self || !self->isSelf() || self != user) {
 		user->loadedStatus = wasLoadedStatus;
 		return;

@@ -737,8 +737,8 @@ void SetupStickersEmoji(
 		st::settingsChatButton,
 		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
-	)->addClickHandler([] {
-		Ui::show(Box<Ui::Emoji::ManageSetsBox>());
+	)->addClickHandler([=] {
+		Ui::show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);

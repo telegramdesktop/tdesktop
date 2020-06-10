@@ -56,7 +56,11 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	stream << qint32(document->videoThumbnailByteSize());
 }
 
-DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
+DocumentData *Document::readFromStreamHelper(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo *info) {
 	quint64 id, access;
 	QString name, mime;
 	qint32 date, dc, size, width, height, type, versionTag, version = 0;
@@ -151,7 +155,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
 		return nullptr;
 	}
-	return Auth().data().document(
+	return session->data().document(
 		id,
 		access,
 		fileReference,
@@ -171,12 +175,19 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		size);
 }
 
-DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
-	return readFromStreamHelper(streamAppVersion, stream, &info);
+DocumentData *Document::readStickerFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo &info) {
+	return readFromStreamHelper(session, streamAppVersion, stream, &info);
 }
 
-DocumentData *Document::readFromStream(int streamAppVersion, QDataStream &stream) {
-	return readFromStreamHelper(streamAppVersion, stream, nullptr);
+DocumentData *Document::readFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream) {
+	return readFromStreamHelper(session, streamAppVersion, stream, nullptr);
 }
 
 int Document::sizeInStream(DocumentData *document) {

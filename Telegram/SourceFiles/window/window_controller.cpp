@@ -83,10 +83,12 @@ void Controller::setupIntro() {
 }
 
 void Controller::setupMain() {
+	Expects(_account->sessionExists());
+
 	_widget.setupMain();
 
 	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
-		Ui::Emoji::LoadAndSwitchTo(id);
+		Ui::Emoji::LoadAndSwitchTo(&_account->session(), id);
 	}
 }
 

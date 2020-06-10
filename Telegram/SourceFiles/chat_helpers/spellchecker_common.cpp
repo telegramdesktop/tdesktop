@@ -163,6 +163,7 @@ void DownloadDictionaryInBackground(
 	auto sharedLoader = std::make_shared<base::unique_qptr<DictLoader>>();
 	*sharedLoader = base::make_unique_q<DictLoader>(
 		App::main(),
+		session,
 		id,
 		GetDownloadLocation(id),
 		DictPathByLangId(id),
@@ -197,12 +198,13 @@ rpl::producer<int> GlobalLoaderChanged() {
 
 DictLoader::DictLoader(
 	QObject *parent,
+	not_null<Main::Session*> session,
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
 	int size,
 	Fn<void()> destroyCallback)
-: BlobLoader(parent, id, location, folder, size)
+: BlobLoader(parent, session, id, location, folder, size)
 , _destroyCallback(std::move(destroyCallback)) {
 }
 

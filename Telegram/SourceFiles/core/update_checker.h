@@ -41,7 +41,7 @@ public:
 	void stop();
 	void test();
 
-	void setMtproto(const QPointer<MTP::Instance> &mtproto);
+	void setMtproto(const QPointer<MTP::Instance> &mtproto, int32 userId);
 
 	State state() const;
 	int already() const;

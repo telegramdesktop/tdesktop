@@ -172,7 +172,7 @@ private:
 
 class MtpChecker : public Checker {
 public:
-	MtpChecker(QPointer<MTP::Instance> instance, bool testing);
+	MtpChecker(QPointer<MTP::Instance> instance, int32 userId, bool testing);
 
 	void start() override;
 
@@ -191,6 +191,7 @@ private:
 		const FileLocation &location) const;
 
 	MTP::WeakInstance _mtp;
+	int32 _mtpUserId = 0;
 
 };
 
@@ -877,13 +878,17 @@ void HttpLoaderActor::partFailed(QNetworkReply::NetworkError e) {
 	_parent->threadSafeFailed();
 }
 
-MtpChecker::MtpChecker(QPointer<MTP::Instance> instance, bool testing)
+MtpChecker::MtpChecker(
+	QPointer<MTP::Instance> instance,
+	int32 userId,
+	bool testing)
 : Checker(testing)
-, _mtp(instance) {
+, _mtp(instance)
+, _mtpUserId(userId) {
 }
 
 void MtpChecker::start() {
-	if (!_mtp.valid()) {
+	if (!_mtp.valid() || !_mtpUserId) {
 		LOG(("Update Info: MTP is unavailable."));
 		crl::on_main(this, [=] { fail(); });
 		return;
@@ -891,7 +896,8 @@ void MtpChecker::start() {
 	const auto updaterVersion = Platform::AutoUpdateVersion();
 	const auto feed = "tdhbcfeed"
 		+ (updaterVersion > 1 ? QString::number(updaterVersion) : QString());
-	MTP::ResolveChannel(&_mtp, feed, [=](const MTPInputChannel &channel) {
+	MTP::ResolveChannel(&_mtp, _mtpUserId, feed, [=](
+			const MTPInputChannel &channel) {
 		_mtp.send(
 			MTPmessages_GetHistory(
 				MTP_inputPeerChannel(
@@ -925,7 +931,12 @@ void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
 			fail();
 		}
 	};
-	MTP::StartDedicatedLoader(&_mtp, *location, UpdatesFolder(), ready);
+	MTP::StartDedicatedLoader(
+		&_mtp,
+		_mtpUserId,
+		*location,
+		UpdatesFolder(),
+		ready);
 }
 
 auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
@@ -1033,7 +1044,7 @@ public:
 	int already() const;
 	int size() const;
 
-	void setMtproto(const QPointer<MTP::Instance> &mtproto);
+	void setMtproto(const QPointer<MTP::Instance> &mtproto, int32 userId);
 
 	~Updater();
 
@@ -1079,6 +1090,7 @@ private:
 	std::shared_ptr<Loader> _activeLoader;
 	bool _usingMtprotoLoader = (cAlphaVersion() != 0);
 	QPointer<MTP::Instance> _mtproto;
+	int32 _mtprotoUserId = 0;
 
 	rpl::lifetime _lifetime;
 
@@ -1226,7 +1238,7 @@ void Updater::start(bool forceWait) {
 			std::make_unique<HttpChecker>(_testing));
 		startImplementation(
 			&_mtpImplementation,
-			std::make_unique<MtpChecker>(_mtproto, _testing));
+			std::make_unique<MtpChecker>(_mtproto, _mtprotoUserId, _testing));
 
 		_checking.fire({});
 	} else {
@@ -1289,8 +1301,11 @@ void Updater::test() {
 	start(false);
 }
 
-void Updater::setMtproto(const QPointer<MTP::Instance> &mtproto) {
+void Updater::setMtproto(
+		const QPointer<MTP::Instance> &mtproto,
+		int32 userId) {
 	_mtproto = mtproto;
+	_mtprotoUserId = userId;
 }
 
 void Updater::handleTimeout() {
@@ -1388,8 +1403,11 @@ Updater::~Updater() {
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
 	if (IsAppLaunched()) {
-		if (const auto mtproto = Core::App().activeAccount().mtp()) {
-			_updater->setMtproto(mtproto);
+		const auto &account = Core::App().activeAccount();
+		if (account.sessionExists()) {
+			if (const auto mtproto = account.mtp()) {
+				_updater->setMtproto(mtproto, account.session().userId());
+			}
 		}
 	}
 }
@@ -1423,8 +1441,10 @@ void UpdateChecker::test() {
 	_updater->test();
 }
 
-void UpdateChecker::setMtproto(const QPointer<MTP::Instance> &mtproto) {
-	_updater->setMtproto(mtproto);
+void UpdateChecker::setMtproto(
+		const QPointer<MTP::Instance> &mtproto,
+		int32 userId) {
+	_updater->setMtproto(mtproto, userId);
 }
 
 void UpdateChecker::stop() {

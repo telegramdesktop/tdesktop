@@ -127,7 +127,10 @@ inline MTP::AuthKey::Data read<MTP::AuthKey::Data>(QDataStream &stream) {
 
 uint32 peerSize(not_null<PeerData*> peer);
 void writePeer(QDataStream &stream, PeerData *peer);
-PeerData *readPeer(int streamAppVersion, QDataStream &stream);
+PeerData *readPeer(
+	not_null<Main::Session*> session,
+	int streamAppVersion,
+	QDataStream &stream);
 QString peekUserPhone(int streamAppVersion, QDataStream &stream);
 
 } // namespace Serialize

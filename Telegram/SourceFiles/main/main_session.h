@@ -169,5 +169,3 @@ private:
 };
 
 } // namespace Main
-
-Main::Session &Auth();

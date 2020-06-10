@@ -53,7 +53,7 @@ public:
 	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 
-	[[nodiscard]] MTP::Instance *mtp() {
+	[[nodiscard]] MTP::Instance *mtp() const {
 		return _mtp.get();
 	}
 	[[nodiscard]] rpl::producer<MTP::Instance*> mtpValue() const;

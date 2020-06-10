@@ -46,13 +46,18 @@ using QStringView = QString;
 
 class Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, Dictionaries enabledDictionaries);
+	Inner(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		Dictionaries enabledDictionaries);
 
 	Dictionaries enabledRows() const;
 	QueryCallback queryCallback() const;
 
 private:
-	void setupContent(Dictionaries enabledDictionaries);
+	void setupContent(
+		not_null<Main::Session*> session,
+		Dictionaries enabledDictionaries);
 
 	Dictionaries _enabledRows;
 	QueryCallback _queryCallback;
@@ -96,8 +101,10 @@ auto CreateMultiSelect(QWidget *parent) {
 
 Inner::Inner(
 	QWidget *parent,
-	Dictionaries enabledDictionaries) : RpWidget(parent) {
-	setupContent(std::move(enabledDictionaries));
+	not_null<Main::Session*> session,
+	Dictionaries enabledDictionaries)
+: RpWidget(parent) {
+	setupContent(session, std::move(enabledDictionaries));
 }
 
 QueryCallback Inner::queryCallback() const {
@@ -110,6 +117,7 @@ Dictionaries Inner::enabledRows() const {
 
 auto AddButtonWithLoader(
 		not_null<Ui::VerticalLayout*> content,
+		not_null<Main::Session*> session,
 		const Spellchecker::Dict &dict,
 		bool buttonEnabled,
 		rpl::producer<QStringView> query) {
@@ -288,6 +296,7 @@ auto AddButtonWithLoader(
 			const auto weak = Ui::MakeWeak(button);
 			setLocalLoader(base::make_unique_q<Loader>(
 				App::main(),
+				session,
 				id,
 				Spellchecker::GetDownloadLocation(id),
 				Spellchecker::DictPathByLangId(id),
@@ -336,7 +345,9 @@ auto AddButtonWithLoader(
 	return button;
 }
 
-void Inner::setupContent(Dictionaries enabledDictionaries) {
+void Inner::setupContent(
+		not_null<Main::Session*> session,
+		Dictionaries enabledDictionaries) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto queryStream = content->lifetime()
@@ -346,6 +357,7 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 		const auto id = dict.id;
 		const auto row = AddButtonWithLoader(
 			content,
+			session,
 			dict,
 			ranges::contains(enabledDictionaries, id),
 			queryStream->events());
@@ -389,6 +401,7 @@ void ManageDictionariesBox::prepare() {
 	const auto inner = setInnerWidget(
 		object_ptr<Inner>(
 			this,
+			_session,
 			_session->settings().dictionariesEnabled()),
 		st::boxScroll,
 		multiSelect->height()
