@@ -557,7 +557,7 @@ void EmojiKeywords::refresh() {
 }
 
 std::vector<QString> EmojiKeywords::languages() {
-	if (!Main::Session::Exists()) {
+	if (!_api) {
 		return {};
 	}
 	refreshInputLanguages();

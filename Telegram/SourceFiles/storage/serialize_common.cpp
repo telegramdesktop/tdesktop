@@ -216,7 +216,10 @@ PeerData *readPeer(
 		return nullptr;
 	}
 
-	const auto loaded = session->data().peerLoaded(peerId);
+	const auto selfId = session->userPeerId();
+	const auto loaded = (peerId == selfId)
+		? session->user().get()
+		: session->data().peerLoaded(peerId);
 	const auto result = loaded ? loaded : session->data().peer(peerId).get();
 	if (!loaded) {
 		result->loadedStatus = PeerData::FullLoaded;
@@ -237,7 +240,7 @@ PeerData *readPeer(
 		userpicAccessHash = access;
 
 		const auto showPhone = !user->isServiceUser()
-			&& (user->id != session->userPeerId())
+			&& (user->id != selfId)
 			&& (contact <= 0);
 		const auto pname = (showPhone && !phone.isEmpty())
 			? App::formatPhone(phone)
@@ -256,7 +259,7 @@ PeerData *readPeer(
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 
-			if (user->id == session->userPeerId()) {
+			if (user->id == selfId) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {

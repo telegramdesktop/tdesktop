@@ -71,8 +71,6 @@ public:
 	Session(const Session &other) = delete;
 	Session &operator=(const Session &other) = delete;
 
-	[[nodiscard]] static bool Exists();
-
 	[[nodiscard]] Main::Account &account() const;
 	[[nodiscard]] Storage::Account &local() const;
 

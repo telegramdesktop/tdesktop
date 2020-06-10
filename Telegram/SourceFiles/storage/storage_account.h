@@ -120,7 +120,13 @@ public:
 	[[nodiscard]] Export::Settings readExportSettings();
 
 	void writeSelf();
-	void readSelf(const QByteArray &serialized, int32 streamVersion);
+
+	// Read self is special, it can't get session from account, because
+	// it is not really there yet - it is still being constructed.
+	void readSelf(
+		not_null<Main::Session*> session,
+		const QByteArray& serialized,
+		int32 streamVersion);
 
 	void markBotTrusted(not_null<UserData*> bot);
 	[[nodiscard]] bool isBotTrusted(not_null<UserData*> bot);

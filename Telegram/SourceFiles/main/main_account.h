@@ -48,8 +48,7 @@ public:
 	}
 
 	[[nodiscard]] bool sessionExists() const;
-	[[nodiscard]] Session &session();
-	[[nodiscard]] const Session &session() const;
+	[[nodiscard]] Session &session() const;
 	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 

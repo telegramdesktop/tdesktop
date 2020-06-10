@@ -2444,14 +2444,17 @@ void Account::writeSelf() {
 	writeMapDelayed();
 }
 
-void Account::readSelf(const QByteArray &serialized, int32 streamVersion) {
+void Account::readSelf(
+		not_null<Main::Session*> session,
+		const QByteArray &serialized,
+		int32 streamVersion) {
 	QDataStream stream(serialized);
-	const auto user = _owner->session().user();
+	const auto user = session->user();
 	const auto wasLoadedStatus = std::exchange(
 		user->loadedStatus,
 		PeerData::NotLoaded);
 	const auto self = Serialize::readPeer(
-		&_owner->session(),
+		session,
 		streamVersion,
 		stream);
 	if (!self || !self->isSelf() || self != user) {

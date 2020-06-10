@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/dedicated_file_loader.h"
 
-namespace MTP {
-class Instance;
-} // namespace MTP
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Core {
 
@@ -41,7 +41,7 @@ public:
 	void stop();
 	void test();
 
-	void setMtproto(const QPointer<MTP::Instance> &mtproto, int32 userId);
+	void setMtproto(base::weak_ptr<Main::Session> session);
 
 	State state() const;
 	int already() const;

@@ -107,7 +107,6 @@ private:
 	rpl::variable<BlobState> _state;
 
 	MTP::WeakInstance _mtproto;
-	int32 _mtprotoUserId = 0;
 
 	std::unique_ptr<MTP::DedicatedLoader> _implementation;
 

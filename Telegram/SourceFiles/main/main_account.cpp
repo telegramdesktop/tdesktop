@@ -126,12 +126,10 @@ void Account::createSession(
 	Expects(_sessionValue.current() == nullptr);
 
 	_session = std::make_unique<Session>(this, user, std::move(settings));
-
 	if (!serialized.isEmpty()) {
 		// For now it depends on Auth() which depends on _sessionValue.
-		local().readSelf(serialized, streamVersion);
+		local().readSelf(_session.get(), serialized, streamVersion);
 	}
-
 	_sessionValue = _session.get();
 }
 
@@ -154,13 +152,7 @@ bool Account::sessionExists() const {
 	return (_sessionValue.current() != nullptr);
 }
 
-Session &Account::session() {
-	Expects(sessionExists());
-
-	return *_sessionValue.current();
-}
-
-const Session &Account::session() const {
+Session &Account::session() const {
 	Expects(sessionExists());
 
 	return *_sessionValue.current();

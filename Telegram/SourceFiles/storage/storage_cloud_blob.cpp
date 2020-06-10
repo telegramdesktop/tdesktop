@@ -104,8 +104,7 @@ BlobLoader::BlobLoader(
 , _folder(folder)
 , _id(id)
 , _state(Loading{ 0, size })
-, _mtproto(session->account().mtp())
-, _mtprotoUserId(session->userId()) {
+, _mtproto(session.get()) {
 	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
 		if (loader) {
 			setImplementation(std::move(loader));
@@ -113,12 +112,7 @@ BlobLoader::BlobLoader(
 			fail();
 		}
 	};
-	MTP::StartDedicatedLoader(
-		&_mtproto,
-		_mtprotoUserId,
-		location,
-		_folder,
-		ready);
+	MTP::StartDedicatedLoader(&_mtproto, location, _folder, ready);
 }
 
 int BlobLoader::id() const {

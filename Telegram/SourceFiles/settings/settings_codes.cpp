@@ -163,18 +163,19 @@ auto GenerateCodes() {
 				return;
 			}
 
+			const auto weak = base::make_weak(&window->session());
 			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, crl::guard(&window->session(), [=](const FileDialog::OpenResult &result) {
-				if (Main::Session::Exists() && !result.paths.isEmpty()) {
+				if (weak && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
 					if (track->failed()) {
 						Ui::show(Box<InformBox>(
 							"Could not audio :( Errors in 'log.txt'."));
 					} else {
-						window->session().settings().setSoundOverride(
+						weak->settings().setSoundOverride(
 							key,
 							result.paths.front());
-						window->session().saveSettingsDelayed();
+						weak->saveSettingsDelayed();
 					}
 				}
 			}));

@@ -120,9 +120,7 @@ Application::Application(not_null<Launcher*> launcher)
 			_mediaView->clearData();
 		}
 		if (session && !UpdaterDisabled()) {
-			if (const auto mtp = activeAccount().mtp()) {
-				UpdateChecker().setMtproto(mtp, session->userId());
-			}
+			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
 
@@ -578,6 +576,16 @@ bool Application::unreadBadgeMuted() const {
 	return activeAccount().sessionExists()
 		? activeAccount().session().data().unreadBadgeMuted()
 		: false;
+}
+
+bool Application::offerLangPackSwitch() const {
+	// #TODO multi we offer only if we were upgraded from an old authed app.
+	return activeAccount().sessionExists();
+}
+
+bool Application::canApplyLangPackWithoutRestart() const {
+	// #TODO multi we can't if at least one account is authorized.
+	return !activeAccount().sessionExists();
 }
 
 void Application::setInternalLinkDomain(const QString &domain) const {

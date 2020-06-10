@@ -249,7 +249,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 		_languageWasSuggested = true;
 		_firstLanguageSuggestion.notify();
 
-		if (Main::Session::Exists()
+		if (Core::App().offerLegacyLangPackSwitch()
 			&& _langpack.id().isEmpty()
 			&& !_suggestedLanguage.isEmpty()) {
 			_offerSwitchToId = _suggestedLanguage;
@@ -386,9 +386,7 @@ bool CloudManager::canApplyWithoutRestart(const QString &id) const {
 	if (id == qstr("#TEST_X") || id == qstr("#TEST_0")) {
 		return true;
 	}
-
-	// We don't support instant language switch if the auth session exists :(
-	return !Main::Session::Exists();
+	return Core::App().canApplyLangPackWithoutRestart();
 }
 
 void CloudManager::resetToDefault() {

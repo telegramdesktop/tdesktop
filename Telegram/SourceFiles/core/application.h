@@ -85,23 +85,23 @@ public:
 	Application &operator=(const Application &other) = delete;
 	~Application();
 
-	not_null<Launcher*> launcher() const {
+	[[nodiscard]] not_null<Launcher*> launcher() const {
 		return _launcher;
 	}
 
 	void run();
 
-	Ui::Animations::Manager &animationManager() const {
+	[[nodiscard]] Ui::Animations::Manager &animationManager() const {
 		return *_animationsManager;
 	}
 
 	// Windows interface.
-	Window::Controller *activeWindow() const;
+	[[nodiscard]] Window::Controller *activeWindow() const;
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
-	QWidget *getFileDialogParent();
+	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
-	QWidget *getModalParent();
+	[[nodiscard]] QWidget *getModalParent();
 
 	// Media view interface.
 	void checkMediaViewActivation();
@@ -113,13 +113,13 @@ public:
 	void showTheme(
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud);
-	PeerData *ui_getPeerForMouseAction();
+	[[nodiscard]] PeerData *ui_getPeerForMouseAction();
 
-	QPoint getPointForCallPanelCenter() const;
-	QImage logo() const {
+	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
+	[[nodiscard]] QImage logo() const {
 		return _logo;
 	}
-	QImage logoNoMargin() const {
+	[[nodiscard]] QImage logoNoMargin() const {
 		return _logoNoMargin;
 	}
 
@@ -129,7 +129,7 @@ public:
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
 	// Dc options and proxy.
-	not_null<MTP::DcOptions*> dcOptions() {
+	[[nodiscard]] not_null<MTP::DcOptions*> dcOptions() {
 		return _dcOptions.get();
 	}
 	struct ProxyChange {
@@ -155,28 +155,30 @@ public:
 
 	// Main::Session component.
 	[[nodiscard]] int unreadBadge() const;
-	bool unreadBadgeMuted() const;
+	[[nodiscard]] bool unreadBadgeMuted() const;
 
 	// Media component.
-	Media::Audio::Instance &audio() {
+	[[nodiscard]] Media::Audio::Instance &audio() {
 		return *_audio;
 	}
 
 	// Langpack and emoji keywords.
-	Lang::Instance &langpack() {
+	[[nodiscard]] Lang::Instance &langpack() {
 		return *_langpack;
 	}
-	Lang::CloudManager *langCloudManager() {
+	[[nodiscard]] Lang::CloudManager *langCloudManager() {
 		return _langCloudManager.get();
 	}
-	ChatHelpers::EmojiKeywords &emojiKeywords() {
+	[[nodiscard]] bool offerLangPackSwitch() const;
+	[[nodiscard]] bool canApplyLangPackWithoutRestart() const;
+	[[nodiscard]] ChatHelpers::EmojiKeywords &emojiKeywords() {
 		return *_emojiKeywords;
 	}
 
 	// Internal links.
 	void setInternalLinkDomain(const QString &domain) const;
-	QString createInternalLink(const QString &query) const;
-	QString createInternalLinkFull(const QString &query) const;
+	[[nodiscard]] QString createInternalLink(const QString &query) const;
+	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);

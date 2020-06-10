@@ -117,11 +117,6 @@ Storage::Account &Session::local() const {
 	return _account->local();
 }
 
-bool Session::Exists() {
-	return Core::IsAppLaunched()
-		&& Core::App().activeAccount().sessionExists();
-}
-
 base::Observable<void> &Session::downloaderTaskFinished() {
 	return downloader().taskFinished();
 }

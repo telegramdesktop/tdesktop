@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
-#include "main/main_session.h" // Session::Exists.
 #include "main/main_account.h" // Account::configUpdated.
 #include "apiwrap.h"
 #include "core/application.h"
@@ -164,7 +163,6 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	bool hasAuthorization();
 	void importDone(const MTPauth_Authorization &result, mtpRequestId requestId);
 	bool importFail(const RPCError &error, mtpRequestId requestId);
 	void exportDone(const MTPauth_ExportedAuthorization &result, mtpRequestId requestId);
@@ -1106,10 +1104,6 @@ bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHan
 	return true;
 }
 
-bool Instance::Private::hasAuthorization() {
-	return Main::Session::Exists();
-}
-
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {
 	const auto shiftedDcId = queryRequestByDc(requestId);
 	if (!shiftedDcId) {
@@ -1230,7 +1224,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 
 		DEBUG_LOG(("MTP Info: changing request %1 from dcWithShift%2 to dc%3").arg(requestId).arg(dcWithShift).arg(newdcWithShift));
 		if (dcWithShift < 0) { // newdc shift = 0
-			if (false && hasAuthorization() && _authExportRequests.find(requestId) == _authExportRequests.cend()) {
+			if (false/* && hasAuthorization() && _authExportRequests.find(requestId) == _authExportRequests.cend()*/) {
 				//
 				// migrate not supported at this moment
 				// this was not tested even once
@@ -1305,7 +1299,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
 		}
 		auto newdc = BareDcId(qAbs(dcWithShift));
-		if (!newdc || newdc == mainDcId() || !hasAuthorization()) {
+		if (!newdc || newdc == mainDcId()) {
 			if (!badGuestDc && _globalHandler.onFail) {
 				(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
 			}
