@@ -540,6 +540,7 @@ void Account::setPasscode(const QByteArray &passcode) {
 }
 
 void Account::reset() {
+	auto names = collectGoodNames();
 	_passcodeKeySalt.clear();
 	_draftsMap.clear();
 	_draftCursorsMap.clear();
@@ -564,6 +565,16 @@ void Account::reset() {
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_mapChanged = true;
 	writeMap();
+
+	crl::async([base = _basePath, names = std::move(names)] {
+		for (const auto &name : names) {
+			if (!name.endsWith(qstr("map0"))
+				&& !name.endsWith(qstr("map1"))
+				&& !name.endsWith(qstr("maps"))) {
+				QFile::remove(base + name);
+			}
+		}
+	});
 }
 
 void Account::writeLocations() {

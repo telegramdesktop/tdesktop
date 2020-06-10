@@ -1069,20 +1069,6 @@ void ClearManager::onStart() {
 		switch (task) {
 		case ClearManagerAll: {
 			result = QDir(cTempDir()).removeRecursively();
-			// #TODO
-			//QDirIterator di(_userBasePath, QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
-			//while (di.hasNext()) {
-			//	di.next();
-			//	const QFileInfo& fi = di.fileInfo();
-			//	if (fi.isDir() && !fi.isSymLink()) {
-			//		if (!QDir(di.filePath()).removeRecursively()) result = false;
-			//	} else {
-			//		QString path = di.filePath();
-			//		if (!path.endsWith(qstr("map0")) && !path.endsWith(qstr("map1")) && !path.endsWith(qstr("maps"))) {
-			//			if (!QFile::remove(di.filePath())) result = false;
-			//		}
-			//	}
-			//}
 		} break;
 		case ClearManagerDownloads:
 			result = QDir(cTempDir()).removeRecursively();
