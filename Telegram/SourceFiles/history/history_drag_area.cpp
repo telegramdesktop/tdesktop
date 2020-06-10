@@ -49,7 +49,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	auto &lifetime = container->lifetime();
 	container->setAcceptDrops(true);
 
-	const auto attachDragDocument = Ui::CreateChild<DragArea>(container.get());
+	const auto attachDragDocument =
+		Ui::CreateChild<DragArea>(container.get());
 	const auto attachDragPhoto = Ui::CreateChild<DragArea>(container.get());
 
 	attachDragDocument->hide();
@@ -183,34 +184,37 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		e->acceptProposedAction();
 	};
 
+	const auto processDragEvents = [=](not_null<QEvent*> event) {
+		switch (event->type()) {
+		case QEvent::DragEnter:
+			dragEnterEvent(static_cast<QDragEnterEvent*>(event.get()));
+			return true;
+		case QEvent::DragLeave:
+			dragLeaveEvent(static_cast<QDragLeaveEvent*>(event.get()));
+			return true;
+		case QEvent::Drop:
+			dropEvent(static_cast<QDropEvent*>(event.get()));
+			return true;
+		};
+		return false;
+	};
+
 	container->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
 		return ranges::contains(kDragAreaEvents, event->type());
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 
-		if (type == QEvent::DragEnter) {
-			dragEnterEvent(static_cast<QDragEnterEvent*>(event.get()));
-		} else if (type == QEvent::DragLeave) {
-			dragLeaveEvent(static_cast<QDragLeaveEvent*>(event.get()));
-		} else if (type == QEvent::Drop) {
-			dropEvent(static_cast<QDropEvent*>(event.get()));
-		} else if (type == QEvent::Leave) {
-			resetDragStateIfNeeded();
-		} else if (type == QEvent::MouseButtonRelease) {
+		if (processDragEvents(event)) {
+			return;
+		} else if (type == QEvent::Leave
+			|| type == QEvent::MouseButtonRelease) {
 			resetDragStateIfNeeded();
 		}
 	}, lifetime);
 
 	const auto eventFilter = [=](not_null<QEvent*> event) {
-		const auto type = event->type();
-		if (type == QEvent::DragEnter) {
-			dragEnterEvent(static_cast<QDragEnterEvent*>(event.get()));
-		} else if (type == QEvent::DragLeave) {
-			dragLeaveEvent(static_cast<QDragLeaveEvent*>(event.get()));
-		} else if (type == QEvent::Drop) {
-			dropEvent(static_cast<QDropEvent*>(event.get()));
-		}
+		processDragEvents(event);
 		return base::EventFilterResult::Continue;
 	};
 	base::install_event_filter(attachDragDocument, eventFilter);

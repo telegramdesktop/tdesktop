@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
+#include "history/history_drag_area.h"
 #include "history/history_item.h"
 #include "chat_helpers/message_field.h" // SendMenuType.
+#include "ui/delayed_activation.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
+#include "mainwindow.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
@@ -1010,6 +1013,11 @@ void ScheduledWidget::showAnimatedHook(
 void ScheduledWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	_composeControls->showFinished();
+
+	// We should setup the drag area only after
+	// the section animation is finished,
+	// because after that the method showChildren() is called.
+	setupDragArea();
 }
 
 bool ScheduledWidget::floatPlayerHandleWheelEvent(QEvent *e) {
@@ -1170,6 +1178,25 @@ void ScheduledWidget::confirmDeleteSelected() {
 
 void ScheduledWidget::clearSelected() {
 	_inner->cancelSelection();
+}
+
+void ScheduledWidget::setupDragArea() {
+	const auto areas = DragArea::SetupDragAreaToContainer(
+		this,
+		[=] { return !_history; },
+		nullptr,
+		[=] { updateControlsGeometry(); });
+
+	const auto droppedCallback = [=](CompressConfirm compressed) {
+		return [=](const QMimeData *data) {
+			confirmSendingFiles(data, compressed);
+			const auto window = controller()->widget();
+			window->activateWindow();
+			Ui::ActivateWindowDelayed(window);
+		};
+	};
+	areas.document->setDroppedCallback(droppedCallback(CompressConfirm::No));
+	areas.photo->setDroppedCallback(droppedCallback(CompressConfirm::Yes));
 }
 
 } // namespace HistoryView

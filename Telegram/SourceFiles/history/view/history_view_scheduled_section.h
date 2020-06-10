@@ -129,6 +129,8 @@ private:
 
 	void setupComposeControls();
 
+	void setupDragArea();
+
 	void setupScrollDownButton();
 	void scrollDownClicked();
 	void scrollDownAnimationFinish();
