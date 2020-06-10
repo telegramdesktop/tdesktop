@@ -15,7 +15,6 @@ enum class MimeDataState;
 } // namespace Storage
 
 class DragArea : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	DragArea(QWidget *parent);
@@ -57,23 +56,14 @@ protected:
 	void dragLeaveEvent(QDragLeaveEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
 
-public slots:
+private:
 	void hideStart();
 	void hideFinish();
 
 	void showStart();
 
-private:
 	void setIn(bool in);
 	void opacityAnimationCallback();
-	QRect innerRect() const {
-		return QRect(
-			st::dragPadding.left(),
-			st::dragPadding.top(),
-			width() - st::dragPadding.left() - st::dragPadding.right(),
-			height() - st::dragPadding.top() - st::dragPadding.bottom()
-		);
-	}
 
 	bool _hiding = false;
 	bool _in = false;

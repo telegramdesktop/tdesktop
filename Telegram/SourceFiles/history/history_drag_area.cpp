@@ -36,6 +36,14 @@ constexpr auto kDragAreaEvents = {
 	QEvent::Leave,
 };
 
+inline auto InnerRect(not_null<Ui::RpWidget*> widget) {
+	return QRect(
+		st::dragPadding.left(),
+		st::dragPadding.top(),
+		widget->width() - st::dragPadding.left() - st::dragPadding.right(),
+		widget->height() - st::dragPadding.top() - st::dragPadding.bottom());
+}
+
 } // namespace
 
 DragArea::Areas DragArea::SetupDragAreaToContainer(
@@ -245,23 +253,27 @@ bool DragArea::overlaps(const QRect &globalRect) {
 		return false;
 	}
 
-	auto inner = innerRect();
-	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
-	return inner.marginsRemoved(QMargins(st::boxRadius, 0, st::boxRadius, 0)).contains(testRect)
-		|| inner.marginsRemoved(QMargins(0, st::boxRadius, 0, st::boxRadius)).contains(testRect);
+	const auto inner = InnerRect(this);
+	const auto testRect = QRect(
+		mapFromGlobal(globalRect.topLeft()),
+		globalRect.size());
+	const auto h = QMargins(st::boxRadius, 0, st::boxRadius, 0);
+	const auto v = QMargins(0, st::boxRadius, 0, st::boxRadius);
+	return inner.marginsRemoved(h).contains(testRect)
+		|| inner.marginsRemoved(v).contains(testRect);
 }
 
 
 void DragArea::mouseMoveEvent(QMouseEvent *e) {
-	if (_hiding) return;
+	if (_hiding) {
+		return;
+	}
 
-	auto in = QRect(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom()).contains(e->pos());
-	setIn(in);
+	setIn(InnerRect(this).contains(e->pos()));
 }
 
 void DragArea::dragMoveEvent(QDragMoveEvent *e) {
-	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
-	setIn(r.contains(e->pos()));
+	setIn(InnerRect(this).contains(e->pos()));
 	e->setDropAction(_in ? Qt::CopyAction : Qt::IgnoreAction);
 	e->accept();
 }
@@ -269,7 +281,11 @@ void DragArea::dragMoveEvent(QDragMoveEvent *e) {
 void DragArea::setIn(bool in) {
 	if (_in != in) {
 		_in = in;
-		_a_in.start([this] { update(); }, _in ? 0. : 1., _in ? 1. : 0., st::boxDuration);
+		_a_in.start(
+			[=] { update(); },
+			_in ? 0. : 1.,
+			_in ? 1. : 0.,
+			st::boxDuration);
 	}
 }
 
@@ -282,28 +298,45 @@ void DragArea::setText(const QString &text, const QString &subtext) {
 void DragArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
+	const auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (!_a_opacity.animating() && _hiding) {
 		return;
 	}
 	p.setOpacity(opacity);
-	auto inner = innerRect();
+	const auto inner = InnerRect(this);
 
 	if (!_cache.isNull()) {
-		p.drawPixmapLeft(inner.x() - st::boxRoundShadow.extend.left(), inner.y() - st::boxRoundShadow.extend.top(), width(), _cache);
+		p.drawPixmapLeft(
+			inner.x() - st::boxRoundShadow.extend.left(),
+			inner.y() - st::boxRoundShadow.extend.top(),
+			width(),
+			_cache);
 		return;
 	}
 
 	Ui::Shadow::paint(p, inner, width(), st::boxRoundShadow);
 	App::roundRect(p, inner, st::boxBg, BoxCorners);
 
-	p.setPen(anim::pen(st::dragColor, st::dragDropColor, _a_in.value(_in ? 1. : 0.)));
+	p.setPen(anim::pen(
+		st::dragColor,
+		st::dragDropColor,
+		_a_in.value(_in ? 1. : 0.)));
 
 	p.setFont(st::dragFont);
-	p.drawText(QRect(0, (height() - st::dragHeight) / 2, width(), st::dragFont->height), _text, QTextOption(style::al_top));
+	const auto rText = QRect(
+		0,
+		(height() - st::dragHeight) / 2,
+		width(),
+		st::dragFont->height);
+	p.drawText(rText, _text, QTextOption(style::al_top));
 
 	p.setFont(st::dragSubfont);
-	p.drawText(QRect(0, (height() + st::dragHeight) / 2 - st::dragSubfont->height, width(), st::dragSubfont->height * 2), _subtext, QTextOption(style::al_top));
+	const auto rSubtext = QRect(
+		0,
+		(height() + st::dragHeight) / 2 - st::dragSubfont->height,
+		width(),
+		st::dragSubfont->height * 2);
+	p.drawText(rSubtext, _subtext, QTextOption(style::al_top));
 }
 
 void DragArea::dragEnterEvent(QDragEnterEvent *e) {
@@ -341,11 +374,15 @@ void DragArea::hideStart() {
 	if (_cache.isNull()) {
 		_cache = Ui::GrabWidget(
 			this,
-			innerRect().marginsAdded(st::boxRoundShadow.extend));
+			InnerRect(this).marginsAdded(st::boxRoundShadow.extend));
 	}
 	_hiding = true;
 	setIn(false);
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::boxDuration);
+	_a_opacity.start(
+		[=] { opacityAnimationCallback(); },
+		1.,
+		0.,
+		st::boxDuration);
 }
 
 void DragArea::hideFinish() {
@@ -362,10 +399,14 @@ void DragArea::showStart() {
 	if (_cache.isNull()) {
 		_cache = Ui::GrabWidget(
 			this,
-			innerRect().marginsAdded(st::boxRoundShadow.extend));
+			InnerRect(this).marginsAdded(st::boxRoundShadow.extend));
 	}
 	show();
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::boxDuration);
+	_a_opacity.start(
+		[=] { opacityAnimationCallback(); },
+		0.,
+		1.,
+		st::boxDuration);
 }
 
 void DragArea::opacityAnimationCallback() {
