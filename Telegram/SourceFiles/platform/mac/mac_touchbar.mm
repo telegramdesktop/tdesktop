@@ -41,6 +41,7 @@
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"
+#include "window/window_controller.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -585,7 +586,7 @@ void AppendEmojiPacks(
 	}, _peerChangedLifetime);
 
 	_peer->session().changes().historyUpdates(
-		_peer->session().history(_peer),
+		_peer->session().data().history(_peer),
 		Data::HistoryUpdate::Flag::UnreadView
 	) | rpl::start_with_next([=] {
 		[self updateBadge];

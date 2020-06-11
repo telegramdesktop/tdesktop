@@ -192,7 +192,6 @@ private:
 		const FileLocation &location) const;
 
 	MTP::WeakInstance _mtp;
-	int32 _mtpUserId = 0;
 
 };
 

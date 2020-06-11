@@ -65,7 +65,7 @@ rpl::producer<UpdateType> Changes::Manager<DataType, UpdateType>::updates(
 template <typename DataType, typename UpdateType>
 auto Changes::Manager<DataType, UpdateType>::realtimeUpdates(Flag flag) const
 -> rpl::producer<UpdateType> {
-	return _realtimeStreams[CountBit(flag)].events();
+	return _realtimeStreams[details::CountBit(flag)].events();
 }
 
 template <typename DataType, typename UpdateType>

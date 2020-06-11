@@ -19,6 +19,20 @@ class Entry;
 
 namespace Data {
 
+namespace details {
+
+template <typename Flag>
+inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
+	auto i = 0;
+	while ((1ULL << i) != static_cast<uint64>(Last)) {
+		++i;
+		Assert(i != 64);
+	}
+	return (i + 1);
+}
+
+} // namespace details
+
 struct NameUpdate {
 	NameUpdate(
 		not_null<PeerData*> peer,
@@ -215,16 +229,6 @@ public:
 	void sendNotifications();
 
 private:
-	template <typename Flag>
-	static constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
-		auto i = 0;
-		while ((1ULL << i) != static_cast<uint64>(Last)) {
-			++i;
-			Assert(i != 64);
-		}
-		return (i + 1);
-	}
-
 	template <typename DataType, typename UpdateType>
 	class Manager final {
 	public:
@@ -248,7 +252,7 @@ private:
 		void sendNotifications();
 
 	private:
-		static constexpr auto kCount = CountBit<Flag>();
+		static constexpr auto kCount = details::CountBit<Flag>();
 
 		void sendRealtimeNotifications(not_null<DataType*> data, Flags flags);
 
@@ -257,8 +261,6 @@ private:
 		rpl::event_stream<UpdateType> _stream;
 
 	};
-
-	static constexpr auto kHistoryCount = CountBit<HistoryUpdate::Flag>();
 
 	void scheduleNotifications();
 
