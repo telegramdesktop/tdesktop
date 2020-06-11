@@ -602,18 +602,20 @@ void AppendEmojiPacks(
 }
 
 - (void) buttonActionPin:(NSButton *)sender {
+	const auto active = Core::App().activeWindow();
+	const auto controller = active ? active->sessionController() : nullptr;
 	const auto openFolder = [=] {
-		if (!App::wnd()) {
+		if (!controller) {
 			return;
 		}
 		if (const auto folder = _session->data().folderLoaded(Data::Folder::kId)) {
-			App::wnd()->sessionController()->openFolder(folder);
+			controller->openFolder(folder);
 		}
 	};
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
 		self.number == kArchiveId
 			? openFolder()
-			: App::main()->choosePeer(self.number == kSavedMessagesId
+			: controller->content()->choosePeer(self.number == kSavedMessagesId
 				? _session->userPeerId()
 				: self.peer->id, ShowAtUnreadMsgId);
 	});
@@ -1477,6 +1479,8 @@ void AppendEmojiPacks(
 - (void) buttonAction:(NSButton *)sender {
 	const auto command = sender.tag;
 
+	const auto active = Core::App().activeWindow();
+	const auto controller = active ? active->sessionController() : nullptr;
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
 		switch (command) {
 		case kCommandPlayPause:
@@ -1489,7 +1493,7 @@ void AppendEmojiPacks(
 			Media::Player::instance()->next(kSongType);
 			break;
 		case kCommandClosePlayer:
-			App::main()->closeBothPlayers();
+			controller->content()->closeBothPlayers();
 			break;
 		}
 	});

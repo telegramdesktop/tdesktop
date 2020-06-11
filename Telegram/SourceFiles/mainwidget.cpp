@@ -1108,7 +1108,7 @@ void MainWidget::onSendFileConfirm(
 	_history->sendFileConfirmed(file, oldId);
 }
 
-bool MainWidget::onSendSticker(DocumentData *document) {
+bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
 	return _history->sendExistingDocument(document);
 }
 

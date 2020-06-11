@@ -1444,6 +1444,10 @@ void OverlayWidget::onForward() {
 	if (!_session) {
 		return;
 	}
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
 	const auto item = _session->data().message(_msgid);
 	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return;
@@ -1451,7 +1455,7 @@ void OverlayWidget::onForward() {
 
 	close();
 	Window::ShowForwardMessagesBox(
-		App::wnd()->sessionController(),
+		active.front(),
 		{ 1, item->fullId() });
 }
 
@@ -1474,8 +1478,12 @@ void OverlayWidget::onDelete() {
 		return false;
 	};
 
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
 	if (deletingPeerPhoto()) {
-		App::main()->deletePhotoLayer(_photo);
+		active.front()->content()->deletePhotoLayer(_photo);
 	} else if (const auto item = session->data().message(_msgid)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));

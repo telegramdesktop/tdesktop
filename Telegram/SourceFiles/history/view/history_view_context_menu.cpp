@@ -506,8 +506,9 @@ bool AddDeleteMessageAction(
 			}
 		}
 	}
+	const auto controller = list->controller();
 	const auto itemId = item->fullId();
-	menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
+	const auto callback = crl::guard(controller, [=] {
 		if (const auto item = owner->message(itemId)) {
 			if (asGroup) {
 				if (const auto group = owner->groups().find(item)) {
@@ -519,7 +520,7 @@ bool AddDeleteMessageAction(
 			}
 			if (const auto message = item->toHistoryMessage()) {
 				if (message->uploading()) {
-					App::main()->cancelUploadLayer(item);
+					controller->content()->cancelUploadLayer(item);
 					return;
 				}
 			}
@@ -527,6 +528,7 @@ bool AddDeleteMessageAction(
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		}
 	});
+	menu->addAction(tr::lng_context_delete_msg(tr::now), callback);
 	return true;
 }
 

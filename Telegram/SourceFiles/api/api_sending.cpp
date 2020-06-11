@@ -193,8 +193,8 @@ void SendExistingDocument(
 	if (document->sticker()) {
 		if (const auto main = App::main()) {
 			main->incrementSticker(document);
-			document->owner().stickers().notifyRecentUpdated();
 		}
+		document->owner().stickers().notifyRecentUpdated();
 	}
 }
 

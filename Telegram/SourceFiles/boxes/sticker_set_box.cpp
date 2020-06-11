@@ -461,8 +461,8 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		const auto index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && !isMasksSet()) {
 			const auto sticker = _pack[index];
-			Ui::PostponeCall(crl::guard(App::main(), [=] {
-				if (App::main()->onSendSticker(sticker)) {
+			Ui::PostponeCall(crl::guard(_controller, [=] {
+				if (_controller->content()->sendExistingDocument(sticker)) {
 					Ui::hideSettingsAndLayer();
 				}
 			}));

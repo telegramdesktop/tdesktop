@@ -1668,8 +1668,10 @@ ClickHandlerPtr Message::fastReplyLink() const {
 		const auto itemId = data()->fullId();
 		_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
 			if (const auto item = owner->message(itemId)) {
-				if (const auto main = App::main()) {
-					main->replyToItem(item);
+				if (const auto main = App::main()) { // multi good
+					if (&main->session() == &owner->session()) {
+						main->replyToItem(item);
+					}
 				}
 			}
 		});

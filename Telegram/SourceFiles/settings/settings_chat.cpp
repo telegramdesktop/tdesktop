@@ -384,6 +384,7 @@ private:
 	crl::time radialTimeShift() const;
 	void radialAnimationCallback(crl::time now);
 
+	const not_null<Window::SessionController*> _controller;
 	QPixmap _background;
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
@@ -400,6 +401,7 @@ BackgroundRow::BackgroundRow(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
+, _controller(controller)
 , _chooseFromGallery(
 	this,
 	tr::lng_settings_bg_from_gallery(tr::now),
@@ -433,7 +435,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 	const auto radial = _radial.animating();
 	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	if (radial) {
-		const auto backThumb = App::main()->newBackgroundThumb();
+		const auto backThumb = _controller->content()->newBackgroundThumb();
 		if (!backThumb) {
 			p.drawPixmap(0, 0, _background);
 		} else {
@@ -494,14 +496,14 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 }
 
 float64 BackgroundRow::radialProgress() const {
-	return App::main()->chatBackgroundProgress();
+	return _controller->content()->chatBackgroundProgress();
 }
 
 bool BackgroundRow::radialLoading() const {
-	const auto main = App::main();
-	if (main->chatBackgroundLoading()) {
-		main->checkChatBackground();
-		if (main->chatBackgroundLoading()) {
+	const auto widget = _controller->content();
+	if (widget->chatBackgroundLoading()) {
+		widget->checkChatBackground();
+		if (widget->chatBackgroundLoading()) {
 			return true;
 		} else {
 			const_cast<BackgroundRow*>(this)->updateImage();
@@ -788,9 +790,7 @@ void SetupMessages(
 
 	group->setChangedCallback([=](SendByType value) {
 		controller->session().settings().setSendSubmitWay(value);
-		if (App::main()) {
-			App::main()->ctrlEnterSubmitUpdated();
-		}
+		controller->content()->ctrlEnterSubmitUpdated();
 		controller->session().saveSettingsDelayed();
 	});
 

@@ -166,7 +166,7 @@ public:
 	void onSendFileConfirm(
 		const std::shared_ptr<FileLoadResult> &file,
 		const std::optional<FullMsgId> &oldId);
-	bool onSendSticker(DocumentData *sticker);
+	bool sendExistingDocument(not_null<DocumentData*> sticker);
 
 	bool isActive() const;
 	[[nodiscard]] bool doWeMarkAsRead() const;

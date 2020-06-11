@@ -170,7 +170,9 @@ bool PinnedLimitReached(Dialogs::Key key, FilterId filterId) {
 	return true;
 }
 
-void TogglePinnedDialog(Dialogs::Key key) {
+void TogglePinnedDialog(
+		not_null<Window::SessionController*> controller,
+		Dialogs::Key key) {
 	if (!key.entry()->folderKnown()) {
 		return;
 	}
@@ -198,15 +200,16 @@ void TogglePinnedDialog(Dialogs::Key key) {
 		)).send();
 	}
 	if (isPinned) {
-		if (const auto main = App::main()) {
-			main->dialogsToUp();
-		}
+		controller->content()->dialogsToUp();
 	}
 }
 
-void TogglePinnedDialog(Dialogs::Key key, FilterId filterId) {
+void TogglePinnedDialog(
+		not_null<Window::SessionController*> controller,
+		Dialogs::Key key,
+		FilterId filterId) {
 	if (!filterId) {
-		return TogglePinnedDialog(key);
+		return TogglePinnedDialog(controller, key);
 	}
 	const auto owner = &key.entry()->owner();
 
@@ -227,9 +230,7 @@ void TogglePinnedDialog(Dialogs::Key key, FilterId filterId) {
 	owner->setChatPinned(key, filterId, isPinned);
 	Api::SaveNewFilterPinned(&owner->session(), filterId);
 	if (isPinned) {
-		if (const auto main = App::main()) {
-			main->dialogsToUp();
-		}
+		controller->content()->dialogsToUp();
 	}
 }
 
@@ -315,7 +316,10 @@ void Filler::addTogglePin() {
 			: tr::lng_context_pin_to_top(tr::now);
 	};
 	const auto pinToggle = [=] {
-		TogglePinnedDialog(peer->owner().history(peer), filterId);
+		TogglePinnedDialog(
+			_controller,
+			peer->owner().history(peer),
+			filterId);
 	};
 	const auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
@@ -344,8 +348,10 @@ void Filler::addInfo() {
 }
 
 //void Filler::addSearch() {
-//	_addAction(tr::lng_profile_search_messages(tr::now), [peer = _peer] {
-//		App::main()->searchInChat(peer->owner().history(peer));
+//	const auto controller = _controller;
+//	const auto peer = _peer;
+//	_addAction(tr::lng_profile_search_messages(tr::now), [=] {
+//		controller->content()->searchInChat(peer->owner().history(peer));
 //	});
 //}
 
@@ -689,8 +695,8 @@ void FolderFiller::addTogglesForArchive() {
 }
 //
 //void FolderFiller::addInfo() {
-//	auto controller = _controller;
-//	auto feed = _feed;
+//	const auto controller = _controller;
+//	const auto feed = _feed;
 //	_addAction(tr::lng_context_view_feed_info(tr::now), [=] {
 //		controller->showSection(Info::Memento(
 //			feed,
@@ -707,8 +713,9 @@ void FolderFiller::addTogglesForArchive() {
 //
 //void FolderFiller::addSearch() {
 //	const auto feed = _feed;
+//	const auto controller = _controller;
 //	_addAction(tr::lng_profile_search_messages(tr::now), [=] {
-//		App::main()->searchInChat(feed);
+//		controller->content()->searchInChat(feed);
 //	});
 //}
 //

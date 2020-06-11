@@ -246,7 +246,8 @@ void BlockedBoxController::loadMoreRows() {
 }
 
 void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
-	InvokeQueued(App::main(), [peerId = row->peer()->id] {
+	const auto peer = row->peer();
+	crl::on_main(&peer->session(), [peerId = peer->id] {
 		Ui::showPeerHistory(peerId, ShowAtUnreadMsgId);
 	});
 }

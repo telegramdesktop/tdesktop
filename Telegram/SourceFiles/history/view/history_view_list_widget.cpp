@@ -305,6 +305,10 @@ Main::Session &ListWidget::session() const {
 	return _controller->session();
 }
 
+not_null<Window::SessionController*> ListWidget::controller() const {
+	return _controller;
+}
+
 not_null<ListDelegate*> ListWidget::delegate() const {
 	return _delegate;
 }

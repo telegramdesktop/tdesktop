@@ -137,9 +137,9 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<ListDelegate*> delegate);
 
-	Main::Session &session() const;
-
-	not_null<ListDelegate*> delegate() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<Window::SessionController*> controller() const;
+	[[nodiscard]] not_null<ListDelegate*> delegate() const;
 
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
@@ -437,8 +437,8 @@ private:
 
 	static constexpr auto kMinimalIdsLimit = 24;
 
-	not_null<ListDelegate*> _delegate;
-	not_null<Window::SessionController*> _controller;
+	const not_null<ListDelegate*> _delegate;
+	const not_null<Window::SessionController*> _controller;
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
 	Context _context;

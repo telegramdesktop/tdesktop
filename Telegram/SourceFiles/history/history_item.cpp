@@ -904,16 +904,18 @@ ClickHandlerPtr goToMessageClickHandler(
 		MsgId msgId,
 		FullMsgId returnToId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		if (const auto main = App::main()) {
-			if (const auto returnTo = peer->owner().message(returnToId)) {
-				if (returnTo->history()->peer == peer) {
-					main->pushReplyReturn(returnTo);
+		if (const auto main = App::main()) { // multi good
+			if (&main->session() == &peer->session()) {
+				if (const auto returnTo = peer->owner().message(returnToId)) {
+					if (returnTo->history()->peer == peer) {
+						main->pushReplyReturn(returnTo);
+					}
 				}
+				main->controller()->showPeerHistory(
+					peer,
+					Window::SectionShow::Way::Forward,
+					msgId);
 			}
-			App::wnd()->sessionController()->showPeerHistory(
-				peer,
-				Window::SectionShow::Way::Forward,
-				msgId);
 		}
 	});
 }

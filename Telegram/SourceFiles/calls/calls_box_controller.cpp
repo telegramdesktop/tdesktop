@@ -302,10 +302,14 @@ void BoxController::refreshAbout() {
 }
 
 void BoxController::rowClicked(not_null<PeerListRow*> row) {
-	auto itemsRow = static_cast<Row*>(row.get());
-	auto itemId = itemsRow->maxItemId();
-	InvokeQueued(App::main(), [peerId = row->peer()->id, itemId] {
-		Ui::showPeerHistory(peerId, itemId);
+	const auto itemsRow = static_cast<Row*>(row.get());
+	const auto itemId = itemsRow->maxItemId();
+	const auto window = _window;
+	crl::on_main(window, [=, peer = row->peer()] {
+		window->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			itemId);
 	});
 }
 
