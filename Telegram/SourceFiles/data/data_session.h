@@ -549,8 +549,15 @@ public:
 	void notifyWebPageUpdateDelayed(not_null<WebPageData*> page);
 	void notifyGameUpdateDelayed(not_null<GameData*> game);
 	void notifyPollUpdateDelayed(not_null<PollData*> poll);
-	bool hasPendingWebPageGamePollNotification() const;
+	[[nodiscard]] bool hasPendingWebPageGamePollNotification() const;
 	void sendWebPageGamePollNotifications();
+	[[nodiscard]] rpl::producer<not_null<WebPageData*>> webPageUpdates() const;
+
+	void channelDifferenceTooLong(not_null<ChannelData*> channel);
+	[[nodiscard]] rpl::producer<not_null<ChannelData*>> channelDifferenceTooLong() const;
+
+	void historyOutboxRead(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> historyOutboxReads() const;
 
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
@@ -867,6 +874,10 @@ private:
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
+
+	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
+	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	rpl::event_stream<not_null<History*>> _historyOutboxReads;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
 	base::Timer _pollsClosingTimer;

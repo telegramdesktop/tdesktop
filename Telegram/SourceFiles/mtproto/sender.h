@@ -271,7 +271,9 @@ public:
 
 	public:
 		void cancel() {
-			_sender->senderRequestCancel(_requestId);
+			if (_requestId) {
+				_sender->senderRequestCancel(_requestId);
+			}
 		}
 
 	private:

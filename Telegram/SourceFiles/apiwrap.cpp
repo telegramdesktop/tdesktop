@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_updates.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
@@ -272,6 +273,10 @@ Storage::Account &ApiWrap::local() const {
 	return _session->local();
 }
 
+Api::Updates &ApiWrap::updates() const {
+	return _session->updates();
+}
+
 void ApiWrap::setupSupportMode() {
 	if (!_session->supportMode()) {
 		return;
@@ -489,12 +494,6 @@ void ApiWrap::importChatInvite(const QString &hash) {
 				: tr::lng_group_invite_bad_link(tr::now)));
 		}
 	}).send();
-}
-
-void ApiWrap::applyUpdates(
-		const MTPUpdates &updates,
-		uint64 sentMessageRandomId) {
-	App::main()->feedUpdates(updates, sentMessageRandomId);
 }
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
@@ -2321,8 +2320,8 @@ void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
 		request(MTPmessages_DeleteChatUser(
 			chat->inputChat,
 			_session->user()->inputUser
-		)).done([=](const MTPUpdates &updates) {
-			applyUpdates(updates);
+		)).done([=](const MTPUpdates &result) {
+			applyUpdates(result);
 			deleteHistory(peer, false, revoke);
 		}).fail([=](const RPCError &error) {
 			deleteHistory(peer, false, revoke);
@@ -2392,6 +2391,12 @@ void ApiWrap::deleteHistory(
 	}
 }
 
+void ApiWrap::applyUpdates(
+		const MTPUpdates &updates,
+		uint64 sentMessageRandomId) {
+	this->updates().applyUpdates(updates, sentMessageRandomId);
+}
+
 int ApiWrap::applyAffectedHistory(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedHistory &result) {
@@ -2399,7 +2404,7 @@ int ApiWrap::applyAffectedHistory(
 	if (const auto channel = peer->asChannel()) {
 		channel->ptsUpdateAndApply(data.vpts().v, data.vpts_count().v);
 	} else {
-		App::main()->ptsUpdateAndApply(data.vpts().v, data.vpts_count().v);
+		updates().updateAndApply(data.vpts().v, data.vpts_count().v);
 	}
 	return data.voffset().v;
 }
@@ -2418,7 +2423,26 @@ void ApiWrap::applyAffectedMessages(
 void ApiWrap::applyAffectedMessages(
 		const MTPmessages_AffectedMessages &result) {
 	const auto &data = result.c_messages_affectedMessages();
-	App::main()->ptsUpdateAndApply(data.vpts().v, data.vpts_count().v);
+	updates().updateAndApply(data.vpts().v, data.vpts_count().v);
+}
+
+void ApiWrap::saveCurrentDraftToCloud() {
+	Core::App().saveCurrentDraftsToHistories();
+
+	for (const auto controller : session().windows()) {
+		if (const auto peer = controller->activeChatCurrent().peer()) {
+			if (const auto history = session().data().historyLoaded(peer)) {
+				session().local().writeDrafts(history);
+
+				const auto localDraft = history->localDraft();
+				const auto cloudDraft = history->cloudDraft();
+				if (!Data::draftsAreEqual(localDraft, cloudDraft)
+					&& !session().supportMode()) {
+					saveDraftToCloudDelayed(history);
+				}
+			}
+		}
+	}
 }
 
 void ApiWrap::saveDraftsToCloud() {
@@ -2711,98 +2735,6 @@ void ApiWrap::requestParticipantsCountDelayed(
 	_participantsCountRequestTimer.call(
 		kReloadChannelMembersTimeout,
 		[=] { channel->updateFullForced(); });
-}
-
-void ApiWrap::requestChannelRangeDifference(not_null<History*> history) {
-	Expects(history->isChannel());
-
-	const auto channel = history->peer->asChannel();
-	if (const auto requestId = _rangeDifferenceRequests.take(channel)) {
-		request(*requestId).cancel();
-	}
-	const auto range = history->rangeForDifferenceRequest();
-	if (!(range.from < range.till) || !channel->pts()) {
-		return;
-	}
-
-	MTP_LOG(0, ("getChannelDifference { good - "
-		"after channelDifferenceTooLong was received, "
-		"validating history part }%1").arg(cTestMode() ? " TESTMODE" : ""));
-	channelRangeDifferenceSend(channel, range, channel->pts());
-}
-
-void ApiWrap::channelRangeDifferenceSend(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		int32 pts) {
-	Expects(range.from < range.till);
-
-	const auto limit = range.till - range.from;
-	const auto filter = MTP_channelMessagesFilter(
-		MTP_flags(0),
-		MTP_vector<MTPMessageRange>(1, MTP_messageRange(
-			MTP_int(range.from),
-			MTP_int(range.till - 1))));
-	const auto requestId = request(MTPupdates_GetChannelDifference(
-		MTP_flags(MTPupdates_GetChannelDifference::Flag::f_force),
-		channel->inputChannel,
-		filter,
-		MTP_int(pts),
-		MTP_int(limit)
-	)).done([=](const MTPupdates_ChannelDifference &result) {
-		_rangeDifferenceRequests.remove(channel);
-		channelRangeDifferenceDone(channel, range, result);
-	}).fail([=](const RPCError &error) {
-		_rangeDifferenceRequests.remove(channel);
-	}).send();
-	_rangeDifferenceRequests.emplace(channel, requestId);
-}
-
-void ApiWrap::channelRangeDifferenceDone(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		const MTPupdates_ChannelDifference &result) {
-	auto nextRequestPts = int32(0);
-	auto isFinal = true;
-
-	switch (result.type()) {
-	case mtpc_updates_channelDifferenceEmpty: {
-		const auto &d = result.c_updates_channelDifferenceEmpty();
-		nextRequestPts = d.vpts().v;
-		isFinal = d.is_final();
-	} break;
-
-	case mtpc_updates_channelDifferenceTooLong: {
-		const auto &d = result.c_updates_channelDifferenceTooLong();
-
-		_session->data().processUsers(d.vusers());
-		_session->data().processChats(d.vchats());
-
-		nextRequestPts = d.vdialog().match([&](const MTPDdialog &data) {
-			return data.vpts().value_or_empty();
-		}, [&](const MTPDdialogFolder &data) {
-			return 0;
-		});
-		isFinal = d.is_final();
-	} break;
-
-	case mtpc_updates_channelDifference: {
-		const auto &d = result.c_updates_channelDifference();
-
-		App::main()->feedChannelDifference(d);
-
-		nextRequestPts = d.vpts().v;
-		isFinal = d.is_final();
-	} break;
-	}
-
-	if (!isFinal && nextRequestPts) {
-		MTP_LOG(0, ("getChannelDifference { "
-			"good - after not final channelDifference was received, "
-			"validating history part }%1"
-			).arg(cTestMode() ? " TESTMODE" : ""));
-		channelRangeDifferenceSend(channel, range, nextRequestPts);
-	}
 }
 
 template <typename Request>
@@ -3416,224 +3348,6 @@ void ApiWrap::parseRecentChannelParticipants(
 			callbackList(availableCount, list);
 		}
 	}, std::move(callbackNotModified));
-}
-
-void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
-	switch (updates.type()) {
-	case mtpc_updateShortMessage: {
-		const auto &d = updates.c_updateShortMessage();
-		const auto flags = mtpCastFlags(d.vflags().v)
-			| MTPDmessage::Flag::f_from_id;
-		const auto peerUserId = d.is_out()
-			? d.vuser_id()
-			: MTP_int(_session->userId());
-		const auto fwd = d.vfwd_from();
-		_session->data().addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				d.vid(),
-				d.is_out() ? MTP_int(_session->userId()) : d.vuser_id(),
-				MTP_peerUser(peerUserId),
-				fwd ? (*fwd) : MTPMessageFwdHeader(),
-				MTP_int(d.vvia_bot_id().value_or_empty()),
-				MTP_int(d.vreply_to_msg_id().value_or_empty()),
-				d.vdate(),
-				d.vmessage(),
-				MTP_messageMediaEmpty(),
-				MTPReplyMarkup(),
-				MTP_vector<MTPMessageEntity>(d.ventities().value_or_empty()),
-				MTPint(),
-				MTPint(),
-				MTPstring(),
-				MTPlong(),
-				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
-			MTPDmessage_ClientFlags(),
-			NewMessageType::Unread);
-	} break;
-
-	case mtpc_updateShortChatMessage: {
-		const auto &d = updates.c_updateShortChatMessage();
-		const auto flags = mtpCastFlags(d.vflags().v) | MTPDmessage::Flag::f_from_id;
-		const auto fwd = d.vfwd_from();
-		_session->data().addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				d.vid(),
-				d.vfrom_id(),
-				MTP_peerChat(d.vchat_id()),
-				fwd ? (*fwd) : MTPMessageFwdHeader(),
-				MTP_int(d.vvia_bot_id().value_or_empty()),
-				MTP_int(d.vreply_to_msg_id().value_or_empty()),
-				d.vdate(),
-				d.vmessage(),
-				MTP_messageMediaEmpty(),
-				MTPReplyMarkup(),
-				MTP_vector<MTPMessageEntity>(d.ventities().value_or_empty()),
-				MTPint(),
-				MTPint(),
-				MTPstring(),
-				MTPlong(),
-				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
-			MTPDmessage_ClientFlags(),
-			NewMessageType::Unread);
-	} break;
-
-	case mtpc_updateShortSentMessage: {
-		auto &d = updates.c_updateShortSentMessage();
-		Q_UNUSED(d); // Sent message data was applied anyway.
-	} break;
-
-	default: Unexpected("Type in applyUpdatesNoPtsCheck()");
-	}
-}
-
-void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
-	switch (update.type()) {
-	case mtpc_updateNewMessage: {
-		auto &d = update.c_updateNewMessage();
-		auto needToAdd = true;
-		if (d.vmessage().type() == mtpc_message) { // index forwarded messages to links _overview
-			const auto &data = d.vmessage().c_message();
-			if (_session->data().checkEntitiesAndViewsUpdate(data)) { // already in blocks
-				LOG(("Skipping message, because it is already in blocks!"));
-				needToAdd = false;
-			}
-			if (needToAdd && !data.is_from_scheduled()) {
-				// If we still need to add a new message,
-				// we should first check if this message is in
-				// the list of scheduled messages.
-				// This is necessary to correctly update the file reference.
-				// Note that when a message is scheduled until online
-				// while the recipient is already online, the server sends
-				// an ordinary new message with skipped "from_scheduled" flag.
-				_session->data().scheduledMessages().checkEntitiesAndUpdate(
-					data);
-			}
-		}
-		if (needToAdd) {
-			_session->data().addNewMessage(
-				d.vmessage(),
-				MTPDmessage_ClientFlags(),
-				NewMessageType::Unread);
-		}
-	} break;
-
-	case mtpc_updateReadMessagesContents: {
-		const auto &d = update.c_updateReadMessagesContents();
-		auto possiblyReadMentions = base::flat_set<MsgId>();
-		for (const auto &msgId : d.vmessages().v) {
-			if (const auto item = _session->data().message(NoChannel, msgId.v)) {
-				if (item->isUnreadMedia() || item->isUnreadMention()) {
-					item->markMediaRead();
-					_session->data().requestItemRepaint(item);
-
-					if (item->out()
-						&& item->history()->peer->isUser()
-						&& !App::main()->requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(base::unixtime::now());
-					}
-				}
-			} else {
-				// Perhaps it was an unread mention!
-				possiblyReadMentions.insert(msgId.v);
-			}
-		}
-		checkForUnreadMentions(possiblyReadMentions);
-	} break;
-
-	case mtpc_updateReadHistoryInbox: {
-		const auto &d = update.c_updateReadHistoryInbox();
-		const auto peer = peerFromMTP(d.vpeer());
-		if (const auto history = _session->data().historyLoaded(peer)) {
-			const auto folderId = d.vfolder_id().value_or_empty();
-			history->applyInboxReadUpdate(
-				folderId,
-				d.vmax_id().v,
-				d.vstill_unread_count().v);
-		}
-	} break;
-
-	case mtpc_updateReadHistoryOutbox: {
-		const auto &d = update.c_updateReadHistoryOutbox();
-		const auto peer = peerFromMTP(d.vpeer());
-		if (const auto history = _session->data().historyLoaded(peer)) {
-			history->outboxRead(d.vmax_id().v);
-			if (!App::main()->requestingDifference()) {
-				if (const auto user = history->peer->asUser()) {
-					user->madeAction(base::unixtime::now());
-				}
-			}
-		}
-	} break;
-
-	case mtpc_updateWebPage: {
-		auto &d = update.c_updateWebPage();
-		Q_UNUSED(d); // Web page was updated anyway.
-	} break;
-
-	case mtpc_updateFolderPeers: {
-		const auto &data = update.c_updateFolderPeers();
-		auto &owner = _session->data();
-		for (const auto &peer : data.vfolder_peers().v) {
-			peer.match([&](const MTPDfolderPeer &data) {
-				const auto peerId = peerFromMTP(data.vpeer());
-				if (const auto history = owner.historyLoaded(peerId)) {
-					if (const auto folderId = data.vfolder_id().v) {
-						history->setFolder(owner.folder(folderId));
-					} else {
-						history->clearFolder();
-					}
-				}
-			});
-		}
-	} break;
-
-	case mtpc_updateDeleteMessages: {
-		auto &d = update.c_updateDeleteMessages();
-		_session->data().processMessagesDeleted(NoChannel, d.vmessages().v);
-	} break;
-
-	case mtpc_updateNewChannelMessage: {
-		auto &d = update.c_updateNewChannelMessage();
-		auto needToAdd = true;
-		if (d.vmessage().type() == mtpc_message) { // index forwarded messages to links _overview
-			if (_session->data().checkEntitiesAndViewsUpdate(d.vmessage().c_message())) { // already in blocks
-				LOG(("Skipping message, because it is already in blocks!"));
-				needToAdd = false;
-			}
-		}
-		if (needToAdd) {
-			_session->data().addNewMessage(
-				d.vmessage(),
-				MTPDmessage_ClientFlags(),
-				NewMessageType::Unread);
-		}
-	} break;
-
-	case mtpc_updateEditChannelMessage: {
-		auto &d = update.c_updateEditChannelMessage();
-		_session->data().updateEditedMessage(d.vmessage());
-	} break;
-
-	case mtpc_updateEditMessage: {
-		auto &d = update.c_updateEditMessage();
-		_session->data().updateEditedMessage(d.vmessage());
-	} break;
-
-	case mtpc_updateChannelWebPage: {
-		auto &d = update.c_updateChannelWebPage();
-		Q_UNUSED(d); // Web page was updated anyway.
-	} break;
-
-	case mtpc_updateDeleteChannelMessages: {
-		auto &d = update.c_updateDeleteChannelMessages();
-		_session->data().processMessagesDeleted(d.vchannel_id().v, d.vmessages().v);
-	} break;
-
-	default: Unexpected("Type in applyUpdateNoPtsCheck()");
-	}
 }
 
 void ApiWrap::jumpToDate(Dialogs::Key chat, const QDate &date) {
@@ -4346,9 +4060,8 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
 				MTP_int(action.options.scheduled)
-			)).done([=](
-					const MTPUpdates &updates) {
-				applyUpdates(updates);
+			)).done([=](const MTPUpdates &result) {
+				applyUpdates(result);
 				if (shared && !--shared->requestsLeft) {
 					shared->callback();
 				}

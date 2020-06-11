@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "media/audio/media_audio_track.h"
 #include "settings/settings_common.h"
+#include "api/api_updates.h"
 #include "facades.h"
 
 namespace Settings {
@@ -87,8 +88,8 @@ auto GenerateCodes() {
 		}));
 	});
 	codes.emplace(qsl("getdifference"), [](SessionController *window) {
-		if (auto main = App::main()) {
-			main->getDifference();
+		if (window) {
+			window->session().updates().getDifference();
 		}
 	});
 	codes.emplace(qsl("loadcolors"), [](SessionController *window) {

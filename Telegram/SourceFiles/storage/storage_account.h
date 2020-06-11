@@ -71,6 +71,7 @@ public:
 	void writeBackground(const Data::WallPaper &paper, const QImage &image);
 	bool readBackground();
 
+	void writeDrafts(not_null<History*> history);
 	void writeDrafts(
 		const PeerId &peer,
 		const MessageDraft &localDraft,

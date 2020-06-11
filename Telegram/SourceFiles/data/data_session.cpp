@@ -3272,6 +3272,7 @@ void Session::notifyPollUpdateDelayed(not_null<PollData*> poll) {
 
 void Session::sendWebPageGamePollNotifications() {
 	for (const auto page : base::take(_webpagesUpdated)) {
+		_webpageUpdates.fire_copy(page);
 		const auto i = _webpageViews.find(page);
 		if (i != _webpageViews.end()) {
 			for (const auto view : i->second) {
@@ -3293,6 +3294,26 @@ void Session::sendWebPageGamePollNotifications() {
 			}
 		}
 	}
+}
+
+rpl::producer<not_null<WebPageData*>> Session::webPageUpdates() const {
+	return _webpageUpdates.events();
+}
+
+void Session::channelDifferenceTooLong(not_null<ChannelData*> channel) {
+	_channelDifferenceTooLong.fire_copy(channel);
+}
+
+rpl::producer<not_null<ChannelData*>> Session::channelDifferenceTooLong() const {
+	return _channelDifferenceTooLong.events();
+}
+
+void Session::historyOutboxRead(not_null<History*> history) {
+	_historyOutboxReads.fire_copy(history);
+}
+
+rpl::producer<not_null<History*>> Session::historyOutboxReads() const {
+	return _historyOutboxReads.events();
 }
 
 void Session::registerItemView(not_null<ViewElement*> view) {

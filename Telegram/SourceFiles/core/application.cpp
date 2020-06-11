@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_updates.h"
 #include "calls/calls_instance.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
@@ -464,13 +465,14 @@ void Application::forceLogOut(const TextWithEntities &explanation) {
 }
 
 void Application::checkLocalTime() {
-	if (crl::adjust_time()) {
+	const auto adjusted = crl::adjust_time();
+	if (adjusted) {
 		base::Timer::Adjust();
 		base::ConcurrentTimerEnvironment::Adjust();
 		base::unixtime::http_invalidate();
-		if (App::main()) App::main()->checkLastUpdate(true);
-	} else {
-		if (App::main()) App::main()->checkLastUpdate(false);
+	}
+	if (activeAccount().sessionExists()) {
+		activeAccount().session().updates().checkLastUpdate(adjusted);
 	}
 }
 
@@ -697,6 +699,9 @@ bool Application::passcodeLocked() const {
 
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
+	if (activeAccount().sessionExists()) {
+		activeAccount().session().updates().checkIdleFinish();
+	}
 }
 
 crl::time Application::lastNonIdleTime() const {
@@ -792,6 +797,25 @@ rpl::producer<bool> Application::lockValue() const {
 		passcodeLockValue(),
 		termsLockValue(),
 		_1 || _2);
+}
+
+bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
+	if (App::quitting() || !_window) {
+		return false;
+	} else if (const auto controller = _window->sessionController()) {
+		if (&controller->session() == session) {
+			return _window->widget()->isActive();
+		}
+	}
+	return false;
+}
+
+void Application::saveCurrentDraftsToHistories() {
+	if (!_window) {
+		return;
+	} else if (const auto controller = _window->sessionController()) {
+		controller->content()->saveFieldToHistoryLocalDraft();
+	}
 }
 
 Window::Controller *Application::activeWindow() const {
@@ -897,10 +921,8 @@ void Application::QuitAttempt() {
 	if (IsAppLaunched()
 		&& App().activeAccount().sessionExists()
 		&& !Sandbox::Instance().isSavingSession()) {
-		if (const auto mainwidget = App::main()) {
-			if (mainwidget->isQuitPrevent()) {
-				prevents = true;
-			}
+		if (App().activeAccount().session().updates().isQuitPrevent()) {
+			prevents = true;
 		}
 		if (App().activeAccount().session().api().isQuitPrevent()) {
 			prevents = true;

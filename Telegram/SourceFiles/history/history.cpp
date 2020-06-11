@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "storage/storage_account.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "support/support_helper.h"
 #include "ui/image/image.h"
@@ -336,7 +337,7 @@ void History::clearEditDraft() {
 
 void History::draftSavedToCloud() {
 	updateChatListEntry();
-	if (App::main()) App::main()->writeDrafts(this);
+	session().local().writeDrafts(this);
 }
 
 HistoryItemsList History::validateForwardDraft() {
@@ -1760,6 +1761,7 @@ void History::outboxRead(MsgId upTo) {
 		}
 	}
 	updateChatListEntry();
+	session().data().historyOutboxRead(this);
 }
 
 void History::outboxRead(not_null<const HistoryItem*> wasRead) {

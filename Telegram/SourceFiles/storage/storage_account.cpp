@@ -968,6 +968,35 @@ void Account::readMtpData() {
 	applyReadContext(std::move(context));
 }
 
+void Account::writeDrafts(not_null<History*> history) {
+	Storage::MessageDraft storedLocalDraft, storedEditDraft;
+	MessageCursor localCursor, editCursor;
+	if (const auto localDraft = history->localDraft()) {
+		if (_owner->session().supportMode()
+			|| !Data::draftsAreEqual(localDraft, history->cloudDraft())) {
+			storedLocalDraft = Storage::MessageDraft{
+				localDraft->msgId,
+				localDraft->textWithTags,
+				localDraft->previewCancelled
+			};
+			localCursor = localDraft->cursor;
+		}
+	}
+	if (const auto editDraft = history->editDraft()) {
+		storedEditDraft = Storage::MessageDraft{
+			editDraft->msgId,
+			editDraft->textWithTags,
+			editDraft->previewCancelled
+		};
+		editCursor = editDraft->cursor;
+	}
+	writeDrafts(
+		history->peer->id,
+		storedLocalDraft,
+		storedEditDraft);
+	writeDraftCursors(history->peer->id, localCursor, editCursor);
+}
+
 void Account::writeDrafts(
 		const PeerId &peer,
 		const MessageDraft &localDraft,

@@ -112,6 +112,11 @@ public:
 
 	void historyLoaded();
 
+	// When resizing the widget with top edge moved up or down and we
+	// want to add this top movement to the scroll position, so inner
+	// content will not move.
+	void setGeometryWithTopMoved(const QRect &newGeometry, int topDelta);
+
 	void windowShown();
 	[[nodiscard]] bool doWeReadServerHistory() const;
 	[[nodiscard]] bool doWeReadMentions() const;
@@ -819,5 +824,7 @@ private:
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
+
+	int _topDelta = 0;
 
 };

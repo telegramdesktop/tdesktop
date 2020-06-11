@@ -198,6 +198,12 @@ HistoryInner::HistoryInner(
 	}) | rpl::start_with_next([this](not_null<const Element*> view) {
 		mouseActionUpdate();
 	}, lifetime());
+	session().data().historyOutboxReads(
+	) | rpl::filter([=](not_null<History*> history) {
+		return (_history == history);
+	}) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 Main::Session &HistoryInner::session() const {

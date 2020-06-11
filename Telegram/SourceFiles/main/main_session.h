@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+namespace Api {
+class Updates;
+} // namespace Api
+
 namespace MTP {
 class Instance;
 } // namespace MTP
@@ -39,6 +43,7 @@ namespace Window {
 namespace Notifications {
 class System;
 } // namespace Notifications
+class SessionController;
 } // namespace Window
 
 namespace Calls {
@@ -81,13 +86,16 @@ public:
 	}
 	bool validateSelf(const MTPUser &user);
 
-	[[nodiscard]] Storage::DownloadManagerMtproto &downloader() {
+	[[nodiscard]] Api::Updates &updates() const {
+		return *_updates;
+	}
+	[[nodiscard]] Storage::DownloadManagerMtproto &downloader() const {
 		return *_downloader;
 	}
-	[[nodiscard]] Storage::Uploader &uploader() {
+	[[nodiscard]] Storage::Uploader &uploader() const {
 		return *_uploader;
 	}
-	[[nodiscard]] Storage::Facade &storage() {
+	[[nodiscard]] Storage::Facade &storage() const {
 		return *_storage;
 	}
 	[[nodiscard]] Stickers::EmojiPack &emojiStickersPack() const {
@@ -111,6 +119,10 @@ public:
 	}
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettingsNowIfNeeded();
+
+	void addWindow(not_null<Window::SessionController*> controller);
+	[[nodiscard]] auto windows() const
+		-> const base::flat_set<not_null<Window::SessionController*>> &;
 
 	[[nodiscard]] not_null<MTP::Instance*> mtp();
 	[[nodiscard]] ApiWrap &api() {
@@ -143,6 +155,7 @@ private:
 	base::Timer _saveSettingsTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
+	const std::unique_ptr<Api::Updates> _updates;
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
@@ -161,6 +174,8 @@ private:
 	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
+
+	base::flat_set<not_null<Window::SessionController*>> _windows;
 
 	rpl::lifetime _lifetime;
 

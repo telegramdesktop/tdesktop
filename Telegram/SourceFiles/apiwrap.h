@@ -66,6 +66,8 @@ inline QString ToString(uint64 value) {
 
 } // namespace details
 
+class Updates;
+
 template <
 	typename ...Types,
 	typename = std::enable_if_t<(sizeof...(Types) > 0)>>
@@ -139,6 +141,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Storage::Account &local() const;
+	[[nodiscard]] Api::Updates &updates() const;
 
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -153,6 +156,8 @@ public:
 	void applyNotifySettings(
 		MTPInputNotifyPeer peer,
 		const MTPPeerNotifySettings &settings);
+
+	void saveCurrentDraftToCloud();
 
 	void savePinnedOrder(Data::Folder *folder);
 	void toggleHistoryArchived(
@@ -194,7 +199,6 @@ public:
 	void requestBots(not_null<ChannelData*> channel);
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
-	void requestChannelRangeDifference(not_null<History*> history);
 
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
 	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
@@ -309,9 +313,6 @@ public:
 	}
 
 	bool isQuitPrevent();
-
-	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
-	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
 	void jumpToDate(Dialogs::Key chat, const QDate &date);
 
@@ -554,15 +555,6 @@ private:
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	void channelRangeDifferenceSend(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		int32 pts);
-	void channelRangeDifferenceDone(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		const MTPupdates_ChannelDifference &result);
-
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
 
@@ -708,10 +700,6 @@ private:
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
 
 	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;
-
-	base::flat_map<
-		not_null<ChannelData*>,
-		mtpRequestId> _rangeDifferenceRequests;
 
 	QMap<WebPageData*, mtpRequestId> _webPagesPending;
 	base::Timer _webPagesTimer;

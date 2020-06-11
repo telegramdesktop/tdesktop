@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
-#include "mainwidget.h"
+#include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -120,9 +120,10 @@ void System::schedule(not_null<HistoryItem*> item) {
 	auto delay = item->Has<HistoryMessageForwarded>() ? 500 : 100;
 	const auto t = base::unixtime::now();
 	const auto ms = crl::now();
-	const bool isOnline = App::main()->lastWasOnline();
+	const auto &updates = history->session().updates();
+	const bool isOnline = updates.lastWasOnline();
 	const auto otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
-	const bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - App::main()->lastSetOnline()) > t * 1000LL);
+	const bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - updates.lastSetOnline()) > t * 1000LL);
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
 		delay = Global::NotifyCloudDelay();
 	} else if (cOtherOnline() >= t) {

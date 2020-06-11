@@ -55,6 +55,11 @@ class Widget : public Window::AbstractSectionWidget, public RPCSender {
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
 
+	// When resizing the widget with top edge moved up or down and we
+	// want to add this top movement to the scroll position, so inner
+	// content will not move.
+	void setGeometryWithTopMoved(const QRect &newGeometry, int topDelta);
+
 	void updateDragInScroll(bool inScroll);
 
 	void searchInChat(Key chat);
@@ -232,6 +237,8 @@ private:
 
 	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
 	int _draggingScrollDelta = 0;
+
+	int _topDelta = 0;
 
 };
 

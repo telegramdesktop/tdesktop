@@ -320,6 +320,24 @@ Widget::Widget(
 	}, lifetime());
 }
 
+void Widget::setGeometryWithTopMoved(
+		const QRect &newGeometry,
+		int topDelta) {
+	_topDelta = topDelta;
+	bool willBeResized = (size() != newGeometry.size());
+	if (geometry() != newGeometry) {
+		auto weak = Ui::MakeWeak(this);
+		setGeometry(newGeometry);
+		if (!weak) {
+			return;
+		}
+	}
+	if (!willBeResized) {
+		resizeEvent(nullptr);
+	}
+	_topDelta = 0;
+}
+
 void Widget::setupScrollUpButton() {
 	_scrollToTop->setClickedCallback([=] {
 		if (_scrollToAnimation.animating()) {
@@ -707,8 +725,10 @@ void Widget::escape() {
 
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
 	if (!mayBlock) {
-		_loadMoreChats.destroy();
-		updateControlsGeometry();
+		if (_loadMoreChats) {
+			_loadMoreChats.destroy();
+			updateControlsGeometry();
+		}
 		return;
 	}
 	if (!_loadMoreChats) {
@@ -1560,8 +1580,7 @@ void Widget::updateControlsGeometry() {
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
-	auto addToScroll = controller()->content()->contentScrollAddToY();
-	auto newScrollTop = _scroll->scrollTop() + addToScroll;
+	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
 		if (button && !button->isHidden()) {
@@ -1582,7 +1601,7 @@ void Widget::updateControlsGeometry() {
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated().notify(true);
 	}
-	if (addToScroll) {
+	if (_topDelta) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
 		onListScroll();

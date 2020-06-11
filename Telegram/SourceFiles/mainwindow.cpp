@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
+#include "api/api_updates.h"
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
@@ -556,9 +557,12 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 
 	case QEvent::MouseMove: {
 		const auto position = static_cast<QMouseEvent*>(e)->globalPos();
-		if (_main && _main->isIdle() && _lastMousePosition != position) {
-			Core::App().updateNonIdle();
-			_main->checkIdleFinish();
+		if (_lastMousePosition != position) {
+			if (const auto controller = sessionController()) {
+				if (controller->session().updates().isIdle()) {
+					Core::App().updateNonIdle();
+				}
+			}
 		}
 		_lastMousePosition = position;
 	} break;
@@ -1007,7 +1011,9 @@ void MainWindow::sendPaths() {
 }
 
 void MainWindow::updateIsActiveHook() {
-	if (_main) _main->updateOnline();
+	if (const auto controller = sessionController()) {
+		controller->session().updates().updateOnline();
+	}
 }
 
 MainWindow::~MainWindow() {

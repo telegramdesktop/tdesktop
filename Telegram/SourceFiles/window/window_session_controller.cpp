@@ -144,6 +144,8 @@ SessionController::SessionController(
 			refreshFiltersMenu();
 		});
 	}, session->lifetime());
+
+	session->addWindow(this);
 }
 
 not_null<::MainWindow*> SessionController::widget() const {

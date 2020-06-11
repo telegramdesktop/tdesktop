@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 #include "apiwrap.h"
+#include "api/api_updates.h"
 #include "core/application.h"
 #include "core/changelogs.h"
 #include "main/main_account.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "window/notifications_manager.h"
+#include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 //#include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
@@ -48,6 +50,7 @@ Session::Session(
 , _settings(std::move(settings))
 , _saveSettingsTimer([=] { local().writeSettings(); })
 , _api(std::make_unique<ApiWrap>(this))
+, _updates(std::make_unique<Api::Updates>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
@@ -174,6 +177,22 @@ void Session::saveSettingsNowIfNeeded() {
 		_saveSettingsTimer.cancel();
 		local().writeSettings();
 	}
+}
+
+void Session::addWindow(not_null<Window::SessionController*> controller) {
+	_windows.emplace(controller);
+	controller->lifetime().add([=] {
+		_windows.remove(controller);
+	});
+	updates().addActiveChat(controller->activeChatChanges(
+	) | rpl::map([=](const Dialogs::Key &chat) {
+		return chat.peer();
+	}) | rpl::distinct_until_changed());
+}
+
+auto Session::windows() const
+-> const base::flat_set<not_null<Window::SessionController*>> & {
+	return _windows;
 }
 
 } // namespace Main

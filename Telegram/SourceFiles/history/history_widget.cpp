@@ -512,6 +512,21 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	session().data().webPageUpdates(
+	) | rpl::filter([=](not_null<WebPageData*> page) {
+		return (_previewData == page.get());
+	}) | rpl::start_with_next([=] {
+		updatePreview();
+	}, lifetime());
+
+	session().data().channelDifferenceTooLong(
+	) | rpl::filter([=](not_null<ChannelData*> channel) {
+		return _peer == channel.get();
+	}) | rpl::start_with_next([=] {
+		updateHistoryDownVisibility();
+		preloadHistoryIfNeeded();
+	}, lifetime());
+
 	session().data().userIsBotChanges(
 	) | rpl::filter([=](not_null<UserData*> user) {
 		return (_peer == user.get());
@@ -679,6 +694,24 @@ HistoryWidget::HistoryWidget(
 	setupScheduledToggle();
 	orderWidgets();
 	setupShortcuts();
+}
+
+void HistoryWidget::setGeometryWithTopMoved(
+		const QRect &newGeometry,
+		int topDelta) {
+	_topDelta = topDelta;
+	bool willBeResized = (size() != newGeometry.size());
+	if (geometry() != newGeometry) {
+		auto weak = Ui::MakeWeak(this);
+		setGeometry(newGeometry);
+		if (!weak) {
+			return;
+		}
+	}
+	if (!willBeResized) {
+		resizeEvent(nullptr);
+	}
+	_topDelta = 0;
 }
 
 void HistoryWidget::refreshTabbedPanel() {
@@ -1230,7 +1263,7 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 }
 
 void HistoryWidget::onCloudDraftSave() {
-	controller()->content()->saveDraftToCloud();
+	controller()->session().api().saveCurrentDraftToCloud();
 }
 
 void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft) {
@@ -1735,7 +1768,7 @@ void HistoryWidget::showHistory(
 			// Removing focus from list clears selected and updates top bar.
 			setFocus();
 		}
-		controller()->content()->saveDraftToCloud();
+		controller()->session().api().saveCurrentDraftToCloud();
 		if (_migrated) {
 			_migrated->clearLocalDraft(); // use migrated draft only once
 			_migrated->clearEditDraft();
@@ -2550,7 +2583,7 @@ bool HistoryWidget::doWeReadMentions() const {
 		&& !_firstLoadRequest
 		&& !_delayedShowAtRequest
 		&& !_a_show.animating()
-		&& App::wnd()->doWeMarkAsRead();
+		&& controller()->widget()->doWeMarkAsRead();
 }
 
 void HistoryWidget::checkHistoryActivation() {
@@ -3022,7 +3055,7 @@ void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates,
 	if (auto editDraft = history->editDraft()) {
 		if (editDraft->saveRequestId == req) {
 			history->clearEditDraft();
-			controller()->content()->writeDrafts(history);
+			session().local().writeDrafts(history);
 		}
 	}
 }
@@ -5028,7 +5061,7 @@ void HistoryWidget::updateControlsGeometry() {
 		}
 	}
 
-	updateHistoryGeometry(false, false, { ScrollChangeAdd, controller()->content()->contentScrollAddToY() });
+	updateHistoryGeometry(false, false, { ScrollChangeAdd, _topDelta });
 
 	updateFieldSize();
 

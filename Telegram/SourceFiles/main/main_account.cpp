@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "api/api_updates.h"
+#include "apiwrap.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -353,9 +355,11 @@ void Account::startMtp() {
 			Global::RefConnectionTypeChanged().notify();
 		}
 	});
-	_mtp->setSessionResetHandler([](MTP::ShiftedDcId shiftedDcId) {
-		if (App::main() && shiftedDcId == MTP::maindc()) {
-			App::main()->getDifference();
+	_mtp->setSessionResetHandler([=](MTP::ShiftedDcId shiftedDcId) {
+		if (sessionExists()) {
+			if (shiftedDcId == session().api().instance()->mainDcId()) {
+				session().updates().getDifference();
+			}
 		}
 	});
 

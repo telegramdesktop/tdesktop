@@ -111,14 +111,13 @@ public:
 	MainWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+	~MainWidget();
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 
 	[[nodiscard]] bool isMainSectionShown() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
-
-	[[nodiscard]] int contentScrollAddToY() const;
 
 	void returnTabbedSelector();
 
@@ -146,10 +145,6 @@ public:
 
 	void windowShown();
 
-	void sentUpdatesReceived(uint64 randomId, const MTPUpdates &updates);
-	void sentUpdatesReceived(const MTPUpdates &updates) {
-		return sentUpdatesReceived(0, updates);
-	}
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void checkHistoryActivation();
@@ -174,16 +169,11 @@ public:
 		const std::optional<FullMsgId> &oldId);
 	bool onSendSticker(DocumentData *sticker);
 
-	void updateOnlineDisplayIn(int32 msecs);
-
 	bool isActive() const;
 	[[nodiscard]] bool doWeMarkAsRead() const;
-	bool lastWasOnline() const;
-	crl::time lastSetOnline() const;
 
-	void saveDraftToCloud();
 	void applyCloudDraft(History *history);
-	void writeDrafts(History *history);
+	void saveFieldToHistoryLocalDraft();
 
 	int32 dlgsWidth() const;
 
@@ -222,10 +212,6 @@ public:
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 	void itemEdited(not_null<HistoryItem*> item);
 
-	void checkLastUpdate(bool afterSleep);
-
-	bool isIdle() const;
-
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void updateScrollColors();
 
@@ -248,30 +234,12 @@ public:
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
 
-	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
-	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
-
 	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
 
 	void scheduleViewIncrement(HistoryItem *item);
 
-	void feedChannelDifference(const MTPDupdates_channelDifference &data);
-
-	// Made public for ApiWrap, while it is still here.
-	// Better would be for this to be moved to ApiWrap.
-	bool requestingDifference() const {
-		return _ptsWaiter.requesting();
-	}
-	void getDifference();
-	void updateOnline(bool gotOtherOffline = false);
-	void checkIdleFinish();
-
 	bool contentOverlapped(const QRect &globalRect);
-
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount);
 
 	void searchInChat(Dialogs::Key chat);
 
@@ -293,10 +261,6 @@ public:
 
 	void closeBothPlayers();
 
-	bool isQuitPrevent();
-
-	~MainWidget();
-
 signals:
 	void dialogsUpdated();
 
@@ -313,27 +277,7 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-	using ChannelGetDifferenceTime = QMap<ChannelData*, crl::time>;
-	enum class ChannelDifferenceRequest {
-		Unknown,
-		PtsGapOrShortPoll,
-		AfterFail,
-	};
-
-	struct DeleteHistoryRequest {
-		PeerData *peer;
-		bool justClearHistory;
-	};
-
-	struct DeleteAllFromUserParams {
-		ChannelData *channel;
-		UserData *from;
-	};
-
 	void viewsIncrement();
-	void sendPing();
-	void getDifferenceByPts();
-	void getDifferenceAfterFail();
 
 	void animationCallback();
 	void handleAdaptiveLayoutUpdate();
@@ -349,7 +293,6 @@ private:
 	[[nodiscard]] bool saveThirdSectionToStackBack() const;
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
 		-> std::unique_ptr<Window::SectionMemento>;
-	void userIsContactUpdated(not_null<UserData*> user);
 
 	void setupConnectingWidget();
 	void createPlayer();
@@ -381,28 +324,6 @@ private:
 
 	void saveSectionInStack();
 
-	void getChannelDifference(
-		not_null<ChannelData*> channel,
-		ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
-	void gotDifference(const MTPupdates_Difference &diff);
-	bool failDifference(const RPCError &e);
-	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);
-	void gotState(const MTPupdates_State &state);
-	void updSetState(int32 pts, int32 date, int32 qts, int32 seq);
-	void gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
-	bool failChannelDifference(ChannelData *channel, const RPCError &err);
-	void failDifferenceStartTimerFor(ChannelData *channel);
-
-	void mtpUpdateReceived(const MTPUpdates &updates);
-	void mtpNewSessionCreated();
-	void feedUpdateVector(
-		const MTPVector<MTPUpdate> &updates,
-		bool skipMessageIds = false);
-	// Doesn't call sendHistoryChangeNotifications itself.
-	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
-	// Doesn't call sendHistoryChangeNotifications itself.
-	void feedUpdate(const MTPUpdate &update);
-
 	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
@@ -427,13 +348,8 @@ private:
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 	void floatPlayerClosed(FullMsgId itemId);
 
-	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, crl::time &curTime);
-
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
-
-	void updateStatusDone(const MTPBool &result);
-	bool updateStatusFail(const RPCError &error);
 
 	void refreshResizeAreas();
 	template <typename MoveCallback, typename FinishCallback>
@@ -497,38 +413,6 @@ private:
 	int _callTopBarHeight = 0;
 	int _exportTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
-
-	int32 updDate = 0;
-	int32 updQts = -1;
-	int32 updSeq = 0;
-	base::Timer _noUpdatesTimer;
-
-	PtsWaiter _ptsWaiter;
-
-	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
-	crl::time _getDifferenceTimeByPts = 0;
-	crl::time _getDifferenceTimeAfterFail = 0;
-
-	base::Timer _byPtsTimer;
-
-	QMap<int32, MTPUpdates> _bySeqUpdates;
-	base::Timer _bySeqTimer;
-
-	base::Timer _byMinChannelTimer;
-
-	mtpRequestId _onlineRequest = 0;
-	base::Timer _onlineTimer;
-	base::Timer _idleFinishTimer;
-	bool _lastWasOnline = false;
-	crl::time _lastSetOnline = 0;
-	bool _isIdle = false;
-
-	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
-	QMap<ChannelData*, int32> _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
-	base::Timer _failDifferenceTimer;
-
-	crl::time _lastUpdateTime = 0;
-	bool _handlingChannelDifference = false;
 
 	QPixmap _cachedBackground;
 	QRect _cachedFor, _willCacheFor;

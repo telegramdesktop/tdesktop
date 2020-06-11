@@ -37,6 +37,7 @@ void quit();
 
 namespace Main {
 class Account;
+class Session;
 } // namespace Main
 
 namespace Ui {
@@ -96,6 +97,8 @@ public:
 	}
 
 	// Windows interface.
+	bool hasActiveWindow(not_null<Main::Session*> session) const;
+	void saveCurrentDraftsToHistories();
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
