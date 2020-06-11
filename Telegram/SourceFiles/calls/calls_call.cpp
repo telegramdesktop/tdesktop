@@ -410,12 +410,12 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 				? _controller->getDebugInfo()
 				: std::string();
 			if (!debugLog.empty()) {
-				MTP::send(
-					MTPphone_SaveCallDebug(
-						MTP_inputPhoneCall(
-							MTP_long(_id),
-							MTP_long(_accessHash)),
-						MTP_dataJSON(MTP_string(debugLog))));
+				user()->session().api().request(MTPphone_SaveCallDebug(
+					MTP_inputPhoneCall(
+						MTP_long(_id),
+						MTP_long(_accessHash)),
+					MTP_dataJSON(MTP_string(debugLog))
+				)).send();
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {

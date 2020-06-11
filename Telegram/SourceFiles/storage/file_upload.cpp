@@ -277,7 +277,7 @@ void Uploader::currentFailed() {
 
 void Uploader::stopSessions() {
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
-		MTP::stopSession(MTP::uploadDcId(i));
+		_api->instance()->stopSession(MTP::uploadDcId(i));
 	}
 }
 
@@ -440,24 +440,26 @@ void Uploader::sendNext() {
 		}
 		mtpRequestId requestId;
 		if (uploadingData.docSize > kUseBigFilesFrom) {
-			requestId = MTP::send(
-				MTPupload_SaveBigFilePart(
-					MTP_long(uploadingData.id()),
-					MTP_int(uploadingData.docSentParts),
-					MTP_int(uploadingData.docPartsCount),
-					MTP_bytes(toSend)),
-				rpcDone(&Uploader::partLoaded),
-				rpcFail(&Uploader::partFailed),
-				MTP::uploadDcId(todc));
+			requestId = _api->request(MTPupload_SaveBigFilePart(
+				MTP_long(uploadingData.id()),
+				MTP_int(uploadingData.docSentParts),
+				MTP_int(uploadingData.docPartsCount),
+				MTP_bytes(toSend)
+			)).done([=](const MTPBool &result, mtpRequestId requestId) {
+				partLoaded(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				partFailed(error, requestId);
+			}).toDC(MTP::uploadDcId(todc)).send();
 		} else {
-			requestId = MTP::send(
-				MTPupload_SaveFilePart(
-					MTP_long(uploadingData.id()),
-					MTP_int(uploadingData.docSentParts),
-					MTP_bytes(toSend)),
-				rpcDone(&Uploader::partLoaded),
-				rpcFail(&Uploader::partFailed),
-				MTP::uploadDcId(todc));
+			requestId = _api->request(MTPupload_SaveFilePart(
+				MTP_long(uploadingData.id()),
+				MTP_int(uploadingData.docSentParts),
+				MTP_bytes(toSend)
+			)).done([=](const MTPBool &result, mtpRequestId requestId) {
+				partLoaded(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				partFailed(error, requestId);
+			}).toDC(MTP::uploadDcId(todc)).send();
 		}
 		docRequestsSent.emplace(requestId, uploadingData.docSentParts);
 		dcMap.emplace(requestId, todc);
@@ -468,14 +470,15 @@ void Uploader::sendNext() {
 	} else {
 		auto part = parts.begin();
 
-		const auto requestId = MTP::send(
-			MTPupload_SaveFilePart(
-				MTP_long(partsOfId),
-				MTP_int(part.key()),
-				MTP_bytes(part.value())),
-			rpcDone(&Uploader::partLoaded),
-			rpcFail(&Uploader::partFailed),
-			MTP::uploadDcId(todc));
+		const auto requestId = _api->request(MTPupload_SaveFilePart(
+			MTP_long(partsOfId),
+			MTP_int(part.key()),
+			MTP_bytes(part.value())
+		)).done([=](const MTPBool &result, mtpRequestId requestId) {
+			partLoaded(result, requestId);
+		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			partFailed(error, requestId);
+		}).toDC(MTP::uploadDcId(todc)).send();
 		requestsSent.emplace(requestId, part.value());
 		dcMap.emplace(requestId, todc);
 		sentSize += part.value().size();
@@ -511,17 +514,17 @@ void Uploader::clear() {
 	uploaded.clear();
 	queue.clear();
 	for (const auto &requestData : requestsSent) {
-		MTP::cancel(requestData.first);
+		_api->request(requestData.first).cancel();
 	}
 	requestsSent.clear();
 	for (const auto &requestData : docRequestsSent) {
-		MTP::cancel(requestData.first);
+		_api->request(requestData.first).cancel();
 	}
 	docRequestsSent.clear();
 	dcMap.clear();
 	sentSize = 0;
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
-		MTP::stopSession(MTP::uploadDcId(i));
+		_api->instance()->stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
 	stopSessionsTimer.stop();
@@ -592,16 +595,13 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	sendNext();
 }
 
-bool Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
 	// failed to upload current file
 	if ((requestsSent.find(requestId) != requestsSent.cend())
 		|| (docRequestsSent.find(requestId) != docRequestsSent.cend())) {
 		currentFailed();
 	}
 	sendNext();
-	return true;
 }
 
 } // namespace Storage

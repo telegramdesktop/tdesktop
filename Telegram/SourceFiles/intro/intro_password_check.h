@@ -62,7 +62,6 @@ private:
 	void passwordChecked();
 	void serverError();
 
-	MTP::Sender _api;
 	Core::CloudPasswordCheckRequest _request;
 	crl::time _lastSrpIdInvalidTime = 0;
 	bytes::vector _passwordHash;

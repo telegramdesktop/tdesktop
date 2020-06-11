@@ -119,7 +119,7 @@ private:
 	struct File;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
-	bool partFailed(const RPCError &err, mtpRequestId requestId);
+	void partFailed(const RPCError &error, mtpRequestId requestId);
 
 	void currentFailed();
 

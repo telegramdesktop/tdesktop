@@ -98,6 +98,17 @@ Step::Step(
 
 Step::~Step() = default;
 
+not_null<MTP::Sender*> Step::api() const {
+	if (!_api) {
+		_api.emplace(_account->mtp());
+	}
+	return &*_api;
+}
+
+void Step::apiClear() {
+	_api.reset();
+}
+
 rpl::producer<QString> Step::nextButtonText() const {
 	return tr::lng_intro_next();
 }

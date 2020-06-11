@@ -141,15 +141,17 @@ void PhoneWidget::submit() {
 	_checkRequestTimer.callEach(1000);
 
 	_sentPhone = phone;
-	account().mtp()->setUserPhone(_sentPhone);
-	_sentRequest = MTP::send(
-		MTPauth_SendCode(
-			MTP_string(_sentPhone),
-			MTP_int(ApiId),
-			MTP_string(ApiHash),
-			MTP_codeSettings(MTP_flags(0))),
-		rpcDone(&PhoneWidget::phoneSubmitDone),
-		rpcFail(&PhoneWidget::phoneSubmitFail));
+	api()->instance()->setUserPhone(_sentPhone);
+	_sentRequest = api()->request(MTPauth_SendCode(
+		MTP_string(_sentPhone),
+		MTP_int(ApiId),
+		MTP_string(ApiHash),
+		MTP_codeSettings(MTP_flags(0))
+	)).done([=](const MTPauth_SentCode &result) {
+		phoneSubmitDone(result);
+	}).fail([=](const RPCError &error) {
+		phoneSubmitFail(error);
+	}).handleFloodErrors().send();
 }
 
 void PhoneWidget::stopCheck() {
@@ -157,11 +159,11 @@ void PhoneWidget::stopCheck() {
 }
 
 void PhoneWidget::checkRequest() {
-	auto status = MTP::state(_sentRequest);
+	auto status = api()->instance()->state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(base::take(_sentRequest));
+			api()->request(base::take(_sentRequest)).cancel();
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -193,34 +195,28 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	goNext<CodeWidget>();
 }
 
-bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
+void PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
 		showPhoneError(tr::lng_flood_error());
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
 		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
-		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
-		return true;
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(_sentPhone);
-		return true;
-	}
-	if (Logs::DebugEnabled()) { // internal server error
+	} else if (Logs::DebugEnabled()) { // internal server error
 		showPhoneError(rpl::single(err + ": " + error.description()));
 	} else {
 		showPhoneError(rpl::single(Lang::Hard::ServerError()));
 	}
-	return false;
 }
 
 QString PhoneWidget::fullNumber() const {
@@ -244,13 +240,13 @@ void PhoneWidget::activate() {
 void PhoneWidget::finished() {
 	Step::finished();
 	_checkRequestTimer.cancel();
-	rpcInvalidate();
+	apiClear();
 
 	cancelled();
 }
 
 void PhoneWidget::cancelled() {
-	MTP::cancel(base::take(_sentRequest));
+	api()->request(base::take(_sentRequest)).cancel();
 }
 
 } // namespace details

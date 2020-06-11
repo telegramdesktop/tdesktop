@@ -30,10 +30,7 @@ namespace details {
 struct Data;
 enum class Direction;
 
-class Step
-	: public Ui::RpWidget
-	, public RPCSender
-	, protected base::Subscriber {
+class Step : public Ui::RpWidget, protected base::Subscriber {
 public:
 	Step(
 		QWidget *parent,
@@ -45,6 +42,11 @@ public:
 	[[nodiscard]] Main::Account &account() const {
 		return *_account;
 	}
+
+	// It should not be called in StartWidget, in other steps it should be
+	// present and not changing.
+	[[nodiscard]] not_null<MTP::Sender*> api() const;
+	void apiClear();
 
 	virtual void finishInit() {
 	}
@@ -167,6 +169,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;
+	mutable std::optional<MTP::Sender> _api;
 
 	bool _hasCover = false;
 	Fn<void(Step *step, Direction direction)> _goCallback;

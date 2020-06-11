@@ -174,7 +174,6 @@ QrWidget::QrWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
-, _api(account->mtp())
 , _refreshTimer([=] { refreshCode(); }) {
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
@@ -309,7 +308,7 @@ void QrWidget::refreshCode() {
 	if (_requestId) {
 		return;
 	}
-	_requestId = _api.request(MTPauth_ExportLoginToken(
+	_requestId = api()->request(MTPauth_ExportLoginToken(
 		MTP_int(ApiId),
 		MTP_string(ApiHash),
 		MTP_vector<MTPint>(0)
@@ -357,8 +356,8 @@ void QrWidget::showToken(const QByteArray &token) {
 void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 	Expects(_requestId != 0);
 
-	_api.instance()->setMainDcId(dcId);
-	_requestId = _api.request(MTPauth_ImportLoginToken(
+	api()->instance()->setMainDcId(dcId);
+	_requestId = api()->request(MTPauth_ImportLoginToken(
 		MTP_bytes(token)
 	)).done([=](const MTPauth_LoginToken &result) {
 		handleTokenResult(result);
@@ -385,7 +384,7 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 }
 
 void QrWidget::sendCheckPasswordRequest() {
-	_requestId = _api.request(MTPaccount_GetPassword(
+	_requestId = api()->request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		result.match([&](const MTPDaccount_password &data) {
 			getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(
@@ -424,12 +423,12 @@ void QrWidget::activate() {
 void QrWidget::finished() {
 	Step::finished();
 	_refreshTimer.cancel();
-	rpcInvalidate();
+	apiClear();
 	cancelled();
 }
 
 void QrWidget::cancelled() {
-	_api.request(base::take(_requestId)).cancel();
+	api()->request(base::take(_requestId)).cancel();
 }
 
 } // namespace details
