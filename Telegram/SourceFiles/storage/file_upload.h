@@ -59,7 +59,7 @@ struct UploadSecureDone {
 	int partsCount = 0;
 };
 
-class Uploader : public QObject, public RPCSender {
+class Uploader final : public QObject {
 	Q_OBJECT
 
 public:

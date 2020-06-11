@@ -276,7 +276,7 @@ AddSpecialBoxController::AddSpecialBoxController(
 	peer,
 	&_additional))
 , _peer(peer)
-, _api(_peer->session().api().instance())
+, _api(_peer->session().mtp())
 , _role(role)
 , _additional(peer, Role::Members)
 , _adminDoneCallback(std::move(adminDoneCallback))
@@ -830,7 +830,7 @@ AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<ParticipantsAdditionalData*> additional)
 : _peer(peer)
 , _additional(additional)
-, _api(_peer->session().api().instance())
+, _api(_peer->session().mtp())
 , _timer([=] { searchOnServer(); }) {
 	subscribeToMigration();
 }

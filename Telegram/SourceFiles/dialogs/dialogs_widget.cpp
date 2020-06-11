@@ -784,7 +784,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 	auto q = _filter->getLastText().trimmed();
 	if (q.isEmpty() && !_searchFromUser) {
 		cancelSearchRequest();
-		MTP::cancel(base::take(_peerSearchRequest));
+		session().api().request(base::take(_peerSearchRequest)).cancel();
 		return true;
 	}
 	if (searchCache) {
@@ -853,33 +853,39 @@ bool Widget::onSearchMessages(bool searchCache) {
 				return _searchRequest;
 			});
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	_searchRequest = MTP::send(
-		//		MTPchannels_SearchFeed(
-		//			MTP_int(feed->id()),
-		//			MTP_string(_searchQuery),
-		//			MTP_int(0),
-		//			MTP_inputPeerEmpty(),
-		//			MTP_int(0),
-		//			MTP_int(SearchPerPage)),
-		//		rpcDone(&Widget::searchReceived, SearchRequestType::FromStart),
-		//		rpcFail(&Widget::searchFailed, SearchRequestType::FromStart));
+		//	const auto type = SearchRequestType::FromStart;
+		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
+		//		MTP_int(feed->id()),
+		//		MTP_string(_searchQuery),
+		//		MTP_int(0),
+		//		MTP_inputPeerEmpty(),
+		//		MTP_int(0),
+		//		MTP_int(SearchPerPage)
+		//	)).done([=](const MTPmessages_Messages &result) {
+		//		searchReceived(type, result, _searchRequest);
+		//	}).fail([=](const RPCError &error) {
+		//		searchFailed(type, error, _searchRequest);
+		//	}).send();
 		//	_searchQueries.insert(_searchRequest, _searchQuery);
 		} else {
+			const auto type = SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
 				? MTPmessages_SearchGlobal::Flag::f_folder_id
 				: MTPmessages_SearchGlobal::Flag(0);
 			const auto folderId = 0;
-			_searchRequest = MTP::send(
-				MTPmessages_SearchGlobal(
-					MTP_flags(flags),
-					MTP_int(folderId),
-					MTP_string(_searchQuery),
-					MTP_int(0),
-					MTP_inputPeerEmpty(),
-					MTP_int(0),
-					MTP_int(SearchPerPage)),
-				rpcDone(&Widget::searchReceived, SearchRequestType::FromStart),
-				rpcFail(&Widget::searchFailed, SearchRequestType::FromStart));
+			_searchRequest = session().api().request(MTPmessages_SearchGlobal(
+				MTP_flags(flags),
+				MTP_int(folderId),
+				MTP_string(_searchQuery),
+				MTP_int(0),
+				MTP_inputPeerEmpty(),
+				MTP_int(0),
+				MTP_int(SearchPerPage)
+			)).done([=](const MTPmessages_Messages &result) {
+				searchReceived(type, result, _searchRequest);
+			}).fail([=](const RPCError &error) {
+				searchFailed(type, error, _searchRequest);
+			}).send();
 			_searchQueries.insert(_searchRequest, _searchQuery);
 		}
 	}
@@ -896,12 +902,14 @@ bool Widget::onSearchMessages(bool searchCache) {
 		} else if (_peerSearchQuery != query) {
 			_peerSearchQuery = query;
 			_peerSearchFull = false;
-			_peerSearchRequest = MTP::send(
-				MTPcontacts_Search(
-					MTP_string(_peerSearchQuery),
-					MTP_int(SearchPeopleLimit)),
-				rpcDone(&Widget::peerSearchReceived),
-				rpcFail(&Widget::peopleFailed));
+			_peerSearchRequest = session().api().request(MTPcontacts_Search(
+				MTP_string(_peerSearchQuery),
+				MTP_int(SearchPeopleLimit)
+			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
+				peerSearchReceived(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				peopleFailed(error, requestId);
+			}).send();
 			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
 		}
 	} else {
@@ -1016,39 +1024,49 @@ void Widget::onSearchMore() {
 				return _searchRequest;
 			});
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	_searchRequest = MTP::send(
-		//		MTPchannels_SearchFeed(
-		//			MTP_int(feed->id()),
-		//			MTP_string(_searchQuery),
-		//			MTP_int(offsetDate),
-		//			offsetPeer
-		//				? offsetPeer->input
-		//				: MTP_inputPeerEmpty(),
-		//			MTP_int(offsetId),
-		//			MTP_int(SearchPerPage)),
-		//		rpcDone(&Widget::searchReceived, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart),
-		//		rpcFail(&Widget::searchFailed, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart));
+		//	const auto type = offsetId
+		//		? SearchRequestType::FromOffset
+		//		: SearchRequestType::FromStart;
+		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
+		//		MTP_int(feed->id()),
+		//		MTP_string(_searchQuery),
+		//		MTP_int(offsetDate),
+		//		offsetPeer
+		//			? offsetPeer->input
+		//			: MTP_inputPeerEmpty(),
+		//		MTP_int(offsetId),
+		//		MTP_int(SearchPerPage)),
+		//	)).done([=](const MTPmessages_Messages &result) {
+		//		searchReceived(type, result, _searchRequest);
+		//	}).fail([=](const RPCError &error) {
+		//		searchFailed(type, error, _searchRequest);
+		//	}).send();
 		//	if (!offsetId) {
 		//		_searchQueries.insert(_searchRequest, _searchQuery);
 		//	}
 		} else {
+			const auto type = offsetId
+				? SearchRequestType::FromOffset
+				: SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
 				? MTPmessages_SearchGlobal::Flag::f_folder_id
 				: MTPmessages_SearchGlobal::Flag(0);
 			const auto folderId = 0;
-			_searchRequest = MTP::send(
-				MTPmessages_SearchGlobal(
-					MTP_flags(flags),
-					MTP_int(folderId),
-					MTP_string(_searchQuery),
-					MTP_int(_searchNextRate),
-					offsetPeer
-						? offsetPeer->input
-						: MTP_inputPeerEmpty(),
-					MTP_int(offsetId),
-					MTP_int(SearchPerPage)),
-				rpcDone(&Widget::searchReceived, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart),
-				rpcFail(&Widget::searchFailed, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart));
+			_searchRequest = session().api().request(MTPmessages_SearchGlobal(
+				MTP_flags(flags),
+				MTP_int(folderId),
+				MTP_string(_searchQuery),
+				MTP_int(_searchNextRate),
+				offsetPeer
+					? offsetPeer->input
+					: MTP_inputPeerEmpty(),
+				MTP_int(offsetId),
+				MTP_int(SearchPerPage)
+			)).done([=](const MTPmessages_Messages &result) {
+				searchReceived(type, result, _searchRequest);
+			}).fail([=](const RPCError &error) {
+				searchFailed(type, error, _searchRequest);
+			}).send();
 			if (!offsetId) {
 				_searchQueries.insert(_searchRequest, _searchQuery);
 			}
@@ -1233,12 +1251,10 @@ void Widget::peerSearchReceived(
 	}
 }
 
-bool Widget::searchFailed(
+void Widget::searchFailed(
 		SearchRequestType type,
 		const RPCError &error,
 		mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
 	if (_searchRequest == requestId) {
 		_searchRequest = 0;
 		if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
@@ -1247,17 +1263,13 @@ bool Widget::searchFailed(
 			_searchFull = true;
 		}
 	}
-	return true;
 }
 
-bool Widget::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (_peerSearchRequest == req) {
+void Widget::peopleFailed(const RPCError &error, mtpRequestId requestId) {
+	if (_peerSearchRequest == requestId) {
 		_peerSearchRequest = 0;
 		_peerSearchFull = true;
 	}
-	return true;
 }
 
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
@@ -1726,10 +1738,7 @@ void Widget::removeDialog(Key key) {
 }
 
 void Widget::cancelSearchRequest() {
-	if (_searchRequest) {
-		MTP::cancel(_searchRequest);
-		_searchRequest = 0;
-	}
+	session().api().request(base::take(_searchRequest)).cancel();
 	if (_searchInHistoryRequest) {
 		session().data().histories().cancelRequest(_searchInHistoryRequest);
 		_searchInHistoryRequest = 0;

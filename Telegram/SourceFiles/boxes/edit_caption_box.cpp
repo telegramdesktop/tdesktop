@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
+#include "apiwrap.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
@@ -66,6 +67,7 @@ EditCaptionBox::EditCaptionBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item)
 : _controller(controller)
+, _api(controller->session().mtp())
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
@@ -963,18 +965,20 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	_saveRequestId = MTP::send(
-		MTPmessages_EditMessage(
-			MTP_flags(flags),
-			item->history()->peer->input,
-			MTP_int(item->id),
-			MTP_string(sending.text),
-			MTPInputMedia(),
-			MTPReplyMarkup(),
-			sentEntities,
-			MTP_int(0)), // schedule_date
-		rpcDone(&EditCaptionBox::saveDone),
-		rpcFail(&EditCaptionBox::saveFail));
+	_saveRequestId = _api.request(MTPmessages_EditMessage(
+		MTP_flags(flags),
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTP_string(sending.text),
+		MTPInputMedia(),
+		MTPReplyMarkup(),
+		sentEntities,
+		MTP_int(0)
+	)).done([=](const MTPUpdates &result) {
+		saveDone(result);
+	}).fail([=](const RPCError &error) {
+		saveFail(error);
+	}).send();
 }
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
@@ -984,26 +988,24 @@ void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	controller->session().api().applyUpdates(updates);
 }
 
-bool EditCaptionBox::saveFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void EditCaptionBox::saveFail(const RPCError &error) {
 	_saveRequestId = 0;
 	const auto &type = error.type();
 	if (type == qstr("MESSAGE_ID_INVALID")
 		|| type == qstr("CHAT_ADMIN_REQUIRED")
 		|| type == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
 		_error = tr::lng_edit_error(tr::now);
+		update();
 	} else if (type == qstr("MESSAGE_NOT_MODIFIED")) {
 		closeBox();
-		return true;
 	} else if (type == qstr("MESSAGE_EMPTY")) {
 		_field->setFocus();
 		_field->showError();
+		update();
 	} else {
 		_error = tr::lng_edit_error(tr::now);
+		update();
 	}
-	update();
-	return true;
 }
 
 void EditCaptionBox::setName(QString nameString, qint64 size) {

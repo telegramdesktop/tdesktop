@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/sender.h"
 
 namespace Data {
 class PhotoMedia;
@@ -129,7 +129,7 @@ private:
 
 };
 
-class PinMessageBox : public Ui::BoxContent, public RPCSender {
+class PinMessageBox final : public Ui::BoxContent {
 public:
 	PinMessageBox(QWidget*, not_null<PeerData*> peer, MsgId msgId);
 
@@ -141,10 +141,9 @@ protected:
 
 private:
 	void pinMessage();
-	void pinDone(const MTPUpdates &updates);
-	bool pinFail(const RPCError &error);
 
-	not_null<PeerData*> _peer;
+	const not_null<PeerData*> _peer;
+	MTP::Sender _api;
 	MsgId _msgId;
 
 	object_ptr<Ui::FlatLabel> _text;
@@ -154,7 +153,7 @@ private:
 
 };
 
-class DeleteMessagesBox : public Ui::BoxContent, public RPCSender {
+class DeleteMessagesBox final : public Ui::BoxContent {
 public:
 	DeleteMessagesBox(
 		QWidget*,
@@ -207,9 +206,8 @@ private:
 
 };
 
-class ConfirmInviteBox
+class ConfirmInviteBox final
 	: public Ui::BoxContent
-	, public RPCSender
 	, private base::Subscriber {
 public:
 	ConfirmInviteBox(

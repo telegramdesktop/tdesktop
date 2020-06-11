@@ -453,7 +453,7 @@ GroupInfoBox::GroupInfoBox(
 	const QString &title,
 	Fn<void(not_null<ChannelData*>)> channelDone)
 : _navigation(navigation)
-, _api(_navigation->session().api().instance())
+, _api(_navigation->session().mtp())
 , _type(type)
 , _initialTitle(title)
 , _channelDone(std::move(channelDone)) {
@@ -750,6 +750,7 @@ SetupChannelBox::SetupChannelBox(
 	bool existing)
 : _navigation(navigation)
 , _channel(channel)
+, _api(_channel->session().mtp())
 , _existing(existing)
 , _privacyGroup(
 	std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
@@ -797,12 +798,12 @@ void SetupChannelBox::prepare() {
 
 	setMouseTracking(true);
 
-	_checkRequestId = MTP::send(
-		MTPchannels_CheckUsername(
-			_channel->inputChannel,
-			MTP_string("preston")),
-		RPCDoneHandlerPtr(),
-		rpcFail(&SetupChannelBox::onFirstCheckFail));
+	_checkRequestId = _api.request(MTPchannels_CheckUsername(
+		_channel->inputChannel,
+		MTP_string("preston")
+	)).fail([=](const RPCError &error) {
+		firstCheckFail(error);
+	}).send();
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(
@@ -950,12 +951,22 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 }
 
 void SetupChannelBox::save() {
+	const auto saveUsername = [&](const QString &link) {
+		_sentUsername = link;
+		_saveRequestId = _api.request(MTPchannels_UpdateUsername(
+			_channel->inputChannel,
+			MTP_string(_sentUsername)
+		)).done([=](const MTPBool &result) {
+			updateDone(result);
+		}).fail([=](const RPCError &error) {
+			updateFail(error);
+		}).send();
+	};
 	if (_saveRequestId) {
 		return;
 	} else if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
-			_sentUsername = QString();
-			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
+			saveUsername(QString());
 		} else {
 			closeBox();
 		}
@@ -966,8 +977,7 @@ void SetupChannelBox::save() {
 			_link->showError();
 			return;
 		}
-		_sentUsername = link;
-		_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
+		saveUsername(link);
 	}
 }
 
@@ -1010,17 +1020,19 @@ void SetupChannelBox::handleChange() {
 
 void SetupChannelBox::check() {
 	if (_checkRequestId) {
-		MTP::cancel(_checkRequestId);
+		_channel->session().api().request(_checkRequestId).cancel();
 	}
 	QString link = _link->text().trimmed();
 	if (link.size() >= kMinUsernameLength) {
 		_checkUsername = link;
-		_checkRequestId = MTP::send(
-			MTPchannels_CheckUsername(
-				_channel->inputChannel,
-				MTP_string(link)),
-			rpcDone(&SetupChannelBox::onCheckDone),
-			rpcFail(&SetupChannelBox::onCheckFail));
+		_checkRequestId = _api.request(MTPchannels_CheckUsername(
+			_channel->inputChannel,
+			MTP_string(link)
+		)).done([=](const MTPBool &result) {
+			checkDone(result);
+		}).fail([=](const RPCError &error) {
+			checkFail(error);
+		}).send();
 	}
 }
 
@@ -1053,38 +1065,36 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 	update();
 }
 
-void SetupChannelBox::onUpdateDone(const MTPBool &result) {
+void SetupChannelBox::updateDone(const MTPBool &result) {
 	_channel->setName(TextUtilities::SingleLine(_channel->name), _sentUsername);
 	closeBox();
 }
 
-bool SetupChannelBox::onUpdateFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void SetupChannelBox::updateFail(const RPCError &error) {
 	_saveRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == _channel->username) {
-		_channel->setName(TextUtilities::SingleLine(_channel->name), TextUtilities::SingleLine(_sentUsername));
+	if (err == "USERNAME_NOT_MODIFIED"
+		|| _sentUsername == _channel->username) {
+		_channel->setName(
+			TextUtilities::SingleLine(_channel->name),
+			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
-		return true;
 	} else if (err == "USERNAME_INVALID") {
 		_link->setFocus();
 		_link->showError();
 		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
-		return true;
 	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
 		_link->setFocus();
 		_link->showError();
 		_errorText = tr::lng_create_channel_link_occupied(tr::now);
 		update();
-		return true;
+	} else {
+		_link->setFocus();
 	}
-	_link->setFocus();
-	return true;
 }
 
-void SetupChannelBox::onCheckDone(const MTPBool &result) {
+void SetupChannelBox::checkDone(const MTPBool &result) {
 	_checkRequestId = 0;
 	QString newError = (mtpIsTrue(result) || _checkUsername == _channel->username) ? QString() : tr::lng_create_channel_link_occupied(tr::now);
 	QString newGood = newError.isEmpty() ? tr::lng_create_channel_link_available(tr::now) : QString();
@@ -1095,14 +1105,11 @@ void SetupChannelBox::onCheckDone(const MTPBool &result) {
 	}
 }
 
-bool SetupChannelBox::onCheckFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void SetupChannelBox::checkFail(const RPCError &error) {
 	_checkRequestId = 0;
 	QString err(error.type());
 	if (err == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 		Ui::hideLayer();
-		return true;
 	} else if (err == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();
@@ -1110,19 +1117,16 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 			_tooMuchUsernames = true;
 			_privacyGroup->setValue(Privacy::Private);
 		}
-		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
 		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
-		return true;
 	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _channel->username) {
 		_errorText = tr::lng_create_channel_link_occupied(tr::now);
 		update();
-		return true;
+	} else {
+		_goodText = QString();
+		_link->setFocus();
 	}
-	_goodText = QString();
-	_link->setFocus();
-	return true;
 }
 
 void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
@@ -1142,14 +1146,11 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 		Ui::LayerOption::KeepOther);
 }
 
-bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void SetupChannelBox::firstCheckFail(const RPCError &error) {
 	_checkRequestId = 0;
 	const auto &type = error.type();
 	if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 		Ui::hideLayer();
-		return true;
 	} else if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();
@@ -1157,15 +1158,15 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 			_tooMuchUsernames = true;
 			_privacyGroup->setValue(Privacy::Private);
 		}
-		return true;
+	} else {
+		_goodText = QString();
+		_link->setFocus();
 	}
-	_goodText = QString();
-	_link->setFocus();
-	return true;
 }
 
 EditNameBox::EditNameBox(QWidget*, not_null<UserData*> user)
 : _user(user)
+, _api(_user->session().mtp())
 , _first(this, st::defaultInputField, tr::lng_signup_firstname(), _user->firstName)
 , _last(this, st::defaultInputField, tr::lng_signup_lastname(), _user->lastName)
 , _invertOrder(langFirstNameGoesSecond()) {
@@ -1248,14 +1249,16 @@ void EditNameBox::save() {
 	_sentName = first;
 	auto flags = MTPaccount_UpdateProfile::Flag::f_first_name
 		| MTPaccount_UpdateProfile::Flag::f_last_name;
-	_requestId = MTP::send(
-		MTPaccount_UpdateProfile(
-			MTP_flags(flags),
-			MTP_string(first),
-			MTP_string(last),
-			MTPstring()),
-		rpcDone(&EditNameBox::saveSelfDone),
-		rpcFail(&EditNameBox::saveSelfFail));
+	_requestId = _api.request(MTPaccount_UpdateProfile(
+		MTP_flags(flags),
+		MTP_string(first),
+		MTP_string(last),
+		MTPstring()
+	)).done([=](const MTPUser &result) {
+		saveSelfDone(result);
+	}).fail([=](const RPCError &error) {
+		saveSelfFail(error);
+	}).send();
 }
 
 void EditNameBox::saveSelfDone(const MTPUser &user) {
@@ -1263,27 +1266,22 @@ void EditNameBox::saveSelfDone(const MTPUser &user) {
 	closeBox();
 }
 
-bool EditNameBox::saveSelfFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void EditNameBox::saveSelfFail(const RPCError &error) {
 	auto err = error.type();
 	auto first = TextUtilities::SingleLine(_first->getLastText().trimmed());
 	auto last = TextUtilities::SingleLine(_last->getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
 		_user->setName(first, last, QString(), TextUtilities::SingleLine(_user->username));
 		closeBox();
-		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
 		_first->setFocus();
 		_first->showError();
-		return true;
 	} else if (err == "LASTNAME_INVALID") {
 		_last->setFocus();
 		_last->showError();
-		return true;
+	} else {
+		_first->setFocus();
 	}
-	_first->setFocus();
-	return true;
 }
 
 RevokePublicLinkBox::Inner::Inner(
@@ -1292,7 +1290,7 @@ RevokePublicLinkBox::Inner::Inner(
 	Fn<void()> revokeCallback)
 : TWidget(parent)
 , _session(session)
-, _api(_session->api().instance())
+, _api(_session->mtp())
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(tr::lng_channels_too_much_public_revoke(tr::now)))
 , _revokeCallback(std::move(revokeCallback)) {

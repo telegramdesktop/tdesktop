@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
 #include "layout.h"
@@ -55,8 +56,10 @@ void SetupConnectionType(
 		return;
 	}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	const auto connectionType = [] {
-		const auto transport = MTP::dctransport();
+	const auto connectionType = [=] {
+		const auto transport = account->mtp()
+			? account->mtp()->dctransport()
+			: QString();
 		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)

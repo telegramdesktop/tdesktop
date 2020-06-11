@@ -186,7 +186,7 @@ SendMediaReady::SendMediaReady(
 	}
 }
 
-SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
+SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
 
@@ -221,7 +221,7 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 		MTP_bytes(),
 		MTP_int(base::unixtime::now()),
 		MTP_vector<MTPPhotoSize>(photoSizes),
-		MTP_int(MTP::maindc()));
+		MTP_int(dcId));
 
 	QString file, filename;
 	int32 filesize = 0;
@@ -476,6 +476,7 @@ void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
 
 
 FileLoadTask::FileLoadTask(
+	MTP::DcId dcId,
 	const QString &filepath,
 	const QByteArray &content,
 	std::unique_ptr<FileMediaInformation> information,
@@ -485,6 +486,7 @@ FileLoadTask::FileLoadTask(
 	std::shared_ptr<SendingAlbum> album,
 	MsgId msgIdToEdit)
 : _id(rand_value<uint64>())
+, _dcId(dcId)
 , _to(to)
 , _album(std::move(album))
 , _filepath(filepath)
@@ -497,12 +499,14 @@ FileLoadTask::FileLoadTask(
 }
 
 FileLoadTask::FileLoadTask(
+	MTP::DcId dcId,
 	const QByteArray &voice,
 	int32 duration,
 	const VoiceWaveform &waveform,
 	const FileLoadTo &to,
 	const TextWithTags &caption)
 : _id(rand_value<uint64>())
+, _dcId(dcId)
 , _to(to)
 , _content(voice)
 , _duration(duration)
@@ -876,7 +880,7 @@ void FileLoadTask::process() {
 					MTP_bytes(),
 					MTP_int(base::unixtime::now()),
 					MTP_vector<MTPPhotoSize>(photoSizes),
-					MTP_int(MTP::maindc()));
+					MTP_int(_dcId));
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();
@@ -909,7 +913,7 @@ void FileLoadTask::process() {
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),
 			MTPVector<MTPVideoSize>(),
-			MTP_int(MTP::maindc()),
+			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 	} else if (_type != SendMediaType::Photo) {
 		document = MTP_document(
@@ -922,7 +926,7 @@ void FileLoadTask::process() {
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),
 			MTPVector<MTPVideoSize>(),
-			MTP_int(MTP::maindc()),
+			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
 		_type = SendMediaType::File;
 	}

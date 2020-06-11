@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
-#include "apiwrap.h"
 #include "facades.h"
 #include "app.h"
 
@@ -218,7 +217,7 @@ void BoxController::Row::stopLastActionRipple() {
 
 BoxController::BoxController(not_null<Window::SessionController*> window)
 : _window(window)
-, _api(_window->session().api().instance()) {
+, _api(_window->session().mtp()) {
 }
 
 Main::Session &BoxController::session() const {

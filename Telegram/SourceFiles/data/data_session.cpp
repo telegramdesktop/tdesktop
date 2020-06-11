@@ -926,7 +926,9 @@ void Session::startExport(const MTPInputPeer &singlePeer) {
 		_exportPanel->activatePanel();
 		return;
 	}
-	_export = std::make_unique<Export::Controller>(singlePeer);
+	_export = std::make_unique<Export::Controller>(
+		session().mtp().get(),
+		singlePeer);
 	_exportPanel = std::make_unique<Export::View::PanelController>(
 		&session(),
 		_export.get());
@@ -2484,7 +2486,7 @@ DocumentData *Session::documentFromWeb(
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
-		MTP::maindc(),
+		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
 		data.vurl().v,
@@ -2506,7 +2508,7 @@ DocumentData *Session::documentFromWeb(
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
-		MTP::maindc(),
+		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
 	return result;

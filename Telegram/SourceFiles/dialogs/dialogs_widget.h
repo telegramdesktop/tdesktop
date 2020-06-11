@@ -13,7 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/special_buttons.h"
 #include "api/api_single_message_search.h"
-#include "mtproto/mtproto_rpc_sender.h"
+
+class RPCError;
 
 namespace Main {
 class Session;
@@ -49,7 +50,7 @@ struct ChosenRow;
 class InnerWidget;
 enum class SearchRequestType;
 
-class Widget : public Window::AbstractSectionWidget, public RPCSender {
+class Widget final : public Window::AbstractSectionWidget {
 	Q_OBJECT
 
 public:
@@ -167,8 +168,11 @@ private:
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
 
-	bool searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req);
-	bool peopleFailed(const RPCError &error, mtpRequestId req);
+	void searchFailed(
+		SearchRequestType type,
+		const RPCError &error,
+		mtpRequestId requestId);
+	void peopleFailed(const RPCError &error, mtpRequestId requestId);
 
 	void scrollToTop();
 	void setupScrollUpButton();

@@ -148,7 +148,11 @@ void Session::saveSettingsDelayed(crl::time delay) {
 	_saveSettingsTimer.callOnce(delay);
 }
 
-not_null<MTP::Instance*> Session::mtp() {
+MTP::DcId Session::mainDcId() const {
+	return _account->mtp()->mainDcId();
+}
+
+not_null<MTP::Instance*> Session::mtp() const {
 	return _account->mtp();
 }
 

@@ -723,7 +723,9 @@ void PanelController::cancelPasswordSubmit() {
 }
 
 void PanelController::validateRecoveryEmail() {
-	auto validation = ConfirmRecoveryEmail(unconfirmedEmailPattern());
+	auto validation = ConfirmRecoveryEmail(
+		&_form->session(),
+		unconfirmedEmailPattern());
 
 	std::move(
 		validation.reloadRequests

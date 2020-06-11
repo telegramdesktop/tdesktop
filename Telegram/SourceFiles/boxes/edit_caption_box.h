@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/sender.h"
 
 class Image;
 
@@ -49,10 +49,7 @@ struct Information;
 } // namespace Streaming
 } // namespace Media
 
-class EditCaptionBox
-	: public Ui::BoxContent
-	, public RPCSender
-	, private base::Subscriber {
+class EditCaptionBox final : public Ui::BoxContent, private base::Subscriber {
 public:
 	EditCaptionBox(
 		QWidget*,
@@ -87,7 +84,7 @@ private:
 	void captionResized();
 
 	void saveDone(const MTPUpdates &updates);
-	bool saveFail(const RPCError &error);
+	void saveFail(const RPCError &error);
 
 	void setName(QString nameString, qint64 size);
 	bool fileFromClipboard(not_null<const QMimeData*> data);
@@ -104,7 +101,9 @@ private:
 			: _preparedList.files.front().path;
 	}
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
+	MTP::Sender _api;
+
 	FullMsgId _msgId;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;

@@ -1279,43 +1279,53 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	PeerData *peer = item->history()->peer;
 	auto i = _viewsIncremented.find(peer);
 	if (i != _viewsIncremented.cend()) {
-		if (i.value().contains(item->id)) return;
+		if (i->second.contains(item->id)) return;
 	} else {
-		i = _viewsIncremented.insert(peer, ViewsIncrementMap());
+		i = _viewsIncremented.emplace(peer).first;
 	}
-	i.value().insert(item->id, true);
+	i->second.emplace(item->id);
 	auto j = _viewsToIncrement.find(peer);
 	if (j == _viewsToIncrement.cend()) {
-		j = _viewsToIncrement.insert(peer, ViewsIncrementMap());
+		j = _viewsToIncrement.emplace(peer).first;
 		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
-	j.value().insert(item->id, true);
+	j->second.emplace(item->id);
 }
 
 void MainWidget::viewsIncrement() {
+	const auto api = &session().api();
 	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
-		if (_viewsIncrementRequests.contains(i.key())) {
+		if (_viewsIncrementRequests.contains(i->first)) {
 			++i;
 			continue;
 		}
 
 		QVector<MTPint> ids;
-		ids.reserve(i.value().size());
-		for (ViewsIncrementMap::const_iterator j = i.value().cbegin(), end = i.value().cend(); j != end; ++j) {
-			ids.push_back(MTP_int(j.key()));
+		ids.reserve(i->second.size());
+		for (const auto msgId : i->second) {
+			ids.push_back(MTP_int(msgId));
 		}
-		auto req = MTP::send(MTPmessages_GetMessagesViews(i.key()->input, MTP_vector<MTPint>(ids), MTP_bool(true)), rpcDone(&MainWidget::viewsIncrementDone, ids), rpcFail(&MainWidget::viewsIncrementFail), 0, 5);
-		_viewsIncrementRequests.insert(i.key(), req);
+		const auto requestId = api->request(MTPmessages_GetMessagesViews(
+			i->first->input,
+			MTP_vector<MTPint>(ids),
+			MTP_bool(true)
+		)).done([=](const MTPVector<MTPint> &result, mtpRequestId requestId) {
+			viewsIncrementDone(ids, result, requestId);
+		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			viewsIncrementFail(error, requestId);
+		}).afterDelay(5).send();
+
+		_viewsIncrementRequests.emplace(i->first, requestId);
 		i = _viewsToIncrement.erase(i);
 	}
 }
 
-void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req) {
+void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId requestId) {
 	auto &v = result.v;
 	if (ids.size() == v.size()) {
 		for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
-			if (i.value() == req) {
-				PeerData *peer = i.key();
+			if (i->second == requestId) {
+				const auto peer = i->first;
 				ChannelId channel = peerToChannel(peer->id);
 				for (int32 j = 0, l = ids.size(); j < l; ++j) {
 					if (HistoryItem *item = session().data().message(channel, ids.at(j).v)) {
@@ -1327,24 +1337,21 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 			}
 		}
 	}
-	if (!_viewsToIncrement.isEmpty() && !_viewsIncrementTimer.isActive()) {
+	if (!_viewsToIncrement.empty() && !_viewsIncrementTimer.isActive()) {
 		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
 }
 
-bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId requestId) {
 	for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
-		if (i.value() == req) {
+		if (i->second == requestId) {
 			_viewsIncrementRequests.erase(i);
 			break;
 		}
 	}
-	if (!_viewsToIncrement.isEmpty() && !_viewsIncrementTimer.isActive()) {
+	if (!_viewsToIncrement.empty() && !_viewsIncrementTimer.isActive()) {
 		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
-	return false;
 }
 
 void MainWidget::refreshDialog(Dialogs::Key key) {
@@ -2690,7 +2697,13 @@ void MainWidget::openPeerByName(
 			});
 		}
 	} else {
-		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(msgId, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
+		session().api().request(MTPcontacts_ResolveUsername(
+			MTP_string(username)
+		)).done([=](const MTPcontacts_ResolvedPeer &result) {
+			usernameResolveDone(result, msgId, startToken);
+		}).fail([=](const RPCError &error) {
+			usernameResolveFail(error, username);
+		}).send();
 	}
 }
 
@@ -2700,19 +2713,24 @@ bool MainWidget::contentOverlapped(const QRect &globalRect) {
 			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
 }
 
-void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result) {
+void MainWidget::usernameResolveDone(
+		const MTPcontacts_ResolvedPeer &result,
+		MsgId msgId,
+		const QString &startToken) {
 	Ui::hideLayer();
-	if (result.type() != mtpc_contacts_resolvedPeer) return;
+	if (result.type() != mtpc_contacts_resolvedPeer) {
+		return;
+	}
 
 	const auto &d(result.c_contacts_resolvedPeer());
 	session().data().processUsers(d.vusers());
 	session().data().processChats(d.vchats());
-	PeerId peerId = peerFromMTP(d.vpeer());
-	if (!peerId) return;
+	const auto peerId = peerFromMTP(d.vpeer());
+	if (!peerId) {
+		return;
+	}
 
-	PeerData *peer = session().data().peer(peerId);
-	MsgId msgId = msgIdAndStartToken.first;
-	QString startToken = msgIdAndStartToken.second;
+	const auto peer = session().data().peer(peerId);
 	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 		if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
@@ -2730,7 +2748,8 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			_controller->showPeerInfo(peer);
 		}
 	} else {
-		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
+		// show specific posts only in channels / supergroups
+		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) {
 			msgId = ShowAtUnreadMsgId;
 		}
 		if (peer->isUser() && peer->asUser()->isBot()) {
@@ -2740,7 +2759,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 				_history->updateControlsGeometry();
 			}
 		}
-		InvokeQueued(this, [this, peer, msgId] {
+		InvokeQueued(this, [=] {
 			_controller->showPeerHistory(
 				peer->id,
 				SectionShow::Way::Forward,
@@ -2749,13 +2768,11 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	}
 }
 
-bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void MainWidget::usernameResolveFail(const RPCError &error, const QString &username) {
 	if (error.code() == 400) {
-		Ui::show(Box<InformBox>(tr::lng_username_not_found(tr::now, lt_user, name)));
+		Ui::show(Box<InformBox>(
+			tr::lng_username_not_found(tr::now, lt_user, username)));
 	}
-	return true;
 }
 
 void MainWidget::incrementSticker(DocumentData *sticker) {

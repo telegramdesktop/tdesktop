@@ -107,7 +107,6 @@ public:
 		ShiftedDcId shiftedDcId,
 		AuthKeyPtr &&key = nullptr);
 	void removeDc(ShiftedDcId shiftedDcId);
-	void unpaused();
 
 	void sendRequest(
 		mtpRequestId requestId,
@@ -168,6 +167,8 @@ private:
 	void exportDone(const MTPauth_ExportedAuthorization &result, mtpRequestId requestId);
 	bool exportFail(const RPCError &error, mtpRequestId requestId);
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error);
+
+	void unpaused();
 
 	Session *findSession(ShiftedDcId shiftedDcId);
 	not_null<Session*> startSession(ShiftedDcId shiftedDcId);
@@ -270,6 +271,10 @@ Instance::Private::Private(
 , _mode(mode) {
 	const auto idealThreadPoolSize = QThread::idealThreadCount();
 	_fileSessionThreads.resize(2 * std::max(idealThreadPoolSize / 2, 1));
+	details::unpaused(
+	) | rpl::start_with_next([=] {
+		unpaused();
+	}, _lifetime);
 }
 
 void Instance::Private::start(Config &&config) {
@@ -1792,10 +1797,6 @@ QString Instance::deviceModel() const {
 
 QString Instance::systemVersion() const {
 	return _private->systemVersion();
-}
-
-void Instance::unpaused() {
-	_private->unpaused();
 }
 
 void Instance::setUpdatesHandler(RPCDoneHandlerPtr onDone) {

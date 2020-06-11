@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/calendar_box.h"
 
-#include "mtproto/mtproto_rpc_sender.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
@@ -199,7 +198,7 @@ QString CalendarBox::Context::labelFromIndex(int index) const {
 	return QString::number(day());
 }
 
-class CalendarBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
+class CalendarBox::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,

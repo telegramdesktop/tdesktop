@@ -4242,6 +4242,7 @@ void ApiWrap::sendVoiceMessage(
 	const auto caption = TextWithTags();
 	const auto to = fileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
+		instance()->mainDcId(),
 		result,
 		duration,
 		waveform,
@@ -4260,6 +4261,7 @@ void ApiWrap::editMedia(
 	auto &file = list.files.front();
 	const auto to = fileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
+		instance()->mainDcId(),
 		file.path,
 		file.content,
 		std::move(file.information),
@@ -4307,6 +4309,7 @@ void ApiWrap::sendFiles(
 			}
 		}
 		tasks.push_back(std::make_unique<FileLoadTask>(
+			instance()->mainDcId(),
 			file.path,
 			file.content,
 			std::move(file.information),
@@ -4333,6 +4336,7 @@ void ApiWrap::sendFile(
 	const auto to = fileLoadTaskOptions(action);
 	auto caption = TextWithTags();
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
+		instance()->mainDcId(),
 		QString(),
 		fileContent,
 		nullptr,
@@ -5017,7 +5021,7 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
 	peer = peer->migrateToOrMe();
-	const auto ready = PreparePeerPhoto(peer->id, std::move(image));
+	const auto ready = PreparePeerPhoto(instance()->mainDcId(), peer->id, std::move(image));
 
 	const auto fakeId = FullMsgId(
 		peerToChannel(peer->id),

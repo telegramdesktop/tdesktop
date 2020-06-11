@@ -370,7 +370,9 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 		}
 		setIsFaved(document, std::move(list));
 	};
-	MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([=](const MTPmessages_StickerSet &result) {
+	session().api().request(MTPmessages_GetStickerSet(
+		document->sticker()->set
+	)).done([=](const MTPmessages_StickerSet &result) {
 		Expects(result.type() == mtpc_messages_stickerSet);
 
 		auto list = std::vector<not_null<EmojiPtr>>();
@@ -388,14 +390,10 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 			}
 		}
 		addAnyway(std::move(list));
-	}), rpcFail([addAnyway](const RPCError &error) {
-		if (MTP::isDefaultHandledError(error)) {
-			return false;
-		}
+	}).fail([=](const RPCError &error) {
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
-		return true;
-	}));
+	}).send();
 }
 
 void Stickers::setIsNotFaved(not_null<DocumentData*> document) {

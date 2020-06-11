@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/ui_utility.h"
+#include "mtproto/mtp_instance.h"
 #include "mtproto/facade.h"
+#include "main/main_account.h"
 #include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
@@ -101,6 +103,7 @@ private:
 	QRect contentRect() const;
 	QRect textRect() const;
 
+	const not_null<Main::Account*> _account;
 	Layout _currentLayout;
 	base::unique_qptr<Ui::LinkButton> _retry;
 	QPointer<Ui::RpWidget> _progress;
@@ -287,7 +290,9 @@ void ConnectionState::refreshState() {
 	const auto state = [&]() -> State {
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
-		const auto mtp = MTP::dcstate();
+		const auto mtp = _account->mtp()
+			? _account->mtp()->dcstate()
+			: MTP::DisconnectedState;
 		const auto proxy
 			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
 		if (mtp == MTP::ConnectingState
@@ -479,6 +484,7 @@ ConnectionState::Widget::Widget(
 	not_null<Main::Account*> account,
 	const Layout &layout)
 : AbstractButton(parent)
+, _account(account)
 , _currentLayout(layout) {
 	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
 	_progress = Ui::CreateChild<Progress>(this);
@@ -611,7 +617,9 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 			tr::lng_reconnecting_try_now(tr::now),
 			st::connectingRetryLink);
 		_retry->addClickHandler([=] {
-			MTP::restart();
+			if (const auto mtproto = _account->mtp()) {
+				mtproto->restart();
+			}
 		});
 		updateRetryGeometry();
 	} else if (!hasRetry) {

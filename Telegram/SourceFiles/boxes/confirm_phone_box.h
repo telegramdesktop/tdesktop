@@ -10,12 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "ui/widgets/input_fields.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class InputField;
 class FlatLabel;
 } // namespace Ui
+
+namespace Main {
+class Session;
+} // namespace Main
 
 void ShowPhoneBannedError(const QString &phone);
 [[nodiscard]] QString ExtractPhonePrefix(const QString &phone);
@@ -86,11 +90,16 @@ private:
 
 };
 
-class ConfirmPhoneBox : public Ui::BoxContent, public RPCSender {
+class ConfirmPhoneBox final : public Ui::BoxContent {
 public:
-	static void start(const QString &phone, const QString &hash);
+	static void Start(
+		not_null<Main::Session*> session,
+		const QString &phone,
+		const QString &hash);
 
-	~ConfirmPhoneBox();
+	[[nodiscard]] Main::Session &session() const {
+		return *_session;
+	}
 
 protected:
 	void prepare() override;
@@ -100,7 +109,11 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash);
+	ConfirmPhoneBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const QString &phone,
+		const QString &hash);
 	friend class object_ptr<ConfirmPhoneBox>;
 
 	void sendCode();
@@ -108,12 +121,12 @@ private:
 	void checkPhoneAndHash();
 
 	void sendCodeDone(const MTPauth_SentCode &result);
-	bool sendCodeFail(const RPCError &error);
+	void sendCodeFail(const RPCError &error);
 
 	void callDone(const MTPauth_SentCode &result);
 
 	void confirmDone(const MTPBool &result);
-	bool confirmFail(const RPCError &error);
+	void confirmFail(const RPCError &error);
 
 	QString getPhone() const {
 		return _phone;
@@ -122,6 +135,8 @@ private:
 
 	void showError(const QString &error);
 
+	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 	mtpRequestId _sendCodeRequestId = 0;
 
 	// _hash from the link for account.sendConfirmPhoneCode call.

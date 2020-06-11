@@ -755,7 +755,7 @@ ParticipantsBoxController::ParticipantsBoxController(
 : PeerListController(CreateSearchController(peer, role, &_additional))
 , _navigation(navigation)
 , _peer(peer)
-, _api(_peer->session().api().instance())
+, _api(_peer->session().mtp())
 , _role(role)
 , _additional(peer, _role) {
 	subscribeToMigration();
@@ -1928,7 +1928,7 @@ ParticipantsBoxSearchController::ParticipantsBoxSearchController(
 : _channel(channel)
 , _role(role)
 , _additional(additional)
-, _api(_channel->session().api().instance()) {
+, _api(_channel->session().mtp()) {
 	_timer.setCallback([=] { searchOnServer(); });
 }
 

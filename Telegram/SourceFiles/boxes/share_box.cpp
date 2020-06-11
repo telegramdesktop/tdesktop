@@ -41,10 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
-class ShareBox::Inner
-	: public Ui::RpWidget
-	, public RPCSender
-	, private base::Subscriber {
+class ShareBox::Inner final : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
@@ -163,6 +160,7 @@ ShareBox::ShareBox(
 	SubmitCallback &&submitCallback,
 	FilterCallback &&filterCallback)
 : _navigation(navigation)
+, _api(_navigation->session().mtp())
 , _copyCallback(std::move(copyCallback))
 , _submitCallback(std::move(submitCallback))
 , _filterCallback(std::move(filterCallback))
@@ -309,18 +307,20 @@ bool ShareBox::searchByUsername(bool searchCache) {
 			if (i != _peopleCache.cend()) {
 				_peopleQuery = query;
 				_peopleRequest = 0;
-				peopleReceived(i.value(), 0);
+				peopleDone(i.value(), 0);
 				return true;
 			}
 		} else if (_peopleQuery != query) {
 			_peopleQuery = query;
 			_peopleFull = false;
-			_peopleRequest = MTP::send(
-				MTPcontacts_Search(
-					MTP_string(_peopleQuery),
-					MTP_int(SearchPeopleLimit)),
-				rpcDone(&ShareBox::peopleReceived),
-				rpcFail(&ShareBox::peopleFailed));
+			_peopleRequest = _api.request(MTPcontacts_Search(
+				MTP_string(_peopleQuery),
+				MTP_int(SearchPeopleLimit)
+			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
+				peopleDone(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				peopleFail(error, requestId);
+			}).send();
 			_peopleQueries.insert(_peopleRequest, _peopleQuery);
 		}
 	}
@@ -333,7 +333,7 @@ void ShareBox::needSearchByUsername() {
 	}
 }
 
-void ShareBox::peopleReceived(
+void ShareBox::peopleDone(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
@@ -364,14 +364,11 @@ void ShareBox::peopleReceived(
 	}
 }
 
-bool ShareBox::peopleFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void ShareBox::peopleFail(const RPCError &error, mtpRequestId requestId) {
 	if (_peopleRequest == requestId) {
 		_peopleRequest = 0;
 		_peopleFull = true;
 	}
-	return true;
 }
 
 void ShareBox::setInnerFocus() {

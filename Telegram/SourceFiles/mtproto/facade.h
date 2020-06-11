@@ -16,6 +16,7 @@ namespace details {
 [[nodiscard]] bool paused();
 void pause();
 void unpause();
+[[nodiscard]] rpl::producer<> unpaused();
 
 } // namespace details
 
@@ -113,88 +114,5 @@ enum {
 	RequestConnecting = 1,
 	RequestSending = 2
 };
-
-Instance *MainInstance();
-
-inline void restart() {
-	return MainInstance()->restart();
-}
-
-inline void restart(ShiftedDcId shiftedDcId) {
-	return MainInstance()->restart(shiftedDcId);
-}
-
-inline DcId maindc() {
-	return MainInstance()->mainDcId();
-}
-
-inline int32 dcstate(ShiftedDcId shiftedDcId = 0) {
-	if (const auto instance = MainInstance()) {
-		return instance->dcstate(shiftedDcId);
-	}
-	return DisconnectedState;
-}
-
-inline QString dctransport(ShiftedDcId shiftedDcId = 0) {
-	if (auto instance = MainInstance()) {
-		return instance->dctransport(shiftedDcId);
-	}
-	return QString();
-}
-
-template <typename TRequest>
-inline mtpRequestId send(
-		const TRequest &request,
-		RPCResponseHandler &&callbacks = {},
-		ShiftedDcId dcId = 0,
-		crl::time msCanWait = 0,
-		mtpRequestId after = 0) {
-	return MainInstance()->send(request, std::move(callbacks), dcId, msCanWait, after);
-}
-
-template <typename TRequest>
-inline mtpRequestId send(
-		const TRequest &request,
-		RPCDoneHandlerPtr &&onDone,
-		RPCFailHandlerPtr &&onFail = nullptr,
-		ShiftedDcId dcId = 0,
-		crl::time msCanWait = 0,
-		mtpRequestId after = 0) {
-	return MainInstance()->send(request, std::move(onDone), std::move(onFail), dcId, msCanWait, after);
-}
-
-inline void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0) {
-	if (const auto instance = MainInstance()) {
-		instance->sendAnything(shiftedDcId, msCanWait);
-	}
-}
-
-inline void cancel(mtpRequestId requestId) {
-	if (const auto instance = MainInstance()) {
-		instance->cancel(requestId);
-	}
-}
-
-inline void ping() {
-	if (const auto instance = MainInstance()) {
-		instance->ping();
-	}
-}
-
-inline void killSession(ShiftedDcId shiftedDcId) {
-	if (const auto instance = MainInstance()) {
-		instance->killSession(shiftedDcId);
-	}
-}
-
-inline void stopSession(ShiftedDcId shiftedDcId) {
-	if (const auto instance = MainInstance()) {
-		instance->stopSession(shiftedDcId);
-	}
-}
-
-inline int32 state(mtpRequestId requestId) { // < 0 means waiting for such count of ms
-	return MainInstance()->state(requestId);
-}
 
 } // namespace MTP

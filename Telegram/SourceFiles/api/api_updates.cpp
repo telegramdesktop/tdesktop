@@ -649,7 +649,7 @@ void Updates::getChannelDifference(
 }
 
 void Updates::sendPing() {
-	api().instance()->ping();
+	_session->mtp()->ping();
 }
 
 void Updates::addActiveChat(rpl::producer<PeerData*> chat) {

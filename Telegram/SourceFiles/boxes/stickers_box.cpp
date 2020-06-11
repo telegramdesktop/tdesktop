@@ -363,6 +363,7 @@ StickersBox::StickersBox(
 	not_null<Main::Session*> session,
 	Section section)
 : _session(session)
+, _api(session->mtp())
 , _tabs(this, st::stickersTabs)
 , _unreadBadge(
 	this,
@@ -376,6 +377,7 @@ StickersBox::StickersBox(
 
 StickersBox::StickersBox(QWidget*, not_null<ChannelData*> megagroup)
 : _session(&megagroup->session())
+, _api(_session->mtp())
 , _section(Section::Installed)
 , _installed(0, this, megagroup)
 , _megagroupSet(megagroup) {
@@ -389,6 +391,7 @@ StickersBox::StickersBox(
 	not_null<Main::Session*> session,
 	const MTPVector<MTPStickerSetCovered> &attachedSets)
 : _session(session)
+, _api(session->mtp())
 , _section(Section::Attached)
 , _attached(0, this, session, Section::Attached)
 , _attachedSets(attachedSets) {
@@ -422,8 +425,8 @@ void StickersBox::showAttachedStickers() {
 }
 
 void StickersBox::getArchivedDone(
-		uint64 offsetId,
-		const MTPmessages_ArchivedStickers &result) {
+		const MTPmessages_ArchivedStickers &result,
+		uint64 offsetId) {
 	_archivedRequestId = 0;
 	_archivedLoaded = true;
 	if (result.type() != mtpc_messages_archivedStickers) {
@@ -631,12 +634,13 @@ void StickersBox::loadMoreArchived() {
 			}
 		}
 	}
-	_archivedRequestId = MTP::send(
-		MTPmessages_GetArchivedStickers(
-			MTP_flags(0),
-			MTP_long(lastId),
-			MTP_int(kArchivedLimitPerPage)),
-		rpcDone(&StickersBox::getArchivedDone, lastId));
+	_archivedRequestId = _api.request(MTPmessages_GetArchivedStickers(
+		MTP_flags(0),
+		MTP_long(lastId),
+		MTP_int(kArchivedLimitPerPage)
+	)).done([=](const MTPmessages_ArchivedStickers &result) {
+		getArchivedDone(result, lastId);
+	}).send();
 }
 
 void StickersBox::paintEvent(QPaintEvent *e) {
@@ -759,12 +763,14 @@ void StickersBox::installSet(uint64 setId) {
 	}
 	if (!(set->flags & MTPDstickerSet::Flag::f_installed_date)
 		|| (set->flags & MTPDstickerSet::Flag::f_archived)) {
-		MTP::send(
-			MTPmessages_InstallStickerSet(
-				set->mtpInput(),
-				MTP_boolFalse()),
-			rpcDone(&StickersBox::installDone),
-			rpcFail(&StickersBox::installFail, setId));
+		_api.request(MTPmessages_InstallStickerSet(
+			set->mtpInput(),
+			MTP_boolFalse()
+		)).done([=](const MTPmessages_StickerSetInstallResult &result) {
+			installDone(result);
+		}).fail([=](const RPCError &error) {
+			installFail(error, setId);
+		}).send();
 
 		_session->data().stickers().installLocally(setId);
 	}
@@ -777,24 +783,28 @@ void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result)
 	}
 }
 
-bool StickersBox::installFail(uint64 setId, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void StickersBox::installFail(const RPCError &error, uint64 setId) {
 	const auto &sets = _session->data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
 		rebuildList();
-		return true;
+	} else {
+		_session->data().stickers().undoInstallLocally(setId);
 	}
-
-	_session->data().stickers().undoInstallLocally(setId);
-	return true;
 }
 
 void StickersBox::preloadArchivedSets() {
-	if (!_tabs) return;
+	if (!_tabs) {
+		return;
+	}
 	if (!_archivedRequestId) {
-		_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(0), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
+		_archivedRequestId = _api.request(MTPmessages_GetArchivedStickers(
+			MTP_flags(0),
+			MTP_long(0),
+			MTP_int(kArchivedLimitFirstRequest)
+		)).done([=](const MTPmessages_ArchivedStickers &result) {
+			getArchivedDone(result, 0);
+		}).send();
 	}
 }
 
@@ -918,7 +928,7 @@ StickersBox::Inner::Inner(
 	StickersBox::Section section)
 : RpWidget(parent)
 , _session(session)
-, _api(_session->api().instance())
+, _api(_session->mtp())
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -935,7 +945,7 @@ StickersBox::Inner::Inner(
 StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup)
 : RpWidget(parent)
 , _session(&megagroup->session())
-, _api(_session->api().instance())
+, _api(_session->mtp())
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {

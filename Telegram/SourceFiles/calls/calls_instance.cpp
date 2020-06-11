@@ -34,7 +34,7 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 Instance::Instance(not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->api().instance()) {
+, _api(_session->mtp()) {
 }
 
 void Instance::startOutgoingCall(not_null<UserData*> user) {

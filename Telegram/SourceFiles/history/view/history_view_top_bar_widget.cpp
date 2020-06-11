@@ -154,7 +154,7 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
-	const auto mtp = MTP::dcstate();
+	const auto mtp = _controller->session().mtp()->dcstate();
 	if (mtp == MTP::ConnectedState) {
 		if (_connecting) {
 			_connecting = nullptr;

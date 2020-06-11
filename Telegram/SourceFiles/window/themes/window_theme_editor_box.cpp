@@ -410,6 +410,7 @@ bool CopyColorsToPalette(
 }
 
 SendMediaReady PrepareThemeMedia(
+		MTP::DcId dcId,
 		const QString &name,
 		const QByteArray &content) {
 	PreparedPhotoThumbs thumbnails;
@@ -452,7 +453,7 @@ SendMediaReady PrepareThemeMedia(
 		MTP_int(content.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
 		MTPVector<MTPVideoSize>(),
-		MTP_int(MTP::maindc()),
+		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
 
 	return SendMediaReady(
@@ -585,7 +586,10 @@ Fn<void()> SavePreparedTheme(
 	};
 
 	const auto uploadFile = [=](const QByteArray &theme) {
-		const auto media = PrepareThemeMedia(fields.title, theme);
+		const auto media = PrepareThemeMedia(
+			session->mainDcId(),
+			fields.title,
+			theme);
 		state->filename = media.filename;
 		state->themeContent = theme;
 

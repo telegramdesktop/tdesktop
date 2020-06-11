@@ -300,7 +300,7 @@ public:
 		_instance->sendAnything();
 	}
 	void requestCancellingDiscard() {
-		for (auto &request : _requests) {
+		for (auto &request : base::take(_requests)) {
 			request.handled();
 		}
 	}
@@ -309,16 +309,21 @@ private:
 	class RequestWrap {
 	public:
 		RequestWrap(
-			Instance *instance,
+			not_null<Instance*> instance,
 			mtpRequestId requestId) noexcept
-		: _id(requestId) {
+		: _instance(instance)
+		, _id(requestId) {
 		}
 
 		RequestWrap(const RequestWrap &other) = delete;
 		RequestWrap &operator=(const RequestWrap &other) = delete;
-		RequestWrap(RequestWrap &&other) : _id(base::take(other._id)) {
+		RequestWrap(RequestWrap &&other)
+		: _instance(other._instance)
+		, _id(base::take(other._id)) {
 		}
 		RequestWrap &operator=(RequestWrap &&other) {
+			Expects(_instance == other._instance);
+
 			if (_id != other._id) {
 				cancelRequest();
 				_id = base::take(other._id);
@@ -330,6 +335,7 @@ private:
 			return _id;
 		}
 		void handled() const noexcept {
+			_id = 0;
 		}
 
 		~RequestWrap() {
@@ -339,12 +345,11 @@ private:
 	private:
 		void cancelRequest() {
 			if (_id) {
-				if (auto instance = MainInstance()) {
-					instance->cancel(_id);
-				}
+				_instance->cancel(_id);
 			}
 		}
-		mtpRequestId _id = 0;
+		const not_null<Instance*> _instance;
+		mutable mtpRequestId _id = 0;
 
 	};
 
@@ -377,7 +382,7 @@ private:
 	friend class SentRequestWrap;
 
 	void senderRequestRegister(mtpRequestId requestId) {
-		_requests.emplace(MainInstance(), requestId);
+		_requests.emplace(_instance, requestId);
 	}
 	void senderRequestHandled(mtpRequestId requestId) {
 		auto it = _requests.find(requestId);

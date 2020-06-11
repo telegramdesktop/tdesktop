@@ -432,6 +432,7 @@ PinMessageBox::PinMessageBox(
 	not_null<PeerData*> peer,
 	MsgId msgId)
 : _peer(peer)
+, _api(peer->session().mtp())
 , _msgId(msgId)
 , _text(this, tr::lng_pinned_pin_sure(tr::now), st::boxLabel) {
 }
@@ -474,24 +475,16 @@ void PinMessageBox::pinMessage() {
 	if (_notify && !_notify->checked()) {
 		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
 	}
-	_requestId = MTP::send(
-		MTPmessages_UpdatePinnedMessage(
-			MTP_flags(flags),
-			_peer->input,
-			MTP_int(_msgId)),
-		rpcDone(&PinMessageBox::pinDone),
-		rpcFail(&PinMessageBox::pinFail));
-}
-
-void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	_peer->session().api().applyUpdates(updates);
-	Ui::hideLayer();
-}
-
-bool PinMessageBox::pinFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-	Ui::hideLayer();
-	return true;
+	_requestId = _api.request(MTPmessages_UpdatePinnedMessage(
+		MTP_flags(flags),
+		_peer->input,
+		MTP_int(_msgId)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+		Ui::hideLayer();
+	}).fail([=](const RPCError &error) {
+		Ui::hideLayer();
+	}).send();
 }
 
 DeleteMessagesBox::DeleteMessagesBox(
@@ -847,8 +840,8 @@ void DeleteMessagesBox::deleteAndClear() {
 		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
 			peer->input,
 			MTP_vector<MTPint>(ids)
-		)).done([=, peer=peer](const MTPUpdates &updates) {
-			peer->session().api().applyUpdates(updates);
+		)).done([peer=peer](const MTPUpdates &result) {
+			peer->session().api().applyUpdates(result);
 		}).send();
 	}
 

@@ -1089,18 +1089,20 @@ void HistoryWidget::updateInlineBotQuery() {
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
 		if (_inlineBotResolveRequestId) {
-			MTP::cancel(_inlineBotResolveRequestId);
+			session().api().request(_inlineBotResolveRequestId).cancel();
 			_inlineBotResolveRequestId = 0;
 		}
 		if (query.lookingUpBot) {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
-			_inlineBotResolveRequestId = MTP::send(
-				MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)),
-				rpcDone(&HistoryWidget::inlineBotResolveDone),
-				rpcFail(
-					&HistoryWidget::inlineBotResolveFail,
-					_inlineBotUsername));
+			const auto username = _inlineBotUsername;
+			_inlineBotResolveRequestId = session().api().request(MTPcontacts_ResolveUsername(
+				MTP_string(username)
+			)).done([=](const MTPcontacts_ResolvedPeer &result) {
+				inlineBotResolveDone(result);
+			}).fail([=](const RPCError &error) {
+				inlineBotResolveFail(error, username);
+			}).send();
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}
@@ -1343,9 +1345,9 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 void HistoryWidget::cancelSendAction(
 		not_null<History*> history,
 		SendAction::Type type) {
-	auto i = _sendActionRequests.find(qMakePair(history, type));
-	if (i != _sendActionRequests.cend()) {
-		MTP::cancel(i.value());
+	const auto i = _sendActionRequests.find({ history, type });
+	if (i != _sendActionRequests.end()) {
+		session().api().request(i->second).cancel();
 		_sendActionRequests.erase(i);
 	}
 }
@@ -1386,13 +1388,13 @@ void HistoryWidget::updateSendAction(
 			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
 			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
 			}
-			const auto key = qMakePair(history, type);
-			const auto requestId = MTP::send(
-				MTPmessages_SetTyping(
-					peer->input,
-					action),
-				rpcDone(&HistoryWidget::sendActionDone));
-			_sendActionRequests.insert(key, requestId);
+			const auto requestId = session().api().request(MTPmessages_SetTyping(
+				peer->input,
+				action
+			)).done([=](const MTPBool &result, mtpRequestId requestId) {
+				sendActionDone(result, requestId);
+			}).send();
+			_sendActionRequests.emplace(std::pair(history, type), requestId);
 			if (type == Type::Typing) {
 				_sendActionStopTimer.callOnce(kCancelTypingActionTimeout);
 			}
@@ -1400,9 +1402,11 @@ void HistoryWidget::updateSendAction(
 	}
 }
 
-void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
+void HistoryWidget::sendActionDone(
+		const MTPBool &result,
+		mtpRequestId requestId) {
 	for (auto i = _sendActionRequests.begin(), e = _sendActionRequests.end(); i != e; ++i) {
-		if (i.value() == req) {
+		if (i->second == requestId) {
 			_sendActionRequests.erase(i);
 			break;
 		}
@@ -2401,18 +2405,14 @@ void HistoryWidget::unreadCountUpdated() {
 	}
 }
 
-bool HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-
+void HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
 	if (error.type() == qstr("CHANNEL_PRIVATE")
 		|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
 		|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		auto was = _peer;
 		controller()->showBackFromStack();
 		Ui::show(Box<InformBox>((was && was->isMegagroup()) ? tr::lng_group_not_accessible(tr::now) : tr::lng_channel_not_accessible(tr::now)));
-		return true;
+		return;
 	}
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
@@ -2426,7 +2426,6 @@ bool HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
 	} else if (_delayedShowAtRequest == requestId) {
 		_delayedShowAtRequest = 0;
 	}
-	return true;
 }
 
 void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId) {
@@ -3046,29 +3045,32 @@ void HistoryWidget::saveEditMsg() {
 	}).send();
 }
 
-void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req) {
+void HistoryWidget::saveEditMsgDone(
+		not_null<History*> history,
+		const MTPUpdates &updates,
+		mtpRequestId requestId) {
 	session().api().applyUpdates(updates);
-	if (req == _saveEditMsgRequestId) {
+	if (requestId == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 		cancelEdit();
 	}
 	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == req) {
+		if (editDraft->saveRequestId == requestId) {
 			history->clearEditDraft();
 			session().local().writeDrafts(history);
 		}
 	}
 }
 
-bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-	if (req == _saveEditMsgRequestId) {
+void HistoryWidget::saveEditMsgFail(
+		not_null<History*> history,
+		const RPCError &error,
+		mtpRequestId requestId) {
+	if (requestId == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 	}
 	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == req) {
+		if (editDraft->saveRequestId == requestId) {
 			editDraft->saveRequestId = 0;
 		}
 	}
@@ -3085,7 +3087,6 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 		Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 	}
 	update();
-	return true;
 }
 
 void HistoryWidget::hideSelectorControlsAnimated() {
@@ -3655,14 +3656,16 @@ void HistoryWidget::app_sendBotCallback(
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
 		sendData = button->data;
 	}
-	button->requestId = MTP::send(
-		MTPmessages_GetBotCallbackAnswer(
-			MTP_flags(flags),
-			_peer->input,
-			MTP_int(msg->id),
-			MTP_bytes(sendData)),
-		rpcDone(&HistoryWidget::botCallbackDone, info),
-		rpcFail(&HistoryWidget::botCallbackFail, info));
+	button->requestId = session().api().request(MTPmessages_GetBotCallbackAnswer(
+		MTP_flags(flags),
+		_peer->input,
+		MTP_int(msg->id),
+		MTP_bytes(sendData)
+	)).done([=](const MTPmessages_BotCallbackAnswer &result, mtpRequestId requestId) {
+		botCallbackDone(info, result, requestId);
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		botCallbackFail(info, error, requestId);
+	}).send();
 	session().data().requestItemRepaint(msg);
 
 	if (_replyToId == msg->id) {
@@ -3893,16 +3896,13 @@ void HistoryWidget::inlineBotResolveDone(
 	}
 }
 
-bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-
+void HistoryWidget::inlineBotResolveFail(
+		const RPCError &error,
+		const QString &username) {
 	_inlineBotResolveRequestId = 0;
-	if (name == _inlineBotUsername) {
+	if (username == _inlineBotUsername) {
 		clearInlineBot();
 	}
-	return true;
 }
 
 bool HistoryWidget::isBotStart() const {
@@ -6162,17 +6162,14 @@ void HistoryWidget::unpinMessage(FullMsgId itemId) {
 		peer->clearPinnedMessage();
 
 		Ui::hideLayer();
-		MTP::send(
-			MTPmessages_UpdatePinnedMessage(
-				MTP_flags(0),
-				peer->input,
-				MTP_int(0)),
-			rpcDone(&HistoryWidget::unpinDone));
+		session().api().request(MTPmessages_UpdatePinnedMessage(
+			MTP_flags(0),
+			peer->input,
+			MTP_int(0)
+		)).done([=](const MTPUpdates &result) {
+			session().api().applyUpdates(result);
+		}).send();
 	})));
-}
-
-void HistoryWidget::unpinDone(const MTPUpdates &updates) {
-	session().api().applyUpdates(updates);
 }
 
 void HistoryWidget::hidePinnedMessage() {
@@ -6329,7 +6326,7 @@ void HistoryWidget::cancelFieldAreaState() {
 }
 
 void HistoryWidget::previewCancel() {
-	MTP::cancel(base::take(_previewRequest));
+	session().api().request(base::take(_previewRequest)).cancel();
 	_previewData = nullptr;
 	_previewLinks.clear();
 	updatePreview();
@@ -6343,28 +6340,29 @@ void HistoryWidget::checkPreview() {
 		previewCancel();
 		return;
 	}
-	const auto newLinks = _parsedLinks.join(' ');
-	if (_previewLinks != newLinks) {
-		MTP::cancel(base::take(_previewRequest));
-		_previewLinks = newLinks;
+	const auto links = _parsedLinks.join(' ');
+	if (_previewLinks != links) {
+		session().api().request(base::take(_previewRequest)).cancel();
+		_previewLinks = links;
 		if (_previewLinks.isEmpty()) {
 			if (_previewData && _previewData->pendingTill >= 0) {
 				previewCancel();
 			}
 		} else {
-			const auto i = _previewCache.constFind(_previewLinks);
+			const auto i = _previewCache.constFind(links);
 			if (i == _previewCache.cend()) {
-				_previewRequest = MTP::send(
-					MTPmessages_GetWebPagePreview(
-						MTP_flags(0),
-						MTP_string(_previewLinks),
-						MTPVector<MTPMessageEntity>()),
-					rpcDone(&HistoryWidget::gotPreview, _previewLinks));
+				_previewRequest = session().api().request(MTPmessages_GetWebPagePreview(
+					MTP_flags(0),
+					MTP_string(links),
+					MTPVector<MTPMessageEntity>()
+				)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
+					gotPreview(links, result, requestId);
+				}).send();
 			} else if (i.value()) {
 				_previewData = session().data().webpage(i.value());
 				updatePreview();
-			} else {
-				if (_previewData && _previewData->pendingTill >= 0) previewCancel();
+			} else if (_previewData && _previewData->pendingTill >= 0) {
+				previewCancel();
 			}
 		}
 	}
@@ -6376,12 +6374,14 @@ void HistoryWidget::requestPreview() {
 		|| _previewLinks.isEmpty()) {
 		return;
 	}
-	_previewRequest = MTP::send(
-		MTPmessages_GetWebPagePreview(
-			MTP_flags(0),
-			MTP_string(_previewLinks),
-			MTPVector<MTPMessageEntity>()),
-		rpcDone(&HistoryWidget::gotPreview, _previewLinks));
+	const auto links = _previewLinks;
+	_previewRequest = session().api().request(MTPmessages_GetWebPagePreview(
+		MTP_flags(0),
+		MTP_string(links),
+		MTPVector<MTPMessageEntity>()
+	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
+		gotPreview(links, result, requestId);
+	}).send();
 }
 
 void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtpRequestId req) {

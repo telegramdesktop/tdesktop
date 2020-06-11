@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/core_types.h"
 #include "mtproto/details/mtproto_serialized_request.h"
 
+#include <QtCore/QPointer>
 #include <rpl/details/callable.h>
 
 #ifndef _DEBUG
@@ -87,7 +88,9 @@ class ConcurrentSender : public base::has_weak_ptr {
 	};
 
 public:
-	ConcurrentSender(Fn<void(FnMut<void()>)> runner);
+	ConcurrentSender(
+		QPointer<Instance> weak,
+		Fn<void(FnMut<void()>)> runner);
 
 	template <typename Request>
 	class SpecificRequestBuilder : public RequestBuilder {
@@ -193,6 +196,7 @@ private:
 	void senderRequestCancelAll();
 	void senderRequestDetach(mtpRequestId requestId);
 
+	const QPointer<Instance> _weak;
 	const Fn<void(FnMut<void()>)> _runner;
 	base::flat_map<mtpRequestId, Handlers> _requests;
 

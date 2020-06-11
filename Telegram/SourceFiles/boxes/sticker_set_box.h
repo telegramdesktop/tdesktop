@@ -21,7 +21,7 @@ namespace Ui {
 class PlainShadow;
 } // namespace Ui
 
-class StickerSetBox : public Ui::BoxContent, public RPCSender {
+class StickerSetBox final : public Ui::BoxContent {
 public:
 	StickerSetBox(
 		QWidget*,
@@ -43,7 +43,7 @@ private:
 	void addStickers();
 	void shareStickers();
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	MTPInputStickerSet _set;
 
 	class Inner;

@@ -45,10 +45,7 @@ namespace Stickers {
 class Set;
 } // namespace Stickers
 
-class StickersBox final
-	: public Ui::BoxContent
-	, public RPCSender
-	, private base::Subscriber {
+class StickersBox final : public Ui::BoxContent, private base::Subscriber {
 public:
 	enum class Section {
 		Installed,
@@ -66,10 +63,9 @@ public:
 		QWidget*,
 		not_null<Main::Session*> session,
 		const MTPVector<MTPStickerSetCovered> &attachedSets);
+	~StickersBox();
 
 	void setInnerFocus() override;
-
-	~StickersBox();
 
 protected:
 	void prepare() override;
@@ -117,15 +113,18 @@ private:
 	QPixmap grabContentCache();
 
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
-	bool installFail(uint64 setId, const RPCError &error);
+	void installFail(const RPCError &error, uint64 setId);
 
 	void preloadArchivedSets();
 	void requestArchivedSets();
 	void loadMoreArchived();
-	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
+	void getArchivedDone(
+		const MTPmessages_ArchivedStickers &result,
+		uint64 offsetId);
 	void showAttachedStickers();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;

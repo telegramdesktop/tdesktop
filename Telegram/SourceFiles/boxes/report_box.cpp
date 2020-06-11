@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
-#include "mtproto/facade.h"
 #include "mainwindow.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -28,11 +27,13 @@ constexpr auto kReportReasonLengthMax = 200;
 } // namespace
 
 ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer)
-: _peer(peer) {
+: _peer(peer)
+, _api(_peer->session().mtp()) {
 }
 
 ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids)
 : _peer(peer)
+, _api(_peer->session().mtp())
 , _ids(std::move(ids)) {
 }
 
@@ -137,7 +138,9 @@ void ReportBox::reasonResized() {
 }
 
 void ReportBox::report() {
-	if (_requestId) return;
+	if (_requestId) {
+		return;
+	}
 
 	if (_reasonOtherText && _reasonOtherText->getLastText().trimmed().isEmpty()) {
 		_reasonOtherText->showError();
@@ -159,18 +162,24 @@ void ReportBox::report() {
 		for (const auto &fullId : *_ids) {
 			ids.push_back(MTP_int(fullId.msg));
 		}
-		_requestId = MTP::send(
-			MTPmessages_Report(
-				_peer->input,
-				MTP_vector<MTPint>(ids),
-				reason),
-			rpcDone(&ReportBox::reportDone),
-			rpcFail(&ReportBox::reportFail));
+		_requestId = _api.request(MTPmessages_Report(
+			_peer->input,
+			MTP_vector<MTPint>(ids),
+			reason
+		)).done([=](const MTPBool &result) {
+			reportDone(result);
+		}).fail([=](const RPCError &error) {
+			reportFail(error);
+		}).send();
 	} else {
-		_requestId = MTP::send(
-			MTPaccount_ReportPeer(_peer->input, reason),
-			rpcDone(&ReportBox::reportDone),
-			rpcFail(&ReportBox::reportFail));
+		_requestId = _api.request(MTPaccount_ReportPeer(
+			_peer->input,
+			reason
+		)).done([=](const MTPBool &result) {
+			reportDone(result);
+		}).fail([=](const RPCError &error) {
+			reportFail(error);
+		}).send();
 	}
 }
 
@@ -180,16 +189,11 @@ void ReportBox::reportDone(const MTPBool &result) {
 	closeBox();
 }
 
-bool ReportBox::reportFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-
+void ReportBox::reportFail(const RPCError &error) {
 	_requestId = 0;
 	if (_reasonOtherText) {
 		_reasonOtherText->showError();
 	}
-	return true;
 }
 
 void ReportBox::updateMaxHeight() {

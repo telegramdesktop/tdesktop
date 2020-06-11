@@ -13,7 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/flags.h"
 #include "base/object_ptr.h"
-#include "mtproto/mtproto_rpc_sender.h"
+
+class RPCError;
 
 namespace Main {
 class Session;
@@ -63,10 +64,7 @@ enum class WidgetState {
 	Filtered,
 };
 
-class InnerWidget
-	: public Ui::RpWidget
-	, public RPCSender
-	, private base::Subscriber {
+class InnerWidget final : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:

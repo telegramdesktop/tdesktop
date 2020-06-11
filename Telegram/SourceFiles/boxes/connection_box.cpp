@@ -1376,7 +1376,9 @@ void ProxiesBoxController::setTryIPv6(bool enabled) {
 		return;
 	}
 	Global::SetTryIPv6(enabled);
-	MTP::restart();
+	if (const auto mtproto = _account->mtp()) {
+		mtproto->restart();
+	}
 	Global::RefConnectionTypeChanged().notify();
 	saveDelayed();
 }
@@ -1408,7 +1410,8 @@ void ProxiesBoxController::updateView(const Item &item) {
 		if (!selected
 			|| (Global::ProxySettings() != ProxyData::Settings::Enabled)) {
 			return item.state;
-		} else if (MTP::dcstate() == MTP::ConnectedState) {
+		} else if (_account->mtp()
+			&& _account->mtp()->dcstate() == MTP::ConnectedState) {
 			return ItemState::Online;
 		}
 		return ItemState::Connecting;

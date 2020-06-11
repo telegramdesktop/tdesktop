@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/details/mtproto_serialized_request.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace MTP {
 namespace details {
@@ -89,8 +89,6 @@ public:
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(Fn<void()> done);
-
-	void unpaused();
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);

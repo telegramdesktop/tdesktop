@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/file_download_mtproto.h"
 #include "app.h"
-#include "apiwrap.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
@@ -625,7 +624,7 @@ FormController::FormController(
 	not_null<Window::SessionController*> controller,
 	const FormRequest &request)
 : _controller(controller)
-, _api(_controller->session().api().instance())
+, _api(_controller->session().mtp())
 , _request(PreprocessRequest(request))
 , _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {
@@ -1001,6 +1000,7 @@ void FormController::recoverPassword() {
 		const auto &data = result.c_auth_passwordRecovery();
 		const auto pattern = qs(data.vemail_pattern());
 		const auto box = _view->show(Box<RecoverBox>(
+			&_controller->session(),
 			pattern,
 			_password.notEmptyPassport));
 
@@ -1424,7 +1424,7 @@ void FormController::prepareFile(
 	const auto fileId = rand_value<uint64>();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
-	file.fields.dcId = MTP::maindc();
+	file.fields.dcId = _controller->session().mainDcId();
 	file.fields.secret = GenerateSecretBytes();
 	file.fields.date = base::unixtime::now();
 	file.fields.image = ReadImage(bytes::make_span(content));

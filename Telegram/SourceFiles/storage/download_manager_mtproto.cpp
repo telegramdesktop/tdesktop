@@ -353,7 +353,7 @@ void DownloadManagerMtproto::removeSession(MTP::DcId dcId) {
 	Assert(session.requested == kMaxWaitedInSession * kMaxSessionsCount);
 
 	dc.sessions.pop_back();
-	MTP::killSession(MTP::downloadDcId(dcId, index));
+	api().instance()->killSession(MTP::downloadDcId(dcId, index));
 
 	dc.lastSessionRemove = crl::now();
 }
@@ -403,7 +403,7 @@ void DownloadManagerMtproto::killSessions(MTP::DcId dcId) {
 		for (auto j = 0; j != int(sessions.size()); ++j) {
 			Assert(sessions[j].requested == 0);
 			sessions[j] = DcSessionBalanceData();
-			MTP::stopSession(MTP::downloadDcId(dcId, j));
+			api().instance()->stopSession(MTP::downloadDcId(dcId, j));
 		}
 		dc.sessions = base::take(sessions);
 	}

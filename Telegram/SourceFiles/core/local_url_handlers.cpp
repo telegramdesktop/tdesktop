@@ -153,7 +153,7 @@ bool ConfirmPhone(
 	if (phone.isEmpty() || hash.isEmpty()) {
 		return false;
 	}
-	ConfirmPhoneBox::start(phone, hash);
+	ConfirmPhoneBox::Start(session, phone, hash);
 	return true;
 }
 

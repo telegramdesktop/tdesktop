@@ -105,8 +105,6 @@ public:
 		return *_diceStickersPacks;
 	}
 
-	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
-
 	[[nodiscard]] Window::Notifications::System &notifications() {
 		return *_notifications;
 	}
@@ -124,7 +122,10 @@ public:
 	[[nodiscard]] auto windows() const
 		-> const base::flat_set<not_null<Window::SessionController*>> &;
 
-	[[nodiscard]] not_null<MTP::Instance*> mtp();
+	// Shortcuts.
+	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
+	[[nodiscard]] MTP::DcId mainDcId() const;
+	[[nodiscard]] not_null<MTP::Instance*> mtp() const;
 	[[nodiscard]] ApiWrap &api() {
 		return *_api;
 	}

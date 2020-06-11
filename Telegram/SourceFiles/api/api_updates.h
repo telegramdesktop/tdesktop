@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/mtproto_rpc_sender.h"
 #include "data/data_pts_waiter.h"
 #include "base/timer.h"
 
+class RPCError;
 class ApiWrap;
 class History;
 

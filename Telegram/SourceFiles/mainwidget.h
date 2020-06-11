@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
-#include "mtproto/mtproto_rpc_sender.h"
 
+class RPCError;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
@@ -100,7 +100,6 @@ class ItemBase;
 
 class MainWidget
 	: public Ui::RpWidget
-	, public RPCSender
 	, private base::Subscriber
 	, private Media::Player::FloatDelegate {
 	Q_OBJECT
@@ -324,8 +323,13 @@ private:
 
 	void saveSectionInStack();
 
-	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
-	bool usernameResolveFail(QString name, const RPCError &error);
+	void usernameResolveDone(
+		const MTPcontacts_ResolvedPeer &result,
+		MsgId msgId,
+		const QString &startToken);
+	void usernameResolveFail(
+		const RPCError &error,
+		const QString &username);
 
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
@@ -348,8 +352,11 @@ private:
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 	void floatPlayerClosed(FullMsgId itemId);
 
-	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
-	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
+	void viewsIncrementDone(
+		QVector<MTPint> ids,
+		const MTPVector<MTPint> &result,
+		mtpRequestId requestId);
+	void viewsIncrementFail(const RPCError &error, mtpRequestId requestId);
 
 	void refreshResizeAreas();
 	template <typename MoveCallback, typename FinishCallback>
@@ -422,10 +429,10 @@ private:
 
 	PhotoData *_deletingPhoto = nullptr;
 
-	using ViewsIncrementMap = QMap<MsgId, bool>;
-	QMap<PeerData*, ViewsIncrementMap> _viewsIncremented, _viewsToIncrement;
-	QMap<PeerData*, mtpRequestId> _viewsIncrementRequests;
-	QMap<mtpRequestId, PeerData*> _viewsIncrementByRequest;
+	base::flat_map<not_null<PeerData*>, base::flat_set<MsgId>> _viewsIncremented;
+	base::flat_map<not_null<PeerData*>, base::flat_set<MsgId>> _viewsToIncrement;
+	base::flat_map<not_null<PeerData*>, mtpRequestId> _viewsIncrementRequests;
+	base::flat_map<mtpRequestId, not_null<PeerData*>> _viewsIncrementByRequest;
 	base::Timer _viewsIncrementTimer;
 
 	struct SettingBackground;

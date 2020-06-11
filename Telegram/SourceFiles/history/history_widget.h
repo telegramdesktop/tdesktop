@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
+class RPCError;
 struct FileLoadResult;
 struct FileMediaInformation;
 struct SendingAlbum;
@@ -96,9 +97,7 @@ class MessageField;
 class HistoryInner;
 struct HistoryMessageMarkupButton;
 
-class HistoryWidget final
-	: public Window::AbstractSectionWidget
-	, public RPCSender {
+class HistoryWidget final : public Window::AbstractSectionWidget {
 	Q_OBJECT
 
 public:
@@ -435,7 +434,7 @@ private:
 		not_null<History*> history,
 		SendAction::Type type);
 	void cancelTypingAction();
-	void sendActionDone(const MTPBool &result, mtpRequestId req);
+	void sendActionDone(const MTPBool &result, mtpRequestId requestId);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -556,7 +555,6 @@ private:
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
-	void unpinDone(const MTPUpdates &updates);
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
@@ -583,14 +581,14 @@ private:
 	void createUnreadBarAndResize();
 
 	void saveEditMsg();
-	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
-	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
+	void saveEditMsgDone(not_null<History*> history, const MTPUpdates &updates, mtpRequestId requestId);
+	void saveEditMsgFail(not_null<History*> history, const RPCError &error, mtpRequestId requestId);
 
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
-	bool messagesFailed(const RPCError &error, int requestId);
+	void messagesFailed(const RPCError &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
@@ -645,7 +643,7 @@ private:
 	void handleSupportSwitch(not_null<History*> updated);
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	bool inlineBotResolveFail(QString name, const RPCError &error);
+	void inlineBotResolveFail(const RPCError &error, const QString &username);
 
 	bool isBotStart() const;
 	bool isBlocked() const;
@@ -813,7 +811,9 @@ private:
 	base::Timer _highlightTimer;
 	crl::time _highlightStart = 0;
 
-	QMap<QPair<not_null<History*>, SendAction::Type>, mtpRequestId> _sendActionRequests;
+	base::flat_map<
+		std::pair<not_null<History*>, SendAction::Type>,
+		mtpRequestId> _sendActionRequests;
 	base::Timer _sendActionStopTimer;
 
 	crl::time _saveDraftStart = 0;

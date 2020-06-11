@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
-#include "apiwrap.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -744,7 +743,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _api(_controller->session().api().instance())
+, _api(_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {
@@ -1027,8 +1026,7 @@ void Widget::inlineBotChanged() {
 		hideAnimated();
 	}
 
-	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
-	_inlineRequestId = 0;
+	_api.request(base::take(_inlineRequestId)).cancel();
 	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
 	_inlineBot = nullptr;
 	_inlineCache.clear();
@@ -1104,7 +1102,7 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {
-			MTP::cancel(_inlineRequestId);
+			_api.request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
 			_requesting.fire(false);
 		}

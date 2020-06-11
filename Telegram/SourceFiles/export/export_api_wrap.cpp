@@ -410,8 +410,8 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
 }
 
-ApiWrap::ApiWrap(Fn<void(FnMut<void()>)> runner)
-: _mtp(std::move(runner))
+ApiWrap::ApiWrap(QPointer<MTP::Instance> weak, Fn<void(FnMut<void()>)> runner)
+: _mtp(weak, std::move(runner))
 , _fileCache(std::make_unique<LoadedFileCache>(kLocationCacheSize)) {
 }
 

@@ -439,7 +439,7 @@ void ClearApplying() {
 	GlobalApplying = Applying();
 }
 
-SendMediaReady PrepareWallPaper(const QImage &image) {
+SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 	PreparedPhotoThumbs thumbnails;
 	QVector<MTPPhotoSize> sizes;
 
@@ -482,7 +482,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		MTP_int(jpeg.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
 		MTPVector<MTPVideoSize>(),
-		MTP_int(MTP::maindc()),
+		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
 
 	return SendMediaReady(
@@ -575,7 +575,7 @@ void ChatBackground::checkUploadWallPaper() {
 		return;
 	}
 
-	const auto ready = PrepareWallPaper(_original);
+	const auto ready = PrepareWallPaper(_session->mainDcId(), _original);
 	const auto documentId = ready.id;
 	_wallPaperUploadId = FullMsgId(0, _session->data().nextLocalMessageId());
 	_session->uploader().uploadMedia(_wallPaperUploadId, ready);

@@ -366,7 +366,9 @@ void SetupCloudPassword(
 		if (!state) {
 			return;
 		}
-		auto validation = ConfirmRecoveryEmail(state->unconfirmedPattern);
+		auto validation = ConfirmRecoveryEmail(
+			&controller->session(),
+			state->unconfirmedPattern);
 
 		std::move(
 			validation.reloadRequests

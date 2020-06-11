@@ -229,7 +229,7 @@ StickerSetBox::Inner::Inner(
 	const MTPInputStickerSet &set)
 : RpWidget(parent)
 , _controller(controller)
-, _api(_controller->session().api().instance())
+, _api(_controller->session().mtp())
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {

@@ -96,7 +96,7 @@ Call::Call(
 	Type type)
 : _delegate(delegate)
 , _user(user)
-, _api(_user->session().api().instance())
+, _api(_user->session().mtp())
 , _type(type) {
 	_discardByTimeoutTimer.setCallback([this] { hangup(); });
 
