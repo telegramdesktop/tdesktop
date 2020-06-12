@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "numbers.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_overview.h"

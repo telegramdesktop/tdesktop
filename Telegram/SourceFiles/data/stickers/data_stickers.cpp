@@ -62,6 +62,119 @@ rpl::producer<> Stickers::savedGifsUpdated() const {
 	return _savedGifsUpdated.events();
 }
 
+void Stickers::incrementSticker(not_null<DocumentData*> document) {
+	if (!document->sticker()
+		|| document->sticker()->set.type() == mtpc_inputStickerSetEmpty) {
+		return;
+	}
+
+	bool writeRecentStickers = false;
+	auto &sets = setsRef();
+	auto it = sets.find(Data::Stickers::CloudRecentSetId);
+	if (it == sets.cend()) {
+		if (it == sets.cend()) {
+			it = sets.emplace(
+				Data::Stickers::CloudRecentSetId,
+				std::make_unique<Data::StickersSet>(
+					&session().data(),
+					Data::Stickers::CloudRecentSetId,
+					uint64(0),
+					tr::lng_recent_stickers(tr::now),
+					QString(),
+					0, // count
+					0, // hash
+					MTPDstickerSet_ClientFlag::f_special | 0,
+					TimeId(0))).first;
+		} else {
+			it->second->title = tr::lng_recent_stickers(tr::now);
+		}
+	}
+	const auto set = it->second.get();
+	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();
+	auto index = set->stickers.indexOf(document);
+	if (index > 0) {
+		if (set->dates.empty()) {
+			session().api().requestRecentStickersForce();
+		} else {
+			Assert(set->dates.size() == set->stickers.size());
+			set->dates.erase(set->dates.begin() + index);
+		}
+		set->stickers.removeAt(index);
+		for (auto i = set->emoji.begin(); i != set->emoji.end();) {
+			if (const auto index = i->indexOf(document); index >= 0) {
+				removedFromEmoji.emplace_back(i.key());
+				i->removeAt(index);
+				if (i->isEmpty()) {
+					i = set->emoji.erase(i);
+					continue;
+				}
+			}
+			++i;
+		}
+	}
+	if (index) {
+		if (set->dates.size() == set->stickers.size()) {
+			set->dates.insert(set->dates.begin(), base::unixtime::now());
+		}
+		set->stickers.push_front(document);
+		if (const auto emojiList = getEmojiListFromSet(document)) {
+			for (const auto emoji : *emojiList) {
+				set->emoji[emoji].push_front(document);
+			}
+		} else if (!removedFromEmoji.empty()) {
+			for (const auto emoji : removedFromEmoji) {
+				set->emoji[emoji].push_front(document);
+			}
+		} else {
+			session().api().requestRecentStickersForce();
+		}
+
+		writeRecentStickers = true;
+	}
+
+	// Remove that sticker from old recent, now it is in cloud recent stickers.
+	bool writeOldRecent = false;
+	auto &recent = getRecentPack();
+	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
+		if (i->first == document) {
+			writeOldRecent = true;
+			recent.erase(i);
+			break;
+		}
+	}
+	while (!recent.isEmpty() && set->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
+		writeOldRecent = true;
+		recent.pop_back();
+	}
+
+	if (writeOldRecent) {
+		session().local().writeSettings();
+	}
+
+	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
+	bool writeInstalledStickers = false;
+	auto customIt = sets.find(Data::Stickers::CustomSetId);
+	if (customIt != sets.cend()) {
+		const auto custom = customIt->second.get();
+		int removeIndex = custom->stickers.indexOf(document);
+		if (removeIndex >= 0) {
+			custom->stickers.removeAt(removeIndex);
+			if (custom->stickers.isEmpty()) {
+				sets.erase(customIt);
+			}
+			writeInstalledStickers = true;
+		}
+	}
+
+	if (writeInstalledStickers) {
+		session().local().writeInstalledStickers();
+	}
+	if (writeRecentStickers) {
+		session().local().writeRecentStickers();
+	}
+	notifyRecentUpdated();
+}
+
 void Stickers::addSavedGif(not_null<DocumentData*> document) {
 	const auto index = _savedGifs.indexOf(document);
 	if (!index) {

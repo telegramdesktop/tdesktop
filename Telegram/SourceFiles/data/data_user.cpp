@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_user.h"
 
-#include "observer_peer.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "ui/text_options.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -20,7 +20,7 @@ namespace {
 // User with hidden last seen stays online in UI for such amount of seconds.
 constexpr auto kSetOnlineAfterActivity = TimeId(30);
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -65,9 +65,7 @@ void UserData::setIsContact(bool is) {
 		: ContactStatus::NotContact;
 	if (_contactStatus != status) {
 		_contactStatus = status;
-		Notify::peerUpdatedDelayed(
-			this,
-			Notify::PeerUpdate::Flag::UserIsContact);
+		session().changes().peerUpdated(this, UpdateFlag::IsContact);
 	}
 }
 
@@ -92,16 +90,16 @@ void UserData::setUnavailableReasons(
 		std::vector<Data::UnavailableReason> &&reasons) {
 	if (_unavailableReasons != reasons) {
 		_unavailableReasons = std::move(reasons);
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			this,
-			Notify::PeerUpdate::Flag::UnavailableReasonChanged);
+			UpdateFlag::UnavailableReason);
 	}
 }
 
 void UserData::setCommonChatsCount(int count) {
 	if (_commonChatsCount != count) {
 		_commonChatsCount = count;
-		Notify::peerUpdatedDelayed(this, UpdateFlag::UserCommonChatsChanged);
+		session().changes().peerUpdated(this, UpdateFlag::CommonChats);
 	}
 }
 
@@ -213,10 +211,10 @@ void UserData::madeAction(TimeId when) {
 		return;
 	} else if (onlineTill <= 0 && -onlineTill < when) {
 		onlineTill = -when - kSetOnlineAfterActivity;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
+		session().changes().peerUpdated(this, UpdateFlag::OnlineStatus);
 	} else if (onlineTill > 0 && onlineTill < when + 1) {
 		onlineTill = when + kSetOnlineAfterActivity;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
+		session().changes().peerUpdated(this, UpdateFlag::OnlineStatus);
 	}
 }
 
@@ -241,14 +239,14 @@ void UserData::setIsBlocked(bool is) {
 		} else {
 			_fullFlags.remove(MTPDuserFull::Flag::f_blocked);
 		}
-		Notify::peerUpdatedDelayed(this, UpdateFlag::UserIsBlocked);
+		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
 	}
 }
 
 void UserData::setCallsStatus(CallsStatus callsStatus) {
 	if (callsStatus != _callsStatus) {
 		_callsStatus = callsStatus;
-		Notify::peerUpdatedDelayed(this, UpdateFlag::UserHasCalls);
+		session().changes().peerUpdated(this, UpdateFlag::HasCalls);
 	}
 }
 

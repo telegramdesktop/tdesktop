@@ -30,10 +30,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -131,7 +127,8 @@ public:
 
 	base::Observable<UserData*> searchFromUserChanged;
 
-	rpl::producer<ChosenRow> chosenRow() const;
+	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
+	[[nodiscard]] rpl::producer<> updated() const;
 
 	~InnerWidget();
 
@@ -228,7 +225,7 @@ private:
 
 	int defaultRowTop(not_null<Row*> row) const;
 	void setupOnlineStatusCheck();
-	void userOnlineUpdated(const Notify::PeerUpdate &update);
+	void userOnlineUpdated(not_null<PeerData*> peer);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(
@@ -406,6 +403,7 @@ private:
 	Fn<void()> _loadMoreCallback;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
+	rpl::event_stream<> _updated;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

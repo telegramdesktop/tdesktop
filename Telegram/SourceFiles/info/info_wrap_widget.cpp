@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
@@ -482,9 +483,9 @@ void WrapWidget::addProfileCallsButton() {
 		return;
 	}
 
-	Notify::PeerUpdateValue(
+	user->session().changes().peerFlagsValue(
 		user,
-		Notify::PeerUpdate::Flag::UserHasCalls
+		Data::PeerUpdate::Flag::HasCalls
 	) | rpl::filter([=] {
 		return user->hasCalls();
 	}) | rpl::take(

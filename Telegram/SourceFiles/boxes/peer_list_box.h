@@ -34,10 +34,6 @@ struct ScrollToRequest;
 class PopupMenu;
 } // namespace Ui
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 using PaintRoundImageCallback = Fn<void(
 	Painter &p,
 	int x,
@@ -551,7 +547,7 @@ protected:
 private:
 	void refreshIndices();
 	void removeRowAtIndex(std::vector<std::unique_ptr<PeerListRow>> &from, int index);
-	void handleNameChanged(const Notify::PeerUpdate &update);
+	void handleNameChanged(not_null<PeerData*> peer);
 
 	void invalidatePixmapsCache();
 

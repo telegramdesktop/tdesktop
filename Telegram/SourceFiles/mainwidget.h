@@ -32,10 +32,6 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Data {
 class WallPaper;
 class CloudImageView;
@@ -131,9 +127,6 @@ public:
 		FullMsgId clickFromMessageId = FullMsgId());
 
 	bool started();
-
-	void incrementSticker(DocumentData *sticker);
-
 	void activate();
 
 	void refreshDialog(Dialogs::Key key);
@@ -144,7 +137,6 @@ public:
 
 	void windowShown();
 
-	void historyToDown(History *hist);
 	void dialogsToUp();
 	void checkHistoryActivation();
 
@@ -226,9 +218,6 @@ public:
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 
-	void cancelForwarding(not_null<History*> history);
-	void finishForwarding(Api::SendAction action);
-
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
@@ -259,9 +248,6 @@ public:
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
 	void closeBothPlayers();
-
-signals:
-	void dialogsUpdated();
 
 public slots:
 	void inlineResultLoadProgress(FileLoader *loader);

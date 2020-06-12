@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_changes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
@@ -29,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
-#include "observer_peer.h"
 #include "history/view/history_view_cursor_state.h"
 #include "facades.h"
 #include "app.h"
@@ -49,7 +49,7 @@ constexpr auto kInlineBotRequestDelay = 400;
 Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
@@ -66,15 +66,18 @@ Inner::Inner(
 			update();
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::RightsChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _inlineQueryPeer) {
-			auto isRestricted = (_restrictedLabel != nullptr);
-			if (isRestricted != isRestrictedView()) {
-				auto h = countHeight();
-				if (h != height()) resize(width(), h);
-			}
+
+	_controller->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == _inlineQueryPeer);
+	}) | rpl::start_with_next([=] {
+		auto isRestricted = (_restrictedLabel != nullptr);
+		if (isRestricted != isRestrictedView()) {
+			auto h = countHeight();
+			if (h != height()) resize(width(), h);
 		}
-	}));
+	}, lifetime());
 }
 
 void Inner::visibleTopBottomUpdated(

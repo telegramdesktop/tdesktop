@@ -15,11 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "window/window_controller.h"
 #include "media/audio/media_audio.h"
 #include "ui/image/image.h"
 #include "mainwidget.h"
-#include "observer_peer.h"
 #include "api/api_updates.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -377,7 +377,7 @@ void Account::startMtp() {
 
 	if (sessionExists()) {
 		// Skip all pending self updates so that we won't local().writeSelf.
-		Notify::peerUpdatedSendDelayed();
+		session().changes().sendNotifications();
 	}
 
 	_mtpValue = _mtp.get();

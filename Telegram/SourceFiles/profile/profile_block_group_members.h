@@ -15,9 +15,9 @@ namespace Ui {
 class FlatLabel;
 } // namespace Ui
 
-namespace Notify {
+namespace Data {
 struct PeerUpdate;
-} // namespace Notify
+} // namespace Data
 
 namespace Profile {
 
@@ -25,7 +25,10 @@ class GroupMembersWidget : public PeerListWidget {
 	Q_OBJECT
 
 public:
-	GroupMembersWidget(QWidget *parent, PeerData *peer, const style::PeerListItem &st);
+	GroupMembersWidget(
+		QWidget *parent, 
+		not_null<PeerData*> peer, 
+		const style::PeerListItem &st);
 
 	int onlineCount() const {
 		return _onlineCount;
@@ -41,7 +44,7 @@ private slots:
 
 private:
 	// Observed notifications.
-	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void notifyPeerUpdated(const Data::PeerUpdate &update);
 
 	void removePeer(PeerData *selectedPeer);
 	void refreshMembers();

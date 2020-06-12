@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
+#include "data/data_changes.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
@@ -32,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h" // GifPauseReason.
 #include "main/main_session.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
@@ -896,11 +896,19 @@ StickersListWidget::StickersListWidget(
 			readVisibleFeatured(getVisibleTop(), getVisibleBottom());
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelStickersChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _megagroupSet) {
-			refreshStickers();
-		}
-	}));
+
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::StickersSet
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == _megagroupSet);
+	}) | rpl::start_with_next([=] {
+		refreshStickers();
+	}, lifetime());
+
+	session().data().stickers().recentUpdated(
+	) | rpl::start_with_next([=] {
+		refreshRecent();
+	}, lifetime());
 }
 
 Main::Session &StickersListWidget::session() const {

@@ -12,10 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_item.h"
 #include "mtproto/sender.h"
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Ui {
 class ScrollArea;
 class PlainShadow;

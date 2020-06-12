@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "api/api_text_entities.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
@@ -27,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "core/sandbox.h"
 #include "main/main_session.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -334,14 +334,14 @@ void Helper::cloudDraftChanged(not_null<History*> history) {
 void Helper::chatOccupiedUpdated(not_null<History*> history) {
 	if (const auto till = OccupiedBySomeoneTill(history)) {
 		_occupiedChats[history] = till + 2;
-		Notify::peerUpdatedDelayed(
-			history->peer,
-			Notify::PeerUpdate::Flag::UserOccupiedChanged);
+		history->session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::ChatOccupied);
 		checkOccupiedChats();
 	} else if (_occupiedChats.take(history)) {
-		Notify::peerUpdatedDelayed(
-			history->peer,
-			Notify::PeerUpdate::Flag::UserOccupiedChanged);
+		history->session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::ChatOccupied);
 	}
 }
 
@@ -355,9 +355,9 @@ void Helper::checkOccupiedChats() {
 		if (nearest->second <= now) {
 			const auto history = nearest->first;
 			_occupiedChats.erase(nearest);
-			Notify::peerUpdatedDelayed(
-				history->peer,
-				Notify::PeerUpdate::Flag::UserOccupiedChanged);
+			history->session().changes().historyUpdated(
+				history,
+				Data::HistoryUpdate::Flag::ChatOccupied);
 		} else {
 			_checkOccupiedTimer.callOnce(
 				(nearest->second - now) * crl::time(1000));
@@ -440,9 +440,9 @@ void Helper::applyInfo(
 		not_null<UserData*> user,
 		const MTPhelp_UserInfo &result) {
 	const auto notify = [&] {
-		Notify::peerUpdatedDelayed(
+		user->session().changes().peerUpdated(
 			user,
-			Notify::PeerUpdate::Flag::UserSupportInfoChanged);
+			Data::PeerUpdate::Flag::SupportInfo);
 	};
 	const auto remove = [&] {
 		if (_userInformation.take(user)) {
@@ -468,9 +468,9 @@ void Helper::applyInfo(
 }
 
 rpl::producer<UserInfo> Helper::infoValue(not_null<UserData*> user) const {
-	return Notify::PeerUpdateValue(
+	return user->session().changes().peerFlagsValue(
 		user,
-		Notify::PeerUpdate::Flag::UserSupportInfoChanged
+		Data::PeerUpdate::Flag::SupportInfo
 	) | rpl::map([=] {
 		return infoCurrent(user);
 	});

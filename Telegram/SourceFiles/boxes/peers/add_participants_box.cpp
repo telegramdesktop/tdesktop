@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_changes.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "base/unixtime.h"
@@ -23,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "facades.h"
 #include "app.h"
 
@@ -348,17 +348,16 @@ void AddSpecialBoxController::prepareChatRows(not_null<ChatData*> chat) {
 		chat->updateFullForced();
 	}
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		UpdateFlag::MembersChanged | UpdateFlag::AdminsChanged,
-		[=](const Notify::PeerUpdate &update) {
-			if (update.peer == chat) {
-				_additional.fillFromPeer();
-				if (update.flags & UpdateFlag::MembersChanged) {
-					rebuildChatRows(chat);
-				}
-			}
-		}));
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	chat->session().changes().peerUpdates(
+		chat,
+		UpdateFlag::Members | UpdateFlag::Admins
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		_additional.fillFromPeer();
+		if (update.flags & UpdateFlag::Members) {
+			rebuildChatRows(chat);
+		}
+	}, lifetime());
 }
 
 void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {

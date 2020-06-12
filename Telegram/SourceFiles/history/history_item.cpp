@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
@@ -41,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "observer_peer.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -725,11 +725,9 @@ void HistoryItem::sendFailed() {
 
 	_clientFlags = (_clientFlags | MTPDmessage_ClientFlag::f_failed)
 		& ~MTPDmessage_ClientFlag::f_sending;
-	if (history()->peer->isChannel()) {
-		Notify::peerUpdatedDelayed(
-			history()->peer,
-			Notify::PeerUpdate::Flag::ChannelLocalMessages);
-	}
+	history()->session().changes().historyUpdated(
+		history(),
+		Data::HistoryUpdate::Flag::LocalMessages);
 }
 
 bool HistoryItem::needCheck() const {

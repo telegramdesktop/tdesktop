@@ -16,13 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
@@ -286,20 +286,19 @@ void SubscribeToMigration(
 		if (const auto channel = peer->migrateTo()) {
 			migrate(channel);
 		} else if (!chat->isDeactivated()) {
-			const auto alive = lifetime.make_state<base::Subscription>();
-			const auto handler = [=](const Notify::PeerUpdate &update) {
-				if (update.peer == peer) {
-					if (const auto channel = peer->migrateTo()) {
-						const auto onstack = base::duplicate(migrate);
-						*alive = base::Subscription();
-						onstack(channel);
-					}
-				}
-			};
-			*alive = Notify::PeerUpdated().add_subscription(
-				Notify::PeerUpdatedHandler(
-					Notify::PeerUpdate::Flag::MigrationChanged,
-					handler));
+			chat->session().changes().peerUpdates(
+				peer,
+				Data::PeerUpdate::Flag::Migration
+			) | rpl::map([](const Data::PeerUpdate &update) {
+				return update.peer->migrateTo();
+			}) | rpl::filter([](ChannelData *channel) {
+				return (channel != nullptr);
+			}) | rpl::take(
+				1
+			) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+				const auto onstack = base::duplicate(migrate);
+				onstack(channel);
+			}, lifetime);
 		}
 	}
 }
@@ -686,17 +685,15 @@ ParticipantsOnlineSorter::ParticipantsOnlineSorter(
 : _peer(peer)
 , _delegate(delegate)
 , _sortByOnlineTimer([=] { sort(); }) {
-	const auto handleUpdate = [=](const Notify::PeerUpdate &update) {
+	peer->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		const auto peerId = update.peer->id;
 		if (const auto row = _delegate->peerListFindRow(peerId)) {
 			row->refreshStatus();
 			sortDelayed();
 		}
-	};
-
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		Notify::PeerUpdate::Flag::UserOnlineChanged,
-		handleUpdate));
+	}, _lifetime);
 	sort();
 }
 
@@ -985,10 +982,10 @@ auto ParticipantsBoxController::saveState() const
 
 	const auto weak = result.get();
 	if (const auto chat = _peer->asChat()) {
-		Notify::PeerUpdateViewer(
+		chat->session().changes().peerUpdates(
 			chat,
-			Notify::PeerUpdate::Flag::MembersChanged
-		) | rpl::start_with_next([=](const Notify::PeerUpdate &) {
+			Data::PeerUpdate::Flag::Members
+		) | rpl::start_with_next([=] {
 			weak->controllerState = nullptr;
 		}, my->lifetime);
 	} else if (const auto channel = _peer->asMegagroup()) {
@@ -1104,23 +1101,20 @@ void ParticipantsBoxController::prepareChatRows(not_null<ChatData*> chat) {
 		chat->updateFullForced();
 	}
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		UpdateFlag::MembersChanged
-		| UpdateFlag::AdminsChanged,
-		[=](const Notify::PeerUpdate &update) {
-			if (update.peer != chat) {
-				return;
-			}
-			_additional.fillFromPeer();
-			if ((update.flags & UpdateFlag::MembersChanged)
-				|| (_role == Role::Admins)) {
-				rebuildChatRows(chat);
-			}
-			if (update.flags & UpdateFlag::AdminsChanged) {
-				rebuildRowTypes();
-			}
-		}));
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	chat->session().changes().peerUpdates(
+		chat,
+		UpdateFlag::Members | UpdateFlag::Admins
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		_additional.fillFromPeer();
+		if ((update.flags & UpdateFlag::Members)
+			|| (_role == Role::Admins)) {
+			rebuildChatRows(chat);
+		}
+		if (update.flags & UpdateFlag::Admins) {
+			rebuildRowTypes();
+		}
+	}, lifetime());
 }
 
 void ParticipantsBoxController::rebuildChatRows(not_null<ChatData*> chat) {

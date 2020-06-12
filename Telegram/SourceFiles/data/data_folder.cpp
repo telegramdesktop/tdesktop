@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -19,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "main/main_session.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "facades.h"
@@ -57,20 +57,20 @@ rpl::producer<int> PinnedDialogsInFolderMaxValue(
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(owner, this)
 , _id(id)
-, _chatsList(FilterId(), PinnedDialogsInFolderMaxValue(&owner->session()))
+, _chatsList(
+	&owner->session(),
+	FilterId(),
+	PinnedDialogsInFolderMaxValue(&owner->session()))
 , _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::NameChanged
-	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
-		for (const auto history : _lastHistories) {
-			if (history->peer == update.peer) {
-				++_chatListViewVersion;
-				updateChatListEntryPostponed();
-				return;
-			}
-		}
+	session().changes().peerUpdates(
+		PeerUpdate::Flag::Name
+	) | rpl::filter([=](const PeerUpdate &update) {
+		return ranges::contains(_lastHistories, update.peer, &History::peer);
+	}) | rpl::start_with_next([=] {
+		++_chatListViewVersion;
+		updateChatListEntryPostponed();
 	}, _lifetime);
 
 	_chatsList.setAllAreMuted(true);

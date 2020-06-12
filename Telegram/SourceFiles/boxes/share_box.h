@@ -33,10 +33,6 @@ class Row;
 class IndexedList;
 } // namespace Dialogs
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Ui {
 class MultiSelect;
 class InputField;

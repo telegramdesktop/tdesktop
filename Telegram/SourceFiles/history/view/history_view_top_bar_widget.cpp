@@ -35,9 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "support/support_helper.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_window.h"
@@ -113,20 +113,22 @@ TopBarWidget::TopBarWidget(
 		}, lifetime());
 	}
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto flags = UpdateFlag::UserHasCalls
-		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserSupportInfoChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [=](const Notify::PeerUpdate &update) {
-		if (update.flags & UpdateFlag::UserHasCalls) {
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	session().changes().peerUpdates(
+		UpdateFlag::HasCalls
+		| UpdateFlag::OnlineStatus
+		| UpdateFlag::Members
+		| UpdateFlag::SupportInfo
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & UpdateFlag::HasCalls) {
 			if (update.peer->isUser()) {
 				updateControlsVisibility();
 			}
 		} else {
 			updateOnlineDisplay();
 		}
-	}));
+	}, lifetime());
+
 	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
 		updateControlsVisibility();
 	});
@@ -286,7 +288,7 @@ bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 			break;
 		}
 	}
-	return TWidget::eventFilter(obj, e);
+	return RpWidget::eventFilter(obj, e);
 }
 
 int TopBarWidget::resizeGetHeight(int newWidth) {

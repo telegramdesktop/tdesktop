@@ -34,11 +34,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_cloud_file.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -817,11 +817,13 @@ void SetupChannelBox::prepare() {
 	connect(&_checkTimer, &QTimer::timeout, [=] { check(); });
 
 	_privacyGroup->setChangedCallback([this](Privacy value) { privacyChanged(value); });
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _channel) {
-			rtlupdate(_invitationLink);
-		}
-	}));
+
+	_channel->session().changes().peerUpdates(
+		_channel,
+		Data::PeerUpdate::Flag::InviteLink
+	) | rpl::start_with_next([=] {
+		rtlupdate(_invitationLink);
+	}, lifetime());
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_existing) {

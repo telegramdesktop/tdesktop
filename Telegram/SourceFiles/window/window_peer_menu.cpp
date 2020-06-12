@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "observer_peer.h"
 #include "api/api_common.h"
 #include "api/api_chat_filters.h"
 #include "history/history.h"
@@ -37,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 //#include "info/feed/info_feed_channels_controllers.h" // #feed
 #include "info/profile/info_profile_values.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_poll.h"
@@ -306,31 +306,23 @@ void Filler::addHidePromotion() {
 void Filler::addTogglePin() {
 	const auto filterId = _filterId;
 	const auto peer = _peer;
-	auto isPinned = false;
-	if (const auto history = peer->owner().historyLoaded(peer)) {
-		isPinned = history->isPinnedDialog(filterId);
-	}
-	const auto pinText = [](bool isPinned) {
-		return isPinned
+	const auto history = peer->owner().history(peer);
+	const auto pinText = [=] {
+		return history->isPinnedDialog(filterId)
 			? tr::lng_context_unpin_from_top(tr::now)
 			: tr::lng_context_pin_to_top(tr::now);
 	};
 	const auto pinToggle = [=] {
-		TogglePinnedDialog(
-			_controller,
-			peer->owner().history(peer),
-			filterId);
+		TogglePinnedDialog(_controller, history, filterId);
 	};
-	const auto pinAction = _addAction(pinText(isPinned), pinToggle);
+	const auto pinAction = _addAction(pinText(), pinToggle);
 
 	const auto lifetime = Ui::CreateChild<rpl::lifetime>(pinAction);
-	Notify::PeerUpdateViewer(
-		peer,
-		Notify::PeerUpdate::Flag::ChatPinnedChanged
+	history->session().changes().historyUpdates(
+		history,
+		Data::HistoryUpdate::Flag::IsPinned
 	) | rpl::start_with_next([=] {
-		const auto history = peer->owner().history(peer);
-		const auto isPinned = history->isPinnedDialog(filterId);
-		pinAction->setText(pinText(isPinned));
+		pinAction->setText(pinText());
 	}, *lifetime);
 }
 
@@ -357,20 +349,18 @@ void Filler::addInfo() {
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
-	const auto isUnread = [](not_null<PeerData*> peer) {
-		if (const auto history = peer->owner().historyLoaded(peer)) {
-			return (history->chatListUnreadCount() > 0)
-				|| (history->chatListUnreadMark());
-		}
-		return false;
+	const auto history = peer->owner().history(peer);
+	const auto isUnread = [=] {
+		return (history->chatListUnreadCount() > 0)
+			|| (history->chatListUnreadMark());
 	};
-	const auto label = [=](not_null<PeerData*> peer) {
-		return isUnread(peer)
+	const auto label = [=] {
+		return isUnread()
 			? tr::lng_context_mark_read(tr::now)
 			: tr::lng_context_mark_unread(tr::now);
 	};
-	auto action = _addAction(label(peer), [=] {
-		const auto markAsRead = isUnread(peer);
+	auto action = _addAction(label(), [=] {
+		const auto markAsRead = isUnread();
 		const auto handle = [&](not_null<History*> history) {
 			if (markAsRead) {
 				peer->owner().histories().readInbox(history);
@@ -380,7 +370,6 @@ void Filler::addToggleUnreadMark() {
 					!markAsRead);
 			}
 		};
-		const auto history = peer->owner().history(peer);
 		handle(history);
 		if (markAsRead) {
 			if (const auto migrated = history->migrateSibling()) {
@@ -390,24 +379,22 @@ void Filler::addToggleUnreadMark() {
 	});
 
 	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action);
-	Notify::PeerUpdateViewer(
-		_peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged
+	history->session().changes().historyUpdates(
+		history,
+		Data::HistoryUpdate::Flag::UnreadView
 	) | rpl::start_with_next([=] {
-		action->setText(label(peer));
+		action->setText(label());
 	}, *lifetime);
 }
 
 void Filler::addToggleArchive() {
 	const auto peer = _peer;
+	const auto history = peer->owner().history(peer);
 	const auto isArchived = [=] {
-		const auto history = peer->owner().historyLoaded(peer);
-		return history && history->folder();
+		return (history->folder() != nullptr);
 	};
 	const auto toggle = [=] {
-		ToggleHistoryArchived(
-			peer->owner().history(peer),
-			!isArchived());
+		ToggleHistoryArchived(history, !isArchived());
 	};
 	const auto archiveAction = _addAction(
 		(isArchived()
@@ -416,9 +403,9 @@ void Filler::addToggleArchive() {
 		toggle);
 
 	const auto lifetime = Ui::CreateChild<rpl::lifetime>(archiveAction);
-	Notify::PeerUpdateViewer(
-		peer,
-		Notify::PeerUpdate::Flag::FolderChanged
+	history->session().changes().historyUpdates(
+		history,
+		Data::HistoryUpdate::Flag::Folder
 	) | rpl::start_with_next([=] {
 		archiveAction->setText(isArchived()
 			? tr::lng_archived_remove(tr::now)
@@ -448,9 +435,9 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 	});
 
 	const auto lifetime = Ui::CreateChild<rpl::lifetime>(blockAction);
-	Notify::PeerUpdateViewer(
+	_peer->session().changes().peerUpdates(
 		_peer,
-		Notify::PeerUpdate::Flag::UserIsBlocked
+		Data::PeerUpdate::Flag::IsBlocked
 	) | rpl::start_with_next([=] {
 		blockAction->setText(blockText(user));
 	}, *lifetime);

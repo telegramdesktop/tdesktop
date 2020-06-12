@@ -32,9 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
-#include "observer_peer.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_game.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
@@ -1152,9 +1152,9 @@ void HistoryMessage::contributeToSlowmode(TimeId realDate) {
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
 	if (IsServerMsgId(id) && isUnreadMention()) {
 		if (history()->addToUnreadMentions(id, type)) {
-			Notify::peerUpdatedDelayed(
-				history()->peer,
-				Notify::PeerUpdate::Flag::UnreadMentionsChanged);
+			history()->session().changes().historyUpdated(
+				history(),
+				Data::HistoryUpdate::Flag::UnreadMentions);
 		}
 	}
 }

@@ -27,11 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "mainwidget.h"
 #include "facades.h"
 #include "app.h"
@@ -213,11 +213,14 @@ MainMenu::MainMenu(
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	subscribe(_controller->session().downloaderTaskFinished(), [=] { update(); });
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserPhoneChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer->isSelf()) {
-			updatePhone();
-		}
-	}));
+
+	_controller->session().changes().peerUpdates(
+		_controller->session().user(),
+		Data::PeerUpdate::Flag::PhoneNumber
+	) | rpl::start_with_next([=] {
+		updatePhone();
+	}, lifetime());
+
 	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { refreshMenu(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {

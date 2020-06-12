@@ -19,11 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mtproto/sender.h"
-#include "observer_peer.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
@@ -574,9 +574,9 @@ void Controller::observeInviteLink() {
 	if (!_controls.editInviteLinkWrap) {
 		return;
 	}
-	Notify::PeerUpdateValue(
+	_peer->session().changes().peerFlagsValue(
 		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged
+		Data::PeerUpdate::Flag::InviteLink
 	) | rpl::start_with_next([=] {
 		refreshCreateInviteLink();
 		refreshEditInviteLink();

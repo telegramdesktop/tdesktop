@@ -374,6 +374,7 @@ public:
 		return _sendActions.events();
 	}
 	void sendAction(const SendAction &action);
+	void finishForwarding(const SendAction &action);
 	void forwardMessages(
 		HistoryItemsList &&items,
 		const SendAction &action,

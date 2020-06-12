@@ -47,7 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_key.h"
@@ -241,9 +240,9 @@ MainWidget::MainWidget(
 	}, lifetime());
 
 	// Load current userpic and keep it loaded.
-	Notify::PeerUpdateValue(
+	session().changes().peerFlagsValue(
 		session().user(),
-		Notify::PeerUpdate::Flag::PhotoChanged
+		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=] {
 		[[maybe_unused]] const auto image = session().user()->currentUserpic(
 			_selfUserpicView);
@@ -253,7 +252,6 @@ MainWidget::MainWidget(
 	setupConnectingWidget();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
-	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
 
 	Media::Player::instance()->updatedNotifier(
@@ -282,6 +280,16 @@ MainWidget::MainWidget(
 	) | rpl::start_with_next(
 		[this] { updateControlsGeometry(); },
 		lifetime());
+
+	session().data().newMessageSent(
+	) | rpl::start_with_next([=](not_null<History*> history) {
+		history->forgetScrollState();
+		if (const auto from = history->peer->migrateFrom()) {
+			if (const auto migrated = history->owner().historyLoaded(from)) {
+				migrated->forgetScrollState();
+			}
+		}
+	}, lifetime());
 
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	using namespace rpl::mappers;
@@ -540,29 +548,6 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	}
 	return true;
-}
-
-void MainWidget::cancelForwarding(not_null<History*> history) {
-	history->setForwardDraft({});
-	_history->updateForwarding();
-}
-
-void MainWidget::finishForwarding(Api::SendAction action) {
-	const auto history = action.history;
-	auto toForward = history->validateForwardDraft();
-	if (!toForward.empty()) {
-		const auto error = GetErrorTextForSending(history->peer, toForward);
-		if (!error.isEmpty()) {
-			return;
-		}
-
-		session().api().forwardMessages(std::move(toForward), action);
-		cancelForwarding(history);
-	}
-
-	session().data().sendHistoryChangeNotifications();
-	historyToDown(history);
-	dialogsToUp();
 }
 
 bool MainWidget::sendPaths(PeerId peerId) {
@@ -1989,10 +1974,6 @@ void MainWidget::windowShown() {
 	_history->windowShown();
 }
 
-void MainWidget::historyToDown(History *history) {
-	_history->historyToDown(history);
-}
-
 void MainWidget::dialogsToUp() {
 	_dialogs->jumpToTop();
 }
@@ -2773,120 +2754,6 @@ void MainWidget::usernameResolveFail(const RPCError &error, const QString &usern
 		Ui::show(Box<InformBox>(
 			tr::lng_username_not_found(tr::now, lt_user, username)));
 	}
-}
-
-void MainWidget::incrementSticker(DocumentData *sticker) {
-	if (!sticker
-		|| !sticker->sticker()
-		|| sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) {
-		return;
-	}
-
-	bool writeRecentStickers = false;
-	auto &sets = session().data().stickers().setsRef();
-	auto it = sets.find(Data::Stickers::CloudRecentSetId);
-	if (it == sets.cend()) {
-		if (it == sets.cend()) {
-			it = sets.emplace(
-				Data::Stickers::CloudRecentSetId,
-				std::make_unique<Data::StickersSet>(
-					&session().data(),
-					Data::Stickers::CloudRecentSetId,
-					uint64(0),
-					tr::lng_recent_stickers(tr::now),
-					QString(),
-					0, // count
-					0, // hash
-					MTPDstickerSet_ClientFlag::f_special | 0,
-					TimeId(0))).first;
-		} else {
-			it->second->title = tr::lng_recent_stickers(tr::now);
-		}
-	}
-	const auto set = it->second.get();
-	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();
-	auto index = set->stickers.indexOf(sticker);
-	if (index > 0) {
-		if (set->dates.empty()) {
-			session().api().requestRecentStickersForce();
-		} else {
-			Assert(set->dates.size() == set->stickers.size());
-			set->dates.erase(set->dates.begin() + index);
-		}
-		set->stickers.removeAt(index);
-		for (auto i = set->emoji.begin(); i != set->emoji.end();) {
-			if (const auto index = i->indexOf(sticker); index >= 0) {
-				removedFromEmoji.emplace_back(i.key());
-				i->removeAt(index);
-				if (i->isEmpty()) {
-					i = set->emoji.erase(i);
-					continue;
-				}
-			}
-			++i;
-		}
-	}
-	if (index) {
-		if (set->dates.size() == set->stickers.size()) {
-			set->dates.insert(set->dates.begin(), base::unixtime::now());
-		}
-		set->stickers.push_front(sticker);
-		if (const auto emojiList = session().data().stickers().getEmojiListFromSet(sticker)) {
-			for (const auto emoji : *emojiList) {
-				set->emoji[emoji].push_front(sticker);
-			}
-		} else if (!removedFromEmoji.empty()) {
-			for (const auto emoji : removedFromEmoji) {
-				set->emoji[emoji].push_front(sticker);
-			}
-		} else {
-			session().api().requestRecentStickersForce();
-		}
-
-		writeRecentStickers = true;
-	}
-
-	// Remove that sticker from old recent, now it is in cloud recent stickers.
-	bool writeOldRecent = false;
-	auto &recent = session().data().stickers().getRecentPack();
-	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
-		if (i->first == sticker) {
-			writeOldRecent = true;
-			recent.erase(i);
-			break;
-		}
-	}
-	while (!recent.isEmpty() && set->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
-		writeOldRecent = true;
-		recent.pop_back();
-	}
-
-	if (writeOldRecent) {
-		session().local().writeSettings();
-	}
-
-	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
-	bool writeInstalledStickers = false;
-	auto customIt = sets.find(Data::Stickers::CustomSetId);
-	if (customIt != sets.cend()) {
-		const auto custom = customIt->second.get();
-		int removeIndex = custom->stickers.indexOf(sticker);
-		if (removeIndex >= 0) {
-			custom->stickers.removeAt(removeIndex);
-			if (custom->stickers.isEmpty()) {
-				sets.erase(customIt);
-			}
-			writeInstalledStickers = true;
-		}
-	}
-
-	if (writeInstalledStickers) {
-		session().local().writeInstalledStickers();
-	}
-	if (writeRecentStickers) {
-		session().local().writeRecentStickers();
-	}
-	_controller->tabbedSelector()->refreshStickers();
 }
 
 void MainWidget::activate() {

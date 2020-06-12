@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
@@ -556,9 +557,9 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		return QString();
 	};
 	auto hasBotCommandValue = [=](const QString &command) {
-		return Notify::PeerUpdateValue(
+		return user->session().changes().peerFlagsValue(
 			user,
-			Notify::PeerUpdate::Flag::BotCommandsChanged
+			Data::PeerUpdate::Flag::BotCommands
 		) | rpl::map([=] {
 			return !findBotCommand(command).isEmpty();
 		});
@@ -597,10 +598,10 @@ void ActionsFiller::addReportAction() {
 void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	const auto window = &_controller->parentController()->window();
 
-	auto text = Notify::PeerUpdateValue(
+	auto text = user->session().changes().peerFlagsValue(
 		user,
-		Notify::PeerUpdate::Flag::UserIsBlocked
-	) | rpl::map([user] {
+		Data::PeerUpdate::Flag::IsBlocked
+	) | rpl::map([=] {
 		switch (user->blockStatus()) {
 		case UserData::BlockStatus::Blocked:
 			return ((user->isBot() && !user->isSupport())

@@ -10,11 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_pinned_list.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Dialogs {
 
 class MainList final {
 public:
-	MainList(FilterId filterId, rpl::producer<int> pinnedLimit);
+	MainList(
+		not_null<Main::Session*> session,
+		FilterId filterId,
+		rpl::producer<int> pinnedLimit);
 
 	bool empty() const;
 	bool loaded() const;

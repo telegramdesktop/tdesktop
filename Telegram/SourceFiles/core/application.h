@@ -229,7 +229,6 @@ public:
 	void writeInstallBetaVersionsSetting();
 
 	void call_handleUnreadCounterUpdate();
-	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
 protected:

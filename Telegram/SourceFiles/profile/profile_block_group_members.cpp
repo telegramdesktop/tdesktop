@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Profile {
 namespace {
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -41,18 +41,19 @@ not_null<UserData*> GroupMembersWidget::Member::user() const {
 
 GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
-	PeerData *peer,
+	not_null<PeerData*> peer,
 	const style::PeerListItem &st)
 : PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now)) {
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
 
-	auto observeEvents = UpdateFlag::AdminsChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserOnlineChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+	peer->session().changes().peerUpdates(
+		UpdateFlag::Admins
+		| UpdateFlag::Members
+		| UpdateFlag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		notifyPeerUpdated(update);
-	}));
+	}, lifetime());
 
 	setRemovedCallback([=](PeerData *selectedPeer) {
 		removePeer(selectedPeer);
@@ -104,9 +105,9 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 		crl::guard(&peer->session(), callback)));
 }
 
-void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+void GroupMembersWidget::notifyPeerUpdated(const Data::PeerUpdate &update) {
 	if (update.peer != peer()) {
-		if (update.flags & UpdateFlag::UserOnlineChanged) {
+		if (update.flags & UpdateFlag::OnlineStatus) {
 			if (auto user = update.peer->asUser()) {
 				refreshUserOnline(user);
 			}
@@ -114,11 +115,11 @@ void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & UpdateFlag::MembersChanged) {
+	if (update.flags & UpdateFlag::Members) {
 		refreshMembers();
 		contentSizeUpdated();
 	}
-	if (update.flags & UpdateFlag::AdminsChanged) {
+	if (update.flags & UpdateFlag::Admins) {
 		if (const auto chat = peer()->asChat()) {
 			for (const auto item : items()) {
 				setItemFlags(getMember(item), chat);

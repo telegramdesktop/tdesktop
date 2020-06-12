@@ -18,10 +18,6 @@ class RippleAnimation;
 class PopupMenu;
 } // namespace Ui
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace style {
 struct PeerListItem;
 } // namespace style

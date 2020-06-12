@@ -34,10 +34,6 @@ struct Preview;
 } // namespace Theme
 } // namespace Window
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Media {
 namespace Player {
 struct TrackState;

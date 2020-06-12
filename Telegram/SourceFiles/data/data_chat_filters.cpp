@@ -236,6 +236,7 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	auto &pointer = _chatsLists[filterId];
 	if (!pointer) {
 		pointer = std::make_unique<Dialogs::MainList>(
+			&_owner->session(),
 			filterId,
 			rpl::single(ChatFilter::kPinnedLimit));
 	}

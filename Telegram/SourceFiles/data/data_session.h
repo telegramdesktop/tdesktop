@@ -180,6 +180,11 @@ public:
 
 	void deleteConversationLocally(not_null<PeerData*> peer);
 
+	void newMessageSent(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> newMessageSent() const;
+	void cancelForwarding(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> forwardDraftUpdates() const;
+
 	void registerSendAction(
 		not_null<History*> history,
 		not_null<UserData*> user,
@@ -624,10 +629,9 @@ public:
 	MessageIdsList takeMimeForwardIds();
 
 	void setTopPromoted(
-		PeerData *promoted,
+		History *promoted,
 		const QString &type,
 		const QString &message);
-	PeerData *topPromoted() const;
 
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
@@ -741,8 +745,6 @@ private:
 	void folderApplyFields(
 		not_null<Folder*> folder,
 		const MTPDfolder &data);
-
-	void userIsContactUpdated(not_null<UserData*> user);
 
 	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
 
@@ -878,6 +880,8 @@ private:
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
 	rpl::event_stream<not_null<History*>> _historyOutboxReads;
+	rpl::event_stream<not_null<History*>> _newMessageSent;
+	rpl::event_stream<not_null<History*>> _forwardDraftUpdated;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
 	base::Timer _pollsClosingTimer;
@@ -893,7 +897,7 @@ private:
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
-	PeerData *_topPromoted = nullptr;
+	History *_topPromoted = nullptr;
 
 	NotifySettings _defaultUserNotifySettings;
 	NotifySettings _defaultChatNotifySettings;

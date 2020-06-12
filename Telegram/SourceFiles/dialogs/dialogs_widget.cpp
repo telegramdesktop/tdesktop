@@ -176,11 +176,21 @@ Widget::Widget(
 , _singleMessageSearch(&controller->session()) {
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller));
 
+	_inner->updated(
+	) | rpl::start_with_next([=] {
+		onListScroll();
+	}, lifetime());
+
 	rpl::combine(
 		session().api().dialogsLoadMayBlockByDate(),
 		session().api().dialogsLoadBlockedByDate()
 	) | rpl::start_with_next([=](bool mayBlock, bool isBlocked) {
 		refreshLoadMoreButton(mayBlock, isBlocked);
+	}, lifetime());
+
+	session().data().newMessageSent(
+	) | rpl::start_with_next([=] {
+		jumpToTop();
 	}, lifetime());
 
 	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(

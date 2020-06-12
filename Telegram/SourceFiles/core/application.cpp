@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
-#include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
@@ -500,10 +499,6 @@ void Application::handleAppDeactivated() {
 
 void Application::call_handleUnreadCounterUpdate() {
 	Global::RefUnreadCounterUpdate().notify(true);
-}
-
-void Application::call_handleDelayedPeerUpdates() {
-	Notify::peerUpdatedSendDelayed();
 }
 
 void Application::call_handleObservables() {

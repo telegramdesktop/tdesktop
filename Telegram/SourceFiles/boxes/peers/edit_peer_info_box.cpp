@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "mtproto/sender.h"
-#include "observer_peer.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"

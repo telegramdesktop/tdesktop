@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "dialogs/dialogs_indexed_list.h"
-#include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -35,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_changes.h"
 #include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_layers.h"
@@ -91,7 +91,6 @@ private:
 		Ui::Animations::Simple nameActive;
 	};
 
-	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void invalidateCache();
 
 	int displayedChatsCount() const;
@@ -558,11 +557,19 @@ ShareBox::Inner::Inner(
 	_filter = qsl("a");
 	updateFilter();
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
-		notifyPeerUpdated(update);
-	}));
+	_navigation->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Photo
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		updateChat(update.peer);
+	}, lifetime());
+
+	_navigation->session().changes().realtimeNameUpdates(
+	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
+		_chatsIndexed->peerNameChanged(
+			update.peer,
+			update.oldFirstLetters);
+	}, lifetime());
+
 	subscribe(_navigation->session().downloaderTaskFinished(), [=] {
 		update();
 	});
@@ -614,16 +621,6 @@ void ShareBox::Inner::activateSkipColumn(int direction) {
 
 void ShareBox::Inner::activateSkipPage(int pageHeight, int direction) {
 	activateSkipRow(direction * (pageHeight / _rowHeight));
-}
-
-void ShareBox::Inner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
-	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
-		_chatsIndexed->peerNameChanged(
-			update.peer,
-			update.oldNameFirstLetters);
-	}
-
-	updateChat(update.peer);
 }
 
 void ShareBox::Inner::updateChat(not_null<PeerData*> peer) {

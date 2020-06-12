@@ -49,7 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "layout.h"
 #include "storage/file_download.h"

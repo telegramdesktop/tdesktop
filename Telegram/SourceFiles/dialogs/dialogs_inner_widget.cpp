@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_file.h"
+#include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
@@ -38,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
@@ -223,36 +223,40 @@ InnerWidget::InnerWidget(
 		}
 	});
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto changes = UpdateFlag::ChatPinnedChanged
-		| UpdateFlag::NameChanged
-		| UpdateFlag::PhotoChanged
-		| UpdateFlag::UserIsContact
-		| UpdateFlag::UserOccupiedChanged
-		| UpdateFlag::MigrationChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
-		if (update.flags & UpdateFlag::ChatPinnedChanged) {
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::IsPinned
+		| Data::HistoryUpdate::Flag::ChatOccupied
+	) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+		if (update.flags & Data::HistoryUpdate::Flag::IsPinned) {
 			stopReorderPinned();
 		}
-		if (update.flags & UpdateFlag::NameChanged) {
+		if (update.flags & Data::HistoryUpdate::Flag::ChatOccupied) {
 			this->update();
+			_updated.fire({});
 		}
-		if (update.flags & (UpdateFlag::PhotoChanged | UpdateFlag::UserOccupiedChanged)) {
+	}, lifetime());
+
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	session().changes().peerUpdates(
+		UpdateFlag::Name
+		| UpdateFlag::Photo
+		| UpdateFlag::IsContact
+		| UpdateFlag::Migration
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & (UpdateFlag::Name | UpdateFlag::Photo)) {
 			this->update();
-			emit controller->content()->dialogsUpdated();
+			_updated.fire({});
 		}
-		if (update.flags & UpdateFlag::UserIsContact) {
-			if (update.peer->isUser()) {
-				// contactsNoChatsList could've changed.
-				Ui::PostponeCall(this, [=] { refresh(); });
-			}
+		if (update.flags & UpdateFlag::IsContact) {
+			// contactsNoChatsList could've changed.
+			Ui::PostponeCall(this, [=] { refresh(); });
 		}
-		if (update.flags & UpdateFlag::MigrationChanged) {
+		if (update.flags & UpdateFlag::Migration) {
 			if (const auto chat = update.peer->asChat()) {
 				handleChatMigration(chat);
 			}
 		}
-	}));
+	}, lifetime());
 
 	_controller->activeChatEntryValue(
 	) | rpl::combine_previous(
@@ -1498,7 +1502,7 @@ void InnerWidget::removeDialog(Key key) {
 		refresh();
 	}
 
-	emit _controller->content()->dialogsUpdated();
+	_updated.fire({});
 
 	refresh();
 }
@@ -1961,6 +1965,10 @@ void InnerWidget::setLoadMoreCallback(Fn<void()> callback) {
 
 auto InnerWidget::chosenRow() const -> rpl::producer<ChosenRow> {
 	return _chosenRow.events();
+}
+
+rpl::producer<> InnerWidget::updated() const {
+	return _updated.events();
 }
 
 rpl::producer<> InnerWidget::listBottomReached() const {
@@ -2948,16 +2956,15 @@ MsgId InnerWidget::lastSearchMigratedId() const {
 }
 
 void InnerWidget::setupOnlineStatusCheck() {
-	using namespace Notify;
-	subscribe(PeerUpdated(), PeerUpdatedHandler(
-		PeerUpdate::Flag::UserOnlineChanged,
-		[=](const PeerUpdate &update) { userOnlineUpdated(update); }));
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		userOnlineUpdated(update.peer);
+	}, lifetime());
 }
 
-void InnerWidget::userOnlineUpdated(const Notify::PeerUpdate &update) {
-	const auto user = update.peer->isSelf()
-		? nullptr
-		: update.peer->asUser();
+void InnerWidget::userOnlineUpdated(not_null<PeerData*> peer) {
+	const auto user = peer->isSelf() ? nullptr : peer->asUser();
 	if (!user) {
 		return;
 	}

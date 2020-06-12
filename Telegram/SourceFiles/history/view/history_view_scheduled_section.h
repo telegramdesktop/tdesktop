@@ -22,10 +22,6 @@ namespace Api {
 struct SendOptions;
 } // namespace Api
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Storage {
 struct PreparedList;
 } // namespace Storage

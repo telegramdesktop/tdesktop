@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/producer.h>
 #include <rpl/map.h>
-#include "observer_peer.h"
 
 struct ChannelLocation;
 

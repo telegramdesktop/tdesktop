@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
-#include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"

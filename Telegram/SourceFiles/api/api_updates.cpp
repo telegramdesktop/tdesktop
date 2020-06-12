@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_themes.h"
@@ -37,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "app.h" // App::formatPhone
 #include "facades.h"
 
@@ -828,9 +828,9 @@ void Updates::updateOnline(bool gotOtherOffline) {
 
 		const auto self = session().user();
 		self->onlineTill = base::unixtime::now() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			self,
-			Notify::PeerUpdate::Flag::UserOnlineChanged);
+			Data::PeerUpdate::Flag::OnlineStatus);
 		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
 			api().saveCurrentDraftToCloud();
 		}
@@ -1582,9 +1582,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			case mtpc_userStatusOffline: user->onlineTill = d.vstatus().c_userStatusOffline().vwas_online().v; break;
 			case mtpc_userStatusOnline: user->onlineTill = d.vstatus().c_userStatusOnline().vexpires().v; break;
 			}
-			Notify::peerUpdatedDelayed(
+			session().changes().peerUpdated(
 				user,
-				Notify::PeerUpdate::Flag::UserOnlineChanged);
+				Data::PeerUpdate::Flag::OnlineStatus);
 		}
 		if (d.vuser_id().v == session().userId()) {
 			if (d.vstatus().type() == mtpc_userStatusOffline
@@ -1680,9 +1680,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						: App::formatPhone(user->phone())),
 					user->username);
 
-				Notify::peerUpdatedDelayed(
+				session().changes().peerUpdated(
 					user,
-					Notify::PeerUpdate::Flag::UserPhoneChanged);
+					Data::PeerUpdate::Flag::PhoneNumber);
 			}
 		}
 	} break;

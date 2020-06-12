@@ -135,8 +135,6 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
-	void historyToDown(History *history);
-
 	QRect historyRect() const;
 
 	void updateFieldPlaceholder();

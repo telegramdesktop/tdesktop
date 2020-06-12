@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
+#include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
@@ -78,7 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
-#include "observer_peer.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
@@ -162,9 +162,9 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 		return history ? history->peer->asChannel() : nullptr;
 	}) | rpl::map([=](ChannelData *channel) -> rpl::producer<ChannelData*> {
 		if (channel && channel->isBroadcast()) {
-			return PeerUpdateValue(
+			return channel->session().changes().peerFlagsValue(
 				channel,
-				Notify::PeerUpdate::Flag::ChannelLinkedChat
+				Data::PeerUpdate::Flag::ChannelLinkedChat
 			) | rpl::map([=] {
 				return channel->linkedChat();
 			});
@@ -175,11 +175,19 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 	) | rpl::map([=](ChannelData *chat)
 	-> rpl::producer<std::tuple<int, bool>> {
 		if (chat) {
-			return PeerUpdateValue(
-				chat,
-				Notify::PeerUpdate::Flag::UnreadViewChanged
-				| Notify::PeerUpdate::Flag::NotificationsEnabled
-				| Notify::PeerUpdate::Flag::ChannelAmIn
+			using UpdateFlag = Data::PeerUpdate::Flag;
+			auto to_empty = rpl::map([=] { return rpl::empty_value(); });
+			return rpl::merge(
+				chat->session().changes().historyUpdates(
+					Data::HistoryUpdate::Flag::UnreadView
+				) | rpl::filter([=](const Data::HistoryUpdate &update) {
+					return (update.history->peer == chat);
+				}) | to_empty,
+
+				chat->session().changes().peerFlagsValue(
+					chat,
+					UpdateFlag::Notifications | UpdateFlag::ChannelAmIn
+				) | to_empty
 			) | rpl::map([=] {
 				const auto history = chat->amIn()
 					? chat->owner().historyLoaded(chat)
@@ -546,83 +554,111 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	session().data().forwardDraftUpdates(
+	) | rpl::filter([=](not_null<History*> history) {
+		return (_history == history.get());
+	}) | rpl::start_with_next([=](not_null<History*> history) {
+		updateForwarding();
+	}, lifetime());
+
+	session().data().newMessageSent(
+	) | rpl::filter([=](not_null<History*> history) {
+		return (_history == history.get());
+	}) | rpl::start_with_next([=] {
+		synteticScrollToY(_scroll->scrollTopMax());
+	}, lifetime());
+
 	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
 		if (pair.from.type() == AudioMsgId::Type::Voice) {
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
 		}
 	});
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto changes = UpdateFlag::RightsChanged
-		| UpdateFlag::UnreadMentionsChanged
-		| UpdateFlag::UnreadViewChanged
-		| UpdateFlag::MigrationChanged
-		| UpdateFlag::UnavailableReasonChanged
-		| UpdateFlag::PinnedMessageChanged
-		| UpdateFlag::TopPromotedChanged
-		| UpdateFlag::UserIsBlocked
-		| UpdateFlag::AdminsChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::NotificationsEnabled
+
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::UnreadMentions
+		| Data::HistoryUpdate::Flag::UnreadView
+		| Data::HistoryUpdate::Flag::TopPromoted
+		| Data::HistoryUpdate::Flag::LocalMessages
+	) | rpl::filter([=](const Data::HistoryUpdate &update) {
+		return (update.history->peer.get() == _peer);
+	}) | rpl::map([](const Data::HistoryUpdate &update) {
+		return update.flags;
+	}) | rpl::start_with_next([=](Data::HistoryUpdate::Flags flags) {
+		if (flags & Data::HistoryUpdate::Flag::LocalMessages) {
+			updateSendButtonType();
+		}
+		if (flags & Data::HistoryUpdate::Flag::UnreadMentions) {
+			updateUnreadMentionsVisibility();
+		}
+		if (flags & Data::HistoryUpdate::Flag::UnreadView) {
+			unreadCountUpdated();
+		}
+		if (flags & Data::HistoryUpdate::Flag::TopPromoted) {
+			updateHistoryGeometry();
+			updateControlsVisibility();
+			updateControlsGeometry();
+			this->update();
+		}
+	}, lifetime());
+
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	session().changes().peerUpdates(
+		UpdateFlag::Rights
+		| UpdateFlag::Migration
+		| UpdateFlag::UnavailableReason
+		| UpdateFlag::PinnedMessage
+		| UpdateFlag::IsBlocked
+		| UpdateFlag::Admins
+		| UpdateFlag::Members
+		| UpdateFlag::OnlineStatus
+		| UpdateFlag::Notifications
 		| UpdateFlag::ChannelAmIn
 		| UpdateFlag::ChannelLinkedChat
-		| UpdateFlag::ChannelSlowmode
-		| UpdateFlag::ChannelLocalMessages;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
-		if (update.peer == _peer) {
-			if (update.flags & UpdateFlag::RightsChanged) {
-				checkPreview();
-				updateStickersByEmoji();
+		| UpdateFlag::Slowmode
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == _peer);
+	}) | rpl::map([](const Data::PeerUpdate &update) {
+		return update.flags;
+	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
+		if (flags & UpdateFlag::Rights) {
+			checkPreview();
+			updateStickersByEmoji();
+		}
+		if (flags & UpdateFlag::Migration) {
+			handlePeerMigration();
+		}
+		if (flags & UpdateFlag::Notifications) {
+			updateNotifyControls();
+		}
+		if (flags & UpdateFlag::UnavailableReason) {
+			const auto unavailable = _peer->computeUnavailableReason();
+			if (!unavailable.isEmpty()) {
+				controller->showBackFromStack();
+				Ui::show(Box<InformBox>(unavailable));
+				return;
 			}
-			if (update.flags & UpdateFlag::UnreadMentionsChanged) {
-				updateUnreadMentionsVisibility();
-			}
-			if (update.flags & UpdateFlag::UnreadViewChanged) {
-				unreadCountUpdated();
-			}
-			if (update.flags & UpdateFlag::MigrationChanged) {
-				handlePeerMigration();
-			}
-			if (update.flags & UpdateFlag::NotificationsEnabled) {
-				updateNotifyControls();
-			}
-			if (update.flags & UpdateFlag::UnavailableReasonChanged) {
-				const auto unavailable = _peer->computeUnavailableReason();
-				if (!unavailable.isEmpty()) {
-					controller->showBackFromStack();
-					Ui::show(Box<InformBox>(unavailable));
-					return;
-				}
-			}
-			if (update.flags & UpdateFlag::PinnedMessageChanged) {
-				if (pinnedMsgVisibilityUpdated()) {
-					updateHistoryGeometry();
-					updateControlsVisibility();
-					updateControlsGeometry();
-					this->update();
-				}
-			}
-			if (update.flags & UpdateFlag::TopPromotedChanged) {
+		}
+		if (flags & UpdateFlag::PinnedMessage) {
+			if (pinnedMsgVisibilityUpdated()) {
 				updateHistoryGeometry();
 				updateControlsVisibility();
 				updateControlsGeometry();
 				this->update();
 			}
-			if (update.flags & (UpdateFlag::ChannelSlowmode
-				| UpdateFlag::ChannelLocalMessages)) {
-				updateSendButtonType();
-			}
-			if (update.flags & (UpdateFlag::UserIsBlocked
-				| UpdateFlag::AdminsChanged
-				| UpdateFlag::MembersChanged
-				| UpdateFlag::UserOnlineChanged
-				| UpdateFlag::RightsChanged
-				| UpdateFlag::ChannelAmIn
-				| UpdateFlag::ChannelLinkedChat)) {
-				handlePeerUpdate();
-			}
 		}
-	}));
+		if (flags & UpdateFlag::Slowmode) {
+			updateSendButtonType();
+		}
+		if (flags & (UpdateFlag::IsBlocked
+			| UpdateFlag::Admins
+			| UpdateFlag::Members
+			| UpdateFlag::OnlineStatus
+			| UpdateFlag::Rights
+			| UpdateFlag::ChannelAmIn
+			| UpdateFlag::ChannelLinkedChat)) {
+			handlePeerUpdate();
+		}
+	}, lifetime());
 
 	rpl::merge(
 		session().data().defaultUserNotifyUpdates(),
@@ -1074,7 +1110,7 @@ void HistoryWidget::onHashtagOrBotCommandInsert(
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		App::sendBotCommand(_peer, nullptr, str, replyToId());
-		controller()->content()->finishForwarding(Api::SendAction(_history));
+		session().api().finishForwarding(Api::SendAction(_history));
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
 		_field->insertTag(str);
@@ -2381,16 +2417,6 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 	session().notifications().clearFromHistory(_history);
 }
 
-void HistoryWidget::historyToDown(History *history) {
-	history->forgetScrollState();
-	if (auto migrated = history->owner().historyLoaded(history->peer->migrateFrom())) {
-		migrated->forgetScrollState();
-	}
-	if (history == _history) {
-		synteticScrollToY(_scroll->scrollTopMax());
-	}
-}
-
 void HistoryWidget::unreadCountUpdated() {
 	if (_history->chatListUnreadMark()) {
 		crl::on_main(this, [=, history = _history] {
@@ -3151,8 +3177,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
 		toggleKeyboard();
 	}
-	controller()->content()->historyToDown(_history);
-	controller()->content()->dialogsToUp();
+	session().data().newMessageSent(_history);
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
@@ -4093,6 +4118,9 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 }
 
 void HistoryWidget::onMembersDropdownShow() {
+	if (!_peer) {
+		return;
+	}
 	if (!_membersDropdown) {
 		_membersDropdown.create(this, st::membersInnerDropdown);
 		_membersDropdown->setOwnedWidget(object_ptr<Profile::GroupMembersWidget>(this, _peer, st::membersInnerItem));
@@ -4856,10 +4884,7 @@ void HistoryWidget::sendFileConfirmed(
 	}
 
 	session().data().sendHistoryChangeNotifications();
-	if (_peer && file->to.peer == _peer->id) {
-		controller()->content()->historyToDown(_history);
-	}
-	controller()->content()->dialogsToUp();
+	session().data().newMessageSent(history);
 }
 
 void HistoryWidget::photoUploaded(
@@ -5591,7 +5616,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
 			const auto items = std::move(_toForward);
-			controller()->content()->cancelForwarding(_history);
+			session().data().cancelForwarding(_history);
 			auto list = ranges::view::all(
 				items
 			) | ranges::view::transform(
@@ -6049,7 +6074,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 		return;
 	}
 
-	controller()->content()->cancelForwarding(_history);
+	session().data().cancelForwarding(_history);
 
 	if (_editMsgId) {
 		if (auto localDraft = _history->localDraft()) {
@@ -6317,7 +6342,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
-		controller()->content()->cancelForwarding(_history);
+		session().data().cancelForwarding(_history);
 	} else if (_replyToId) {
 		cancelReply();
 	} else if (_kbReplyTo) {

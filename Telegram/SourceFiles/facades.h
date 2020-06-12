@@ -145,7 +145,6 @@ void start();
 void finish();
 
 DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
-DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
 
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);

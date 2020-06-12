@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
-#include "observer_peer.h"
+#include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -153,22 +153,22 @@ void Controller::setupMigrationViewer() {
 	if (!peer || (!peer->isChat() && !peer->isChannel()) || _migrated) {
 		return;
 	}
-	Notify::PeerUpdateValue(
+	peer->session().changes().peerFlagsValue(
 		peer,
-		Notify::PeerUpdate::Flag::MigrationChanged
-	) | rpl::start_with_next([=] {
-		if (peer->migrateTo() || (peer->migrateFrom() != _migrated)) {
-			const auto window = parentController();
-			const auto section = _section;
-			InvokeQueued(_widget, [=] {
-				window->showSection(
-					Memento(peer, section),
-					Window::SectionShow(
-						Window::SectionShow::Way::Backward,
-						anim::type::instant,
-						anim::activation::background));
-			});
-		}
+		Data::PeerUpdate::Flag::Migration
+	) | rpl::filter([=] {
+		return peer->migrateTo() || (peer->migrateFrom() != _migrated);
+	}) | rpl::start_with_next([=] {
+		const auto window = parentController();
+		const auto section = _section;
+		InvokeQueued(_widget, [=] {
+			window->showSection(
+				Memento(peer, section),
+				Window::SectionShow(
+					Window::SectionShow::Way::Backward,
+					anim::type::instant,
+					anim::activation::background));
+		});
 	}, lifetime());
 }
 

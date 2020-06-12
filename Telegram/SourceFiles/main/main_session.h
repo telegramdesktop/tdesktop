@@ -30,6 +30,7 @@ class Templates;
 
 namespace Data {
 class Session;
+class Changes;
 } // namespace Data
 
 namespace Storage {
@@ -104,11 +105,12 @@ public:
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
 	}
-
 	[[nodiscard]] Window::Notifications::System &notifications() {
 		return *_notifications;
 	}
-
+	[[nodiscard]] Data::Changes &changes() {
+		return *_changes;
+	}
 	[[nodiscard]] Data::Session &data() {
 		return *_data;
 	}
@@ -164,6 +166,7 @@ private:
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 
 	// _data depends on _downloader / _uploader / _notifications.
+	const std::unique_ptr<Data::Changes> _changes;
 	const std::unique_ptr<Data::Session> _data;
 	const not_null<UserData*> _user;
 

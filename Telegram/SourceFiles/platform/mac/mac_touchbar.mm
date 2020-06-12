@@ -21,6 +21,7 @@
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_cloud_file.h"
 #include "data/stickers/data_stickers.h"
@@ -30,7 +31,6 @@
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "observer_peer.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
@@ -576,24 +576,24 @@ void AppendEmojiPacks(
 		return;
 	}
 	_userpicView = _peer->createUserpicView();
-	Notify::PeerUpdateViewer(
+	_peer->session().changes().peerUpdates(
 		_peer,
-		Notify::PeerUpdate::Flag::PhotoChanged
+		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=] {
 		isWaitingUserpicLoad = true;
 		[self updateUserpic];
 	}, _peerChangedLifetime);
 
-	Notify::PeerUpdateViewer(
-		_peer,
-		Notify::PeerUpdate::Flag::UnreadViewChanged
+	_peer->session().changes().historyUpdates(
+		_peer->session().history(_peer),
+		Data::HistoryUpdate::Flag::UnreadView
 	) | rpl::start_with_next([=] {
 		[self updateBadge];
 	}, _peerChangedLifetime);
 
-	Notify::PeerUpdateViewer(
+	_peer->session().changes().peerUpdates(
 		_peer,
-		Notify::PeerUpdate::Flag::UserOnlineChanged
+		Data::PeerUpdate::Flag::OnlineStatus
 	) | rpl::filter([=] {
 		return UnreadCount(_peer) == 0;
 	}) | rpl::start_with_next([=] {

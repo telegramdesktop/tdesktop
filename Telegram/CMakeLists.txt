@@ -357,6 +357,8 @@ PRIVATE
     data/data_chat.h
     data/data_chat_filters.cpp
     data/data_chat_filters.h
+    data/data_changes.cpp
+    data/data_changes.h
     data/data_channel.cpp
     data/data_channel.h
     data/data_channel_admins.cpp
@@ -1046,8 +1048,6 @@ PRIVATE
     mainwidget.h
     mainwindow.cpp
     mainwindow.h
-    observer_peer.cpp
-    observer_peer.h
     qt_static_plugins.cpp
     settings.cpp
     settings.h

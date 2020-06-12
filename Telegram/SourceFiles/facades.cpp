@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
-#include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -338,7 +337,6 @@ namespace internal {
 
 struct Data {
 	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
-	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Core::App().call_handleDelayedPeerUpdates(); } };
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
@@ -458,7 +456,6 @@ void finish() {
 }
 
 DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
-DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
 
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);

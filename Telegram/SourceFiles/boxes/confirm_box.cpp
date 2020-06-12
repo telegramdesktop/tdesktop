@@ -33,9 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_photo_media.h"
+#include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
-#include "observer_peer.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
@@ -367,11 +367,12 @@ void MaxInviteBox::prepare() {
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom());
 
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _channel) {
-			rtlupdate(_invitationLink);
-		}
-	}));
+	_channel->session().changes().peerUpdates(
+		_channel,
+		Data::PeerUpdate::Flag::InviteLink
+	) | rpl::start_with_next([=] {
+		rtlupdate(_invitationLink);
+	}, lifetime());
 }
 
 void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {

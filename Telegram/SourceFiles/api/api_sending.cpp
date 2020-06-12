@@ -168,9 +168,7 @@ void SendExistingMedia(
 	};
 	performRequest();
 
-	if (const auto main = App::main()) {
-		main->finishForwarding(message.action);
-	}
+	api->finishForwarding(message.action);
 }
 
 } // namespace
@@ -191,10 +189,7 @@ void SendExistingDocument(
 		document->stickerOrGifOrigin());
 
 	if (document->sticker()) {
-		if (const auto main = App::main()) {
-			main->incrementSticker(document);
-		}
-		document->owner().stickers().notifyRecentUpdated();
+		document->owner().stickers().incrementSticker(document);
 	}
 }
 
@@ -323,6 +318,7 @@ bool SendDice(Api::MessageToSend &message) {
 		).send();
 		return history->sendRequestId;
 	});
+	api->finishForwarding(message.action);
 	return true;
 }
 

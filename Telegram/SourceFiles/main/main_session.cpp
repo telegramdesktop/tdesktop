@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_account.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
-#include "observer_peer.h"
 #include "facades.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
@@ -56,6 +56,7 @@ Session::Session(
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
+, _changes(std::make_unique<Data::Changes>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
@@ -74,21 +75,17 @@ Session::Session(
 	_api->requestFullPeer(_user);
 
 	crl::on_main(this, [=] {
-		using Flag = Notify::PeerUpdate::Flag;
-		const auto events = Flag::NameChanged
-			| Flag::UsernameChanged
-			| Flag::PhotoChanged
-			| Flag::AboutChanged
-			| Flag::UserPhoneChanged;
-		subscribe(
-			Notify::PeerUpdated(),
-			Notify::PeerUpdatedHandler(
-				events,
-				[=](const Notify::PeerUpdate &update) {
-					if (update.peer == _user) {
-						local().writeSelf();
-					}
-				}));
+		using Flag = Data::PeerUpdate::Flag;
+		changes().peerUpdates(
+			_user,
+			Flag::Name
+			| Flag::Username
+			| Flag::Photo
+			| Flag::About
+			| Flag::PhoneNumber
+		) | rpl::start_with_next([=] {
+			local().writeSelf();
+		}, _lifetime);
 
 		if (_settings.hadLegacyCallsPeerToPeerNobody()) {
 			api().savePrivacy(

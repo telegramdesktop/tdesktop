@@ -55,6 +55,8 @@ public:
 	void notifySavedGifsUpdated();
 	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
 
+	void incrementSticker(not_null<DocumentData*> document);
+
 	bool updateNeeded(crl::time now) const {
 		return updateNeeded(_lastUpdate, now);
 	}

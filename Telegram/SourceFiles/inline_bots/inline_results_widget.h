@@ -25,7 +25,7 @@ class LinkButton;
 class RoundButton;
 class FlatLabel;
 class RippleAnimation;
-} // namesapce Ui
+} // namespace Ui
 
 namespace Window {
 class SessionController;
@@ -52,7 +52,7 @@ struct CacheEntry {
 };
 
 class Inner
-	: public TWidget
+	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, public Context
 	, private base::Subscriber {

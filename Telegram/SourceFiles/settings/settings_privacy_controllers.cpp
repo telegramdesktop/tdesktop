@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -86,14 +86,16 @@ Main::Session &BlockUserBoxController::session() const {
 
 void BlockUserBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_blocked_list_add_title());
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (auto user = update.peer->asUser()) {
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::IsBlocked
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (const auto user = update.peer->asUser()) {
 			if (auto row = delegate()->peerListFindRow(user->id)) {
 				updateIsBlocked(row, user);
 				delegate()->peerListUpdateRow(row);
 			}
 		}
-	}));
+	}, lifetime());
 }
 
 void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const {
@@ -192,11 +194,13 @@ void BlockedBoxController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
 
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::IsBlocked
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (const auto user = update.peer->asUser()) {
 			handleBlockedEvent(user);
 		}
-	}));
+	}, lifetime());
 
 	_loadRequestId = -1;
 	_window->session().api().blockedUsersSlice(

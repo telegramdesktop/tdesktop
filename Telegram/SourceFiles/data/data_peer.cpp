@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_changes.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
@@ -18,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "lang/lang_keys.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
@@ -42,7 +42,7 @@ namespace {
 constexpr auto kUpdateFullPeerTimeout = crl::time(5000); // Not more than once in 5 seconds.
 constexpr auto kUserpicSize = 160;
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -147,15 +147,17 @@ void PeerData::updateNameDelayed(
 	_nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	_userpicEmpty = nullptr;
 
-	Notify::PeerUpdate update(this);
-	if (nameVersion++ > 1) {
-		update.flags |= UpdateFlag::NameChanged;
-		update.oldNameFirstLetters = nameFirstLetters();
+	auto flags = UpdateFlag::None | UpdateFlag::None;
+	auto oldFirstLetters = base::flat_set<QChar>();
+	const auto nameUpdated = (nameVersion++ > 1);
+	if (nameUpdated) {
+		oldFirstLetters = nameFirstLetters();
+		flags |= UpdateFlag::Name;
 	}
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
 			asUser()->username = newUsername;
-			update.flags |= UpdateFlag::UsernameChanged;
+			flags |= UpdateFlag::Username;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
@@ -167,12 +169,15 @@ void PeerData::updateNameDelayed(
 			} else {
 				asChannel()->addFlags(MTPDchannel::Flag::f_username);
 			}
-			update.flags |= UpdateFlag::UsernameChanged;
+			flags |= UpdateFlag::Username;
 		}
 	}
 	fillNames();
-	if (update.flags) {
-		Notify::PeerUpdated().notify(update, true);
+	if (nameUpdated) {
+		session().changes().nameUpdated(this, std::move(oldFirstLetters));
+	}
+	if (flags) {
+		session().changes().peerUpdated(this, flags);
 	}
 }
 
@@ -204,7 +209,7 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	});
 	if (_userpicPhotoId != photoId) {
 		_userpicPhotoId = photoId;
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
 	}
 }
 
@@ -384,7 +389,7 @@ void PeerData::setUserpicChecked(
 		const ImageLocation &location) {
 	if (_userpicPhotoId != photoId || _userpic.location() != location) {
 		setUserpic(photoId, location);
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
 		//if (const auto channel = asChannel()) { // #feed
 		//	if (const auto feed = channel->feed()) {
 		//		owner().notifyFeedUpdated(
@@ -454,9 +459,7 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 	messageId = (messageId > min) ? messageId : MsgId(0);
 	if (_pinnedMessageId != messageId) {
 		_pinnedMessageId = messageId;
-		Notify::peerUpdatedDelayed(
-			this,
-			Notify::PeerUpdate::Flag::PinnedMessageChanged);
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
@@ -479,7 +482,7 @@ bool PeerData::setAbout(const QString &newAbout) {
 		return false;
 	}
 	_about = newAbout;
-	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
+	session().changes().peerUpdated(this, UpdateFlag::About);
 	return true;
 }
 

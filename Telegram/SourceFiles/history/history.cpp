@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_channel_admins.h"
+#include "data/data_changes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_folder.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
@@ -64,6 +64,8 @@ constexpr auto kStatusShowClientsidePlayGame = 10000;
 constexpr auto kSetMyActionForMs = 10000;
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(3);
+
+using UpdateFlag = Data::HistoryUpdate::Flag;
 
 } // namespace
 
@@ -874,7 +876,7 @@ void History::eraseFromUnreadMentions(MsgId msgId) {
 	if (_unreadMentionsCount && *_unreadMentionsCount > 0) {
 		setUnreadMentionsCount(*_unreadMentionsCount - 1);
 	}
-	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
+	session().changes().historyUpdated(this, UpdateFlag::UnreadMentions);
 }
 
 void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
@@ -929,7 +931,7 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 		count = _unreadMentions.size();
 	}
 	setUnreadMentionsCount(count);
-	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
+	session().changes().historyUpdated(this, UpdateFlag::UnreadMentions);
 }
 
 not_null<HistoryItem*> History::addNewToBack(
@@ -987,7 +989,9 @@ not_null<HistoryItem*> History::addNewToBack(
 					lastAuthors->push_front(user);
 				}
 				if (auto megagroup = peer->asMegagroup()) {
-					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+					session().changes().peerUpdated(
+						peer,
+						Data::PeerUpdate::Flag::Members);
 					owner().addNewMegagroupParticipant(megagroup, user);
 				}
 			}
@@ -1075,7 +1079,9 @@ void History::applyServiceChanges(
 				if (const auto user = owner().userLoaded(userId.v)) {
 					if (!base::contains(mgInfo->lastParticipants, user)) {
 						mgInfo->lastParticipants.push_front(user);
-						Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+						session().changes().peerUpdated(
+							peer,
+							Data::PeerUpdate::Flag::Members);
 						owner().addNewMegagroupParticipant(megagroup, user);
 					}
 					if (user->isBot()) {
@@ -1097,7 +1103,9 @@ void History::applyServiceChanges(
 			if (auto user = item->from()->asUser()) {
 				if (!base::contains(mgInfo->lastParticipants, user)) {
 					mgInfo->lastParticipants.push_front(user);
-					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+					session().changes().peerUpdated(
+						peer,
+						Data::PeerUpdate::Flag::Members);
 					owner().addNewMegagroupParticipant(megagroup, user);
 				}
 				if (user->isBot()) {
@@ -1132,7 +1140,9 @@ void History::applyServiceChanges(
 					[](not_null<UserData*> user) { return user.get(); });
 				if (i != mgInfo->lastParticipants.end()) {
 					mgInfo->lastParticipants.erase(i);
-					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+					session().changes().peerUpdated(
+						peer,
+						Data::PeerUpdate::Flag::Members);
 				}
 				owner().removeMegagroupParticipant(megagroup, user);
 				if (megagroup->membersCount() > 1) {
@@ -1146,7 +1156,9 @@ void History::applyServiceChanges(
 					if (megagroup->adminsCount() > 1) {
 						megagroup->setAdminsCount(megagroup->adminsCount() - 1);
 					}
-					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
+					session().changes().peerUpdated(
+						peer,
+						Data::PeerUpdate::Flag::Admins);
 				}
 				mgInfo->bots.remove(user);
 				if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
@@ -1310,22 +1322,14 @@ void History::registerLocalMessage(not_null<HistoryItem*> item) {
 	Expects(IsClientMsgId(item->id));
 
 	_localMessages.emplace(item);
-	if (peer->isChannel()) {
-		Notify::peerUpdatedDelayed(
-			peer,
-			Notify::PeerUpdate::Flag::ChannelLocalMessages);
-	}
+	session().changes().historyUpdated(this, UpdateFlag::LocalMessages);
 }
 
 void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
 	const auto removed = _localMessages.remove(item);
 	Assert(removed);
 
-	if (peer->isChannel()) {
-		Notify::peerUpdatedDelayed(
-			peer,
-			Notify::PeerUpdate::Flag::ChannelLocalMessages);
-	}
+	session().changes().historyUpdated(this, UpdateFlag::LocalMessages);
 }
 
 HistoryItem *History::latestSendingMessage() const {
@@ -1805,9 +1809,7 @@ void History::setUnreadCount(int newUnreadCount) {
 		if (wasForBadge != (unreadCountForBadge() > 0)) {
 			owner().chatsFilters().refreshHistory(this);
 		}
-		Notify::peerUpdatedDelayed(
-			peer,
-			Notify::PeerUpdate::Flag::UnreadViewChanged);
+		session().changes().historyUpdated(this, UpdateFlag::UnreadView);
 	});
 	const auto notifier = unreadStateChangeNotifier(true);
 	_unreadCount = newUnreadCount;
@@ -1844,9 +1846,7 @@ void History::setUnreadMark(bool unread) {
 			owner().chatsFilters().refreshHistory(this);
 			updateChatListEntry();
 		}
-		Notify::peerUpdatedDelayed(
-			peer,
-			Notify::PeerUpdate::Flag::UnreadViewChanged);
+		session().changes().historyUpdated(this, UpdateFlag::UnreadView);
 	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
 	_unreadMark = unread;
@@ -1886,9 +1886,9 @@ bool History::changeMute(bool newMute) {
 			owner().chatsFilters().refreshHistory(this);
 			updateChatListEntry();
 		}
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			peer,
-			Notify::PeerUpdate::Flag::NotificationsEnabled);
+			Data::PeerUpdate::Flag::Notifications);
 	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
@@ -1986,9 +1986,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (folder) {
 		folder->registerOne(this);
 	}
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::FolderChanged);
+	session().changes().historyUpdated(this, UpdateFlag::Folder);
 }
 
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
@@ -3294,9 +3292,7 @@ void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {
 }
 
 void History::changedChatListPinHook() {
-	Notify::peerUpdatedDelayed(
-		peer,
-		Notify::PeerUpdate::Flag::ChatPinnedChanged);
+	session().changes().historyUpdated(this, UpdateFlag::IsPinned);
 }
 
 void History::removeBlock(not_null<HistoryBlock*> block) {
