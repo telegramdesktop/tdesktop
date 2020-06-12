@@ -237,7 +237,7 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}
 
-	setupContactViewsViewer();
+	setupMigrationViewer();
 	setupChannelLeavingViewer();
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
@@ -822,7 +822,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 		if (history->folderKnown()) {
 			setChatPinned(history, FilterId(), false);
 		}
-		App::main()->removeDialog(history);
+		removeChatListEntry(history);
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
@@ -836,21 +836,12 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 		}
 	}
 }
-void Session::newMessageSent(not_null<History*> history) {
-	_newMessageSent.fire_copy(history);
-}
-
-rpl::producer<not_null<History*>> Session::newMessageSent() const {
-	return _newMessageSent.events();
-}
 
 void Session::cancelForwarding(not_null<History*> history) {
 	history->setForwardDraft({});
-	_forwardDraftUpdated.fire_copy(history);
-}
-
-rpl::producer<not_null<History*>> Session::forwardDraftUpdates() const {
-	return _forwardDraftUpdated.events();
+	session().changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::ForwardDraft);
 }
 
 void Session::registerSendAction(
@@ -1044,16 +1035,24 @@ void Session::forgetPassportCredentials() {
 	_passportCredentials = nullptr;
 }
 
-void Session::setupContactViewsViewer() {
+void Session::setupMigrationViewer() {
 	session().changes().peerUpdates(
-		PeerUpdate::Flag::IsContact
+		PeerUpdate::Flag::Migration
 	) | rpl::map([](const PeerUpdate &update) {
-		return update.peer->asUser();
-	}) | rpl::start_with_next([=](not_null<UserData*> user) {
-		const auto i = _contactViews.find(peerToUser(user->id));
-		if (i != _contactViews.end()) {
-			for (const auto view : i->second) {
-				requestViewResize(view);
+		return update.peer->asChat();
+	}) | rpl::filter([=](ChatData *chat) {
+		return (chat != nullptr);
+	}) | rpl::start_with_next([=](not_null<ChatData*> chat) {
+		const auto channel = chat->migrateTo();
+		if (!channel) {
+			return;
+		}
+
+		if (const auto from = historyLoaded(chat)) {
+			if (const auto to = historyLoaded(channel)) {
+				if (to->inChatList() && from->inChatList()) {
+					removeChatListEntry(from);
+				}
 			}
 		}
 	}, _lifetime);
@@ -1089,21 +1088,27 @@ void Session::setupPeerNameViewer() {
 void Session::setupUserIsContactViewer() {
 	session().changes().peerUpdates(
 		PeerUpdate::Flag::IsContact
-	) | rpl::start_with_next([=](const PeerUpdate &update) {
-		const auto user = update.peer->asUser();
-		Assert(user != nullptr);
+	) | rpl::map([](const PeerUpdate &update) {
+		return update.peer->asUser();
+	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+		const auto i = _contactViews.find(peerToUser(user->id));
+		if (i != _contactViews.end()) {
+			for (const auto view : i->second) {
+				requestViewResize(view);
+			}
+		}
 		if (user->loadedStatus != PeerData::FullLoaded) {
 			LOG(("API Error: "
 				"userIsContactChanged() called for a not loaded user!"));
 			return;
 		}
 		if (user->isContact()) {
-			const auto history = user->owner().history(user->id);
+			const auto history = this->history(user->id);
 			_contactsList.addByName(history);
 			if (!history->inChatList()) {
 				_contactsNoChatsList.addByName(history);
 			}
-		} else if (const auto history = user->owner().historyLoaded(user)) {
+		} else if (const auto history = historyLoaded(user)) {
 			_contactsNoChatsList.del(history);
 			_contactsList.del(history);
 		}
@@ -1619,12 +1624,12 @@ void Session::applyDialog(
 	setPinnedFromDialog(history, data.is_pinned());
 
 	if (const auto from = history->peer->migrateFrom()) {
-		if (const auto historyFrom = from->owner().historyLoaded(from)) {
-			App::main()->removeDialog(historyFrom);
+		if (const auto historyFrom = historyLoaded(from)) {
+			removeChatListEntry(historyFrom);
 		}
 	} else if (const auto to = history->peer->migrateTo()) {
 		if (to->amIn()) {
-			App::main()->removeDialog(history);
+			removeChatListEntry(history);
 		}
 	}
 }
@@ -1898,9 +1903,9 @@ void Session::updateDependentMessages(not_null<HistoryItem*> item) {
 			dependent->updateDependencyItem();
 		}
 	}
-	if (App::main()) {
-		App::main()->itemEdited(item);
-	}
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::Edited);
 }
 
 void Session::registerDependentMessage(
@@ -3312,14 +3317,6 @@ rpl::producer<not_null<ChannelData*>> Session::channelDifferenceTooLong() const 
 	return _channelDifferenceTooLong.events();
 }
 
-void Session::historyOutboxRead(not_null<History*> history) {
-	_historyOutboxReads.fire_copy(history);
-}
-
-rpl::producer<not_null<History*>> Session::historyOutboxReads() const {
-	return _historyOutboxReads.events();
-}
-
 void Session::registerItemView(not_null<ViewElement*> view) {
 	_views[view->data()].push_back(view);
 }
@@ -3409,10 +3406,7 @@ not_null<Dialogs::IndexedList*> Session::contactsNoChatsList() {
 	return &_contactsNoChatsList;
 }
 
-auto Session::refreshChatListEntry(
-	Dialogs::Key key,
-	FilterId filterIdForResult)
--> RefreshChatListEntryResult {
+void Session::refreshChatListEntry(Dialogs::Key key) {
 	Expects(key.entry()->folderKnown());
 
 	using namespace Dialogs;
@@ -3420,42 +3414,47 @@ auto Session::refreshChatListEntry(
 	const auto entry = key.entry();
 	const auto history = key.history();
 	const auto mainList = chatsList(entry->folder());
-	auto mainListResult = RefreshChatListEntryResult();
-	mainListResult.changed = !entry->inChatList();
-	if (mainListResult.changed) {
+	auto event = ChatListEntryRefresh{ .key = key };
+	const auto creating = event.existenceChanged = !entry->inChatList();
+	if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		mainListResult.moved = entry->adjustByPosInChatList(0, mainList);
+		event.moved = entry->adjustByPosInChatList(0, mainList);
 	}
-	auto result = filterIdForResult
-		? RefreshChatListEntryResult()
-		: mainListResult;
+	if (event) {
+		_chatListEntryRefreshes.fire(std::move(event));
+	}
 	if (!history) {
-		return result;
+		return;
 	}
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		const auto filterList = chatsFilters().chatsList(id);
-		auto filterResult = RefreshChatListEntryResult();
+		auto event = ChatListEntryRefresh{ .key = key, .filterId = id };
 		if (filter.contains(history)) {
-			filterResult.changed = !entry->inChatList(id);
-			if (filterResult.changed) {
+			event.existenceChanged = !entry->inChatList(id);
+			if (event.existenceChanged) {
 				entry->addToChatList(id, filterList);
 			} else {
-				filterResult.moved = entry->adjustByPosInChatList(
-					id,
-					filterList);
+				event.moved = entry->adjustByPosInChatList(id, filterList);
 			}
 		} else if (entry->inChatList(id)) {
 			entry->removeFromChatList(id, filterList);
-			filterResult.changed = true;
+			event.existenceChanged = true;
 		}
-		if (id == filterIdForResult) {
-			result = filterResult;
+		if (event) {
+			_chatListEntryRefreshes.fire(std::move(event));
 		}
 	}
-	return result;
+
+	if (creating) {
+		if (const auto from = history->peer->migrateFrom()) {
+			if (const auto migrated = historyLoaded(from)) {
+				removeChatListEntry(migrated);
+			}
+		}
+	}
 }
 
 void Session::removeChatListEntry(Dialogs::Key key) {
@@ -3466,20 +3465,38 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		return;
 	}
 	Assert(entry->folderKnown());
-	const auto mainList = chatsList(entry->folder());
-	entry->removeFromChatList(0, mainList);
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		if (entry->inChatList(id)) {
 			entry->removeFromChatList(id, chatsFilters().chatsList(id));
+			_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+				.key = key,
+				.filterId = id,
+				.existenceChanged = true
+			});
 		}
 	}
+	const auto mainList = chatsList(entry->folder());
+	entry->removeFromChatList(0, mainList);
+	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+		.key = key,
+		.existenceChanged = true
+	});
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {
 			_contactsNoChatsList.addByName(key);
 		}
 	}
+	if (const auto history = key.history()) {
+		session().notifications().clearFromHistory(history);
+	}
 }
+
+auto Session::chatListEntryRefreshes() const
+-> rpl::producer<ChatListEntryRefresh> {
+	return _chatListEntryRefreshes.events();
+}
+
 
 void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 	_dialogsRowReplacements.fire(std::move(replacement));

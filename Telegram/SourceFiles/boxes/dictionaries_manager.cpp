@@ -296,7 +296,7 @@ auto AddButtonWithLoader(
 		if (toggled && (state.is<Available>() || state.is<Failed>())) {
 			const auto weak = Ui::MakeWeak(button);
 			setLocalLoader(base::make_unique_q<Loader>(
-				controller->content(),
+				QCoreApplication::instance(),
 				&controller->session(),
 				id,
 				Spellchecker::GetDownloadLocation(id),

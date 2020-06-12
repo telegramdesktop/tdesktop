@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class PeerData;
+class HistoryItem;
+
+namespace Dialogs {
+class Entry;
+} // namespace Dialogs
 
 namespace Data {
 
@@ -89,13 +94,53 @@ struct HistoryUpdate {
 		UnreadMentions = (1 << 4),
 		LocalMessages  = (1 << 5),
 		ChatOccupied   = (1 << 6),
+		MessageSent    = (1 << 7),
+		ForwardDraft   = (1 << 8),
+		OutboxRead     = (1 << 9),
+		BotKeyboard    = (1 << 10),
+		CloudDraft     = (1 << 11),
 
-		LastUsedBit    = (1 << 6),
+		LastUsedBit    = (1 << 11),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
 
 	not_null<History*> history;
+	Flags flags = 0;
+
+};
+
+struct MessageUpdate {
+	enum class Flag : uint32 {
+		None = 0,
+
+		Edited           = (1 << 0),
+		Destroyed        = (1 << 1),
+		DialogRowRepaint = (1 << 2),
+		DialogRowRefresh = (1 << 3),
+
+		LastUsedBit      = (1 << 3),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
+	not_null<HistoryItem*> item;
+	Flags flags = 0;
+
+};
+
+struct EntryUpdate {
+	enum class Flag : uint32 {
+		None = 0,
+
+		Repaint = (1 << 0),
+
+		LastUsedBit = (1 << 0),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
+	not_null<Dialogs::Entry*> entry;
 	Flags flags = 0;
 
 };
@@ -136,6 +181,36 @@ public:
 	[[nodiscard]] rpl::producer<HistoryUpdate> historyFlagsValue(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<HistoryUpdate> realtimeHistoryUpdates(
+		HistoryUpdate::Flag flag) const;
+
+	void messageUpdated(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags);
+	[[nodiscard]] rpl::producer<MessageUpdate> messageUpdates(
+		MessageUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<MessageUpdate> messageUpdates(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<MessageUpdate> messageFlagsValue(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<MessageUpdate> realtimeMessageUpdates(
+		MessageUpdate::Flag flag) const;
+
+	void entryUpdated(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags);
+	[[nodiscard]] rpl::producer<EntryUpdate> entryUpdates(
+		EntryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<EntryUpdate> entryUpdates(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<EntryUpdate> entryFlagsValue(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<EntryUpdate> realtimeEntryUpdates(
+		EntryUpdate::Flag flag) const;
 
 	void sendNotifications();
 
@@ -156,7 +231,10 @@ private:
 		using Flag = typename UpdateType::Flag;
 		using Flags = typename UpdateType::Flags;
 
-		void updated(not_null<DataType*> data, Flags flags);
+		void updated(
+			not_null<DataType*> data,
+			Flags flags,
+			bool dropScheduled = false);
 		[[nodiscard]] rpl::producer<UpdateType> updates(Flags flags) const;
 		[[nodiscard]] rpl::producer<UpdateType> updates(
 			not_null<DataType*> data,
@@ -189,6 +267,8 @@ private:
 	rpl::event_stream<NameUpdate> _nameStream;
 	Manager<PeerData, PeerUpdate> _peerChanges;
 	Manager<History, HistoryUpdate> _historyChanges;
+	Manager<HistoryItem, MessageUpdate> _messageChanges;
+	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
 
 	bool _notify = false;
 

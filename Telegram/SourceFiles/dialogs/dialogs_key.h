@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/value_ordering.h"
 
 class History;
+class PeerData;
 
 namespace Data {
 class Folder;
@@ -22,17 +23,17 @@ class Entry;
 class Key {
 public:
 	Key() = default;
-	Key(History *history) : _value(history) {
+	Key(Entry *entry) : _value(entry) {
 	}
-	Key(not_null<History*> history) : _value(history) {
+	Key(History *history);
+	Key(Data::Folder *folder);
+	Key(not_null<Entry*> entry) : _value(entry) {
 	}
-	Key(Data::Folder *folder) : _value(folder) {
-	}
-	Key(not_null<Data::Folder*> folder) : _value(folder) {
-	}
+	Key(not_null<History*> history);
+	Key(not_null<Data::Folder*> folder);
 
 	explicit operator bool() const {
-		return !!_value;
+		return (_value != nullptr);
 	}
 	not_null<Entry*> entry() const;
 	History *history() const;
@@ -58,21 +59,13 @@ public:
 		return !(*this == other);
 	}
 
-	base::optional_variant<
-		not_null<History*>,
-		not_null<Data::Folder*>> raw() const {
-		return _value;
-	}
-
 	// Not working :(
 	//friend inline auto value_ordering_helper(const Key &key) {
 	//	return key.value;
 	//}
 
 private:
-	base::optional_variant<
-		not_null<History*>,
-		not_null<Data::Folder*>> _value;
+	Entry *_value = nullptr;
 
 };
 

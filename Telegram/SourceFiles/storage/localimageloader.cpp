@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 
 #include "api/api_text_entities.h"
+#include "api/api_sending.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "core/file_utilities.h"
@@ -476,7 +477,7 @@ void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
 
 
 FileLoadTask::FileLoadTask(
-	MTP::DcId dcId,
+	not_null<Main::Session*> session,
 	const QString &filepath,
 	const QByteArray &content,
 	std::unique_ptr<FileMediaInformation> information,
@@ -486,7 +487,8 @@ FileLoadTask::FileLoadTask(
 	std::shared_ptr<SendingAlbum> album,
 	MsgId msgIdToEdit)
 : _id(rand_value<uint64>())
-, _dcId(dcId)
+, _session(session)
+, _dcId(session->mainDcId())
 , _to(to)
 , _album(std::move(album))
 , _filepath(filepath)
@@ -499,14 +501,15 @@ FileLoadTask::FileLoadTask(
 }
 
 FileLoadTask::FileLoadTask(
-	MTP::DcId dcId,
+	not_null<Main::Session*> session,
 	const QByteArray &voice,
 	int32 duration,
 	const VoiceWaveform &waveform,
 	const FileLoadTo &to,
 	const TextWithTags &caption)
 : _id(rand_value<uint64>())
-, _dcId(dcId)
+, _session(session)
+, _dcId(session->mainDcId())
 , _to(to)
 , _content(voice)
 , _duration(duration)
@@ -965,13 +968,13 @@ void FileLoadTask::finish() {
 				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (App::main()) {
+	} else if (const auto session = _session.get()) {
 		const auto fullId = _msgIdToEdit
 			? std::make_optional(FullMsgId(
 				peerToChannel(_to.peer),
 				_msgIdToEdit))
 			: std::nullopt;
-		App::main()->onSendFileConfirm(_result, fullId);
+		Api::SendConfirmedFile(session, _result, fullId);
 	}
 }
 

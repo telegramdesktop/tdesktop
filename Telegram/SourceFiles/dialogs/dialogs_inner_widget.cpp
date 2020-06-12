@@ -209,14 +209,6 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	session().data().chatsFilters().refreshHistoryRequests(
-	) | rpl::start_with_next([=](not_null<History*> history) {
-		if (history->inChatList()
-			&& !session().data().chatsFilters().list().empty()) {
-			refreshDialog(history);
-		}
-	}, lifetime());
-
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Layout::clearUnreadBadgesCache();
@@ -241,7 +233,6 @@ InnerWidget::InnerWidget(
 		UpdateFlag::Name
 		| UpdateFlag::Photo
 		| UpdateFlag::IsContact
-		| UpdateFlag::Migration
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & (UpdateFlag::Name | UpdateFlag::Photo)) {
 			this->update();
@@ -251,10 +242,34 @@ InnerWidget::InnerWidget(
 			// contactsNoChatsList could've changed.
 			Ui::PostponeCall(this, [=] { refresh(); });
 		}
-		if (update.flags & UpdateFlag::Migration) {
-			if (const auto chat = update.peer->asChat()) {
-				handleChatMigration(chat);
-			}
+	}, lifetime());
+
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::DialogRowRepaint
+		| Data::MessageUpdate::Flag::DialogRowRefresh
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		const auto item = update.item;
+		if (update.flags & Data::MessageUpdate::Flag::DialogRowRefresh) {
+			refreshDialogRow({ item->history(), item->fullId() });
+		}
+		if (update.flags & Data::MessageUpdate::Flag::DialogRowRepaint) {
+			repaintDialogRow({ item->history(), item->fullId() });
+		}
+	}, lifetime());
+
+	session().changes().entryUpdates(
+		Data::EntryUpdate::Flag::Repaint
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		const auto entry = update.entry;
+		const auto repaintId = (_state == WidgetState::Default)
+			? _filterId
+			: 0;
+		if (const auto links = entry->chatListLinks(repaintId)) {
+			repaintDialogRow(repaintId, links->main);
+		}
+		if (session().supportMode()
+			&& !session().settings().supportAllSearchResults()) {
+			repaintDialogRow({ entry, FullMsgId() });
 		}
 	}, lifetime());
 
@@ -272,6 +287,8 @@ InnerWidget::InnerWidget(
 		switchToFilter(filterId);
 	}, lifetime());
 
+	handleChatListEntryRefreshes();
+
 	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
@@ -279,21 +296,6 @@ InnerWidget::InnerWidget(
 
 Main::Session &InnerWidget::session() const {
 	return _controller->session();
-}
-
-void InnerWidget::handleChatMigration(not_null<ChatData*> chat) {
-	const auto channel = chat->migrateTo();
-	if (!channel) {
-		return;
-	}
-
-	if (const auto from = chat->owner().historyLoaded(chat)) {
-		if (const auto to = chat->owner().historyLoaded(channel)) {
-			if (to->inChatList() && from->inChatList()) {
-				removeDialog(from);
-			}
-		}
-	}
 }
 
 void InnerWidget::refreshWithCollapsedRows(bool toTop) {
@@ -1443,68 +1445,56 @@ void InnerWidget::dialogRowReplaced(
 	}
 }
 
-void InnerWidget::refreshDialog(Key key) {
-	if (const auto history = key.history()) {
-		if (history->peer->loadedStatus
-			!= PeerData::LoadedStatus::FullLoaded) {
-			LOG(("API Error: "
-				"InnerWidget::refreshDialog() called for a non loaded peer!"
-				));
-			return;
-		}
-	}
+void InnerWidget::handleChatListEntryRefreshes() {
+	using Event = Data::Session::ChatListEntryRefresh;
+	session().data().chatListEntryRefreshes(
+	) | rpl::filter([=](const Event &event) {
+		return (event.filterId == _filterId);
+	}) | rpl::start_with_next([=](const Event &event) {
+		const auto rowHeight = st::dialogsRowHeight;
+		const auto from = dialogsOffset() + event.moved.from * rowHeight;
+		const auto to = dialogsOffset() + event.moved.to * rowHeight;
+		const auto &key = event.key;
+		const auto entry = key.entry();
 
-	const auto result = session().data().refreshChatListEntry(
-		key,
-		_filterId);
-	const auto rowHeight = st::dialogsRowHeight;
-	const auto from = dialogsOffset() + result.moved.from * rowHeight;
-	const auto to = dialogsOffset() + result.moved.to * rowHeight;
-	if (!_dragging
-		&& (from != to)
-		&& (key.entry()->folder() == _openedFolder)) {
 		// Don't jump in chats list scroll position while dragging.
-		emit dialogMoved(from, to);
-	}
-
-	if (result.changed) {
-		refresh();
-	} else if (_state == WidgetState::Default && from != to) {
-		update(
-			0,
-			std::min(from, to),
-			width(),
-			std::abs(from - to) + rowHeight);
-	}
-}
-
-void InnerWidget::removeDialog(Key key) {
-	if (key == _menuRow.key && _menu) {
-		InvokeQueued(this, [=] { _menu = nullptr; });
-	}
-	if (_selected && _selected->key() == key) {
-		_selected = nullptr;
-	}
-	if (_pressed && _pressed->key() == key) {
-		setPressed(nullptr);
-	}
-	session().data().removeChatListEntry(key);
-	if (const auto history = key.history()) {
-		session().notifications().clearFromHistory(history);
-	}
-	const auto i = ranges::find(_filterResults, key, &Row::key);
-	if (i != _filterResults.end()) {
-		if (_filteredSelected == (i - _filterResults.begin())
-			&& (i + 1) == _filterResults.end()) {
-			_filteredSelected = -1;
+		if (!_dragging
+			&& (from != to)
+			&& (entry->folder() == _openedFolder)
+			&& (_state == WidgetState::Default)) {
+			emit dialogMoved(from, to);
 		}
-		_filterResults.erase(i);
-		refresh();
-	}
 
-	_updated.fire({});
-
-	refresh();
+		if (event.existenceChanged) {
+			if (!entry->inChatList()) {
+				if (key == _menuRow.key && _menu) {
+					InvokeQueued(this, [=] { _menu = nullptr; });
+				}
+				if (_selected && _selected->key() == key) {
+					_selected = nullptr;
+				}
+				if (_pressed && _pressed->key() == key) {
+					setPressed(nullptr);
+				}
+				const auto i = ranges::find(_filterResults, key, &Row::key);
+				if (i != _filterResults.end()) {
+					if (_filteredSelected == (i - _filterResults.begin())
+						&& (i + 1) == _filterResults.end()) {
+						_filteredSelected = -1;
+					}
+					_filterResults.erase(i);
+				}
+				_updated.fire({});
+			}
+			refresh();
+		} else if (_state == WidgetState::Default && from != to) {
+			update(
+				0,
+				std::min(from, to),
+				width(),
+				std::abs(from - to) + rowHeight);
+		}
+	}, lifetime());
 }
 
 void InnerWidget::repaintCollapsedFolderRow(not_null<Data::Folder*> folder) {

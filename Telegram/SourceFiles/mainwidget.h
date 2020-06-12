@@ -129,12 +129,6 @@ public:
 	bool started();
 	void activate();
 
-	void refreshDialog(Dialogs::Key key);
-	void removeDialog(Dialogs::Key key);
-	void repaintDialogRow(FilterId filterId, not_null<Dialogs::Row*> row);
-	void repaintDialogRow(Dialogs::RowDescriptor row);
-	void refreshDialogRow(Dialogs::RowDescriptor row);
-
 	void windowShown();
 
 	void dialogsToUp();
@@ -155,15 +149,11 @@ public:
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 	void checkMainSectionToLayer();
 
-	void onSendFileConfirm(
-		const std::shared_ptr<FileLoadResult> &file,
-		const std::optional<FullMsgId> &oldId);
 	bool sendExistingDocument(not_null<DocumentData*> sticker);
 
 	bool isActive() const;
 	[[nodiscard]] bool doWeMarkAsRead() const;
 
-	void applyCloudDraft(History *history);
 	void saveFieldToHistoryLocalDraft();
 
 	int32 dlgsWidth() const;
@@ -201,7 +191,6 @@ public:
 	bool insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query, Dialogs::Key inChat);
-	void itemEdited(not_null<HistoryItem*> item);
 
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void updateScrollColors();
@@ -213,8 +202,6 @@ public:
 	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
 	Image *newBackgroundThumb();
-
-	void updateBotKeyboard(History *h);
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 

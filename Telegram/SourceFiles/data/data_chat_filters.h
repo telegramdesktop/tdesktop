@@ -105,8 +105,6 @@ public:
 	bool loadNextExceptions(bool chatsListLoaded);
 
 	void refreshHistory(not_null<History*> history);
-	[[nodiscard]] auto refreshHistoryRequests() const
-		-> rpl::producer<not_null<History*>>;
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(FilterId filterId);
 
@@ -137,7 +135,6 @@ private:
 	std::vector<ChatFilter> _list;
 	base::flat_map<FilterId, std::unique_ptr<Dialogs::MainList>> _chatsLists;
 	rpl::event_stream<> _listChanged;
-	rpl::event_stream<not_null<History*>> _refreshHistoryRequests;
 	mtpRequestId _loadRequestId = 0;
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;

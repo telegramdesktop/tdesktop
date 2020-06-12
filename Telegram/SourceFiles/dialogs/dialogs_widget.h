@@ -66,12 +66,6 @@ public:
 	void searchInChat(Key chat);
 	void setInnerFocus();
 
-	void refreshDialog(Key key);
-	void removeDialog(Key key);
-	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
-	void repaintDialogRow(RowDescriptor row);
-	void refreshDialogRow(RowDescriptor row);
-
 	void jumpToTop();
 
 	void startWidthAnimation();
@@ -212,7 +206,7 @@ private:
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
 
 	Data::Folder *_openedFolder = nullptr;
-	Key _searchInChat;
+	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
 	QString _lastFilterText;

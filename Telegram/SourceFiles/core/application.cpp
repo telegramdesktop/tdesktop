@@ -340,8 +340,8 @@ void Application::showTheme(
 PeerData *Application::ui_getPeerForMouseAction() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		return _mediaView->ui_getPeerForMouseAction();
-	} else if (auto main = App::main()) {
-		return main->ui_getPeerForMouseAction();
+	} else if (const auto m = App::main()) { // multi good
+		return m->ui_getPeerForMouseAction();
 	}
 	return nullptr;
 }

@@ -172,7 +172,7 @@ public:
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
-	void itemEdited(HistoryItem *item);
+	void itemEdited(not_null<HistoryItem*> item);
 
 	void updateScrollColors();
 
@@ -477,10 +477,6 @@ private:
 
 	void subscribeToUploader();
 
-	void photoUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
 	void photoProgress(const FullMsgId &msgId);
 	void photoFailed(const FullMsgId &msgId);
 	void documentUploaded(
@@ -497,11 +493,6 @@ private:
 	void documentFailed(const FullMsgId &msgId);
 
 	void documentEdited(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
-
-	void photoEdited(
 		const FullMsgId &msgId,
 		Api::SendOptions options,
 		const MTPInputFile &file);
@@ -766,8 +757,6 @@ private:
 	bool _inClickable = false;
 	int _recordingSamples = 0;
 	int _recordCancelWidth;
-
-	rpl::lifetime _uploaderSubscriptions;
 
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.

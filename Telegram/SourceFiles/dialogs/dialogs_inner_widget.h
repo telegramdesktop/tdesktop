@@ -86,12 +86,6 @@ public:
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void refreshDialog(Key key);
-	void removeDialog(Key key);
-	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
-	void repaintDialogRow(RowDescriptor row);
-	void refreshDialogRow(RowDescriptor row);
-
 	void dragLeft();
 
 	void clearFilter();
@@ -192,6 +186,10 @@ private:
 	bool isSearchResultActive(
 		not_null<FakeRow*> result,
 		const RowDescriptor &entry) const;
+
+	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
+	void repaintDialogRow(RowDescriptor row);
+	void refreshDialogRow(RowDescriptor row);
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(QPoint globalPosition, Qt::MouseButton button);
@@ -316,7 +314,7 @@ private:
 	int countPinnedIndex(Row *ofRow);
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
-	void handleChatMigration(not_null<ChatData*> chat);
+	void handleChatListEntryRefreshes();
 
 	not_null<Window::SessionController*> _controller;
 

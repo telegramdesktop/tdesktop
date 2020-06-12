@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "facades.h"
 #include "app.h"
@@ -198,10 +199,10 @@ HistoryInner::HistoryInner(
 	}) | rpl::start_with_next([this](not_null<const Element*> view) {
 		mouseActionUpdate();
 	}, lifetime());
-	session().data().historyOutboxReads(
-	) | rpl::filter([=](not_null<History*> history) {
-		return (_history == history);
-	}) | rpl::start_with_next([=] {
+	session().changes().historyUpdates(
+		_history,
+		Data::HistoryUpdate::Flag::OutboxRead
+	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
 }

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -281,8 +282,10 @@ MainWidget::MainWidget(
 		[this] { updateControlsGeometry(); },
 		lifetime());
 
-	session().data().newMessageSent(
-	) | rpl::start_with_next([=](not_null<History*> history) {
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::MessageSent
+	) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+		const auto history = update.history;
 		history->forgetScrollState();
 		if (const auto from = history->peer->migrateFrom()) {
 			if (const auto migrated = history->owner().historyLoaded(from)) {
@@ -758,10 +761,6 @@ bool MainWidget::selectingPeer() const {
 	return _hider ? true : false;
 }
 
-void MainWidget::removeDialog(Dialogs::Key key) {
-	_dialogs->removeDialog(key);
-}
-
 void MainWidget::cacheBackground() {
 	if (Window::Theme::Background()->colorForFill()) {
 		return;
@@ -847,13 +846,6 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 		Ui::showChatsList();
 	} else {
 		_dialogs->setInnerFocus();
-	}
-}
-
-void MainWidget::itemEdited(not_null<HistoryItem*> item) {
-	if (_history->peer() == item->history()->peer
-		|| (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
-		_history->itemEdited(item);
 	}
 }
 
@@ -1087,12 +1079,6 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
-void MainWidget::onSendFileConfirm(
-		const std::shared_ptr<FileLoadResult> &file,
-		const std::optional<FullMsgId> &oldId) {
-	_history->sendFileConfirmed(file, oldId);
-}
-
 bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
 	return _history->sendExistingDocument(document);
 }
@@ -1234,10 +1220,6 @@ Image *MainWidget::newBackgroundThumb() {
 		: nullptr;
 }
 
-void MainWidget::updateBotKeyboard(History *h) {
-	_history->updateBotKeyboard(h);
-}
-
 void MainWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 	_history->pushReplyReturn(item);
 }
@@ -1337,10 +1319,6 @@ void MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId requestI
 	if (!_viewsToIncrement.empty() && !_viewsIncrementTimer.isActive()) {
 		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
-}
-
-void MainWidget::refreshDialog(Dialogs::Key key) {
-	_dialogs->refreshDialog(key);
 }
 
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
@@ -1954,20 +1932,6 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	}
 	floatPlayerShowVisible();
 	return result;
-}
-
-void MainWidget::repaintDialogRow(
-		FilterId filterId,
-		not_null<Dialogs::Row*> row) {
-	_dialogs->repaintDialogRow(filterId, row);
-}
-
-void MainWidget::repaintDialogRow(Dialogs::RowDescriptor row) {
-	_dialogs->repaintDialogRow(row);
-}
-
-void MainWidget::refreshDialogRow(Dialogs::RowDescriptor row) {
-	_dialogs->refreshDialogRow(row);
 }
 
 void MainWidget::windowShown() {
@@ -2799,10 +2763,6 @@ bool MainWidget::doWeMarkAsRead() const {
 
 int32 MainWidget::dlgsWidth() const {
 	return _dialogs->width();
-}
-
-void MainWidget::applyCloudDraft(History *history) {
-	_history->applyCloudDraft(history);
 }
 
 void MainWidget::saveFieldToHistoryLocalDraft() {

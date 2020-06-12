@@ -14,8 +14,19 @@ namespace Data {
 template <typename DataType, typename UpdateType>
 void Changes::Manager<DataType, UpdateType>::updated(
 		not_null<DataType*> data,
-		Flags flags) {
+		Flags flags,
+		bool dropScheduled) {
 	sendRealtimeNotifications(data, flags);
+	if (dropScheduled) {
+		const auto i = _updates.find(data);
+		if (i != _updates.end()) {
+			flags |= i->second;
+			_updates.erase(i);
+		}
+		_stream.fire({ data, flags });
+	} else {
+		_updates[data] |= flags;
+	}
 }
 
 template <typename DataType, typename UpdateType>
@@ -148,6 +159,72 @@ rpl::producer<HistoryUpdate> Changes::historyFlagsValue(
 	return _historyChanges.flagsValue(history, flags);
 }
 
+rpl::producer<HistoryUpdate> Changes::realtimeHistoryUpdates(
+		HistoryUpdate::Flag flag) const {
+	return _historyChanges.realtimeUpdates(flag);
+}
+
+void Changes::messageUpdated(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags) {
+	const auto drop = (flags & MessageUpdate::Flag::Destroyed);
+	_messageChanges.updated(item, flags, drop);
+	if (!drop) {
+		scheduleNotifications();
+	}
+}
+
+rpl::producer<MessageUpdate> Changes::messageUpdates(
+		MessageUpdate::Flags flags) const {
+	return _messageChanges.updates(flags);
+}
+
+rpl::producer<MessageUpdate> Changes::messageUpdates(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags) const {
+	return _messageChanges.updates(item, flags);
+}
+
+rpl::producer<MessageUpdate> Changes::messageFlagsValue(
+		not_null<HistoryItem*> item,
+		MessageUpdate::Flags flags) const {
+	return _messageChanges.flagsValue(item, flags);
+}
+
+rpl::producer<MessageUpdate> Changes::realtimeMessageUpdates(
+		MessageUpdate::Flag flag) const {
+	return _messageChanges.realtimeUpdates(flag);
+}
+
+void Changes::entryUpdated(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags) {
+	_entryChanges.updated(entry, flags);
+	scheduleNotifications();
+}
+
+rpl::producer<EntryUpdate> Changes::entryUpdates(
+		EntryUpdate::Flags flags) const {
+	return _entryChanges.updates(flags);
+}
+
+rpl::producer<EntryUpdate> Changes::entryUpdates(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags) const {
+	return _entryChanges.updates(entry, flags);
+}
+
+rpl::producer<EntryUpdate> Changes::entryFlagsValue(
+		not_null<Dialogs::Entry*> entry,
+		EntryUpdate::Flags flags) const {
+	return _entryChanges.flagsValue(entry, flags);
+}
+
+rpl::producer<EntryUpdate> Changes::realtimeEntryUpdates(
+		EntryUpdate::Flag flag) const {
+	return _entryChanges.realtimeUpdates(flag);
+}
+
 void Changes::scheduleNotifications() {
 	if (!_notify) {
 		_notify = true;
@@ -164,6 +241,8 @@ void Changes::sendNotifications() {
 	_notify = false;
 	_peerChanges.sendNotifications();
 	_historyChanges.sendNotifications();
+	_messageChanges.sendNotifications();
+	_entryChanges.sendNotifications();
 }
 
 } // namespace Data

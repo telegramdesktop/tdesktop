@@ -55,7 +55,7 @@ rpl::producer<int> PinnedDialogsInFolderMaxValue(
 //}
 
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
-: Entry(owner, this)
+: Entry(owner, Type::Folder)
 , _id(id)
 , _chatsList(
 	&owner->session(),

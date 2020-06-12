@@ -17,32 +17,35 @@ using Folder = Data::Folder;
 
 } // namespace
 
+Key::Key(History *history) : _value(history) {
+}
+
+Key::Key(Data::Folder *folder) : _value(folder) {
+}
+
+Key::Key(not_null<History*> history) : _value(history) {
+}
+
+Key::Key(not_null<Data::Folder*> folder) : _value(folder) {
+}
+
 not_null<Entry*> Key::entry() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return *p;
-	} else if (const auto p = base::get_if<not_null<Folder*>>(&_value)) {
-		return *p;
-	}
-	Unexpected("Empty Dialogs::Key in Key::entry().");
+	Expects(_value != nullptr);
+
+	return _value;
 }
 
 History *Key::history() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return *p;
-	}
-	return nullptr;
+	return _value ? _value->asHistory() : nullptr;
 }
 
 Folder *Key::folder() const {
-	if (const auto p = base::get_if<not_null<Folder*>>(&_value)) {
-		return *p;
-	}
-	return nullptr;
+	return _value ? _value->asFolder() : nullptr;
 }
 
 PeerData *Key::peer() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return (*p)->peer;
+	if (const auto history = this->history()) {
+		return history->peer;
 	}
 	return nullptr;
 }

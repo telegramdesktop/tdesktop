@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_dialogs.h"
@@ -188,7 +189,8 @@ Widget::Widget(
 		refreshLoadMoreButton(mayBlock, isBlocked);
 	}, lifetime());
 
-	session().data().newMessageSent(
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::MessageSent
 	) | rpl::start_with_next([=] {
 		jumpToTop();
 	}, lifetime());
@@ -556,34 +558,6 @@ void Widget::setInnerFocus() {
 	} else {
 		_filter->setFocus();
 	}
-}
-
-void Widget::refreshDialog(Key key) {
-	const auto creating = !key.entry()->inChatList();
-	_inner->refreshDialog(key);
-	const auto history = key.history();
-	if (creating && history && history->peer->migrateFrom()) {
-		if (const auto migrated = history->owner().historyLoaded(
-				history->peer->migrateFrom())) {
-			if (migrated->inChatList()) {
-				_inner->removeDialog(migrated);
-			}
-		}
-	}
-}
-
-void Widget::repaintDialogRow(
-		FilterId filterId,
-		not_null<Row*> row) {
-	_inner->repaintDialogRow(filterId, row);
-}
-
-void Widget::repaintDialogRow(RowDescriptor row) {
-	_inner->repaintDialogRow(row);
-}
-
-void Widget::refreshDialogRow(RowDescriptor row) {
-	_inner->refreshDialogRow(row);
 }
 
 void Widget::jumpToTop() {
@@ -1741,10 +1715,6 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 void Widget::scrollToEntry(const RowDescriptor &entry) {
 	_inner->scrollToEntry(entry);
-}
-
-void Widget::removeDialog(Key key) {
-	_inner->removeDialog(key);
 }
 
 void Widget::cancelSearchRequest() {

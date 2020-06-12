@@ -554,18 +554,51 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	session().data().forwardDraftUpdates(
-	) | rpl::filter([=](not_null<History*> history) {
-		return (_history == history.get());
-	}) | rpl::start_with_next([=](not_null<History*> history) {
-		updateForwarding();
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::MessageSent
+		| Data::HistoryUpdate::Flag::ForwardDraft
+		| Data::HistoryUpdate::Flag::BotKeyboard
+		| Data::HistoryUpdate::Flag::CloudDraft
+		| Data::HistoryUpdate::Flag::UnreadMentions
+		| Data::HistoryUpdate::Flag::UnreadView
+		| Data::HistoryUpdate::Flag::TopPromoted
+		| Data::HistoryUpdate::Flag::LocalMessages
+	) | rpl::filter([=](const Data::HistoryUpdate &update) {
+		return (_history == update.history.get());
+	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+		if (update.flags & Data::HistoryUpdate::Flag::MessageSent) {
+			synteticScrollToY(_scroll->scrollTopMax());
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::ForwardDraft) {
+			updateForwarding();
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::BotKeyboard) {
+			updateBotKeyboard(update.history);
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::CloudDraft) {
+			applyCloudDraft(update.history);
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::LocalMessages) {
+			updateSendButtonType();
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::UnreadMentions) {
+			updateUnreadMentionsVisibility();
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::UnreadView) {
+			unreadCountUpdated();
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::TopPromoted) {
+			updateHistoryGeometry();
+			updateControlsVisibility();
+			updateControlsGeometry();
+			this->update();
+		}
 	}, lifetime());
 
-	session().data().newMessageSent(
-	) | rpl::filter([=](not_null<History*> history) {
-		return (_history == history.get());
-	}) | rpl::start_with_next([=] {
-		synteticScrollToY(_scroll->scrollTopMax());
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Edited
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		itemEdited(update.item);
 	}, lifetime());
 
 	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
@@ -573,33 +606,6 @@ HistoryWidget::HistoryWidget(
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
 		}
 	});
-
-	session().changes().historyUpdates(
-		Data::HistoryUpdate::Flag::UnreadMentions
-		| Data::HistoryUpdate::Flag::UnreadView
-		| Data::HistoryUpdate::Flag::TopPromoted
-		| Data::HistoryUpdate::Flag::LocalMessages
-	) | rpl::filter([=](const Data::HistoryUpdate &update) {
-		return (update.history->peer.get() == _peer);
-	}) | rpl::map([](const Data::HistoryUpdate &update) {
-		return update.flags;
-	}) | rpl::start_with_next([=](Data::HistoryUpdate::Flags flags) {
-		if (flags & Data::HistoryUpdate::Flag::LocalMessages) {
-			updateSendButtonType();
-		}
-		if (flags & Data::HistoryUpdate::Flag::UnreadMentions) {
-			updateUnreadMentionsVisibility();
-		}
-		if (flags & Data::HistoryUpdate::Flag::UnreadView) {
-			unreadCountUpdated();
-		}
-		if (flags & Data::HistoryUpdate::Flag::TopPromoted) {
-			updateHistoryGeometry();
-			updateControlsVisibility();
-			updateControlsGeometry();
-			this->update();
-		}
-	}, lifetime());
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	session().changes().peerUpdates(
@@ -727,6 +733,7 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	subscribeToUploader();
 	setupScheduledToggle();
 	orderWidgets();
 	setupShortcuts();
@@ -3177,7 +3184,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
 		toggleKeyboard();
 	}
-	session().data().newMessageSent(_history);
+	session().changes().historyUpdated(
+		_history,
+		Data::HistoryUpdate::Flag::MessageSent);
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
@@ -4640,26 +4649,35 @@ void HistoryWidget::uploadFile(
 }
 
 void HistoryWidget::subscribeToUploader() {
-	if (_uploaderSubscriptions) {
-		return;
-	}
 	using namespace Storage;
+
 	session().uploader().photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
 		if (data.edit) {
-			photoEdited(data.fullId, data.options, data.file);
+			session().api().editUploadedFile(
+				data.fullId,
+				data.file,
+				std::nullopt,
+				data.options,
+				false);
 		} else {
-			photoUploaded(data.fullId, data.options, data.file);
+			session().api().sendUploadedPhoto(
+				data.fullId,
+				data.file,
+				data.options);
 		}
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().photoProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		photoProgress(fullId);
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().photoFailed(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		photoFailed(fullId);
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().documentReady(
 	) | rpl::start_with_next([=](const UploadedDocument &data) {
 		if (data.edit) {
@@ -4667,7 +4685,8 @@ void HistoryWidget::subscribeToUploader() {
 		} else {
 			documentUploaded(data.fullId, data.options, data.file);
 		}
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().thumbDocumentReady(
 	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
 		thumbDocumentUploaded(
@@ -4676,222 +4695,17 @@ void HistoryWidget::subscribeToUploader() {
 			data.file,
 			data.thumb,
 			data.edit);
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().documentProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		documentProgress(fullId);
-	}, _uploaderSubscriptions);
+	}, lifetime());
+
 	session().uploader().documentFailed(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
 		documentFailed(fullId);
-	}, _uploaderSubscriptions);
-}
-
-void HistoryWidget::sendFileConfirmed(
-		const std::shared_ptr<FileLoadResult> &file,
-		const std::optional<FullMsgId> &oldId) {
-	const auto isEditing = oldId.has_value();
-	const auto channelId = peerToChannel(file->to.peer);
-	const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
-		channelId,
-		file->to.replyTo));
-
-	const auto newId = oldId.value_or(
-		FullMsgId(channelId, session().data().nextLocalMessageId()));
-	auto groupId = file->album ? file->album->groupId : uint64(0);
-	if (file->album) {
-		const auto proj = [](const SendingAlbum::Item &item) {
-			return item.taskId;
-		};
-		const auto it = ranges::find(file->album->items, file->taskId, proj);
-		Assert(it != file->album->items.end());
-
-		it->msgId = newId;
-	}
-	subscribeToUploader();
-	file->edit = isEditing;
-	session().uploader().upload(newId, file);
-
-	const auto itemToEdit = isEditing
-		? session().data().message(newId)
-		: nullptr;
-
-	const auto history = session().data().history(file->to.peer);
-	const auto peer = history->peer;
-
-	auto action = Api::SendAction(history);
-	action.options = file->to.options;
-	action.clearDraft = false;
-	action.replyTo = file->to.replyTo;
-	action.generateLocal = true;
-	session().api().sendAction(action);
-
-	auto caption = TextWithEntities{
-		file->caption.text,
-		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
-	};
-	const auto prepareFlags = Ui::ItemTextOptions(
-		history,
-		session().user()).flags;
-	TextUtilities::PrepareForSending(caption, prepareFlags);
-	TextUtilities::Trim(caption);
-	auto localEntities = Api::EntitiesToMTP(&session(), caption.entities);
-
-	if (itemToEdit) {
-		if (const auto id = itemToEdit->groupId()) {
-			groupId = id.value;
-		}
-	}
-
-	auto flags = (isEditing ? MTPDmessage::Flags() : NewMessageFlags(peer))
-		| MTPDmessage::Flag::f_entities
-		| MTPDmessage::Flag::f_media;
-	auto clientFlags = NewMessageClientFlags();
-	if (file->to.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = file->to.options.silent;
-	Api::FillMessagePostFlags(action, peer, flags);
-	if (silentPost) {
-		flags |= MTPDmessage::Flag::f_silent;
-	}
-	if (groupId) {
-		flags |= MTPDmessage::Flag::f_grouped_id;
-	}
-	if (file->to.options.scheduled) {
-		flags |= MTPDmessage::Flag::f_from_scheduled;
-	} else {
-		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
-	}
-
-	const auto messageFromId = channelPost ? 0 : session().userId();
-	const auto messagePostAuthor = channelPost
-		? session().user()->name
-		: QString();
-
-	if (file->type == SendMediaType::Photo) {
-		const auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
-		const auto photo = MTP_messageMediaPhoto(
-			MTP_flags(photoFlags),
-			file->photo,
-			MTPint());
-
-		const auto mtpMessage = MTP_message(
-			MTP_flags(flags),
-			MTP_int(newId.msg),
-			MTP_int(messageFromId),
-			peerToMTP(file->to.peer),
-			MTPMessageFwdHeader(),
-			MTPint(),
-			MTP_int(file->to.replyTo),
-			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
-			MTP_string(caption.text),
-			photo,
-			MTPReplyMarkup(),
-			localEntities,
-			MTP_int(1),
-			MTPint(),
-			MTP_string(messagePostAuthor),
-			MTP_long(groupId),
-			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
-
-		if (itemToEdit) {
-			itemToEdit->savePreviousMedia();
-			itemToEdit->applyEdition(mtpMessage.c_message());
-		} else {
-			history->addNewMessage(
-				mtpMessage,
-				clientFlags,
-				NewMessageType::Unread);
-		}
-	} else if (file->type == SendMediaType::File) {
-		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		const auto document = MTP_messageMediaDocument(
-			MTP_flags(documentFlags),
-			file->document,
-			MTPint());
-
-		const auto mtpMessage = MTP_message(
-			MTP_flags(flags),
-			MTP_int(newId.msg),
-			MTP_int(messageFromId),
-			peerToMTP(file->to.peer),
-			MTPMessageFwdHeader(),
-			MTPint(),
-			MTP_int(file->to.replyTo),
-			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
-			MTP_string(caption.text),
-			document,
-			MTPReplyMarkup(),
-			localEntities,
-			MTP_int(1),
-			MTPint(),
-			MTP_string(messagePostAuthor),
-			MTP_long(groupId),
-			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
-
-		if (itemToEdit) {
-			itemToEdit->savePreviousMedia();
-			itemToEdit->applyEdition(mtpMessage.c_message());
-		} else {
-			history->addNewMessage(
-				mtpMessage,
-				clientFlags,
-				NewMessageType::Unread);
-		}
-	} else if (file->type == SendMediaType::Audio) {
-		if (!peer->isChannel() || peer->isMegagroup()) {
-			flags |= MTPDmessage::Flag::f_media_unread;
-		}
-		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		const auto document = MTP_messageMediaDocument(
-			MTP_flags(documentFlags),
-			file->document,
-			MTPint());
-		history->addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				MTP_int(newId.msg),
-				MTP_int(messageFromId),
-				peerToMTP(file->to.peer),
-				MTPMessageFwdHeader(),
-				MTPint(),
-				MTP_int(file->to.replyTo),
-				MTP_int(
-					HistoryItem::NewMessageDate(file->to.options.scheduled)),
-				MTP_string(caption.text),
-				document,
-				MTPReplyMarkup(),
-				localEntities,
-				MTP_int(1),
-				MTPint(),
-				MTP_string(messagePostAuthor),
-				MTP_long(groupId),
-				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
-			clientFlags,
-			NewMessageType::Unread);
-		// Voices can't be edited.
-	} else {
-		Unexpected("Type in sendFilesConfirmed.");
-	}
-
-	if (isEditing) {
-		return;
-	}
-
-	session().data().sendHistoryChangeNotifications();
-	session().data().newMessageSent(history);
-}
-
-void HistoryWidget::photoUploaded(
-		const FullMsgId &newId,
-		Api::SendOptions options,
-		const MTPInputFile &file) {
-	session().api().sendUploadedPhoto(newId, file, options);
+	}, lifetime());
 }
 
 void HistoryWidget::documentUploaded(
@@ -4906,13 +4720,6 @@ void HistoryWidget::documentEdited(
 		Api::SendOptions options,
 		const MTPInputFile &file) {
 	session().api().editUploadedFile(newId, file, std::nullopt, options, true);
-}
-
-void HistoryWidget::photoEdited(
-		const FullMsgId &newId,
-		Api::SendOptions options,
-		const MTPInputFile &file) {
-	session().api().editUploadedFile(newId, file, std::nullopt, options, false);
 }
 
 void HistoryWidget::thumbDocumentUploaded(
@@ -5151,8 +4958,8 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 }
 
-void HistoryWidget::itemEdited(HistoryItem *item) {
-	if (item == _replyEditMsg) {
+void HistoryWidget::itemEdited(not_null<HistoryItem*> item) {
+	if (item.get() == _replyEditMsg) {
 		updateReplyEditTexts(true);
 	}
 	if (_pinnedBar && item->id == _pinnedBar->msgId) {

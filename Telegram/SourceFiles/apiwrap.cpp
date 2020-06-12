@@ -4010,7 +4010,9 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	}
 
 	_session->data().sendHistoryChangeNotifications();
-	_session->data().newMessageSent(history);
+	_session->changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::MessageSent);
 }
 
 void ApiWrap::forwardMessages(
@@ -4248,7 +4250,9 @@ void ApiWrap::sendSharedContact(
 	sendMedia(item, media, options);
 
 	_session->data().sendHistoryChangeNotifications();
-	_session->data().newMessageSent(history);
+	_session->changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::MessageSent);
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -4259,7 +4263,7 @@ void ApiWrap::sendVoiceMessage(
 	const auto caption = TextWithTags();
 	const auto to = fileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
-		instance()->mainDcId(),
+		&session(),
 		result,
 		duration,
 		waveform,
@@ -4278,7 +4282,7 @@ void ApiWrap::editMedia(
 	auto &file = list.files.front();
 	const auto to = fileLoadTaskOptions(action);
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
-		instance()->mainDcId(),
+		&session(),
 		file.path,
 		file.content,
 		std::move(file.information),
@@ -4326,7 +4330,7 @@ void ApiWrap::sendFiles(
 			}
 		}
 		tasks.push_back(std::make_unique<FileLoadTask>(
-			instance()->mainDcId(),
+			&session(),
 			file.path,
 			file.content,
 			std::move(file.information),
@@ -4353,7 +4357,7 @@ void ApiWrap::sendFile(
 	const auto to = fileLoadTaskOptions(action);
 	auto caption = TextWithTags();
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
-		instance()->mainDcId(),
+		&session(),
 		QString(),
 		fileContent,
 		nullptr,

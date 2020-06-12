@@ -560,12 +560,9 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 }
 
 void ChatFilters::refreshHistory(not_null<History*> history) {
-	_refreshHistoryRequests.fire_copy(history);
-}
-
-auto ChatFilters::refreshHistoryRequests() const
--> rpl::producer<not_null<History*>> {
-	return _refreshHistoryRequests.events();
+	if (history->inChatList() && !list().empty()) {
+		_owner->refreshChatListEntry(history);
+	}
 }
 
 void ChatFilters::requestSuggested() {

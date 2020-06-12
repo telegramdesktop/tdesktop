@@ -162,7 +162,7 @@ void DownloadDictionaryInBackground(
 
 	auto sharedLoader = std::make_shared<base::unique_qptr<DictLoader>>();
 	*sharedLoader = base::make_unique_q<DictLoader>(
-		App::main(),
+		QCoreApplication::instance(),
 		session,
 		id,
 		GetDownloadLocation(id),

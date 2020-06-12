@@ -70,7 +70,7 @@ using UpdateFlag = Data::HistoryUpdate::Flag;
 } // namespace
 
 History::History(not_null<Data::Session*> owner, PeerId peerId)
-: Entry(owner, this)
+: Entry(owner, Type::History)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(owner->notifyIsMuted(peer))
@@ -88,9 +88,7 @@ void History::clearLastKeyboard() {
 			lastKeyboardHiddenId = 0;
 		}
 		lastKeyboardId = 0;
-		if (auto main = App::main()) {
-			main->updateBotKeyboard(this);
-		}
+		session().changes().historyUpdated(this, UpdateFlag::BotKeyboard);
 	}
 	lastKeyboardInited = true;
 	lastKeyboardFrom = 0;
@@ -327,9 +325,7 @@ void History::applyCloudDraft() {
 	} else {
 		createLocalDraftFromCloud();
 		updateChatListSortPosition();
-		if (const auto main = App::main()) {
-			main->applyCloudDraft(this);
-		}
+		session().changes().historyUpdated(this, UpdateFlag::CloudDraft);
 	}
 }
 
@@ -1759,13 +1755,13 @@ void History::outboxRead(MsgId upTo) {
 	setOutboxReadTill(upTo);
 	if (const auto last = chatListMessage()) {
 		if (last->out() && IsServerMsgId(last->id) && last->id <= upTo) {
-			if (const auto main = App::main()) {
-				main->repaintDialogRow({ this, last->fullId() });
-			}
+			session().changes().messageUpdated(
+				last,
+				Data::MessageUpdate::Flag::DialogRowRepaint);
 		}
 	}
 	updateChatListEntry();
-	session().data().historyOutboxRead(this);
+	session().changes().historyUpdated(this, UpdateFlag::OutboxRead);
 }
 
 void History::outboxRead(not_null<const HistoryItem*> wasRead) {

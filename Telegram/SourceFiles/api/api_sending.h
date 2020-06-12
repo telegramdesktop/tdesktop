@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class PhotoData;
 class DocumentData;
+struct FileLoadResult;
 
 namespace Api {
 
@@ -29,5 +30,10 @@ void FillMessagePostFlags(
 	const SendAction &action,
 	not_null<PeerData*> peer,
 	MTPDmessage::Flags &flags);
+
+void SendConfirmedFile(
+	not_null<Main::Session*> session,
+	const std::shared_ptr<FileLoadResult> &file,
+	const std::optional<FullMsgId> &oldId);
 
 } // namespace Api

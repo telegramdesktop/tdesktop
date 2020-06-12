@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
@@ -748,10 +749,9 @@ void HistoryService::updateDependentText() {
 	//		feed->updateChatListEntry();
 	//	}
 	//}
-	if (const auto main = App::main()) {
-		// #TODO feeds search results
-		main->repaintDialogRow({ history(), fullId() });
-	}
+	history()->session().changes().messageUpdated(
+		this,
+		Data::MessageUpdate::Flag::DialogRowRepaint);
 	history()->owner().updateDependentMessages(this);
 }
 

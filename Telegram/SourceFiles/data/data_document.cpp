@@ -400,7 +400,11 @@ void DocumentCancelClickHandler::onClickImpl() const {
 		return;
 	} else if (data->uploading()) {
 		if (const auto item = data->owner().message(context())) {
-			App::main()->cancelUploadLayer(item);
+			if (const auto m = App::main()) { // multi good
+				if (&m->session() == &data->session()) {
+					m->cancelUploadLayer(item);
+				}
+			}
 		}
 	} else {
 		data->cancel();

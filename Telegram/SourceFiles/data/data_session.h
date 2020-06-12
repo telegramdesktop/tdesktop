@@ -180,10 +180,7 @@ public:
 
 	void deleteConversationLocally(not_null<PeerData*> peer);
 
-	void newMessageSent(not_null<History*> history);
-	[[nodiscard]] rpl::producer<not_null<History*>> newMessageSent() const;
 	void cancelForwarding(not_null<History*> history);
-	[[nodiscard]] rpl::producer<not_null<History*>> forwardDraftUpdates() const;
 
 	void registerSendAction(
 		not_null<History*> history,
@@ -561,9 +558,6 @@ public:
 	void channelDifferenceTooLong(not_null<ChannelData*> channel);
 	[[nodiscard]] rpl::producer<not_null<ChannelData*>> channelDifferenceTooLong() const;
 
-	void historyOutboxRead(not_null<History*> history);
-	[[nodiscard]] rpl::producer<not_null<History*>> historyOutboxReads() const;
-
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
 
@@ -582,14 +576,20 @@ public:
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsList();
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsNoChatsList();
 
-	struct RefreshChatListEntryResult {
-		bool changed = false;
+	struct ChatListEntryRefresh {
+		Dialogs::Key key;
 		Dialogs::PositionChange moved;
+		FilterId filterId = 0;
+		bool existenceChanged = false;
+
+		explicit operator bool() const {
+			return existenceChanged || (moved.from != moved.to);
+		}
 	};
-	RefreshChatListEntryResult refreshChatListEntry(
-		Dialogs::Key key,
-		FilterId filterIdForResult);
+	void refreshChatListEntry(Dialogs::Key key);
 	void removeChatListEntry(Dialogs::Key key);
+	[[nodiscard]] auto chatListEntryRefreshes() const
+		-> rpl::producer<ChatListEntryRefresh>;
 
 	struct DialogsRowReplacement {
 		not_null<Dialogs::Row*> old;
@@ -645,7 +645,7 @@ private:
 
 	void suggestStartExport();
 
-	void setupContactViewsViewer();
+	void setupMigrationViewer();
 	void setupChannelLeavingViewer();
 	void setupPeerNameViewer();
 	void setupUserIsContactViewer();
@@ -808,6 +808,7 @@ private:
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
+	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
@@ -879,9 +880,6 @@ private:
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
-	rpl::event_stream<not_null<History*>> _historyOutboxReads;
-	rpl::event_stream<not_null<History*>> _newMessageSent;
-	rpl::event_stream<not_null<History*>> _forwardDraftUpdated;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
 	base::Timer _pollsClosingTimer;

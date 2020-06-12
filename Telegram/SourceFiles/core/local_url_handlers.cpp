@@ -133,9 +133,11 @@ bool ShareUrl(
 	auto url = params.value(qsl("url"));
 	if (url.isEmpty()) {
 		return false;
+	} else if (const auto controller = App::wnd()->sessionController()) {
+		controller->content()->shareUrlLayer(url, params.value("text"));
+		return true;
 	}
-	App::main()->shareUrlLayer(url, params.value("text"));
-	return true;
+	return false;
 }
 
 bool ConfirmPhone(
@@ -291,12 +293,15 @@ bool ResolveUsername(
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	App::main()->openPeerByName(
-		domain,
-		post,
-		startToken,
-		clickFromMessageId);
-	return true;
+	if (const auto controller = App::wnd()->sessionController()) {
+		controller->content()->openPeerByName(
+			domain,
+			post,
+			startToken,
+			clickFromMessageId);
+		return true;
+	}
+	return false;
 }
 
 bool ResolvePrivatePost(

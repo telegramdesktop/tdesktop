@@ -111,7 +111,9 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::main()->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+		if (const auto m = App::main()) { // multi good
+			m->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+		}
 	}
 }
 
