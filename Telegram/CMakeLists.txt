@@ -1209,7 +1209,7 @@ endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
-if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR NOT LINUX) AND NOT build_macstore AND NOT build_winstore)
+if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_target(Updater)
 
