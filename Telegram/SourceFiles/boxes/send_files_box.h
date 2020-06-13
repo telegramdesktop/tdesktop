@@ -115,6 +115,7 @@ private:
 	void sendScheduled();
 	void captionResized();
 
+	void setupDragArea();
 	void setupTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
@@ -163,6 +164,7 @@ private:
 	std::shared_ptr<Ui::RadioenumGroup<SendFilesWay>> _sendWay;
 
 	rpl::variable<int> _footerHeight = 0;
+	rpl::event_stream<> _albumChanged;
 
 	QWidget *_preview = nullptr;
 	AlbumPreview *_albumPreview = nullptr;

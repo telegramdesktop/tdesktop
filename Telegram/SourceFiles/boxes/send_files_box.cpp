@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "confirm_box.h"
+#include "history/history_drag_area.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -333,7 +334,7 @@ AlbumThumb::AlbumThumb(
 		- st::sendMediaFileThumbSize
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
-		- st::sendBoxAlbumGroupEditInternalSkip
+		- st::sendBoxAlbumGroupEditInternalSkip * 2
 		- st::sendBoxAlbumGroupSkipRight;
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
@@ -1858,6 +1859,40 @@ void SendFilesBox::prepare() {
 		}));
 
 	updateLeftButtonVisibility();
+	setupDragArea();
+}
+
+void SendFilesBox::setupDragArea() {
+	// Avoid both drag areas appearing at one time.
+	auto computeState = [=](const QMimeData *data) {
+		const auto state = Storage::ComputeMimeDataState(data);
+		return (state == Storage::MimeDataState::PhotoFiles)
+			? Storage::MimeDataState::Image
+			: (state == Storage::MimeDataState::Files)
+			// Temporary enable drag'n'drop only for images. TODO.
+			? Storage::MimeDataState::None
+			: state;
+	};
+	const auto areas = DragArea::SetupDragAreaToContainer(
+		this,
+		[=](not_null<const QMimeData*> d) { return canAddFiles(d); },
+		[=](bool f) { _caption->setAcceptDrops(f); },
+		[=] { updateControlsGeometry(); },
+		std::move(computeState));
+
+	const auto droppedCallback = [=](bool compress) {
+		return [=](const QMimeData *data) {
+			addFiles(data);
+			Window::ActivateWindow(_controller);
+		};
+	};
+	areas.document->setDroppedCallback(droppedCallback(false));
+	areas.photo->setDroppedCallback(droppedCallback(true));
+	_albumChanged.events(
+	) | rpl::start_with_next([=] {
+		areas.document->raise();
+		areas.photo->raise();
+	}, lifetime());
 }
 
 void SendFilesBox::updateLeftButtonVisibility() {
@@ -1875,6 +1910,7 @@ void SendFilesBox::refreshAllAfterAlbumChanges() {
 	preparePreview();
 	captionResized();
 	updateLeftButtonVisibility();
+	_albumChanged.fire({});
 }
 
 void SendFilesBox::openDialogToAddFileToAlbum() {
