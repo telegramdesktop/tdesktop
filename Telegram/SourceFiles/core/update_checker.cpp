@@ -409,9 +409,9 @@ bool UnpackUpdate(const QString &filepath) {
 			bool executable = false;
 
 			stream >> relativeName >> fileSize >> fileInnerData;
-#if defined Q_OS_MAC || defined Q_OS_LINUX
+#ifdef Q_OS_UNIX
 			stream >> executable;
-#endif // Q_OS_MAC || Q_OS_LINUX
+#endif // Q_OS_UNIX
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
 				return false;
@@ -1509,10 +1509,10 @@ bool checkReadyUpdate() {
 #elif defined Q_OS_MAC // Q_OS_WIN
 	QString curUpdater = (cExeDir() + cExeName() + qsl("/Contents/Frameworks/Updater"));
 	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Telegram.app/Contents/Frameworks/Updater"));
-#elif defined Q_OS_LINUX // Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_MAC
 	QString curUpdater = (cExeDir() + qsl("Updater"));
 	QFileInfo updater(cWorkingDir() + qsl("tupdates/temp/Updater"));
-#endif // Q_OS_LINUX
+#endif // Q_OS_UNIX
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
@@ -1546,12 +1546,12 @@ bool checkReadyUpdate() {
 		ClearAll();
 		return false;
 	}
-#elif defined Q_OS_LINUX // Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_MAC
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
 		ClearAll();
 		return false;
 	}
-#endif // Q_OS_LINUX
+#endif // Q_OS_UNIX
 
 #ifdef Q_OS_MAC
 	Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());

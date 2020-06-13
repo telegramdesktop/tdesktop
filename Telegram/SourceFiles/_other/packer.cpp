@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
 			}
 			QByteArray inner = f.readAll();
 			stream << name << quint32(inner.size()) << inner;
-#if defined Q_OS_MAC || defined Q_OS_LINUX
+#ifdef Q_OS_UNIX
 			stream << (QFileInfo(fullName).isExecutable() ? true : false);
 #endif
 		}
@@ -467,10 +467,12 @@ int main(int argc, char *argv[])
 	QString outName(QString("tupdate%1").arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
 	QString outName((targetosx ? QString("tosxupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_LINUX32
+#elif defined Q_OS_UNIX
+#ifndef _LP64
 	QString outName(QString("tlinux32upd%1").arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_LINUX64
+#else
 	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
+#endif
 #else
 #error Unknown platform!
 #endif
