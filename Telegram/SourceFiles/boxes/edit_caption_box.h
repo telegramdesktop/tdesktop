@@ -79,6 +79,8 @@ private:
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
+	void setupDragArea();
+
 	void save();
 	void captionResized();
 

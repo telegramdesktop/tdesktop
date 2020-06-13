@@ -449,7 +449,9 @@ HistoryWidget::HistoryWidget(
 
 	_attachDragAreas = DragArea::SetupDragAreaToContainer(
 		this,
-		crl::guard(this, [=] { return (!_history || !_canSendMessages); }),
+		crl::guard(this, [=](not_null<const QMimeData*> d) {
+			return _history && _canSendMessages;
+		}),
 		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
 		crl::guard(this, [=] { updateControlsGeometry(); }));
 	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {

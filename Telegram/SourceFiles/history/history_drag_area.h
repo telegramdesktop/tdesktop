@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+namespace Storage {
+enum class MimeDataState;
+} // namespace Storage
+
 class DragArea : public Ui::RpWidget {
 	Q_OBJECT
 
@@ -20,11 +24,16 @@ public:
 		DragArea *document;
 		DragArea *photo;
 	};
+
+	using CallbackComputeState =
+		Fn<Storage::MimeDataState(const QMimeData *data)>;
+
 	static Areas SetupDragAreaToContainer(
 		not_null<Ui::RpWidget*> container,
-		Fn<bool()> &&dragEnterFilter = nullptr,
+		Fn<bool(not_null<const QMimeData*>)> &&dragEnterFilter = nullptr,
 		Fn<void(bool)> &&setAcceptDropsField = nullptr,
-		Fn<void()> &&updateControlsGeometry = nullptr);
+		Fn<void()> &&updateControlsGeometry = nullptr,
+		CallbackComputeState &&computeState = nullptr);
 
 	void setText(const QString &text, const QString &subtext);
 

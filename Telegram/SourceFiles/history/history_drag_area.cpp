@@ -40,9 +40,10 @@ constexpr auto kDragAreaEvents = {
 
 DragArea::Areas DragArea::SetupDragAreaToContainer(
 		not_null<Ui::RpWidget*> container,
-		Fn<bool()> &&dragEnterFilter,
+		Fn<bool(not_null<const QMimeData*>)> &&dragEnterFilter,
 		Fn<void(bool)> &&setAcceptDropsField,
-		Fn<void()> &&updateControlsGeometry) {
+		Fn<void()> &&updateControlsGeometry,
+		DragArea::CallbackComputeState &&computeState) {
 
 	using DragState = Storage::MimeDataState;
 
@@ -161,11 +162,13 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	};
 
 	const auto dragEnterEvent = [=](QDragEnterEvent *e) {
-		if (dragEnterFilter && dragEnterFilter()) {
+		if (dragEnterFilter && !dragEnterFilter(e->mimeData())) {
 			return;
 		}
 
-		*attachDragState = Storage::ComputeMimeDataState(e->mimeData());
+		*attachDragState = computeState
+			? computeState(e->mimeData())
+			: Storage::ComputeMimeDataState(e->mimeData());
 		updateDragAreas();
 
 		if (*attachDragState != DragState::None) {
@@ -179,6 +182,10 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	};
 
 	const auto dropEvent = [=](QDropEvent *e) {
+		// Hide fast to avoid visual bugs in resizable boxes.
+		attachDragDocument->hideFast();
+		attachDragPhoto->hideFast();
+
 		*attachDragState = DragState::None;
 		updateDragAreas();
 		e->acceptProposedAction();

@@ -291,19 +291,15 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 			std::move(result.remoteContent),
 			previewWidth);
 
-		if (Core::IsMimeSticker(list.files.front().mime)) {
+		const auto mimeFile = list.files.front().mime;
+		if (Core::IsMimeSticker(mimeFile)) {
 			errorCallback(tr::lng_edit_media_invalid_file);
 			return std::nullopt;
 		}
 
 		if (isAlbum) {
-			const auto albumMimes = {
-				"image/jpeg",
-				"image/png",
-				"video/mp4",
-			};
 			const auto file = &list.files.front();
-			if (!ranges::contains(albumMimes, file->mime)
+			if (!Core::IsMimeAcceptedForAlbum(mimeFile)
 				|| file->type == Storage::PreparedFile::AlbumType::None) {
 				errorCallback(tr::lng_edit_media_album_error);
 				return std::nullopt;

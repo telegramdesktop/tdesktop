@@ -1181,7 +1181,7 @@ void ScheduledWidget::clearSelected() {
 void ScheduledWidget::setupDragArea() {
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=] { return !_history; },
+		[=](not_null<const QMimeData*> d) { return _history; },
 		nullptr,
 		[=] { updateControlsGeometry(); });
 
