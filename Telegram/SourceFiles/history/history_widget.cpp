@@ -89,7 +89,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "ui/unread_badge.h"
-#include "ui/delayed_activation.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "window/themes/window_theme.h"
@@ -137,12 +136,6 @@ constexpr auto kCommonModifiers = 0
 	| Qt::MetaModifier
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
-
-void ActivateWindow(not_null<Window::SessionController*> controller) {
-	const auto window = controller->widget();
-	window->activateWindow();
-	Ui::ActivateWindowDelayed(window);
-}
 
 object_ptr<Ui::FlatButton> SetupDiscussButton(
 		not_null<QWidget*> parent,
@@ -461,11 +454,11 @@ HistoryWidget::HistoryWidget(
 		crl::guard(this, [=] { updateControlsGeometry(); }));
 	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::No);
-		ActivateWindow(controller);
+		Window::ActivateWindow(controller);
 	});
 	_attachDragAreas.photo->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
-		ActivateWindow(controller);
+		Window::ActivateWindow(controller);
 	});
 
 	subscribe(Adaptive::Changed(), [=] {
@@ -1452,7 +1445,7 @@ void HistoryWidget::onRecordDone(
 		qint32 samples) {
 	if (!canWriteMessage() || result.isEmpty()) return;
 
-	ActivateWindow(controller());
+	Window::ActivateWindow(controller());
 	const auto duration = samples / Media::Player::kDefaultFrequency;
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
@@ -4295,7 +4288,7 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 	}));
 
-	ActivateWindow(controller());
+	Window::ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 

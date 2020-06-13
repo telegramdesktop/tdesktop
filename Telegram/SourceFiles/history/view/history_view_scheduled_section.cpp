@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
 #include "chat_helpers/message_field.h" // SendMenuType.
-#include "ui/delayed_activation.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -36,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
-#include "mainwindow.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
@@ -1190,9 +1188,7 @@ void ScheduledWidget::setupDragArea() {
 	const auto droppedCallback = [=](CompressConfirm compressed) {
 		return [=](const QMimeData *data) {
 			confirmSendingFiles(data, compressed);
-			const auto window = controller()->widget();
-			window->activateWindow();
-			Ui::ActivateWindowDelayed(window);
+			Window::ActivateWindow(controller());
 		};
 	};
 	areas.document->setDroppedCallback(droppedCallback(CompressConfirm::No));

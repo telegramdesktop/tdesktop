@@ -355,4 +355,6 @@ private:
 
 };
 
+void ActivateWindow(not_null<SessionController*> controller);
+
 } // namespace Window
