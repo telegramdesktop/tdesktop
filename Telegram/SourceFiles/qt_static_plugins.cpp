@@ -20,7 +20,7 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #elif defined Q_OS_MAC // Q_OS_WIN
 Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
-#elif defined Q_OS_LINUX // Q_OS_WIN | Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_WIN | Q_OS_MAC
 Q_IMPORT_PLUGIN(ShmServerBufferPlugin)
 Q_IMPORT_PLUGIN(DmaBufServerBufferPlugin)
 Q_IMPORT_PLUGIN(DrmEglServerBufferPlugin)
@@ -44,10 +44,10 @@ Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
 Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QXdgDesktopPortalThemePlugin)
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
-#endif // Q_OS_WIN | Q_OS_MAC | Q_OS_LINUX
+#endif // Q_OS_WIN | Q_OS_MAC | Q_OS_UNIX
 #endif // !DESKTOP_APP_USE_PACKAGED
 
-#ifdef Q_OS_LINUX
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
 #if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY
 Q_IMPORT_PLUGIN(QWaylandMaterialDecorationPlugin)
 Q_IMPORT_PLUGIN(NimfInputContextPlugin)
@@ -69,4 +69,4 @@ Q_IMPORT_PLUGIN(Qt5CTStylePlugin)
 Q_IMPORT_PLUGIN(LXQtPlatformThemePlugin)
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 #endif // DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES
-#endif // Q_OS_LINUX
+#endif // Q_OS_UNIX && !Q_OS_MAC

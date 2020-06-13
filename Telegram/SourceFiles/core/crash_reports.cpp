@@ -39,7 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "client/crashpad_client.h"
 #endif // else for MAC_USE_BREAKPAD
 
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32 // Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_MAC
 
 #include <execinfo.h>
 #include <signal.h>
@@ -47,7 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "client/linux/handler/exception_handler.h"
 
-#endif // Q_OS_LINUX64 || Q_OS_LINUX32
+#endif // Q_OS_UNIX
 
 #endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 
@@ -140,7 +140,7 @@ QMutex ReportingMutex;
 const char *BreakpadDumpPath = nullptr;
 const wchar_t *BreakpadDumpPathW = nullptr;
 
-#if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+#ifdef Q_OS_UNIX
 struct sigaction SIG_def[32];
 
 void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
@@ -148,9 +148,9 @@ void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
 		sigaction(signum, &SIG_def[signum], 0);
 	}
 
-#else // Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
+#else // Q_OS_UNIX
 void SignalHandler(int signum) {
-#endif // else for Q_OS_MAC || Q_OS_LINUX || Q_OS_LINUX64
+#endif // else for Q_OS_UNIX
 
 	const char* name = 0;
 	switch (signum) {
@@ -212,7 +212,7 @@ void SignalHandler(int signum) {
 	}
 
 	// see https://github.com/benbjohnson/bandicoot
-#if defined Q_OS_MAC || defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+#ifdef Q_OS_UNIX
 	ucontext_t *uc = (ucontext_t*)ucontext;
 
 	void *caller = 0;
@@ -276,9 +276,9 @@ void SignalHandler(int signum) {
 
 	backtrace_symbols_fd(addresses, size, ReportFileNo);
 
-#else // Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
+#else // Q_OS_UNIX
 	dump() << "\nBacktrace omitted.\n";
-#endif // else for Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
+#endif // else for Q_OS_UNIX
 
 	dump() << "\n";
 
@@ -294,9 +294,9 @@ google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
 #elif defined Q_OS_MAC // Q_OS_WIN
 bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32 // Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_MAC
 bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
-#endif // Q_OS_LINUX64 || Q_OS_LINUX32
+#endif // Q_OS_UNIX
 {
 	if (CrashLogged) return success;
 	CrashLogged = true;
@@ -392,7 +392,7 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 		crashpad_client.UseHandler();
 	}
 #endif // else for MAC_USE_BREAKPAD
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
+#elif defined Q_OS_UNIX
 	BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
 		google_breakpad::MinidumpDescriptor(QFile::encodeName(dumpspath).toStdString()),
 		/*FilterCallback*/ 0,
@@ -401,7 +401,7 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 		true,
 		-1
 	);
-#endif // Q_OS_LINUX64 || Q_OS_LINUX32
+#endif // Q_OS_UNIX
 #endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
