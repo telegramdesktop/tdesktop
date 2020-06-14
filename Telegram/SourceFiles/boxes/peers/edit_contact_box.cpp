@@ -250,7 +250,7 @@ void Controller::setupSharePhoneNumber() {
 		object_ptr<Ui::Checkbox>(
 			_box,
 			tr::lng_contact_share_phone(tr::now),
-			true,
+			false,
 			st::defaultBoxCheckbox),
 		st::addContactWarningMargin);
 	_box->addRow(
