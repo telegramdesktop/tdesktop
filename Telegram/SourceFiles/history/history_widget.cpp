@@ -2024,6 +2024,7 @@ void HistoryWidget::refreshScheduledToggle() {
 			controller()->showSection(
 				HistoryView::ScheduledMemento(_history));
 		});
+		orderWidgets(); // Raise drag areas to the top.
 	} else if (_scheduled && !has) {
 		_scheduled.destroy();
 	}
