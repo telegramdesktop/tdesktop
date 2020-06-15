@@ -224,6 +224,7 @@ Updates::Updates(not_null<Main::Session*> session)
 
 	api().request(MTPupdates_GetState(
 	)).done([=](const MTPupdates_State &result) {
+		stateDone(result);
 	}).send();
 }
 
