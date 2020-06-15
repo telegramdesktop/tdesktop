@@ -1100,10 +1100,12 @@ void LanguageBox::prepare() {
 	) | rpl::start_with_next([=](const Language &language) {
 		// "#custom" is applied each time it's passed to switchToLanguage().
 		// So we check that the language really has changed.
-		if (language.id != Lang::Current().id()) {
+		const auto currentId = Lang::LanguageIdOrDefault(
+			Lang::Current().id());
+		if (language.id != currentId) {
 			Lang::CurrentCloudManager().switchToLanguage(language);
 			if (inner) {
-				inner->changeChosen(Lang::Current().id());
+				inner->changeChosen(currentId);
 			}
 		}
 	}, inner->lifetime());

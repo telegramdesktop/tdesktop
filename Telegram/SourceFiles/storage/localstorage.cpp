@@ -368,10 +368,10 @@ void start() {
 	_oldSettingsVersion = settingsData.version;
 	_settingsSalt = salt;
 
+	applyReadContext(std::move(context));
+
 	InitialLoadTheme();
 	readLangPack();
-
-	applyReadContext(std::move(context));
 }
 
 void writeSettings() {
