@@ -51,7 +51,6 @@ bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 
 uint32 gConnectionsInSession = 1;
-QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
 int gScreenScale = style::kScaleAuto;

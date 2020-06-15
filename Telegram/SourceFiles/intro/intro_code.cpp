@@ -248,7 +248,6 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 			showError(rpl::single(Lang::Hard::ServerError()));
 			return;
 		}
-		cSetLoggedPhoneNumber(getData()->phone);
 		finish(data.vuser());
 	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
 		if (const auto terms = data.vterms_of_service()) {

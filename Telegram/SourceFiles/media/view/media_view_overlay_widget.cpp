@@ -46,9 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "main/main_account.h" // Account::sessionValue.
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
+#include "main/main_account.h"
+#include "main/main_accounts.h" // Accounts::activeSessionValue.
 #include "main/main_session.h"
 #include "layout.h"
 #include "storage/file_download.h"
@@ -303,8 +304,6 @@ OverlayWidget::OverlayWidget()
 		? Global::VideoVolume()
 		: Global::kDefaultVolume;
 
-	// #TODO multi activeSessionValue change icon on show?
-	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
 	const auto text = tr::lng_mediaview_saved_to(
@@ -320,9 +319,15 @@ OverlayWidget::OverlayWidget()
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
 	// While we have one mediaview for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
+	Core::App().accounts().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
+		if (!isHidden()) {
+			close();
+		}
+		clearData();
+		setWindowIcon(Window::CreateIcon(session));
 		if (session) {
+			// #TODO multi
 			subscribe(session->downloaderTaskFinished(), [=] {
 				if (!isHidden()) {
 					updateControls();

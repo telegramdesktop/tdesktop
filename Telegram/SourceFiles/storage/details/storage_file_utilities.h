@@ -23,6 +23,9 @@ void ClearKey(const FileKey &key, const QString &basePath);
 [[nodiscard]] MTP::AuthKeyPtr CreateLocalKey(
 	const QByteArray &passcode,
 	const QByteArray &salt);
+[[nodiscard]] MTP::AuthKeyPtr CreateLegacyLocalKey(
+	const QByteArray &passcode,
+	const QByteArray &salt);
 
 struct FileReadDescriptor final {
 	~FileReadDescriptor();

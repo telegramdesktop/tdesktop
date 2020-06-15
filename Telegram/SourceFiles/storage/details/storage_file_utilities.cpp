@@ -21,6 +21,8 @@ namespace {
 constexpr char TdfMagic[] = { 'T', 'D', 'F', '$' };
 constexpr auto TdfMagicLen = int(sizeof(TdfMagic));
 
+constexpr auto kStrongIterationsCount = 100'000;
+
 } // namespace
 
 QString ToFilePart(FileKey val) {
@@ -84,6 +86,28 @@ bool CheckStreamStatus(QDataStream &stream) {
 }
 
 MTP::AuthKeyPtr CreateLocalKey(
+		const QByteArray &passcode,
+		const QByteArray &salt) {
+	const auto s = bytes::make_span(salt);
+	const auto hash = openssl::Sha512(s, bytes::make_span(passcode), s);
+	const auto iterationsCount = passcode.isEmpty()
+		? 1 // Don't slow down for no password.
+		: kStrongIterationsCount;
+
+	auto key = MTP::AuthKey::Data{ { gsl::byte{} } };
+	PKCS5_PBKDF2_HMAC(
+		reinterpret_cast<const char*>(hash.data()),
+		hash.size(),
+		reinterpret_cast<const unsigned char*>(s.data()),
+		s.size(),
+		iterationsCount,
+		EVP_sha512(),
+		key.size(),
+		reinterpret_cast<unsigned char*>(key.data()));
+	return std::make_shared<MTP::AuthKey>(key);
+}
+
+MTP::AuthKeyPtr CreateLegacyLocalKey(
 		const QByteArray &passcode,
 		const QByteArray &salt) {
 	auto key = MTP::AuthKey::Data{ { gsl::byte{} } };

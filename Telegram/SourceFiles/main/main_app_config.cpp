@@ -29,7 +29,6 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 			_requestId = 0;
 		}
 	}, _lifetime);
-	refresh();
 }
 
 void AppConfig::refresh() {

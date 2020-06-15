@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
-#include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_accounts.h"
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -158,7 +158,10 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 
 CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
-	Core::App().activeAccount().mtpValue( // #TODO multi activeAccountValue
+	Core::App().accounts().activeValue(
+	) | rpl::map([=](Main::Account *account) {
+		return account ? account->mtpValue() : rpl::never<MTP::Instance*>();
+	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](MTP::Instance *instance) {
 		if (instance) {
 			_api.emplace(instance);

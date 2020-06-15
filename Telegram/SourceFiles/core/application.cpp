@@ -21,13 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
-#include "storage/localstorage.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
-#include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "calls/calls_instance.h"
@@ -35,10 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
-#include "storage/storage_databases.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "main/main_account.h"
+#include "main/main_accounts.h"
+#include "main/main_session.h"
 #include "media/view/media_view_overlay_widget.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
@@ -56,7 +55,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
-#include "storage/storage_account.h"
+#include "storage/storage_accounts.h"
+#include "storage/storage_databases.h"
+#include "storage/localstorage.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -95,7 +96,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _dcOptions(std::make_unique<MTP::DcOptions>())
-, _account(std::make_unique<Main::Account>(cDataFile()))
+, _accounts(std::make_unique<Main::Accounts>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -113,22 +114,22 @@ Application::Application(not_null<Launcher*> launcher)
 		_shouldLockAt = 0;
 	}, _lifetime);
 
-	activeAccount().sessionChanges( // #TODO multi activeSessionValue
+	accounts().activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
-		if (_mediaView) {
-			hideMediaView();
-			_mediaView->clearData();
-		}
 		if (session && !UpdaterDisabled()) { // #TODO multi someSessionValue
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
 
-	activeAccount().mtpChanges(
+	accounts().activeValue(
+	) | rpl::map([=](Main::Account *account) {
+		return account ? account->mtpValue() : rpl::never<MTP::Instance*>();
+	}) | rpl::flatten_latest(
 	) | rpl::filter([=](MTP::Instance *instance) {
 		return instance != nullptr;
 	}) | rpl::start_with_next([=] {
 		if (_window) {
+			// Global::DesktopNotify is used in updateTrayMenu.
 			// This should be called when user settings are read.
 			// Right now after they are read the startMtp() is called.
 			_window->widget()->updateTrayMenu();
@@ -137,7 +138,11 @@ Application::Application(not_null<Launcher*> launcher)
 }
 
 Application::~Application() {
+	// Depend on activeWindow() for now :(
+	Shortcuts::Finish();
+
 	_window.reset();
+
 	if (_mediaView) {
 		_mediaView->clearData();
 		_mediaView = nullptr;
@@ -224,7 +229,7 @@ void Application::run() {
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
-	_window = std::make_unique<Window::Controller>(&activeAccount());
+	_window = std::make_unique<Window::Controller>();
 
 	QCoreApplication::instance()->installEventFilter(this);
 	connect(
@@ -235,24 +240,19 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: window created..."));
 
+	// Depend on activeWindow() for now :(
 	startShortcuts();
+
 	App::initMedia();
 
-	const auto state = activeAccount().local().start(QByteArray());
+	const auto state = accounts().start(QByteArray());
 	if (state == Storage::StartResult::IncorrectPasscode) {
 		Global::SetLocalPasscode(true);
 		Global::RefLocalPasscodeChanged().notify();
 		lockByPasscode();
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
-		DEBUG_LOG(("Application Info: local map read..."));
-		activeAccount().startMtp();
-		DEBUG_LOG(("Application Info: MTP started..."));
-		if (activeAccount().sessionExists()) {
-			_window->setupMain();
-		} else {
-			_window->setupIntro();
-		}
+		_window->showAccount(&activeAccount());
 	}
 
 	_window->widget()->show();
@@ -552,6 +552,10 @@ void Application::writeInstallBetaVersionsSetting() {
 	_launcher->writeInstallBetaVersionsSetting();
 }
 
+Main::Account &Application::activeAccount() const {
+	return _accounts->active();
+}
+
 bool Application::exportPreventsQuit() {
 	if (!activeAccount().sessionExists()
 		|| !activeAccount().session().data().exportInProgress()) {
@@ -564,25 +568,28 @@ bool Application::exportPreventsQuit() {
 }
 
 int Application::unreadBadge() const {
-	return activeAccount().sessionExists()
+	return (accounts().started() && activeAccount().sessionExists())
 		? activeAccount().session().data().unreadBadge()
 		: 0;
 }
 
 bool Application::unreadBadgeMuted() const {
-	return activeAccount().sessionExists()
+	return (accounts().started() && activeAccount().sessionExists())
 		? activeAccount().session().data().unreadBadgeMuted()
 		: false;
 }
 
 bool Application::offerLegacyLangPackSwitch() const {
-	// #TODO multi we offer only if we were upgraded from an old authed app.
-	return activeAccount().sessionExists();
+	return (accounts().list().size() == 1) && activeAccount().sessionExists();
 }
 
 bool Application::canApplyLangPackWithoutRestart() const {
-	// #TODO multi we can't if at least one account is authorized.
-	return !activeAccount().sessionExists();
+	for (const auto &[index, account] : accounts().list()) {
+		if (account->sessionExists()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Application::setInternalLinkDomain(const QString &domain) const {
@@ -674,10 +681,6 @@ void Application::lockByPasscode() {
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-	if (!activeAccount().mtp()) {
-		// We unlocked initial passcode, so we just start mtproto.
-		activeAccount().startMtp();
-	}
 	if (_window) {
 		_window->clearPasscodeLock();
 	}
@@ -720,10 +723,20 @@ void Application::lockByTerms(const Window::TermsLock &data) {
 	}
 }
 
+bool Application::someSessionExists() const {
+	const auto &list = _accounts->list();
+	for (const auto &[index, account] : list) {
+		if (account->sessionExists()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Application::checkAutoLock() {
 	if (!Global::LocalPasscode()
 		|| passcodeLocked()
-		|| !_account->sessionExists()) {
+		|| !someSessionExists()) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
 		return;
@@ -948,6 +961,13 @@ void Application::quitDelayed() {
 
 void Application::startShortcuts() {
 	Shortcuts::Start();
+
+	_accounts->activeSessionChanges(
+	) | rpl::start_with_next([=](Main::Session *session) {
+		const auto support = session && session->supportMode();
+		Shortcuts::ToggleSupportShortcuts(support);
+		Platform::SetApplicationIcon(Window::CreateIcon(session));
+	}, _lifetime);
 
 	Shortcuts::Requests(
 	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {

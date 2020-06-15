@@ -18,17 +18,21 @@ namespace Window {
 
 class Controller final {
 public:
-	explicit Controller(not_null<Main::Account*> account);
+	Controller();
 	~Controller();
 
 	Controller(const Controller &other) = delete;
 	Controller &operator=(const Controller &other) = delete;
 
-	Main::Account &account() const {
-		return *_account;
-	}
+	void showAccount(not_null<Main::Account*> account);
+
 	not_null<::MainWindow*> widget() {
 		return &_widget;
+	}
+	Main::Account &account() const {
+		Expects(_account != nullptr);
+
+		return *_account;
 	}
 	SessionController *sessionController() const {
 		return _sessionController.get();
@@ -74,10 +78,11 @@ private:
 		anim::type animated);
 	void checkThemeEditor();
 
-	not_null<Main::Account*> _account;
+	Main::Account *_account = nullptr;
 	::MainWindow _widget;
 	std::unique_ptr<SessionController> _sessionController;
 
+	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;
 
 };

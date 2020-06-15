@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
+#include "main/main_accounts.h"
 #include "main/main_session.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
@@ -27,11 +28,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-Controller::Controller(not_null<Main::Account*> account)
-: _account(account)
-, _widget(this) {
+Controller::Controller()
+: _widget(this) {
+	_widget.init();
+}
+
+Controller::~Controller() {
+	// We want to delete all widgets before the _sessionController.
+	_widget.clearWidgets();
+}
+
+void Controller::showAccount(not_null<Main::Account*> account) {
+	_accountLifetime.destroy();
+	_account = account;
+
 	_account->sessionValue(
-		) | rpl::start_with_next([=](Main::Session *session) {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
@@ -47,14 +59,13 @@ Controller::Controller(not_null<Main::Account*> account)
 			sideBarChanged();
 		}
 		_widget.updateWindowIcon();
+		_widget.updateGlobalMenu();
+		if (session) {
+			setupMain();
+		} else {
+			setupIntro();
+		}
 	}, _lifetime);
-
-	_widget.init();
-}
-
-Controller::~Controller() {
-	// We want to delete all widgets before the _sessionController.
-	_widget.clearWidgets();
 }
 
 void Controller::finishFirstShow() {
@@ -75,7 +86,11 @@ void Controller::setupPasscodeLock() {
 }
 
 void Controller::clearPasscodeLock() {
-	_widget.clearPasscodeLock();
+	if (!_account) {
+		showAccount(&Core::App().activeAccount());
+	} else {
+		_widget.clearPasscodeLock();
+	}
 }
 
 void Controller::setupIntro() {
@@ -83,12 +98,12 @@ void Controller::setupIntro() {
 }
 
 void Controller::setupMain() {
-	Expects(_account->sessionExists());
+	Expects(_sessionController != nullptr);
 
 	_widget.setupMain();
 
 	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
-		Ui::Emoji::LoadAndSwitchTo(&_account->session(), id);
+		Ui::Emoji::LoadAndSwitchTo(&_sessionController->session(), id);
 	}
 }
 

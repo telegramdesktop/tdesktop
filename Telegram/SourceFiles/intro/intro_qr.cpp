@@ -373,8 +373,6 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 			showError(rpl::single(Lang::Hard::ServerError()));
 			return;
 		}
-		const auto phone = data.vuser().c_user().vphone().value_or_empty();
-		cSetLoggedPhoneNumber(phone);
 		finish(data.vuser());
 	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
 		_requestId = 0;

@@ -13,7 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 class Account;
+enum class StartResult : uchar;
 } // namespace Storage
+
+namespace MTP {
+class AuthKey;
+} // namespace MTP
 
 namespace Main {
 
@@ -23,12 +28,17 @@ class AppConfig;
 
 class Account final : public base::has_weak_ptr {
 public:
-	explicit Account(const QString &dataName);
+	Account(const QString &dataName, int index);
 	~Account();
 
 	Account(const Account &other) = delete;
 	Account &operator=(const Account &other) = delete;
 
+	[[nodiscard]] Storage::StartResult legacyStart(
+		const QByteArray &passcode);
+	void start(std::shared_ptr<MTP::AuthKey> localKey);
+
+	[[nodiscard]] UserId willHaveUserId() const;
 	void createSession(const MTPUser &user);
 	void createSession(
 		UserId id,
@@ -41,8 +51,11 @@ public:
 	void forcedLogOut();
 
 	[[nodiscard]] AppConfig &appConfig() const {
+		Expects(_appConfig != nullptr);
+
 		return *_appConfig;
 	}
+
 	[[nodiscard]] Storage::Account &local() const {
 		return *_local;
 	}
@@ -87,6 +100,7 @@ private:
 		QByteArray serialized,
 		int streamVersion,
 		Settings &&settings);
+	void finishStarting();
 	void watchProxyChanges();
 	void watchSessionChanges();
 	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);

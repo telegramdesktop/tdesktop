@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/shortcuts.h"
 #include "storage/storage_account.h"
+#include "storage/storage_accounts.h" // Storage::StartResult.
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -26,15 +27,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 namespace Main {
+namespace {
 
-Account::Account(const QString &dataName)
-: _local(std::make_unique<Storage::Account>(this, dataName))
-, _appConfig(std::make_unique<AppConfig>(this)) {
-	watchProxyChanges();
-	watchSessionChanges();
+[[nodiscard]] QString ComposeDataString(const QString &dataName, int index) {
+	auto result = dataName;
+	result.replace('#', QString());
+	if (index > 0) {
+		result += '#' + QString::number(index + 1);
+	}
+	return result;
+}
+
+} // namespace
+
+Account::Account(const QString &dataName, int index)
+: _local(std::make_unique<Storage::Account>(
+	this,
+	ComposeDataString(dataName, index))) {
 }
 
 Account::~Account() = default;
+
+[[nodiscard]] Storage::StartResult Account::legacyStart(
+		const QByteArray &passcode) {
+	Expects(!_appConfig);
+
+	const auto result = _local->legacyStart(passcode);
+	if (result == Storage::StartResult::Success) {
+		finishStarting();
+	}
+	return result;
+}
+
+void Account::start(std::shared_ptr<MTP::AuthKey> localKey) {
+	_local->start(std::move(localKey));
+	finishStarting();
+}
+
+void Account::finishStarting() {
+	_appConfig = std::make_unique<AppConfig>(this);
+	watchProxyChanges();
+	watchSessionChanges();
+}
 
 void Account::watchProxyChanges() {
 	using ProxyChange = Core::Application::ProxyChange;
@@ -60,26 +94,15 @@ void Account::watchProxyChanges() {
 
 void Account::watchSessionChanges() {
 	sessionChanges(
-	) | rpl::start_with_next([=] {
-		crl::on_main(this, [=] {
-			const auto phone = sessionExists()
-				? session().user()->phone()
-				: QString();
-			const auto support = sessionExists() && session().supportMode();
-			if (cLoggedPhoneNumber() != phone) {
-				cSetLoggedPhoneNumber(phone);
-				if (_mtp) {
-					_mtp->setUserPhone(phone);
-				}
-				Local::writeSettings();
-			}
-			if (_mtp) {
-				_mtp->requestConfig();
-			}
-			Shortcuts::ToggleSupportShortcuts(support);
-			Platform::SetApplicationIcon(Window::CreateIcon(this));
-		});
+	) | rpl::start_with_next([=](Session *session) {
+		if (!session && _mtp) {
+			_mtp->setUserPhone(QString());
+		}
 	}, _lifetime);
+}
+
+UserId Account::willHaveUserId() const {
+	return _sessionUserId;
 }
 
 void Account::createSession(const MTPUser &user) {
@@ -330,7 +353,6 @@ void Account::startMtp() {
 		Core::App().dcOptions(),
 		MTP::Instance::Mode::Normal,
 		std::move(config));
-	_mtp->setUserPhone(cLoggedPhoneNumber());
 	_mtp->writeKeysRequests(
 	) | rpl::start_with_next([=] {
 		local().writeMtpData();

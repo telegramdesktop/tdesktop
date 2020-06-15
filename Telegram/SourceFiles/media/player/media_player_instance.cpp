@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "main/main_account.h" // Account::sessionValue.
+#include "main/main_accounts.h" // Accounts::activeSessionValue.
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -114,7 +114,7 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
+	Core::App().accounts().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {

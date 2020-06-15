@@ -22,7 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "data/data_session.h"
-#include "main/main_account.h" // Account::sessionValue.
+#include "main/main_account.h" // Account::local.
+#include "main/main_accounts.h" // Accounts::activeSessionValue.
 #include "ui/image/image.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
@@ -547,7 +548,7 @@ void ChatBackground::start() {
 		set(Data::ThemeWallPaper());
 	}
 
-	Core::App().activeAccount().sessionValue( // #TODO multi activeSessionValue
+	Core::App().accounts().activeSessionValue(
 	) | rpl::filter([=](Main::Session *session) {
 		return session != _session;
 	}) | rpl::start_with_next([=](Main::Session *session) {

@@ -36,6 +36,7 @@ void quit();
 } // namespace App
 
 namespace Main {
+class Accounts;
 class Account;
 class Session;
 } // namespace Main
@@ -150,10 +151,12 @@ public:
 		return *_databases;
 	}
 
-	// Account component.
-	[[nodiscard]] Main::Account &activeAccount() const {
-		return *_account;
+	// Accounts component.
+	[[nodiscard]] Main::Accounts &accounts() const {
+		return *_accounts;
 	}
+	[[nodiscard]] Main::Account &activeAccount() const;
+	[[nodiscard]] bool someSessionExists() const;
 	[[nodiscard]] bool exportPreventsQuit();
 
 	// Main::Session component.
@@ -278,7 +281,7 @@ private:
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
 	const std::unique_ptr<MTP::DcOptions> _dcOptions;
-	const std::unique_ptr<Main::Account> _account;
+	const std::unique_ptr<Main::Accounts> _accounts;
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;

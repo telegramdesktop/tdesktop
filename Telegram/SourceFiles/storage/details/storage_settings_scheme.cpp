@@ -681,12 +681,10 @@ bool ReadSetting(
 		cSetWindowPos(position);
 	} break;
 
-	case dbiLoggedPhoneNumber: {
+	case dbiLoggedPhoneNumber: { // deprecated
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
-
-		cSetLoggedPhoneNumber(v);
 	} break;
 
 	case dbiMutePeer: { // deprecated
@@ -737,9 +735,9 @@ bool ReadSetting(
 			? false
 			: (v == 1);
 		if (Window::Theme::IsNightMode()) {
-			Window::Theme::Background()->setTileNightValue(tile);
+			context.tileNight = tile;
 		} else {
-			Window::Theme::Background()->setTileDayValue(tile);
+			context.tileDay = tile;
 		}
 	} break;
 
@@ -748,8 +746,8 @@ bool ReadSetting(
 		stream >> tileDay >> tileNight;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Window::Theme::Background()->setTileDayValue(tileDay == 1);
-		Window::Theme::Background()->setTileNightValue(tileNight == 1);
+		context.tileDay = (tileDay == 1);
+		context.tileNight = (tileNight == 1);
 	} break;
 
 	case dbiAdaptiveForWide: {

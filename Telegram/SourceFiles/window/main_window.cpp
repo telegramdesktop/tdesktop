@@ -105,18 +105,16 @@ void ConvertIconToBlack(QImage &image) {
 	}
 }
 
-QIcon CreateOfficialIcon(Main::Account *account) {
+QIcon CreateOfficialIcon(Main::Session *session) {
 	auto image = Core::IsAppLaunched() ? Core::App().logo() : LoadLogo();
-	if (account
-		&& account->sessionExists()
-		&& account->session().supportMode()) {
+	if (session && session->supportMode()) {
 		ConvertIconToBlack(image);
 	}
 	return QIcon(App::pixmapFromImageInPlace(std::move(image)));
 }
 
-QIcon CreateIcon(Main::Account *account) {
-	auto result = CreateOfficialIcon(account);
+QIcon CreateIcon(Main::Session *session) {
+	auto result = CreateOfficialIcon(session);
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	return QIcon::fromTheme(Platform::GetIconName(), result);
 #endif
@@ -295,10 +293,12 @@ bool MainWindow::computeIsActive() const {
 }
 
 void MainWindow::updateWindowIcon() {
-	const auto supportIcon = account().sessionExists()
-		&& account().session().supportMode();
+	const auto session = sessionController()
+		? &sessionController()->session()
+		: nullptr;
+	const auto supportIcon = session && session->supportMode();
 	if (supportIcon != _usingSupportIcon || _icon.isNull()) {
-		_icon = CreateIcon(&account());
+		_icon = CreateIcon(session);
 		_usingSupportIcon = supportIcon;
 	}
 	setWindowIcon(_icon);
@@ -528,9 +528,7 @@ void MainWindow::updateControlsGeometry() {
 void MainWindow::updateUnreadCounter() {
 	if (!Global::started() || App::quitting()) return;
 
-	const auto counter = account().sessionExists()
-		? account().session().data().unreadBadge()
-		: 0;
+	const auto counter = Core::App().unreadBadge();
 	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
 
 	unreadCounterChangedHook();

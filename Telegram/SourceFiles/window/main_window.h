@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QSystemTrayIcon>
 
 namespace Main {
+class Session;
 class Account;
 } // namespace Main
 
@@ -31,7 +32,7 @@ struct TermsLock;
 
 QImage LoadLogo();
 QImage LoadLogoNoMargin();
-QIcon CreateIcon(Main::Account *account = nullptr);
+QIcon CreateIcon(Main::Session *session = nullptr);
 void ConvertIconToBlack(QImage &image);
 
 class MainWindow : public Ui::RpWidget, protected base::Subscriber {
@@ -40,11 +41,11 @@ class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
 
-	Window::Controller &controller() const {
+	[[nodiscard]] Window::Controller &controller() const {
 		return *_controller;
 	}
-	Main::Account &account() const;
-	Window::SessionController *sessionController() const;
+	[[nodiscard]] Main::Account &account() const;
+	[[nodiscard]] Window::SessionController *sessionController() const;
 
 	bool hideNoQuit();
 

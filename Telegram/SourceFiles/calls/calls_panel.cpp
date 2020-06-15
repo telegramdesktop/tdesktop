@@ -315,7 +315,7 @@ Panel::Panel(not_null<Call*> call)
 	_cancel->setDuration(st::callPanelDuration);
 
 	setMouseTracking(true);
-	setWindowIcon(Window::CreateIcon(&_user->account()));
+	setWindowIcon(Window::CreateIcon(&_user->session()));
 	initControls();
 	initLayout();
 	showAndActivate();

@@ -94,13 +94,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	account().sessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		updateGlobalMenu();
-		if (!session) {
-			_mediaPreview.destroy();
-		}
-	}, lifetime());
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
@@ -202,6 +195,7 @@ void MainWindow::finishFirstShow() {
 
 void MainWindow::clearWidgetsHook() {
 	destroyLayer();
+	_mediaPreview.destroy();
 	_main.destroy();
 	_passcodeLock.destroy();
 	_intro.destroy();
@@ -241,20 +235,19 @@ void MainWindow::setupPasscodeLock() {
 }
 
 void MainWindow::clearPasscodeLock() {
-	if (!_passcodeLock) return;
+	if (!_passcodeLock) {
+		return;
+	}
 
-	auto bg = grabInner();
-
-	_passcodeLock.destroy();
 	if (_intro) {
+		auto bg = grabInner();
+		_passcodeLock.destroy();
 		_intro->showAnimated(bg, true);
 	} else if (_main) {
+		auto bg = grabInner();
+		_passcodeLock.destroy();
 		_main->showAnimated(bg, true);
 		Core::App().checkStartUrl();
-	} else if (account().sessionExists()) {
-		setupMain();
-	} else {
-		setupIntro();
 	}
 }
 
@@ -984,8 +977,10 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 	}
 
 	QImage img(smallIcon ? ((size == 16) ? iconbig16 : (size == 32 ? iconbig32 : iconbig64)) : ((size == 16) ? icon16 : (size == 32 ? icon32 : icon64)));
-	if (account().sessionExists() && account().session().supportMode()) {
-		Window::ConvertIconToBlack(img);
+	if (const auto controller = sessionController()) {
+		if (controller->session().supportMode()) {
+			Window::ConvertIconToBlack(img);
+		}
 	}
 	if (!count) return img;
 

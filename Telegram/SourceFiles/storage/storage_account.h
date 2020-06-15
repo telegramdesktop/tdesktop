@@ -41,10 +41,7 @@ class EncryptionKey;
 
 using FileKey = quint64;
 
-enum class StartResult : uchar {
-	Success,
-	IncorrectPasscode,
-};
+enum class StartResult : uchar;
 
 struct MessageDraft {
 	MsgId msgId = 0;
@@ -57,13 +54,15 @@ public:
 	Account(not_null<Main::Account*> owner, const QString &dataName);
 	~Account();
 
-	[[nodiscard]] StartResult start(const QByteArray &passcode);
+	[[nodiscard]] void start(MTP::AuthKeyPtr localKey);
+	[[nodiscard]] StartResult legacyStart(const QByteArray &passcode);
 	[[nodiscard]] int oldMapVersion() const {
 		return _oldMapVersion;
 	}
 
-	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
-	void setPasscode(const QByteArray &passcode);
+	MTP::AuthKeyPtr peekLegacyLocalKey() const {
+		return _localKey;
+	}
 
 	void writeSettings();
 	void writeMtpData();
@@ -156,7 +155,10 @@ private:
 	[[nodiscard]] auto prepareReadSettingsContext() const
 		-> details::ReadSettingsContext;
 
-	[[nodiscard]] ReadMapResult readMap(const QByteArray &passcode);
+	ReadMapResult readMapWith(
+		MTP::AuthKeyPtr localKey,
+		const QByteArray &legacyPasscode = QByteArray());
+	void clearLegacyFiles();
 	void writeMapDelayed();
 	void writeMapQueued();
 	void writeMap();
@@ -168,18 +170,6 @@ private:
 
 	std::unique_ptr<Main::Settings> readSettings();
 	void writeSettings(Main::Settings *stored);
-	bool readOldUserSettings(
-		bool remove,
-		details::ReadSettingsContext &context);
-	void readOldUserSettingsFields(
-		QIODevice *device,
-		qint32 &version,
-		details::ReadSettingsContext &context);
-	void readOldMtpDataFields(
-		QIODevice *device,
-		qint32 &version,
-		details::ReadSettingsContext &context);
-	bool readOldMtpData(bool remove, details::ReadSettingsContext &context);
 
 	void readMtpData();
 	std::unique_ptr<Main::Settings> applyReadContext(
@@ -222,9 +212,6 @@ private:
 	const QString _databasePath;
 
 	MTP::AuthKeyPtr _localKey;
-	MTP::AuthKeyPtr _passcodeKey;
-	QByteArray _passcodeKeySalt;
-	QByteArray _passcodeKeyEncrypted;
 
 	base::flat_map<PeerId, FileKey> _draftsMap;
 	base::flat_map<PeerId, FileKey> _draftCursorsMap;

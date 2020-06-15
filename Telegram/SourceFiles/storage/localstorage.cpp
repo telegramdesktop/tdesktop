@@ -88,14 +88,6 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<Main::Settings> StoredSessionSettings;
-Main::Settings &GetStoredSessionSettings() {
-	if (!StoredSessionSettings) {
-		StoredSessionSettings = std::make_unique<Main::Settings>();
-	}
-	return *StoredSessionSettings;
-}
-
 void applyReadContext(ReadSettingsContext &&context) {
 	Core::App().dcOptions()->addFromOther(std::move(context.dcOptions));
 
@@ -169,7 +161,7 @@ void _readOldUserSettingsFields(
 				continue;
 			}
 
-			OldKey = CreateLocalKey(QByteArray(), salt);
+			OldKey = CreateLegacyLocalKey(QByteArray(), salt);
 
 			if (data.size() <= 16 || (data.size() & 0x0F)) {
 				LOG(("App Error: bad encrypted part size in old user config: %1").arg(data.size()));
@@ -344,7 +336,7 @@ void start() {
 		LOG(("App Error: bad salt in settings file, size: %1").arg(salt.size()));
 		return writeSettings();
 	}
-	SettingsKey = CreateLocalKey(QByteArray(), salt);
+	SettingsKey = CreateLegacyLocalKey(QByteArray(), salt);
 
 	EncryptedDescriptor settings;
 	if (!DecryptLocal(settings, settingsEncrypted, SettingsKey)) {
@@ -388,7 +380,7 @@ void writeSettings() {
 	if (_settingsSalt.isEmpty() || !SettingsKey) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
 		memset_rand(_settingsSalt.data(), _settingsSalt.size());
-		SettingsKey = CreateLocalKey(QByteArray(), _settingsSalt);
+		SettingsKey = CreateLegacyLocalKey(QByteArray(), _settingsSalt);
 	}
 	settings.writeData(_settingsSalt);
 
@@ -398,7 +390,6 @@ void writeSettings() {
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
 	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
-	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
 	size += sizeof(quint32) + Serialize::stringSize(Global::TxtDomainString());
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 
@@ -438,7 +429,6 @@ void writeSettings() {
 	data.stream << quint32(dbiScalePercent) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 	data.stream << quint32(dbiApplicationSettings) << applicationSettings;
-	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
@@ -542,7 +532,6 @@ void reset() {
 
 	Window::Theme::Background()->reset();
 	_oldSettingsVersion = 0;
-	StoredSessionSettings.reset();
 }
 
 int32 oldSettingsVersion() {

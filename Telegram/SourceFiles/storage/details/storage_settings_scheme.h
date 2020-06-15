@@ -51,6 +51,9 @@ struct ReadSettingsContext {
 	std::vector<std::shared_ptr<MTP::AuthKey>> mtpLegacyKeys;
 	qint32 mtpLegacyMainDcId = 0;
 	qint32 mtpLegacyUserId = 0;
+
+	bool tileDay = false;
+	bool tileNight = true;
 };
 
 [[nodiscard]] bool ReadSetting(

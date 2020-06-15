@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 
 #include "storage/localstorage.h"
+#include "storage/storage_accounts.h"
 #include "storage/storage_encryption.h"
 #include "storage/storage_clear_legacy.h"
 #include "storage/cache/storage_cache_types.h"
@@ -35,7 +36,6 @@ namespace {
 using namespace details;
 using Database = Cache::Database;
 
-constexpr auto kLocalKeySize = MTP::AuthKey::kSize;
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 constexpr auto kSavedBackgroundFormat = QImage::Format_ARGB32_Premultiplied;
 
@@ -120,14 +120,28 @@ Account::~Account() {
 	}
 }
 
-StartResult Account::start(const QByteArray &passcode) {
-	const auto result = readMap(passcode);
+StartResult Account::legacyStart(const QByteArray &passcode) {
+	const auto result = readMapWith(MTP::AuthKeyPtr(), passcode);
 	if (result == ReadMapResult::Failed) {
-		_mapChanged = true;
-		writeMap();
+		Assert(_localKey == nullptr);
+		//_mapChanged = true;
+		//writeMap();
 	} else if (result == ReadMapResult::IncorrectPasscode) {
 		return StartResult::IncorrectPasscode;
 	}
+	clearLegacyFiles();
+	return StartResult::Success;
+}
+
+void Account::start(MTP::AuthKeyPtr localKey) {
+	Expects(localKey != nullptr);
+
+	_localKey = std::move(localKey);
+	readMapWith(_localKey);
+	clearLegacyFiles();
+}
+
+void Account::clearLegacyFiles() {
 	const auto weak = base::make_weak(_owner.get());
 	ClearLegacyFiles(_basePath, [weak, this](
 			FnMut<void(base::flat_set<QString>&&)> then) {
@@ -135,12 +149,6 @@ StartResult Account::start(const QByteArray &passcode) {
 			then(collectGoodNames());
 		});
 	});
-
-	if (Local::oldSettingsVersion() < AppVersion) {
-		Local::writeSettings();
-	}
-
-	return StartResult::Success;
 }
 
 base::flat_set<QString> Account::collectGoodNames() const {
@@ -184,7 +192,9 @@ base::flat_set<QString> Account::collectGoodNames() const {
 	return result;
 }
 
-Account::ReadMapResult Account::readMap(const QByteArray &passcode) {
+Account::ReadMapResult Account::readMapWith(
+		MTP::AuthKeyPtr localKey,
+		const QByteArray &legacyPasscode) {
 	auto ms = crl::now();
 
 	FileReadDescriptor mapData;
@@ -193,34 +203,33 @@ Account::ReadMapResult Account::readMap(const QByteArray &passcode) {
 	}
 	LOG(("App Info: reading map..."));
 
-	QByteArray salt, keyEncrypted, mapEncrypted;
-	mapData.stream >> salt >> keyEncrypted >> mapEncrypted;
+	QByteArray legacySalt, legacyKeyEncrypted, mapEncrypted;
+	mapData.stream >> legacySalt >> legacyKeyEncrypted >> mapEncrypted;
 	if (!CheckStreamStatus(mapData.stream)) {
 		return ReadMapResult::Failed;
 	}
+	if (!localKey) {
+		if (legacySalt.size() != LocalEncryptSaltSize) {
+			LOG(("App Error: bad salt in map file, size: %1").arg(legacySalt.size()));
+			return ReadMapResult::Failed;
+		}
+		auto legacyPasscodeKey = CreateLegacyLocalKey(legacyPasscode, legacySalt);
 
-	if (salt.size() != LocalEncryptSaltSize) {
-		LOG(("App Error: bad salt in map file, size: %1").arg(salt.size()));
-		return ReadMapResult::Failed;
+		EncryptedDescriptor keyData;
+		if (!DecryptLocal(keyData, legacyKeyEncrypted, legacyPasscodeKey)) {
+			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
+			return ReadMapResult::IncorrectPasscode;
+		}
+		auto key = Serialize::read<MTP::AuthKey::Data>(keyData.stream);
+		if (keyData.stream.status() != QDataStream::Ok || !keyData.stream.atEnd()) {
+			LOG(("App Error: could not read pass-protected key from map file"));
+			return ReadMapResult::Failed;
+		}
+		localKey = std::make_shared<MTP::AuthKey>(key);
 	}
-	_passcodeKey = CreateLocalKey(passcode, salt);
 
-	EncryptedDescriptor keyData, map;
-	if (!DecryptLocal(keyData, keyEncrypted, _passcodeKey)) {
-		LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
-		return ReadMapResult::IncorrectPasscode;
-	}
-	auto key = Serialize::read<MTP::AuthKey::Data>(keyData.stream);
-	if (keyData.stream.status() != QDataStream::Ok || !keyData.stream.atEnd()) {
-		LOG(("App Error: could not read pass-protected key from map file"));
-		return ReadMapResult::Failed;
-	}
-	_localKey = std::make_shared<MTP::AuthKey>(key);
-
-	_passcodeKeyEncrypted = keyEncrypted;
-	_passcodeKeySalt = salt;
-
-	if (!DecryptLocal(map, mapEncrypted, _localKey)) {
+	EncryptedDescriptor map;
+	if (!DecryptLocal(map, mapEncrypted, localKey)) {
 		LOG(("App Error: could not decrypt map."));
 		return ReadMapResult::Failed;
 	}
@@ -336,6 +345,8 @@ Account::ReadMapResult Account::readMap(const QByteArray &passcode) {
 		}
 	}
 
+	_localKey = std::move(localKey);
+
 	_draftsMap = draftsMap;
 	_draftCursorsMap = draftCursorsMap;
 	_draftsNotReadMap = draftsNotReadMap;
@@ -355,6 +366,7 @@ Account::ReadMapResult Account::readMap(const QByteArray &passcode) {
 	_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
 	_exportSettingsKey = exportSettingsKey;
 	_oldMapVersion = mapData.version;
+
 	if (_oldMapVersion < AppVersion) {
 		writeMapDelayed();
 	} else {
@@ -391,6 +403,8 @@ void Account::writeMapQueued() {
 }
 
 void Account::writeMap() {
+	Expects(_localKey != nullptr);
+
 	_writeMapTimer.cancel();
 	if (!_mapChanged) {
 		return;
@@ -402,23 +416,8 @@ void Account::writeMap() {
 	}
 
 	FileWriteDescriptor map(u"map"_q, _basePath);
-	if (_passcodeKeySalt.isEmpty() || _passcodeKeyEncrypted.isEmpty()) {
-		auto pass = QByteArray(kLocalKeySize, Qt::Uninitialized);
-		auto salt = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
-		memset_rand(pass.data(), pass.size());
-		memset_rand(salt.data(), salt.size());
-		_localKey = CreateLocalKey(pass, salt);
-
-		_passcodeKeySalt.resize(LocalEncryptSaltSize);
-		memset_rand(_passcodeKeySalt.data(), _passcodeKeySalt.size());
-		_passcodeKey = CreateLocalKey(QByteArray(), _passcodeKeySalt);
-
-		EncryptedDescriptor passKeyData(kLocalKeySize);
-		_localKey->write(passKeyData.stream);
-		_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
-	}
-	map.writeData(_passcodeKeySalt);
-	map.writeData(_passcodeKeyEncrypted);
+	map.writeData(QByteArray());
+	map.writeData(QByteArray());
 
 	uint32 mapSize = 0;
 	const auto self = [&] {
@@ -514,34 +513,8 @@ void Account::writeMap() {
 	_mapChanged = false;
 }
 
-bool Account::checkPasscode(const QByteArray &passcode) const {
-	Expects(!_passcodeKeySalt.isEmpty());
-	Expects(_passcodeKey != nullptr);
-
-	const auto checkKey = CreateLocalKey(passcode, _passcodeKeySalt);
-	return checkKey->equals(_passcodeKey);
-}
-
-void Account::setPasscode(const QByteArray &passcode) {
-	Expects(!_passcodeKeySalt.isEmpty());
-	Expects(_localKey != nullptr);
-
-	_passcodeKey = CreateLocalKey(passcode, _passcodeKeySalt);
-
-	EncryptedDescriptor passKeyData(kLocalKeySize);
-	_localKey->write(passKeyData.stream);
-	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
-
-	_mapChanged = true;
-	writeMap();
-
-	Global::SetLocalPasscode(!passcode.isEmpty());
-	Global::RefLocalPasscodeChanged().notify();
-}
-
 void Account::reset() {
 	auto names = collectGoodNames();
-	_passcodeKeySalt.clear();
 	_draftsMap.clear();
 	_draftCursorsMap.clear();
 	_draftsNotReadMap.clear();
@@ -920,6 +893,10 @@ std::unique_ptr<Main::Settings> Account::applyReadContext(
 			_owner->setSessionUserId(context.mtpLegacyUserId);
 		}
 	}
+
+	// #TODO multi
+	//Window::Theme::Background()->setTileDayValue(context.tileDay);
+	//Window::Theme::Background()->setTileNightValue(context.tileNight);
 
 	return std::move(context.sessionSettingsStorage);
 }

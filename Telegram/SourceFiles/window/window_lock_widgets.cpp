@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 
 #include "lang/lang_keys.h"
-#include "storage/storage_account.h"
+#include "storage/storage_accounts.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "api/api_text_entities.h"
@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
-#include "main/main_account.h"
+#include "main/main_accounts.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -147,11 +147,12 @@ void PasscodeLockWidget::submit() {
 	}
 
 	const auto passcode = _passcode->text().toUtf8();
-	auto &account = window()->account();
-	auto &local = window()->account().local();
-	const auto correct = account.sessionExists()
-		? local.checkPasscode(passcode)
-		: (local.start(passcode) != Storage::StartResult::IncorrectPasscode);
+	const auto controller = window()->sessionController();
+	auto &accounts = Core::App().accounts();
+	const auto correct = controller
+		? accounts.local().checkPasscode(passcode)
+		: (accounts.start(passcode)
+			!= Storage::StartResult::IncorrectPasscode);
 	if (!correct) {
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());

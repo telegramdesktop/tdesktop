@@ -36,7 +36,6 @@ DeclareSetting(uint64, RealAlphaVersion);
 DeclareSetting(QByteArray, AlphaPrivateKey);
 
 DeclareSetting(bool, TestMode);
-DeclareSetting(QString, LoggedPhoneNumber);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);

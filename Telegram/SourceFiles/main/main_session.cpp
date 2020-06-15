@@ -67,12 +67,15 @@ Session::Session(
 	) | rpl::start_with_next([=] {
 		notifications().updateAll();
 	}, _lifetime);
+
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		_api->refreshTopPromotion();
 	});
 	_api->refreshTopPromotion();
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
+
+	_api->instance()->setUserPhone(_user->phone());
 
 	crl::on_main(this, [=] {
 		using Flag = Data::PeerUpdate::Flag;
@@ -83,8 +86,16 @@ Session::Session(
 			| Flag::Photo
 			| Flag::About
 			| Flag::PhoneNumber
-		) | rpl::start_with_next([=] {
+		) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 			local().writeSelf();
+
+			if (update.flags & Flag::PhoneNumber) {
+				const auto phone = _user->phone();
+				_api->instance()->setUserPhone(phone);
+				if (!phone.isEmpty()) {
+					_api->instance()->requestConfig();
+				}
+			}
 		}, _lifetime);
 
 		if (_settings.hadLegacyCallsPeerToPeerNobody()) {
