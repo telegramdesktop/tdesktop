@@ -17,7 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
-#include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_account.h"
+#include "main/main_accounts.h" // Accounts::activeSessionValue
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
@@ -477,7 +478,7 @@ void MainWindow::initTouchBar() {
 		return;
 	}
 
-	account().sessionValue(
+	Core::App().accounts().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			// We need only common pinned dialogs.
