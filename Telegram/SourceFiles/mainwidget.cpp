@@ -400,6 +400,15 @@ MainWidget::MainWidget(
 		floatPlayerClosed(itemId);
 	}, lifetime());
 
+	// Load current userpic and keep it loaded.
+	Notify::PeerUpdateValue(
+		session().user(),
+		Notify::PeerUpdate::Flag::PhotoChanged
+	) | rpl::start_with_next([=] {
+		[[maybe_unused]] const auto image = session().user()->currentUserpic(
+			_selfUserpicView);
+	}, lifetime());
+
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
 	setupConnectingWidget();
