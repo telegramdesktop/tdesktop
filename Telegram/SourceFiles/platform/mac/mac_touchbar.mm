@@ -679,7 +679,6 @@ void AppendEmojiPacks(
 @end // @interface PickerScrubberItemView
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
-	QSize _dimensions;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	Image *_image;
 	@public
@@ -700,8 +699,7 @@ void AppendEmojiPacks(
 	return self;
 }
 
-- (void)addDocument:(not_null<DocumentData*>)document
-	loadProducer:(rpl::producer<>)loadProducer {
+- (void)addDocument:(not_null<DocumentData*>)document {
 	if (!document->sticker()) {
 		return;
 	}
@@ -710,12 +708,11 @@ void AppendEmojiPacks(
 	_media->checkStickerSmall();
 	_image = _media->getStickerSmall();
 	if (_image) {
-		_dimensions = document->dimensions;
 		[self updateImage];
 		return;
 	}
-	std::move(
-		loadProducer
+	base::ObservableViewer(
+		document->session().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		_image = _media->getStickerSmall();
 		if (_image) {
@@ -725,7 +722,7 @@ void AppendEmojiPacks(
 	}, _lifetime);
 }
 - (void)updateImage {
-	const auto size = _dimensions
+	const auto size = _image->size()
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
 		_image->pixSingle(
@@ -853,10 +850,7 @@ void AppendEmojiPacks(
 	const auto item = _stickers[index];
 	if (const auto document = item.document) {
 		PickerScrubberItemView *itemView = [scrubber makeItemWithIdentifier:kStickerItemIdentifier owner:nil];
-		auto loadProducer = base::ObservableViewer(
-			_session->downloaderTaskFinished());
-		[itemView addDocument:(std::move(document))
-			loadProducer:(std::move(loadProducer))];
+		[itemView addDocument:(std::move(document))];
 		return itemView;
 	} else if (const auto emoji = item.emoji) {
 		NSScrubberImageItemView *itemView = [scrubber makeItemWithIdentifier:kEmojiItemIdentifier owner:nil];
