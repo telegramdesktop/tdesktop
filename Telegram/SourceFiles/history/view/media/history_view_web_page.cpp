@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "layout.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
@@ -199,10 +200,17 @@ QSize WebPage::countOptimalSize() {
 				- st::msgPadding.right()
 				- st::webPageLeft);
 		}
+		auto context = Core::UiIntegration::Context();
+		if (_data->siteName == qstr("Twitter")) {
+			context.type = Core::UiIntegration::HashtagMentionType::Twitter;
+		} else if (_data->siteName == qstr("Instagram")) {
+			context.type = Core::UiIntegration::HashtagMentionType::Instagram;
+		}
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
 			text,
-			Ui::WebpageTextDescriptionOptions(_data->siteName));
+			Ui::WebpageTextDescriptionOptions(),
+			context);
 	}
 	if (!displayedSiteName().isEmpty()) {
 		_siteNameLines = 1;

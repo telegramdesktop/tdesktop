@@ -61,68 +61,68 @@ void UiIntegration::startFontsEnd() {
 }
 
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
-		EntityType type,
-		const QString &text,
-		const QString &data,
-		const TextParseOptions &options) {
-	switch (type) {
+		const EntityLinkData &data,
+		const std::any &context) {
+	const auto my = std::any_cast<Context>(&context);
+	switch (data.type) {
 	case EntityType::Url:
-		return (!data.isEmpty() && UrlClickHandler::IsSuspicious(data))
-			? std::make_shared<HiddenUrlClickHandler>(data)
-			: nullptr;
+		return (!data.data.isEmpty()
+			&& UrlClickHandler::IsSuspicious(data.data))
+			? std::make_shared<HiddenUrlClickHandler>(data.data)
+			: Integration::createLinkHandler(data, context);
 
 	case EntityType::CustomUrl:
-		return !data.isEmpty()
-			? std::make_shared<HiddenUrlClickHandler>(data)
-			: nullptr;
+		return !data.data.isEmpty()
+			? std::make_shared<HiddenUrlClickHandler>(data.data)
+			: Integration::createLinkHandler(data, context);
 
 	case EntityType::BotCommand:
-		return std::make_shared<BotCommandClickHandler>(data);
+		return std::make_shared<BotCommandClickHandler>(data.data);
 
 	case EntityType::Hashtag:
-		if (options.flags & TextTwitterMentions) {
+		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
 				(qsl("https://twitter.com/hashtag/")
-					+ data.mid(1)
+					+ data.data.mid(1)
 					+ qsl("?src=hash")),
 				true);
-		} else if (options.flags & TextInstagramMentions) {
+		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
 				(qsl("https://instagram.com/explore/tags/")
-					+ data.mid(1)
+					+ data.data.mid(1)
 					+ '/'),
 				true);
 		}
-		return std::make_shared<HashtagClickHandler>(data);
+		return std::make_shared<HashtagClickHandler>(data.data);
 
 	case EntityType::Cashtag:
-		return std::make_shared<CashtagClickHandler>(data);
+		return std::make_shared<CashtagClickHandler>(data.data);
 
 	case EntityType::Mention:
-		if (options.flags & TextTwitterMentions) {
+		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://twitter.com/") + data.mid(1),
+				qsl("https://twitter.com/") + data.data.mid(1),
 				true);
-		} else if (options.flags & TextInstagramMentions) {
+		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://instagram.com/") + data.mid(1) + '/',
+				qsl("https://instagram.com/") + data.data.mid(1) + '/',
 				true);
 		}
-		return std::make_shared<MentionClickHandler>(data);
+		return std::make_shared<MentionClickHandler>(data.data);
 
 	case EntityType::MentionName: {
-		auto fields = TextUtilities::MentionNameDataToFields(data);
+		auto fields = TextUtilities::MentionNameDataToFields(data.data);
 		if (fields.userId) {
 			return std::make_shared<MentionNameClickHandler>(
-				text,
+				data.text,
 				fields.userId,
 				fields.accessHash);
 		} else {
-			LOG(("Bad mention name: %1").arg(data));
+			LOG(("Bad mention name: %1").arg(data.data));
 		}
 	} break;
 	}
-	return nullptr;
+	return Integration::createLinkHandler(data, context);
 }
 
 bool UiIntegration::handleUrlClick(

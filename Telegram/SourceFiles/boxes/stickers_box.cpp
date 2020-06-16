@@ -326,7 +326,9 @@ void StickersBox::prepare() {
 	_session->api().updateStickers();
 
 	if (_installed.widget()) {
-		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
+		connect(_installed.widget(), &Inner::draggingScrollDelta, [=](int delta) {
+			scrollByDraggingDelta(delta);
+		});
 		if (!_megagroupSet) {
 			boxClosing() | rpl::start_with_next([=] {
 				saveChanges();
