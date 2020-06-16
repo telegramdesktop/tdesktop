@@ -2027,6 +2027,7 @@ void OverlayWidget::displayDocument(
 				initThemePreview();
 			} else {
 				_documentMedia->automaticLoad(fileOrigin(), item);
+				_document->saveFromDataSilent();
 				auto &location = _document->location(true);
 				if (location.accessEnable()) {
 					const auto &path = location.name();

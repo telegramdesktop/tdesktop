@@ -797,7 +797,9 @@ bool DocumentData::saveToCache() const {
 			|| isAnimation()
 			|| isVoiceMessage()
 			|| (type == WallPaperDocument)
-			|| isTheme());
+			|| isTheme()
+			|| (mimeString() == qstr("image/png")
+				&& _filename.startsWith("image_")));
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
