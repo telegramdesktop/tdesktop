@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_accounts.h"
 #include "storage/localstorage.h"
+#include "facades.h"
 
 namespace Main {
 
@@ -73,6 +74,7 @@ void Accounts::activateAfterStarting() {
 	}
 
 	activate(_activeIndex);
+	removePasscodeIfEmpty();
 }
 
 const base::flat_map<int, std::unique_ptr<Account>> &Accounts::list() const {
@@ -131,7 +133,7 @@ void Accounts::watchSession(not_null<Account*> account) {
 	account->startMtp();
 	account->sessionChanges(
 	) | rpl::filter([=](Session *session) {
-		return !session && _accounts.size() > 1;
+		return !session; // removeRedundantAccounts may remove passcode lock.
 	}) | rpl::start_with_next([=](Session *session) {
 		if (account == _active.current()) {
 			activateAuthedAccount();
@@ -156,6 +158,20 @@ void Accounts::activateAuthedAccount() {
 	}
 }
 
+bool Accounts::removePasscodeIfEmpty() {
+	if (_accounts.size() != 1 || _active.current()->sessionExists()) {
+		return false;
+	}
+	Local::reset();
+	if (!Global::LocalPasscode()) {
+		return false;
+	}
+	// We completely logged out, remove the passcode if it was there.
+	Core::App().unlockPasscode();
+	_local->setPasscode(QByteArray());
+	return true;
+}
+
 void Accounts::removeRedundantAccounts() {
 	Expects(started());
 
@@ -169,7 +185,8 @@ void Accounts::removeRedundantAccounts() {
 		}
 		i = _accounts.erase(i);
 	}
-	if (_accounts.size() != was) {
+
+	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
 		scheduleWriteAccounts();
 	}
 }

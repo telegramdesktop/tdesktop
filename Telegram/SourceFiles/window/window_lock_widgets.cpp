@@ -149,9 +149,8 @@ void PasscodeLockWidget::submit() {
 	}
 
 	const auto passcode = _passcode->text().toUtf8();
-	const auto controller = window()->sessionController();
 	auto &accounts = Core::App().accounts();
-	const auto correct = controller
+	const auto correct = accounts.started()
 		? accounts.local().checkPasscode(passcode)
 		: (accounts.start(passcode)
 			!= Storage::StartResult::IncorrectPasscode);

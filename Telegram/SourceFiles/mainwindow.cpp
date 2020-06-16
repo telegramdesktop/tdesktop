@@ -197,15 +197,17 @@ void MainWindow::clearWidgetsHook() {
 	destroyLayer();
 	_mediaPreview.destroy();
 	_main.destroy();
-	_passcodeLock.destroy();
 	_intro.destroy();
+	if (!Core::App().passcodeLocked()) {
+		_passcodeLock.destroy();
+	}
 }
 
 QPixmap MainWindow::grabInner() {
-	if (_intro) {
-		return Ui::GrabWidget(_intro);
-	} else if (_passcodeLock) {
+	if (_passcodeLock) {
 		return Ui::GrabWidget(_passcodeLock);
+	} else if (_intro) {
+		return Ui::GrabWidget(_intro);
 	} else if (_main) {
 		return Ui::GrabWidget(_main);
 	}
@@ -242,10 +244,14 @@ void MainWindow::clearPasscodeLock() {
 	if (_intro) {
 		auto bg = grabInner();
 		_passcodeLock.destroy();
+		_intro->show();
+		updateControlsGeometry();
 		_intro->showAnimated(bg, true);
 	} else if (_main) {
 		auto bg = grabInner();
 		_passcodeLock.destroy();
+		_main->show();
+		updateControlsGeometry();
 		_main->showAnimated(bg, true);
 		Core::App().checkStartUrl();
 	}
@@ -257,14 +263,17 @@ void MainWindow::setupIntro() {
 
 	clearWidgets();
 	_intro.create(bodyWidget(), &account());
-	updateControlsGeometry();
-
-	if (animated) {
-		_intro->showAnimated(bg);
+	if (_passcodeLock) {
+		_intro->hide();
 	} else {
-		setInnerFocus();
+		_intro->show();
+		updateControlsGeometry();
+		if (animated) {
+			_intro->showAnimated(bg);
+		} else {
+			setInnerFocus();
+		}
 	}
-
 	fixOrder();
 }
 
@@ -275,18 +284,19 @@ void MainWindow::setupMain() {
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-
 	_main.create(bodyWidget(), sessionController());
-	_main->show();
-	updateControlsGeometry();
-
-	if (animated) {
-		_main->showAnimated(bg);
+	if (_passcodeLock) {
+		_main->hide();
 	} else {
-		_main->activate();
+		_main->show();
+		updateControlsGeometry();
+		if (animated) {
+			_main->showAnimated(bg);
+		} else {
+			_main->activate();
+		}
+		Core::App().checkStartUrl();
 	}
-	_main->start();
-
 	fixOrder();
 }
 
@@ -663,7 +673,10 @@ void MainWindow::showLogoutConfirmation() {
 		? &sessionController()->session().account()
 		: nullptr;
 	const auto weak = base::make_weak(account);
-	const auto callback = crl::guard(weak, [=] {
+	const auto callback = [=] {
+		if (account && !weak) {
+			return;
+		}
 		if (account
 			&& account->sessionExists()
 			&& account->session().data().exportInProgress()) {
@@ -674,7 +687,7 @@ void MainWindow::showLogoutConfirmation() {
 		} else {
 			Core::App().logout(account);
 		}
-	});
+	};
 	Ui::show(Box<ConfirmBox>(
 		tr::lng_sure_logout(tr::now),
 		tr::lng_settings_logout(tr::now),

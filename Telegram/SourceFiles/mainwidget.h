@@ -118,15 +118,12 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void start();
-
 	void openPeerByName(
 		const QString &name,
 		MsgId msgId = ShowAtUnreadMsgId,
 		const QString &startToken = QString(),
 		FullMsgId clickFromMessageId = FullMsgId());
 
-	bool started();
 	void activate();
 
 	void windowShown();
@@ -349,8 +346,7 @@ private:
 
 	void handleHistoryBack();
 
-	not_null<Window::SessionController*> _controller;
-	bool _started = false;
+	const not_null<Window::SessionController*> _controller;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;

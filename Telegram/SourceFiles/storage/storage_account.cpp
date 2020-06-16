@@ -543,6 +543,7 @@ void Account::reset() {
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_mapChanged = true;
 	writeMap();
+	writeMtpData();
 
 	crl::async([base = _basePath, names = std::move(names)] {
 		for (const auto &name : names) {

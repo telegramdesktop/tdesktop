@@ -358,6 +358,32 @@ MainWidget::MainWidget(
 		Core::UpdateChecker checker;
 		checker.start();
 	}
+
+	auto &api = session().api();
+	api.requestNotifySettings(MTP_inputNotifyUsers());
+	api.requestNotifySettings(MTP_inputNotifyChats());
+	api.requestNotifySettings(MTP_inputNotifyBroadcasts());
+
+	cSetOtherOnline(0);
+	session().user()->loadUserpic();
+
+	auto &local = session().local();
+	local.readInstalledStickers();
+	local.readFeaturedStickers();
+	local.readRecentStickers();
+	local.readFavedStickers();
+	local.readSavedGifs();
+	auto &data = session().data();
+	if (const auto availableAt = local.readExportSettings().availableAt) {
+		data.suggestStartExport(availableAt);
+	}
+	auto &stickers = data.stickers();
+	stickers.notifyUpdated();
+	stickers.notifySavedGifsUpdated();
+
+	_history->start();
+
+	Core::App().checkStartUrl();
 }
 
 MainWidget::~MainWidget() = default;
@@ -2498,7 +2524,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	// dialogs widget to provide a wide enough chat history column.
 	// Don't shrink the column on the first call, when window is inited.
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn
-		&& _started && _controller->widget()->positionInited()) {
+		&& _controller->widget()->positionInited()) {
 		//auto chatWidth = layout.chatWidth;
 		//if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {
 		//	auto thirdColumnWidth = _history->tabbedSelectorSectionWidth();
@@ -2545,39 +2571,6 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 	} else {
 		_dialogs->setInnerFocus();
 	}
-}
-
-void MainWidget::start() {
-	auto &api = session().api();
-	api.requestNotifySettings(MTP_inputNotifyUsers());
-	api.requestNotifySettings(MTP_inputNotifyChats());
-	api.requestNotifySettings(MTP_inputNotifyBroadcasts());
-
-	cSetOtherOnline(0);
-	session().user()->loadUserpic();
-
-	_started = true;
-	auto &local = session().local();
-	local.readInstalledStickers();
-	local.readFeaturedStickers();
-	local.readRecentStickers();
-	local.readFavedStickers();
-	local.readSavedGifs();
-	auto &data = session().data();
-	if (const auto availableAt = local.readExportSettings().availableAt) {
-		data.suggestStartExport(availableAt);
-	}
-	auto &stickers = data.stickers();
-	stickers.notifyUpdated();
-	stickers.notifySavedGifsUpdated();
-
-	_history->start();
-
-	Core::App().checkStartUrl();
-}
-
-bool MainWidget::started() {
-	return _started;
 }
 
 void MainWidget::openPeerByName(

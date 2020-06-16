@@ -456,13 +456,6 @@ void Application::logout(Main::Account *account) {
 		account->logOut();
 	} else {
 		accounts().resetWithForgottenPasscode();
-
-		if (Global::LocalPasscode()) {
-			Global::SetLocalPasscode(false);
-			Global::RefLocalPasscodeChanged().notify();
-		}
-		Core::App().unlockPasscode();
-		Core::App().unlockTerms();
 	}
 }
 

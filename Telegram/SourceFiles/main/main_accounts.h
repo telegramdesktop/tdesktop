@@ -51,6 +51,7 @@ public:
 private:
 	void activateAfterStarting();
 	void activateAuthedAccount();
+	bool removePasscodeIfEmpty();
 	void removeRedundantAccounts();
 	void watchSession(not_null<Account*> account);
 	void scheduleWriteAccounts();

@@ -460,9 +460,8 @@ void Account::loggedOut() {
 		window->tempDirDelete(Local::ClearManagerAll);
 	}
 	destroySession();
+	Core::App().unlockTerms();
 	local().reset();
-	Local::reset();
-
 	cSetOtherOnline(0);
 }
 
