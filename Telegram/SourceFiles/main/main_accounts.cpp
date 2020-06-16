@@ -66,6 +66,12 @@ rpl::producer<Account*> Accounts::activeValue() const {
 	return _active.value();
 }
 
+int Accounts::activeIndex() const {
+	Expects(_accounts.contains(_activeIndex));
+
+	return _activeIndex;
+}
+
 Account &Accounts::active() const {
 	Expects(!_accounts.empty());
 
@@ -91,11 +97,18 @@ rpl::producer<Session*> Accounts::activeSessionValue() const {
 }
 
 int Accounts::add() {
+	Expects(!Core::App().locked());
+
 	auto index = 0;
 	while (_accounts.contains(index)) {
 		++index;
 	}
-	_accounts.emplace(index, std::make_unique<Account>(_dataName, index));
+	const auto account = _accounts.emplace(
+		index,
+		std::make_unique<Account>(_dataName, index)
+	).first->second.get();
+	_local->startAdded(account);
+	account->startMtp();
 	return index;
 }
 
@@ -107,6 +120,10 @@ void Accounts::activate(int index) {
 	_active = _accounts.find(index)->second.get();
 	_active.current()->sessionValue(
 	) | rpl::start_to_stream(_activeSessions, _activeLifetime);
+
+	crl::on_main(&Core::App(), [=] {
+		_local->writeAccounts();
+	});
 }
 
 } // namespace Main

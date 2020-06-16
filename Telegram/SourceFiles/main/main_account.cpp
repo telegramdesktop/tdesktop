@@ -64,6 +64,11 @@ void Account::start(std::shared_ptr<MTP::AuthKey> localKey) {
 	finishStarting();
 }
 
+void Account::startAdded(std::shared_ptr<MTP::AuthKey> localKey) {
+	_local->startAdded(std::move(localKey));
+	finishStarting();
+}
+
 void Account::finishStarting() {
 	_appConfig = std::make_unique<AppConfig>(this);
 	watchProxyChanges();
@@ -151,10 +156,11 @@ void Account::createSession(
 
 	_session = std::make_unique<Session>(this, user, std::move(settings));
 	if (!serialized.isEmpty()) {
-		// For now it depends on Auth() which depends on _sessionValue.
 		local().readSelf(_session.get(), serialized, streamVersion);
 	}
 	_sessionValue = _session.get();
+
+	Ensures(_session != nullptr);
 }
 
 void Account::destroySession() {

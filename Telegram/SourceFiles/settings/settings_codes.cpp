@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "main/main_accounts.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
@@ -124,6 +125,31 @@ auto GenerateCodes() {
 			window->showSettings(Settings::Type::Folders);
 		}
 	});
+
+	codes.emplace(qsl("accadd"), [](SessionController *window) {
+		crl::on_main(&Core::App(), [=] {
+			if (window
+				&& !Core::App().locked()
+				&& Core::App().accounts().list().size() < 3) {
+				Core::App().accounts().activate(Core::App().accounts().add());
+			}
+		});
+	});
+	for (auto i = 0; i != 3; ++i) {
+		codes.emplace(qsl("account%1").arg(i + 1), [=](
+				SessionController *window) {
+			crl::on_main(&Core::App(), [=] {
+				const auto &list = Core::App().accounts().list();
+				const auto j = list.find(i);
+				if (j != list.end() && !Core::App().locked()) {
+					if (&Core::App().activeAccount() != j->second.get()) {
+						Core::App().accounts().activate(i);
+					}
+				}
+			});
+		});
+	}
+
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("registertg"), [](SessionController *window) {
 		Platform::RegisterCustomScheme(true);

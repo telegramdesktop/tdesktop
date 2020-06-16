@@ -151,22 +151,16 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	}
 
 	const auto account = _account;
-	const auto weak = base::make_weak(account.get());
 	account->createSession(user);
-	if (weak) {
-		account->local().writeMtpData();
-	}
-	App::wnd()->controller().setupMain();
 
 	// "this" is already deleted here by creating the main widget.
-	if (weak && account->sessionExists()) {
-		auto &session = account->session();
-		if (!photo.isNull()) {
-			session.api().uploadPeerPhoto(session.user(), std::move(photo));
-		}
-		if (session.supportMode()) {
-			PrepareSupportMode(&session);
-		}
+	account->local().writeMtpData();
+	auto &session = account->session();
+	if (!photo.isNull()) {
+		session.api().uploadPeerPhoto(session.user(), std::move(photo));
+	}
+	if (session.supportMode()) {
+		PrepareSupportMode(&session);
 	}
 }
 

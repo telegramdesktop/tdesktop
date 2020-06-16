@@ -71,6 +71,12 @@ StartResult Accounts::start(
 	return result;
 }
 
+void Accounts::startAdded(not_null<Main::Account*> account) {
+	Expects(_localKey != nullptr);
+
+	account->startAdded(_localKey);
+}
+
 void Accounts::startWithSingleAccount(
 		const QByteArray &passcode,
 		Fn<void(int, std::unique_ptr<Main::Account>)> callback,
@@ -202,13 +208,17 @@ void Accounts::writeAccounts() {
 	key.writeData(_passcodeKeyEncrypted);
 
 	const auto &list = _owner->list();
+	const auto active = _owner->activeIndex();
 
 	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size();
 
 	EncryptedDescriptor keyData(keySize);
 	keyData.stream << qint32(list.size());
+	keyData.stream << qint32(active);
 	for (const auto &[index, account] : list) {
-		keyData.stream << qint32(index);
+		if (index != active) {
+			keyData.stream << qint32(index);
+		}
 	}
 	key.writeEncrypted(keyData, _localKey);
 }

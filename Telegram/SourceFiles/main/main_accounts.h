@@ -34,6 +34,7 @@ public:
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 
 	// Expects(started());
+	[[nodiscard]] int activeIndex() const;
 	[[nodiscard]] Account &active() const;
 	[[nodiscard]] rpl::producer<not_null<Account*>> activeChanges() const;
 

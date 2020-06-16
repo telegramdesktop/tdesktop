@@ -110,15 +110,4 @@ bool readOldUserSettings(
 	bool remove,
 	Storage::details::ReadSettingsContext &context);
 
-namespace internal {
-
-class Manager final : public QObject {
-public:
-	Manager();
-
-	void finish();
-
-};
-
-} // namespace internal
 } // namespace Local

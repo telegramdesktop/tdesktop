@@ -37,6 +37,7 @@ public:
 	[[nodiscard]] Storage::StartResult legacyStart(
 		const QByteArray &passcode);
 	void start(std::shared_ptr<MTP::AuthKey> localKey);
+	void startAdded(std::shared_ptr<MTP::AuthKey> localKey);
 
 	[[nodiscard]] UserId willHaveUserId() const;
 	void createSession(const MTPUser &user);

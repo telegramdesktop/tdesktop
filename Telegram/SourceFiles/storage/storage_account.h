@@ -54,8 +54,9 @@ public:
 	Account(not_null<Main::Account*> owner, const QString &dataName);
 	~Account();
 
-	[[nodiscard]] void start(MTP::AuthKeyPtr localKey);
 	[[nodiscard]] StartResult legacyStart(const QByteArray &passcode);
+	[[nodiscard]] void start(MTP::AuthKeyPtr localKey);
+	[[nodiscard]] void startAdded(MTP::AuthKeyPtr localKey);
 	[[nodiscard]] int oldMapVersion() const {
 		return _oldMapVersion;
 	}

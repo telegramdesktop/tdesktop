@@ -44,6 +44,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
+		const auto was = base::take(_sessionController);
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;

@@ -32,6 +32,7 @@ public:
 	[[nodiscard]] StartResult start(
 		const QByteArray &passcode,
 		Fn<void(int, std::unique_ptr<Main::Account>)> callback);
+	void startAdded(not_null<Main::Account*> account);
 	void writeAccounts();
 
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;

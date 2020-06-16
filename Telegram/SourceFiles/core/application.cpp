@@ -148,18 +148,17 @@ Application::~Application() {
 		_mediaView = nullptr;
 	}
 
-	if (activeAccount().sessionExists()) {
-		activeAccount().session().saveSettingsNowIfNeeded();
+	unlockTerms();
+	for (const auto &[index, account] : accounts().list()) {
+		if (account->sessionExists()) {
+			account->session().saveSettingsNowIfNeeded();
+		}
+		// Some MTP requests can be cancelled from data clearing.
+		account->destroySession();
+		account->clearMtp();
 	}
 
-	// This can call writeMap() that serializes Main::Session.
-	// In case it gets called after destroySession() we get missing data.
 	Local::finish();
-
-	// Some MTP requests can be cancelled from data clearing.
-	unlockTerms();
-	activeAccount().destroySession();
-	activeAccount().clearMtp();
 
 	Shortcuts::Finish();
 
@@ -230,6 +229,10 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<Window::Controller>();
+	accounts().activeChanges(
+	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
+		_window->showAccount(account);
+	}, _window->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 	connect(
@@ -251,8 +254,6 @@ void Application::run() {
 		Global::RefLocalPasscodeChanged().notify();
 		lockByPasscode();
 		DEBUG_LOG(("Application Info: passcode needed..."));
-	} else {
-		_window->showAccount(&activeAccount());
 	}
 
 	_window->widget()->show();

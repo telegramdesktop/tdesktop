@@ -124,8 +124,6 @@ StartResult Account::legacyStart(const QByteArray &passcode) {
 	const auto result = readMapWith(MTP::AuthKeyPtr(), passcode);
 	if (result == ReadMapResult::Failed) {
 		Assert(_localKey == nullptr);
-		//_mapChanged = true;
-		//writeMap();
 	} else if (result == ReadMapResult::IncorrectPasscode) {
 		return StartResult::IncorrectPasscode;
 	}
@@ -138,6 +136,13 @@ void Account::start(MTP::AuthKeyPtr localKey) {
 
 	_localKey = std::move(localKey);
 	readMapWith(_localKey);
+	clearLegacyFiles();
+}
+
+void Account::startAdded(MTP::AuthKeyPtr localKey) {
+	Expects(localKey != nullptr);
+
+	_localKey = std::move(localKey);
 	clearLegacyFiles();
 }
 

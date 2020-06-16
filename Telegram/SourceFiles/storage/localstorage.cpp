@@ -50,11 +50,10 @@ using Database = Storage::Cache::Database;
 QString _basePath, _userBasePath, _userDbPath;
 
 bool _started = false;
-internal::Manager *_manager = nullptr;
 TaskQueue *_localLoader = nullptr;
 
 bool _working() {
-	return _manager && !_basePath.isEmpty();
+	return !_basePath.isEmpty();
 }
 
 bool CheckStreamStatus(QDataStream &stream) {
@@ -290,12 +289,7 @@ bool _readOldMtpData(bool remove, ReadSettingsContext &context) {
 } // namespace
 
 void finish() {
-	if (_manager) {
-		_manager->finish();
-		_manager->deleteLater();
-		_manager = nullptr;
-		delete base::take(_localLoader);
-	}
+	delete base::take(_localLoader);
 }
 
 void InitialLoadTheme();
@@ -303,9 +297,8 @@ bool ApplyDefaultNightMode();
 void readLangPack();
 
 void start() {
-	Expects(!_manager);
+	Expects(_basePath.isEmpty());
 
-	_manager = new internal::Manager();
 	_localLoader = new TaskQueue(kFileLoaderQueueStopTimeout);
 
 	_basePath = cWorkingDir() + qsl("tdata/");
@@ -1081,13 +1074,4 @@ void ClearManager::onStart() {
 	}
 }
 
-namespace internal {
-
-Manager::Manager() {
-}
-
-void Manager::finish() {
-}
-
-} // namespace internal
 } // namespace Local
