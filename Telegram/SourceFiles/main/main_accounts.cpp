@@ -44,14 +44,14 @@ Storage::StartResult Accounts::start(const QByteArray &passcode) {
 	if (result == Storage::StartResult::Success) {
 		Assert(started());
 
-		activate(active);
-
 		for (const auto &[index, account] : _accounts) {
 			account->startMtp();
 		}
 		if (Local::oldSettingsVersion() < AppVersion) {
 			Local::writeSettings();
 		}
+
+		activate(active);
 	} else {
 		Assert(!started());
 	}

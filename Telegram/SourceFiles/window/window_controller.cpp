@@ -39,6 +39,8 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
+	Window::Theme::Background()->start();
+
 	_accountLifetime.destroy();
 	_account = account;
 

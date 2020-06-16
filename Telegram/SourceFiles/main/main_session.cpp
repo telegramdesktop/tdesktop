@@ -108,8 +108,6 @@ Session::Session(
 		}
 	});
 
-	Window::Theme::Background()->start();
-
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	Spellchecker::Start(this);
 #endif // TDESKTOP_DISABLE_SPELLCHECK
