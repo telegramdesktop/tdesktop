@@ -162,7 +162,6 @@ std::unique_ptr<Result> Result::Create(
 		}
 	} else if (result->_type == Type::Audio
 		|| result->_type == Type::File
-		|| result->_type == Type::Video
 		|| result->_type == Type::Sticker
 		|| result->_type == Type::Gif) {
 		if (!result->_document) {
@@ -213,19 +212,6 @@ std::unique_ptr<Result> Result::Create(
 			qs(r.vmessage()),
 			Api::EntitiesFromMTP(session, r.ventities().value_or_empty()),
 			r.is_no_webpage());
-		if (result->_type == Type::Photo) {
-			if (!result->_photo) {
-				return nullptr;
-			}
-		} else if (result->_type == Type::Audio
-			|| result->_type == Type::File
-			|| result->_type == Type::Video
-			|| result->_type == Type::Sticker
-			|| result->_type == Type::Gif) {
-			if (!result->_document) {
-				return nullptr;
-			}
-		}
 		if (const auto markup = r.vreply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
 		}
