@@ -675,28 +675,31 @@ void AppendEmojiPacks(
 
 
 @interface PickerScrubberItemView : NSScrubberItemView
-@property (strong) NSImageView *imageView;
 @end // @interface PickerScrubberItemView
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	Image *_image;
+	QImage _qimage;
 	@public
-	Data::FileOrigin fileOrigin;
 	DocumentData *documentData;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
 	self = [super initWithFrame:frameRect];
-	if (!self) {
-		return self;
-	}
-	_imageView = [NSImageView imageViewWithImage:
-		[[NSImage alloc] initWithSize:frameRect.size]];
-	[self.imageView setAutoresizingMask:
-		(NSAutoresizingMaskOptions)(NSViewWidthSizable | NSViewHeightSizable)];
-	[self addSubview:self.imageView];
 	return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+	if (_qimage.isNull()) {
+		[[NSColor blackColor] setFill];
+		NSRectFill(dirtyRect);
+	} else {
+		CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
+		CGImageRef image = _qimage.toCGImage();
+		CGContextDrawImage(context, dirtyRect, image);
+		CGImageRelease(image);
+	}
 }
 
 - (void)addDocument:(not_null<DocumentData*>)document {
@@ -721,17 +724,17 @@ void AppendEmojiPacks(
 		}
 	}, _lifetime);
 }
+
 - (void)updateImage {
 	const auto size = _image->size()
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
-	_imageView.image = [qt_mac_create_nsimage(
-		_image->pixSingle(
-			size.width(),
-			size.height(),
-			kCircleDiameter,
-			kCircleDiameter,
-			ImageRoundRadius::None))
-	autorelease];
+	_qimage = _image->pixSingle(
+		size.width(),
+		size.height(),
+		kCircleDiameter,
+		kCircleDiameter,
+		ImageRoundRadius::None).toImage();
+	[self display];
 }
 @end // @implementation PickerScrubberItemView
 
@@ -815,9 +818,6 @@ void AppendEmojiPacks(
 
 		for (PickerScrubberItemView *item in container.subviews) {
 			const auto &doc = item->documentData;
-			const auto &origin = item->fileOrigin
-				? item->fileOrigin
-				: Data::FileOrigin();
 			if (![item isMemberOfClass:[PickerScrubberItemView class]]
 				|| !doc
 				|| (doc->id == _lastPreviewedSticker)
@@ -825,8 +825,8 @@ void AppendEmojiPacks(
 				continue;
 			}
 			_lastPreviewedSticker = doc->id;
-			customEnter([origin = std::move(origin), doc = std::move(doc)] {
-				App::wnd()->showMediaPreview(origin, doc);
+			customEnter([doc = std::move(doc)] {
+				App::wnd()->showMediaPreview(Data::FileOrigin(), doc);
 			});
 			break;
 		}
