@@ -56,13 +56,15 @@ bool IsAttachedToPreviousInSavedMessages(
 
 
 std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
+		not_null<HistoryMessage*> message,
+		Element *replacing) {
+	return std::make_unique<HistoryView::Message>(this, message, replacing);
 }
 
 std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(this, message);
+		not_null<HistoryService*> message,
+		Element *replacing) {
+	return std::make_unique<HistoryView::Service>(this, message, replacing);
 }
 
 bool SimpleElementDelegate::elementUnderCursor(
@@ -203,14 +205,15 @@ void DateBadge::paint(Painter &p, int y, int w) const {
 
 Element::Element(
 	not_null<ElementDelegate*> delegate,
-	not_null<HistoryItem*> data)
+	not_null<HistoryItem*> data,
+	Element *replacing)
 : _delegate(delegate)
 , _data(data)
 , _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
 , _dateTime(_isScheduledUntilOnline ? QDateTime() : ItemDateTime(data))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
-	refreshMedia();
+	refreshMedia(replacing);
 	if (_context == Context::History) {
 		history()->setHasPendingResizedItems();
 	}
@@ -338,7 +341,7 @@ bool Element::isHidden() const {
 	return isHiddenByGroup();
 }
 
-void Element::refreshMedia() {
+void Element::refreshMedia(Element *replacing) {
 	_flags &= ~Flag::HiddenByGroup;
 
 	const auto item = data();
@@ -361,7 +364,7 @@ void Element::refreshMedia() {
 	}
 	const auto session = &history()->session();
 	if (const auto media = _data->media()) {
-		_media = media->createView(this);
+		_media = media->createView(this, replacing);
 	} else if (_data->isIsolatedEmoji()
 		&& session->settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();
@@ -372,6 +375,7 @@ void Element::refreshMedia() {
 				std::make_unique<Sticker>(
 					this,
 					sticker.document,
+					replacing,
 					sticker.replacements));
 		} else {
 			_media = std::make_unique<UnwrappedMedia>(

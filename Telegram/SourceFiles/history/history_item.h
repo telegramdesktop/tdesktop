@@ -326,7 +326,8 @@ public:
 	[[nodiscard]] PeerData *displayFrom() const;
 
 	[[nodiscard]] virtual std::unique_ptr<HistoryView::Element> createView(
-		not_null<HistoryView::ElementDelegate*> delegate) = 0;
+		not_null<HistoryView::ElementDelegate*> delegate,
+		HistoryView::Element *replacing = nullptr) = 0;
 
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;

@@ -550,7 +550,7 @@ void Sticker::prepareThumbnail() const {
 	}
 	_dataMedia->checkStickerSmall();
 	if (const auto sticker = _dataMedia->getStickerSmall()) {
-		if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
+		if (!_lottie && !_thumbLoaded) {
 			const auto thumbSize = getThumbSize();
 			_thumb = sticker->pix(
 				thumbSize.width(),

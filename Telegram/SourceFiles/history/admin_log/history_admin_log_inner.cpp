@@ -537,13 +537,15 @@ HistoryView::Context InnerWidget::elementContext() {
 }
 
 std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
+		not_null<HistoryMessage*> message,
+		Element *replacing) {
+	return std::make_unique<HistoryView::Message>(this, message, replacing);
 }
 
 std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(this, message);
+		not_null<HistoryService*> message,
+		Element *replacing) {
+	return std::make_unique<HistoryView::Service>(this, message, replacing);
 }
 
 bool InnerWidget::elementUnderCursor(

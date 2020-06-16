@@ -89,9 +89,11 @@ public:
 	// HistoryView::ElementDelegate interface.
 	HistoryView::Context elementContext() override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
-		not_null<HistoryMessage*> message) override;
+		not_null<HistoryMessage*> message,
+		HistoryView::Element *replacing = nullptr) override;
 	std::unique_ptr<HistoryView::Element> elementCreate(
-		not_null<HistoryService*> message) override;
+		not_null<HistoryService*> message,
+		HistoryView::Element *replacing = nullptr) override;
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
 	void elementAnimationAutoplayAsync(

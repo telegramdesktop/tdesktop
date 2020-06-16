@@ -1387,8 +1387,9 @@ QString HistoryMessage::notificationHeader() const {
 }
 
 std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
-		not_null<HistoryView::ElementDelegate*> delegate) {
-	return delegate->elementCreate(this);
+		not_null<HistoryView::ElementDelegate*> delegate,
+		HistoryView::Element *replacing) {
+	return delegate->elementCreate(this, replacing);
 }
 
 HistoryMessage::~HistoryMessage() {

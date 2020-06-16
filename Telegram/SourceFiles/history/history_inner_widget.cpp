@@ -2367,7 +2367,7 @@ HistoryInner::~HistoryInner() {
 	for (const auto &item : _animatedStickersPlayed) {
 		if (const auto view = item->mainView()) {
 			if (const auto media = view->media()) {
-				media->clearStickerLoopPlayed();
+				media->stickerClearLoopPlayed();
 			}
 		}
 	}
@@ -3314,12 +3314,20 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			return HistoryView::Context::History;
 		}
 		std::unique_ptr<HistoryView::Element> elementCreate(
-				not_null<HistoryMessage*> message) override {
-			return std::make_unique<HistoryView::Message>(this, message);
+				not_null<HistoryMessage*> message,
+				Element *replacing = nullptr) override {
+			return std::make_unique<HistoryView::Message>(
+				this,
+				message,
+				replacing);
 		}
 		std::unique_ptr<HistoryView::Element> elementCreate(
-				not_null<HistoryService*> message) override {
-			return std::make_unique<HistoryView::Service>(this, message);
+				not_null<HistoryService*> message,
+				Element *replacing = nullptr) override {
+			return std::make_unique<HistoryView::Service>(
+				this,
+				message,
+				replacing);
 		}
 		bool elementUnderCursor(
 				not_null<const HistoryView::Element*> view) override {

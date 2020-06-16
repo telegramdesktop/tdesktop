@@ -201,8 +201,9 @@ LogEntryOriginal::~LogEntryOriginal() = default;
 
 Message::Message(
 	not_null<ElementDelegate*> delegate,
-	not_null<HistoryMessage*> data)
-: Element(delegate, data) {
+	not_null<HistoryMessage*> data,
+	Element *replacing)
+: Element(delegate, data, replacing) {
 	initLogEntryOriginal();
 	initPsa();
 }

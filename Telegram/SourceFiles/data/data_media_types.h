@@ -111,9 +111,11 @@ public:
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
 	virtual std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) = 0;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) = 0;
 	std::unique_ptr<HistoryView::Media> createView(
-		not_null<HistoryView::Element*> message);
+		not_null<HistoryView::Element*> message,
+		HistoryView::Element *replacing = nullptr);
 
 private:
 	const not_null<HistoryItem*> _parent;
@@ -152,7 +154,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	not_null<PhotoData*> _photo;
@@ -189,7 +192,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	not_null<DocumentData*> _document;
@@ -218,7 +222,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	SharedContact _contact;
@@ -248,7 +253,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	LocationPoint _point;
@@ -276,7 +282,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 	static QString Text(
 		not_null<HistoryItem*> item,
@@ -312,7 +319,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	not_null<WebPageData*> _page;
@@ -343,7 +351,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	not_null<GameData*> _game;
@@ -374,7 +383,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	Invoice _invoice;
@@ -401,7 +411,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	not_null<PollData*> _poll;
@@ -425,7 +436,8 @@ public:
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) override;
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
 
 private:
 	QString _emoji;

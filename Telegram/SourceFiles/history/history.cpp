@@ -3364,7 +3364,9 @@ void HistoryBlock::refreshView(not_null<Element*> view) {
 	Expects(view->block() == this);
 
 	const auto item = view->data();
-	auto refreshed = item->createView(HistoryInner::ElementDelegate());
+	auto refreshed = item->createView(
+		HistoryInner::ElementDelegate(),
+		view);
 
 	auto blockIndex = indexInHistory();
 	auto itemIndex = view->indexInBlock();

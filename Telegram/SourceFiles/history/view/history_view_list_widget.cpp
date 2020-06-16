@@ -1107,13 +1107,15 @@ Context ListWidget::elementContext() {
 }
 
 std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<Message>(this, message);
+		not_null<HistoryMessage*> message,
+		Element *replacing) {
+	return std::make_unique<Message>(this, message, replacing);
 }
 
 std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<Service>(this, message);
+		not_null<HistoryService*> message,
+		Element *replacing) {
+	return std::make_unique<Service>(this, message, replacing);
 }
 
 bool ListWidget::elementUnderCursor(

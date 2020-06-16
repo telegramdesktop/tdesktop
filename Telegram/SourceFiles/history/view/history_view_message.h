@@ -41,7 +41,8 @@ class Message : public Element, public base::has_weak_ptr {
 public:
 	Message(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryMessage*> data);
+		not_null<HistoryMessage*> data,
+		Element *replacing);
 
 	int marginTop() const override;
 	int marginBottom() const override;

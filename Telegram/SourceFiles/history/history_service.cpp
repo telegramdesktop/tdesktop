@@ -562,8 +562,9 @@ QString HistoryService::inReplyText() const {
 }
 
 std::unique_ptr<HistoryView::Element> HistoryService::createView(
-		not_null<HistoryView::ElementDelegate*> delegate) {
-	return delegate->elementCreate(this);
+		not_null<HistoryView::ElementDelegate*> delegate,
+		HistoryView::Element *replacing) {
+	return delegate->elementCreate(this, replacing);
 }
 
 QString HistoryService::fromLinkText() const {
