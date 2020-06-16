@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "main/main_accounts.h"
 #include "info/info_memento.h"
 #include "info/settings/info_settings_widget.h"
 #include "window/window_session_controller.h"
@@ -1391,7 +1392,7 @@ Updater::~Updater() {
 
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
-	if (IsAppLaunched()) {
+	if (IsAppLaunched() && Core::App().accounts().started()) {
 		const auto &account = Core::App().activeAccount();
 		if (account.sessionExists()) {
 			_updater->setMtproto(&account.session());
