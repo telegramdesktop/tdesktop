@@ -29,11 +29,10 @@ public:
 	Accounts(not_null<Main::Accounts*> owner, const QString &dataName);
 	~Accounts();
 
-	[[nodiscard]] StartResult start(
-		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback);
+	[[nodiscard]] StartResult start(const QByteArray &passcode);
 	void startAdded(not_null<Main::Account*> account);
 	void writeAccounts();
+	void startFromScratch();
 
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
 	void setPasscode(const QByteArray &passcode);
@@ -49,12 +48,9 @@ private:
 		Empty,
 	};
 
-	[[nodiscard]] StartModernResult startModern(
-		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback);
+	[[nodiscard]] StartModernResult startModern(const QByteArray &passcode);
 	void startWithSingleAccount(
 		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback,
 		std::unique_ptr<Main::Account> account);
 	void generateLocalKey();
 	void encryptLocalKey(const QByteArray &passcode);

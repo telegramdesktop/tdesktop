@@ -189,7 +189,10 @@ public:
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 
-	void forceLogOut(const TextWithEntities &explanation);
+	void logout(Main::Account *account = nullptr);
+	void forceLogOut(
+		not_null<Main::Account*> account,
+		const TextWithEntities &explanation);
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();

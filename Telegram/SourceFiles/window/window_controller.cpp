@@ -68,7 +68,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		} else {
 			setupIntro();
 		}
-	}, _lifetime);
+	}, _accountLifetime);
 }
 
 void Controller::finishFirstShow() {

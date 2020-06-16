@@ -170,7 +170,6 @@ void Account::destroySession() {
 	if (!sessionExists()) {
 		return;
 	}
-	session().data().clear();
 
 	_sessionValue = nullptr;
 	_session = nullptr;
@@ -442,6 +441,10 @@ void Account::logOut() {
 	}
 }
 
+bool Account::loggingOut() const {
+	return _loggingOut;
+}
+
 void Account::forcedLogOut() {
 	if (sessionExists()) {
 		resetAuthorizationKeys();
@@ -451,20 +454,10 @@ void Account::forcedLogOut() {
 
 void Account::loggedOut() {
 	_loggingOut = false;
-	if (Global::LocalPasscode()) {
-		Global::SetLocalPasscode(false);
-		Global::RefLocalPasscodeChanged().notify();
-	}
-	Core::App().unlockPasscode();
-	Core::App().unlockTerms();
 	Media::Player::mixer()->stopAndClear();
 	Global::SetVoiceMsgPlaybackDoubled(false);
 	if (const auto window = Core::App().activeWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
-		window->setupIntro();
-	}
-	if (sessionExists()) {
-		session().data().clearLocalStorage();
 	}
 	destroySession();
 	local().reset();

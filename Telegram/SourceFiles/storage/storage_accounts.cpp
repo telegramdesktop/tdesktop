@@ -41,10 +41,8 @@ Accounts::Accounts(not_null<Main::Accounts*> owner, const QString &dataName)
 
 Accounts::~Accounts() = default;
 
-StartResult Accounts::start(
-		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback) {
-	const auto modern = startModern(passcode, callback);
+StartResult Accounts::start(const QByteArray &passcode) {
+	const auto modern = startModern(passcode);
 	if (modern == StartModernResult::Success) {
 		if (_oldVersion < AppVersion) {
 			writeAccounts();
@@ -53,20 +51,14 @@ StartResult Accounts::start(
 	} else if (modern == StartModernResult::IncorrectPasscode) {
 		return StartResult::IncorrectPasscode;
 	} else if (modern == StartModernResult::Failed) {
-		startWithSingleAccount(
-			passcode,
-			std::move(callback),
-			std::make_unique<Main::Account>(_dataName, 0));
+		startFromScratch();
 		return StartResult::Success;
 	}
 	auto legacy = std::make_unique<Main::Account>(_dataName, 0);
 	const auto result = legacy->legacyStart(passcode);
 	if (result == StartResult::Success) {
 		_oldVersion = legacy->local().oldMapVersion();
-		startWithSingleAccount(
-			passcode,
-			std::move(callback),
-			std::move(legacy));
+		startWithSingleAccount(passcode, std::move(legacy));
 	}
 	return result;
 }
@@ -79,7 +71,6 @@ void Accounts::startAdded(not_null<Main::Account*> account) {
 
 void Accounts::startWithSingleAccount(
 		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback,
 		std::unique_ptr<Main::Account> account) {
 	Expects(account != nullptr);
 
@@ -90,7 +81,7 @@ void Accounts::startWithSingleAccount(
 		generateLocalKey();
 		account->start(_localKey);
 	}
-	callback(0, std::move(account));
+	_owner->accountAddedInStorage(0, std::move(account));
 	writeAccounts();
 }
 
@@ -119,8 +110,7 @@ void Accounts::encryptLocalKey(const QByteArray &passcode) {
 }
 
 Accounts::StartModernResult Accounts::startModern(
-		const QByteArray &passcode,
-		Fn<void(int, std::unique_ptr<Main::Account>)> callback) {
+		const QByteArray &passcode) {
 	const auto name = ComputeKeyName(_dataName);
 
 	FileReadDescriptor keyData;
@@ -185,7 +175,7 @@ Accounts::StartModernResult Accounts::startModern(
 			const auto userId = account->willHaveUserId();
 			if (!users.contains(userId)
 				&& (userId != 0 || (users.empty() && i + 1 == count))) {
-				callback(index, std::move(account));
+				_owner->accountAddedInStorage(index, std::move(account));
 				users.emplace(userId);
 			}
 		}
@@ -221,6 +211,12 @@ void Accounts::writeAccounts() {
 		}
 	}
 	key.writeEncrypted(keyData, _localKey);
+}
+
+void Accounts::startFromScratch() {
+	startWithSingleAccount(
+		QByteArray(),
+		std::make_unique<Main::Account>(_dataName, 0));
 }
 
 bool Accounts::checkPasscode(const QByteArray &passcode) const {

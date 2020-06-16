@@ -117,7 +117,9 @@ PasscodeLockWidget::PasscodeLockWidget(
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
 	_submit->setClickedCallback([=] { submit(); });
-	_logout->setClickedCallback([=] { window->widget()->onLogout(); });
+	_logout->setClickedCallback([=] {
+		window->widget()->showLogoutConfirmation();
+	});
 }
 
 void PasscodeLockWidget::paintContent(Painter &p) {

@@ -23,7 +23,8 @@ public:
 	~Accounts();
 
 	[[nodiscard]] bool started() const;
-	Storage::StartResult start(const QByteArray &passcode);
+	[[nodiscard]] Storage::StartResult start(const QByteArray &passcode);
+	void resetWithForgottenPasscode();
 
 	[[nodiscard]] Storage::Accounts &local() const {
 		return *_local;
@@ -44,13 +45,23 @@ public:
 	[[nodiscard]] int add();
 	void activate(int index);
 
+	// Interface for Storage::Accounts.
+	void accountAddedInStorage(int index, std::unique_ptr<Account> account);
+
 private:
+	void activateAfterStarting();
+	void activateAuthedAccount();
+	void removeRedundantAccounts();
+	void watchSession(not_null<Account*> account);
+	void scheduleWriteAccounts();
+
 	const QString _dataName;
 	const std::unique_ptr<Storage::Accounts> _local;
 
 	base::flat_map<int, std::unique_ptr<Account>> _accounts;
 	rpl::variable<Account*> _active = nullptr;
 	int _activeIndex = 0;
+	bool _writeAccountsScheduled = false;
 
 	rpl::event_stream<Session*> _activeSessions;
 

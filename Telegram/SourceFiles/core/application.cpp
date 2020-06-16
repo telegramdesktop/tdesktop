@@ -451,15 +451,33 @@ void Application::startLocalStorage() {
 	_saveSettingsTimer.setCallback([=] { Local::writeSettings(); });
 }
 
-void Application::forceLogOut(const TextWithEntities &explanation) {
+void Application::logout(Main::Account *account) {
+	if (account) {
+		account->logOut();
+	} else {
+		accounts().resetWithForgottenPasscode();
+
+		if (Global::LocalPasscode()) {
+			Global::SetLocalPasscode(false);
+			Global::RefLocalPasscodeChanged().notify();
+		}
+		Core::App().unlockPasscode();
+		Core::App().unlockTerms();
+	}
+}
+
+void Application::forceLogOut(
+		not_null<Main::Account*> account,
+		const TextWithEntities &explanation) {
 	const auto box = Ui::show(Box<InformBox>(
 		explanation,
 		tr::lng_passcode_logout(tr::now)));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
+	const auto weak = base::make_weak(account.get());
 	connect(box, &QObject::destroyed, [=] {
-		crl::on_main(this, [=] {
-			activeAccount().forcedLogOut();
+		crl::on_main(weak, [=] {
+			account->forcedLogOut();
 		});
 	});
 }

@@ -114,6 +114,7 @@ Session::Session(
 }
 
 Session::~Session() {
+	data().clear();
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
 }

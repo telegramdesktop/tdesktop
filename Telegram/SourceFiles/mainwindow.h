@@ -113,6 +113,8 @@ public:
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();
 
+	void showLogoutConfirmation();
+
 	void updateControlsGeometry() override;
 
 protected:
@@ -137,7 +139,6 @@ public slots:
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
-	void onLogout();
 
 signals:
 	void tempDirCleared(int task);

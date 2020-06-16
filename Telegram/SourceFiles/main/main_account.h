@@ -50,6 +50,7 @@ public:
 
 	void logOut();
 	void forcedLogOut();
+	[[nodiscard]] bool loggingOut() const;
 
 	[[nodiscard]] AppConfig &appConfig() const {
 		Expects(_appConfig != nullptr);
@@ -94,6 +95,10 @@ public:
 	void configUpdated();
 	[[nodiscard]] rpl::producer<> configUpdates() const;
 	void clearMtp();
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 private:
 	void createSession(

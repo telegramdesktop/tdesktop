@@ -1722,7 +1722,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			Api::EntitiesFromMTP(&session(), d.ventities().v)
 		};
 		if (IsForceLogoutNotification(d)) {
-			Core::App().forceLogOut(text);
+			Core::App().forceLogOut(&session().account(), text);
 		} else if (d.is_popup()) {
 			const auto &windows = session().windows();
 			if (!windows.empty()) {

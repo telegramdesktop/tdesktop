@@ -681,7 +681,10 @@ void MainWindow::createGlobalMenu() {
 	prefs->setMenuRole(QAction::PreferencesRole);
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
-	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now), App::wnd(), SLOT(onLogout()));
+	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now));
+	connect(psLogout, &QAction::triggered, psLogout, [] {
+		if (App::wnd()) App::wnd()->showLogoutConfirmation();
+	});
 
 	QMenu *edit = psMainMenu.addMenu(tr::lng_mac_menu_edit(tr::now));
 	psUndo = edit->addAction(tr::lng_mac_menu_undo(tr::now), this, SLOT(psMacUndo()), QKeySequence::Undo);

@@ -652,22 +652,29 @@ void MainWindow::onShowNewChannel() {
 	}
 }
 
-void MainWindow::onLogout() {
+void MainWindow::showLogoutConfirmation() {
 	if (isHidden()) {
 		showFromTray();
 	}
 
-	const auto callback = [=] {
-		if (account().sessionExists()
-			&& account().session().data().exportInProgress()) {
+	const auto account = Core::App().passcodeLocked()
+		? nullptr
+		: sessionController()
+		? &sessionController()->session().account()
+		: nullptr;
+	const auto weak = base::make_weak(account);
+	const auto callback = crl::guard(weak, [=] {
+		if (account
+			&& account->sessionExists()
+			&& account->session().data().exportInProgress()) {
 			Ui::hideLayer();
-			account().session().data().stopExportWithConfirmation([=] {
-				account().logOut();
+			account->session().data().stopExportWithConfirmation([=] {
+				Core::App().logout(account);
 			});
 		} else {
-			account().logOut();
+			Core::App().logout(account);
 		}
-	};
+	});
 	Ui::show(Box<ConfirmBox>(
 		tr::lng_sure_logout(tr::now),
 		tr::lng_settings_logout(tr::now),

@@ -1118,8 +1118,7 @@ void Session::setupUserIsContactViewer() {
 Session::~Session() {
 	// Optimization: clear notifications before destroying items.
 	_session->notifications().clearAllFast();
-
-	clear();
+	clearLocalStorage();
 }
 
 template <typename Method>
@@ -3840,6 +3839,8 @@ void Session::clearLocalStorage() {
 
 	_cache->close();
 	_cache->clear();
+	_bigFileCache->close();
+	_bigFileCache->clear();
 }
 
 } // namespace Data
