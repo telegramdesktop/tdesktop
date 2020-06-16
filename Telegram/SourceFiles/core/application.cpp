@@ -489,8 +489,8 @@ void Application::checkLocalTime() {
 		base::ConcurrentTimerEnvironment::Adjust();
 		base::unixtime::http_invalidate();
 	}
-	if (activeAccount().sessionExists()) {
-		activeAccount().session().updates().checkLastUpdate(adjusted);
+	if (const auto session = maybeActiveSession()) {
+		session->updates().checkLastUpdate(adjusted);
 	}
 }
 
@@ -575,27 +575,36 @@ Main::Account &Application::activeAccount() const {
 	return _accounts->active();
 }
 
+Main::Session *Application::maybeActiveSession() const {
+	return (_accounts->started() && activeAccount().sessionExists())
+		? &activeAccount().session()
+		: nullptr;
+}
+
 bool Application::exportPreventsQuit() {
-	if (!activeAccount().sessionExists()
-		|| !activeAccount().session().data().exportInProgress()) {
-		return false;
+	if (const auto session = maybeActiveSession()) {
+		if (session->data().exportInProgress()) {
+			session->data().stopExportWithConfirmation([] {
+				App::quit();
+			});
+			return true;
+		}
 	}
-	activeAccount().session().data().stopExportWithConfirmation([] {
-		App::quit();
-	});
-	return true;
+	return false;
 }
 
 int Application::unreadBadge() const {
-	return (accounts().started() && activeAccount().sessionExists())
-		? activeAccount().session().data().unreadBadge()
-		: 0;
+	if (const auto session = maybeActiveSession()) {
+		return session->data().unreadBadge();
+	}
+	return 0;
 }
 
 bool Application::unreadBadgeMuted() const {
-	return (accounts().started() && activeAccount().sessionExists())
-		? activeAccount().session().data().unreadBadgeMuted()
-		: false;
+	if (const auto session = maybeActiveSession()) {
+		return session->data().unreadBadgeMuted();
+	}
+	return false;
 }
 
 bool Application::offerLegacyLangPackSwitch() const {
@@ -678,9 +687,8 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = urlTrimmed.midRef(protocol.size(), 8192);
-	const auto session = activeAccount().sessionExists()
-		? &activeAccount().session()
-		: nullptr;
+	const auto session = maybeActiveSession();
+
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
 	for (const auto &[expression, handler] : handlers) {
@@ -716,8 +724,8 @@ bool Application::passcodeLocked() const {
 
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
-	if (activeAccount().sessionExists()) {
-		activeAccount().session().updates().checkIdleFinish();
+	if (const auto session = maybeActiveSession()) {
+		session->updates().checkIdleFinish();
 	}
 }
 
@@ -945,24 +953,17 @@ void Application::refreshGlobalProxy() {
 
 void Application::QuitAttempt() {
 	auto prevents = false;
-	if (IsAppLaunched()
-		&& App().activeAccount().sessionExists()
-		&& !Sandbox::Instance().isSavingSession()) {
-		if (App().activeAccount().session().updates().isQuitPrevent()) {
-			prevents = true;
-		}
-		if (App().activeAccount().session().api().isQuitPrevent()) {
-			prevents = true;
-		}
-		if (App().activeAccount().session().calls().isQuitPrevent()) {
-			prevents = true;
+	if (IsAppLaunched() && !Sandbox::Instance().isSavingSession()) {
+		if (const auto session = App().maybeActiveSession()) {
+			if (session->updates().isQuitPrevent()
+				|| session->api().isQuitPrevent()
+				|| session->calls().isQuitPrevent()) {
+				App().quitDelayed();
+				return;
+			}
 		}
 	}
-	if (prevents) {
-		App().quitDelayed();
-	} else {
-		QApplication::quit();
-	}
+	QApplication::quit();
 }
 
 void Application::quitPreventFinished() {

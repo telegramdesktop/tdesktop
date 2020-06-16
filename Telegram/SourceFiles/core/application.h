@@ -160,6 +160,7 @@ public:
 	[[nodiscard]] bool exportPreventsQuit();
 
 	// Main::Session component.
+	Main::Session *maybeActiveSession() const;
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
 
