@@ -125,11 +125,6 @@ parts:
       - openal
       - qtwayland
 
-  patches:
-    plugin: dump
-    source: Telegram/Patches
-    prime: [-./*]
-
   desktop-qt5:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
     source-subdir: qt
@@ -185,7 +180,7 @@ parts:
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
-    source-branch: release/4.2
+    source-branch: release/4.3
     plugin: autotools
     build-packages:
       - nasm
@@ -302,14 +297,10 @@ parts:
       - --enable-demuxer=wav
       - --enable-muxer=ogg
       - --enable-muxer=opus
-    override-pull: |
-      snapcraftctl pull
-      patch -p1 < "$SNAPCRAFT_STAGE/ffmpeg.diff"
     prime:
       - -./usr/include
       - -./usr/lib/pkgconfig
     after:
-      - patches
       - dav1d
 
   openal:
