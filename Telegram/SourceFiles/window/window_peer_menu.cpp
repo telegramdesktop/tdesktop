@@ -306,6 +306,7 @@ void Filler::addHidePromotion() {
 }
 
 void Filler::addTogglePin() {
+	const auto controller = _controller;
 	const auto filterId = _filterId;
 	const auto peer = _peer;
 	const auto history = peer->owner().history(peer);
@@ -315,7 +316,7 @@ void Filler::addTogglePin() {
 			: tr::lng_context_pin_to_top(tr::now);
 	};
 	const auto pinToggle = [=] {
-		TogglePinnedDialog(_controller, history, filterId);
+		TogglePinnedDialog(controller, history, filterId);
 	};
 	const auto pinAction = _addAction(pinText(), pinToggle);
 
