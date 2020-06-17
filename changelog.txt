@@ -1,3 +1,9 @@
+2.1.12 (17.06.20)
+
+- Fix sticker and video results in inline bots.
+- Fix clipboard issues in Linux.
+- Fix several crashes.
+
 2.1.11 (08.06.20)
 
 - Fix launching on old Linux systems.
