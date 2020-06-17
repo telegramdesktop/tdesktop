@@ -13,12 +13,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_accounts.h" // Storage::StartResult.
 #include "storage/serialize_common.h"
+#include "storage/serialize_peer.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "window/window_controller.h"
 #include "media/audio/media_audio.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
+#include "mtproto/mtp_instance.h"
 #include "ui/image/image.h"
 #include "mainwidget.h"
 #include "api/api_updates.h"
@@ -46,7 +50,14 @@ Account::Account(const QString &dataName, int index)
 	ComposeDataString(dataName, index))) {
 }
 
-Account::~Account() = default;
+Account::~Account() {
+	if (sessionExists()) {
+		session().saveSettingsNowIfNeeded();
+	}
+	destroySession();
+	_mtpValue.reset(nullptr);
+	base::take(_mtp);
+}
 
 [[nodiscard]] Storage::StartResult Account::legacyStart(
 		const QByteArray &passcode) {
@@ -54,22 +65,27 @@ Account::~Account() = default;
 
 	const auto result = _local->legacyStart(passcode);
 	if (result == Storage::StartResult::Success) {
-		finishStarting();
+		finishStarting(nullptr);
 	}
 	return result;
 }
 
 void Account::start(std::shared_ptr<MTP::AuthKey> localKey) {
-	_local->start(std::move(localKey));
-	finishStarting();
+	finishStarting(_local->start(std::move(localKey)));
 }
 
-void Account::startAdded(std::shared_ptr<MTP::AuthKey> localKey) {
+void Account::startAdded(
+		std::shared_ptr<MTP::AuthKey> localKey,
+		std::unique_ptr<MTP::Config> config) {
 	_local->startAdded(std::move(localKey));
-	finishStarting();
+	finishStarting(std::move(config));
 }
 
-void Account::finishStarting() {
+void Account::finishStarting(std::unique_ptr<MTP::Config> config) {
+	startMtp(config
+		? std::move(config)
+		: std::make_unique<MTP::Config>(
+			Core::App().fallbackProductionConfig()));
 	_appConfig = std::make_unique<AppConfig>(this);
 	watchProxyChanges();
 	watchSessionChanges();
@@ -195,12 +211,10 @@ rpl::producer<Session*> Account::sessionChanges() const {
 	return _sessionValue.changes();
 }
 
-rpl::producer<MTP::Instance*> Account::mtpValue() const {
-	return _mtpValue.value();
-}
-
-rpl::producer<MTP::Instance*> Account::mtpChanges() const {
-	return _mtpValue.changes();
+rpl::producer<not_null<MTP::Instance*>> Account::mtpValue() const {
+	return _mtpValue.value() | rpl::map([](MTP::Instance *instance) {
+		return not_null{ instance };
+	});
 }
 
 rpl::producer<MTPUpdates> Account::mtpUpdates() const {
@@ -214,14 +228,14 @@ rpl::producer<> Account::mtpNewSessionCreated() const {
 void Account::setLegacyMtpMainDcId(MTP::DcId mainDcId) {
 	Expects(!_mtp);
 
-	_mtpConfig.mainDcId = mainDcId;
+	_mtpFields.mainDcId = mainDcId;
 }
 
 void Account::setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key) {
 	Expects(!_mtp);
 	Expects(key != nullptr);
 
-	_mtpConfig.keys.push_back(std::move(key));
+	_mtpFields.keys.push_back(std::move(key));
 }
 
 QByteArray Account::serializeMtpAuthorization() const {
@@ -270,9 +284,9 @@ QByteArray Account::serializeMtpAuthorization() const {
 			: MTP::AuthKeysList();
 		return serialize(_mtp->mainDcId(), keys, keysToDestroy);
 	}
-	const auto &keys = _mtpConfig.keys;
+	const auto &keys = _mtpFields.keys;
 	const auto &keysToDestroy = _mtpKeysToDestroy;
-	return serialize(_mtpConfig.mainDcId, keys, keysToDestroy);
+	return serialize(_mtpFields.mainDcId, keys, keysToDestroy);
 }
 
 void Account::setSessionUserId(UserId userId) {
@@ -319,9 +333,9 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 	}
 
 	setSessionUserId(userId);
-	_mtpConfig.mainDcId = mainDcId;
+	_mtpFields.mainDcId = mainDcId;
 
-	const auto readKeys = [&stream](auto &keys) {
+	const auto readKeys = [&](auto &keys) {
 		const auto count = Serialize::read<qint32>(stream);
 		if (stream.status() != QDataStream::Ok) {
 			LOG(("MTP Error: "
@@ -340,29 +354,53 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 			keys.push_back(std::make_shared<MTP::AuthKey>(MTP::AuthKey::Type::ReadFromFile, dcId, keyData));
 		}
 	};
-	readKeys(_mtpConfig.keys);
+	readKeys(_mtpFields.keys);
 	readKeys(_mtpKeysToDestroy);
 	LOG(("MTP Info: "
 		"read keys, current: %1, to destroy: %2"
-		).arg(_mtpConfig.keys.size()
+		).arg(_mtpFields.keys.size()
 		).arg(_mtpKeysToDestroy.size()));
 }
 
-void Account::startMtp() {
+void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	Expects(!_mtp);
 
-	auto config = base::take(_mtpConfig);
-	config.deviceModel = Core::App().launcher()->deviceModel();
-	config.systemVersion = Core::App().launcher()->systemVersion();
+	auto fields = base::take(_mtpFields);
+	fields.config = std::move(config);
+	fields.deviceModel = Core::App().launcher()->deviceModel();
+	fields.systemVersion = Core::App().launcher()->systemVersion();
 	_mtp = std::make_unique<MTP::Instance>(
-		Core::App().dcOptions(),
 		MTP::Instance::Mode::Normal,
-		std::move(config));
+		std::move(fields));
+
+	const auto writingKeys = _mtp->lifetime().make_state<bool>(false);
 	_mtp->writeKeysRequests(
-	) | rpl::start_with_next([=] {
-		local().writeMtpData();
+	) | rpl::filter([=] {
+		return !*writingKeys;
+	}) | rpl::start_with_next([=] {
+		*writingKeys = true;
+		Ui::PostponeCall(_mtp.get(), [=] {
+			local().writeMtpData();
+			*writingKeys = false;
+		});
 	}, _mtp->lifetime());
-	_mtpConfig.mainDcId = _mtp->mainDcId();
+
+	const auto writingConfig = _lifetime.make_state<bool>(false);
+	rpl::merge(
+		_mtp->config().updates(),
+		_mtp->dcOptions().changed(
+		) | rpl::map([] { return rpl::empty_value(); })
+	) | rpl::filter([=] {
+		return !*writingConfig;
+	}) | rpl::start_with_next([=] {
+		*writingConfig = true;
+		Ui::PostponeCall(_mtp.get(), [=] {
+			local().writeMtpConfig();
+			*writingConfig = false;
+		});
+	}, _lifetime);
+
+	_mtpFields.mainDcId = _mtp->mainDcId();
 
 	_mtp->setUpdatesHandler(::rpcDone([=](
 			const mtpPrime *from,
@@ -466,6 +504,8 @@ void Account::loggedOut() {
 }
 
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
+	Expects(_mtp != nullptr);
+
 	if (keys.empty()) {
 		return;
 	}
@@ -474,15 +514,16 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 		local().writeMtpData();
 		return;
 	}
-	auto destroyConfig = MTP::Instance::Config();
-	destroyConfig.mainDcId = MTP::Instance::Config::kNoneMainDc;
-	destroyConfig.keys = std::move(keys);
-	destroyConfig.deviceModel = Core::App().launcher()->deviceModel();
-	destroyConfig.systemVersion = Core::App().launcher()->systemVersion();
+	auto destroyFields = MTP::Instance::Fields();
+
+	destroyFields.mainDcId = MTP::Instance::Fields::kNoneMainDc;
+	destroyFields.config = std::make_unique<MTP::Config>(_mtp->config());
+	destroyFields.keys = std::move(keys);
+	destroyFields.deviceModel = Core::App().launcher()->deviceModel();
+	destroyFields.systemVersion = Core::App().launcher()->systemVersion();
 	_mtpForKeysDestroy = std::make_unique<MTP::Instance>(
-		Core::App().dcOptions(),
 		MTP::Instance::Mode::KeysDestroyer,
-		std::move(destroyConfig));
+		std::move(destroyFields));
 	_mtpForKeysDestroy->writeKeysRequests(
 	) | rpl::start_with_next([=] {
 		local().writeMtpData();
@@ -501,8 +542,8 @@ void Account::suggestMainDcId(MTP::DcId mainDcId) {
 	Expects(_mtp != nullptr);
 
 	_mtp->suggestMainDcId(mainDcId);
-	if (_mtpConfig.mainDcId != MTP::Instance::Config::kNotSetMainDc) {
-		_mtpConfig.mainDcId = mainDcId;
+	if (_mtpFields.mainDcId != MTP::Instance::Fields::kNotSetMainDc) {
+		_mtpFields.mainDcId = mainDcId;
 	}
 }
 
@@ -521,25 +562,15 @@ void Account::destroyStaleAuthorizationKeys() {
 	}
 }
 
-void Account::configUpdated() {
-	_configUpdates.fire({});
-}
-
-rpl::producer<> Account::configUpdates() const {
-	return _configUpdates.events();
-}
-
 void Account::resetAuthorizationKeys() {
-	_mtpValue = nullptr;
-	_mtp = nullptr;
-	startMtp();
-	local().writeMtpData();
-}
+	Expects(_mtp != nullptr);
 
-void Account::clearMtp() {
-	_mtpValue = nullptr;
-	_mtp = nullptr;
-	_mtpForKeysDestroy = nullptr;
+	{
+		const auto old = base::take(_mtp);
+		auto config = std::make_unique<MTP::Config>(old->config());
+		startMtp(std::move(config));
+	}
+	local().writeMtpData();
 }
 
 } // namespace Main

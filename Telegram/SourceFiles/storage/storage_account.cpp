@@ -15,10 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/details/storage_file_utilities.h"
 #include "storage/details/storage_settings_scheme.h"
 #include "storage/serialize_common.h"
+#include "storage/serialize_peer.h"
 #include "storage/serialize_document.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
+#include "mtproto/mtp_instance.h"
 #include "history/history.h"
 #include "core/application.h"
 #include "data/stickers/data_stickers.h"
@@ -80,7 +83,9 @@ enum { // Local Storage Keys
 };
 
 [[nodiscard]] FileKey ComputeDataNameKey(const QString &dataName) {
-	const auto testAddition = (cTestMode() ? qsl(":/test/") : QString());
+	// We dropped old test authorizations when migrated to multi auth.
+	//const auto testAddition = (cTestMode() ? qsl(":/test/") : QString());
+	const auto testAddition = QString();
 	const auto dataNameUtf8 = (dataName + testAddition).toUtf8();
 	FileKey dataNameHash[2] = { 0 };
 	hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
@@ -94,7 +99,8 @@ enum { // Local Storage Keys
 [[nodiscard]] QString ComputeDatabasePath(const QString &dataName) {
 	return BaseGlobalPath()
 		+ "user_" + dataName
-		+ (cTestMode() ? "[test]" : "")
+		// We dropped old test authorizations when migrated to multi auth.
+		//+ (cTestMode() ? "[test]" : "")
 		+ '/';
 }
 
@@ -131,12 +137,13 @@ StartResult Account::legacyStart(const QByteArray &passcode) {
 	return StartResult::Success;
 }
 
-void Account::start(MTP::AuthKeyPtr localKey) {
+std::unique_ptr<MTP::Config> Account::start(MTP::AuthKeyPtr localKey) {
 	Expects(localKey != nullptr);
 
 	_localKey = std::move(localKey);
 	readMapWith(_localKey);
 	clearLegacyFiles();
+	return readMtpConfig();
 }
 
 void Account::startAdded(MTP::AuthKeyPtr localKey) {
@@ -173,7 +180,12 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_exportSettingsKey,
 		_trustedBotsKey,
 	};
-	auto result = base::flat_set<QString>{ "map0", "map1", "maps" };
+	auto result = base::flat_set<QString>{
+		"map0",
+		"map1",
+		"maps",
+		"configs",
+	};
 	const auto push = [&](FileKey key) {
 		if (!key) {
 			return;
@@ -549,7 +561,8 @@ void Account::reset() {
 		for (const auto &name : names) {
 			if (!name.endsWith(qstr("map0"))
 				&& !name.endsWith(qstr("map1"))
-				&& !name.endsWith(qstr("maps"))) {
+				&& !name.endsWith(qstr("maps"))
+				&& !name.endsWith(qstr("configs"))) {
 				QFile::remove(base + name);
 			}
 		}
@@ -878,7 +891,7 @@ std::unique_ptr<Main::Settings> Account::readSettings() {
 
 std::unique_ptr<Main::Settings> Account::applyReadContext(
 		ReadSettingsContext &&context) {
-	Core::App().dcOptions()->addFromOther(std::move(context.dcOptions));
+	ApplyReadFallbackConfig(context);
 
 	_cacheTotalSizeLimit = context.cacheTotalSizeLimit;
 	_cacheTotalTimeLimit = context.cacheTotalTimeLimit;
@@ -908,18 +921,14 @@ std::unique_ptr<Main::Settings> Account::applyReadContext(
 }
 
 void Account::writeMtpData() {
+	Expects(_localKey != nullptr);
+
+	const auto serialized = _owner->serializeMtpAuthorization();
+	const auto size = sizeof(quint32) + Serialize::bytearraySize(serialized);
+
 	FileWriteDescriptor mtp(ToFilePart(_dataNameKey), BaseGlobalPath());
-	if (!_localKey) {
-		LOG(("App Error: localkey not created in _writeMtpData()"));
-		return;
-	}
-
-	auto mtpAuthorizationSerialized = _owner->serializeMtpAuthorization();
-
-	quint32 size = sizeof(quint32) + Serialize::bytearraySize(mtpAuthorizationSerialized);
-
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiMtpAuthorization) << mtpAuthorizationSerialized;
+	data.stream << quint32(dbiMtpAuthorization) << serialized;
 	mtp.writeEncrypted(data, _localKey);
 }
 
@@ -949,6 +958,35 @@ void Account::readMtpData() {
 		}
 	}
 	applyReadContext(std::move(context));
+}
+
+void Account::writeMtpConfig() {
+	Expects(_localKey != nullptr);
+
+	const auto serialized = _owner->mtp().config().serialize();
+	const auto size = Serialize::bytearraySize(serialized);
+
+	FileWriteDescriptor file(u"config"_q, _basePath);
+	EncryptedDescriptor data(size);
+	data.stream << serialized;
+	file.writeEncrypted(data, _localKey);
+}
+
+std::unique_ptr<MTP::Config> Account::readMtpConfig() {
+	Expects(_localKey != nullptr);
+
+	FileReadDescriptor file;
+	if (!ReadEncryptedFile(file, "config", _basePath, _localKey)) {
+		return nullptr;
+	}
+
+	LOG(("App Info: reading encrypted mtp config..."));
+	auto serialized = QByteArray();
+	file.stream >> serialized;
+	if (!CheckStreamStatus(file.stream)) {
+		return nullptr;
+	}
+	return MTP::Config::FromSerialized(serialized);
 }
 
 void Account::writeDrafts(not_null<History*> history) {
@@ -1846,7 +1884,9 @@ void Account::importOldRecentStickers() {
 			custom->stickers.push_back(doc);
 			++custom->count;
 		}
-		if (recent.size() < Global::StickersRecentLimit() && qAbs(value) > 1) {
+		if (qAbs(value) > 1
+			&& (recent.size()
+				< _owner->session().serverConfig().stickersRecentLimit)) {
 			recent.push_back(qMakePair(doc, qAbs(value)));
 		}
 	}

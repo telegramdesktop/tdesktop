@@ -586,7 +586,7 @@ void CloudList::showMenu(Element &element) {
 	if (const auto slug = element.theme.slug; !slug.isEmpty()) {
 		_contextMenu->addAction(tr::lng_theme_share(tr::now), [=] {
 			QGuiApplication::clipboard()->setText(
-				Core::App().createInternalLinkFull("addtheme/" + slug));
+				_window->session().createInternalLinkFull("addtheme/" + slug));
 			Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
 		});
 	}

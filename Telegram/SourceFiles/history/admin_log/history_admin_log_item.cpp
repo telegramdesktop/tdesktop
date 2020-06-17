@@ -472,7 +472,11 @@ void GenerateItems(
 		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Core::App().createInternalLinkFull(newValue), QString());
+		auto newLink = newValue.isEmpty()
+			? TextWithEntities()
+			: PrepareText(
+				history->session().createInternalLinkFull(newValue),
+				QString());
 		auto body = history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,
@@ -484,7 +488,9 @@ void GenerateItems(
 			QString(),
 			newLink);
 		if (!oldValue.isEmpty()) {
-			auto oldLink = PrepareText(Core::App().createInternalLinkFull(oldValue), QString());
+			auto oldLink = PrepareText(
+				history->session().createInternalLinkFull(oldValue),
+				QString());
 			body->addLogEntryOriginal(id, tr::lng_admin_log_previous_link(tr::now), oldLink);
 		}
 		addPart(body);

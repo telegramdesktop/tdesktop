@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -39,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "apiwrap.h"
 #include "app.h" // App::formatPhone
-#include "facades.h"
 
 namespace Api {
 namespace {
@@ -340,7 +340,9 @@ void Updates::channelDifferenceDone(
 	channel->ptsSetRequesting(false);
 
 	if (!isFinal) {
-		MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
+		MTP_LOG(0, ("getChannelDifference "
+			"{ good - after not final channelDifference was received }%1"
+			).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 		getChannelDifference(channel);
 	} else if (ranges::contains(
 			_activeChats,
@@ -410,7 +412,9 @@ void Updates::differenceDone(const MTPupdates_Difference &result) {
 
 		_ptsWaiter.setRequesting(false);
 
-		MTP_LOG(0, ("getDifference { good - after a slice of difference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
+		MTP_LOG(0, ("getDifference "
+			"{ good - after a slice of difference was received }%1"
+			).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 		getDifference();
 	} break;
 	case mtpc_updates_difference: {
@@ -566,7 +570,9 @@ void Updates::getDifferenceAfterFail() {
 			wait = _getDifferenceTimeAfterFail - now;
 		} else {
 			_ptsWaiter.setRequesting(false);
-			MTP_LOG(0, ("getDifference { force - after get difference failed }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference "
+				"{ force - after get difference failed }%1"
+				).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 			getDifference();
 		}
 	}
@@ -650,7 +656,7 @@ void Updates::getChannelDifference(
 }
 
 void Updates::sendPing() {
-	_session->mtp()->ping();
+	_session->mtp().ping();
 }
 
 void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
@@ -680,9 +686,10 @@ void Updates::requestChannelRangeDifference(not_null<History*> history) {
 		return;
 	}
 
-	MTP_LOG(0, ("getChannelDifference { good - "
-		"after channelDifferenceTooLong was received, "
-		"validating history part }%1").arg(cTestMode() ? " TESTMODE" : ""));
+	MTP_LOG(0, ("getChannelDifference "
+		"{ good - after channelDifferenceTooLong was received, "
+		"validating history part }%1"
+		).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 	channelRangeDifferenceSend(channel, range, channel->pts());
 }
 
@@ -752,10 +759,10 @@ void Updates::channelRangeDifferenceDone(
 	}
 
 	if (!isFinal && nextRequestPts) {
-		MTP_LOG(0, ("getChannelDifference { "
-			"good - after not final channelDifference was received, "
+		MTP_LOG(0, ("getChannelDifference "
+			"{ good - after not final channelDifference was received, "
 			"validating history part }%1"
-			).arg(cTestMode() ? " TESTMODE" : ""));
+			).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 		channelRangeDifferenceSend(channel, range, nextRequestPts);
 	}
 }
@@ -764,7 +771,7 @@ void Updates::mtpNewSessionCreated() {
 	Core::App().checkAutoLock();
 	_updatesSeq = 0;
 	MTP_LOG(0, ("getDifference { after new_session_created }%1"
-		).arg(cTestMode() ? " TESTMODE" : ""));
+		).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 	getDifference();
 }
 
@@ -789,25 +796,26 @@ bool Updates::isIdle() const {
 void Updates::updateOnline(bool gotOtherOffline) {
 	crl::on_main(&session(), [] { Core::App().checkAutoLock(); });
 
+	const auto &config = _session->serverConfig();
 	bool isOnline = Core::App().hasActiveWindow(&session());
-	int updateIn = Global::OnlineUpdatePeriod();
+	int updateIn = config.onlineUpdatePeriod;
 	Assert(updateIn >= 0);
 	if (isOnline) {
 		const auto idle = crl::now() - Core::App().lastNonIdleTime();
-		if (idle >= Global::OfflineIdleTimeout()) {
+		if (idle >= config.offlineIdleTimeout) {
 			isOnline = false;
 			if (!_isIdle) {
 				_isIdle = true;
 				_idleFinishTimer.callOnce(900);
 			}
 		} else {
-			updateIn = qMin(updateIn, int(Global::OfflineIdleTimeout() - idle));
+			updateIn = qMin(updateIn, int(config.offlineIdleTimeout - idle));
 			Assert(updateIn >= 0);
 		}
 	}
 	auto ms = crl::now();
 	if (isOnline != _lastWasOnline
-		|| (isOnline && _lastSetOnline + Global::OnlineUpdatePeriod() <= ms)
+		|| (isOnline && _lastSetOnline + config.onlineUpdatePeriod <= ms)
 		|| (isOnline && gotOtherOffline)) {
 		api().request(base::take(_onlineRequest)).cancel();
 
@@ -828,7 +836,7 @@ void Updates::updateOnline(bool gotOtherOffline) {
 		}
 
 		const auto self = session().user();
-		self->onlineTill = base::unixtime::now() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+		self->onlineTill = base::unixtime::now() + (isOnline ? (config.onlineUpdatePeriod / 1000) : -1);
 		session().changes().peerUpdated(
 			self,
 			Data::PeerUpdate::Flag::OnlineStatus);
@@ -838,7 +846,7 @@ void Updates::updateOnline(bool gotOtherOffline) {
 
 		_lastSetOnline = ms;
 	} else if (isOnline) {
-		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
+		updateIn = qMin(updateIn, int(_lastSetOnline + config.onlineUpdatePeriod - ms));
 		Assert(updateIn >= 0);
 	}
 	_onlineTimer.callOnce(updateIn);
@@ -846,7 +854,7 @@ void Updates::updateOnline(bool gotOtherOffline) {
 
 void Updates::checkIdleFinish() {
 	if (crl::now() - Core::App().lastNonIdleTime()
-		< Global::OfflineIdleTimeout()) {
+		< _session->serverConfig().offlineIdleTimeout) {
 		_idleFinishTimer.cancel();
 		_isIdle = false;
 		updateOnline();
@@ -1153,7 +1161,9 @@ void Updates::applyUpdates(
 			|| (viaBotId && !session().data().userLoaded(viaBotId->v))
 			|| (entities && !MentionUsersLoaded(&session(), *entities))
 			|| (fwd && !ForwardedInfoDataLoaded(&session(), *fwd))) {
-			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference "
+				"{ good - getting user for updateShortMessage }%1"
+				).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
 		if (updateAndApply(d.vpts().v, d.vpts_count().v, updates)) {
@@ -1174,7 +1184,9 @@ void Updates::applyUpdates(
 			|| (viaBotId && !session().data().userLoaded(viaBotId->v))
 			|| (entities && !MentionUsersLoaded(&session(), *entities))
 			|| (fwd && !ForwardedInfoDataLoaded(&session(), *fwd))) {
-			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference "
+				"{ good - getting user for updateShortChatMessage }%1"
+				).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 			if (chat && noFrom) {
 				session().api().requestFullPeer(chat);
 			}
@@ -1232,7 +1244,9 @@ void Updates::applyUpdates(
 	} break;
 
 	case mtpc_updatesTooLong: {
-		MTP_LOG(0, ("getDifference { good - updatesTooLong received }%1").arg(cTestMode() ? " TESTMODE" : ""));
+		MTP_LOG(0, ("getDifference "
+			"{ good - updatesTooLong received }%1"
+			).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 		return getDifference();
 	} break;
 	}
@@ -1248,9 +1262,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 		const auto isDataLoaded = AllDataLoadedForMessage(&session(), d.vmessage());
 		if (!requestingDifference() && isDataLoaded != DataIsLoadedResult::Ok) {
-			MTP_LOG(0, ("getDifference { good - "
-				"after not all data loaded in updateNewMessage }%1"
-				).arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference "
+				"{ good - after not all data loaded in updateNewMessage }%1"
+				).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 
 			// This can be if this update was created by grouping
 			// some short message update into an updates vector.
@@ -1265,14 +1279,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		auto channel = session().data().channelLoaded(peerToChannel(PeerFromMessage(d.vmessage())));
 		const auto isDataLoaded = AllDataLoadedForMessage(&session(), d.vmessage());
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
-			MTP_LOG(0, ("getDifference { good - "
-				"after not all data loaded in updateNewChannelMessage }%1"
-				).arg(cTestMode() ? " TESTMODE" : ""));
+			MTP_LOG(0, ("getDifference "
+				"{ good - after not all data loaded in updateNewChannelMessage }%1"
+				).arg(_session->mtp().isTestMode() ? " TESTMODE" : ""));
 
 			// Request last active supergroup participants if the 'from' user was not loaded yet.
 			// This will optimize similar getDifference() calls for almost all next messages.
 			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup()) {
-				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.empty() || channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
+				if (channel->mgInfo->lastParticipants.size() < _session->serverConfig().chatSizeMax
+					&& (channel->mgInfo->lastParticipants.empty()
+						|| channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
 					session().api().requestLastParticipants(channel);
 				}
 			}
@@ -1657,11 +1673,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDcOptions: {
 		auto &d = update.c_updateDcOptions();
-		Core::App().dcOptions()->addFromList(d.vdc_options());
+		session().mtp().dcOptions().addFromList(d.vdc_options());
 	} break;
 
 	case mtpc_updateConfig: {
-		session().mtp()->requestConfig();
+		session().mtp().requestConfig();
 	} break;
 
 	case mtpc_updateUserPhone: {

@@ -118,9 +118,11 @@ style::InputField CreateBioFieldStyle() {
 	return result;
 }
 
-QString PeerFloodErrorText(PeerFloodType type) {
-	auto link = textcmdLink(
-		Core::App().createInternalLinkFull(qsl("spambot")),
+QString PeerFloodErrorText(
+		not_null<Main::Session*> session,
+		PeerFloodType type) {
+	const auto link = textcmdLink(
+		session->createInternalLinkFull(qsl("spambot")),
 		tr::lng_cant_more_info(tr::now));
 	if (type == PeerFloodType::InviteGroup) {
 		return tr::lng_cant_invite_not_contact(tr::now, lt_more_info, link);
@@ -190,10 +192,10 @@ void ShowAddParticipantsError(
 		} else if (error == qstr("BOT_GROUPS_BLOCKED")) {
 			return tr::lng_error_cant_add_bot(tr::now);
 		} else if (error == qstr("PEER_FLOOD")) {
-			const auto isGroup = (chat->isChat() || chat->isMegagroup());
-			return PeerFloodErrorText(isGroup
+			const auto type = (chat->isChat() || chat->isMegagroup())
 				? PeerFloodType::InviteGroup
-				: PeerFloodType::InviteChannel);
+				: PeerFloodType::InviteChannel;
+			return PeerFloodErrorText(&chat->session(), type);
 		} else if (error == qstr("ADMINS_TOO_MUCH")) {
 			return ((chat->isChat() || chat->isMegagroup())
 				? tr::lng_error_admin_limit
@@ -453,7 +455,7 @@ GroupInfoBox::GroupInfoBox(
 	const QString &title,
 	Fn<void(not_null<ChannelData*>)> channelDone)
 : _navigation(navigation)
-, _api(_navigation->session().mtp())
+, _api(&_navigation->session().mtp())
 , _type(type)
 , _initialTitle(title)
 , _channelDone(std::move(channelDone)) {
@@ -598,7 +600,9 @@ void GroupInfoBox::createGroup(
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
 				Box<InformBox>(
-					PeerFloodErrorText(PeerFloodType::InviteGroup)),
+					PeerFloodErrorText(
+						&_navigation->session(),
+						PeerFloodType::InviteGroup)),
 				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(
@@ -750,7 +754,7 @@ SetupChannelBox::SetupChannelBox(
 	bool existing)
 : _navigation(navigation)
 , _channel(channel)
-, _api(_channel->session().mtp())
+, _api(&_channel->session().mtp())
 , _existing(existing)
 , _privacyGroup(
 	std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
@@ -790,7 +794,12 @@ SetupChannelBox::SetupChannelBox(
 		: tr::lng_create_private_channel_about)(tr::now),
 	_defaultOptions,
 	_aboutPublicWidth)
-, _link(this, st::setupChannelLink, nullptr, channel->username, true) {
+, _link(
+	this,
+	st::setupChannelLink,
+	nullptr,
+	channel->username,
+	channel->session().createInternalLink(QString())) {
 }
 
 void SetupChannelBox::prepare() {
@@ -1168,7 +1177,7 @@ void SetupChannelBox::firstCheckFail(const RPCError &error) {
 
 EditNameBox::EditNameBox(QWidget*, not_null<UserData*> user)
 : _user(user)
-, _api(_user->session().mtp())
+, _api(&_user->session().mtp())
 , _first(this, st::defaultInputField, tr::lng_signup_firstname(), _user->firstName)
 , _last(this, st::defaultInputField, tr::lng_signup_lastname(), _user->lastName)
 , _invertOrder(langFirstNameGoesSecond()) {
@@ -1292,7 +1301,7 @@ RevokePublicLinkBox::Inner::Inner(
 	Fn<void()> revokeCallback)
 : TWidget(parent)
 , _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(tr::lng_channels_too_much_public_revoke(tr::now)))
 , _revokeCallback(std::move(revokeCallback)) {
@@ -1320,7 +1329,7 @@ RevokePublicLinkBox::Inner::Inner(
 					Ui::NameTextOptions());
 				row.status.setText(
 					st::defaultTextStyle,
-					Core::App().createInternalLink(
+					_session->createInternalLink(
 						textcmdLink(1, peer->userName())),
 					Ui::DialogTextOptions());
 				_rows.push_back(std::move(row));
@@ -1401,7 +1410,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		auto text = text_method(
 			tr::now,
 			lt_link,
-			Core::App().createInternalLink(pressed->userName()),
+			_session->createInternalLink(pressed->userName()),
 			lt_group,
 			pressed->name);
 		auto confirmText = tr::lng_channels_too_much_public_revoke(tr::now);

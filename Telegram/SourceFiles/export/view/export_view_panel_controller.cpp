@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
+#include "mtproto/mtproto_config.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_account.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
-#include "facades.h"
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
 
@@ -77,9 +77,9 @@ void SuggestBox::prepare() {
 
 } // namespace
 
-Environment PrepareEnvironment() {
+Environment PrepareEnvironment(not_null<Main::Session*> session) {
 	auto result = Environment();
-	result.internalLinksDomain = Global::InternalLinksDomain();
+	result.internalLinksDomain = session->serverConfig().internalLinksDomain;
 	result.aboutTelegram = tr::lng_export_about_telegram(tr::now).toUtf8();
 	result.aboutContacts = tr::lng_export_about_contacts(tr::now).toUtf8();
 	result.aboutFrequent = tr::lng_export_about_frequent(tr::now).toUtf8();
@@ -188,7 +188,7 @@ void PanelController::showSettings() {
 	settings->startClicks(
 	) | rpl::start_with_next([=]() {
 		showProgress();
-		_process->startExport(*_settings, PrepareEnvironment());
+		_process->startExport(*_settings, PrepareEnvironment(_session));
 	}, settings->lifetime());
 
 	settings->cancelClicks(

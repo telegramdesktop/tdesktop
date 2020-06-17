@@ -277,7 +277,7 @@ void Uploader::currentFailed() {
 
 void Uploader::stopSessions() {
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
-		_api->instance()->stopSession(MTP::uploadDcId(i));
+		_api->instance().stopSession(MTP::uploadDcId(i));
 	}
 }
 
@@ -524,7 +524,7 @@ void Uploader::clear() {
 	dcMap.clear();
 	sentSize = 0;
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
-		_api->instance()->stopSession(MTP::uploadDcId(i));
+		_api->instance().stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
 	stopSessionsTimer.stop();

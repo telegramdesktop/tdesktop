@@ -195,7 +195,7 @@ void Session::watchDcKeyChanges() {
 }
 
 void Session::watchDcOptionsChanges() {
-	_instance->dcOptions()->changed(
+	_instance->dcOptions().changed(
 	) | rpl::filter([=](DcId dcId) {
 		return (BareDcId(_shiftedDcId) == dcId) && (_private != nullptr);
 	}) | rpl::start_with_next([=] {
@@ -204,8 +204,8 @@ void Session::watchDcOptionsChanges() {
 		});
 	}, _lifetime);
 
-	if (_instance->dcOptions()->dcType(_shiftedDcId) == DcType::Cdn) {
-		_instance->dcOptions()->cdnConfigChanged(
+	if (_instance->dcOptions().dcType(_shiftedDcId) == DcType::Cdn) {
+		_instance->dcOptions().cdnConfigChanged(
 		) | rpl::filter([=] {
 			return (_private != nullptr);
 		}) | rpl::start_with_next([=] {

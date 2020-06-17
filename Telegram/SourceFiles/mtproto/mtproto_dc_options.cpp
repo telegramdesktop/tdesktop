@@ -5,12 +5,15 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 
 #include "mtproto/details/mtproto_rsa_public_key.h"
 #include "mtproto/facade.h"
 #include "mtproto/connection_tcp.h"
 #include "storage/serialize_common.h"
+
+#include <QtCore/QFile>
+#include <QtCore/QRegularExpression>
 
 namespace MTP {
 namespace {
@@ -136,8 +139,18 @@ private:
 
 };
 
-DcOptions::DcOptions() {
+DcOptions::DcOptions(Environment environment)
+: _environment(environment) {
 	constructFromBuiltIn();
+}
+
+DcOptions::DcOptions(const DcOptions &other)
+: _environment(other._environment)
+, _data(other._data)
+, _cdnDcIds(other._cdnDcIds)
+, _publicKeys(other._publicKeys)
+, _cdnPublicKeys(other._cdnPublicKeys)
+, _immutable(other._immutable) {
 }
 
 DcOptions::~DcOptions() = default;
@@ -163,13 +176,21 @@ void DcOptions::readBuiltInPublicKeys() {
 	}
 }
 
+Environment DcOptions::environment() const {
+	return _environment;
+}
+
+bool DcOptions::isTestMode() const {
+	return (_environment != Environment::Production);
+}
+
 void DcOptions::constructFromBuiltIn() {
 	WriteLocker lock(this);
 	_data.clear();
 
 	readBuiltInPublicKeys();
 
-	const auto list = cTestMode()
+	const auto list = isTestMode()
 		? gsl::make_span(kBuiltInDcsTest)
 		: gsl::make_span(kBuiltInDcs).subspan(0);
 	for (const auto &entry : list) {
@@ -181,7 +202,7 @@ void DcOptions::constructFromBuiltIn() {
 			).arg(entry.port));
 	}
 
-	const auto listv6 = cTestMode()
+	const auto listv6 = isTestMode()
 		? gsl::make_span(kBuiltInDcsIPv6Test)
 		: gsl::make_span(kBuiltInDcsIPv6).subspan(0);
 	for (const auto &entry : listv6) {
@@ -204,7 +225,7 @@ void DcOptions::processFromList(
 
 	auto data = [&] {
 		if (overwrite) {
-			return std::map<DcId, std::vector<Endpoint>>();
+			return base::flat_map<DcId, std::vector<Endpoint>>();
 		}
 		ReadLocker lock(this);
 		return _data;
@@ -313,7 +334,7 @@ bool DcOptions::applyOneGuarded(
 }
 
 bool DcOptions::ApplyOneOption(
-		std::map<DcId, std::vector<Endpoint>> &data,
+		base::flat_map<DcId, std::vector<Endpoint>> &data,
 		DcId dcId,
 		Flags flags,
 		const std::string &ip,
@@ -336,8 +357,8 @@ bool DcOptions::ApplyOneOption(
 }
 
 std::vector<DcId> DcOptions::CountOptionsDifference(
-		const std::map<DcId, std::vector<Endpoint>> &a,
-		const std::map<DcId, std::vector<Endpoint>> &b) {
+		const base::flat_map<DcId, std::vector<Endpoint>> &a,
+		const base::flat_map<DcId, std::vector<Endpoint>> &b) {
 	auto result = std::vector<DcId>();
 	const auto find = [](
 			const std::vector<Endpoint> &where,
@@ -389,7 +410,7 @@ std::vector<DcId> DcOptions::CountOptionsDifference(
 QByteArray DcOptions::serialize() const {
 	if (_immutable) {
 		// Don't write the overriden options to our settings.
-		return DcOptions().serialize();
+		return DcOptions(_environment).serialize();
 	}
 
 	ReadLocker lock(this);
@@ -477,7 +498,7 @@ QByteArray DcOptions::serialize() const {
 	return result;
 }
 
-void DcOptions::constructFromSerialized(const QByteArray &serialized) {
+bool DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 
@@ -493,7 +514,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("MTP Error: Bad data for DcOptions::constructFromSerialized()"));
-		return;
+		return false;
 	}
 
 	WriteLocker lock(this);
@@ -506,7 +527,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 		constexpr auto kMaxIpSize = 45;
 		if (ipSize <= 0 || ipSize > kMaxIpSize) {
 			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
-			return;
+			return false;
 		}
 
 		auto ip = std::string(ipSize, ' ');
@@ -519,7 +540,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 			stream >> secretSize;
 			if (secretSize < 0 || secretSize > kMaxSecretSize) {
 				LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
-				return;
+				return false;
 			} else if (secretSize > 0) {
 				secret.resize(secretSize);
 				stream.readRawData(
@@ -530,7 +551,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 
 		if (stream.status() != QDataStream::Ok) {
 			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
-			return;
+			return false;
 		}
 
 		applyOneGuarded(
@@ -547,7 +568,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 		stream >> count;
 		if (stream.status() != QDataStream::Ok) {
 			LOG(("MTP Error: Bad data for CDN config in DcOptions::constructFromSerialized()"));
-			return;
+			return false;
 		}
 
 		for (auto i = 0; i != count; ++i) {
@@ -556,7 +577,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 			stream >> dcId >> Serialize::bytes(n) >> Serialize::bytes(e);
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("MTP Error: Bad data for CDN config inside DcOptions::constructFromSerialized()"));
-				return;
+				return false;
 			}
 
 			auto key = RSAPublicKey(n, e);
@@ -564,9 +585,11 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 				_cdnPublicKeys[dcId].emplace(key.fingerprint(), std::move(key));
 			} else {
 				LOG(("MTP Error: Could not read valid CDN public key."));
+				return false;
 			}
 		}
 	}
+	return true;
 }
 
 rpl::producer<DcId> DcOptions::changed() const {
@@ -640,7 +663,8 @@ bool DcOptions::hasCDNKeysForDc(DcId dcId) const {
 RSAPublicKey DcOptions::getDcRSAKey(
 		DcId dcId,
 		const QVector<MTPlong> &fingerprints) const {
-	const auto findKey = [&](const std::map<uint64, RSAPublicKey> &keys) {
+	const auto findKey = [&](
+			const base::flat_map<uint64, RSAPublicKey> &keys) {
 		for (const auto &fingerprint : fingerprints) {
 			const auto it = keys.find(static_cast<uint64>(fingerprint.v));
 			if (it != keys.cend()) {

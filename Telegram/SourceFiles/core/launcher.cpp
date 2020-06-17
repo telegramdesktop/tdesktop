@@ -97,12 +97,6 @@ void ComputeDebugMode() {
 	}
 }
 
-void ComputeTestMode() {
-	if (QFile::exists(cWorkingDir() + qsl("tdata/withtestmode"))) {
-		cSetTestMode(true);
-	}
-}
-
 void ComputeExternalUpdater() {
 	QFile file(qsl("/etc/tdesktop/externalupdater"));
 
@@ -350,7 +344,6 @@ int Launcher::exec() {
 void Launcher::workingFolderReady() {
 	srand((unsigned int)time(nullptr));
 
-	ComputeTestMode();
 	ComputeDebugMode();
 	ComputeExternalUpdater();
 	ComputeFreeType();
@@ -476,7 +469,6 @@ void Launcher::processArguments() {
 	if (parseResult.contains("-externalupdater")) {
 		SetUpdaterDisabledAtStartup();
 	}
-	gTestMode = parseResult.contains("-testmode");
 	gUseFreeType = parseResult.contains("-freetype");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");

@@ -196,8 +196,8 @@ public:
 	: _instance(instance) {
 	}
 
-	[[nodiscard]] not_null<Instance*> instance() const {
-		return _instance;
+	[[nodiscard]] Instance &instance() const {
+		return *_instance;
 	}
 
 	template <typename Request>
@@ -247,7 +247,7 @@ public:
 		}
 
 		mtpRequestId send() {
-			const auto id = sender()->instance()->send(
+			const auto id = sender()->_instance->send(
 				_request,
 				takeOnDone(),
 				takeOnFail(),
@@ -376,7 +376,7 @@ private:
 	};
 
 	template <typename Request>
-	friend class SpecialRequestBuilder;
+	friend class SpecificRequestBuilder;
 	friend class RequestBuilder;
 	friend class RequestWrap;
 	friend class SentRequestWrap;

@@ -158,8 +158,6 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 			updateControlsGeometry();
 		}, _outdated->lifetime());
 	}
-
-	_isActiveTimer.setCallback([this] { updateIsActive(0); });
 }
 
 Main::Account &MainWindow::account() const {
@@ -267,7 +265,7 @@ bool MainWindow::hideNoQuit() {
 		}
 	} else if (Platform::IsMac()) {
 		closeWithoutDestroy();
-		updateIsActive(Global::OfflineBlurTimeout());
+		controller().updateIsActiveBlur();
 		updateGlobalMenu();
 		Ui::showChatsList();
 		return true;
@@ -280,10 +278,7 @@ void MainWindow::clearWidgets() {
 	updateGlobalMenu();
 }
 
-void MainWindow::updateIsActive(int timeout) {
-	if (timeout > 0) {
-		return _isActiveTimer.callOnce(timeout);
-	}
+void MainWindow::updateIsActive() {
 	_isActive = computeIsActive();
 	updateIsActiveHook();
 }
@@ -337,7 +332,11 @@ void MainWindow::init() {
 
 void MainWindow::handleStateChanged(Qt::WindowState state) {
 	stateChangedHook(state);
-	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
+	if (state == Qt::WindowMinimized) {
+		controller().updateIsActiveBlur();
+	} else {
+		controller().updateIsActiveFocus();
+	}
 	Core::App().updateNonIdle();
 	if (state == Qt::WindowMinimized && Global::WorkMode().value() == dbiwmTrayOnly) {
 		minimizeToTray();
@@ -593,7 +592,7 @@ bool MainWindow::minimizeToTray() {
 	if (App::quitting() || !hasTrayIcon()) return false;
 
 	closeWithoutDestroy();
-	updateIsActive(Global::OfflineBlurTimeout());
+	controller().updateIsActiveBlur();
 	updateTrayMenu();
 	updateGlobalMenu();
 	showTrayTooltip();

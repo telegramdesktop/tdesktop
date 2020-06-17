@@ -168,7 +168,7 @@ Controller::Controller(
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
 , _useLocationPhrases(useLocationPhrases)
@@ -335,7 +335,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			st::setupChannelLink,
 			nullptr,
 			username,
-			true));
+			_peer->session().createInternalLink(QString())));
 	_controls.usernameInput->heightValue(
 	) | rpl::start_with_next([placeholder](int height) {
 		placeholder->resize(placeholder->width(), height);

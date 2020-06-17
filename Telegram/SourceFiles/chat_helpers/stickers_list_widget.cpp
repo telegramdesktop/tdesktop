@@ -873,7 +873,7 @@ StickersListWidget::StickersListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
-, _api(controller->session().mtp())
+, _api(&controller->session().mtp())
 , _section(Section::Stickers)
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(tr::lng_stickers_featured_add(tr::now).toUpper())

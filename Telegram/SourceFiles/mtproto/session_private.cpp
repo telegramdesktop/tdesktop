@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_rsa_public_key.h"
 #include "mtproto/session.h"
 #include "mtproto/mtproto_rpc_sender.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "mtproto/connection_abstract.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
@@ -117,7 +117,7 @@ SessionPrivate::SessionPrivate(
 : QObject(nullptr)
 , _instance(instance)
 , _shiftedDcId(shiftedDcId)
-, _realDcType(_instance->dcOptions()->dcType(_shiftedDcId))
+, _realDcType(_instance->dcOptions().dcType(_shiftedDcId))
 , _currentDcType(_realDcType)
 , _state(DisconnectedState)
 , _retryTimer(thread, [=] { retryByTimer(); })
@@ -203,7 +203,7 @@ int16 SessionPrivate::getProtocolDcId() const {
 	const auto simpleDcId = isTemporaryDcId(dcId)
 		? getRealIdFromTemporaryDcId(dcId)
 		: dcId;
-	const auto testedDcId = cTestMode()
+	const auto testedDcId = _instance->isTestMode()
 		? (kTestModeDcIdShift + simpleDcId)
 		: simpleDcId;
 	return (_currentDcType == DcType::MediaCluster)
@@ -374,7 +374,7 @@ uint32 SessionPrivate::nextRequestSeqNumber(bool needAck) {
 }
 
 bool SessionPrivate::realDcTypeChanged() {
-	const auto now = _instance->dcOptions()->dcType(_shiftedDcId);
+	const auto now = _instance->dcOptions().dcType(_shiftedDcId);
 	if (_realDcType == now) {
 		return false;
 	}
@@ -936,7 +936,7 @@ void SessionPrivate::connectToServer(bool afterConfig) {
 
 	_currentDcType = tryAcquireKeyCreation();
 	if (_currentDcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
-		if (!_instance->dcOptions()->hasCDNKeysForDc(bareDc)) {
+		if (!_instance->dcOptions().hasCDNKeysForDc(bareDc)) {
 			requestCDNConfig();
 			return;
 		}
@@ -947,7 +947,7 @@ void SessionPrivate::connectToServer(bool afterConfig) {
 	} else {
 		using Variants = DcOptions::Variants;
 		const auto special = (_currentDcType == DcType::Temporary);
-		const auto variants = _instance->dcOptions()->lookup(
+		const auto variants = _instance->dcOptions().lookup(
 			bareDc,
 			_currentDcType,
 			_options->proxy.type != ProxyData::Type::None);
@@ -2366,7 +2366,7 @@ void SessionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 			BareDcId(_shiftedDcId),
 			getProtocolDcId(),
 			_connection.get(),
-			_instance->dcOptions());
+			&_instance->dcOptions());
 	} else {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), "
 			"but someone is creating already, waiting."));

@@ -290,21 +290,19 @@ void ConnectionState::refreshState() {
 	const auto state = [&]() -> State {
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
-		const auto mtp = _account->mtp()
-			? _account->mtp()->dcstate()
-			: MTP::DisconnectedState;
+		const auto state = _account->mtp().dcstate();
 		const auto proxy
 			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
-		if (mtp == MTP::ConnectingState
-			|| mtp == MTP::DisconnectedState
-			|| (mtp < 0 && mtp > -600)) {
+		if (state == MTP::ConnectingState
+			|| state == MTP::DisconnectedState
+			|| (state < 0 && state > -600)) {
 			return { State::Type::Connecting, proxy, under, ready };
-		} else if (mtp < 0
-			&& mtp >= -kMinimalWaitingStateDuration
+		} else if (state < 0
+			&& state >= -kMinimalWaitingStateDuration
 			&& _state.type != State::Type::Waiting) {
 			return { State::Type::Connecting, proxy, under, ready };
-		} else if (mtp < 0) {
-			const auto wait = ((-mtp) / 1000) + 1;
+		} else if (state < 0) {
+			const auto wait = ((-state) / 1000) + 1;
 			return { State::Type::Waiting, proxy, under, ready, wait };
 		}
 		return { State::Type::Connected, proxy, under, ready };
@@ -617,9 +615,7 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 			tr::lng_reconnecting_try_now(tr::now),
 			st::connectingRetryLink);
 		_retry->addClickHandler([=] {
-			if (const auto mtproto = _account->mtp()) {
-				mtproto->restart();
-			}
+			_account->mtp().restart();
 		});
 		updateRetryGeometry();
 	} else if (!hasRetry) {

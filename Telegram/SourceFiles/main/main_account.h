@@ -18,6 +18,7 @@ enum class StartResult : uchar;
 
 namespace MTP {
 class AuthKey;
+class Config;
 } // namespace MTP
 
 namespace Main {
@@ -37,7 +38,9 @@ public:
 	[[nodiscard]] Storage::StartResult legacyStart(
 		const QByteArray &passcode);
 	void start(std::shared_ptr<MTP::AuthKey> localKey);
-	void startAdded(std::shared_ptr<MTP::AuthKey> localKey);
+	void startAdded(
+		std::shared_ptr<MTP::AuthKey> localKey,
+		std::unique_ptr<MTP::Config> config);
 
 	[[nodiscard]] UserId willHaveUserId() const;
 	void createSession(const MTPUser &user);
@@ -67,11 +70,10 @@ public:
 	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 
-	[[nodiscard]] MTP::Instance *mtp() const {
-		return _mtp.get();
+	[[nodiscard]] MTP::Instance &mtp() const {
+		return *_mtp;
 	}
-	[[nodiscard]] rpl::producer<MTP::Instance*> mtpValue() const;
-	[[nodiscard]] rpl::producer<MTP::Instance*> mtpChanges() const;
+	[[nodiscard]] rpl::producer<not_null<MTP::Instance*>> mtpValue() const;
 
 	// Set from legacy storage.
 	void setLegacyMtpMainDcId(MTP::DcId mainDcId);
@@ -89,24 +91,21 @@ public:
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
 	void setMtpAuthorization(const QByteArray &serialized);
 
-	void startMtp();
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
-	void configUpdated();
-	[[nodiscard]] rpl::producer<> configUpdates() const;
-	void clearMtp();
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
 private:
+	void startMtp(std::unique_ptr<MTP::Config> config);
 	void createSession(
 		const MTPUser &user,
 		QByteArray serialized,
 		int streamVersion,
 		Settings &&settings);
-	void finishStarting();
+	void finishStarting(std::unique_ptr<MTP::Config> config);
 	void watchProxyChanges();
 	void watchSessionChanges();
 	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);
@@ -124,7 +123,6 @@ private:
 	std::unique_ptr<MTP::Instance> _mtpForKeysDestroy;
 	rpl::event_stream<MTPUpdates> _mtpUpdates;
 	rpl::event_stream<> _mtpNewSessionCreated;
-	rpl::event_stream<> _configUpdates;
 
 	std::unique_ptr<AppConfig> _appConfig;
 
@@ -135,7 +133,7 @@ private:
 	QByteArray _sessionUserSerialized;
 	int32 _sessionUserStreamVersion = 0;
 	std::unique_ptr<Settings> _storedSettings;
-	MTP::Instance::Config _mtpConfig;
+	MTP::Instance::Fields _mtpFields;
 	MTP::AuthKeysList _mtpKeysToDestroy;
 	bool _loggingOut = false;
 

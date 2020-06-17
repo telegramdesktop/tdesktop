@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerProfile
 
 namespace Profile {
 namespace {
@@ -341,7 +342,8 @@ void GroupMembersWidget::fillMegagroupMembers(
 	}
 
 	_sortByOnline = (megagroup->membersCount() > 0)
-		&& (megagroup->membersCount() <= Global::ChatSizeMax());
+		&& (megagroup->membersCount()
+			<= megagroup->session().serverConfig().chatSizeMax);
 
 	auto &membersList = megagroup->mgInfo->lastParticipants;
 	if (_sortByOnline) {

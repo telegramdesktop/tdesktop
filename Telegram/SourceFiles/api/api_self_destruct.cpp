@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 
 SelfDestruct::SelfDestruct(not_null<ApiWrap*> api)
-: _api(api->instance()) {
+: _api(&api->instance()) {
 }
 
 void SelfDestruct::reload() {

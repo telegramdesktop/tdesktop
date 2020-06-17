@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
+#include "mtproto/mtproto_config.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -54,7 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
-#include "facades.h"
+#include "facades.h" // Notify::switchInlineBotButtonReceived
 #include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
@@ -188,17 +189,6 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	return FindInlineThumbnail(data.vsizes().v);
 }
 
-[[nodiscard]] rpl::producer<int> PinnedDialogsCountMaxValue(
-		not_null<Main::Session*> session) {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		session->account().configUpdates()
-	) | rpl::map([=] {
-		return Global::PinnedDialogsCountMax();
-	});
-}
-
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -209,7 +199,10 @@ Session::Session(not_null<Main::Session*> session)
 , _bigFileCache(Core::App().databases().get(
 	_session->local().cacheBigFilePath(),
 	_session->local().cacheBigFileSettings()))
-, _chatsList(session, FilterId(), PinnedDialogsCountMaxValue(session))
+, _chatsList(
+	session,
+	FilterId(),
+	session->serverConfig().pinnedDialogsCountMax.value())
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
@@ -929,7 +922,7 @@ void Session::startExport(const MTPInputPeer &singlePeer) {
 		return;
 	}
 	_export = std::make_unique<Export::Controller>(
-		session().mtp().get(),
+		&session().mtp(),
 		singlePeer);
 	_exportPanel = std::make_unique<Export::View::PanelController>(
 		&session(),
@@ -1660,8 +1653,8 @@ int Session::pinnedChatsLimit(
 		FilterId filterId) const {
 	if (!filterId) {
 		return folder
-			? Global::PinnedDialogsInFolderMax()
-			: Global::PinnedDialogsCountMax();
+			? session().serverConfig().pinnedDialogsInFolderMax.current()
+			: session().serverConfig().pinnedDialogsCountMax.current();
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
-#include "facades.h"
 
 namespace {
 
@@ -707,7 +707,8 @@ void ParticipantsOnlineSorter::sort() {
 	const auto channel = _peer->asChannel();
 	if (channel
 		&& (!channel->isMegagroup()
-			|| channel->membersCount() > Global::ChatSizeMax())) {
+			|| (channel->membersCount()
+				> channel->session().serverConfig().chatSizeMax))) {
 		_onlineCount = 0;
 		return;
 	}
@@ -752,7 +753,7 @@ ParticipantsBoxController::ParticipantsBoxController(
 : PeerListController(CreateSearchController(peer, role, &_additional))
 , _navigation(navigation)
 , _peer(peer)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _role(role)
 , _additional(peer, _role) {
 	subscribeToMigration();
@@ -844,8 +845,9 @@ void ParticipantsBoxController::Start(
 				return chat
 					? chat->canAddMembers()
 					: (channel->canAddMembers()
-						&& (channel->membersCount() < Global::ChatSizeMax()
-							|| channel->isMegagroup()));
+						&& (channel->isMegagroup()
+							|| (channel->membersCount()
+								< channel->session().serverConfig().chatSizeMax)));
 			case Role::Admins:
 				return chat
 					? chat->canAddAdmins()
@@ -924,7 +926,8 @@ void ParticipantsBoxController::addNewParticipants() {
 	if (chat) {
 		AddParticipantsBoxController::Start(_navigation, chat);
 	} else if (channel->isMegagroup()
-		|| channel->membersCount() < Global::ChatSizeMax()) {
+		|| (channel->membersCount()
+			< channel->session().serverConfig().chatSizeMax)) {
 		const auto count = delegate()->peerListFullRowsCount();
 		auto already = std::vector<not_null<UserData*>>();
 		already.reserve(count);
@@ -1887,7 +1890,7 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			channel->inputChannel,
 			MTP_channelParticipantsRecent(),
 			MTP_int(0),
-			MTP_int(Global::ChatSizeMax()),
+			MTP_int(channel->session().serverConfig().chatSizeMax),
 			MTP_int(0)
 		)).done([=](const MTPchannels_ChannelParticipants &result) {
 			if (channel->amCreator()) {
@@ -1922,7 +1925,7 @@ ParticipantsBoxSearchController::ParticipantsBoxSearchController(
 : _channel(channel)
 , _role(role)
 , _additional(additional)
-, _api(_channel->session().mtp()) {
+, _api(&_channel->session().mtp()) {
 	_timer.setCallback([=] { searchOnServer(); });
 }
 

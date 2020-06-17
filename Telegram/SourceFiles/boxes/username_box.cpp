@@ -31,13 +31,13 @@ constexpr auto kMinUsernameLength = 5;
 
 UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _username(
 	this,
 	st::defaultInputField,
 	rpl::single(qsl("@username")),
 	session->user()->username,
-	false)
+	QString())
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
 , _checkTimer(this) {
@@ -94,7 +94,8 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	if (_link->isHidden()) {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link_willbe(tr::now));
 		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), Core::App().createInternalLinkFull(qsl("username")));
+		const auto link = _session->createInternalLinkFull(qsl("username"));
+		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), link);
 	} else {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link(tr::now));
 	}
@@ -179,7 +180,8 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	QGuiApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
+	QGuiApplication::clipboard()->setText(
+		_session->createInternalLinkFull(getName()));
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
@@ -251,7 +253,7 @@ QString UsernameBox::getName() const {
 
 void UsernameBox::updateLinkText() {
 	QString uname = getName();
-	_link->setText(st::boxTextFont->elided(Core::App().createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
+	_link->setText(st::boxTextFont->elided(_session->createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

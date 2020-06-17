@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "api/api_common.h"
 #include "api/api_chat_filters.h"
+#include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h" // GetErrorTextForSending.
@@ -49,7 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
-#include "facades.h"
+#include "facades.h" // Adaptive::ThreeColumn
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
@@ -1011,7 +1012,8 @@ void PeerMenuAddChannelMembers(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel) {
 	if (!channel->isMegagroup()
-		&& channel->membersCount() >= Global::ChatSizeMax()) {
+		&& (channel->membersCount()
+			>= channel->session().serverConfig().chatSizeMax)) {
 		Ui::show(
 			Box<MaxInviteBox>(channel),
 			Ui::LayerOption::KeepOther);

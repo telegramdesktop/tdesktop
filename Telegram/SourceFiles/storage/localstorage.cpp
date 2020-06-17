@@ -18,8 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "core/update_checker.h"
 #include "media/audio/media_audio.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "core/application.h"
+#include "main/main_accounts.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "facades.h"
@@ -52,18 +55,6 @@ QString _basePath, _userBasePath, _userDbPath;
 bool _started = false;
 TaskQueue *_localLoader = nullptr;
 
-bool _working() {
-	return !_basePath.isEmpty();
-}
-
-bool CheckStreamStatus(QDataStream &stream) {
-	if (stream.status() != QDataStream::Ok) {
-		LOG(("Bad data stream status: %1").arg(stream.status()));
-		return false;
-	}
-	return true;
-}
-
 QByteArray _settingsSalt;
 
 auto OldKey = MTP::AuthKeyPtr();
@@ -87,8 +78,44 @@ enum class WriteMapWhen {
 	Soon,
 };
 
+bool _working() {
+	return !_basePath.isEmpty();
+}
+
+bool CheckStreamStatus(QDataStream &stream) {
+	if (stream.status() != QDataStream::Ok) {
+		LOG(("Bad data stream status: %1").arg(stream.status()));
+		return false;
+	}
+	return true;
+}
+
+[[nodiscard]] const MTP::Config &LookupFallbackConfig() {
+	static const auto lookupConfig = [](not_null<Main::Account*> account) {
+		const auto mtp = &account->mtp();
+		return (mtp->environment() == MTP::Environment::Production)
+			? &mtp->config()
+			: nullptr;
+	};
+	const auto &app = Core::App();
+	const auto &accounts = app.accounts();
+	const auto production = MTP::Environment::Production;
+	if (!accounts.started()) {
+		return app.fallbackProductionConfig();
+	}
+	if (const auto result = lookupConfig(&app.activeAccount())) {
+		return *result;
+	}
+	for (const auto &[_, account] : accounts.list()) {
+		if (const auto result = lookupConfig(account.get())) {
+			return *result;
+		}
+	}
+	return app.fallbackProductionConfig();
+}
+
 void applyReadContext(ReadSettingsContext &&context) {
-	Core::App().dcOptions()->addFromOther(std::move(context.dcOptions));
+	ApplyReadFallbackConfig(context);
 
 	_themeKeyLegacy = context.themeKeyLegacy;
 	_themeKeyDay = context.themeKeyDay;
@@ -195,7 +222,10 @@ void _readOldUserSettingsFields(
 
 bool _readOldUserSettings(bool remove, ReadSettingsContext &context) {
 	bool result = false;
-	QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
+	// We dropped old test authorizations when migrated to multi auth.
+	//const auto testPrefix = (cTestMode() ? qsl("_test") : QString());
+	const auto testPrefix = QString();
+	QFile file(cWorkingDir() + cDataFile() + testPrefix + qsl("_config"));
 	if (file.open(QIODevice::ReadOnly)) {
 		LOG(("App Info: reading old user config..."));
 		qint32 version = 0;
@@ -273,7 +303,9 @@ void _readOldMtpDataFields(
 
 bool _readOldMtpData(bool remove, ReadSettingsContext &context) {
 	bool result = false;
-	const auto testPostfix = (cTestMode() ? qsl("_test") : QString());
+	// We dropped old test authorizations when migrated to multi auth.
+	//const auto testPostfix = (cTestMode() ? qsl("_test") : QString());
+	const auto testPostfix = QString();
 	QFile file(cWorkingDir() + cDataFile() + testPostfix);
 	if (file.open(QIODevice::ReadOnly)) {
 		LOG(("App Info: reading old keys..."));
@@ -306,7 +338,10 @@ void start() {
 
 	ReadSettingsContext context;
 	FileReadDescriptor settingsData;
-	if (!ReadFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), _basePath)) {
+	// We dropped old test authorizations when migrated to multi auth.
+	//const auto name = cTestMode() ? qsl("settings_test") : qsl("settings");
+	const auto name = u"settings"_q;
+	if (!ReadFile(settingsData, name, _basePath)) {
 		_readOldSettings(true, context);
 		_readOldUserSettings(false, context); // needed further in _readUserSettings
 		_readOldMtpData(false, context); // needed further in _readMtpData
@@ -367,9 +402,10 @@ void writeSettings() {
 
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
-	FileWriteDescriptor settings(
-		cTestMode() ? qsl("settings_test") : qsl("settings"),
-		_basePath);
+	// We dropped old test authorizations when migrated to multi auth.
+	//const auto name = cTestMode() ? qsl("settings_test") : qsl("settings");
+	const auto name = u"settings"_q;
+	FileWriteDescriptor settings(name, _basePath);
 	if (_settingsSalt.isEmpty() || !SettingsKey) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
 		memset_rand(_settingsSalt.data(), _settingsSalt.size());
@@ -377,13 +413,12 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
-	const auto dcOptionsSerialized = Core::App().dcOptions()->serialize();
+	const auto configSerialized = LookupFallbackConfig().serialize();
 	const auto applicationSettings = Core::App().settings().serialize();
 
-	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
-	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
+	quint32 size = 9 * (sizeof(quint32) + sizeof(qint32));
+	size += sizeof(quint32) + Serialize::bytearraySize(configSerialized);
 	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
-	size += sizeof(quint32) + Serialize::stringSize(Global::TxtDomainString());
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 
 	auto &proxies = Global::RefProxiesList();
@@ -407,11 +442,6 @@ void writeSettings() {
 	size += sizeof(quint32) + sizeof(qint32) * 8;
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiChatSizeMax) << qint32(Global::ChatSizeMax());
-	data.stream << quint32(dbiMegagroupSizeMax) << qint32(Global::MegagroupSizeMax());
-	data.stream << quint32(dbiSavedGifsLimit) << qint32(Global::SavedGifsLimit());
-	data.stream << quint32(dbiStickersRecentLimit) << qint32(Global::StickersRecentLimit());
-	data.stream << quint32(dbiStickersFavedLimit) << qint32(Global::StickersFavedLimit());
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -420,9 +450,8 @@ void writeSettings() {
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScalePercent) << qint32(cConfigScale());
-	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
+	data.stream << quint32(dbiFallbackProductionConfig) << configSerialized;
 	data.stream << quint32(dbiApplicationSettings) << applicationSettings;
-	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
 

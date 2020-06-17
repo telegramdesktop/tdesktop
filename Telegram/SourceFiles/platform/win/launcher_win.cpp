@@ -68,9 +68,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cStartInTray()) {
 		pushArgument(qsl("-startintray"));
 	}
-	if (cTestMode()) {
-		pushArgument(qsl("-testmode"));
-	}
 	if (cUseFreeType()) {
 		pushArgument(qsl("-freetype"));
 	}

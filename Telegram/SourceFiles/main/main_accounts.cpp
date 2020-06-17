@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_accounts.h"
 #include "storage/localstorage.h"
 #include "facades.h"
@@ -41,6 +43,12 @@ Storage::StartResult Accounts::start(const QByteArray &passcode) {
 		Assert(!started());
 	}
 	return result;
+}
+
+void Accounts::finish() {
+	_activeIndex = -1;
+	_active = nullptr;
+	base::take(_accounts);
 }
 
 void Accounts::accountAddedInStorage(
@@ -115,7 +123,28 @@ rpl::producer<Session*> Accounts::activeSessionValue() const {
 	return rpl::single(current) | rpl::then(_activeSessions.events());
 }
 
-int Accounts::add() {
+int Accounts::add(MTP::Environment environment) {
+	Expects(_active.current() != nullptr);
+
+	static const auto cloneConfig = [](const MTP::Config &config) {
+		return std::make_unique<MTP::Config>(config);
+	};
+	static const auto accountConfig = [](not_null<Account*> account) {
+		return cloneConfig(account->mtp().config());
+	};
+	auto config = [&] {
+		if (_active.current()->mtp().environment() == environment) {
+			return accountConfig(_active.current());
+		}
+		for (const auto &[index, account] : list()) {
+			if (account->mtp().environment() == environment) {
+				return accountConfig(account.get());
+			}
+		}
+		return (environment == MTP::Environment::Production)
+			? cloneConfig(Core::App().fallbackProductionConfig())
+			: std::make_unique<MTP::Config>(environment);
+	}();
 	auto index = 0;
 	while (_accounts.contains(index)) {
 		++index;
@@ -124,17 +153,16 @@ int Accounts::add() {
 		index,
 		std::make_unique<Account>(_dataName, index)
 	).first->second.get();
-	_local->startAdded(account);
+	_local->startAdded(account, std::move(config));
 	watchSession(account);
 	return index;
 }
 
 void Accounts::watchSession(not_null<Account*> account) {
-	account->startMtp();
 	account->sessionChanges(
 	) | rpl::filter([=](Session *session) {
 		return !session; // removeRedundantAccounts may remove passcode lock.
-	}) | rpl::start_with_next([=](Session *session) {
+	}) | rpl::start_with_next([=] {
 		if (account == _active.current()) {
 			activateAuthedAccount();
 		}
@@ -183,12 +211,28 @@ void Accounts::removeRedundantAccounts() {
 			++i;
 			continue;
 		}
+		checkForLastProductionConfig(i->second.get());
 		i = _accounts.erase(i);
 	}
 
 	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
 		scheduleWriteAccounts();
 	}
+}
+
+void Accounts::checkForLastProductionConfig(
+		not_null<Main::Account*> account) {
+	const auto mtp = &account->mtp();
+	if (mtp->environment() != MTP::Environment::Production) {
+		return;
+	}
+	for (const auto &[index, other] : _accounts) {
+		if (other.get() != account
+			&& other->mtp().environment() == MTP::Environment::Production) {
+			return;
+		}
+	}
+	Core::App().refreshFallbackProductionConfig(mtp->config());
 }
 
 void Accounts::activate(int index) {

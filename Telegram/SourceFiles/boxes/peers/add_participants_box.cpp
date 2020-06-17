@@ -20,11 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerHistory
 #include "app.h"
 
 namespace {
@@ -87,10 +88,11 @@ void AddParticipantsBoxController::subscribeToMigration() {
 }
 
 void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	const auto &serverConfig = _peer->session().serverConfig();
 	auto count = fullCount();
 	auto limit = _peer && (_peer->isChat() || _peer->isMegagroup())
-		? Global::MegagroupSizeMax()
-		: Global::ChatSizeMax();
+		? serverConfig.megagroupSizeMax
+		: serverConfig.chatSizeMax;
 	if (count < limit || row->checked()) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
@@ -100,8 +102,8 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 				Box<MaxInviteBox>(_peer->asChannel()),
 				Ui::LayerOption::KeepOther);
 		}
-	} else if (count >= Global::ChatSizeMax()
-		&& count < Global::MegagroupSizeMax()) {
+	} else if (count >= serverConfig.chatSizeMax
+		&& count < serverConfig.megagroupSizeMax) {
 		Ui::show(
 			Box<InformBox>(tr::lng_profile_add_more_after_create(tr::now)),
 			Ui::LayerOption::KeepOther);
@@ -166,7 +168,9 @@ void AddParticipantsBoxController::updateTitle() {
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup())
 		? QString()
-		: qsl("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
+		: qsl("%1 / %2"
+		).arg(fullCount()
+		).arg(session().serverConfig().megagroupSizeMax);
 	delegate()->peerListSetTitle(tr::lng_profile_add_participant());
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }
@@ -276,7 +280,7 @@ AddSpecialBoxController::AddSpecialBoxController(
 	peer,
 	&_additional))
 , _peer(peer)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _role(role)
 , _additional(peer, Role::Members)
 , _adminDoneCallback(std::move(adminDoneCallback))
@@ -829,7 +833,7 @@ AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<ParticipantsAdditionalData*> additional)
 : _peer(peer)
 , _additional(additional)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _timer([=] { searchOnServer(); }) {
 	subscribeToMigration();
 }

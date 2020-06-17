@@ -63,7 +63,9 @@ public:
 
 	void activate();
 	void reActivate();
-	void updateIsActive(int timeout);
+	void updateIsActiveFocus();
+	void updateIsActiveBlur();
+	void updateIsActive();
 	void minimize();
 	void close();
 
@@ -81,6 +83,7 @@ private:
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
 	std::unique_ptr<SessionController> _sessionController;
+	base::Timer _isActiveTimer;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;

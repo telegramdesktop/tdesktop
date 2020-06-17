@@ -166,41 +166,6 @@ DeclareRefVar(base::Observable<void>, SongVolumeChanged);
 DeclareVar(float64, VideoVolume);
 DeclareRefVar(base::Observable<void>, VideoVolumeChanged);
 
-// config
-DeclareVar(int32, ChatSizeMax);
-DeclareVar(int32, MegagroupSizeMax);
-DeclareVar(int32, ForwardedCountMax);
-DeclareVar(int32, OnlineUpdatePeriod);
-DeclareVar(int32, OfflineBlurTimeout);
-DeclareVar(int32, OfflineIdleTimeout);
-DeclareVar(int32, OnlineFocusTimeout); // not from config
-DeclareVar(int32, OnlineCloudTimeout);
-DeclareVar(int32, NotifyCloudDelay);
-DeclareVar(int32, NotifyDefaultDelay);
-DeclareVar(int32, PushChatPeriod);
-DeclareVar(int32, PushChatLimit);
-DeclareVar(int32, SavedGifsLimit);
-DeclareVar(int32, EditTimeLimit);
-DeclareVar(int32, RevokeTimeLimit);
-DeclareVar(int32, RevokePrivateTimeLimit);
-DeclareVar(bool, RevokePrivateInbox);
-DeclareVar(int32, StickersRecentLimit);
-DeclareVar(int32, StickersFavedLimit);
-DeclareVar(int32, PinnedDialogsCountMax);
-DeclareVar(int32, PinnedDialogsInFolderMax);
-DeclareVar(QString, InternalLinksDomain);
-DeclareVar(int32, ChannelsReadMediaPeriod);
-DeclareVar(int32, CallReceiveTimeoutMs);
-DeclareVar(int32, CallRingTimeoutMs);
-DeclareVar(int32, CallConnectTimeoutMs);
-DeclareVar(int32, CallPacketTimeoutMs);
-DeclareVar(int32, WebFileDcId);
-DeclareVar(QString, TxtDomainString);
-DeclareVar(bool, PhoneCallsEnabled);
-DeclareVar(bool, BlockedMode);
-DeclareVar(int32, CaptionLengthMax);
-DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
-
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

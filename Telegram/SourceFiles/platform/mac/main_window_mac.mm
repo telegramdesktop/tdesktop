@@ -821,7 +821,7 @@ void MainWindow::updateGlobalMenuHook() {
 	if (_private->_touchBar) {
 		[_private->_touchBar showInputFieldItem:showTouchBarItem];
 	}
-	App::wnd()->updateIsActive(0);
+	App::wnd()->updateIsActive();
 	const auto logged = account().sessionExists();
 	const auto locked = Core::App().locked();
 	const auto inactive = !logged || locked;

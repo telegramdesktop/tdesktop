@@ -77,7 +77,7 @@ private:
 
 SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 

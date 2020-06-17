@@ -146,7 +146,7 @@ void PeerListRowWithLink::paintAction(
 PeerListGlobalSearchController::PeerListGlobalSearchController(
 	not_null<Window::SessionNavigation*> navigation)
 : _navigation(navigation)
-, _api(_navigation->session().mtp()) {
+, _api(&_navigation->session().mtp()) {
 	_timer.setCallback([this] { searchOnServer(); });
 }
 

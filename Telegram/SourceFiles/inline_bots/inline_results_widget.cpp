@@ -746,7 +746,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _api(_controller->session().mtp())
+, _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {

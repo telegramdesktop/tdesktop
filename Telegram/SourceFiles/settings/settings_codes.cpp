@@ -13,13 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "main/main_accounts.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "core/application.h"
 #include "mtproto/mtp_instance.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
 #include "window/themes/window_theme.h"
@@ -48,12 +49,6 @@ auto GenerateCodes() {
 	});
 	codes.emplace(qsl("viewlogs"), [](SessionController *window) {
 		File::ShowInFolder(cWorkingDir() + "log.txt");
-	});
-	codes.emplace(qsl("testmode"), [](SessionController *window) {
-		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
-		Ui::show(Box<ConfirmBox>(text, [] {
-			Core::App().switchTestMode();
-		}));
 	});
 	if (!Core::UpdaterDisabled()) {
 		codes.emplace(qsl("testupdate"), [](SessionController *window) {
@@ -112,10 +107,25 @@ auto GenerateCodes() {
 		}));
 	});
 	codes.emplace(qsl("endpoints"), [](SessionController *window) {
-		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+		if (!Core::App().accounts().started()) {
+			return;
+		}
+		const auto weak = window
+			? base::make_weak(&window->session().account())
+			: nullptr;
+		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [weak](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
-				if (!Core::App().dcOptions()->loadFromFile(result.paths.front())) {
-					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
+				const auto loadFor = [&](not_null<Main::Account*> account) {
+					if (!account->mtp().dcOptions().loadFromFile(result.paths.front())) {
+						Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
+					}
+				};
+				if (const auto strong = weak.get()) {
+					loadFor(strong);
+				} else {
+					for (const auto &[index, account] : Core::App().accounts().list()) {
+						loadFor(account.get());
+					}
 				}
 			}
 		});
@@ -130,11 +140,26 @@ auto GenerateCodes() {
 		crl::on_main(&Core::App(), [=] {
 			if (window
 				&& !Core::App().locked()
+				&& Core::App().accounts().started()
 				&& Core::App().accounts().list().size() < 3) {
-				Core::App().accounts().activate(Core::App().accounts().add());
+				Core::App().accounts().activate(
+					Core::App().accounts().add(MTP::Environment::Production));
 			}
 		});
 	});
+
+	codes.emplace(qsl("acctest"), [](SessionController *window) {
+		crl::on_main(&Core::App(), [=] {
+			if (window
+				&& !Core::App().locked()
+				&& Core::App().accounts().started()
+				&& Core::App().accounts().list().size() < 3) {
+				Core::App().accounts().activate(
+					Core::App().accounts().add(MTP::Environment::Test));
+			}
+		});
+	});
+
 	for (auto i = 0; i != 3; ++i) {
 		codes.emplace(qsl("account%1").arg(i + 1), [=](
 				SessionController *window) {

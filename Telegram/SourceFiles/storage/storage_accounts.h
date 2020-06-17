@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace MTP {
+class Config;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 } // namespace MTP
@@ -30,7 +31,9 @@ public:
 	~Accounts();
 
 	[[nodiscard]] StartResult start(const QByteArray &passcode);
-	void startAdded(not_null<Main::Account*> account);
+	void startAdded(
+		not_null<Main::Account*> account,
+		std::unique_ptr<MTP::Config> config);
 	void writeAccounts();
 	void startFromScratch();
 

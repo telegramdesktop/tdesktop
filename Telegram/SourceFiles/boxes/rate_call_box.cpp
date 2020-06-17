@@ -31,7 +31,7 @@ RateCallBox::RateCallBox(
 	uint64 callId,
 	uint64 callAccessHash)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _callId(callId)
 , _callAccessHash(callAccessHash) {
 }

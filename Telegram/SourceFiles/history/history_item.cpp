@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "mtproto/mtproto_config.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -42,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 
@@ -289,7 +289,8 @@ void HistoryItem::finishEditionToEmpty() {
 bool HistoryItem::hasUnreadMediaFlag() const {
 	if (_history->peer->isChannel()) {
 		const auto passed = base::unixtime::now() - date();
-		if (passed >= Global::ChannelsReadMediaPeriod()) {
+		const auto &config = _history->session().serverConfig();
+		if (passed >= config.channelsReadMediaPeriod) {
 			return false;
 		}
 	}
@@ -566,12 +567,13 @@ bool HistoryItem::canDelete() const {
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	const auto peer = history()->peer;
+	const auto &config = history()->session().serverConfig();
 	const auto messageToMyself = peer->isSelf();
 	const auto messageTooOld = messageToMyself
 		? false
 		: peer->isUser()
-		? (now - date() >= Global::RevokePrivateTimeLimit())
-		: (now - date() >= Global::RevokeTimeLimit());
+		? (now - date() >= config.revokePrivateTimeLimit)
+		: (now - date() >= config.revokeTimeLimit);
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
@@ -599,7 +601,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 				return false;
 			}
 		} else if (peer->isUser()) {
-			return Global::RevokePrivateInbox();
+			return config.revokePrivateInbox;
 		} else {
 			return false;
 		}

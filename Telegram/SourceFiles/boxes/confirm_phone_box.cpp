@@ -225,7 +225,7 @@ ConfirmPhoneBox::ConfirmPhoneBox(
 	const QString &phone,
 	const QString &hash)
 : _session(session)
-, _api(session->mtp())
+, _api(&session->mtp())
 , _phone(phone)
 , _hash(hash)
 , _call([this] { sendCall(); }, [this] { update(); }) {

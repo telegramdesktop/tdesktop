@@ -11,6 +11,7 @@
 
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "api/api_sending.h"
 #include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
@@ -39,7 +40,6 @@
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "ui/widgets/input_fields.h"
-#include "facades.h"
 #include "app.h"
 #include "window/window_controller.h"
 
@@ -1233,7 +1233,8 @@ void AppendEmojiPacks(
 		_mainPinnedButtons = [[NSMutableArray alloc] init];
 		NSStackView *stackView = [[NSStackView alloc] init];
 
-		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
+		const auto &config = _session->serverConfig();
+		for (auto i = kArchiveId; i <= config.pinnedDialogsCountMax.current(); i++) {
 			PinnedDialogButton *button =
 				[[[PinnedDialogButton alloc]
 					init:i

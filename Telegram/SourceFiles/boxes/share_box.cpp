@@ -159,7 +159,7 @@ ShareBox::ShareBox(
 	SubmitCallback &&submitCallback,
 	FilterCallback &&filterCallback)
 : _navigation(navigation)
-, _api(_navigation->session().mtp())
+, _api(&_navigation->session().mtp())
 , _copyCallback(std::move(copyCallback))
 , _submitCallback(std::move(submitCallback))
 , _filterCallback(std::move(filterCallback))

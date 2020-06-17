@@ -211,9 +211,9 @@ void CodeWidget::finished() {
 }
 
 void CodeWidget::cancelled() {
-	api()->request(base::take(_sentRequest)).cancel();
-	api()->request(base::take(_callRequestId)).cancel();
-	api()->request(MTPauth_CancelCode(
+	api().request(base::take(_sentRequest)).cancel();
+	api().request(base::take(_callRequestId)).cancel();
+	api().request(MTPauth_CancelCode(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash)
 	)).send();
@@ -224,12 +224,12 @@ void CodeWidget::stopCheck() {
 }
 
 void CodeWidget::checkRequest() {
-	auto status = api()->instance()->state(_sentRequest);
+	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
 			if (_sentRequest) {
-				api()->request(base::take(_sentRequest)).cancel();
+				api().request(base::take(_sentRequest)).cancel();
 				_sentCode.clear();
 			}
 		}
@@ -282,7 +282,7 @@ void CodeWidget::codeSubmitFail(const RPCError &error) {
 		showCodeError(tr::lng_bad_code());
 	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
 		_checkRequestTimer.callEach(1000);
-		_sentRequest = api()->request(MTPaccount_GetPassword(
+		_sentRequest = api().request(MTPaccount_GetPassword(
 		)).done([=](const MTPaccount_Password &result) {
 			gotPassword(result);
 		}).fail([=](const RPCError &error) {
@@ -305,7 +305,7 @@ void CodeWidget::sendCall() {
 		if (--_callTimeout <= 0) {
 			_callStatus = CallStatus::Calling;
 			_callTimer.cancel();
-			_callRequestId = api()->request(MTPauth_ResendCode(
+			_callRequestId = api().request(MTPauth_ResendCode(
 				MTP_string(getData()->phone),
 				MTP_bytes(getData()->phoneHash)
 			)).done([=](const MTPauth_SentCode &result) {
@@ -383,7 +383,7 @@ void CodeWidget::submit() {
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
 	getData()->pwdNotEmptyPassport = false;
-	_sentRequest = api()->request(MTPauth_SignIn(
+	_sentRequest = api().request(MTPauth_SignIn(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash),
 		MTP_string(_sentCode)
@@ -398,7 +398,7 @@ void CodeWidget::noTelegramCode() {
 	if (_noTelegramCodeRequestId) {
 		return;
 	}
-	_noTelegramCodeRequestId = api()->request(MTPauth_ResendCode(
+	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash)
 	)).done([=](const MTPauth_SentCode &result) {

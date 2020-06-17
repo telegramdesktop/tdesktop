@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_auth_key.h"
+#include "base/bytes.h"
+
+#include <QtCore/QDataStream>
 
 namespace Serialize {
 
@@ -91,26 +94,6 @@ inline int dateTimeSize() {
 	return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
 }
 
-int storageImageLocationSize(const StorageImageLocation &location);
-void writeStorageImageLocation(
-	QDataStream &stream,
-	const StorageImageLocation &location);
-
-// NB! This method can return StorageFileLocation with Type::Generic!
-// The reader should discard it or convert to one of the valid modern types.
-std::optional<StorageImageLocation> readStorageImageLocation(
-	int streamAppVersion,
-	QDataStream &stream);
-
-int imageLocationSize(const ImageLocation &location);
-void writeImageLocation(QDataStream &stream, const ImageLocation &location);
-
-// NB! This method can return StorageFileLocation with Type::Generic!
-// The reader should discard it or convert to one of the valid modern types.
-std::optional<ImageLocation> readImageLocation(
-	int streamAppVersion,
-	QDataStream &stream);
-
 template <typename T>
 inline T read(QDataStream &stream) {
 	auto result = T();
@@ -124,13 +107,5 @@ inline MTP::AuthKey::Data read<MTP::AuthKey::Data>(QDataStream &stream) {
 	stream.readRawData(reinterpret_cast<char*>(result.data()), result.size());
 	return result;
 }
-
-uint32 peerSize(not_null<PeerData*> peer);
-void writePeer(QDataStream &stream, PeerData *peer);
-PeerData *readPeer(
-	not_null<Main::Session*> session,
-	int streamAppVersion,
-	QDataStream &stream);
-QString peekUserPhone(int streamAppVersion, QDataStream &stream);
 
 } // namespace Serialize

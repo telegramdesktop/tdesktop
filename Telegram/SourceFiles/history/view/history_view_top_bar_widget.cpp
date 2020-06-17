@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
 #include "ui/widgets/buttons.h"
@@ -129,9 +130,10 @@ TopBarWidget::TopBarWidget(
 		}
 	}, lifetime());
 
-	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
+	session().serverConfig().phoneCallsEnabled.changes(
+	) | rpl::start_with_next([=] {
 		updateControlsVisibility();
-	});
+	}, lifetime());
 
 	rpl::combine(
 		session().settings().thirdSectionInfoEnabledValue(),
@@ -156,8 +158,8 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
-	const auto mtp = _controller->session().mtp()->dcstate();
-	if (mtp == MTP::ConnectedState) {
+	const auto state = _controller->session().mtp().dcstate();
+	if (state == MTP::ConnectedState) {
 		if (_connecting) {
 			_connecting = nullptr;
 			update();
@@ -640,7 +642,8 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.peer()) {
 			if (const auto user = peer->asUser()) {
-				return Global::PhoneCallsEnabled() && user->hasCalls();
+				return session().serverConfig().phoneCallsEnabled.current()
+					&& user->hasCalls();
 			}
 		}
 		return false;
@@ -663,7 +666,9 @@ void TopBarWidget::updateMembersShowArea() {
 			return chat->amIn();
 		}
 		if (auto megagroup = peer->asMegagroup()) {
-			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
+			return megagroup->canViewMembers()
+				&& (megagroup->membersCount()
+					< megagroup->session().serverConfig().chatSizeMax);
 		}
 		return false;
 	}();
@@ -846,7 +851,10 @@ void TopBarWidget::updateOnlineDisplay() {
 			}
 		}
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
-		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
+		if (channel->isMegagroup()
+			&& (channel->membersCount() > 0)
+			&& (channel->membersCount()
+				<= channel->session().serverConfig().chatSizeMax)) {
 			if (channel->lastParticipantsRequestNeeded()) {
 				session().api().requestLastParticipants(channel);
 			}

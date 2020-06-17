@@ -10,10 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QTcpSocket>
 
+#include <range/v3/all.hpp>
+
 #include <rpl/rpl.h>
 #include <crl/crl.h>
 
 #include "base/bytes.h"
+#include "base/flat_map.h"
+#include "base/flat_set.h"
 
 #include "logs.h"
 #include "scheme.h"

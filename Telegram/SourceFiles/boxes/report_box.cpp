@@ -28,12 +28,12 @@ constexpr auto kReportReasonLengthMax = 200;
 
 ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer)
 : _peer(peer)
-, _api(_peer->session().mtp()) {
+, _api(&_peer->session().mtp()) {
 }
 
 ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids)
 : _peer(peer)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _ids(std::move(ids)) {
 }
 

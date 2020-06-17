@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "core/update_checker.h"
 #include "core/application.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "base/platform/base_platform_info.h"
@@ -64,14 +64,11 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	getData()->country = Platform::SystemCountry();
 
 	_account->mtpValue(
-	) | rpl::start_with_next([=](MTP::Instance *instance) {
-		if (instance) {
-			_api.emplace(instance);
-			createLanguageLink();
-		} else {
-			_api.reset();
-		}
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		createLanguageLink();
 	}, lifetime());
+
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
 		createLanguageLink();
 	});
@@ -141,9 +138,9 @@ void Widget::handleUpdates(const MTPUpdates &updates) {
 
 void Widget::handleUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateDcOptions &data) {
-		Core::App().dcOptions()->addFromList(data.vdc_options());
+		_account->mtp().dcOptions().addFromList(data.vdc_options());
 	}, [&](const MTPDupdateConfig &data) {
-		_account->mtp()->requestConfig();
+		_account->mtp().requestConfig();
 	}, [&](const MTPDupdateServiceNotification &data) {
 		const auto text = TextWithEntities{
 			qs(data.vmessage()),

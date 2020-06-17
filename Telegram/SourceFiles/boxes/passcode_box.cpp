@@ -50,7 +50,7 @@ PasscodeBox::PasscodeBox(
 	not_null<Main::Session*> session,
 	bool turningOff)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
@@ -66,7 +66,7 @@ PasscodeBox::PasscodeBox(
 	not_null<Main::Session*> session,
 	const CloudFields &fields)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _turningOff(fields.turningOff)
 , _cloudPwd(true)
 , _cloudFields(fields)
@@ -929,7 +929,7 @@ RecoverBox::RecoverBox(
 	not_null<Main::Session*> session,
 	const QString &pattern,
 	bool notEmptyPassport)
-: _api(session->mtp())
+: _api(&session->mtp())
 , _pattern(st::normalFont->elided(tr::lng_signin_recover_hint(tr::now, lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
 , _notEmptyPassport(notEmptyPassport)
 , _recoverCode(this, st::defaultInputField, tr::lng_signin_code()) {

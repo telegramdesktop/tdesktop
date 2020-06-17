@@ -232,7 +232,7 @@ ListController::ListController(
 , _poll(poll)
 , _context(context)
 , _option(option)
-, _api(_session->mtp()) {
+, _api(&_session->mtp()) {
 	const auto i = ranges::find(poll->answers, option, &PollAnswer::option);
 	Assert(i != poll->answers.end());
 	_fullCount = i->votes;

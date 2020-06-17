@@ -133,10 +133,10 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 rpl::producer<QString> LinkValue(not_null<PeerData*> peer) {
 	return PlainUsernameValue(
 		peer
-	) | rpl::map([](QString &&username) {
+	) | rpl::map([=](QString &&username) {
 		return username.isEmpty()
 			? QString()
-			: Core::App().createInternalLinkFull(username);
+			: peer->session().createInternalLinkFull(username);
 	});
 }
 

@@ -225,10 +225,9 @@ UsernameInput::UsernameInput(
 	const style::InputField &st,
 	rpl::producer<QString> placeholder,
 	const QString &val,
-	bool isLink)
+	const QString &linkPlaceholder)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
-	setLinkPlaceholder(
-		isLink ? Core::App().createInternalLink(QString()) : QString());
+	setLinkPlaceholder(linkPlaceholder);
 }
 
 void UsernameInput::setLinkPlaceholder(const QString &placeholder) {

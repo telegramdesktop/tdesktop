@@ -35,7 +35,7 @@ public:
 	[[nodiscard]] bool isBlurred() const;
 	[[nodiscard]] int patternIntensity() const;
 	[[nodiscard]] bool hasShareUrl() const;
-	[[nodiscard]] QString shareUrl() const;
+	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 
 	void loadDocument() const;
 	void loadDocumentThumbnail() const;

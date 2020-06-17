@@ -73,7 +73,7 @@ public:
 		const style::InputField &st,
 		rpl::producer<QString> placeholder,
 		const QString &val,
-		bool isLink);
+		const QString &linkPlaceholder);
 
 	void setLinkPlaceholder(const QString &placeholder);
 

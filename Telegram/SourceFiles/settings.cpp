@@ -24,7 +24,6 @@ uint64 gAlphaVersion = AppAlphaVersion;
 uint64 gRealAlphaVersion = AppAlphaVersion;
 QByteArray gAlphaPrivateKey;
 
-bool gTestMode = false;
 bool gManyInstance = false;
 QString gKeyFile;
 QString gWorkingDir, gExeDir, gExeName;

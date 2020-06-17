@@ -39,7 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_accounts.h"
 #include "main/main_session.h"
 #include "media/view/media_view_overlay_widget.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
+#include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_track.h"
@@ -95,7 +96,8 @@ Application::Application(not_null<Launcher*> launcher)
 , _private(std::make_unique<Private>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
-, _dcOptions(std::make_unique<MTP::DcOptions>())
+, _fallbackProductionConfig(
+	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _accounts(std::make_unique<Main::Accounts>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
@@ -122,12 +124,8 @@ Application::Application(not_null<Launcher*> launcher)
 	}, _lifetime);
 
 	accounts().activeValue(
-	) | rpl::map([=](Main::Account *account) {
-		return account ? account->mtpValue() : rpl::never<MTP::Instance*>();
-	}) | rpl::flatten_latest(
-	) | rpl::filter([=](MTP::Instance *instance) {
-		return instance != nullptr;
-	}) | rpl::start_with_next([=] {
+	) | rpl::filter(rpl::mappers::_1 != nullptr
+	) | rpl::take(1) | rpl::start_with_next([=] {
 		if (_window) {
 			// Global::DesktopNotify is used in updateTrayMenu.
 			// This should be called when user settings are read.
@@ -149,14 +147,7 @@ Application::~Application() {
 	}
 
 	unlockTerms();
-	for (const auto &[index, account] : accounts().list()) {
-		if (account->sessionExists()) {
-			account->session().saveSettingsNowIfNeeded();
-		}
-		// Some MTP requests can be cancelled from data clearing.
-		account->destroySession();
-		account->clearMtp();
-	}
+	accounts().finish();
 
 	Local::finish();
 
@@ -269,7 +260,7 @@ void Application::run() {
 		_window->showSettings();
 	}
 
-	_window->updateIsActive(Global::OnlineFocusTimeout());
+	_window->updateIsActiveFocus();
 
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
@@ -399,6 +390,30 @@ void Application::saveSettingsDelayed(crl::time delay) {
 	_saveSettingsTimer.callOnce(delay);
 }
 
+MTP::Config &Application::fallbackProductionConfig() const {
+	if (!_fallbackProductionConfig) {
+		_fallbackProductionConfig = std::make_unique<MTP::Config>(
+			MTP::Environment::Production);
+	}
+	return *_fallbackProductionConfig;
+}
+
+void Application::refreshFallbackProductionConfig(
+		const MTP::Config &config) {
+	if (config.environment() == MTP::Environment::Production) {
+		_fallbackProductionConfig = std::make_unique<MTP::Config>(config);
+	}
+}
+
+void Application::constructFallbackProductionConfig(
+		const QByteArray &serialized) {
+	if (auto config = MTP::Config::FromSerialized(serialized)) {
+		if (config->environment() == MTP::Environment::Production) {
+			_fallbackProductionConfig = std::move(config);
+		}
+	}
+}
+
 void Application::setCurrentProxy(
 		const MTP::ProxyData &proxy,
 		MTP::ProxyData::Settings settings) {
@@ -436,18 +451,6 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-
-	const auto writing = _lifetime.make_state<bool>(false);
-	_dcOptions->changed(
-	) | rpl::filter([=] {
-		return !*writing;
-	}) | rpl::start_with_next([=] {
-		*writing = true;
-		Ui::PostponeCall(this, [=] {
-			Local::writeSettings();
-		});
-	}, _lifetime);
-
 	_saveSettingsTimer.setCallback([=] { Local::writeSettings(); });
 }
 
@@ -498,13 +501,13 @@ void Application::stateChanged(Qt::ApplicationState state) {
 void Application::handleAppActivated() {
 	checkLocalTime();
 	if (_window) {
-		_window->updateIsActive(Global::OnlineFocusTimeout());
+		_window->updateIsActiveFocus();
 	}
 }
 
 void Application::handleAppDeactivated() {
 	if (_window) {
-		_window->updateIsActive(Global::OfflineBlurTimeout());
+		_window->updateIsActiveBlur();
 	}
 	Ui::Tooltip::Hide();
 }
@@ -528,21 +531,6 @@ void Application::switchDebugMode() {
 		DEBUG_LOG(("Debug logs started."));
 		Ui::hideLayer();
 	}
-}
-
-void Application::switchTestMode() {
-	if (cTestMode()) {
-		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();
-		cSetTestMode(false);
-	} else {
-		QFile f(cWorkingDir() + qsl("tdata/withtestmode"));
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
-		cSetTestMode(true);
-	}
-	App::restart();
 }
 
 void Application::switchFreeType() {
@@ -611,45 +599,6 @@ bool Application::canApplyLangPackWithoutRestart() const {
 		}
 	}
 	return true;
-}
-
-void Application::setInternalLinkDomain(const QString &domain) const {
-	// This domain should start with 'http[s]://' and end with '/'.
-	// Like 'https://telegram.me/' or 'https://t.me/'.
-	auto validate = [](const auto &domain) {
-		const auto prefixes = {
-			qstr("https://"),
-			qstr("http://"),
-		};
-		for (const auto &prefix : prefixes) {
-			if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
-				return domain.endsWith('/');
-			}
-		}
-		return false;
-	};
-	if (validate(domain) && domain != Global::InternalLinksDomain()) {
-		Global::SetInternalLinksDomain(domain);
-	}
-}
-
-QString Application::createInternalLink(const QString &query) const {
-	auto result = createInternalLinkFull(query);
-	auto prefixes = {
-		qstr("https://"),
-		qstr("http://"),
-	};
-	for (auto &prefix : prefixes) {
-		if (result.startsWith(prefix, Qt::CaseInsensitive)) {
-			return result.mid(prefix.size());
-		}
-	}
-	LOG(("Warning: bad internal url '%1'").arg(result));
-	return result;
-}
-
-QString Application::createInternalLinkFull(const QString &query) const {
-	return Global::InternalLinksDomain() + query;
 }
 
 void Application::checkStartUrl() {

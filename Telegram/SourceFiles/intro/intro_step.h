@@ -45,7 +45,7 @@ public:
 
 	// It should not be called in StartWidget, in other steps it should be
 	// present and not changing.
-	[[nodiscard]] not_null<MTP::Sender*> api() const;
+	[[nodiscard]] MTP::Sender &api() const;
 	void apiClear();
 
 	virtual void finishInit() {

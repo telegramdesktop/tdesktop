@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/mtproto_dh_utils.h"
+#include "mtproto/mtproto_config.h"
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
@@ -96,7 +97,7 @@ Call::Call(
 	Type type)
 : _delegate(delegate)
 , _user(user)
-, _api(_user->session().mtp())
+, _api(&_user->session().mtp())
 , _type(type) {
 	_discardByTimeoutTimer.setCallback([this] { hangup(); });
 
@@ -193,7 +194,8 @@ void Call::startOutgoing() {
 			return;
 		}
 
-		_discardByTimeoutTimer.callOnce(Global::CallReceiveTimeoutMs());
+		const auto &config = _user->session().serverConfig();
+		_discardByTimeoutTimer.callOnce(config.callReceiveTimeoutMs);
 		handleUpdate(phoneCall);
 	}).fail([this](const RPCError &error) {
 		handleRequestError(error);
@@ -382,7 +384,8 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		if (_type == Type::Outgoing
 			&& _state == State::Waiting
 			&& data.vreceive_date().value_or_empty() != 0) {
-			_discardByTimeoutTimer.callOnce(Global::CallRingTimeoutMs());
+			const auto &config = _user->session().serverConfig();
+			_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
 			setState(State::Ringing);
 			startWaitingTrack();
 		}
@@ -534,6 +537,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
+	const auto &serverConfig = _user->session().serverConfig();
 
 	TgVoipConfig config;
 	config.dataSaving = TgVoipDataSaving::Never;
@@ -541,8 +545,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	config.enableNS = true;
 	config.enableAGC = true;
 	config.enableVolumeControl = true;
-	config.initializationTimeout = Global::CallConnectTimeoutMs() / 1000.;
-	config.receiveTimeout = Global::CallPacketTimeoutMs() / 1000.;
+	config.initializationTimeout = serverConfig.callConnectTimeoutMs / 1000.;
+	config.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.;
 	config.enableP2P = call.is_p2p_allowed();
 	config.maxApiLayer = protocol.vmax_layer().v;
 	if (Logs::DebugEnabled()) {

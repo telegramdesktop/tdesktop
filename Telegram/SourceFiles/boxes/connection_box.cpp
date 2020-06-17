@@ -1059,9 +1059,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
 		: Variants::Tcp;
-	const auto mtproto = _account->mtp();
-	Assert(mtproto != nullptr);
-
+	const auto mtproto = &_account->mtp();
 	const auto dcId = mtproto->mainDcId();
 
 	item.state = ItemState::Checking;
@@ -1084,7 +1082,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 			dcId);
 		item.checkerv6 = nullptr;
 	} else {
-		const auto options = mtproto->dcOptions()->lookup(
+		const auto options = mtproto->dcOptions().lookup(
 			dcId,
 			MTP::DcType::Regular,
 			true);
@@ -1376,9 +1374,7 @@ void ProxiesBoxController::setTryIPv6(bool enabled) {
 		return;
 	}
 	Global::SetTryIPv6(enabled);
-	if (const auto mtproto = _account->mtp()) {
-		mtproto->restart();
-	}
+	_account->mtp().restart();
 	Global::RefConnectionTypeChanged().notify();
 	saveDelayed();
 }
@@ -1410,8 +1406,7 @@ void ProxiesBoxController::updateView(const Item &item) {
 		if (!selected
 			|| (Global::ProxySettings() != ProxyData::Settings::Enabled)) {
 			return item.state;
-		} else if (_account->mtp()
-			&& _account->mtp()->dcstate() == MTP::ConnectedState) {
+		} else if (_account->mtp().dcstate() == MTP::ConnectedState) {
 			return ItemState::Online;
 		}
 		return ItemState::Connecting;

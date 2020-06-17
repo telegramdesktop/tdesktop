@@ -68,7 +68,7 @@ ListController::ListController(
 	not_null<UserData*> user)
 : PeerListController()
 , _controller(controller)
-, _api(_controller->session().mtp())
+, _api(&_controller->session().mtp())
 , _user(user) {
 	_controller->setSearchEnabledByContent(false);
 }

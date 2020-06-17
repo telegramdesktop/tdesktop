@@ -21,6 +21,7 @@ class Updates;
 
 namespace MTP {
 class Instance;
+struct ConfigFields;
 } // namespace MTP
 
 namespace Support {
@@ -127,7 +128,8 @@ public:
 	// Shortcuts.
 	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
 	[[nodiscard]] MTP::DcId mainDcId() const;
-	[[nodiscard]] not_null<MTP::Instance*> mtp() const;
+	[[nodiscard]] MTP::Instance &mtp() const;
+	[[nodiscard]] const MTP::ConfigFields &serverConfig() const;
 	[[nodiscard]] ApiWrap &api() {
 		return *_api;
 	}
@@ -137,6 +139,10 @@ public:
 	}
 
 	void termsDeleteNow();
+
+	void setInternalLinkDomain(const QString &domain) const;
+	[[nodiscard]] QString createInternalLink(const QString &query) const;
+	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;

@@ -46,9 +46,11 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 
-style::InputField CreateBioFieldStyle();
+[[nodiscard]] style::InputField CreateBioFieldStyle();
 
-QString PeerFloodErrorText(PeerFloodType type);
+[[nodiscard]] QString PeerFloodErrorText(
+	not_null<Main::Session*> session,
+	PeerFloodType type);
 void ShowAddParticipantsError(
 	const QString &error,
 	not_null<PeerData*> chat,

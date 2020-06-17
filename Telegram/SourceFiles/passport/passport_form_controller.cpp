@@ -624,7 +624,7 @@ FormController::FormController(
 	not_null<Window::SessionController*> controller,
 	const FormRequest &request)
 : _controller(controller)
-, _api(_controller->session().mtp())
+, _api(&_controller->session().mtp())
 , _request(PreprocessRequest(request))
 , _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {

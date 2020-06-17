@@ -140,7 +140,7 @@ ChangePhoneBox::EnterPhone::EnterPhone(
 	QWidget*,
 	not_null<Main::Session*> session)
 : _session(session)
-, _api(session->mtp()) {
+, _api(&session->mtp()) {
 }
 
 void ChangePhoneBox::EnterPhone::prepare() {
@@ -257,7 +257,7 @@ ChangePhoneBox::EnterCode::EnterCode(
 	int codeLength,
 	int callTimeout)
 : _session(session)
-, _api(session->mtp())
+, _api(&session->mtp())
 , _phone(phone)
 , _hash(hash)
 , _codeLength(codeLength)

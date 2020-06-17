@@ -514,7 +514,8 @@ void BackgroundPreviewBox::apply() {
 }
 
 void BackgroundPreviewBox::share() {
-	QGuiApplication::clipboard()->setText(_paper.shareUrl());
+	QGuiApplication::clipboard()->setText(
+		_paper.shareUrl(&_controller->session()));
 	Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
 }
 

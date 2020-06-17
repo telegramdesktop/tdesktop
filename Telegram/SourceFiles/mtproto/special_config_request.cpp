@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/special_config_request.h"
 
 #include "mtproto/details/mtproto_rsa_public_key.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
@@ -189,9 +189,11 @@ SpecialConfigRequest::SpecialConfigRequest(
 		int port,
 		bytes::const_span secret)> callback,
 	Fn<void()> timeDoneCallback,
+	const QString &domainString,
 	const QString &phone)
 : _callback(std::move(callback))
 , _timeDoneCallback(std::move(timeDoneCallback))
+, _domainString(domainString)
 , _phone(phone) {
 	Expects((_callback == nullptr) != (_timeDoneCallback == nullptr));
 
@@ -251,12 +253,19 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> callback,
+	const QString &domainString,
 	const QString &phone)
-: SpecialConfigRequest(std::move(callback), nullptr, phone) {
+: SpecialConfigRequest(std::move(callback), nullptr, domainString, phone) {
 }
 
-SpecialConfigRequest::SpecialConfigRequest(Fn<void()> timeDoneCallback)
-: SpecialConfigRequest(nullptr, std::move(timeDoneCallback), QString()) {
+SpecialConfigRequest::SpecialConfigRequest(
+	Fn<void()> timeDoneCallback,
+	const QString &domainString)
+: SpecialConfigRequest(
+	nullptr,
+	std::move(timeDoneCallback),
+	domainString,
+	QString()) {
 }
 
 void SpecialConfigRequest::sendNextRequest() {
@@ -283,7 +292,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 		url.setHost(attempt.data);
 		url.setPath(qsl("/dns-query"));
 		url.setQuery(qsl("name=%1&type=16&random_padding=%2"
-		).arg(Global::TxtDomainString()
+		).arg(_domainString
 		).arg(GenerateDnsRandomPadding()));
 		request.setRawHeader("accept", "application/dns-json");
 	} break;
@@ -291,7 +300,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 		url.setHost(attempt.data);
 		url.setPath(qsl("/resolve"));
 		url.setQuery(qsl("name=%1&type=ANY&random_padding=%2"
-		).arg(Global::TxtDomainString()
+		).arg(_domainString
 		).arg(GenerateDnsRandomPadding()));
 		if (!attempt.host.isEmpty()) {
 			const auto host = attempt.host + ".google.com";

@@ -190,7 +190,8 @@ void StickerSetBox::addStickers() {
 }
 
 void StickerSetBox::shareStickers() {
-	auto url = Core::App().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
+	const auto url = _controller->session().createInternalLinkFull(
+		qsl("addstickers/") + _inner->shortName());
 	QGuiApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(tr::lng_stickers_copied(tr::now)));
 }
@@ -229,7 +230,7 @@ StickerSetBox::Inner::Inner(
 	const MTPInputStickerSet &set)
 : RpWidget(parent)
 , _controller(controller)
-, _api(_controller->session().mtp())
+, _api(&_controller->session().mtp())
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {

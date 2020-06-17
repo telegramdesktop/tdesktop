@@ -843,7 +843,7 @@ void SaveThemeBox(
 		st::createThemeLink,
 		rpl::single(qsl("link")),
 		cloud.slug.isEmpty() ? GenerateSlug() : cloud.slug,
-		true);
+		window->account().session().createInternalLink(QString()));
 	linkWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		link->resize(width, link->height());
@@ -854,7 +854,7 @@ void SaveThemeBox(
 		linkWrap->resize(linkWrap->width(), height);
 	}, link->lifetime());
 	link->setLinkPlaceholder(
-		Core::App().createInternalLink(qsl("addtheme/")));
+		window->account().session().createInternalLink(qsl("addtheme/")));
 	link->setPlaceholderHidden(false);
 	link->setMaxLength(kMaxSlugSize);
 

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 #include "media/audio/media_audio_track.h"
 #include "media/audio/media_audio.h"
+#include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 //#include "history/feed/history_feed_section.h" // #feed
@@ -121,13 +122,14 @@ void System::schedule(not_null<HistoryItem*> item) {
 	const auto t = base::unixtime::now();
 	const auto ms = crl::now();
 	const auto &updates = history->session().updates();
+	const auto &config = history->session().serverConfig();
 	const bool isOnline = updates.lastWasOnline();
-	const auto otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
+	const auto otherNotOld = ((cOtherOnline() * 1000LL) + config.onlineCloudTimeout > t * 1000LL);
 	const bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - updates.lastSetOnline()) > t * 1000LL);
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
-		delay = Global::NotifyCloudDelay();
+		delay = config.notifyCloudDelay;
 	} else if (cOtherOnline() >= t) {
-		delay = Global::NotifyDefaultDelay();
+		delay = config.notifyDefaultDelay;
 	}
 
 	auto when = ms + delay;

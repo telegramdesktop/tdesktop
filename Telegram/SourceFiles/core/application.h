@@ -49,7 +49,7 @@ class BoxContent;
 } // namespace Ui
 
 namespace MTP {
-class DcOptions;
+class Config;
 class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
@@ -82,6 +82,11 @@ struct LocalUrlHandler;
 
 class Application final : public QObject, private base::Subscriber {
 public:
+	struct ProxyChange {
+		MTP::ProxyData was;
+		MTP::ProxyData now;
+	};
+
 	Application(not_null<Launcher*> launcher);
 	Application(const Application &other) = delete;
 	Application &operator=(const Application &other) = delete;
@@ -132,14 +137,10 @@ public:
 	}
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
-	// Dc options and proxy.
-	[[nodiscard]] not_null<MTP::DcOptions*> dcOptions() {
-		return _dcOptions.get();
-	}
-	struct ProxyChange {
-		MTP::ProxyData was;
-		MTP::ProxyData now;
-	};
+	// Fallback config and proxy.
+	[[nodiscard]] MTP::Config &fallbackProductionConfig() const;
+	void refreshFallbackProductionConfig(const MTP::Config &config);
+	void constructFallbackProductionConfig(const QByteArray &serialized);
 	void setCurrentProxy(
 		const MTP::ProxyData &proxy,
 		MTP::ProxyData::Settings settings);
@@ -183,9 +184,6 @@ public:
 	}
 
 	// Internal links.
-	void setInternalLinkDomain(const QString &domain) const;
-	[[nodiscard]] QString createInternalLink(const QString &query) const;
-	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
@@ -231,7 +229,6 @@ public:
 	void handleAppDeactivated();
 
 	void switchDebugMode();
-	void switchTestMode();
 	void switchFreeType();
 	void writeInstallBetaVersionsSetting();
 
@@ -284,7 +281,7 @@ private:
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
-	const std::unique_ptr<MTP::DcOptions> _dcOptions;
+	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
 	const std::unique_ptr<Main::Accounts> _accounts;
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;

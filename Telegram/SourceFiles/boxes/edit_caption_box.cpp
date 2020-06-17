@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_local.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
+#include "mtproto/mtproto_config.h"
 #include "ui/image/image.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
@@ -46,7 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
 #include "apiwrap.h"
-#include "facades.h"
+#include "facades.h" // App::LambdaDelayed.
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -67,7 +68,7 @@ EditCaptionBox::EditCaptionBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item)
 : _controller(controller)
-, _api(controller->session().mtp())
+, _api(&controller->session().mtp())
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
@@ -304,8 +305,10 @@ EditCaptionBox::EditCaptionBox(
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_photo_caption(),
 		editData);
-	_field->setMaxLength(Global::CaptionLengthMax());
-	_field->setSubmitSettings(_controller->session().settings().sendSubmitWay());
+	_field->setMaxLength(
+		_controller->session().serverConfig().captionLengthMax);
+	_field->setSubmitSettings(
+		_controller->session().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
 		_controller->session().settings().replaceEmojiValue());

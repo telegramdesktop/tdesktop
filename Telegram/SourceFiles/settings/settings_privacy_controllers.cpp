@@ -182,7 +182,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 BlockedBoxController::BlockedBoxController(
 	not_null<Window::SessionController*> window)
 : _window(window)
-, _api(_window->session().mtp()) {
+, _api(&_window->session().mtp()) {
 }
 
 Main::Session &BlockedBoxController::session() const {

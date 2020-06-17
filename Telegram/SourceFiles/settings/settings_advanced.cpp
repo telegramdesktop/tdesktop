@@ -57,9 +57,7 @@ void SetupConnectionType(
 	}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [=] {
-		const auto transport = account->mtp()
-			? account->mtp()->dctransport()
-			: QString();
+		const auto transport = account->mtp().dctransport();
 		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)

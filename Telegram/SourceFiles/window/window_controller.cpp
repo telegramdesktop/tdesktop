@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_accounts.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/toast/toast.h"
@@ -29,7 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 
 Controller::Controller()
-: _widget(this) {
+: _widget(this)
+, _isActiveTimer([=] { updateIsActive(); }) {
 	_widget.init();
 }
 
@@ -143,8 +145,20 @@ void Controller::reActivate() {
 	_widget.reActivateWindow();
 }
 
-void Controller::updateIsActive(int timeout) {
-	_widget.updateIsActive(timeout);
+void Controller::updateIsActiveFocus() {
+	_isActiveTimer.callOnce(sessionController()
+		? sessionController()->session().serverConfig().onlineFocusTimeout
+		: crl::time(1000));
+}
+
+void Controller::updateIsActiveBlur() {
+	_isActiveTimer.callOnce(sessionController()
+		? sessionController()->session().serverConfig().offlineBlurTimeout
+		: crl::time(1000));
+}
+
+void Controller::updateIsActive() {
+	_widget.updateIsActive();
 }
 
 void Controller::minimize() {

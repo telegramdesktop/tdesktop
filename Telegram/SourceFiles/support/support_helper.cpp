@@ -289,7 +289,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 
 Helper::Helper(not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _templates(_session)
 , _reoccupyTimer([=] { reoccupy(); })
 , _checkOccupiedTimer([=] { checkOccupiedChats(); }) {

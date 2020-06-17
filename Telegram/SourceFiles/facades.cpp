@@ -356,43 +356,6 @@ struct Data {
 	float64 VideoVolume = kDefaultVolume;
 	base::Observable<void> VideoVolumeChanged;
 
-	// config
-	int32 ChatSizeMax = 200;
-	int32 MegagroupSizeMax = 10000;
-	int32 ForwardedCountMax = 100;
-	int32 OnlineUpdatePeriod = 120000;
-	int32 OfflineBlurTimeout = 5000;
-	int32 OfflineIdleTimeout = 30000;
-	int32 OnlineFocusTimeout = 1000;
-	int32 OnlineCloudTimeout = 300000;
-	int32 NotifyCloudDelay = 30000;
-	int32 NotifyDefaultDelay = 1500;
-	int32 PushChatPeriod = 60000;
-	int32 PushChatLimit = 2;
-	int32 SavedGifsLimit = 200;
-	int32 EditTimeLimit = 172800;
-	int32 RevokeTimeLimit = 172800;
-	int32 RevokePrivateTimeLimit = 172800;
-	bool RevokePrivateInbox = false;
-	int32 StickersRecentLimit = 30;
-	int32 StickersFavedLimit = 5;
-	int32 PinnedDialogsCountMax = 5;
-	int32 PinnedDialogsInFolderMax = 100;
-	QString InternalLinksDomain = qsl("https://t.me/");
-	int32 ChannelsReadMediaPeriod = 86400 * 7;
-	int32 CallReceiveTimeoutMs = 20000;
-	int32 CallRingTimeoutMs = 90000;
-	int32 CallConnectTimeoutMs = 30000;
-	int32 CallPacketTimeoutMs = 10000;
-	int32 WebFileDcId = cTestMode() ? 2 : 4;
-	QString TxtDomainString = cTestMode()
-		? qsl("tapv3.stel.com")
-		: qsl("apv3.stel.com");
-	bool PhoneCallsEnabled = true;
-	bool BlockedMode = false;
-	int32 CaptionLengthMax = 1024;
-	base::Observable<void> PhoneCallsEnabledChanged;
-
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
 	bool AskDownloadPath = false;
@@ -474,41 +437,6 @@ DefineVar(Global, float64, SongVolume);
 DefineRefVar(Global, base::Observable<void>, SongVolumeChanged);
 DefineVar(Global, float64, VideoVolume);
 DefineRefVar(Global, base::Observable<void>, VideoVolumeChanged);
-
-// config
-DefineVar(Global, int32, ChatSizeMax);
-DefineVar(Global, int32, MegagroupSizeMax);
-DefineVar(Global, int32, ForwardedCountMax);
-DefineVar(Global, int32, OnlineUpdatePeriod);
-DefineVar(Global, int32, OfflineBlurTimeout);
-DefineVar(Global, int32, OfflineIdleTimeout);
-DefineVar(Global, int32, OnlineFocusTimeout);
-DefineVar(Global, int32, OnlineCloudTimeout);
-DefineVar(Global, int32, NotifyCloudDelay);
-DefineVar(Global, int32, NotifyDefaultDelay);
-DefineVar(Global, int32, PushChatPeriod);
-DefineVar(Global, int32, PushChatLimit);
-DefineVar(Global, int32, SavedGifsLimit);
-DefineVar(Global, int32, EditTimeLimit);
-DefineVar(Global, int32, RevokeTimeLimit);
-DefineVar(Global, int32, RevokePrivateTimeLimit);
-DefineVar(Global, bool, RevokePrivateInbox);
-DefineVar(Global, int32, StickersRecentLimit);
-DefineVar(Global, int32, StickersFavedLimit);
-DefineVar(Global, int32, PinnedDialogsCountMax);
-DefineVar(Global, int32, PinnedDialogsInFolderMax);
-DefineVar(Global, QString, InternalLinksDomain);
-DefineVar(Global, int32, ChannelsReadMediaPeriod);
-DefineVar(Global, int32, CallReceiveTimeoutMs);
-DefineVar(Global, int32, CallRingTimeoutMs);
-DefineVar(Global, int32, CallConnectTimeoutMs);
-DefineVar(Global, int32, CallPacketTimeoutMs);
-DefineVar(Global, int32, WebFileDcId);
-DefineVar(Global, QString, TxtDomainString);
-DefineVar(Global, bool, PhoneCallsEnabled);
-DefineVar(Global, bool, BlockedMode);
-DefineVar(Global, int32, CaptionLengthMax);
-DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

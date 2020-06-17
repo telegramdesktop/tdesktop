@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/details/storage_file_utilities.h"
 #include "storage/cache/storage_cache_database.h"
-#include "core/application.h"
 #include "storage/serialize_common.h"
+#include "core/application.h"
+#include "mtproto/mtproto_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"
 #include "window/themes/window_theme.h"
@@ -47,7 +48,7 @@ bool ReadSetting(
 		stream >> dcId >> host >> ip >> port;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(
+		context.fallbackConfigLegacyDcOptions.constructAddOne(
 			dcId,
 			0,
 			ip.toStdString(),
@@ -62,7 +63,7 @@ bool ReadSetting(
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(
+		context.fallbackConfigLegacyDcOptions.constructAddOne(
 			dcIdWithShift,
 			MTPDdcOption::Flags::from_raw(flags),
 			ip.toStdString(),
@@ -70,12 +71,13 @@ bool ReadSetting(
 			{});
 	} break;
 
-	case dbiDcOptions: {
+	case dbiDcOptionsOld: {
 		auto serialized = QByteArray();
 		stream >> serialized;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.dcOptions.constructFromSerialized(serialized);
+		context.fallbackConfigLegacyDcOptions.constructFromSerialized(
+			serialized);
 	} break;
 
 	case dbiApplicationSettings: {
@@ -86,44 +88,44 @@ bool ReadSetting(
 		Core::App().settings().constructFromSerialized(serialized);
 	} break;
 
-	case dbiChatSizeMax: {
+	case dbiChatSizeMaxOld: {
 		qint32 maxSize;
 		stream >> maxSize;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetChatSizeMax(maxSize);
+		context.fallbackConfigLegacyChatSizeMax = maxSize;
 	} break;
 
-	case dbiSavedGifsLimit: {
+	case dbiSavedGifsLimitOld: {
 		qint32 limit;
 		stream >> limit;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetSavedGifsLimit(limit);
+		context.fallbackConfigLegacySavedGifsLimit = limit;
 	} break;
 
-	case dbiStickersRecentLimit: {
+	case dbiStickersRecentLimitOld: {
 		qint32 limit;
 		stream >> limit;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetStickersRecentLimit(limit);
+		context.fallbackConfigLegacyStickersRecentLimit = limit;
 	} break;
 
-	case dbiStickersFavedLimit: {
+	case dbiStickersFavedLimitOld: {
 		qint32 limit;
 		stream >> limit;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetStickersFavedLimit(limit);
+		context.fallbackConfigLegacyStickersFavedLimit = limit;
 	} break;
 
-	case dbiMegagroupSizeMax: {
+	case dbiMegagroupSizeMaxOld: {
 		qint32 maxSize;
 		stream >> maxSize;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetMegagroupSizeMax(maxSize);
+		context.fallbackConfigLegacyMegagroupSizeMax = maxSize;
 	} break;
 
 	case dbiUser: {
@@ -407,18 +409,18 @@ bool ReadSetting(
 		Global::RefWorkMode().set(newMode());
 	} break;
 
-	case dbiTxtDomainStringOld: {
+	case dbiTxtDomainStringOldOld: {
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiTxtDomainString: {
+	case dbiTxtDomainStringOld: {
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetTxtDomainString(v);
+		context.fallbackConfigLegacyTxtDomainString = v;
 	} break;
 
 	case dbiConnectionTypeOld: {
@@ -659,13 +661,13 @@ bool ReadSetting(
 		}
 	} break;
 
-	case dbiLangOld: {
+	case dbiLangOld: { // deprecated
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiLangFileOld: {
+	case dbiLangFileOld: { // deprecated
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
@@ -681,19 +683,19 @@ bool ReadSetting(
 		cSetWindowPos(position);
 	} break;
 
-	case dbiLoggedPhoneNumber: { // deprecated
+	case dbiLoggedPhoneNumberOld: { // deprecated
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiMutePeer: { // deprecated
+	case dbiMutePeerOld: { // deprecated
 		quint64 peerId;
 		stream >> peerId;
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiMutedPeers: { // deprecated
+	case dbiMutedPeersOld: { // deprecated
 		quint32 count;
 		stream >> count;
 		if (!CheckStreamStatus(stream)) return false;
@@ -1001,12 +1003,53 @@ bool ReadSetting(
 		context.callSettings = callSettings;
 	} break;
 
+	case dbiFallbackProductionConfig: {
+		QByteArray config;
+		stream >> config;
+		if (!CheckStreamStatus(stream)) return false;
+
+		context.fallbackConfig = config;
+	} break;
+
 	default:
 		LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 		return false;
 	}
 
 	return true;
+}
+
+void ApplyReadFallbackConfig(ReadSettingsContext &context) {
+	if (context.fallbackConfig.isEmpty()) {
+		auto &config = Core::App().fallbackProductionConfig();
+		config.dcOptions().addFromOther(
+			std::move(context.fallbackConfigLegacyDcOptions));
+		if (context.fallbackConfigLegacyChatSizeMax > 0) {
+			config.setChatSizeMax(context.fallbackConfigLegacyChatSizeMax);
+		}
+		if (context.fallbackConfigLegacySavedGifsLimit > 0) {
+			config.setSavedGifsLimit(
+				context.fallbackConfigLegacySavedGifsLimit);
+		}
+		if (context.fallbackConfigLegacyStickersRecentLimit > 0) {
+			config.setStickersRecentLimit(
+				context.fallbackConfigLegacyStickersRecentLimit);
+		}
+		if (context.fallbackConfigLegacyStickersFavedLimit > 0) {
+			config.setStickersFavedLimit(
+				context.fallbackConfigLegacyStickersFavedLimit);
+		}
+		if (context.fallbackConfigLegacyMegagroupSizeMax > 0) {
+			config.setMegagroupSizeMax(
+				context.fallbackConfigLegacyMegagroupSizeMax);
+		}
+		if (!context.fallbackConfigLegacyTxtDomainString.isEmpty()) {
+			config.setTxtDomainString(
+				context.fallbackConfigLegacyTxtDomainString);
+		}
+	} else {
+		Core::App().constructFallbackProductionConfig(context.fallbackConfig);
+	}
 }
 
 } // namespace details

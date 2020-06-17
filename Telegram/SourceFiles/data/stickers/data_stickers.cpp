@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
 #include "base/unixtime.h"
-#include "facades.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Data {
@@ -142,7 +142,9 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 			break;
 		}
 	}
-	while (!recent.isEmpty() && set->stickers.size() + recent.size() > Global::StickersRecentLimit()) {
+	while (!recent.isEmpty()
+		&& (set->stickers.size() + recent.size()
+			> session().serverConfig().stickersRecentLimit)) {
 		writeOldRecent = true;
 		recent.pop_back();
 	}
@@ -184,7 +186,7 @@ void Stickers::addSavedGif(not_null<DocumentData*> document) {
 		_savedGifs.remove(index);
 	}
 	_savedGifs.push_front(document);
-	if (_savedGifs.size() > Global::SavedGifsLimit()) {
+	if (_savedGifs.size() > session().serverConfig().savedGifsLimit) {
 		_savedGifs.pop_back();
 	}
 	session().local().writeSavedGifs();
@@ -387,7 +389,7 @@ bool Stickers::isFaved(not_null<const DocumentData*> document) {
 }
 
 void Stickers::checkFavedLimit(StickersSet &set) {
-	if (set.stickers.size() <= Global::StickersFavedLimit()) {
+	if (set.stickers.size() <= session().serverConfig().stickersFavedLimit) {
 		return;
 	}
 	auto removing = set.stickers.back();

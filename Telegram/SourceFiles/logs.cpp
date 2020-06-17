@@ -414,16 +414,11 @@ void start(not_null<Core::Launcher*> launcher) {
 		LogsData = nullptr;
 	}
 
-	LOG(("Launched version: %1, "
-		"install beta: %2, "
-		"alpha: %3, "
-		"debug mode: %4, "
-		"test dc: %5"
+	LOG(("Launched version: %1, install beta: %2, alpha: %3, debug mode: %4"
 		).arg(AppVersion
 		).arg(Logs::b(cInstallBetaVersion())
 		).arg(cAlphaVersion()
-		).arg(Logs::b(DebugEnabled())
-		).arg(Logs::b(cTestMode())));
+		).arg(Logs::b(DebugEnabled())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));

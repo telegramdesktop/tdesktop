@@ -39,6 +39,10 @@ PRIVATE
     mtproto/mtproto_auth_key.h
     mtproto/mtproto_concurrent_sender.cpp
     mtproto/mtproto_concurrent_sender.h
+    mtproto/mtproto_config.cpp
+    mtproto/mtproto_config.h
+    mtproto/mtproto_dc_options.cpp
+    mtproto/mtproto_dc_options.h
     mtproto/mtproto_dh_utils.cpp
     mtproto/mtproto_dh_utils.h
     mtproto/mtproto_proxy_data.cpp

@@ -355,7 +355,7 @@ Controller::Controller(
 : _navigation(navigation)
 , _box(box)
 , _peer(peer)
-, _api(_peer->session().mtp())
+, _api(&_peer->session().mtp())
 , _isGroup(_peer->isChat() || _peer->isMegagroup()) {
 	_box->setTitle(_isGroup
 		? tr::lng_edit_group()

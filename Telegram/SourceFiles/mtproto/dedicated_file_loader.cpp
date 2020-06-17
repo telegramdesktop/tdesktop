@@ -84,7 +84,7 @@ std::optional<DedicatedLoader::File> ParseFile(
 
 WeakInstance::WeakInstance(base::weak_ptr<Main::Session> session)
 : _session(session)
-, _instance(_session ? _session->account().mtp() : nullptr) {
+, _instance(_session ? &_session->account().mtp() : nullptr) {
 	if (!valid()) {
 		return;
 	}

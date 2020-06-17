@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "mtproto/mtproto_config.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -34,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "storage/file_download.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerProfile
 #include "app.h"
 
 namespace {
@@ -763,8 +764,8 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 bool PeerData::canRevokeFullHistory() const {
 	return isUser()
 		&& !isSelf()
-		&& Global::RevokePrivateInbox()
-		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
+		&& session().serverConfig().revokePrivateInbox
+		&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
 }
 
 bool PeerData::slowmodeApplied() const {

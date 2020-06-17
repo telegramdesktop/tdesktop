@@ -36,7 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
-#include "facades.h"
+#include "mtproto/mtproto_config.h"
+#include "facades.h" // Ui::showChatsList
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -351,7 +352,7 @@ MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxConten
 	tr::lng_participant_invite_sorry(
 		tr::now,
 		lt_count,
-		Global::ChatSizeMax()),
+		channel->session().serverConfig().chatSizeMax),
 	kInformBoxTextOptions,
 	(st::boxWidth
 		- st::boxPadding.left()
@@ -433,7 +434,7 @@ PinMessageBox::PinMessageBox(
 	not_null<PeerData*> peer,
 	MsgId msgId)
 : _peer(peer)
-, _api(peer->session().mtp())
+, _api(&peer->session().mtp())
 , _msgId(msgId)
 , _text(this, tr::lng_pinned_pin_sure(tr::now), st::boxLabel) {
 }

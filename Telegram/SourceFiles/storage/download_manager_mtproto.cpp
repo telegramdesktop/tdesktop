@@ -119,7 +119,7 @@ DownloadManagerMtproto::DownloadManagerMtproto(not_null<ApiWrap*> api)
 : _api(api)
 , _resetGenerationTimer([=] { resetGeneration(); })
 , _killSessionsTimer([=] { killSessions(); }) {
-	_api->instance()->restartsByTimeout(
+	_api->instance().restartsByTimeout(
 	) | rpl::filter([](MTP::ShiftedDcId shiftedDcId) {
 		return MTP::isDownloadDcId(shiftedDcId);
 	}) | rpl::start_with_next([=](MTP::ShiftedDcId shiftedDcId) {
@@ -353,7 +353,7 @@ void DownloadManagerMtproto::removeSession(MTP::DcId dcId) {
 	Assert(session.requested == kMaxWaitedInSession * kMaxSessionsCount);
 
 	dc.sessions.pop_back();
-	api().instance()->killSession(MTP::downloadDcId(dcId, index));
+	api().instance().killSession(MTP::downloadDcId(dcId, index));
 
 	dc.lastSessionRemove = crl::now();
 }
@@ -403,7 +403,7 @@ void DownloadManagerMtproto::killSessions(MTP::DcId dcId) {
 		for (auto j = 0; j != int(sessions.size()); ++j) {
 			Assert(sessions[j].requested == 0);
 			sessions[j] = DcSessionBalanceData();
-			api().instance()->stopSession(MTP::downloadDcId(dcId, j));
+			api().instance().stopSession(MTP::downloadDcId(dcId, j));
 		}
 		dc.sessions = base::take(sessions);
 	}

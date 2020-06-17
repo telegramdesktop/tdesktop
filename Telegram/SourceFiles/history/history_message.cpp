@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_game.h"
@@ -40,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_histories.h"
-#include "facades.h"
+#include "facades.h" // Notify::replyMarkupUpdated
 #include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -208,6 +209,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	};
 	const auto history = item->history();
 	const auto owner = &history->owner();
+	const auto session = &history->session();
 	const auto data = std::make_shared<ShareData>(
 		history->peer,
 		owner->itemOrItsGroup(item));
@@ -220,13 +222,11 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyCallback = [=]() {
 		if (const auto item = owner->message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
-				HistoryView::CopyPostLink(
-					&item->history()->session(),
-					item->fullId());
+				HistoryView::CopyPostLink(session, item->fullId());
 			} else if (const auto bot = item->getMessageBot()) {
 				if (const auto media = item->media()) {
 					if (const auto game = media->game()) {
-						const auto link = Core::App().createInternalLinkFull(
+						const auto link = session->createInternalLinkFull(
 							bot->username
 							+ qsl("?game=")
 							+ game->shortName);
@@ -782,7 +782,7 @@ bool HistoryMessage::allowsSendNow() const {
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	return !_history->peer->canEditMessagesIndefinitely()
-		&& (now - date() >= Global::EditTimeLimit());
+		&& (now - date() >= _history->session().serverConfig().editTimeLimit);
 }
 
 bool HistoryMessage::allowsEdit(TimeId now) const {

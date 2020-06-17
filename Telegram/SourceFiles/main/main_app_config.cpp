@@ -20,14 +20,9 @@ constexpr auto kRefreshTimeout = 3600 * crl::time(1000);
 
 AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 	account->mtpValue(
-	) | rpl::start_with_next([=](MTP::Instance *instance) {
-		if (instance) {
-			_api.emplace(instance);
-			refresh();
-		} else {
-			_api.reset();
-			_requestId = 0;
-		}
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		refresh();
 	}, _lifetime);
 }
 

@@ -21,8 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/unixtime.h"
 #include "mainwidget.h"
+#include "mtproto/mtproto_config.h"
 #include "boxes/rate_call_box.h"
-#include "facades.h"
 #include "app.h"
 
 namespace Calls {
@@ -34,7 +34,7 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 Instance::Instance(not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->mtp()) {
+, _api(&_session->mtp()) {
 }
 
 void Instance::startOutgoingCall(not_null<UserData*> user) {
@@ -248,6 +248,7 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
+		const auto &config = _session->serverConfig();
 		if (alreadyInCall() || !user || user->isSelf()) {
 			_api.request(MTPphone_DiscardCall(
 				MTP_flags(0),
@@ -256,7 +257,7 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 				MTP_phoneCallDiscardReasonBusy(),
 				MTP_long(0)
 			)).send();
-		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000)
+		} else if (phoneCall.vdate().v + (config.callRingTimeoutMs / 1000)
 			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
 		} else {

@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 
 namespace Data {
@@ -30,17 +30,6 @@ namespace {
 
 constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
-
-rpl::producer<int> PinnedDialogsInFolderMaxValue(
-		not_null<Main::Session*> session) {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		session->account().configUpdates()
-	) | rpl::map([=] {
-		return Global::PinnedDialogsInFolderMax();
-	});
-}
 
 } // namespace
 
@@ -60,7 +49,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 , _chatsList(
 	&owner->session(),
 	FilterId(),
-	PinnedDialogsInFolderMaxValue(&owner->session()))
+	owner->session().serverConfig().pinnedDialogsInFolderMax.value())
 , _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 

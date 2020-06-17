@@ -63,17 +63,17 @@ inline bool isCdnDc(MTPDdcOption::Flags flags) {
 
 inline bool isTemporaryDcId(ShiftedDcId shiftedDcId) {
 	auto dcId = BareDcId(shiftedDcId);
-	return (dcId >= Instance::Config::kTemporaryMainDc);
+	return (dcId >= Instance::Fields::kTemporaryMainDc);
 }
 
 inline DcId getRealIdFromTemporaryDcId(ShiftedDcId shiftedDcId) {
 	auto dcId = BareDcId(shiftedDcId);
-	return (dcId >= Instance::Config::kTemporaryMainDc) ? (dcId - Instance::Config::kTemporaryMainDc) : 0;
+	return (dcId >= Instance::Fields::kTemporaryMainDc) ? (dcId - Instance::Fields::kTemporaryMainDc) : 0;
 }
 
 inline DcId getTemporaryIdFromRealDcId(ShiftedDcId shiftedDcId) {
 	auto dcId = BareDcId(shiftedDcId);
-	return (dcId < Instance::Config::kTemporaryMainDc) ? (dcId + Instance::Config::kTemporaryMainDc) : 0;
+	return (dcId < Instance::Fields::kTemporaryMainDc) ? (dcId + Instance::Fields::kTemporaryMainDc) : 0;
 }
 
 namespace details {

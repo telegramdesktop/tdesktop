@@ -51,7 +51,9 @@ public:
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
-	void updateIsActive(int timeout);
+
+	void updateIsActive();
+
 	bool isActive() const {
 		return _isActive;
 	}
@@ -195,7 +197,6 @@ private:
 	QString _titleText;
 
 	bool _isActive = false;
-	base::Timer _isActiveTimer;
 
 	base::Observable<void> _dragFinished;
 	rpl::event_stream<> _leaveEvents;

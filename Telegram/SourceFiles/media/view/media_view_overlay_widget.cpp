@@ -2462,6 +2462,7 @@ void OverlayWidget::initThemePreview() {
 		return result;
 	}();
 
+	const auto weakSession = base::make_weak(&_document->session());
 	const auto path = _document->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = Ui::MakeWeak(this);
@@ -2473,7 +2474,8 @@ void OverlayWidget::initThemePreview() {
 			std::move(data),
 			Window::Theme::PreviewType::Extended);
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
-			if (id != _themePreviewId) {
+			const auto session = weakSession.get();
+			if (id != _themePreviewId || !session) {
 				return;
 			}
 			_themePreviewId = 0;
@@ -2509,7 +2511,7 @@ void OverlayWidget::initThemePreview() {
 					_themeShare->show();
 					_themeShare->setClickedCallback([=] {
 						QGuiApplication::clipboard()->setText(
-							Core::App().createInternalLinkFull("addtheme/" + slug));
+							session->createInternalLinkFull("addtheme/" + slug));
 						Ui::Toast::Show(
 							this,
 							tr::lng_background_link_copied(tr::now));

@@ -229,7 +229,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _channel(channel)
 , _history(channel->owner().history(channel))
-, _api(_channel->session().mtp())
+, _api(&_channel->session().mtp())
 , _scrollDateCheck([=] { scrollDateCheck(); })
 , _emptyText(
 		st::historyAdminLogEmptyWidth

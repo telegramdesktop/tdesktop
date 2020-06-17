@@ -216,7 +216,7 @@ void BoxController::Row::stopLastActionRipple() {
 
 BoxController::BoxController(not_null<Window::SessionController*> window)
 : _window(window)
-, _api(_window->session().mtp()) {
+, _api(&_window->session().mtp()) {
 }
 
 Main::Session &BoxController::session() const {

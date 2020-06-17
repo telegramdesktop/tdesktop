@@ -134,7 +134,7 @@ GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
-, _api(controller->session().mtp())
+, _api(&controller->session().mtp())
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {

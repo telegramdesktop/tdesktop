@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "boxes/add_contact_box.h"
+#include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
@@ -231,7 +232,7 @@ bool ApiWrap::BlockedUsersSlice::operator!=(const BlockedUsersSlice &other) cons
 }
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
-: MTP::Sender(session->account().mtp())
+: MTP::Sender(&session->account().mtp())
 , _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
@@ -572,10 +573,10 @@ void ApiWrap::sendMessageFail(
 		FullMsgId itemId) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(
-			PeerFloodErrorText(PeerFloodType::Send)));
+			PeerFloodErrorText(&session(), PeerFloodType::Send)));
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = textcmdLink(
-			Core::App().createInternalLinkFull(qsl("spambot")),
+			session().createInternalLinkFull(qsl("spambot")),
 			tr::lng_cant_more_info(tr::now));
 		Ui::show(Box<InformBox>(tr::lng_error_public_groups_denied(
 			tr::now,
@@ -754,7 +755,7 @@ QString ApiWrap::exportDirectMessageLink(not_null<HistoryItem*> item) {
 				}
 			}
 		}
-		return Core::App().createInternalLinkFull(query);
+		return session().createInternalLinkFull(query);
 	};
 	const auto i = _unlikelyMessageLinks.find(itemId);
 	const auto current = (i != end(_unlikelyMessageLinks))
@@ -1450,7 +1451,7 @@ void ApiWrap::requestLastParticipants(not_null<ChannelData*> channel) {
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
 		MTP_int(offset),
-		MTP_int(Global::ChatSizeMax()),
+		MTP_int(_session->serverConfig().chatSizeMax),
 		MTP_int(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_participantsRequests.remove(channel);
@@ -1480,7 +1481,7 @@ void ApiWrap::requestBots(not_null<ChannelData*> channel) {
 		channel->inputChannel,
 		MTP_channelParticipantsBots(),
 		MTP_int(offset),
-		MTP_int(Global::ChatSizeMax()),
+		MTP_int(_session->serverConfig().chatSizeMax),
 		MTP_int(participantsHash)
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_botsRequests.remove(channel);
@@ -1510,7 +1511,7 @@ void ApiWrap::requestAdmins(not_null<ChannelData*> channel) {
 		channel->inputChannel,
 		MTP_channelParticipantsAdmins(),
 		MTP_int(offset),
-		MTP_int(Global::ChatSizeMax()),
+		MTP_int(_session->serverConfig().chatSizeMax),
 		MTP_int(participantsHash)
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_adminsRequests.remove(channel);
@@ -1820,7 +1821,7 @@ void ApiWrap::requestChannelMembersForAdd(
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
 		MTP_int(offset),
-		MTP_int(Global::ChatSizeMax()),
+		MTP_int(_session->serverConfig().chatSizeMax),
 		MTP_int(participantsHash)
 	)).done([this](const MTPchannels_ChannelParticipants &result) {
 		base::take(_channelMembersForAddRequestId);
@@ -5038,7 +5039,10 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
 	peer = peer->migrateToOrMe();
-	const auto ready = PreparePeerPhoto(instance()->mainDcId(), peer->id, std::move(image));
+	const auto ready = PreparePeerPhoto(
+		instance().mainDcId(),
+		peer->id,
+		std::move(image));
 
 	const auto fakeId = FullMsgId(
 		peerToChannel(peer->id),

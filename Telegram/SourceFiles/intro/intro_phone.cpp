@@ -141,8 +141,8 @@ void PhoneWidget::submit() {
 	_checkRequestTimer.callEach(1000);
 
 	_sentPhone = phone;
-	api()->instance()->setUserPhone(_sentPhone);
-	_sentRequest = api()->request(MTPauth_SendCode(
+	api().instance().setUserPhone(_sentPhone);
+	_sentRequest = api().request(MTPauth_SendCode(
 		MTP_string(_sentPhone),
 		MTP_int(ApiId),
 		MTP_string(ApiHash),
@@ -159,11 +159,11 @@ void PhoneWidget::stopCheck() {
 }
 
 void PhoneWidget::checkRequest() {
-	auto status = api()->instance()->state(_sentRequest);
+	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
-			api()->request(base::take(_sentRequest)).cancel();
+			api().request(base::take(_sentRequest)).cancel();
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -246,7 +246,7 @@ void PhoneWidget::finished() {
 }
 
 void PhoneWidget::cancelled() {
-	api()->request(base::take(_sentRequest)).cancel();
+	api().request(base::take(_sentRequest)).cancel();
 }
 
 } // namespace details

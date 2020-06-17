@@ -28,12 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "mainwidget.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
@@ -221,7 +221,11 @@ MainMenu::MainMenu(
 		updatePhone();
 	}, lifetime());
 
-	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { refreshMenu(); });
+	_controller->session().serverConfig().phoneCallsEnabled.changes(
+	) | rpl::start_with_next([=] {
+		refreshMenu();
+	}, lifetime());
+
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
 			refreshMenu();
@@ -261,7 +265,7 @@ void MainMenu::refreshMenu() {
 				box->addLeftButton(tr::lng_profile_add_contact(), [] { App::wnd()->onShowAddContact(); });
 			}));
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
-		if (Global::PhoneCallsEnabled()) {
+		if (_controller->session().serverConfig().phoneCallsEnabled.current()) {
 			_menu->addAction(tr::lng_menu_calls(tr::now), [=] {
 				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(controller), [](not_null<PeerListBox*> box) {
 					box->addButton(tr::lng_close(), [=] {

@@ -160,15 +160,16 @@ CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
 	Core::App().accounts().activeValue(
 	) | rpl::map([=](Main::Account *account) {
-		return account ? account->mtpValue() : rpl::never<MTP::Instance*>();
-	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](MTP::Instance *instance) {
-		if (instance) {
-			_api.emplace(instance);
-			resendRequests();
-		} else {
+		if (!account) {
 			_api.reset();
 		}
+		return account
+			? account->mtpValue()
+			: rpl::never<not_null<MTP::Instance*>>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		resendRequests();
 	}, _lifetime);
 }
 
@@ -604,7 +605,7 @@ void CloudManager::switchLangPackId(const Language &data) {
 void CloudManager::changeIdAndReInitConnection(const Language &data) {
 	_langpack.switchToId(data);
 	if (_api) {
-		const auto mtproto = _api->instance();
+		const auto mtproto = &_api->instance();
 		mtproto->reInitConnection(mtproto->mainDcId());
 	}
 }

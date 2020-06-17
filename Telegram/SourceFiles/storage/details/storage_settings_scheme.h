@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "main/main_settings.h"
 #include "storage/storage_account.h"
 
@@ -30,7 +30,15 @@ struct ReadSettingsContext {
 	bool hasCustomDayBackground = false;
 
 	// Those fields are written in ReadSetting.
-	MTP::DcOptions dcOptions;
+	MTP::DcOptions fallbackConfigLegacyDcOptions
+		= MTP::DcOptions(MTP::Environment::Production);
+	qint32 fallbackConfigLegacyChatSizeMax = 0;
+	qint32 fallbackConfigLegacySavedGifsLimit = 0;
+	qint32 fallbackConfigLegacyStickersRecentLimit = 0;
+	qint32 fallbackConfigLegacyStickersFavedLimit = 0;
+	qint32 fallbackConfigLegacyMegagroupSizeMax = 0;
+	QString fallbackConfigLegacyTxtDomainString;
+	QByteArray fallbackConfig;
 
 	qint64 cacheTotalSizeLimit = 0;
 	qint32 cacheTotalTimeLimit = 0;
@@ -62,12 +70,14 @@ struct ReadSettingsContext {
 	int version,
 	ReadSettingsContext &context);
 
+void ApplyReadFallbackConfig(ReadSettingsContext &context);
+
 enum {
 	dbiKey = 0x00,
 	dbiUser = 0x01,
 	dbiDcOptionOldOld = 0x02,
-	dbiChatSizeMax = 0x03,
-	dbiMutePeer = 0x04,
+	dbiChatSizeMaxOld = 0x03,
+	dbiMutePeerOld = 0x04,
 	dbiSendKeyOld = 0x05,
 	dbiAutoStart = 0x06,
 	dbiStartMinimized = 0x07,
@@ -88,8 +98,8 @@ enum {
 	dbiScaleOld = 0x16,
 	dbiEmojiTabOld = 0x17,
 	dbiRecentEmojiOldOld = 0x18,
-	dbiLoggedPhoneNumber = 0x19,
-	dbiMutedPeers = 0x1a,
+	dbiLoggedPhoneNumberOld = 0x19,
+	dbiMutedPeersOld = 0x1a,
 	// 0x1b reserved
 	dbiNotifyView = 0x1c,
 	dbiSendToMenu = 0x1d,
@@ -107,10 +117,10 @@ enum {
 	dbiSongVolume = 0x29,
 	dbiWindowsNotificationsOld = 0x30,
 	dbiIncludeMutedOld = 0x31,
-	dbiMegagroupSizeMax = 0x32,
+	dbiMegagroupSizeMaxOld = 0x32,
 	dbiDownloadPath = 0x33,
 	dbiAutoDownloadOld = 0x34,
-	dbiSavedGifsLimit = 0x35,
+	dbiSavedGifsLimitOld = 0x35,
 	dbiShowingSavedGifsOld = 0x36,
 	dbiAutoPlayOld = 0x37,
 	dbiAdaptiveForWide = 0x38,
@@ -120,23 +130,23 @@ enum {
 	dbiDialogsModeOld = 0x40,
 	dbiModerateMode = 0x41,
 	dbiVideoVolume = 0x42,
-	dbiStickersRecentLimit = 0x43,
+	dbiStickersRecentLimitOld = 0x43,
 	dbiNativeNotifications = 0x44,
 	dbiNotificationsCount = 0x45,
 	dbiNotificationsCorner = 0x46,
 	dbiThemeKeyOld = 0x47,
 	dbiDialogsWidthRatioOld = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
-	dbiDcOptions = 0x4a,
+	dbiDcOptionsOld = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
 	dbiSessionSettings = 0x4d,
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
-	dbiStickersFavedLimit = 0x50,
+	dbiStickersFavedLimitOld = 0x50,
 	dbiSuggestStickersByEmojiOld = 0x51,
 	dbiSuggestEmojiOld = 0x52,
-	dbiTxtDomainStringOld = 0x53,
+	dbiTxtDomainStringOldOld = 0x53,
 	dbiThemeKey = 0x54,
 	dbiTileBackground = 0x55,
 	dbiCacheSettingsOld = 0x56,
@@ -146,9 +156,10 @@ enum {
 	dbiLanguagesKey = 0x5a,
 	dbiCallSettings = 0x5b,
 	dbiCacheSettings = 0x5c,
-	dbiTxtDomainString = 0x5d,
+	dbiTxtDomainStringOld = 0x5d,
 	dbiApplicationSettings = 0x5e,
 	dbiDialogsFilters = 0x5f,
+	dbiFallbackProductionConfig = 0x60,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

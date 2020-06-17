@@ -1025,7 +1025,7 @@ void MainWindow::updateGlobalMenuHook() {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
-	App::wnd()->updateIsActive(0);
+	App::wnd()->updateIsActive();
 	const auto logged = account().sessionExists();
 	const auto locked = Core::App().locked();
 	const auto inactive = !logged || locked;

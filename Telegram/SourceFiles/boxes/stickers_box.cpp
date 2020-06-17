@@ -363,7 +363,7 @@ StickersBox::StickersBox(
 	not_null<Main::Session*> session,
 	Section section)
 : _session(session)
-, _api(session->mtp())
+, _api(&session->mtp())
 , _tabs(this, st::stickersTabs)
 , _unreadBadge(
 	this,
@@ -377,7 +377,7 @@ StickersBox::StickersBox(
 
 StickersBox::StickersBox(QWidget*, not_null<ChannelData*> megagroup)
 : _session(&megagroup->session())
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _section(Section::Installed)
 , _installed(0, this, megagroup)
 , _megagroupSet(megagroup) {
@@ -391,7 +391,7 @@ StickersBox::StickersBox(
 	not_null<Main::Session*> session,
 	const MTPVector<MTPStickerSetCovered> &attachedSets)
 : _session(session)
-, _api(session->mtp())
+, _api(&session->mtp())
 , _section(Section::Attached)
 , _attached(0, this, session, Section::Attached)
 , _attachedSets(attachedSets) {
@@ -928,7 +928,7 @@ StickersBox::Inner::Inner(
 	StickersBox::Section section)
 : RpWidget(parent)
 , _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -945,7 +945,7 @@ StickersBox::Inner::Inner(
 StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup)
 : RpWidget(parent)
 , _session(&megagroup->session())
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -954,10 +954,16 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup)
 , _itemsTop(st::membersMarginTop)
 , _megagroupSet(megagroup)
 , _megagroupSetInput(_megagroupSet->mgInfo->stickerSet)
-, _megagroupSetField(this, st::groupStickersField, rpl::single(qsl("stickerset")), QString(), true)
+, _megagroupSetField(
+	this,
+	st::groupStickersField,
+	rpl::single(qsl("stickerset")),
+	QString(),
+	_session->createInternalLink(QString()))
 , _megagroupDivider(this)
 , _megagroupSubTitle(this, tr::lng_stickers_group_from_your(tr::now), st::boxTitle) {
-	_megagroupSetField->setLinkPlaceholder(Core::App().createInternalLink(qsl("addstickers/")));
+	_megagroupSetField->setLinkPlaceholder(
+		_session->createInternalLink(qsl("addstickers/")));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
 	connect(

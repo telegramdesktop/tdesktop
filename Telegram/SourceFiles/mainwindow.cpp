@@ -516,7 +516,7 @@ bool MainWindow::doWeMarkAsRead() {
 	if (!_main || Ui::isLayerShown()) {
 		return false;
 	}
-	updateIsActive(0);
+	updateIsActive();
 	return isActive() && _main->doWeMarkAsRead();
 }
 
@@ -609,7 +609,7 @@ void MainWindow::updateTrayMenu(bool force) {
 		auto minimizeAction = actions.at(1);
 		minimizeAction->setEnabled(isVisible());
 	} else {
-		updateIsActive(0);
+		updateIsActive();
 		auto active = Platform::IsWayland() ? isVisible() : isActive();
 		auto toggleAction = actions.at(0);
 		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
@@ -705,7 +705,7 @@ void MainWindow::activate() {
 	setVisible(true);
 	psActivateProcess();
 	activateWindow();
-	updateIsActive(Global::OnlineFocusTimeout());
+	controller().updateIsActiveFocus();
 	if (wasHidden) {
 		if (_main) {
 			_main->windowShown();
@@ -743,7 +743,7 @@ void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 
 void MainWindow::handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) {
-	updateIsActive(0);
+	updateIsActive();
 	if (Platform::IsMac() && isActive()) {
 		if (trayIcon && !trayIcon->contextMenu()) {
 			showFromTray(reason);

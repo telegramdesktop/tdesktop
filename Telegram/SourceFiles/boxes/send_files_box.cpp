@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
+#include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -36,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
 #include "layout.h"
-#include "facades.h"
+#include "facades.h" // App::LambdaDelayed.
 #include "app.h"
 #include "styles/style_history.h"
 #include "styles/style_layers.h"
@@ -2041,8 +2042,10 @@ void SendFilesBox::applyAlbumOrder() {
 }
 
 void SendFilesBox::setupCaption() {
-	_caption->setMaxLength(Global::CaptionLengthMax());
-	_caption->setSubmitSettings(_controller->session().settings().sendSubmitWay());
+	_caption->setMaxLength(
+		_controller->session().serverConfig().captionLengthMax);
+	_caption->setSubmitSettings(
+		_controller->session().settings().sendSubmitWay());
 	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});

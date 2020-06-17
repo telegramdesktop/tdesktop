@@ -48,7 +48,7 @@ Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id) {
 }
 
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {
-	const auto CacheDcId = cTestMode() ? 2 : 4;
+	const auto CacheDcId = 4; // The default production value. Doesn't matter.
 	const auto dcId = uint64(CacheDcId) & 0xFFULL;
 	const auto &url = location.url();
 	const auto hash = openssl::Sha256(bytes::make_span(url));

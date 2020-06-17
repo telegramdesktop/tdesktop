@@ -101,7 +101,7 @@ void SignupWidget::activate() {
 }
 
 void SignupWidget::cancelled() {
-	api()->request(base::take(_sentRequest)).cancel();
+	api().request(base::take(_sentRequest)).cancel();
 }
 
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
@@ -181,7 +181,7 @@ void SignupWidget::submit() {
 
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
-		_sentRequest = api()->request(MTPauth_SignUp(
+		_sentRequest = api().request(MTPauth_SignUp(
 			MTP_string(getData()->phone),
 			MTP_bytes(getData()->phoneHash),
 			MTP_string(_firstName),

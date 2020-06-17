@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
+#include "mtproto/mtproto_config.h"
 #include "main/main_accounts.h"
 #include "main/main_account.h"
 #include "facades.h"
@@ -25,11 +26,15 @@ constexpr auto kMaxAccounts = 3;
 }
 
 [[nodiscard]] QString ComputeKeyName(const QString &dataName) {
-	return "key_" + dataName + (cTestMode() ? "[test]" : "");
+	// We dropped old test authorizations when migrated to multi auth.
+	//return "key_" + dataName + (cTestMode() ? "[test]" : "");
+	return "key_" + dataName;
 }
 
 [[nodiscard]] QString ComputeInfoName(const QString &dataName) {
-	return "info_" + dataName + (cTestMode() ? "[test]" : "");
+	// We dropped old test authorizations when migrated to multi auth.
+	//return "info_" + dataName + (cTestMode() ? "[test]" : "");
+	return "info_" + dataName;
 }
 
 } // namespace
@@ -63,10 +68,12 @@ StartResult Accounts::start(const QByteArray &passcode) {
 	return result;
 }
 
-void Accounts::startAdded(not_null<Main::Account*> account) {
+void Accounts::startAdded(
+		not_null<Main::Account*> account,
+		std::unique_ptr<MTP::Config> config) {
 	Expects(_localKey != nullptr);
 
-	account->startAdded(_localKey);
+	account->startAdded(_localKey, std::move(config));
 }
 
 void Accounts::startWithSingleAccount(

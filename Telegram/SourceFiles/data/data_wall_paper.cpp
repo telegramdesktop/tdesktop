@@ -154,11 +154,11 @@ bool WallPaper::hasShareUrl() const {
 	return !_slug.isEmpty();
 }
 
-QString WallPaper::shareUrl() const {
+QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 	if (!hasShareUrl()) {
 		return QString();
 	}
-	const auto base = Core::App().createInternalLinkFull("bg/" + _slug);
+	const auto base = session->createInternalLinkFull("bg/" + _slug);
 	auto params = QStringList();
 	if (isPattern()) {
 		if (_backgroundColor) {

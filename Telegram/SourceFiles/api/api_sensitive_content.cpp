@@ -21,7 +21,7 @@ constexpr auto kRefreshAppConfigTimeout = 3 * crl::time(1000);
 
 SensitiveContent::SensitiveContent(not_null<ApiWrap*> api)
 : _session(&api->session())
-, _api(api->instance())
+, _api(&api->instance())
 , _appConfigReloadTimer([=] { _session->account().appConfig().refresh(); }) {
 }
 

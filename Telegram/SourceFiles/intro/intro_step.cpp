@@ -98,11 +98,11 @@ Step::Step(
 
 Step::~Step() = default;
 
-not_null<MTP::Sender*> Step::api() const {
+MTP::Sender &Step::api() const {
 	if (!_api) {
-		_api.emplace(_account->mtp());
+		_api.emplace(&_account->mtp());
 	}
-	return &*_api;
+	return *_api;
 }
 
 void Step::apiClear() {

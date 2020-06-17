@@ -12,6 +12,10 @@ class Accounts;
 enum class StartResult : uchar;
 } // namespace Storage
 
+namespace MTP {
+enum class Environment : uchar;
+} // namespace MTP
+
 namespace Main {
 
 class Account;
@@ -25,6 +29,7 @@ public:
 	[[nodiscard]] bool started() const;
 	[[nodiscard]] Storage::StartResult start(const QByteArray &passcode);
 	void resetWithForgottenPasscode();
+	void finish();
 
 	[[nodiscard]] Storage::Accounts &local() const {
 		return *_local;
@@ -42,7 +47,7 @@ public:
 	[[nodiscard]] rpl::producer<Session*> activeSessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> activeSessionChanges() const;
 
-	[[nodiscard]] int add();
+	[[nodiscard]] int add(MTP::Environment environment);
 	void activate(int index);
 
 	// Interface for Storage::Accounts.
@@ -55,6 +60,7 @@ private:
 	void removeRedundantAccounts();
 	void watchSession(not_null<Account*> account);
 	void scheduleWriteAccounts();
+	void checkForLastProductionConfig(not_null<Main::Account*> account);
 
 	const QString _dataName;
 	const std::unique_ptr<Storage::Accounts> _local;

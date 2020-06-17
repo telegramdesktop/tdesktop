@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/changelogs.h"
 #include "main/main_account.h"
+#include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
 #include "storage/file_download.h"
@@ -39,6 +40,25 @@ namespace Main {
 namespace {
 
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
+
+[[nodiscard]] QString ValidatedInternalLinksDomain(
+		not_null<const Main::Session*> session) {
+	// This domain should start with 'http[s]://' and end with '/'.
+	// Like 'https://telegram.me/' or 'https://t.me/'.
+	const auto &domain = session->serverConfig().internalLinksDomain;
+	const auto prefixes = {
+		qstr("https://"),
+		qstr("http://"),
+	};
+	for (const auto &prefix : prefixes) {
+		if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
+			return domain.endsWith('/')
+				? domain
+				: MTP::ConfigFields().internalLinksDomain;
+		}
+	}
+	return MTP::ConfigFields().internalLinksDomain;
+}
 
 } // namespace
 
@@ -75,7 +95,7 @@ Session::Session(
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
 
-	_api->instance()->setUserPhone(_user->phone());
+	_api->instance().setUserPhone(_user->phone());
 
 	crl::on_main(this, [=] {
 		using Flag = Data::PeerUpdate::Flag;
@@ -91,9 +111,9 @@ Session::Session(
 
 			if (update.flags & Flag::PhoneNumber) {
 				const auto phone = _user->phone();
-				_api->instance()->setUserPhone(phone);
+				_api->instance().setUserPhone(phone);
 				if (!phone.isEmpty()) {
-					_api->instance()->requestConfig();
+					_api->instance().requestConfig();
 				}
 			}
 		}, _lifetime);
@@ -156,17 +176,40 @@ void Session::saveSettingsDelayed(crl::time delay) {
 }
 
 MTP::DcId Session::mainDcId() const {
-	return _account->mtp()->mainDcId();
+	return _account->mtp().mainDcId();
 }
 
-not_null<MTP::Instance*> Session::mtp() const {
+MTP::Instance &Session::mtp() const {
 	return _account->mtp();
+}
+
+const MTP::ConfigFields &Session::serverConfig() const {
+	return _account->mtp().configValues();
 }
 
 void Session::termsDeleteNow() {
 	api().request(MTPaccount_DeleteAccount(
 		MTP_string("Decline ToS update")
 	)).send();
+}
+
+QString Session::createInternalLink(const QString &query) const {
+	auto result = createInternalLinkFull(query);
+	auto prefixes = {
+		qstr("https://"),
+		qstr("http://"),
+	};
+	for (auto &prefix : prefixes) {
+		if (result.startsWith(prefix, Qt::CaseInsensitive)) {
+			return result.mid(prefix.size());
+		}
+	}
+	LOG(("Warning: bad internal url '%1'").arg(result));
+	return result;
+}
+
+QString Session::createInternalLinkFull(const QString &query) const {
+	return ValidatedInternalLinksDomain(this) + query;
 }
 
 bool Session::supportMode() const {

@@ -114,7 +114,7 @@ void PasswordCheckWidget::activate() {
 }
 
 void PasswordCheckWidget::cancelled() {
-	api()->request(base::take(_sentRequest)).cancel();
+	api().request(base::take(_sentRequest)).cancel();
 }
 
 void PasswordCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
@@ -181,8 +181,8 @@ void PasswordCheckWidget::checkPasswordHash() {
 }
 
 void PasswordCheckWidget::requestPasswordData() {
-	api()->request(base::take(_sentRequest)).cancel();
-	_sentRequest = api()->request(
+	api().request(base::take(_sentRequest)).cancel();
+	_sentRequest = api().request(
 		MTPaccount_GetPassword()
 	).done([=](const MTPaccount_Password &result) {
 		_sentRequest = 0;
@@ -204,7 +204,7 @@ void PasswordCheckWidget::passwordChecked() {
 		return serverError();
 	}
 	_request.id = 0;
-	_sentRequest = api()->request(
+	_sentRequest = api().request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
 		pwdSubmitDone(false, result);
@@ -266,7 +266,7 @@ void PasswordCheckWidget::recoverStartFail(const RPCError &error) {
 void PasswordCheckWidget::toRecover() {
 	if (_hasRecovery) {
 		if (_sentRequest) {
-			api()->request(base::take(_sentRequest)).cancel();
+			api().request(base::take(_sentRequest)).cancel();
 		}
 		hideError();
 		_toRecover->hide();
@@ -278,7 +278,7 @@ void PasswordCheckWidget::toRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-			api()->request(
+			api().request(
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
 				recoverStarted(result);
@@ -301,7 +301,7 @@ void PasswordCheckWidget::toPassword() {
 
 void PasswordCheckWidget::showReset() {
 	if (_sentRequest) {
-		api()->request(base::take(_sentRequest)).cancel();
+		api().request(base::take(_sentRequest)).cancel();
 	}
 	_toRecover->show();
 	_toPassword->hide();
@@ -334,7 +334,7 @@ void PasswordCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-			_sentRequest = api()->request(
+			_sentRequest = api().request(
 				MTPauth_RecoverPassword(MTP_string(code))
 			).done([=](const MTPauth_Authorization &result) {
 				pwdSubmitDone(true, result);

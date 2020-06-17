@@ -28,6 +28,7 @@ class WallPaper;
 } // namespace Data
 
 namespace MTP {
+class Config;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 } // namespace MTP
@@ -55,7 +56,8 @@ public:
 	~Account();
 
 	[[nodiscard]] StartResult legacyStart(const QByteArray &passcode);
-	void start(MTP::AuthKeyPtr localKey);
+	[[nodiscartd]] std::unique_ptr<MTP::Config> start(
+		MTP::AuthKeyPtr localKey);
 	void startAdded(MTP::AuthKeyPtr localKey);
 	[[nodiscard]] int oldMapVersion() const {
 		return _oldMapVersion;
@@ -67,6 +69,7 @@ public:
 
 	void writeSettings();
 	void writeMtpData();
+	void writeMtpConfig();
 
 	void writeBackground(const Data::WallPaper &paper, const QImage &image);
 	bool readBackground();
@@ -172,6 +175,7 @@ private:
 	std::unique_ptr<Main::Settings> readSettings();
 	void writeSettings(Main::Settings *stored);
 
+	std::unique_ptr<MTP::Config> readMtpConfig();
 	void readMtpData();
 	std::unique_ptr<Main::Settings> applyReadContext(
 		details::ReadSettingsContext &&context);

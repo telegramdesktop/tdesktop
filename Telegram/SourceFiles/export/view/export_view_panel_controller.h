@@ -22,12 +22,8 @@ class Session;
 } // namespace Main
 
 namespace Export {
-
-struct Environment;
-
 namespace View {
 
-Environment PrepareEnvironment();
 QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session);
 void ClearSuggestStart(not_null<Main::Session*> session);
 bool IsDefaultPath(not_null<Main::Session*> session, const QString &path);

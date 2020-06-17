@@ -755,8 +755,6 @@ PRIVATE
     mtproto/connection_tcp.cpp
     mtproto/connection_tcp.h
     mtproto/core_types.h
-    mtproto/dc_options.cpp
-    mtproto/dc_options.h
     mtproto/dedicated_file_loader.cpp
     mtproto/dedicated_file_loader.h
     mtproto/facade.cpp
@@ -912,6 +910,8 @@ PRIVATE
     storage/serialize_common.h
     storage/serialize_document.cpp
     storage/serialize_document.h
+    storage/serialize_peer.cpp
+    storage/serialize_peer.h
     storage/storage_account.cpp
     storage/storage_account.h
     storage/storage_accounts.cpp

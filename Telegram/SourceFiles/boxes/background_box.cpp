@@ -193,7 +193,7 @@ BackgroundBox::Inner::Inner(
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
-, _api(_session->mtp())
+, _api(&_session->mtp())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, anim::type::instant);
 	if (_session->data().wallpapers().empty()) {

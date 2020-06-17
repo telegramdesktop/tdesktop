@@ -28,12 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
@@ -479,7 +479,9 @@ void WrapWidget::addProfileCallsButton() {
 
 	const auto peer = key().peer();
 	const auto user = peer ? peer->asUser() : nullptr;
-	if (!user || user->isSelf() || !Global::PhoneCallsEnabled()) {
+	if (!user
+		|| user->isSelf()
+		|| !user->session().serverConfig().phoneCallsEnabled.current()) {
 		return;
 	}
 

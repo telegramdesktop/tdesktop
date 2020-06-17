@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
 #include "platform/platform_specific.h"
+#include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -6756,7 +6757,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	QString editTimeLeftText;
 	int updateIn = -1;
 	auto timeSinceMessage = ItemDateTime(_replyEditMsg).msecsTo(QDateTime::currentDateTime());
-	auto editTimeLeft = (Global::EditTimeLimit() * 1000LL) - timeSinceMessage;
+	auto editTimeLeft = (session().serverConfig().editTimeLimit * 1000LL) - timeSinceMessage;
 	if (editTimeLeft < 2) {
 		editTimeLeftText = qsl("0:00");
 	} else if (editTimeLeft > kDisplayEditTimeWarningMs) {

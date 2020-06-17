@@ -301,7 +301,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			std::move(linkText),
 			QString());
 		link->setClickHandlerFilter([peer = _peer](auto&&...) {
-			const auto link = Core::App().createInternalLinkFull(
+			const auto link = peer->session().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
 				QGuiApplication::clipboard()->setText(link);
