@@ -634,11 +634,11 @@ void SetupNotificationsContent(
 		} else if (Platform::IsWindows()) {
 			return tr::lng_settings_use_windows(tr::now);
 		} else if (Platform::IsLinux()) {
-#ifdef Q_OS_UNIX
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
 			if (Platform::IsWayland()) {
 				return QString();
 			}
-#endif // Q_OS_UNIX
+#endif // Q_OS_UNIX && !Q_OS_MAC
 			return tr::lng_settings_use_native_notifications(tr::now);
 		}
 		return QString();
