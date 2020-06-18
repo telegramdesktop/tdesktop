@@ -51,6 +51,7 @@ constexpr auto kIdealIconSize = 36;
 constexpr auto kMaximumIconSize = 44;
 constexpr auto kCircleDiameter = 30;
 constexpr auto kPinnedButtonsSpace = 30;
+constexpr auto kPinnedButtonsLeftSkip = kPinnedButtonsSpace / 2;
 
 constexpr auto kCommandPlayPause = 0x002;
 constexpr auto kCommandPlaylistPrevious = 0x003;
@@ -89,6 +90,7 @@ constexpr auto kGestureStateFinished = {
 };
 
 NSString *const kTypePinned = @"pinned";
+NSString *const kTypePinnedPanel = @"pinnedPanel";
 NSString *const kTypeSlider = @"slider";
 NSString *const kTypeButton = @"button";
 NSString *const kTypeText = @"text";
@@ -102,6 +104,7 @@ const NSString *kCustomizationIdPlayer = @"telegram.touchbar";
 const NSString *kCustomizationIdMain = @"telegram.touchbarMain";
 const NSTouchBarItemIdentifier kSavedMessagesItemIdentifier = [NSString stringWithFormat:@"%@.savedMessages", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kArchiveFolderItemIdentifier = [NSString stringWithFormat:@"%@.archiveFolder", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kPinnedPanelItemIdentifierOld = [NSString stringWithFormat:@"%@.pinnedPanelOld", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kPinnedPanelItemIdentifier = [NSString stringWithFormat:@"%@.pinnedPanel", kCustomizationIdMain];
 
 const NSTouchBarItemIdentifier kSeekBarItemIdentifier = [NSString stringWithFormat:@"%@.seekbar", kCustomizationIdPlayer];
@@ -165,6 +168,48 @@ NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
 		0);
 #endif // OS_MAC_OLD
 	return [qt_mac_create_nsimage(pixmap) autorelease];
+}
+
+int TouchXPosition(NSEvent *e, NSView *v) {
+	return [[[e.allTouches allObjects] objectAtIndex:0] locationInView:v].x;
+}
+
+bool IsSingleTouch(NSEvent *e) {
+	return [e.allTouches allObjects].count == 1;
+}
+
+QImage PrepareImage() {
+	const auto s = kCircleDiameter * cIntRetinaFactor();
+	auto result = QImage(QSize(s, s), QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	return result;
+}
+
+QImage SavedMessagesUserpic() {
+	auto result = PrepareImage();
+	Painter paint(&result);
+
+	const auto s = result.width();
+	Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+	return result;
+}
+
+QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
+	auto result = PrepareImage();
+	Painter paint(&result);
+
+	auto view = std::shared_ptr<Data::CloudImageView>();
+	folder->paintUserpic(paint, view, 0, 0, result.width());
+	return result;
+}
+
+NSRect PeerRectByIndex(int index) {
+	return NSMakeRect(
+		index * (kCircleDiameter + kPinnedButtonsSpace)
+			+ kPinnedButtonsLeftSkip,
+		0,
+		kCircleDiameter,
+		kCircleDiameter);
 }
 
 int WidthFromString(NSString *s) {
@@ -265,7 +310,15 @@ bool PaintUnreadBadge(Painter &p, PeerData *peer) {
 		12,
 		unreadSt.font->flags(),
 		unreadSt.font->family());
-	Dialogs::Layout::paintUnreadCount(p, unread, kIdealIconSize, kIdealIconSize - unreadSt.size, unreadSt, nullptr, 2);
+
+	Dialogs::Layout::paintUnreadCount(
+		p,
+		unread,
+		kCircleDiameter,
+		kCircleDiameter - unreadSt.size,
+		unreadSt,
+		nullptr,
+		2);
 	return true;
 }
 
@@ -479,6 +532,287 @@ void AppendEmojiPacks(
 	return [[[e.allTouches allObjects] objectAtIndex:0] locationInView:self].x;
 }
 @end // @implementation PinButton
+
+#pragma mark - PinnedDialogsPanel
+
+@interface PinnedDialogsPanel : NSImageView
+- (id)init:(not_null<Main::Session*>)session;
+@end // @interface PinnedDialogsPanel
+
+@implementation PinnedDialogsPanel {
+	struct Pin {
+		PeerData *peer = nullptr;
+		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
+		int index = -1;
+		QImage userpic;
+	};
+
+	rpl::lifetime _lifetime;
+	Main::Session* _session;
+	std::vector<Pin> _pins;
+	QImage _savedMessages;
+	QImage _archive;
+	base::has_weak_ptr _guard;
+
+	bool _hasArchive;
+	bool _selfUnpinned;
+	int _startPosition;
+}
+
+- (id)init:(not_null<Main::Session*>)session {
+	self = [super init];
+	_session = session;
+	_startPosition = 0;
+	_hasArchive = _selfUnpinned = false;
+	_savedMessages = SavedMessagesUserpic();
+
+	const auto downloadLifetime = _lifetime.make_state<rpl::lifetime>();
+	const auto peerChangedLifetime = _lifetime.make_state<rpl::lifetime>();
+	const auto lastDialogsCount = _lifetime.make_state<rpl::variable<int>>(0);
+	auto &&peers = ranges::views::all(
+		_pins
+	) | ranges::views::transform(&Pin::peer);
+
+	const auto updateBadge = [=](Pin &pin) {
+		const auto peer = pin.peer;
+		if (IsSelfPeer(peer)
+			|| !peer->owner().history(peer->id)->unreadCountForBadge()) {
+			return;
+		}
+		auto pixmap = App::pixmapFromImageInPlace(
+			base::take(pin.userpic));
+		if (pixmap.isNull()) {
+			return;
+		}
+
+		Painter p(&pixmap);
+		PaintUnreadBadge(p, peer);
+		pin.userpic = pixmap.toImage();
+
+		const auto userpicIndex = pin.index + [self shift];
+		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
+	};
+	const auto updatePanelSize = [=] {
+		const auto size = lastDialogsCount->current();
+		self.image = [[NSImage alloc] initWithSize:NSMakeSize(
+			size * (kCircleDiameter + kPinnedButtonsSpace)
+				+ kPinnedButtonsLeftSkip
+				- kPinnedButtonsSpace / 2,
+			kCircleDiameter)];
+	};
+	lastDialogsCount->changes(
+	) | rpl::start_with_next(updatePanelSize, _lifetime);
+	const auto singleUserpic = [=](Pin &pin) {
+		if (IsSelfPeer(pin.peer)) {
+			pin.userpic = _savedMessages;
+			return;
+		}
+		auto userpic = pin.peer->genUserpic(
+			pin.userpicView,
+			kCircleDiameter);
+
+		Painter p(&userpic);
+		PaintUnreadBadge(p, pin.peer);
+		userpic.setDevicePixelRatio(cRetinaFactor());
+		pin.userpic = userpic.toImage();
+	};
+	const auto updateUserpics = [=] {
+		ranges::for_each(_pins, singleUserpic);
+		*lastDialogsCount = [self shift] + std::ssize(_pins);
+		[self display];
+	};
+	const auto listenToDownloaderFinished = [=] {
+		base::ObservableViewer(
+			_session->downloaderTaskFinished()
+		) | rpl::start_with_next([=] {
+			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
+				return (!pin.peer->hasUserpic())
+					|| (pin.userpicView && pin.userpicView->image());
+			});
+			if (all) {
+				downloadLifetime->destroy();
+			}
+			updateUserpics();
+		}, *downloadLifetime);
+	};
+	const auto updatePinnedChats = [=] {
+		_pins = ranges::view::zip(
+			_session->data().pinnedChatsOrder(nullptr, FilterId()),
+			ranges::view::ints(0, ranges::unreachable)
+		) | ranges::views::transform([=](const auto &pair) -> Pin {
+			const auto index = pair.second;
+			auto peer = pair.first.history()->peer;
+			if (!_pins.empty() && index < std::ssize(_pins)) {
+				if (peer->id == _pins[index].peer->id) {
+					// Reuse the existing pin.
+					return _pins[index];
+				}
+			}
+			auto view = peer->createUserpicView();
+			return { std::move(peer), std::move(view), index, QImage() };
+		});
+		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
+
+		peerChangedLifetime->destroy();
+		for (const auto &pin : _pins) {
+			_session->changes().peerUpdates(
+				pin.peer,
+				Data::PeerUpdate::Flag::Photo
+			) | rpl::start_with_next(
+					listenToDownloaderFinished,
+					*peerChangedLifetime);
+
+			using UpdateFlag = Data::PeerUpdate::Flag;
+			auto to_empty = rpl::map([=] { return rpl::empty_value(); });
+
+			rpl::merge(
+				_session->changes().historyUpdates(
+					_session->data().history(pin.peer),
+					Data::HistoryUpdate::Flag::UnreadView
+				) | to_empty,
+				_session->changes().peerFlagsValue(
+					pin.peer,
+					UpdateFlag::Notifications
+				) | to_empty
+			) | rpl::start_with_next([=] {
+				updateBadge(_pins[pin.index]);
+			}, *peerChangedLifetime);
+		}
+
+		updateUserpics();
+		// ranges::for_each(peers, updateBadge);
+	};
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		_session->data().pinnedDialogsOrderUpdated()
+	) | rpl::start_with_next(updatePinnedChats, _lifetime);
+
+	const auto ArchiveId = Data::Folder::kId;
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::map([=] {
+		return _session->data().folderLoaded(ArchiveId);
+	}) | rpl::then(
+		_session->data().chatsListChanges()
+	) | rpl::filter([](Data::Folder *folder) {
+		return folder && (folder->id() == ArchiveId);
+	}) | rpl::start_with_next([=](Data::Folder *folder) {
+		_hasArchive = !folder->chatsList()->empty();
+		if (_archive.isNull()) {
+			_archive = ArchiveUserpic(folder);
+		}
+		updateUserpics();
+	}, _lifetime);
+
+	base::ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
+		return update.paletteChanged();
+	}) | rpl::start_with_next([=] {
+		crl::on_main(&_guard, [=] {
+			if (const auto f = _session->data().folderLoaded(ArchiveId)) {
+				_archive = ArchiveUserpic(f);
+			}
+			_savedMessages = SavedMessagesUserpic();
+			updateUserpics();
+		});
+	}, _lifetime);
+
+	listenToDownloaderFinished();
+	return self;
+}
+
+- (int)shift {
+	return (_hasArchive ? 1 : 0) + (_selfUnpinned ? 1 : 0);
+}
+
+- (void)touchesBeganWithEvent:(NSEvent *)event {
+	if (!IsSingleTouch(event)) {
+		return;
+	}
+	_startPosition = TouchXPosition(event, self);
+	[super touchesBeganWithEvent:event];
+}
+
+- (void)touchesEndedWithEvent:(NSEvent *)event {
+	if (!IsSingleTouch(event)) {
+		return;
+	}
+	const auto currentPosition = TouchXPosition(event, self);
+	const auto step = kPinnedButtonsSpace;
+	if (std::abs(_startPosition - currentPosition) < step) {
+		[self performAction:currentPosition];
+	}
+}
+
+- (void)performAction:(int)xPosition {
+	const auto x = xPosition
+		- kPinnedButtonsLeftSkip
+		+ kPinnedButtonsSpace / 2;
+	const auto index = x / (kCircleDiameter + kPinnedButtonsSpace)
+		- [self shift];
+
+	const auto peer = (index < 0 || index >= std::ssize(_pins))
+		? nullptr
+		: _pins[index].peer;
+	if (!peer && !_hasArchive && !_selfUnpinned) {
+		return;
+	}
+
+	const auto active = Core::App().activeWindow();
+	const auto controller = active ? active->sessionController() : nullptr;
+	const auto openFolder = [=] {
+		const auto folder = _session->data().folderLoaded(Data::Folder::kId);
+		if (folder && controller) {
+			controller->openFolder(folder);
+		}
+	};
+	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+		(_hasArchive && (index == (_selfUnpinned ? -2 : -1)))
+			? openFolder()
+			: controller->content()->choosePeer(
+				(_selfUnpinned && index == -1)
+					? _session->userPeerId()
+					: peer->id,
+				ShowAtUnreadMsgId);
+	});
+}
+
+- (QImage)imageToDraw:(int)i {
+	Expects(i < std::ssize(_pins));
+	if (i < 0) {
+		if (_hasArchive && (i == -[self shift])) {
+			return _archive;
+		} else if (_selfUnpinned) {
+			return _savedMessages;
+		}
+	}
+	return _pins[i].userpic;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+	const auto shift = [self shift];
+	if (_pins.empty() && !shift) {
+		return;
+	}
+	for (auto i = -shift; i < std::ssize(_pins); i++) {
+		const auto rect = PeerRectByIndex(i + shift);
+		if (!NSIntersectsRect(rect, dirtyRect)) {
+			continue;
+		}
+		CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
+		CGImageRef image = ([self imageToDraw:i]).toCGImage();
+		CGContextDrawImage(context, rect, image);
+		CGImageRelease(image);
+
+	}
+}
+
+@end // @@implementation PinnedDialogsPanel
+
+#pragma mark - End PinnedDialogsPanel
 
 @interface PinnedDialogButton : NSCustomTouchBarItem
 
@@ -977,8 +1311,11 @@ void AppendEmojiPacks(
 	_duration = 0;
 	_parentView = view;
 	self.touchBarItems = @{
-		kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+		kPinnedPanelItemIdentifierOld: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  kTypePinned,
+		}],
+		kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  kTypePinnedPanel,
 		}],
 		kSeekBarItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type": kTypeSlider,
@@ -1062,8 +1399,8 @@ void AppendEmojiPacks(
 	}, _lifetime);
 
 	_session->data().pinnedDialogsOrderUpdated(
-	) | rpl::start_with_next([self] {
-		[self updatePinnedButtons];
+	) | rpl::start_with_next([] {
+		// [self updatePinnedButtons];
 	}, _lifetime);
 
 	_session->data().chatsListChanges(
@@ -1072,7 +1409,7 @@ void AppendEmojiPacks(
 			&& folder->chatsList()
 			&& folder->id() == Data::Folder::kId;
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
-		[self toggleArchiveButton:folder->chatsList()->empty()];
+		// [self toggleArchiveButton:folder->chatsList()->empty()];
 	}, _lifetime);
 
 
@@ -1113,7 +1450,7 @@ void AppendEmojiPacks(
 		[self updatePickerPopover:ScrubberItemType::Emoji];
 	}, _lifetime);
 
-	[self updatePinnedButtons];
+	// [self updatePinnedButtons];
 
 	return self;
 }
@@ -1246,6 +1583,12 @@ void AppendEmojiPacks(
 		item.view = stackView;
 		[dictionaryItem setObject:item.view forKey:@"view"];
 		return item;
+	} else if (isType(kTypePinnedPanel)) {
+		auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		item.customizationLabel = @"Pinned Panel";
+		item.view = [[PinnedDialogsPanel alloc] init:_session];
+		[dictionaryItem setObject:item.view forKey:@"view"];
+		return item;
 	}
 
 	return nil;
@@ -1337,7 +1680,7 @@ void AppendEmojiPacks(
 - (void) toggleArchiveButton:(bool)hide {
 	for (PinnedDialogButton *button in _mainPinnedButtons) {
 		if (button.number == kArchiveId) {
-			NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
+			NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifierOld];
 			NSStackView *stack = item.view;
 			[button updateUserpic];
 			if (hide && !button.isDeletedFromView) {
@@ -1359,7 +1702,7 @@ void AppendEmojiPacks(
 	auto isSelfPeerPinned = false;
 	auto isArchivePinned = false;
 	PinnedDialogButton *selfChatButton;
-	NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
+	NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifierOld];
 	NSStackView *stack = item.view;
 
 	for (PinnedDialogButton *button in _mainPinnedButtons) {
