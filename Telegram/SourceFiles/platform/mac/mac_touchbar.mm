@@ -32,12 +32,15 @@
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "base/call_delayed.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
 #include "styles/style_settings.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
+#include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
 #include "ui/widgets/input_fields.h"
 #include "app.h"
@@ -168,14 +171,6 @@ NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
 		0);
 #endif // OS_MAC_OLD
 	return [qt_mac_create_nsimage(pixmap) autorelease];
-}
-
-int TouchXPosition(NSEvent *e, NSView *v) {
-	return [[[e.allTouches allObjects] objectAtIndex:0] locationInView:v].x;
-}
-
-bool IsSingleTouch(NSEvent *e) {
-	return [e.allTouches allObjects].count == 1;
 }
 
 QImage PrepareImage() {
@@ -545,6 +540,14 @@ void AppendEmojiPacks(
 		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
 		int index = -1;
 		QImage userpic;
+
+		Ui::Animations::Simple shiftAnimation;
+		int shift = 0;
+		int finalShift = 0;
+		int deltaShift = 0;
+		int x = 0;
+		int horizontalShift = 0;
+		bool onTop = false;
 	};
 
 	rpl::lifetime _lifetime;
@@ -556,13 +559,278 @@ void AppendEmojiPacks(
 
 	bool _hasArchive;
 	bool _selfUnpinned;
-	int _startPosition;
+
+	rpl::event_stream<not_null<NSEvent*>> _touches;
+}
+
+- (void)processHorizontalReorder {
+	// This method is a simplified version of the VerticalLayoutReorder class
+	// and is adapatized for horizontal use.
+	enum class State : uchar {
+		Started,
+		Applied,
+		Cancelled,
+	};
+
+	const auto currentStart = _lifetime.make_state<int>(0);
+	const auto currentPeer = _lifetime.make_state<PeerData*>(nullptr);
+	const auto currentState = _lifetime.make_state<State>(State::Cancelled);
+	const auto currentDesiredIndex = _lifetime.make_state<int>(-1);
+	const auto waitForFinish = _lifetime.make_state<bool>(false);
+	const auto isDragging = _lifetime.make_state<bool>(false);
+
+	const auto indexOf = [=](PeerData *p) {
+		const auto i = ranges::find(_pins, p, &Pin::peer);
+		Assert(i != end(_pins));
+		return i - begin(_pins);
+	};
+
+	const auto setHorizontalShift = [=](int index, int shift) {
+		Expects(index >= 0 && index < _pins.size());
+
+		auto &pin = _pins[index];
+		if (const auto delta = shift - pin.horizontalShift) {
+			pin.horizontalShift = shift;
+			pin.x += delta;
+
+			// Redraw a rectangle
+			// from the beginning point of the pin movement to the end point.
+			auto rect = PeerRectByIndex(indexOf(pin.peer) + [self shift]);
+			const auto absDelta = std::abs(delta);
+			rect.origin.x = pin.x - absDelta;
+			rect.size.width += absDelta * 2;
+			[self setNeedsDisplayInRect:rect];
+		}
+	};
+
+	const auto updateShift = [=](not_null<PeerData*> peer, int indexHint) {
+		Expects(indexHint >= 0 && indexHint < _pins.size());
+
+		const auto index = (_pins[indexHint].peer->id == peer->id)
+			? indexHint
+			: indexOf(peer);
+		auto &entry = _pins[index];
+		entry.shift = entry.deltaShift
+			+ std::round(entry.shiftAnimation.value(entry.finalShift));
+		if (entry.deltaShift && !entry.shiftAnimation.animating()) {
+			entry.finalShift += entry.deltaShift;
+			entry.deltaShift = 0;
+		}
+		setHorizontalShift(index, entry.shift);
+	};
+
+	const auto moveToShift = [=](int index, int shift) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+			auto &entry = _pins[index];
+			if (entry.finalShift + entry.deltaShift == shift) {
+				return;
+			}
+			const auto peer = entry.peer;
+			entry.shiftAnimation.start(
+				[=] { updateShift(peer, index); },
+				entry.finalShift,
+				shift - entry.deltaShift,
+				st::slideWrapDuration * 1);
+			entry.finalShift = shift - entry.deltaShift;
+		});
+	};
+
+	const auto cancelCurrentByIndex = [=](int index) {
+		Expects(*currentPeer != nullptr);
+
+		if (*currentState == State::Started) {
+			*currentState = State::Cancelled;
+		}
+		*currentPeer = nullptr;
+		for (auto i = 0, count = int(_pins.size()); i != count; ++i) {
+			moveToShift(i, 0);
+		}
+	};
+
+	const auto cancelCurrent = [=] {
+		if (*currentPeer) {
+			cancelCurrentByIndex(indexOf(*currentPeer));
+		}
+	};
+
+	const auto updateOrder = [=](int index, int positionX) {
+		const auto shift = positionX - *currentStart;
+		auto &current = _pins[index];
+		current.shiftAnimation.stop();
+		current.shift = current.finalShift = shift;
+		setHorizontalShift(index, shift);
+
+		const auto count = _pins.size();
+		const auto currentWidth = current.userpic.width();
+		const auto currentMiddle = current.x + currentWidth / 2;
+		*currentDesiredIndex = index;
+		if (shift > 0) {
+			auto top = current.x - shift;
+			for (auto next = index + 1; next != count; ++next) {
+				const auto &entry = _pins[next];
+				top += entry.userpic.width();
+				if (currentMiddle < top) {
+					moveToShift(next, 0);
+				} else {
+					*currentDesiredIndex = next;
+					moveToShift(next, -currentWidth);
+				}
+			}
+			for (auto prev = index - 1; prev >= 0; --prev) {
+				moveToShift(prev, 0);
+			}
+		} else {
+			for (auto next = index + 1; next != count; ++next) {
+				moveToShift(next, 0);
+			}
+			for (auto prev = index - 1; prev >= 0; --prev) {
+				const auto &entry = _pins[prev];
+				if (currentMiddle >= entry.x - entry.shift + currentWidth) {
+					moveToShift(prev, 0);
+				} else {
+					*currentDesiredIndex = prev;
+					moveToShift(prev, currentWidth);
+				}
+			}
+		}
+	};
+
+	const auto checkForStart = [=](int positionX) {
+		const auto shift = positionX - *currentStart;
+		const auto delta = QApplication::startDragDistance();
+		*isDragging = (std::abs(shift) > delta);
+		if (!*isDragging) {
+			return;
+		}
+
+		*currentState = State::Started;
+		*currentStart += (shift > 0) ? delta : -delta;
+
+		const auto index = indexOf(*currentPeer);
+		*currentDesiredIndex = index;
+
+		// Raise the pin.
+		ranges::for_each(_pins, [=](Pin &pin) {
+			pin.onTop = false;
+		});
+		_pins[index].onTop = true;
+
+		updateOrder(index, positionX);
+	};
+
+	const auto finishCurrent = [=] {
+		if (!*currentPeer) {
+			return;
+		}
+		const auto index = indexOf(*currentPeer);
+		if (*currentDesiredIndex == index
+			|| *currentState != State::Started) {
+			cancelCurrentByIndex(index);
+			return;
+		}
+		const auto result = *currentDesiredIndex;
+		*currentState = State::Cancelled;
+		*currentPeer = nullptr;
+
+		auto &current = _pins[index];
+		// Since the width of all elements is the same
+		// we can use a single value.
+		current.finalShift += (index - result) * current.userpic.width();
+
+		if (!(current.finalShift + current.deltaShift)) {
+			current.shift = 0;
+			setHorizontalShift(index, 0);
+		}
+		current.horizontalShift = current.finalShift;
+		base::reorder(_pins, index, result);
+
+		*waitForFinish = true;
+		// Call on end of an animation.
+		base::call_delayed(st::slideWrapDuration * 1, _session, [=] {
+			const auto guard = gsl::finally([=] {
+				_session->data().notifyPinnedDialogsOrderUpdated();
+				*waitForFinish = false;
+			});
+			if (index == result) {
+				return;
+			}
+			const auto &order = _session->data().pinnedChatsOrder(
+				nullptr,
+				FilterId());
+			const auto d = (index < result) ? 1 : -1; // Direction.
+			for (auto i = index; i != result; i += d) {
+				_session->data().chatsList()->pinned()->reorder(
+					order.at(i).history(),
+					order.at(i + d).history());
+			}
+			_session->api().savePinnedOrder(nullptr);
+		});
+
+		moveToShift(result, 0);
+	};
+
+	const auto touchBegan = [=](int touchX) {
+		*isDragging = false;
+		cancelCurrent();
+		*currentStart = touchX;
+		if (_pins.size() < 2) {
+			return;
+		}
+		const auto index = [self indexFromX:*currentStart];
+		if (index < 0) {
+			return;
+		}
+		*currentPeer = _pins[index].peer;
+	};
+
+	const auto touchMoved = [=](int touchX) {
+		if (!*currentPeer) {
+			return;
+		} else if (*currentState != State::Started) {
+			checkForStart(touchX);
+		} else {
+			updateOrder(indexOf(*currentPeer), touchX);
+		}
+	};
+
+	const auto touchEnded = [=](int touchX) {
+		if (*isDragging) {
+			finishCurrent();
+			return;
+		}
+		const auto step = QApplication::startDragDistance();
+		if (std::abs(*currentStart - touchX) < step) {
+			[self performAction:touchX];
+		}
+	};
+
+	_touches.events(
+	) | rpl::filter([=] {
+		return !(*waitForFinish);
+	}) | rpl::start_with_next([=](not_null<NSEvent*> event) {
+		const auto *touches = [(event.get()).allTouches allObjects];
+		if (touches.count != 1) {
+			cancelCurrent();
+			return;
+		}
+		const auto currentPosition = [touches[0] locationInView:self].x;
+		switch (touches[0].phase) {
+		case NSTouchPhaseBegan:
+			return touchBegan(currentPosition);
+		case NSTouchPhaseMoved:
+			return touchMoved(currentPosition);
+		case NSTouchPhaseEnded:
+			return touchEnded(currentPosition);
+		}
+	}, _lifetime);
+
+	_session->data().pinnedDialogsOrderUpdated(
+	) | rpl::start_with_next(cancelCurrent, _lifetime);
 }
 
 - (id)init:(not_null<Main::Session*>)session {
 	self = [super init];
 	_session = session;
-	_startPosition = 0;
 	_hasArchive = _selfUnpinned = false;
 	_savedMessages = SavedMessagesUserpic();
 
@@ -642,12 +910,6 @@ void AppendEmojiPacks(
 		) | ranges::views::transform([=](const auto &pair) -> Pin {
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;
-			if (!_pins.empty() && index < std::ssize(_pins)) {
-				if (peer->id == _pins[index].peer->id) {
-					// Reuse the existing pin.
-					return _pins[index];
-				}
-			}
 			auto view = peer->createUserpicView();
 			return { std::move(peer), std::move(view), index, QImage() };
 		});
@@ -665,6 +927,7 @@ void AppendEmojiPacks(
 			using UpdateFlag = Data::PeerUpdate::Flag;
 			auto to_empty = rpl::map([=] { return rpl::empty_value(); });
 
+			const auto index = pin.index;
 			rpl::merge(
 				_session->changes().historyUpdates(
 					_session->data().history(pin.peer),
@@ -675,7 +938,7 @@ void AppendEmojiPacks(
 					UpdateFlag::Notifications
 				) | to_empty
 			) | rpl::start_with_next([=] {
-				updateBadge(_pins[pin.index]);
+				updateBadge(_pins[index]);
 			}, *peerChangedLifetime);
 		}
 
@@ -721,6 +984,7 @@ void AppendEmojiPacks(
 	}, _lifetime);
 
 	listenToDownloaderFinished();
+	[self processHorizontalReorder];
 	return self;
 }
 
@@ -729,31 +993,26 @@ void AppendEmojiPacks(
 }
 
 - (void)touchesBeganWithEvent:(NSEvent *)event {
-	if (!IsSingleTouch(event)) {
-		return;
-	}
-	_startPosition = TouchXPosition(event, self);
-	[super touchesBeganWithEvent:event];
+	_touches.fire(std::move(event));
+}
+
+- (void)touchesMovedWithEvent:(NSEvent *)event {
+	_touches.fire(std::move(event));
 }
 
 - (void)touchesEndedWithEvent:(NSEvent *)event {
-	if (!IsSingleTouch(event)) {
-		return;
-	}
-	const auto currentPosition = TouchXPosition(event, self);
-	const auto step = kPinnedButtonsSpace;
-	if (std::abs(_startPosition - currentPosition) < step) {
-		[self performAction:currentPosition];
-	}
+	_touches.fire(std::move(event));
+}
+
+- (int)indexFromX:(int)position {
+	const auto x = position
+		- kPinnedButtonsLeftSkip
+		+ kPinnedButtonsSpace / 2;
+	return x / (kCircleDiameter + kPinnedButtonsSpace) - [self shift];
 }
 
 - (void)performAction:(int)xPosition {
-	const auto x = xPosition
-		- kPinnedButtonsLeftSkip
-		+ kPinnedButtonsSpace / 2;
-	const auto index = x / (kCircleDiameter + kPinnedButtonsSpace)
-		- [self shift];
-
+	const auto index = [self indexFromX:xPosition];
 	const auto peer = (index < 0 || index >= std::ssize(_pins))
 		? nullptr
 		: _pins[index].peer;
@@ -792,21 +1051,44 @@ void AppendEmojiPacks(
 	return _pins[i].userpic;
 }
 
+- (void)drawSinglePin:(int)i rect:(NSRect)dirtyRect {
+	const auto rect = [&] {
+		auto rect = PeerRectByIndex(i + [self shift]);
+		if (i < 0) {
+			return rect;
+		}
+		auto &pin = _pins[i];
+		// We can have x = 0 when the pin is dragged.
+		rect.origin.x = ((!pin.x && !pin.onTop) ? rect.origin.x : pin.x);
+		pin.x = rect.origin.x;
+		return rect;
+	}();
+	if (!NSIntersectsRect(rect, dirtyRect)) {
+		return;
+	}
+	CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
+	CGImageRef image = ([self imageToDraw:i]).toCGImage();
+	CGContextDrawImage(context, rect, image);
+	CGImageRelease(image);
+}
+
 - (void)drawRect:(NSRect)dirtyRect {
 	const auto shift = [self shift];
 	if (_pins.empty() && !shift) {
 		return;
 	}
+	auto indexToTop = -1;
+	const auto guard = gsl::finally([&] {
+		if (indexToTop >= 0) {
+			[self drawSinglePin:indexToTop rect:dirtyRect];
+		}
+	});
 	for (auto i = -shift; i < std::ssize(_pins); i++) {
-		const auto rect = PeerRectByIndex(i + shift);
-		if (!NSIntersectsRect(rect, dirtyRect)) {
+		if (i >= 0 && _pins[i].onTop && (indexToTop < 0)) {
+			indexToTop = i;
 			continue;
 		}
-		CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
-		CGImageRef image = ([self imageToDraw:i]).toCGImage();
-		CGContextDrawImage(context, rect, image);
-		CGImageRelease(image);
-
+		[self drawSinglePin:i rect:dirtyRect];
 	}
 }
 
