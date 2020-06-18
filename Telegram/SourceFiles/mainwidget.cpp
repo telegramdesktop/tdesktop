@@ -98,6 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "support/support_helper.h"
 #include "storage/storage_facade.h"
@@ -2282,7 +2283,7 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 			session().settings().setDialogsWidthRatio(
 				float64(_dialogsWidth) / width());
 		}
-		session().local().writeSettings();
+		session().saveSettings();
 	};
 	createResizeArea(
 		_firstColumnResizeArea,
@@ -2306,7 +2307,7 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 			session().settings().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));
-		session().local().writeSettings();
+		session().saveSettings();
 	};
 	createResizeArea(
 		_thirdColumnResizeArea,

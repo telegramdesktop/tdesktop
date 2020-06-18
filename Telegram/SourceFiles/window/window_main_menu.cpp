@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
@@ -289,7 +290,7 @@ void MainMenu::refreshMenu() {
 			(*fix)->setChecked(!(*fix)->isChecked());
 			_controller->session().settings().setSupportFixChatsOrder(
 				(*fix)->isChecked());
-			_controller->session().local().writeSettings();
+			_controller->session().saveSettings();
 		}, &st::mainMenuFixOrder, &st::mainMenuFixOrderOver);
 		(*fix)->setCheckable(true);
 		(*fix)->setChecked(

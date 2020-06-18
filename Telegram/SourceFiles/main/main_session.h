@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/event_stream.h>
 #include <rpl/filter.h>
 #include <rpl/variable.h>
-#include "main/main_settings.h"
 #include "base/timer.h"
 
 class ApiWrap;
@@ -60,6 +59,7 @@ class DicePacks;
 namespace Main {
 
 class Account;
+class SessionSettings;
 
 class Session final
 	: public base::has_weak_ptr
@@ -68,7 +68,7 @@ public:
 	Session(
 		not_null<Main::Account*> account,
 		const MTPUser &user,
-		Settings &&other);
+		std::unique_ptr<SessionSettings> settings);
 	~Session();
 
 	Session(const Session &other) = delete;
@@ -111,9 +111,10 @@ public:
 	[[nodiscard]] Data::Session &data() {
 		return *_data;
 	}
-	[[nodiscard]] Settings &settings() {
-		return _settings;
+	[[nodiscard]] SessionSettings &settings() {
+		return *_settings;
 	}
+	void saveSettings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettingsNowIfNeeded();
 
@@ -156,9 +157,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 
-	Settings _settings;
-	base::Timer _saveSettingsTimer;
-
+	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Api::Updates> _updates;
 	const std::unique_ptr<Calls::Instance> _calls;
@@ -179,6 +178,7 @@ private:
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	base::flat_set<not_null<Window::SessionController*>> _windows;
+	base::Timer _saveSettingsTimer;
 
 	rpl::lifetime _lifetime;
 

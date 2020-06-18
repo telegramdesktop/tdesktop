@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 //#include "history/feed/history_feed_section.h" // #feed
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "boxes/stickers_box.h"
@@ -1984,7 +1985,7 @@ void ApiWrap::saveStickerSets(
 
 	auto &storage = local();
 	if (writeInstalled) storage.writeInstalledStickers();
-	if (writeRecent) storage.writeSettings();
+	if (writeRecent) session().saveSettings();
 	if (writeArchived) storage.writeArchivedStickers();
 	if (writeCloudRecent) storage.writeRecentStickers();
 	if (writeFaved) storage.writeFavedStickers();

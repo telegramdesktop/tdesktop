@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"

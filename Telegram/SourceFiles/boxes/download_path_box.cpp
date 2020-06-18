@@ -124,7 +124,7 @@ void DownloadPathBox::save() {
 	};
 	Global::SetDownloadPath(computePath());
 	Global::SetDownloadPathBookmark((value == Directory::Custom) ? _pathBookmark : QByteArray());
-	_controller->session().local().writeSettings();
+	_controller->session().saveSettings();
 	Global::RefDownloadPathChanged().notify();
 	closeBox();
 #endif // OS_WIN_STORE

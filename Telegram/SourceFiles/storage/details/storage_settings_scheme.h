@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_dc_options.h"
-#include "main/main_settings.h"
+#include "main/main_session_settings.h"
 #include "storage/storage_account.h"
 
 namespace MTP {
@@ -19,9 +19,10 @@ namespace Storage {
 namespace details {
 
 struct ReadSettingsContext {
-	[[nodiscard]] Main::Settings &sessionSettings() {
+	[[nodiscard]] Main::SessionSettings &sessionSettings() {
 		if (!sessionSettingsStorage) {
-			sessionSettingsStorage = std::make_unique<Main::Settings>();
+			sessionSettingsStorage
+				= std::make_unique<Main::SessionSettings>();
 		}
 		return *sessionSettingsStorage;
 	}
@@ -45,7 +46,7 @@ struct ReadSettingsContext {
 	qint64 cacheBigFileTotalSizeLimit = 0;
 	qint32 cacheBigFileTotalTimeLimit = 0;
 
-	std::unique_ptr<Main::Settings> sessionSettingsStorage;
+	std::unique_ptr<Main::SessionSettings> sessionSettingsStorage;
 
 	FileKey themeKeyLegacy = 0;
 	FileKey themeKeyDay = 0;

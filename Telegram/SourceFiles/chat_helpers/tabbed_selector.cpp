@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
 #include "window/window_session_controller.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"

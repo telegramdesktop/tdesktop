@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "core/application.h"
 #include "main/main_account.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
@@ -64,10 +65,9 @@ constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 Session::Session(
 	not_null<Main::Account*> account,
 	const MTPUser &user,
-	Settings &&settings)
+	std::unique_ptr<SessionSettings> settings)
 : _account(account)
 , _settings(std::move(settings))
-, _saveSettingsTimer([=] { local().writeSettings(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _updates(std::make_unique<Api::Updates>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
@@ -80,7 +80,10 @@ Session::Session(
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
-, _supportHelper(Support::Helper::Create(this)) {
+, _supportHelper(Support::Helper::Create(this))
+, _saveSettingsTimer([=] { saveSettings(); }) {
+	Expects(_settings != nullptr);
+
 	Core::App().lockChanges(
 	) | rpl::start_with_next([=] {
 		notifications().updateAll();
@@ -116,7 +119,7 @@ Session::Session(
 			}
 		}, _lifetime);
 
-		if (_settings.hadLegacyCallsPeerToPeerNobody()) {
+		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().savePrivacy(
 				MTP_inputPrivacyKeyPhoneP2P(),
 				QVector<MTPInputPrivacyRule>(
@@ -227,8 +230,12 @@ Support::Templates& Session::supportTemplates() const {
 void Session::saveSettingsNowIfNeeded() {
 	if (_saveSettingsTimer.isActive()) {
 		_saveSettingsTimer.cancel();
-		local().writeSettings();
+		saveSettings();
 	}
+}
+
+void Session::saveSettings() {
+	local().writeSessionSettings();
 }
 
 void Session::addWindow(not_null<Window::SessionController*> controller) {

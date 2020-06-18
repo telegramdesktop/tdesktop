@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "main/main_settings.h"
+#include "main/main_session_settings.h"
 
 #include "chat_helpers/tabbed_selector.h"
 #include "window/section_widget.h"
@@ -33,7 +33,7 @@ float64 DeserializePlaybackSpeed(qint32 speed) {
 
 } // namespace
 
-Settings::Variables::Variables()
+SessionSettings::Variables::Variables()
 : sendFilesWay(SendFilesWay::Album)
 , selectorTab(ChatHelpers::SelectorTab::Emoji)
 , floatPlayerColumn(Window::Column::Second)
@@ -45,11 +45,11 @@ Settings::Variables::Variables()
 , supportSwitch(Support::SwitchSettings::Next) {
 }
 
-bool Settings::ThirdColumnByDefault() {
+bool SessionSettings::ThirdColumnByDefault() {
 	return Platform::IsMacStoreBuild();
 }
 
-QByteArray Settings::serialize() const {
+QByteArray SessionSettings::serialize() const {
 	const auto autoDownload = _variables.autoDownload.serialize();
 	auto size = sizeof(qint32) * 38;
 	for (const auto &[key, value] : _variables.soundOverrides) {
@@ -131,10 +131,14 @@ QByteArray Settings::serialize() const {
 	return result;
 }
 
-void Settings::constructFromSerialized(const QByteArray &serialized) {
+std::unique_ptr<SessionSettings> SessionSettings::FromSerialized(
+		const QByteArray &serialized) {
 	if (serialized.isEmpty()) {
-		return;
+		return nullptr;
 	}
+
+	auto result = std::make_unique<SessionSettings>();
+	const auto variables = &result->_variables;
 
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -150,37 +154,37 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	base::flat_set<PeerId> groupStickersSectionHidden;
 	qint32 thirdSectionInfoEnabled = 0;
 	qint32 smallDialogsList = 0;
-	float64 dialogsWidthRatio = _variables.dialogsWidthRatio.current();
-	int thirdColumnWidth = _variables.thirdColumnWidth.current();
-	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
-	qint32 sendFilesWay = static_cast<qint32>(_variables.sendFilesWay);
+	float64 dialogsWidthRatio = variables->dialogsWidthRatio.current();
+	int thirdColumnWidth = variables->thirdColumnWidth.current();
+	int thirdSectionExtendedBy = variables->thirdSectionExtendedBy;
+	qint32 sendFilesWay = static_cast<qint32>(variables->sendFilesWay);
 	qint32 legacyCallsPeerToPeer = qint32(0);
-	qint32 sendSubmitWay = static_cast<qint32>(_variables.sendSubmitWay);
-	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
-	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
-	qint32 supportTemplatesAutocomplete = _variables.supportTemplatesAutocomplete ? 1 : 0;
-	qint32 supportChatsTimeSlice = _variables.supportChatsTimeSlice.current();
-	qint32 includeMutedCounter = _variables.includeMutedCounter ? 1 : 0;
-	qint32 countUnreadMessages = _variables.countUnreadMessages ? 1 : 0;
-	qint32 exeLaunchWarning = _variables.exeLaunchWarning ? 1 : 0;
+	qint32 sendSubmitWay = static_cast<qint32>(variables->sendSubmitWay);
+	qint32 supportSwitch = static_cast<qint32>(variables->supportSwitch);
+	qint32 supportFixChatsOrder = variables->supportFixChatsOrder ? 1 : 0;
+	qint32 supportTemplatesAutocomplete = variables->supportTemplatesAutocomplete ? 1 : 0;
+	qint32 supportChatsTimeSlice = variables->supportChatsTimeSlice.current();
+	qint32 includeMutedCounter = variables->includeMutedCounter ? 1 : 0;
+	qint32 countUnreadMessages = variables->countUnreadMessages ? 1 : 0;
+	qint32 exeLaunchWarning = variables->exeLaunchWarning ? 1 : 0;
 	QByteArray autoDownload;
-	qint32 supportAllSearchResults = _variables.supportAllSearchResults.current() ? 1 : 0;
-	qint32 archiveCollapsed = _variables.archiveCollapsed.current() ? 1 : 0;
-	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
-	qint32 archiveInMainMenu = _variables.archiveInMainMenu.current() ? 1 : 0;
-	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
+	qint32 supportAllSearchResults = variables->supportAllSearchResults.current() ? 1 : 0;
+	qint32 archiveCollapsed = variables->archiveCollapsed.current() ? 1 : 0;
+	qint32 notifyAboutPinned = variables->notifyAboutPinned.current() ? 1 : 0;
+	qint32 archiveInMainMenu = variables->archiveInMainMenu.current() ? 1 : 0;
+	qint32 skipArchiveInSearch = variables->skipArchiveInSearch.current() ? 1 : 0;
 	qint32 autoplayGifs = 1;
-	qint32 loopAnimatedStickers = _variables.loopAnimatedStickers ? 1 : 0;
-	qint32 largeEmoji = _variables.largeEmoji.current() ? 1 : 0;
-	qint32 replaceEmoji = _variables.replaceEmoji.current() ? 1 : 0;
-	qint32 suggestEmoji = _variables.suggestEmoji ? 1 : 0;
-	qint32 suggestStickersByEmoji = _variables.suggestStickersByEmoji ? 1 : 0;
-	qint32 spellcheckerEnabled = _variables.spellcheckerEnabled.current() ? 1 : 0;
+	qint32 loopAnimatedStickers = variables->loopAnimatedStickers ? 1 : 0;
+	qint32 largeEmoji = variables->largeEmoji.current() ? 1 : 0;
+	qint32 replaceEmoji = variables->replaceEmoji.current() ? 1 : 0;
+	qint32 suggestEmoji = variables->suggestEmoji ? 1 : 0;
+	qint32 suggestStickersByEmoji = variables->suggestStickersByEmoji ? 1 : 0;
+	qint32 spellcheckerEnabled = variables->spellcheckerEnabled.current() ? 1 : 0;
 	std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
-	qint32 videoPlaybackSpeed = SerializePlaybackSpeed(_variables.videoPlaybackSpeed.current());
-	QByteArray videoPipGeometry = _variables.videoPipGeometry;
+	qint32 videoPlaybackSpeed = SerializePlaybackSpeed(variables->videoPlaybackSpeed.current());
+	QByteArray videoPipGeometry = variables->videoPipGeometry;
 	std::vector<int> dictionariesEnabled;
-	qint32 autoDownloadDictionaries = _variables.autoDownloadDictionaries.current() ? 1 : 0;
+	qint32 autoDownloadDictionaries = variables->autoDownloadDictionaries.current() ? 1 : 0;
 	base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
 
 	stream >> versionTag;
@@ -336,18 +340,18 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
-			"Bad data for Main::Settings::constructFromSerialized()"));
-		return;
+			"Bad data for Main::SessionSettings::FromSerialized()"));
+		return nullptr;
 	}
 	if (!autoDownload.isEmpty()
-		&& !_variables.autoDownload.setFromSerialized(autoDownload)) {
-		return;
+		&& !variables->autoDownload.setFromSerialized(autoDownload)) {
+		return nullptr;
 	}
 	if (!version) {
 		if (!autoplayGifs) {
 			using namespace Data::AutoDownload;
-			_variables.autoDownload = WithDisabledAutoPlay(
-				_variables.autoDownload);
+			variables->autoDownload = WithDisabledAutoPlay(
+				variables->autoDownload);
 		}
 	}
 
@@ -355,104 +359,105 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	switch (uncheckedTab) {
 	case ChatHelpers::SelectorTab::Emoji:
 	case ChatHelpers::SelectorTab::Stickers:
-	case ChatHelpers::SelectorTab::Gifs: _variables.selectorTab = uncheckedTab; break;
+	case ChatHelpers::SelectorTab::Gifs: variables->selectorTab = uncheckedTab; break;
 	}
-	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
-	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
-	_variables.soundOverrides = std::move(soundOverrides);
-	_variables.tabbedSelectorSectionTooltipShown = tabbedSelectorSectionTooltipShown;
+	variables->lastSeenWarningSeen = (lastSeenWarningSeen == 1);
+	variables->tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
+	variables->soundOverrides = std::move(soundOverrides);
+	variables->tabbedSelectorSectionTooltipShown = tabbedSelectorSectionTooltipShown;
 	auto uncheckedColumn = static_cast<Window::Column>(floatPlayerColumn);
 	switch (uncheckedColumn) {
 	case Window::Column::First:
 	case Window::Column::Second:
-	case Window::Column::Third: _variables.floatPlayerColumn = uncheckedColumn; break;
+	case Window::Column::Third: variables->floatPlayerColumn = uncheckedColumn; break;
 	}
 	auto uncheckedCorner = static_cast<RectPart>(floatPlayerCorner);
 	switch (uncheckedCorner) {
 	case RectPart::TopLeft:
 	case RectPart::TopRight:
 	case RectPart::BottomLeft:
-	case RectPart::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
+	case RectPart::BottomRight: variables->floatPlayerCorner = uncheckedCorner; break;
 	}
-	_variables.groupStickersSectionHidden = std::move(groupStickersSectionHidden);
-	_variables.thirdSectionInfoEnabled = thirdSectionInfoEnabled;
-	_variables.smallDialogsList = smallDialogsList;
-	_variables.dialogsWidthRatio = dialogsWidthRatio;
-	_variables.thirdColumnWidth = thirdColumnWidth;
-	_variables.thirdSectionExtendedBy = thirdSectionExtendedBy;
-	if (_variables.thirdSectionInfoEnabled) {
-		_variables.tabbedSelectorSectionEnabled = false;
+	variables->groupStickersSectionHidden = std::move(groupStickersSectionHidden);
+	variables->thirdSectionInfoEnabled = thirdSectionInfoEnabled;
+	variables->smallDialogsList = smallDialogsList;
+	variables->dialogsWidthRatio = dialogsWidthRatio;
+	variables->thirdColumnWidth = thirdColumnWidth;
+	variables->thirdSectionExtendedBy = thirdSectionExtendedBy;
+	if (variables->thirdSectionInfoEnabled) {
+		variables->tabbedSelectorSectionEnabled = false;
 	}
 	auto uncheckedSendFilesWay = static_cast<SendFilesWay>(sendFilesWay);
 	switch (uncheckedSendFilesWay) {
 	case SendFilesWay::Album:
 	case SendFilesWay::Photos:
-	case SendFilesWay::Files: _variables.sendFilesWay = uncheckedSendFilesWay; break;
+	case SendFilesWay::Files: variables->sendFilesWay = uncheckedSendFilesWay; break;
 	}
 	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
 		sendSubmitWay);
 	switch (uncheckedSendSubmitWay) {
 	case Ui::InputSubmitSettings::Enter:
-	case Ui::InputSubmitSettings::CtrlEnter: _variables.sendSubmitWay = uncheckedSendSubmitWay; break;
+	case Ui::InputSubmitSettings::CtrlEnter: variables->sendSubmitWay = uncheckedSendSubmitWay; break;
 	}
 	auto uncheckedSupportSwitch = static_cast<Support::SwitchSettings>(
 		supportSwitch);
 	switch (uncheckedSupportSwitch) {
 	case Support::SwitchSettings::None:
 	case Support::SwitchSettings::Next:
-	case Support::SwitchSettings::Previous: _variables.supportSwitch = uncheckedSupportSwitch; break;
+	case Support::SwitchSettings::Previous: variables->supportSwitch = uncheckedSupportSwitch; break;
 	}
-	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
-	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
-	_variables.supportChatsTimeSlice = supportChatsTimeSlice;
-	_variables.hadLegacyCallsPeerToPeerNobody = (legacyCallsPeerToPeer == kLegacyCallsPeerToPeerNobody);
-	_variables.includeMutedCounter = (includeMutedCounter == 1);
-	_variables.countUnreadMessages = (countUnreadMessages == 1);
-	_variables.exeLaunchWarning = (exeLaunchWarning == 1);
-	_variables.supportAllSearchResults = (supportAllSearchResults == 1);
-	_variables.archiveCollapsed = (archiveCollapsed == 1);
-	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
-	_variables.archiveInMainMenu = (archiveInMainMenu == 1);
-	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
-	_variables.loopAnimatedStickers = (loopAnimatedStickers == 1);
-	_variables.largeEmoji = (largeEmoji == 1);
-	_variables.replaceEmoji = (replaceEmoji == 1);
-	_variables.suggestEmoji = (suggestEmoji == 1);
-	_variables.suggestStickersByEmoji = (suggestStickersByEmoji == 1);
-	_variables.spellcheckerEnabled = (spellcheckerEnabled == 1);
-	_variables.mediaLastPlaybackPosition = std::move(mediaLastPlaybackPosition);
-	_variables.videoPlaybackSpeed = DeserializePlaybackSpeed(videoPlaybackSpeed);
-	_variables.videoPipGeometry = videoPipGeometry;
-	_variables.dictionariesEnabled = std::move(dictionariesEnabled);
-	_variables.autoDownloadDictionaries = (autoDownloadDictionaries == 1);
-	_variables.hiddenPinnedMessages = std::move(hiddenPinnedMessages);
+	variables->supportFixChatsOrder = (supportFixChatsOrder == 1);
+	variables->supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
+	variables->supportChatsTimeSlice = supportChatsTimeSlice;
+	variables->hadLegacyCallsPeerToPeerNobody = (legacyCallsPeerToPeer == kLegacyCallsPeerToPeerNobody);
+	variables->includeMutedCounter = (includeMutedCounter == 1);
+	variables->countUnreadMessages = (countUnreadMessages == 1);
+	variables->exeLaunchWarning = (exeLaunchWarning == 1);
+	variables->supportAllSearchResults = (supportAllSearchResults == 1);
+	variables->archiveCollapsed = (archiveCollapsed == 1);
+	variables->notifyAboutPinned = (notifyAboutPinned == 1);
+	variables->archiveInMainMenu = (archiveInMainMenu == 1);
+	variables->skipArchiveInSearch = (skipArchiveInSearch == 1);
+	variables->loopAnimatedStickers = (loopAnimatedStickers == 1);
+	variables->largeEmoji = (largeEmoji == 1);
+	variables->replaceEmoji = (replaceEmoji == 1);
+	variables->suggestEmoji = (suggestEmoji == 1);
+	variables->suggestStickersByEmoji = (suggestStickersByEmoji == 1);
+	variables->spellcheckerEnabled = (spellcheckerEnabled == 1);
+	variables->mediaLastPlaybackPosition = std::move(mediaLastPlaybackPosition);
+	variables->videoPlaybackSpeed = DeserializePlaybackSpeed(videoPlaybackSpeed);
+	variables->videoPipGeometry = videoPipGeometry;
+	variables->dictionariesEnabled = std::move(dictionariesEnabled);
+	variables->autoDownloadDictionaries = (autoDownloadDictionaries == 1);
+	variables->hiddenPinnedMessages = std::move(hiddenPinnedMessages);
+	return result;
 }
 
-void Settings::setSupportChatsTimeSlice(int slice) {
+void SessionSettings::setSupportChatsTimeSlice(int slice) {
 	_variables.supportChatsTimeSlice = slice;
 }
 
-int Settings::supportChatsTimeSlice() const {
+int SessionSettings::supportChatsTimeSlice() const {
 	return _variables.supportChatsTimeSlice.current();
 }
 
-rpl::producer<int> Settings::supportChatsTimeSliceValue() const {
+rpl::producer<int> SessionSettings::supportChatsTimeSliceValue() const {
 	return _variables.supportChatsTimeSlice.value();
 }
 
-void Settings::setSupportAllSearchResults(bool all) {
+void SessionSettings::setSupportAllSearchResults(bool all) {
 	_variables.supportAllSearchResults = all;
 }
 
-bool Settings::supportAllSearchResults() const {
+bool SessionSettings::supportAllSearchResults() const {
 	return _variables.supportAllSearchResults.current();
 }
 
-rpl::producer<bool> Settings::supportAllSearchResultsValue() const {
+rpl::producer<bool> SessionSettings::supportAllSearchResultsValue() const {
 	return _variables.supportAllSearchResults.value();
 }
 
-void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
+void SessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
 	_variables.tabbedSelectorSectionEnabled = enabled;
 	if (enabled) {
 		setThirdSectionInfoEnabled(false);
@@ -460,12 +465,12 @@ void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
 	setTabbedReplacedWithInfo(false);
 }
 
-rpl::producer<bool> Settings::tabbedReplacedWithInfoValue() const {
+rpl::producer<bool> SessionSettings::tabbedReplacedWithInfoValue() const {
 	return _tabbedReplacedWithInfoValue.events_starting_with(
 		tabbedReplacedWithInfo());
 }
 
-void Settings::setThirdSectionInfoEnabled(bool enabled) {
+void SessionSettings::setThirdSectionInfoEnabled(bool enabled) {
 	if (_variables.thirdSectionInfoEnabled != enabled) {
 		_variables.thirdSectionInfoEnabled = enabled;
 		if (enabled) {
@@ -476,19 +481,19 @@ void Settings::setThirdSectionInfoEnabled(bool enabled) {
 	}
 }
 
-rpl::producer<bool> Settings::thirdSectionInfoEnabledValue() const {
+rpl::producer<bool> SessionSettings::thirdSectionInfoEnabledValue() const {
 	return _thirdSectionInfoEnabledValue.events_starting_with(
 		thirdSectionInfoEnabled());
 }
 
-void Settings::setTabbedReplacedWithInfo(bool enabled) {
+void SessionSettings::setTabbedReplacedWithInfo(bool enabled) {
 	if (_tabbedReplacedWithInfo != enabled) {
 		_tabbedReplacedWithInfo = enabled;
 		_tabbedReplacedWithInfoValue.fire_copy(enabled);
 	}
 }
 
-QString Settings::getSoundPath(const QString &key) const {
+QString SessionSettings::getSoundPath(const QString &key) const {
 	auto it = _variables.soundOverrides.find(key);
 	if (it != _variables.soundOverrides.end()) {
 		return it->second;
@@ -496,31 +501,31 @@ QString Settings::getSoundPath(const QString &key) const {
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
-void Settings::setDialogsWidthRatio(float64 ratio) {
+void SessionSettings::setDialogsWidthRatio(float64 ratio) {
 	_variables.dialogsWidthRatio = ratio;
 }
 
-float64 Settings::dialogsWidthRatio() const {
+float64 SessionSettings::dialogsWidthRatio() const {
 	return _variables.dialogsWidthRatio.current();
 }
 
-rpl::producer<float64> Settings::dialogsWidthRatioChanges() const {
+rpl::producer<float64> SessionSettings::dialogsWidthRatioChanges() const {
 	return _variables.dialogsWidthRatio.changes();
 }
 
-void Settings::setThirdColumnWidth(int width) {
+void SessionSettings::setThirdColumnWidth(int width) {
 	_variables.thirdColumnWidth = width;
 }
 
-int Settings::thirdColumnWidth() const {
+int SessionSettings::thirdColumnWidth() const {
 	return _variables.thirdColumnWidth.current();
 }
 
-rpl::producer<int> Settings::thirdColumnWidthChanges() const {
+rpl::producer<int> SessionSettings::thirdColumnWidthChanges() const {
 	return _variables.thirdColumnWidth.changes();
 }
 
-void Settings::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
+void SessionSettings::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
 	auto &map = _variables.mediaLastPlaybackPosition;
 	const auto i = ranges::find(
 		map,
@@ -540,7 +545,7 @@ void Settings::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
 	}
 }
 
-crl::time Settings::mediaLastPlaybackPosition(DocumentId id) const {
+crl::time SessionSettings::mediaLastPlaybackPosition(DocumentId id) const {
 	const auto i = ranges::find(
 		_variables.mediaLastPlaybackPosition,
 		id,
@@ -548,83 +553,83 @@ crl::time Settings::mediaLastPlaybackPosition(DocumentId id) const {
 	return (i != _variables.mediaLastPlaybackPosition.end()) ? i->second : 0;
 }
 
-void Settings::setArchiveCollapsed(bool collapsed) {
+void SessionSettings::setArchiveCollapsed(bool collapsed) {
 	_variables.archiveCollapsed = collapsed;
 }
 
-bool Settings::archiveCollapsed() const {
+bool SessionSettings::archiveCollapsed() const {
 	return _variables.archiveCollapsed.current();
 }
 
-rpl::producer<bool> Settings::archiveCollapsedChanges() const {
+rpl::producer<bool> SessionSettings::archiveCollapsedChanges() const {
 	return _variables.archiveCollapsed.changes();
 }
 
-void Settings::setArchiveInMainMenu(bool inMainMenu) {
+void SessionSettings::setArchiveInMainMenu(bool inMainMenu) {
 	_variables.archiveInMainMenu = inMainMenu;
 }
 
-bool Settings::archiveInMainMenu() const {
+bool SessionSettings::archiveInMainMenu() const {
 	return _variables.archiveInMainMenu.current();
 }
 
-rpl::producer<bool> Settings::archiveInMainMenuChanges() const {
+rpl::producer<bool> SessionSettings::archiveInMainMenuChanges() const {
 	return _variables.archiveInMainMenu.changes();
 }
 
-void Settings::setNotifyAboutPinned(bool notify) {
+void SessionSettings::setNotifyAboutPinned(bool notify) {
 	_variables.notifyAboutPinned = notify;
 }
 
-bool Settings::notifyAboutPinned() const {
+bool SessionSettings::notifyAboutPinned() const {
 	return _variables.notifyAboutPinned.current();
 }
 
-rpl::producer<bool> Settings::notifyAboutPinnedChanges() const {
+rpl::producer<bool> SessionSettings::notifyAboutPinnedChanges() const {
 	return _variables.notifyAboutPinned.changes();
 }
 
-void Settings::setSkipArchiveInSearch(bool skip) {
+void SessionSettings::setSkipArchiveInSearch(bool skip) {
 	_variables.skipArchiveInSearch = skip;
 }
 
-bool Settings::skipArchiveInSearch() const {
+bool SessionSettings::skipArchiveInSearch() const {
 	return _variables.skipArchiveInSearch.current();
 }
 
-rpl::producer<bool> Settings::skipArchiveInSearchChanges() const {
+rpl::producer<bool> SessionSettings::skipArchiveInSearchChanges() const {
 	return _variables.skipArchiveInSearch.changes();
 }
 
-void Settings::setLargeEmoji(bool value) {
+void SessionSettings::setLargeEmoji(bool value) {
 	_variables.largeEmoji = value;
 }
 
-bool Settings::largeEmoji() const {
+bool SessionSettings::largeEmoji() const {
 	return _variables.largeEmoji.current();
 }
 
-rpl::producer<bool> Settings::largeEmojiValue() const {
+rpl::producer<bool> SessionSettings::largeEmojiValue() const {
 	return _variables.largeEmoji.value();
 }
 
-rpl::producer<bool> Settings::largeEmojiChanges() const {
+rpl::producer<bool> SessionSettings::largeEmojiChanges() const {
 	return _variables.largeEmoji.changes();
 }
 
-void Settings::setReplaceEmoji(bool value) {
+void SessionSettings::setReplaceEmoji(bool value) {
 	_variables.replaceEmoji = value;
 }
 
-bool Settings::replaceEmoji() const {
+bool SessionSettings::replaceEmoji() const {
 	return _variables.replaceEmoji.current();
 }
 
-rpl::producer<bool> Settings::replaceEmojiValue() const {
+rpl::producer<bool> SessionSettings::replaceEmojiValue() const {
 	return _variables.replaceEmoji.value();
 }
 
-rpl::producer<bool> Settings::replaceEmojiChanges() const {
+rpl::producer<bool> SessionSettings::replaceEmojiChanges() const {
 	return _variables.replaceEmoji.changes();
 }
 

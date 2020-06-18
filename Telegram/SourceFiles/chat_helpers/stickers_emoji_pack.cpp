@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_document.h"

@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_accounts.h" // Accounts::activeSessionValue.
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"

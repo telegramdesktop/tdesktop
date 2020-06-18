@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "facades.h"
 
 namespace Main {
@@ -124,14 +125,14 @@ UserId Account::willHaveUserId() const {
 }
 
 void Account::createSession(const MTPUser &user) {
-	createSession(user, QByteArray(), 0, Settings());
+	createSession(user, QByteArray(), 0, std::make_unique<SessionSettings>());
 }
 
 void Account::createSession(
 		UserId id,
 		QByteArray serialized,
 		int streamVersion,
-		Settings &&settings) {
+		std::unique_ptr<SessionSettings> settings) {
 	DEBUG_LOG(("sessionUserSerialized.size: %1").arg(serialized.size()));
 	QDataStream peekStream(serialized);
 	const auto phone = Serialize::peekUserPhone(streamVersion, peekStream);
@@ -162,7 +163,7 @@ void Account::createSession(
 		const MTPUser &user,
 		QByteArray serialized,
 		int streamVersion,
-		Settings &&settings) {
+		std::unique_ptr<SessionSettings> settings) {
 	Expects(_mtp != nullptr);
 	Expects(_session == nullptr);
 	Expects(_sessionValue.current() == nullptr);
@@ -177,7 +178,7 @@ void Account::createSession(
 }
 
 void Account::destroySession() {
-	_storedSettings.reset();
+	_storedSessionSettings.reset();
 	_sessionUserId = 0;
 	_sessionUserSerialized = {};
 	if (!sessionExists()) {
@@ -291,7 +292,7 @@ void Account::setSessionUserId(UserId userId) {
 }
 
 void Account::setSessionFromStorage(
-		std::unique_ptr<Settings> data,
+		std::unique_ptr<SessionSettings> data,
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion) {
 	Expects(!sessionExists());
@@ -299,14 +300,16 @@ void Account::setSessionFromStorage(
 	DEBUG_LOG(("sessionUserSerialized set: %1"
 		).arg(selfSerialized.size()));
 
-	_storedSettings = std::move(data);
+	_storedSessionSettings = std::move(data);
 	_sessionUserSerialized = std::move(selfSerialized);
 	_sessionUserStreamVersion = selfStreamVersion;
 }
 
-Settings *Account::getSessionSettings() {
+SessionSettings *Account::getSessionSettings() {
 	if (_sessionUserId) {
-		return _storedSettings ? _storedSettings.get() : nullptr;
+		return _storedSessionSettings
+			? _storedSessionSettings.get()
+			: nullptr;
 	} else if (sessionExists()) {
 		return &session().settings();
 	}
@@ -431,9 +434,11 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 			_sessionUserId,
 			base::take(_sessionUserSerialized),
 			base::take(_sessionUserStreamVersion),
-			_storedSettings ? std::move(*_storedSettings) : Settings());
+			(_storedSessionSettings
+				? std::move(_storedSessionSettings)
+				: std::make_unique<SessionSettings>()));
 	}
-	_storedSettings = nullptr;
+	_storedSessionSettings = nullptr;
 
 	if (sessionExists()) {
 		// Skip all pending self updates so that we won't local().writeSelf.

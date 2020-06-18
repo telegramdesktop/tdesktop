@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_media_player.h"

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 
 #include "storage/localstorage.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "ui/text_options.h"

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
 #include "app.h"

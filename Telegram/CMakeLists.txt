@@ -674,8 +674,8 @@ PRIVATE
     main/main_app_config.h
     main/main_session.cpp
     main/main_session.h
-    main/main_settings.cpp
-    main/main_settings.h
+    main/main_session_settings.cpp
+    main/main_session_settings.h
     media/audio/media_audio.cpp
     media/audio/media_audio.h
     media/audio/media_audio_capture.cpp

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_auto_download.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "lottie/lottie_animation.h"
 #include "history/history_item.h"
 #include "history/history.h"

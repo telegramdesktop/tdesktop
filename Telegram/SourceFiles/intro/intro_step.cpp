@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "boxes/confirm_box.h"
@@ -43,7 +45,7 @@ void PrepareSupportMode(not_null<Main::Session*> session) {
 	Global::SetSoundNotify(false);
 	Global::SetFlashBounceNotify(false);
 	session->settings().autoDownload() = Full::FullDisabled();
-	session->local().writeSettings();
+	session->saveSettings();
 }
 
 } // namespace

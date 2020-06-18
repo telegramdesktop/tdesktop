@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "base/crc32hash.h"
 #include "base/call_delayed.h"
 #include "ui/toast/toast.h"
@@ -413,10 +414,10 @@ void MainWindow::initSize() {
 		? primaryScreen->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 	bool maximized = false;
-	const auto initialWidth = Main::Settings::ThirdColumnByDefault()
+	const auto initialWidth = Main::SessionSettings::ThirdColumnByDefault()
 		? st::windowBigDefaultWidth
 		: st::windowDefaultWidth;
-	const auto initialHeight = Main::Settings::ThirdColumnByDefault()
+	const auto initialHeight = Main::SessionSettings::ThirdColumnByDefault()
 		? st::windowBigDefaultHeight
 		: st::windowDefaultHeight;
 	auto geometry = QRect(

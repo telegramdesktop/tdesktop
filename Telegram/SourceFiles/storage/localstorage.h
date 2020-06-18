@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/file_download.h"
 #include "storage/localimageloader.h"
-#include "main/main_session.h"
 
 #include <QtCore/QTimer>
 

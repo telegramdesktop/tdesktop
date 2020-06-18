@@ -391,7 +391,8 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().constructFromSerialized(v);
+		context.sessionSettingsStorage
+			= Main::SessionSettings::FromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {

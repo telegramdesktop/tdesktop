@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
+#include "main/main_session.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"

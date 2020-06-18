@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_widget.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"

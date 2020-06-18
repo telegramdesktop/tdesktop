@@ -24,7 +24,7 @@ class Config;
 namespace Main {
 
 class Session;
-class Settings;
+class SessionSettings;
 class AppConfig;
 
 class Account final : public base::has_weak_ptr {
@@ -49,7 +49,7 @@ public:
 		UserId id,
 		QByteArray serialized,
 		int streamVersion,
-		Settings &&settings);
+		std::unique_ptr<SessionSettings> settings);
 	void destroySession();
 
 	void logOut();
@@ -81,10 +81,10 @@ public:
 	void setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key);
 	void setSessionUserId(UserId userId);
 	void setSessionFromStorage(
-		std::unique_ptr<Settings> data,
+		std::unique_ptr<SessionSettings> data,
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion);
-	[[nodiscard]] Settings *getSessionSettings();
+	[[nodiscard]] SessionSettings *getSessionSettings();
 	[[nodiscard]] rpl::producer<> mtpNewSessionCreated() const;
 	[[nodiscard]] rpl::producer<MTPUpdates> mtpUpdates() const;
 
@@ -105,7 +105,7 @@ private:
 		const MTPUser &user,
 		QByteArray serialized,
 		int streamVersion,
-		Settings &&settings);
+		std::unique_ptr<SessionSettings> settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
 	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);
@@ -132,7 +132,7 @@ private:
 	UserId _sessionUserId = 0;
 	QByteArray _sessionUserSerialized;
 	int32 _sessionUserStreamVersion = 0;
-	std::unique_ptr<Settings> _storedSettings;
+	std::unique_ptr<SessionSettings> _storedSessionSettings;
 	MTP::Instance::Fields _mtpFields;
 	MTP::AuthKeysList _mtpKeysToDestroy;
 	bool _loggingOut = false;

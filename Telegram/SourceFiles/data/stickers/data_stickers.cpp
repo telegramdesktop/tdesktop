@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
@@ -150,7 +151,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	}
 
 	if (writeOldRecent) {
-		session().local().writeSettings();
+		session().saveSettings();
 	}
 
 	// Remove that sticker from custom stickers, now it is in cloud recent stickers.
@@ -607,7 +608,7 @@ void Stickers::setsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	}
 
 	session().local().writeInstalledStickers();
-	if (writeRecent) session().local().writeSettings();
+	if (writeRecent) session().saveSettings();
 
 	const auto counted = Api::CountStickersHash(&session());
 	if (counted != hash) {
@@ -730,7 +731,7 @@ void Stickers::specialSetReceived(
 		}
 
 		if (writeRecent) {
-			session().local().writeSettings();
+			session().saveSettings();
 		}
 	}
 
@@ -1251,7 +1252,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (writeRecent) {
-		session().local().writeSettings();
+		session().saveSettings();
 	}
 
 	if (set) {

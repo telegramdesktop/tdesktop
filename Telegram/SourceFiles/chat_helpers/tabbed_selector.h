@@ -11,19 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
-#include "main/main_session.h"
 #include "base/object_ptr.h"
 
 namespace InlineBots {
 class Result;
 } // namespace InlineBots
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class PlainShadow;
 class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
-} // namesapce Ui
+} // namespace Ui
 
 namespace Window {
 class SessionController;

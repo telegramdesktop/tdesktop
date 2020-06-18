@@ -30,10 +30,11 @@ enum class SelectorTab;
 
 namespace Main {
 
-class Settings final {
+class SessionSettings final {
 public:
 	[[nodiscard]] QByteArray serialize() const;
-	void constructFromSerialized(const QByteArray &serialized);
+	[[nodiscard]] static std::unique_ptr<SessionSettings> FromSerialized(
+		const QByteArray &serialized);
 
 	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;

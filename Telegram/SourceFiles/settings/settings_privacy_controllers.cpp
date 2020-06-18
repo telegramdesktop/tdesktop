@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h" // GifPauseReason.
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
@@ -2135,7 +2136,7 @@ void StickersListWidget::removeRecentSticker(int section, int index) {
 	for (int32 i = 0, l = recent.size(); i < l; ++i) {
 		if (recent.at(i).first == document) {
 			recent.removeAt(i);
-			session().local().writeSettings();
+			session().saveSettings();
 			refresh = true;
 			break;
 		}
@@ -2581,7 +2582,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	auto removeHiddenForGroup = [this, &hidden] {
 		if (hidden) {
 			session().settings().removeGroupStickersSectionHidden(_megagroupSet->id);
-			session().local().writeSettings();
+			session().saveSettings();
 			hidden = false;
 		}
 	};
@@ -2992,7 +2993,7 @@ void StickersListWidget::sendInstallRequest(
 void StickersListWidget::removeMegagroupSet(bool locally) {
 	if (locally) {
 		session().settings().setGroupStickersSectionHidden(_megagroupSet->id);
-		session().local().writeSettings();
+		session().saveSettings();
 		refreshStickers();
 		return;
 	}
@@ -3053,7 +3054,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 				if (removeIndex >= 0) session().data().stickers().setsOrderRef().removeAt(removeIndex);
 				refreshStickers();
 				session().local().writeInstalledStickers();
-				if (writeRecent) session().local().writeSettings();
+				if (writeRecent) session().saveSettings();
 			}
 			_removingSetId = 0;
 			_checkForHide.fire({});

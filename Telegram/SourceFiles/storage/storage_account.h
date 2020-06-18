@@ -20,7 +20,7 @@ struct Settings;
 
 namespace Main {
 class Account;
-class Settings;
+class SessionSettings;
 } // namespace Main
 
 namespace Data {
@@ -67,7 +67,7 @@ public:
 		return _localKey;
 	}
 
-	void writeSettings();
+	void writeSessionSettings();
 	void writeMtpData();
 	void writeMtpConfig();
 
@@ -172,12 +172,12 @@ private:
 	void writeLocationsQueued();
 	void writeLocationsDelayed();
 
-	std::unique_ptr<Main::Settings> readSettings();
-	void writeSettings(Main::Settings *stored);
+	std::unique_ptr<Main::SessionSettings> readSessionSettings();
+	void writeSessionSettings(Main::SessionSettings *stored);
 
 	std::unique_ptr<MTP::Config> readMtpConfig();
 	void readMtpData();
-	std::unique_ptr<Main::Settings> applyReadContext(
+	std::unique_ptr<Main::SessionSettings> applyReadContext(
 		details::ReadSettingsContext &&context);
 
 	[[nodiscard]] QByteArray serializeCallSettings();

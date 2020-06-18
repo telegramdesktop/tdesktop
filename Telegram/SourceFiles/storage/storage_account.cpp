@@ -394,7 +394,7 @@ Account::ReadMapResult Account::readMapWith(
 		readLocations();
 	}
 
-	auto stored = readSettings();
+	auto stored = readSessionSettings();
 	readMtpData();
 
 	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
@@ -745,11 +745,11 @@ void Account::deserializeCallSettings(QByteArray &settings) {
 	}
 }
 
-void Account::writeSettings() {
-	writeSettings(nullptr);
+void Account::writeSessionSettings() {
+	writeSessionSettings(nullptr);
 }
 
-void Account::writeSettings(Main::Settings *stored) {
+void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	if (_readingUserSettings) {
 		LOG(("App Error: attempt to write settings while reading them!"));
 		return;
@@ -846,7 +846,7 @@ ReadSettingsContext Account::prepareReadSettingsContext() const {
 	};
 }
 
-std::unique_ptr<Main::Settings> Account::readSettings() {
+std::unique_ptr<Main::SessionSettings> Account::readSessionSettings() {
 	ReadSettingsContext context;
 	FileReadDescriptor userSettings;
 	if (!ReadEncryptedFile(userSettings, _settingsKey, _basePath, _localKey)) {
@@ -855,7 +855,7 @@ std::unique_ptr<Main::Settings> Account::readSettings() {
 		Local::readOldUserSettings(true, context);
 		auto result = applyReadContext(std::move(context));
 
-		writeSettings(result.get());
+		writeSessionSettings(result.get());
 
 		return result;
 	}
@@ -867,13 +867,13 @@ std::unique_ptr<Main::Settings> Account::readSettings() {
 		userSettings.stream >> blockId;
 		if (!CheckStreamStatus(userSettings.stream)) {
 			_readingUserSettings = false;
-			writeSettings();
+			writeSessionSettings();
 			return nullptr;
 		}
 
 		if (!ReadSetting(blockId, userSettings.stream, userSettings.version, context)) {
 			_readingUserSettings = false;
-			writeSettings();
+			writeSessionSettings();
 			return nullptr;
 		}
 	}
@@ -883,7 +883,7 @@ std::unique_ptr<Main::Settings> Account::readSettings() {
 	return applyReadContext(std::move(context));
 }
 
-std::unique_ptr<Main::Settings> Account::applyReadContext(
+std::unique_ptr<Main::SessionSettings> Account::applyReadContext(
 		ReadSettingsContext &&context) {
 	ApplyReadFallbackConfig(context);
 
@@ -1326,7 +1326,7 @@ void Account::updateCacheSettings(
 	_cacheTotalTimeLimit = update.totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = updateBig.totalSizeLimit;
 	_cacheBigFileTotalTimeLimit = updateBig.totalTimeLimit;
-	writeSettings();
+	writeSessionSettings();
 }
 
 QString Account::cacheBigFilePath() const {
@@ -1894,7 +1894,7 @@ void Account::importOldRecentStickers() {
 	}
 
 	writeInstalledStickers();
-	writeSettings();
+	writeSessionSettings();
 
 	ClearKey(_recentStickersKeyOld, _basePath);
 	_recentStickersKeyOld = 0;

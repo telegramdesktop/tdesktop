@@ -86,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "ui/delayed_activation.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
@@ -5689,7 +5690,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			pinnedId = 0;
 		} else if (hiddenId) {
 			session().settings().setHiddenPinnedMessageId(_peer->id, 0);
-			session().local().writeSettings();
+			session().saveSettings();
 		}
 	}
 	if (pinnedId) {
@@ -6020,7 +6021,7 @@ void HistoryWidget::hidePinnedMessage() {
 			pinnedId));
 	} else {
 		session().settings().setHiddenPinnedMessageId(_peer->id, pinnedId);
-		session().local().writeSettings();
+		session().saveSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
 			update();

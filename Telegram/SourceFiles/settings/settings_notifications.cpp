@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "app.h"
@@ -592,7 +593,6 @@ void SetupNotificationsContent(
 	const auto count = addCheckbox(
 		tr::lng_settings_count_unread(tr::now),
 		session->settings().countUnreadMessages());
-
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);

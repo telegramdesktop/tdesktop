@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/event_filter.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
 

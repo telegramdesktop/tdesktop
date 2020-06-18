@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "core/application.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"

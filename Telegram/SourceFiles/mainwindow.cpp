@@ -810,7 +810,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 			Global::SetRestoreFlashBounceNotifyFromTray(false);
 		}
 	}
-	account().local().writeSettings();
+	account().session().saveSettings();
 	using Change = Window::Notifications::ChangeType;
 	auto &changes = account().session().notifications().settingsChanged();
 	changes.notify(Change::DesktopEnabled);

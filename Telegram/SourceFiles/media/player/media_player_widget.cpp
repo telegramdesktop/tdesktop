@@ -143,7 +143,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		Global::SetVoiceMsgPlaybackDoubled(doubled);
 		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
-		_session->local().writeSettings();
+		_session->saveSettings();
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
