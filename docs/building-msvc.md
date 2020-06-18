@@ -32,7 +32,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout 0ba67e2
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
