@@ -236,8 +236,8 @@ Session::Session(not_null<Main::Session*> session)
 	setupUserIsContactViewer();
 
 	_chatsList.unreadStateChanges(
-	) | rpl::start_with_next([] {
-		Notify::unreadCounterUpdated();
+	) | rpl::start_with_next([=] {
+		notifyUnreadBadgeChanged();
 	}, _lifetime);
 }
 
@@ -2080,6 +2080,14 @@ int Session::unreadOnlyMutedBadge() const {
 	return _session->settings().countUnreadMessages()
 		? state.messagesMuted
 		: state.chatsMuted;
+}
+
+rpl::producer<> Session::unreadBadgeChanges() const {
+	return _unreadBadgeChanges.events();
+}
+
+void Session::notifyUnreadBadgeChanged() {
+	_unreadBadgeChanges.fire({});
 }
 
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {

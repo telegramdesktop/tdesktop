@@ -170,10 +170,10 @@ protected:
 	void attachToTrayIcon(not_null<QSystemTrayIcon*> icon);
 	virtual void handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) = 0;
+	void updateUnreadCounter();
 
 private:
 	void updatePalette();
-	void updateUnreadCounter();
 	void initSize();
 
 	bool computeIsActive() const;

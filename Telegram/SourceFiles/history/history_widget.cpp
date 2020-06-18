@@ -5683,14 +5683,13 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	auto result = false;
 	auto pinnedId = _peer->pinnedMessageId();
 	if (pinnedId && !_peer->canPinMessages()) {
-		auto it = Global::HiddenPinnedMessages().constFind(_peer->id);
-		if (it != Global::HiddenPinnedMessages().cend()) {
-			if (it.value() == pinnedId) {
-				pinnedId = 0;
-			} else {
-				Global::RefHiddenPinnedMessages().remove(_peer->id);
-				session().local().writeSettings();
-			}
+		const auto hiddenId = session().settings().hiddenPinnedMessageId(
+			_peer->id);
+		if (hiddenId == pinnedId) {
+			pinnedId = 0;
+		} else if (hiddenId) {
+			session().settings().setHiddenPinnedMessageId(_peer->id, 0);
+			session().local().writeSettings();
 		}
 	}
 	if (pinnedId) {
@@ -6020,7 +6019,7 @@ void HistoryWidget::hidePinnedMessage() {
 			_peer->isChannel() ? peerToChannel(_peer->id) : NoChannel,
 			pinnedId));
 	} else {
-		Global::RefHiddenPinnedMessages().insert(_peer->id, pinnedId);
+		session().settings().setHiddenPinnedMessageId(_peer->id, pinnedId);
 		session().local().writeSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();

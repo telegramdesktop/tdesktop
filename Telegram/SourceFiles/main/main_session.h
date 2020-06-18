@@ -57,10 +57,6 @@ class EmojiPack;
 class DicePacks;
 } // namespace Stickers;
 
-namespace Core {
-class Changelogs;
-} // namespace Core
-
 namespace Main {
 
 class Account;
@@ -179,9 +175,6 @@ private:
 	// _emojiStickersPack depends on _data.
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
-
-	// _changelogs depends on _data, subscribes on chats loading event.
-	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

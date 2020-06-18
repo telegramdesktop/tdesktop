@@ -47,6 +47,11 @@ public:
 	[[nodiscard]] rpl::producer<Session*> activeSessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> activeSessionChanges() const;
 
+	[[nodiscard]] int unreadBadge() const;
+	[[nodiscard]] bool unreadBadgeMuted() const;
+	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
+	void notifyUnreadBadgeChanged();
+
 	[[nodiscard]] int add(MTP::Environment environment);
 	void activate(int index);
 
@@ -61,6 +66,8 @@ private:
 	void watchSession(not_null<Account*> account);
 	void scheduleWriteAccounts();
 	void checkForLastProductionConfig(not_null<Main::Account*> account);
+	void updateUnreadBadge();
+	void scheduleUpdateUnreadBadge();
 
 	const QString _dataName;
 	const std::unique_ptr<Storage::Accounts> _local;
@@ -71,6 +78,11 @@ private:
 	bool _writeAccountsScheduled = false;
 
 	rpl::event_stream<Session*> _activeSessions;
+
+	rpl::event_stream<> _unreadBadgeChanges;
+	int _unreadBadge = 0;
+	bool _unreadBadgeMuted = true;
+	bool _unreadBadgeUpdateScheduled = false;
 
 	rpl::lifetime _activeLifetime;
 	rpl::lifetime _lifetime;

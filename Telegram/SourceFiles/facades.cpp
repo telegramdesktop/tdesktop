@@ -311,10 +311,6 @@ bool switchInlineBotButtonReceived(
 	return false;
 }
 
-void unreadCounterUpdated() {
-	Global::RefHandleUnreadCounterUpdate().call();
-}
-
 } // namespace Notify
 
 #define DefineReadOnlyVar(Namespace, Type, Name) const Type &Name() { \
@@ -336,8 +332,6 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
-
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
 	bool AdaptiveForWide = true;
@@ -348,15 +342,11 @@ struct Data {
 
 	bool ScreenIsLocked = false;
 
-	int32 DebugLoggingFlags = 0;
-
 	float64 RememberedSongVolume = kDefaultVolume;
 	float64 SongVolume = kDefaultVolume;
 	base::Observable<void> SongVolumeChanged;
 	float64 VideoVolume = kDefaultVolume;
 	base::Observable<void> VideoVolumeChanged;
-
-	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
 	bool AskDownloadPath = false;
 	QString DownloadPath;
@@ -388,7 +378,6 @@ struct Data {
 
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
-	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
 	QString CallOutputDeviceID = qsl("default");
@@ -418,8 +407,6 @@ void finish() {
 	GlobalData = nullptr;
 }
 
-DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
-
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
 DefineVar(Global, bool, AdaptiveForWide);
@@ -430,15 +417,11 @@ DefineVar(Global, bool, ModerateModeEnabled);
 
 DefineVar(Global, bool, ScreenIsLocked);
 
-DefineVar(Global, int32, DebugLoggingFlags);
-
 DefineVar(Global, float64, RememberedSongVolume);
 DefineVar(Global, float64, SongVolume);
 DefineRefVar(Global, base::Observable<void>, SongVolumeChanged);
 DefineVar(Global, float64, VideoVolume);
 DefineRefVar(Global, base::Observable<void>, VideoVolumeChanged);
-
-DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 DefineVar(Global, bool, AskDownloadPath);
 DefineVar(Global, QString, DownloadPath);
@@ -470,7 +453,6 @@ DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
-DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
 DefineVar(Global, QString, CallOutputDeviceID);

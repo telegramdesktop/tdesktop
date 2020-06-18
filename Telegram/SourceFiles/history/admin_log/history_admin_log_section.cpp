@@ -107,7 +107,10 @@ FixedBar::FixedBar(
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::historyAdminLogSearchField, tr::lng_dlg_filter())
-, _backButton(this, tr::lng_admin_log_title_all(tr::now))
+, _backButton(
+	this,
+	&controller->session(),
+	tr::lng_admin_log_title_all(tr::now))
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {

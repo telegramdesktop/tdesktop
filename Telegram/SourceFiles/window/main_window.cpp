@@ -133,9 +133,12 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 			updatePalette();
 		}
 	});
-	subscribe(Global::RefUnreadCounterUpdate(), [=] {
+
+	Core::App().unreadBadgeChanges(
+	) | rpl::start_with_next([=] {
 		updateUnreadCounter();
-	});
+	}, lifetime());
+
 	subscribe(Global::RefWorkMode(), [=](DBIWorkMode mode) {
 		workmodeUpdated(mode);
 	});

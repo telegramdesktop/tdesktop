@@ -798,9 +798,6 @@ void Account::writeSettings(Main::Settings *stored) {
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
 	size += sizeof(quint32) + sizeof(qint64) + sizeof(qint32);
-	if (!Global::HiddenPinnedMessages().isEmpty()) {
-		size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
-	}
 	if (!userData.isEmpty()) {
 		size += sizeof(quint32) + Serialize::bytearraySize(userData);
 	}
@@ -837,9 +834,6 @@ void Account::writeSettings(Main::Settings *stored) {
 	data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
 	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
 	data.stream << quint32(dbiRecentStickers) << recentStickers;
-	if (!Global::HiddenPinnedMessages().isEmpty()) {
-		data.stream << quint32(dbiHiddenPinnedMessages) << Global::HiddenPinnedMessages();
-	}
 	data.stream << qint32(dbiCallSettings) << callSettings;
 
 	FileWriteDescriptor file(_settingsKey, _basePath);

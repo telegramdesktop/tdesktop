@@ -10,17 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
+#include "core/application.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "platform/platform_main_window.h"
-#include "facades.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 
 namespace Platform {
 
-TitleWidget::TitleWidget(MainWindow *parent, int height) : Window::TitleWidget(parent)
+TitleWidget::TitleWidget(MainWindow *parent, int height)
+: Window::TitleWidget(parent)
 , _shadow(this, st::titleShadow) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), height);
@@ -41,7 +42,10 @@ TitleWidget::TitleWidget(MainWindow *parent, int height) : Window::TitleWidget(p
 		_font = st::normalFont;
 	}
 
-	subscribe(Global::RefUnreadCounterUpdate(), [this] { update(); });
+	Core::App().unreadBadgeValue(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {

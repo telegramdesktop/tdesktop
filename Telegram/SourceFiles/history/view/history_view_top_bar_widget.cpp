@@ -747,10 +747,7 @@ void TopBarWidget::updateAdaptiveLayout() {
 
 void TopBarWidget::refreshUnreadBadge() {
 	if (!Adaptive::OneColumn() && !_activeChat.folder()) {
-		if (_unreadBadge) {
-			unsubscribe(base::take(_unreadCounterSubscription));
-			_unreadBadge.destroy();
-		}
+		_unreadBadge.destroy();
 		return;
 	} else if (_unreadBadge) {
 		return;
@@ -768,9 +765,10 @@ void TopBarWidget::refreshUnreadBadge() {
 
 	_unreadBadge->show();
 	_unreadBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_unreadCounterSubscription = subscribe(
-		Global::RefUnreadCounterUpdate(),
-		[=] { updateUnreadBadge(); });
+	_controller->session().data().unreadBadgeChanges(
+	) | rpl::start_with_next([=] {
+		updateUnreadBadge();
+	}, _unreadBadge->lifetime());
 	updateUnreadBadge();
 }
 

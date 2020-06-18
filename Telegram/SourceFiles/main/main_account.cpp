@@ -55,8 +55,6 @@ Account::~Account() {
 		session().saveSettingsNowIfNeeded();
 	}
 	destroySession();
-	_mtpValue.reset(nullptr);
-	base::take(_mtp);
 }
 
 [[nodiscard]] Storage::StartResult Account::legacyStart(
@@ -65,23 +63,17 @@ Account::~Account() {
 
 	const auto result = _local->legacyStart(passcode);
 	if (result == Storage::StartResult::Success) {
-		finishStarting(nullptr);
+		start(nullptr);
 	}
 	return result;
 }
 
-void Account::start(std::shared_ptr<MTP::AuthKey> localKey) {
-	finishStarting(_local->start(std::move(localKey)));
+std::unique_ptr<MTP::Config> Account::prepareToStart(
+		std::shared_ptr<MTP::AuthKey> localKey) {
+	return _local->start(std::move(localKey));
 }
 
-void Account::startAdded(
-		std::shared_ptr<MTP::AuthKey> localKey,
-		std::unique_ptr<MTP::Config> config) {
-	_local->startAdded(std::move(localKey));
-	finishStarting(std::move(config));
-}
-
-void Account::finishStarting(std::unique_ptr<MTP::Config> config) {
+void Account::start(std::unique_ptr<MTP::Config> config) {
 	startMtp(config
 		? std::move(config)
 		: std::make_unique<MTP::Config>(
@@ -89,6 +81,11 @@ void Account::finishStarting(std::unique_ptr<MTP::Config> config) {
 	_appConfig = std::make_unique<AppConfig>(this);
 	watchProxyChanges();
 	watchSessionChanges();
+}
+
+void Account::prepareToStartAdded(
+		std::shared_ptr<MTP::AuthKey> localKey) {
+	_local->startAdded(std::move(localKey));
 }
 
 void Account::watchProxyChanges() {
@@ -189,8 +186,6 @@ void Account::destroySession() {
 
 	_sessionValue = nullptr;
 	_session = nullptr;
-
-	Notify::unreadCounterUpdated();
 }
 
 bool Account::sessionExists() const {

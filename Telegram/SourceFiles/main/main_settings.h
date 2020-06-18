@@ -112,7 +112,7 @@ public:
 		return _variables.smallDialogsList;
 	}
 	void setSoundOverride(const QString &key, const QString &path) {
-		_variables.soundOverrides.insert(key, path);
+		_variables.soundOverrides.emplace(key, path);
 	}
 	void clearSoundOverrides() {
 		_variables.soundOverrides.clear();
@@ -279,6 +279,18 @@ public:
 		_variables.videoPipGeometry = geometry;
 	}
 
+	[[nodiscard]] MsgId hiddenPinnedMessageId(PeerId peerId) const {
+		const auto i = _variables.hiddenPinnedMessages.find(peerId);
+		return (i != end(_variables.hiddenPinnedMessages)) ? i->second : 0;
+	}
+	void setHiddenPinnedMessageId(PeerId peerId, MsgId msgId) {
+		if (msgId) {
+			_variables.hiddenPinnedMessages[peerId] = msgId;
+		} else {
+			_variables.hiddenPinnedMessages.remove(peerId);
+		}
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 
 private:
@@ -294,7 +306,7 @@ private:
 		ChatHelpers::SelectorTab selectorTab; // per-window
 		bool tabbedSelectorSectionEnabled = false; // per-window
 		int tabbedSelectorSectionTooltipShown = 0;
-		QMap<QString, QString> soundOverrides;
+		base::flat_map<QString, QString> soundOverrides;
 		Window::Column floatPlayerColumn; // per-window
 		RectPart floatPlayerCorner; // per-window
 		base::flat_set<PeerId> groupStickersSectionHidden;
@@ -325,6 +337,7 @@ private:
 		QByteArray videoPipGeometry;
 		rpl::variable<std::vector<int>> dictionariesEnabled;
 		rpl::variable<bool> autoDownloadDictionaries = true;
+		base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

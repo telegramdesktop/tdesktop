@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "main/main_accounts.h"
 #include "facades.h"
 #include "app.h"
 
@@ -60,7 +61,7 @@ System::System(not_null<Main::Session*> session)
 			updateAll();
 		} else if (type == ChangeType::IncludeMuted
 			|| type == ChangeType::CountMessages) {
-			Notify::unreadCounterUpdated();
+			Core::App().accounts().notifyUnreadBadgeChanged();
 		}
 	});
 }

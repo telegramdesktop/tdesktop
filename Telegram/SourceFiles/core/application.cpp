@@ -512,10 +512,6 @@ void Application::handleAppDeactivated() {
 	Ui::Tooltip::Hide();
 }
 
-void Application::call_handleUnreadCounterUpdate() {
-	Global::RefUnreadCounterUpdate().notify(true);
-}
-
 void Application::call_handleObservables() {
 	base::HandleObservables();
 }
@@ -575,17 +571,15 @@ bool Application::exportPreventsQuit() {
 }
 
 int Application::unreadBadge() const {
-	if (const auto session = maybeActiveSession()) {
-		return session->data().unreadBadge();
-	}
-	return 0;
+	return accounts().unreadBadge();
 }
 
 bool Application::unreadBadgeMuted() const {
-	if (const auto session = maybeActiveSession()) {
-		return session->data().unreadBadgeMuted();
-	}
-	return false;
+	return accounts().unreadBadgeMuted();
+}
+
+rpl::producer<> Application::unreadBadgeChanges() const {
+	return accounts().unreadBadgeChanges();
 }
 
 bool Application::offerLegacyLangPackSwitch() const {

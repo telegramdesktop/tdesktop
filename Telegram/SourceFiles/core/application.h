@@ -164,6 +164,7 @@ public:
 	Main::Session *maybeActiveSession() const;
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
+	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 
 	// Media component.
 	[[nodiscard]] Media::Audio::Instance &audio() {
@@ -232,7 +233,6 @@ public:
 	void switchFreeType();
 	void writeInstallBetaVersionsSetting();
 
-	void call_handleUnreadCounterUpdate();
 	void call_handleObservables();
 
 protected:

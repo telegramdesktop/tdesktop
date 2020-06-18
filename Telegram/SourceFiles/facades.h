@@ -132,19 +132,13 @@ enum class ChatLayout {
 
 } // namespace Adaptive
 
-namespace DebugLogging {
-enum Flags {
-	FileLoaderFlag = 0x00000001,
-};
-} // namespace DebugLogging
-
 namespace Global {
 
 bool started();
 void start();
 void finish();
 
-DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
+DeclareVar(bool, ScreenIsLocked);
 
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
@@ -154,26 +148,17 @@ DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 DeclareVar(bool, DialogsFiltersEnabled);
 DeclareVar(bool, ModerateModeEnabled);
 
-DeclareVar(bool, ScreenIsLocked);
-
-DeclareVar(int32, DebugLoggingFlags);
-
-constexpr float64 kDefaultVolume = 0.9;
+constexpr auto kDefaultVolume = 0.9;
 
 DeclareVar(float64, RememberedSongVolume);
 DeclareVar(float64, SongVolume);
 DeclareRefVar(base::Observable<void>, SongVolumeChanged);
 DeclareVar(float64, VideoVolume);
 DeclareRefVar(base::Observable<void>, VideoVolumeChanged);
-
-typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
-DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
-
 DeclareVar(bool, AskDownloadPath);
 DeclareVar(QString, DownloadPath);
 DeclareVar(QByteArray, DownloadPathBookmark);
 DeclareRefVar(base::Observable<void>, DownloadPathChanged);
-
 DeclareVar(bool, VoiceMsgPlaybackDoubled);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
@@ -181,9 +166,16 @@ DeclareVar(bool, FlashBounceNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);
 DeclareVar(bool, RestoreFlashBounceNotifyFromTray);
 DeclareVar(DBINotifyView, NotifyView);
-DeclareVar(bool, NativeNotifications);
 DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
+
+DeclareVar(QString, CallOutputDeviceID);
+DeclareVar(QString, CallInputDeviceID);
+DeclareVar(int, CallOutputVolume);
+DeclareVar(int, CallInputVolume);
+DeclareVar(bool, CallAudioDuckingEnabled);
+
+DeclareVar(bool, NativeNotifications);
 DeclareVar(bool, NotificationsDemoIsShown);
 
 DeclareVar(bool, TryIPv6);
@@ -199,14 +191,7 @@ DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
-DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
-
-DeclareVar(QString, CallOutputDeviceID);
-DeclareVar(QString, CallInputDeviceID);
-DeclareVar(int, CallOutputVolume);
-DeclareVar(int, CallInputVolume);
-DeclareVar(bool, CallAudioDuckingEnabled);
 
 } // namespace Global
 
@@ -238,11 +223,3 @@ inline bool ChatWide() {
 }
 
 } // namespace Adaptive
-
-namespace DebugLogging {
-
-inline bool FileLoader() {
-	return (Global::DebugLoggingFlags() & FileLoaderFlag) != 0;
-}
-
-} // namespace DebugLogging

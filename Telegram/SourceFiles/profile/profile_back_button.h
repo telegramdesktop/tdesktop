@@ -9,11 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/abstract_button.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Profile {
 
 class BackButton final : public Ui::AbstractButton, private base::Subscriber {
 public:
-	BackButton(QWidget *parent, const QString &text);
+	BackButton(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		const QString &text);
 
 	void setText(const QString &text);
 
@@ -26,7 +33,9 @@ protected:
 private:
 	void updateAdaptiveLayout();
 
-	int _unreadCounterSubscription = 0;
+	const not_null<Main::Session*> _session;
+
+	rpl::lifetime _unreadBadgeLifetime;
 	QString _text;
 
 };

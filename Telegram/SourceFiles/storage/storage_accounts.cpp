@@ -73,7 +73,8 @@ void Accounts::startAdded(
 		std::unique_ptr<MTP::Config> config) {
 	Expects(_localKey != nullptr);
 
-	account->startAdded(_localKey, std::move(config));
+	account->prepareToStartAdded(_localKey);
+	account->start(std::move(config));
 }
 
 void Accounts::startWithSingleAccount(
@@ -86,7 +87,7 @@ void Accounts::startWithSingleAccount(
 		encryptLocalKey(passcode);
 	} else {
 		generateLocalKey();
-		account->start(_localKey);
+		account->start(account->prepareToStart(_localKey));
 	}
 	_owner->accountAddedInStorage(0, std::move(account));
 	writeAccounts();
@@ -178,10 +179,11 @@ Accounts::StartModernResult Accounts::startModern(
 			&& index < kMaxAccounts
 			&& tried.emplace(index).second) {
 			auto account = std::make_unique<Main::Account>(_dataName, index);
-			account->start(_localKey);
+			auto config = account->prepareToStart(_localKey);
 			const auto userId = account->willHaveUserId();
 			if (!users.contains(userId)
 				&& (userId != 0 || (users.empty() && i + 1 == count))) {
+				account->start(std::move(config));
 				_owner->accountAddedInStorage(index, std::move(account));
 				users.emplace(userId);
 			}

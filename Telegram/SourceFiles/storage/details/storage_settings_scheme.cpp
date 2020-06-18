@@ -955,12 +955,16 @@ bool ReadSetting(
 		cSetEmojiVariants(v);
 	} break;
 
-	case dbiHiddenPinnedMessages: {
-		Global::HiddenPinnedMessagesMap v;
+	case dbiHiddenPinnedMessagesOld: {
+		auto v = QMap<PeerId, MsgId>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetHiddenPinnedMessages(v);
+		for (auto i = v.begin(), e = v.end(); i != e; ++i) {
+			context.sessionSettings().setHiddenPinnedMessageId(
+				i.key(),
+				i.value());
+		}
 	} break;
 
 	case dbiDialogLastPath: {

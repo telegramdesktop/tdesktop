@@ -124,7 +124,7 @@ enum {
 	dbiShowingSavedGifsOld = 0x36,
 	dbiAutoPlayOld = 0x37,
 	dbiAdaptiveForWide = 0x38,
-	dbiHiddenPinnedMessages = 0x39,
+	dbiHiddenPinnedMessagesOld = 0x39,
 	dbiRecentEmoji = 0x3a,
 	dbiEmojiVariants = 0x3b,
 	dbiDialogsModeOld = 0x40,

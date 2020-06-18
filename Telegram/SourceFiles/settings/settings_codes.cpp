@@ -58,17 +58,6 @@ auto GenerateCodes() {
 	codes.emplace(qsl("loadlang"), [](SessionController *window) {
 		Lang::CurrentCloudManager().switchToLanguage({ qsl("#custom") });
 	});
-	codes.emplace(qsl("debugfiles"), [](SessionController *window) {
-		if (!Logs::DebugEnabled()) {
-			return;
-		}
-		if (DebugLogging::FileLoader()) {
-			Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
-		} else {
-			Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
-		}
-		Ui::show(Box<InformBox>(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
-	});
 	codes.emplace(qsl("crashplease"), [](SessionController *window) {
 		Unexpected("Crashed in Settings!");
 	});

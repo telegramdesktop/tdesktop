@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_accounts.h"
@@ -35,10 +36,10 @@ Storage::StartResult Accounts::start(const QByteArray &passcode) {
 
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
+		activateAfterStarting();
 		if (Local::oldSettingsVersion() < AppVersion) {
 			Local::writeSettings();
 		}
-		activateAfterStarting();
 	} else {
 		Assert(!started());
 	}
@@ -123,6 +124,52 @@ rpl::producer<Session*> Accounts::activeSessionValue() const {
 	return rpl::single(current) | rpl::then(_activeSessions.events());
 }
 
+int Accounts::unreadBadge() const {
+	return _unreadBadge;
+}
+
+bool Accounts::unreadBadgeMuted() const {
+	return _unreadBadgeMuted;
+}
+
+rpl::producer<> Accounts::unreadBadgeChanges() const {
+	return _unreadBadgeChanges.events();
+}
+
+void Accounts::notifyUnreadBadgeChanged() {
+	for (const auto &[index, account] : _accounts) {
+		if (account->sessionExists()) {
+			account->session().data().notifyUnreadBadgeChanged();
+		}
+	}
+}
+
+void Accounts::updateUnreadBadge() {
+	_unreadBadge = 0;
+	_unreadBadgeMuted = true;
+	for (const auto &[index, account] : _accounts) {
+		if (account->sessionExists()) {
+			const auto data = &account->session().data();
+			_unreadBadge += data->unreadBadge();
+			if (!data->unreadBadgeMuted()) {
+				_unreadBadgeMuted = false;
+			}
+		}
+	}
+	_unreadBadgeChanges.fire({});
+}
+
+void Accounts::scheduleUpdateUnreadBadge() {
+	if (_unreadBadgeUpdateScheduled) {
+		return;
+	}
+	_unreadBadgeUpdateScheduled = true;
+	Core::App().postponeCall(crl::guard(&Core::App(), [=] {
+		_unreadBadgeUpdateScheduled = false;
+		updateUnreadBadge();
+	}));
+}
+
 int Accounts::add(MTP::Environment environment) {
 	Expects(_active.current() != nullptr);
 
@@ -159,10 +206,21 @@ int Accounts::add(MTP::Environment environment) {
 }
 
 void Accounts::watchSession(not_null<Account*> account) {
+	account->sessionValue(
+	) | rpl::filter([=](Session *session) {
+		return session != nullptr;
+	}) | rpl::start_with_next([=](Session *session) {
+		session->data().unreadBadgeChanges(
+		) | rpl::start_with_next([=] {
+			scheduleUpdateUnreadBadge();
+		}, session->lifetime());
+	}, account->lifetime());
+
 	account->sessionChanges(
 	) | rpl::filter([=](Session *session) {
-		return !session; // removeRedundantAccounts may remove passcode lock.
+		return !session;
 	}) | rpl::start_with_next([=] {
+		scheduleUpdateUnreadBadge();
 		if (account == _active.current()) {
 			activateAuthedAccount();
 		}
@@ -238,13 +296,16 @@ void Accounts::checkForLastProductionConfig(
 void Accounts::activate(int index) {
 	Expects(_accounts.contains(index));
 
+	const auto changed = (_activeIndex != index);
 	_activeLifetime.destroy();
 	_activeIndex = index;
 	_active = _accounts.find(index)->second.get();
 	_active.current()->sessionValue(
 	) | rpl::start_to_stream(_activeSessions, _activeLifetime);
 
-	scheduleWriteAccounts();
+	if (changed) {
+		scheduleWriteAccounts();
+	}
 }
 
 void Accounts::scheduleWriteAccounts() {

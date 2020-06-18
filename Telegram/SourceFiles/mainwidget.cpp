@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "core/changelogs.h"
 #include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
@@ -233,7 +234,8 @@ MainWidget::MainWidget(
 , _history(this, _controller)
 , _playerPlaylist(this, _controller)
 , _cacheBackgroundTimer([=] { cacheBackground(); })
-, _viewsIncrementTimer([=] { viewsIncrement(); }) {
+, _viewsIncrementTimer([=] { viewsIncrement(); })
+, _changelogs(Core::Changelogs::Create(&controller->session())) {
 	_controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 	_controller->floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {

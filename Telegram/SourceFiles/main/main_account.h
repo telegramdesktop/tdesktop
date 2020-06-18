@@ -37,10 +37,11 @@ public:
 
 	[[nodiscard]] Storage::StartResult legacyStart(
 		const QByteArray &passcode);
-	void start(std::shared_ptr<MTP::AuthKey> localKey);
-	void startAdded(
-		std::shared_ptr<MTP::AuthKey> localKey,
-		std::unique_ptr<MTP::Config> config);
+	[[nodiscard]] std::unique_ptr<MTP::Config> prepareToStart(
+		std::shared_ptr<MTP::AuthKey> localKey);
+	void prepareToStartAdded(
+		std::shared_ptr<MTP::AuthKey> localKey);
+	void start(std::unique_ptr<MTP::Config> config);
 
 	[[nodiscard]] UserId willHaveUserId() const;
 	void createSession(const MTPUser &user);
@@ -105,7 +106,6 @@ private:
 		QByteArray serialized,
 		int streamVersion,
 		Settings &&settings);
-	void finishStarting(std::unique_ptr<MTP::Config> config);
 	void watchProxyChanges();
 	void watchSessionChanges();
 	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);

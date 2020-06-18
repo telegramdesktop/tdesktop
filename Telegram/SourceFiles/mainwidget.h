@@ -88,6 +88,10 @@ class Call;
 class TopBar;
 } // namespace Calls
 
+namespace Core {
+class Changelogs;
+} // namespace Core
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -409,6 +413,9 @@ private:
 
 	bool _firstColumnResizing = false;
 	int _firstColumnResizingShift = 0;
+
+	// _changelogs depends on _data, subscribes on chats loading event.
+	const std::unique_ptr<Core::Changelogs> _changelogs;
 
 };
 

@@ -391,11 +391,13 @@ public:
 		-> rpl::producer<SendActionAnimationUpdate>;
 	void updateSendActionAnimation(SendActionAnimationUpdate &&update);
 
-	int unreadBadge() const;
-	bool unreadBadgeMuted() const;
-	int unreadBadgeIgnoreOne(const Dialogs::Key &key) const;
-	bool unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const;
-	int unreadOnlyMutedBadge() const;
+	[[nodiscard]] int unreadBadge() const;
+	[[nodiscard]] bool unreadBadgeMuted() const;
+	[[nodiscard]] int unreadBadgeIgnoreOne(const Dialogs::Key &key) const;
+	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const;
+	[[nodiscard]] int unreadOnlyMutedBadge() const;
+	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
+	void notifyUnreadBadgeChanged();
 
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
@@ -809,6 +811,7 @@ private:
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
+	rpl::event_stream<> _unreadBadgeChanges;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;

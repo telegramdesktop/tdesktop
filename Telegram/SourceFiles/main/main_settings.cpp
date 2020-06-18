@@ -52,13 +52,14 @@ bool Settings::ThirdColumnByDefault() {
 QByteArray Settings::serialize() const {
 	const auto autoDownload = _variables.autoDownload.serialize();
 	auto size = sizeof(qint32) * 38;
-	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
-		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
+	for (const auto &[key, value] : _variables.soundOverrides) {
+		size += Serialize::stringSize(key) + Serialize::stringSize(value);
 	}
 	size += _variables.groupStickersSectionHidden.size() * sizeof(quint64);
 	size += _variables.mediaLastPlaybackPosition.size() * 2 * sizeof(quint64);
 	size += Serialize::bytearraySize(autoDownload);
 	size += Serialize::bytearraySize(_variables.videoPipGeometry);
+	size += sizeof(qint32) + _variables.hiddenPinnedMessages.size() * (sizeof(quint64) + sizeof(qint32));
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -70,8 +71,8 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
 		stream << qint32(_variables.tabbedSelectorSectionEnabled ? 1 : 0);
 		stream << qint32(_variables.soundOverrides.size());
-		for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
-			stream << i.key() << i.value();
+		for (const auto &[key, value] : _variables.soundOverrides) {
+			stream << key << value;
 		}
 		stream << qint32(_variables.tabbedSelectorSectionTooltipShown);
 		stream << qint32(_variables.floatPlayerColumn);
@@ -122,6 +123,10 @@ QByteArray Settings::serialize() const {
 			stream << quint64(i);
 		}
 		stream << qint32(_variables.autoDownloadDictionaries.current() ? 1 : 0);
+		stream << qint32(_variables.hiddenPinnedMessages.size());
+		for (const auto &[key, value] : _variables.hiddenPinnedMessages) {
+			stream << quint64(key) << qint32(value);
+		}
 	}
 	return result;
 }
@@ -141,7 +146,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 tabbedSelectorSectionTooltipShown = 0;
 	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
 	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
-	QMap<QString, QString> soundOverrides;
+	base::flat_map<QString, QString> soundOverrides;
 	base::flat_set<PeerId> groupStickersSectionHidden;
 	qint32 thirdSectionInfoEnabled = 0;
 	qint32 smallDialogsList = 0;
@@ -176,6 +181,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	QByteArray videoPipGeometry = _variables.videoPipGeometry;
 	std::vector<int> dictionariesEnabled;
 	qint32 autoDownloadDictionaries = _variables.autoDownloadDictionaries.current() ? 1 : 0;
+	base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -195,7 +201,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 			for (auto i = 0; i != count; ++i) {
 				QString key, value;
 				stream >> key >> value;
-				soundOverrides[key] = value;
+				soundOverrides.emplace(key, value);
 			}
 		}
 	}
@@ -316,6 +322,18 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> autoDownloadDictionaries;
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto key = quint64();
+				auto value = qint32();
+				stream >> key >> value;
+				hiddenPinnedMessages.emplace(key, value);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Main::Settings::constructFromSerialized()"));
@@ -407,6 +425,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.videoPipGeometry = videoPipGeometry;
 	_variables.dictionariesEnabled = std::move(dictionariesEnabled);
 	_variables.autoDownloadDictionaries = (autoDownloadDictionaries == 1);
+	_variables.hiddenPinnedMessages = std::move(hiddenPinnedMessages);
 }
 
 void Settings::setSupportChatsTimeSlice(int slice) {
@@ -470,9 +489,9 @@ void Settings::setTabbedReplacedWithInfo(bool enabled) {
 }
 
 QString Settings::getSoundPath(const QString &key) const {
-	auto it = _variables.soundOverrides.constFind(key);
+	auto it = _variables.soundOverrides.find(key);
 	if (it != _variables.soundOverrides.end()) {
-		return it.value();
+		return it->second;
 	}
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }

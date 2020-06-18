@@ -110,7 +110,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 
 	auto dcOptionsSerialized = QByteArray();
 	const auto read = [&](auto &field) {
-		using Type = std::decay_t<decltype(field)>();
+		using Type = std::remove_reference_t<decltype(field)>;
 		if constexpr (std::is_same_v<Type, int>
 			|| std::is_same_v<Type, rpl::variable<int>>) {
 			auto value = qint32();
@@ -123,6 +123,8 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 			field = (value == 1);
 		} else if constexpr (std::is_same_v<Type, QByteArray>
 			|| std::is_same_v<Type, QString>) {
+			stream >> field;
+		} else {
 			static_assert(false_(field), "Bad read() call.");
 		}
 	};

@@ -737,7 +737,7 @@ void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 			updateGlobalMenu();
 		});
 		activate();
-		Notify::unreadCounterUpdated();
+		updateUnreadCounter();
 	}
 }
 

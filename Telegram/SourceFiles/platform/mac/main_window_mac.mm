@@ -196,7 +196,7 @@ private:
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
-	Notify::unreadCounterUpdated();
+	Core::App().accounts().notifyUnreadBadgeChanged();
 }
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
