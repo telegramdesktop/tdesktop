@@ -23,11 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "main/main_accounts.h" // Accounts::activeSessionValue.
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "facades.h"
 
 namespace Media {
 namespace Player {
@@ -115,7 +114,7 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all sessions we have to do this.
-	Core::App().accounts().activeSessionValue(
+	Core::App().domain().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
@@ -449,7 +448,7 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 		: Streaming::Mode::Audio;
 	result.speed = (document
 		&& (document->isVoiceMessage() || document->isVideoMessage())
-		&& Global::VoiceMsgPlaybackDoubled())
+		&& Core::App().settings().voiceMsgPlaybackDoubled())
 		? kVoicePlaybackSpeedMultiplier
 		: 1.;
 	result.audioId = audioId;
@@ -599,7 +598,7 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 void Instance::updateVoicePlaybackSpeed() {
 	if (const auto data = getData(AudioMsgId::Type::Voice)) {
 		if (const auto streamed = data->streamed.get()) {
-			streamed->instance.setSpeed(Global::VoiceMsgPlaybackDoubled()
+			streamed->instance.setSpeed(Core::App().settings().voiceMsgPlaybackDoubled()
 				? kVoicePlaybackSpeedMultiplier
 				: 1.);
 		}

@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/history.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
@@ -454,7 +456,7 @@ void Message::draw(
 		auto skipTail = isAttachedToNext()
 			|| (media && media->skipBubbleTail())
 			|| (keyboard != nullptr);
-		auto displayTail = skipTail ? RectPart::None : (outbg && !Adaptive::ChatWide()) ? RectPart::Right : RectPart::Left;
+		auto displayTail = skipTail ? RectPart::None : (outbg && !Core::App().settings().chatWide()) ? RectPart::Right : RectPart::Left;
 		PaintBubble(p, g, width(), selected, outbg, displayTail);
 
 		// Entry page is always a bubble bottom.
@@ -796,7 +798,7 @@ bool Message::hasFromPhoto() const {
 		const auto item = message();
 		if (item->isPost() || item->isEmpty()) {
 			return false;
-		} else if (Adaptive::ChatWide()) {
+		} else if (Core::App().settings().chatWide()) {
 			return true;
 		} else if (item->history()->peer->isSelf()) {
 			return item->Has<HistoryMessageForwarded>();
@@ -1786,7 +1788,7 @@ QRect Message::countGeometry() const {
 	const auto availableWidth = width()
 		- st::msgMargin.left()
 		- st::msgMargin.right();
-	auto contentLeft = (outbg && !Adaptive::ChatWide())
+	auto contentLeft = (outbg && !Core::App().settings().chatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
 	auto contentWidth = availableWidth;
@@ -1809,7 +1811,7 @@ QRect Message::countGeometry() const {
 			contentWidth = mediaWidth;
 		}
 	}
-	if (contentWidth < availableWidth && outbg && !Adaptive::ChatWide()) {
+	if (contentWidth < availableWidth && outbg && !Core::App().settings().chatWide()) {
 		contentLeft += availableWidth - contentWidth;
 	}
 

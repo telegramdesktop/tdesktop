@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -482,7 +481,7 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title->setInstantReplacesEnabled(
-		_navigation->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_title,
@@ -498,8 +497,9 @@ void GroupInfoBox::prepare() {
 		_description->setMaxLength(kMaxChannelDescription);
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
 		_description->setInstantReplacesEnabled(
-			_navigation->session().settings().replaceEmojiValue());
-		_description->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
+			Core::App().settings().replaceEmojiValue());
+		_description->setSubmitSettings(
+			Core::App().settings().sendSubmitWay());
 
 		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 		connect(_description, &Ui::InputField::submitted, [=] { submit(); });

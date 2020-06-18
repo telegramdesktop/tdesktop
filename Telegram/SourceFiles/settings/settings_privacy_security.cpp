@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sessions_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/self_destruction_box.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
@@ -238,7 +240,7 @@ void SetupLocalPasscode(
 		: tr::lng_passcode_autolock_inactive;
 	auto value = PasscodeChanges(
 	) | rpl::map([] {
-		const auto autolock = Global::AutoLock();
+		const auto autolock = Core::App().settings().autoLock();
 		return (autolock % 3600)
 			? tr::lng_passcode_autolock_minutes(tr::now, lt_count, autolock / 60)
 			: tr::lng_passcode_autolock_hours(tr::now, lt_count, autolock / 3600);

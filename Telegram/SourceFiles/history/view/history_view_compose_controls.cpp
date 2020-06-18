@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "inline_bots/inline_results_widget.h"
 #include "facades.h"
 #include "styles/style_history.h"
@@ -207,7 +209,7 @@ void ComposeControls::init() {
 
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
-	_field->setSubmitSettings(_window->session().settings().sendSubmitWay());
+	_field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
 	//Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });

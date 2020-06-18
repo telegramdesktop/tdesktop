@@ -470,9 +470,12 @@ void ApiWrap::importChatInvite(const QString &hash) {
 				return PeerId(0);
 			});
 			if (const auto peer = _session->data().peerLoaded(peerId)) {
-				App::wnd()->sessionController()->showPeerHistory(
-					peer,
-					Window::SectionShow::Way::Forward);
+				const auto &windows = _session->windows();
+				if (!windows.empty()) {
+					windows.front()->showPeerHistory(
+						peer,
+						Window::SectionShow::Way::Forward);
+				}
 			}
 		};
 		result.match([&](const MTPDupdates &data) {
@@ -2727,9 +2730,12 @@ void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
 		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
 			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
 			: MTP_inputStickerSetShortName(setData->vshort_name());
-		Ui::show(
-			Box<StickerSetBox>(App::wnd()->sessionController(), setId),
-			Ui::LayerOption::KeepOther);
+		const auto &windows = _session->windows();
+		if (!windows.empty()) {
+			Ui::show(
+				Box<StickerSetBox>(windows.front(), setId),
+				Ui::LayerOption::KeepOther);
+		}
 	}).fail([=](const RPCError &error) {
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();

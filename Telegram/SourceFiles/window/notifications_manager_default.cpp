@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "storage/file_download.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
@@ -45,16 +44,17 @@ int notificationMaxHeight() {
 }
 
 QPoint notificationStartPosition() {
-	auto r = psDesktopRect();
-	auto isLeft = Notify::IsLeftCorner(Global::NotificationsCorner());
-	auto isTop = Notify::IsTopCorner(Global::NotificationsCorner());
-	auto x = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
-	auto y = isTop ? r.y() : (r.y() + r.height());
+	const auto corner = Core::App().settings().notificationsCorner();
+	const auto r = psDesktopRect();
+	const auto isLeft = Core::Settings::IsLeftCorner(corner);
+	const auto isTop = Core::Settings::IsTopCorner(corner);
+	const auto x = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
+	const auto y = isTop ? r.y() : (r.y() + r.height());
 	return QPoint(x, y);
 }
 
 internal::Widget::Direction notificationShiftDirection() {
-	auto isTop = Notify::IsTopCorner(Global::NotificationsCorner());
+	auto isTop = Core::Settings::IsTopCorner(Core::App().settings().notificationsCorner());
 	return isTop ? internal::Widget::Direction::Down : internal::Widget::Direction::Up;
 }
 
@@ -116,7 +116,7 @@ void Manager::settingsChanged(ChangeType change) {
 			_hideAll->updatePosition(startPosition, shiftDirection);
 		}
 	} else if (change == ChangeType::MaxCount) {
-		int allow = Global::NotificationsCount();
+		int allow = Core::App().settings().notificationsCount();
 		for (int i = _notifications.size(); i != 0;) {
 			auto &notification = _notifications[--i];
 			if (notification->isUnlinked()) continue;
@@ -196,7 +196,7 @@ void Manager::showNextFromQueue() {
 	if (_queuedNotifications.empty()) {
 		return;
 	}
-	int count = Global::NotificationsCount();
+	int count = Core::App().settings().notificationsCount();
 	for_const (auto &notification, _notifications) {
 		if (notification->isUnlinked()) continue;
 		--count;
@@ -833,7 +833,7 @@ bool Notification::canReply() const {
 	return !_hideReplyButton
 		&& (_item != nullptr)
 		&& !Core::App().locked()
-		&& (Global::NotifyView() <= dbinvShowPreview);
+		&& (Core::App().settings().notifyView() <= dbinvShowPreview);
 }
 
 void Notification::unlinkHistoryInManager() {
@@ -878,7 +878,7 @@ void Notification::showReplyField() {
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
 	_replyArea->setInstantReplacesEnabled(
-		_item->history()->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_replyArea->setMarkdownReplacesEnabled(rpl::single(true));
 
 	// Catch mouse press event to activate the window.

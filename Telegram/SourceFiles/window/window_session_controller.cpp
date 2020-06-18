@@ -217,8 +217,8 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 
 void SessionController::refreshFiltersMenu() {
 	const auto enabled = !session().data().chatsFilters().list().empty();
-	if (enabled != Global::DialogsFiltersEnabled()) {
-		Global::SetDialogsFiltersEnabled(enabled);
+	if (enabled != session().settings().dialogsFiltersEnabled()) {
+		session().settings().setDialogsFiltersEnabled(enabled);
 		session().saveSettingsDelayed();
 		toggleFiltersMenu(enabled);
 	}
@@ -801,7 +801,7 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 		closeFolder();
 	}
 	if (Adaptive::OneColumn()) {
-		Ui::showChatsList();
+		Ui::showChatsList(&session());
 	}
 }
 

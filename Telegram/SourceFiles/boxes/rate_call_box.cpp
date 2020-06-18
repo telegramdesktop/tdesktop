@@ -14,7 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
@@ -86,7 +87,7 @@ void RateCallBox::ratingChanged(int value) {
 				Ui::InputField::Mode::MultiLine,
 				tr::lng_call_rate_comment());
 			_comment->show();
-			_comment->setSubmitSettings(_session->settings().sendSubmitWay());
+			_comment->setSubmitSettings(Core::App().settings().sendSubmitWay());
 			_comment->setMaxLength(kRateCallCommentLengthMax);
 			_comment->resize(width() - (st::callRatingPadding.left() + st::callRatingPadding.right()), _comment->height());
 

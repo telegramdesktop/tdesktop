@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 namespace Storage {
-class Accounts;
+class Domain;
 enum class StartResult : uchar;
 } // namespace Storage
 
@@ -21,21 +23,23 @@ namespace Main {
 class Account;
 class Session;
 
-class Accounts final {
+class Domain final {
 public:
-	explicit Accounts(const QString &dataName);
-	~Accounts();
+	static constexpr auto kMaxAccounts = 3;
+
+	explicit Domain(const QString &dataName);
+	~Domain();
 
 	[[nodiscard]] bool started() const;
 	[[nodiscard]] Storage::StartResult start(const QByteArray &passcode);
 	void resetWithForgottenPasscode();
 	void finish();
 
-	[[nodiscard]] Storage::Accounts &local() const {
+	[[nodiscard]] Storage::Domain &local() const {
 		return *_local;
 	}
 
-	[[nodiscard]] auto list() const
+	[[nodiscard]] auto accounts() const
 		-> const base::flat_map<int, std::unique_ptr<Account>> &;
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 
@@ -55,7 +59,7 @@ public:
 	[[nodiscard]] int add(MTP::Environment environment);
 	void activate(int index);
 
-	// Interface for Storage::Accounts.
+	// Interface for Storage::Domain.
 	void accountAddedInStorage(int index, std::unique_ptr<Account> account);
 
 private:
@@ -70,7 +74,7 @@ private:
 	void scheduleUpdateUnreadBadge();
 
 	const QString _dataName;
-	const std::unique_ptr<Storage::Accounts> _local;
+	const std::unique_ptr<Storage::Domain> _local;
 
 	base::flat_map<int, std::unique_ptr<Account>> _accounts;
 	rpl::variable<Account*> _active = nullptr;

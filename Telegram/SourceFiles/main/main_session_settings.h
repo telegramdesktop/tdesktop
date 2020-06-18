@@ -10,12 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_auto_download.h"
 #include "ui/rect_part.h"
 
-enum class SendFilesWay;
-
-namespace Ui {
-enum class InputSubmitSettings;
-} // namespace Ui
-
 namespace Support {
 enum class SwitchSettings;
 } // namespace Support
@@ -32,46 +26,28 @@ namespace Main {
 
 class SessionSettings final {
 public:
-	[[nodiscard]] QByteArray serialize() const;
-	[[nodiscard]] static std::unique_ptr<SessionSettings> FromSerialized(
-		const QByteArray &serialized);
+	SessionSettings();
 
-	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
-		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
-	}
-	[[nodiscard]] bool lastSeenWarningSeen() const {
-		return _variables.lastSeenWarningSeen;
-	}
-	void setSendFilesWay(SendFilesWay way) {
-		_variables.sendFilesWay = way;
-	}
-	[[nodiscard]] SendFilesWay sendFilesWay() const {
-		return _variables.sendFilesWay;
-	}
-	void setSendSubmitWay(Ui::InputSubmitSettings value) {
-		_variables.sendSubmitWay = value;
-	}
-	[[nodiscard]] Ui::InputSubmitSettings sendSubmitWay() const {
-		return _variables.sendSubmitWay;
-	}
+	[[nodiscard]] QByteArray serialize() const;
+	[[nodiscard]] void addFromSerialized(const QByteArray &serialized);
 
 	void setSupportSwitch(Support::SwitchSettings value) {
-		_variables.supportSwitch = value;
+		_supportSwitch = value;
 	}
 	[[nodiscard]] Support::SwitchSettings supportSwitch() const {
-		return _variables.supportSwitch;
+		return _supportSwitch;
 	}
 	void setSupportFixChatsOrder(bool fix) {
-		_variables.supportFixChatsOrder = fix;
+		_supportFixChatsOrder = fix;
 	}
 	[[nodiscard]] bool supportFixChatsOrder() const {
-		return _variables.supportFixChatsOrder;
+		return _supportFixChatsOrder;
 	}
 	void setSupportTemplatesAutocomplete(bool enabled) {
-		_variables.supportTemplatesAutocomplete = enabled;
+		_supportTemplatesAutocomplete = enabled;
 	}
 	[[nodiscard]] bool supportTemplatesAutocomplete() const {
-		return _variables.supportTemplatesAutocomplete;
+		return _supportTemplatesAutocomplete;
 	}
 	void setSupportChatsTimeSlice(int slice);
 	[[nodiscard]] int supportChatsTimeSlice() const;
@@ -81,25 +57,25 @@ public:
 	[[nodiscard]] rpl::producer<bool> supportAllSearchResultsValue() const;
 
 	[[nodiscard]] ChatHelpers::SelectorTab selectorTab() const {
-		return _variables.selectorTab;
+		return _selectorTab;
 	}
 	void setSelectorTab(ChatHelpers::SelectorTab tab) {
-		_variables.selectorTab = tab;
+		_selectorTab = tab;
 	}
 	[[nodiscard]] bool tabbedSelectorSectionEnabled() const {
-		return _variables.tabbedSelectorSectionEnabled;
+		return _tabbedSelectorSectionEnabled;
 	}
 	void setTabbedSelectorSectionEnabled(bool enabled);
 	[[nodiscard]] bool thirdSectionInfoEnabled() const {
-		return _variables.thirdSectionInfoEnabled;
+		return _thirdSectionInfoEnabled;
 	}
 	void setThirdSectionInfoEnabled(bool enabled);
 	[[nodiscard]] rpl::producer<bool> thirdSectionInfoEnabledValue() const;
 	[[nodiscard]] int thirdSectionExtendedBy() const {
-		return _variables.thirdSectionExtendedBy;
+		return _thirdSectionExtendedBy;
 	}
 	void setThirdSectionExtendedBy(int savedValue) {
-		_variables.thirdSectionExtendedBy = savedValue;
+		_thirdSectionExtendedBy = savedValue;
 	}
 	[[nodiscard]] bool tabbedReplacedWithInfo() const {
 		return _tabbedReplacedWithInfo;
@@ -107,35 +83,22 @@ public:
 	void setTabbedReplacedWithInfo(bool enabled);
 	[[nodiscard]] rpl::producer<bool> tabbedReplacedWithInfoValue() const;
 	void setSmallDialogsList(bool enabled) {
-		_variables.smallDialogsList = enabled;
+		_smallDialogsList = enabled;
 	}
 	[[nodiscard]] bool smallDialogsList() const {
-		return _variables.smallDialogsList;
-	}
-	void setSoundOverride(const QString &key, const QString &path) {
-		_variables.soundOverrides.emplace(key, path);
-	}
-	void clearSoundOverrides() {
-		_variables.soundOverrides.clear();
-	}
-	[[nodiscard]] QString getSoundPath(const QString &key) const;
-	void setTabbedSelectorSectionTooltipShown(int shown) {
-		_variables.tabbedSelectorSectionTooltipShown = shown;
-	}
-	[[nodiscard]] int tabbedSelectorSectionTooltipShown() const {
-		return _variables.tabbedSelectorSectionTooltipShown;
+		return _smallDialogsList;
 	}
 	void setFloatPlayerColumn(Window::Column column) {
-		_variables.floatPlayerColumn = column;
+		_floatPlayerColumn = column;
 	}
 	[[nodiscard]] Window::Column floatPlayerColumn() const {
-		return _variables.floatPlayerColumn;
+		return _floatPlayerColumn;
 	}
 	void setFloatPlayerCorner(RectPart corner) {
-		_variables.floatPlayerCorner = corner;
+		_floatPlayerCorner = corner;
 	}
 	[[nodiscard]] RectPart floatPlayerCorner() const {
-		return _variables.floatPlayerCorner;
+		return _floatPlayerCorner;
 	}
 	void setDialogsWidthRatio(float64 ratio);
 	[[nodiscard]] float64 dialogsWidthRatio() const;
@@ -145,23 +108,23 @@ public:
 	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
 
 	void setGroupStickersSectionHidden(PeerId peerId) {
-		_variables.groupStickersSectionHidden.insert(peerId);
+		_groupStickersSectionHidden.insert(peerId);
 	}
 	[[nodiscard]] bool isGroupStickersSectionHidden(PeerId peerId) const {
-		return _variables.groupStickersSectionHidden.contains(peerId);
+		return _groupStickersSectionHidden.contains(peerId);
 	}
 	void removeGroupStickersSectionHidden(PeerId peerId) {
-		_variables.groupStickersSectionHidden.remove(peerId);
+		_groupStickersSectionHidden.remove(peerId);
 	}
 
 	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
 	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
 
 	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
-		return _variables.autoDownload;
+		return _autoDownload;
 	}
 	[[nodiscard]] const Data::AutoDownload::Full &autoDownload() const {
-		return _variables.autoDownload;
+		return _autoDownload;
 	}
 
 	void setArchiveCollapsed(bool collapsed);
@@ -172,190 +135,70 @@ public:
 	[[nodiscard]] bool archiveInMainMenu() const;
 	[[nodiscard]] rpl::producer<bool> archiveInMainMenuChanges() const;
 
-	void setNotifyAboutPinned(bool notify);
-	[[nodiscard]] bool notifyAboutPinned() const;
-	[[nodiscard]] rpl::producer<bool> notifyAboutPinnedChanges() const;
-
 	void setSkipArchiveInSearch(bool skip);
 	[[nodiscard]] bool skipArchiveInSearch() const;
 	[[nodiscard]] rpl::producer<bool> skipArchiveInSearchChanges() const;
 
 	[[nodiscard]] bool hadLegacyCallsPeerToPeerNobody() const {
-		return _variables.hadLegacyCallsPeerToPeerNobody;
-	}
-
-	[[nodiscard]] bool includeMutedCounter() const {
-		return _variables.includeMutedCounter;
-	}
-	void setIncludeMutedCounter(bool value) {
-		_variables.includeMutedCounter = value;
-	}
-	[[nodiscard]] bool countUnreadMessages() const {
-		return _variables.countUnreadMessages;
-	}
-	void setCountUnreadMessages(bool value) {
-		_variables.countUnreadMessages = value;
-	}
-	[[nodiscard]] bool exeLaunchWarning() const {
-		return _variables.exeLaunchWarning;
-	}
-	void setExeLaunchWarning(bool warning) {
-		_variables.exeLaunchWarning = warning;
-	}
-	[[nodiscard]] bool loopAnimatedStickers() const {
-		return _variables.loopAnimatedStickers;
-	}
-	void setLoopAnimatedStickers(bool value) {
-		_variables.loopAnimatedStickers = value;
-	}
-	void setLargeEmoji(bool value);
-	[[nodiscard]] bool largeEmoji() const;
-	[[nodiscard]] rpl::producer<bool> largeEmojiValue() const;
-	[[nodiscard]] rpl::producer<bool> largeEmojiChanges() const;
-	void setReplaceEmoji(bool value);
-	[[nodiscard]] bool replaceEmoji() const;
-	[[nodiscard]] rpl::producer<bool> replaceEmojiValue() const;
-	[[nodiscard]] rpl::producer<bool> replaceEmojiChanges() const;
-	[[nodiscard]] bool suggestEmoji() const {
-		return _variables.suggestEmoji;
-	}
-	void setSuggestEmoji(bool value) {
-		_variables.suggestEmoji = value;
-	}
-	[[nodiscard]] bool suggestStickersByEmoji() const {
-		return _variables.suggestStickersByEmoji;
-	}
-	void setSuggestStickersByEmoji(bool value) {
-		_variables.suggestStickersByEmoji = value;
-	}
-
-	void setSpellcheckerEnabled(bool value) {
-		_variables.spellcheckerEnabled = value;
-	}
-	bool spellcheckerEnabled() const {
-		return _variables.spellcheckerEnabled.current();
-	}
-	rpl::producer<bool> spellcheckerEnabledValue() const {
-		return _variables.spellcheckerEnabled.value();
-	}
-	rpl::producer<bool> spellcheckerEnabledChanges() const {
-		return _variables.spellcheckerEnabled.changes();
-	}
-
-	void setDictionariesEnabled(std::vector<int> dictionaries) {
-		_variables.dictionariesEnabled = std::move(dictionaries);
-	}
-
-	std::vector<int> dictionariesEnabled() const {
-		return _variables.dictionariesEnabled.current();
-	}
-
-	rpl::producer<std::vector<int>> dictionariesEnabledChanges() const {
-		return _variables.dictionariesEnabled.changes();
-	}
-
-	void setAutoDownloadDictionaries(bool value) {
-		_variables.autoDownloadDictionaries = value;
-	}
-	bool autoDownloadDictionaries() const {
-		return _variables.autoDownloadDictionaries.current();
-	}
-	rpl::producer<bool> autoDownloadDictionariesValue() const {
-		return _variables.autoDownloadDictionaries.value();
-	}
-	rpl::producer<bool> autoDownloadDictionariesChanges() const {
-		return _variables.autoDownloadDictionaries.changes();
-	}
-
-	[[nodiscard]] float64 videoPlaybackSpeed() const {
-		return _variables.videoPlaybackSpeed.current();
-	}
-	void setVideoPlaybackSpeed(float64 speed) {
-		_variables.videoPlaybackSpeed = speed;
-	}
-	[[nodiscard]] QByteArray videoPipGeometry() const {
-		return _variables.videoPipGeometry;
-	}
-	void setVideoPipGeometry(QByteArray geometry) {
-		_variables.videoPipGeometry = geometry;
+		return _hadLegacyCallsPeerToPeerNobody;
 	}
 
 	[[nodiscard]] MsgId hiddenPinnedMessageId(PeerId peerId) const {
-		const auto i = _variables.hiddenPinnedMessages.find(peerId);
-		return (i != end(_variables.hiddenPinnedMessages)) ? i->second : 0;
+		const auto i = _hiddenPinnedMessages.find(peerId);
+		return (i != end(_hiddenPinnedMessages)) ? i->second : 0;
 	}
 	void setHiddenPinnedMessageId(PeerId peerId, MsgId msgId) {
 		if (msgId) {
-			_variables.hiddenPinnedMessages[peerId] = msgId;
+			_hiddenPinnedMessages[peerId] = msgId;
 		} else {
-			_variables.hiddenPinnedMessages.remove(peerId);
+			_hiddenPinnedMessages.remove(peerId);
 		}
+	}
+
+	[[nodiscard]] bool dialogsFiltersEnabled() const {
+		return _dialogsFiltersEnabled;
+	}
+	void setDialogsFiltersEnabled(bool value) {
+		_dialogsFiltersEnabled = value;
 	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 
 private:
-	struct Variables {
-		Variables();
+	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+	static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
+	static constexpr auto kDefaultThirdColumnWidth = 0;
+	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 
-		static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
-		static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
-		static constexpr auto kDefaultThirdColumnWidth = 0;
+	ChatHelpers::SelectorTab _selectorTab; // per-window
+	bool _tabbedSelectorSectionEnabled = false; // per-window
+	Window::Column _floatPlayerColumn; // per-window
+	RectPart _floatPlayerCorner; // per-window
+	base::flat_set<PeerId> _groupStickersSectionHidden;
+	bool _thirdSectionInfoEnabled = true; // per-window
+	bool _smallDialogsList = false; // per-window
+	int _thirdSectionExtendedBy = -1; // per-window
+	rpl::variable<float64> _dialogsWidthRatio; // per-window
+	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
+	bool _hadLegacyCallsPeerToPeerNobody = false;
+	Data::AutoDownload::Full _autoDownload;
+	rpl::variable<bool> _archiveCollapsed = false;
+	rpl::variable<bool> _archiveInMainMenu = false;
+	rpl::variable<bool> _skipArchiveInSearch = false;
+	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
+	base::flat_map<PeerId, MsgId> _hiddenPinnedMessages;
+	bool _dialogsFiltersEnabled = false;
 
-		bool lastSeenWarningSeen = false;
-		SendFilesWay sendFilesWay;
-		ChatHelpers::SelectorTab selectorTab; // per-window
-		bool tabbedSelectorSectionEnabled = false; // per-window
-		int tabbedSelectorSectionTooltipShown = 0;
-		base::flat_map<QString, QString> soundOverrides;
-		Window::Column floatPlayerColumn; // per-window
-		RectPart floatPlayerCorner; // per-window
-		base::flat_set<PeerId> groupStickersSectionHidden;
-		bool thirdSectionInfoEnabled = true; // per-window
-		bool smallDialogsList = false; // per-window
-		int thirdSectionExtendedBy = -1; // per-window
-		rpl::variable<float64> dialogsWidthRatio; // per-window
-		rpl::variable<int> thirdColumnWidth
-			= kDefaultThirdColumnWidth; // per-window
-		Ui::InputSubmitSettings sendSubmitWay;
-		bool hadLegacyCallsPeerToPeerNobody = false;
-		bool includeMutedCounter = true;
-		bool countUnreadMessages = true;
-		bool exeLaunchWarning = true;
-		Data::AutoDownload::Full autoDownload;
-		rpl::variable<bool> archiveCollapsed = false;
-		rpl::variable<bool> archiveInMainMenu = false;
-		rpl::variable<bool> notifyAboutPinned = true;
-		rpl::variable<bool> skipArchiveInSearch = false;
-		bool loopAnimatedStickers = true;
-		rpl::variable<bool> largeEmoji = true;
-		rpl::variable<bool> replaceEmoji = true;
-		bool suggestEmoji = true;
-		bool suggestStickersByEmoji = true;
-		rpl::variable<bool> spellcheckerEnabled = true;
-		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
-		rpl::variable<float64> videoPlaybackSpeed = 1.;
-		QByteArray videoPipGeometry;
-		rpl::variable<std::vector<int>> dictionariesEnabled;
-		rpl::variable<bool> autoDownloadDictionaries = true;
-		base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
-
-		static constexpr auto kDefaultSupportChatsLimitSlice
-			= 7 * 24 * 60 * 60;
-
-		Support::SwitchSettings supportSwitch;
-		bool supportFixChatsOrder = true;
-		bool supportTemplatesAutocomplete = true;
-		rpl::variable<int> supportChatsTimeSlice
-			= kDefaultSupportChatsLimitSlice;
-		rpl::variable<bool> supportAllSearchResults = false;
-	};
+	Support::SwitchSettings _supportSwitch;
+	bool _supportFixChatsOrder = true;
+	bool _supportTemplatesAutocomplete = true;
+	rpl::variable<int> _supportChatsTimeSlice
+		= kDefaultSupportChatsLimitSlice;
+	rpl::variable<bool> _supportAllSearchResults = false;
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
 	bool _tabbedReplacedWithInfo = false;
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
-
-	Variables _variables;
 
 };
 

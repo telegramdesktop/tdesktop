@@ -36,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "media/view/media_view_overlay_widget.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -56,7 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
-#include "storage/storage_accounts.h"
+#include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
 #include "storage/localstorage.h"
 #include "window/window_session_controller.h"
@@ -98,7 +98,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
-, _accounts(std::make_unique<Main::Accounts>(cDataFile()))
+, _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -116,14 +116,14 @@ Application::Application(not_null<Launcher*> launcher)
 		_shouldLockAt = 0;
 	}, _lifetime);
 
-	accounts().activeSessionChanges(
+	_domain->activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session && !UpdaterDisabled()) { // #TODO multi someSessionValue
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
 
-	accounts().activeValue(
+	_domain->activeValue(
 	) | rpl::filter(rpl::mappers::_1 != nullptr
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		if (_window) {
@@ -147,7 +147,7 @@ Application::~Application() {
 	}
 
 	unlockTerms();
-	accounts().finish();
+	_domain->finish();
 
 	Local::finish();
 
@@ -220,7 +220,7 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<Window::Controller>();
-	accounts().activeChanges(
+	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
 		_window->showAccount(account);
 	}, _window->widget()->lifetime());
@@ -239,7 +239,7 @@ void Application::run() {
 
 	App::initMedia();
 
-	const auto state = accounts().start(QByteArray());
+	const auto state = _domain->start(QByteArray());
 	if (state == Storage::StartResult::IncorrectPasscode) {
 		Global::SetLocalPasscode(true);
 		Global::RefLocalPasscodeChanged().notify();
@@ -390,6 +390,10 @@ void Application::saveSettingsDelayed(crl::time delay) {
 	_saveSettingsTimer.callOnce(delay);
 }
 
+void Application::saveSettings() {
+	Local::writeSettings();
+}
+
 MTP::Config &Application::fallbackProductionConfig() const {
 	if (!_fallbackProductionConfig) {
 		_fallbackProductionConfig = std::make_unique<MTP::Config>(
@@ -451,14 +455,14 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	_saveSettingsTimer.setCallback([=] { Local::writeSettings(); });
+	_saveSettingsTimer.setCallback([=] { saveSettings(); });
 }
 
 void Application::logout(Main::Account *account) {
 	if (account) {
 		account->logOut();
 	} else {
-		accounts().resetWithForgottenPasscode();
+		_domain->resetWithForgottenPasscode();
 	}
 }
 
@@ -549,11 +553,11 @@ void Application::writeInstallBetaVersionsSetting() {
 }
 
 Main::Account &Application::activeAccount() const {
-	return _accounts->active();
+	return _domain->active();
 }
 
 Main::Session *Application::maybeActiveSession() const {
-	return (_accounts->started() && activeAccount().sessionExists())
+	return (_domain->started() && activeAccount().sessionExists())
 		? &activeAccount().session()
 		: nullptr;
 }
@@ -571,23 +575,24 @@ bool Application::exportPreventsQuit() {
 }
 
 int Application::unreadBadge() const {
-	return accounts().unreadBadge();
+	return _domain->unreadBadge();
 }
 
 bool Application::unreadBadgeMuted() const {
-	return accounts().unreadBadgeMuted();
+	return _domain->unreadBadgeMuted();
 }
 
 rpl::producer<> Application::unreadBadgeChanges() const {
-	return accounts().unreadBadgeChanges();
+	return _domain->unreadBadgeChanges();
 }
 
 bool Application::offerLegacyLangPackSwitch() const {
-	return (accounts().list().size() == 1) && activeAccount().sessionExists();
+	return (_domain->accounts().size() == 1)
+		&& activeAccount().sessionExists();
 }
 
 bool Application::canApplyLangPackWithoutRestart() const {
-	for (const auto &[index, account] : accounts().list()) {
+	for (const auto &[index, account] : _domain->accounts()) {
 		if (account->sessionExists()) {
 			return false;
 		}
@@ -687,8 +692,7 @@ void Application::lockByTerms(const Window::TermsLock &data) {
 }
 
 bool Application::someSessionExists() const {
-	const auto &list = _accounts->list();
-	for (const auto &[index, account] : list) {
+	for (const auto &[index, account] : _domain->accounts()) {
 		if (account->sessionExists()) {
 			return true;
 		}
@@ -707,7 +711,7 @@ void Application::checkAutoLock() {
 
 	checkLocalTime();
 	const auto now = crl::now();
-	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
+	const auto shouldLockInMs = _settings.autoLock() * 1000LL;
 	const auto checkTimeMs = now - lastNonIdleTime();
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		_shouldLockAt = 0;
@@ -828,8 +832,8 @@ void Application::notifyFileDialogShown(bool shown) {
 }
 
 QWidget *Application::getModalParent() {
-	return Platform::IsWayland()
-		? App::wnd()
+	return (Platform::IsWayland() && activeWindow())
+		? activeWindow()->widget()
 		: nullptr;
 }
 
@@ -918,7 +922,7 @@ void Application::quitDelayed() {
 void Application::startShortcuts() {
 	Shortcuts::Start();
 
-	_accounts->activeSessionChanges(
+	_domain->activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		const auto support = session && session->supportMode();
 		Shortcuts::ToggleSupportShortcuts(support);

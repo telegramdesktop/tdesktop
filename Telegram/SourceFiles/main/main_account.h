@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 class Account;
+class Domain;
 enum class StartResult : uchar;
 } // namespace Storage
 
@@ -23,17 +24,21 @@ class Config;
 
 namespace Main {
 
+class Domain;
 class Session;
 class SessionSettings;
 class AppConfig;
 
 class Account final : public base::has_weak_ptr {
 public:
-	Account(const QString &dataName, int index);
+	Account(not_null<Domain*> domain, const QString &dataName, int index);
 	~Account();
 
-	Account(const Account &other) = delete;
-	Account &operator=(const Account &other) = delete;
+	[[nodiscard]] Domain &domain() const {
+		return *_domain;
+	}
+
+	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] Storage::StartResult legacyStart(
 		const QByteArray &passcode);
@@ -100,6 +105,8 @@ public:
 	}
 
 private:
+	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
 	void startMtp(std::unique_ptr<MTP::Config> config);
 	void createSession(
 		const MTPUser &user,
@@ -116,6 +123,7 @@ private:
 
 	void loggedOut();
 
+	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;
 
 	std::unique_ptr<MTP::Instance> _mtp;

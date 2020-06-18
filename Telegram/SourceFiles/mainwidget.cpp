@@ -872,7 +872,7 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	_dialogs->searchMessages(query, inChat);
 	if (Adaptive::OneColumn()) {
-		Ui::showChatsList();
+		Ui::showChatsList(&session());
 	} else {
 		_dialogs->setInnerFocus();
 	}
@@ -1353,8 +1353,10 @@ void MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId requestI
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
 	if (selectingPeer()) {
 		_hider->offerPeer(peerId);
+	} else if (peerId) {
+		Ui::showPeerHistory(session().data().peer(peerId), showAtMsgId);
 	} else {
-		Ui::showPeerHistory(peerId, showAtMsgId);
+		Ui::showChatsList(&session());
 	}
 }
 
@@ -2570,7 +2572,7 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 	}
 	_dialogs->searchInChat(chat);
 	if (Adaptive::OneColumn()) {
-		Ui::showChatsList();
+		Ui::showChatsList(&session());
 	} else {
 		_dialogs->setInnerFocus();
 	}

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/application.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -158,7 +158,7 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 
 CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
-	Core::App().accounts().activeValue(
+	Core::App().domain().activeValue(
 	) | rpl::map([=](Main::Account *account) {
 		if (!account) {
 			_api.reset();

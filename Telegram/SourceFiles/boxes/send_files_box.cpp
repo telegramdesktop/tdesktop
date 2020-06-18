@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -38,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "layout.h"
 #include "facades.h" // App::LambdaDelayed.
 #include "app.h"
@@ -1913,7 +1914,7 @@ void SendFilesBox::initSendWay() {
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
 		}
-		const auto way = _controller->session().settings().sendFilesWay();
+		const auto way = Core::App().settings().sendFilesWay();
 		if (way == SendFilesWay::Files) {
 			return way;
 		} else if (way == SendFilesWay::Album) {
@@ -2047,7 +2048,7 @@ void SendFilesBox::setupCaption() {
 	_caption->setMaxLength(
 		_controller->session().serverConfig().captionLengthMax);
 	_caption->setSubmitSettings(
-		_controller->session().settings().sendSubmitWay());
+		Core::App().settings().sendSubmitWay());
 	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});
@@ -2071,7 +2072,7 @@ void SendFilesBox::setupCaption() {
 	});
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 	_caption->setInstantReplacesEnabled(
-		_controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
 	_caption->setEditLinkCallback(
 		DefaultEditLinkCallback(_controller, _caption));
@@ -2344,7 +2345,7 @@ void SendFilesBox::send(
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
 	if (_compressConfirm == CompressConfirm::Auto) {
-		const auto oldWay = _controller->session().settings().sendFilesWay();
+		const auto oldWay = Core::App().settings().sendFilesWay();
 		if (way != oldWay) {
 			// Check if the user _could_ use the old value, but didn't.
 			if ((oldWay == Way::Album && _sendAlbum)
@@ -2352,8 +2353,8 @@ void SendFilesBox::send(
 				|| (oldWay == Way::Files && _sendFiles)
 				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
 				// And in that case save it to settings.
-				_controller->session().settings().setSendFilesWay(way);
-				_controller->session().saveSettingsDelayed();
+				Core::App().settings().setSendFilesWay(way);
+				Core::App().saveSettingsDelayed();
 			}
 		}
 	}

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "core/application.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -42,7 +43,7 @@ namespace {
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 [[nodiscard]] QString ValidatedInternalLinksDomain(
-		not_null<const Main::Session*> session) {
+		not_null<const Session*> session) {
 	// This domain should start with 'http[s]://' and end with '/'.
 	// Like 'https://telegram.me/' or 'https://t.me/'.
 	const auto &domain = session->serverConfig().internalLinksDomain;
@@ -63,7 +64,7 @@ constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 } // namespace
 
 Session::Session(
-	not_null<Main::Account*> account,
+	not_null<Account*> account,
 	const MTPUser &user,
 	std::unique_ptr<SessionSettings> settings)
 : _account(account)
@@ -140,12 +141,20 @@ Session::~Session() {
 	ClickHandler::unpressed();
 }
 
-Main::Account &Session::account() const {
+Account &Session::account() const {
 	return *_account;
 }
 
 Storage::Account &Session::local() const {
 	return _account->local();
+}
+
+Domain &Session::domain() const {
+	return _account->domain();
+}
+
+Storage::Domain &Session::domainLocal() const {
+	return _account->domainLocal();
 }
 
 base::Observable<void> &Session::downloaderTaskFinished() {
@@ -172,8 +181,19 @@ bool Session::validateSelf(const MTPUser &user) {
 	return true;
 }
 
+void Session::saveSettings() {
+	local().writeSessionSettings();
+}
+
 void Session::saveSettingsDelayed(crl::time delay) {
 	_saveSettingsTimer.callOnce(delay);
+}
+
+void Session::saveSettingsNowIfNeeded() {
+	if (_saveSettingsTimer.isActive()) {
+		_saveSettingsTimer.cancel();
+		saveSettings();
+	}
 }
 
 MTP::DcId Session::mainDcId() const {
@@ -225,17 +245,6 @@ Support::Helper &Session::supportHelper() const {
 
 Support::Templates& Session::supportTemplates() const {
 	return supportHelper().templates();
-}
-
-void Session::saveSettingsNowIfNeeded() {
-	if (_saveSettingsTimer.isActive()) {
-		_saveSettingsTimer.cancel();
-		saveSettings();
-	}
-}
-
-void Session::saveSettings() {
-	local().writeSessionSettings();
 }
 
 void Session::addWindow(not_null<Window::SessionController*> controller) {

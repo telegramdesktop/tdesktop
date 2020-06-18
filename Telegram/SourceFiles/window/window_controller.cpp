@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
@@ -58,7 +59,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 				sideBarChanged();
 			}, session->lifetime());
 		}
-		if (_sessionController && Global::DialogsFiltersEnabled()) {
+		if (session && session->settings().dialogsFiltersEnabled()) {
 			_sessionController->toggleFiltersMenu(true);
 		} else {
 			sideBarChanged();

@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -74,7 +73,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
 			_callBusyTrack->fillFromFile(
-				_session->settings().getSoundPath(qsl("call_busy")));
+				Core::App().settings().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -83,7 +82,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
 			_callEndedTrack->fillFromFile(
-				_session->settings().getSoundPath(qsl("call_end")));
+				Core::App().settings().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -92,7 +91,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
 			_callConnectingTrack->fillFromFile(
-				_session->settings().getSoundPath(qsl("call_connect")));
+				Core::App().settings().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;

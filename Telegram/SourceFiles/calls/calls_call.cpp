@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -17,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "mtproto/mtproto_config.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
@@ -308,7 +309,7 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = _user->session().settings().getSoundPath(
+	auto trackFileName = Core::App().settings().getSoundPath(
 		(_type == Type::Outgoing)
 		? qsl("call_outgoing")
 		: qsl("call_incoming"));
@@ -610,13 +611,14 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	if (_mute) {
 		raw->setMuteMicrophone(_mute);
 	}
+	const auto &settings = Core::App().settings();
 	raw->setAudioOutputDevice(
-		Global::CallOutputDeviceID().toStdString());
+		settings.callOutputDeviceID().toStdString());
 	raw->setAudioInputDevice(
-		Global::CallInputDeviceID().toStdString());
-	raw->setOutputVolume(Global::CallOutputVolume() / 100.0f);
-	raw->setInputVolume(Global::CallInputVolume() / 100.0f);
-	raw->setAudioOutputDuckingEnabled(Global::CallAudioDuckingEnabled());
+		settings.callInputDeviceID().toStdString());
+	raw->setOutputVolume(settings.callOutputVolume() / 100.0f);
+	raw->setInputVolume(settings.callInputVolume() / 100.0f);
+	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
 void Call::handleControllerStateChange(

@@ -16,7 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
-#include "facades.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "app.h"
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
@@ -27,7 +28,7 @@ namespace Player {
 VolumeController::VolumeController(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: TWidget(parent)
+: RpWidget(parent)
 , _slider(this, st::mediaPlayerPanelPlayback) {
 	_slider->setMoveByWheel(true);
 	_slider->setChangeProgressCallback([=](float64 volume) {
@@ -35,17 +36,18 @@ VolumeController::VolumeController(
 	});
 	_slider->setChangeFinishedCallback([=](float64 volume) {
 		if (volume > 0) {
-			Global::SetRememberedSongVolume(volume);
+			Core::App().settings().setRememberedSongVolume(volume);
 		}
 		applyVolumeChange(volume);
 		controller->session().saveSettingsDelayed();
 	});
-	subscribe(Global::RefSongVolumeChanged(), [this] {
+	Core::App().settings().songVolumeChanges(
+	) | rpl::start_with_next([=](float64 volume) {
 		if (!_slider->isChanging()) {
-			_slider->setValue(Global::SongVolume());
+			_slider->setValue(volume);
 		}
-	});
-	setVolume(Global::SongVolume());
+	}, lifetime());
+	setVolume(Core::App().settings().songVolume());
 
 	resize(st::mediaPlayerPanelVolumeWidth, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
 }
@@ -63,16 +65,15 @@ void VolumeController::resizeEvent(QResizeEvent *e) {
 void VolumeController::setVolume(float64 volume) {
 	_slider->setValue(volume);
 	if (volume > 0) {
-		Global::SetRememberedSongVolume(volume);
+		Core::App().settings().setRememberedSongVolume(volume);
 	}
 	applyVolumeChange(volume);
 }
 
 void VolumeController::applyVolumeChange(float64 volume) {
-	if (volume != Global::SongVolume()) {
-		Global::SetSongVolume(volume);
-		mixer()->setSongVolume(Global::SongVolume());
-		Global::RefSongVolumeChanged().notify();
+	if (volume != Core::App().settings().songVolume()) {
+		Core::App().settings().setSongVolume(volume);
+		mixer()->setSongVolume(Core::App().settings().songVolume());
 	}
 }
 

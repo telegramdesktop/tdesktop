@@ -56,18 +56,13 @@ namespace Ui {
 
 // Legacy global methods.
 
-void showPeerProfile(const PeerId &peer);
-void showPeerProfile(const PeerData *peer);
+void showPeerProfile(not_null<PeerData*> peer);
 void showPeerProfile(not_null<const History*> history);
 
-void showPeerHistory(const PeerId &peer, MsgId msgId);
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
-
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
-inline void showChatsList() {
-	showPeerHistory(PeerId(0), 0);
-}
+void showChatsList(not_null<Main::Session*> session);
 PeerData *getPeerForMouseAction();
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event);
@@ -91,23 +86,6 @@ bool switchInlineBotButtonReceived(
 	const QString &query,
 	UserData *samePeerBot = nullptr,
 	MsgId samePeerReplyTo = 0);
-
-void unreadCounterUpdated();
-
-enum class ScreenCorner {
-	TopLeft     = 0,
-	TopRight    = 1,
-	BottomRight = 2,
-	BottomLeft  = 3,
-};
-
-inline bool IsLeftCorner(ScreenCorner corner) {
-	return (corner == ScreenCorner::TopLeft) || (corner == ScreenCorner::BottomLeft);
-}
-
-inline bool IsTopCorner(ScreenCorner corner) {
-	return (corner == ScreenCorner::TopLeft) || (corner == ScreenCorner::TopRight);
-}
 
 } // namespace Notify
 
@@ -139,43 +117,10 @@ void start();
 void finish();
 
 DeclareVar(bool, ScreenIsLocked);
-
-DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
-DeclareVar(bool, AdaptiveForWide);
+DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
-DeclareVar(bool, DialogsFiltersEnabled);
-DeclareVar(bool, ModerateModeEnabled);
-
-constexpr auto kDefaultVolume = 0.9;
-
-DeclareVar(float64, RememberedSongVolume);
-DeclareVar(float64, SongVolume);
-DeclareRefVar(base::Observable<void>, SongVolumeChanged);
-DeclareVar(float64, VideoVolume);
-DeclareRefVar(base::Observable<void>, VideoVolumeChanged);
-DeclareVar(bool, AskDownloadPath);
-DeclareVar(QString, DownloadPath);
-DeclareVar(QByteArray, DownloadPathBookmark);
-DeclareRefVar(base::Observable<void>, DownloadPathChanged);
-DeclareVar(bool, VoiceMsgPlaybackDoubled);
-DeclareVar(bool, SoundNotify);
-DeclareVar(bool, DesktopNotify);
-DeclareVar(bool, FlashBounceNotify);
-DeclareVar(bool, RestoreSoundNotifyFromTray);
-DeclareVar(bool, RestoreFlashBounceNotifyFromTray);
-DeclareVar(DBINotifyView, NotifyView);
-DeclareVar(int, NotificationsCount);
-DeclareVar(Notify::ScreenCorner, NotificationsCorner);
-
-DeclareVar(QString, CallOutputDeviceID);
-DeclareVar(QString, CallInputDeviceID);
-DeclareVar(int, CallOutputVolume);
-DeclareVar(int, CallInputVolume);
-DeclareVar(bool, CallAudioDuckingEnabled);
-
-DeclareVar(bool, NativeNotifications);
 DeclareVar(bool, NotificationsDemoIsShown);
 
 DeclareVar(bool, TryIPv6);
@@ -185,7 +130,6 @@ DeclareVar(MTP::ProxyData::Settings, ProxySettings);
 DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
-DeclareVar(int, AutoLock);
 DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
@@ -211,15 +155,6 @@ inline bool Normal() {
 
 inline bool ThreeColumn() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::ThreeColumn;
-}
-
-inline bool ChatNormal() {
-	return !Global::AdaptiveForWide()
-		|| (Global::AdaptiveChatLayout() == ChatLayout::Normal);
-}
-
-inline bool ChatWide() {
-	return !ChatNormal();
 }
 
 } // namespace Adaptive

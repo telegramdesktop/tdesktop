@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -20,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
@@ -465,7 +466,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	result->entity()->setMaxLength(kMaxGroupChannelTitle);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		_peer->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
 		result->entity(),
@@ -499,8 +500,8 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setMaxLength(kMaxChannelDescription);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		_peer->session().settings().replaceEmojiValue());
-	result->entity()->setSubmitSettings(_peer->session().settings().sendSubmitWay());
+		Core::App().settings().replaceEmojiValue());
+	result->entity()->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
 		result->entity(),
@@ -1443,7 +1444,7 @@ void Controller::deleteChannel() {
 	const auto session = &_peer->session();
 
 	Ui::hideLayer();
-	Ui::showChatsList();
+	Ui::showChatsList(session);
 	if (chat) {
 		session->api().deleteConversation(chat, false);
 	}

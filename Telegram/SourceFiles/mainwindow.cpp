@@ -133,7 +133,7 @@ void MainWindow::createTrayIconMenu() {
 	trayIconMenu = new QMenu(this);
 #endif // else for Q_OS_WIN
 
-	auto notificationActionText = Global::DesktopNotify()
+	auto notificationActionText = Core::App().settings().desktopNotify()
 		? tr::lng_disable_notifications_from_tray(tr::now)
 		: tr::lng_enable_notifications_from_tray(tr::now);
 
@@ -620,7 +620,7 @@ void MainWindow::updateTrayMenu(bool force) {
 			: tr::lng_open_from_tray(tr::now));
 	}
 	auto notificationAction = actions.at(Platform::IsLinux() && !Platform::IsWayland() ? 2 : 1);
-	auto notificationActionText = Global::DesktopNotify()
+	auto notificationActionText = Core::App().settings().desktopNotify()
 		? tr::lng_disable_notifications_from_tray(tr::now)
 		: tr::lng_enable_notifications_from_tray(tr::now);
 	notificationAction->setText(notificationActionText);
@@ -781,33 +781,35 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 
 	auto soundNotifyChanged = false;
 	auto flashBounceNotifyChanged = false;
-	Global::SetDesktopNotify(!Global::DesktopNotify());
-	if (Global::DesktopNotify()) {
-		if (Global::RestoreSoundNotifyFromTray() && !Global::SoundNotify()) {
-			Global::SetSoundNotify(true);
-			Global::SetRestoreSoundNotifyFromTray(false);
+	auto &settings = Core::App().settings();
+	settings.setDesktopNotify(!settings.desktopNotify());
+	if (settings.desktopNotify()) {
+		if (settings.rememberedSoundNotifyFromTray()
+			&& !settings.soundNotify()) {
+			settings.setSoundNotify(true);
+			settings.setRememberedSoundNotifyFromTray(false);
 			soundNotifyChanged = true;
 		}
-		if (Global::RestoreFlashBounceNotifyFromTray()
-			&& !Global::FlashBounceNotify()) {
-			Global::SetFlashBounceNotify(true);
-			Global::SetRestoreFlashBounceNotifyFromTray(false);
+		if (settings.rememberedFlashBounceNotifyFromTray()
+			&& !settings.flashBounceNotify()) {
+			settings.setFlashBounceNotify(true);
+			settings.setRememberedFlashBounceNotifyFromTray(false);
 			flashBounceNotifyChanged = true;
 		}
 	} else {
-		if (Global::SoundNotify()) {
-			Global::SetSoundNotify(false);
-			Global::SetRestoreSoundNotifyFromTray(true);
+		if (settings.soundNotify()) {
+			settings.setSoundNotify(false);
+			settings.setRememberedSoundNotifyFromTray(true);
 			soundNotifyChanged = true;
 		} else {
-			Global::SetRestoreSoundNotifyFromTray(false);
+			settings.setRememberedSoundNotifyFromTray(false);
 		}
-		if (Global::FlashBounceNotify()) {
-			Global::SetFlashBounceNotify(false);
-			Global::SetRestoreFlashBounceNotifyFromTray(true);
+		if (settings.flashBounceNotify()) {
+			settings.setFlashBounceNotify(false);
+			settings.setRememberedFlashBounceNotifyFromTray(true);
 			flashBounceNotifyChanged = true;
 		} else {
-			Global::SetRestoreFlashBounceNotifyFromTray(false);
+			settings.setRememberedFlashBounceNotifyFromTray(false);
 		}
 	}
 	account().session().saveSettings();

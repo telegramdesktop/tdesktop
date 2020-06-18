@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "api/api_text_entities.h"
@@ -2067,7 +2066,7 @@ int Session::unreadBadgeIgnoreOne(const Dialogs::Key &key) const {
 }
 
 bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
-	if (!_session->settings().includeMutedCounter()) {
+	if (!Core::App().settings().includeMutedCounter()) {
 		return false;
 	}
 	const auto remove = (key && key.entry()->inChatList())
@@ -2078,7 +2077,7 @@ bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
 
 int Session::unreadOnlyMutedBadge() const {
 	const auto state = _chatsList.unreadState();
-	return _session->settings().countUnreadMessages()
+	return Core::App().settings().countUnreadMessages()
 		? state.messagesMuted
 		: state.chatsMuted;
 }
@@ -2092,20 +2091,20 @@ void Session::notifyUnreadBadgeChanged() {
 }
 
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
-	const auto all = _session->settings().includeMutedCounter();
+	const auto all = Core::App().settings().includeMutedCounter();
 	return std::max(state.marks - (all ? 0 : state.marksMuted), 0)
-		+ (_session->settings().countUnreadMessages()
+		+ (Core::App().settings().countUnreadMessages()
 			? std::max(state.messages - (all ? 0 : state.messagesMuted), 0)
 			: std::max(state.chats - (all ? 0 : state.chatsMuted), 0));
 }
 
 bool Session::computeUnreadBadgeMuted(
 		const Dialogs::UnreadState &state) const {
-	if (!_session->settings().includeMutedCounter()) {
+	if (!Core::App().settings().includeMutedCounter()) {
 		return false;
 	}
 	return (state.marksMuted >= state.marks)
-		&& (_session->settings().countUnreadMessages()
+		&& (Core::App().settings().countUnreadMessages()
 			? (state.messagesMuted >= state.messages)
 			: (state.chatsMuted >= state.chats));
 }

@@ -36,7 +36,7 @@ void quit();
 } // namespace App
 
 namespace Main {
-class Accounts;
+class Domain;
 class Account;
 class Session;
 } // namespace Main
@@ -136,6 +136,7 @@ public:
 		return _settings;
 	}
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
+	void saveSettings();
 
 	// Fallback config and proxy.
 	[[nodiscard]] MTP::Config &fallbackProductionConfig() const;
@@ -152,9 +153,9 @@ public:
 		return *_databases;
 	}
 
-	// Accounts component.
-	[[nodiscard]] Main::Accounts &accounts() const {
-		return *_accounts;
+	// Domain component.
+	[[nodiscard]] Main::Domain &domain() const {
+		return *_domain;
 	}
 	[[nodiscard]] Main::Account &activeAccount() const;
 	[[nodiscard]] bool someSessionExists() const;
@@ -282,7 +283,7 @@ private:
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
 	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
-	const std::unique_ptr<Main::Accounts> _accounts;
+	const std::unique_ptr<Main::Domain> _domain;
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;

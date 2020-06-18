@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 
 #include "chat_helpers/emoji_keywords.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
@@ -19,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/event_filter.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
 
@@ -608,7 +609,7 @@ void SuggestionsController::setReplaceCallback(
 }
 
 void SuggestionsController::handleTextChange() {
-	if (_session->settings().suggestEmoji()
+	if (Core::App().settings().suggestEmoji()
 		&& _field->textCursor().position() > 0) {
 		Core::App().emojiKeywords().refresh();
 	}
@@ -638,7 +639,7 @@ void SuggestionsController::showWithQuery(const QString &query) {
 }
 
 QString SuggestionsController::getEmojiQuery() {
-	if (!_session->settings().suggestEmoji()) {
+	if (!Core::App().settings().suggestEmoji()) {
 		return QString();
 	}
 

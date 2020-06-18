@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "boxes/abstract_box.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
@@ -25,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
@@ -142,7 +143,7 @@ void EditLinkBox::prepare() {
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(
-		session->settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		text,
@@ -289,7 +290,7 @@ void InitMessageField(
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(DefaultEditLinkCallback(controller, field));
 }
@@ -300,7 +301,7 @@ void InitSpellchecker(
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
 		field.get(),
-		controller->session().settings().spellcheckerEnabledValue(),
+		Core::App().settings().spellcheckerEnabledValue(),
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
 			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(controller)); }

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/application.h"
 #include "mainwindow.h"
-#include "main/main_session.h"
 #include "ui/widgets/checkbox.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -28,7 +27,8 @@ void AutoLockBox::prepare() {
 
 	auto options = { 60, 300, 3600, 18000 };
 
-	auto group = std::make_shared<Ui::RadiobuttonGroup>(Global::AutoLock());
+	auto group = std::make_shared<Ui::RadiobuttonGroup>(
+		Core::App().settings().autoLock());
 	auto y = st::boxOptionListPadding.top() + st::autolockButton.margin.top();
 	auto count = int(options.size());
 	_options.reserve(count);
@@ -43,8 +43,8 @@ void AutoLockBox::prepare() {
 }
 
 void AutoLockBox::durationChanged(int seconds) {
-	Global::SetAutoLock(seconds);
-	_session->saveSettingsDelayed();
+	Core::App().settings().setAutoLock(seconds);
+	Core::App().saveSettingsDelayed();
 	Global::RefLocalPasscodeChanged().notify();
 
 	Core::App().checkAutoLock();

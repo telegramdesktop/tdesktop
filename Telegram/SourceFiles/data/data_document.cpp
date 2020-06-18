@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -41,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
-#include "facades.h"
 #include "app.h"
 
 namespace {
@@ -74,7 +72,7 @@ void LaunchWithWarning(
 	const auto warn = [&] {
 		if (!Data::IsExecutableName(name)) {
 			return false;
-		} else if (!session->settings().exeLaunchWarning()) {
+		} else if (!Core::App().settings().exeLaunchWarning()) {
 			return false;
 		} else if (item && item->history()->peer->isVerified()) {
 			return false;
@@ -86,13 +84,13 @@ void LaunchWithWarning(
 		return;
 	}
 	const auto extension = '.' + Data::FileExtension(name);
-	const auto callback = crl::guard(session, [=](bool checked) {
+	const auto callback = [=](bool checked) {
 		if (checked) {
-			session->settings().setExeLaunchWarning(false);
-			session->saveSettingsDelayed();
+			Core::App().settings().setExeLaunchWarning(false);
+			Core::App().saveSettingsDelayed();
 		}
 		File::Launch(name);
-	});
+	};
 	Ui::show(Box<ConfirmDontWarnBox>(
 		tr::lng_launch_exe_warning(
 			lt_extension,
@@ -133,7 +131,7 @@ QString FileNameUnsafe(
 		bool savingAs,
 		const QDir &dir) {
 	name = base::FileNameFromUserString(name);
-	if (Global::AskDownloadPath() || savingAs) {
+	if (Core::App().settings().askDownloadPath() || savingAs) {
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);
 		} else if (dir.path() != qsl(".")) {
@@ -177,14 +175,16 @@ QString FileNameUnsafe(
 		return filedialogGetSaveFile(name, title, fil, name) ? name : QString();
 	}
 
-	QString path;
-	if (Global::DownloadPath().isEmpty()) {
-		path = File::DefaultDownloadPath(session);
-	} else if (Global::DownloadPath() == qsl("tmp")) {
-		path = cTempDir();
-	} else {
-		path = Global::DownloadPath();
-	}
+	auto path = [&] {
+		const auto path = Core::App().settings().downloadPath();
+		if (path.isEmpty()) {
+			return File::DefaultDownloadPath(session);
+		} else if (path == qsl("tmp")) {
+			return cTempDir();
+		} else {
+			return path;
+		}
+	}();
 	if (name.isEmpty()) name = qsl(".unknown");
 	if (name.at(0) == QChar::fromLatin1('.')) {
 		if (!QDir().exists(path)) QDir().mkpath(path);
@@ -1056,10 +1056,9 @@ void DocumentData::handleLoaderUpdates() {
 			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
 			//
 			//const auto openSettings = [=] {
-			//	Global::SetDownloadPath(QString());
-			//	Global::SetDownloadPathBookmark(QByteArray());
+			//	Core::App().settings().etDownloadPathBookmark(QByteArray());
+			//	Core::App().settings().setDownloadPath(QString());
 			//	Ui::show(Box<DownloadPathBox>());
-			//	Global::RefDownloadPathChanged().notify();
 			//};
 			//Ui::show(Box<ConfirmBox>(
 			//	tr::lng_download_path_failed(tr::now),
@@ -1175,7 +1174,8 @@ bool DocumentData::saveFromData() {
 
 bool DocumentData::saveFromDataSilent() {
 	return !filepath(true).isEmpty()
-		|| (!Global::AskDownloadPath() && saveFromDataChecked());
+		|| (!Core::App().settings().askDownloadPath()
+			&& saveFromDataChecked());
 }
 
 bool DocumentData::saveFromDataChecked() {

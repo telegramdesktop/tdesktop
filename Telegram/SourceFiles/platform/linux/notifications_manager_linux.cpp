@@ -11,9 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/base_platform_info.h"
 #include "platform/linux/specific_linux.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusMessage>
@@ -71,7 +72,8 @@ void GetSupported() {
 	}
 	Checked = true;
 
-	if (Global::NativeNotifications() && !Platform::IsWayland()) {
+	if (Core::App().settings().nativeNotifications()
+		&& !Platform::IsWayland()) {
 		ComputeSupported(true);
 	} else {
 		ComputeSupported();
@@ -271,7 +273,7 @@ NotificationData::NotificationData(
 
 	// suppress system sound if telegram sound activated, otherwise use system sound
 	if (capabilities.contains(qsl("sound"))) {
-		if (Global::SoundNotify()) {
+		if (Core::App().settings().soundNotify()) {
 			_hints["suppress-sound"] = true;
 		} else {
 			// sound name according to http://0pointer.de/public/sound-naming-spec.html
@@ -475,7 +477,7 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	GetSupported();
 
-	if ((Global::NativeNotifications() && Supported())
+	if ((Core::App().settings().nativeNotifications() && Supported())
 		|| Platform::IsWayland()) {
 		return std::make_unique<Manager>(system);
 	}

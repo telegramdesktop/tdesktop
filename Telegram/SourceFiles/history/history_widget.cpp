@@ -506,7 +506,7 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	session().settings().largeEmojiChanges(
+	Core::App().settings().largeEmojiChanges(
 	) | rpl::start_with_next([=] {
 		crl::on_main(this, [=] {
 			updateHistoryGeometry();
@@ -1554,7 +1554,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		if (h == _history) {
 			applyDraft();
 		} else {
-			Ui::showPeerHistory(toPeerId, ShowAtUnreadMsgId);
+			Ui::showPeerHistory(h->peer, ShowAtUnreadMsgId);
 		}
 		return true;
 	}
@@ -2051,7 +2051,7 @@ void HistoryWidget::clearAllLoadRequests() {
 void HistoryWidget::updateFieldSubmitSettings() {
 	const auto settings = _isInlineBot
 		? Ui::InputField::SubmitSettings::None
-		: session().settings().sendSubmitWay();
+		: Core::App().settings().sendSubmitWay();
 	_field->setSubmitSettings(settings);
 }
 
@@ -5475,7 +5475,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 		if (!_canSendMessages) {
 			const auto submitting = Ui::InputField::ShouldSubmit(
-				session().settings().sendSubmitWay(),
+				Core::App().settings().sendSubmitWay(),
 				e->modifiers());
 			if (submitting) {
 				sendWithModifiers(e->modifiers());

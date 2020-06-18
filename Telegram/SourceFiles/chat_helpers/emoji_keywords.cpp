@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/emoji_config.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 
@@ -516,7 +516,7 @@ void EmojiKeywords::langPackRefreshed() {
 }
 
 void EmojiKeywords::handleSessionChanges() {
-	Core::App().accounts().activeSessionValue( // #TODO multi someSessionValue
+	Core::App().domain().activeSessionValue( // #TODO multi someSessionValue
 	) | rpl::map([](Main::Session *session) {
 		return session ? &session->api() : nullptr;
 	}) | rpl::start_with_next([=](ApiWrap *api) {

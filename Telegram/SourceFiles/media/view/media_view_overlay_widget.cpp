@@ -49,7 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h" // Accounts::activeSessionValue.
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout.h"
@@ -108,16 +108,16 @@ PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
 }
 
 void PipDelegate::pipSaveGeometry(QByteArray geometry) {
-	_session->settings().setVideoPipGeometry(geometry);
-	_session->saveSettingsDelayed();
+	Core::App().settings().setVideoPipGeometry(geometry);
+	Core::App().saveSettingsDelayed();
 }
 
 QByteArray PipDelegate::pipLoadGeometry() {
-	return _session->settings().videoPipGeometry();
+	return Core::App().settings().videoPipGeometry();
 }
 
 float64 PipDelegate::pipPlaybackSpeed() {
-	return _session->settings().videoPlaybackSpeed();
+	return Core::App().settings().videoPlaybackSpeed();
 }
 
 QWidget *PipDelegate::pipParentWidget() {
@@ -301,9 +301,9 @@ OverlayWidget::OverlayWidget()
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	_lastPositiveVolume = (Global::VideoVolume() > 0.)
-		? Global::VideoVolume()
-		: Global::kDefaultVolume;
+	_lastPositiveVolume = (Core::App().settings().videoVolume() > 0.)
+		? Core::App().settings().videoVolume()
+		: Core::Settings::kDefaultVolume;
 
 	setWindowTitle(qsl("Media viewer"));
 
@@ -320,7 +320,7 @@ OverlayWidget::OverlayWidget()
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
 	// While we have one mediaview for all sessions we have to do this.
-	Core::App().accounts().activeSessionValue(
+	Core::App().domain().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (!isHidden()) {
 			close();
@@ -1157,7 +1157,7 @@ void OverlayWidget::showSaveMsgFile() {
 
 void OverlayWidget::updateMixerVideoVolume() const {
 	if (_streamed) {
-		Player::mixer()->setVideoVolume(Global::VideoVolume());
+		Player::mixer()->setVideoVolume(Core::App().settings().videoVolume());
 	}
 }
 
@@ -1358,18 +1358,18 @@ void OverlayWidget::onDownload() {
 	if (!_photo && !_document) {
 		return;
 	}
-	if (Global::AskDownloadPath()) {
+	if (Core::App().settings().askDownloadPath()) {
 		return onSaveAs();
 	}
 
 	QString path;
 	const auto session = _photo ? &_photo->session() : &_document->session();
-	if (Global::DownloadPath().isEmpty()) {
+	if (Core::App().settings().downloadPath().isEmpty()) {
 		path = File::DefaultDownloadPath(session);
-	} else if (Global::DownloadPath() == qsl("tmp")) {
+	} else if (Core::App().settings().downloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
-		path = Global::DownloadPath();
+		path = Core::App().settings().downloadPath();
 	}
 	QString toName;
 	if (_document) {
@@ -2629,7 +2629,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
 	} else {
-		options.speed = _document->session().settings().videoPlaybackSpeed();
+		options.speed = Core::App().settings().videoPlaybackSpeed();
 		if (_pip) {
 			_pip = nullptr;
 		}
@@ -2664,25 +2664,24 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
-	Global::SetVideoVolume(volume);
+	Core::App().settings().setVideoVolume(volume);
 	updateMixerVideoVolume();
-	Global::RefVideoVolumeChanged().notify();
 	if (_document) {
 		_document->session().saveSettingsDelayed();
 	}
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
-	return Global::VideoVolume();
+	return Core::App().settings().videoVolume();
 }
 
 void OverlayWidget::playbackControlsVolumeToggled() {
-	const auto volume = Global::VideoVolume();
+	const auto volume = Core::App().settings().videoVolume();
 	playbackControlsVolumeChanged(volume ? 0. : _lastPositiveVolume);
 }
 
 void OverlayWidget::playbackControlsVolumeChangeFinished() {
-	const auto volume = Global::VideoVolume();
+	const auto volume = Core::App().settings().videoVolume();
 	if (volume > 0.) {
 		_lastPositiveVolume = volume;
 	}
@@ -2692,8 +2691,8 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 	DEBUG_LOG(("Media playback speed: change to %1.").arg(speed));
 	if (_document) {
 		DEBUG_LOG(("Media playback speed: %1 to settings.").arg(speed));
-		_document->session().settings().setVideoPlaybackSpeed(speed);
-		_document->session().saveSettingsDelayed();
+		Core::App().settings().setVideoPlaybackSpeed(speed);
+		Core::App().saveSettingsDelayed();
 	}
 	if (_streamed && !videoIsGifv()) {
 		DEBUG_LOG(("Media playback speed: %1 to _streamed.").arg(speed));
@@ -2702,12 +2701,8 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 }
 
 float64 OverlayWidget::playbackControlsCurrentSpeed() {
-	const auto result = _document
-		? _document->session().settings().videoPlaybackSpeed()
-		: 1.;
-	DEBUG_LOG(("Media playback speed: now %1 (doc %2)."
-		).arg(result
-		).arg(Logs::b(_document != nullptr)));
+	const auto result = Core::App().settings().videoPlaybackSpeed();
+	DEBUG_LOG(("Media playback speed: now %1.").arg(result));
 	return result;
 }
 

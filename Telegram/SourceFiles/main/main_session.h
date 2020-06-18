@@ -38,6 +38,7 @@ class DownloadManagerMtproto;
 class Uploader;
 class Facade;
 class Account;
+class Domain;
 } // namespace Storage
 
 namespace Window {
@@ -59,6 +60,7 @@ class DicePacks;
 namespace Main {
 
 class Account;
+class Domain;
 class SessionSettings;
 
 class Session final
@@ -66,7 +68,7 @@ class Session final
 	, private base::Subscriber {
 public:
 	Session(
-		not_null<Main::Account*> account,
+		not_null<Account*> account,
 		const MTPUser &user,
 		std::unique_ptr<SessionSettings> settings);
 	~Session();
@@ -74,8 +76,10 @@ public:
 	Session(const Session &other) = delete;
 	Session &operator=(const Session &other) = delete;
 
-	[[nodiscard]] Main::Account &account() const;
+	[[nodiscard]] Account &account() const;
 	[[nodiscard]] Storage::Account &local() const;
+	[[nodiscard]] Domain &domain() const;
+	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;
@@ -102,18 +106,19 @@ public:
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
 	}
-	[[nodiscard]] Window::Notifications::System &notifications() {
+	[[nodiscard]] Window::Notifications::System &notifications() const {
 		return *_notifications;
 	}
-	[[nodiscard]] Data::Changes &changes() {
+	[[nodiscard]] Data::Changes &changes() const {
 		return *_changes;
 	}
-	[[nodiscard]] Data::Session &data() {
+	[[nodiscard]] Data::Session &data() const {
 		return *_data;
 	}
-	[[nodiscard]] SessionSettings &settings() {
+	[[nodiscard]] SessionSettings &settings() const {
 		return *_settings;
 	}
+
 	void saveSettings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettingsNowIfNeeded();
@@ -137,7 +142,6 @@ public:
 
 	void termsDeleteNow();
 
-	void setInternalLinkDomain(const QString &domain) const;
 	[[nodiscard]] QString createInternalLink(const QString &query) const;
 	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
 
@@ -155,7 +159,7 @@ public:
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
-	const not_null<Main::Account*> _account;
+	const not_null<Account*> _account;
 
 	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<ApiWrap> _api;

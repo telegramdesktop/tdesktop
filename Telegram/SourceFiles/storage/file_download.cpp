@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
-#include "facades.h"
 #include "app.h"
 
 namespace {

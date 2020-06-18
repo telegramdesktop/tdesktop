@@ -12,10 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -252,8 +253,8 @@ void BlockedBoxController::loadMoreRows() {
 
 void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
-	crl::on_main(&peer->session(), [peerId = peer->id] {
-		Ui::showPeerHistory(peerId, ShowAtUnreadMsgId);
+	crl::on_main(&peer->session(), [=] {
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	});
 }
 
@@ -511,7 +512,7 @@ rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
 void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
 		FnMut<void()> saveCallback) {
-	if (someAreDisallowed && !_session->settings().lastSeenWarningSeen()) {
+	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		const auto session = _session;
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [=, saveCallback = std::move(saveCallback)]() mutable {
@@ -519,8 +520,8 @@ void LastSeenPrivacyController::confirmSave(
 				box->closeBox();
 			}
 			saveCallback();
-			session->settings().setLastSeenWarningSeen(true);
-			session->saveSettingsDelayed();
+			Core::App().settings().setLastSeenWarningSeen(true);
+			Core::App().saveSettingsDelayed();
 		};
 		auto box = Box<ConfirmBox>(
 			tr::lng_edit_privacy_lastseen_warning(tr::now),

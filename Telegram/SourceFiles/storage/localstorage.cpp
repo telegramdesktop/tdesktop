@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "core/application.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
@@ -98,15 +98,15 @@ bool CheckStreamStatus(QDataStream &stream) {
 			: nullptr;
 	};
 	const auto &app = Core::App();
-	const auto &accounts = app.accounts();
+	const auto &domain = app.domain();
 	const auto production = MTP::Environment::Production;
-	if (!accounts.started()) {
+	if (!domain.started()) {
 		return app.fallbackProductionConfig();
 	}
 	if (const auto result = lookupConfig(&app.activeAccount())) {
 		return *result;
 	}
-	for (const auto &[_, account] : accounts.list()) {
+	for (const auto &[_, account] : domain.accounts()) {
 		if (const auto result = lookupConfig(account.get())) {
 			return *result;
 		}

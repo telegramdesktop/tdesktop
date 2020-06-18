@@ -641,15 +641,6 @@ void ChooseFromFile(
 		crl::guard(parent, callback));
 }
 
-QString DownloadPathText() {
-	if (Global::DownloadPath().isEmpty()) {
-		return tr::lng_download_path_default(tr::now);
-	} else if (Global::DownloadPath() == qsl("tmp")) {
-		return tr::lng_download_path_temp(tr::now);
-	}
-	return QDir::toNativeSeparators(Global::DownloadPath());
-}
-
 void SetupStickersEmoji(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -686,42 +677,42 @@ void SetupStickersEmoji(
 
 	add(
 		tr::lng_settings_large_emoji(tr::now),
-		session->settings().largeEmoji(),
+		Core::App().settings().largeEmoji(),
 		[=](bool checked) {
-			session->settings().setLargeEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setLargeEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_replace_emojis(tr::now),
-		session->settings().replaceEmoji(),
+		Core::App().settings().replaceEmoji(),
 		[=](bool checked) {
-			session->settings().setReplaceEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setReplaceEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_emoji(tr::now),
-		session->settings().suggestEmoji(),
+		Core::App().settings().suggestEmoji(),
 		[=](bool checked) {
-			session->settings().setSuggestEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setSuggestEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_by_emoji(tr::now),
-		session->settings().suggestStickersByEmoji(),
+		Core::App().settings().suggestStickersByEmoji(),
 		[=](bool checked) {
-			session->settings().setSuggestStickersByEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setSuggestStickersByEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_loop_stickers(tr::now),
-		session->settings().loopAnimatedStickers(),
+		Core::App().settings().loopAnimatedStickers(),
 		[=](bool checked) {
-			session->settings().setLoopAnimatedStickers(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setLoopAnimatedStickers(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	AddButton(
@@ -769,7 +760,7 @@ void SetupMessages(
 			QMargins(0, skip, 0, skip)));
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
-		controller->session().settings().sendSubmitWay());
+		Core::App().settings().sendSubmitWay());
 	const auto add = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
@@ -790,9 +781,9 @@ void SetupMessages(
 			: tr::lng_settings_send_ctrlenter(tr::now)));
 
 	group->setChangedCallback([=](SendByType value) {
-		controller->session().settings().setSendSubmitWay(value);
+		Core::App().settings().setSendSubmitWay(value);
+		Core::App().saveSettingsDelayed();
 		controller->content()->ctrlEnterSubmitUpdated();
-		controller->session().saveSettingsDelayed();
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
@@ -841,7 +832,7 @@ void SetupDataStorage(
 		container,
 		tr::lng_download_path_ask(),
 		st::settingsButton
-	)->toggleOn(rpl::single(Global::AskDownloadPath()));
+	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 #ifndef OS_WIN_STORE
 	const auto showpath = Ui::CreateChild<rpl::event_stream<bool>>(ask);
@@ -852,12 +843,14 @@ void SetupDataStorage(
 				container,
 				tr::lng_download_path(),
 				st::settingsButton)));
-	auto pathtext = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(base::ObservableViewer(
-		Global::RefDownloadPathChanged()
-	)) | rpl::map([] {
-		return DownloadPathText();
+	auto pathtext = Core::App().settings().downloadPathValue(
+	) | rpl::map([](const QString &text) {
+		if (text.isEmpty()) {
+			return tr::lng_download_path_default(tr::now);
+		} else if (text == qsl("tmp")) {
+			return tr::lng_download_path_temp(tr::now);
+		}
+		return QDir::toNativeSeparators(text);
 	});
 	CreateRightLabel(
 		path->entity(),
@@ -872,10 +865,10 @@ void SetupDataStorage(
 
 	ask->toggledValue(
 	) | rpl::filter([](bool checked) {
-		return (checked != Global::AskDownloadPath());
+		return (checked != Core::App().settings().askDownloadPath());
 	}) | rpl::start_with_next([=](bool checked) {
-		Global::SetAskDownloadPath(checked);
-		controller->session().saveSettingsDelayed();
+		Core::App().settings().setAskDownloadPath(checked);
+		Core::App().saveSettingsDelayed();
 
 #ifndef OS_WIN_STORE
 		showpath->fire_copy(!checked);
@@ -951,7 +944,7 @@ void SetupChatBackground(
 			object_ptr<Ui::Checkbox>(
 				inner,
 				tr::lng_settings_adaptive_wide(tr::now),
-				Global::AdaptiveForWide(),
+				Core::App().settings().adaptiveForWide(),
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
 
@@ -981,9 +974,9 @@ void SetupChatBackground(
 
 	adaptive->entity()->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
-		Global::SetAdaptiveForWide(checked);
+		Core::App().settings().setAdaptiveForWide(checked);
+		Core::App().saveSettingsDelayed();
 		Adaptive::Changed().notify();
-		controller->session().saveSettingsDelayed();
 	}, adaptive->lifetime());
 }
 

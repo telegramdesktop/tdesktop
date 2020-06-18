@@ -25,8 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "facades.h"
 #include "app.h"
 
@@ -62,7 +61,7 @@ System::System(not_null<Main::Session*> session)
 			updateAll();
 		} else if (type == ChangeType::IncludeMuted
 			|| type == ChangeType::CountMessages) {
-			Core::App().accounts().notifyUnreadBadgeChanged();
+			Core::App().domain().notifyUnreadBadgeChanged();
 		}
 	});
 }
@@ -138,7 +137,8 @@ void System::schedule(not_null<HistoryItem*> item) {
 	if (!skip.silent) {
 		_whenAlerts[history].insert(when, notifyBy);
 	}
-	if (Global::DesktopNotify() && !Platform::Notifications::SkipToast()) {
+	if (Core::App().settings().desktopNotify()
+		&& !Platform::Notifications::SkipToast()) {
 		auto &whenMap = _whenMaps[history];
 		if (whenMap.constFind(item->id) == whenMap.cend()) {
 			whenMap.insert(item->id, when);
@@ -302,8 +302,9 @@ void System::showNext() {
 			++i;
 		}
 	}
+	const auto &settings = Core::App().settings();
 	if (alert) {
-		if (Global::FlashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
+		if (settings.flashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
 			if (const auto widget = App::wnd()) {
 				if (const auto window = widget->windowHandle()) {
 					window->alert(kSystemAlertDuration);
@@ -311,7 +312,7 @@ void System::showNext() {
 				}
 			}
 		}
-		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
+		if (settings.soundNotify() && !Platform::Notifications::SkipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();
 			emit Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
@@ -319,7 +320,7 @@ void System::showNext() {
 		}
 	}
 
-	if (_waiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::SkipToast()) {
+	if (_waiters.isEmpty() || !settings.desktopNotify() || Platform::Notifications::SkipToast()) {
 		if (nextAlert) {
 			_waitTimer.callOnce(nextAlert - ms);
 		}
@@ -474,7 +475,7 @@ void System::ensureSoundCreated() {
 
 	_soundTrack = Media::Audio::Current().createTrack();
 	_soundTrack->fillFromFile(
-		session().settings().getSoundPath(qsl("msg_incoming")));
+		Core::App().settings().getSoundPath(qsl("msg_incoming")));
 }
 
 void System::updateAll() {
@@ -485,11 +486,10 @@ Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
 	const auto hideEverything = Core::App().locked()
 		|| Global::ScreenIsLocked();
 
+	const auto view = Core::App().settings().notifyView();
 	DisplayOptions result;
-	result.hideNameAndPhoto = hideEverything
-		|| (Global::NotifyView() > dbinvShowName);
-	result.hideMessageText = hideEverything
-		|| (Global::NotifyView() > dbinvShowPreview);
+	result.hideNameAndPhoto = hideEverything || (view > dbinvShowName);
+	result.hideMessageText = hideEverything || (view > dbinvShowPreview);
 	result.hideReplyButton = result.hideMessageText
 		|| !item
 		|| ((item->out() || item->history()->peer->isSelf())

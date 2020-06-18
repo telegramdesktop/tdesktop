@@ -15,7 +15,7 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
 namespace Main {
 class Account;
-class Accounts;
+class Domain;
 } // namespace Main
 
 namespace Storage {
@@ -25,10 +25,10 @@ enum class StartResult : uchar {
 	IncorrectPasscode,
 };
 
-class Accounts final {
+class Domain final {
 public:
-	Accounts(not_null<Main::Accounts*> owner, const QString &dataName);
-	~Accounts();
+	Domain(not_null<Main::Domain*> owner, const QString &dataName);
+	~Domain();
 
 	[[nodiscard]] StartResult start(const QByteArray &passcode);
 	void startAdded(
@@ -57,9 +57,8 @@ private:
 		std::unique_ptr<Main::Account> account);
 	void generateLocalKey();
 	void encryptLocalKey(const QByteArray &passcode);
-	void writeInfo();
 
-	const not_null<Main::Accounts*> _owner;
+	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
 
 	MTP::AuthKeyPtr _localKey;

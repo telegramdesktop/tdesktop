@@ -5,12 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "storage/storage_accounts.h"
+#include "storage/storage_domain.h"
 
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
 #include "mtproto/mtproto_config.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_account.h"
 #include "facades.h"
 
@@ -18,8 +18,6 @@ namespace Storage {
 namespace {
 
 using namespace details;
-
-constexpr auto kMaxAccounts = 3;
 
 [[nodiscard]] QString BaseGlobalPath() {
 	return cWorkingDir() + qsl("tdata/");
@@ -39,14 +37,14 @@ constexpr auto kMaxAccounts = 3;
 
 } // namespace
 
-Accounts::Accounts(not_null<Main::Accounts*> owner, const QString &dataName)
+Domain::Domain(not_null<Main::Domain*> owner, const QString &dataName)
 : _owner(owner)
 , _dataName(dataName) {
 }
 
-Accounts::~Accounts() = default;
+Domain::~Domain() = default;
 
-StartResult Accounts::start(const QByteArray &passcode) {
+StartResult Domain::start(const QByteArray &passcode) {
 	const auto modern = startModern(passcode);
 	if (modern == StartModernResult::Success) {
 		if (_oldVersion < AppVersion) {
@@ -59,7 +57,7 @@ StartResult Accounts::start(const QByteArray &passcode) {
 		startFromScratch();
 		return StartResult::Success;
 	}
-	auto legacy = std::make_unique<Main::Account>(_dataName, 0);
+	auto legacy = std::make_unique<Main::Account>(_owner, _dataName, 0);
 	const auto result = legacy->legacyStart(passcode);
 	if (result == StartResult::Success) {
 		_oldVersion = legacy->local().oldMapVersion();
@@ -68,7 +66,7 @@ StartResult Accounts::start(const QByteArray &passcode) {
 	return result;
 }
 
-void Accounts::startAdded(
+void Domain::startAdded(
 		not_null<Main::Account*> account,
 		std::unique_ptr<MTP::Config> config) {
 	Expects(_localKey != nullptr);
@@ -77,7 +75,7 @@ void Accounts::startAdded(
 	account->start(std::move(config));
 }
 
-void Accounts::startWithSingleAccount(
+void Domain::startWithSingleAccount(
 		const QByteArray &passcode,
 		std::unique_ptr<Main::Account> account) {
 	Expects(account != nullptr);
@@ -93,7 +91,7 @@ void Accounts::startWithSingleAccount(
 	writeAccounts();
 }
 
-void Accounts::generateLocalKey() {
+void Domain::generateLocalKey() {
 	Expects(_localKey == nullptr);
 	Expects(_passcodeKeySalt.isEmpty());
 	Expects(_passcodeKeyEncrypted.isEmpty());
@@ -107,7 +105,7 @@ void Accounts::generateLocalKey() {
 	encryptLocalKey(QByteArray());
 }
 
-void Accounts::encryptLocalKey(const QByteArray &passcode) {
+void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_passcodeKeySalt.resize(LocalEncryptSaltSize);
 	memset_rand(_passcodeKeySalt.data(), _passcodeKeySalt.size());
 	_passcodeKey = CreateLocalKey(passcode, _passcodeKeySalt);
@@ -117,7 +115,7 @@ void Accounts::encryptLocalKey(const QByteArray &passcode) {
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
 }
 
-Accounts::StartModernResult Accounts::startModern(
+Domain::StartModernResult Domain::startModern(
 		const QByteArray &passcode) {
 	const auto name = ComputeKeyName(_dataName);
 
@@ -163,7 +161,7 @@ Accounts::StartModernResult Accounts::startModern(
 	LOG(("App Info: reading encrypted info..."));
 	auto count = qint32();
 	info.stream >> count;
-	if (count <= 0 || count > kMaxAccounts) {
+	if (count <= 0 || count > Main::Domain::kMaxAccounts) {
 		LOG(("App Error: bad accounts count: %1").arg(count));
 		return StartModernResult::Failed;
 	}
@@ -176,9 +174,12 @@ Accounts::StartModernResult Accounts::startModern(
 		auto index = qint32();
 		info.stream >> index;
 		if (index >= 0
-			&& index < kMaxAccounts
+			&& index < Main::Domain::kMaxAccounts
 			&& tried.emplace(index).second) {
-			auto account = std::make_unique<Main::Account>(_dataName, index);
+			auto account = std::make_unique<Main::Account>(
+				_owner,
+				_dataName,
+				index);
 			auto config = account->prepareToStart(_localKey);
 			const auto userId = account->willHaveUserId();
 			if (!users.contains(userId)
@@ -194,8 +195,8 @@ Accounts::StartModernResult Accounts::startModern(
 	return StartModernResult::Success;
 }
 
-void Accounts::writeAccounts() {
-	Expects(!_owner->list().empty());
+void Domain::writeAccounts() {
+	Expects(!_owner->accounts().empty());
 
 	const auto path = BaseGlobalPath();
 	if (!QDir().exists(path)) {
@@ -206,7 +207,7 @@ void Accounts::writeAccounts() {
 	key.writeData(_passcodeKeySalt);
 	key.writeData(_passcodeKeyEncrypted);
 
-	const auto &list = _owner->list();
+	const auto &list = _owner->accounts();
 	const auto active = _owner->activeIndex();
 
 	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size();
@@ -222,13 +223,13 @@ void Accounts::writeAccounts() {
 	key.writeEncrypted(keyData, _localKey);
 }
 
-void Accounts::startFromScratch() {
+void Domain::startFromScratch() {
 	startWithSingleAccount(
 		QByteArray(),
-		std::make_unique<Main::Account>(_dataName, 0));
+		std::make_unique<Main::Account>(_owner, _dataName, 0));
 }
 
-bool Accounts::checkPasscode(const QByteArray &passcode) const {
+bool Domain::checkPasscode(const QByteArray &passcode) const {
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_passcodeKey != nullptr);
 
@@ -236,7 +237,7 @@ bool Accounts::checkPasscode(const QByteArray &passcode) const {
 	return checkKey->equals(_passcodeKey);
 }
 
-void Accounts::setPasscode(const QByteArray &passcode) {
+void Domain::setPasscode(const QByteArray &passcode) {
 	Expects(!_passcodeKeySalt.isEmpty());
 	Expects(_localKey != nullptr);
 
@@ -247,11 +248,11 @@ void Accounts::setPasscode(const QByteArray &passcode) {
 	Global::RefLocalPasscodeChanged().notify();
 }
 
-int Accounts::oldVersion() const {
+int Domain::oldVersion() const {
 	return _oldVersion;
 }
 
-void Accounts::clearOldVersion() {
+void Domain::clearOldVersion() {
 	_oldVersion = 0;
 }
 

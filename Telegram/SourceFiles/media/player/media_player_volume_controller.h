@@ -25,7 +25,7 @@ class SessionController;
 namespace Media {
 namespace Player {
 
-class VolumeController : public TWidget, private base::Subscriber {
+class VolumeController : public Ui::RpWidget, private base::Subscriber {
 public:
 	VolumeController(
 		QWidget *parent,

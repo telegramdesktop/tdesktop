@@ -180,9 +180,6 @@ private:
 	std::unique_ptr<Main::SessionSettings> applyReadContext(
 		details::ReadSettingsContext &&context);
 
-	[[nodiscard]] QByteArray serializeCallSettings();
-	void deserializeCallSettings(QByteArray &settings);
-
 	void readDraftCursors(
 		const PeerId &peer,
 		MessageCursor &localCursor,

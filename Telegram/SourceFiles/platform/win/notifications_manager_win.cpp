@@ -12,8 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
 #include "history/history.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "mainwindow.h"
-#include "facades.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
@@ -323,7 +324,7 @@ bool Supported() {
 
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
-	if (Global::NativeNotifications() && Supported()) {
+	if (Core::App().settings().nativeNotifications() && Supported()) {
 		auto result = std::make_unique<Manager>(system);
 		if (result->init()) {
 			return std::move(result);

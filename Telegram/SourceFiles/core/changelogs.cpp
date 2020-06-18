@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "core/application.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
-#include "storage/storage_accounts.h"
+#include "storage/storage_domain.h"
 #include "data/data_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -82,7 +82,7 @@ Changelogs::Changelogs(not_null<Main::Session*> session, int oldVersion)
 
 std::unique_ptr<Changelogs> Changelogs::Create(
 		not_null<Main::Session*> session) {
-	auto &local = Core::App().accounts().local();
+	auto &local = Core::App().domain().local();
 	const auto oldVersion = local.oldVersion();
 	local.clearOldVersion();
 	return (oldVersion > 0 && oldVersion < AppVersion)

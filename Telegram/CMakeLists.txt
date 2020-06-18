@@ -668,10 +668,10 @@ PRIVATE
     lang/lang_values.h
     main/main_account.cpp
     main/main_account.h
-    main/main_accounts.cpp
-    main/main_accounts.h
     main/main_app_config.cpp
     main/main_app_config.h
+    main/main_domain.cpp
+    main/main_domain.h
     main/main_session.cpp
     main/main_session.h
     main/main_session_settings.cpp
@@ -914,10 +914,10 @@ PRIVATE
     storage/serialize_peer.h
     storage/storage_account.cpp
     storage/storage_account.h
-    storage/storage_accounts.cpp
-    storage/storage_accounts.h
     storage/storage_cloud_blob.cpp
     storage/storage_cloud_blob.h
+    storage/storage_domain.cpp
+    storage/storage_domain.h
     storage/storage_facade.cpp
     storage/storage_facade.h
     # storage/storage_feed_messages.cpp

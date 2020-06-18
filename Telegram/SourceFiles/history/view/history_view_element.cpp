@@ -16,15 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/history.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_history.h"
 
@@ -164,7 +164,7 @@ void UnreadBar::paint(Painter &p, int y, int w) const {
 
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
-	if (Adaptive::ChatWide()) {
+	if (Core::App().settings().chatWide()) {
 		maxwidth = qMin(
 			maxwidth,
 			st::msgMaxWidth
@@ -363,7 +363,7 @@ void Element::refreshMedia(Element *replacing) {
 	if (const auto media = _data->media()) {
 		_media = media->createView(this, replacing);
 	} else if (_data->isIsolatedEmoji()
-		&& session->settings().largeEmoji()) {
+		&& Core::App().settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();
 		const auto emojiStickers = &session->emojiStickersPack();
 		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {

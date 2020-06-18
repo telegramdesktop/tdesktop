@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h" // Accounts::activeSessionValue
+#include "main/main_domain.h" // Domain::activeSessionValue
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
@@ -196,7 +196,7 @@ private:
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
-	Core::App().accounts().notifyUnreadBadgeChanged();
+	Core::App().domain().notifyUnreadBadgeChanged();
 }
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
@@ -478,7 +478,7 @@ void MainWindow::initTouchBar() {
 		return;
 	}
 
-	Core::App().accounts().activeSessionValue(
+	Core::App().domain().activeSessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			// We need only common pinned dialogs.

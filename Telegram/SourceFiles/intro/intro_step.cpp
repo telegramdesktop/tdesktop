@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "boxes/confirm_box.h"
@@ -26,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_auto_download.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
@@ -39,11 +40,11 @@ void PrepareSupportMode(not_null<Main::Session*> session) {
 	using ::Data::AutoDownload::Full;
 
 	anim::SetDisabled(true);
-	Local::writeSettings();
+	Core::App().settings().setDesktopNotify(false);
+	Core::App().settings().setSoundNotify(false);
+	Core::App().settings().setFlashBounceNotify(false);
+	Core::App().saveSettings();
 
-	Global::SetDesktopNotify(false);
-	Global::SetSoundNotify(false);
-	Global::SetFlashBounceNotify(false);
 	session->settings().autoDownload() = Full::FullDisabled();
 	session->saveSettings();
 }

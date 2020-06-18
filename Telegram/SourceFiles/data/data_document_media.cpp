@@ -19,9 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "window/themes/window_theme_preview.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtCore/QBuffer>
@@ -259,7 +260,7 @@ void DocumentMedia::automaticLoad(
 		return;
 	}
 	const auto toCache = _owner->saveToCache();
-	if (!toCache && Global::AskDownloadPath()) {
+	if (!toCache && Core::App().settings().askDownloadPath()) {
 		// We need a filename, but we're supposed to ask user for it.
 		// No automatic download in this case.
 		return;

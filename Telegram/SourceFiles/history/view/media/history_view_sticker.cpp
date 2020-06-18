@@ -17,8 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "mainwindow.h" // App::wnd()->sessionController.
@@ -190,7 +191,7 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 		: (_diceIndex == 0)
 		? false
 		: (isEmojiSticker()
-			|| !_data->session().settings().loopAnimatedStickers());
+			|| !Core::App().settings().loopAnimatedStickers());
 	const auto count = _lottie->information().framesCount;
 	_atTheEnd = (frame.index + 1 == count);
 	_nextLastDiceFrame = !paused

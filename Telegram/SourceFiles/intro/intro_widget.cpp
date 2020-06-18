@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_connecting_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "api/api_text_entities.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"

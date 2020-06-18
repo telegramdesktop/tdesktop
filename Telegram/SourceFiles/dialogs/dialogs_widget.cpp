@@ -284,7 +284,7 @@ Widget::Widget(
 		updateControlsGeometry();
 	}, lifetime());
 	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
-	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(); });
+	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(&session()); });
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));

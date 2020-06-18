@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "base/event_filter.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
@@ -309,10 +310,10 @@ EditCaptionBox::EditCaptionBox(
 	_field->setMaxLength(
 		_controller->session().serverConfig().captionLengthMax);
 	_field->setSubmitSettings(
-		_controller->session().settings().sendSubmitWay());
+		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
-		_controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_controller, _field));

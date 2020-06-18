@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "window/window_session_controller.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
 
@@ -72,32 +74,33 @@ void Calls::setupContent() {
 		return QString::fromStdString(device.displayName);
 	};
 
+	const auto &settings = Core::App().settings();
 	const auto currentOutputName = [&] {
-		if (Global::CallOutputDeviceID() == qsl("default")) {
+		if (settings.callOutputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIP::EnumerateAudioOutputs();
 		const auto i = ranges::find(
 			list,
-			Global::CallOutputDeviceID(),
+			settings.callOutputDeviceID(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: Global::CallOutputDeviceID();
+			: settings.callOutputDeviceID();
 	}();
 
 	const auto currentInputName = [&] {
-		if (Global::CallInputDeviceID() == qsl("default")) {
+		if (settings.callInputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIP::EnumerateAudioInputs();
 		const auto i = ranges::find(
 			list,
-			Global::CallInputDeviceID(),
+			settings.callInputDeviceID(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: Global::CallInputDeviceID();
+			: settings.callInputDeviceID();
 	}();
 
 	AddSkip(content);
@@ -119,7 +122,7 @@ void Calls::setupContent() {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Global::CallOutputDeviceID(),
+			Core::App().settings().callOutputDeviceID(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -129,7 +132,8 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Global::SetCallOutputDeviceID(QString::fromStdString(deviceId));
+			Core::App().settings().setCallOutputDeviceID(
+				QString::fromStdString(deviceId));
 			_controller->session().saveSettingsDelayed();
 			if (const auto call = _controller->session().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
@@ -160,7 +164,7 @@ void Calls::setupContent() {
 	const auto updateOutputVolume = [=](int value) {
 		_needWriteSettings = true;
 		updateOutputLabel(value);
-		Global::SetCallOutputVolume(value);
+		Core::App().settings().setCallOutputVolume(value);
 		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioVolume(false, value / 100.0f);
 		}
@@ -169,9 +173,9 @@ void Calls::setupContent() {
 	outputSlider->setPseudoDiscrete(
 		201,
 		[](int val) { return val; },
-		Global::CallOutputVolume(),
+		settings.callOutputVolume(),
 		updateOutputVolume);
-	updateOutputLabel(Global::CallOutputVolume());
+	updateOutputLabel(Core::App().settings().callOutputVolume());
 
 	AddSkip(content);
 	AddDivider(content);
@@ -194,7 +198,7 @@ void Calls::setupContent() {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Global::CallInputDeviceID(),
+			Core::App().settings().callInputDeviceID(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -204,7 +208,8 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Global::SetCallInputDeviceID(QString::fromStdString(deviceId));
+			Core::App().settings().setCallInputDeviceID(
+				QString::fromStdString(deviceId));
 			_controller->session().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
@@ -238,7 +243,7 @@ void Calls::setupContent() {
 	const auto updateInputVolume = [=](int value) {
 		_needWriteSettings = true;
 		updateInputLabel(value);
-		Global::SetCallInputVolume(value);
+		Core::App().settings().setCallInputVolume(value);
 		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioVolume(true, value / 100.0f);
 		}
@@ -246,9 +251,9 @@ void Calls::setupContent() {
 	inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
 	inputSlider->setPseudoDiscrete(101,
 		[](int val) { return val; },
-		Global::CallInputVolume(),
+		settings.callInputVolume(),
 		updateInputVolume);
-	updateInputLabel(Global::CallInputVolume());
+	updateInputLabel(settings.callInputVolume());
 
 	AddButton(
 		content,
@@ -350,7 +355,7 @@ void Calls::startTestingMicrophone() {
 	_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
 	_levelUpdateTimer.callEach(50);
 	_micTester = std::make_unique<tgvoip::AudioInputTester>(
-		Global::CallInputDeviceID().toStdString());
+		Core::App().settings().callInputDeviceID().toStdString());
 	if (_micTester->Failed()) {
 		stopTestingMicrophone();
 		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));

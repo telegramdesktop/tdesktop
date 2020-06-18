@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
 #include "base/call_delayed.h"
-#include "facades.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>

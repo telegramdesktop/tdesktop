@@ -13,9 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "main/main_account.h"
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
@@ -30,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "settings/settings_common.h"
 #include "api/api_updates.h"
-#include "facades.h"
 
 namespace Settings {
 namespace {
@@ -63,13 +61,10 @@ auto GenerateCodes() {
 		Unexpected("Crashed in Settings!");
 	});
 	codes.emplace(qsl("moderate"), [](SessionController *window) {
-		if (!window) {
-			return;
-		}
-		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
+		auto text = Core::App().settings().moderateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
 		Ui::show(Box<ConfirmBox>(text, [=] {
-			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
-			window->session().saveSettingsDelayed();
+			Core::App().settings().setModerateModeEnabled(!Core::App().settings().moderateModeEnabled());
+			Core::App().saveSettingsDelayed();
 			Ui::hideLayer();
 		}));
 	});
@@ -97,7 +92,7 @@ auto GenerateCodes() {
 		}));
 	});
 	codes.emplace(qsl("endpoints"), [](SessionController *window) {
-		if (!Core::App().accounts().started()) {
+		if (!Core::App().domain().started()) {
 			return;
 		}
 		const auto weak = window
@@ -113,7 +108,7 @@ auto GenerateCodes() {
 				if (const auto strong = weak.get()) {
 					loadFor(strong);
 				} else {
-					for (const auto &[index, account] : Core::App().accounts().list()) {
+					for (const auto &[index, account] : Core::App().domain().accounts()) {
 						loadFor(account.get());
 					}
 				}
@@ -130,10 +125,10 @@ auto GenerateCodes() {
 		crl::on_main(&Core::App(), [=] {
 			if (window
 				&& !Core::App().locked()
-				&& Core::App().accounts().started()
-				&& Core::App().accounts().list().size() < 3) {
-				Core::App().accounts().activate(
-					Core::App().accounts().add(MTP::Environment::Production));
+				&& Core::App().domain().started()
+				&& Core::App().domain().accounts().size() < 3) {
+				Core::App().domain().activate(
+					Core::App().domain().add(MTP::Environment::Production));
 			}
 		});
 	});
@@ -142,10 +137,10 @@ auto GenerateCodes() {
 		crl::on_main(&Core::App(), [=] {
 			if (window
 				&& !Core::App().locked()
-				&& Core::App().accounts().started()
-				&& Core::App().accounts().list().size() < 3) {
-				Core::App().accounts().activate(
-					Core::App().accounts().add(MTP::Environment::Test));
+				&& Core::App().domain().started()
+				&& Core::App().domain().accounts().size() < 3) {
+				Core::App().domain().activate(
+					Core::App().domain().add(MTP::Environment::Test));
 			}
 		});
 	});
@@ -154,11 +149,11 @@ auto GenerateCodes() {
 		codes.emplace(qsl("account%1").arg(i + 1), [=](
 				SessionController *window) {
 			crl::on_main(&Core::App(), [=] {
-				const auto &list = Core::App().accounts().list();
+				const auto &list = Core::App().domain().accounts();
 				const auto j = list.find(i);
 				if (j != list.end() && !Core::App().locked()) {
 					if (&Core::App().activeAccount() != j->second.get()) {
-						Core::App().accounts().activate(i);
+						Core::App().domain().activate(i);
 					}
 				}
 			});
@@ -201,34 +196,27 @@ auto GenerateCodes() {
 	};
 	for (auto &key : audioKeys) {
 		codes.emplace(key, [=](SessionController *window) {
-			if (!window) {
-				return;
-			}
-
-			const auto weak = base::make_weak(&window->session());
-			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, crl::guard(&window->session(), [=](const FileDialog::OpenResult &result) {
-				if (weak && !result.paths.isEmpty()) {
+			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, [=](const FileDialog::OpenResult &result) {
+				if (!result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
 					if (track->failed()) {
 						Ui::show(Box<InformBox>(
 							"Could not audio :( Errors in 'log.txt'."));
 					} else {
-						weak->settings().setSoundOverride(
+						Core::App().settings().setSoundOverride(
 							key,
 							result.paths.front());
-						weak->saveSettingsDelayed();
+						Core::App().saveSettingsDelayed();
 					}
 				}
-			}));
+			});
 		});
 	}
 	codes.emplace(qsl("sounds_reset"), [](SessionController *window) {
-		if (window) {
-			window->session().settings().clearSoundOverrides();
-			window->session().saveSettingsDelayed();
-			Ui::show(Box<InformBox>("All sound overrides were reset."));
-		}
+		Core::App().settings().clearSoundOverrides();
+		Core::App().saveSettingsDelayed();
+		Ui::show(Box<InformBox>("All sound overrides were reset."));
 	});
 
 	return codes;

@@ -85,7 +85,7 @@ bool ReadSetting(
 		stream >> serialized;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().constructFromSerialized(serialized);
+		Core::App().settings().addFromSerialized(serialized);
 	} break;
 
 	case dbiChatSizeMaxOld: {
@@ -234,13 +234,13 @@ bool ReadSetting(
 		anim::SetDisabled(disabled == 1);
 	} break;
 
-	case dbiSoundFlashBounceNotify: {
+	case dbiSoundFlashBounceNotifyOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetSoundNotify((v & 0x01) == 0x01);
-		Global::SetFlashBounceNotify((v & 0x02) == 0x00);
+		Core::App().settings().setSoundNotify((v & 0x01) == 0x01);
+		Core::App().settings().setFlashBounceNotify((v & 0x02) == 0x00);
 	} break;
 
 	case dbiAutoDownloadOld: {
@@ -302,20 +302,20 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiDialogsFilters: {
+	case dbiDialogsFiltersOld: {
 		qint32 enabled;
 		stream >> enabled;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetDialogsFiltersEnabled(enabled == 1);
+		context.sessionSettings().setDialogsFiltersEnabled(enabled == 1);
 	} break;
 
-	case dbiModerateMode: {
+	case dbiModerateModeOld: {
 		qint32 enabled;
 		stream >> enabled;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetModerateModeEnabled(enabled == 1);
+		Core::App().settings().setModerateModeEnabled(enabled == 1);
 	} break;
 
 	case dbiIncludeMutedOld: {
@@ -323,7 +323,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setIncludeMutedCounter(v == 1);
+		Core::App().settings().setIncludeMutedCounter(v == 1);
 	} break;
 
 	case dbiShowingSavedGifsOld: {
@@ -332,12 +332,12 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiDesktopNotify: {
+	case dbiDesktopNotifyOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetDesktopNotify(v == 1);
+		Core::App().settings().setDesktopNotify(v == 1);
 	} break;
 
 	case dbiWindowsNotificationsOld: {
@@ -346,28 +346,28 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiNativeNotifications: {
+	case dbiNativeNotificationsOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetNativeNotifications(v == 1);
+		Core::App().settings().setNativeNotifications(v == 1);
 	} break;
 
-	case dbiNotificationsCount: {
+	case dbiNotificationsCountOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetNotificationsCount((v > 0 ? v : 3));
+		Core::App().settings().setNotificationsCount((v > 0 ? v : 3));
 	} break;
 
-	case dbiNotificationsCorner: {
+	case dbiNotificationsCornerOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetNotificationsCorner(static_cast<Notify::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
+		Core::App().settings().setNotificationsCorner(static_cast<Core::Settings::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
 	} break;
 
 	case dbiDialogsWidthRatioOld: {
@@ -383,7 +383,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setLastSeenWarningSeen(v == 1);
+		Core::App().settings().setLastSeenWarningSeen(v == 1);
 	} break;
 
 	case dbiSessionSettings: {
@@ -391,8 +391,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettingsStorage
-			= Main::SessionSettings::FromSerialized(v);
+		context.sessionSettings().addFromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {
@@ -720,7 +719,7 @@ bool ReadSetting(
 			&& unchecked != SendSettings::CtrlEnter) {
 			return false;
 		}
-		context.sessionSettings().setSendSubmitWay(unchecked);
+		Core::App().settings().setSendSubmitWay(unchecked);
 	} break;
 
 	case dbiCatsAndDogs: { // deprecated
@@ -753,20 +752,20 @@ bool ReadSetting(
 		context.tileNight = (tileNight == 1);
 	} break;
 
-	case dbiAdaptiveForWide: {
+	case dbiAdaptiveForWideOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetAdaptiveForWide(v == 1);
+		Core::App().settings().setAdaptiveForWide(v == 1);
 	} break;
 
-	case dbiAutoLock: {
+	case dbiAutoLockOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetAutoLock(v);
+		Core::App().settings().setAutoLock(v);
 		Global::RefLocalPasscodeChanged().notify();
 	} break;
 
@@ -775,7 +774,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setReplaceEmoji(v == 1);
+		Core::App().settings().setReplaceEmoji(v == 1);
 	} break;
 
 	case dbiSuggestEmojiOld: {
@@ -783,7 +782,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setSuggestEmoji(v == 1);
+		Core::App().settings().setSuggestEmoji(v == 1);
 	} break;
 
 	case dbiSuggestStickersByEmojiOld: {
@@ -791,7 +790,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setSuggestStickersByEmoji(v == 1);
+		Core::App().settings().setSuggestStickersByEmoji(v == 1);
 	} break;
 
 	case dbiDefaultAttach: {
@@ -800,39 +799,38 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 	} break;
 
-	case dbiNotifyView: {
+	case dbiNotifyViewOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		switch (v) {
-		case dbinvShowNothing: Global::SetNotifyView(dbinvShowNothing); break;
-		case dbinvShowName: Global::SetNotifyView(dbinvShowName); break;
-		default: Global::SetNotifyView(dbinvShowPreview); break;
+		case dbinvShowNothing: Core::App().settings().setNotifyView(dbinvShowNothing); break;
+		case dbinvShowName: Core::App().settings().setNotifyView(dbinvShowName); break;
+		default: Core::App().settings().setNotifyView(dbinvShowPreview); break;
 		}
 	} break;
 
-	case dbiAskDownloadPath: {
+	case dbiAskDownloadPathOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetAskDownloadPath(v == 1);
+		Core::App().settings().setAskDownloadPath(v == 1);
 	} break;
 
-	case dbiDownloadPathOld: {
+	case dbiDownloadPathOldOld: {
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 #ifndef OS_WIN_STORE
 		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
-		Global::SetDownloadPath(v);
-		Global::SetDownloadPathBookmark(QByteArray());
-		Global::RefDownloadPathChanged().notify();
+		Core::App().settings().setDownloadPathBookmark(QByteArray());
+		Core::App().settings().setDownloadPath(v);
 #endif // OS_WIN_STORE
 	} break;
 
-	case dbiDownloadPath: {
+	case dbiDownloadPathOld: {
 		QString v;
 		QByteArray bookmark;
 		stream >> v >> bookmark;
@@ -840,19 +838,18 @@ bool ReadSetting(
 
 #ifndef OS_WIN_STORE
 		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
-		Global::SetDownloadPath(v);
-		Global::SetDownloadPathBookmark(bookmark);
+		Core::App().settings().setDownloadPathBookmark(bookmark);
+		Core::App().settings().setDownloadPath(v);
 		psDownloadPathEnableAccess();
-		Global::RefDownloadPathChanged().notify();
 #endif // OS_WIN_STORE
 	} break;
 
-	case dbiCompressPastedImage: {
+	case dbiCompressPastedImageOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setSendFilesWay((v == 1)
+		Core::App().settings().setSendFilesWay((v == 1)
 			? SendFilesWay::Album
 			: SendFilesWay::Files);
 	} break;
@@ -976,36 +973,56 @@ bool ReadSetting(
 		cSetDialogLastPath(path);
 	} break;
 
-	case dbiSongVolume: {
+	case dbiSongVolumeOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetSongVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setSongVolume(snap(v / 1e6, 0., 1.));
 	} break;
 
-	case dbiVideoVolume: {
+	case dbiVideoVolumeOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetVideoVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setVideoVolume(snap(v / 1e6, 0., 1.));
 	} break;
 
-	case dbiPlaybackSpeed: {
+	case dbiPlaybackSpeedOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Global::SetVoiceMsgPlaybackDoubled(v == 2);
+		Core::App().settings().setVoiceMsgPlaybackDoubled(v == 2);
 	} break;
 
-	case dbiCallSettings: {
+	case dbiCallSettingsOld: {
 		QByteArray callSettings;
 		stream >> callSettings;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.callSettings = callSettings;
+		QDataStream settingsStream(&callSettings, QIODevice::ReadOnly);
+		settingsStream.setVersion(QDataStream::Qt_5_1);
+		QString outputDeviceID;
+		QString inputDeviceID;
+		qint32 outputVolume;
+		qint32 inputVolume;
+		qint32 duckingEnabled;
+
+		settingsStream >> outputDeviceID;
+		settingsStream >> outputVolume;
+		settingsStream >> inputDeviceID;
+		settingsStream >> inputVolume;
+		settingsStream >> duckingEnabled;
+		if (CheckStreamStatus(settingsStream)) {
+			auto &app = Core::App().settings();
+			app.setCallOutputDeviceID(outputDeviceID);
+			app.setCallOutputVolume(outputVolume);
+			app.setCallInputDeviceID(inputDeviceID);
+			app.setCallInputVolume(inputVolume);
+			app.setCallAudioDuckingEnabled(duckingEnabled);
+		}
 	} break;
 
 	case dbiFallbackProductionConfig: {

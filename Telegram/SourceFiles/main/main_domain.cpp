@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "main/main_accounts.h"
+#include "main/main_domain.h"
 
 #include "core/application.h"
 #include "core/shortcuts.h"
@@ -14,24 +14,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
-#include "storage/storage_accounts.h"
+#include "storage/storage_domain.h"
 #include "storage/localstorage.h"
 #include "facades.h"
 
 namespace Main {
 
-Accounts::Accounts(const QString &dataName)
+Domain::Domain(const QString &dataName)
 : _dataName(dataName)
-, _local(std::make_unique<Storage::Accounts>(this, dataName)) {
+, _local(std::make_unique<Storage::Domain>(this, dataName)) {
 }
 
-Accounts::~Accounts() = default;
+Domain::~Domain() = default;
 
-bool Accounts::started() const {
+bool Domain::started() const {
 	return !_accounts.empty();
 }
 
-Storage::StartResult Accounts::start(const QByteArray &passcode) {
+Storage::StartResult Domain::start(const QByteArray &passcode) {
 	Expects(!started());
 
 	const auto result = _local->start(passcode);
@@ -46,13 +46,13 @@ Storage::StartResult Accounts::start(const QByteArray &passcode) {
 	return result;
 }
 
-void Accounts::finish() {
+void Domain::finish() {
 	_activeIndex = -1;
 	_active = nullptr;
 	base::take(_accounts);
 }
 
-void Accounts::accountAddedInStorage(
+void Domain::accountAddedInStorage(
 		int index,
 		std::unique_ptr<Account> account) {
 	Expects(account != nullptr);
@@ -64,7 +64,7 @@ void Accounts::accountAddedInStorage(
 	_accounts.emplace(index, std::move(account));
 };
 
-void Accounts::resetWithForgottenPasscode() {
+void Domain::resetWithForgottenPasscode() {
 	if (_accounts.empty()) {
 		_local->startFromScratch();
 		activateAfterStarting();
@@ -75,7 +75,7 @@ void Accounts::resetWithForgottenPasscode() {
 	}
 }
 
-void Accounts::activateAfterStarting() {
+void Domain::activateAfterStarting() {
 	Expects(started());
 
 	for (const auto &[index, account] : _accounts) {
@@ -86,57 +86,57 @@ void Accounts::activateAfterStarting() {
 	removePasscodeIfEmpty();
 }
 
-const base::flat_map<int, std::unique_ptr<Account>> &Accounts::list() const {
+const base::flat_map<int, std::unique_ptr<Account>> &Domain::accounts() const {
 	return _accounts;
 }
 
-rpl::producer<Account*> Accounts::activeValue() const {
+rpl::producer<Account*> Domain::activeValue() const {
 	return _active.value();
 }
 
-int Accounts::activeIndex() const {
+int Domain::activeIndex() const {
 	Expects(_accounts.contains(_activeIndex));
 
 	return _activeIndex;
 }
 
-Account &Accounts::active() const {
+Account &Domain::active() const {
 	Expects(!_accounts.empty());
 
 	Ensures(_active.current() != nullptr);
 	return *_active.current();
 }
 
-rpl::producer<not_null<Account*>> Accounts::activeChanges() const {
+rpl::producer<not_null<Account*>> Domain::activeChanges() const {
 	return _active.changes() | rpl::map([](Account *value) {
 		return not_null{ value };
 	});
 }
 
-rpl::producer<Session*> Accounts::activeSessionChanges() const {
+rpl::producer<Session*> Domain::activeSessionChanges() const {
 	return _activeSessions.events();
 }
 
-rpl::producer<Session*> Accounts::activeSessionValue() const {
+rpl::producer<Session*> Domain::activeSessionValue() const {
 	const auto current = (_accounts.empty() || !active().sessionExists())
 		? nullptr
 		: &active().session();
 	return rpl::single(current) | rpl::then(_activeSessions.events());
 }
 
-int Accounts::unreadBadge() const {
+int Domain::unreadBadge() const {
 	return _unreadBadge;
 }
 
-bool Accounts::unreadBadgeMuted() const {
+bool Domain::unreadBadgeMuted() const {
 	return _unreadBadgeMuted;
 }
 
-rpl::producer<> Accounts::unreadBadgeChanges() const {
+rpl::producer<> Domain::unreadBadgeChanges() const {
 	return _unreadBadgeChanges.events();
 }
 
-void Accounts::notifyUnreadBadgeChanged() {
+void Domain::notifyUnreadBadgeChanged() {
 	for (const auto &[index, account] : _accounts) {
 		if (account->sessionExists()) {
 			account->session().data().notifyUnreadBadgeChanged();
@@ -144,7 +144,7 @@ void Accounts::notifyUnreadBadgeChanged() {
 	}
 }
 
-void Accounts::updateUnreadBadge() {
+void Domain::updateUnreadBadge() {
 	_unreadBadge = 0;
 	_unreadBadgeMuted = true;
 	for (const auto &[index, account] : _accounts) {
@@ -159,7 +159,7 @@ void Accounts::updateUnreadBadge() {
 	_unreadBadgeChanges.fire({});
 }
 
-void Accounts::scheduleUpdateUnreadBadge() {
+void Domain::scheduleUpdateUnreadBadge() {
 	if (_unreadBadgeUpdateScheduled) {
 		return;
 	}
@@ -170,7 +170,7 @@ void Accounts::scheduleUpdateUnreadBadge() {
 	}));
 }
 
-int Accounts::add(MTP::Environment environment) {
+int Domain::add(MTP::Environment environment) {
 	Expects(_active.current() != nullptr);
 
 	static const auto cloneConfig = [](const MTP::Config &config) {
@@ -183,7 +183,7 @@ int Accounts::add(MTP::Environment environment) {
 		if (_active.current()->mtp().environment() == environment) {
 			return accountConfig(_active.current());
 		}
-		for (const auto &[index, account] : list()) {
+		for (const auto &[index, account] : _accounts) {
 			if (account->mtp().environment() == environment) {
 				return accountConfig(account.get());
 			}
@@ -198,14 +198,14 @@ int Accounts::add(MTP::Environment environment) {
 	}
 	const auto account = _accounts.emplace(
 		index,
-		std::make_unique<Account>(_dataName, index)
+		std::make_unique<Account>(this, _dataName, index)
 	).first->second.get();
 	_local->startAdded(account, std::move(config));
 	watchSession(account);
 	return index;
 }
 
-void Accounts::watchSession(not_null<Account*> account) {
+void Domain::watchSession(not_null<Account*> account) {
 	account->sessionValue(
 	) | rpl::filter([=](Session *session) {
 		return session != nullptr;
@@ -230,7 +230,7 @@ void Accounts::watchSession(not_null<Account*> account) {
 	}, account->lifetime());
 }
 
-void Accounts::activateAuthedAccount() {
+void Domain::activateAuthedAccount() {
 	Expects(started());
 
 	if (_active.current()->sessionExists()) {
@@ -244,7 +244,7 @@ void Accounts::activateAuthedAccount() {
 	}
 }
 
-bool Accounts::removePasscodeIfEmpty() {
+bool Domain::removePasscodeIfEmpty() {
 	if (_accounts.size() != 1 || _active.current()->sessionExists()) {
 		return false;
 	}
@@ -258,7 +258,7 @@ bool Accounts::removePasscodeIfEmpty() {
 	return true;
 }
 
-void Accounts::removeRedundantAccounts() {
+void Domain::removeRedundantAccounts() {
 	Expects(started());
 
 	const auto was = _accounts.size();
@@ -278,7 +278,7 @@ void Accounts::removeRedundantAccounts() {
 	}
 }
 
-void Accounts::checkForLastProductionConfig(
+void Domain::checkForLastProductionConfig(
 		not_null<Main::Account*> account) {
 	const auto mtp = &account->mtp();
 	if (mtp->environment() != MTP::Environment::Production) {
@@ -293,7 +293,7 @@ void Accounts::checkForLastProductionConfig(
 	Core::App().refreshFallbackProductionConfig(mtp->config());
 }
 
-void Accounts::activate(int index) {
+void Domain::activate(int index) {
 	Expects(_accounts.contains(index));
 
 	const auto changed = (_activeIndex != index);
@@ -308,7 +308,7 @@ void Accounts::activate(int index) {
 	}
 }
 
-void Accounts::scheduleWriteAccounts() {
+void Domain::scheduleWriteAccounts() {
 	if (_writeAccountsScheduled) {
 		return;
 	}

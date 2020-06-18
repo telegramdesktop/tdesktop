@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
@@ -126,11 +128,16 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 
 	updateVolumeToggleIcon();
 	_volumeToggle->setClickedCallback([=] {
-		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
-		mixer()->setSongVolume(Global::SongVolume());
-		Global::RefSongVolumeChanged().notify();
+		const auto volume = (Core::App().settings().songVolume() > 0)
+			? 0.
+			: Core::App().settings().rememberedSongVolume();
+		Core::App().settings().setSongVolume(volume);
+		mixer()->setSongVolume(volume);
 	});
-	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
+	Core::App().settings().songVolumeChanges(
+	) | rpl::start_with_next([=] {
+		updateVolumeToggleIcon();
+	}, lifetime());
 
 	updateRepeatTrackIcon();
 	_repeatTrack->setClickedCallback([=] {
@@ -139,11 +146,11 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
-		const auto doubled = !Global::VoiceMsgPlaybackDoubled();
-		Global::SetVoiceMsgPlaybackDoubled(doubled);
+		const auto doubled = !Core::App().settings().voiceMsgPlaybackDoubled();
+		Core::App().settings().setVoiceMsgPlaybackDoubled(doubled);
 		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
-		_session->saveSettings();
+		Core::App().saveSettingsDelayed();
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
@@ -178,7 +185,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 
 void Widget::updateVolumeToggleIcon() {
 	auto icon = []() -> const style::icon * {
-		auto volume = Global::SongVolume();
+		auto volume = Core::App().settings().songVolume();
 		if (volume > 0) {
 			if (volume < 1 / 3.) {
 				return &st::mediaPlayerVolumeIcon1;
@@ -385,7 +392,7 @@ void Widget::updateRepeatTrackIcon() {
 }
 
 void Widget::updatePlaybackSpeedIcon() {
-	const auto doubled = Global::VoiceMsgPlaybackDoubled();
+	const auto doubled = Core::App().settings().voiceMsgPlaybackDoubled();
 	const auto isDefaultSpeed = !doubled;
 	_playbackSpeed->setIconOverride(
 		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,

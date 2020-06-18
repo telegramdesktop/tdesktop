@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
@@ -563,7 +565,7 @@ bool FieldAutocomplete::chooseSelected(ChooseMethod method) const {
 
 bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 	auto hidden = isHidden();
-	auto moderate = Global::ModerateModeEnabled();
+	auto moderate = Core::App().settings().moderateModeEnabled();
 	if (hidden && !moderate) return QWidget::eventFilter(obj, e);
 
 	if (e->type() == QEvent::KeyPress) {

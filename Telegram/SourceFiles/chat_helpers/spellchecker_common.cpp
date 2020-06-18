@@ -15,11 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "spellcheck/platform/platform_spellcheck.h"
 #include "spellcheck/spellcheck_utils.h"
 #include "spellcheck/spellcheck_value.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QInputMethod>
@@ -143,11 +144,11 @@ void DownloadDictionaryInBackground(
 		BackgroundLoaderChanged.fire(0);
 
 		if (DictionaryExists(id)) {
-			auto dicts = session->settings().dictionariesEnabled();
+			auto dicts = Core::App().settings().dictionariesEnabled();
 			if (!ranges::contains(dicts, id)) {
 				dicts.push_back(id);
-				session->settings().setDictionariesEnabled(std::move(dicts));
-				session->saveSettingsDelayed();
+				Core::App().settings().setDictionariesEnabled(std::move(dicts));
+				Core::App().saveSettingsDelayed();
 			}
 		}
 
@@ -312,18 +313,18 @@ bool WriteDefaultDictionary() {
 }
 
 rpl::producer<QString> ButtonManageDictsState(
-	not_null<Main::Session*> session) {
+		not_null<Main::Session*> session) {
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
 		return rpl::single(QString());
 	}
 	const auto computeString = [=] {
-		if (!session->settings().spellcheckerEnabled()) {
+		if (!Core::App().settings().spellcheckerEnabled()) {
 			return QString();
 		}
-		if (!session->settings().dictionariesEnabled().size()) {
+		if (!Core::App().settings().dictionariesEnabled().size()) {
 			return QString();
 		}
-		const auto dicts = session->settings().dictionariesEnabled();
+		const auto dicts = Core::App().settings().dictionariesEnabled();
 		const auto filtered = ranges::view::all(
 			dicts
 		) | ranges::views::filter(
@@ -341,9 +342,9 @@ rpl::producer<QString> ButtonManageDictsState(
 	) | rpl::then(
 		rpl::merge(
 			Spellchecker::SupportedScriptsChanged(),
-			session->settings().dictionariesEnabledChanges(
+			Core::App().settings().dictionariesEnabledChanges(
 			) | rpl::map(emptyValue),
-			session->settings().spellcheckerEnabledChanges(
+			Core::App().settings().spellcheckerEnabledChanges(
 			) | rpl::map(emptyValue)
 		) | rpl::map(computeString)
 	);
@@ -377,7 +378,7 @@ void Start(not_null<Main::Session*> session) {
 		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
 		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
 	} });
-	const auto settings = &session->settings();
+	const auto settings = &Core::App().settings();
 
 	const auto onEnabled = [=](auto enabled) {
 		Platform::Spellchecker::UpdateLanguages(

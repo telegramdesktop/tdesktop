@@ -13,8 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/spellchecker_common.h"
 #include "core/application.h"
 #include "main/main_account.h"
-#include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/spellcheck_utils.h"
@@ -405,7 +403,7 @@ void ManageDictionariesBox::prepare() {
 		object_ptr<Inner>(
 			this,
 			_controller,
-			session->settings().dictionariesEnabled()),
+			Core::App().settings().dictionariesEnabled()),
 		st::boxScroll,
 		multiSelect->height()
 	);
@@ -423,9 +421,9 @@ void ManageDictionariesBox::prepare() {
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
-		session->settings().setDictionariesEnabled(
+		Core::App().settings().setDictionariesEnabled(
 			FilterEnabledDict(inner->enabledRows()));
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 		// Ignore boxClosing() when the Save button was pressed.
 		lifetime().destroy();
 		closeBox();
@@ -433,9 +431,9 @@ void ManageDictionariesBox::prepare() {
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	boxClosing() | rpl::start_with_next([=] {
-		session->settings().setDictionariesEnabled(
+		Core::App().settings().setDictionariesEnabled(
 			FilterEnabledDict(initialEnabledRows));
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, lifetime());
 
 	setDimensionsToContent(st::boxWidth, inner);

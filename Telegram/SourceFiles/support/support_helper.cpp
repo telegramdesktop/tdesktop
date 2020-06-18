@@ -27,8 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -79,10 +80,10 @@ EditInfoBox::EditInfoBox(
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
 	_field->setSubmitSettings(
-		controller->session().settings().sendSubmitWay());
+		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
-		controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(DefaultEditLinkCallback(controller, _field));
 }

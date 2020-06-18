@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "core/application.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -200,11 +199,11 @@ void ShareBox::prepareCommentField() {
 
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		_navigation->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
 		DefaultEditLinkCallback(_navigation->parentController(), field));
-	field->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
+	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
 	InitSpellchecker(_navigation->parentController(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);

@@ -19,12 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "settings/settings_common.h"
 #include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "apiwrap.h"
@@ -501,7 +502,7 @@ void EditFilterBox(
 	name->setMaxLength(kMaxFilterTitleLength);
 	name->setInstantReplaces(Ui::InstantReplaces::Default());
 	name->setInstantReplacesEnabled(
-		window->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		box->getDelegate()->outerContainer(),
 		name,

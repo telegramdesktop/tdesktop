@@ -12,9 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "platform/platform_specific.h"
-#include "facades.h"
-#include "window/window_session_controller.h"
-#include "main/main_session.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "storage/storage_account.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -23,8 +22,8 @@ DownloadPathBox::DownloadPathBox(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : _controller(controller)
-, _path(Global::DownloadPath())
-, _pathBookmark(Global::DownloadPathBookmark())
+, _path(Core::App().settings().downloadPath())
+, _pathBookmark(Core::App().settings().downloadPathBookmark())
 , _group(std::make_shared<Ui::RadioenumGroup<Directory>>(typeFromPath(_path)))
 , _default(this, _group, Directory::Downloads, tr::lng_download_path_default_radio(tr::now), st::defaultBoxCheckbox)
 , _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)
@@ -91,8 +90,9 @@ void DownloadPathBox::radioChanged(Directory value) {
 
 void DownloadPathBox::editPath() {
 	const auto initialPath = [] {
-		if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
-			return Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0));
+		const auto path = Core::App().settings().downloadPath();
+		if (!path.isEmpty() && path != qstr("tmp")) {
+			return path.left(path.size() - (path.endsWith('/') ? 1 : 0));
 		}
 		return QString();
 	}();
@@ -122,10 +122,10 @@ void DownloadPathBox::save() {
 		}
 		return QString();
 	};
-	Global::SetDownloadPath(computePath());
-	Global::SetDownloadPathBookmark((value == Directory::Custom) ? _pathBookmark : QByteArray());
-	_controller->session().saveSettings();
-	Global::RefDownloadPathChanged().notify();
+	Core::App().settings().setDownloadPathBookmark(
+		(value == Directory::Custom) ? _pathBookmark : QByteArray());
+	Core::App().settings().setDownloadPath(computePath());
+	Core::App().saveSettings();
 	closeBox();
 #endif // OS_WIN_STORE
 }

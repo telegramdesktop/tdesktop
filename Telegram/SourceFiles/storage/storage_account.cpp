@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 
 #include "storage/localstorage.h"
-#include "storage/storage_accounts.h"
+#include "storage/storage_domain.h"
 #include "storage/storage_encryption.h"
 #include "storage/storage_clear_legacy.h"
 #include "storage/cache/storage_cache_types.h"
@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "export/export_settings.h"
 #include "window/themes/window_theme.h"
-#include "facades.h"
 
 namespace Storage {
 namespace {
@@ -708,43 +707,6 @@ void Account::readLocations() {
 	}
 }
 
-QByteArray Account::serializeCallSettings() {
-	QByteArray result = QByteArray();
-	uint32 size = 3 * sizeof(qint32) + Serialize::stringSize(Global::CallOutputDeviceID()) + Serialize::stringSize(Global::CallInputDeviceID());
-	result.reserve(size);
-	QDataStream stream(&result, QIODevice::WriteOnly);
-	stream.setVersion(QDataStream::Qt_5_1);
-	stream << Global::CallOutputDeviceID();
-	stream << qint32(Global::CallOutputVolume());
-	stream << Global::CallInputDeviceID();
-	stream << qint32(Global::CallInputVolume());
-	stream << qint32(Global::CallAudioDuckingEnabled() ? 1 : 0);
-	return result;
-}
-
-void Account::deserializeCallSettings(QByteArray &settings) {
-	QDataStream stream(&settings, QIODevice::ReadOnly);
-	stream.setVersion(QDataStream::Qt_5_1);
-	QString outputDeviceID;
-	QString inputDeviceID;
-	qint32 outputVolume;
-	qint32 inputVolume;
-	qint32 duckingEnabled;
-
-	stream >> outputDeviceID;
-	stream >> outputVolume;
-	stream >> inputDeviceID;
-	stream >> inputVolume;
-	stream >> duckingEnabled;
-	if (CheckStreamStatus(stream)) {
-		Global::SetCallOutputDeviceID(outputDeviceID);
-		Global::SetCallOutputVolume(outputVolume);
-		Global::SetCallInputDeviceID(inputDeviceID);
-		Global::SetCallInputVolume(inputVolume);
-		Global::SetCallAudioDuckingEnabled(duckingEnabled);
-	}
-}
-
 void Account::writeSessionSettings() {
 	writeSessionSettings(nullptr);
 }
@@ -774,7 +736,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	auto userData = userDataInstance
 		? userDataInstance->serialize()
 		: QByteArray();
-	auto callSettings = serializeCallSettings();
 
 	auto recentStickers = cRecentStickersPreload();
 	if (recentStickers.isEmpty() && _owner->sessionExists()) {
@@ -786,7 +747,7 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	}
 
 	uint32 size = 24 * (sizeof(quint32) + sizeof(qint32));
-	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
+	size += sizeof(quint32);
 
 	size += sizeof(quint32) + sizeof(qint32);
 	for (auto &item : recentEmojiPreloadData) {
@@ -801,40 +762,20 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	if (!userData.isEmpty()) {
 		size += sizeof(quint32) + Serialize::bytearraySize(userData);
 	}
-	size += sizeof(quint32) + Serialize::bytearraySize(callSettings);
-
-	const auto soundFlashBounce = (Global::SoundNotify() ? 0x01 : 0x00)
-		| (Global::FlashBounceNotify() ? 0x00 : 0x02);
 
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint32(dbiTileBackground)
 		<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
 		<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
-	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
-	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
-	data.stream << quint32(dbiSoundFlashBounceNotify) << qint32(soundFlashBounce);
-	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
-	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
-	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
-	data.stream << quint32(dbiNotificationsCount) << qint32(Global::NotificationsCount());
-	data.stream << quint32(dbiNotificationsCorner) << qint32(Global::NotificationsCorner());
-	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
-	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
-	data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
-	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
-	data.stream << quint32(dbiDialogsFilters) << qint32(Global::DialogsFiltersEnabled() ? 1 : 0);
-	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiSessionSettings) << userData;
 	}
-	data.stream << quint32(dbiPlaybackSpeed) << qint32(Global::VoiceMsgPlaybackDoubled() ? 2 : 1);
 	data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
 	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
 	data.stream << quint32(dbiRecentStickers) << recentStickers;
-	data.stream << qint32(dbiCallSettings) << callSettings;
 
 	FileWriteDescriptor file(_settingsKey, _basePath);
 	file.writeEncrypted(data, _localKey);
@@ -892,9 +833,6 @@ std::unique_ptr<Main::SessionSettings> Account::applyReadContext(
 	_cacheBigFileTotalSizeLimit = context.cacheBigFileTotalSizeLimit;
 	_cacheBigFileTotalTimeLimit = context.cacheBigFileTotalTimeLimit;
 
-	if (!context.callSettings.isEmpty()) {
-		deserializeCallSettings(context.callSettings);
-	}
 	if (!context.mtpAuthorization.isEmpty()) {
 		_owner->setMtpAuthorization(context.mtpAuthorization);
 	} else {

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 
 namespace {
 

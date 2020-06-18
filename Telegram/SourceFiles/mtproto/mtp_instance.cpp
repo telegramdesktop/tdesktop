@@ -855,7 +855,6 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));
 	}
-	Local::writeSettings();
 
 	_configExpiresAt = crl::now()
 		+ (data.vexpires().v - base::unixtime::now()) * crl::time(1000);

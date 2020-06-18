@@ -126,7 +126,7 @@ struct TrackState {
 	bool waitingForData = false;
 };
 
-class Mixer : public QObject, private base::Subscriber {
+class Mixer final : public QObject {
 	Q_OBJECT
 
 public:
@@ -295,6 +295,8 @@ private:
 	QThread _faderThread, _loaderThread;
 	Fader *_fader;
 	Loaders *_loader;
+
+	rpl::lifetime _lifetime;
 
 };
 

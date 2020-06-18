@@ -18,8 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
@@ -1051,7 +1052,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		session().api().requestStickerSets();
 	}
 
-	if (session().settings().suggestStickersByEmoji()) {
+	if (Core::App().settings().suggestStickersByEmoji()) {
 		const auto others = session().api().stickersByEmoji(original);
 		if (!others) {
 			return {};

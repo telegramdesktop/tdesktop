@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
@@ -117,7 +118,7 @@ void SetupSections(
 				st::settingsSectionButton,
 				&st::settingsIconFolders)))->setDuration(0);
 	if (!controller->session().data().chatsFilters().list().empty()
-		|| Global::DialogsFiltersEnabled()) {
+		|| controller->session().settings().dialogsFiltersEnabled()) {
 		slided->show(anim::type::instant);
 		preload();
 	} else {

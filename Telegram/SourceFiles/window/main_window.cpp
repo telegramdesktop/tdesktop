@@ -264,14 +264,18 @@ bool MainWindow::hideNoQuit() {
 	}
 	if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 		if (minimizeToTray()) {
-			Ui::showChatsList();
+			if (const auto controller = sessionController()) {
+				Ui::showChatsList(&controller->session());
+			}
 			return true;
 		}
 	} else if (Platform::IsMac()) {
 		closeWithoutDestroy();
 		controller().updateIsActiveBlur();
 		updateGlobalMenu();
-		Ui::showChatsList();
+		if (const auto controller = sessionController()) {
+			Ui::showChatsList(&controller->session());
+		}
 		return true;
 	}
 	return false;
@@ -529,7 +533,9 @@ void MainWindow::updateControlsGeometry() {
 }
 
 void MainWindow::updateUnreadCounter() {
-	if (!Global::started() || App::quitting()) return;
+	if (App::quitting()) {
+		return;
+	}
 
 	const auto counter = Core::App().unreadBadge();
 	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");

@@ -13,10 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "base/call_delayed.h"
 #include "apiwrap.h"
 #include "app.h"
@@ -209,7 +210,7 @@ QSize LargeEmojiImage::Size() {
 
 EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session)
-, _imageLoader(prepareSourceImages(), session->settings().largeEmoji())
+, _imageLoader(prepareSourceImages(), Core::App().settings().largeEmoji())
 , _clearTimer([=] { clearSourceImages(); }) {
 	refresh();
 
@@ -220,7 +221,7 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 		remove(item);
 	}, _lifetime);
 
-	_session->settings().largeEmojiChanges(
+	Core::App().settings().largeEmojiChanges(
 	) | rpl::start_with_next([=](bool large) {
 		if (large) {
 			_clearTimer.cancel();
@@ -392,7 +393,7 @@ void EmojiPack::refreshItems(
 auto EmojiPack::prepareSourceImages()
 -> std::shared_ptr<Ui::Emoji::UniversalImages> {
 	const auto &images = Ui::Emoji::SourceImages();
-	if (_session->settings().largeEmoji()) {
+	if (Core::App().settings().largeEmoji()) {
 		return images;
 	}
 	Ui::Emoji::ClearSourceImages(images);

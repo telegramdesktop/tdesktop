@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/special_buttons.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -26,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "core/file_utilities.h"
@@ -397,7 +398,7 @@ BioManager SetupBio(
 	QObject::connect(bio, &Ui::InputField::changed, updated);
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	bio->setInstantReplacesEnabled(
-		self->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		container->window(),
 		bio,

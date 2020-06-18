@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mtproto/facade.h"
 #include "layout.h"
 #include "facades.h"
@@ -266,7 +265,7 @@ void SetupSpellchecker(
 		not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto session = &controller->session();
-	const auto settings = &session->settings();
+	const auto settings = &Core::App().settings();
 	const auto isSystem = Platform::Spellchecker::IsSystemSpellchecker();
 	const auto button = AddButton(
 		container,
@@ -283,7 +282,7 @@ void SetupSpellchecker(
 		return (enabled != settings->spellcheckerEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
 		settings->setSpellcheckerEnabled(enabled);
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
 
 	if (isSystem) {
@@ -306,7 +305,7 @@ void SetupSpellchecker(
 		return (enabled != settings->autoDownloadDictionaries());
 	}) | rpl::start_with_next([=](bool enabled) {
 		settings->setAutoDownloadDictionaries(enabled);
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, sliding->entity()->lifetime());
 
 	AddButtonWithLabel(

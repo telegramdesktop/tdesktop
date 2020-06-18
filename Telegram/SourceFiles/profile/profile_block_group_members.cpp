@@ -92,7 +92,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 		Ui::hideLayer();
 		if (const auto chat = peer->asChat()) {
 			chat->session().api().kickParticipant(chat, user);
-			Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
+			Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 		} else if (const auto channel = peer->asChannel()) {
 			channel->session().api().kickParticipant(
 				channel,

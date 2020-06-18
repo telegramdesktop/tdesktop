@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/shortcuts.h"
 #include "storage/storage_account.h"
-#include "storage/storage_accounts.h" // Storage::StartResult.
+#include "storage/storage_domain.h" // Storage::StartResult.
 #include "storage/serialize_common.h"
 #include "storage/serialize_peer.h"
 #include "storage/localstorage.h"
@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "main/main_domain.h"
 #include "main/main_session_settings.h"
 #include "facades.h"
 
@@ -45,8 +46,9 @@ namespace {
 
 } // namespace
 
-Account::Account(const QString &dataName, int index)
-: _local(std::make_unique<Storage::Account>(
+Account::Account(not_null<Domain*> domain, const QString &dataName, int index)
+: _domain(domain)
+, _local(std::make_unique<Storage::Account>(
 	this,
 	ComposeDataString(dataName, index))) {
 }
@@ -56,6 +58,10 @@ Account::~Account() {
 		session().saveSettingsNowIfNeeded();
 	}
 	destroySession();
+}
+
+Storage::Domain &Account::domainLocal() const {
+	return _domain->local();
 }
 
 [[nodiscard]] Storage::StartResult Account::legacyStart(
@@ -493,7 +499,7 @@ void Account::forcedLogOut() {
 void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
-	Global::SetVoiceMsgPlaybackDoubled(false);
+	Core::App().settings().setVoiceMsgPlaybackDoubled(false); // #TODO multi properly reset settings
 	if (const auto window = Core::App().activeWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
 	}

@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"
@@ -304,7 +303,7 @@ bool HistoryItem::isUnreadMention() const {
 
 bool HistoryItem::mentionsMe() const {
 	if (Has<HistoryServicePinned>()
-		&& !history()->session().settings().notifyAboutPinned()) {
+		&& !Core::App().settings().notifyAboutPinned()) {
 		return false;
 	}
 	return _flags & MTPDmessage::Flag::f_mentioned;

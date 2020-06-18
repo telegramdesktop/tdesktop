@@ -211,29 +211,28 @@ void showSettings() {
 
 namespace Ui {
 
-void showPeerProfile(const PeerId &peer) {
-	if (const auto window = App::wnd()) {
+void showPeerProfile(not_null<PeerData*> peer) {
+	if (const auto window = App::wnd()) { // multi good
 		if (const auto controller = window->sessionController()) {
-			controller->showPeerInfo(peer);
+			if (&controller->session() == &peer->session()) {
+				controller->showPeerInfo(peer);
+			}
 		}
 	}
 }
-void showPeerProfile(const PeerData *peer) {
-	showPeerProfile(peer->id);
-}
 
 void showPeerProfile(not_null<const History*> history) {
-	showPeerProfile(history->peer->id);
+	showPeerProfile(history->peer);
 }
 
-void showPeerHistory(
-		const PeerId &peer,
-		MsgId msgId) {
+void showChatsList(not_null<Main::Session*> session) {
 	if (const auto m = App::main()) { // multi good
-		m->ui_showPeerHistory(
-			peer,
-			Window::SectionShow::Way::ClearStack,
-			msgId);
+		if (&m->session() == session) {
+			m->ui_showPeerHistory(
+				0,
+				Window::SectionShow::Way::ClearStack,
+				0);
+		}
 	}
 }
 
@@ -332,37 +331,11 @@ namespace Global {
 namespace internal {
 
 struct Data {
+	bool ScreenIsLocked = false;
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
-	bool AdaptiveForWide = true;
 	base::Observable<void> AdaptiveChanged;
 
-	bool DialogsFiltersEnabled = false;
-	bool ModerateModeEnabled = false;
-
-	bool ScreenIsLocked = false;
-
-	float64 RememberedSongVolume = kDefaultVolume;
-	float64 SongVolume = kDefaultVolume;
-	base::Observable<void> SongVolumeChanged;
-	float64 VideoVolume = kDefaultVolume;
-	base::Observable<void> VideoVolumeChanged;
-
-	bool AskDownloadPath = false;
-	QString DownloadPath;
-	QByteArray DownloadPathBookmark;
-	base::Observable<void> DownloadPathChanged;
-
-	bool VoiceMsgPlaybackDoubled = false;
-	bool SoundNotify = true;
-	bool DesktopNotify = true;
-	bool FlashBounceNotify = true;
-	bool RestoreSoundNotifyFromTray = false;
-	bool RestoreFlashBounceNotifyFromTray = false;
-	DBINotifyView NotifyView = dbinvShowPreview;
-	bool NativeNotifications = false;
-	int NotificationsCount = 3;
-	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
 	bool TryIPv6 = !Platform::IsWindows();
@@ -372,19 +345,12 @@ struct Data {
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
-	int AutoLock = 3600;
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
 
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
 	base::Observable<void> PeerChooseCancel;
-
-	QString CallOutputDeviceID = qsl("default");
-	QString CallInputDeviceID = qsl("default");
-	int CallOutputVolume = 100;
-	int CallInputVolume = 100;
-	bool CallAudioDuckingEnabled = true;
 };
 
 } // namespace internal
@@ -407,37 +373,11 @@ void finish() {
 	GlobalData = nullptr;
 }
 
+DefineVar(Global, bool, ScreenIsLocked);
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
-DefineVar(Global, bool, AdaptiveForWide);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
 
-DefineVar(Global, bool, DialogsFiltersEnabled);
-DefineVar(Global, bool, ModerateModeEnabled);
-
-DefineVar(Global, bool, ScreenIsLocked);
-
-DefineVar(Global, float64, RememberedSongVolume);
-DefineVar(Global, float64, SongVolume);
-DefineRefVar(Global, base::Observable<void>, SongVolumeChanged);
-DefineVar(Global, float64, VideoVolume);
-DefineRefVar(Global, base::Observable<void>, VideoVolumeChanged);
-
-DefineVar(Global, bool, AskDownloadPath);
-DefineVar(Global, QString, DownloadPath);
-DefineVar(Global, QByteArray, DownloadPathBookmark);
-DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
-
-DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
-DefineVar(Global, bool, SoundNotify);
-DefineVar(Global, bool, DesktopNotify);
-DefineVar(Global, bool, FlashBounceNotify);
-DefineVar(Global, bool, RestoreSoundNotifyFromTray);
-DefineVar(Global, bool, RestoreFlashBounceNotifyFromTray);
-DefineVar(Global, DBINotifyView, NotifyView);
-DefineVar(Global, bool, NativeNotifications);
-DefineVar(Global, int, NotificationsCount);
-DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, bool, TryIPv6);
@@ -447,18 +387,11 @@ DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
-DefineVar(Global, int, AutoLock);
 DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
-
-DefineVar(Global, QString, CallOutputDeviceID);
-DefineVar(Global, QString, CallInputDeviceID);
-DefineVar(Global, int, CallOutputVolume);
-DefineVar(Global, int, CallInputVolume);
-DefineVar(Global, bool, CallAudioDuckingEnabled);
 
 } // namespace Global

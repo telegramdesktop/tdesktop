@@ -20,7 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/toast/toast.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "history/view/history_view_schedule_box.h"
@@ -161,7 +162,7 @@ void InitField(
 		not_null<Main::Session*> session) {
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		session->settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	auto options = Ui::Emoji::SuggestionsController::Options();
 	options.suggestExactFirstWord = false;
 	Ui::Emoji::SuggestionsController::Init(
@@ -841,7 +842,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 	solution->setMaxLength(kSolutionLimit + kErrorLimit);
 	solution->setInstantReplaces(Ui::InstantReplaces::Default());
 	solution->setInstantReplacesEnabled(
-		session->settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
 		DefaultEditLinkCallback(_controller, solution));

@@ -59,9 +59,12 @@ bool JoinGroupByHash(
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
 			if (const auto chat = session->data().processChat(data.vchat())) {
-				App::wnd()->sessionController()->showPeerHistory(
-					chat,
-					Window::SectionShow::Way::Forward);
+				for (const auto controller : session->windows()) {
+					controller->showPeerHistory(
+						chat,
+						Window::SectionShow::Way::Forward);
+					break;
+				}
 			}
 		});
 	}, [=](const RPCError &error) {

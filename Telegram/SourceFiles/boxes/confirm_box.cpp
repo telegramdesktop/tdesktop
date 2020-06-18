@@ -770,9 +770,10 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (justClear) {
 			peer->session().api().clearHistory(peer, revoke);
 		} else {
-			const auto controller = App::wnd()->sessionController();
-			if (controller->activeChatCurrent().peer() == peer) {
-				Ui::showChatsList();
+			for (const auto controller : peer->session().windows()) {
+				if (controller->activeChatCurrent().peer() == peer) {
+					Ui::showChatsList(&peer->session());
+				}
 			}
 			// Don't delete old history by default,
 			// because Android app doesn't.

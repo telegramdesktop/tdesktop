@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/call_delayed.h"
-#include "facades.h"
 
 #include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
