@@ -25,6 +25,7 @@
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_cloud_file.h"
+#include "data/data_user.h"
 #include "data/stickers/data_stickers.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/emoji_config.h"
@@ -34,6 +35,8 @@
 #include "mainwindow.h"
 #include "base/call_delayed.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "base/timer.h"
+#include "base/unixtime.h"
 #include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
@@ -71,6 +74,9 @@ constexpr auto kCommandLink = 0x016;
 
 constexpr auto kCommandScrubberStickers = 0x020;
 constexpr auto kCommandScrubberEmoji = 0x021;
+
+constexpr auto kOnlineCircleSize = 8;
+constexpr auto kOnlineCircleStrokeWidth = 1.5;
 
 constexpr auto kMs = 1000;
 
@@ -205,6 +211,27 @@ NSRect PeerRectByIndex(int index) {
 		0,
 		kCircleDiameter,
 		kCircleDiameter);
+}
+
+TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
+	if (peer->isSelf()) {
+		return 0;
+	}
+	if (const auto user = peer->asUser()) {
+		if (!user->isServiceUser() && !user->isBot()) {
+			const auto onlineTill = user->onlineTill;
+			return (onlineTill <= -5)
+				? -onlineTill
+				: (onlineTill <= 0)
+				? 0
+				: onlineTill;
+		}
+	}
+	return 0;
+};
+
+inline auto RplToEmpty() {
+	return rpl::map([=] { return rpl::empty_value(); });
 }
 
 int WidthFromString(NSString *s) {
@@ -548,6 +575,10 @@ void AppendEmojiPacks(
 		int x = 0;
 		int horizontalShift = 0;
 		bool onTop = false;
+
+		Ui::Animations::Simple onlineAnimation;
+		TimeId onlineTill = 0;
+		bool hasUnread = false;
 	};
 
 	rpl::lifetime _lifetime;
@@ -561,6 +592,8 @@ void AppendEmojiPacks(
 	bool _selfUnpinned;
 
 	rpl::event_stream<not_null<NSEvent*>> _touches;
+
+	double _r, _g, _b, _a; // The online circle color.
 }
 
 - (void)processHorizontalReorder {
@@ -834,6 +867,8 @@ void AppendEmojiPacks(
 	_hasArchive = _selfUnpinned = false;
 	_savedMessages = SavedMessagesUserpic();
 
+	using UpdateFlag = Data::PeerUpdate::Flag;
+
 	const auto downloadLifetime = _lifetime.make_state<rpl::lifetime>();
 	const auto peerChangedLifetime = _lifetime.make_state<rpl::lifetime>();
 	const auto lastDialogsCount = _lifetime.make_state<rpl::variable<int>>(0);
@@ -841,25 +876,6 @@ void AppendEmojiPacks(
 		_pins
 	) | ranges::views::transform(&Pin::peer);
 
-	const auto updateBadge = [=](Pin &pin) {
-		const auto peer = pin.peer;
-		if (IsSelfPeer(peer)
-			|| !peer->owner().history(peer->id)->unreadCountForBadge()) {
-			return;
-		}
-		auto pixmap = App::pixmapFromImageInPlace(
-			base::take(pin.userpic));
-		if (pixmap.isNull()) {
-			return;
-		}
-
-		Painter p(&pixmap);
-		PaintUnreadBadge(p, peer);
-		pin.userpic = pixmap.toImage();
-
-		const auto userpicIndex = pin.index + [self shift];
-		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
-	};
 	const auto updatePanelSize = [=] {
 		const auto size = lastDialogsCount->current();
 		self.image = [[NSImage alloc] initWithSize:NSMakeSize(
@@ -889,6 +905,31 @@ void AppendEmojiPacks(
 		*lastDialogsCount = [self shift] + std::ssize(_pins);
 		[self display];
 	};
+	const auto updateBadge = [=](Pin &pin) {
+		const auto peer = pin.peer;
+		if (IsSelfPeer(peer)) {
+			return;
+		}
+		const auto guard = gsl::finally([&] {
+			const auto userpicIndex = pin.index + [self shift];
+			pin.hasUnread = (UnreadCount(peer) != 0);
+
+			[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
+		});
+		if (!peer->owner().history(peer->id)->unreadCountForBadge()) {
+			singleUserpic(pin);
+			return;
+		}
+		auto pixmap = App::pixmapFromImageInPlace(
+			base::take(pin.userpic));
+		if (pixmap.isNull()) {
+			return;
+		}
+
+		Painter p(&pixmap);
+		PaintUnreadBadge(p, peer);
+		pin.userpic = pixmap.toImage();
+	};
 	const auto listenToDownloaderFinished = [=] {
 		base::ObservableViewer(
 			_session->downloaderTaskFinished()
@@ -903,6 +944,80 @@ void AppendEmojiPacks(
 			updateUserpics();
 		}, *downloadLifetime);
 	};
+	const auto processOnline = [=](int index) {
+		auto &pin = _pins[index];
+		const auto peer = pin.peer;
+		const auto redrawOnline = [=] {
+			const auto s = kOnlineCircleSize + kOnlineCircleStrokeWidth;
+			[self setNeedsDisplayInRect:NSMakeRect(
+				_pins[index].x + kCircleDiameter - s,
+				0,
+				s,
+				s)];
+		};
+		// TODO: this should be replaced
+		// with the global application timer for online statuses.
+		const auto onlineChanges =
+			peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
+		const auto onlineTimer =
+			peerChangedLifetime->make_state<base::Timer>([=] {
+				onlineChanges->fire_copy({ peer });
+			});
+
+		const auto callTimer = [=](auto &pin) {
+			onlineTimer->cancel();
+			if (pin.onlineTill) {
+				const auto time = pin.onlineTill - base::unixtime::now();
+				if (time > 0) {
+					onlineTimer->callOnce(time * crl::time(1000));
+				}
+			}
+		};
+		callTimer(pin);
+
+		using PeerUpdate = Data::PeerUpdate;
+		auto to_peer = rpl::map([=](const PeerUpdate &update) -> PeerData* {
+			return update.peer;
+		});
+		rpl::merge(
+			_session->changes().peerUpdates(
+				peer,
+				UpdateFlag::OnlineStatus) | to_peer,
+			onlineChanges->events()
+		) | rpl::start_with_next([=](PeerData *peer) {
+			const auto it = ranges::find(_pins, peer, &Pin::peer);
+			if (it == end(_pins)) {
+				return;
+			}
+			auto &pin = *it;
+			const auto index = pin.index;
+			pin.onlineTill = CalculateOnlineTill(pin.peer);
+
+			callTimer(pin);
+
+			if (![NSApplication sharedApplication].active) {
+				pin.onlineAnimation.stop();
+				return;
+			}
+			const auto online = Data::OnlineTextActive(
+				pin.onlineTill,
+				base::unixtime::now());
+			if (pin.onlineAnimation.animating()) {
+				pin.onlineAnimation.change(
+					online ? 1. : 0.,
+					st::dialogsOnlineBadgeDuration);
+			} else {
+				Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+					_pins[index].onlineAnimation.start(
+						redrawOnline,
+						online ? 0. : 1.,
+						online ? 1. : 0.,
+						st::dialogsOnlineBadgeDuration);
+				});
+			}
+		}, *peerChangedLifetime);
+	};
+
 	const auto updatePinnedChats = [=] {
 		_pins = ranges::view::zip(
 			_session->data().pinnedChatsOrder(nullptr, FilterId()),
@@ -911,39 +1026,49 @@ void AppendEmojiPacks(
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;
 			auto view = peer->createUserpicView();
-			return { std::move(peer), std::move(view), index, QImage() };
+			const auto onlineTill = CalculateOnlineTill(peer);
+			return {
+				.peer = std::move(peer),
+				.userpicView = std::move(view),
+				.index = index,
+				.onlineTill = onlineTill };
 		});
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 
 		peerChangedLifetime->destroy();
 		for (const auto &pin : _pins) {
-			_session->changes().peerUpdates(
-				pin.peer,
-				Data::PeerUpdate::Flag::Photo
-			) | rpl::start_with_next(
-					listenToDownloaderFinished,
-					*peerChangedLifetime);
-
-			using UpdateFlag = Data::PeerUpdate::Flag;
-			auto to_empty = rpl::map([=] { return rpl::empty_value(); });
-
+			const auto peer = pin.peer;
 			const auto index = pin.index;
+			_session->changes().peerUpdates(
+				peer,
+				UpdateFlag::Photo
+			) | rpl::start_with_next(
+				listenToDownloaderFinished,
+				*peerChangedLifetime);
+
+			if (const auto user = peer->asUser()) {
+				if (!user->isServiceUser()
+					&& !user->isBot()
+					&& !peer->isSelf()) {
+					processOnline(index);
+				}
+			}
+
 			rpl::merge(
 				_session->changes().historyUpdates(
-					_session->data().history(pin.peer),
+					_session->data().history(peer),
 					Data::HistoryUpdate::Flag::UnreadView
-				) | to_empty,
+				) | RplToEmpty(),
 				_session->changes().peerFlagsValue(
-					pin.peer,
+					peer,
 					UpdateFlag::Notifications
-				) | to_empty
+				) | RplToEmpty()
 			) | rpl::start_with_next([=] {
 				updateBadge(_pins[index]);
 			}, *peerChangedLifetime);
 		}
 
 		updateUserpics();
-		// ranges::for_each(peers, updateBadge);
 	};
 
 	rpl::single(
@@ -969,12 +1094,18 @@ void AppendEmojiPacks(
 		updateUserpics();
 	}, _lifetime);
 
+	const auto updateOnlineColor = [=] {
+		st::dialogsOnlineBadgeFg->c.getRgbF(&_r, &_g, &_b, &_a);
+	};
+	updateOnlineColor();
+
 	base::ObservableViewer(
 		*Window::Theme::Background()
 	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
 		return update.paletteChanged();
 	}) | rpl::start_with_next([=] {
 		crl::on_main(&_guard, [=] {
+			updateOnlineColor();
 			if (const auto f = _session->data().folderLoaded(ArchiveId)) {
 				_archive = ArchiveUserpic(f);
 			}
@@ -1070,6 +1201,35 @@ void AppendEmojiPacks(
 	CGImageRef image = ([self imageToDraw:i]).toCGImage();
 	CGContextDrawImage(context, rect, image);
 	CGImageRelease(image);
+
+	if (i >= 0) {
+		const auto &pin = _pins[i];
+		if (pin.hasUnread) {
+			return;
+		}
+		const auto online = Data::OnlineTextActive(
+			pin.onlineTill,
+			base::unixtime::now());
+		const auto value = pin.onlineAnimation.value(online ? 1. : 0.);
+		if (value < 0.05) {
+			return;
+		}
+		const auto lineWidth = kOnlineCircleStrokeWidth;
+		const auto circleSize = kOnlineCircleSize;
+		const auto progress = value * circleSize;
+		const auto diff = (circleSize - progress) / 2;
+		const auto borderRect = CGRectMake(
+			NSMaxX(rect) - circleSize + diff - lineWidth / 2,
+			diff,
+			progress,
+			progress);
+
+		CGContextSetRGBStrokeColor(context, 0, 0, 0, 1.0);
+		CGContextSetRGBFillColor(context, _r, _g, _b, _a);
+		CGContextSetLineWidth(context, lineWidth);
+		CGContextFillEllipseInRect(context, borderRect);
+		CGContextStrokeEllipseInRect(context, borderRect);
+	}
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
