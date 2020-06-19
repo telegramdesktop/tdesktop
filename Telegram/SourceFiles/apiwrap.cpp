@@ -2601,7 +2601,7 @@ void ApiWrap::applyNotifySettings(
 		}
 	} break;
 	}
-	_session->notifications().checkDelayed();
+	Core::App().notifications().checkDelayed();
 }
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {

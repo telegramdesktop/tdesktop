@@ -30,6 +30,7 @@ protected:
 		bool hideReplyButton) override;
 	void doClearAllFast() override;
 	void doClearFromHistory(not_null<History*> history) override;
+	void doClearFromSession(not_null<Main::Session*> session) override;
 
 private:
 	class Private;

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_domain.h"
 #include "storage/localstorage.h"
+#include "window/notifications_manager.h"
 #include "facades.h"
 
 namespace Main {
@@ -47,22 +48,25 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 }
 
 void Domain::finish() {
-	_activeIndex = -1;
+	_accountToActivate = -1;
 	_active = nullptr;
 	base::take(_accounts);
 }
 
-void Domain::accountAddedInStorage(
-		int index,
-		std::unique_ptr<Account> account) {
-	Expects(account != nullptr);
-	Expects(!_accounts.contains(index));
+void Domain::accountAddedInStorage(AccountWithIndex accountWithIndex) {
+	Expects(accountWithIndex.account != nullptr);
 
-	if (_accounts.empty()) {
-		_activeIndex = index;
+	for (const auto &[index, _] : _accounts) {
+		if (index == accountWithIndex.index) {
+			Unexpected("Repeated account index.");
+		}
 	}
-	_accounts.emplace(index, std::move(account));
-};
+	_accounts.push_back(std::move(accountWithIndex));
+}
+
+void Domain::activateFromStorage(int index) {
+	_accountToActivate = index;
+}
 
 void Domain::resetWithForgottenPasscode() {
 	if (_accounts.empty()) {
@@ -78,26 +82,24 @@ void Domain::resetWithForgottenPasscode() {
 void Domain::activateAfterStarting() {
 	Expects(started());
 
+	auto toActivate = _accounts.front().account.get();
 	for (const auto &[index, account] : _accounts) {
+		if (index == _accountToActivate) {
+			toActivate = account.get();
+		}
 		watchSession(account.get());
 	}
 
-	activate(_activeIndex);
+	activate(toActivate);
 	removePasscodeIfEmpty();
 }
 
-const base::flat_map<int, std::unique_ptr<Account>> &Domain::accounts() const {
+const std::vector<Domain::AccountWithIndex> &Domain::accounts() const {
 	return _accounts;
 }
 
 rpl::producer<Account*> Domain::activeValue() const {
 	return _active.value();
-}
-
-int Domain::activeIndex() const {
-	Expects(_accounts.contains(_activeIndex));
-
-	return _activeIndex;
 }
 
 Account &Domain::active() const {
@@ -170,8 +172,8 @@ void Domain::scheduleUpdateUnreadBadge() {
 	}));
 }
 
-int Domain::add(MTP::Environment environment) {
-	Expects(_active.current() != nullptr);
+not_null<Main::Account*> Domain::add(MTP::Environment environment) {
+	Expects(started());
 
 	static const auto cloneConfig = [](const MTP::Config &config) {
 		return std::make_unique<MTP::Config>(config);
@@ -193,16 +195,17 @@ int Domain::add(MTP::Environment environment) {
 			: std::make_unique<MTP::Config>(environment);
 	}();
 	auto index = 0;
-	while (_accounts.contains(index)) {
+	while (ranges::contains(_accounts, index, &AccountWithIndex::index)) {
 		++index;
 	}
-	const auto account = _accounts.emplace(
-		index,
-		std::make_unique<Account>(this, _dataName, index)
-	).first->second.get();
+	_accounts.push_back(AccountWithIndex{
+		.index = index,
+		.account = std::make_unique<Account>(this, _dataName, index)
+	});
+	const auto account = _accounts.back().account.get();
 	_local->startAdded(account, std::move(config));
 	watchSession(account);
-	return index;
+	return account;
 }
 
 void Domain::watchSession(not_null<Account*> account) {
@@ -237,8 +240,8 @@ void Domain::activateAuthedAccount() {
 		return;
 	}
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
-		if (i->second->sessionExists()) {
-			activate(i->first);
+		if (i->account->sessionExists()) {
+			activate(i->account.get());
 			return;
 		}
 	}
@@ -264,12 +267,12 @@ void Domain::removeRedundantAccounts() {
 	const auto was = _accounts.size();
 	activateAuthedAccount();
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
-		if (i->second.get() == _active.current()
-			|| i->second->sessionExists()) {
+		if (i->account.get() == _active.current()
+			|| i->account->sessionExists()) {
 			++i;
 			continue;
 		}
-		checkForLastProductionConfig(i->second.get());
+		checkForLastProductionConfig(i->account.get());
 		i = _accounts.erase(i);
 	}
 
@@ -293,13 +296,20 @@ void Domain::checkForLastProductionConfig(
 	Core::App().refreshFallbackProductionConfig(mtp->config());
 }
 
-void Domain::activate(int index) {
-	Expects(_accounts.contains(index));
+void Domain::activate(not_null<Main::Account*> account) {
+	if (_active.current() == account.get()) {
+		return;
+	}
+	const auto i = ranges::find(_accounts, account.get(), [](
+			const AccountWithIndex &value) {
+		return value.account.get();
+	});
+	Assert(i != end(_accounts));
+	const auto changed = (_accountToActivate != i->index);
 
-	const auto changed = (_activeIndex != index);
 	_activeLifetime.destroy();
-	_activeIndex = index;
-	_active = _accounts.find(index)->second.get();
+	_accountToActivate = i->index;
+	_active = account.get();
 	_active.current()->sessionValue(
 	) | rpl::start_to_stream(_activeSessions, _activeLifetime);
 

@@ -87,7 +87,7 @@ void Domain::startWithSingleAccount(
 		generateLocalKey();
 		account->start(account->prepareToStart(_localKey));
 	}
-	_owner->accountAddedInStorage(0, std::move(account));
+	_owner->accountAddedInStorage({ .account = std::move(account) });
 	writeAccounts();
 }
 
@@ -170,6 +170,7 @@ Domain::StartModernResult Domain::startModern(
 
 	auto tried = base::flat_set<int>();
 	auto users = base::flat_set<UserId>();
+	auto active = 0;
 	for (auto i = 0; i != count; ++i) {
 		auto index = qint32();
 		info.stream >> index;
@@ -184,12 +185,22 @@ Domain::StartModernResult Domain::startModern(
 			const auto userId = account->willHaveUserId();
 			if (!users.contains(userId)
 				&& (userId != 0 || (users.empty() && i + 1 == count))) {
+				if (users.empty()) {
+					active = index;
+				}
 				account->start(std::move(config));
-				_owner->accountAddedInStorage(index, std::move(account));
+				_owner->accountAddedInStorage({
+					.index = index,
+					.account = std::move(account)
+				});
 				users.emplace(userId);
 			}
 		}
 	}
+	if (!info.stream.atEnd()) {
+		info.stream >> active;
+	}
+	_owner->activateFromStorage(active);
 
 	Ensures(!users.empty());
 	return StartModernResult::Success;
@@ -208,18 +219,21 @@ void Domain::writeAccounts() {
 	key.writeData(_passcodeKeyEncrypted);
 
 	const auto &list = _owner->accounts();
-	const auto active = _owner->activeIndex();
 
 	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size();
 
+	const auto active = &_owner->active();
+	auto activeIndex = -1;
+
 	EncryptedDescriptor keyData(keySize);
 	keyData.stream << qint32(list.size());
-	keyData.stream << qint32(active);
 	for (const auto &[index, account] : list) {
-		if (index != active) {
-			keyData.stream << qint32(index);
+		if (active == account.get()) {
+			activeIndex = index;
 		}
+		keyData.stream << qint32(index);
 	}
+	keyData.stream << qint32(activeIndex);
 	key.writeEncrypted(keyData, _localKey);
 }
 

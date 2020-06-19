@@ -42,9 +42,6 @@ class Domain;
 } // namespace Storage
 
 namespace Window {
-namespace Notifications {
-class System;
-} // namespace Notifications
 class SessionController;
 } // namespace Window
 
@@ -106,9 +103,6 @@ public:
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
 	}
-	[[nodiscard]] Window::Notifications::System &notifications() const {
-		return *_notifications;
-	}
 	[[nodiscard]] Data::Changes &changes() const {
 		return *_changes;
 	}
@@ -168,9 +162,8 @@ private:
 	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
-	const std::unique_ptr<Window::Notifications::System> _notifications;
 
-	// _data depends on _downloader / _uploader / _notifications.
+	// _data depends on _downloader / _uploader.
 	const std::unique_ptr<Data::Changes> _changes;
 	const std::unique_ptr<Data::Session> _data;
 	const not_null<UserData*> _user;

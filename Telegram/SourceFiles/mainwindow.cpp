@@ -814,7 +814,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 	}
 	account().session().saveSettings();
 	using Change = Window::Notifications::ChangeType;
-	auto &changes = account().session().notifications().settingsChanged();
+	auto &changes = Core::App().notifications().settingsChanged();
 	changes.notify(Change::DesktopEnabled);
 	if (soundNotifyChanged) {
 		changes.notify(Change::SoundEnabled);

@@ -173,6 +173,7 @@ public:
 		bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(not_null<History*> history);
+	void clearFromSession(not_null<Main::Session*> session);
 	void updateDelegate();
 
 	~Private();
@@ -328,6 +329,10 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 	putClearTask(ClearFromHistory { history->peer->id });
 }
 
+void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
+	putClearTask(); // #TODO multi
+}
+
 void Manager::Private::updateDelegate() {
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	[center setDelegate:_delegate];
@@ -375,6 +380,10 @@ void Manager::doClearAllFast() {
 
 void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
+}
+
+void Manager::doClearFromSession(not_null<Main::Session*> session) {
+	_private->clearFromSession(session);
 }
 
 } // namespace Notifications

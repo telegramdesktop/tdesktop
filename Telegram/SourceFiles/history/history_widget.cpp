@@ -2423,7 +2423,7 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 	session().data().histories().readInboxOnNewMessage(item);
 
 	// Also clear possible scheduled messages notifications.
-	session().notifications().clearFromHistory(_history);
+	Core::App().notifications().clearFromHistory(_history);
 }
 
 void HistoryWidget::unreadCountUpdated() {

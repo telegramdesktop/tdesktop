@@ -191,7 +191,7 @@ void NotificationsCount::setCount(int count) {
 	if (count != Core::App().settings().notificationsCount()) {
 		Core::App().settings().setNotificationsCount(count);
 		Core::App().saveSettingsDelayed();
-		_controller->session().notifications().settingsChanged().notify(
+		Core::App().notifications().settingsChanged().notify(
 			ChangeType::MaxCount);
 	}
 }
@@ -355,7 +355,7 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
 		Global::SetNotificationsDemoIsShown(true);
-		_controller->session().notifications().settingsChanged().notify(
+		Core::App().notifications().settingsChanged().notify(
 			ChangeType::DemoIsShown);
 	}
 	_overCorner = corner;
@@ -391,7 +391,7 @@ void NotificationsCount::clearOverCorner() {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
 		Global::SetNotificationsDemoIsShown(false);
-		_controller->session().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
+		Core::App().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 
 		for_const (const auto &samples, _cornerSamples) {
 			for_const (const auto widget, samples) {
@@ -418,7 +418,7 @@ void NotificationsCount::mouseReleaseEvent(QMouseEvent *e) {
 		if (_chosenCorner != Core::App().settings().notificationsCorner()) {
 			Core::App().settings().setNotificationsCorner(_chosenCorner);
 			Core::App().saveSettingsDelayed();
-			_controller->session().notifications().settingsChanged().notify(
+			Core::App().notifications().settingsChanged().notify(
 				ChangeType::Corner);
 		}
 	}
@@ -685,7 +685,7 @@ void SetupNotificationsContent(
 	using Change = Window::Notifications::ChangeType;
 	const auto changed = [=](Change change) {
 		Core::App().saveSettingsDelayed();
-		session->notifications().settingsChanged().notify(change);
+		Core::App().notifications().settingsChanged().notify(change);
 	};
 	desktop->checkedChanges(
 	) | rpl::filter([](bool checked) {
@@ -758,7 +758,7 @@ void SetupNotificationsContent(
 	}, count->lifetime());
 
 	base::ObservableViewer(
-		session->notifications().settingsChanged()
+		Core::App().notifications().settingsChanged()
 	) | rpl::start_with_next([=](Change change) {
 		if (change == Change::DesktopEnabled) {
 			desktop->setChecked(Core::App().settings().desktopNotify());
@@ -785,7 +785,7 @@ void SetupNotificationsContent(
 		}) | rpl::start_with_next([=](bool checked) {
 			Core::App().settings().setNativeNotifications(checked);
 			Core::App().saveSettingsDelayed();
-			session->notifications().createManager();
+			Core::App().notifications().createManager();
 
 			if (advancedSlide) {
 				advancedSlide->toggle(

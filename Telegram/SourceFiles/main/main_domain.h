@@ -25,6 +25,11 @@ class Session;
 
 class Domain final {
 public:
+	struct AccountWithIndex {
+		int index = 0;
+		std::unique_ptr<Account> account;
+	};
+
 	static constexpr auto kMaxAccounts = 3;
 
 	explicit Domain(const QString &dataName);
@@ -40,11 +45,10 @@ public:
 	}
 
 	[[nodiscard]] auto accounts() const
-		-> const base::flat_map<int, std::unique_ptr<Account>> &;
+		-> const std::vector<AccountWithIndex> &;
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 
 	// Expects(started());
-	[[nodiscard]] int activeIndex() const;
 	[[nodiscard]] Account &active() const;
 	[[nodiscard]] rpl::producer<not_null<Account*>> activeChanges() const;
 
@@ -56,11 +60,12 @@ public:
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 	void notifyUnreadBadgeChanged();
 
-	[[nodiscard]] int add(MTP::Environment environment);
-	void activate(int index);
+	[[nodiscard]] not_null<Main::Account*> add(MTP::Environment environment);
+	void activate(not_null<Main::Account*> account);
 
 	// Interface for Storage::Domain.
-	void accountAddedInStorage(int index, std::unique_ptr<Account> account);
+	void accountAddedInStorage(AccountWithIndex accountWithIndex);
+	void activateFromStorage(int index);
 
 private:
 	void activateAfterStarting();
@@ -76,9 +81,9 @@ private:
 	const QString _dataName;
 	const std::unique_ptr<Storage::Domain> _local;
 
-	base::flat_map<int, std::unique_ptr<Account>> _accounts;
+	std::vector<AccountWithIndex> _accounts;
 	rpl::variable<Account*> _active = nullptr;
-	int _activeIndex = 0;
+	int _accountToActivate = -1;
 	bool _writeAccountsScheduled = false;
 
 	rpl::event_stream<Session*> _activeSessions;

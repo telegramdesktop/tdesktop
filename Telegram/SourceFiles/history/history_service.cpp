@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "core/application.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
@@ -355,7 +356,7 @@ bool HistoryService::updateDependent(bool force) {
 		updateDependentText();
 	}
 	if (force && gotDependencyItem) {
-		history()->session().notifications().checkDelayed();
+		Core::App().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }

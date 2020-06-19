@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "history/history.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 
 #include <QtCore/QVersionNumber>
@@ -201,7 +202,7 @@ QString GetImageKey(const QVersionNumber &specificationVersion) {
 	return QString();
 }
 
-}
+} // namespace
 
 NotificationData::NotificationData(
 		const base::weak_ptr<Manager> &manager,
@@ -210,6 +211,7 @@ NotificationData::NotificationData(
 		const QString &msg,
 		PeerId peerId,
 		MsgId msgId,
+		UserId selfId,
 		bool hideReplyButton)
 : _dbusConnection(QDBusConnection::sessionBus())
 , _manager(manager)
@@ -217,7 +219,8 @@ NotificationData::NotificationData(
 , _imageKey(GetImageKey(ParseSpecificationVersion(
 	GetServerInformation())))
 , _peerId(peerId)
-, _msgId(msgId) {
+, _msgId(msgId)
+, _selfId(selfId) {
 	const auto capabilities = GetCapabilities();
 
 	if (capabilities.contains(qsl("body-markup"))) {
@@ -374,11 +377,16 @@ void NotificationData::setImage(const QString &imagePath) {
 	_hints[_imageKey] = QVariant::fromValue(imageData);
 }
 
+NotificationData::NotificationId NotificationData::myId() const {
+	return { .peerId = _peerId, .msgId = _msgId, .selfId = _selfId };
+}
+
 void NotificationData::notificationClosed(uint id) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
+		const auto my = myId();
 		crl::on_main(manager, [=] {
-			manager->clearNotification(_peerId, _msgId);
+			manager->clearNotification(my);
 		});
 	}
 }
@@ -391,13 +399,15 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 	if (actionName == qsl("default")
 		|| actionName == qsl("mail-reply-sender")) {
 		const auto manager = _manager;
+		const auto my = myId();
 		crl::on_main(manager, [=] {
-			manager->notificationActivated(_peerId, _msgId);
+			manager->notificationActivated(my);
 		});
 	} else if (actionName == qsl("mail-mark-read")) {
 		const auto manager = _manager;
+		const auto my = myId();
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(_peerId, _msgId, {});
+			manager->notificationReplied(my, {});
 		});
 	}
 }
@@ -405,8 +415,9 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 void NotificationData::notificationReplied(uint id, const QString &text) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
+		const auto my = myId();
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(_peerId, _msgId, { text, {} });
+			manager->notificationReplied(my, { text, {} });
 		});
 	}
 }
@@ -530,6 +541,9 @@ void Manager::Private::showNotification(
 		bool hideReplyButton) {
 	if (!Supported()) return;
 
+	const auto peerId = peer->id;
+	const auto selfId = peer->session().userId();
+	const auto key = FullPeer{ peerId, selfId };
 	auto notification = std::make_shared<NotificationData>(
 		_manager,
 		title,
@@ -537,32 +551,38 @@ void Manager::Private::showNotification(
 		msg,
 		peer->id,
 		msgId,
+		peer->session().userId(),
 		hideReplyButton);
 
 	if (!hideNameAndPhoto) {
-		const auto key = peer->userpicUniqueKey(userpicView);
-		notification->setImage(_cachedUserpics.get(key, peer, userpicView));
+		const auto userpicKey = peer->userpicUniqueKey(userpicView);
+		notification->setImage(
+			_cachedUserpics.get(userpicKey, peer, userpicView));
 	}
 
-	auto i = _notifications.find(peer->id);
+	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto j = i->find(msgId);
-		if (j != i->cend()) {
-			auto oldNotification = j.value();
-			i->erase(j);
+		auto j = i->second.find(msgId);
+		if (j != i->second.end()) {
+			auto oldNotification = j->second;
+			i->second.erase(j);
 			oldNotification->close();
-			i = _notifications.find(peer->id);
+			i = _notifications.find(key);
 		}
 	}
 	if (i == _notifications.cend()) {
-		i = _notifications.insert(peer->id, QMap<MsgId, Notification>());
+		i = _notifications.emplace(
+			key,
+			base::flat_map<MsgId, Notification>()).first;
 	}
-	_notifications[peer->id].insert(msgId, notification);
+	i->second.emplace(msgId, notification);
 	if (!notification->show()) {
-		i = _notifications.find(peer->id);
+		i = _notifications.find(key);
 		if (i != _notifications.cend()) {
-			i->remove(msgId);
-			if (i->isEmpty()) _notifications.erase(i);
+			i->second.remove(msgId);
+			if (i->empty()) {
+				_notifications.erase(i);
+			}
 		}
 	}
 }
@@ -570,9 +590,8 @@ void Manager::Private::showNotification(
 void Manager::Private::clearAll() {
 	if (!Supported()) return;
 
-	auto temp = base::take(_notifications);
-	for_const (auto &notifications, temp) {
-		for_const (auto notification, notifications) {
+	for (const auto &[key, notifications] : base::take(_notifications)) {
+		for (const auto &[msgId, notification] : notifications) {
 			notification->close();
 		}
 	}
@@ -581,24 +600,43 @@ void Manager::Private::clearAll() {
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!Supported()) return;
 
-	auto i = _notifications.find(history->peer->id);
+	const auto key = FullPeer{
+		history->peer->id,
+		history->session().userId()
+	};
+	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto temp = base::take(i.value());
+		const auto temp = base::take(i->second);
 		_notifications.erase(i);
 
-		for_const (auto notification, temp) {
+		for (const auto &[msgId, notification] : temp) {
 			notification->close();
 		}
 	}
 }
 
-void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
+void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	if (!Supported()) return;
 
-	auto i = _notifications.find(peerId);
+	const auto selfId = session->userId();
+	for (auto i = _notifications.begin(); i != _notifications.end();) {
+		if (i->first.second == selfId) {
+			const auto temp = base::take(i->second);
+			i = _notifications.erase(i);
+
+			for (const auto &[msgId, notification] : temp) {
+				notification->close();
+			}
+		}
+	}
+}
+
+void Manager::Private::clearNotification(NotificationId id) {
+	if (!Supported()) return;
+
+	auto i = _notifications.find(FullPeer{ id.peerId, id.selfId });
 	if (i != _notifications.cend()) {
-		i.value().remove(msgId);
-		if (i.value().isEmpty()) {
+		if (i->second.remove(id.msgId) && i->second.empty()) {
 			_notifications.erase(i);
 		}
 	}
@@ -613,8 +651,8 @@ Manager::Manager(not_null<Window::Notifications::System*> system)
 , _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
 }
 
-void Manager::clearNotification(PeerId peerId, MsgId msgId) {
-	_private->clearNotification(peerId, msgId);
+void Manager::clearNotification(NotificationId id) {
+	_private->clearNotification(id);
 }
 
 Manager::~Manager() = default;
@@ -645,6 +683,10 @@ void Manager::doClearAllFast() {
 
 void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
+}
+
+void Manager::doClearFromSession(not_null<Main::Session*> session) {
+	_private->clearFromSession(session);
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 

@@ -1110,7 +1110,7 @@ void Session::setupUserIsContactViewer() {
 
 Session::~Session() {
 	// Optimization: clear notifications before destroying items.
-	_session->notifications().clearAllFast();
+	Core::App().notifications().clearFromSession(_session);
 	clearLocalStorage();
 }
 
@@ -1980,7 +1980,7 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 		_mutedPeers.emplace(peer);
 		unmuteByFinishedDelayed(changesIn);
 		if (history) {
-			_session->notifications().clearIncomingFromHistory(history);
+			Core::App().notifications().clearIncomingFromHistory(history);
 		}
 	} else {
 		_mutedPeers.erase(peer);
@@ -3488,7 +3488,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		}
 	}
 	if (const auto history = key.history()) {
-		session().notifications().clearFromHistory(history);
+		Core::App().notifications().clearFromHistory(history);
 	}
 }
 

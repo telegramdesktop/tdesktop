@@ -99,6 +99,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
+, _notifications(std::make_unique<Window::Notifications::System>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -114,6 +115,11 @@ Application::Application(not_null<Launcher*> launcher)
 	passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		_shouldLockAt = 0;
+	}, _lifetime);
+
+	passcodeLockChanges(
+	) | rpl::start_with_next([=] {
+		_notifications->updateAll();
 	}, _lifetime);
 
 	_domain->activeSessionChanges(

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
-#include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 //#include "platform/platform_specific.h"
@@ -75,7 +74,6 @@ Session::Session(
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
-, _notifications(std::make_unique<Window::Notifications::System>(this))
 , _changes(std::make_unique<Data::Changes>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _user(_data->processUser(user))
@@ -84,11 +82,6 @@ Session::Session(
 , _supportHelper(Support::Helper::Create(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
-
-	Core::App().lockChanges(
-	) | rpl::start_with_next([=] {
-		notifications().updateAll();
-	}, _lifetime);
 
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		_api->refreshTopPromotion();

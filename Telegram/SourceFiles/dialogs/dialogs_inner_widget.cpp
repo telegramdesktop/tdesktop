@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
@@ -133,7 +134,7 @@ InnerWidget::InnerWidget(
 
 	subscribe(session().downloaderTaskFinished(), [=] { update(); });
 
-	subscribe(session().notifications().settingsChanged(), [=](
+	subscribe(Core::App().notifications().settingsChanged(), [=](
 			Window::Notifications::ChangeType change) {
 		if (change == Window::Notifications::ChangeType::CountMessages) {
 			// Folder rows change their unread badge with this setting.

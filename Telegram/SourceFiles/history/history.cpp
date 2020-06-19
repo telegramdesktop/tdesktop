@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
+#include "core/application.h"
 #include "base/unixtime.h"
 #include "styles/style_dialogs.h"
 
@@ -671,7 +672,7 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	}
 
 	owner().unregisterMessage(item);
-	session().notifications().clearFromItem(item);
+	Core::App().notifications().clearFromItem(item);
 
 	auto hack = std::unique_ptr<HistoryItem>(item.get());
 	const auto i = _messages.find(hack);
@@ -1290,7 +1291,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		owner().notifyUnreadItemAdded(item);
 		const auto stillShow = item->showNotification();
 		if (stillShow) {
-			session().notifications().schedule(item);
+			Core::App().notifications().schedule(item);
 			if (!item->out() && item->unread()) {
 				if (unreadCountKnown()) {
 					setUnreadCount(unreadCount() + 1);
@@ -1741,7 +1742,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	}
 
 	_firstUnreadView = nullptr;
-	session().notifications().clearIncomingFromHistory(this);
+	Core::App().notifications().clearIncomingFromHistory(this);
 }
 
 void History::inboxRead(not_null<const HistoryItem*> wasRead) {

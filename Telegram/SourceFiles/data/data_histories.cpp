@@ -165,7 +165,7 @@ void Histories::readInboxTill(
 		}
 	});
 
-	history->session().notifications().clearIncomingFromHistory(history);
+	Core::App().notifications().clearIncomingFromHistory(history);
 
 	const auto needsRequest = history->readInboxTillNeedsRequest(tillId);
 	if (!needsRequest && !force) {

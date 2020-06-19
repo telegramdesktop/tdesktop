@@ -64,7 +64,10 @@ class Manager;
 
 class System final : private base::Subscriber {
 public:
-	explicit System(not_null<Main::Session*> session);
+	System();
+	~System();
+
+	[[nodiscard]] Main::Session *findSession(UserId selfId) const;
 
 	void createManager();
 
@@ -72,6 +75,7 @@ public:
 	void schedule(not_null<HistoryItem*> item);
 	void clearFromHistory(not_null<History*> history);
 	void clearIncomingFromHistory(not_null<History*> history);
+	void clearFromSession(not_null<Main::Session*> session);
 	void clearFromItem(not_null<HistoryItem*> item);
 	void clearAll();
 	void clearAllFast();
@@ -80,12 +84,6 @@ public:
 	base::Observable<ChangeType> &settingsChanged() {
 		return _settingsChanged;
 	}
-
-	Main::Session &session() const {
-		return *_session;
-	}
-
-	~System();
 
 private:
 	struct SkipState {
@@ -97,34 +95,29 @@ private:
 		Value value = Value::Unknown;
 		bool silent = false;
 	};
+	struct Waiter {
+		MsgId msg;
+		crl::time when;
+		PeerData *notifyBy = nullptr;
+	};
 
-	SkipState skipNotification(not_null<HistoryItem*> item) const;
+	[[nodiscard]] SkipState skipNotification(
+		not_null<HistoryItem*> item) const;
 
 	void showNext();
 	void showGrouped();
 	void ensureSoundCreated();
 
-	not_null<Main::Session*> _session;
+	base::flat_map<
+		not_null<History*>,
+		base::flat_map<MsgId, crl::time>> _whenMaps;
 
-	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
-
-	struct Waiter {
-		Waiter(MsgId msg, crl::time when, PeerData *notifyBy)
-		: msg(msg)
-		, when(when)
-		, notifyBy(notifyBy) {
-		}
-		MsgId msg;
-		crl::time when;
-		PeerData *notifyBy;
-	};
-	using Waiters = QMap<History*, Waiter>;
-	Waiters _waiters;
-	Waiters _settingWaiters;
+	base::flat_map<not_null<History*>, Waiter> _waiters;
+	base::flat_map<not_null<History*>, Waiter> _settingWaiters;
 	base::Timer _waitTimer;
 	base::Timer _waitForAllGroupedTimer;
 
-	QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
+	base::flat_map<not_null<History*>, base::flat_map<crl::time, PeerData*>> _whenAlerts;
 
 	std::unique_ptr<Manager> _manager;
 
@@ -133,12 +126,28 @@ private:
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
 
 	int _lastForwardedCount = 0;
+	UserId _lastHistorySelfId = 0;
 	FullMsgId _lastHistoryItemId;
 
 };
 
 class Manager {
 public:
+	struct NotificationId {
+		PeerId peerId = 0;
+		MsgId msgId = 0;
+		UserId selfId = 0;
+	};
+	struct FullPeer {
+		PeerId peerId = 0;
+		UserId selfId = 0;
+
+		friend inline bool operator<(const FullPeer &a, const FullPeer &b) {
+			return std::tie(a.peerId, a.selfId)
+				< std::tie(b.peerId, b.selfId);
+		}
+	};
+
 	explicit Manager(not_null<System*> system) : _system(system) {
 	}
 
@@ -162,19 +171,20 @@ public:
 	void clearFromHistory(not_null<History*> history) {
 		doClearFromHistory(history);
 	}
+	void clearFromSession(not_null<Main::Session*> session) {
+		doClearFromSession(session);
+	}
 
-	void notificationActivated(PeerId peerId, MsgId msgId);
-	void notificationReplied(
-		PeerId peerId,
-		MsgId msgId,
-		const TextWithTags &reply);
+	void notificationActivated(NotificationId id);
+	void notificationReplied(NotificationId id, const TextWithTags &reply);
 
 	struct DisplayOptions {
-		bool hideNameAndPhoto;
-		bool hideMessageText;
-		bool hideReplyButton;
+		bool hideNameAndPhoto = false;
+		bool hideMessageText = false;
+		bool hideReplyButton = false;
 	};
-	static DisplayOptions getNotificationOptions(HistoryItem *item);
+	[[nodiscard]] static DisplayOptions GetNotificationOptions(
+		HistoryItem *item);
 
 	virtual ~Manager() = default;
 
@@ -191,9 +201,10 @@ protected:
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
-	virtual void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
+	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
+	virtual void onBeforeNotificationActivated(NotificationId id) {
 	}
-	virtual void onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
+	virtual void onAfterNotificationActivated(NotificationId id) {
 	}
 
 private:

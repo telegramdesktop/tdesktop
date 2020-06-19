@@ -24,6 +24,8 @@ class NotificationData : public QObject {
 	Q_OBJECT
 
 public:
+	using NotificationId = Window::Notifications::Manager::NotificationId;
+
 	NotificationData(
 		const base::weak_ptr<Manager> &manager,
 		const QString &title,
@@ -31,6 +33,7 @@ public:
 		const QString &msg,
 		PeerId peerId,
 		MsgId msgId,
+		UserId selfId,
 		bool hideReplyButton);
 
 	NotificationData(const NotificationData &other) = delete;
@@ -50,6 +53,8 @@ public:
 	};
 
 private:
+	[[nodiscard]] NotificationId myId() const;
+
 	QDBusConnection _dbusConnection;
 	base::weak_ptr<Manager> _manager;
 
@@ -59,9 +64,10 @@ private:
 	QVariantMap _hints;
 	QString _imageKey;
 
-	uint _notificationId;
-	PeerId _peerId;
-	MsgId _msgId;
+	uint _notificationId = 0;
+	PeerId _peerId = 0;
+	MsgId _msgId = 0;
+	UserId _selfId = 0;
 
 private slots:
 	void notificationClosed(uint id);
@@ -84,7 +90,7 @@ class Manager
 	, public base::has_weak_ptr {
 public:
 	Manager(not_null<Window::Notifications::System*> system);
-	void clearNotification(PeerId peerId, MsgId msgId);
+	void clearNotification(NotificationId id);
 	~Manager();
 
 protected:
@@ -99,6 +105,7 @@ protected:
 		bool hideReplyButton) override;
 	void doClearAllFast() override;
 	void doClearFromHistory(not_null<History*> history) override;
+	void doClearFromSession(not_null<Main::Session*> session) override;
 
 private:
 	class Private;
@@ -122,13 +129,15 @@ public:
 		bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(not_null<History*> history);
-	void clearNotification(PeerId peerId, MsgId msgId);
+	void clearFromSession(not_null<Main::Session*> session);
+	void clearNotification(NotificationId id);
 
 	~Private();
 
 private:
-	using Notifications = QMap<PeerId, QMap<MsgId, Notification>>;
-	Notifications _notifications;
+	base::flat_map<
+		FullPeer,
+		base::flat_map<MsgId, Notification>> _notifications;
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
 	base::weak_ptr<Manager> _manager;

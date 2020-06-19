@@ -150,11 +150,8 @@ auto GenerateCodes() {
 				SessionController *window) {
 			crl::on_main(&Core::App(), [=] {
 				const auto &list = Core::App().domain().accounts();
-				const auto j = list.find(i);
-				if (j != list.end() && !Core::App().locked()) {
-					if (&Core::App().activeAccount() != j->second.get()) {
-						Core::App().domain().activate(i);
-					}
+				if (i < list.size()) {
+					Core::App().domain().activate(list[i].account.get());
 				}
 			});
 		});

@@ -27,6 +27,12 @@ struct TermsLock;
 class Controller;
 } // namespace Window
 
+namespace Window {
+namespace Notifications {
+class System;
+} // namespace Notifications
+} // namespace Window
+
 namespace ChatHelpers {
 class EmojiKeywords;
 } // namespace ChatHelpers
@@ -100,6 +106,9 @@ public:
 
 	[[nodiscard]] Ui::Animations::Manager &animationManager() const {
 		return *_animationsManager;
+	}
+	[[nodiscard]] Window::Notifications::System &notifications() const {
+		return *_notifications;
 	}
 
 	// Windows interface.
@@ -294,6 +303,10 @@ private:
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
 
 	const std::unique_ptr<Media::Audio::Instance> _audio;
+
+	// Notifications should be destroyed before _audio.
+	const std::unique_ptr<Window::Notifications::System> _notifications;
+
 	const QImage _logo;
 	const QImage _logoNoMargin;
 

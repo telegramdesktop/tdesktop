@@ -67,11 +67,6 @@ std::unique_ptr<Manager> Create(System *system) {
 Manager::Manager(System *system)
 : Notifications::Manager(system)
 , _inputCheckTimer([=] { checkLastInput(); }) {
-	subscribe(system->session().downloaderTaskFinished(), [this] {
-		for (const auto &notification : _notifications) {
-			notification->updatePeerPhoto();
-		}
-	});
 	subscribe(system->settingsChanged(), [this](ChangeType change) {
 		settingsChanged(change);
 	});
@@ -212,7 +207,8 @@ void Manager::showNextFromQueue() {
 		auto queued = _queuedNotifications.front();
 		_queuedNotifications.pop_front();
 
-		auto notification = std::make_unique<Notification>(
+		subscribeToSession(&queued.history->session());
+		_notifications.push_back(std::make_unique<Notification>(
 			this,
 			queued.history,
 			queued.peer,
@@ -222,13 +218,38 @@ void Manager::showNextFromQueue() {
 			queued.fromScheduled,
 			startPosition,
 			startShift,
-			shiftDirection);
-		_notifications.push_back(std::move(notification));
+			shiftDirection));
 		--count;
 	} while (count > 0 && !_queuedNotifications.empty());
 
 	_positionsOutdated = true;
 	checkLastInput();
+}
+
+void Manager::subscribeToSession(not_null<Main::Session*> session) {
+	auto i = _subscriptions.find(session);
+	if (i == _subscriptions.end()) {
+		i = _subscriptions.emplace(session, base::Subscription()).first;
+		session->lifetime().add([=] {
+			_subscriptions.remove(session);
+		});
+	} else if (i->second) {
+		return;
+	}
+	i->second = session->downloaderTaskFinished().add_subscription([=] {
+		auto found = false;
+		for (const auto &notification : _notifications) {
+			if (const auto history = notification->maybeHistory()) {
+				if (&history->session() == session) {
+					notification->updatePeerPhoto();
+					found = true;
+				}
+			}
+		}
+		if (!found) {
+			_subscriptions[session].destroy();
+		}
+	});
 }
 
 void Manager::moveWidgets() {
@@ -334,8 +355,24 @@ void Manager::doClearFromHistory(not_null<History*> history) {
 			++i;
 		}
 	}
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		if (notification->unlinkHistory(history)) {
+			_positionsOutdated = true;
+		}
+	}
+	showNextFromQueue();
+}
+
+void Manager::doClearFromSession(not_null<Main::Session*> session) {
+	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.cend();) {
+		if (&i->history->session() == session) {
+			i = _queuedNotifications.erase(i);
+		} else {
+			++i;
+		}
+	}
+	for (const auto &notification : _notifications) {
+		if (notification->unlinkSession(session)) {
 			_positionsOutdated = true;
 		}
 	}
@@ -678,7 +715,7 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || (!_item && _forwardedCount < 2)) return;
 
-	const auto options = Manager::getNotificationOptions(_item);
+	const auto options = Manager::GetNotificationOptions(_item);
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();
@@ -832,7 +869,7 @@ bool Notification::unlinkItem(HistoryItem *deleted) {
 bool Notification::canReply() const {
 	return !_hideReplyButton
 		&& (_item != nullptr)
-		&& !Core::App().locked()
+		&& !Core::App().passcodeLocked()
 		&& (Core::App().settings().notifyView() <= dbinvShowPreview);
 }
 
@@ -901,14 +938,21 @@ void Notification::showReplyField() {
 void Notification::sendReply() {
 	if (!_history) return;
 
-	auto peerId = _history->peer->id;
-	auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
 	manager()->notificationReplied(
-		peerId,
-		msgId,
+		myId(),
 		_replyArea->getTextWithAppliedMarkdown());
 
 	manager()->startAllHiding();
+}
+
+Notifications::Manager::NotificationId Notification::myId() const {
+	if (!_history) {
+		return {};
+	}
+	const auto selfId = _history->session().userId();
+	const auto peerId = _history->peer->id;
+	const auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
+	return { .peerId = peerId, .msgId = msgId, .selfId = selfId };
 }
 
 void Notification::changeHeight(int newHeight) {
@@ -917,6 +961,16 @@ void Notification::changeHeight(int newHeight) {
 
 bool Notification::unlinkHistory(History *history) {
 	const auto unlink = _history && (history == _history || !history);
+	if (unlink) {
+		hideFast();
+		_history = nullptr;
+		_item = nullptr;
+	}
+	return unlink;
+}
+
+bool Notification::unlinkSession(not_null<Main::Session*> session) {
+	const auto unlink = _history && (&_history->session() == session);
 	if (unlink) {
 		hideFast();
 		_history = nullptr;
@@ -951,9 +1005,7 @@ void Notification::mousePressEvent(QMouseEvent *e) {
 		unlinkHistoryInManager();
 	} else {
 		e->ignore();
-		auto peerId = _history->peer->id;
-		auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
-		manager()->notificationActivated(peerId, msgId);
+		manager()->notificationActivated(myId());
 	}
 }
 
