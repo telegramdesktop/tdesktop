@@ -552,7 +552,11 @@ QString Manager::addTargetAccountName(
 		const QString &title,
 		not_null<Main::Session*> session) {
 	return (Core::App().domain().accounts().size() > 1)
-		? (title + accountNameSeparator() + session->user()->name)
+		? (title
+			+ accountNameSeparator()
+			+ (session->user()->username.isEmpty()
+				? session->user()->name
+				: session->user()->username))
 		: title;
 }
 

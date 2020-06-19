@@ -47,7 +47,11 @@ TitleWidget::TitleWidget(QWidget *parent)
 }
 
 void TitleWidget::init() {
-	connect(window()->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
+	connect(
+		window()->windowHandle(),
+		&QWindow::windowStateChanged,
+		this,
+		[=](Qt::WindowState state) { windowStateChanged(state); });
 	_maximizedState = (window()->windowState() & Qt::WindowMaximized);
 	_activeState = isActiveWindow();
 	updateButtonsState();
@@ -74,15 +78,12 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	_shadow->setGeometry(0, height() - st::lineWidth, width(), st::lineWidth);
 }
 
-void TitleWidget::updateControlsVisibility() {
-	updateControlsPosition();
-	update();
-}
+void TitleWidget::windowStateChanged(Qt::WindowState state) {
+	if (state == Qt::WindowMinimized) {
+		return;
+	}
 
-void TitleWidget::onWindowStateChanged(Qt::WindowState state) {
-	if (state == Qt::WindowMinimized) return;
-
-	auto maximized = (state == Qt::WindowMaximized);
+	const auto maximized = (state == Qt::WindowMaximized);
 	if (_maximizedState != maximized) {
 		_maximizedState = maximized;
 		updateButtonsState();

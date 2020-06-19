@@ -30,25 +30,21 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 
 namespace Platform {
 
-class TitleWidget : public Window::TitleWidget, private base::Subscriber {
-	Q_OBJECT
-
+class TitleWidget : public Window::TitleWidget {
 public:
 	TitleWidget(QWidget *parent);
 
 	void init() override;
 
-	Window::HitTestResult hitTest(const QPoint &p) const override;
-
-public slots:
-	void onWindowStateChanged(Qt::WindowState state = Qt::WindowNoState);
-	void updateControlsVisibility();
+	[[nodiscard]] Window::HitTestResult hitTest(
+		const QPoint &p) const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void windowStateChanged(Qt::WindowState state = Qt::WindowNoState);
 	void updateButtonsState();
 	void updateControlsPosition();
 
