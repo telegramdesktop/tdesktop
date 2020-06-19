@@ -137,11 +137,6 @@ void applyReadContext(ReadSettingsContext &&context) {
 	_useGlobalBackgroundKeys = context.backgroundKeysRead;
 	_langPackKey = context.langPackKey;
 	_languagesKey = context.languagesKey;
-
-	if (context.tileRead && _useGlobalBackgroundKeys) {
-		Window::Theme::Background()->setTileDayValue(context.tileDay);
-		Window::Theme::Background()->setTileNightValue(context.tileNight);
-	}
 }
 
 bool _readOldSettings(bool remove, ReadSettingsContext &context) {
@@ -411,6 +406,12 @@ void start() {
 	applyReadContext(std::move(context));
 
 	InitialLoadTheme();
+
+	if (context.tileRead && _useGlobalBackgroundKeys) {
+		Window::Theme::Background()->setTileDayValue(context.tileDay);
+		Window::Theme::Background()->setTileNightValue(context.tileNight);
+	}
+
 	readLangPack();
 }
 
@@ -795,6 +796,8 @@ void reset() {
 
 	Window::Theme::Background()->reset();
 	_oldSettingsVersion = 0;
+	Core::App().settings().resetOnLastLogout();
+	writeSettings();
 }
 
 int32 oldSettingsVersion() {

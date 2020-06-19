@@ -357,6 +357,8 @@ public:
 		return (std::clamp(speed, 0, 6) + 2) / 4.;
 	}
 
+	void resetOnLastLogout();
+
 private:
 	bool _adaptiveForWide = true;
 	bool _moderateModeEnabled = false;

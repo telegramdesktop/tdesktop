@@ -913,6 +913,7 @@ void ChatBackground::reset() {
 		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 	}
+	writeNewBackgroundSettings();
 }
 
 void ChatBackground::saveForRevert() {

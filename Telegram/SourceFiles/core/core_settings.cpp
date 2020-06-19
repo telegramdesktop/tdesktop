@@ -289,4 +289,55 @@ QString Settings::getSoundPath(const QString &key) const {
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
+void Settings::resetOnLastLogout() {
+	_adaptiveForWide = true;
+	_moderateModeEnabled = false;
+
+	_songVolume = kDefaultVolume;
+	_videoVolume = kDefaultVolume;
+
+	_askDownloadPath = false;
+	_downloadPath = QString();
+	_downloadPathBookmark = QByteArray();
+
+	_voiceMsgPlaybackDoubled = false;
+	_soundNotify = true;
+	_desktopNotify = true;
+	_flashBounceNotify = true;
+	_notifyView = dbinvShowPreview;
+	//_nativeNotifications = false;
+	//_notificationsCount = 3;
+	//_notificationsCorner = ScreenCorner::BottomRight;
+	_includeMutedCounter = true;
+	_countUnreadMessages = true;
+	_notifyAboutPinned = true;
+	//_autoLock = 3600;
+
+	//_callOutputDeviceID = u"default"_q;
+	//_callInputDeviceID = u"default"_q;
+	//_callOutputVolume = 100;
+	//_callInputVolume = 100;
+	//_callAudioDuckingEnabled = true;
+
+	//_themesAccentColors = Window::Theme::AccentColors();
+
+	_lastSeenWarningSeen = false;
+	_sendFilesWay = SendFilesWay::Album;
+	//_sendSubmitWay = Ui::InputSubmitSettings::Enter;
+	_soundOverrides = {};
+
+	_exeLaunchWarning = true;
+	_loopAnimatedStickers = true;
+	_largeEmoji = true;
+	_replaceEmoji = true;
+	_suggestEmoji = true;
+	_suggestStickersByEmoji = true;
+	_spellcheckerEnabled = true;
+	_videoPlaybackSpeed = 1.;
+	//_videoPipGeometry = QByteArray();
+	_dictionariesEnabled = std::vector<int>();
+	_autoDownloadDictionaries = true;
+
+}
+
 } // namespace Core
