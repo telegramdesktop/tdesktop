@@ -174,7 +174,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 		}
 		session->data().removeWallpaper(paper);
 		session->api().request(MTPaccount_SaveWallPaper(
-			paper.mtpInput(),
+			paper.mtpInput(session),
 			MTP_bool(true),
 			paper.mtpSettings()
 		)).send();

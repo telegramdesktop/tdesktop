@@ -71,9 +71,6 @@ public:
 	void writeMtpData();
 	void writeMtpConfig();
 
-	void writeBackground(const Data::WallPaper &paper, const QImage &image);
-	bool readBackground();
-
 	void writeDrafts(not_null<History*> history);
 	void writeDrafts(
 		const PeerId &peer,
@@ -232,8 +229,8 @@ private:
 	FileKey _archivedStickersKey = 0;
 	FileKey _savedGifsKey = 0;
 	FileKey _recentStickersKeyOld = 0;
-	FileKey _backgroundKeyDay = 0;
-	FileKey _backgroundKeyNight = 0;
+	FileKey _legacyBackgroundKeyDay = 0;
+	FileKey _legacyBackgroundKeyNight = 0;
 	FileKey _settingsKey = 0;
 	FileKey _recentHashtagsAndBotsKey = 0;
 	FileKey _exportSettingsKey = 0;
@@ -245,7 +242,6 @@ private:
 
 	base::flat_set<uint64> _trustedBots;
 	bool _trustedBotsRead = false;
-	bool _backgroundCanWrite = true;
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;
 

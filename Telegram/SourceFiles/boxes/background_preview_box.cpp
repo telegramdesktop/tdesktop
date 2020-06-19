@@ -506,7 +506,7 @@ void BackgroundPreviewBox::apply() {
 	_controller->content()->setChatBackground(_paper, std::move(_full));
 	if (install) {
 		_controller->session().api().request(MTPaccount_InstallWallPaper(
-			_paper.mtpInput(),
+			_paper.mtpInput(&_controller->session()),
 			_paper.mtpSettings()
 		)).send();
 	}

@@ -577,6 +577,16 @@ bool ReadSetting(
 		Window::Theme::SetNightModeValue(nightMode == 1);
 	} break;
 
+	case dbiBackgroundKey: {
+		quint64 keyDay = 0, keyNight = 0;
+		stream >> keyDay >> keyNight;
+		if (!CheckStreamStatus(stream)) return false;
+
+		context.backgroundKeyDay = keyDay;
+		context.backgroundKeyNight = keyNight;
+		context.backgroundKeysRead = true;
+	} break;
+
 	case dbiLangPackKey: {
 		quint64 langPackKey = 0;
 		stream >> langPackKey;
@@ -733,14 +743,15 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		bool tile = (version < 8005 && !context.hasCustomDayBackground)
+		bool tile = (version < 8005 && !context.legacyHasCustomDayBackground)
 			? false
 			: (v == 1);
 		if (Window::Theme::IsNightMode()) {
-			context.tileNight = tile;
-		} else {
 			context.tileDay = tile;
+		} else {
+			context.tileNight = tile;
 		}
+		context.tileRead = true;
 	} break;
 
 	case dbiTileBackground: {
@@ -748,8 +759,9 @@ bool ReadSetting(
 		stream >> tileDay >> tileNight;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.tileDay = (tileDay == 1);
-		context.tileNight = (tileNight == 1);
+		context.tileDay = tileDay;
+		context.tileNight = tileNight;
+		context.tileRead = true;
 	} break;
 
 	case dbiAdaptiveForWideOld: {

@@ -28,7 +28,7 @@ struct ReadSettingsContext {
 	}
 
 	// This field is read in ReadSetting.
-	bool hasCustomDayBackground = false;
+	bool legacyHasCustomDayBackground = false;
 
 	// Those fields are written in ReadSetting.
 	MTP::DcOptions fallbackConfigLegacyDcOptions
@@ -51,6 +51,12 @@ struct ReadSettingsContext {
 	FileKey themeKeyLegacy = 0;
 	FileKey themeKeyDay = 0;
 	FileKey themeKeyNight = 0;
+	FileKey backgroundKeyDay = 0;
+	FileKey backgroundKeyNight = 0;
+	bool backgroundKeysRead = false;
+	bool tileDay = false;
+	bool tileNight = true;
+	bool tileRead = false;
 	FileKey langPackKey = 0;
 	FileKey languagesKey = 0;
 
@@ -58,9 +64,6 @@ struct ReadSettingsContext {
 	std::vector<std::shared_ptr<MTP::AuthKey>> mtpLegacyKeys;
 	qint32 mtpLegacyMainDcId = 0;
 	qint32 mtpLegacyUserId = 0;
-
-	bool tileDay = false;
-	bool tileNight = true;
 };
 
 [[nodiscard]] bool ReadSetting(
@@ -159,6 +162,7 @@ enum {
 	dbiApplicationSettings = 0x5e,
 	dbiDialogsFiltersOld = 0x5f,
 	dbiFallbackProductionConfig = 0x60,
+	dbiBackgroundKey = 0x61,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

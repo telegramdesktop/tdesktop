@@ -41,15 +41,29 @@ namespace Export {
 struct Settings;
 } // namespace Export
 
+namespace MTP {
+class AuthKey;
+using AuthKeyPtr = std::shared_ptr<AuthKey>;
+} // namespace MTP
+
 namespace Local {
 
 void start();
 void finish();
 
 void writeSettings();
+void rewriteSettingsIfNeeded();
 
 void writeAutoupdatePrefix(const QString &prefix);
 QString readAutoupdatePrefix();
+
+void writeBackground(const Data::WallPaper &paper, const QImage &image);
+bool readBackground();
+void moveLegacyBackground(
+	const QString &fromBasePath,
+	const MTP::AuthKeyPtr &fromLocalKey,
+	uint64 legacyBackgroundKeyDay,
+	uint64 legacyBackgroundKeyNight);
 
 void reset();
 

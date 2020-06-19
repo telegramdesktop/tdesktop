@@ -43,6 +43,11 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 
+constexpr auto kSavedBackgroundFormat = QImage::Format_ARGB32_Premultiplied;
+constexpr auto kWallPaperLegacySerializeTagId = int32(-111);
+constexpr auto kWallPaperSerializeTagId = int32(-112);
+constexpr auto kWallPaperSidesLimit = 10'000;
+
 const auto kThemeNewPathRelativeTag = qstr("special://new_tag");
 
 using namespace Storage::details;
@@ -70,7 +75,14 @@ FileKey _themeKeyLegacy = 0;
 FileKey _langPackKey = 0;
 FileKey _languagesKey = 0;
 
+FileKey _backgroundKeyDay = 0;
+FileKey _backgroundKeyNight = 0;
+bool _useGlobalBackgroundKeys = false;
+bool _backgroundCanWrite = true;
+bool _backgroundMigrated = false;
+
 int32 _oldSettingsVersion = 0;
+bool _settingsRewritten;
 
 enum class WriteMapWhen {
 	Now,
@@ -120,8 +132,16 @@ void applyReadContext(ReadSettingsContext &&context) {
 	_themeKeyLegacy = context.themeKeyLegacy;
 	_themeKeyDay = context.themeKeyDay;
 	_themeKeyNight = context.themeKeyNight;
+	_backgroundKeyDay = context.backgroundKeyDay;
+	_backgroundKeyNight = context.backgroundKeyNight;
+	_useGlobalBackgroundKeys = context.backgroundKeysRead;
 	_langPackKey = context.langPackKey;
 	_languagesKey = context.languagesKey;
+
+	if (context.tileRead && _useGlobalBackgroundKeys) {
+		Window::Theme::Background()->setTileDayValue(context.tileDay);
+		Window::Theme::Background()->setTileNightValue(context.tileNight);
+	}
 }
 
 bool _readOldSettings(bool remove, ReadSettingsContext &context) {
@@ -436,6 +456,7 @@ void writeSettings() {
 
 	// Theme keys and night mode.
 	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
+	size += sizeof(quint32) + sizeof(quint64) * 2;
 	if (_langPackKey) {
 		size += sizeof(quint32) + sizeof(quint64);
 	}
@@ -471,6 +492,16 @@ void writeSettings() {
 		<< quint64(_themeKeyDay)
 		<< quint64(_themeKeyNight)
 		<< quint32(Window::Theme::IsNightMode() ? 1 : 0);
+	if (_useGlobalBackgroundKeys) {
+		data.stream
+			<< quint32(dbiBackgroundKey)
+			<< quint64(_backgroundKeyDay)
+			<< quint64(_backgroundKeyNight);
+		data.stream
+			<< quint32(dbiTileBackground)
+			<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
+			<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
+	}
 	if (_langPackKey) {
 		data.stream << quint32(dbiLangPackKey) << quint64(_langPackKey);
 	}
@@ -485,6 +516,15 @@ void writeSettings() {
 	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
 
 	settings.writeEncrypted(data, SettingsKey);
+}
+
+void rewriteSettingsIfNeeded() {
+	if (_settingsRewritten
+		|| (_oldSettingsVersion == AppVersion && !_backgroundMigrated)) {
+		return;
+	}
+	_settingsRewritten = true;
+	writeSettings();
 }
 
 const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
@@ -545,6 +585,207 @@ QString readAutoupdatePrefix() {
 
 	auto result = readAutoupdatePrefixRaw();
 	return result.replace(QRegularExpression("/+$"), QString());
+}
+
+void writeBackground(const Data::WallPaper &paper, const QImage &image) {
+	if (!_backgroundCanWrite) {
+		return;
+	}
+
+	_useGlobalBackgroundKeys = true;
+	auto &backgroundKey = Window::Theme::IsNightMode()
+		? _backgroundKeyNight
+		: _backgroundKeyDay;
+	auto imageData = QByteArray();
+	if (!image.isNull()) {
+		const auto width = qint32(image.width());
+		const auto height = qint32(image.height());
+		const auto perpixel = (image.depth() >> 3);
+		const auto srcperline = image.bytesPerLine();
+		const auto srcsize = srcperline * height;
+		const auto dstperline = width * perpixel;
+		const auto dstsize = dstperline * height;
+		const auto copy = (image.format() != kSavedBackgroundFormat)
+			? image.convertToFormat(kSavedBackgroundFormat)
+			: image;
+		imageData.resize(2 * sizeof(qint32) + dstsize);
+
+		auto dst = bytes::make_detached_span(imageData);
+		bytes::copy(dst, bytes::object_as_span(&width));
+		dst = dst.subspan(sizeof(qint32));
+		bytes::copy(dst, bytes::object_as_span(&height));
+		dst = dst.subspan(sizeof(qint32));
+		const auto src = bytes::make_span(image.constBits(), srcsize);
+		if (srcsize == dstsize) {
+			bytes::copy(dst, src);
+		} else {
+			for (auto y = 0; y != height; ++y) {
+				bytes::copy(dst, src.subspan(y * srcperline, dstperline));
+				dst = dst.subspan(dstperline);
+			}
+		}
+	}
+	if (!backgroundKey) {
+		backgroundKey = GenerateKey(_basePath);
+		writeSettings();
+	}
+	const auto serialized = paper.serialize();
+	quint32 size = sizeof(qint32)
+		+ Serialize::bytearraySize(serialized)
+		+ Serialize::bytearraySize(imageData);
+	EncryptedDescriptor data(size);
+	data.stream
+		<< qint32(kWallPaperSerializeTagId)
+		<< serialized
+		<< imageData;
+
+	FileWriteDescriptor file(backgroundKey, _basePath);
+	file.writeEncrypted(data, SettingsKey);
+}
+
+bool readBackground() {
+	FileReadDescriptor bg;
+	auto &backgroundKey = Window::Theme::IsNightMode()
+		? _backgroundKeyNight
+		: _backgroundKeyDay;
+	if (!ReadEncryptedFile(bg, backgroundKey, _basePath, SettingsKey)) {
+		if (backgroundKey) {
+			ClearKey(backgroundKey, _basePath);
+			backgroundKey = 0;
+			writeSettings();
+		}
+		return false;
+	}
+
+	qint32 legacyId = 0;
+	bg.stream >> legacyId;
+	const auto paper = [&] {
+		if (legacyId == kWallPaperLegacySerializeTagId) {
+			quint64 id = 0;
+			quint64 accessHash = 0;
+			quint32 flags = 0;
+			QString slug;
+			bg.stream
+				>> id
+				>> accessHash
+				>> flags
+				>> slug;
+			return Data::WallPaper::FromLegacySerialized(
+				id,
+				accessHash,
+				flags,
+				slug);
+		} else if (legacyId == kWallPaperSerializeTagId) {
+			QByteArray serialized;
+			bg.stream >> serialized;
+			return Data::WallPaper::FromSerialized(serialized);
+		} else {
+			return Data::WallPaper::FromLegacyId(legacyId);
+		}
+	}();
+	if (bg.stream.status() != QDataStream::Ok || !paper) {
+		return false;
+	}
+
+	QByteArray imageData;
+	bg.stream >> imageData;
+	const auto isOldEmptyImage = (bg.stream.status() != QDataStream::Ok);
+	if (isOldEmptyImage
+		|| Data::IsLegacy1DefaultWallPaper(*paper)
+		|| Data::IsDefaultWallPaper(*paper)) {
+		_backgroundCanWrite = false;
+		if (isOldEmptyImage || bg.version < 8005) {
+			Window::Theme::Background()->set(Data::DefaultWallPaper());
+			Window::Theme::Background()->setTile(false);
+		} else {
+			Window::Theme::Background()->set(*paper);
+		}
+		_backgroundCanWrite = true;
+		return true;
+	} else if (Data::IsThemeWallPaper(*paper) && imageData.isEmpty()) {
+		_backgroundCanWrite = false;
+		Window::Theme::Background()->set(*paper);
+		_backgroundCanWrite = true;
+		return true;
+	}
+	auto image = QImage();
+	if (legacyId == kWallPaperSerializeTagId) {
+		const auto perpixel = 4;
+		auto src = bytes::make_span(imageData);
+		auto width = qint32();
+		auto height = qint32();
+		if (src.size() > 2 * sizeof(qint32)) {
+			bytes::copy(
+				bytes::object_as_span(&width),
+				src.subspan(0, sizeof(qint32)));
+			src = src.subspan(sizeof(qint32));
+			bytes::copy(
+				bytes::object_as_span(&height),
+				src.subspan(0, sizeof(qint32)));
+			src = src.subspan(sizeof(qint32));
+			if (width + height <= kWallPaperSidesLimit
+				&& src.size() == width * height * perpixel) {
+				image = QImage(
+					width,
+					height,
+					QImage::Format_ARGB32_Premultiplied);
+				if (!image.isNull()) {
+					const auto srcperline = width * perpixel;
+					const auto srcsize = srcperline * height;
+					const auto dstperline = image.bytesPerLine();
+					const auto dstsize = dstperline * height;
+					Assert(srcsize == dstsize);
+					bytes::copy(
+						bytes::make_span(image.bits(), dstsize),
+						src);
+				}
+			}
+		}
+	} else {
+		auto buffer = QBuffer(&imageData);
+		auto reader = QImageReader(&buffer);
+#ifndef OS_MAC_OLD
+		reader.setAutoTransform(true);
+#endif // OS_MAC_OLD
+		if (!reader.read(&image)) {
+			image = QImage();
+		}
+	}
+	if (!image.isNull() || paper->backgroundColor()) {
+		_backgroundCanWrite = false;
+		Window::Theme::Background()->set(*paper, std::move(image));
+		_backgroundCanWrite = true;
+		return true;
+	}
+	return false;
+}
+
+void moveLegacyBackground(
+		const QString &fromBasePath,
+		const MTP::AuthKeyPtr &fromLocalKey,
+		uint64 legacyBackgroundKeyDay,
+		uint64 legacyBackgroundKeyNight) {
+	if (_useGlobalBackgroundKeys
+		|| (!legacyBackgroundKeyDay && !legacyBackgroundKeyNight)) {
+		return;
+	}
+	const auto move = [&](uint64 from, FileKey &to) {
+		if (!from || to) {
+			return;
+		}
+		to = GenerateKey(_basePath);
+		FileReadDescriptor read;
+		if (!ReadEncryptedFile(read, from, fromBasePath, fromLocalKey)) {
+			return;
+		}
+		EncryptedDescriptor data;
+		data.data = read.data;
+		FileWriteDescriptor write(to, _basePath);
+		write.writeEncrypted(data, SettingsKey);
+	};
+	move(legacyBackgroundKeyDay, _backgroundKeyDay);
+	move(legacyBackgroundKeyNight, _backgroundKeyNight);
+	_backgroundMigrated = true;
 }
 
 void reset() {

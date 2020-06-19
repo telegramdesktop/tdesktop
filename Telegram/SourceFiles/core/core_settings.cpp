@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/serialize_common.h"
+#include "window/themes/window_theme.h"
 #include "facades.h"
 
 namespace Core {
@@ -87,8 +88,9 @@ QByteArray Settings::serialize() const {
 			stream << quint64(i);
 		}
 		stream
-			<< qint32(_autoDownloadDictionaries.current() ? 1 : 0);
-
+			<< qint32(_autoDownloadDictionaries.current() ? 1 : 0)
+			<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
+			<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
 	}
 	return result;
 }

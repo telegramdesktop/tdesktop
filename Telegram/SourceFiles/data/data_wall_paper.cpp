@@ -196,11 +196,17 @@ void WallPaper::loadDocument() const {
 }
 
 FileOrigin WallPaper::fileOrigin() const {
-	return FileOriginWallpaper(_id, _accessHash);
+	return FileOriginWallpaper(_id, _accessHash, _ownerId, _slug);
 }
 
-MTPInputWallPaper WallPaper::mtpInput() const {
-	return MTP_inputWallPaper(MTP_long(_id), MTP_long(_accessHash));
+UserId WallPaper::ownerId() const {
+	return _ownerId;
+}
+
+MTPInputWallPaper WallPaper::mtpInput(not_null<Main::Session*> session) const {
+	return (_ownerId && _ownerId != session->userId() && !_slug.isEmpty())
+		? MTP_inputWallPaperSlug(MTP_string(_slug))
+		: MTP_inputWallPaper(MTP_long(_id), MTP_long(_accessHash));
 }
 
 MTPWallPaperSettings WallPaper::mtpSettings() const {
@@ -324,6 +330,7 @@ std::optional<WallPaper> WallPaper::Create(
 	}
 	auto result = WallPaper(data.vid().v);
 	result._accessHash = data.vaccess_hash().v;
+	result._ownerId = session->userId();
 	result._flags = data.vflags().v;
 	result._slug = qs(data.vslug());
 	result._document = document;
@@ -372,7 +379,8 @@ QByteArray WallPaper::serialize() const {
 			<< _slug
 			<< qint32(_settings)
 			<< SerializeMaybeColor(_backgroundColor)
-			<< qint32(_intensity);
+			<< qint32(_intensity)
+			<< qint32(_ownerId);
 	}
 	return result;
 }
@@ -385,6 +393,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 
 	auto id = quint64();
 	auto accessHash = quint64();
+	auto ownerId = qint32();
 	auto flags = qint32();
 	auto slug = QString();
 	auto settings = qint32();
@@ -401,6 +410,9 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 		>> settings
 		>> backgroundColor
 		>> intensity;
+	if (!stream.atEnd()) {
+		stream >> ownerId;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		return std::nullopt;
 	} else if (intensity < 0 || intensity > 100) {
@@ -408,6 +420,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	}
 	auto result = WallPaper(id);
 	result._accessHash = accessHash;
+	result._ownerId = ownerId;
 	result._flags = MTPDwallPaper::Flags::from_raw(flags);
 	result._slug = slug;
 	result._settings = MTPDwallPaperSettings::Flags::from_raw(settings);

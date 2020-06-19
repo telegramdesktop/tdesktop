@@ -39,16 +39,11 @@ using namespace details;
 using Database = Cache::Database;
 
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
-constexpr auto kSavedBackgroundFormat = QImage::Format_ARGB32_Premultiplied;
 
 constexpr auto kStickersVersionTag = quint32(-1);
 constexpr auto kStickersSerializeVersion = 1;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
-
-constexpr auto kWallPaperLegacySerializeTagId = int32(-111);
-constexpr auto kWallPaperSerializeTagId = int32(-112);
-constexpr auto kWallPaperSidesLimit = 10'000;
 
 constexpr auto kSinglePeerTypeUser = qint32(1);
 constexpr auto kSinglePeerTypeChat = qint32(2);
@@ -65,7 +60,7 @@ enum { // Local Storage Keys
 	lskLegacyStickerImages = 0x05, // legacy
 	lskLegacyAudios = 0x06, // legacy
 	lskRecentStickersOld = 0x07, // no data
-	lskBackgroundOld = 0x08, // no data
+	lskBackgroundOldOld = 0x08, // no data
 	lskUserSettings = 0x09, // no data
 	lskRecentHashtagsAndBots = 0x0a, // no data
 	lskStickersOld = 0x0b, // no data
@@ -77,7 +72,7 @@ enum { // Local Storage Keys
 	lskTrustedBots = 0x11, // no data
 	lskFavedStickers = 0x12, // no data
 	lskExportSettings = 0x13, // no data
-	lskBackground = 0x14, // no data
+	lskBackgroundOld = 0x14, // no data
 	lskSelfSerialized = 0x15, // serialized self
 };
 
@@ -173,8 +168,8 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_archivedStickersKey,
 		_recentStickersKeyOld,
 		_savedGifsKey,
-		_backgroundKeyNight,
-		_backgroundKeyDay,
+		_legacyBackgroundKeyNight,
+		_legacyBackgroundKeyDay,
 		_recentHashtagsAndBotsKey,
 		_exportSettingsKey,
 		_trustedBotsKey,
@@ -259,7 +254,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 savedGifsKey = 0;
-	quint64 backgroundKeyDay = 0, backgroundKeyNight = 0;
+	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
@@ -315,13 +310,13 @@ Account::ReadMapResult Account::readMapWith(
 		case lskRecentStickersOld: {
 			map.stream >> recentStickersKeyOld;
 		} break;
-		case lskBackgroundOld: {
+		case lskBackgroundOldOld: {
 			map.stream >> (Window::Theme::IsNightMode()
-				? backgroundKeyNight
-				: backgroundKeyDay);
+				? legacyBackgroundKeyNight
+				: legacyBackgroundKeyDay);
 		} break;
-		case lskBackground: {
-			map.stream >> backgroundKeyDay >> backgroundKeyNight;
+		case lskBackgroundOld: {
+			map.stream >> legacyBackgroundKeyDay >> legacyBackgroundKeyNight;
 		} break;
 		case lskUserSettings: {
 			map.stream >> userSettingsKey;
@@ -376,8 +371,8 @@ Account::ReadMapResult Account::readMapWith(
 	_favedStickersKey = favedStickersKey;
 	_archivedStickersKey = archivedStickersKey;
 	_savedGifsKey = savedGifsKey;
-	_backgroundKeyDay = backgroundKeyDay;
-	_backgroundKeyNight = backgroundKeyNight;
+	_legacyBackgroundKeyDay = legacyBackgroundKeyDay;
+	_legacyBackgroundKeyNight = legacyBackgroundKeyNight;
 	_settingsKey = userSettingsKey;
 	_recentHashtagsAndBotsKey = recentHashtagsAndBotsKey;
 	_exportSettingsKey = exportSettingsKey;
@@ -392,6 +387,13 @@ Account::ReadMapResult Account::readMapWith(
 	if (_locationsKey) {
 		readLocations();
 	}
+	if (_legacyBackgroundKeyDay || _legacyBackgroundKeyNight) {
+		Local::moveLegacyBackground(
+			_basePath,
+			_localKey,
+			_legacyBackgroundKeyDay,
+			_legacyBackgroundKeyNight);
+	}
 
 	auto stored = readSessionSettings();
 	readMtpData();
@@ -403,6 +405,7 @@ Account::ReadMapResult Account::readMapWith(
 		_oldMapVersion);
 
 	LOG(("Map read time: %1").arg(crl::now() - ms));
+
 	return ReadMapResult::Success;
 }
 
@@ -469,7 +472,6 @@ void Account::writeMap() {
 	}
 	if (_favedStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_savedGifsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-	if (_backgroundKeyDay || _backgroundKeyNight) mapSize += sizeof(quint32) + sizeof(quint64) + sizeof(quint64);
 	if (_settingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -509,12 +511,6 @@ void Account::writeMap() {
 	if (_savedGifsKey) {
 		mapData.stream << quint32(lskSavedGifs) << quint64(_savedGifsKey);
 	}
-	if (_backgroundKeyDay || _backgroundKeyNight) {
-		mapData.stream
-			<< quint32(lskBackground)
-			<< quint64(_backgroundKeyDay)
-			<< quint64(_backgroundKeyNight);
-	}
 	if (_settingsKey) {
 		mapData.stream << quint32(lskUserSettings) << quint64(_settingsKey);
 	}
@@ -542,7 +538,7 @@ void Account::reset() {
 	_favedStickersKey = 0;
 	_archivedStickersKey = 0;
 	_savedGifsKey = 0;
-	_backgroundKeyDay = _backgroundKeyNight = 0;
+	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
 	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
 	_oldMapVersion = 0;
 	_fileLocations.clear();
@@ -764,10 +760,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	}
 
 	EncryptedDescriptor data(size);
-	data.stream
-		<< quint32(dbiTileBackground)
-		<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
-		<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
@@ -783,7 +775,7 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 
 ReadSettingsContext Account::prepareReadSettingsContext() const {
 	return ReadSettingsContext{
-		.hasCustomDayBackground = (_backgroundKeyDay != 0)
+		.legacyHasCustomDayBackground = (_legacyBackgroundKeyDay != 0)
 	};
 }
 
@@ -845,9 +837,10 @@ std::unique_ptr<Main::SessionSettings> Account::applyReadContext(
 		}
 	}
 
-	// #TODO multi
-	//Window::Theme::Background()->setTileDayValue(context.tileDay);
-	//Window::Theme::Background()->setTileNightValue(context.tileNight);
+	if (context.tileRead) {
+		Window::Theme::Background()->setTileDayValue(context.tileDay);
+		Window::Theme::Background()->setTileNightValue(context.tileNight);
+	}
 
 	return std::move(context.sessionSettingsStorage);
 }
@@ -1953,185 +1946,6 @@ void Account::readSavedGifs() {
 
 		saved.push_back(document);
 	}
-}
-
-void Account::writeBackground(
-		const Data::WallPaper &paper,
-		const QImage &image) {
-	if (!_backgroundCanWrite) {
-		return;
-	}
-
-	if (!_localKey) {
-		LOG(("App Error: localkey not created in writeBackground()"));
-		return;
-	}
-
-	auto &backgroundKey = Window::Theme::IsNightMode()
-		? _backgroundKeyNight
-		: _backgroundKeyDay;
-	auto imageData = QByteArray();
-	if (!image.isNull()) {
-		const auto width = qint32(image.width());
-		const auto height = qint32(image.height());
-		const auto perpixel = (image.depth() >> 3);
-		const auto srcperline = image.bytesPerLine();
-		const auto srcsize = srcperline * height;
-		const auto dstperline = width * perpixel;
-		const auto dstsize = dstperline * height;
-		const auto copy = (image.format() != kSavedBackgroundFormat)
-			? image.convertToFormat(kSavedBackgroundFormat)
-			: image;
-		imageData.resize(2 * sizeof(qint32) + dstsize);
-
-		auto dst = bytes::make_detached_span(imageData);
-		bytes::copy(dst, bytes::object_as_span(&width));
-		dst = dst.subspan(sizeof(qint32));
-		bytes::copy(dst, bytes::object_as_span(&height));
-		dst = dst.subspan(sizeof(qint32));
-		const auto src = bytes::make_span(image.constBits(), srcsize);
-		if (srcsize == dstsize) {
-			bytes::copy(dst, src);
-		} else {
-			for (auto y = 0; y != height; ++y) {
-				bytes::copy(dst, src.subspan(y * srcperline, dstperline));
-				dst = dst.subspan(dstperline);
-			}
-		}
-	}
-	if (!backgroundKey) {
-		backgroundKey = GenerateKey(_basePath);
-		writeMapQueued();
-	}
-	const auto serialized = paper.serialize();
-	quint32 size = sizeof(qint32)
-		+ Serialize::bytearraySize(serialized)
-		+ Serialize::bytearraySize(imageData);
-	EncryptedDescriptor data(size);
-	data.stream
-		<< qint32(kWallPaperSerializeTagId)
-		<< serialized
-		<< imageData;
-
-	FileWriteDescriptor file(backgroundKey, _basePath);
-	file.writeEncrypted(data, _localKey);
-}
-
-bool Account::readBackground() {
-	FileReadDescriptor bg;
-	auto &backgroundKey = Window::Theme::IsNightMode()
-		? _backgroundKeyNight
-		: _backgroundKeyDay;
-	if (!ReadEncryptedFile(bg, backgroundKey, _basePath, _localKey)) {
-		if (backgroundKey) {
-			ClearKey(backgroundKey, _basePath);
-			backgroundKey = 0;
-			writeMapDelayed();
-		}
-		return false;
-	}
-
-	qint32 legacyId = 0;
-	bg.stream >> legacyId;
-	const auto paper = [&] {
-		if (legacyId == kWallPaperLegacySerializeTagId) {
-			quint64 id = 0;
-			quint64 accessHash = 0;
-			quint32 flags = 0;
-			QString slug;
-			bg.stream
-				>> id
-				>> accessHash
-				>> flags
-				>> slug;
-			return Data::WallPaper::FromLegacySerialized(
-				id,
-				accessHash,
-				flags,
-				slug);
-		} else if (legacyId == kWallPaperSerializeTagId) {
-			QByteArray serialized;
-			bg.stream >> serialized;
-			return Data::WallPaper::FromSerialized(serialized);
-		} else {
-			return Data::WallPaper::FromLegacyId(legacyId);
-		}
-	}();
-	if (bg.stream.status() != QDataStream::Ok || !paper) {
-		return false;
-	}
-
-	QByteArray imageData;
-	bg.stream >> imageData;
-	const auto isOldEmptyImage = (bg.stream.status() != QDataStream::Ok);
-	if (isOldEmptyImage
-		|| Data::IsLegacy1DefaultWallPaper(*paper)
-		|| Data::IsDefaultWallPaper(*paper)) {
-		_backgroundCanWrite = false;
-		if (isOldEmptyImage || bg.version < 8005) {
-			Window::Theme::Background()->set(Data::DefaultWallPaper());
-			Window::Theme::Background()->setTile(false);
-		} else {
-			Window::Theme::Background()->set(*paper);
-		}
-		_backgroundCanWrite = true;
-		return true;
-	} else if (Data::IsThemeWallPaper(*paper) && imageData.isEmpty()) {
-		_backgroundCanWrite = false;
-		Window::Theme::Background()->set(*paper);
-		_backgroundCanWrite = true;
-		return true;
-	}
-	auto image = QImage();
-	if (legacyId == kWallPaperSerializeTagId) {
-		const auto perpixel = 4;
-		auto src = bytes::make_span(imageData);
-		auto width = qint32();
-		auto height = qint32();
-		if (src.size() > 2 * sizeof(qint32)) {
-			bytes::copy(
-				bytes::object_as_span(&width),
-				src.subspan(0, sizeof(qint32)));
-			src = src.subspan(sizeof(qint32));
-			bytes::copy(
-				bytes::object_as_span(&height),
-				src.subspan(0, sizeof(qint32)));
-			src = src.subspan(sizeof(qint32));
-			if (width + height <= kWallPaperSidesLimit
-				&& src.size() == width * height * perpixel) {
-				image = QImage(
-					width,
-					height,
-					QImage::Format_ARGB32_Premultiplied);
-				if (!image.isNull()) {
-					const auto srcperline = width * perpixel;
-					const auto srcsize = srcperline * height;
-					const auto dstperline = image.bytesPerLine();
-					const auto dstsize = dstperline * height;
-					Assert(srcsize == dstsize);
-					bytes::copy(
-						bytes::make_span(image.bits(), dstsize),
-						src);
-				}
-			}
-		}
-	} else {
-		auto buffer = QBuffer(&imageData);
-		auto reader = QImageReader(&buffer);
-#ifndef OS_MAC_OLD
-		reader.setAutoTransform(true);
-#endif // OS_MAC_OLD
-		if (!reader.read(&image)) {
-			image = QImage();
-		}
-	}
-	if (!image.isNull() || paper->backgroundColor()) {
-		_backgroundCanWrite = false;
-		Window::Theme::Background()->set(*paper, std::move(image));
-		_backgroundCanWrite = true;
-		return true;
-	}
-	return false;
 }
 
 void Account::writeRecentHashtagsAndBots() {

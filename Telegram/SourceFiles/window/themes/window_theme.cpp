@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "storage/localstorage.h"
-#include "storage/storage_account.h"
 #include "storage/localimageloader.h"
 #include "storage/file_upload.h"
 #include "base/parse_helper.h"
@@ -531,10 +530,6 @@ ChatBackground::ChatBackground() : _adjustableColors({
 	});
 }
 
-Storage::Account &ChatBackground::local() const {
-	return Core::App().activeAccount().local();
-}
-
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 	_themeImage = validateBackgroundImage(std::move(themeImage));
 	_themeTile = themeTile;
@@ -544,7 +539,7 @@ void ChatBackground::start() {
 	if (!Data::details::IsUninitializedWallPaper(_paper)) {
 		return;
 	}
-	if (!local().readBackground()) {
+	if (!Local::readBackground()) {
 		set(Data::ThemeWallPaper());
 	}
 
@@ -659,7 +654,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
 			image.load(qsl(":/gui/art/bg.jpg"));
 		}
-		local().writeBackground(
+		Local::writeBackground(
 			_paper,
 			((Data::IsDefaultWallPaper(_paper)
 				|| Data::IsLegacy1DefaultWallPaper(_paper))
@@ -875,7 +870,7 @@ void ChatBackground::setTile(bool tile) {
 	if (this->tile() != old) {
 		if (!Data::details::IsTestingThemeWallPaper(_paper)
 			&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
-			local().writeSessionSettings();
+			Local::writeSettings();
 		}
 		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, tile));
 	}
@@ -1030,9 +1025,9 @@ bool ChatBackground::isNonDefaultBackground() {
 
 void ChatBackground::writeNewBackgroundSettings() {
 	if (tile() != _tileForRevert) {
-		local().writeSessionSettings();
+		Local::writeSettings();
 	}
-	local().writeBackground(
+	Local::writeBackground(
 		_paper,
 		((Data::IsThemeWallPaper(_paper)
 			|| Data::IsDefaultWallPaper(_paper))
@@ -1116,13 +1111,10 @@ void ChatBackground::reapplyWithNightMode(
 			}
 			ClearApplying();
 			keepApplied(saved.object, settingExactTheme);
-			if (tile() != _tileForRevert) {
-				local().writeSessionSettings();
-			}
-			if (nightModeChanged) {
+			if (tile() != _tileForRevert || nightModeChanged) {
 				Local::writeSettings();
 			}
-			if (!settingExactTheme && !local().readBackground()) {
+			if (!settingExactTheme && !Local::readBackground()) {
 				set(Data::ThemeWallPaper());
 			}
 		};

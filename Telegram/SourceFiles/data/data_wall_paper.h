@@ -41,7 +41,9 @@ public:
 	void loadDocumentThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
 
-	[[nodiscard]] MTPInputWallPaper mtpInput() const;
+	[[nodiscard]] UserId ownerId() const;
+	[[nodiscard]] MTPInputWallPaper mtpInput(
+		not_null<Main::Session*> session) const;
 	[[nodiscard]] MTPWallPaperSettings mtpSettings() const;
 
 	[[nodiscard]] WallPaper withUrlParams(
@@ -77,6 +79,7 @@ private:
 
 	WallPaperId _id = WallPaperId();
 	uint64 _accessHash = 0;
+	UserId _ownerId = 0;
 	MTPDwallPaper::Flags _flags;
 	QString _slug;
 

@@ -38,9 +38,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
-		if (Local::oldSettingsVersion() < AppVersion) {
-			Local::writeSettings();
-		}
+		Local::rewriteSettingsIfNeeded();
 	} else {
 		Assert(!started());
 	}

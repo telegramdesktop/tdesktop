@@ -2896,8 +2896,12 @@ void ApiWrap::refreshFileReference(
 			MTPmessages_GetSavedGifs(MTP_int(0)),
 			[=] { crl::on_main(_session, [=] { local().writeSavedGifs(); }); });
 	}, [&](Data::FileOriginWallpaper data) {
-		request(MTPaccount_GetWallPaper(
-			MTP_inputWallPaper(
+		const auto useSlug = data.ownerId
+			&& (data.ownerId != session().userId())
+			&& !data.slug.isEmpty();
+		request(MTPaccount_GetWallPaper(useSlug
+			? MTP_inputWallPaperSlug(MTP_string(data.slug))
+			: MTP_inputWallPaper(
 				MTP_long(data.paperId),
 				MTP_long(data.accessHash))));
 	}, [&](Data::FileOriginTheme data) {
