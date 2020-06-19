@@ -152,7 +152,7 @@ protected:
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 protected:
-	not_null<Manager*> manager() const {
+	[[nodiscard]] not_null<Manager*> manager() const {
 		return _manager;
 	}
 

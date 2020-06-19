@@ -186,6 +186,10 @@ public:
 	[[nodiscard]] static DisplayOptions GetNotificationOptions(
 		HistoryItem *item);
 
+	[[nodiscard]] QString addTargetAccountName(
+		const QString &title,
+		not_null<Main::Session*> session);
+
 	virtual ~Manager() = default;
 
 protected:
@@ -206,6 +210,7 @@ protected:
 	}
 	virtual void onAfterNotificationActivated(NotificationId id) {
 	}
+	[[nodiscard]] virtual QString accountNameSeparator();
 
 private:
 	void openNotificationMessage(

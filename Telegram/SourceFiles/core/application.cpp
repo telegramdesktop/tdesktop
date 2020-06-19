@@ -99,11 +99,11 @@ Application::Application(not_null<Launcher*> launcher)
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
-, _notifications(std::make_unique<Window::Notifications::System>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
+, _notifications(std::make_unique<Window::Notifications::System>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin())
 , _autoLockTimer([=] { checkAutoLock(); }) {

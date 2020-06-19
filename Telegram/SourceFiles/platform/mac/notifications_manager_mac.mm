@@ -386,5 +386,9 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 	_private->clearFromSession(session);
 }
 
+QString Manager::accountNameSeparator() {
+	return QString::fromUtf8(" \xE2\x86\x92 ");
+}
+
 } // namespace Notifications
 } // namespace Platform

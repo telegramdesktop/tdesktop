@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_user.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
@@ -547,6 +548,18 @@ Manager::DisplayOptions Manager::GetNotificationOptions(HistoryItem *item) {
 	return result;
 }
 
+QString Manager::addTargetAccountName(
+		const QString &title,
+		not_null<Main::Session*> session) {
+	return (Core::App().domain().accounts().size() > 1)
+		? (title + accountNameSeparator() + session->user()->name)
+		: title;
+}
+
+QString Manager::accountNameSeparator() {
+	return QString::fromUtf8(" \xE2\x9E\x9C ");
+}
+
 void Manager::notificationActivated(NotificationId id) {
 	onBeforeNotificationActivated(id);
 	if (const auto session = system()->findSession(id.selfId)) {
@@ -644,6 +657,7 @@ void NativeManager::doShowNotification(
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
 		: peer->name;
+	const auto fullTitle = addTargetAccountName(title, &peer->session());
 	const auto subtitle = options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();
@@ -661,7 +675,7 @@ void NativeManager::doShowNotification(
 		item->history()->peer,
 		userpicView,
 		item->id,
-		scheduled ? WrapFromScheduled(title) : title,
+		scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
 		subtitle,
 		text,
 		options.hideNameAndPhoto,

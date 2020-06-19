@@ -812,16 +812,17 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dialogsNameFg);
-		if (options.hideNameAndPhoto) {
-			p.setFont(st::msgNameFont);
-			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
-			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
-		} else if (reminder) {
-			p.setFont(st::msgNameFont);
-			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, tr::lng_notification_reminder(tr::now));
-		} else {
-			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-		}
+		Ui::Text::String titleText;
+		const auto title = options.hideNameAndPhoto
+			? qsl("Telegram Desktop")
+			: reminder
+			? tr::lng_notification_reminder(tr::now)
+			: _history->peer->nameText().toString();
+		const auto fullTitle = manager()->addTargetAccountName(
+			title,
+			&_history->session());
+		titleText.setText(st::msgNameStyle, fullTitle, Ui::NameTextOptions());
+		titleText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	}
 
 	_cache = App::pixmapFromImageInPlace(std::move(img));

@@ -31,6 +31,7 @@ protected:
 	void doClearAllFast() override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
+	QString accountNameSeparator() override;
 
 private:
 	class Private;
