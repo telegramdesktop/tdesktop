@@ -69,19 +69,10 @@ void gtkMessageHandler(
 bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
 	if (!load(lib_gtk, "gtk_settings_get_default", gtk_settings_get_default)) return false;
-	if (!load(lib_gtk, "gtk_menu_new", gtk_menu_new)) return false;
-	if (!load(lib_gtk, "gtk_menu_get_type", gtk_menu_get_type)) return false;
 
-	if (!load(lib_gtk, "gtk_menu_item_new_with_label", gtk_menu_item_new_with_label)) return false;
-	if (!load(lib_gtk, "gtk_menu_item_set_label", gtk_menu_item_set_label)) return false;
-	if (!load(lib_gtk, "gtk_menu_shell_append", gtk_menu_shell_append)) return false;
-	if (!load(lib_gtk, "gtk_menu_shell_get_type", gtk_menu_shell_get_type)) return false;
 	if (!load(lib_gtk, "gtk_widget_show", gtk_widget_show)) return false;
 	if (!load(lib_gtk, "gtk_widget_hide", gtk_widget_hide)) return false;
-	if (!load(lib_gtk, "gtk_widget_get_toplevel", gtk_widget_get_toplevel)) return false;
-	if (!load(lib_gtk, "gtk_widget_get_visible", gtk_widget_get_visible)) return false;
 	if (!load(lib_gtk, "gtk_widget_get_window", gtk_widget_get_window)) return false;
-	if (!load(lib_gtk, "gtk_widget_set_sensitive", gtk_widget_set_sensitive)) return false;
 	if (!load(lib_gtk, "gtk_widget_realize", gtk_widget_realize)) return false;
 	if (!load(lib_gtk, "gtk_widget_hide_on_delete", gtk_widget_hide_on_delete)) return false;
 	if (!load(lib_gtk, "gtk_widget_destroy", gtk_widget_destroy)) return false;
@@ -126,17 +117,11 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_type_check_instance_cast", g_type_check_instance_cast)) return false;
 	if (!load(lib_gtk, "g_type_check_instance_is_a", g_type_check_instance_is_a)) return false;
 	if (!load(lib_gtk, "g_signal_connect_data", g_signal_connect_data)) return false;
-	if (!load(lib_gtk, "g_signal_handler_disconnect", g_signal_handler_disconnect)) return false;
 
 	if (!load(lib_gtk, "g_object_get", g_object_get)) return false;
-	if (!load(lib_gtk, "g_object_ref_sink", g_object_ref_sink)) return false;
 	if (!load(lib_gtk, "g_object_unref", g_object_unref)) return false;
 	if (!load(lib_gtk, "g_free", g_free)) return false;
-	if (!load(lib_gtk, "g_list_foreach", g_list_foreach)) return false;
-	if (!load(lib_gtk, "g_list_free", g_list_free)) return false;
-	if (!load(lib_gtk, "g_list_free_full", g_list_free_full)) return false;
 
-	if (!load(lib_gtk, "g_error_free", g_error_free)) return false;
 	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
 	if (!load(lib_gtk, "g_log_set_handler", g_log_set_handler)) return false;
@@ -189,18 +174,9 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 f_gtk_init_check gtk_init_check = nullptr;
 f_gtk_settings_get_default gtk_settings_get_default = nullptr;
-f_gtk_menu_new gtk_menu_new = nullptr;
-f_gtk_menu_get_type gtk_menu_get_type = nullptr;
-f_gtk_menu_item_new_with_label gtk_menu_item_new_with_label = nullptr;
-f_gtk_menu_item_set_label gtk_menu_item_set_label = nullptr;
-f_gtk_menu_shell_append gtk_menu_shell_append = nullptr;
-f_gtk_menu_shell_get_type gtk_menu_shell_get_type = nullptr;
 f_gtk_widget_show gtk_widget_show = nullptr;
 f_gtk_widget_hide gtk_widget_hide = nullptr;
-f_gtk_widget_get_toplevel gtk_widget_get_toplevel = nullptr;
-f_gtk_widget_get_visible gtk_widget_get_visible = nullptr;
 f_gtk_widget_get_window gtk_widget_get_window = nullptr;
-f_gtk_widget_set_sensitive gtk_widget_set_sensitive = nullptr;
 f_gtk_widget_realize gtk_widget_realize = nullptr;
 f_gtk_widget_hide_on_delete gtk_widget_hide_on_delete = nullptr;
 f_gtk_widget_destroy gtk_widget_destroy = nullptr;
@@ -247,38 +223,16 @@ f_gtk_dialog_run gtk_dialog_run = nullptr;
 f_g_type_check_instance_cast g_type_check_instance_cast = nullptr;
 f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
 f_g_signal_connect_data g_signal_connect_data = nullptr;
-f_g_signal_handler_disconnect g_signal_handler_disconnect = nullptr;
-f_gdk_init_check gdk_init_check = nullptr;
 f_gdk_atom_intern gdk_atom_intern = nullptr;
-f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
-f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file = nullptr;
 f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
 f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha = nullptr;
 f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
 f_gdk_pixbuf_get_width gdk_pixbuf_get_width = nullptr;
 f_gdk_pixbuf_get_height gdk_pixbuf_get_height = nullptr;
 f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
-f_gtk_status_icon_new_from_pixbuf gtk_status_icon_new_from_pixbuf = nullptr;
-f_gtk_status_icon_set_from_pixbuf gtk_status_icon_set_from_pixbuf = nullptr;
-f_gtk_status_icon_new_from_file gtk_status_icon_new_from_file = nullptr;
-f_gtk_status_icon_set_from_file gtk_status_icon_set_from_file = nullptr;
-f_gtk_status_icon_set_title gtk_status_icon_set_title = nullptr;
-f_gtk_status_icon_set_tooltip_text gtk_status_icon_set_tooltip_text = nullptr;
-f_gtk_status_icon_set_visible gtk_status_icon_set_visible = nullptr;
-f_gtk_status_icon_is_embedded gtk_status_icon_is_embedded = nullptr;
-f_gtk_status_icon_get_geometry gtk_status_icon_get_geometry = nullptr;
-f_gtk_status_icon_position_menu gtk_status_icon_position_menu = nullptr;
-f_gtk_menu_popup gtk_menu_popup = nullptr;
-f_gtk_get_current_event_time gtk_get_current_event_time = nullptr;
 f_g_object_get g_object_get = nullptr;
-f_g_object_ref_sink g_object_ref_sink = nullptr;
 f_g_object_unref g_object_unref = nullptr;
-f_g_idle_add g_idle_add = nullptr;
 f_g_free g_free = nullptr;
-f_g_list_foreach g_list_foreach = nullptr;
-f_g_list_free g_list_free = nullptr;
-f_g_list_free_full g_list_free_full = nullptr;
-f_g_error_free g_error_free = nullptr;
 f_g_slist_free g_slist_free = nullptr;
 f_g_log_set_handler g_log_set_handler = nullptr;
 f_g_log_default_handler g_log_default_handler = nullptr;
@@ -304,23 +258,7 @@ void start() {
 	}
 
 	if (gtkLoaded) {
-		load(lib_gtk, "gdk_init_check", gdk_init_check);
-		load(lib_gtk, "gdk_pixbuf_new_from_data", gdk_pixbuf_new_from_data);
-		load(lib_gtk, "gdk_pixbuf_new_from_file", gdk_pixbuf_new_from_file);
 		load(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
-		load(lib_gtk, "gtk_status_icon_new_from_pixbuf", gtk_status_icon_new_from_pixbuf);
-		load(lib_gtk, "gtk_status_icon_set_from_pixbuf", gtk_status_icon_set_from_pixbuf);
-		load(lib_gtk, "gtk_status_icon_new_from_file", gtk_status_icon_new_from_file);
-		load(lib_gtk, "gtk_status_icon_set_from_file", gtk_status_icon_set_from_file);
-		load(lib_gtk, "gtk_status_icon_set_title", gtk_status_icon_set_title);
-		load(lib_gtk, "gtk_status_icon_set_tooltip_text", gtk_status_icon_set_tooltip_text);
-		load(lib_gtk, "gtk_status_icon_set_visible", gtk_status_icon_set_visible);
-		load(lib_gtk, "gtk_status_icon_is_embedded", gtk_status_icon_is_embedded);
-		load(lib_gtk, "gtk_status_icon_get_geometry", gtk_status_icon_get_geometry);
-		load(lib_gtk, "gtk_status_icon_position_menu", gtk_status_icon_position_menu);
-		load(lib_gtk, "gtk_menu_popup", gtk_menu_popup);
-		load(lib_gtk, "gtk_get_current_event_time", gtk_get_current_event_time);
-		load(lib_gtk, "g_idle_add", g_idle_add);
 
 		internal::GdkHelperLoad(lib_gtk);
 
