@@ -84,9 +84,9 @@ Sandbox::Sandbox(
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId())
 , _handleObservables([=] {
-	Expects(_application != nullptr);
-
-	_application->call_handleObservables();
+	if (_application) {
+		_application->call_handleObservables();
+	}
 })
 , _launcher(launcher) {
 }

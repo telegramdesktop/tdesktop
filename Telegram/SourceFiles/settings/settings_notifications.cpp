@@ -499,11 +499,11 @@ void NotificationsCount::SampleWidget::destroyDelayed() {
 	_deleted = true;
 
 	// Ubuntu has a lag if deleteLater() called immediately.
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
 	QTimer::singleShot(1000, [this] { delete this; });
-#else // Q_OS_LINUX32 || Q_OS_LINUX64
+#else // Q_OS_UNIX && !Q_OS_MAC
 	deleteLater();
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
+#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void SetupAdvancedNotifications(
@@ -634,6 +634,11 @@ void SetupNotificationsContent(
 		} else if (Platform::IsWindows()) {
 			return tr::lng_settings_use_windows(tr::now);
 		} else if (Platform::IsLinux()) {
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
+			if (Platform::IsWayland()) {
+				return QString();
+			}
+#endif // Q_OS_UNIX && !Q_OS_MAC
 			return tr::lng_settings_use_native_notifications(tr::now);
 		}
 		return QString();
@@ -651,6 +656,9 @@ void SetupNotificationsContent(
 	}();
 
 	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
+#if defined Q_OS_UNIX && !defined Q_OS_MAC && !defined TDESKTOP_DISABLE_DBUS_INTEGRATION
+		&& !Platform::IsWayland()
+#endif // Q_OS_UNIX && !Q_OS_MAC && !TDESKTOP_DISABLE_DBUS_INTEGRATION
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,

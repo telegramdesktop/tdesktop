@@ -411,7 +411,7 @@ void ApiWrap::requestTermsUpdate() {
 			const auto &terms = data.vterms_of_service();
 			const auto &fields = terms.c_help_termsOfService();
 			Core::App().lockByTerms(
-				Window::TermsLock::FromMTP(fields));
+				Window::TermsLock::FromMTP(&session(), fields));
 			requestNext(data);
 		} break;
 		default: Unexpected("Type in requestTermsUpdate().");
@@ -2442,6 +2442,7 @@ void ApiWrap::saveDraftsToCloud() {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
 		auto entities = Api::EntitiesToMTP(
+			&session(),
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
 
@@ -4674,6 +4675,7 @@ void ApiWrap::editUploadedFile(
 	}
 
 	auto sentEntities = Api::EntitiesToMTP(
+		&session(),
 		item->originalText().entities,
 		Api::ConvertOption::SkipLocal);
 
@@ -4826,8 +4828,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
-		auto localEntities = Api::EntitiesToMTP(sending.entities);
+		auto localEntities = Api::EntitiesToMTP(
+			&session(),
+			sending.entities);
 		auto sentEntities = Api::EntitiesToMTP(
+			&session(),
 			sending.entities,
 			Api::ConvertOption::SkipLocal);
 		if (!sentEntities.v.isEmpty()) {
@@ -5118,6 +5123,7 @@ void ApiWrap::sendMediaWithRandomId(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	auto sentEntities = Api::EntitiesToMTP(
+		&session(),
 		caption.entities,
 		Api::ConvertOption::SkipLocal);
 
@@ -5794,6 +5800,7 @@ void ApiWrap::rescheduleMessage(
 		Api::SendOptions options) {
 	const auto text = item->originalText().text;
 	const auto sentEntities = Api::EntitiesToMTP(
+		&session(),
 		item->originalText().entities,
 		Api::ConvertOption::SkipLocal);
 	const auto media = item->media();

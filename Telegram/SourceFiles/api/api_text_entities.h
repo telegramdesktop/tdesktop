@@ -9,14 +9,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/text_entity.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Api {
 
-EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities);
 enum class ConvertOption {
 	WithLocal,
 	SkipLocal,
 };
-MTPVector<MTPMessageEntity> EntitiesToMTP(
+
+[[nodiscard]] EntitiesInText EntitiesFromMTP(
+	Main::Session *session,
+	const QVector<MTPMessageEntity> &entities);
+
+[[nodiscard]] MTPVector<MTPMessageEntity> EntitiesToMTP(
+	not_null<Main::Session*> session,
 	const EntitiesInText &entities,
 	ConvertOption option = ConvertOption::WithLocal);
 

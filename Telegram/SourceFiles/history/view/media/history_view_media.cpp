@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "lottie/lottie_single_player.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "ui/text_options.h"
@@ -163,6 +164,10 @@ PointState Media::pointState(QPoint point) const {
 	return QRect(0, 0, width(), height()).contains(point)
 		? PointState::Inside
 		: PointState::Outside;
+}
+
+std::unique_ptr<Lottie::SinglePlayer> Media::stickerTakeLottie() {
+	return nullptr;
 }
 
 TextState Media::getStateGrouped(

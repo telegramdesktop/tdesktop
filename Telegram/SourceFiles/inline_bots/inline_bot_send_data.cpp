@@ -79,7 +79,7 @@ QString SendDataCommon::getErrorOnSend(
 SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.text = MTP_string(_message);
-	result.entities = Api::EntitiesToMTP(_entities);
+	result.entities = Api::EntitiesToMTP(&session(), _entities);
 	return result;
 }
 

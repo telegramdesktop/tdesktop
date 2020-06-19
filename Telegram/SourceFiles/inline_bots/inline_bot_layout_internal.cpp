@@ -550,7 +550,7 @@ void Sticker::prepareThumbnail() const {
 	}
 	_dataMedia->checkStickerSmall();
 	if (const auto sticker = _dataMedia->getStickerSmall()) {
-		if (!_lottie && !_thumbLoaded && _dataMedia->loaded()) {
+		if (!_lottie && !_thumbLoaded) {
 			const auto thumbSize = getThumbSize();
 			_thumb = sticker->pix(
 				thumbSize.width(),
@@ -679,8 +679,6 @@ Video::Video(not_null<Context*> context, not_null<Result*> result)
 , _link(getResultPreviewHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	Assert(getResultDocument() != nullptr);
-
 	if (int duration = content_duration()) {
 		_duration = formatDurationText(duration);
 		_durationWidth = st::normalFont->width(_duration);
@@ -688,10 +686,12 @@ Video::Video(not_null<Context*> context, not_null<Result*> result)
 }
 
 bool Video::withThumbnail() const {
-	const auto document = getShownDocument();
-	Assert(document != nullptr);
-
-	return document->hasThumbnail();
+	if (const auto document = getShownDocument()) {
+		if (document->hasThumbnail()) {
+			return true;
+		}
+	}
+	return hasResultThumb();
 }
 
 void Video::initDimensions() {
@@ -761,6 +761,7 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 
 void Video::unloadHeavyPart() {
 	_documentMedia = nullptr;
+	ItemBase::unloadHeavyPart();
 }
 
 TextState Video::getState(
@@ -776,17 +777,20 @@ TextState Video::getState(
 }
 
 void Video::prepareThumbnail(QSize size) const {
-	const auto document = getShownDocument();
-	if (document->hasThumbnail()) {
-		if (!_documentMedia) {
-			_documentMedia = document->createMediaView();
-			_documentMedia->thumbnailWanted(fileOrigin());
-		}
-		if (!_documentMedia->thumbnail()) {
-			return;
+	if (const auto document = getShownDocument()) {
+		if (document->hasThumbnail()) {
+			if (!_documentMedia) {
+				_documentMedia = document->createMediaView();
+				_documentMedia->thumbnailWanted(fileOrigin());
+			}
+			if (!_documentMedia->thumbnail()) {
+				return;
+			}
 		}
 	}
-	const auto thumb = _documentMedia->thumbnail();
+	const auto thumb = _documentMedia
+		? _documentMedia->thumbnail()
+		: getResultThumb(fileOrigin());
 	if (!thumb) {
 		return;
 	}

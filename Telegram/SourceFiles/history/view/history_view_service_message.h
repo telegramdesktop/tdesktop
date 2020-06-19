@@ -17,7 +17,8 @@ class Service : public Element {
 public:
 	Service(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryService*> data);
+		not_null<HistoryService*> data,
+		Element *replacing);
 
 	int marginTop() const override;
 	int marginBottom() const override;

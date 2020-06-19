@@ -458,7 +458,9 @@ HistoryMessage::HistoryMessage(
 	}
 	const auto textWithEntities = TextWithEntities{
 		TextUtilities::Clean(qs(data.vmessage())),
-		Api::EntitiesFromMTP(data.ventities().value_or_empty())
+		Api::EntitiesFromMTP(
+			&history->session(),
+			data.ventities().value_or_empty())
 	};
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto groupedId = data.vgrouped_id()) {
@@ -1072,7 +1074,9 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	const auto textWithEntities = TextWithEntities{
 		qs(message.vmessage()),
-		Api::EntitiesFromMTP(message.ventities().value_or_empty())
+		Api::EntitiesFromMTP(
+			&history()->session(),
+			message.ventities().value_or_empty())
 	};
 	setReplyMarkup(message.vreply_markup());
 	if (!isLocalUpdateMedia()) {
@@ -1383,8 +1387,9 @@ QString HistoryMessage::notificationHeader() const {
 }
 
 std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
-		not_null<HistoryView::ElementDelegate*> delegate) {
-	return delegate->elementCreate(this);
+		not_null<HistoryView::ElementDelegate*> delegate,
+		HistoryView::Element *replacing) {
+	return delegate->elementCreate(this, replacing);
 }
 
 HistoryMessage::~HistoryMessage() {

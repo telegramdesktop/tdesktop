@@ -146,7 +146,7 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 	}, [&](const MTPDupdateServiceNotification &data) {
 		const auto text = TextWithEntities{
 			qs(data.vmessage()),
-			Api::EntitiesFromMTP(data.ventities().v)
+			Api::EntitiesFromMTP(nullptr, data.ventities().v)
 		};
 		Ui::show(Box<InformBox>(text));
 	}, [](const auto &) {});

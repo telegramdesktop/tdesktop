@@ -33,6 +33,7 @@ public:
 	Sticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> data,
+		Element *replacing = nullptr,
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
 
@@ -46,9 +47,10 @@ public:
 	DocumentData *document() override {
 		return _data;
 	}
-	void clearStickerLoopPlayed() override {
+	void stickerClearLoopPlayed() override {
 		_lottieOncePlayed = false;
 	}
+	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie() override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -74,8 +76,10 @@ private:
 	[[nodiscard]] QPixmap paintedPixmap(bool selected) const;
 
 	void ensureDataMediaCreated() const;
+	void dataMediaCreated() const;
 
 	void setupLottie();
+	void lottieCreated();
 	void unloadLottie();
 
 	const not_null<Element*> _parent;

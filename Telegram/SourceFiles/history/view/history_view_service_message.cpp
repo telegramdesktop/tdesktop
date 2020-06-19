@@ -309,8 +309,9 @@ void serviceColorsUpdated() {
 
 Service::Service(
 	not_null<ElementDelegate*> delegate,
-	not_null<HistoryService*> data)
-: Element(delegate, data) {
+	not_null<HistoryService*> data,
+	Element *replacing)
+: Element(delegate, data, replacing) {
 }
 
 not_null<HistoryService*> Service::message() const {

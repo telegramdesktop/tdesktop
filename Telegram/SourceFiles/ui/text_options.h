@@ -23,8 +23,7 @@ const TextParseOptions &ItemTextBotNoMonoOptions();
 const TextParseOptions &ItemTextServiceOptions();
 
 const TextParseOptions &WebpageTextTitleOptions();
-const TextParseOptions &WebpageTextDescriptionOptions(
-	const QString &siteName = QString());
+const TextParseOptions &WebpageTextDescriptionOptions();
 
 const TextParseOptions &NameTextOptions();
 const TextParseOptions &DialogTextOptions();

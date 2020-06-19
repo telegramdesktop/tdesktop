@@ -93,6 +93,7 @@ void SendExistingMedia(
 	};
 	TextUtilities::Trim(caption);
 	auto sentEntities = EntitiesToMTP(
+		session,
 		caption.entities,
 		ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {

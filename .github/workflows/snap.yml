@@ -12,7 +12,6 @@ on:
       - '!.github/workflows/snap.yml'
       - 'Telegram/build/**'
       - 'Telegram/Patches/**'
-      - '!Telegram/Patches/ffmpeg.diff'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -31,7 +30,6 @@ on:
       - '!.github/workflows/snap.yml'
       - 'Telegram/build/**'
       - 'Telegram/Patches/**'
-      - '!Telegram/Patches/ffmpeg.diff'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -43,8 +41,8 @@ on:
 jobs:
 
   linux:
-    name: Ubuntu 18.04
-    runs-on: ubuntu-18.04
+    name: Ubuntu 20.04
+    runs-on: ubuntu-20.04
 
     env:
       UPLOAD_ARTIFACT: "false"

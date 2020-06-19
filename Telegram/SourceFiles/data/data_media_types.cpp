@@ -244,8 +244,9 @@ TextWithEntities Media::consumedMessageText() const {
 }
 
 std::unique_ptr<HistoryView::Media> Media::createView(
-		not_null<HistoryView::Element*> message) {
-	return createView(message, message->data());
+		not_null<HistoryView::Element*> message,
+		HistoryView::Element *replacing) {
+	return createView(message, message->data(), replacing);
 }
 
 MediaPhoto::MediaPhoto(
@@ -386,7 +387,8 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	if (_chat) {
 		return std::make_unique<HistoryView::Photo>(
 			message,
@@ -663,11 +665,15 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	if (_document->sticker()) {
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
-			std::make_unique<HistoryView::Sticker>(message, _document));
+			std::make_unique<HistoryView::Sticker>(
+				message,
+				_document,
+				replacing));
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
 		return std::make_unique<HistoryView::Gif>(
 			message,
@@ -760,7 +766,8 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaContact::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Contact>(
 		message,
 		_contact.userId,
@@ -840,7 +847,8 @@ bool MediaLocation::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Location>(
 		message,
 		_location,
@@ -900,7 +908,8 @@ bool MediaCall::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaCall::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Call>(message, &_call);
 }
 
@@ -995,7 +1004,8 @@ bool MediaWebPage::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaWebPage::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::WebPage>(message, _page);
 }
 
@@ -1086,7 +1096,8 @@ bool MediaGame::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaGame::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Game>(
 		message,
 		_game,
@@ -1151,7 +1162,8 @@ bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Invoice>(message, &_invoice);
 }
 
@@ -1217,7 +1229,8 @@ bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaPoll::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::Poll>(message, _poll);
 }
 
@@ -1274,7 +1287,8 @@ bool MediaDice::updateSentMedia(const MTPMessageMedia &media) {
 
 std::unique_ptr<HistoryView::Media> MediaDice::createView(
 		not_null<HistoryView::Element*> message,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::UnwrappedMedia>(
 		message,
 		std::make_unique<HistoryView::Dice>(message, this));

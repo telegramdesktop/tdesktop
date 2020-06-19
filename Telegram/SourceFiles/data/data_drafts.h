@@ -11,10 +11,20 @@ namespace Ui {
 class InputField;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
-void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft);
-void clearPeerCloudDraft(PeerId peerId, TimeId date);
+void ApplyPeerCloudDraft(
+	not_null<Main::Session*> session,
+	PeerId peerId,
+	const MTPDdraftMessage &draft);
+void ClearPeerCloudDraft(
+	not_null<Main::Session*> session,
+	PeerId peerId,
+	TimeId date);
 
 struct Draft {
 	Draft() = default;

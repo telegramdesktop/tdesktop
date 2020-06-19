@@ -19,6 +19,10 @@ class RoundButton;
 class CheckView;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 
 class Controller;
@@ -83,7 +87,9 @@ struct TermsLock {
 		return !(*this == other);
 	}
 
-	static TermsLock FromMTP(const MTPDhelp_termsOfService &data);
+	static TermsLock FromMTP(
+		Main::Session *session,
+		const MTPDhelp_termsOfService &data);
 
 };
 

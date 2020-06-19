@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
@@ -54,6 +55,8 @@ constexpr auto kIconName = "telegram"_cs;
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
+
+QStringList PlatformThemes;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
@@ -295,14 +298,22 @@ bool IsStaticBinary() {
 #endif // !DESKTOP_APP_USE_PACKAGED
 }
 
+bool UseGtkIntegration() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	static const auto Result = !qEnvironmentVariableIsSet(
+		"TDESKTOP_DISABLE_GTK_INTEGRATION");
+
+	return Result;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	return false;
+}
+
 bool IsGtkIntegrationForced() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static const auto Result = [&] {
-		const auto platformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
-			.split(':', QString::SkipEmptyParts);
-
-		return platformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
-			|| platformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
+		return PlatformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
+			|| PlatformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
 	}();
 
 	return Result;
@@ -346,7 +357,6 @@ bool UseXDGDesktopPortal() {
 
 		return (
 			DesktopEnvironment::IsKDE()
-				|| InSnap()
 				|| envVar
 			) && portalPresent;
 	}();
@@ -509,6 +519,43 @@ QString GetIconName() {
 		? GetLauncherBasename()
 		: kIconName.utf16();
 	return Result;
+}
+
+QImage GetImageFromClipboard() {
+	QImage data;
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (!App::wnd()->gtkClipboard()) {
+		return data;
+	}
+
+	auto gsel = Libs::gtk_clipboard_wait_for_contents(
+		App::wnd()->gtkClipboard(),
+		Libs::gdk_atom_intern("TARGETS", true));
+
+	if (gsel) {
+		if (Libs::gtk_selection_data_targets_include_image(gsel, false)) {
+			auto img = Libs::gtk_clipboard_wait_for_image(App::wnd()->gtkClipboard());
+
+			if (img) {
+				data = QImage(
+					Libs::gdk_pixbuf_get_pixels(img),
+					Libs::gdk_pixbuf_get_width(img),
+					Libs::gdk_pixbuf_get_height(img),
+					Libs::gdk_pixbuf_get_rowstride(img),
+					Libs::gdk_pixbuf_get_has_alpha(img)
+						? QImage::Format_RGBA8888
+						: QImage::Format_RGB888).copy();
+
+				Libs::g_object_unref(img);
+			}
+		}
+
+		Libs::gtk_selection_data_free(gsel);
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	return data;
 }
 
 std::optional<crl::time> LastUserInputTime() {
@@ -697,6 +744,9 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
+	PlatformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
+		.split(':', QString::SkipEmptyParts);
+
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
 #ifdef TDESKTOP_USE_FONTCONFIG_FALLBACK
@@ -705,6 +755,16 @@ void start() {
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
+
+	// if gtk integration and qgtk3/qgtk2 platformtheme (or qgtk2 style)
+	// is used at the same time, the app will crash
+	if (UseGtkIntegration()
+		&& !IsStaticBinary()
+		&& !qEnvironmentVariableIsSet(
+			"TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY")) {
+		qunsetenv("QT_QPA_PLATFORMTHEME");
+		QApplication::setStyle(QStyleFactory::create(qsl("Fusion")));
+	}
 
 	if(IsStaticBinary()
 		|| InAppImage()

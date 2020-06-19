@@ -57,11 +57,22 @@ namespace {
 Sticker::Sticker(
 	not_null<Element*> parent,
 	not_null<DocumentData*> data,
+	Element *replacing,
 	const Lottie::ColorReplacements *replacements)
 : _parent(parent)
 , _data(data)
 , _replacements(replacements) {
-	_data->loadThumbnail(parent->data()->fullId());
+	if ((_dataMedia = _data->activeMediaView())) {
+		dataMediaCreated();
+	} else {
+		_data->loadThumbnail(parent->data()->fullId());
+	}
+	if (const auto media = replacing ? replacing->media() : nullptr) {
+		_lottie = media->stickerTakeLottie();
+		if (_lottie) {
+			lottieCreated();
+		}
+	}
 }
 
 Sticker::~Sticker() {
@@ -263,6 +274,12 @@ void Sticker::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
+	dataMediaCreated();
+}
+
+void Sticker::dataMediaCreated() const {
+	Expects(_dataMedia != nullptr);
+
 	_dataMedia->goodThumbnailWanted();
 	_dataMedia->thumbnailWanted(_parent->data()->fullId());
 	_parent->history()->owner().registerHeavyViewPart(_parent);
@@ -282,6 +299,12 @@ void Sticker::setupLottie() {
 		Stickers::LottieSize::MessageHistory,
 		_size * cIntRetinaFactor(),
 		Lottie::Quality::High);
+	lottieCreated();
+}
+
+void Sticker::lottieCreated() {
+	Expects(_lottie != nullptr);
+
 	_parent->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(
@@ -313,6 +336,10 @@ void Sticker::unloadLottie() {
 	}
 	_lottie = nullptr;
 	_parent->checkHeavyPart();
+}
+
+std::unique_ptr< Lottie::SinglePlayer> Sticker::stickerTakeLottie() {
+	return std::move(_lottie);
 }
 
 } // namespace HistoryView

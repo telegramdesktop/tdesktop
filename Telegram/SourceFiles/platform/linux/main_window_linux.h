@@ -18,6 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <dbusmenuexporter.h>
 #endif
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+typedef struct _GtkClipboard GtkClipboard;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -69,6 +74,12 @@ public slots:
 	void onVisibleChanged(bool visible);
 
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	GtkClipboard *gtkClipboard() {
+		return _gtkClipboard;
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 protected:
 	void initHook() override;
@@ -132,6 +143,10 @@ private:
 	void setSNITrayIcon(int counter, bool muted);
 	void attachToSNITrayIcon();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	GtkClipboard *_gtkClipboard = nullptr;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 };
 

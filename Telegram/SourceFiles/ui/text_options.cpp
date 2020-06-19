@@ -110,32 +110,6 @@ TextParseOptions WebpageDescriptionOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-TextParseOptions TwitterDescriptionOptions = {
-	TextParseLinks
-		| TextParseMentions
-		| TextTwitterMentions
-		| TextParseHashtags
-		| TextTwitterHashtags
-		| TextParseMultiline
-		| TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-TextParseOptions InstagramDescriptionOptions = {
-	TextParseLinks
-		| TextParseMentions
-		| TextInstagramMentions
-		| TextParseHashtags
-		| TextInstagramHashtags
-		| TextParseMultiline
-		| TextParseRichText, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
 bool UseBotTextOptions(
 		not_null<History*> history,
 		not_null<PeerData*> author) {
@@ -171,8 +145,6 @@ void InitTextOptions() {
 	WebpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
 	WebpageTitleOptions.maxw
 		= WebpageDescriptionOptions.maxw
-		= TwitterDescriptionOptions.maxw
-		= InstagramDescriptionOptions.maxw
 		= st::msgMaxWidth
 		- st::msgPadding.left()
 		- st::webPageLeft
@@ -204,13 +176,7 @@ const TextParseOptions &WebpageTextTitleOptions() {
 	return WebpageTitleOptions;
 }
 
-const TextParseOptions &WebpageTextDescriptionOptions(
-		const QString &siteName) {
-	if (siteName == qstr("Twitter")) {
-		return TwitterDescriptionOptions;
-	} else if (siteName == qstr("Instagram")) {
-		return InstagramDescriptionOptions;
-	}
+const TextParseOptions &WebpageTextDescriptionOptions() {
 	return WebpageDescriptionOptions;
 }
 

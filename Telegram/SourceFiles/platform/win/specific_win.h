@@ -19,10 +19,6 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
-QString CurrentExecutablePath(int argc, char *argv[]);
-
-QString SingleInstanceLocalServerName(const QString &hash);
-
 inline void IgnoreApplicationActivationRightNow() {
 }
 
@@ -30,6 +26,10 @@ inline void FallbackFontConfigCheckBegin() {
 }
 
 inline void FallbackFontConfigCheckEnd() {
+}
+
+inline QImage GetImageFromClipboard() {
+	return {};
 }
 
 namespace ThirdParty {

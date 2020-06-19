@@ -45,6 +45,14 @@ PollData::PollData(not_null<Data::Session*> owner, PollId id)
 , _owner(owner) {
 }
 
+Data::Session &PollData::owner() const {
+	return *_owner;
+}
+
+Main::Session &PollData::session() const {
+	return _owner->session();
+}
+
 bool PollData::closeByTimer() {
 	if (closed()) {
 		return false;
@@ -151,6 +159,7 @@ bool PollData::applyResults(const MTPPollResults &results) {
 			auto newSolution = TextWithEntities{
 				results.vsolution().value_or_empty(),
 				Api::EntitiesFromMTP(
+					&_owner->session(),
 					results.vsolution_entities().value_or_empty())
 			};
 			if (solution != newSolution) {
@@ -293,6 +302,7 @@ MTPInputMedia PollDataToInputMedia(
 	TextUtilities::PrepareForSending(solution, prepareFlags);
 	TextUtilities::Trim(solution);
 	const auto sentEntities = Api::EntitiesToMTP(
+		&poll->session(),
 		solution.entities,
 		Api::ConvertOption::SkipLocal);
 	if (!solution.text.isEmpty()) {

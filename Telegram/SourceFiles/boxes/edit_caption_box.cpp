@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -327,10 +328,6 @@ EditCaptionBox::EditCaptionBox(
 	) | rpl::start_with_next([&](bool checked) {
 		_asFile = checked;
 	}, _wayWrap->lifetime());
-
-	if (_animated) {
-		prepareStreamedPreview();
-	}
 }
 
 EditCaptionBox::~EditCaptionBox() = default;
@@ -590,6 +587,10 @@ void EditCaptionBox::createEditMediaButton() {
 }
 
 void EditCaptionBox::prepare() {
+	if (_animated) {
+		prepareStreamedPreview();
+	}
+
 	addButton(tr::lng_settings_save(), [this] { save(); });
 	if (_isAllowedEditMedia) {
 		createEditMediaButton();
@@ -656,7 +657,10 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		if (result.error == Error::None) {
 			return result;
 		} else if (data->hasImage()) {
-			auto image = qvariant_cast<QImage>(data->imageData());
+			auto image = Platform::GetImageFromClipboard();
+			if (image.isNull()) {
+				image = qvariant_cast<QImage>(data->imageData());
+			}
 			if (!image.isNull()) {
 				_isImage = true;
 				_photo = true;
@@ -934,6 +938,7 @@ void EditCaptionBox::save() {
 	TextUtilities::Trim(sending);
 
 	const auto sentEntities = Api::EntitiesToMTP(
+		&item->history()->session(),
 		sending.entities,
 		Api::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {

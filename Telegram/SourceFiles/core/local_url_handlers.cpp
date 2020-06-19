@@ -383,7 +383,9 @@ bool HandleUnknown(
 	const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
 		const auto text = TextWithEntities{
 			qs(result.vmessage()),
-			Api::EntitiesFromMTP(result.ventities().value_or_empty())
+			Api::EntitiesFromMTP(
+				session,
+				result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
 			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();

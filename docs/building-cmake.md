@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 2b9afa7
+    git checkout 0ba67e2
     cd ../
 
     git clone https://github.com/xiph/opus
@@ -192,7 +192,7 @@ Go to ***BuildPath*** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout openal-soft-1.20.1
+    git checkout openal-soft-1.19.1
     cd build
     cmake .. \
     -DLIBTYPE:STRING=STATIC \
@@ -212,7 +212,7 @@ Go to ***BuildPath*** and run
     sudo make install_sw
     cd ..
 
-    git clone -b 1.16 https://gitlab.freedesktop.org/wayland/wayland
+    git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
     cd wayland
     ./autogen.sh \
     --enable-static \

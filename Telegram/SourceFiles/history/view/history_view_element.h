@@ -37,9 +37,11 @@ class ElementDelegate {
 public:
 	virtual Context elementContext() = 0;
 	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message) = 0;
+		not_null<HistoryMessage*> message,
+		Element *replacing = nullptr) = 0;
 	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message) = 0;
+		not_null<HistoryService*> message,
+		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
 	virtual void elementAnimationAutoplayAsync(
 		not_null<const Element*> element) = 0;
@@ -63,9 +65,11 @@ public:
 class SimpleElementDelegate : public ElementDelegate {
 public:
 	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message) override;
+		not_null<HistoryMessage*> message,
+		Element *replacing = nullptr) override;
 	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message) override;
+		not_null<HistoryService*> message,
+		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	void elementAnimationAutoplayAsync(
 		not_null<const Element*> element) override;
@@ -134,7 +138,8 @@ class Element
 public:
 	Element(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryItem*> data);
+		not_null<HistoryItem*> data,
+		Element *replacing);
 
 	enum class Flag : uchar {
 		NeedsResize        = 0x01,
@@ -304,7 +309,7 @@ private:
 	virtual QSize performCountOptimalSize() = 0;
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
-	void refreshMedia();
+	void refreshMedia(Element *replacing);
 
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;

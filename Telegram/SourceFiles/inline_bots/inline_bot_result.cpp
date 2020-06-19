@@ -162,7 +162,6 @@ std::unique_ptr<Result> Result::Create(
 		}
 	} else if (result->_type == Type::Audio
 		|| result->_type == Type::File
-		|| result->_type == Type::Video
 		|| result->_type == Type::Sticker
 		|| result->_type == Type::Gif) {
 		if (!result->_document) {
@@ -175,24 +174,28 @@ std::unique_ptr<Result> Result::Create(
 		const auto &r = message->c_botInlineMessageMediaAuto();
 		const auto message = qs(r.vmessage());
 		const auto entities = Api::EntitiesFromMTP(
+			session,
 			r.ventities().value_or_empty());
 		if (result->_type == Type::Photo) {
 			if (!result->_photo) {
 				return nullptr;
 			}
 			result->sendData = std::make_unique<internal::SendPhoto>(
+				session,
 				result->_photo,
 				message,
 				entities);
 		} else if (result->_type == Type::Game) {
 			result->createGame();
 			result->sendData = std::make_unique<internal::SendGame>(
+				session,
 				result->_game);
 		} else {
 			if (!result->_document) {
 				return nullptr;
 			}
 			result->sendData = std::make_unique<internal::SendFile>(
+				session,
 				result->_document,
 				message,
 				entities);
@@ -205,22 +208,10 @@ std::unique_ptr<Result> Result::Create(
 	case mtpc_botInlineMessageText: {
 		const auto &r = message->c_botInlineMessageText();
 		result->sendData = std::make_unique<internal::SendText>(
+			session,
 			qs(r.vmessage()),
-			Api::EntitiesFromMTP(r.ventities().value_or_empty()),
+			Api::EntitiesFromMTP(session, r.ventities().value_or_empty()),
 			r.is_no_webpage());
-		if (result->_type == Type::Photo) {
-			if (!result->_photo) {
-				return nullptr;
-			}
-		} else if (result->_type == Type::Audio
-			|| result->_type == Type::File
-			|| result->_type == Type::Video
-			|| result->_type == Type::Sticker
-			|| result->_type == Type::Gif) {
-			if (!result->_document) {
-				return nullptr;
-			}
-		}
 		if (const auto markup = r.vreply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
 		}
@@ -230,7 +221,9 @@ std::unique_ptr<Result> Result::Create(
 		// #TODO layer 72 save period and send live location?..
 		auto &r = message->c_botInlineMessageMediaGeo();
 		if (r.vgeo().type() == mtpc_geoPoint) {
-			result->sendData = std::make_unique<internal::SendGeo>(r.vgeo().c_geoPoint());
+			result->sendData = std::make_unique<internal::SendGeo>(
+				session,
+				r.vgeo().c_geoPoint());
 		} else {
 			badAttachment = true;
 		}
@@ -242,7 +235,13 @@ std::unique_ptr<Result> Result::Create(
 	case mtpc_botInlineMessageMediaVenue: {
 		auto &r = message->c_botInlineMessageMediaVenue();
 		if (r.vgeo().type() == mtpc_geoPoint) {
-			result->sendData = std::make_unique<internal::SendVenue>(r.vgeo().c_geoPoint(), qs(r.vvenue_id()), qs(r.vprovider()), qs(r.vtitle()), qs(r.vaddress()));
+			result->sendData = std::make_unique<internal::SendVenue>(
+				session,
+				r.vgeo().c_geoPoint(),
+				qs(r.vvenue_id()),
+				qs(r.vprovider()),
+				qs(r.vtitle()),
+				qs(r.vaddress()));
 		} else {
 			badAttachment = true;
 		}
@@ -253,7 +252,11 @@ std::unique_ptr<Result> Result::Create(
 
 	case mtpc_botInlineMessageMediaContact: {
 		auto &r = message->c_botInlineMessageMediaContact();
-		result->sendData = std::make_unique<internal::SendContact>(qs(r.vfirst_name()), qs(r.vlast_name()), qs(r.vphone_number()));
+		result->sendData = std::make_unique<internal::SendContact>(
+			session,
+			qs(r.vfirst_name()),
+			qs(r.vlast_name()),
+			qs(r.vphone_number()));
 		if (const auto markup = r.vreply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
 		}

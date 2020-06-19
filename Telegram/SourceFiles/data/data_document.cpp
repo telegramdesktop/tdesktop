@@ -797,7 +797,9 @@ bool DocumentData::saveToCache() const {
 			|| isAnimation()
 			|| isVoiceMessage()
 			|| (type == WallPaperDocument)
-			|| isTheme());
+			|| isTheme()
+			|| (mimeString() == qstr("image/png")
+				&& _filename.startsWith("image_")));
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
@@ -1615,10 +1617,10 @@ bool IsExecutableName(const QString &filepath) {
 			qsl("\
 applescript action app bin command csh osx workflow terminal url caction \
 mpkg pkg scpt scptd xhtm webarchive");
-#elif defined Q_OS_LINUX // Q_OS_MAC
+#elif defined Q_OS_UNIX // Q_OS_MAC
 			qsl("bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
 slp zsh");
-#else // Q_OS_MAC || Q_OS_LINUX
+#else // Q_OS_MAC || Q_OS_UNIX
 			qsl("\
 ad ade adp app application appref-ms asp asx bas bat bin cdxml cer cfg chi \
 chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget grp \
@@ -1631,7 +1633,7 @@ psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr sct \
 search-ms settingcontent-ms shb shs slk sys t tmp u3p url vb vbe vbp vbs \
 vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx \
 website ws wsc wsf wsh xbap xll xnk xs");
-#endif // !Q_OS_MAC && !Q_OS_LINUX
+#endif // !Q_OS_MAC && !Q_OS_UNIX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/notifications_manager_linux.h"
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#include "base/platform/base_platform_info.h"
 #include "platform/linux/specific_linux.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
@@ -70,7 +71,7 @@ void GetSupported() {
 	}
 	Checked = true;
 
-	if (Global::NativeNotifications()) {
+	if (Global::NativeNotifications() && !Platform::IsWayland()) {
 		ComputeSupported(true);
 	} else {
 		ComputeSupported();
@@ -474,7 +475,8 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	GetSupported();
 
-	if (Global::NativeNotifications() && Supported()) {
+	if ((Global::NativeNotifications() && Supported())
+		|| Platform::IsWayland()) {
 		return std::make_unique<Manager>(system);
 	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -487,6 +489,10 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager) {
 	qDBusRegisterMetaType<NotificationData::ImageData>();
+
+	if (!Supported()) {
+		return;
+	}
 
 	const auto serverInformation = GetServerInformation();
 	const auto capabilities = GetCapabilities();
@@ -520,6 +526,8 @@ void Manager::Private::showNotification(
 		const QString &msg,
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
+	if (!Supported()) return;
+
 	auto notification = std::make_shared<NotificationData>(
 		_manager,
 		title,
@@ -558,6 +566,8 @@ void Manager::Private::showNotification(
 }
 
 void Manager::Private::clearAll() {
+	if (!Supported()) return;
+
 	auto temp = base::take(_notifications);
 	for_const (auto &notifications, temp) {
 		for_const (auto notification, notifications) {
@@ -567,6 +577,8 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
+	if (!Supported()) return;
+
 	auto i = _notifications.find(history->peer->id);
 	if (i != _notifications.cend()) {
 		auto temp = base::take(i.value());
@@ -579,6 +591,8 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 }
 
 void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
+	if (!Supported()) return;
+
 	auto i = _notifications.find(peerId);
 	if (i != _notifications.cend()) {
 		i.value().remove(msgId);

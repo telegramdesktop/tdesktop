@@ -79,9 +79,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // OS_MAC_OLD
 
 // Fix Google Breakpad build for Mac App Store and Linux version
-#if defined Q_OS_MAC || defined Q_OS_LINUX
+#ifdef Q_OS_UNIX
 #define __STDC_FORMAT_MACROS
-#endif // Q_OS_MAC || Q_OS_LINUX
+#endif // Q_OS_UNIX
 
 #include <array>
 #include <vector>

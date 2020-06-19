@@ -11,6 +11,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 struct PollAnswer {
 	QString text;
 	QByteArray option;
@@ -30,6 +34,9 @@ inline bool operator!=(const PollAnswer &a, const PollAnswer &b) {
 
 struct PollData {
 	PollData(not_null<Data::Session*> owner, PollId id);
+
+	[[nodiscard]] Data::Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
 
 	enum class Flag {
 		Closed      = 0x01,

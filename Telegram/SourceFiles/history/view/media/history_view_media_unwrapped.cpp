@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "lottie/lottie_single_player.h"
 #include "layout.h"
 #include "facades.h"
 #include "app.h"
@@ -23,6 +24,11 @@ namespace {
 constexpr auto kMaxForwardedBarLines = 4;
 
 } // namespace
+
+auto UnwrappedMedia::Content::stickerTakeLottie()
+-> std::unique_ptr<Lottie::SinglePlayer> {
+	return nullptr;
+}
 
 UnwrappedMedia::UnwrappedMedia(
 	not_null<Element*> parent,
@@ -374,6 +380,10 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	return result;
+}
+
+std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie() {
+	return _content->stickerTakeLottie();
 }
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {

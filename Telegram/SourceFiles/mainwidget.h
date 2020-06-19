@@ -38,6 +38,7 @@ struct PeerUpdate;
 
 namespace Data {
 class WallPaper;
+class CloudImageView;
 } // namespace Data
 
 namespace Dialogs {
@@ -107,7 +108,9 @@ class MainWidget
 public:
 	using SectionShow = Window::SectionShow;
 
-	MainWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	MainWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	[[nodiscard]] Main::Session &session() const;
 
@@ -458,6 +461,8 @@ private:
 	int _dialogsWidth = 0;
 	int _thirdColumnWidth = 0;
 	Ui::Animations::Simple _a_dialogsWidth;
+
+	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
 
 	object_ptr<Ui::PlainShadow> _sideShadow;
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
