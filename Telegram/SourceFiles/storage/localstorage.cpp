@@ -79,10 +79,11 @@ FileKey _backgroundKeyDay = 0;
 FileKey _backgroundKeyNight = 0;
 bool _useGlobalBackgroundKeys = false;
 bool _backgroundCanWrite = true;
-bool _backgroundMigrated = false;
 
 int32 _oldSettingsVersion = 0;
-bool _settingsRewritten;
+bool _settingsRewritten = false;
+bool _settingsRewriteNeeded = false;
+bool _settingsWriteAllowed = false;
 
 enum class WriteMapWhen {
 	Now,
@@ -416,6 +417,10 @@ void start() {
 }
 
 void writeSettings() {
+	if (!_settingsWriteAllowed) {
+		_settingsRewriteNeeded = true;
+		return;
+	}
 	if (_basePath.isEmpty()) {
 		LOG(("App Error: _basePath is empty in writeSettings()"));
 		return;
@@ -520,12 +525,13 @@ void writeSettings() {
 }
 
 void rewriteSettingsIfNeeded() {
-	if (_settingsRewritten
-		|| (_oldSettingsVersion == AppVersion && !_backgroundMigrated)) {
+	if (_settingsWriteAllowed) {
 		return;
 	}
-	_settingsRewritten = true;
-	writeSettings();
+	_settingsWriteAllowed = true;
+	if (_oldSettingsVersion < AppVersion || _settingsRewriteNeeded) {
+		writeSettings();
+	}
 }
 
 const QString &AutoupdatePrefix(const QString &replaceWith = {}) {
@@ -786,7 +792,7 @@ void moveLegacyBackground(
 	};
 	move(legacyBackgroundKeyDay, _backgroundKeyDay);
 	move(legacyBackgroundKeyNight, _backgroundKeyNight);
-	_backgroundMigrated = true;
+	_settingsRewriteNeeded = true;
 }
 
 void reset() {
