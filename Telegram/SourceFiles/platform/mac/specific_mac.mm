@@ -12,11 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "storage/localstorage.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "base/platform/mac/base_utilities_mac.h"
-#include "facades.h"
 
 #include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
@@ -279,7 +280,7 @@ void psSendToMenu(bool send, bool silent) {
 }
 
 void psDownloadPathEnableAccess() {
-	objc_downloadPathEnableAccess(Global::DownloadPathBookmark());
+	objc_downloadPathEnableAccess(Core::App().settings().downloadPathBookmark());
 }
 
 QByteArray psDownloadPathBookmark(const QString &path) {

@@ -29,7 +29,7 @@ public:
 	SessionSettings();
 
 	[[nodiscard]] QByteArray serialize() const;
-	[[nodiscard]] void addFromSerialized(const QByteArray &serialized);
+	void addFromSerialized(const QByteArray &serialized);
 
 	void setSupportSwitch(Support::SwitchSettings value) {
 		_supportSwitch = value;

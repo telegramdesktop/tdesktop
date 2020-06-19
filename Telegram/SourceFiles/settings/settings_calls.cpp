@@ -293,12 +293,12 @@ void Calls::setupContent() {
 		tr::lng_settings_call_audio_ducking(),
 		st::settingsButton
 	)->toggleOn(
-		rpl::single(Global::CallAudioDuckingEnabled())
+		rpl::single(settings.callAudioDuckingEnabled())
 	)->toggledValue() | rpl::filter([](bool enabled) {
-		return (enabled != Global::CallAudioDuckingEnabled());
+		return (enabled != Core::App().settings().callAudioDuckingEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
-		Global::SetCallAudioDuckingEnabled(enabled);
-		_controller->session().saveSettingsDelayed();
+		Core::App().settings().setCallAudioDuckingEnabled(enabled);
+		Core::App().saveSettingsDelayed();
 		if (const auto call = _controller->session().calls().currentCall()) {
 			call->setAudioDuckingEnabled(enabled);
 		}

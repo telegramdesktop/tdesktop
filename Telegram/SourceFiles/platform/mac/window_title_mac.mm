@@ -42,7 +42,7 @@ TitleWidget::TitleWidget(MainWindow *parent, int height)
 		_font = st::normalFont;
 	}
 
-	Core::App().unreadBadgeValue(
+	Core::App().unreadBadgeChanges(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());

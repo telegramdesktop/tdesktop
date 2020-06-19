@@ -26,9 +26,9 @@ enum class HitTestResult {
 	TopLeft,
 };
 
-class TitleWidget : public TWidget {
+class TitleWidget : public Ui::RpWidget {
 public:
-	using TWidget::TWidget;
+	using RpWidget::RpWidget;
 
 	virtual void init() {
 	}

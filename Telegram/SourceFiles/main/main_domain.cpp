@@ -66,6 +66,10 @@ void Domain::activateFromStorage(int index) {
 	_accountToActivate = index;
 }
 
+int Domain::activeForStorage() const {
+	return _accountToActivate;
+}
+
 void Domain::resetWithForgottenPasscode() {
 	if (_accounts.empty()) {
 		_local->startFromScratch();

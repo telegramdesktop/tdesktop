@@ -499,7 +499,6 @@ void Account::forcedLogOut() {
 void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
-	Core::App().settings().setVoiceMsgPlaybackDoubled(false); // #TODO multi properly reset settings
 	if (const auto window = Core::App().activeWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
 	}

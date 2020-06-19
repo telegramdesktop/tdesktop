@@ -535,13 +535,17 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 	_themeTile = themeTile;
 }
 
-void ChatBackground::start() {
+void ChatBackground::initialRead() {
 	if (!Data::details::IsUninitializedWallPaper(_paper)) {
 		return;
 	}
 	if (!Local::readBackground()) {
 		set(Data::ThemeWallPaper());
 	}
+}
+
+void ChatBackground::start() {
+	initialRead();
 
 	Core::App().domain().activeSessionValue(
 	) | rpl::filter([=](Main::Session *session) {
@@ -851,16 +855,16 @@ bool ChatBackground::isMonoColorImage() const {
 	return _isMonoColorImage;
 }
 
-void ChatBackground::ensureStarted() {
+void ChatBackground::ensureInitialRead() {
 	if (_pixmap.isNull() && !_paper.backgroundColor()) {
 		// We should start first, otherwise the default call
-		// to start() will reset this value to _themeTile.
-		start();
+		// to initialRead() will reset this value to _themeTile.
+		initialRead();
 	}
 }
 
 void ChatBackground::setTile(bool tile) {
-	ensureStarted();
+	ensureInitialRead();
 	const auto old = this->tile();
 	if (nightMode()) {
 		setTileNightValue(tile);
@@ -877,12 +881,12 @@ void ChatBackground::setTile(bool tile) {
 }
 
 void ChatBackground::setTileDayValue(bool tile) {
-	ensureStarted();
+	ensureInitialRead();
 	_tileDayValue = tile;
 }
 
 void ChatBackground::setTileNightValue(bool tile) {
-	ensureStarted();
+	ensureInitialRead();
 	_tileNightValue = tile;
 }
 
@@ -917,7 +921,7 @@ void ChatBackground::reset() {
 }
 
 void ChatBackground::saveForRevert() {
-	ensureStarted();
+	ensureInitialRead();
 	if (!Data::details::IsTestingThemeWallPaper(_paper)
 		&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
 		_paperForRevert = _paper;
@@ -1009,7 +1013,7 @@ void ChatBackground::keepApplied(const Object &object, bool write) {
 }
 
 bool ChatBackground::isNonDefaultThemeOrBackground() {
-	start();
+	initialRead();
 	return nightMode()
 		? (_themeObject.pathAbsolute != NightThemePath()
 			|| !Data::IsThemeWallPaper(_paper))
@@ -1018,7 +1022,7 @@ bool ChatBackground::isNonDefaultThemeOrBackground() {
 }
 
 bool ChatBackground::isNonDefaultBackground() {
-	start();
+	initialRead();
 	return _themeObject.pathAbsolute.isEmpty()
 		? !Data::IsDefaultWallPaper(_paper)
 		: !Data::IsThemeWallPaper(_paper);

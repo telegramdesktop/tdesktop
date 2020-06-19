@@ -66,6 +66,7 @@ public:
 	// Interface for Storage::Domain.
 	void accountAddedInStorage(AccountWithIndex accountWithIndex);
 	void activateFromStorage(int index);
+	[[nodiscard]] int activeForStorage() const;
 
 private:
 	void activateAfterStarting();

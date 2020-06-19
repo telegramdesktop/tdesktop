@@ -156,7 +156,6 @@ private:
 	bool _animatingMode = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
 
-	int _unreadCounterSubscription = 0;
 	base::Timer _onlineUpdater;
 
 	rpl::event_stream<> _forwardSelection;

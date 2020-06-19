@@ -108,6 +108,8 @@ public:
 		return *_animationsManager;
 	}
 	[[nodiscard]] Window::Notifications::System &notifications() const {
+		Expects(_notifications != nullptr);
+
 		return *_notifications;
 	}
 
@@ -305,7 +307,8 @@ private:
 	const std::unique_ptr<Media::Audio::Instance> _audio;
 
 	// Notifications should be destroyed before _audio.
-	const std::unique_ptr<Window::Notifications::System> _notifications;
+	// Mutable because is created in run() after OpenSSL is inited.
+	std::unique_ptr<Window::Notifications::System> _notifications;
 
 	const QImage _logo;
 	const QImage _logoNoMargin;

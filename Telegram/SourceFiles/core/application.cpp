@@ -103,7 +103,6 @@ Application::Application(not_null<Launcher*> launcher)
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
-, _notifications(std::make_unique<Window::Notifications::System>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin())
 , _autoLockTimer([=] { checkAutoLock(); }) {
@@ -180,7 +179,10 @@ void Application::run() {
 
 	ThirdParty::start();
 	Global::start();
-	refreshGlobalProxy(); // Depends on Global::started().
+	refreshGlobalProxy(); // Depends on Global::start().
+
+	// Depends on OpenSSL on macOS, so on ThirdParty::start().
+	_notifications = std::make_unique<Window::Notifications::System>();
 
 	startLocalStorage();
 	ValidateScale();

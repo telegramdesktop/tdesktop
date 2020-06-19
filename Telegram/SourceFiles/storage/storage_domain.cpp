@@ -222,18 +222,12 @@ void Domain::writeAccounts() {
 
 	auto keySize = sizeof(qint32) + sizeof(qint32) * list.size();
 
-	const auto active = &_owner->active();
-	auto activeIndex = -1;
-
 	EncryptedDescriptor keyData(keySize);
 	keyData.stream << qint32(list.size());
 	for (const auto &[index, account] : list) {
-		if (active == account.get()) {
-			activeIndex = index;
-		}
 		keyData.stream << qint32(index);
 	}
-	keyData.stream << qint32(activeIndex);
+	keyData.stream << qint32(_owner->activeForStorage());
 	key.writeEncrypted(keyData, _localKey);
 }
 

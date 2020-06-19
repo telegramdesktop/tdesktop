@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
 #include "facades.h"
 #include "styles/style_window.h"
@@ -91,28 +92,37 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		return;
 	}
 
+	NSNumber *selfObject = [notificationUserInfo objectForKey:@"self"];
+	const auto notificationSelfId = selfObject ? [selfObject intValue] : 0;
+	if (!notificationSelfId) {
+		LOG(("App Error: A notification with unknown self was received"));
+		return;
+	}
 	NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
-	auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
+	const auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
 	if (!notificationPeerId) {
 		LOG(("App Error: A notification with unknown peer was received"));
 		return;
 	}
 
 	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
-	auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
+	const auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
+
+	const auto my = Window::Notifications::Manager::NotificationId{
+		.peerId = notificationPeerId,
+		.msgId = notificationMsgId,
+		.selfId = notificationSelfId
+	};
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
 		const auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
 		const auto manager = _manager;
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(
-				notificationPeerId,
-				notificationMsgId,
-				{ notificationReply, {} });
+			manager->notificationReplied(my, { notificationReply, {} });
 		});
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
 		const auto manager = _manager;
 		crl::on_main(manager, [=] {
-			manager->notificationActivated(notificationPeerId, notificationMsgId);
+			manager->notificationActivated(my);
 		});
 	}
 
@@ -194,13 +204,16 @@ private:
 	std::condition_variable _clearingCondition;
 
 	struct ClearFromHistory {
-		PeerId peerId;
+		FullPeer fullPeer;
+	};
+	struct ClearFromSession {
+		UserId selfId = 0;
 	};
 	struct ClearAll {
 	};
 	struct ClearFinish {
 	};
-	using ClearTask = base::variant<ClearFromHistory, ClearAll, ClearFinish>;
+	using ClearTask = base::variant<ClearFromHistory, ClearFromSession, ClearAll, ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
 };
@@ -236,7 +249,7 @@ void Manager::Private::showNotification(
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
+	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().userId()],@"self",[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
@@ -265,7 +278,8 @@ void Manager::Private::clearingThreadLoop() {
 	auto finished = false;
 	while (!finished) {
 		auto clearAll = false;
-		auto clearFromPeers = std::set<PeerId>(); // Better to use flatmap.
+		auto clearFromPeers = base::flat_set<FullPeer>();
+		auto clearFromSessions = base::flat_set<UserId>();
 		{
 			std::unique_lock<std::mutex> lock(_clearingMutex);
 
@@ -279,17 +293,25 @@ void Manager::Private::clearingThreadLoop() {
 				} else if (base::get_if<ClearAll>(&task)) {
 					clearAll = true;
 				} else if (auto fromHistory = base::get_if<ClearFromHistory>(&task)) {
-					clearFromPeers.insert(fromHistory->peerId);
+					clearFromPeers.emplace(fromHistory->fullPeer);
+				} else if (auto fromSession = base::get_if<ClearFromSession>(&task)) {
+					clearFromSessions.emplace(fromSession->selfId);
 				}
 			}
 			_clearingTasks.clear();
 		}
 
-		auto clearByPeer = [&clearFromPeers](NSDictionary *notificationUserInfo) {
+		auto clearBySpecial = [&](NSDictionary *notificationUserInfo) {
+			NSNumber *selfObject = [notificationUserInfo objectForKey:@"self"];
+			const auto notificationSelfId = selfObject ? [selfObject intValue] : 0;
+			if (!notificationSelfId) {
+				return true;
+			}
 			if (NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"]) {
-				auto notificationPeerId = [peerObject unsignedLongLongValue];
+				const auto notificationPeerId = [peerObject unsignedLongLongValue];
 				if (notificationPeerId) {
-					return (clearFromPeers.find(notificationPeerId) != clearFromPeers.cend());
+					return clearFromSessions.contains(notificationSelfId)
+						|| clearFromPeers.contains(FullPeer{ notificationPeerId, notificationSelfId });
 				}
 			}
 			return true;
@@ -302,7 +324,7 @@ void Manager::Private::clearingThreadLoop() {
 			NSNumber *managerIdObject = [notificationUserInfo objectForKey:@"manager"];
 			auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
 			if (notificationManagerId == _managerId) {
-				if (clearAll || clearByPeer(notificationUserInfo)) {
+				if (clearAll || clearBySpecial(notificationUserInfo)) {
 					[center removeDeliveredNotification:notification];
 				}
 			}
@@ -326,11 +348,11 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	putClearTask(ClearFromHistory { history->peer->id });
+	putClearTask(ClearFromHistory { FullPeer{ history->peer->id, history->session().userId() } });
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	putClearTask(); // #TODO multi
+	putClearTask(ClearFromSession { session->userId() });
 }
 
 void Manager::Private::updateDelegate() {

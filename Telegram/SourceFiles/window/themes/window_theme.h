@@ -129,11 +129,12 @@ class ChatBackground
 public:
 	ChatBackground();
 
+	void start();
+
 	// This method is allowed to (and should) be called before start().
 	void setThemeData(QImage &&themeImage, bool themeTile);
 
 	// This method is setting the default (themed) image if none was set yet.
-	void start();
 	void set(const Data::WallPaper &paper, QImage image = QImage());
 	void setTile(bool tile);
 	void setTileDayValue(bool tile);
@@ -177,7 +178,8 @@ private:
 		QColor original;
 	};
 
-	void ensureStarted();
+	void initialRead();
+	void ensureInitialRead();
 	void saveForRevert();
 	void setPreparedImage(QImage original, QImage prepared);
 	void preparePixmaps(QImage image);
