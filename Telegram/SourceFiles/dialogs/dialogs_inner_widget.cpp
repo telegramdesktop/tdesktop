@@ -198,8 +198,7 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	rpl::merge(
-		session().settings().archiveCollapsedChanges(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		session().settings().archiveCollapsedChanges() | rpl::to_empty,
 		session().data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
 		refreshWithCollapsedRows();

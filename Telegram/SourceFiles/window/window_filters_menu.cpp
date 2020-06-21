@@ -32,8 +32,7 @@ namespace {
 [[nodiscard]] rpl::producer<Dialogs::UnreadState> MainListUnreadState(
 		not_null<Dialogs::MainList*> list) {
 	return rpl::single(rpl::empty_value()) | rpl::then(
-		list->unreadStateChanges(
-			) | rpl::map([] { return rpl::empty_value(); })
+		list->unreadStateChanges() | rpl::to_empty
 	) | rpl::map([=] {
 		return list->unreadState();
 	});

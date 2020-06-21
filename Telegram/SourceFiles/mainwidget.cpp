@@ -277,10 +277,8 @@ MainWidget::MainWidget(
 		updateDialogsWidthAnimated();
 	});
 	rpl::merge(
-		session().settings().dialogsWidthRatioChanges()
-			| rpl::map([] { return rpl::empty_value(); }),
-		session().settings().thirdColumnWidthChanges()
-			| rpl::map([] { return rpl::empty_value(); })
+		session().settings().dialogsWidthRatioChanges() | rpl::to_empty,
+		session().settings().thirdColumnWidthChanges() | rpl::to_empty
 	) | rpl::start_with_next(
 		[this] { updateControlsGeometry(); },
 		lifetime());
@@ -918,7 +916,7 @@ void MainWidget::createPlayer() {
 			this,
 			object_ptr<Media::Player::Widget>(this, &session()));
 		rpl::merge(
-			_player->heightValue() | rpl::map([] { return true; }),
+			_player->heightValue() | rpl::map_to(true),
 			_player->shownValue()
 		) | rpl::start_with_next(
 			[this] { playerHeightUpdated(); },
@@ -1061,7 +1059,7 @@ void MainWidget::createExportTopBar(Export::View::Content &&data) {
 		updateControlsGeometry();
 	}
 	rpl::merge(
-		_exportTopBar->heightValue() | rpl::map([] { return true; }),
+		_exportTopBar->heightValue() | rpl::map_to(true),
 		_exportTopBar->shownValue()
 	) | rpl::start_with_next([=] {
 		exportTopBarHeightUpdated();

@@ -902,9 +902,9 @@ void PasscodeBox::recover() {
 		_cloudFields.notEmptyPassport));
 
 	box->passwordCleared(
-	) | rpl::map([] {
-		return QByteArray();
-	}) | rpl::start_to_stream(_newPasswordSet, lifetime());
+	) | rpl::map_to(
+		QByteArray()
+	) | rpl::start_to_stream(_newPasswordSet, lifetime());
 
 	box->recoveryExpired(
 	) | rpl::start_with_next([=] {

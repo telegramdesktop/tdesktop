@@ -313,15 +313,11 @@ void TermsBox::prepare() {
 			return false;
 		}
 		return true;
-	}) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_agreeClicks, lifetime());
+	}) | rpl::to_empty | rpl::start_to_stream(_agreeClicks, lifetime());
 
 	if (_cancel) {
-		addButton(std::move(_cancel), [=] {})->clicks(
-		) | rpl::map([] {
-			return rpl::empty_value();
-		}) | rpl::start_to_stream(_cancelClicks, lifetime());
+		addButton(std::move(_cancel), [] {})->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(_cancelClicks, lifetime());
 	}
 
 	if (age) {

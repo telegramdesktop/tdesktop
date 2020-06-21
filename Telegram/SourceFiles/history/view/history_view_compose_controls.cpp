@@ -98,20 +98,16 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 }
 
 rpl::producer<> ComposeControls::sendRequests() const {
-	auto toEmpty = rpl::map([] { return rpl::empty_value(); });
 	auto submits = base::qt_signal_producer(
 		_field.get(),
 		&Ui::InputField::submitted);
 	return rpl::merge(
-		_send->clicks() | toEmpty,
-		std::move(submits) | toEmpty);
+		_send->clicks() | rpl::to_empty,
+		std::move(submits) | rpl::to_empty);
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
-	return _attachToggle->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	});
+	return _attachToggle->clicks() | rpl::to_empty;
 }
 
 void ComposeControls::setMimeDataHook(MimeDataHook hook) {

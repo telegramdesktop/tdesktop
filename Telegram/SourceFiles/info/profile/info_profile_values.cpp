@@ -155,7 +155,7 @@ rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
 		peer->session().changes().peerFlagsValue(
 			peer,
 			UpdateFlag::Notifications
-		) | rpl::map([] { return rpl::empty_value(); }),
+		) | rpl::to_empty,
 		peer->owner().defaultNotifyUpdates(peer)
 	) | rpl::map([=] {
 		return !peer->owner().notifyIsMuted(peer);

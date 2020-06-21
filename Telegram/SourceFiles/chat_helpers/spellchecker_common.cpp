@@ -335,16 +335,15 @@ rpl::producer<QString> ButtonManageDictsState(
 			? QString::number(filtered.size())
 			: tr::lng_contacts_loading(tr::now);
 	};
-	const auto emptyValue = [] { return rpl::empty_value(); };
 	return rpl::single(
 		computeString()
 	) | rpl::then(
 		rpl::merge(
 			Spellchecker::SupportedScriptsChanged(),
 			Core::App().settings().dictionariesEnabledChanges(
-			) | rpl::map(emptyValue),
+			) | rpl::to_empty,
 			Core::App().settings().spellcheckerEnabledChanges(
-			) | rpl::map(emptyValue)
+			) | rpl::to_empty
 		) | rpl::map(computeString)
 	);
 }

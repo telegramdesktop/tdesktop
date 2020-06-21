@@ -206,7 +206,7 @@ void LocalStorageBox::Row::radialAnimationCallback() {
 }
 
 rpl::producer<> LocalStorageBox::Row::clearRequests() const {
-	return _clear->clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _clear->clicks() | rpl::to_empty;
 }
 
 int LocalStorageBox::Row::resizeGetHeight(int newWidth) {

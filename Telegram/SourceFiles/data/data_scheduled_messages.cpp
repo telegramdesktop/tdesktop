@@ -316,9 +316,7 @@ rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
 	return _updates.events(
 	) | rpl::filter([=](not_null<History*> value) {
 		return (value == history);
-	}) | rpl::map([] {
-		return rpl::empty_value();
-	});
+	}) | rpl::to_empty;
 }
 
 Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {

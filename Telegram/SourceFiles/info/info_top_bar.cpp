@@ -107,9 +107,8 @@ void TopBar::enableBackButton() {
 	_back->setDuration(st::infoTopBarDuration);
 	_back->toggle(!selectionMode(), anim::type::instant);
 	_back->entity()->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_backClicks, _back->lifetime());
+	) | rpl::to_empty
+	| rpl::start_to_stream(_backClicks, _back->lifetime());
 	registerToggleControlCallback(_back.data(), [=] {
 		return !selectionMode();
 	});
@@ -444,9 +443,8 @@ void TopBar::createSelectionControls() {
 		st::infoTopBarScale));
 	_cancelSelection->setDuration(st::infoTopBarDuration);
 	_cancelSelection->entity()->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(
+	) | rpl::to_empty
+	| rpl::start_to_stream(
 		_cancelSelectionClicks,
 		_cancelSelection->lifetime());
 	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(

@@ -178,18 +178,17 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 	-> rpl::producer<std::tuple<int, bool>> {
 		if (chat) {
 			using UpdateFlag = Data::PeerUpdate::Flag;
-			auto to_empty = rpl::map([=] { return rpl::empty_value(); });
 			return rpl::merge(
 				chat->session().changes().historyUpdates(
 					Data::HistoryUpdate::Flag::UnreadView
 				) | rpl::filter([=](const Data::HistoryUpdate &update) {
 					return (update.history->peer == chat);
-				}) | to_empty,
+				}) | rpl::to_empty,
 
 				chat->session().changes().peerFlagsValue(
 					chat,
 					UpdateFlag::Notifications | UpdateFlag::ChannelAmIn
-				) | to_empty
+				) | rpl::to_empty
 			) | rpl::map([=] {
 				const auto history = chat->amIn()
 					? chat->owner().historyLoaded(chat)

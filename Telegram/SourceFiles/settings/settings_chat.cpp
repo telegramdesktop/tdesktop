@@ -196,7 +196,7 @@ void ColorsPalette::Button::update(
 }
 
 rpl::producer<> ColorsPalette::Button::clicks() const {
-	return _widget.clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _widget.clicks() | rpl::to_empty;
 }
 
 bool ColorsPalette::Button::selected() const {

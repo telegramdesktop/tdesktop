@@ -197,7 +197,7 @@ Widget::Widget(
 	}, lifetime());
 
 	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
-	) | rpl::map([] { return rpl::empty_value(); }));
+	) | rpl::to_empty);
 
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
@@ -422,7 +422,7 @@ void Widget::setupSupportMode() {
 	}
 
 	fullSearchRefreshOn(session().settings().supportAllSearchResultsValue(
-	) | rpl::map([] { return rpl::empty_value(); }));
+	) | rpl::to_empty);
 }
 
 void Widget::fullSearchRefreshOn(rpl::producer<> events) {

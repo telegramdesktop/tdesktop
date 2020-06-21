@@ -556,7 +556,7 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 	const auto box = result.data();
 
 	rpl::merge(
-		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
+		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
 		session->api().reloadPasswordState();
@@ -583,8 +583,7 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	const auto box = Ui::show(Box<PasscodeBox>(session, fields));
 
 	rpl::merge(
-		box->newPasswordSet(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
 		session->api().reloadPasswordState();

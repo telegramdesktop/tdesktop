@@ -246,22 +246,15 @@ auto AddButtonWithLoader(
 		) | rpl::then(
 			rpl::merge(
 				// Events to toggle on.
-				dictionaryFromGlobalLoader->events(
-				) | rpl::map([] {
-					return true;
-				}),
+				dictionaryFromGlobalLoader->events() | rpl::map_to(true),
 				// Events to toggle off.
 				rpl::merge(
 					dictionaryRemoved->events(),
 					buttonState->value(
 					) | rpl::filter([](const DictState &state) {
 						return state.is<Failed>();
-					}) | rpl::map([] {
-						return rpl::empty_value();
-					})
-				) | rpl::map([] {
-					return false;
-				})
+					}) | rpl::to_empty
+				) | rpl::map_to(false)
 			)
 		)
 	);
@@ -275,10 +268,7 @@ auto AddButtonWithLoader(
 				buttonEnabled
 			) | rpl::then(
 				rpl::merge(
-					dictionaryRemoved->events(
-					) | rpl::map([] {
-						return false;
-					}),
+					dictionaryRemoved->events() | rpl::map_to(false),
 					button->toggledValue()
 				)
 			) | rpl::map([=](auto enabled) {

@@ -742,10 +742,7 @@ void SettingsWidget::refreshButtons(
 		: nullptr;
 	if (start) {
 		start->show();
-		_startClicks = start->clicks(
-		) | rpl::map([] {
-			return rpl::empty_value();
-		});
+		_startClicks = start->clicks() | rpl::to_empty;
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
@@ -760,10 +757,7 @@ void SettingsWidget::refreshButtons(
 		tr::lng_cancel(),
 		st::defaultBoxButton);
 	cancel->show();
-	_cancelClicks = cancel->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	});
+	_cancelClicks = cancel->clicks() | rpl::to_empty;
 
 	rpl::combine(
 		container->sizeValue(),

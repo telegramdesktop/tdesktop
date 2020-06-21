@@ -156,7 +156,7 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return rpl::merge(
 		Core::App().passcodeLockChanges(),
 		Core::App().termsLockChanges()
-	) | rpl::map([] { return rpl::empty_value(); });
+	) | rpl::to_empty;
 }
 
 QString UiIntegration::convertTagToMimeTag(const QString &tagId) {

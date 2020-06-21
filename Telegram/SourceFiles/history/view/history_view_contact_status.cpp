@@ -53,10 +53,6 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	return false;
 }
 
-auto MapToEmpty() {
-	return rpl::map([] { return rpl::empty_value(); });
-}
-
 } // namespace
 
 ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
@@ -94,23 +90,23 @@ void ContactStatus::Bar::showState(State state) {
 }
 
 rpl::producer<> ContactStatus::Bar::addClicks() const {
-	return _add->clicks() | MapToEmpty();
+	return _add->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::blockClicks() const {
-	return _block->clicks() | MapToEmpty();
+	return _block->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::shareClicks() const {
-	return _share->clicks() | MapToEmpty();
+	return _share->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::reportClicks() const {
-	return _report->clicks() | MapToEmpty();
+	return _report->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::closeClicks() const {
-	return _close->clicks() | MapToEmpty();
+	return _close->clicks() | rpl::to_empty;
 }
 
 void ContactStatus::Bar::resizeEvent(QResizeEvent *e) {

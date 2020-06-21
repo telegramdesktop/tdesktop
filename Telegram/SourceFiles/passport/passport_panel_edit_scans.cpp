@@ -85,12 +85,10 @@ public:
 	void setError(bool error);
 
 	rpl::producer<> deleteClicks() const {
-		return _delete->entity()->clicks(
-		) | rpl::map([] { return rpl::empty_value(); });
+		return _delete->entity()->clicks() | rpl::to_empty;
 	}
 	rpl::producer<> restoreClicks() const {
-		return _restore->entity()->clicks(
-		) | rpl::map([] { return rpl::empty_value(); });
+		return _restore->entity()->clicks() | rpl::to_empty;
 	}
 
 protected:

@@ -335,7 +335,7 @@ TabbedSelector::TabbedSelector(
 
 	rpl::merge(
 		(full()
-			? stickers()->scrollUpdated() | rpl::map([] { return 0; })
+			? stickers()->scrollUpdated() | rpl::map_to(0)
 			: rpl::never<int>() | rpl::type_erased()),
 		_scroll->scrollTopChanges()
 	) | rpl::start_with_next([=] {

@@ -425,9 +425,7 @@ void SessionsBox::Inner::showData(const Full &data) {
 }
 
 rpl::producer<> SessionsBox::Inner::terminateAll() const {
-	return _terminateAll->clicks() | rpl::map([] {
-		return rpl::empty_value();
-	});
+	return _terminateAll->clicks() | rpl::to_empty;
 }
 
 rpl::producer<uint64> SessionsBox::Inner::terminateOne() const {

@@ -633,9 +633,7 @@ void PanelController::fillRows(
 rpl::producer<> PanelController::refillRows() const {
 	return rpl::merge(
 		_submitFailed.events(),
-		_form->valueSaveFinished() | rpl::map([] {
-			return rpl::empty_value();
-		}));
+		_form->valueSaveFinished() | rpl::to_empty);
 }
 
 void PanelController::submitForm() {
@@ -703,7 +701,7 @@ void PanelController::setupPassword() {
 		box->newPasswordSet(
 		) | rpl::filter([=](const QByteArray &password) {
 			return password.isEmpty();
-		}) | rpl::map([] { return rpl::empty_value(); })
+		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		_form->reloadPassword();
 	}, box->lifetime());

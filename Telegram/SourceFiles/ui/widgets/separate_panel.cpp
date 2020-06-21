@@ -93,15 +93,13 @@ void SeparatePanel::updateTitlePosition() {
 
 rpl::producer<> SeparatePanel::backRequests() const {
 	return rpl::merge(
-		_back->entity()->clicks(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		_back->entity()->clicks() | rpl::to_empty,
 		_synteticBackRequests.events());
 }
 
 rpl::producer<> SeparatePanel::closeRequests() const {
 	return rpl::merge(
-		_close->clicks(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		_close->clicks() | rpl::to_empty,
 		_userCloseRequests.events());
 }
 
