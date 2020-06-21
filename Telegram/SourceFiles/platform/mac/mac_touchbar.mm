@@ -77,6 +77,7 @@ constexpr auto kCommandScrubberEmoji = 0x021;
 
 constexpr auto kOnlineCircleSize = 8;
 constexpr auto kOnlineCircleStrokeWidth = 1.5;
+constexpr auto kUnreadBadgeSize = 15;
 
 constexpr auto kMs = 1000;
 
@@ -197,6 +198,43 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	return result;
 }
 
+QImage UnreadBadge(PeerData *peer) {
+	const auto history = peer->owner().history(peer->id);
+	const auto count = history->unreadCountForBadge();
+	if (!count) {
+		return QImage();
+	}
+	const auto unread = history->unreadMark()
+		? QString()
+		: QString::number(count);
+	Dialogs::Layout::UnreadBadgeStyle unreadSt;
+	unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInTouchBar;
+	unreadSt.muted = history->mute();
+	// Use constant values to draw badge regardless of cConfigScale().
+	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
+	unreadSt.padding = 4 * cRetinaFactor();
+	unreadSt.font = style::font(
+		9.5 * cRetinaFactor(),
+		unreadSt.font->flags(),
+		unreadSt.font->family());
+
+	auto result = QImage(
+		QSize(kCircleDiameter, kUnreadBadgeSize) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	Painter p(&result);
+
+	Dialogs::Layout::paintUnreadCount(
+		p,
+		unread,
+		result.width(),
+		result.height() - unreadSt.size,
+		unreadSt,
+		nullptr,
+		2);
+	return result;
+}
+
 NSRect PeerRectByIndex(int index) {
 	return NSMakeRect(
 		index * (kCircleDiameter + kPinnedButtonsSpace)
@@ -242,13 +280,6 @@ inline bool CurrentSongExists() {
 
 inline bool IsSelfPeer(PeerData *peer) {
 	return peer && peer->isSelf();
-}
-
-inline int UnreadCount(not_null<PeerData*> peer) {
-	if (const auto history = peer->owner().historyLoaded(peer)) {
-		return history->unreadCountForBadge();
-	}
-	return 0;
 }
 
 inline auto GetActiveChat() {
@@ -300,37 +331,6 @@ NSString *FormatTime(int time) {
 	stringTime = [NSString stringWithFormat:@"%@%02d", stringTime, seconds];
 
 	return stringTime;
-}
-
-bool PaintUnreadBadge(Painter &p, PeerData *peer) {
-	const auto history = peer->owner().history(peer->id);
-	const auto count = history->unreadCountForBadge();
-	if (!count) {
-		return false;
-	}
-	const auto unread = history->unreadMark()
-		? QString()
-		: QString::number(count);
-	Dialogs::Layout::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInTouchBar;
-	unreadSt.muted = history->mute();
-	// Use constant values to draw badge regardless of cConfigScale().
-	unreadSt.size = 19;
-	unreadSt.padding = 5;
-	unreadSt.font = style::font(
-		12,
-		unreadSt.font->flags(),
-		unreadSt.font->family());
-
-	Dialogs::Layout::paintUnreadCount(
-		p,
-		unread,
-		kCircleDiameter,
-		kCircleDiameter - unreadSt.size,
-		unreadSt,
-		nullptr,
-		2);
-	return true;
 }
 
 void SendKeyEvent(int command) {
@@ -466,6 +466,7 @@ void AppendEmojiPacks(
 		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
 		int index = -1;
 		QImage userpic;
+		QImage unreadBadge;
 
 		Ui::Animations::Simple shiftAnimation;
 		int shift = 0;
@@ -477,7 +478,6 @@ void AppendEmojiPacks(
 
 		Ui::Animations::Simple onlineAnimation;
 		TimeId onlineTill = 0;
-		bool hasUnread = false;
 	};
 	rpl::lifetime _lifetime;
 	Main::Session* _session;
@@ -787,14 +787,12 @@ void AppendEmojiPacks(
 			pin->userpic = _savedMessages;
 			return;
 		}
-		auto userpic = pin->peer->genUserpic(
-			pin->userpicView,
-			kCircleDiameter);
-
+		auto userpic = PrepareImage();
 		Painter p(&userpic);
-		PaintUnreadBadge(p, pin->peer);
+
+		pin->peer->paintUserpic(p, pin->userpicView, 0, 0, userpic.width());
 		userpic.setDevicePixelRatio(cRetinaFactor());
-		pin->userpic = userpic.toImage();
+		pin->userpic = std::move(userpic);
 	};
 	const auto updateUserpics = [=] {
 		ranges::for_each(_pins, singleUserpic);
@@ -806,25 +804,10 @@ void AppendEmojiPacks(
 		if (IsSelfPeer(peer)) {
 			return;
 		}
-		const auto guard = gsl::finally([&] {
-			const auto userpicIndex = pin->index + [self shift];
-			pin->hasUnread = (UnreadCount(peer) != 0);
+		pin->unreadBadge = UnreadBadge(peer);
 
-			[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
-		});
-		if (!peer->owner().history(peer->id)->unreadCountForBadge()) {
-			singleUserpic(pin);
-			return;
-		}
-		auto pixmap = App::pixmapFromImageInPlace(
-			base::take(pin->userpic));
-		if (pixmap.isNull()) {
-			return;
-		}
-
-		Painter p(&pixmap);
-		PaintUnreadBadge(p, peer);
-		pin->userpic = pixmap.toImage();
+		const auto userpicIndex = pin->index + [self shift];
+		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
 	};
 	const auto listenToDownloaderFinished = [=] {
 		base::ObservableViewer(
@@ -1090,13 +1073,25 @@ void AppendEmojiPacks(
 		return;
 	}
 	CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
-	CGImageRef image = ([self imageToDraw:i]).toCGImage();
-	CGContextDrawImage(context, rect, image);
-	CGImageRelease(image);
+	{
+		CGImageRef image = ([self imageToDraw:i]).toCGImage();
+		CGContextDrawImage(context, rect, image);
+		CGImageRelease(image);
+	}
 
 	if (i >= 0) {
 		const auto &pin = _pins[i];
-		if (pin->hasUnread) {
+		const auto rectRight = NSMaxX(rect);
+		if (!pin->unreadBadge.isNull()) {
+			CGImageRef image = pin->unreadBadge.toCGImage();
+			const auto w = CGImageGetWidth(image) / cRetinaFactor();
+			const auto borderRect = CGRectMake(
+				rectRight - w,
+				0,
+				w,
+				CGImageGetHeight(image) / cRetinaFactor());
+			CGContextDrawImage(context, borderRect, image);
+			CGImageRelease(image);
 			return;
 		}
 		const auto online = Data::OnlineTextActive(
@@ -1111,7 +1106,7 @@ void AppendEmojiPacks(
 		const auto progress = value * circleSize;
 		const auto diff = (circleSize - progress) / 2;
 		const auto borderRect = CGRectMake(
-			NSMaxX(rect) - circleSize + diff - lineWidth / 2,
+			rectRight - circleSize + diff - lineWidth / 2,
 			diff,
 			progress,
 			progress);
