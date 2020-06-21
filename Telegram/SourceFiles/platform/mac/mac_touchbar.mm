@@ -580,10 +580,10 @@ void AppendEmojiPacks(
 		TimeId onlineTill = 0;
 		bool hasUnread = false;
 	};
-
 	rpl::lifetime _lifetime;
 	Main::Session* _session;
-	std::vector<Pin> _pins;
+
+	std::vector<std::shared_ptr<Pin>> _pins;
 	QImage _savedMessages;
 	QImage _archive;
 	base::has_weak_ptr _guard;
@@ -618,19 +618,16 @@ void AppendEmojiPacks(
 		return i - begin(_pins);
 	};
 
-	const auto setHorizontalShift = [=](int index, int shift) {
-		Expects(index >= 0 && index < _pins.size());
-
-		auto &pin = _pins[index];
-		if (const auto delta = shift - pin.horizontalShift) {
-			pin.horizontalShift = shift;
-			pin.x += delta;
+	const auto setHorizontalShift = [=](const auto &pin, int shift) {
+		if (const auto delta = shift - pin->horizontalShift) {
+			pin->horizontalShift = shift;
+			pin->x += delta;
 
 			// Redraw a rectangle
 			// from the beginning point of the pin movement to the end point.
-			auto rect = PeerRectByIndex(indexOf(pin.peer) + [self shift]);
+			auto rect = PeerRectByIndex(indexOf(pin->peer) + [self shift]);
 			const auto absDelta = std::abs(delta);
-			rect.origin.x = pin.x - absDelta;
+			rect.origin.x = pin->x - absDelta;
 			rect.size.width += absDelta * 2;
 			[self setNeedsDisplayInRect:rect];
 		}
@@ -639,32 +636,32 @@ void AppendEmojiPacks(
 	const auto updateShift = [=](not_null<PeerData*> peer, int indexHint) {
 		Expects(indexHint >= 0 && indexHint < _pins.size());
 
-		const auto index = (_pins[indexHint].peer->id == peer->id)
+		const auto index = (_pins[indexHint]->peer->id == peer->id)
 			? indexHint
 			: indexOf(peer);
-		auto &entry = _pins[index];
-		entry.shift = entry.deltaShift
-			+ std::round(entry.shiftAnimation.value(entry.finalShift));
-		if (entry.deltaShift && !entry.shiftAnimation.animating()) {
-			entry.finalShift += entry.deltaShift;
-			entry.deltaShift = 0;
+		const auto entry = _pins[index];
+		entry->shift = entry->deltaShift
+			+ std::round(entry->shiftAnimation.value(entry->finalShift));
+		if (entry->deltaShift && !entry->shiftAnimation.animating()) {
+			entry->finalShift += entry->deltaShift;
+			entry->deltaShift = 0;
 		}
-		setHorizontalShift(index, entry.shift);
+		setHorizontalShift(entry, entry->shift);
 	};
 
 	const auto moveToShift = [=](int index, int shift) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
 			auto &entry = _pins[index];
-			if (entry.finalShift + entry.deltaShift == shift) {
+			if (entry->finalShift + entry->deltaShift == shift) {
 				return;
 			}
-			const auto peer = entry.peer;
-			entry.shiftAnimation.start(
+			const auto peer = entry->peer;
+			entry->shiftAnimation.start(
 				[=] { updateShift(peer, index); },
-				entry.finalShift,
-				shift - entry.deltaShift,
+				entry->finalShift,
+				shift - entry->deltaShift,
 				st::slideWrapDuration * 1);
-			entry.finalShift = shift - entry.deltaShift;
+			entry->finalShift = shift - entry->deltaShift;
 		});
 	};
 
@@ -688,20 +685,20 @@ void AppendEmojiPacks(
 
 	const auto updateOrder = [=](int index, int positionX) {
 		const auto shift = positionX - *currentStart;
-		auto &current = _pins[index];
-		current.shiftAnimation.stop();
-		current.shift = current.finalShift = shift;
-		setHorizontalShift(index, shift);
+		const auto current = _pins[index];
+		current->shiftAnimation.stop();
+		current->shift = current->finalShift = shift;
+		setHorizontalShift(current, shift);
 
 		const auto count = _pins.size();
-		const auto currentWidth = current.userpic.width();
-		const auto currentMiddle = current.x + currentWidth / 2;
+		const auto currentWidth = current->userpic.width();
+		const auto currentMiddle = current->x + currentWidth / 2;
 		*currentDesiredIndex = index;
 		if (shift > 0) {
-			auto top = current.x - shift;
+			auto top = current->x - shift;
 			for (auto next = index + 1; next != count; ++next) {
 				const auto &entry = _pins[next];
-				top += entry.userpic.width();
+				top += entry->userpic.width();
 				if (currentMiddle < top) {
 					moveToShift(next, 0);
 				} else {
@@ -718,7 +715,7 @@ void AppendEmojiPacks(
 			}
 			for (auto prev = index - 1; prev >= 0; --prev) {
 				const auto &entry = _pins[prev];
-				if (currentMiddle >= entry.x - entry.shift + currentWidth) {
+				if (currentMiddle >= entry->x - entry->shift + currentWidth) {
 					moveToShift(prev, 0);
 				} else {
 					*currentDesiredIndex = prev;
@@ -743,10 +740,10 @@ void AppendEmojiPacks(
 		*currentDesiredIndex = index;
 
 		// Raise the pin.
-		ranges::for_each(_pins, [=](Pin &pin) {
-			pin.onTop = false;
+		ranges::for_each(_pins, [=](const auto &pin) {
+			pin->onTop = false;
 		});
-		_pins[index].onTop = true;
+		_pins[index]->onTop = true;
 
 		updateOrder(index, positionX);
 	};
@@ -765,16 +762,16 @@ void AppendEmojiPacks(
 		*currentState = State::Cancelled;
 		*currentPeer = nullptr;
 
-		auto &current = _pins[index];
+		const auto current = _pins[index];
 		// Since the width of all elements is the same
 		// we can use a single value.
-		current.finalShift += (index - result) * current.userpic.width();
+		current->finalShift += (index - result) * current->userpic.width();
 
-		if (!(current.finalShift + current.deltaShift)) {
-			current.shift = 0;
-			setHorizontalShift(index, 0);
+		if (!(current->finalShift + current->deltaShift)) {
+			current->shift = 0;
+			setHorizontalShift(current, 0);
 		}
-		current.horizontalShift = current.finalShift;
+		current->horizontalShift = current->finalShift;
 		base::reorder(_pins, index, result);
 
 		*waitForFinish = true;
@@ -813,7 +810,7 @@ void AppendEmojiPacks(
 		if (index < 0) {
 			return;
 		}
-		*currentPeer = _pins[index].peer;
+		*currentPeer = _pins[index]->peer;
 	};
 
 	const auto touchMoved = [=](int touchX) {
@@ -886,33 +883,33 @@ void AppendEmojiPacks(
 	};
 	lastDialogsCount->changes(
 	) | rpl::start_with_next(updatePanelSize, _lifetime);
-	const auto singleUserpic = [=](Pin &pin) {
-		if (IsSelfPeer(pin.peer)) {
-			pin.userpic = _savedMessages;
+	const auto singleUserpic = [=](const auto &pin) {
+		if (IsSelfPeer(pin->peer)) {
+			pin->userpic = _savedMessages;
 			return;
 		}
-		auto userpic = pin.peer->genUserpic(
-			pin.userpicView,
+		auto userpic = pin->peer->genUserpic(
+			pin->userpicView,
 			kCircleDiameter);
 
 		Painter p(&userpic);
-		PaintUnreadBadge(p, pin.peer);
+		PaintUnreadBadge(p, pin->peer);
 		userpic.setDevicePixelRatio(cRetinaFactor());
-		pin.userpic = userpic.toImage();
+		pin->userpic = userpic.toImage();
 	};
 	const auto updateUserpics = [=] {
 		ranges::for_each(_pins, singleUserpic);
 		*lastDialogsCount = [self shift] + std::ssize(_pins);
 		[self display];
 	};
-	const auto updateBadge = [=](Pin &pin) {
-		const auto peer = pin.peer;
+	const auto updateBadge = [=](const auto &pin) {
+		const auto peer = pin->peer;
 		if (IsSelfPeer(peer)) {
 			return;
 		}
 		const auto guard = gsl::finally([&] {
-			const auto userpicIndex = pin.index + [self shift];
-			pin.hasUnread = (UnreadCount(peer) != 0);
+			const auto userpicIndex = pin->index + [self shift];
+			pin->hasUnread = (UnreadCount(peer) != 0);
 
 			[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
 		});
@@ -921,22 +918,22 @@ void AppendEmojiPacks(
 			return;
 		}
 		auto pixmap = App::pixmapFromImageInPlace(
-			base::take(pin.userpic));
+			base::take(pin->userpic));
 		if (pixmap.isNull()) {
 			return;
 		}
 
 		Painter p(&pixmap);
 		PaintUnreadBadge(p, peer);
-		pin.userpic = pixmap.toImage();
+		pin->userpic = pixmap.toImage();
 	};
 	const auto listenToDownloaderFinished = [=] {
 		base::ObservableViewer(
 			_session->downloaderTaskFinished()
 		) | rpl::start_with_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
-				return (!pin.peer->hasUserpic())
-					|| (pin.userpicView && pin.userpicView->image());
+				return (!pin->peer->hasUserpic())
+					|| (pin->userpicView && pin->userpicView->image());
 			});
 			if (all) {
 				downloadLifetime->destroy();
@@ -944,30 +941,20 @@ void AppendEmojiPacks(
 			updateUserpics();
 		}, *downloadLifetime);
 	};
-	const auto processOnline = [=](int index) {
-		auto &pin = _pins[index];
-		const auto peer = pin.peer;
-		const auto redrawOnline = [=] {
-			const auto s = kOnlineCircleSize + kOnlineCircleStrokeWidth;
-			[self setNeedsDisplayInRect:NSMakeRect(
-				_pins[index].x + kCircleDiameter - s,
-				0,
-				s,
-				s)];
-		};
+	const auto processOnline = [=](const auto &pin) {
 		// TODO: this should be replaced
 		// with the global application timer for online statuses.
 		const auto onlineChanges =
 			peerChangedLifetime->make_state<rpl::event_stream<PeerData*>>();
 		const auto onlineTimer =
 			peerChangedLifetime->make_state<base::Timer>([=] {
-				onlineChanges->fire_copy({ peer });
+				onlineChanges->fire_copy({ pin->peer });
 			});
 
-		const auto callTimer = [=](auto &pin) {
+		const auto callTimer = [=](const auto &pin) {
 			onlineTimer->cancel();
-			if (pin.onlineTill) {
-				const auto time = pin.onlineTill - base::unixtime::now();
+			if (pin->onlineTill) {
+				const auto time = pin->onlineTill - base::unixtime::now();
 				if (time > 0) {
 					onlineTimer->callOnce(time * crl::time(1000));
 				}
@@ -981,7 +968,7 @@ void AppendEmojiPacks(
 		});
 		rpl::merge(
 			_session->changes().peerUpdates(
-				peer,
+				pin->peer,
 				UpdateFlag::OnlineStatus) | to_peer,
 			onlineChanges->events()
 		) | rpl::start_with_next([=](PeerData *peer) {
@@ -989,27 +976,33 @@ void AppendEmojiPacks(
 			if (it == end(_pins)) {
 				return;
 			}
-			auto &pin = *it;
-			const auto index = pin.index;
-			pin.onlineTill = CalculateOnlineTill(pin.peer);
+			const auto pin = *it;
+			pin->onlineTill = CalculateOnlineTill(pin->peer);
 
 			callTimer(pin);
 
 			if (![NSApplication sharedApplication].active) {
-				pin.onlineAnimation.stop();
+				pin->onlineAnimation.stop();
 				return;
 			}
 			const auto online = Data::OnlineTextActive(
-				pin.onlineTill,
+				pin->onlineTill,
 				base::unixtime::now());
-			if (pin.onlineAnimation.animating()) {
-				pin.onlineAnimation.change(
+			if (pin->onlineAnimation.animating()) {
+				pin->onlineAnimation.change(
 					online ? 1. : 0.,
 					st::dialogsOnlineBadgeDuration);
 			} else {
+				const auto s = kOnlineCircleSize + kOnlineCircleStrokeWidth;
 				Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-					_pins[index].onlineAnimation.start(
-						redrawOnline,
+					pin->onlineAnimation.start(
+						[=] {
+							[self setNeedsDisplayInRect:NSMakeRect(
+								pin->x + kCircleDiameter - s,
+								0,
+								s,
+								s)];
+						},
 						online ? 0. : 1.,
 						online ? 1. : 0.,
 						st::dialogsOnlineBadgeDuration);
@@ -1022,23 +1015,23 @@ void AppendEmojiPacks(
 		_pins = ranges::view::zip(
 			_session->data().pinnedChatsOrder(nullptr, FilterId()),
 			ranges::view::ints(0, ranges::unreachable)
-		) | ranges::views::transform([=](const auto &pair) -> Pin {
+		) | ranges::views::transform([=](const auto &pair) {
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;
 			auto view = peer->createUserpicView();
 			const auto onlineTill = CalculateOnlineTill(peer);
-			return {
+			Pin pin = {
 				.peer = std::move(peer),
 				.userpicView = std::move(view),
 				.index = index,
 				.onlineTill = onlineTill };
+			return std::make_shared<Pin>(std::move(pin));
 		});
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 
 		peerChangedLifetime->destroy();
 		for (const auto &pin : _pins) {
-			const auto peer = pin.peer;
-			const auto index = pin.index;
+			const auto peer = pin->peer;
 			_session->changes().peerUpdates(
 				peer,
 				UpdateFlag::Photo
@@ -1050,7 +1043,7 @@ void AppendEmojiPacks(
 				if (!user->isServiceUser()
 					&& !user->isBot()
 					&& !peer->isSelf()) {
-					processOnline(index);
+					processOnline(pin);
 				}
 			}
 
@@ -1064,7 +1057,7 @@ void AppendEmojiPacks(
 					UpdateFlag::Notifications
 				) | RplToEmpty()
 			) | rpl::start_with_next([=] {
-				updateBadge(_pins[index]);
+				updateBadge(pin);
 			}, *peerChangedLifetime);
 		}
 
@@ -1146,7 +1139,7 @@ void AppendEmojiPacks(
 	const auto index = [self indexFromX:xPosition];
 	const auto peer = (index < 0 || index >= std::ssize(_pins))
 		? nullptr
-		: _pins[index].peer;
+		: _pins[index]->peer;
 	if (!peer && !_hasArchive && !_selfUnpinned) {
 		return;
 	}
@@ -1179,7 +1172,7 @@ void AppendEmojiPacks(
 			return _savedMessages;
 		}
 	}
-	return _pins[i].userpic;
+	return _pins[i]->userpic;
 }
 
 - (void)drawSinglePin:(int)i rect:(NSRect)dirtyRect {
@@ -1190,8 +1183,8 @@ void AppendEmojiPacks(
 		}
 		auto &pin = _pins[i];
 		// We can have x = 0 when the pin is dragged.
-		rect.origin.x = ((!pin.x && !pin.onTop) ? rect.origin.x : pin.x);
-		pin.x = rect.origin.x;
+		rect.origin.x = ((!pin->x && !pin->onTop) ? rect.origin.x : pin->x);
+		pin->x = rect.origin.x;
 		return rect;
 	}();
 	if (!NSIntersectsRect(rect, dirtyRect)) {
@@ -1204,13 +1197,13 @@ void AppendEmojiPacks(
 
 	if (i >= 0) {
 		const auto &pin = _pins[i];
-		if (pin.hasUnread) {
+		if (pin->hasUnread) {
 			return;
 		}
 		const auto online = Data::OnlineTextActive(
-			pin.onlineTill,
+			pin->onlineTill,
 			base::unixtime::now());
-		const auto value = pin.onlineAnimation.value(online ? 1. : 0.);
+		const auto value = pin->onlineAnimation.value(online ? 1. : 0.);
 		if (value < 0.05) {
 			return;
 		}
@@ -1244,7 +1237,7 @@ void AppendEmojiPacks(
 		}
 	});
 	for (auto i = -shift; i < std::ssize(_pins); i++) {
-		if (i >= 0 && _pins[i].onTop && (indexToTop < 0)) {
+		if (i >= 0 && _pins[i]->onTop && (indexToTop < 0)) {
 			indexToTop = i;
 			continue;
 		}
