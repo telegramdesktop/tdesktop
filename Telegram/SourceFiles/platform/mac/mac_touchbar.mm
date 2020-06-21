@@ -9,45 +9,45 @@
 #import "mac_touchbar.h"
 #import <QuartzCore/QuartzCore.h>
 
-#include "apiwrap.h"
-#include "main/main_session.h"
-#include "mtproto/mtproto_config.h"
 #include "api/api_sending.h"
+#include "apiwrap.h"
+#include "app.h"
+#include "base/call_delayed.h"
+#include "base/platform/mac/base_utilities_mac.h"
+#include "base/timer.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "data/data_changes.h"
+#include "data/data_cloud_file.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
-#include "data/data_changes.h"
 #include "data/data_session.h"
-#include "data/data_cloud_file.h"
 #include "data/data_user.h"
 #include "data/stickers/data_stickers.h"
 #include "dialogs/dialogs_layout.h"
-#include "ui/emoji_config.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "base/call_delayed.h"
-#include "base/platform/mac/base_utilities_mac.h"
-#include "base/timer.h"
-#include "base/unixtime.h"
+#include "mtproto/mtproto_config.h"
 #include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
 #include "styles/style_settings.h"
-#include "window/themes/window_theme.h"
-#include "window/window_session_controller.h"
 #include "ui/effects/animations.h"
+#include "ui/emoji_config.h"
 #include "ui/empty_userpic.h"
 #include "ui/widgets/input_fields.h"
-#include "app.h"
+#include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -82,9 +82,6 @@ constexpr auto kMs = 1000;
 
 constexpr auto kSongType = AudioMsgId::Type::Song;
 
-constexpr auto kSavedMessagesId = 0;
-constexpr auto kArchiveId = -1;
-
 constexpr auto kMaxStickerSets = 5;
 
 constexpr auto kGestureStateProcessed = {
@@ -98,7 +95,6 @@ constexpr auto kGestureStateFinished = {
 	NSGestureRecognizerStateFailed,
 };
 
-NSString *const kTypePinned = @"pinned";
 NSString *const kTypePinnedPanel = @"pinnedPanel";
 NSString *const kTypeSlider = @"slider";
 NSString *const kTypeButton = @"button";
@@ -111,9 +107,6 @@ NSString *const kTypeFormatterSegment = @"formatterSegment";
 
 const NSString *kCustomizationIdPlayer = @"telegram.touchbar";
 const NSString *kCustomizationIdMain = @"telegram.touchbarMain";
-const NSTouchBarItemIdentifier kSavedMessagesItemIdentifier = [NSString stringWithFormat:@"%@.savedMessages", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kArchiveFolderItemIdentifier = [NSString stringWithFormat:@"%@.archiveFolder", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kPinnedPanelItemIdentifierOld = [NSString stringWithFormat:@"%@.pinnedPanelOld", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kPinnedPanelItemIdentifier = [NSString stringWithFormat:@"%@.pinnedPanel", kCustomizationIdMain];
 
 const NSTouchBarItemIdentifier kSeekBarItemIdentifier = [NSString stringWithFormat:@"%@.seekbar", kCustomizationIdPlayer];
@@ -247,10 +240,6 @@ inline bool CurrentSongExists() {
 	return Media::Player::instance()->current(kSongType).audio() != nullptr;
 }
 
-inline bool UseEmptyUserpic(PeerData *peer, std::shared_ptr<Data::CloudImageView> &userpic) {
-	return peer && (peer->useEmptyUserpic(userpic) || peer->isSelf());
-}
-
 inline bool IsSelfPeer(PeerData *peer) {
 	return peer && peer->isSelf();
 }
@@ -342,28 +331,6 @@ bool PaintUnreadBadge(Painter &p, PeerData *peer) {
 		nullptr,
 		2);
 	return true;
-}
-
-void PaintOnlineCircle(Painter &p) {
-	PainterHighQualityEnabler hq(p);
-	// Use constant values to draw online badge regardless of cConfigScale().
-	const auto size = 8;
-	const auto paddingSize = 4;
-	const auto circleSize = size + paddingSize;
-	const auto offset = size + paddingSize / 2;
-	p.setPen(Qt::NoPen);
-	p.setBrush(Qt::black);
-	p.drawEllipse(
-		kIdealIconSize - circleSize,
-		kIdealIconSize - circleSize,
-		circleSize,
-		circleSize);
-	p.setBrush(st::dialogsOnlineBadgeFg);
-	p.drawEllipse(
-		kIdealIconSize - offset,
-		kIdealIconSize - offset,
-		size,
-		size);
 }
 
 void SendKeyEvent(int command) {
@@ -486,74 +453,6 @@ void AppendEmojiPacks(
 }
 
 } // namespace
-
-@interface PinButton : NSButton
-@end // @interface PinButton
-
-@implementation PinButton {
-	int _startPosition;
-	int _tempIndex;
-	bool _orderChanged;
-	Main::Session *_session;
-}
-
-- (void)touchesBeganWithEvent:(NSEvent *)event {
-	if ([event.allTouches allObjects].count > 1) {
-		return;
-	}
-	_orderChanged = false;
-	_tempIndex = self.tag  - 1;
-	_startPosition = [self getTouchX:event];
-	[super touchesBeganWithEvent:event];
-}
-
-- (void)touchesMovedWithEvent:(NSEvent *)event {
-	if (!_session || self.tag <= kSavedMessagesId) {
-		return;
-	}
-	if ([event.allTouches allObjects].count > 1) {
-		return;
-	}
-	const auto currentPosition = [self getTouchX:event];
-	const auto step = kPinnedButtonsSpace + kCircleDiameter;
-	if (std::abs(_startPosition - currentPosition) > step) {
-		const auto delta = (currentPosition > _startPosition) ? 1 : -1;
-		const auto newIndex = _tempIndex + delta;
-		const auto &order = _session->data().pinnedChatsOrder(nullptr, FilterId());
-
-		// In case the order has been changed from another device
-		// while the user is dragging the dialog.
-		if (_tempIndex >= order.size()) {
-			return;
-		}
-
-		if (newIndex >= 0 && newIndex < order.size()) {
-			_session->data().reorderTwoPinnedChats(
-				FilterId(),
-				order.at(_tempIndex).history(),
-				order.at(newIndex).history());
-			_tempIndex = newIndex;
-			_startPosition = currentPosition;
-			_orderChanged = true;
-		}
-	}
-}
-
-- (void)setSession:(not_null<Main::Session*>)session {
-	_session = session;
-}
-
-- (void)touchesEndedWithEvent:(NSEvent *)event {
-	if (_orderChanged && _session) {
-		_session->api().savePinnedOrder(nullptr);
-	}
-	[super touchesEndedWithEvent:event];
-}
-
-- (int)getTouchX:(NSEvent *)e {
-	return [[[e.allTouches allObjects] objectAtIndex:0] locationInView:self].x;
-}
-@end // @implementation PinButton
 
 #pragma mark - PinnedDialogsPanel
 
@@ -1249,199 +1148,6 @@ void AppendEmojiPacks(
 
 #pragma mark - End PinnedDialogsPanel
 
-@interface PinnedDialogButton : NSCustomTouchBarItem
-
-@property(nonatomic, assign) int number;
-@property(nonatomic, assign) PeerData *peer;
-@property(nonatomic, assign) bool isDeletedFromView;
-@property(nonatomic, assign) QPixmap userpic;
-
-- (id) init:(int)num session:(not_null<Main::Session*>)session;
-- (void)buttonActionPin:(NSButton *)sender;
-- (void)updateUserpic;
-
-@end // @interface PinnedDialogButton
-
-@implementation PinnedDialogButton {
-	rpl::lifetime _lifetime;
-	rpl::lifetime _peerChangedLifetime;
-	base::has_weak_ptr _guard;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
-	Main::Session* _session;
-
-	bool isWaitingUserpicLoad;
-}
-
-- (id) init:(int)num session:(not_null<Main::Session*>)session {
-	_session = session;
-	if (num == kSavedMessagesId) {
-		self = [super initWithIdentifier:kSavedMessagesItemIdentifier];
-		isWaitingUserpicLoad = false;
-		self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
-	} else if (num == kArchiveId) {
-		self = [super initWithIdentifier:kArchiveFolderItemIdentifier];
-		isWaitingUserpicLoad = false;
-		self.customizationLabel = @"Archive Folder";
-	} else {
-		NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", kCustomizationIdMain, num];
-		self = [super initWithIdentifier:identifier];
-		isWaitingUserpicLoad = true;
-		self.customizationLabel = @"Saved Messages";
-	}
-	if (!self) {
-		return nil;
-	}
-	self.number = num;
-
-	PinButton *button = [[PinButton alloc] initWithFrame:NSZeroRect];
-	[button setSession:_session];
-	NSButtonCell *cell = [[NSButtonCell alloc] init];
-	[cell setBezelStyle:NSBezelStyleCircular];
-	button.cell = cell;
-	button.tag = num;
-	button.target = self;
-	button.action = @selector(buttonActionPin:);
-	self.view = button;
-
-	base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
-		return update.paletteChanged();
-	}) | rpl::start_with_next([=] {
-		crl::on_main(&_guard, [=] {
-			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer, _userpicView)) {
-				[self updateUserpic];
-			} else if (_peer
-				&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer))) {
-				[self updateBadge];
-			}
-		});
-	}, _lifetime);
-
-	if (num <= kSavedMessagesId) {
-		[self updateUserpic];
-		return self;
-	}
-
-	base::ObservableViewer(
-		_session->downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
-		if (isWaitingUserpicLoad) {
-			[self updateUserpic];
-		}
-	}, _lifetime);
-
-	return self;
-}
-
-// Setter of peer.
-- (void) setPeer:(PeerData *)newPeer {
-	if (_peer == newPeer) {
-		return;
-	}
-	_peerChangedLifetime.destroy();
-	_peer = newPeer;
-	if (!_peer || IsSelfPeer(_peer)) {
-		_userpicView = nullptr;
-		return;
-	}
-	_userpicView = _peer->createUserpicView();
-	_peer->session().changes().peerUpdates(
-		_peer,
-		Data::PeerUpdate::Flag::Photo
-	) | rpl::start_with_next([=] {
-		isWaitingUserpicLoad = true;
-		[self updateUserpic];
-	}, _peerChangedLifetime);
-
-	_peer->session().changes().historyUpdates(
-		_peer->session().data().history(_peer),
-		Data::HistoryUpdate::Flag::UnreadView
-	) | rpl::start_with_next([=] {
-		[self updateBadge];
-	}, _peerChangedLifetime);
-
-	_peer->session().changes().peerUpdates(
-		_peer,
-		Data::PeerUpdate::Flag::OnlineStatus
-	) | rpl::filter([=] {
-		return UnreadCount(_peer) == 0;
-	}) | rpl::start_with_next([=] {
-		[self updateBadge];
-	}, _peerChangedLifetime);
-}
-
-- (void) buttonActionPin:(NSButton *)sender {
-	const auto active = Core::App().activeWindow();
-	const auto controller = active ? active->sessionController() : nullptr;
-	const auto openFolder = [=] {
-		if (!controller) {
-			return;
-		}
-		if (const auto folder = _session->data().folderLoaded(Data::Folder::kId)) {
-			controller->openFolder(folder);
-		}
-	};
-	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		self.number == kArchiveId
-			? openFolder()
-			: controller->content()->choosePeer(self.number == kSavedMessagesId
-				? _session->userPeerId()
-				: self.peer->id, ShowAtUnreadMsgId);
-	});
-}
-
-- (void) updateUserpic {
-	// Don't draw self userpic if we pin Saved Messages.
-	if (self.number <= kSavedMessagesId || IsSelfPeer(_peer)) {
-		const auto s = kIdealIconSize * cIntRetinaFactor();
-		_userpic = QPixmap(s, s);
-		Painter paint(&_userpic);
-		paint.fillRect(QRectF(0, 0, s, s), Qt::black);
-
-		if (self.number != kArchiveId) {
-			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
-		} else if (const auto folder =
-				_session->data().folderLoaded(Data::Folder::kId)) {
-			// Not used in the folders.
-			auto view = std::shared_ptr<Data::CloudImageView>();
-			folder->paintUserpic(paint, view, 0, 0, s);
-		}
-		_userpic.setDevicePixelRatio(cRetinaFactor());
-		[self updateImage:_userpic];
-		return;
-	}
-	if (!self.peer) {
-		return;
-	}
-	isWaitingUserpicLoad = _userpicView && !_userpicView->image();
-	_userpic = self.peer->genUserpic(_userpicView, kIdealIconSize);
-	_userpic.setDevicePixelRatio(cRetinaFactor());
-	[self updateBadge];
-}
-
-- (void) updateBadge {
-	if (IsSelfPeer(_peer)) {
-		return;
-	}
-	// Draw unread or online badge.
-	auto pixmap = App::pixmapFromImageInPlace(_userpic.toImage());
-	Painter p(&pixmap);
-	if (!PaintUnreadBadge(p, _peer) && Data::IsPeerAnOnlineUser(_peer)) {
-		PaintOnlineCircle(p);
-	}
-	[self updateImage:pixmap];
-}
-
-- (void) updateImage:(QPixmap)pixmap {
-	NSButton *button = self.view;
-	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
-	[image setSize:NSMakeSize(kCircleDiameter, kCircleDiameter)];
-	[button.cell setImage:image];
-}
-
-@end // @implementation PinnedDialogButton
-
 
 @interface PickerScrubberItemView : NSScrubberItemView
 @end // @interface PickerScrubberItemView
@@ -1715,7 +1421,6 @@ void AppendEmojiPacks(
 
 @implementation TouchBar {
 	NSView *_parentView;
-	NSMutableArray *_mainPinnedButtons;
 
 	NSTouchBar *_touchBarMain;
 	NSTouchBar *_touchBarAudioPlayer;
@@ -1746,9 +1451,6 @@ void AppendEmojiPacks(
 	_duration = 0;
 	_parentView = view;
 	self.touchBarItems = @{
-		kPinnedPanelItemIdentifierOld: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  kTypePinned,
-		}],
 		kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  kTypePinnedPanel,
 		}],
@@ -1833,21 +1535,6 @@ void AppendEmojiPacks(
 		}
 	}, _lifetime);
 
-	_session->data().pinnedDialogsOrderUpdated(
-	) | rpl::start_with_next([] {
-		// [self updatePinnedButtons];
-	}, _lifetime);
-
-	_session->data().chatsListChanges(
-	) | rpl::filter([](Data::Folder *folder) {
-		return folder
-			&& folder->chatsList()
-			&& folder->id() == Data::Folder::kId;
-	}) | rpl::start_with_next([=](Data::Folder *folder) {
-		// [self toggleArchiveButton:folder->chatsList()->empty()];
-	}, _lifetime);
-
-
 	// At the time of this touchbar creation the sessionController does
 	// not yet exist. But at the time of chatsListChanges event
 	// the sessionController is valid and we can work with it.
@@ -1884,8 +1571,6 @@ void AppendEmojiPacks(
 	) | rpl::start_with_next([=] {
 		[self updatePickerPopover:ScrubberItemType::Emoji];
 	}, _lifetime);
-
-	// [self updatePinnedButtons];
 
 	return self;
 }
@@ -1994,30 +1679,6 @@ void AppendEmojiPacks(
 		item.visibilityPriority = NSTouchBarItemPriorityHigh;
 		item.collapsedRepresentation = segment;
 		return item;
-	} else if (isType(kTypePinned)) {
-		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		_mainPinnedButtons = [[NSMutableArray alloc] init];
-		NSStackView *stackView = [[NSStackView alloc] init];
-
-		const auto &config = _session->serverConfig();
-		for (auto i = kArchiveId; i <= config.pinnedDialogsCountMax.current(); i++) {
-			PinnedDialogButton *button =
-				[[[PinnedDialogButton alloc]
-					init:i
-					session:_session] autorelease];
-			[_mainPinnedButtons addObject:button];
-			if (i == kArchiveId) {
-				button.isDeletedFromView = true;
-				continue;
-			}
-			[stackView addView:button.view inGravity:NSStackViewGravityTrailing];
-		}
-		const auto space = kPinnedButtonsSpace;
-		[stackView setEdgeInsets:NSEdgeInsetsMake(0, space / 2., 0, space)];
-		[stackView setSpacing:space];
-		item.view = stackView;
-		[dictionaryItem setObject:item.view forKey:@"view"];
-		return item;
 	} else if (isType(kTypePinnedPanel)) {
 		auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		item.customizationLabel = @"Pinned Panel";
@@ -2108,74 +1769,6 @@ void AppendEmojiPacks(
 		: kScrubberEmojiItemIdentifier;
 	secondaryTouchBar.defaultItemIdentifiers = @[identifier];
 	_popoverPicker.popoverTouchBar = secondaryTouchBar;
-}
-
-// Main Touchbar.
-
-- (void) toggleArchiveButton:(bool)hide {
-	for (PinnedDialogButton *button in _mainPinnedButtons) {
-		if (button.number == kArchiveId) {
-			NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifierOld];
-			NSStackView *stack = item.view;
-			[button updateUserpic];
-			if (hide && !button.isDeletedFromView) {
-				button.isDeletedFromView = true;
-				[stack removeView:button.view];
-			}
-			if (!hide && button.isDeletedFromView) {
-				button.isDeletedFromView = false;
-				[stack insertView:button.view
-						  atIndex:(button.number + 1)
-						inGravity:NSStackViewGravityLeading];
-			}
-		}
-	}
-}
-
-- (void) updatePinnedButtons {
-	const auto &order = _session->data().pinnedChatsOrder(nullptr, FilterId());
-	auto isSelfPeerPinned = false;
-	auto isArchivePinned = false;
-	PinnedDialogButton *selfChatButton;
-	NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifierOld];
-	NSStackView *stack = item.view;
-
-	for (PinnedDialogButton *button in _mainPinnedButtons) {
-		const auto num = button.number;
-		if (num <= kSavedMessagesId) {
-			if (num == kSavedMessagesId) {
-				selfChatButton = button;
-			} else if (num == kArchiveId) {
-				isArchivePinned = !button.isDeletedFromView;
-			}
-			continue;
-		}
-		const auto numIsTooLarge = num > order.size();
-		[button.view setHidden:numIsTooLarge];
-		if (numIsTooLarge) {
-			button.peer = nil;
-			continue;
-		}
-		const auto pinned = order.at(num - 1);
-		if (const auto history = pinned.history()) {
-			button.peer = history->peer;
-			[button updateUserpic];
-			if (history->peer->id == _session->userPeerId()) {
-				isSelfPeerPinned = true;
-			}
-		}
-	}
-
-	// If self chat is pinned, delete from view saved messages button.
-	if (isSelfPeerPinned && !selfChatButton.isDeletedFromView) {
-		selfChatButton.isDeletedFromView = true;
-		[stack removeView:selfChatButton.view];
-	} else if (!isSelfPeerPinned && selfChatButton.isDeletedFromView) {
-		selfChatButton.isDeletedFromView = false;
-		[stack insertView:selfChatButton.view
-				  atIndex:(isArchivePinned ? 1 : 0)
-				inGravity:NSStackViewGravityLeading];
-	}
 }
 
 // Audio Player Touchbar.
@@ -2303,9 +1896,6 @@ void AppendEmojiPacks(
 }
 
 -(void)dealloc {
-	for (PinnedDialogButton *button in _mainPinnedButtons) {
-		[button release];
-	}
 	[super dealloc];
 }
 
