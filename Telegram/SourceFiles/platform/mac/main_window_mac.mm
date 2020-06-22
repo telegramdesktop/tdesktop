@@ -477,24 +477,36 @@ void MainWindow::initTouchBar() {
 	if (!IsMac10_13OrGreater()) {
 		return;
 	}
+	[NSApplication sharedApplication]
+		.automaticCustomizeTouchBarMenuItemEnabled = true;
+	const auto createNewTouchBar = [=](not_null<Main::Session*> session) {
+		if (_private->_touchBar) {
+			return;
+		}
+		if (auto view = reinterpret_cast<NSView*>(winId())) {
+			_private->_touchBar = [[TouchBar alloc]
+				init:view
+				session:session];
+		}
+	};
 
-	Core::App().domain().activeSessionValue(
+	const auto destroyCurrentTouchBar = [=] {
+		if (_private->_touchBar) {
+			[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
+			[_private->_touchBar release];
+		}
+		_private->_touchBar = nil;
+	};
+
+	Core::App().domain().activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
-			// We need only common pinned dialogs.
-			if (!_private->_touchBar) {
-				if (auto view = reinterpret_cast<NSView*>(winId())) {
-					// Create TouchBar.
-					[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-					_private->_touchBar = [[TouchBar alloc] init:view session:session];
-				}
-			}
-		} else {
 			if (_private->_touchBar) {
-				[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
-				[_private->_touchBar release];
+				destroyCurrentTouchBar();
 			}
-			_private->_touchBar = nil;
+			createNewTouchBar(session);
+		} else {
+			destroyCurrentTouchBar();
 		}
 	}, lifetime());
 }
