@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/notifications_manager_linux.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#include "window/notifications_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/linux/specific_linux.h"
 #include "core/application.h"
@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
@@ -479,17 +480,67 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	GetSupported();
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	if ((Core::App().settings().nativeNotifications() && Supported())
 		|| Platform::IsWayland()) {
 		return std::make_unique<Manager>(system);
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	return nullptr;
 }
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
+class Manager::Private {
+public:
+	using Type = Window::Notifications::CachedUserpics::Type;
+	explicit Private(not_null<Manager*> manager, Type type) {}
+
+	void showNotification(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {}
+	void clearAll() {}
+	void clearFromHistory(not_null<History*> history) {}
+	void clearFromSession(not_null<Main::Session*> session) {}
+	void clearNotification(NotificationId id) {}
+};
+#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
+class Manager::Private {
+public:
+	using Type = Window::Notifications::CachedUserpics::Type;
+	explicit Private(not_null<Manager*> manager, Type type);
+
+	void showNotification(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton);
+	void clearAll();
+	void clearFromHistory(not_null<History*> history);
+	void clearFromSession(not_null<Main::Session*> session);
+	void clearNotification(NotificationId id);
+
+	~Private();
+
+private:
+	base::flat_map<
+		FullPeer,
+		base::flat_map<MsgId, Notification>> _notifications;
+
+	Window::Notifications::CachedUserpics _cachedUserpics;
+	base::weak_ptr<Manager> _manager;
+};
+
 Manager::Private::Private(not_null<Manager*> manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager) {
@@ -636,6 +687,7 @@ void Manager::Private::clearNotification(NotificationId id) {
 Manager::Private::~Private() {
 	clearAll();
 }
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
 : NativeManager(system)
@@ -679,7 +731,6 @@ void Manager::doClearFromHistory(not_null<History*> history) {
 void Manager::doClearFromSession(not_null<Main::Session*> session) {
 	_private->clearFromSession(session);
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 } // namespace Notifications
 } // namespace Platform

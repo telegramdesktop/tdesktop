@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_notifications_manager.h"
-#include "window/notifications_utilities.h"
 #include "base/weak_ptr.h"
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -79,6 +78,7 @@ QDBusArgument &operator<<(
 const QDBusArgument &operator>>(
 	const QDBusArgument &argument,
 	NotificationData::ImageData &imageData);
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 class Manager
 	: public Window::Notifications::NativeManager
@@ -107,37 +107,6 @@ private:
 	const std::unique_ptr<Private> _private;
 
 };
-
-class Manager::Private {
-public:
-	using Type = Window::Notifications::CachedUserpics::Type;
-	explicit Private(not_null<Manager*> manager, Type type);
-
-	void showNotification(
-		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
-		MsgId msgId,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		bool hideNameAndPhoto,
-		bool hideReplyButton);
-	void clearAll();
-	void clearFromHistory(not_null<History*> history);
-	void clearFromSession(not_null<Main::Session*> session);
-	void clearNotification(NotificationId id);
-
-	~Private();
-
-private:
-	base::flat_map<
-		FullPeer,
-		base::flat_map<MsgId, Notification>> _notifications;
-
-	Window::Notifications::CachedUserpics _cachedUserpics;
-	base::weak_ptr<Manager> _manager;
-};
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 } // namespace Notifications
 } // namespace Platform
