@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/binary_guard.h"
 #include "ui/rp_widget.h"
 #include "ui/layers/layer_widget.h"
 
@@ -18,7 +19,18 @@ class FlatLabel;
 class Menu;
 class UserpicButton;
 class PopupMenu;
+class AbstractButton;
+class ScrollArea;
+class VerticalLayout;
+class RippleButton;
+class PlainShadow;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
+
+namespace Main {
+class Account;
+} // namespace Main
 
 namespace Window {
 
@@ -39,24 +51,44 @@ protected:
 	}
 
 private:
+	class AccountButton;
+	class ResetScaleButton;
+
+	void setupArchiveButton();
+	void setupUserpicButton();
+	void setupAccounts();
+	[[nodiscard]] not_null<Ui::SlideWrap<Ui::RippleButton>*> setupAddAccount(
+		not_null<Ui::VerticalLayout*> container);
+	void rebuildAccounts();
 	void updateControlsGeometry();
+	void updateInnerControlsGeometry();
 	void updatePhone();
 	void initResetScaleButton();
 	void refreshMenu();
 	void refreshBackground();
 
-	class ResetScaleButton;
-	not_null<SessionController*> _controller;
-	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
-	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
-	object_ptr<Ui::IconButton> _archiveButton = { nullptr };
+	const not_null<SessionController*> _controller;
+	object_ptr<Ui::UserpicButton> _userpicButton;
+	object_ptr<Ui::AbstractButton> _toggleAccounts;
+	object_ptr<Ui::IconButton> _archiveButton;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
-	object_ptr<Ui::Menu> _menu;
-	object_ptr<Ui::FlatLabel> _telegram;
-	object_ptr<Ui::FlatLabel> _version;
+	object_ptr<Ui::ScrollArea> _scroll;
+	not_null<Ui::VerticalLayout*> _inner;
+	base::flat_map<
+		not_null<Main::Account*>,
+		base::unique_qptr<AccountButton>> _watched;
+	not_null<Ui::SlideWrap<Ui::VerticalLayout>*> _accounts;
+	Ui::SlideWrap<Ui::RippleButton> *_addAccount = nullptr;
+	not_null<Ui::SlideWrap<Ui::PlainShadow>*> _shadow;
+	not_null<Ui::Menu*> _menu;
+	not_null<Ui::RpWidget*> _footer;
+	not_null<Ui::FlatLabel*> _telegram;
+	not_null<Ui::FlatLabel*> _version;
 	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+
+	base::binary_guard _accountSwitchGuard;
 
 	QString _phoneText;
 	QImage _background;

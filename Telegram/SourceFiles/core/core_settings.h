@@ -349,6 +349,15 @@ public:
 	void setRememberedFlashBounceNotifyFromTray(bool value) {
 		_rememberedFlashBounceNotifyFromTray = value;
 	}
+	[[nodiscard]] bool mainMenuAccountsShown() const {
+		return _mainMenuAccountsShown.current();
+	}
+	[[nodiscard]] rpl::producer<bool> mainMenuAccountsShownValue() const {
+		return _mainMenuAccountsShown.value();
+	}
+	void setMainMenuAccountsShown(bool value) {
+		_mainMenuAccountsShown = value;
+	}
 
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
 		return int(std::round(std::clamp(speed * 4., 2., 8.))) - 2;
@@ -407,6 +416,7 @@ private:
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
+	rpl::variable<bool> _mainMenuAccountsShown = false;
 
 	float64 _rememberedSongVolume = kDefaultVolume;
 	bool _rememberedSoundNotifyFromTray = false;

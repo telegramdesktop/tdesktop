@@ -47,6 +47,7 @@ public:
 	[[nodiscard]] auto accounts() const
 		-> const std::vector<AccountWithIndex> &;
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
+	[[nodiscard]] rpl::producer<> accountsChanges() const;
 
 	// Expects(started());
 	[[nodiscard]] Account &active() const;
@@ -83,6 +84,7 @@ private:
 	const std::unique_ptr<Storage::Domain> _local;
 
 	std::vector<AccountWithIndex> _accounts;
+	rpl::event_stream<> _accountsChanges;
 	rpl::variable<Account*> _active = nullptr;
 	int _accountToActivate = -1;
 	bool _writeAccountsScheduled = false;

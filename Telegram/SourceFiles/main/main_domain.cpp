@@ -100,6 +100,10 @@ const std::vector<Domain::AccountWithIndex> &Domain::accounts() const {
 	return _accounts;
 }
 
+rpl::producer<> Domain::accountsChanges() const {
+	return _accountsChanges.events();
+}
+
 rpl::producer<Account*> Domain::activeValue() const {
 	return _active.value();
 }
@@ -176,6 +180,7 @@ void Domain::scheduleUpdateUnreadBadge() {
 
 not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	Expects(started());
+	Expects(_accounts.size() < kMaxAccounts);
 
 	static const auto cloneConfig = [](const MTP::Config &config) {
 		return std::make_unique<MTP::Config>(config);
@@ -207,6 +212,7 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	const auto account = _accounts.back().account.get();
 	_local->startAdded(account, std::move(config));
 	watchSession(account);
+	_accountsChanges.fire({});
 	return account;
 }
 
@@ -280,6 +286,7 @@ void Domain::removeRedundantAccounts() {
 
 	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
 		scheduleWriteAccounts();
+		_accountsChanges.fire({});
 	}
 }
 

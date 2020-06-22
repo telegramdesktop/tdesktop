@@ -145,6 +145,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 dictionariesEnabledCount = 0;
 	std::vector<int> dictionariesEnabled;
 	qint32 autoDownloadDictionaries = _autoDownloadDictionaries.current() ? 1 : 0;
+	qint32 mainMenuAccountsShown = _mainMenuAccountsShown.current() ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -203,7 +204,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 		stream
-			>> autoDownloadDictionaries;
+			>> autoDownloadDictionaries
+			>> mainMenuAccountsShown;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -274,6 +276,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_videoPipGeometry = (videoPipGeometry);
 	_dictionariesEnabled = std::move(dictionariesEnabled);
 	_autoDownloadDictionaries = (autoDownloadDictionaries == 1);
+	_mainMenuAccountsShown = (mainMenuAccountsShown == 1);
 }
 
 bool Settings::chatWide() const {
@@ -337,7 +340,7 @@ void Settings::resetOnLastLogout() {
 	//_videoPipGeometry = QByteArray();
 	_dictionariesEnabled = std::vector<int>();
 	_autoDownloadDictionaries = true;
-
+	_mainMenuAccountsShown = false;
 }
 
 } // namespace Core
