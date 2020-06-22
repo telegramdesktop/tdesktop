@@ -253,6 +253,9 @@ Session::Session(not_null<Main::Session*> session)
 }
 
 void Session::clear() {
+	// Optimization: clear notifications before destroying items.
+	Core::App().notifications().clearFromSession(_session);
+
 	_sendActions.clear();
 
 	_histories->unloadAll();
@@ -1120,8 +1123,6 @@ void Session::setupUserIsContactViewer() {
 }
 
 Session::~Session() {
-	// Optimization: clear notifications before destroying items.
-	Core::App().notifications().clearFromSession(_session);
 	clearLocalStorage();
 }
 
