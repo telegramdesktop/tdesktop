@@ -296,6 +296,8 @@ PRIVATE
     chat_helpers/message_field.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
+    chat_helpers/stickers_emoji_image_loader.cpp
+    chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_dice_pack.cpp

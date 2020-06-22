@@ -200,7 +200,7 @@ void System::clearFromHistory(not_null<History*> history) {
 void System::clearFromSession(not_null<Main::Session*> session) {
 	_manager->clearFromSession(session);
 
-	for (auto i = _whenMaps.begin(), e = _whenMaps.end(); i != e;) {
+	for (auto i = _whenMaps.begin(); i != _whenMaps.end();) {
 		const auto history = i->first;
 		if (&history->session() == session) {
 			history->clearNotifications();

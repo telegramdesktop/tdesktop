@@ -51,6 +51,9 @@ namespace Ui {
 namespace Animations {
 class Manager;
 } // namespace Animations
+namespace Emoji {
+class UniversalImages;
+} // namespace Emoji
 class BoxContent;
 } // namespace Ui
 
@@ -80,6 +83,10 @@ class CloudManager;
 namespace Data {
 struct CloudTheme;
 } // namespace Data
+
+namespace Stickers {
+class EmojiImageLoader;
+} // namespace Stickers
 
 namespace Core {
 
@@ -195,6 +202,10 @@ public:
 	[[nodiscard]] ChatHelpers::EmojiKeywords &emojiKeywords() {
 		return *_emojiKeywords;
 	}
+	[[nodiscard]] auto emojiImageLoader() const
+	-> const crl::object_on_queue<Stickers::EmojiImageLoader> & {
+		return _emojiImageLoader;
+	}
 
 	// Internal links.
 	void checkStartUrl();
@@ -256,8 +267,12 @@ private:
 	friend bool IsAppLaunched();
 	friend Application &App();
 
+	void clearEmojiSourceImages();
+	[[nodiscard]] auto prepareEmojiSourceImages()
+		-> std::shared_ptr<Ui::Emoji::UniversalImages>;
 	void startLocalStorage();
 	void startShortcuts();
+	void startEmojiImageLoader();
 
 	void stateChanged(Qt::ApplicationState state);
 
@@ -293,6 +308,8 @@ private:
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
+	crl::object_on_queue<Stickers::EmojiImageLoader> _emojiImageLoader;
+	base::Timer _clearEmojiImageLoaderTimer;
 	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
 	const std::unique_ptr<Main::Domain> _domain;
 	std::unique_ptr<Window::Controller> _window;

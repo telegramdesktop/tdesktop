@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_domain.h"
 #include "storage/localstorage.h"
-#include "window/notifications_manager.h"
 #include "facades.h"
 
 namespace Main {

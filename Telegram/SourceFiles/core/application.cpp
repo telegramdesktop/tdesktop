@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
+#include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -80,6 +81,7 @@ namespace {
 
 constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
+constexpr auto kClearEmojiImageSourceTimeout = 10 * crl::time(1000);
 
 } // namespace
 
@@ -96,6 +98,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _private(std::make_unique<Private>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
+, _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
@@ -207,6 +210,7 @@ void Application::run() {
 	style::startManager(cScale());
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
+	startEmojiImageLoader();
 	Media::Player::start(_audio.get());
 
 	style::ShortAnimationPlaying(
@@ -273,6 +277,24 @@ void Application::run() {
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
+}
+
+auto Application::prepareEmojiSourceImages()
+-> std::shared_ptr<Ui::Emoji::UniversalImages> {
+	const auto &images = Ui::Emoji::SourceImages();
+	if (_settings.largeEmoji()) {
+		return images;
+	}
+	Ui::Emoji::ClearSourceImages(images);
+	return std::make_shared<Ui::Emoji::UniversalImages>(images->id());
+}
+
+void Application::clearEmojiSourceImages() {
+	_emojiImageLoader.with([](Stickers::EmojiImageLoader &loader) {
+		crl::on_main([images = loader.releaseImages()]{
+			Ui::Emoji::ClearSourceImages(images);
+		});
+	});
 }
 
 bool Application::hideMediaView() {
@@ -464,6 +486,34 @@ void Application::badMtprotoConfigurationError() {
 void Application::startLocalStorage() {
 	Local::start();
 	_saveSettingsTimer.setCallback([=] { saveSettings(); });
+}
+
+void Application::startEmojiImageLoader() {
+	_emojiImageLoader.with([
+		source = prepareEmojiSourceImages(),
+		large = _settings.largeEmoji()
+	](Stickers::EmojiImageLoader &loader) mutable {
+		loader.init(std::move(source), large);
+	});
+
+	_settings.largeEmojiChanges(
+	) | rpl::start_with_next([=](bool large) {
+		if (large) {
+			_clearEmojiImageLoaderTimer.cancel();
+		} else {
+			_clearEmojiImageLoaderTimer.callOnce(
+				kClearEmojiImageSourceTimeout);
+		}
+	}, _lifetime);
+
+	Ui::Emoji::Updated(
+	) | rpl::start_with_next([=] {
+		_emojiImageLoader.with([
+			source = prepareEmojiSourceImages()
+		](Stickers::EmojiImageLoader &loader) mutable {
+			loader.switchTo(std::move(source));
+		});
+	}, _lifetime);
 }
 
 void Application::logout(Main::Account *account) {

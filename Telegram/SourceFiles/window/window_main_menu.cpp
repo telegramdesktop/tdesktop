@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
+#include "dialogs/dialogs_layout.h"
 #include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -91,6 +92,8 @@ private:
 	const not_null<Main::Account*> _account;
 	const style::Menu &_st;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
+
+	Dialogs::Layout::UnreadBadgeStyle _unreadSt;
 	int _unreadBadge = 0;
 	bool _unreadBadgeMuted = true;
 
@@ -161,8 +164,6 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), over ? _st.itemBgOver : _st.itemBg);
 	paintRipple(p, 0, 0);
 
-	const auto available = width() - 2 * _st.itemPadding.left();
-
 	session.user()->paintUserpicLeft(
 		p,
 		_userpicView,
@@ -170,6 +171,29 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 		_st.itemIconPosition.y(),
 		width(),
 		height() - 2 * _st.itemIconPosition.y());
+
+	auto available = width() - _st.itemPadding.left();
+	if (_unreadBadge && _account != &Core::App().domain().active()) {
+		_unreadSt.muted = _unreadBadgeMuted;
+		const auto string = (_unreadBadge > 99)
+			? "99+"
+			: QString::number(_unreadBadge);
+		auto unreadWidth = 0;
+		const auto skip = _st.itemPadding.right()
+			- st::mainMenu.itemToggleShift;
+		const auto unreadRight = width() - skip;
+		const auto unreadTop = (height() - _unreadSt.size) / 2;
+		Dialogs::Layout::paintUnreadCount(
+			p,
+			string,
+			unreadRight,
+			unreadTop,
+			_unreadSt,
+			&unreadWidth);
+		available -= unreadWidth + skip + st::mainMenu.itemStyle.font->spacew;
+	} else {
+		available -= _st.itemPadding.right();
+	}
 
 	p.setPen(over ? _st.itemFgOver : _st.itemFg);
 	session.user()->nameText().drawElided(
