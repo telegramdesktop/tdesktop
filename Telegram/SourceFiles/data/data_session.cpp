@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
+#include "main/main_account.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "api/api_text_entities.h"
@@ -27,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
-#include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
@@ -239,6 +240,16 @@ Session::Session(not_null<Main::Session*> session)
 	) | rpl::start_with_next([=] {
 		notifyUnreadBadgeChanged();
 	}, _lifetime);
+
+	_chatsFilters->changed(
+	) | rpl::start_with_next([=] {
+		const auto enabled = !_chatsFilters->list().empty();
+		if (enabled != session->settings().dialogsFiltersEnabled()) {
+			session->settings().setDialogsFiltersEnabled(enabled);
+			session->saveSettingsDelayed();
+		}
+	}, _lifetime);
+
 }
 
 void Session::clear() {

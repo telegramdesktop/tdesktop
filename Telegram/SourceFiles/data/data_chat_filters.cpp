@@ -216,17 +216,6 @@ bool ChatFilter::contains(not_null<History*> history) const {
 }
 
 ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
-	//using Flag = ChatFilter::Flag;
-	//const auto all = Flag::Contacts
-	//	| Flag::NonContacts
-	//	| Flag::Groups
-	//	| Flag::Channels
-	//	| Flag::Bots
-	//	| Flag::NoArchived;
-	//_list.push_back(
-	//	ChatFilter(1, "Unmuted", all | Flag::NoMuted, {}, {}));
-	//_list.push_back(
-	//	ChatFilter(2, "Unread", all | Flag::NoRead, {}, {}));
 	load();
 }
 

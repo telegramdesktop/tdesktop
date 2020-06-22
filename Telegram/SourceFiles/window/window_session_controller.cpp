@@ -141,7 +141,7 @@ SessionController::SessionController(
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
 		checkOpenedFilter();
-		crl::on_main(session, [=] {
+		crl::on_main(this, [=] {
 			refreshFiltersMenu();
 		});
 	}, session->lifetime());
@@ -216,12 +216,7 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 }
 
 void SessionController::refreshFiltersMenu() {
-	const auto enabled = !session().data().chatsFilters().list().empty();
-	if (enabled != session().settings().dialogsFiltersEnabled()) {
-		session().settings().setDialogsFiltersEnabled(enabled);
-		session().saveSettingsDelayed();
-		toggleFiltersMenu(enabled);
-	}
+	toggleFiltersMenu(!session().data().chatsFilters().list().empty());
 }
 
 rpl::producer<> SessionController::filtersMenuChanged() const {
