@@ -166,6 +166,10 @@ mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 }
 mainMenuVersionBottom: 21px;
 
+mainMenuToggleSize: 8px;
+mainMenuToggleFourStrokes: 4px;
+mainMenuTogglePosition: point(32px, 32px);
+
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);
 themeEditorDescriptionSkip: 10px;

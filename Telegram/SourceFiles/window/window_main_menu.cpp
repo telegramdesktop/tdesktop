@@ -96,6 +96,23 @@ private:
 
 };
 
+class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
+public:
+	ToggleAccountsButton(QWidget *parent, rpl::producer<bool> toggled);
+
+	[[nodiscard]] rpl::producer<int> rightSkip() const {
+		return _rightSkip.value();
+	}
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	rpl::variable<int> _rightSkip;
+	Ui::Animations::Simple _toggledAnimation;
+	bool _toggled = false;
+
+};
+
 class MainMenu::ResetScaleButton final : public Ui::AbstractButton {
 public:
 	ResetScaleButton(QWidget *parent);
@@ -162,6 +179,68 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 		available);
 }
 
+MainMenu::ToggleAccountsButton::ToggleAccountsButton(
+	QWidget *parent,
+	rpl::producer<bool> toggled)
+: AbstractButton(parent) {
+	std::move(
+		toggled
+	) | rpl::filter([=](bool value) {
+		return (_toggled != value);
+	}) | rpl::start_with_next([=](bool value) {
+		_toggled = value;
+		_toggledAnimation.start(
+			[=] { update(); },
+			_toggled ? 0. : 1.,
+			_toggled ? 1. : 0.,
+			st::slideWrapDuration);
+	}, lifetime());
+	_toggledAnimation.stop();
+}
+
+void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	const auto toggled = _toggledAnimation.value(_toggled ? 1. : 0.);
+	const auto x = 0. + width() - st::mainMenuTogglePosition.x();
+	const auto y = 0. + height() - st::mainMenuTogglePosition.y();
+	const auto size = st::mainMenuToggleSize;
+	const auto size2 = size / 2.;
+	const auto sqrt2 = sqrt(2.);
+	const auto stroke = (st::mainMenuToggleFourStrokes / 4.) / sqrt2;
+	const auto left = x - size;
+	const auto right = x + size;
+	const auto bottom = y + size2;
+	const auto top = y - size2;
+	constexpr auto kPointCount = 6;
+	std::array<QPointF, kPointCount> points = { {
+		{ left - stroke, bottom - stroke },
+		{ x, bottom - stroke - size - stroke },
+		{ right + stroke, bottom - stroke },
+		{ right - stroke, bottom + stroke },
+		{ x, bottom + stroke - size + stroke },
+		{ left + stroke, bottom + stroke }
+	} };
+	const auto alpha = -toggled * M_PI;
+	const auto cosalpha = cos(alpha);
+	const auto sinalpha = sin(alpha);
+	for (auto &point : points) {
+		auto px = point.x() - x;
+		auto py = point.y() - y;
+		point.setX(x + px * cosalpha - py * sinalpha);
+		point.setY(y + py * cosalpha + px * sinalpha);
+	}
+	QPainterPath path;
+	path.moveTo(points[0]);
+	for (int i = 1; i != kPointCount; ++i) {
+		path.lineTo(points[i]);
+	}
+	path.lineTo(points[0]);
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.fillPath(path, st::mainMenuCoverFg);
+}
+
 MainMenu::ResetScaleButton::ResetScaleButton(QWidget *parent)
 : AbstractButton(parent) {
 	const auto margin = st::mainMenuCloudButton.height
@@ -217,7 +296,7 @@ MainMenu::MainMenu(
 	_controller->session().user(),
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
-, _toggleAccounts(this)
+, _toggleAccounts(this, Core::App().settings().mainMenuAccountsShownValue())
 , _archiveButton(this, st::mainMenuCloudButton)
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
@@ -243,6 +322,7 @@ MainMenu::MainMenu(
 	setupArchiveButton();
 	setupUserpicButton();
 	setupAccounts();
+	setupAccountsToggle();
 
 	_nightThemeSwitch.setCallback([this] {
 		if (const auto action = *_nightThemeAction) {
@@ -404,13 +484,6 @@ void MainMenu::setupAccounts() {
 	_accounts->finishAnimating();
 
 	_shadow->setDuration(0)->toggleOn(_accounts->shownValue());
-
-	_toggleAccounts->show();
-	_toggleAccounts->setClickedCallback([=] {
-		auto &settings = Core::App().settings();
-		const auto shown = !settings.mainMenuAccountsShown();
-		settings.setMainMenuAccountsShown(shown);
-	});
 }
 
 void MainMenu::rebuildAccounts() {
@@ -514,9 +587,23 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 			add(MTP::Environment::Test);
 		});
 		_contextMenu->popup(QCursor::pos());
-	}, _archiveButton->lifetime());
+	}, button->lifetime());
 
 	return result;
+}
+
+void MainMenu::setupAccountsToggle() {
+	_toggleAccounts->show();
+	_toggleAccounts->setClickedCallback([=] {
+		auto &settings = Core::App().settings();
+		const auto shown = !settings.mainMenuAccountsShown();
+		settings.setMainMenuAccountsShown(shown);
+	});
+	_toggleAccounts->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(_toggleAccounts.data());
+
+	}, _toggleAccounts->lifetime());
 }
 
 void MainMenu::parentResized() {

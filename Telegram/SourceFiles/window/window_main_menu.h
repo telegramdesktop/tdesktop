@@ -19,7 +19,6 @@ class FlatLabel;
 class Menu;
 class UserpicButton;
 class PopupMenu;
-class AbstractButton;
 class ScrollArea;
 class VerticalLayout;
 class RippleButton;
@@ -52,11 +51,13 @@ protected:
 
 private:
 	class AccountButton;
+	class ToggleAccountsButton;
 	class ResetScaleButton;
 
 	void setupArchiveButton();
 	void setupUserpicButton();
 	void setupAccounts();
+	void setupAccountsToggle();
 	[[nodiscard]] not_null<Ui::SlideWrap<Ui::RippleButton>*> setupAddAccount(
 		not_null<Ui::VerticalLayout*> container);
 	void rebuildAccounts();
@@ -69,7 +70,7 @@ private:
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
-	object_ptr<Ui::AbstractButton> _toggleAccounts;
+	object_ptr<ToggleAccountsButton> _toggleAccounts;
 	object_ptr<Ui::IconButton> _archiveButton;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
