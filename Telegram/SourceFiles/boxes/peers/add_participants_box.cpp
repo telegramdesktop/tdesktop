@@ -88,7 +88,7 @@ void AddParticipantsBoxController::subscribeToMigration() {
 }
 
 void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	const auto &serverConfig = _peer->session().serverConfig();
+	const auto &serverConfig = session().serverConfig();
 	auto count = fullCount();
 	auto limit = _peer && (_peer->isChat() || _peer->isMegagroup())
 		? serverConfig.megagroupSizeMax
