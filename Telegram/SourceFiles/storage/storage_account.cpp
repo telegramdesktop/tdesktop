@@ -820,10 +820,16 @@ std::unique_ptr<Main::SessionSettings> Account::applyReadContext(
 		ReadSettingsContext &&context) {
 	ApplyReadFallbackConfig(context);
 
-	_cacheTotalSizeLimit = context.cacheTotalSizeLimit;
-	_cacheTotalTimeLimit = context.cacheTotalTimeLimit;
-	_cacheBigFileTotalSizeLimit = context.cacheBigFileTotalSizeLimit;
-	_cacheBigFileTotalTimeLimit = context.cacheBigFileTotalTimeLimit;
+	if (context.cacheTotalSizeLimit) {
+		_cacheTotalSizeLimit = context.cacheTotalSizeLimit;
+		_cacheTotalTimeLimit = context.cacheTotalTimeLimit;
+		_cacheBigFileTotalSizeLimit = context.cacheBigFileTotalSizeLimit;
+		_cacheBigFileTotalTimeLimit = context.cacheBigFileTotalTimeLimit;
+
+		const auto &normal = Database::Settings();
+		Assert(_cacheTotalSizeLimit > normal.maxDataSize);
+		Assert(_cacheBigFileTotalSizeLimit > normal.maxDataSize);
+	}
 
 	if (!context.mtpAuthorization.isEmpty()) {
 		_owner->setMtpAuthorization(context.mtpAuthorization);
