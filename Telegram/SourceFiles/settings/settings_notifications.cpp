@@ -656,9 +656,7 @@ void SetupNotificationsContent(
 	}();
 
 	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		&& !Platform::IsWayland()
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,
