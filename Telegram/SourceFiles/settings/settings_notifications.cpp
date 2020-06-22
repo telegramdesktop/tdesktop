@@ -633,12 +633,7 @@ void SetupNotificationsContent(
 			return QString();
 		} else if (Platform::IsWindows()) {
 			return tr::lng_settings_use_windows(tr::now);
-		} else if (Platform::IsLinux()) {
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-			if (Platform::IsWayland()) {
-				return QString();
-			}
-#endif // Q_OS_UNIX && !Q_OS_MAC
+		} else if (Platform::IsLinux() && !Platform::IsWayland()) {
 			return tr::lng_settings_use_native_notifications(tr::now);
 		}
 		return QString();
@@ -656,9 +651,9 @@ void SetupNotificationsContent(
 	}();
 
 	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
-#if defined Q_OS_UNIX && !defined Q_OS_MAC && !defined TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 		&& !Platform::IsWayland()
-#endif // Q_OS_UNIX && !Q_OS_MAC && !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,
