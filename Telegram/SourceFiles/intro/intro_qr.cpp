@@ -218,7 +218,7 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 }
 
 void QrWidget::submit() {
-	goReplace<PhoneWidget>();
+	goReplace<PhoneWidget>(Animate::Forward);
 }
 
 rpl::producer<QString> QrWidget::nextButtonText() const {
@@ -389,7 +389,7 @@ void QrWidget::sendCheckPasswordRequest() {
 				data);
 			if (!data.vcurrent_algo() || !data.vsrp_id() || !data.vsrp_B()) {
 				LOG(("API Error: No current password received on login."));
-				goReplace<QrWidget>();
+				goReplace<QrWidget>(Animate::Forward);
 				return;
 			} else if (!getData()->pwdRequest) {
 				const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
@@ -406,7 +406,7 @@ void QrWidget::sendCheckPasswordRequest() {
 			getData()->hasRecovery = data.is_has_recovery();
 			getData()->pwdHint = qs(data.vhint().value_or_empty());
 			getData()->pwdNotEmptyPassport = data.is_has_secure_values();
-			goReplace<PasswordCheckWidget>();
+			goReplace<PasswordCheckWidget>(Animate::Forward);
 		});
 	}).fail([=](const RPCError &error) {
 		showTokenError(error);

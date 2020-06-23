@@ -257,12 +257,12 @@ void MainWindow::clearPasscodeLock() {
 	}
 }
 
-void MainWindow::setupIntro() {
+void MainWindow::setupIntro(Intro::EnterPoint point) {
 	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-	_intro.create(bodyWidget(), &account());
+	_intro.create(bodyWidget(), &account(), point);
 	if (_passcodeLock) {
 		_intro->hide();
 	} else {

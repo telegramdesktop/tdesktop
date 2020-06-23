@@ -94,7 +94,9 @@ void PhoneWidget::setupQrLogin() {
 				contentTop() + st::introQrLoginLinkTop);
 		}, qrLogin->lifetime());
 
-		qrLogin->setClickedCallback([=] { goReplace<QrWidget>(); });
+		qrLogin->setClickedCallback([=] {
+			goReplace<QrWidget>(Animate::Forward);
+		});
 	}, lifetime());
 }
 

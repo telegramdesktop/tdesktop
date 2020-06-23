@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/intro_start.h"
 #include "intro/intro_phone.h"
+#include "intro/intro_qr.h"
 #include "intro/intro_code.h"
 #include "intro/intro_signup.h"
 #include "intro/intro_password_check.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "storage/localstorage.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "mainwindow.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
@@ -40,7 +42,10 @@ using namespace ::Intro::details;
 
 } // namespace
 
-Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	EnterPoint point)
 : RpWidget(parent)
 , _account(account)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
@@ -57,7 +62,19 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		this,
 		account,
 		rpl::single(true))) {
-	appendStep(new StartWidget(this, _account, getData()));
+	switch (point) {
+	case EnterPoint::Start:
+		appendStep(new StartWidget(this, _account, getData()));
+		break;
+	case EnterPoint::Phone:
+		appendStep(new PhoneWidget(this, _account, getData()));
+		break;
+	case EnterPoint::Qr:
+		appendStep(new QrWidget(this, _account, getData()));
+		break;
+	default: Unexpected("Enter point in Intro::Widget::Widget.");
+	}
+
 	fixOrder();
 
 	getData()->country = Platform::SystemCountry();
@@ -77,9 +94,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		handleUpdates(updates);
 	}, lifetime());
 
-	_back->entity()->setClickedCallback([=] {
-		historyMove(Direction::Back);
-	});
+	_back->entity()->setClickedCallback([=] { backRequested(); });
 	_back->hide(anim::type::instant);
 
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
@@ -227,18 +242,18 @@ void Widget::setInnerFocus() {
 	}
 }
 
-void Widget::historyMove(Direction direction) {
+void Widget::historyMove(StackAction action, Animate animate) {
 	Expects(_stepHistory.size() > 1);
 
 	if (getStep()->animating()) {
 		return;
 	}
 
-	auto wasStep = getStep((direction == Direction::Back) ? 0 : 1);
-	if (direction == Direction::Back) {
+	auto wasStep = getStep((action == StackAction::Back) ? 0 : 1);
+	if (action == StackAction::Back) {
 		_stepHistory.pop_back();
 		wasStep->cancelled();
-	} else if (direction == Direction::Replace) {
+	} else if (action == StackAction::Replace) {
 		_stepHistory.erase(_stepHistory.end() - 2);
 	}
 
@@ -258,10 +273,10 @@ void Widget::historyMove(Direction direction) {
 	}
 
 	_stepLifetime.destroy();
-	if (direction == Direction::Forward || direction == Direction::Replace) {
+	if (action == StackAction::Forward || action == StackAction::Replace) {
 		wasStep->finished();
 	}
-	if (direction == Direction::Back || direction == Direction::Replace) {
+	if (action == StackAction::Back || action == StackAction::Replace) {
 		delete base::take(wasStep);
 	}
 	_back->toggle(getStep()->hasBack(), anim::type::normal);
@@ -274,7 +289,7 @@ void Widget::historyMove(Direction direction) {
 	setupNextButton();
 	if (_resetAccount) _resetAccount->show(anim::type::normal);
 	if (_terms) _terms->show(anim::type::normal);
-	getStep()->showAnimated(direction);
+	getStep()->showAnimated(animate);
 	fixOrder();
 }
 
@@ -298,7 +313,7 @@ void Widget::fixOrder() {
 	_connecting->raise();
 }
 
-void Widget::moveToStep(Step *step, Direction direction) {
+void Widget::moveToStep(Step *step, StackAction action, Animate animate) {
 	appendStep(step);
 	_back->raise();
 	_settings->raise();
@@ -307,17 +322,17 @@ void Widget::moveToStep(Step *step, Direction direction) {
 	}
 	_connecting->raise();
 
-	historyMove(direction);
+	historyMove(action, animate);
 }
 
 void Widget::appendStep(Step *step) {
 	_stepHistory.push_back(step);
 	step->setGeometry(rect());
-	step->setGoCallback([=](Step *step, Direction direction) {
-		if (direction == Direction::Back) {
-			historyMove(direction);
+	step->setGoCallback([=](Step *step, StackAction action, Animate animate) {
+		if (action == StackAction::Back) {
+			historyMove(action, animate);
 		} else {
-			moveToStep(step, direction);
+			moveToStep(step, action, animate);
 		}
 	});
 	step->setShowResetCallback([=] {
@@ -399,7 +414,8 @@ void Widget::resetAccount() {
 			Ui::hideLayer();
 			moveToStep(
 				new SignupWidget(this, _account, getData()),
-				Direction::Replace);
+				StackAction::Replace,
+				Animate::Forward);
 		}).fail([=](const RPCError &error) {
 			_resetRequest = 0;
 
@@ -689,12 +705,26 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		if (getStep()->hasBack()) {
-			historyMove(Direction::Back);
+			backRequested();
 		}
 	} else if (e->key() == Qt::Key_Enter
 		|| e->key() == Qt::Key_Return
 		|| e->key() == Qt::Key_Space) {
 		getStep()->submit();
+	}
+}
+
+void Widget::backRequested() {
+	if (_stepHistory.size() > 1) {
+		historyMove(StackAction::Back, Animate::Back);
+	} else if (const auto parent
+		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
+		Core::App().domain().activate(parent);
+	} else {
+		moveToStep(
+			new StartWidget(this, _account, getData()),
+			StackAction::Replace,
+			Animate::Back);
 	}
 }
 

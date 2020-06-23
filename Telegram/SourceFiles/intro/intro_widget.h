@@ -62,19 +62,33 @@ struct Data {
 
 };
 
-enum class Direction {
+enum class StackAction {
 	Back,
 	Forward,
 	Replace,
+};
+
+enum class Animate {
+	Back,
+	Forward,
 };
 
 class Step;
 
 } // namespace details
 
+enum class EnterPoint : uchar {
+	Start,
+	Phone,
+	Qr,
+};
+
 class Widget : public Ui::RpWidget, private base::Subscriber {
 public:
-	Widget(QWidget *parent, not_null<Main::Account*> account);
+	Widget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		EnterPoint point);
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
@@ -95,6 +109,7 @@ private:
 	void setupNextButton();
 	void handleUpdates(const MTPUpdates &updates);
 	void handleUpdate(const MTPUpdate &update);
+	void backRequested();
 
 	void updateControlsGeometry();
 	[[nodiscard]] not_null<details::Data*> getData() {
@@ -118,8 +133,11 @@ private:
 
 		return _stepHistory[_stepHistory.size() - skip - 1];
 	}
-	void historyMove(details::Direction direction);
-	void moveToStep(details::Step *step, details::Direction direction);
+	void historyMove(details::StackAction action, details::Animate animate);
+	void moveToStep(
+		details::Step *step,
+		details::StackAction action,
+		details::Animate animate);
 	void appendStep(details::Step *step);
 
 	void getNearestDC();

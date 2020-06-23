@@ -118,19 +118,19 @@ rpl::producer<QString> Step::nextButtonText() const {
 
 void Step::goBack() {
 	if (_goCallback) {
-		_goCallback(nullptr, Direction::Back);
+		_goCallback(nullptr, StackAction::Back, Animate::Back);
 	}
 }
 
 void Step::goNext(Step *step) {
 	if (_goCallback) {
-		_goCallback(step, Direction::Forward);
+		_goCallback(step, StackAction::Forward, Animate::Forward);
 	}
 }
 
-void Step::goReplace(Step *step) {
+void Step::goReplace(Step *step, Animate animate) {
 	if (_goCallback) {
-		_goCallback(step, Direction::Replace);
+		_goCallback(step, StackAction::Replace, animate);
 	}
 }
 
@@ -455,12 +455,12 @@ QPixmap Step::prepareSlideAnimation() {
 		QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
 }
 
-void Step::showAnimated(Direction direction) {
+void Step::showAnimated(Animate animate) {
 	setFocus();
 	show();
 	hideChildren();
 	if (_slideAnimation) {
-		auto slideLeft = (direction == Direction::Back);
+		auto slideLeft = (animate == Animate::Back);
 		_slideAnimation->start(
 			slideLeft,
 			[=] { update(0, contentTop(), width(), st::introStepHeight); },
@@ -474,7 +474,8 @@ void Step::setShowAnimationClipping(QRect clipping) {
 	_coverAnimation.clipping = clipping;
 }
 
-void Step::setGoCallback(Fn<void(Step *step, Direction direction)> callback) {
+void Step::setGoCallback(
+		Fn<void(Step *step, StackAction action, Animate animate)> callback) {
 	_goCallback = std::move(callback);
 }
 

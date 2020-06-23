@@ -259,7 +259,7 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 		} else {
 			getData()->termsLock = Window::TermsLock();
 		}
-		goReplace<SignupWidget>();
+		goReplace<SignupWidget>(Animate::Forward);
 	});
 }
 
@@ -358,7 +358,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	getData()->hasRecovery = d.is_has_recovery();
 	getData()->pwdHint = qs(d.vhint().value_or_empty());
 	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
-	goReplace<PasswordCheckWidget>();
+	goReplace<PasswordCheckWidget>(Animate::Forward);
 }
 
 void CodeWidget::submit() {

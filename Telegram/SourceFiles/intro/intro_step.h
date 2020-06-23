@@ -28,7 +28,8 @@ namespace Intro {
 namespace details {
 
 struct Data;
-enum class Direction;
+enum class StackAction;
+enum class Animate;
 
 class Step : public Ui::RpWidget, protected base::Subscriber {
 public:
@@ -55,7 +56,7 @@ public:
 	}
 
 	void setGoCallback(
-		Fn<void(Step *step, Direction direction)> callback);
+		Fn<void(Step *step, StackAction action, Animate animate)> callback);
 	void setShowResetCallback(Fn<void()> callback);
 	void setShowTermsCallback(
 		Fn<void()> callback);
@@ -63,7 +64,7 @@ public:
 		Fn<void(Fn<void()> callback)> callback);
 
 	void prepareShowAnimated(Step *after);
-	void showAnimated(Direction direction);
+	void showAnimated(Animate animate);
 	void showFast();
 	[[nodiscard]] bool animating() const;
 	void setShowAnimationClipping(QRect clipping);
@@ -114,8 +115,8 @@ protected:
 	}
 
 	template <typename StepType>
-	void goReplace() {
-		goReplace(new StepType(parentWidget(), _account, _data));
+	void goReplace(Animate animate) {
+		goReplace(new StepType(parentWidget(), _account, _data), animate);
 	}
 
 	void showResetButton() {
@@ -157,7 +158,7 @@ private:
 	void refreshError(const QString &text);
 
 	void goNext(Step *step);
-	void goReplace(Step *step);
+	void goReplace(Step *step, Animate animate);
 
 	[[nodiscard]] CoverAnimation prepareCoverAnimation(Step *step);
 	[[nodiscard]] QPixmap prepareContentSnapshot();
@@ -172,7 +173,7 @@ private:
 	mutable std::optional<MTP::Sender> _api;
 
 	bool _hasCover = false;
-	Fn<void(Step *step, Direction direction)> _goCallback;
+	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
 	Fn<void(Fn<void()> callback)> _acceptTermsCallback;

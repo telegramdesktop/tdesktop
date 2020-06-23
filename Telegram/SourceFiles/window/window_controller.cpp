@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "main/main_app_config.h"
+#include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/layer_widget.h"
@@ -100,7 +102,17 @@ void Controller::clearPasscodeLock() {
 }
 
 void Controller::setupIntro() {
-	_widget.setupIntro();
+	const auto parent = Core::App().domain().maybeLastOrSomeAuthedAccount();
+	if (!parent) {
+		_widget.setupIntro(Intro::EnterPoint::Start);
+		return;
+	}
+	const auto qrLogin = parent->appConfig().get<QString>(
+		"qr_login_code",
+		"[not-set]");
+	DEBUG_LOG(("qr_login_code in setup: %1").arg(qrLogin));
+	const auto qr = (qrLogin == "primary");
+	_widget.setupIntro(qr ? Intro::EnterPoint::Qr : Intro::EnterPoint::Phone);
 }
 
 void Controller::setupMain() {

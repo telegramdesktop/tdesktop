@@ -103,6 +103,20 @@ rpl::producer<> Domain::accountsChanges() const {
 	return _accountsChanges.events();
 }
 
+Account *Domain::maybeLastOrSomeAuthedAccount() {
+	auto result = (Account*)nullptr;
+	for (const auto &[index, account] : _accounts) {
+		if (!account->sessionExists()) {
+			continue;
+		} else if (index == _lastActiveIndex) {
+			return account.get();
+		} else if (!result) {
+			result = account.get();
+		}
+	}
+	return result;
+}
+
 rpl::producer<Account*> Domain::activeValue() const {
 	return _active.value();
 }
@@ -113,6 +127,8 @@ Account &Domain::active() const {
 	Ensures(_active.current() != nullptr);
 	return *_active.current();
 }
+
+
 
 rpl::producer<not_null<Account*>> Domain::activeChanges() const {
 	return _active.changes() | rpl::map([](Account *value) {
@@ -316,6 +332,9 @@ void Domain::activate(not_null<Main::Account*> account) {
 	const auto changed = (_accountToActivate != i->index);
 
 	_activeLifetime.destroy();
+	if (_active.current()) {
+		_lastActiveIndex = _accountToActivate;
+	}
 	_accountToActivate = i->index;
 	_active = account.get();
 	_active.current()->sessionValue(

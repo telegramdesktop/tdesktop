@@ -115,7 +115,7 @@ private:
 
 class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
 public:
-	ToggleAccountsButton(QWidget *parent, rpl::producer<bool> toggled);
+	explicit ToggleAccountsButton(QWidget *parent);
 
 	[[nodiscard]] int rightSkip() const {
 		return _rightSkip.current();
@@ -274,9 +274,7 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 		available);
 }
 
-MainMenu::ToggleAccountsButton::ToggleAccountsButton(
-	QWidget *parent,
-	rpl::producer<bool> toggled)
+MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
 : AbstractButton(parent) {
 	rpl::single(
 		rpl::empty_value()
@@ -290,8 +288,12 @@ MainMenu::ToggleAccountsButton::ToggleAccountsButton(
 		}
 	}, lifetime());
 
-	std::move(
-		toggled
+	auto &settings = Core::App().settings();
+	if (Core::App().domain().accounts().size() < 2
+		&& settings.mainMenuAccountsShown()) {
+		settings.setMainMenuAccountsShown(false);
+	}
+	settings.mainMenuAccountsShownValue(
 	) | rpl::filter([=](bool value) {
 		return (_toggled != value);
 	}) | rpl::start_with_next([=](bool value) {
@@ -481,7 +483,7 @@ MainMenu::MainMenu(
 	_controller->session().user(),
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
-, _toggleAccounts(this, Core::App().settings().mainMenuAccountsShownValue())
+, _toggleAccounts(this)
 , _archiveButton(this, st::mainMenuCloudButton)
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
@@ -506,8 +508,8 @@ MainMenu::MainMenu(
 
 	setupArchiveButton();
 	setupUserpicButton();
-	setupAccounts();
 	setupAccountsToggle();
+	setupAccounts();
 
 	_nightThemeSwitch.setCallback([this] {
 		if (const auto action = *_nightThemeAction) {
@@ -672,6 +674,7 @@ void MainMenu::setupAccounts() {
 	}, lifetime());
 
 	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
+	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
 	_accounts->finishAnimating();
 
 	_shadow->setDuration(0)->toggleOn(_accounts->shownValue());
@@ -798,12 +801,8 @@ void MainMenu::setupAccountsToggle() {
 		auto &settings = Core::App().settings();
 		const auto shown = !settings.mainMenuAccountsShown();
 		settings.setMainMenuAccountsShown(shown);
+		Core::App().saveSettingsDelayed();
 	});
-	_toggleAccounts->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = Painter(_toggleAccounts.data());
-
-	}, _toggleAccounts->lifetime());
 }
 
 void MainMenu::parentResized() {

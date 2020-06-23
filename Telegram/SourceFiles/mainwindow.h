@@ -17,6 +17,7 @@ class MainWidget;
 
 namespace Intro {
 class Widget;
+enum class EnterPoint : uchar;
 } // namespace Intro
 
 namespace Local {
@@ -53,7 +54,7 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro();
+	void setupIntro(Intro::EnterPoint point);
 	void setupMain();
 
 	MainWidget *sessionContent() const;
