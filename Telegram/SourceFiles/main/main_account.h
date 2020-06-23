@@ -73,6 +73,7 @@ public:
 
 	[[nodiscard]] bool sessionExists() const;
 	[[nodiscard]] Session &session() const;
+	[[nodiscard]] Session *maybeSession() const;
 	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 

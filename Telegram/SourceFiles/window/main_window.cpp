@@ -193,8 +193,8 @@ void MainWindow::checkLockByTerms() {
 	box->agreeClicks(
 	) | rpl::start_with_next([=] {
 		const auto mention = box ? box->lastClickedMention() : QString();
-		if (account().sessionExists()) {
-			account().session().api().acceptTerms(id);
+		if (const auto session = account().maybeSession()) {
+			session->api().acceptTerms(id);
 			if (!mention.isEmpty()) {
 				MentionClickHandler(mention).onClick({});
 			}
@@ -242,8 +242,8 @@ void MainWindow::showTermsDecline() {
 void MainWindow::showTermsDelete() {
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto deleteByTerms = [=] {
-		if (account().sessionExists()) {
-			account().session().termsDeleteNow();
+		if (const auto session = account().maybeSession()) {
+			session->termsDeleteNow();
 		} else {
 			Ui::hideLayer();
 		}

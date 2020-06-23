@@ -631,9 +631,9 @@ void MainWindow::updateTrayMenu(bool force) {
 void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
-	if (account().sessionExists()) {
+	if (const auto session = account().maybeSession()) {
 		Ui::show(
-			Box<AddContactBox>(&account().session()),
+			Box<AddContactBox>(session),
 			Ui::LayerOption::KeepOther);
 	}
 }
@@ -641,11 +641,9 @@ void MainWindow::onShowAddContact() {
 void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (account().sessionExists()) {
+	if (const auto controller = sessionController()) {
 		Ui::show(
-			Box<GroupInfoBox>(
-				sessionController(),
-				GroupInfoBox::Type::Group),
+			Box<GroupInfoBox>(controller, GroupInfoBox::Type::Group),
 			Ui::LayerOption::KeepOther);
 	}
 }
@@ -653,11 +651,9 @@ void MainWindow::onShowNewGroup() {
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (account().sessionExists()) {
+	if (const auto controller = sessionController()) {
 		Ui::show(
-			Box<GroupInfoBox>(
-				sessionController(),
-				GroupInfoBox::Type::Channel),
+			Box<GroupInfoBox>(controller, GroupInfoBox::Type::Channel),
 			Ui::LayerOption::KeepOther);
 	}
 }

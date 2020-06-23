@@ -588,13 +588,8 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 }
 
 UnreadBadgeStyle::UnreadBadgeStyle()
-: align(style::al_right)
-, active(false)
-, selected(false)
-, muted(false)
-, size(st::dialogsUnreadHeight)
+: size(st::dialogsUnreadHeight)
 , padding(st::dialogsUnreadPadding)
-, sizeId(UnreadBadgeInDialogs)
 , font(st::dialogsUnreadFont) {
 }
 

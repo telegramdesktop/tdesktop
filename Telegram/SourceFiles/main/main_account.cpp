@@ -54,8 +54,8 @@ Account::Account(not_null<Domain*> domain, const QString &dataName, int index)
 }
 
 Account::~Account() {
-	if (sessionExists()) {
-		session().saveSettingsNowIfNeeded();
+	if (const auto session = maybeSession()) {
+		session->saveSettingsNowIfNeeded();
 	}
 	destroySession();
 }
@@ -205,6 +205,10 @@ Session &Account::session() const {
 	return *_sessionValue.current();
 }
 
+Session *Account::maybeSession() const {
+	return _sessionValue.current();
+}
+
 rpl::producer<Session*> Account::sessionValue() const {
 	return _sessionValue.value();
 }
@@ -316,8 +320,8 @@ SessionSettings *Account::getSessionSettings() {
 		return _storedSessionSettings
 			? _storedSessionSettings.get()
 			: nullptr;
-	} else if (sessionExists()) {
-		return &session().settings();
+	} else if (const auto session = maybeSession()) {
+		return &session->settings();
 	}
 	return nullptr;
 }
@@ -412,8 +416,8 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 			|| checkForNewSession(from, end);
 	}));
 	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
-		if (sessionExists()) {
-			crl::on_main(&session(), [=] { logOut(); });
+		if (const auto session = maybeSession()) {
+			crl::on_main(session, [=] { logOut(); });
 		}
 		return true;
 	}));
@@ -423,9 +427,9 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 		}
 	});
 	_mtp->setSessionResetHandler([=](MTP::ShiftedDcId shiftedDcId) {
-		if (sessionExists()) {
+		if (const auto session = maybeSession()) {
 			if (shiftedDcId == _mtp->mainDcId()) {
-				session().updates().getDifference();
+				session->updates().getDifference();
 			}
 		}
 	});
@@ -445,9 +449,9 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	}
 	_storedSessionSettings = nullptr;
 
-	if (sessionExists()) {
+	if (const auto session = maybeSession()) {
 		// Skip all pending self updates so that we won't local().writeSelf.
-		session().changes().sendNotifications();
+		session->changes().sendNotifications();
 	}
 
 	_mtpValue = _mtp.get();

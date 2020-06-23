@@ -125,9 +125,9 @@ rpl::producer<Session*> Domain::activeSessionChanges() const {
 }
 
 rpl::producer<Session*> Domain::activeSessionValue() const {
-	const auto current = (_accounts.empty() || !active().sessionExists())
+	const auto current = _accounts.empty()
 		? nullptr
-		: &active().session();
+		: active().maybeSession();
 	return rpl::single(current) | rpl::then(_activeSessions.events());
 }
 
@@ -145,8 +145,8 @@ rpl::producer<> Domain::unreadBadgeChanges() const {
 
 void Domain::notifyUnreadBadgeChanged() {
 	for (const auto &[index, account] : _accounts) {
-		if (account->sessionExists()) {
-			account->session().data().notifyUnreadBadgeChanged();
+		if (const auto session = account->maybeSession()) {
+			session->data().notifyUnreadBadgeChanged();
 		}
 	}
 }
@@ -155,8 +155,8 @@ void Domain::updateUnreadBadge() {
 	_unreadBadge = 0;
 	_unreadBadgeMuted = true;
 	for (const auto &[index, account] : _accounts) {
-		if (account->sessionExists()) {
-			const auto data = &account->session().data();
+		if (const auto session = account->maybeSession()) {
+			const auto data = &session->data();
 			_unreadBadge += data->unreadBadge();
 			if (!data->unreadBadgeMuted()) {
 				_unreadBadgeMuted = false;

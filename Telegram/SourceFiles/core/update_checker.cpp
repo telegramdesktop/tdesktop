@@ -1393,9 +1393,8 @@ Updater::~Updater() {
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
 	if (IsAppLaunched() && Core::App().domain().started()) {
-		const auto &account = Core::App().activeAccount();
-		if (account.sessionExists()) {
-			_updater->setMtproto(&account.session());
+		if (const auto session = Core::App().activeAccount().maybeSession()) {
+			_updater->setMtproto(session);
 		}
 	}
 }

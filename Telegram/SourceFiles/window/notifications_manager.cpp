@@ -76,9 +76,10 @@ void System::createManager() {
 
 Main::Session *System::findSession(UserId selfId) const {
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
-		if (account->sessionExists()
-			&& account->session().userId() == selfId) {
-			return &account->session();
+		if (const auto session = account->maybeSession()) {
+			if (session->userId() == selfId) {
+				return session;
+			}
 		}
 	}
 	return nullptr;

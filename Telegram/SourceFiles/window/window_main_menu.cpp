@@ -60,13 +60,13 @@ namespace {
 
 constexpr auto kMinDiffIntensity = 0.25;
 
-float64 IntensityOfColor(QColor color) {
+[[nodicard]] float64 IntensityOfColor(QColor color) {
 	return (0.299 * color.red()
 			+ 0.587 * color.green()
 			+ 0.114 * color.blue()) / 255.0;
 }
 
-bool IsShadowShown(const QImage &img, const QRect r, float64 intensityText) {
+[[nodiscard]] bool IsShadowShown(const QImage &img, const QRect r, float64 intensityText) {
 	for (auto x = r.x(); x < r.x() + r.width(); x++) {
 		for (auto y = r.y(); y < r.y() + r.height(); y++) {
 			const auto intensity = IntensityOfColor(QColor(img.pixel(x, y)));
@@ -78,11 +78,22 @@ bool IsShadowShown(const QImage &img, const QRect r, float64 intensityText) {
 	return false;
 }
 
+[[nodiscard]] bool IsFilledCover() {
+	const auto background = Window::Theme::Background();
+	return background->tile()
+		|| background->colorForFill().has_value()
+		|| background->isMonoColorImage()
+		|| background->paper().isPattern()
+		|| Data::IsLegacy1DefaultWallPaper(background->paper());
+}
+
 } // namespace
 
 namespace Window {
 
-class MainMenu::AccountButton final : public Ui::RippleButton {
+class MainMenu::AccountButton final
+	: public Ui::RippleButton
+	, public base::Subscriber {
 public:
 	AccountButton(QWidget *parent, not_null<Main::Account*> account);
 
@@ -106,16 +117,24 @@ class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
 public:
 	ToggleAccountsButton(QWidget *parent, rpl::producer<bool> toggled);
 
-	[[nodiscard]] rpl::producer<int> rightSkip() const {
-		return _rightSkip.value();
+	[[nodiscard]] int rightSkip() const {
+		return _rightSkip.current();
 	}
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void paintUnreadBadge(QPainter &p);
+
+	void validateUnreadBadge();
+	[[nodiscard]] QString computeUnreadBadge() const;
 
 	rpl::variable<int> _rightSkip;
 	Ui::Animations::Simple _toggledAnimation;
 	bool _toggled = false;
+
+	QString _unreadBadge;
+	int _unreadBadgeWidth = 0;
+	bool _unreadBadgeStale = false;
 
 };
 
@@ -140,6 +159,13 @@ MainMenu::AccountButton::AccountButton(
 		+ _st.itemStyle.font->height
 		+ _st.itemPadding.bottom();
 	resize(width(), height);
+
+	subscribe(Window::Theme::Background(), [=](
+			const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			_userpicKey = {};
+		}
+	});
 
 	_account->sessionValue(
 	) | rpl::filter([=](Main::Session *session) {
@@ -252,6 +278,18 @@ MainMenu::ToggleAccountsButton::ToggleAccountsButton(
 	QWidget *parent,
 	rpl::producer<bool> toggled)
 : AbstractButton(parent) {
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		Core::App().unreadBadgeChanges()
+	) | rpl::start_with_next([=] {
+		_unreadBadgeStale = true;
+		if (!_toggled) {
+			validateUnreadBadge();
+			update();
+		}
+	}, lifetime());
+
 	std::move(
 		toggled
 	) | rpl::filter([=](bool value) {
@@ -263,12 +301,13 @@ MainMenu::ToggleAccountsButton::ToggleAccountsButton(
 			_toggled ? 0. : 1.,
 			_toggled ? 1. : 0.,
 			st::slideWrapDuration);
+		validateUnreadBadge();
 	}, lifetime());
 	_toggledAnimation.stop();
 }
 
 void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	auto p = Painter(this);
 
 	const auto toggled = _toggledAnimation.value(_toggled ? 1. : 0.);
 	const auto x = 0. + width() - st::mainMenuTogglePosition.x();
@@ -290,7 +329,7 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 		{ x, bottom + stroke - size + stroke },
 		{ left + stroke, bottom + stroke }
 	} };
-	const auto alpha = -toggled * M_PI;
+	const auto alpha = (toggled - 1.) * M_PI;
 	const auto cosalpha = cos(alpha);
 	const auto sinalpha = sin(alpha);
 	for (auto &point : points) {
@@ -308,6 +347,80 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 
 	auto hq = PainterHighQualityEnabler(p);
 	p.fillPath(path, st::mainMenuCoverFg);
+
+	if (!_toggled) {
+		paintUnreadBadge(p);
+	}
+}
+
+void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
+	validateUnreadBadge();
+	if (_unreadBadge.isEmpty()) {
+		return;
+	}
+	Dialogs::Layout::UnreadBadgeStyle st;
+
+	const auto right = width() - st::mainMenuTogglePosition.x() - st::mainMenuToggleSize * 2;
+	const auto top = height() - st::mainMenuTogglePosition.y() - st::mainMenuToggleSize;
+	const auto width = _unreadBadgeWidth;
+	const auto rectHeight = st.size;
+	const auto rectWidth = std::max(width + 2 * st.padding, rectHeight);
+	const auto left = right - rectWidth;
+	const auto textLeft = left + (rectWidth - width) / 2;
+	const auto textTop = top + (st.textTop ? st.textTop : (rectHeight - st.font->height) / 2);
+
+	const auto isFill = IsFilledCover();
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(isFill ? st::mainMenuCloudBg : st::msgServiceBg);
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(left, top, rectWidth, rectHeight, rectHeight / 2, rectHeight / 2);
+
+	p.setFont(st.font);
+	p.setPen(isFill ? st::mainMenuCloudFg : st::msgServiceFg);
+	p.drawText(textLeft, textTop + st.font->ascent, _unreadBadge);
+}
+
+void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
+	const auto base = st::mainMenuTogglePosition.x()
+		+ 2 * st::mainMenuToggleSize;
+	if (_toggled) {
+		_rightSkip = base;
+		return;
+	} else if (!_unreadBadgeStale) {
+		return;
+	}
+	_unreadBadge = computeUnreadBadge();
+
+	Dialogs::Layout::UnreadBadgeStyle st;
+	_unreadBadgeWidth = st.font->width(_unreadBadge);
+	const auto rectHeight = st.size;
+	const auto rectWidth = std::max(
+		_unreadBadgeWidth + 2 * st.padding,
+		rectHeight);
+	_rightSkip = base + rectWidth + st::mainMenuToggleSize;
+}
+
+QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
+	auto count = 0;
+	const auto active = &Core::App().activeAccount();
+	const auto countMessages = Core::App().settings().countUnreadMessages();
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		if (account.get() == active) {
+			continue;
+		} else if (const auto session = account->maybeSession()) {
+			const auto state = account->session().data().chatsList()->unreadState();
+			count += std::max(state.marks - state.marksMuted, 0)
+				+ (countMessages
+					? std::max(state.messages - state.messagesMuted, 0)
+					: std::max(state.chats - state.chatsMuted, 0));
+		}
+	}
+	return (count > 99)
+		? u"99+"_q
+		: (count > 0)
+		? QString::number(count)
+		: QString();
 }
 
 MainMenu::ResetScaleButton::ResetScaleButton(QWidget *parent)
@@ -447,7 +560,13 @@ MainMenu::MainMenu(
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
-			refreshMenu();
+			if (const auto action = *_nightThemeAction) {
+				const auto nightMode = Window::Theme::IsNightMode();
+				if (action->isChecked() != nightMode) {
+					action->setChecked(nightMode);
+					_menu->finishAnimating();
+				}
+			}
 		}
 		if (update.type == Window::Theme::BackgroundUpdate::Type::New) {
 			refreshBackground();
@@ -860,20 +979,16 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight)
 		.intersected(e->rect());
 
-	const auto background = Window::Theme::Background();
-	const auto isFill = background->tile()
-		|| background->colorForFill().has_value()
-		|| background->isMonoColorImage()
-		|| background->paper().isPattern()
-		|| Data::IsLegacy1DefaultWallPaper(background->paper());
-
+	const auto isFill = IsFilledCover();
 	if (!isFill && !_background.isNull()) {
 		PainterHighQualityEnabler hq(p);
 		p.drawImage(0, 0, _background);
 	}
 
 	if (!cover.isEmpty()) {
-		const auto widthText = width() - 2 * st::mainMenuCoverTextLeft;
+		const auto widthText = width()
+			- st::mainMenuCoverTextLeft
+			- _toggleAccounts->rightSkip();
 
 		if (isFill) {
 			p.fillRect(cover, st::mainMenuCoverBg);

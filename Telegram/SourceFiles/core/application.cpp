@@ -615,9 +615,7 @@ Main::Account &Application::activeAccount() const {
 }
 
 Main::Session *Application::maybeActiveSession() const {
-	return (_domain->started() && activeAccount().sessionExists())
-		? &activeAccount().session()
-		: nullptr;
+	return _domain->started() ? activeAccount().maybeSession() : nullptr;
 }
 
 bool Application::exportPreventsQuit() {

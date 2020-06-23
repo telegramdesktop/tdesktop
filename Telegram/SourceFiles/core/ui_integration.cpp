@@ -161,9 +161,8 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 
 QString UiIntegration::convertTagToMimeTag(const QString &tagId) {
 	if (TextUtilities::IsMentionLink(tagId)) {
-		const auto &account = Core::App().activeAccount();
-		if (account.sessionExists()) {
-			return tagId + ':' + QString::number(account.session().userId());
+		if (const auto session = Core::App().activeAccount().maybeSession()) {
+			return tagId + ':' + QString::number(session->userId());
 		}
 	}
 	return tagId;
