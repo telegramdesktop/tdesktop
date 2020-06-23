@@ -554,7 +554,9 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 
 	setGeometry(geometry);
 	setMinimumSize(minimalSize);
-	setMaximumSize(maximalSize);
+	setMaximumSize(
+		std::max(minimalSize.width(), maximalSize.width()),
+		std::max(minimalSize.height(), maximalSize.height()));
 	updateDecorations();
 	update();
 }
