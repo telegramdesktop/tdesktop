@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
@@ -763,7 +762,7 @@ void start() {
 		&& !qEnvironmentVariableIsSet(
 			"TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY")) {
 		qunsetenv("QT_QPA_PLATFORMTHEME");
-		QApplication::setStyle(QStyleFactory::create(qsl("Fusion")));
+		qunsetenv("QT_STYLE_OVERRIDE");
 	}
 
 	if(IsStaticBinary()
