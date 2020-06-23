@@ -178,8 +178,8 @@ private:
 		QColor original;
 	};
 
+	[[nodiscard]] bool started() const;
 	void initialRead();
-	void ensureInitialRead();
 	void saveForRevert();
 	void setPreparedImage(QImage original, QImage prepared);
 	void preparePixmaps(QImage image);
@@ -226,6 +226,8 @@ private:
 	bool _nightMode = false;
 	bool _tileDayValue = false;
 	bool _tileNightValue = true;
+	std::optional<bool> _localStoredTileDayValue;
+	std::optional<bool> _localStoredTileNightValue;
 
 	bool _isMonoColorImage = false;
 

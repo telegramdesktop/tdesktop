@@ -536,11 +536,16 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 }
 
 void ChatBackground::initialRead() {
-	if (!Data::details::IsUninitializedWallPaper(_paper)) {
+	if (started()) {
 		return;
-	}
-	if (!Local::readBackground()) {
+	} else if (!Local::readBackground()) {
 		set(Data::ThemeWallPaper());
+	}
+	if (_localStoredTileDayValue) {
+		_tileDayValue = *_localStoredTileDayValue;
+	}
+	if (_localStoredTileNightValue) {
+		_tileNightValue = *_localStoredTileNightValue;
 	}
 }
 
@@ -855,16 +860,9 @@ bool ChatBackground::isMonoColorImage() const {
 	return _isMonoColorImage;
 }
 
-void ChatBackground::ensureInitialRead() {
-	if (_pixmap.isNull() && !_paper.backgroundColor()) {
-		// We should start first, otherwise the default call
-		// to initialRead() will reset this value to _themeTile.
-		initialRead();
-	}
-}
-
 void ChatBackground::setTile(bool tile) {
-	ensureInitialRead();
+	Expects(started());
+
 	const auto old = this->tile();
 	if (nightMode()) {
 		setTileNightValue(tile);
@@ -881,13 +879,19 @@ void ChatBackground::setTile(bool tile) {
 }
 
 void ChatBackground::setTileDayValue(bool tile) {
-	ensureInitialRead();
-	_tileDayValue = tile;
+	if (started()) {
+		_tileDayValue = tile;
+	} else {
+		_localStoredTileDayValue = tile;
+	}
 }
 
 void ChatBackground::setTileNightValue(bool tile) {
-	ensureInitialRead();
-	_tileNightValue = tile;
+	if (started()) {
+		_tileNightValue = tile;
+	} else {
+		_localStoredTileNightValue = tile;
+	}
 }
 
 void ChatBackground::setThemeObject(const Object &object) {
@@ -920,8 +924,13 @@ void ChatBackground::reset() {
 	writeNewBackgroundSettings();
 }
 
+bool ChatBackground::started() const {
+	return !Data::details::IsUninitializedWallPaper(_paper);
+}
+
 void ChatBackground::saveForRevert() {
-	ensureInitialRead();
+	Expects(started());
+
 	if (!Data::details::IsTestingThemeWallPaper(_paper)
 		&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
 		_paperForRevert = _paper;
