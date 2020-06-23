@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "layout.h"
 #include "storage/file_download.h"
+#include "storage/storage_account.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
 #include "app.h"
@@ -1367,7 +1368,7 @@ void OverlayWidget::onDownload() {
 	if (Core::App().settings().downloadPath().isEmpty()) {
 		path = File::DefaultDownloadPath(session);
 	} else if (Core::App().settings().downloadPath() == qsl("tmp")) {
-		path = cTempDir();
+		path = session->local().tempDirectory();
 	} else {
 		path = Core::App().settings().downloadPath();
 	}

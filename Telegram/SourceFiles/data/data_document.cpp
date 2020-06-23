@@ -180,7 +180,7 @@ QString FileNameUnsafe(
 		if (path.isEmpty()) {
 			return File::DefaultDownloadPath(session);
 		} else if (path == qsl("tmp")) {
-			return cTempDir();
+			return session->local().tempDirectory();
 		} else {
 			return path;
 		}

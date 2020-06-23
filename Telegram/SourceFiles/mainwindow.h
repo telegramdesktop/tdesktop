@@ -20,10 +20,6 @@ class Widget;
 enum class EnterPoint : uchar;
 } // namespace Intro
 
-namespace Local {
-class ClearManager;
-} // namespace Local
-
 namespace Window {
 class MediaPreviewWidget;
 class SectionMemento;
@@ -69,14 +65,6 @@ public:
 	void checkHistoryActivation();
 
 	void fixOrder();
-
-	enum TempDirState {
-		TempDirRemoving,
-		TempDirExists,
-		TempDirEmpty,
-	};
-	TempDirState tempDirState();
-	void tempDirDelete(int task);
 
 	void sendPaths();
 
@@ -134,16 +122,9 @@ public slots:
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
-	void onClearFinished(int task, void *manager);
-	void onClearFailed(int task, void *manager);
-
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
-
-signals:
-	void tempDirCleared(int task);
-	void tempDirClearFailed(int task);
 
 private:
 	[[nodiscard]] bool skipTrayClick() const;
@@ -173,8 +154,6 @@ private:
 	object_ptr<Window::MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
-
-	Local::ClearManager *_clearManager = nullptr;
 
 };
 

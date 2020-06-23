@@ -196,8 +196,4 @@ QPoint Controller::getPointForCallPanelCenter() const {
 		: _widget.windowHandle()->screen()->geometry().center();
 }
 
-void Controller::tempDirDelete(int task) {
-	_widget.tempDirDelete(task);
-}
-
 } // namespace Window

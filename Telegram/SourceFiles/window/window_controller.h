@@ -71,8 +71,6 @@ public:
 
 	QPoint getPointForCallPanelCenter() const;
 
-	void tempDirDelete(int task);
-
 private:
 	void showBox(
 		object_ptr<Ui::BoxContent> content,

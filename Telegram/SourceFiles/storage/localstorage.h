@@ -67,36 +67,6 @@ void moveLegacyBackground(
 
 void reset();
 
-enum ClearManagerTask {
-	ClearManagerAll = 0xFFFF,
-	ClearManagerDownloads = 0x01,
-};
-
-struct ClearManagerData;
-class ClearManager : public QObject {
-	Q_OBJECT
-
-public:
-	ClearManager();
-	bool addTask(int task);
-	bool hasTask(ClearManagerTask task);
-	void start();
-	void stop();
-
-signals:
-	void succeed(int task, void *manager);
-	void failed(int task, void *manager);
-
-private slots:
-	void onStart();
-
-private:
-	~ClearManager();
-
-	ClearManagerData *data;
-
-};
-
 int32 oldSettingsVersion();
 
 void countVoiceWaveform(not_null<Data::DocumentMedia*> media);

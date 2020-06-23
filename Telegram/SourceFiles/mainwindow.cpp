@@ -860,45 +860,6 @@ void MainWindow::updateControlsGeometry() {
 	if (_main) _main->checkMainSectionToLayer();
 }
 
-MainWindow::TempDirState MainWindow::tempDirState() {
-	if (_clearManager && _clearManager->hasTask(Local::ClearManagerDownloads)) {
-		return TempDirRemoving;
-	}
-	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
-}
-
-void MainWindow::tempDirDelete(int task) {
-	if (_clearManager) {
-		if (_clearManager->addTask(task)) {
-			return;
-		} else {
-			_clearManager->stop();
-			_clearManager = nullptr;
-		}
-	}
-	_clearManager = new Local::ClearManager();
-	_clearManager->addTask(task);
-	connect(_clearManager, SIGNAL(succeed(int,void*)), this, SLOT(onClearFinished(int,void*)));
-	connect(_clearManager, SIGNAL(failed(int,void*)), this, SLOT(onClearFailed(int,void*)));
-	_clearManager->start();
-}
-
-void MainWindow::onClearFinished(int task, void *manager) {
-	if (manager && manager == _clearManager) {
-		_clearManager->stop();
-		_clearManager = nullptr;
-	}
-	emit tempDirCleared(task);
-}
-
-void MainWindow::onClearFailed(int task, void *manager) {
-	if (manager && manager == _clearManager) {
-		_clearManager->stop();
-		_clearManager = nullptr;
-	}
-	emit tempDirClearFailed(task);
-}
-
 void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
 	QPainter p(&img);
 
@@ -1029,10 +990,6 @@ void MainWindow::updateIsActiveHook() {
 }
 
 MainWindow::~MainWindow() {
-	if (_clearManager) {
-		_clearManager->stop();
-		_clearManager = nullptr;
-	}
 	delete trayIcon;
 	delete trayIconMenu;
 }

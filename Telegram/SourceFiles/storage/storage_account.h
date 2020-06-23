@@ -63,7 +63,9 @@ public:
 		return _oldMapVersion;
 	}
 
-	MTP::AuthKeyPtr peekLegacyLocalKey() const {
+	[[nodiscard]] QString tempDirectory() const;
+
+	[[nodiscard]] MTP::AuthKeyPtr peekLegacyLocalKey() const {
 		return _localKey;
 	}
 
@@ -208,6 +210,7 @@ private:
 	const QString _dataName;
 	const FileKey _dataNameKey = 0;
 	const QString _basePath;
+	const QString _tempPath;
 	const QString _databasePath;
 
 	MTP::AuthKeyPtr _localKey;

@@ -98,6 +98,10 @@ enum { // Local Storage Keys
 		+ '/';
 }
 
+[[nodiscard]] QString LegacyTempDirectory() {
+	return cWorkingDir() + qsl("tdata/tdld/");
+}
+
 } // namespace
 
 Account::Account(not_null<Main::Account*> owner, const QString &dataName)
@@ -105,6 +109,7 @@ Account::Account(not_null<Main::Account*> owner, const QString &dataName)
 , _dataName(dataName)
 , _dataNameKey(ComputeDataNameKey(dataName))
 , _basePath(BaseGlobalPath() + ToFilePart(_dataNameKey) + QChar('/'))
+, _tempPath(BaseGlobalPath() + "temp_" + _dataName + QChar('/'))
 , _databasePath(ComputeDatabasePath(dataName))
 , _cacheTotalSizeLimit(Database::Settings().totalSizeLimit)
 , _cacheBigFileTotalSizeLimit(Database::Settings().totalSizeLimit)
@@ -118,6 +123,10 @@ Account::~Account() {
 	if (_localKey && _mapChanged) {
 		writeMap();
 	}
+}
+
+QString Account::tempDirectory() const {
+	return _tempPath;
 }
 
 StartResult Account::legacyStart(const QByteArray &passcode) {
@@ -552,7 +561,7 @@ void Account::reset() {
 	writeMap();
 	writeMtpData();
 
-	crl::async([base = _basePath, names = std::move(names)] {
+	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)] {
 		for (const auto &name : names) {
 			if (!name.endsWith(qstr("map0"))
 				&& !name.endsWith(qstr("map1"))
@@ -561,6 +570,8 @@ void Account::reset() {
 				QFile::remove(base + name);
 			}
 		}
+		QDir(LegacyTempDirectory()).removeRecursively();
+		QDir(temp).removeRecursively();
 	});
 }
 

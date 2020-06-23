@@ -502,9 +502,6 @@ void Account::forcedLogOut() {
 void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
-	if (const auto window = Core::App().activeWindow()) {
-		window->tempDirDelete(Local::ClearManagerAll);
-	}
 	destroySession();
 	Core::App().unlockTerms();
 	local().reset();
