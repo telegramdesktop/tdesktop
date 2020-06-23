@@ -178,10 +178,10 @@ void ContactStatus::Bar::updateButtonsGeometry() {
 }
 
 ContactStatus::ContactStatus(
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer)
-: _window(window)
+: _controller(window)
 , _bar(parent, object_ptr<Bar>(parent, peer->shortName()))
 , _shadow(parent) {
 	setupWidgets(parent);
@@ -294,15 +294,15 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 	_bar.entity()->addClicks(
 	) | rpl::start_with_next([=] {
-		_window->show(Box(EditContactBox, _window, user));
+		_controller->window().show(Box(EditContactBox, _controller, user));
 	}, _bar.lifetime());
 }
 
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_bar.entity()->blockClicks(
 	) | rpl::start_with_next([=] {
-		_window->show(
-			Box(Window::PeerMenuBlockUserBox, _window, user, true));
+		_controller->window().show(
+			Box(Window::PeerMenuBlockUserBox, &_controller->window(), user, true));
 	}, _bar.lifetime());
 }
 
@@ -326,7 +326,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				(*box)->closeBox();
 			}
 		};
-		*box = _window->show(Box<ConfirmBox>(
+		*box = _controller->window().show(Box<ConfirmBox>(
 			tr::lng_new_contact_share_sure(
 				tr::now,
 				lt_phone,
@@ -365,7 +365,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 			Ui::Toast::Show(tr::lng_report_spam_done(tr::now));
 
 			// Destroys _bar.
-			_window->sessionController()->showBackFromStack();
+			_controller->showBackFromStack();
 		});
 		if (const auto user = peer->asUser()) {
 			peer->session().api().blockUser(user);
@@ -373,7 +373,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 		const auto text = ((peer->isChat() || peer->isMegagroup())
 			? tr::lng_report_spam_sure_group
 			: tr::lng_report_spam_sure_channel)(tr::now);
-		_window->show(Box<ConfirmBox>(
+		_controller->window().show(Box<ConfirmBox>(
 			text,
 			tr::lng_report_spam_ok(tr::now),
 			st::attentionBoxButton,

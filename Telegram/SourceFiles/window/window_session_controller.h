@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
 
+class PhotoData;
 class MainWidget;
 class MainWindow;
 class HistoryMessage;
@@ -304,6 +305,8 @@ public:
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
 
+	void requestAttachedStickerSets(not_null<PhotoData*> photo);
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -360,6 +363,8 @@ private:
 	rpl::variable<Data::Folder*> _openedFolder;
 
 	rpl::event_stream<> _filtersMenuChanged;
+
+	mtpRequestId _attachedStickerSetsRequestId = 0;
 
 	rpl::lifetime _lifetime;
 

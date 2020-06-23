@@ -504,10 +504,12 @@ void Autocomplete::submitValue(const QString &value) {
 
 ConfirmContactBox::ConfirmContactBox(
 	QWidget*,
+	not_null<Window::SessionController*> controller,
 	not_null<History*> history,
 	const Contact &data,
 	Fn<void(Qt::KeyboardModifiers)> submit)
-: _comment(GenerateCommentItem(this, history, data))
+: SimpleElementDelegate(controller)
+, _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {
 }

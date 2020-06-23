@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "window/window_session_controller.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -55,6 +56,10 @@ bool IsAttachedToPreviousInSavedMessages(
 
 } // namespace
 
+SimpleElementDelegate::SimpleElementDelegate(
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
 
 std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
 		not_null<HistoryMessage*> message,
@@ -101,6 +106,10 @@ void SimpleElementDelegate::elementShowPollResults(
 void SimpleElementDelegate::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {
+}
+
+bool SimpleElementDelegate::elementIsGifPaused() {
+	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
 TextSelection UnshiftItemSelection(

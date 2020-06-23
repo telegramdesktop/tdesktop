@@ -204,6 +204,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	bool elementIsGifPaused() override;
 
 	~ListWidget();
 

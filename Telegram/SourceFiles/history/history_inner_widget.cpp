@@ -1545,6 +1545,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	const auto session = &this->session();
+	const auto controller = _controller;
 
 	const auto addItemActions = [&](HistoryItem *item) {
 		if (!item
@@ -1584,7 +1585,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		});
 		if (photo->hasSticker) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
-				session->api().requestAttachedStickerSets(photo);
+				controller->requestAttachedStickerSets(photo);
 			});
 		}
 	};
@@ -2524,6 +2525,10 @@ void HistoryInner::elementShowTooltip(
 	_widget->showInfoTooltip(text, std::move(hiddenCallback));
 }
 
+bool HistoryInner::elementIsGifPaused() {
+	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3385,6 +3390,9 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			if (Instance) {
 				Instance->elementShowTooltip(text, hiddenCallback);
 			}
+		}
+		bool elementIsGifPaused() override {
+			return Instance ? Instance->elementIsGifPaused() : false;
 		}
 
 	};

@@ -1165,6 +1165,10 @@ void ListWidget::elementShowTooltip(
 	Fn<void()> hiddenCallback) {
 }
 
+bool ListWidget::elementIsGifPaused() {
+	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

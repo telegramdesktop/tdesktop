@@ -17,6 +17,10 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -57,11 +61,15 @@ public:
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
+	virtual bool elementIsGifPaused() = 0;
 
 };
 
 class SimpleElementDelegate : public ElementDelegate {
 public:
+	explicit SimpleElementDelegate(
+		not_null<Window::SessionController*> controller);
+
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message,
 		Element *replacing = nullptr) override;
@@ -83,6 +91,10 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	bool elementIsGifPaused() override;
+
+private:
+	const not_null<Window::SessionController*> _controller;
 
 };
 

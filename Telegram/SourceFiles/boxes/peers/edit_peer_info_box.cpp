@@ -193,9 +193,11 @@ void SaveSlowmodeSeconds(
 	api->registerModifyRequest(key, requestId);
 }
 
-void ShowEditPermissions(not_null<PeerData*> peer) {
+void ShowEditPermissions(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
 	const auto box = Ui::show(
-		Box<EditPeerPermissionsBox>(peer),
+		Box<EditPeerPermissionsBox>(navigation, peer),
 		Ui::LayerOption::KeepOther);
 	const auto saving = box->lifetime().make_state<int>(0);
 	const auto save = [=](
@@ -562,7 +564,9 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		tr::lng_group_stickers_add(tr::now),
 		st::editPeerInviteLinkButton)
 	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(channel), Ui::LayerOption::KeepOther);
+		Ui::show(
+			Box<StickersBox>(_navigation->parentController(), channel),
+			Ui::LayerOption::KeepOther);
 	});
 
 	return result;
@@ -831,8 +835,6 @@ void Controller::fillHistoryVisibilityButton() {
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto navigation = App::wnd()->sessionController();
-
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	const auto isChannel = (!chat);
@@ -944,7 +946,7 @@ void Controller::fillManageSection() {
 				Info::Profile::RestrictionsCountValue
 			) | rpl::flatten_latest(
 			) | ToPositiveNumberStringRestrictions(),
-			[=] { ShowEditPermissions(_peer); },
+			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
 	if (canViewAdmins) {
@@ -959,7 +961,7 @@ void Controller::fillManageSection() {
 			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Admins);
 			},
@@ -977,7 +979,7 @@ void Controller::fillManageSection() {
 			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Members);
 			},
@@ -991,7 +993,7 @@ void Controller::fillManageSection() {
 			| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
@@ -1003,7 +1005,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
 			[=] {
-				navigation->showSection(AdminLog::SectionMemento(channel));
+				_navigation->showSection(AdminLog::SectionMemento(channel));
 			},
 			st::infoIconRecentActions);
 	}

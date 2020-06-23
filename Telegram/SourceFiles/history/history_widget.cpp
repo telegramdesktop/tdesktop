@@ -855,6 +855,7 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 			action);
 	};
 	const auto box = Ui::show(Box<Support::ConfirmContactBox>(
+		controller(),
 		_history,
 		contact,
 		crl::guard(this, submit)));
@@ -1868,7 +1869,7 @@ void HistoryWidget::showHistory(
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = _peer->canWrite();
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
-			&controller()->window(),
+			controller(),
 			this,
 			_peer);
 		_contactStatus->heightValue() | rpl::start_with_next([=] {

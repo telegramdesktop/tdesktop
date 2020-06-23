@@ -185,7 +185,7 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 		return;
 	}
 
-	const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	const auto paused = _parent->delegate()->elementIsGifPaused();
 	const auto playOnce = (_diceIndex > 0)
 		? true
 		: (_diceIndex == 0)

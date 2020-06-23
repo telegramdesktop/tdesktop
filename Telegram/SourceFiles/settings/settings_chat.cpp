@@ -722,7 +722,8 @@ void SetupStickersEmoji(
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(session, StickersBox::Section::Installed));
+		Ui::show(
+			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
 	AddButton(

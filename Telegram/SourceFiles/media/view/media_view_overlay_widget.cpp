@@ -1523,8 +1523,12 @@ void OverlayWidget::onAttachedStickers() {
 	if (!session) {
 		return;
 	}
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
 	close();
-	session->api().requestAttachedStickerSets(_photo);
+	active.front()->requestAttachedStickerSets(_photo);
 }
 
 auto OverlayWidget::sharedMediaType() const

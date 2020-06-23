@@ -91,6 +91,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
+	bool elementIsGifPaused();
 
 	void updateBotInfo(bool recount = true);
 

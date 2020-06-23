@@ -244,7 +244,7 @@ void AddParticipantsBoxController::Start(
 			box->boxClosing() | rpl::start_with_next([=] {
 				auto params = Window::SectionShow();
 				params.activation = anim::activation::background;
-				App::wnd()->sessionController()->showPeerHistory(
+				navigation->parentController()->showPeerHistory(
 					channel,
 					params,
 					ShowAtTheEndMsgId);

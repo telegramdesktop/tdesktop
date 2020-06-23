@@ -529,7 +529,7 @@ void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 
 	if (_iconOver == SpecialOver::Settings) {
 		Ui::show(Box<StickersBox>(
-			&_pan->session(),
+			_pan->controller(),
 			(hasOnlyFeaturedSets()
 				? StickersBox::Section::Featured
 				: StickersBox::Section::Installed)));
@@ -886,9 +886,8 @@ StickersListWidget::StickersListWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_settings->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(
-			&controller->session(),
-			StickersBox::Section::Installed));
+		Ui::show(
+			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
 	subscribe(session().downloaderTaskFinished(), [=] {
@@ -2107,7 +2106,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				removeSet(sets[button->section].id);
 			}
 		} else if (base::get_if<OverGroupAdd>(&pressed)) {
-			Ui::show(Box<StickersBox>(_megagroupSet));
+			Ui::show(Box<StickersBox>(controller(), _megagroupSet));
 		}
 	}
 }
@@ -2921,7 +2920,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 		if (_megagroupSet->canEditStickers()) {
 			_displayingSet = true;
 			checkHideWithBox(Ui::show(
-				Box<StickersBox>(_megagroupSet),
+				Box<StickersBox>(controller(), _megagroupSet),
 				Ui::LayerOption::KeepOther).data());
 			return;
 		} else if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {

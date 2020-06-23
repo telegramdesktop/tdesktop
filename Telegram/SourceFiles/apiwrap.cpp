@@ -2708,39 +2708,6 @@ void ApiWrap::resolveWebPages() {
 	}
 }
 
-void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
-	request(_attachedStickerSetsRequestId).cancel();
-	_attachedStickerSetsRequestId = request(MTPmessages_GetAttachedStickers(
-		MTP_inputStickeredMediaPhoto(photo->mtpInput())
-	)).done([=](const MTPVector<MTPStickerSetCovered> &result) {
-		if (result.v.isEmpty()) {
-			Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
-			return;
-		} else if (result.v.size() > 1) {
-			Ui::show(Box<StickersBox>(_session, result));
-			return;
-		}
-		// Single attached sticker pack.
-		const auto setData = result.v.front().match([&](const auto &data) {
-			return data.vset().match([&](const MTPDstickerSet &data) {
-				return &data;
-			});
-		});
-
-		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
-			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
-			: MTP_inputStickerSetShortName(setData->vshort_name());
-		const auto &windows = _session->windows();
-		if (!windows.empty()) {
-			Ui::show(
-				Box<StickerSetBox>(windows.front(), setId),
-				Ui::LayerOption::KeepOther);
-		}
-	}).fail([=](const RPCError &error) {
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
-	}).send();
-}
-
 void ApiWrap::requestParticipantsCountDelayed(
 		not_null<ChannelData*> channel) {
 	_participantsCountRequestTimer.call(

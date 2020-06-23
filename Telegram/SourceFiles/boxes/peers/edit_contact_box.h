@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class UserData;
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 void EditContactBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	not_null<UserData*> user);

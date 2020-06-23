@@ -29,6 +29,10 @@ class CrossButton;
 class BoxContentDivider;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -56,14 +60,19 @@ public:
 
 	StickersBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		Section section);
-	StickersBox(QWidget*, not_null<ChannelData*> megagroup);
 	StickersBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
+		not_null<ChannelData*> megagroup);
+	StickersBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
 		const MTPVector<MTPStickerSetCovered> &attachedSets);
 	~StickersBox();
+
+	[[nodiscard]] Main::Session &session() const;
 
 	void setInnerFocus() override;
 
@@ -123,7 +132,7 @@ private:
 		uint64 offsetId);
 	void showAttachedStickers();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };

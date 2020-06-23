@@ -462,7 +462,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
 			_addAction(
 				tr::lng_info_add_as_contact(tr::now),
-				[=] { window->show(Box(EditContactBox, window, user)); });
+				[=] { window->show(Box(EditContactBox, controller, user)); });
 		}
 		if (user->canShareThisContact()) {
 			_addAction(
@@ -472,7 +472,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (user->isContact() && !user->isSelf()) {
 			_addAction(
 				tr::lng_info_edit_contact(tr::now),
-				[=] { window->show(Box(EditContactBox, window, user)); });
+				[=] { window->show(Box(EditContactBox, controller, user)); });
 			_addAction(
 				tr::lng_info_delete_contact(tr::now),
 				[=] { PeerMenuDeleteContact(user); });

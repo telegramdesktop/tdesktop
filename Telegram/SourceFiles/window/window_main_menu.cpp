@@ -827,12 +827,12 @@ void MainMenu::refreshMenu() {
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 		if (_controller->session().serverConfig().phoneCallsEnabled.current()) {
 			_menu->addAction(tr::lng_menu_calls(tr::now), [=] {
-				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(controller), [](not_null<PeerListBox*> box) {
+				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(controller), [=](not_null<PeerListBox*> box) {
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
 					});
 					box->addTopButton(st::callSettingsButton, [=] {
-						App::wnd()->sessionController()->showSettings(
+						controller->showSettings(
 							Settings::Type::Calls,
 							Window::SectionShow(anim::type::instant));
 					});
