@@ -31,6 +31,7 @@ class Templates;
 namespace Data {
 class Session;
 class Changes;
+class CloudImageView;
 } // namespace Data
 
 namespace Storage {
@@ -173,6 +174,8 @@ private:
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
+
+	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
 
 	base::flat_set<not_null<Window::SessionController*>> _windows;
 	base::Timer _saveSettingsTimer;

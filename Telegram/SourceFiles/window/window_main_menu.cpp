@@ -88,10 +88,13 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void paintUserpic(Painter &p);
 
 	const not_null<Main::Account*> _account;
 	const style::Menu &_st;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
+	InMemoryKey _userpicKey = {};
+	QImage _userpicCache;
 
 	Dialogs::Layout::UnreadBadgeStyle _unreadSt;
 	int _unreadBadge = 0;
@@ -154,26 +157,68 @@ MainMenu::AccountButton::AccountButton(
 	}, lifetime());
 }
 
-void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
+void MainMenu::AccountButton::paintUserpic(Painter &p) {
 	Expects(_account->sessionExists());
 
-	const auto &session = _account->session();
+	const auto size = st::mainMenuAccountSize;
+	const auto iconSize = height() - 2 * _st.itemIconPosition.y();
+	const auto shift = (size - iconSize) / 2;
+	const auto x = _st.itemIconPosition.x() - shift;
+	const auto y = (height() - size) / 2;
+
+	const auto check = (_account == &Core::App().domain().active());
+	const auto user = _account->session().user();
+	if (!check) {
+		user->paintUserpicLeft(p, _userpicView, x, y, width(), size);
+		return;
+	}
+	const auto added = y;
+	const auto cacheSize = QSize(size + added, size + added)
+		* cIntRetinaFactor();
+	const auto key = user->userpicUniqueKey(_userpicView);
+	if (_userpicKey != key) {
+		_userpicKey = key;
+		if (_userpicCache.size() != cacheSize) {
+			_userpicCache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
+			_userpicCache.setDevicePixelRatio(cRetinaFactor());
+		}
+		_userpicCache.fill(Qt::transparent);
+
+		auto q = Painter(&_userpicCache);
+		user->paintUserpicLeft(q, _userpicView, 0, 0, width(), size);
+
+		const auto iconDiameter = st::mainMenuAccountCheck.size;
+		const auto iconLeft = size + st::mainMenuAccountCheckPosition.x() - iconDiameter;
+		const auto iconTop = size + st::mainMenuAccountCheckPosition.y() - iconDiameter;
+		const auto iconEllipse = QRect(iconLeft, iconTop, iconDiameter, iconDiameter);
+		auto iconBorderPen = QPen(Qt::transparent);
+		const auto line = st::mainMenuAccountCheckLine;
+		iconBorderPen.setWidth(line);
+
+		PainterHighQualityEnabler hq(q);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.setPen(iconBorderPen);
+		q.setBrush(st::dialogsUnreadBg);
+		q.drawEllipse(iconEllipse);
+
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		st::mainMenuAccountCheck.check.paintInCenter(q, iconEllipse);
+	}
+	p.drawImage(x, y, _userpicCache);
+}
+
+void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
+	Expects(_account->sessionExists());
 
 	auto p = Painter(this);
 	const auto over = isOver();
 	p.fillRect(rect(), over ? _st.itemBgOver : _st.itemBg);
 	paintRipple(p, 0, 0);
 
-	session.user()->paintUserpicLeft(
-		p,
-		_userpicView,
-		_st.itemIconPosition.x(),
-		_st.itemIconPosition.y(),
-		width(),
-		height() - 2 * _st.itemIconPosition.y());
+	paintUserpic(p);
 
 	auto available = width() - _st.itemPadding.left();
-	if (_unreadBadge && _account != &Core::App().domain().active()) {
+	if (_unreadBadge) {
 		_unreadSt.muted = _unreadBadgeMuted;
 		const auto string = (_unreadBadge > 99)
 			? "99+"
@@ -196,7 +241,7 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 	}
 
 	p.setPen(over ? _st.itemFgOver : _st.itemFg);
-	session.user()->nameText().drawElided(
+	_account->session().user()->nameText().drawElided(
 		p,
 		_st.itemPadding.left(),
 		_st.itemPadding.top(),
@@ -514,7 +559,12 @@ void MainMenu::rebuildAccounts() {
 	const auto inner = _accounts->entity();
 
 	auto count = 0;
-	for (auto &[account, button] : _watched) {
+	for (const auto &[index, pointer] : Core::App().domain().accounts()) {
+		const auto account = pointer.get();
+		auto i = _watched.find(account);
+		Assert(i != _watched.end());
+
+		auto &button = i->second;
 		if (!account->sessionExists()) {
 			button = nullptr;
 		} else if (!button) {
@@ -522,6 +572,10 @@ void MainMenu::rebuildAccounts() {
 				++count,
 				object_ptr<AccountButton>(inner, account)));
 			button->setClickedCallback([=] {
+				if (account == &Core::App().domain().active()) {
+					closeLayer();
+					return;
+				}
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
 						Core::App().domain().activate(account);

@@ -34,7 +34,6 @@ class Session;
 
 namespace Data {
 class WallPaper;
-class CloudImageView;
 } // namespace Data
 
 namespace Dialogs {
@@ -359,8 +358,6 @@ private:
 	int _dialogsWidth = 0;
 	int _thirdColumnWidth = 0;
 	Ui::Animations::Simple _a_dialogsWidth;
-
-	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
 
 	object_ptr<Ui::PlainShadow> _sideShadow;
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };

@@ -92,6 +92,15 @@ Session::Session(
 
 	_api->instance().setUserPhone(_user->phone());
 
+	// Load current userpic and keep it loaded.
+	changes().peerFlagsValue(
+		_user,
+		Data::PeerUpdate::Flag::Photo
+	) | rpl::start_with_next([=] {
+		[[maybe_unused]] const auto image = _user->currentUserpic(
+			_selfUserpicView);
+	}, lifetime());
+
 	crl::on_main(this, [=] {
 		using Flag = Data::PeerUpdate::Flag;
 		changes().peerUpdates(
