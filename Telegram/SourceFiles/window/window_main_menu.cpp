@@ -244,7 +244,7 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 	paintUserpic(p);
 
 	auto available = width() - _st.itemPadding.left();
-	if (_unreadBadge) {
+	if (_unreadBadge && _account != &Core::App().activeAccount()) {
 		_unreadSt.muted = _unreadBadgeMuted;
 		const auto string = (_unreadBadge > 99)
 			? "99+"
@@ -402,20 +402,23 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
-	auto count = 0;
 	const auto active = &Core::App().activeAccount();
-	const auto countMessages = Core::App().settings().countUnreadMessages();
+	auto allMuted = true;
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (account.get() == active) {
 			continue;
 		} else if (const auto session = account->maybeSession()) {
-			const auto state = account->session().data().chatsList()->unreadState();
-			count += std::max(state.marks - state.marksMuted, 0)
-				+ (countMessages
-					? std::max(state.messages - state.messagesMuted, 0)
-					: std::max(state.chats - state.chatsMuted, 0));
+			if (!session->data().unreadBadgeMuted()) {
+				allMuted = false;
+				break;
+			}
 		}
 	}
+	if (allMuted) {
+		return QString();
+	}
+	const auto count = Core::App().unreadBadge()
+		- active->session().data().unreadBadge();
 	return (count > 99)
 		? u"99+"_q
 		: (count > 0)
