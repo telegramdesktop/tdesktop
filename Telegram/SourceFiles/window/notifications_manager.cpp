@@ -74,10 +74,10 @@ void System::createManager() {
 	}
 }
 
-Main::Session *System::findSession(UserId selfId) const {
+Main::Session *System::findSession(uint64 sessionId) const {
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (const auto session = account->maybeSession()) {
-			if (session->userId() == selfId) {
+			if (session->uniqueId() == sessionId) {
 				return session;
 			}
 		}
@@ -293,12 +293,13 @@ void System::checkDelayed() {
 }
 
 void System::showGrouped() {
-	if (const auto session = findSession(_lastHistorySelfId)) {
+	if (const auto session = findSession(_lastHistorySessionId)) {
 		if (const auto lastItem = session->data().message(_lastHistoryItemId)) {
 			_waitForAllGroupedTimer.cancel();
 			_manager->showNotification(lastItem, _lastForwardedCount);
 			_lastForwardedCount = 0;
 			_lastHistoryItemId = FullMsgId();
+			_lastHistorySessionId = 0;
 		}
 	}
 }
@@ -307,13 +308,17 @@ void System::showNext() {
 	if (App::quitting()) return;
 
 	const auto isSameGroup = [=](HistoryItem *item) {
-		if (!_lastHistoryItemId || !item) {
+		if (!_lastHistorySessionId || !_lastHistoryItemId || !item) {
+			return false;
+		} else if (item->history()->session().uniqueId()
+			!= _lastHistorySessionId) {
 			return false;
 		}
 		const auto lastItem = item->history()->owner().message(
 			_lastHistoryItemId);
 		if (lastItem) {
-			return (lastItem->groupId() == item->groupId() || lastItem->author() == item->author());
+			return (lastItem->groupId() == item->groupId())
+				|| (lastItem->author() == item->author());
 		}
 		return false;
 	};
@@ -476,6 +481,7 @@ void System::showNext() {
 				}
 
 				if (!_lastHistoryItemId && groupedItem) {
+					_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 					_lastHistoryItemId = groupedItem->fullId();
 				}
 
@@ -493,6 +499,7 @@ void System::showNext() {
 					}
 					// We have to wait until all the messages in this group are loaded.
 					_lastForwardedCount += forwardedCount;
+					_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 					_lastHistoryItemId = groupedItem->fullId();
 					_waitForAllGroupedTimer.callOnce(kWaitingForAllGroupedDelay);
 				} else {
@@ -567,13 +574,13 @@ QString Manager::accountNameSeparator() {
 
 void Manager::notificationActivated(NotificationId id) {
 	onBeforeNotificationActivated(id);
-	if (const auto session = system()->findSession(id.selfId)) {
+	if (const auto session = system()->findSession(id.full.sessionId)) {
 		if (session->windows().empty()) {
 			Core::App().domain().activate(&session->account());
 		}
 		if (!session->windows().empty()) {
 			const auto window = session->windows().front();
-			const auto history = session->data().history(id.peerId);
+			const auto history = session->data().history(id.full.peerId);
 			window->widget()->showFromTray();
 			window->widget()->reActivateWindow();
 			if (Core::App().passcodeLocked()) {
@@ -622,15 +629,15 @@ void Manager::openNotificationMessage(
 void Manager::notificationReplied(
 		NotificationId id,
 		const TextWithTags &reply) {
-	if (!id.selfId || !id.peerId) {
+	if (!id.full.sessionId || !id.full.peerId) {
 		return;
 	}
 
-	const auto session = system()->findSession(id.selfId);
+	const auto session = system()->findSession(id.full.sessionId);
 	if (!session) {
 		return;
 	}
-	const auto history = session->data().history(id.peerId);
+	const auto history = session->data().history(id.full.peerId);
 
 	auto message = Api::MessageToSend(history);
 	message.textWithTags = reply;

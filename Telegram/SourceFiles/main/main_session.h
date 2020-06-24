@@ -80,6 +80,7 @@ public:
 	[[nodiscard]] Domain &domain() const;
 	[[nodiscard]] Storage::Domain &domainLocal() const;
 
+	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;
 	[[nodiscard]] not_null<UserData*> user() const {

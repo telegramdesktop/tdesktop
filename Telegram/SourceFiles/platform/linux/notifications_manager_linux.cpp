@@ -205,22 +205,18 @@ QString GetImageKey(const QVersionNumber &specificationVersion) {
 } // namespace
 
 NotificationData::NotificationData(
-		const base::weak_ptr<Manager> &manager,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		PeerId peerId,
-		MsgId msgId,
-		UserId selfId,
-		bool hideReplyButton)
+	const base::weak_ptr<Manager> &manager,
+	const QString &title,
+	const QString &subtitle,
+	const QString &msg,
+	NotificationId id,
+	bool hideReplyButton)
 : _dbusConnection(QDBusConnection::sessionBus())
 , _manager(manager)
 , _title(title)
 , _imageKey(GetImageKey(ParseSpecificationVersion(
 	GetServerInformation())))
-, _peerId(peerId)
-, _msgId(msgId)
-, _selfId(selfId) {
+, _id(id) {
 	const auto capabilities = GetCapabilities();
 
 	if (capabilities.contains(qsl("body-markup"))) {
@@ -377,14 +373,10 @@ void NotificationData::setImage(const QString &imagePath) {
 	_hints[_imageKey] = QVariant::fromValue(imageData);
 }
 
-NotificationData::NotificationId NotificationData::myId() const {
-	return { .peerId = _peerId, .msgId = _msgId, .selfId = _selfId };
-}
-
 void NotificationData::notificationClosed(uint id) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
-		const auto my = myId();
+		const auto my = _id;
 		crl::on_main(manager, [=] {
 			manager->clearNotification(my);
 		});
@@ -399,13 +391,13 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 	if (actionName == qsl("default")
 		|| actionName == qsl("mail-reply-sender")) {
 		const auto manager = _manager;
-		const auto my = myId();
+		const auto my = _id;
 		crl::on_main(manager, [=] {
 			manager->notificationActivated(my);
 		});
 	} else if (actionName == qsl("mail-mark-read")) {
 		const auto manager = _manager;
-		const auto my = myId();
+		const auto my = _id;
 		crl::on_main(manager, [=] {
 			manager->notificationReplied(my, {});
 		});
@@ -415,7 +407,7 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 void NotificationData::notificationReplied(uint id, const QString &text) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
-		const auto my = myId();
+		const auto my = _id;
 		crl::on_main(manager, [=] {
 			manager->notificationReplied(my, { text, {} });
 		});
@@ -541,17 +533,16 @@ void Manager::Private::showNotification(
 		bool hideReplyButton) {
 	if (!Supported()) return;
 
-	const auto peerId = peer->id;
-	const auto selfId = peer->session().userId();
-	const auto key = FullPeer{ peerId, selfId };
+	const auto key = FullPeer{
+		.sessionId = peer->session().uniqueId(),
+		.peerId = peer->id
+	};
 	auto notification = std::make_shared<NotificationData>(
 		_manager,
 		title,
 		subtitle,
 		msg,
-		peer->id,
-		msgId,
-		peer->session().userId(),
+		NotificationId{ .full = key, .msgId = msgId },
 		hideReplyButton);
 
 	if (!hideNameAndPhoto) {
@@ -601,8 +592,8 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!Supported()) return;
 
 	const auto key = FullPeer{
-		history->peer->id,
-		history->session().userId()
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id
 	};
 	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
@@ -618,9 +609,9 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	if (!Supported()) return;
 
-	const auto selfId = session->userId();
+	const auto sessionId = session->uniqueId();
 	for (auto i = _notifications.begin(); i != _notifications.end();) {
-		if (i->first.second == selfId) {
+		if (i->first.sessionId == sessionId) {
 			const auto temp = base::take(i->second);
 			i = _notifications.erase(i);
 
@@ -634,7 +625,7 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 void Manager::Private::clearNotification(NotificationId id) {
 	if (!Supported()) return;
 
-	auto i = _notifications.find(FullPeer{ id.peerId, id.selfId });
+	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
 		if (i->second.remove(id.msgId) && i->second.empty()) {
 			_notifications.erase(i);

@@ -165,6 +165,14 @@ base::Observable<void> &Session::downloaderTaskFinished() {
 	return downloader().taskFinished();
 }
 
+uint64 Session::uniqueId() const {
+	auto result = uint64(uint32(userId()));
+	if (mtp().isTestMode()) {
+		result |= 0x0100'0000'0000'0000ULL;
+	}
+	return result;
+}
+
 UserId Session::userId() const {
 	return _user->bareId();
 }

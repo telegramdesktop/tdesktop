@@ -67,7 +67,7 @@ public:
 	System();
 	~System();
 
-	[[nodiscard]] Main::Session *findSession(UserId selfId) const;
+	[[nodiscard]] Main::Session *findSession(uint64 sessionId) const;
 
 	void createManager();
 
@@ -126,26 +126,25 @@ private:
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
 
 	int _lastForwardedCount = 0;
-	UserId _lastHistorySelfId = 0;
+	uint64 _lastHistorySessionId = 0;
 	FullMsgId _lastHistoryItemId;
 
 };
 
 class Manager {
 public:
-	struct NotificationId {
-		PeerId peerId = 0;
-		MsgId msgId = 0;
-		UserId selfId = 0;
-	};
 	struct FullPeer {
+		uint64 sessionId = 0;
 		PeerId peerId = 0;
-		UserId selfId = 0;
 
 		friend inline bool operator<(const FullPeer &a, const FullPeer &b) {
-			return std::tie(a.peerId, a.selfId)
-				< std::tie(b.peerId, b.selfId);
+			return std::tie(a.sessionId, a.peerId)
+				< std::tie(b.sessionId, b.peerId);
 		}
+	};
+	struct NotificationId {
+		FullPeer full;
+		MsgId msgId = 0;
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {

@@ -950,10 +950,10 @@ Notifications::Manager::NotificationId Notification::myId() const {
 	if (!_history) {
 		return {};
 	}
-	const auto selfId = _history->session().userId();
-	const auto peerId = _history->peer->id;
-	const auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
-	return { .peerId = peerId, .msgId = msgId, .selfId = selfId };
+	return { .full = {
+		.sessionId = _history->session().uniqueId(),
+		.peerId = _history->peer->id
+	}, .msgId = _item ? _item->id : ShowAtUnreadMsgId };
 }
 
 void Notification::changeHeight(int newHeight) {

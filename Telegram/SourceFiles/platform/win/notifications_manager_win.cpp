@@ -214,12 +214,8 @@ public:
 	// We keep a weak pointer to a member field of native notifications manager.
 	ToastEventHandler(
 		const std::shared_ptr<Manager*> &guarded,
-		PeerId peer,
-		MsgId msg,
-		UserId selfId)
-	: _peerId(peer)
-	, _msgId(msg)
-	, _selfId(selfId)
+		NotificationId id)
+	: _id(id)
 	, _weak(guarded) {
 	}
 
@@ -232,7 +228,7 @@ public:
 
 	// DesktopToastActivatedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
-		const auto my = myId();
+		const auto my = _id;
 		performOnMainQueue([my](Manager *manager) {
 			manager->notificationActivated(my);
 		});
@@ -249,7 +245,7 @@ public:
 			case ToastDismissalReason_UserCanceled:
 			case ToastDismissalReason_TimedOut:
 			default:
-				const auto my = myId();
+				const auto my = _id;
 				performOnMainQueue([my](Manager *manager) {
 					manager->clearNotification(my);
 				});
@@ -261,7 +257,7 @@ public:
 
 	// DesktopToastFailedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastFailedEventArgs *e) {
-		const auto my = myId();
+		const auto my = _id;
 		performOnMainQueue([my](Manager *manager) {
 			manager->clearNotification(my);
 		});
@@ -301,14 +297,8 @@ public:
 	}
 
 private:
-	[[nodiscard]] NotificationId myId() const {
-		return { .peerId = _peerId, .msgId = _msgId, .selfId = _selfId };
-	}
-
 	ULONG _refCount = 0;
-	PeerId _peerId = 0;
-	MsgId _msgId = 0;
-	UserId _selfId = 0;
+	NotificationId _id;
 	std::weak_ptr<Manager*> _weak;
 
 };
@@ -439,8 +429,8 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!_notifier) return;
 
 	auto i = _notifications.find(FullPeer{
-		history->peer->id,
-		history->session().userId()
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id
 	});
 	if (i != _notifications.cend()) {
 		auto temp = base::take(i->second);
@@ -455,9 +445,9 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	if (!_notifier) return;
 
-	const auto selfId = session->userId();
+	const auto sessionId = session->uniqueId();
 	for (auto i = _notifications.begin(); i != _notifications.end();) {
-		if (i->first.selfId == selfId) {
+		if (i->first.sessionId == sessionId) {
 			const auto temp = base::take(i->second);
 			_notifications.erase(i);
 
@@ -479,7 +469,7 @@ void Manager::Private::afterNotificationActivated(NotificationId id) {
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	auto i = _notifications.find(FullPeer{ id.peerId, id.selfId });
+	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
 		i->second.remove(id.msgId);
 		if (i->second.empty()) {
@@ -565,12 +555,19 @@ bool Manager::Private::showNotification(
 	hr = _notificationFactory->CreateToastNotification(toastXml.Get(), &toast);
 	if (!SUCCEEDED(hr)) return false;
 
+	const auto key = FullPeer{
+		.sessionId = peer->session().uniqueId(),
+		.peerId = peer->id,
+	};
+	const auto notificationId = NotificationId{
+		.full = key,
+		.msgId = msgId
+	};
+
 	EventRegistrationToken activatedToken, dismissedToken, failedToken;
 	ComPtr<ToastEventHandler> eventHandler(new ToastEventHandler(
 		_guarded,
-		peer->id,
-		msgId,
-		peer->session().userId()));
+		notificationId));
 
 	hr = toast->add_Activated(eventHandler.Get(), &activatedToken);
 	if (!SUCCEEDED(hr)) return false;
@@ -581,10 +578,6 @@ bool Manager::Private::showNotification(
 	hr = toast->add_Failed(eventHandler.Get(), &failedToken);
 	if (!SUCCEEDED(hr)) return false;
 
-	const auto key = FullPeer{
-		peer->id,
-		peer->session().userId()
-	};
 	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
 		auto j = i->second.find(msgId);

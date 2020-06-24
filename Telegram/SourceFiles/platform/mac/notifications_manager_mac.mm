@@ -92,10 +92,10 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		return;
 	}
 
-	NSNumber *selfObject = [notificationUserInfo objectForKey:@"self"];
-	const auto notificationSelfId = selfObject ? [selfObject intValue] : 0;
-	if (!notificationSelfId) {
-		LOG(("App Error: A notification with unknown self was received"));
+	NSNumber *sessionObject = [notificationUserInfo objectForKey:@"session"];
+	const auto notificationSessionId = sessionObject ? [sessionObject unsignedLongLongValue] : 0;
+	if (!notificationSessionId) {
+		LOG(("App Error: A notification with unknown session was received"));
 		return;
 	}
 	NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
@@ -109,9 +109,11 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	const auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
 
 	const auto my = Window::Notifications::Manager::NotificationId{
-		.peerId = notificationPeerId,
-		.msgId = notificationMsgId,
-		.selfId = notificationSelfId
+		.full = FullPeer{
+			.sessionId = notificationSessionId,
+			.peerId = notificationPeerId
+		},
+		.msgId = notificationMsgId
 	};
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
 		const auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
@@ -207,7 +209,7 @@ private:
 		FullPeer fullPeer;
 	};
 	struct ClearFromSession {
-		UserId selfId = 0;
+		uint64 sessionId = 0;
 	};
 	struct ClearAll {
 	};
@@ -249,7 +251,7 @@ void Manager::Private::showNotification(
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().userId()],@"self",[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
+	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],@"session",[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
@@ -279,7 +281,7 @@ void Manager::Private::clearingThreadLoop() {
 	while (!finished) {
 		auto clearAll = false;
 		auto clearFromPeers = base::flat_set<FullPeer>();
-		auto clearFromSessions = base::flat_set<UserId>();
+		auto clearFromSessions = base::flat_set<uint64>();
 		{
 			std::unique_lock<std::mutex> lock(_clearingMutex);
 
@@ -295,23 +297,26 @@ void Manager::Private::clearingThreadLoop() {
 				} else if (auto fromHistory = base::get_if<ClearFromHistory>(&task)) {
 					clearFromPeers.emplace(fromHistory->fullPeer);
 				} else if (auto fromSession = base::get_if<ClearFromSession>(&task)) {
-					clearFromSessions.emplace(fromSession->selfId);
+					clearFromSessions.emplace(fromSession->sessionId);
 				}
 			}
 			_clearingTasks.clear();
 		}
 
 		auto clearBySpecial = [&](NSDictionary *notificationUserInfo) {
-			NSNumber *selfObject = [notificationUserInfo objectForKey:@"self"];
-			const auto notificationSelfId = selfObject ? [selfObject intValue] : 0;
-			if (!notificationSelfId) {
+			NSNumber *sessionObject = [notificationUserInfo objectForKey:@"session"];
+			const auto notificationSessionId = sessionObject ? [sessionObject unsignedLongLongValue] : 0;
+			if (!notificationSessionId) {
 				return true;
 			}
 			if (NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"]) {
 				const auto notificationPeerId = [peerObject unsignedLongLongValue];
 				if (notificationPeerId) {
-					return clearFromSessions.contains(notificationSelfId)
-						|| clearFromPeers.contains(FullPeer{ notificationPeerId, notificationSelfId });
+					return clearFromSessions.contains(notificationSessionId)
+						|| clearFromPeers.contains(FullPeer{
+							.sessionId = notificationSessionId,
+							.peerId = notificationPeerId
+						});
 				}
 			}
 			return true;
@@ -348,11 +353,14 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	putClearTask(ClearFromHistory { FullPeer{ history->peer->id, history->session().userId() } });
+	putClearTask(ClearFromHistory { FullPeer{
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id
+	} });
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	putClearTask(ClearFromSession { session->userId() });
+	putClearTask(ClearFromSession { session->uniqueId() });
 }
 
 void Manager::Private::updateDelegate() {

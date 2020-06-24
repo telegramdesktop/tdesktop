@@ -31,9 +31,7 @@ public:
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		PeerId peerId,
-		MsgId msgId,
-		UserId selfId,
+		NotificationId id,
 		bool hideReplyButton);
 
 	NotificationData(const NotificationData &other) = delete;
@@ -53,8 +51,6 @@ public:
 	};
 
 private:
-	[[nodiscard]] NotificationId myId() const;
-
 	QDBusConnection _dbusConnection;
 	base::weak_ptr<Manager> _manager;
 
@@ -65,14 +61,13 @@ private:
 	QString _imageKey;
 
 	uint _notificationId = 0;
-	PeerId _peerId = 0;
-	MsgId _msgId = 0;
-	UserId _selfId = 0;
+	NotificationId _id;
 
 private slots:
 	void notificationClosed(uint id);
 	void actionInvoked(uint id, const QString &actionName);
 	void notificationReplied(uint id, const QString &text);
+
 };
 
 using Notification = std::shared_ptr<NotificationData>;
