@@ -352,27 +352,11 @@ MainWidget::MainWidget(
 		checker.start();
 	}
 
-	auto &api = session().api();
-	api.requestNotifySettings(MTP_inputNotifyUsers());
-	api.requestNotifySettings(MTP_inputNotifyChats());
-	api.requestNotifySettings(MTP_inputNotifyBroadcasts());
-
 	cSetOtherOnline(0);
-	session().user()->loadUserpic();
 
-	auto &local = session().local();
-	local.readInstalledStickers();
-	local.readFeaturedStickers();
-	local.readRecentStickers();
-	local.readFavedStickers();
-	local.readSavedGifs();
-	auto &data = session().data();
-	if (const auto availableAt = local.readExportSettings().availableAt) {
-		data.suggestStartExport(availableAt);
+	if (const auto availableAt = session().local().readExportSettings().availableAt) {
+		session().data().suggestStartExport(availableAt);
 	}
-	auto &stickers = data.stickers();
-	stickers.notifyUpdated();
-	stickers.notifySavedGifsUpdated();
 
 	_history->start();
 

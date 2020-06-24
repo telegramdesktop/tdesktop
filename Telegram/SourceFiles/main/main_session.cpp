@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
+#include "data/stickers/data_stickers.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/themes/window_theme.h"
@@ -94,6 +95,7 @@ Session::Session(
 	_api->instance().setUserPhone(_user->phone());
 
 	// Load current userpic and keep it loaded.
+	_user->loadUserpic();
 	changes().peerFlagsValue(
 		_user,
 		Data::PeerUpdate::Flag::Photo
@@ -131,11 +133,23 @@ Session::Session(
 					MTP_inputPrivacyValueDisallowAll()));
 			saveSettingsDelayed();
 		}
+
+		local().readInstalledStickers();
+		local().readFeaturedStickers();
+		local().readRecentStickers();
+		local().readFavedStickers();
+		local().readSavedGifs();
+		data().stickers().notifyUpdated();
+		data().stickers().notifySavedGifsUpdated();
 	});
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	Spellchecker::Start(this);
 #endif // TDESKTOP_DISABLE_SPELLCHECK
+
+	_api->requestNotifySettings(MTP_inputNotifyUsers());
+	_api->requestNotifySettings(MTP_inputNotifyChats());
+	_api->requestNotifySettings(MTP_inputNotifyBroadcasts());
 }
 
 Session::~Session() {
