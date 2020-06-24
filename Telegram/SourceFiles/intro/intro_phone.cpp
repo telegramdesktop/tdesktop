@@ -16,7 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/special_fields.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "data/data_user.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -136,6 +139,24 @@ void PhoneWidget::submit() {
 		showPhoneError(tr::lng_bad_phone());
 		_phone->setFocus();
 		return;
+	}
+
+	// Check if such account is authorized already.
+	const auto digitsOnly = [](QString value) {
+		return value.replace(QRegularExpression("[^0-9]"), QString());
+	};
+	const auto phoneDigits = digitsOnly(phone);
+	for (const auto &[index, existing] : Core::App().domain().accounts()) {
+		const auto raw = existing.get();
+		if (const auto session = raw->maybeSession()) {
+			if (raw->mtp().environment() == account().mtp().environment()
+				&& digitsOnly(session->user()->phone()) == phoneDigits) {
+				crl::on_main(raw, [=] {
+					Core::App().domain().activate(raw);
+				});
+				return;
+			}
+		}
 	}
 
 	hidePhoneError();

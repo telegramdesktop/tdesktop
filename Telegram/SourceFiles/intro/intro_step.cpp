@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "core/application.h"
@@ -144,6 +145,21 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		return;
 	}
 
+	// Check if such account is authorized already.
+	for (const auto &[index, existing] : Core::App().domain().accounts()) {
+		const auto raw = existing.get();
+		if (const auto session = raw->maybeSession()) {
+			if (raw->mtp().environment() == _account->mtp().environment()
+				&& user.c_user().vid().v == session->userId()) {
+				_account->logOut();
+				crl::on_main(raw, [=] {
+					Core::App().domain().activate(raw);
+				});
+				return;
+			}
+		}
+	}
+
 	// Save the default language if we've suggested some other and user ignored it.
 	const auto currentId = Lang::Current().id();
 	const auto defaultId = Lang::DefaultLanguageId();
@@ -152,7 +168,6 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		Lang::Current().switchToId(Lang::DefaultLanguage());
 		Local::writeLangPack();
 	}
-
 	const auto account = _account;
 	account->createSession(user);
 

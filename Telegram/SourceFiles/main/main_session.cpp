@@ -166,11 +166,9 @@ base::Observable<void> &Session::downloaderTaskFinished() {
 }
 
 uint64 Session::uniqueId() const {
-	auto result = uint64(uint32(userId()));
-	if (mtp().isTestMode()) {
-		result |= 0x0100'0000'0000'0000ULL;
-	}
-	return result;
+	// See also Account::willHaveSessionUniqueId.
+	return uint64(uint32(userId()))
+		| (mtp().isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
 UserId Session::userId() const {

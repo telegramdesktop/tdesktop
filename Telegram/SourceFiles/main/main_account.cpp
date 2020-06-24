@@ -126,8 +126,13 @@ void Account::watchSessionChanges() {
 	}, _lifetime);
 }
 
-UserId Account::willHaveUserId() const {
-	return _sessionUserId;
+uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
+	// See also Session::uniqueId.
+	if (!_sessionUserId) {
+		return 0;
+	}
+	return uint64(uint32(_sessionUserId))
+		| (config && config->isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
 void Account::createSession(const MTPUser &user) {

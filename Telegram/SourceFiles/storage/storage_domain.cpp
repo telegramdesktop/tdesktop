@@ -169,7 +169,7 @@ Domain::StartModernResult Domain::startModern(
 	_oldVersion = keyData.version;
 
 	auto tried = base::flat_set<int>();
-	auto users = base::flat_set<UserId>();
+	auto sessions = base::flat_set<uint64>();
 	auto active = 0;
 	for (auto i = 0; i != count; ++i) {
 		auto index = qint32();
@@ -182,10 +182,11 @@ Domain::StartModernResult Domain::startModern(
 				_dataName,
 				index);
 			auto config = account->prepareToStart(_localKey);
-			const auto userId = account->willHaveUserId();
-			if (!users.contains(userId)
-				&& (userId != 0 || (users.empty() && i + 1 == count))) {
-				if (users.empty()) {
+			const auto sessionId = account->willHaveSessionUniqueId(
+				config.get());
+			if (!sessions.contains(sessionId)
+				&& (sessionId != 0 || (sessions.empty() && i + 1 == count))) {
+				if (sessions.empty()) {
 					active = index;
 				}
 				account->start(std::move(config));
@@ -193,16 +194,21 @@ Domain::StartModernResult Domain::startModern(
 					.index = index,
 					.account = std::move(account)
 				});
-				users.emplace(userId);
+				sessions.emplace(sessionId);
 			}
 		}
 	}
+	if (sessions.empty()) {
+		LOG(("App Error: no accounts read."));
+		return StartModernResult::Failed;
+	}
+
 	if (!info.stream.atEnd()) {
 		info.stream >> active;
 	}
 	_owner->activateFromStorage(active);
 
-	Ensures(!users.empty());
+	Ensures(!sessions.empty());
 	return StartModernResult::Success;
 }
 

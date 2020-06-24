@@ -48,7 +48,7 @@ public:
 		std::shared_ptr<MTP::AuthKey> localKey);
 	void start(std::unique_ptr<MTP::Config> config);
 
-	[[nodiscard]] UserId willHaveUserId() const;
+	[[nodiscard]] uint64 willHaveSessionUniqueId(MTP::Config *config) const;
 	void createSession(const MTPUser &user);
 	void createSession(
 		UserId id,
