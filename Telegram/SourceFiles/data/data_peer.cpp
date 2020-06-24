@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "core/application.h"
@@ -86,25 +87,34 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 }
 
 void PeerClickHandler::onClick(ClickContext context) const {
-	if (context.button == Qt::LeftButton && App::wnd()) {
-		const auto controller = App::wnd()->sessionController();
-		const auto currentPeer = controller->activeChatCurrent().peer();
-		if (_peer && _peer->isChannel() && currentPeer != _peer) {
-			const auto clickedChannel = _peer->asChannel();
-			if (!clickedChannel->isPublic() && !clickedChannel->amIn()
-				&& (!currentPeer->isChannel()
-					|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
-				Ui::show(Box<InformBox>(_peer->isMegagroup()
-					? tr::lng_group_not_accessible(tr::now)
-					: tr::lng_channel_not_accessible(tr::now)));
-			} else {
-				controller->showPeerHistory(
-					_peer,
-					Window::SectionShow::Way::Forward);
-			}
-		} else {
-			Ui::showPeerProfile(_peer);
+	if (context.button != Qt::LeftButton) {
+		return;
+	}
+	const auto &windows = _peer->session().windows();
+	if (windows.empty()) {
+		Core::App().domain().activate(&_peer->session().account());
+		if (windows.empty()) {
+			return;
 		}
+	}
+	const auto window = windows.front();
+	const auto currentPeer = window->activeChatCurrent().peer();
+	if (_peer && _peer->isChannel() && currentPeer != _peer) {
+		const auto clickedChannel = _peer->asChannel();
+		if (!clickedChannel->isPublic()
+			&& !clickedChannel->amIn()
+			&& (!currentPeer->isChannel()
+				|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
+			Ui::show(Box<InformBox>(_peer->isMegagroup()
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now)));
+		} else {
+			window->showPeerHistory(
+				_peer,
+				Window::SectionShow::Way::Forward);
+		}
+	} else {
+		Ui::showPeerProfile(_peer);
 	}
 }
 

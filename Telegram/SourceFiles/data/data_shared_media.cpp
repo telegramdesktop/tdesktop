@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/combine.h>
 #include "main/main_session.h"
+#include "main/main_domain.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -47,7 +49,14 @@ void SharedMediaShowOverview(
 		Storage::SharedMediaType type,
 		not_null<History*> history) {
 	if (SharedMediaOverviewType(type)) {
-		App::wnd()->sessionController()->showSection(Info::Memento(
+		const auto &windows = history->session().windows();
+		if (windows.empty()) {
+			Core::App().domain().activate(&history->session().account());
+			if (windows.empty()) {
+				return;
+			}
+		}
+		windows.front()->showSection(Info::Memento(
 			history->peer,
 			Info::Section(type)));
 	}
