@@ -239,7 +239,8 @@ private:
 	bool validCollage() const;
 	void validateCollage();
 
-	Data::FileOrigin fileOrigin() const;
+	[[nodiscard]] Data::FileOrigin fileOrigin() const;
+	[[nodiscard]] Data::FileOrigin fileOrigin(const Entity& entity) const;
 
 	void refreshFromLabel(HistoryItem *item);
 	void refreshCaption(HistoryItem *item);

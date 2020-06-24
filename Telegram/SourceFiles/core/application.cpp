@@ -776,13 +776,9 @@ void Application::notifyFileDialogShown(bool shown) {
 }
 
 QWidget *Application::getModalParent() {
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
 	return Platform::IsWayland()
 		? App::wnd()
 		: nullptr;
-#endif // Q_OS_UNIX && !Q_OS_MAC
-
-	return nullptr;
 }
 
 
