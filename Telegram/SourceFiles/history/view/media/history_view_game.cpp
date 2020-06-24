@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/text_options.h"
+#include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_game.h"
 #include "data/data_media_types.h"
@@ -32,10 +33,14 @@ Game::Game(
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
 	if (!consumed.text.isEmpty()) {
+		const auto context = Core::UiIntegration::Context{
+			.session = &history()->session()
+		};
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
 			consumed,
-			Ui::ItemTextOptions(parent->data()));
+			Ui::ItemTextOptions(parent->data()),
+			context);
 	}
 	history()->owner().registerGameView(_data, _parent);
 }
@@ -413,10 +418,14 @@ void Game::parentTextUpdated() {
 	if (const auto media = _parent->data()->media()) {
 		const auto consumed = media->consumedMessageText();
 		if (!consumed.text.isEmpty()) {
+			const auto context = Core::UiIntegration::Context{
+				.session = &history()->session()
+			};
 			_description.setMarkedText(
 				st::webPageDescriptionStyle,
 				consumed,
-				Ui::ItemTextOptions(_parent->data()));
+				Ui::ItemTextOptions(_parent->data()),
+				context);
 		} else {
 			_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		}

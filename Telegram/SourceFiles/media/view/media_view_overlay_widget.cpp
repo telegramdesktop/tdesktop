@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "core/ui_integration.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
@@ -1868,10 +1869,14 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	const auto base = duration
 		? DocumentTimestampLinkBase(_document, item->fullId())
 		: QString();
+	const auto context = Core::UiIntegration::Context{
+		.session = &item->history()->session()
+	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
 		AddTimestampLinks(caption, duration, base),
-		Ui::ItemTextOptions(item));
+		Ui::ItemTextOptions(item),
+		context);
 }
 
 void OverlayWidget::refreshGroupThumbs() {
