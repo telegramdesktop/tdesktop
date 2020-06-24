@@ -153,10 +153,7 @@ bool UiIntegration::handleUrlClick(
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
-	return rpl::merge(
-		Core::App().passcodeLockChanges(),
-		Core::App().termsLockChanges()
-	) | rpl::to_empty;
+	return Core::App().passcodeLockChanges() | rpl::to_empty;
 }
 
 QString UiIntegration::convertTagToMimeTag(const QString &tagId) {

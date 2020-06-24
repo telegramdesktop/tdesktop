@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -23,9 +24,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
+#include "boxes/confirm_box.h"
 #include "mainwindow.h"
+#include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "facades.h"
 #include "app.h"
+#include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -67,18 +71,122 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			sideBarChanged();
 		}
 		_widget.updateWindowIcon();
-		_widget.updateGlobalMenu();
 		if (session) {
 			setupMain();
+
+			session->termsLockValue(
+			) | rpl::start_with_next([=] {
+				checkLockByTerms();
+				_widget.updateGlobalMenu();
+			}, _lifetime);
 		} else {
 			setupIntro();
+			_widget.updateGlobalMenu();
 		}
 	}, _accountLifetime);
+}
+
+void Controller::checkLockByTerms() {
+	const auto data = account().sessionExists()
+		? account().session().termsLocked()
+		: std::nullopt;
+	if (!data) {
+		if (_termsBox) {
+			_termsBox->closeBox();
+		}
+		return;
+	}
+	Ui::hideSettingsAndLayer(anim::type::instant);
+	const auto box = Ui::show(Box<TermsBox>(
+		*data,
+		tr::lng_terms_agree(),
+		tr::lng_terms_decline()));
+
+	box->setCloseByEscape(false);
+	box->setCloseByOutsideClick(false);
+
+	const auto id = data->id;
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		const auto mention = box ? box->lastClickedMention() : QString();
+		box->closeBox();
+		if (const auto session = account().maybeSession()) {
+			session->api().acceptTerms(id);
+			session->unlockTerms();
+			if (!mention.isEmpty()) {
+				MentionClickHandler(mention).onClick({});
+			}
+		}
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		showTermsDecline();
+	}, box->lifetime());
+
+	QObject::connect(box, &QObject::destroyed, [=] {
+		crl::on_main(widget(), [=] { checkLockByTerms(); });
+	});
+
+	_termsBox = box;
+}
+
+void Controller::showTermsDecline() {
+	const auto box = Ui::show(
+		Box<Window::TermsBox>(
+			TextWithEntities{ tr::lng_terms_update_sorry(tr::now) },
+			tr::lng_terms_decline_and_delete(),
+			tr::lng_terms_back(),
+			true),
+		Ui::LayerOption::KeepOther);
+
+	box->agreeClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+		showTermsDelete();
+	}, box->lifetime());
+
+	box->cancelClicks(
+	) | rpl::start_with_next([=] {
+		if (box) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void Controller::showTermsDelete() {
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto deleteByTerms = [=] {
+		if (const auto session = account().maybeSession()) {
+			session->termsDeleteNow();
+		} else {
+			Ui::hideLayer();
+		}
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(
+			tr::lng_terms_delete_warning(tr::now),
+			tr::lng_terms_delete_now(tr::now),
+			st::attentionBoxButton,
+			deleteByTerms,
+			[=] { if (*box) (*box)->closeBox(); }),
+		Ui::LayerOption::KeepOther);
 }
 
 void Controller::finishFirstShow() {
 	_widget.finishFirstShow();
 	checkThemeEditor();
+}
+
+bool Controller::locked() const {
+	if (Core::App().passcodeLocked()) {
+		return true;
+	} else if (const auto controller = sessionController()) {
+		return controller->session().termsLocked().has_value();
+	}
+	return false;
 }
 
 void Controller::checkThemeEditor() {

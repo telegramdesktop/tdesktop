@@ -30,8 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "settings/settings_common.h"
-#include "mainwindow.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -44,13 +44,15 @@ namespace {
 using Match = qthelp::RegularExpressionMatch;
 
 bool JoinGroupByHash(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto hash = match->captured(1);
+	const auto session = &controller->session();
+	const auto weak = base::make_weak(controller);
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		Core::App().hideMediaView();
 		result.match([=](const MTPDchatInvite &data) {
@@ -59,11 +61,10 @@ bool JoinGroupByHash(
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
 			if (const auto chat = session->data().processChat(data.vchat())) {
-				for (const auto controller : session->windows()) {
-					controller->showPeerHistory(
+				if (const auto strong = weak.get()) {
+					strong->showPeerHistory(
 						chat,
 						Window::SectionShow::Way::Forward);
-					break;
 				}
 			}
 		});
@@ -78,10 +79,10 @@ bool JoinGroupByHash(
 }
 
 bool ShowStickerSet(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	Core::App().hideMediaView();
@@ -92,15 +93,15 @@ bool ShowStickerSet(
 }
 
 bool ShowTheme(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
 	Core::App().hideMediaView();
-	session->data().cloudThemes().resolve(
+	controller->session().data().cloudThemes().resolve(
 		match->captured(1),
 		clickFromMessageId);
 	return true;
@@ -112,7 +113,7 @@ void ShowLanguagesBox() {
 }
 
 bool SetLanguage(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
 	if (match->capturedRef(1).isEmpty()) {
@@ -125,10 +126,10 @@ bool SetLanguage(
 }
 
 bool ShareUrl(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -145,10 +146,10 @@ bool ShareUrl(
 }
 
 bool ConfirmPhone(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -159,26 +160,26 @@ bool ConfirmPhone(
 	if (phone.isEmpty() || hash.isEmpty()) {
 		return false;
 	}
-	ConfirmPhoneBox::Start(session, phone, hash);
+	ConfirmPhoneBox::Start(&controller->session(), phone, hash);
 	return true;
 }
 
 bool ShareGameScore(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(session, params.value(qsl("hash")));
+	ShareGameScoreByHash(&controller->session(), params.value(qsl("hash")));
 	return true;
 }
 
 bool ApplySocksProxy(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
 	auto params = url_parse_params(
@@ -191,7 +192,7 @@ bool ApplySocksProxy(
 }
 
 bool ApplyMtprotoProxy(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
 	auto params = url_parse_params(
@@ -228,7 +229,7 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 }
 
 bool ShowPassport(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
 	return ShowPassportForm(url_parse_params(
@@ -237,10 +238,10 @@ bool ShowPassport(
 }
 
 bool ShowWallPaper(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -253,10 +254,10 @@ bool ShowWallPaper(
 }
 
 bool ResolveUsername(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -309,10 +310,10 @@ bool ResolveUsername(
 }
 
 bool ResolvePrivatePost(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -332,6 +333,7 @@ bool ResolvePrivatePost(
 	const auto fail = [=] {
 		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
 	};
+	const auto session = &controller->session();
 	if (const auto channel = session->data().channelLoaded(channelId)) {
 		done(channel);
 		return true;
@@ -356,19 +358,19 @@ bool ResolvePrivatePost(
 }
 
 bool ResolveSettings(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
 	const auto section = match->captured(1).mid(1).toLower();
-	if (!session) {
+	if (!controller) {
 		if (section.isEmpty()) {
-			App::wnd()->showSettings();
+			controller->window().showSettings();
 			return true;
 		}
 		return false;
 	}
 	if (section == qstr("devices")) {
-		Ui::show(Box<SessionsBox>(session));
+		Ui::show(Box<SessionsBox>(&controller->session()));
 		return true;
 	} else if (section == qstr("language")) {
 		ShowLanguagesBox();
@@ -382,10 +384,10 @@ bool ResolveSettings(
 }
 
 bool HandleUnknown(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto request = match->captured(1);
@@ -393,7 +395,7 @@ bool HandleUnknown(
 		const auto text = TextWithEntities{
 			qs(result.vmessage()),
 			Api::EntitiesFromMTP(
-				session,
+				&controller->session(),
 				result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
@@ -410,15 +412,15 @@ bool HandleUnknown(
 			Ui::show(Box<InformBox>(text));
 		}
 	};
-	session->api().requestDeepLinkInfo(request, callback);
+	controller->session().api().requestDeepLinkInfo(request, callback);
 	return true;
 }
 
 bool OpenMediaTimestamp(
-		Main::Session *session,
+		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!session) {
+	if (!controller) {
 		return false;
 	}
 	const auto time = match->captured(2).toInt();
@@ -432,6 +434,7 @@ bool OpenMediaTimestamp(
 		const auto itemId = FullMsgId(
 			parts.value(1).toInt(),
 			parts.value(2).toInt());
+		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
 		session->settings().setMediaLastPlaybackPosition(
 			documentId,
@@ -607,7 +610,7 @@ bool InternalPassportLink(const QString &url) {
 }
 
 bool StartUrlRequiresActivate(const QString &url) {
-	return Core::App().locked()
+	return Core::App().passcodeLocked()
 		? true
 		: !InternalPassportLink(url);
 }

@@ -44,6 +44,7 @@ class Domain;
 
 namespace Window {
 class SessionController;
+struct TermsLock;
 } // namespace Window
 
 namespace Calls {
@@ -135,7 +136,13 @@ public:
 		return *_calls;
 	}
 
+	// Terms lock.
+	void lockByTerms(const Window::TermsLock &data);
+	void unlockTerms();
 	void termsDeleteNow();
+	[[nodiscard]] std::optional<Window::TermsLock> termsLocked() const;
+	rpl::producer<bool> termsLockChanges() const;
+	rpl::producer<bool> termsLockValue() const;
 
 	[[nodiscard]] QString createInternalLink(const QString &query) const;
 	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
@@ -176,6 +183,9 @@ private:
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
+
+	rpl::event_stream<bool> _termsLockChanges;
+	std::unique_ptr<Window::TermsLock> _termsLock;
 
 	base::flat_set<not_null<Window::SessionController*>> _windows;
 	base::Timer _saveSettingsTimer;

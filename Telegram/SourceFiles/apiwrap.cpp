@@ -420,7 +420,7 @@ void ApiWrap::requestTermsUpdate() {
 			const auto &data = result.c_help_termsOfServiceUpdate();
 			const auto &terms = data.vterms_of_service();
 			const auto &fields = terms.c_help_termsOfService();
-			Core::App().lockByTerms(
+			session().lockByTerms(
 				Window::TermsLock::FromMTP(_session, fields));
 			requestNext(data);
 		} break;

@@ -153,8 +153,6 @@ Application::~Application() {
 		_mediaView->clearData();
 		_mediaView = nullptr;
 	}
-
-	unlockTerms();
 	_domain->finish();
 
 	Local::finish();
@@ -268,7 +266,7 @@ void Application::run() {
 	DEBUG_LOG(("Application Info: showing."));
 	_window->finishFirstShow();
 
-	if (!locked() && cStartToSettings()) {
+	if (!_window->locked() && cStartToSettings()) {
 		_window->showSettings();
 	}
 
@@ -657,7 +655,7 @@ bool Application::canApplyLangPackWithoutRestart() const {
 }
 
 void Application::checkStartUrl() {
-	if (!cStartUrl().isEmpty() && !locked()) {
+	if (!cStartUrl().isEmpty() && _window && !_window->locked()) {
 		const auto url = cStartUrl();
 		cSetStartUrl(QString());
 		if (!openLocalUrl(url, {})) {
@@ -680,18 +678,19 @@ bool Application::openCustomUrl(
 		const QString &url,
 		const QVariant &context) {
 	const auto urlTrimmed = url.trimmed();
-	if (!urlTrimmed.startsWith(protocol, Qt::CaseInsensitive) || locked()) {
+	if (!urlTrimmed.startsWith(protocol, Qt::CaseInsensitive)
+		|| passcodeLocked()) {
 		return false;
 	}
 	const auto command = urlTrimmed.midRef(protocol.size(), 8192);
-	const auto session = maybeActiveSession();
+	const auto controller = _window ? _window->sessionController() : nullptr;
 
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
 	for (const auto &[expression, handler] : handlers) {
 		const auto match = regex_match(expression, command, options);
 		if (match) {
-			return handler(session, match, context);
+			return handler(controller, match, context);
 		}
 	}
 	return false;
@@ -740,13 +739,6 @@ rpl::producer<bool> Application::passcodeLockValue() const {
 	return _passcodeLock.value();
 }
 
-void Application::lockByTerms(const Window::TermsLock &data) {
-	if (!_termsLock || *_termsLock != data) {
-		_termsLock = std::make_unique<Window::TermsLock>(data);
-		_termsLockChanges.fire(true);
-	}
-}
-
 bool Application::someSessionExists() const {
 	for (const auto &[index, account] : _domain->accounts()) {
 		if (account->sessionExists()) {
@@ -791,43 +783,6 @@ void Application::localPasscodeChanged() {
 	_shouldLockAt = 0;
 	_autoLockTimer.cancel();
 	checkAutoLock();
-}
-
-void Application::unlockTerms() {
-	if (_termsLock) {
-		_termsLock = nullptr;
-		_termsLockChanges.fire(false);
-	}
-}
-
-std::optional<Window::TermsLock> Application::termsLocked() const {
-	return _termsLock ? base::make_optional(*_termsLock) : std::nullopt;
-}
-
-rpl::producer<bool> Application::termsLockChanges() const {
-	return _termsLockChanges.events();
-}
-
-rpl::producer<bool> Application::termsLockValue() const {
-	return rpl::single(
-		_termsLock != nullptr
-	) | rpl::then(termsLockChanges());
-}
-
-bool Application::locked() const {
-	return passcodeLocked() || termsLocked();
-}
-
-rpl::producer<bool> Application::lockChanges() const {
-	return lockValue() | rpl::skip(1);
-}
-
-rpl::producer<bool> Application::lockValue() const {
-	using namespace rpl::mappers;
-	return rpl::combine(
-		passcodeLockValue(),
-		termsLockValue(),
-		_1 || _2);
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
@@ -889,7 +844,7 @@ void Application::notifyFileDialogShown(bool shown) {
 
 QWidget *Application::getModalParent() {
 	return (Platform::IsWayland() && activeWindow())
-		? activeWindow()->widget()
+		? activeWindow()->widget().get()
 		: nullptr;
 }
 

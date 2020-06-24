@@ -44,6 +44,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/window_connecting_widget.h"
+#include "window/window_top_bar_wrap.h"
+#include "window/notifications_manager.h"
+#include "window/window_slide_animation.h"
+#include "window/window_session_controller.h"
+#include "window/window_history_hider.h"
+#include "window/window_controller.h"
+#include "window/themes/window_theme.h"
 #include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
 #include "chat_helpers/message_field.h"
 #include "info/info_memento.h"
@@ -79,12 +86,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/flat_set.h"
-#include "window/window_top_bar_wrap.h"
-#include "window/notifications_manager.h"
-#include "window/window_slide_animation.h"
-#include "window/window_session_controller.h"
-#include "window/themes/window_theme.h"
-#include "window/window_history_hider.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
@@ -649,7 +650,7 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 }
 
 void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
-	if (Core::App().locked()) {
+	if (controller()->window().locked()) {
 		return;
 	}
 
@@ -1425,7 +1426,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| Core::App().locked()
+			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)) {
 			return false;
 		}
@@ -1720,7 +1721,7 @@ void MainWidget::showNewSection(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| Core::App().locked()
+			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
 			|| memento.instant()) {
 			return false;

@@ -23,7 +23,6 @@ class Databases;
 } // namespace Storage
 
 namespace Window {
-struct TermsLock;
 class Controller;
 } // namespace Window
 
@@ -223,16 +222,6 @@ public:
 	rpl::producer<bool> passcodeLockChanges() const;
 	rpl::producer<bool> passcodeLockValue() const;
 
-	void lockByTerms(const Window::TermsLock &data);
-	void unlockTerms();
-	[[nodiscard]] std::optional<Window::TermsLock> termsLocked() const;
-	rpl::producer<bool> termsLockChanges() const;
-	rpl::producer<bool> termsLockValue() const;
-
-	[[nodiscard]] bool locked() const;
-	rpl::producer<bool> lockChanges() const;
-	rpl::producer<bool> lockValue() const;
-
 	void checkAutoLock();
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
@@ -331,8 +320,6 @@ private:
 	const QImage _logoNoMargin;
 
 	rpl::variable<bool> _passcodeLock;
-	rpl::event_stream<bool> _termsLockChanges;
-	std::unique_ptr<Window::TermsLock> _termsLock;
 
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;

@@ -503,7 +503,6 @@ void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
 	destroySession();
-	Core::App().unlockTerms();
 	local().reset();
 	cSetOtherOnline(0);
 }

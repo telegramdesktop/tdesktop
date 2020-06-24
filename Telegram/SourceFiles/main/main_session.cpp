@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "window/window_session_controller.h"
+#include "window/window_lock_widgets.h"
 #include "window/themes/window_theme.h"
 //#include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
@@ -138,6 +139,7 @@ Session::Session(
 }
 
 Session::~Session() {
+	unlockTerms();
 	data().clear();
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
@@ -210,10 +212,38 @@ const MTP::ConfigFields &Session::serverConfig() const {
 	return _account->mtp().configValues();
 }
 
+void Session::lockByTerms(const Window::TermsLock &data) {
+	if (!_termsLock || *_termsLock != data) {
+		_termsLock = std::make_unique<Window::TermsLock>(data);
+		_termsLockChanges.fire(true);
+	}
+}
+
+void Session::unlockTerms() {
+	if (_termsLock) {
+		_termsLock = nullptr;
+		_termsLockChanges.fire(false);
+	}
+}
+
 void Session::termsDeleteNow() {
 	api().request(MTPaccount_DeleteAccount(
 		MTP_string("Decline ToS update")
 	)).send();
+}
+
+std::optional<Window::TermsLock> Session::termsLocked() const {
+	return _termsLock ? base::make_optional(*_termsLock) : std::nullopt;
+}
+
+rpl::producer<bool> Session::termsLockChanges() const {
+	return _termsLockChanges.events();
+}
+
+rpl::producer<bool> Session::termsLockValue() const {
+	return rpl::single(
+		_termsLock != nullptr
+	) | rpl::then(termsLockChanges());
 }
 
 QString Session::createInternalLink(const QString &query) const {

@@ -97,7 +97,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
-	Core::App().lockChanges(
+	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		updateGlobalMenu();
 	}, lifetime());
@@ -766,7 +766,7 @@ bool MainWindow::skipTrayClick() const {
 }
 
 void MainWindow::toggleDisplayNotifyFromTray() {
-	if (Core::App().locked()) {
+	if (controller().locked()) {
 		if (!isActive()) showFromTray();
 		Ui::show(Box<InformBox>(tr::lng_passcode_need_unblock(tr::now)));
 		return;
@@ -973,7 +973,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 }
 
 void MainWindow::sendPaths() {
-	if (Core::App().locked()) {
+	if (controller().locked()) {
 		return;
 	}
 	Core::App().hideMediaView();

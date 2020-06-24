@@ -121,42 +121,6 @@ auto GenerateCodes() {
 		}
 	});
 
-	codes.emplace(qsl("accadd"), [](SessionController *window) {
-		crl::on_main(&Core::App(), [=] {
-			if (window
-				&& !Core::App().locked()
-				&& Core::App().domain().started()
-				&& Core::App().domain().accounts().size() < 3) {
-				Core::App().domain().activate(
-					Core::App().domain().add(MTP::Environment::Production));
-			}
-		});
-	});
-
-	codes.emplace(qsl("acctest"), [](SessionController *window) {
-		crl::on_main(&Core::App(), [=] {
-			if (window
-				&& !Core::App().locked()
-				&& Core::App().domain().started()
-				&& Core::App().domain().accounts().size() < 3) {
-				Core::App().domain().activate(
-					Core::App().domain().add(MTP::Environment::Test));
-			}
-		});
-	});
-
-	for (auto i = 0; i != 3; ++i) {
-		codes.emplace(qsl("account%1").arg(i + 1), [=](
-				SessionController *window) {
-			crl::on_main(&Core::App(), [=] {
-				const auto &list = Core::App().domain().accounts();
-				if (i < list.size()) {
-					Core::App().domain().activate(list[i].account.get());
-				}
-			});
-		});
-	}
-
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("registertg"), [](SessionController *window) {
 		Platform::RegisterCustomScheme(true);

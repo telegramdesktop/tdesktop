@@ -26,17 +26,18 @@ public:
 
 	void showAccount(not_null<Main::Account*> account);
 
-	not_null<::MainWindow*> widget() {
+	[[nodiscard]] not_null<::MainWindow*> widget() {
 		return &_widget;
 	}
-	Main::Account &account() const {
+	[[nodiscard]] Main::Account &account() const {
 		Expects(_account != nullptr);
 
 		return *_account;
 	}
-	SessionController *sessionController() const {
+	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
+	[[nodiscard]] bool locked() const;
 
 	void finishFirstShow();
 
@@ -77,11 +78,15 @@ private:
 		Ui::LayerOptions options,
 		anim::type animated);
 	void checkThemeEditor();
+	void checkLockByTerms();
+	void showTermsDecline();
+	void showTermsDelete();
 
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
 	std::unique_ptr<SessionController> _sessionController;
 	base::Timer _isActiveTimer;
+	QPointer<Ui::BoxContent> _termsBox;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;
