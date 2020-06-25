@@ -321,46 +321,6 @@ OverlayWidget::OverlayWidget()
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-	// While we have one mediaview for all sessions we have to do this.
-	Core::App().domain().activeSessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (!isHidden()) {
-			close();
-		}
-		clearData();
-		setWindowIcon(Window::CreateIcon(session));
-		if (session) {
-			// #TODO multi
-			subscribe(session->downloaderTaskFinished(), [=] {
-				if (!isHidden()) {
-					updateControls();
-				}
-			});
-			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
-				if (!_streamed) {
-					return;
-				}
-				if (call) {
-					playbackPauseOnCall();
-				} else {
-					playbackResumeOnCall();
-				}
-			});
-			subscribe(session->documentUpdated, [=](DocumentData *document) {
-				if (!isHidden()) {
-					documentUpdated(document);
-				}
-			});
-			subscribe(session->messageIdChanging, [=](std::pair<not_null<HistoryItem*>, MsgId> update) {
-				changingMsgId(update.first, update.second);
-			});
-		} else {
-			_sharedMedia = nullptr;
-			_userPhotos = nullptr;
-			_collage = nullptr;
-		}
-	}, lifetime());
-
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
 #else // Q_OS_UNIX && !Q_OS_MAC
@@ -554,9 +514,9 @@ void OverlayWidget::documentUpdated(DocumentData *doc) {
 	}
 }
 
-void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
-	if (row->fullId() == _msgid) {
-		_msgid = FullMsgId(_msgid.channel, newId);
+void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId oldId) {
+	if (FullMsgId(row->channelId(), oldId) == _msgid) {
+		_msgid = row->fullId();
 		refreshMediaViewer();
 	}
 }
@@ -1090,10 +1050,11 @@ void OverlayWidget::zoomUpdate(int32 &newZoom) {
 	setZoomLevel(newZoom);
 }
 
-void OverlayWidget::clearData() {
+void OverlayWidget::clearSession() {
 	if (!isHidden()) {
 		hide();
 	}
+	_sessionLifetime.destroy();
 	if (!_animations.empty()) {
 		_animations.clear();
 		_stateAnimation.stop();
@@ -1111,11 +1072,14 @@ void OverlayWidget::clearData() {
 	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
+	_sharedMedia = nullptr;
+	_userPhotos = nullptr;
+	_collage = nullptr;
 	_session = nullptr;
 }
 
 OverlayWidget::~OverlayWidget() {
-	delete base::take(_menu);
+	clearSession();
 }
 
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
@@ -1963,8 +1927,10 @@ void OverlayWidget::clearControlsState() {
 	}
 }
 
-void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
-	_session = &photo->session();
+void OverlayWidget::showPhoto(
+		not_null<PhotoData*> photo,
+		HistoryItem *context) {
+	setSession(&photo->session());
 
 	if (context) {
 		setContext(context);
@@ -1981,9 +1947,10 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) 
 	activateControls();
 }
 
-void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context) {
-	_session = &photo->session();
-
+void OverlayWidget::showPhoto(
+		not_null<PhotoData*> photo,
+		not_null<PeerData*> context) {
+	setSession(&photo->session());
 	setContext(context);
 
 	clearControlsState();
@@ -2012,7 +1979,7 @@ void OverlayWidget::showDocument(
 		HistoryItem *context,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
-	_session = &document->session();
+	setSession(&document->session());
 
 	if (context) {
 		setContext(context);
@@ -3543,6 +3510,59 @@ void OverlayWidget::setContext(
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
+}
+
+void OverlayWidget::setSession(not_null<Main::Session*> session) {
+	if (_session == session) {
+		return;
+	}
+
+	clearSession();
+	_session = session;
+	setWindowIcon(Window::CreateIcon(session));
+
+	base::ObservableViewer(
+		session->downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		if (!isHidden()) {
+			updateControls();
+		}
+	}, _sessionLifetime);
+
+	base::ObservableViewer(
+		session->calls().currentCallChanged()
+	) | rpl::start_with_next([=](Calls::Call *call) {
+		if (!_streamed) {
+			return;
+		}
+		if (call) {
+			playbackPauseOnCall();
+		} else {
+			playbackResumeOnCall();
+		}
+	}, _sessionLifetime);
+
+	base::ObservableViewer(
+		session->documentUpdated
+	) | rpl::start_with_next([=](DocumentData *document) {
+		if (!isHidden()) {
+			documentUpdated(document);
+		}
+	}, _sessionLifetime);
+
+	session->data().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		changingMsgId(change.item, change.oldId);
+	}, _sessionLifetime);
+
+	session->account().sessionChanges(
+	) | rpl::start_with_next_done([=](Main::Session *value) {
+		if (value != session) {
+			clearSession();
+		}
+	}, [=] {
+		clearSession();
+	}, _sessionLifetime);
 }
 
 bool OverlayWidget::moveToNext(int delta) {

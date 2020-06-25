@@ -149,12 +149,8 @@ Application::~Application() {
 	// Depend on activeWindow() for now :(
 	Shortcuts::Finish();
 
-	_window.reset();
-
-	if (_mediaView) {
-		_mediaView->clearData();
-		_mediaView = nullptr;
-	}
+	_window = nullptr;
+	_mediaView = nullptr;
 	_domain->finish();
 
 	Local::finish();

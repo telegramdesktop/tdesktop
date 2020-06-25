@@ -153,7 +153,6 @@ public:
 	}
 
 	base::Observable<DocumentData*> documentUpdated;
-	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
 	bool supportMode() const;
 	Support::Helper &supportHelper() const;

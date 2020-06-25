@@ -96,7 +96,7 @@ public:
 
 	void notifyFileDialogShown(bool shown);
 
-	void clearData();
+	void clearSession();
 
 	~OverlayWidget();
 
@@ -168,6 +168,8 @@ private:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	void setVisibleHook(bool visible) override;
+
+	void setSession(not_null<Main::Session*> session);
 
 	void playbackControlsPlay() override;
 	void playbackControlsPause() override;
@@ -288,7 +290,7 @@ private:
 	void updateThemePreviewGeometry();
 
 	void documentUpdated(DocumentData *doc);
-	void changingMsgId(not_null<HistoryItem*> row, MsgId newId);
+	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
 
 	[[nodiscard]] int contentRotation() const;
 	[[nodiscard]] QRect contentRect() const;
@@ -352,6 +354,7 @@ private:
 	QBrush _transparentBrush;
 
 	Main::Session *_session = nullptr;
+	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
