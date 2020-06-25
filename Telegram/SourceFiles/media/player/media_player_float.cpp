@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_media_player.h"
@@ -68,6 +69,11 @@ Float::Float(
 		if (_item == item) {
 			detach();
 		}
+	}, lifetime());
+
+	document->session().account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		detach();
 	}, lifetime());
 
 	setCursor(style::cur_pointer);

@@ -253,7 +253,7 @@ MainWidget::MainWidget(
 	Core::App().floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {
 		floatPlayerClosed(itemId);
-		}, lifetime());
+	}, lifetime());
 
 	Core::App().exportManager().currentView(
 	) | rpl::start_with_next([=](Export::View::PanelController *view) {

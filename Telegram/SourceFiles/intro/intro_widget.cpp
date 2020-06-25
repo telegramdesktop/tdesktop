@@ -587,7 +587,7 @@ void Widget::showTerms(Fn<void()> callback) {
 void Widget::showControls() {
 	getStep()->show();
 	setupNextButton();
-	_next->show(anim::type::instant);
+	_next->toggle(_nextShown, anim::type::instant);
 	_nextShownAnimation.stop();
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();

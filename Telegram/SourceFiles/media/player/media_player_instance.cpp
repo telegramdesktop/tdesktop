@@ -209,6 +209,8 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 			setSession(data, nullptr);
 		}, data->sessionLifetime);
 	} else {
+		stop(data->type);
+		_tracksFinishedNotifier.notify(data->type);
 		*data = Data(data->type, data->overview);
 	}
 }
