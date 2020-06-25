@@ -20,6 +20,8 @@ namespace Platform {
 namespace Libs {
 namespace {
 
+bool gtkTriedToInit = false;
+
 bool loadLibrary(QLibrary &lib, const char *name, int version) {
 	DEBUG_LOG(("Loading '%1' with version %2...").arg(QLatin1String(name)).arg(version));
 	lib.setFileNameAndVersion(QLatin1String(name), version);
@@ -153,6 +155,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	int (*oldErrorHandler)(Display *, XErrorEvent *) = XSetErrorHandler(nullptr);
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
+	gtkTriedToInit = true;
 	if (!gtk_init_check(0, 0)) {
 		gtk_init_check = nullptr;
 		DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
@@ -253,7 +256,7 @@ void start() {
 	if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
-	if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+	if (!gtkLoaded && !gtkTriedToInit && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
 
