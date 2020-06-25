@@ -18,10 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
@@ -137,17 +138,17 @@ TopBarWidget::TopBarWidget(
 	}, lifetime());
 
 	rpl::combine(
-		session().settings().thirdSectionInfoEnabledValue(),
-		session().settings().tabbedReplacedWithInfoValue()
-	) | rpl::start_with_next(
-		[this] { updateInfoToggleActive(); },
-		lifetime());
+		Core::App().settings().thirdSectionInfoEnabledValue(),
+		Core::App().settings().tabbedReplacedWithInfoValue()
+	) | rpl::start_with_next([=] {
+		updateInfoToggleActive();
+	}, lifetime());
 
 	rpl::single(rpl::empty_value()) | rpl::then(
 		base::ObservableViewer(Global::RefConnectionTypeChanged())
-	) | rpl::start_with_next(
-		[=] { updateConnectingState(); },
-		lifetime());
+	) | rpl::start_with_next([=] {
+		updateConnectingState();
+	}, lifetime());
 
 	setCursor(style::cur_pointer);
 }
@@ -252,13 +253,13 @@ void TopBarWidget::showMenu() {
 
 void TopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
-		&& (session().settings().thirdSectionInfoEnabled()
-			|| session().settings().tabbedReplacedWithInfo())) {
+		&& (Core::App().settings().thirdSectionInfoEnabled()
+			|| Core::App().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
 	} else if (_activeChat.peer()) {
 		if (_controller->canShowThirdSection()) {
-			session().settings().setThirdSectionInfoEnabled(true);
-			session().saveSettingsDelayed();
+			Core::App().settings().setThirdSectionInfoEnabled(true);
+			Core::App().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
 					Info::Memento::Default(_activeChat.peer()),
@@ -791,8 +792,8 @@ void TopBarWidget::updateUnreadBadge() {
 
 void TopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
-		&& (session().settings().thirdSectionInfoEnabled()
-			|| session().settings().tabbedReplacedWithInfo());
+		&& (Core::App().settings().thirdSectionInfoEnabled()
+			|| Core::App().settings().tabbedReplacedWithInfo());
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;

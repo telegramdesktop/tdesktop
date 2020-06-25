@@ -37,7 +37,6 @@ class Float : public Ui::RpWidget, private base::Subscriber {
 public:
 	Float(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		Fn<void(bool visible)> toggleCallback,
 		Fn<void(bool closed)> draggedCallback);
@@ -90,7 +89,6 @@ private:
 	void finishDrag(bool closed);
 	void pauseResume();
 
-	not_null<Window::SessionController*> _controller;
 	HistoryItem *_item = nullptr;
 	Fn<void(bool visible)> _toggleCallback;
 
@@ -194,7 +192,6 @@ private:
 		template <typename ToggleCallback, typename DraggedCallback>
 		Item(
 			not_null<QWidget*> parent,
-			not_null<Window::SessionController*> controller,
 			not_null<HistoryItem*> item,
 			ToggleCallback toggle,
 			DraggedCallback dragged);

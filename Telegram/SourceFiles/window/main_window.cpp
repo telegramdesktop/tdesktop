@@ -324,10 +324,10 @@ void MainWindow::initSize() {
 		? primaryScreen->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 	bool maximized = false;
-	const auto initialWidth = Main::SessionSettings::ThirdColumnByDefault()
+	const auto initialWidth = Core::Settings::ThirdColumnByDefault()
 		? st::windowBigDefaultWidth
 		: st::windowDefaultWidth;
-	const auto initialHeight = Main::SessionSettings::ThirdColumnByDefault()
+	const auto initialHeight = Core::Settings::ThirdColumnByDefault()
 		? st::windowBigDefaultHeight
 		: st::windowDefaultHeight;
 	auto geometry = QRect(

@@ -10,10 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 
 enum class SendFilesWay;
+enum class RectPart;
 
 namespace Ui {
 enum class InputSubmitSettings;
 } // namespace Ui
+
+namespace Window {
+enum class Column;
+} // namespace Window
 
 namespace Core {
 
@@ -358,7 +363,47 @@ public:
 	void setMainMenuAccountsShown(bool value) {
 		_mainMenuAccountsShown = value;
 	}
+	[[nodiscard]] bool tabbedSelectorSectionEnabled() const {
+		return _tabbedSelectorSectionEnabled;
+	}
+	void setTabbedSelectorSectionEnabled(bool enabled);
+	[[nodiscard]] bool thirdSectionInfoEnabled() const {
+		return _thirdSectionInfoEnabled;
+	}
+	void setThirdSectionInfoEnabled(bool enabled);
+	[[nodiscard]] rpl::producer<bool> thirdSectionInfoEnabledValue() const;
+	[[nodiscard]] int thirdSectionExtendedBy() const {
+		return _thirdSectionExtendedBy;
+	}
+	void setThirdSectionExtendedBy(int savedValue) {
+		_thirdSectionExtendedBy = savedValue;
+	}
+	[[nodiscard]] bool tabbedReplacedWithInfo() const {
+		return _tabbedReplacedWithInfo;
+	}
+	void setTabbedReplacedWithInfo(bool enabled);
+	[[nodiscard]] rpl::producer<bool> tabbedReplacedWithInfoValue() const;
+	void setFloatPlayerColumn(Window::Column column) {
+		_floatPlayerColumn = column;
+	}
+	[[nodiscard]] Window::Column floatPlayerColumn() const {
+		return _floatPlayerColumn;
+	}
+	void setFloatPlayerCorner(RectPart corner) {
+		_floatPlayerCorner = corner;
+	}
+	[[nodiscard]] RectPart floatPlayerCorner() const {
+		return _floatPlayerCorner;
+	}
+	void setDialogsWidthRatio(float64 ratio);
+	[[nodiscard]] float64 dialogsWidthRatio() const;
+	[[nodiscard]] rpl::producer<float64> dialogsWidthRatioChanges() const;
+	void setThirdColumnWidth(int width);
+	[[nodiscard]] int thirdColumnWidth() const;
+	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
 
+	[[nodiscard]] static bool ThirdColumnByDefault();
+	[[nodiscard]] float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
 		return int(std::round(std::clamp(speed * 4., 2., 8.))) - 2;
 	}
@@ -369,16 +414,17 @@ public:
 	void resetOnLastLogout();
 
 private:
+	static constexpr auto kDefaultThirdColumnWidth = 0;
+	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+	static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
+
 	bool _adaptiveForWide = true;
 	bool _moderateModeEnabled = false;
-
 	rpl::variable<float64> _songVolume = kDefaultVolume;
 	rpl::variable<float64> _videoVolume = kDefaultVolume;
-
 	bool _askDownloadPath = false;
 	rpl::variable<QString> _downloadPath;
 	QByteArray _downloadPathBookmark;
-
 	bool _voiceMsgPlaybackDoubled = false;
 	bool _soundNotify = true;
 	bool _desktopNotify = true;
@@ -391,20 +437,16 @@ private:
 	bool _countUnreadMessages = true;
 	rpl::variable<bool> _notifyAboutPinned = true;
 	int _autoLock = 3600;
-
 	QString _callOutputDeviceID = u"default"_q;
 	QString _callInputDeviceID = u"default"_q;
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;
-
 	Window::Theme::AccentColors _themesAccentColors;
-
 	bool _lastSeenWarningSeen = false;
 	SendFilesWay _sendFilesWay;
 	Ui::InputSubmitSettings _sendSubmitWay;
 	base::flat_map<QString, QString> _soundOverrides;
-
 	bool _exeLaunchWarning = true;
 	bool _loopAnimatedStickers = true;
 	rpl::variable<bool> _largeEmoji = true;
@@ -417,6 +459,17 @@ private:
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
 	rpl::variable<bool> _mainMenuAccountsShown = false;
+	bool _tabbedSelectorSectionEnabled = false; // per-window
+	Window::Column _floatPlayerColumn; // per-window
+	RectPart _floatPlayerCorner; // per-window
+	bool _thirdSectionInfoEnabled = true; // per-window
+	rpl::event_stream<bool> _thirdSectionInfoEnabledValue; // per-window
+	int _thirdSectionExtendedBy = -1; // per-window
+	rpl::variable<float64> _dialogsWidthRatio; // per-window
+	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
+
+	bool _tabbedReplacedWithInfo = false; // per-window
+	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
 
 	float64 _rememberedSongVolume = kDefaultVolume;
 	bool _rememberedSoundNotifyFromTray = false;

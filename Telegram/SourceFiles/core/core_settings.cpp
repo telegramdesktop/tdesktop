@@ -11,13 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "storage/serialize_common.h"
 #include "window/themes/window_theme.h"
+#include "window/section_widget.h"
+#include "base/platform/base_platform_info.h"
 #include "facades.h"
 
 namespace Core {
 
 Settings::Settings()
 : _sendFilesWay(SendFilesWay::Album)
-, _sendSubmitWay(Ui::InputSubmitSettings::Enter) {
+, _sendSubmitWay(Ui::InputSubmitSettings::Enter)
+, _floatPlayerColumn(Window::Column::Second)
+, _floatPlayerCorner(RectPart::TopRight)
+, _dialogsWidthRatio(DefaultDialogsWidthRatio()) {
 }
 
 QByteArray Settings::serialize() const {
@@ -291,6 +296,66 @@ QString Settings::getSoundPath(const QString &key) const {
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
+void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
+	_tabbedSelectorSectionEnabled = enabled;
+	if (enabled) {
+		setThirdSectionInfoEnabled(false);
+	}
+	setTabbedReplacedWithInfo(false);
+}
+
+rpl::producer<bool> Settings::tabbedReplacedWithInfoValue() const {
+	return _tabbedReplacedWithInfoValue.events_starting_with(
+		tabbedReplacedWithInfo());
+}
+
+void Settings::setThirdSectionInfoEnabled(bool enabled) {
+	if (_thirdSectionInfoEnabled != enabled) {
+		_thirdSectionInfoEnabled = enabled;
+		if (enabled) {
+			setTabbedSelectorSectionEnabled(false);
+		}
+		setTabbedReplacedWithInfo(false);
+		_thirdSectionInfoEnabledValue.fire_copy(enabled);
+	}
+}
+
+rpl::producer<bool> Settings::thirdSectionInfoEnabledValue() const {
+	return _thirdSectionInfoEnabledValue.events_starting_with(
+		thirdSectionInfoEnabled());
+}
+
+void Settings::setTabbedReplacedWithInfo(bool enabled) {
+	if (_tabbedReplacedWithInfo != enabled) {
+		_tabbedReplacedWithInfo = enabled;
+		_tabbedReplacedWithInfoValue.fire_copy(enabled);
+	}
+}
+
+void Settings::setDialogsWidthRatio(float64 ratio) {
+	_dialogsWidthRatio = ratio;
+}
+
+float64 Settings::dialogsWidthRatio() const {
+	return _dialogsWidthRatio.current();
+}
+
+rpl::producer<float64> Settings::dialogsWidthRatioChanges() const {
+	return _dialogsWidthRatio.changes();
+}
+
+void Settings::setThirdColumnWidth(int width) {
+	_thirdColumnWidth = width;
+}
+
+int Settings::thirdColumnWidth() const {
+	return _thirdColumnWidth.current();
+}
+
+rpl::producer<int> Settings::thirdColumnWidthChanges() const {
+	return _thirdColumnWidth.changes();
+}
+
 void Settings::resetOnLastLogout() {
 	_adaptiveForWide = true;
 	_moderateModeEnabled = false;
@@ -340,6 +405,24 @@ void Settings::resetOnLastLogout() {
 	_dictionariesEnabled = std::vector<int>();
 	_autoDownloadDictionaries = true;
 	_mainMenuAccountsShown = false;
+	_tabbedSelectorSectionEnabled = false; // per-window
+	_floatPlayerColumn = Window::Column::Second; // per-window
+	_floatPlayerCorner = RectPart::TopRight; // per-window
+	_thirdSectionInfoEnabled = true; // per-window
+	_thirdSectionExtendedBy = -1; // per-window
+	_dialogsWidthRatio = DefaultDialogsWidthRatio(); // per-window
+	_thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
+	_tabbedReplacedWithInfo = false; // per-window
+}
+
+bool Settings::ThirdColumnByDefault() {
+	return Platform::IsMacStoreBuild();
+}
+
+float64 Settings::DefaultDialogsWidthRatio() {
+	return ThirdColumnByDefault()
+		? kDefaultBigDialogsWidthRatio
+		: kDefaultDialogsWidthRatio;
 }
 
 } // namespace Core

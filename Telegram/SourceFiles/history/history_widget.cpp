@@ -4154,11 +4154,11 @@ bool HistoryWidget::pushTabbedSelectorToThirdSection(
 	if (!_tabbedPanel) {
 		return true;
 	} else if (!peer->canWrite()) {
-		session().settings().setTabbedReplacedWithInfo(true);
+		Core::App().settings().setTabbedReplacedWithInfo(true);
 		controller()->showPeerInfo(peer, params.withThirdColumn());
 		return false;
 	}
-	session().settings().setTabbedReplacedWithInfo(false);
+	Core::App().settings().setTabbedReplacedWithInfo(false);
 	controller()->resizeForThirdSection();
 	controller()->showSection(
 		ChatHelpers::TabbedMemento(),
@@ -4198,8 +4198,8 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 	}
 	if (_tabbedPanel) {
 		if (controller()->canShowThirdSection() && !Adaptive::OneColumn()) {
-			session().settings().setTabbedSelectorSectionEnabled(true);
-			session().saveSettingsDelayed();
+			Core::App().settings().setTabbedSelectorSectionEnabled(true);
+			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
 				_peer,
 				Window::SectionShow::Way::ClearStack);

@@ -375,7 +375,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().setDialogsWidthRatio(v / 1000000.);
+		Core::App().settings().setDialogsWidthRatio(v / 1000000.);
 	} break;
 
 	case dbiLastSeenWarningSeenOld: {

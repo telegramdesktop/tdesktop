@@ -280,11 +280,11 @@ MainWidget::MainWidget(
 		updateDialogsWidthAnimated();
 	});
 	rpl::merge(
-		session().settings().dialogsWidthRatioChanges() | rpl::to_empty,
-		session().settings().thirdColumnWidthChanges() | rpl::to_empty
-	) | rpl::start_with_next(
-		[this] { updateControlsGeometry(); },
-		lifetime());
+		Core::App().settings().dialogsWidthRatioChanges() | rpl::to_empty,
+		Core::App().settings().thirdColumnWidthChanges() | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+	}, lifetime());
 
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::MessageSent
@@ -2107,7 +2107,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 
 void MainWidget::updateControlsGeometry() {
 	updateWindowAdaptiveLayout();
-	if (session().settings().dialogsWidthRatio() > 0) {
+	if (Core::App().settings().dialogsWidthRatio() > 0) {
 		_a_dialogsWidth.stop();
 	}
 	if (!_a_dialogsWidth.animating()) {
@@ -2122,9 +2122,9 @@ void MainWidget::updateControlsGeometry() {
 				anim::activation::background);
 			const auto active = _controller->activeChatCurrent();
 			if (const auto peer = active.peer()) {
-				if (session().settings().tabbedSelectorSectionEnabled()) {
+				if (Core::App().settings().tabbedSelectorSectionEnabled()) {
 					_history->pushTabbedSelectorToThirdSection(peer, params);
-				} else if (session().settings().thirdSectionInfoEnabled()) {
+				} else if (Core::App().settings().thirdSectionInfoEnabled()) {
 					_controller->showSection(
 						Info::Memento::Default(peer),
 						params.withThirdColumn());
@@ -2258,17 +2258,17 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 		auto newRatio = (newWidth < st::columnMinimalWidthLeft / 2)
 			? 0.
 			: float64(newWidth) / width();
-		session().settings().setDialogsWidthRatio(newRatio);
+		Core::App().settings().setDialogsWidthRatio(newRatio);
 	};
 	auto moveFinishedCallback = [=] {
 		if (Adaptive::OneColumn()) {
 			return;
 		}
-		if (session().settings().dialogsWidthRatio() > 0) {
-			session().settings().setDialogsWidthRatio(
+		if (Core::App().settings().dialogsWidthRatio() > 0) {
+			Core::App().settings().setDialogsWidthRatio(
 				float64(_dialogsWidth) / width());
 		}
-		session().saveSettings();
+		Core::App().saveSettingsDelayed();
 	};
 	createResizeArea(
 		_firstColumnResizeArea,
@@ -2282,17 +2282,17 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
-		session().settings().setThirdColumnWidth(newWidth);
+		Core::App().settings().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
 		if (!Adaptive::ThreeColumn() || !_thirdSection) {
 			return;
 		}
-		session().settings().setThirdColumnWidth(snap(
-			session().settings().thirdColumnWidth(),
+		Core::App().settings().setThirdColumnWidth(snap(
+			Core::App().settings().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));
-		session().saveSettings();
+		Core::App().saveSettingsDelayed();
 	};
 	createResizeArea(
 		_thirdColumnResizeArea,
@@ -2301,12 +2301,12 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 }
 
 void MainWidget::updateDialogsWidthAnimated() {
-	if (session().settings().dialogsWidthRatio() > 0) {
+	if (Core::App().settings().dialogsWidthRatio() > 0) {
 		return;
 	}
 	auto dialogsWidth = _dialogsWidth;
 	updateWindowAdaptiveLayout();
-	if (!session().settings().dialogsWidthRatio()
+	if (!Core::App().settings().dialogsWidthRatio()
 		&& (_dialogsWidth != dialogsWidth
 			|| _a_dialogsWidth.animating())) {
 		_dialogs->startWidthAnimation();
@@ -2353,6 +2353,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			_thirdSection.destroy();
 		}
 	};
+	auto &settings = Core::App().settings();
 	auto params = Window::SectionShow(
 		Window::SectionShow::Way::ClearStack,
 		anim::type::instant,
@@ -2364,9 +2365,9 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		// Like in _controller->showPeerInfo()
 		//
 		if (Adaptive::ThreeColumn()
-			&& !session().settings().thirdSectionInfoEnabled()) {
-			session().settings().setThirdSectionInfoEnabled(true);
-			session().saveSettingsDelayed();
+			&& !settings.thirdSectionInfoEnabled()) {
+			settings.setThirdSectionInfoEnabled(true);
+			Core::App().saveSettingsDelayed();
 		}
 
 		_controller->showSection(
@@ -2378,19 +2379,19 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		return _history->pushTabbedSelectorToThirdSection(peer, params);
 	};
 	if (Adaptive::ThreeColumn()
-		&& session().settings().tabbedSelectorSectionEnabled()
+		&& settings.tabbedSelectorSectionEnabled()
 		&& key) {
 		if (!canWrite) {
 			switchInfoFast();
-			session().settings().setTabbedSelectorSectionEnabled(true);
-			session().settings().setTabbedReplacedWithInfo(true);
-		} else if (session().settings().tabbedReplacedWithInfo()
+			settings.setTabbedSelectorSectionEnabled(true);
+			settings.setTabbedReplacedWithInfo(true);
+		} else if (settings.tabbedReplacedWithInfo()
 			&& key.history()
 			&& switchTabbedFast(key.history()->peer)) {
-			session().settings().setTabbedReplacedWithInfo(false);
+			settings.setTabbedReplacedWithInfo(false);
 		}
 	} else {
-		session().settings().setTabbedReplacedWithInfo(false);
+		settings.setTabbedReplacedWithInfo(false);
 		if (!key) {
 			if (_thirdSection) {
 				_thirdSection.destroy();
@@ -2398,7 +2399,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 				updateControlsGeometry();
 			}
 		} else if (Adaptive::ThreeColumn()
-			&& session().settings().thirdSectionInfoEnabled()) {
+			&& settings.thirdSectionInfoEnabled()) {
 			switchInfoFast();
 		}
 	}
@@ -2487,7 +2488,7 @@ void MainWidget::handleHistoryBack() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
-	auto dialogsWidthRatio = session().settings().dialogsWidthRatio();
+	auto dialogsWidthRatio = Core::App().settings().dialogsWidthRatio();
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
@@ -2530,7 +2531,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 		//}
 	}
 
-	session().settings().setDialogsWidthRatio(dialogsWidthRatio);
+	Core::App().settings().setDialogsWidthRatio(dialogsWidthRatio);
 
 	auto useSmallColumnWidth = !Adaptive::OneColumn()
 		&& !dialogsWidthRatio

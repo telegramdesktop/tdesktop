@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/unixtime.h"
 #include "boxes/calendar_box.h"
 #include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
@@ -81,9 +83,9 @@ void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
 	//if (Adaptive::ThreeColumn()
-	//	&& !_session->settings().thirdSectionInfoEnabled()) {
-	//	_session->settings().setThirdSectionInfoEnabled(true);
-	//	_session->saveSettingsDelayed();
+	//	&& !Core::App().settings().thirdSectionInfoEnabled()) {
+	//	Core::App().settings().setThirdSectionInfoEnabled(true);
+	//	Core::App().saveSettingsDelayed();
 	//}
 	showSection(Info::Memento(peer), params);
 }
@@ -451,8 +453,8 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!session().settings().tabbedSelectorSectionEnabled()
-			&& !session().settings().thirdSectionInfoEnabled()) {
+		if (!Core::App().settings().tabbedSelectorSectionEnabled()
+			&& !Core::App().settings().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -482,14 +484,14 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 }
 
 int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
-	auto result = qRound(bodyWidth * session().settings().dialogsWidthRatio());
+	auto result = qRound(bodyWidth * Core::App().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
 int SessionController::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = session().settings().thirdColumnWidth();
+	auto result = Core::App().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -540,13 +542,14 @@ void SessionController::resizeForThirdSection() {
 		return;
 	}
 
+	auto &settings = Core::App().settings();
 	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
-		session().settings().tabbedSelectorSectionEnabled();
+		settings.tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =
-		session().settings().thirdSectionInfoEnabled();
-	session().settings().setTabbedSelectorSectionEnabled(false);
-	session().settings().setThirdSectionInfoEnabled(false);
+		settings.thirdSectionInfoEnabled();
+	settings.setTabbedSelectorSectionEnabled(false);
+	settings.setThirdSectionInfoEnabled(false);
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
 	auto minimal = st::columnMinimalWidthThird;
@@ -567,46 +570,47 @@ void SessionController::resizeForThirdSection() {
 		return widget()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != session().settings().thirdColumnWidth()) {
-			session().settings().setThirdColumnWidth(extendBy);
+		if (extendBy != settings.thirdColumnWidth()) {
+			settings.setThirdColumnWidth(extendBy);
 		}
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = session().settings().dialogsWidthRatio();
-		session().settings().setDialogsWidthRatio(
+		auto currentRatio = settings.dialogsWidthRatio();
+		settings.setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
-	session().settings().setThirdSectionExtendedBy(savedValue);
+	settings.setThirdSectionExtendedBy(savedValue);
 
-	session().settings().setTabbedSelectorSectionEnabled(
+	settings.setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
-	session().settings().setThirdSectionInfoEnabled(
+	settings.setThirdSectionInfoEnabled(
 		thirdSectionInfoEnabled);
 }
 
 void SessionController::closeThirdSection() {
+	auto &settings = Core::App().settings();
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
-		auto savedValue = session().settings().thirdSectionExtendedBy();
+		auto savedValue = settings.thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = session().settings().dialogsWidthRatio();
-		session().settings().setDialogsWidthRatio(
+		auto currentRatio = settings.dialogsWidthRatio();
+		settings.setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			widget()->width() + (newBodyWidth - layout.bodyWidth),
 			widget()->height());
 	}
-	session().settings().setTabbedSelectorSectionEnabled(false);
-	session().settings().setThirdSectionInfoEnabled(false);
-	session().saveSettingsDelayed();
+	settings.setTabbedSelectorSectionEnabled(false);
+	settings.setThirdSectionInfoEnabled(false);
+	Core::App().saveSettingsDelayed();
 	if (widget()->size() != newWindowSize) {
 		widget()->resize(newWindowSize);
 	} else {

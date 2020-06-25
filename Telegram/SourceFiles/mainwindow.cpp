@@ -284,8 +284,9 @@ void MainWindow::setupMain() {
 	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
+	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
-	_main.create(bodyWidget(), sessionController());
+	_main = std::move(created);
 	if (_passcodeLock) {
 		_main->hide();
 	} else {

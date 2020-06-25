@@ -14,10 +14,6 @@ namespace Support {
 enum class SwitchSettings;
 } // namespace Support
 
-namespace Window {
-enum class Column;
-} // namespace Window
-
 namespace ChatHelpers {
 enum class SelectorTab;
 } // namespace ChatHelpers
@@ -62,50 +58,6 @@ public:
 	void setSelectorTab(ChatHelpers::SelectorTab tab) {
 		_selectorTab = tab;
 	}
-	[[nodiscard]] bool tabbedSelectorSectionEnabled() const {
-		return _tabbedSelectorSectionEnabled;
-	}
-	void setTabbedSelectorSectionEnabled(bool enabled);
-	[[nodiscard]] bool thirdSectionInfoEnabled() const {
-		return _thirdSectionInfoEnabled;
-	}
-	void setThirdSectionInfoEnabled(bool enabled);
-	[[nodiscard]] rpl::producer<bool> thirdSectionInfoEnabledValue() const;
-	[[nodiscard]] int thirdSectionExtendedBy() const {
-		return _thirdSectionExtendedBy;
-	}
-	void setThirdSectionExtendedBy(int savedValue) {
-		_thirdSectionExtendedBy = savedValue;
-	}
-	[[nodiscard]] bool tabbedReplacedWithInfo() const {
-		return _tabbedReplacedWithInfo;
-	}
-	void setTabbedReplacedWithInfo(bool enabled);
-	[[nodiscard]] rpl::producer<bool> tabbedReplacedWithInfoValue() const;
-	void setSmallDialogsList(bool enabled) {
-		_smallDialogsList = enabled;
-	}
-	[[nodiscard]] bool smallDialogsList() const {
-		return _smallDialogsList;
-	}
-	void setFloatPlayerColumn(Window::Column column) {
-		_floatPlayerColumn = column;
-	}
-	[[nodiscard]] Window::Column floatPlayerColumn() const {
-		return _floatPlayerColumn;
-	}
-	void setFloatPlayerCorner(RectPart corner) {
-		_floatPlayerCorner = corner;
-	}
-	[[nodiscard]] RectPart floatPlayerCorner() const {
-		return _floatPlayerCorner;
-	}
-	void setDialogsWidthRatio(float64 ratio);
-	[[nodiscard]] float64 dialogsWidthRatio() const;
-	[[nodiscard]] rpl::producer<float64> dialogsWidthRatioChanges() const;
-	void setThirdColumnWidth(int width);
-	[[nodiscard]] int thirdColumnWidth() const;
-	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
 
 	void setGroupStickersSectionHidden(PeerId peerId) {
 		_groupStickersSectionHidden.insert(peerId);
@@ -162,24 +114,11 @@ public:
 		_dialogsFiltersEnabled = value;
 	}
 
-	[[nodiscard]] static bool ThirdColumnByDefault();
-
 private:
-	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
-	static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
-	static constexpr auto kDefaultThirdColumnWidth = 0;
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 
 	ChatHelpers::SelectorTab _selectorTab; // per-window
-	bool _tabbedSelectorSectionEnabled = false; // per-window
-	Window::Column _floatPlayerColumn; // per-window
-	RectPart _floatPlayerCorner; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;
-	bool _thirdSectionInfoEnabled = true; // per-window
-	bool _smallDialogsList = false; // per-window
-	int _thirdSectionExtendedBy = -1; // per-window
-	rpl::variable<float64> _dialogsWidthRatio; // per-window
-	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
 	bool _hadLegacyCallsPeerToPeerNobody = false;
 	Data::AutoDownload::Full _autoDownload;
 	rpl::variable<bool> _archiveCollapsed = false;
@@ -195,10 +134,6 @@ private:
 	rpl::variable<int> _supportChatsTimeSlice
 		= kDefaultSupportChatsLimitSlice;
 	rpl::variable<bool> _supportAllSearchResults = false;
-
-	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
-	bool _tabbedReplacedWithInfo = false;
-	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
 
 };
 

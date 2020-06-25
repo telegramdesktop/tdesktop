@@ -258,9 +258,8 @@ bool Filler::showInfo() {
 		return true;
 	} else if (!Adaptive::ThreeColumn()) {
 		return true;
-	} else if (
-		!_peer->session().settings().thirdSectionInfoEnabled() &&
-		!_peer->session().settings().tabbedReplacedWithInfo()) {
+	} else if (!Core::App().settings().thirdSectionInfoEnabled()
+		&& !Core::App().settings().tabbedReplacedWithInfo()) {
 		return true;
 	}
 	return false;

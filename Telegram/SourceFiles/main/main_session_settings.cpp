@@ -8,14 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 
 #include "chat_helpers/tabbed_selector.h"
-#include "window/section_widget.h"
 #include "ui/widgets/input_fields.h"
+#include "window/section_widget.h"
 #include "support/support_common.h"
 #include "storage/serialize_common.h"
 #include "boxes/send_files_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "base/platform/base_platform_info.h"
 
 namespace Main {
 namespace {
@@ -29,16 +28,7 @@ constexpr auto kMaxSavedPlaybackPositions = 16;
 
 SessionSettings::SessionSettings()
 : _selectorTab(ChatHelpers::SelectorTab::Emoji)
-, _floatPlayerColumn(Window::Column::Second)
-, _floatPlayerCorner(RectPart::TopRight)
-, _dialogsWidthRatio(ThirdColumnByDefault()
-	? kDefaultBigDialogsWidthRatio
-	: kDefaultDialogsWidthRatio)
 , _supportSwitch(Support::SwitchSettings::Next) {
-}
-
-bool SessionSettings::ThirdColumnByDefault() {
-	return Platform::IsMacStoreBuild();
 }
 
 QByteArray SessionSettings::serialize() const {
@@ -56,21 +46,10 @@ QByteArray SessionSettings::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(kVersionTag) << qint32(kVersion);
 		stream << static_cast<qint32>(_selectorTab);
-		stream << qint32(_tabbedSelectorSectionEnabled ? 1 : 0);
-		stream << qint32(_floatPlayerColumn);
-		stream << qint32(_floatPlayerCorner);
 		stream << qint32(_groupStickersSectionHidden.size());
 		for (auto peerId : _groupStickersSectionHidden) {
 			stream << quint64(peerId);
 		}
-		stream << qint32(_thirdSectionInfoEnabled ? 1 : 0);
-		stream << qint32(_smallDialogsList ? 1 : 0);
-		stream << qint32(snap(
-			qRound(_dialogsWidthRatio.current() * 1000000),
-			0,
-			1000000));
-		stream << qint32(_thirdColumnWidth.current());
-		stream << qint32(_thirdSectionExtendedBy);
 		stream << qint32(_supportSwitch);
 		stream << qint32(_supportFixChatsOrder ? 1 : 0);
 		stream << qint32(_supportTemplatesAutocomplete ? 1 : 0);
@@ -106,17 +85,17 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 version = 0;
 	qint32 selectorTab = static_cast<qint32>(ChatHelpers::SelectorTab::Emoji);
 	qint32 appLastSeenWarningSeen = app.lastSeenWarningSeen() ? 1 : 0;
-	qint32 tabbedSelectorSectionEnabled = 1;
+	qint32 appTabbedSelectorSectionEnabled = 1;
 	qint32 legacyTabbedSelectorSectionTooltipShown = 0;
-	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
-	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
+	qint32 appFloatPlayerColumn = static_cast<qint32>(Window::Column::Second);
+	qint32 appFloatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
 	base::flat_map<QString, QString> appSoundOverrides;
 	base::flat_set<PeerId> groupStickersSectionHidden;
-	qint32 thirdSectionInfoEnabled = 0;
-	qint32 smallDialogsList = 0;
-	float64 dialogsWidthRatio = _dialogsWidthRatio.current();
-	int thirdColumnWidth = _thirdColumnWidth.current();
-	int thirdSectionExtendedBy = _thirdSectionExtendedBy;
+	qint32 appThirdSectionInfoEnabled = 0;
+	qint32 legacySmallDialogsList = 0;
+	float64 appDialogsWidthRatio = app.dialogsWidthRatio();
+	int appThirdColumnWidth = app.thirdColumnWidth();
+	int appThirdSectionExtendedBy = app.thirdSectionExtendedBy();
 	qint32 appSendFilesWay = static_cast<qint32>(app.sendFilesWay());
 	qint32 legacyCallsPeerToPeer = qint32(0);
 	qint32 appSendSubmitWay = static_cast<qint32>(app.sendSubmitWay());
@@ -157,11 +136,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (version < 2) {
 		stream >> appLastSeenWarningSeen;
-	}
-	if (!stream.atEnd()) {
-		stream >> tabbedSelectorSectionEnabled;
-	}
-	if (version < 2) {
+		if (!stream.atEnd()) {
+			stream >> appTabbedSelectorSectionEnabled;
+		}
 		if (!stream.atEnd()) {
 			auto count = qint32(0);
 			stream >> count;
@@ -169,6 +146,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 				for (auto i = 0; i != count; ++i) {
 					QString key, value;
 					stream >> key >> value;
+					if (stream.status() != QDataStream::Ok) {
+						LOG(("App Error: "
+							"Bad data for SessionSettings::addFromSerialized()"));
+						return;
+					}
 					appSoundOverrides.emplace(key, value);
 				}
 			}
@@ -176,9 +158,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		if (!stream.atEnd()) {
 			stream >> legacyTabbedSelectorSectionTooltipShown;
 		}
-	}
-	if (!stream.atEnd()) {
-		stream >> floatPlayerColumn >> floatPlayerCorner;
+		if (!stream.atEnd()) {
+			stream >> appFloatPlayerColumn >> appFloatPlayerCorner;
+		}
 	}
 	if (!stream.atEnd()) {
 		auto count = qint32(0);
@@ -187,26 +169,31 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			for (auto i = 0; i != count; ++i) {
 				quint64 peerId;
 				stream >> peerId;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
 				groupStickersSectionHidden.insert(peerId);
 			}
 		}
 	}
-	if (!stream.atEnd()) {
-		stream >> thirdSectionInfoEnabled;
-		stream >> smallDialogsList;
-	}
-	if (!stream.atEnd()) {
-		qint32 value = 0;
-		stream >> value;
-		dialogsWidthRatio = snap(value / 1000000., 0., 1.);
-
-		stream >> value;
-		thirdColumnWidth = value;
-
-		stream >> value;
-		thirdSectionExtendedBy = value;
-	}
 	if (version < 2) {
+		if (!stream.atEnd()) {
+			stream >> appThirdSectionInfoEnabled;
+			stream >> legacySmallDialogsList;
+		}
+		if (!stream.atEnd()) {
+			qint32 value = 0;
+			stream >> value;
+			appDialogsWidthRatio = snap(value / 1000000., 0., 1.);
+
+			stream >> value;
+			appThirdColumnWidth = value;
+
+			stream >> value;
+			appThirdSectionExtendedBy = value;
+		}
 		if (!stream.atEnd()) {
 			stream >> appSendFilesWay;
 		}
@@ -277,6 +264,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 				quint64 documentId;
 				qint64 time;
 				stream >> documentId >> time;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
 				mediaLastPlaybackPosition.emplace_back(documentId, time);
 			}
 		}
@@ -295,6 +287,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 				for (auto i = 0; i != count; ++i) {
 					qint64 langId;
 					stream >> langId;
+					if (stream.status() != QDataStream::Ok) {
+						LOG(("App Error: "
+							"Bad data for SessionSettings::addFromSerialized()"));
+						return;
+					}
 					appDictionariesEnabled.emplace_back(langId);
 				}
 			}
@@ -311,6 +308,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 				auto key = quint64();
 				auto value = qint32();
 				stream >> key >> value;
+				if (stream.status() != QDataStream::Ok) {
+					LOG(("App Error: "
+						"Bad data for SessionSettings::addFromSerialized()"));
+					return;
+				}
 				hiddenPinnedMessages.emplace(key, value);
 			}
 		}
@@ -320,7 +322,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
-			"Bad data for Main::SessionSettings::FromSerialized()"));
+			"Bad data for SessionSettings::addFromSerialized()"));
 		return;
 	}
 	if (!autoDownload.isEmpty()
@@ -340,29 +342,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	case ChatHelpers::SelectorTab::Stickers:
 	case ChatHelpers::SelectorTab::Gifs: _selectorTab = uncheckedTab; break;
 	}
-	_tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
-	auto uncheckedColumn = static_cast<Window::Column>(floatPlayerColumn);
-	switch (uncheckedColumn) {
-	case Window::Column::First:
-	case Window::Column::Second:
-	case Window::Column::Third: _floatPlayerColumn = uncheckedColumn; break;
-	}
-	auto uncheckedCorner = static_cast<RectPart>(floatPlayerCorner);
-	switch (uncheckedCorner) {
-	case RectPart::TopLeft:
-	case RectPart::TopRight:
-	case RectPart::BottomLeft:
-	case RectPart::BottomRight: _floatPlayerCorner = uncheckedCorner; break;
-	}
 	_groupStickersSectionHidden = std::move(groupStickersSectionHidden);
-	_thirdSectionInfoEnabled = thirdSectionInfoEnabled;
-	_smallDialogsList = smallDialogsList;
-	_dialogsWidthRatio = dialogsWidthRatio;
-	_thirdColumnWidth = thirdColumnWidth;
-	_thirdSectionExtendedBy = thirdSectionExtendedBy;
-	if (_thirdSectionInfoEnabled) {
-		_tabbedSelectorSectionEnabled = false;
-	}
 	auto uncheckedSupportSwitch = static_cast<Support::SwitchSettings>(
 		supportSwitch);
 	switch (uncheckedSupportSwitch) {
@@ -413,6 +393,24 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		app.setVideoPipGeometry(appVideoPipGeometry);
 		app.setDictionariesEnabled(std::move(appDictionariesEnabled));
 		app.setAutoDownloadDictionaries(appAutoDownloadDictionaries == 1);
+		app.setTabbedSelectorSectionEnabled(appTabbedSelectorSectionEnabled == 1);
+		auto uncheckedColumn = static_cast<Window::Column>(appFloatPlayerColumn);
+		switch (uncheckedColumn) {
+		case Window::Column::First:
+		case Window::Column::Second:
+		case Window::Column::Third: app.setFloatPlayerColumn(uncheckedColumn); break;
+		}
+		auto uncheckedCorner = static_cast<RectPart>(appFloatPlayerCorner);
+		switch (uncheckedCorner) {
+		case RectPart::TopLeft:
+		case RectPart::TopRight:
+		case RectPart::BottomLeft:
+		case RectPart::BottomRight: app.setFloatPlayerCorner(uncheckedCorner); break;
+		}
+		app.setThirdSectionInfoEnabled(appThirdSectionInfoEnabled);
+		app.setDialogsWidthRatio(appDialogsWidthRatio);
+		app.setThirdColumnWidth(appThirdColumnWidth);
+		app.setThirdSectionExtendedBy(appThirdSectionExtendedBy);
 	}
 }
 
@@ -438,66 +436,6 @@ bool SessionSettings::supportAllSearchResults() const {
 
 rpl::producer<bool> SessionSettings::supportAllSearchResultsValue() const {
 	return _supportAllSearchResults.value();
-}
-
-void SessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
-	_tabbedSelectorSectionEnabled = enabled;
-	if (enabled) {
-		setThirdSectionInfoEnabled(false);
-	}
-	setTabbedReplacedWithInfo(false);
-}
-
-rpl::producer<bool> SessionSettings::tabbedReplacedWithInfoValue() const {
-	return _tabbedReplacedWithInfoValue.events_starting_with(
-		tabbedReplacedWithInfo());
-}
-
-void SessionSettings::setThirdSectionInfoEnabled(bool enabled) {
-	if (_thirdSectionInfoEnabled != enabled) {
-		_thirdSectionInfoEnabled = enabled;
-		if (enabled) {
-			setTabbedSelectorSectionEnabled(false);
-		}
-		setTabbedReplacedWithInfo(false);
-		_thirdSectionInfoEnabledValue.fire_copy(enabled);
-	}
-}
-
-rpl::producer<bool> SessionSettings::thirdSectionInfoEnabledValue() const {
-	return _thirdSectionInfoEnabledValue.events_starting_with(
-		thirdSectionInfoEnabled());
-}
-
-void SessionSettings::setTabbedReplacedWithInfo(bool enabled) {
-	if (_tabbedReplacedWithInfo != enabled) {
-		_tabbedReplacedWithInfo = enabled;
-		_tabbedReplacedWithInfoValue.fire_copy(enabled);
-	}
-}
-
-void SessionSettings::setDialogsWidthRatio(float64 ratio) {
-	_dialogsWidthRatio = ratio;
-}
-
-float64 SessionSettings::dialogsWidthRatio() const {
-	return _dialogsWidthRatio.current();
-}
-
-rpl::producer<float64> SessionSettings::dialogsWidthRatioChanges() const {
-	return _dialogsWidthRatio.changes();
-}
-
-void SessionSettings::setThirdColumnWidth(int width) {
-	_thirdColumnWidth = width;
-}
-
-int SessionSettings::thirdColumnWidth() const {
-	return _thirdColumnWidth.current();
-}
-
-rpl::producer<int> SessionSettings::thirdColumnWidthChanges() const {
-	return _thirdColumnWidth.changes();
 }
 
 void SessionSettings::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
