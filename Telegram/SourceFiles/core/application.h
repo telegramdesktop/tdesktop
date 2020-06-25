@@ -87,6 +87,10 @@ namespace Stickers {
 class EmojiImageLoader;
 } // namespace Stickers
 
+namespace Export {
+class Manager;
+} // namespace Export
+
 namespace Core {
 
 class Launcher;
@@ -176,6 +180,9 @@ public:
 	}
 	[[nodiscard]] Main::Account &activeAccount() const;
 	[[nodiscard]] bool someSessionExists() const;
+	[[nodiscard]] Export::Manager &exportManager() const {
+		return *_exportManager;
+	}
 	[[nodiscard]] bool exportPreventsQuit();
 
 	// Main::Session component.
@@ -301,6 +308,7 @@ private:
 	base::Timer _clearEmojiImageLoaderTimer;
 	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
 	const std::unique_ptr<Main::Domain> _domain;
+	const std::unique_ptr<Export::Manager> _exportManager;
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;

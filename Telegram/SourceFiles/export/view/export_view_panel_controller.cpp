@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/view/export_view_settings.h"
 #include "export/view/export_view_progress.h"
+#include "export/export_manager.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_account.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -51,7 +53,8 @@ void SuggestBox::prepare() {
 
 	addButton(tr::lng_box_ok(), [=] {
 		closeBox();
-		_session->data().startExport(
+		Core::App().exportManager().start(
+			_session,
 			_session->local().readExportSettings().singlePeer);
 	});
 	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });

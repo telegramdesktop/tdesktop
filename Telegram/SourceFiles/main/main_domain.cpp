@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_domain.h"
+#include "storage/storage_account.h"
 #include "storage/localstorage.h"
+#include "export/export_settings.h"
 #include "facades.h"
 
 namespace Main {
@@ -93,6 +95,15 @@ void Domain::activateAfterStarting() {
 
 	activate(toActivate);
 	removePasscodeIfEmpty();
+
+	for (const auto &[index, account] : _accounts) {
+		if (const auto session = account->maybeSession()) {
+			const auto settings = session->local().readExportSettings();
+			if (const auto availableAt = settings.availableAt) {
+				session->data().suggestStartExport(availableAt);
+			}
+		}
+	}
 }
 
 const std::vector<Domain::AccountWithIndex> &Domain::accounts() const {

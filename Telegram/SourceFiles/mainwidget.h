@@ -376,6 +376,7 @@ private:
 	Export::View::PanelController *_currentExportView = nullptr;
 	object_ptr<Window::TopBarWrapWidget<Export::View::TopBar>> _exportTopBar
 		= { nullptr };
+	rpl::lifetime _exportViewLifetime;
 
 	object_ptr<Window::TopBarWrapWidget<Media::Player::Widget>> _player
 		= { nullptr };

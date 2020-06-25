@@ -457,6 +457,8 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    export/export_manager.cpp
+    export/export_manager.h
     export/view/export_view_content.cpp
     export/view/export_view_content.h
     export/view/export_view_panel_controller.cpp

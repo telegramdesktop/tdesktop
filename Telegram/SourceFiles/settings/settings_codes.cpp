@@ -127,9 +127,7 @@ auto GenerateCodes() {
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-	codes.emplace(qsl("export"), [](SessionController *window) {
-		window->session().data().startExport();
-	});
+
 #if defined Q_OS_WIN || defined Q_OS_MAC
 	codes.emplace(qsl("freetype"), [](SessionController *window) {
 		auto text = cUseFreeType()

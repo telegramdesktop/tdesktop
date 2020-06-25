@@ -50,6 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
 #include "dialogs/dialogs_key.h"
+#include "core/application.h"
+#include "export/export_manager.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "facades.h" // Adaptive::ThreeColumn
 #include "styles/style_layers.h"
@@ -719,7 +721,7 @@ void FolderFiller::addTogglesForArchive() {
 } // namespace
 
 void PeerMenuExportChat(not_null<PeerData*> peer) {
-	peer->owner().startExport(peer);
+	Core::App().exportManager().start(peer);
 }
 
 void PeerMenuDeleteContact(not_null<UserData*> user) {

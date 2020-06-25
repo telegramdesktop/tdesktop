@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "lang/lang_keys.h"
+#include "export/export_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
@@ -803,7 +804,7 @@ void SetupExport(
 		base::call_delayed(
 			st::boxDuration,
 			session,
-			[=] { session->data().startExport(); });
+			[=] { Core::App().exportManager().start(session); });
 	});
 }
 

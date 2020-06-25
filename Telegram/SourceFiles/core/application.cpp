@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
 #include "storage/localstorage.h"
+#include "export/export_manager.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -102,6 +103,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
+, _exportManager(std::make_unique<Export::Manager>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -617,13 +619,11 @@ Main::Session *Application::maybeActiveSession() const {
 }
 
 bool Application::exportPreventsQuit() {
-	if (const auto session = maybeActiveSession()) {
-		if (session->data().exportInProgress()) {
-			session->data().stopExportWithConfirmation([] {
-				App::quit();
-			});
-			return true;
-		}
+	if (_exportManager->inProgress()) {
+		_exportManager->stopWithConfirmation([] {
+			App::quit();
+		});
+		return true;
 	}
 	return false;
 }

@@ -25,8 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "main/main_session.h"
+#include "export/export_manager.h"
 #include "intro/intro_widget.h"
+#include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
@@ -675,9 +676,9 @@ void MainWindow::showLogoutConfirmation() {
 		}
 		if (account
 			&& account->sessionExists()
-			&& account->session().data().exportInProgress()) {
+			&& Core::App().exportManager().inProgress(&account->session())) {
 			Ui::hideLayer();
-			account->session().data().stopExportWithConfirmation([=] {
+			Core::App().exportManager().stopWithConfirmation([=] {
 				Core::App().logout(account);
 			});
 		} else {

@@ -37,13 +37,6 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Export {
-class Controller;
-namespace View {
-class PanelController;
-} // namespace View
-} // namespace Export
-
 namespace Ui {
 class BoxContent;
 } // namespace Ui
@@ -119,15 +112,8 @@ public:
 	void keepAlive(std::shared_ptr<PhotoMedia> media);
 	void keepAlive(std::shared_ptr<DocumentMedia> media);
 
-	void startExport(PeerData *peer = nullptr);
-	void startExport(const MTPInputPeer &singlePeer);
 	void suggestStartExport(TimeId availableAt);
 	void clearExportSuggestion();
-	[[nodiscard]] auto currentExportView() const
-	-> rpl::producer<Export::View::PanelController*>;
-	bool exportInProgress() const;
-	void stopExportWithConfirmation(FnMut<void()> callback);
-	void stopExport();
 
 	[[nodiscard]] auto passportCredentials() const
 	-> const Passport::SavedCredentials*;
@@ -773,14 +759,11 @@ private:
 
 	void checkPollsClosings();
 
-	not_null<Main::Session*> _session;
+	const not_null<Main::Session*> _session;
 
 	Storage::DatabasePointer _cache;
 	Storage::DatabasePointer _bigFileCache;
 
-	std::unique_ptr<Export::Controller> _export;
-	std::unique_ptr<Export::View::PanelController> _exportPanel;
-	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
 	TimeId _exportAvailableAt = 0;
 	QPointer<Ui::BoxContent> _exportSuggestion;
 

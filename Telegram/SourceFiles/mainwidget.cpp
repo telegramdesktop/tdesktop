@@ -96,6 +96,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "export/export_settings.h"
+#include "export/export_manager.h"
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
 #include "main/main_session.h"
@@ -255,12 +256,17 @@ MainWidget::MainWidget(
 		handleAudioUpdate(state);
 	}, lifetime());
 
-	subscribe(session().calls().currentCallChanged(), [this](Calls::Call *call) { setCurrentCall(call); });
+	subscribe(session().calls().currentCallChanged(), [=](Calls::Call *call) {
+		setCurrentCall(call);
+	});
 
-	session().data().currentExportView(
+	Core::App().exportManager().currentView(
 	) | rpl::start_with_next([=](Export::View::PanelController *view) {
 		setCurrentExportView(view);
 	}, lifetime());
+	if (_exportTopBar) {
+		_exportTopBar->finishAnimating();
+	}
 
 	subscribe(_controller->dialogsListFocused(), [this](bool) {
 		updateDialogsWidthAnimated();
@@ -353,10 +359,6 @@ MainWidget::MainWidget(
 	}
 
 	cSetOtherOnline(0);
-
-	if (const auto availableAt = session().local().readExportSettings().availableAt) {
-		session().data().suggestStartExport(availableAt);
-	}
 
 	_history->start();
 
@@ -1007,8 +1009,10 @@ void MainWidget::setCurrentExportView(Export::View::PanelController *view) {
 			} else {
 				_exportTopBar->entity()->updateData(std::move(data));
 			}
-		}, _currentExportView->lifetime());
+		}, _exportViewLifetime);
 	} else {
+		_exportViewLifetime.destroy();
+
 		LOG(("Export Info: Destroy top bar by controller removal."));
 		destroyExportTopBar();
 	}

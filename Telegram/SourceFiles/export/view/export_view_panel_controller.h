@@ -38,12 +38,16 @@ public:
 		not_null<Controller*> process);
 	~PanelController();
 
+	[[nodiscard]] Main::Session &session() const {
+		return *_session;
+	}
+
 	void activatePanel();
 	void stopWithConfirmation(FnMut<void()> callback = nullptr);
 
-	rpl::producer<> stopRequests() const;
+	[[nodiscard]] rpl::producer<> stopRequests() const;
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
