@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_media_rotation.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -875,6 +877,15 @@ Pip::Pip(
 	setupPanel();
 	setupButtons();
 	setupStreaming();
+
+	_data->session().account().sessionChanges(
+	) | rpl::start_with_next_done([=](Main::Session *session) {
+		if (!session) {
+			_destroy();
+		}
+	}, [=] {
+		_destroy();
+	}, _panel.lifetime());
 }
 
 Pip::~Pip() = default;

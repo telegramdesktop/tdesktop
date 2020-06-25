@@ -1069,7 +1069,6 @@ void OverlayWidget::clearSession() {
 	_from = nullptr;
 	_fromName = QString();
 	assignMediaPointer(nullptr);
-	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
 	_sharedMedia = nullptr;
@@ -1209,6 +1208,7 @@ void OverlayWidget::onToMessage() {
 	}
 	if (const auto item = _session->data().message(_msgid)) {
 		close();
+		Core::App().domain().activate(&_session->account());
 		Ui::showPeerHistoryAtItem(item);
 	}
 }
@@ -1449,6 +1449,7 @@ void OverlayWidget::onDelete() {
 		return false;
 	};
 
+	Core::App().domain().activate(&_session->account());
 	const auto &active = _session->windows();
 	if (active.empty()) {
 		return;
@@ -3845,6 +3846,11 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 			showSaveMsgFile();
 			return;
 		}
+		// There may be a mention / hashtag / bot command link.
+		// For now activate account for all activated links.
+		if (_session) {
+			Core::App().domain().activate(&_session->account());
+		}
 		ActivateClickHandler(this, activated, e->button());
 		return;
 	}
@@ -3852,6 +3858,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_over == OverName && _down == OverName) {
 		if (_from) {
 			close();
+			Core::App().domain().activate(&_from->account());
 			Ui::showPeerProfile(_from);
 		}
 	} else if (_over == OverDate && _down == OverDate) {
