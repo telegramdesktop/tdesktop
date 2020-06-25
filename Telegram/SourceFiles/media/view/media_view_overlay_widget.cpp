@@ -3557,11 +3557,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 	}, _sessionLifetime);
 
 	session->account().sessionChanges(
-	) | rpl::start_with_next_done([=](Main::Session *value) {
-		if (value != session) {
-			clearSession();
-		}
-	}, [=] {
+	) | rpl::start_with_next([=] {
 		clearSession();
 	}, _sessionLifetime);
 }

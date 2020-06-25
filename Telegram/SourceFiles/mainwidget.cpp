@@ -251,11 +251,6 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
 
-	Media::Player::instance()->updatedNotifier(
-	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
-		handleAudioUpdate(state);
-	}, lifetime());
-
 	subscribe(session().calls().currentCallChanged(), [=](Calls::Call *call) {
 		setCurrentCall(call);
 	});
@@ -266,6 +261,16 @@ MainWidget::MainWidget(
 	}, lifetime());
 	if (_exportTopBar) {
 		_exportTopBar->finishAnimating();
+	}
+
+	Media::Player::instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
+		handleAudioUpdate(state);
+	}, lifetime());
+	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Song));
+	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Voice));
+	if (_player) {
+		_player->finishAnimating();
 	}
 
 	subscribe(_controller->dialogsListFocused(), [this](bool) {

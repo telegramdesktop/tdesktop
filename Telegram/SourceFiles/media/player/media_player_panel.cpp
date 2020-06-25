@@ -43,8 +43,8 @@ Panel::Panel(
 	not_null<Window::SessionController*> window)
 : RpWidget(parent)
 , AbstractController(window)
-, _showTimer([this] { startShow(); })
-, _hideTimer([this] { startHideChecked(); })
+, _showTimer([=] { startShow(); })
+, _hideTimer([=] { startHideChecked(); })
 , _scroll(this, st::mediaPlayerScroll) {
 	hide();
 	updateSize();
@@ -210,7 +210,7 @@ void Panel::ensureCreated() {
 
 	_refreshListLifetime = instance()->playlistChanges(
 		AudioMsgId::Type::Song
-	) | rpl::start_with_next([this] {
+	) | rpl::start_with_next([=] {
 		refreshList();
 	});
 	refreshList();
@@ -229,6 +229,12 @@ void Panel::refreshList() {
 	const auto current = instance()->current(AudioMsgId::Type::Song);
 	const auto contextId = current.contextId();
 	const auto peer = [&]() -> PeerData* {
+		if (const auto document = current.audio()) {
+			if (&document->session() != &session()) {
+				// Different account is playing music.
+				return nullptr;
+			}
+		}
 		const auto item = contextId
 			? session().data().message(contextId)
 			: nullptr;

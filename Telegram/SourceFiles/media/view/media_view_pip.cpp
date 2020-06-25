@@ -879,11 +879,7 @@ Pip::Pip(
 	setupStreaming();
 
 	_data->session().account().sessionChanges(
-	) | rpl::start_with_next_done([=](Main::Session *session) {
-		if (!session) {
-			_destroy();
-		}
-	}, [=] {
+	) | rpl::start_with_next([=] {
 		_destroy();
 	}, _panel.lifetime());
 }

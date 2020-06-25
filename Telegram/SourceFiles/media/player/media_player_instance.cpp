@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "main/main_account.h" // session->account().sessionChanges().
 #include "main/main_session_settings.h"
 
 namespace Media {
@@ -126,13 +127,6 @@ Instance::Instance()
 					resumeOnCall(AudioMsgId::Type::Song);
 				}
 			});
-		} else {
-			const auto reset = [&](AudioMsgId::Type type) {
-				const auto data = getData(type);
-				*data = Data(type, data->overview);
-			};
-			reset(AudioMsgId::Type::Voice);
-			reset(AudioMsgId::Type::Song);
 		}
 	}, _lifetime);
 
@@ -180,14 +174,42 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 			? audioId.audio()->owner().message(audioId.contextId())
 			: nullptr;
 		if (item) {
-			data->history = item->history()->migrateToOrMe();
-			data->migrated = data->history->migrateFrom();
+			setHistory(data, item->history());
 		} else {
 			data->history = nullptr;
 			data->migrated = nullptr;
+			data->session = nullptr;
 		}
 		_trackChangedNotifier.notify(data->type, true);
 		refreshPlaylist(data);
+	}
+}
+
+void Instance::setHistory(not_null<Data*> data, History *history) {
+	if (history) {
+		data->history = history->migrateToOrMe();
+		data->migrated = data->history->migrateFrom();
+		setSession(data, &history->session());
+	} else {
+		data->history = data->migrated = nullptr;
+		setSession(data, nullptr);
+	}
+}
+
+void Instance::setSession(not_null<Data*> data, Main::Session *session) {
+	if (data->session == session) {
+		return;
+	}
+	data->playlistLifetime.destroy();
+	data->sessionLifetime.destroy();
+	data->session = session;
+	if (session) {
+		session->account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			setSession(data, nullptr);
+		}, data->sessionLifetime);
+	} else {
+		*data = Data(data->type, data->overview);
 	}
 }
 
@@ -263,6 +285,7 @@ bool Instance::validPlaylist(not_null<Data*> data) {
 }
 
 void Instance::validatePlaylist(not_null<Data*> data) {
+	data->playlistLifetime.destroy();
 	if (const auto key = playlistKey(data)) {
 		data->playlistRequestedKey = key;
 		SharedMediaMergedViewer(
