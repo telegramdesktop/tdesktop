@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_controller.h"
 
+#include "api/api_updates.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "main/main_account.h"
@@ -82,6 +83,9 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
+		}
+		if (was) {
+			was->session().updates().updateOnline();
 		}
 	}, _accountLifetime);
 }
