@@ -52,10 +52,11 @@ void SuggestBox::prepare() {
 	setTitle(tr::lng_export_suggest_title());
 
 	addButton(tr::lng_box_ok(), [=] {
+		const auto session = _session;
 		closeBox();
 		Core::App().exportManager().start(
-			_session,
-			_session->local().readExportSettings().singlePeer);
+			session,
+			session->local().readExportSettings().singlePeer);
 	});
 	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });
 	setCloseByOutsideClick(false);

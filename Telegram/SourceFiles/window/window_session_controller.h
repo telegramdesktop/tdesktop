@@ -37,13 +37,6 @@ namespace Settings {
 enum class Type;
 } // namespace Settings
 
-namespace Media {
-namespace Player {
-class FloatController;
-class FloatDelegate;
-} // namespace Player
-} // namespace Media
-
 namespace Passport {
 struct FormRequest;
 class FormController;
@@ -208,9 +201,7 @@ public:
 		return _gifPauseLevelChanged;
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
-	base::Observable<void> &floatPlayerAreaUpdated() {
-		return _floatPlayerAreaUpdated;
-	}
+	void floatPlayerAreaUpdated();
 
 	struct ColumnLayout {
 		int bodyWidth;
@@ -289,14 +280,6 @@ public:
 		return this;
 	}
 
-	void setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate);
-	void replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
-	void restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
-	rpl::producer<FullMsgId> floatPlayerClosed() const;
-
 	[[nodiscard]] int filtersWidth() const;
 	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
 	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
@@ -342,7 +325,6 @@ private:
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
-	base::Observable<void> _floatPlayerAreaUpdated;
 
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
@@ -354,10 +336,6 @@ private:
 	int _chatEntryHistoryPosition = -1;
 
 	rpl::variable<FilterId> _activeChatsFilter;
-
-	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
-	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
-	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;

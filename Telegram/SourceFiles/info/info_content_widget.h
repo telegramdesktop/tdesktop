@@ -62,8 +62,8 @@ public:
 	rpl::producer<int> scrollTillBottomChanges() const;
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
+	bool floatPlayerHandleWheelEvent(QEvent *e);
+	QRect floatPlayerAvailableRect() const;
 
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
 	virtual void cancelSelection() {

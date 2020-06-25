@@ -83,8 +83,8 @@ public:
 	void onSearchMore();
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
+	QRect floatPlayerAvailableRect() override;
 
 	~Widget();
 

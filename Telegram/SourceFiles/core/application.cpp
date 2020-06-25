@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_track.h"
 #include "media/player/media_player_instance.h"
+#include "media/player/media_player_float.h"
 #include "media/clip/media_clip_reader.h" // For Media::Clip::Finish().
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -510,6 +511,44 @@ void Application::startEmojiImageLoader() {
 			loader.switchTo(std::move(source));
 		});
 	}, _lifetime);
+}
+
+void Application::setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate) {
+	Expects(!_defaultFloatPlayerDelegate == !_floatPlayers);
+
+	_defaultFloatPlayerDelegate = delegate;
+	_replacementFloatPlayerDelegate = nullptr;
+	if (_floatPlayers) {
+		_floatPlayers->replaceDelegate(delegate);
+	} else {
+		_floatPlayers = std::make_unique<Media::Player::FloatController>(
+			delegate);
+	}
+}
+
+void Application::replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	_replacementFloatPlayerDelegate = replacement;
+	_floatPlayers->replaceDelegate(replacement);
+}
+
+void Application::restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	if (_replacementFloatPlayerDelegate == replacement) {
+		_replacementFloatPlayerDelegate = nullptr;
+		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
+	}
+}
+
+rpl::producer<FullMsgId> Application::floatPlayerClosed() const {
+	Expects(_floatPlayers != nullptr);
+
+	return _floatPlayers->closeEvents();
 }
 
 void Application::logout(Main::Account *account) {

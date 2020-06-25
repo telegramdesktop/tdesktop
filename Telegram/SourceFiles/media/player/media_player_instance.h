@@ -158,6 +158,7 @@ public:
 		return _updatedNotifier.events();
 	}
 
+	bool pauseGifByRoundVideo() const;
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -254,12 +255,12 @@ private:
 	void requestRoundVideoResize() const;
 	void requestRoundVideoRepaint() const;
 
-
 	void setHistory(not_null<Data*> data, History *history);
 	void setSession(not_null<Data*> data, Main::Session *session);
 
 	Data _songData;
 	Data _voiceData;
+	bool _roundPlaying = false;
 
 	base::Observable<Switch> _switchToNextNotifier;
 	base::Observable<bool> _playerWidgetOver;

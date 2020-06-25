@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 //#include "history/feed/history_feed_section.h" // #feed
+#include "media/player/media_player_instance.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -127,6 +128,10 @@ SessionController::SessionController(
 		_window->widget(),
 		this)) {
 	init();
+
+	if (Media::Player::instance()->pauseGifByRoundVideo()) {
+		enableGifPauseReason(GifPauseReason::RoundPlaying);
+	}
 
 	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
 		if (peer == _showEditPeer) {
@@ -412,6 +417,12 @@ bool SessionController::isGifPausedAtLeastFor(GifPauseReason reason) const {
 		return (_gifPauseReasons != 0) || !widget()->isActive();
 	}
 	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !widget()->isActive();
+}
+
+void SessionController::floatPlayerAreaUpdated() {
+	if (const auto main = widget()->sessionContent()) {
+		main->floatPlayerAreaUpdated();
+	}
 }
 
 int SessionController::dialogsSmallColumnWidth() const {
@@ -779,39 +790,6 @@ void SessionController::removeLayerBlackout() {
 
 not_null<MainWidget*> SessionController::content() const {
 	return widget()->sessionContent();
-}
-
-void SessionController::setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate) {
-	Expects(_defaultFloatPlayerDelegate == nullptr);
-
-	_defaultFloatPlayerDelegate = delegate;
-	_floatPlayers = std::make_unique<Media::Player::FloatController>(
-		delegate);
-}
-
-void SessionController::replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	_replacementFloatPlayerDelegate = replacement;
-	_floatPlayers->replaceDelegate(replacement);
-}
-
-void SessionController::restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	if (_replacementFloatPlayerDelegate == replacement) {
-		_replacementFloatPlayerDelegate = nullptr;
-		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
-	}
-}
-
-rpl::producer<FullMsgId> SessionController::floatPlayerClosed() const {
-	Expects(_floatPlayers != nullptr);
-
-	return _floatPlayers->closeEvents();
 }
 
 int SessionController::filtersWidth() const {

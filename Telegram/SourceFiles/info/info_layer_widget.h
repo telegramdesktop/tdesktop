@@ -58,11 +58,10 @@ private:
 	void restoreFloatPlayerDelegate();
 	not_null<::Media::Player::FloatDelegate*> floatPlayerDelegate();
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
-	not_null<Window::SessionController*> floatPlayerController() override;
-	not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+	not_null<::Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
+		not_null<::Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) override;
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 

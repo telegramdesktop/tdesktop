@@ -1026,12 +1026,12 @@ void WrapWidget::updateContentGeometry() {
 	}
 }
 
-bool WrapWidget::wheelEventFromFloatPlayer(QEvent *e) {
-	return _content->wheelEventFromFloatPlayer(e);
+bool WrapWidget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return _content->floatPlayerHandleWheelEvent(e);
 }
 
-QRect WrapWidget::rectForFloatPlayer() const {
-	return _content->rectForFloatPlayer();
+QRect WrapWidget::floatPlayerAvailableRect() {
+	return _content->floatPlayerAvailableRect();
 }
 
 object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(

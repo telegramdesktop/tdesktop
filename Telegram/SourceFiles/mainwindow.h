@@ -59,7 +59,6 @@ public:
 
 	void activate();
 
-	void noIntro(Intro::Widget *was);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();

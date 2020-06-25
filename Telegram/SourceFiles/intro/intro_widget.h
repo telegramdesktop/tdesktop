@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "window/window_lock_widgets.h"
 #include "core/core_cloud_password.h"
+#include "media/player/media_player_float.h"
 
 namespace Main {
 class Account;
@@ -83,7 +84,11 @@ enum class EnterPoint : uchar {
 	Qr,
 };
 
-class Widget : public Ui::RpWidget, private base::Subscriber {
+class Widget
+	: public Ui::RpWidget
+	, private Media::Player::FloatDelegate
+	, private Media::Player::FloatSectionDelegate
+	, private base::Subscriber {
 public:
 	Widget(
 		QWidget *parent,
@@ -142,6 +147,23 @@ private:
 
 	void getNearestDC();
 	void showTerms(Fn<void()> callback);
+
+	// FloatDelegate
+	[[nodiscard]] auto floatPlayerDelegate()
+		-> not_null<Media::Player::FloatDelegate*>;
+	[[nodiscard]] auto floatPlayerSectionDelegate()
+		-> not_null<Media::Player::FloatSectionDelegate*>;
+	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
+		Window::Column column) override;
+	void floatPlayerEnumerateSections(Fn<void(
+		not_null<Media::Player::FloatSectionDelegate*> widget,
+		Window::Column widgetColumn)> callback) override;
+	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
+
+	// FloatSectionDelegate
+	QRect floatPlayerAvailableRect() override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 
 	const not_null<Main::Account*> _account;
 	std::optional<MTP::Sender> _api;

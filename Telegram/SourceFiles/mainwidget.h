@@ -99,8 +99,8 @@ class ItemBase;
 
 class MainWidget
 	: public Ui::RpWidget
-	, private base::Subscriber
-	, private Media::Player::FloatDelegate {
+	, private Media::Player::FloatDelegate
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -234,6 +234,8 @@ public:
 	void notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
+	using FloatDelegate::floatPlayerAreaUpdated;
+
 	void closeBothPlayers();
 
 public slots:
@@ -314,13 +316,13 @@ private:
 	void cacheBackground();
 	void clearCachedBackground();
 
-	not_null<Media::Player::FloatDelegate*> floatPlayerDelegate();
+	[[nodiscard]] auto floatPlayerDelegate()
+		-> not_null<Media::Player::FloatDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
-	not_null<Window::SessionController*> floatPlayerController() override;
-	not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
+		not_null<Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) override;
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 	void floatPlayerClosed(FullMsgId itemId);

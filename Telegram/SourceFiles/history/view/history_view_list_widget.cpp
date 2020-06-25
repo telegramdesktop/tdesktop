@@ -602,7 +602,7 @@ void ListWidget::visibleTopBottomUpdated(
 	} else {
 		scrollDateHideByTimer();
 	}
-	_controller->floatPlayerAreaUpdated().notify(true);
+	_controller->floatPlayerAreaUpdated();
 	_applyUpdatedScrollState.call();
 }
 

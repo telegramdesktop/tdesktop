@@ -608,11 +608,11 @@ QImage TabbedSelector::grabForAnimation() {
 	return result;
 }
 
-bool TabbedSelector::wheelEventFromFloatPlayer(QEvent *e) {
+bool TabbedSelector::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect TabbedSelector::rectForFloatPlayer() const {
+QRect TabbedSelector::floatPlayerAvailableRect() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

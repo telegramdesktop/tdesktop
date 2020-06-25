@@ -108,8 +108,8 @@ public:
 	void updateInternalState(not_null<Memento*> memento);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
+	QRect floatPlayerAvailableRect() override;
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 

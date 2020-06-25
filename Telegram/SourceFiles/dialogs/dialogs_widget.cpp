@@ -671,11 +671,11 @@ void Widget::startSlideAnimation() {
 	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer() const {
+QRect Widget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 
@@ -1596,7 +1596,7 @@ void Widget::updateControlsGeometry() {
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
 	_inner->resize(width(), _inner->height());
 	if (scrollHeight != wasScrollHeight) {
-		controller()->floatPlayerAreaUpdated().notify(true);
+		controller()->floatPlayerAreaUpdated();
 	}
 	if (_topDelta) {
 		_scroll->scrollToY(newScrollTop);

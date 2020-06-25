@@ -453,11 +453,11 @@ void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer() const {
+QRect Widget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 

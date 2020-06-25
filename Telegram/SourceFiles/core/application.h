@@ -71,6 +71,10 @@ class Instance;
 namespace View {
 class OverlayWidget;
 } // namespace View
+namespace Player {
+class FloatController;
+class FloatDelegate;
+} // namespace Player
 } // namespace Media
 
 namespace Lang {
@@ -218,6 +222,15 @@ public:
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 
+	// Float player.
+	void setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate);
+	void replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	void restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	[[nodiscard]] rpl::producer<FullMsgId> floatPlayerClosed() const;
+
 	void logout(Main::Account *account = nullptr);
 	void forceLogOut(
 		not_null<Main::Account*> account,
@@ -319,6 +332,10 @@ private:
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
 
 	const std::unique_ptr<Media::Audio::Instance> _audio;
+
+	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
+	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
+	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	// Notifications should be destroyed before _audio.
 	// Mutable because is created in run() after OpenSSL is inited.

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 class SessionController;
-class AbstractSectionWidget;
 enum class Column;
 } // namespace Window
 
@@ -105,14 +104,19 @@ private:
 
 };
 
+class FloatSectionDelegate {
+public:
+	virtual QRect floatPlayerAvailableRect() = 0;
+	virtual bool floatPlayerHandleWheelEvent(QEvent *e) = 0;
+};
+
 class FloatDelegate {
 public:
 	virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
-	virtual not_null<Window::SessionController*> floatPlayerController() = 0;
-	virtual not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+	virtual not_null<FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) = 0;
 	virtual void floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
+		not_null<FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) = 0;
 	virtual bool floatPlayerIsVisible(not_null<HistoryItem*> item) = 0;
 
@@ -129,7 +133,10 @@ public:
 		return _raiseAll.events();
 	}
 	virtual rpl::producer<> floatPlayerUpdatePositionsRequests() {
-		return _updatePositions.events();;
+		return _updatePositions.events();
+	}
+	virtual rpl::producer<> floatPlayerAreaUpdates() {
+		return _areaUpdates.events();
 	}
 
 	struct FloatPlayerFilterWheelEventRequest {
@@ -160,6 +167,9 @@ protected:
 	void floatPlayerUpdatePositions() {
 		_updatePositions.fire({});
 	}
+	void floatPlayerAreaUpdated() {
+		_areaUpdates.fire({});
+	}
 	std::optional<bool> floatPlayerFilterWheelEvent(
 			not_null<QObject*> object,
 			not_null<QEvent*> event) {
@@ -174,6 +184,7 @@ private:
 	rpl::event_stream<> _showVisible;
 	rpl::event_stream<> _raiseAll;
 	rpl::event_stream<> _updatePositions;
+	rpl::event_stream<> _areaUpdates;
 	rpl::event_stream<FloatPlayerFilterWheelEventRequest> _filterWheelEvent;
 
 };
@@ -240,7 +251,6 @@ private:
 
 	not_null<FloatDelegate*> _delegate;
 	not_null<Ui::RpWidget*> _parent;
-	not_null<Window::SessionController*> _controller;
 	std::vector<std::unique_ptr<Item>> _items;
 
 	rpl::event_stream<FullMsgId> _closeEvents;

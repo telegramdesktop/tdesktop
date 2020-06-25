@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "dialogs/dialogs_key.h"
+#include "media/player/media_player_float.h" // FloatSectionDelegate
 #include "base/object_ptr.h"
 
 namespace Main {
@@ -34,6 +35,7 @@ enum class Column {
 
 class AbstractSectionWidget
 	: public Ui::RpWidget
+	, public Media::Player::FloatSectionDelegate
 	, protected base::Subscriber {
 public:
 	AbstractSectionWidget(
@@ -56,14 +58,6 @@ public:
 	}
 	virtual bool returnTabbedSelector() {
 		return false;
-	}
-
-	// Float player interface.
-	virtual bool wheelEventFromFloatPlayer(QEvent *e) {
-		return false;
-	}
-	[[nodiscard]] virtual QRect rectForFloatPlayer() const {
-		return mapToGlobal(rect());
 	}
 
 private:

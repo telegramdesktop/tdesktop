@@ -286,12 +286,7 @@ FloatController::Item::Item(
 
 FloatController::FloatController(not_null<FloatDelegate*> delegate)
 : _delegate(delegate)
-, _parent(_delegate->floatPlayerWidget())
-, _controller(_delegate->floatPlayerController()) {
-	subscribe(_controller->floatPlayerAreaUpdated(), [=] {
-		checkVisibility();
-	});
-
+, _parent(_delegate->floatPlayerWidget()) {
 	subscribe(Media::Player::instance()->trackChangedNotifier(), [=](
 			AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Voice) {
@@ -346,6 +341,11 @@ void FloatController::startDelegateHandling() {
 	) | rpl::start_with_next([=](
 			const FloatDelegate::FloatPlayerFilterWheelEventRequest &request) {
 		*request.result = filterWheelEvent(request.object, request.event);
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerAreaUpdates(
+	) | rpl::start_with_next([=] {
+		checkVisibility();
 	}, _delegateLifetime);
 }
 
@@ -457,7 +457,7 @@ std::optional<bool> FloatController::filterWheelEvent(
 		if (instance->widget == object) {
 			const auto section = _delegate->floatPlayerGetSection(
 				instance->column);
-			return section->wheelEventFromFloatPlayer(event);
+			return section->floatPlayerHandleWheelEvent(event);
 		}
 	}
 	return std::nullopt;
@@ -517,7 +517,7 @@ QPoint FloatController::getHiddenPosition(
 
 QPoint FloatController::getPosition(not_null<Item*> instance) const {
 	const auto section = _delegate->floatPlayerGetSection(instance->column);
-	const auto rect = section->rectForFloatPlayer();
+	const auto rect = section->floatPlayerAvailableRect();
 	auto position = rect.topLeft();
 	if (IsBottomCorner(instance->corner)) {
 		position.setY(position.y() + rect.height() - instance->widget->height());
@@ -566,9 +566,10 @@ void FloatController::updateColumnCorner(QPoint center) {
 	auto column = Core::App().settings().floatPlayerColumn();
 	auto corner = Core::App().settings().floatPlayerCorner();
 	auto checkSection = [&](
-			not_null<Window::AbstractSectionWidget*> widget,
+			not_null<FloatSectionDelegate*> widget,
 			Window::Column widgetColumn) {
-		auto rect = _parent->mapFromGlobal(widget->rectForFloatPlayer());
+		auto rect = _parent->mapFromGlobal(
+			widget->floatPlayerAvailableRect());
 		auto left = rect.x() + (size.width() / 2);
 		auto right = rect.x() + rect.width() - (size.width() / 2);
 		auto top = rect.y() + (size.height() / 2);

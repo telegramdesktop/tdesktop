@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
+#include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "api/api_text_entities.h"
 #include "app.h"
@@ -62,6 +63,8 @@ Widget::Widget(
 		this,
 		account,
 		rpl::single(true))) {
+	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+
 	switch (point) {
 	case EnterPoint::Start:
 		appendStep(new StartWidget(this, _account, getData()));
@@ -128,6 +131,42 @@ Widget::Widget(
 			checkUpdateStatus();
 		}, lifetime());
 	}
+}
+
+not_null<Media::Player::FloatDelegate*> Widget::floatPlayerDelegate() {
+	return static_cast<Media::Player::FloatDelegate*>(this);
+}
+
+auto Widget::floatPlayerSectionDelegate()
+-> not_null<Media::Player::FloatSectionDelegate*> {
+	return static_cast<Media::Player::FloatSectionDelegate*>(this);
+}
+
+not_null<Ui::RpWidget*> Widget::floatPlayerWidget() {
+	return this;
+}
+
+auto Widget::floatPlayerGetSection(Window::Column column)
+-> not_null<Media::Player::FloatSectionDelegate*> {
+	return this;
+}
+
+void Widget::floatPlayerEnumerateSections(Fn<void(
+		not_null<Media::Player::FloatSectionDelegate*> widget,
+		Window::Column widgetColumn)> callback) {
+	callback(this, Window::Column::Second);
+}
+
+bool Widget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
+	return false;
+}
+
+QRect Widget::floatPlayerAvailableRect() {
+	return mapToGlobal(rect());
+}
+
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return false;
 }
 
 void Widget::refreshLang() {
@@ -310,6 +349,7 @@ void Widget::fixOrder() {
 	if (_changeLanguage) _changeLanguage->raise();
 	_settings->raise();
 	_back->raise();
+	floatPlayerRaiseAll();
 	_connecting->raise();
 }
 
@@ -610,8 +650,10 @@ void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 
 	_a_show.stop();
 	showControls();
+	floatPlayerHideAll();
 	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideControls();
+	floatPlayerShowVisible();
 
 	_a_show.start(
 		[=] { animationCallback(); },
@@ -665,6 +707,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	updateControlsGeometry();
+	floatPlayerAreaUpdated();
 }
 
 void Widget::updateControlsGeometry() {
@@ -732,7 +775,6 @@ Widget::~Widget() {
 	for (auto step : base::take(_stepHistory)) {
 		delete step;
 	}
-	if (App::wnd()) App::wnd()->noIntro(this);
 }
 
 } // namespace Intro

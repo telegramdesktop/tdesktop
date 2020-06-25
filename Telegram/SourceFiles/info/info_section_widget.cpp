@@ -108,12 +108,12 @@ object_ptr<Ui::LayerWidget> SectionWidget::moveContentToLayer(
 			bodyGeometry);
 }
 
-bool SectionWidget::wheelEventFromFloatPlayer(QEvent *e) {
-	return _content->wheelEventFromFloatPlayer(e);
+bool SectionWidget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return _content->floatPlayerHandleWheelEvent(e);
 }
 
-QRect SectionWidget::rectForFloatPlayer() const {
-	return _content->rectForFloatPlayer();
+QRect SectionWidget::floatPlayerAvailableRect() {
+	return _content->floatPlayerAvailableRect();
 }
 
 } // namespace Info

@@ -228,6 +228,8 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	requestRoundVideoResize();
 	emitUpdate(data->type);
 	data->streamed = nullptr;
+
+	_roundPlaying = false;
 	App::wnd()->sessionController()->disableGifPauseReason(
 		Window::GifPauseReason::RoundPlaying);
 }
@@ -729,6 +731,10 @@ void Instance::setupShortcuts() {
 	}, _lifetime);
 }
 
+bool Instance::pauseGifByRoundVideo() const {
+	return _roundPlaying;
+}
+
 void Instance::handleStreamingUpdate(
 		not_null<Data*> data,
 		Streaming::Update &&update) {
@@ -741,6 +747,7 @@ void Instance::handleStreamingUpdate(
 					float64) {
 				requestRoundVideoRepaint();
 			});
+			_roundPlaying = true;
 			App::wnd()->sessionController()->enableGifPauseReason(
 				Window::GifPauseReason::RoundPlaying);
 			requestRoundVideoResize();

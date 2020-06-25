@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
+#include "core/application.h"
 #include "app.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
@@ -31,7 +32,7 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(this, controller, Wrap::Layer, memento) {
 	setupHeightConsumers();
-	_controller->replaceFloatPlayerDelegate(floatPlayerDelegate());
+	Core::App().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 LayerWidget::LayerWidget(
@@ -40,7 +41,7 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(memento->takeContent(this, Wrap::Layer)) {
 	setupHeightConsumers();
-	_controller->replaceFloatPlayerDelegate(floatPlayerDelegate());
+	Core::App().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 auto LayerWidget::floatPlayerDelegate()
@@ -52,19 +53,15 @@ not_null<Ui::RpWidget*> LayerWidget::floatPlayerWidget() {
 	return this;
 }
 
-not_null<Window::SessionController*> LayerWidget::floatPlayerController() {
-	return _controller;
-}
-
-not_null<Window::AbstractSectionWidget*> LayerWidget::floatPlayerGetSection(
-		Window::Column column) {
+auto LayerWidget::floatPlayerGetSection(Window::Column column)
+-> not_null<::Media::Player::FloatSectionDelegate*> {
 	Expects(_content != nullptr);
 
 	return _content;
 }
 
 void LayerWidget::floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
+		not_null<::Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) {
 	Expects(_content != nullptr);
 
@@ -285,7 +282,7 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 void LayerWidget::restoreFloatPlayerDelegate() {
 	if (!_floatPlayerDelegateRestored) {
 		_floatPlayerDelegateRestored = true;
-		_controller->restoreFloatPlayerDelegate(floatPlayerDelegate());
+		Core::App().restoreFloatPlayerDelegate(floatPlayerDelegate());
 	}
 }
 

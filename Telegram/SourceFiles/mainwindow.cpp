@@ -262,8 +262,10 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
+	destroyLayer();
+	auto created = object_ptr<Intro::Widget>(bodyWidget(), &account(), point);
 	clearWidgets();
-	_intro.create(bodyWidget(), &account(), point);
+	_intro = std::move(created);
 	if (_passcodeLock) {
 		_intro->hide();
 	} else {
@@ -284,6 +286,7 @@ void MainWindow::setupMain() {
 	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
+	destroyLayer();
 	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
 	_main = std::move(created);
@@ -708,12 +711,6 @@ void MainWindow::activate() {
 		if (_main) {
 			_main->windowShown();
 		}
-	}
-}
-
-void MainWindow::noIntro(Intro::Widget *was) {
-	if (was == _intro) {
-		_intro = nullptr;
 	}
 }
 

@@ -239,12 +239,6 @@ MainWidget::MainWidget(
 , _cacheBackgroundTimer([=] { cacheBackground(); })
 , _viewsIncrementTimer([=] { viewsIncrement(); })
 , _changelogs(Core::Changelogs::Create(&controller->session())) {
-	_controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
-	_controller->floatPlayerClosed(
-	) | rpl::start_with_next([=](FullMsgId itemId) {
-		floatPlayerClosed(itemId);
-	}, lifetime());
-
 	updateScrollColors();
 	setupConnectingWidget();
 
@@ -254,6 +248,12 @@ MainWidget::MainWidget(
 	subscribe(session().calls().currentCallChanged(), [=](Calls::Call *call) {
 		setCurrentCall(call);
 	});
+
+	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	Core::App().floatPlayerClosed(
+	) | rpl::start_with_next([=](FullMsgId itemId) {
+		floatPlayerClosed(itemId);
+		}, lifetime());
 
 	Core::App().exportManager().currentView(
 	) | rpl::start_with_next([=](Export::View::PanelController *view) {
@@ -396,12 +396,8 @@ not_null<Ui::RpWidget*> MainWidget::floatPlayerWidget() {
 	return this;
 }
 
-not_null<Window::SessionController*> MainWidget::floatPlayerController() {
-	return _controller;
-}
-
-not_null<Window::AbstractSectionWidget*> MainWidget::floatPlayerGetSection(
-		Window::Column column) {
+auto MainWidget::floatPlayerGetSection(Window::Column column)
+-> not_null<Media::Player::FloatSectionDelegate*> {
 	if (Adaptive::ThreeColumn()) {
 		if (column == Window::Column::First) {
 			return _dialogs;
@@ -432,7 +428,7 @@ not_null<Window::AbstractSectionWidget*> MainWidget::floatPlayerGetSection(
 }
 
 void MainWidget::floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
+		not_null<Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) {
 	if (Adaptive::ThreeColumn()) {
 		callback(_dialogs, Window::Column::First);
@@ -1967,8 +1963,10 @@ void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_a_show.stop();
 
 	showAll();
+	floatPlayerHideAll();
 	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideAll();
+	floatPlayerShowVisible();
 
 	_a_show.start(
 		[this] { animationCallback(); },
@@ -2038,7 +2036,6 @@ void MainWidget::hideAll() {
 		_player->setVisible(false);
 		_playerHeight = 0;
 	}
-	floatPlayerHideAll();
 }
 
 void MainWidget::showAll() {
@@ -2096,7 +2093,6 @@ void MainWidget::showAll() {
 	}
 	updateControlsGeometry();
 	floatPlayerCheckVisibility();
-	floatPlayerShowVisible();
 
 	App::wnd()->checkHistoryActivation();
 }

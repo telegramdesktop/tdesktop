@@ -882,11 +882,11 @@ void ScheduledWidget::showFinishedHook() {
 	_composeControls->showFinished();
 }
 
-bool ScheduledWidget::wheelEventFromFloatPlayer(QEvent *e) {
+bool ScheduledWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect ScheduledWidget::rectForFloatPlayer() const {
+QRect ScheduledWidget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 

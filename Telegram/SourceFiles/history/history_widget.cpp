@@ -2011,6 +2011,7 @@ void HistoryWidget::showHistory(
 			FullMsgId(_history->channelId(), _showAtMsgId) });
 	}
 	update();
+	controller()->floatPlayerAreaUpdated();
 
 	crl::on_main(App::wnd(), [] { App::wnd()->setInnerFocus(); });
 }
@@ -2889,7 +2890,7 @@ void HistoryWidget::visibleAreaUpdated() {
 		const auto scrollTop = _scroll->scrollTop();
 		const auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
-		controller()->floatPlayerAreaUpdated().notify(true);
+		controller()->floatPlayerAreaUpdated();
 	}
 }
 
@@ -3846,12 +3847,12 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 	return TWidget::eventFilter(obj, e);
 }
 
-bool HistoryWidget::wheelEventFromFloatPlayer(QEvent *e) {
-	return _scroll->viewportEvent(e);
+bool HistoryWidget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return _peer ? _scroll->viewportEvent(e) : false;
 }
 
-QRect HistoryWidget::rectForFloatPlayer() const {
-	return mapToGlobal(_scroll->geometry());
+QRect HistoryWidget::floatPlayerAvailableRect() {
+	return _peer ? mapToGlobal(_scroll->geometry()) : mapToGlobal(rect());
 }
 
 void HistoryWidget::updateDragAreas() {
@@ -5116,7 +5117,7 @@ void HistoryWidget::updateHistoryGeometry(
 			}
 		}
 
-		controller()->floatPlayerAreaUpdated().notify(true);
+		controller()->floatPlayerAreaUpdated();
 	}
 
 	updateListSize();

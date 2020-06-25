@@ -98,8 +98,8 @@ public:
 	}
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
+	bool floatPlayerHandleWheelEvent(QEvent *e);
+	QRect floatPlayerAvailableRect() const;
 
 	auto showRequests() const {
 		return _showRequests.events();

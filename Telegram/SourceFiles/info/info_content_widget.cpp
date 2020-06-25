@@ -214,11 +214,11 @@ void ContentWidget::scrollTo(const Ui::ScrollToRequest &request) {
 	_scroll->scrollTo(request);
 }
 
-bool ContentWidget::wheelEventFromFloatPlayer(QEvent *e) {
+bool ContentWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect ContentWidget::rectForFloatPlayer() const {
+QRect ContentWidget::floatPlayerAvailableRect() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

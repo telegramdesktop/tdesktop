@@ -264,8 +264,8 @@ public:
 	bool returnTabbedSelector() override;
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
+	QRect floatPlayerAvailableRect() override;
 
 	void app_sendBotCallback(
 		not_null<const HistoryMessageMarkupButton*> button,
