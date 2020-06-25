@@ -89,8 +89,7 @@ QByteArray Settings::serialize() const {
 		}
 		stream
 			<< qint32(_autoDownloadDictionaries.current() ? 1 : 0)
-			<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
-			<< qint32(Window::Theme::Background()->tileNight() ? 1 : 0);
+			<< qint32(_mainMenuAccountsShown.current() ? 1 : 0);
 	}
 	return result;
 }
