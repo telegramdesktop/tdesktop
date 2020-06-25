@@ -29,24 +29,18 @@ class Instance
 	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
-	explicit Instance(not_null<Main::Session*> session);
+	Instance();
+	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user);
-	void handleUpdate(const MTPDupdatePhoneCall &update);
+	void handleUpdate(
+		not_null<Main::Session*> session,
+		const MTPDupdatePhoneCall &update);
 	void showInfoPanel(not_null<Call*> call);
-	Call* currentCall();
+	[[nodiscard]] Call *currentCall() const;
+	[[nodiscard]] rpl::producer<Call*> currentCallValue() const;
 
-	base::Observable<Call*> &currentCallChanged() {
-		return _currentCallChanged;
-	}
-
-	base::Observable<FullMsgId> &newServiceMessage() {
-		return _newServiceMessage;
-	}
-
-	bool isQuitPrevent();
-
-	~Instance();
+	[[nodiscard]] bool isQuitPrevent();
 
 private:
 	not_null<Call::Delegate*> getCallDelegate() {
@@ -66,21 +60,21 @@ private:
 	void requestMicrophonePermissionOrFail(Fn<void()> onSuccess) override;
 
 	void refreshDhConfig();
-	void refreshServerConfig();
+	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
 	bool alreadyInCall();
-	void handleCallUpdate(const MTPPhoneCall &call);
-
-	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
+	void handleCallUpdate(
+		not_null<Main::Session*> session,
+		const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;
 
 	crl::time _lastServerConfigUpdateTime = 0;
-	mtpRequestId _serverConfigRequestId = 0;
+	base::weak_ptr<Main::Session> _serverConfigRequestSession;
 
 	std::unique_ptr<Call> _currentCall;
+	rpl::event_stream<Call*> _currentCallChanges;
 	std::unique_ptr<Panel> _currentCallPanel;
 	base::Observable<Call*> _currentCallChanged;
 	base::Observable<FullMsgId> _newServiceMessage;

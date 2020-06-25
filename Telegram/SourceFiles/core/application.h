@@ -95,6 +95,10 @@ namespace Export {
 class Manager;
 } // namespace Export
 
+namespace Calls {
+class Instance;
+} // namespace Calls
+
 namespace Core {
 
 class Launcher;
@@ -231,6 +235,11 @@ public:
 		not_null<Media::Player::FloatDelegate*> replacement);
 	[[nodiscard]] rpl::producer<FullMsgId> floatPlayerClosed() const;
 
+	// Calls.
+	Calls::Instance &calls() const {
+		return *_calls;
+	}
+
 	void logout(Main::Account *account = nullptr);
 	void forceLogOut(
 		not_null<Main::Account*> account,
@@ -319,9 +328,11 @@ private:
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
 	crl::object_on_queue<Stickers::EmojiImageLoader> _emojiImageLoader;
 	base::Timer _clearEmojiImageLoaderTimer;
+	const std::unique_ptr<Media::Audio::Instance> _audio;
 	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
+	const std::unique_ptr<Calls::Instance> _calls;
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
@@ -330,8 +341,6 @@ private:
 	std::unique_ptr<Lang::Translator> _translator;
 	base::Observable<void> _passcodedChanged;
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
-
-	const std::unique_ptr<Media::Audio::Instance> _audio;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;

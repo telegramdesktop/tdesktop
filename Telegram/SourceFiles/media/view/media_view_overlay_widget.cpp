@@ -341,6 +341,17 @@ OverlayWidget::OverlayWidget()
 		setWindowState(Qt::WindowFullScreen);
 	}
 
+	Core::App().calls().currentCallValue(
+	) | rpl::start_with_next([=](Calls::Call *call) {
+		if (!_streamed) {
+			return;
+		} else if (call) {
+			playbackPauseOnCall();
+		} else {
+			playbackResumeOnCall();
+		}
+	}, lifetime());
+
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
 
@@ -3527,19 +3538,6 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 	) | rpl::start_with_next([=] {
 		if (!isHidden()) {
 			updateControls();
-		}
-	}, _sessionLifetime);
-
-	base::ObservableViewer(
-		session->calls().currentCallChanged()
-	) | rpl::start_with_next([=](Calls::Call *call) {
-		if (!_streamed) {
-			return;
-		}
-		if (call) {
-			playbackPauseOnCall();
-		} else {
-			playbackResumeOnCall();
 		}
 	}, _sessionLifetime);
 

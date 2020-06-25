@@ -114,19 +114,14 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
-	// While we have one Media::Player::Instance for all sessions we have to do this.
-	Core::App().domain().activeSessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (session) {
-			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
-				if (call) {
-					pauseOnCall(AudioMsgId::Type::Voice);
-					pauseOnCall(AudioMsgId::Type::Song);
-				} else {
-					resumeOnCall(AudioMsgId::Type::Voice);
-					resumeOnCall(AudioMsgId::Type::Song);
-				}
-			});
+	Core::App().calls().currentCallValue(
+	) | rpl::start_with_next([=](Calls::Call *call) {
+		if (call) {
+			pauseOnCall(AudioMsgId::Type::Voice);
+			pauseOnCall(AudioMsgId::Type::Song);
+		} else {
+			resumeOnCall(AudioMsgId::Type::Voice);
+			resumeOnCall(AudioMsgId::Type::Song);
 		}
 	}, _lifetime);
 

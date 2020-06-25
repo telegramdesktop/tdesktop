@@ -101,14 +101,15 @@ Application::Application(not_null<Launcher*> launcher)
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
+, _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
+, _calls(std::make_unique<Calls::Instance>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
-, _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin())
 , _autoLockTimer([=] { checkAutoLock(); }) {
@@ -943,7 +944,7 @@ void Application::QuitAttempt() {
 		if (const auto session = App().maybeActiveSession()) {
 			if (session->updates().isQuitPrevent()
 				|| session->api().isQuitPrevent()
-				|| session->calls().isQuitPrevent()) {
+				|| App().calls().isQuitPrevent()) {
 				App().quitDelayed();
 				return;
 			}

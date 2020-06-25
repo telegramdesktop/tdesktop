@@ -60,13 +60,13 @@ public:
 	};
 	Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type);
 
-	Type type() const {
+	[[nodiscard]] Type type() const {
 		return _type;
 	}
-	not_null<UserData*> user() const {
+	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
-	bool isIncomingWaiting() const;
+	[[nodiscard]] bool isIncomingWaiting() const;
 
 	void start(bytes::const_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
@@ -89,10 +89,10 @@ public:
 		Busy,
 	};
 	State state() const {
-		return _state;
+		return _state.current();
 	}
-	base::Observable<State> &stateChanged() {
-		return _stateChanged;
+	rpl::producer<State> stateValue() const {
+		return _state.value();
 	}
 
 	static constexpr auto kSignalBarStarting = -1;
@@ -125,6 +125,10 @@ public:
 	void setCurrentAudioDevice(bool input, std::string deviceID);
 	void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 	~Call();
 
@@ -166,10 +170,9 @@ private:
 	not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
-	State _state = State::Starting;
+	rpl::variable<State> _state = State::Starting;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
-	base::Observable<State> _stateChanged;
 	int _signalBarCount = kSignalBarStarting;
 	base::Observable<int> _signalBarCountChanged;
 	crl::time _startTime = 0;
@@ -194,6 +197,8 @@ private:
 	std::unique_ptr<Controller> _controller;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
+
+	rpl::lifetime _lifetime;
 
 };
 

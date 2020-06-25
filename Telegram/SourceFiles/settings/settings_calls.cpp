@@ -135,7 +135,7 @@ void Calls::setupContent() {
 			Core::App().settings().setCallOutputDeviceID(
 				QString::fromStdString(deviceId));
 			_controller->session().saveSettingsDelayed();
-			if (const auto call = _controller->session().calls().currentCall()) {
+			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
 			}
 		});
@@ -165,7 +165,7 @@ void Calls::setupContent() {
 		_needWriteSettings = true;
 		updateOutputLabel(value);
 		Core::App().settings().setCallOutputVolume(value);
-		if (const auto call = _controller->session().calls().currentCall()) {
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioVolume(false, value / 100.0f);
 		}
 	};
@@ -214,7 +214,7 @@ void Calls::setupContent() {
 			if (_micTester) {
 				stopTestingMicrophone();
 			}
-			if (const auto call = _controller->session().calls().currentCall()) {
+			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(true, deviceId);
 			}
 		});
@@ -244,7 +244,7 @@ void Calls::setupContent() {
 		_needWriteSettings = true;
 		updateInputLabel(value);
 		Core::App().settings().setCallInputVolume(value);
-		if (const auto call = _controller->session().calls().currentCall()) {
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioVolume(true, value / 100.0f);
 		}
 	};
@@ -299,7 +299,7 @@ void Calls::setupContent() {
 	}) | rpl::start_with_next([=](bool enabled) {
 		Core::App().settings().setCallAudioDuckingEnabled(enabled);
 		Core::App().saveSettingsDelayed();
-		if (const auto call = _controller->session().calls().currentCall()) {
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioDuckingEnabled(enabled);
 		}
 	}, content->lifetime());

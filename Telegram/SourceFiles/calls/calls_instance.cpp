@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -32,9 +33,14 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 } // namespace
 
-Instance::Instance(not_null<Main::Session*> session)
-: _session(session)
-, _api(&_session->mtp()) {
+Instance::Instance() = default;
+
+Instance::~Instance() {
+	for (const auto panel : _pendingPanels) {
+		if (panel) {
+			delete panel;
+		}
+	}
 }
 
 void Instance::startOutgoingCall(not_null<UserData*> user) {
@@ -44,8 +50,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
-		_session->api().requestFullPeer(user);
-		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
+		user->session().api().requestFullPeer(user);
+		Ui::show(Box<InformBox>(
+			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
 		return;
 	}
 	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
@@ -101,8 +108,9 @@ void Instance::playSound(Sound sound) {
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		destroyCurrentPanel();
-		_currentCall.reset();
-		_currentCallChanged.notify(nullptr, true);
+		auto taken = base::take(_currentCall);
+		_currentCallChanges.fire(nullptr);
+		taken.reset();
 
 		if (App::quitting()) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
@@ -123,17 +131,24 @@ void Instance::destroyCurrentPanel() {
 }
 
 void Instance::createCall(not_null<UserData*> user, Call::Type type) {
-	auto call = std::make_unique<Call>(getCallDelegate(), user, type);;
+	auto call = std::make_unique<Call>(getCallDelegate(), user, type);
+	const auto raw = call.get();
+
+	user->session().account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		destroyCall(raw);
+	}, raw->lifetime());
+
 	if (_currentCall) {
-		_currentCallPanel->replaceCall(call.get());
+		_currentCallPanel->replaceCall(raw);
 		std::swap(_currentCall, call);
 		call->hangup();
 	} else {
-		_currentCallPanel = std::make_unique<Panel>(call.get());
+		_currentCallPanel = std::make_unique<Panel>(raw);
 		_currentCall = std::move(call);
 	}
-	_currentCallChanged.notify(_currentCall.get(), true);
-	refreshServerConfig();
+	_currentCallChanges.fire_copy(raw);
+	refreshServerConfig(&user->session());
 	refreshDhConfig();
 }
 
@@ -141,7 +156,7 @@ void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
 
 	const auto weak = base::make_weak(_currentCall);
-	_api.request(MTPmessages_GetDhConfig(
+	_currentCall->user()->session().api().request(MTPmessages_GetDhConfig(
 		MTP_int(_dhConfig.version),
 		MTP_int(MTP::ModExpFirst::kRandomPowerSize)
 	)).done([=](const MTPmessages_DhConfig &result) {
@@ -198,27 +213,32 @@ bytes::const_span Instance::updateDhConfig(
 	});
 }
 
-void Instance::refreshServerConfig() {
-	if (_serverConfigRequestId) {
+void Instance::refreshServerConfig(not_null<Main::Session*> session) {
+	if (_serverConfigRequestSession) {
 		return;
 	}
-	if (_lastServerConfigUpdateTime && (crl::now() - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
+	if (_lastServerConfigUpdateTime
+		&& ((crl::now() - _lastServerConfigUpdateTime)
+			< kServerConfigUpdateTimeoutMs)) {
 		return;
 	}
-	_serverConfigRequestId = _api.request(MTPphone_GetCallConfig(
+	_serverConfigRequestSession = session;
+	session->api().request(MTPphone_GetCallConfig(
 	)).done([=](const MTPDataJSON &result) {
-		_serverConfigRequestId = 0;
+		_serverConfigRequestSession = nullptr;
 		_lastServerConfigUpdateTime = crl::now();
 
 		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([=](const RPCError &error) {
-		_serverConfigRequestId = 0;
-	}).send();
+		_serverConfigRequestSession = nullptr;
+		}).send();
 }
 
-void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
-	handleCallUpdate(update.vphone_call());
+void Instance::handleUpdate(
+		not_null<Main::Session*> session,
+		const MTPDupdatePhoneCall& update) {
+	handleCallUpdate(session, update.vphone_call());
 }
 
 void Instance::showInfoPanel(not_null<Call*> call) {
@@ -239,18 +259,20 @@ bool Instance::isQuitPrevent() {
 	return true;
 }
 
-void Instance::handleCallUpdate(const MTPPhoneCall &call) {
+void Instance::handleCallUpdate(
+		not_null<Main::Session*> session,
+		const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
 		auto &phoneCall = call.c_phoneCallRequested();
-		auto user = _session->data().userLoaded(phoneCall.vadmin_id().v);
+		auto user = session->data().userLoaded(phoneCall.vadmin_id().v);
 		if (!user) {
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
-		const auto &config = _session->serverConfig();
+		const auto &config = session->serverConfig();
 		if (alreadyInCall() || !user || user->isSelf()) {
-			_api.request(MTPphone_DiscardCall(
+			session->api().request(MTPphone_DiscardCall(
 				MTP_flags(0),
 				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
 				MTP_int(0),
@@ -273,8 +295,12 @@ bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
 }
 
-Call *Instance::currentCall() {
+Call *Instance::currentCall() const {
 	return _currentCall.get();
+}
+
+rpl::producer<Call*> Instance::currentCallValue() const {
+	return _currentCallChanges.events_starting_with(currentCall());
 }
 
 void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
@@ -299,14 +325,6 @@ void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		})));
-	}
-}
-
-Instance::~Instance() {
-	for (auto panel : _pendingPanels) {
-		if (panel) {
-			delete panel;
-		}
 	}
 }
 

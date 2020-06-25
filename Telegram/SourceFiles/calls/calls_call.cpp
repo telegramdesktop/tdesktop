@@ -131,7 +131,8 @@ bool Call::isIncomingWaiting() const {
 	if (type() != Call::Type::Incoming) {
 		return false;
 	}
-	return (_state == State::Starting) || (_state == State::WaitingIncoming);
+	return (state() == State::Starting)
+		|| (state() == State::WaitingIncoming);
 }
 
 void Call::start(bytes::const_span random) {
@@ -142,13 +143,14 @@ void Call::start(bytes::const_span random) {
 	Assert(!_dhConfig.p.empty());
 
 	generateModExpFirst(random);
-	if (_state == State::Starting || _state == State::Requesting) {
+	const auto state = _state.current();
+	if (state == State::Starting || state == State::Requesting) {
 		if (_type == Type::Outgoing) {
 			startOutgoing();
 		} else {
 			startIncoming();
 		}
-	} else if (_state == State::ExchangingKeys
+	} else if (state == State::ExchangingKeys
 		&& _answerAfterDhConfigReceived) {
 		answer();
 	}
@@ -156,7 +158,7 @@ void Call::start(bytes::const_span random) {
 
 void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
-	Expects(_state == State::Requesting);
+	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
 	_api.request(MTPphone_RequestCall(
@@ -206,12 +208,12 @@ void Call::startOutgoing() {
 
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
-	Expects(_state == State::Starting);
+	Expects(_state.current() == State::Starting);
 
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
 	)).done([=](const MTPBool &result) {
-		if (_state == State::Starting) {
+		if (_state.current() == State::Starting) {
 			setState(State::WaitingIncoming);
 		}
 	}).fail([=](const RPCError &error) {
@@ -228,8 +230,9 @@ void Call::answer() {
 void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 
-	if (_state != State::Starting && _state != State::WaitingIncoming) {
-		if (_state != State::ExchangingKeys
+	const auto state = _state.current();
+	if (state != State::Starting && state != State::WaitingIncoming) {
+		if (state != State::ExchangingKeys
 			|| !_answerAfterDhConfigReceived) {
 			return;
 		}
@@ -280,10 +283,11 @@ crl::time Call::getDurationMs() const {
 }
 
 void Call::hangup() {
-	if (_state == State::Busy) {
+	const auto state = _state.current();
+	if (state == State::Busy) {
 		_delegate->callFinished(this);
 	} else {
-		auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
+		auto missed = (state == State::Ringing || (state == State::Waiting && _type == Type::Outgoing));
 		auto declined = isIncomingWaiting();
 		auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
 			declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
@@ -292,7 +296,7 @@ void Call::hangup() {
 }
 
 void Call::redial() {
-	if (_state != State::Busy) {
+	if (_state.current() != State::Busy) {
 		return;
 	}
 	Assert(_controller == nullptr);
@@ -384,7 +388,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return false;
 		}
 		if (_type == Type::Outgoing
-			&& _state == State::Waiting
+			&& _state.current() == State::Waiting
 			&& data.vreceive_date().value_or_empty() != 0) {
 			const auto &config = _user->session().serverConfig();
 			_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
@@ -399,7 +403,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return false;
 		}
 		if (_type == Type::Incoming
-			&& _state == State::ExchangingKeys
+			&& _state.current() == State::ExchangingKeys
 			&& !_controller) {
 			startConfirmedCall(data);
 		}
@@ -432,7 +436,8 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
-		} else if (_type == Type::Outgoing || _state == State::HangingUp) {
+		} else if (_type == Type::Outgoing
+			|| _state.current() == State::HangingUp) {
 			setState(State::Ended);
 		} else {
 			setState(State::EndedByOtherDevice);
@@ -460,7 +465,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
-	if (_state == State::ExchangingKeys
+	if (_state.current() == State::ExchangingKeys
 		|| _controller) {
 		LOG(("Call Warning: Unexpected confirmAcceptedCall."));
 		return;
@@ -710,34 +715,33 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 }
 
 void Call::setState(State state) {
-	if (_state == State::Failed) {
+	if (_state.current() == State::Failed) {
 		return;
 	}
-	if (_state == State::FailedHangingUp && state != State::Failed) {
+	if (_state.current() == State::FailedHangingUp && state != State::Failed) {
 		return;
 	}
-	if (_state != state) {
+	if (_state.current() != state) {
 		_state = state;
-		_stateChanged.notify(state, true);
 
 		if (true
-			&& _state != State::Starting
-			&& _state != State::Requesting
-			&& _state != State::Waiting
-			&& _state != State::WaitingIncoming
-			&& _state != State::Ringing) {
+			&& state != State::Starting
+			&& state != State::Requesting
+			&& state != State::Waiting
+			&& state != State::WaitingIncoming
+			&& state != State::Ringing) {
 			_waitingTrack.reset();
 		}
 		if (false
-			|| _state == State::Ended
-			|| _state == State::EndedByOtherDevice
-			|| _state == State::Failed
-			|| _state == State::Busy) {
+			|| state == State::Ended
+			|| state == State::EndedByOtherDevice
+			|| state == State::Failed
+			|| state == State::Busy) {
 			// Destroy controller before destroying Call Panel,
 			// so that the panel hide animation is smooth.
 			destroyController();
 		}
-		switch (_state) {
+		switch (state) {
 		case State::Established:
 			_startTime = crl::now();
 			break;
@@ -794,16 +798,17 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 
 	auto finalState = (type == FinishType::Ended) ? State::Ended : State::Failed;
 	auto hangupState = (type == FinishType::Ended) ? State::HangingUp : State::FailedHangingUp;
-	if (_state == State::Requesting) {
+	const auto state = _state.current();
+	if (state == State::Requesting) {
 		_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
 		_finishAfterRequestingCall = type;
 		return;
 	}
-	if (_state == State::HangingUp
-		|| _state == State::FailedHangingUp
-		|| _state == State::EndedByOtherDevice
-		|| _state == State::Ended
-		|| _state == State::Failed) {
+	if (state == State::HangingUp
+		|| state == State::FailedHangingUp
+		|| state == State::EndedByOtherDevice
+		|| state == State::Ended
+		|| state == State::Failed) {
 		return;
 	}
 	if (!_id) {

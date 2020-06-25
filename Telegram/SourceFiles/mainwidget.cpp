@@ -245,9 +245,13 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
 
-	subscribe(session().calls().currentCallChanged(), [=](Calls::Call *call) {
+	Core::App().calls().currentCallValue(
+	) | rpl::start_with_next([=](Calls::Call *call) {
 		setCurrentCall(call);
-	});
+	}, lifetime());
+	if (_callTopBar) {
+		_callTopBar->finishAnimating();
+	}
 
 	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 	Core::App().floatPlayerClosed(
@@ -943,16 +947,18 @@ void MainWidget::playerHeightUpdated() {
 }
 
 void MainWidget::setCurrentCall(Calls::Call *call) {
+	_currentCallLifetime.destroy();
 	_currentCall = call;
 	if (_currentCall) {
-		subscribe(_currentCall->stateChanged(), [this](Calls::Call::State state) {
+		_currentCall->stateValue(
+		) | rpl::start_with_next([=](Calls::Call::State state) {
 			using State = Calls::Call::State;
 			if (state == State::Established) {
 				createCallTopBar();
 			} else {
 				destroyCallTopBar();
 			}
-		});
+		}, _currentCallLifetime);
 	} else {
 		destroyCallTopBar();
 	}
@@ -2036,6 +2042,10 @@ void MainWidget::hideAll() {
 		_player->setVisible(false);
 		_playerHeight = 0;
 	}
+	if (_callTopBar) {
+		_callTopBar->setVisible(false);
+		_callTopBarHeight = 0;
+	}
 }
 
 void MainWidget::showAll() {
@@ -2090,6 +2100,10 @@ void MainWidget::showAll() {
 	if (_player) {
 		_player->setVisible(true);
 		_playerHeight = _player->contentHeight();
+	}
+	if (_callTopBar) {
+		_callTopBar->setVisible(true);
+		_callTopBarHeight = _callTopBar->height();
 	}
 	updateControlsGeometry();
 	floatPlayerCheckVisibility();

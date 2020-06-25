@@ -1238,8 +1238,9 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionPhoneCall: {
-		item->history()->session().calls().newServiceMessage().notify(
-			item->fullId());
+		item->history()->session().changes().messageUpdated(
+			item,
+			Data::MessageUpdate::Flag::CallAdded);
 	} break;
 	}
 }

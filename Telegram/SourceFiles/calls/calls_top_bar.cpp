@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "lang/lang_keys.h"
+#include "core/application.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_panel.h"
@@ -118,7 +119,7 @@ void TopBar::initControls() {
 				&& (_info->clickModifiers() & Qt::ControlModifier)) {
 				Ui::show(Box<DebugInfoBox>(_call));
 			} else {
-				call->user()->session().calls().showInfoPanel(call);
+				Core::App().calls().showInfoPanel(call);
 			}
 		}
 	});

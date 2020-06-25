@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "core/application.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
 #include "app.h"
@@ -237,11 +239,11 @@ void BoxController::prepare() {
 		}
 	}, lifetime());
 
-	subscribe(session().calls().newServiceMessage(), [=](FullMsgId msgId) {
-		if (const auto item = session().data().message(msgId)) {
-			insertRow(item, InsertWay::Prepend);
-		}
-	});
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::CallAdded
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		insertRow(update.item, InsertWay::Prepend);
+	}, lifetime());
 
 	delegate()->peerListSetTitle(tr::lng_call_box_title());
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
@@ -315,7 +317,7 @@ void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 
-	user->session().calls().startOutgoingCall(user);
+	Core::App().calls().startOutgoingCall(user);
 }
 
 void BoxController::receivedCalls(const QVector<MTPMessage> &result) {

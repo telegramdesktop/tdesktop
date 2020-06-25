@@ -1721,7 +1721,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePhoneCall: {
-		session().calls().handleUpdate(update.c_updatePhoneCall());
+		Core::App().calls().handleUpdate(&session(), update.c_updatePhoneCall());
 	} break;
 
 	case mtpc_updateUserBlocked: {

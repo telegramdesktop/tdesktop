@@ -47,10 +47,6 @@ class SessionController;
 struct TermsLock;
 } // namespace Window
 
-namespace Calls {
-class Instance;
-} // namespace Calls
-
 namespace Stickers {
 class EmojiPack;
 class DicePacks;
@@ -133,10 +129,6 @@ public:
 		return *_api;
 	}
 
-	[[nodiscard]] Calls::Instance &calls() {
-		return *_calls;
-	}
-
 	// Terms lock.
 	void lockByTerms(const Window::TermsLock &data);
 	void unlockTerms();
@@ -166,7 +158,6 @@ private:
 	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Api::Updates> _updates;
-	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;

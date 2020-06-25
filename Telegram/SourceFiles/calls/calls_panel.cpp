@@ -405,11 +405,11 @@ void Panel::initControls() {
 void Panel::reinitControls() {
 	Expects(_call != nullptr);
 
-	unsubscribe(base::take(_stateChangedSubscription));
-	_stateChangedSubscription = subscribe(
-		_call->stateChanged(),
-		[=](State state) { stateChanged(state); });
-	stateChanged(_call->state());
+	_stateLifetime.destroy();
+	_call->stateValue(
+	) | rpl::start_with_next([=](State state) {
+		stateChanged(state);
+	}, _stateLifetime);
 
 	_signalBars.create(
 		this,
