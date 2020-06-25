@@ -109,7 +109,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	const auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
 
 	const auto my = Window::Notifications::Manager::NotificationId{
-		.full = FullPeer{
+		.full = Manager::FullPeer{
 			.sessionId = notificationSessionId,
 			.peerId = notificationPeerId
 		},
