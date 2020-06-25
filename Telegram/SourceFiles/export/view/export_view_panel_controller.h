@@ -52,7 +52,9 @@ public:
 	}
 
 	auto progressState() const {
-		return ContentFromState(_settings.get(), _process->state());
+		return ContentFromState(
+			_settings.get(),
+			rpl::single(_state) | rpl::then(_process->state()));
 	}
 
 private:
