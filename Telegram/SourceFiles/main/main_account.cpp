@@ -57,7 +57,7 @@ Account::~Account() {
 	if (const auto session = maybeSession()) {
 		session->saveSettingsNowIfNeeded();
 	}
-	destroySession();
+	destroySession(DestroyReason::Quitting);
 }
 
 Storage::Domain &Account::domainLocal() const {
@@ -188,7 +188,7 @@ void Account::createSession(
 	Ensures(_session != nullptr);
 }
 
-void Account::destroySession() {
+void Account::destroySession(DestroyReason reason) {
 	_storedSessionSettings.reset();
 	_sessionUserId = 0;
 	_sessionUserSerialized = {};
@@ -197,6 +197,10 @@ void Account::destroySession() {
 	}
 
 	_sessionValue = nullptr;
+
+	if (reason == DestroyReason::LoggedOut) {
+		_session->finishLogout();
+	}
 	_session = nullptr;
 }
 
@@ -507,7 +511,7 @@ void Account::forcedLogOut() {
 void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
-	destroySession();
+	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
 }

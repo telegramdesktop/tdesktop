@@ -140,6 +140,9 @@ public:
 	[[nodiscard]] QString createInternalLink(const QString &query) const;
 	[[nodiscard]] QString createInternalLinkFull(const QString &query) const;
 
+	// Can be called only right before ~Session.
+	void finishLogout();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

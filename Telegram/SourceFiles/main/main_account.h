@@ -55,7 +55,6 @@ public:
 		QByteArray serialized,
 		int streamVersion,
 		std::unique_ptr<SessionSettings> settings);
-	void destroySession();
 
 	void logOut();
 	void forcedLogOut();
@@ -107,6 +106,10 @@ public:
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+	enum class DestroyReason {
+		Quitting,
+		LoggedOut,
+	};
 
 	void startMtp(std::unique_ptr<MTP::Config> config);
 	void createSession(
@@ -123,6 +126,7 @@ private:
 	void resetAuthorizationKeys();
 
 	void loggedOut();
+	void destroySession(DestroyReason reason);
 
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;

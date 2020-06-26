@@ -151,6 +151,13 @@ Session::Session(
 	_api->requestNotifySettings(MTP_inputNotifyBroadcasts());
 }
 
+// Can be called only right before ~Session.
+void Session::finishLogout() {
+	unlockTerms();
+	data().clear();
+	data().clearLocalStorage();
+}
+
 Session::~Session() {
 	unlockTerms();
 	data().clear();

@@ -1063,9 +1063,7 @@ void Session::setupUserIsContactViewer() {
 	}, _lifetime);
 }
 
-Session::~Session() {
-	clearLocalStorage();
-}
+Session::~Session() = default;
 
 template <typename Method>
 void Session::enumerateItemViews(
@@ -3786,8 +3784,6 @@ int32 Session::wallpapersHash() const {
 }
 
 void Session::clearLocalStorage() {
-	clear();
-
 	_cache->close();
 	_cache->clear();
 	_bigFileCache->close();
