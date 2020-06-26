@@ -156,7 +156,7 @@ SessionController::SessionController(
 		crl::on_main(this, [=] {
 			refreshFiltersMenu();
 		});
-	}, session->lifetime());
+	}, lifetime());
 
 	session->addWindow(this);
 }
