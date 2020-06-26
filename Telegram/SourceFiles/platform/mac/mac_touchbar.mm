@@ -198,7 +198,7 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	return result;
 }
 
-QImage UnreadBadge(PeerData *peer) {
+QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto history = peer->owner().history(peer->id);
 	const auto count = history->unreadCountForBadge();
 	if (!count) {
@@ -260,10 +260,6 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	}
 	return 0;
 };
-
-inline auto RplToEmpty() {
-	return rpl::map([=] { return rpl::empty_value(); });
-}
 
 int WidthFromString(NSString *s) {
 	return (int)ceil(
@@ -933,11 +929,11 @@ void AppendEmojiPacks(
 				_session->changes().historyUpdates(
 					_session->data().history(peer),
 					Data::HistoryUpdate::Flag::UnreadView
-				) | RplToEmpty(),
+				) | rpl::to_empty,
 				_session->changes().peerFlagsValue(
 					peer,
 					UpdateFlag::Notifications
-				) | RplToEmpty()
+				) | rpl::to_empty
 			) | rpl::start_with_next([=] {
 				updateBadge(pin);
 			}, *peerChangedLifetime);
