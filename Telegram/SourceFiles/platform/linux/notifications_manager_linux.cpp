@@ -571,7 +571,7 @@ void Manager::Private::showNotification(
 		i = _notifications.find(key);
 		if (i != _notifications.cend()) {
 			i->second.remove(msgId);
-			if (i->empty()) {
+			if (i->second.empty()) {
 				_notifications.erase(i);
 			}
 		}

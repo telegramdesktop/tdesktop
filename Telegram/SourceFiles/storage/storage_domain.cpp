@@ -87,7 +87,9 @@ void Domain::startWithSingleAccount(
 		generateLocalKey();
 		account->start(account->prepareToStart(_localKey));
 	}
-	_owner->accountAddedInStorage({ .account = std::move(account) });
+	_owner->accountAddedInStorage(Main::Domain::AccountWithIndex{
+		.account = std::move(account)
+	});
 	writeAccounts();
 }
 

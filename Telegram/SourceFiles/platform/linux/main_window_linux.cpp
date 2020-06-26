@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_session.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "core/sandbox.h"
