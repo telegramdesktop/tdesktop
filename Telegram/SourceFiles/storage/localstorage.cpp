@@ -792,6 +792,7 @@ void moveLegacyBackground(
 	};
 	move(legacyBackgroundKeyDay, _backgroundKeyDay);
 	move(legacyBackgroundKeyNight, _backgroundKeyNight);
+	_useGlobalBackgroundKeys = true;
 	_settingsRewriteNeeded = true;
 }
 
