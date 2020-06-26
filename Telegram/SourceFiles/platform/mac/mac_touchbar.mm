@@ -1505,6 +1505,7 @@ void AppendEmojiPacks(
 
 	[self createTouchBar];
 	[self setTouchBar:Platform::TouchBarType::Main];
+	_touchBarTypeBeforeLock = Platform::TouchBarType::Main;
 
 	Media::Player::instance()->playerWidgetToggled(
 	) | rpl::start_with_next([=](bool toggled) {
@@ -1770,7 +1771,9 @@ void AppendEmojiPacks(
 
 - (void) handleTrackStateChange:(Media::Player::TrackState)state {
 	if (state.id.type() == kSongType) {
-		[self setTouchBar:Platform::TouchBarType::AudioPlayerForce];
+		if (_touchBarType != Platform::TouchBarType::None) {
+			[self setTouchBar:Platform::TouchBarType::AudioPlayerForce];
+		}
 	} else {
 		return;
 	}
