@@ -632,6 +632,7 @@ void FloatController::finishDrag(not_null<Item*> instance, bool closed) {
 			_closeEvents.fire(item->fullId());
 		}
 		instance->widget->detach();
+		Media::Player::instance()->stop(AudioMsgId::Type::Voice);
 	}
 }
 
