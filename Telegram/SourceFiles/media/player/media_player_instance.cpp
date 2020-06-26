@@ -227,8 +227,12 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	data->streamed = nullptr;
 
 	_roundPlaying = false;
-	App::wnd()->sessionController()->disableGifPauseReason(
-		Window::GifPauseReason::RoundPlaying);
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
+			controller->disableGifPauseReason(
+				Window::GifPauseReason::RoundPlaying);
+		}
+	}
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -745,8 +749,12 @@ void Instance::handleStreamingUpdate(
 				requestRoundVideoRepaint();
 			});
 			_roundPlaying = true;
-			App::wnd()->sessionController()->enableGifPauseReason(
-				Window::GifPauseReason::RoundPlaying);
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->sessionController()) {
+					controller->enableGifPauseReason(
+						Window::GifPauseReason::RoundPlaying);
+				}
+			}
 			requestRoundVideoResize();
 		}
 		emitUpdate(data->type);
