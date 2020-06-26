@@ -341,10 +341,12 @@ void Domain::activate(not_null<Main::Account*> account) {
 	});
 	Assert(i != end(_accounts));
 	const auto changed = (_accountToActivate != i->index);
+	auto wasAuthed = false;
 
 	_activeLifetime.destroy();
 	if (_active.current()) {
 		_lastActiveIndex = _accountToActivate;
+		wasAuthed = _active.current()->sessionExists();
 	}
 	_accountToActivate = i->index;
 	_active = account.get();
@@ -352,7 +354,13 @@ void Domain::activate(not_null<Main::Account*> account) {
 	) | rpl::start_to_stream(_activeSessions, _activeLifetime);
 
 	if (changed) {
-		scheduleWriteAccounts();
+		if (wasAuthed) {
+			scheduleWriteAccounts();
+		} else {
+			crl::on_main(&Core::App(), [=] {
+				removeRedundantAccounts();
+			});
+		}
 	}
 }
 
