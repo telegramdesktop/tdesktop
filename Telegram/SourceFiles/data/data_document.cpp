@@ -308,7 +308,7 @@ void DocumentOpenClickHandler::Open(
 				location.accessDisable();
 			});
 			const auto path = location.name();
-			if (QImageReader(path).canRead()) {
+			if (Core::MimeTypeForFile(path).name().startsWith("image/") && QImageReader(path).canRead()) {
 				Core::App().showDocument(data, context);
 				return;
 			}
