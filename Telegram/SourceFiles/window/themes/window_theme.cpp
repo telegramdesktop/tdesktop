@@ -521,13 +521,6 @@ ChatBackground::ChatBackground() : _adjustableColors({
 		st::historyScrollBgOver,
 		st::historyScrollBarBg,
 		st::historyScrollBarBgOver }) {
-	saveAdjustableColors();
-
-	subscribe(this, [=](const BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			style::NotifyPaletteChanged();
-		}
-	});
 }
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
@@ -550,6 +543,14 @@ void ChatBackground::initialRead() {
 }
 
 void ChatBackground::start() {
+	saveAdjustableColors();
+
+	subscribe(this, [=](const BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			style::NotifyPaletteChanged();
+		}
+	});
+
 	initialRead();
 
 	Core::App().domain().activeSessionValue(
