@@ -167,6 +167,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	std::optional<MTP::Sender> _api;
+	mtpRequestId _nearestDcRequestId = 0;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;

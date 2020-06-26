@@ -179,6 +179,8 @@ QrWidget::QrWidget(
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
 
+	cancelNearestDcRequest();
+
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);

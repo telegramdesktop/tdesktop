@@ -132,7 +132,9 @@ void PhoneWidget::phoneChanged() {
 }
 
 void PhoneWidget::submit() {
-	if (_sentRequest || isHidden()) return;
+	if (_sentRequest || isHidden()) {
+		return;
+	}
 
 	const auto phone = fullNumber();
 	if (!AllowPhoneAttempt(phone)) {
@@ -140,6 +142,8 @@ void PhoneWidget::submit() {
 		_phone->setFocus();
 		return;
 	}
+
+	cancelNearestDcRequest();
 
 	// Check if such account is authorized already.
 	const auto digitsOnly = [](QString value) {

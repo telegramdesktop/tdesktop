@@ -502,6 +502,10 @@ void Step::setShowTermsCallback(Fn<void()> callback) {
 	_showTermsCallback = std::move(callback);
 }
 
+void Step::setCancelNearestDcCallback(Fn<void()> callback) {
+	_cancelNearestDcCallback = std::move(callback);
+}
+
 void Step::setAcceptTermsCallback(
 		Fn<void(Fn<void()> callback)> callback) {
 	_acceptTermsCallback = std::move(callback);

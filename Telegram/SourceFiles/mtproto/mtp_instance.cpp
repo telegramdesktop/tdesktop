@@ -417,8 +417,9 @@ void Instance::Private::setGoodProxyDomain(
 }
 
 void Instance::Private::suggestMainDcId(DcId mainDcId) {
-	if (_mainDcIdForced) return;
-	setMainDcId(mainDcId);
+	if (!_mainDcIdForced) {
+		setMainDcId(mainDcId);
+	}
 }
 
 void Instance::Private::setMainDcId(DcId mainDcId) {

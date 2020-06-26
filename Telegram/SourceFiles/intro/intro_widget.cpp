@@ -65,6 +65,8 @@ Widget::Widget(
 		rpl::single(true))) {
 	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
+	getNearestDC();
+
 	switch (point) {
 	case EnterPoint::Start:
 		appendStep(new StartWidget(this, _account, getData()));
@@ -103,8 +105,6 @@ Widget::Widget(
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
-
-	getNearestDC();
 
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
@@ -378,8 +378,13 @@ void Widget::appendStep(Step *step) {
 	step->setShowResetCallback([=] {
 		showResetButton();
 	});
-	step->setShowTermsCallback([=]() {
+	step->setShowTermsCallback([=] {
 		showTerms();
+	});
+	step->setCancelNearestDcCallback([=] {
+		if (_api) {
+			_api->request(base::take(_nearestDcRequestId)).cancel();
+		}
 	});
 	step->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
@@ -519,8 +524,9 @@ void Widget::getNearestDC() {
 	if (!_api) {
 		return;
 	}
-	_api->request(MTPhelp_GetNearestDc(
+	_nearestDcRequestId = _api->request(MTPhelp_GetNearestDc(
 	)).done([=](const MTPNearestDc &result) {
+		_nearestDcRequestId = 0;
 		const auto &nearest = result.c_nearestDc();
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3"
 			).arg(qs(nearest.vcountry())

@@ -58,8 +58,8 @@ public:
 	void setGoCallback(
 		Fn<void(Step *step, StackAction action, Animate animate)> callback);
 	void setShowResetCallback(Fn<void()> callback);
-	void setShowTermsCallback(
-		Fn<void()> callback);
+	void setShowTermsCallback(Fn<void()> callback);
+	void setCancelNearestDcCallback(Fn<void()> callback);
 	void setAcceptTermsCallback(
 		Fn<void(Fn<void()> callback)> callback);
 
@@ -130,6 +130,9 @@ protected:
 			_acceptTermsCallback(callback);
 		}
 	}
+	void cancelNearestDcRequest() {
+		if (_cancelNearestDcCallback) _cancelNearestDcCallback();
+	}
 
 	virtual int errorTop() const;
 
@@ -176,6 +179,7 @@ private:
 	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
+	Fn<void()> _cancelNearestDcCallback;
 	Fn<void(Fn<void()> callback)> _acceptTermsCallback;
 
 	rpl::variable<QString> _titleText;
