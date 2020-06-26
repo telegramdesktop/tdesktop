@@ -1219,7 +1219,6 @@ void OverlayWidget::onToMessage() {
 	}
 	if (const auto item = _session->data().message(_msgid)) {
 		close();
-		Core::App().domain().activate(&_session->account());
 		Ui::showPeerHistoryAtItem(item);
 	}
 }
@@ -3852,7 +3851,6 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_over == OverName && _down == OverName) {
 		if (_from) {
 			close();
-			Core::App().domain().activate(&_from->account());
 			Ui::showPeerProfile(_from);
 		}
 	} else if (_over == OverDate && _down == OverDate) {

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "main/main_domain.h"
 #include "boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
 #include "ui/layers/layer_widget.h"
@@ -32,24 +33,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "data/data_session.h"
 
+namespace {
+
+[[nodiscard]] MainWidget *CheckMainWidget(not_null<Main::Session*> session) {
+	if (const auto m = App::main()) { // multi good
+		if (&m->session() == session) {
+			return m;
+		}
+	}
+	if (&Core::App().domain().active() != &session->account()) {
+		Core::App().domain().activate(&session->account());
+	}
+	if (const auto m = App::main()) { // multi good
+		if (&m->session() == session) {
+			return m;
+		}
+	}
+	return nullptr;
+}
+
+} // namespace
+
 namespace App {
 
 void sendBotCommand(
 		not_null<PeerData*> peer,
 		UserData *bot,
 		const QString &cmd, MsgId replyTo) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == &peer->session()) {
-			m->sendBotCommand(peer, bot, cmd, replyTo);
-		}
+	if (const auto m = CheckMainWidget(&peer->session())) {
+		m->sendBotCommand(peer, bot, cmd, replyTo);
 	}
 }
 
 void hideSingleUseKeyboard(not_null<const HistoryItem*> message) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == &message->history()->session()) {
-			m->hideSingleUseKeyboard(message->history()->peer, message->id);
-		}
+	if (const auto m = CheckMainWidget(&message->history()->session())) {
+		m->hideSingleUseKeyboard(message->history()->peer, message->id);
 	}
 }
 
@@ -88,10 +106,8 @@ void activateBotCommand(
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (const auto m = App::main()) { // multi good
-			if (&m->session() == &msg->history()->session()) {
-				m->app_sendBotCallback(button, msg, row, column);
-			}
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
+			m->app_sendBotCallback(button, msg, row, column);
 		}
 	} break;
 
@@ -145,34 +161,30 @@ void activateBotCommand(
 				chosen |= PollData::Flag::Quiz;
 			}
 		}
-		if (const auto m = App::main()) { // multi good
-			if (&m->session() == &msg->history()->session()) {
-				Window::PeerMenuCreatePoll(m->controller(), msg->history()->peer, chosen, disabled);
-			}
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
+			Window::PeerMenuCreatePoll(m->controller(), msg->history()->peer, chosen, disabled);
 		}
 	} break;
 
 	case ButtonType::SwitchInlineSame:
 	case ButtonType::SwitchInline: {
 		const auto session = &msg->history()->session();
-		if (const auto m = App::main()) { // multi good
-			if (&m->session() == session) {
-				if (const auto bot = msg->getMessageBot()) {
-					const auto fastSwitchDone = [&] {
-						auto samePeer = (button->type == ButtonType::SwitchInlineSame);
-						if (samePeer) {
-							Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data), bot, msg->id);
+		if (const auto m = CheckMainWidget(session)) {
+			if (const auto bot = msg->getMessageBot()) {
+				const auto fastSwitchDone = [&] {
+					auto samePeer = (button->type == ButtonType::SwitchInlineSame);
+					if (samePeer) {
+						Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data), bot, msg->id);
+						return true;
+					} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
+						if (Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data))) {
 							return true;
-						} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
-							if (Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data))) {
-								return true;
-							}
 						}
-						return false;
-					}();
-					if (!fastSwitchDone) {
-						m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
 					}
+					return false;
+				}();
+				if (!fastSwitchDone) {
+					m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
 				}
 			}
 		}
@@ -185,19 +197,20 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (const auto m = App::main()) { // multi good
-		if (!inPeer || &m->session() == &inPeer->session()) {
-			if (m->controller()->openedFolder().current()) {
-				m->controller()->closeFolder();
-			}
-			Ui::hideSettingsAndLayer();
-			Core::App().hideMediaView();
-			m->searchMessages(
-				tag + ' ',
-				(inPeer && !inPeer->isUser())
-				? inPeer->owner().history(inPeer).get()
-				: Dialogs::Key());
+	const auto m = inPeer
+		? CheckMainWidget(&inPeer->session())
+		: App::main(); // multi good
+	if (m) {
+		if (m->controller()->openedFolder().current()) {
+			m->controller()->closeFolder();
 		}
+		Ui::hideSettingsAndLayer();
+		Core::App().hideMediaView();
+		m->searchMessages(
+			tag + ' ',
+			(inPeer && !inPeer->isUser())
+			? inPeer->owner().history(inPeer).get()
+			: Dialogs::Key());
 	}
 }
 
@@ -218,6 +231,14 @@ void showPeerProfile(not_null<PeerData*> peer) {
 				controller->showPeerInfo(peer);
 			}
 		}
+		if (&Core::App().domain().active() != &peer->session().account()) {
+			Core::App().domain().activate(&peer->session().account());
+		}
+		if (const auto controller = window->sessionController()) {
+			if (&controller->session() == &peer->session()) {
+				controller->showPeerInfo(peer);
+			}
+		}
 	}
 }
 
@@ -226,13 +247,11 @@ void showPeerProfile(not_null<const History*> history) {
 }
 
 void showChatsList(not_null<Main::Session*> session) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == session) {
-			m->ui_showPeerHistory(
-				0,
-				Window::SectionShow::Way::ClearStack,
-				0);
-		}
+	if (const auto m = CheckMainWidget(session)) {
+		m->ui_showPeerHistory(
+			0,
+			Window::SectionShow::Way::ClearStack,
+			0);
 	}
 }
 
@@ -245,13 +264,11 @@ void showPeerHistory(not_null<const History*> history, MsgId msgId) {
 }
 
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == &peer->session()) {
-			m->ui_showPeerHistory(
-				peer->id,
-				Window::SectionShow::Way::ClearStack,
-				msgId);
-		}
+	if (const auto m = CheckMainWidget(&peer->session())) {
+		m->ui_showPeerHistory(
+			peer->id,
+			Window::SectionShow::Way::ClearStack,
+			msgId);
 	}
 }
 
@@ -273,10 +290,8 @@ bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 namespace Notify {
 
 void replyMarkupUpdated(not_null<const HistoryItem*> item) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == &item->history()->session()) {
-			m->notify_replyMarkupUpdated(item);
-		}
+	if (const auto m = CheckMainWidget(&item->history()->session())) {
+		m->notify_replyMarkupUpdated(item);
 	}
 }
 
@@ -284,13 +299,11 @@ void inlineKeyboardMoved(
 		not_null<const HistoryItem*> item,
 		int oldKeyboardTop,
 		int newKeyboardTop) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == &item->history()->session()) {
-			m->notify_inlineKeyboardMoved(
-				item,
-				oldKeyboardTop,
-				newKeyboardTop);
-		}
+	if (const auto m = CheckMainWidget(&item->history()->session())) {
+		m->notify_inlineKeyboardMoved(
+			item,
+			oldKeyboardTop,
+			newKeyboardTop);
 	}
 }
 
@@ -299,13 +312,11 @@ bool switchInlineBotButtonReceived(
 		const QString &query,
 		UserData *samePeerBot,
 		MsgId samePeerReplyTo) {
-	if (const auto m = App::main()) { // multi good
-		if (session == &m->session()) {
-			return m->notify_switchInlineBotButtonReceived(
-				query,
-				samePeerBot,
-				samePeerReplyTo);
-		}
+	if (const auto m = CheckMainWidget(session)) {
+		return m->notify_switchInlineBotButtonReceived(
+			query,
+			samePeerBot,
+			samePeerReplyTo);
 	}
 	return false;
 }
