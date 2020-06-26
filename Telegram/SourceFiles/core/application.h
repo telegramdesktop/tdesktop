@@ -297,6 +297,7 @@ private:
 	friend void App::quit();
 	static void QuitAttempt();
 	void quitDelayed();
+	[[nodiscard]] bool readyToQuit();
 
 	void clearPasscodeLock();
 

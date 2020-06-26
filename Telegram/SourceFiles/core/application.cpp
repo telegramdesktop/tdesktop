@@ -939,18 +939,35 @@ void Application::refreshGlobalProxy() {
 }
 
 void Application::QuitAttempt() {
-	auto prevents = false;
-	if (IsAppLaunched() && !Sandbox::Instance().isSavingSession()) {
-		if (const auto session = App().maybeActiveSession()) {
-			if (session->updates().isQuitPrevent()
-				|| session->api().isQuitPrevent()
-				|| App().calls().isQuitPrevent()) {
-				App().quitDelayed();
-				return;
+	if (!IsAppLaunched()
+		|| Sandbox::Instance().isSavingSession()
+		|| App().readyToQuit()) {
+		QApplication::quit();
+	}
+}
+
+bool Application::readyToQuit() {
+	auto prevented = false;
+	if (_calls->isQuitPrevent()) {
+		prevented = true;
+	}
+	if (_domain->started()) {
+		for (const auto &[index, account] : _domain->accounts()) {
+			if (const auto session = account->maybeSession()) {
+				if (session->updates().isQuitPrevent()) {
+					prevented = true;
+				}
+				if (session->api().isQuitPrevent()) {
+					prevented = true;
+				}
 			}
 		}
 	}
-	QApplication::quit();
+	if (prevented) {
+		quitDelayed();
+		return false;
+	}
+	return true;
 }
 
 void Application::quitPreventFinished() {
