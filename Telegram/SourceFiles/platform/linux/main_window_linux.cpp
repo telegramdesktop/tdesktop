@@ -873,7 +873,7 @@ void MainWindow::createGlobalMenu() {
 				App::wnd()->showFromTray();
 			}
 
-			if (!account().sessionExists()) {
+			if (!sessionController()) {
 				return;
 			}
 
@@ -1027,7 +1027,7 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 	App::wnd()->updateIsActive();
-	const auto logged = account().sessionExists();
+	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
 	const auto support = logged && account().session().supportMode();
 	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());

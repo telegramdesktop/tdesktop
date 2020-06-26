@@ -729,7 +729,7 @@ void MainWindow::createGlobalMenu() {
 		if (isHidden()) {
 			App::wnd()->showFromTray();
 		}
-		if (!account().sessionExists()) {
+		if (!sessionController()) {
 			return;
 		}
 		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(sessionController()), [](not_null<PeerListBox*> box) {
@@ -835,7 +835,7 @@ void MainWindow::updateGlobalMenuHook() {
 		[_private->_touchBar showInputFieldItem:showTouchBarItem];
 	}
 	App::wnd()->updateIsActive();
-	const auto logged = account().sessionExists();
+	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
 	const auto support = logged && account().session().supportMode();
 	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
