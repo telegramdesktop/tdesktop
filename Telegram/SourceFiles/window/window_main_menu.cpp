@@ -350,12 +350,14 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.fillPath(path, st::mainMenuCoverFg);
 
-	if (!_toggled) {
-		paintUnreadBadge(p);
-	}
+	paintUnreadBadge(p);
 }
 
 void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
+	const auto progress = 1. - _toggledAnimation.value(_toggled ? 1. : 0.);
+	if (!progress) {
+		return;
+	}
 	validateUnreadBadge();
 	if (_unreadBadge.isEmpty()) {
 		return;
@@ -374,12 +376,16 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(QPainter &p) {
 	const auto isFill = IsFilledCover();
 
 	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(isFill ? st::mainMenuCloudBg : st::msgServiceBg);
+	auto brush = (isFill ? st::mainMenuCloudBg : st::msgServiceBg)->c;
+	brush.setAlphaF(progress * brush.alphaF());
+	p.setBrush(brush);
 	p.setPen(Qt::NoPen);
 	p.drawRoundedRect(left, top, rectWidth, rectHeight, rectHeight / 2, rectHeight / 2);
 
 	p.setFont(st.font);
-	p.setPen(isFill ? st::mainMenuCloudFg : st::msgServiceFg);
+	auto pen = (isFill ? st::mainMenuCloudFg : st::msgServiceFg)->c;
+	pen.setAlphaF(progress * pen.alphaF());
+	p.setPen(pen);
 	p.drawText(textLeft, textTop + st.font->ascent, _unreadBadge);
 }
 
