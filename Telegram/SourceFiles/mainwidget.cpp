@@ -604,10 +604,6 @@ void MainWidget::onFilesOrForwardDrop(
 	}
 }
 
-void MainWidget::notify_replyMarkupUpdated(not_null<const HistoryItem*> item) {
-	_history->notify_replyMarkupUpdated(item);
-}
-
 void MainWidget::notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop) {
 	_history->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
 }

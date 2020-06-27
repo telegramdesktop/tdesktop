@@ -289,12 +289,6 @@ bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 
 namespace Notify {
 
-void replyMarkupUpdated(not_null<const HistoryItem*> item) {
-	if (const auto m = CheckMainWidget(&item->history()->session())) {
-		m->notify_replyMarkupUpdated(item);
-	}
-}
-
 void inlineKeyboardMoved(
 		not_null<const HistoryItem*> item,
 		int oldKeyboardTop,

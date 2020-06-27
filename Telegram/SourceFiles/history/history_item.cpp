@@ -485,7 +485,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 	_history->owner().notifyItemIdChange({ this, oldId });
 
-	// We don't call Notify::replyMarkupUpdated(this) and update keyboard
+	// We don't fire MessageUpdate::Flag::ReplyMarkup and update keyboard
 	// in history widget, because it can't exist for an outgoing message.
 	// Only inline keyboards can be in outgoing messages.
 	if (const auto markup = inlineReplyMarkup()) {

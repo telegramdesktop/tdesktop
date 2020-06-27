@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_histories.h"
-#include "facades.h" // Notify::replyMarkupUpdated
 #include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -1279,14 +1278,19 @@ void HistoryMessage::checkIsolatedEmoji() {
 }
 
 void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
+	const auto requestUpdate = [&] {
+		history()->owner().requestItemResize(this);
+		history()->session().changes().messageUpdated(
+			this,
+			Data::MessageUpdate::Flag::ReplyMarkup);
+	};
 	if (!markup) {
 		if (_flags & MTPDmessage::Flag::f_reply_markup) {
 			_flags &= ~MTPDmessage::Flag::f_reply_markup;
 			if (Has<HistoryMessageReplyMarkup>()) {
 				RemoveComponents(HistoryMessageReplyMarkup::Bit());
 			}
-			history()->owner().requestItemResize(this);
-			Notify::replyMarkupUpdated(this);
+			requestUpdate();
 		}
 		return;
 	}
@@ -1304,8 +1308,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			changed = true;
 		}
 		if (changed) {
-			history()->owner().requestItemResize(this);
-			Notify::replyMarkupUpdated(this);
+			requestUpdate();
 		}
 	} else {
 		if (!(_flags & MTPDmessage::Flag::f_reply_markup)) {
@@ -1315,8 +1318,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
 		}
 		Get<HistoryMessageReplyMarkup>()->create(*markup);
-		history()->owner().requestItemResize(this);
-		Notify::replyMarkupUpdated(this);
+		requestUpdate();
 	}
 }
 

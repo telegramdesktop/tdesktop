@@ -602,6 +602,14 @@ HistoryWidget::HistoryWidget(
 		itemEdited(update.item);
 	}, lifetime());
 
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::ReplyMarkup
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		if (_keyboard->forMsgId() == update.item->fullId()) {
+			updateBotKeyboard(update.item->history(), true);
+		}
+	}, lifetime());
+
 	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
 		if (pair.from.type() == AudioMsgId::Type::Voice) {
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
@@ -1513,12 +1521,6 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	updateField();
 	if (_history) {
 		updateSendAction(_history, SendAction::Type::RecordVoice);
-	}
-}
-
-void HistoryWidget::notify_replyMarkupUpdated(not_null<const HistoryItem*> item) {
-	if (_keyboard->forMsgId() == item->fullId()) {
-		updateBotKeyboard(item->history(), true);
 	}
 }
 

@@ -76,7 +76,6 @@ enum ClipStopperType {
 
 namespace Notify {
 
-void replyMarkupUpdated(not_null<const HistoryItem*> item);
 void inlineKeyboardMoved(
 	not_null<const HistoryItem*> item,
 	int oldKeyboardTop,
