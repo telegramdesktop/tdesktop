@@ -807,6 +807,16 @@ else()
     )
 
     if (LINUX)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(ALSA REQUIRED alsa)
+        pkg_check_modules(PULSE REQUIRED libpulse)
+
+        target_include_directories(lib_tgvoip
+        PRIVATE
+            ${ALSA_INCLUDE_DIRS}
+            ${PULSE_INCLUDE_DIRS}
+        )
+
         target_link_libraries(lib_tgvoip
         PRIVATE
             ${CMAKE_DL_LIBS}
