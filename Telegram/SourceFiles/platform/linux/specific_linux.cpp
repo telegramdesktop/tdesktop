@@ -520,11 +520,26 @@ QString GetIconName() {
 	return Result;
 }
 
+bool GtkClipboardSupported() {
+	return (Libs::gtk_clipboard_get != nullptr)
+		&& (Libs::gtk_clipboard_wait_for_contents != nullptr)
+		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
+		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
+		&& (Libs::gtk_selection_data_free != nullptr)
+		&& (Libs::gdk_pixbuf_get_pixels != nullptr)
+		&& (Libs::gdk_pixbuf_get_width != nullptr)
+		&& (Libs::gdk_pixbuf_get_height != nullptr)
+		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
+		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
+		&& (Libs::gdk_atom_intern != nullptr)
+		&& (Libs::g_object_unref != nullptr);
+}
+
 QImage GetImageFromClipboard() {
 	QImage data;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!App::wnd()->gtkClipboard()) {
+	if (!GtkClipboardSupported() || !App::wnd()->gtkClipboard()) {
 		return data;
 	}
 

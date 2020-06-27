@@ -414,7 +414,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (Libs::gtk_clipboard_get != nullptr) {
+	if (GtkClipboardSupported()) {
 		_gtkClipboard = Libs::gtk_clipboard_get(Libs::gdk_atom_intern("CLIPBOARD", true));
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
