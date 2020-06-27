@@ -49,6 +49,8 @@ inline void IgnoreApplicationActivationRightNow() {
 void FallbackFontConfigCheckBegin();
 void FallbackFontConfigCheckEnd();
 
+bool GtkClipboardSupported();
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {

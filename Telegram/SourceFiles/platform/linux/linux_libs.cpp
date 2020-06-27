@@ -130,11 +130,6 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_log_default_handler", g_log_default_handler)) return false;
 
 	if (!load(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_width", gdk_pixbuf_get_width)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_height", gdk_pixbuf_get_height)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride)) return false;
 
 	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
 		// We work only with X11 GDK backend.
@@ -262,6 +257,11 @@ void start() {
 
 	if (gtkLoaded) {
 		load(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
+		load(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha);
+		load(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels);
+		load(lib_gtk, "gdk_pixbuf_get_width", gdk_pixbuf_get_width);
+		load(lib_gtk, "gdk_pixbuf_get_height", gdk_pixbuf_get_height);
+		load(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride);
 
 		internal::GdkHelperLoad(lib_gtk);
 
