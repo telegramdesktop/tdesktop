@@ -20,6 +20,12 @@ extern "C" {
 
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
+#if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
+#define LOAD_SYMBOL(lib, name, func) (func = ::func)
+#else // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
+#define LOAD_SYMBOL Platform::Libs::load
+#endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
+
 namespace Platform {
 namespace Libs {
 
