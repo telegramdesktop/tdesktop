@@ -1524,14 +1524,6 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	}
 }
 
-void HistoryWidget::notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop) {
-	if (_history == item->history() || _migrated == item->history()) {
-		if (const auto move = _list->moveScrollFollowingInlineKeyboard(item, oldKeyboardTop, newKeyboardTop)) {
-			_addToScroll = move;
-		}
-	}
-}
-
 bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
 	if (samePeerBot) {
 		if (_history) {

@@ -2986,21 +2986,6 @@ void HistoryInner::notifyMigrateUpdated() {
 	_migrated = _history->migrateFrom();
 }
 
-int HistoryInner::moveScrollFollowingInlineKeyboard(
-		const HistoryItem *item,
-		int oldKeyboardTop,
-		int newKeyboardTop) {
-	if (const auto view = item ? item->mainView() : nullptr) {
-		if (view->isUnderCursor()) {
-			const auto top = itemTop(item);
-			if (top >= oldKeyboardTop) {
-				return newKeyboardTop - oldKeyboardTop;
-			}
-		}
-	}
-	return 0;
-}
-
 void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }

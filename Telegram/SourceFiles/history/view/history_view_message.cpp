@@ -1957,20 +1957,6 @@ QSize Message::performCountCurrentSize(int newWidth) {
 	const auto item = message();
 	const auto newHeight = resizeContentGetHeight(newWidth);
 
-	const auto keyboard = item->inlineReplyKeyboard();
-	if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-		const auto oldTop = markup->oldTop;
-		if (oldTop >= 0) {
-			markup->oldTop = -1;
-			if (keyboard) {
-				const auto height = st::msgBotKbButton.margin + keyboard->naturalHeight();
-				const auto keyboardTop = newHeight - height + st::msgBotKbButton.margin - marginBottom();
-				if (keyboardTop != oldTop) {
-					Notify::inlineKeyboardMoved(item, oldTop, keyboardTop);
-				}
-			}
-		}
-	}
 	return { newWidth, newHeight };
 }
 

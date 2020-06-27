@@ -275,7 +275,6 @@ public:
 
 	PeerData *ui_getPeerForMouseAction();
 
-	void notify_inlineKeyboardMoved(not_null<const HistoryItem*> item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
 	~HistoryWidget();

@@ -206,6 +206,7 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 		}
 	}
 
+	// Should be completely redesigned as the oldTop no longer exists.
 	//if (oldKeyboardTop >= 0) { // #TODO edit bot message
 	//	if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
 	//		keyboard->oldTop = oldKeyboardTop;

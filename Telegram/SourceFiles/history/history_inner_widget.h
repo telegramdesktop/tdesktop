@@ -114,10 +114,6 @@ public:
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 
-	// When inline keyboard has moved because of the edition of its item we want
-	// to move scroll position so that mouse points to the same button row.
-	int moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
-
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;

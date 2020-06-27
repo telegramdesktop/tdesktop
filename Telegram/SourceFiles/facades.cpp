@@ -289,18 +289,6 @@ bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 
 namespace Notify {
 
-void inlineKeyboardMoved(
-		not_null<const HistoryItem*> item,
-		int oldKeyboardTop,
-		int newKeyboardTop) {
-	if (const auto m = CheckMainWidget(&item->history()->session())) {
-		m->notify_inlineKeyboardMoved(
-			item,
-			oldKeyboardTop,
-			newKeyboardTop);
-	}
-}
-
 bool switchInlineBotButtonReceived(
 		not_null<Main::Session*> session,
 		const QString &query,

@@ -76,10 +76,6 @@ enum ClipStopperType {
 
 namespace Notify {
 
-void inlineKeyboardMoved(
-	not_null<const HistoryItem*> item,
-	int oldKeyboardTop,
-	int newKeyboardTop);
 bool switchInlineBotButtonReceived(
 	not_null<Main::Session*> session,
 	const QString &query,

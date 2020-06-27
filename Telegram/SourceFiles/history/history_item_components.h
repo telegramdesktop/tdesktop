@@ -213,9 +213,6 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
-	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
-	int oldTop = -1;
-
 private:
 	void createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v);
 
