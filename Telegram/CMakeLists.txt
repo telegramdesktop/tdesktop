@@ -1146,15 +1146,16 @@ elseif (APPLE)
 elseif (LINUX)
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
-
         pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
-        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
-        target_compile_options(Telegram PRIVATE -Wno-register)
 
-        if (DESKTOP_APP_USE_PACKAGED)
-            find_library(X11_LIBRARY X11)
-            target_link_libraries(Telegram PRIVATE ${X11_LIBRARY})
-        endif()
+        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
+        target_link_libraries(Telegram
+        PRIVATE
+            X11
+            gobject-2.0
+            glib-2.0
+        )
+        target_compile_options(Telegram PRIVATE -Wno-register)
     endif()
 endif()
 

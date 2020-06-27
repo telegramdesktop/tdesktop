@@ -263,11 +263,11 @@ bool Get(
 namespace internal {
 
 QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
-	Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "response", GCallback(onResponse), this);
-	Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), nullptr);
+	g_signal_connect_swapped(G_OBJECT(gtkWidget), "response", G_CALLBACK(onResponse), this);
+	g_signal_connect(G_OBJECT(gtkWidget), "delete-event", G_CALLBACK(Libs::gtk_widget_hide_on_delete), nullptr);
 	if (PreviewSupported()) {
 		_preview = Libs::gtk_image_new();
-		Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "update-preview", GCallback(onUpdatePreview), this);
+		g_signal_connect_swapped(G_OBJECT(gtkWidget), "update-preview", G_CALLBACK(onUpdatePreview), this);
 		Libs::gtk_file_chooser_set_preview_widget(Libs::gtk_file_chooser_cast(gtkWidget), _preview);
 	}
 }
@@ -339,17 +339,17 @@ void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
 	// this may hang. See https://crbug.com/534754.
 	struct stat stat_buf;
 	if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode)) {
-		Libs::g_free(filename);
+		g_free(filename);
 		Libs::gtk_file_chooser_set_preview_widget_active(Libs::gtk_file_chooser_cast(dialog->gtkWidget), false);
 		return;
 	}
 
 	// This will preserve the image's aspect ratio.
 	auto pixbuf = Libs::gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth, kPreviewHeight, nullptr);
-	Libs::g_free(filename);
+	g_free(filename);
 	if (pixbuf) {
 		Libs::gtk_image_set_from_pixbuf(Libs::gtk_image_cast(dialog->_preview), pixbuf);
-		Libs::g_object_unref(pixbuf);
+		g_object_unref(pixbuf);
 	}
 	Libs::gtk_file_chooser_set_preview_widget_active(Libs::gtk_file_chooser_cast(dialog->gtkWidget), pixbuf ? true : false);
 }
@@ -396,8 +396,8 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
 	connect(d.data(), SIGNAL(accept()), this, SLOT(onAccepted()));
 	connect(d.data(), SIGNAL(reject()), this, SLOT(onRejected()));
 
-	Libs::g_signal_connect_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
-	Libs::g_signal_connect_swapped_helper(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
+	g_signal_connect(Libs::gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
+	g_signal_connect_swapped(Libs::gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
 }
 
 GtkFileDialog::~GtkFileDialog() {
@@ -491,7 +491,7 @@ QDir GtkFileDialog::directory() const {
 	gchar *folder = Libs::gtk_file_chooser_get_current_folder(Libs::gtk_file_chooser_cast(gtkDialog));
 	if (folder) {
 		ret = QString::fromUtf8(folder);
-		Libs::g_free(folder);
+		g_free(folder);
 	}
 	return QDir(ret);
 }
@@ -512,7 +512,7 @@ QStringList GtkFileDialog::selectedFiles() const {
 	GSList *filenames = Libs::gtk_file_chooser_get_filenames(Libs::gtk_file_chooser_cast(gtkDialog));
 	for (GSList *it  = filenames; it; it = it->next)
 		selection += QString::fromUtf8((const char*)it->data);
-	Libs::g_slist_free(filenames);
+	g_slist_free(filenames);
 	return selection;
 }
 

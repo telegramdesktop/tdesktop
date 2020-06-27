@@ -116,19 +116,6 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "gtk_dialog_get_type", gtk_dialog_get_type)) return false;
 	if (!load(lib_gtk, "gtk_dialog_run", gtk_dialog_run)) return false;
 
-	if (!load(lib_gtk, "g_type_check_instance_cast", g_type_check_instance_cast)) return false;
-	if (!load(lib_gtk, "g_type_check_instance_is_a", g_type_check_instance_is_a)) return false;
-	if (!load(lib_gtk, "g_signal_connect_data", g_signal_connect_data)) return false;
-
-	if (!load(lib_gtk, "g_object_get", g_object_get)) return false;
-	if (!load(lib_gtk, "g_object_unref", g_object_unref)) return false;
-	if (!load(lib_gtk, "g_free", g_free)) return false;
-
-	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
-
-	if (!load(lib_gtk, "g_log_set_handler", g_log_set_handler)) return false;
-	if (!load(lib_gtk, "g_log_default_handler", g_log_default_handler)) return false;
-
 	if (!load(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
 
 	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
@@ -218,9 +205,6 @@ f_gdk_window_set_modal_hint gdk_window_set_modal_hint = nullptr;
 f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
 f_gtk_dialog_run gtk_dialog_run = nullptr;
-f_g_type_check_instance_cast g_type_check_instance_cast = nullptr;
-f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
-f_g_signal_connect_data g_signal_connect_data = nullptr;
 f_gdk_atom_intern gdk_atom_intern = nullptr;
 f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
 f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha = nullptr;
@@ -228,12 +212,6 @@ f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
 f_gdk_pixbuf_get_width gdk_pixbuf_get_width = nullptr;
 f_gdk_pixbuf_get_height gdk_pixbuf_get_height = nullptr;
 f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
-f_g_object_get g_object_get = nullptr;
-f_g_object_unref g_object_unref = nullptr;
-f_g_free g_free = nullptr;
-f_g_slist_free g_slist_free = nullptr;
-f_g_log_set_handler g_log_set_handler = nullptr;
-f_g_log_default_handler g_log_default_handler = nullptr;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {

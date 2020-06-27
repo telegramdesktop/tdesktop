@@ -531,8 +531,7 @@ bool GtkClipboardSupported() {
 		&& (Libs::gdk_pixbuf_get_height != nullptr)
 		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
 		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
-		&& (Libs::gdk_atom_intern != nullptr)
-		&& (Libs::g_object_unref != nullptr);
+		&& (Libs::gdk_atom_intern != nullptr);
 }
 
 QImage GetImageFromClipboard() {
@@ -561,7 +560,7 @@ QImage GetImageFromClipboard() {
 						? QImage::Format_RGBA8888
 						: QImage::Format_RGB888).copy();
 
-				Libs::g_object_unref(img);
+				g_object_unref(img);
 			}
 		}
 
