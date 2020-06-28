@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_widget.h"
 #include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionValue.
+#include "main/main_domain.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
@@ -636,9 +637,9 @@ void MainWindow::updateTrayMenu(bool force) {
 void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
-	if (const auto session = account().maybeSession()) {
+	if (const auto controller = sessionController()) {
 		Ui::show(
-			Box<AddContactBox>(session),
+			Box<AddContactBox>(&controller->session()),
 			Ui::LayerOption::KeepOther);
 	}
 }
@@ -770,7 +771,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::show(Box<InformBox>(tr::lng_passcode_need_unblock(tr::now)));
 		return;
 	}
-	if (!account().sessionExists()) {
+	if (!sessionController()) {
 		return;
 	}
 
@@ -825,7 +826,18 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!account().sessionExists() || !hideNoQuit()) {
+		const auto hasAuth = [&] {
+			if (!Core::App().domain().started()) {
+				return false;
+			}
+			for (const auto &[_, account] : Core::App().domain().accounts()) {
+				if (account->sessionExists()) {
+					return true;
+				}
+			}
+			return false;
+		}();
+		if (!hasAuth || !hideNoQuit()) {
 			App::quit();
 		}
 	}
