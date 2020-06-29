@@ -19,7 +19,7 @@ namespace Streaming {
 namespace {
 
 constexpr auto kBufferFor = 3 * crl::time(1000);
-constexpr auto kLoadInAdvanceForRemote = 64 * crl::time(1000);
+constexpr auto kLoadInAdvanceForRemote = 32 * crl::time(1000);
 constexpr auto kLoadInAdvanceForLocal = 5 * crl::time(1000);
 constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 

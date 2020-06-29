@@ -584,10 +584,12 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		}
 	};
 	const auto handleReadFromCache = [&](int sliceIndex) {
-		if (cacheNotLoaded(sliceIndex)
-			&& !(_data[sliceIndex].flags & Flag::LoadingFromCache)) {
-			_data[sliceIndex].flags |= Flag::LoadingFromCache;
-			result.sliceNumbersFromCache.add(sliceIndex + 1);
+		if (cacheNotLoaded(sliceIndex)) {
+			if (!(_data[sliceIndex].flags & Flag::LoadingFromCache)) {
+				_data[sliceIndex].flags |= Flag::LoadingFromCache;
+				result.sliceNumbersFromCache.add(sliceIndex + 1);
+			}
+			result.state = FillState::WaitingCache;
 		}
 	};
 	const auto firstFrom = offset - fromSlice * kInSlice;
@@ -618,7 +620,7 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 				secondTill);
 		}
 		result.toCache = serializeAndUnloadUnused();
-		result.filled = true;
+		result.state = FillState::Success;
 	} else {
 		handleReadFromCache(fromSlice);
 		if (fromSlice + 1 < tillSlice) {
@@ -646,7 +648,7 @@ auto Reader::Slices::fillFromHeader(int offset, bytes::span buffer)
 			ranges::make_subrange(prepared.start, prepared.finish),
 			from,
 			till);
-		result.filled = true;
+		result.state = FillState::Success;
 	}
 	return result;
 }
@@ -1209,7 +1211,7 @@ bool Reader::fullInCache() const {
 	return _slices.fullInCache();
 }
 
-bool Reader::fill(
+Reader::FillState Reader::fill(
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify) {
@@ -1229,37 +1231,38 @@ bool Reader::fill(
 	};
 	const auto done = [&] {
 		clearWaiting();
-		return true;
+		return FillState::Success;
 	};
 	const auto failed = [&] {
 		clearWaiting();
 		notify->release();
-		return false;
+		return FillState::Failed;
 	};
 
 	checkForSomethingMoreReceived();
 	if (_streamingError) {
-		return failed();
+		return FillState::Failed;
 	}
 
+	auto lastResult = FillState();
 	do {
-		if (fillFromSlices(offset, buffer)) {
-			clearWaiting();
-			return true;
+		lastResult = fillFromSlices(offset, buffer);
+		if (lastResult == FillState::Success) {
+			return done();
 		}
 		startWaiting();
 	} while (checkForSomethingMoreReceived());
 
-	return _streamingError ? failed() : false;
+	return _streamingError ? failed() : lastResult;
 }
 
-bool Reader::fillFromSlices(int offset, bytes::span buffer) {
+Reader::FillState Reader::fillFromSlices(int offset, bytes::span buffer) {
 	using namespace rpl::mappers;
 
 	auto result = _slices.fill(offset, buffer);
-	if (!result.filled && _slices.headerWontBeFilled()) {
+	if (result.state != FillState::Success && _slices.headerWontBeFilled()) {
 		_streamingError = Error::NotStreamable;
-		return false;
+		return FillState::Failed;
 	}
 
 	for (const auto sliceNumber : result.sliceNumbersFromCache.values()) {
@@ -1283,7 +1286,7 @@ bool Reader::fillFromSlices(int offset, bytes::span buffer) {
 		}
 		loadAtOffset(offset);
 	}
-	return result.filled;
+	return result.state;
 }
 
 void Reader::cancelLoadInRange(int from, int till) {

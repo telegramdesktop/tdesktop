@@ -54,9 +54,14 @@ int File::Context::read(bytes::span buffer) {
 	}
 
 	buffer = buffer.subspan(0, amount);
-	while (!_reader->fill(_offset, buffer, &_semaphore)) {
-		processQueuedPackets(SleepPolicy::Disallowed);
-		_delegate->fileWaitingForData();
+	while (true) {
+		const auto result = _reader->fill(_offset, buffer, &_semaphore);
+		if (result == Reader::FillState::Success) {
+			break;
+		} else if (result == Reader::FillState::WaitingRemote) {
+			processQueuedPackets(SleepPolicy::Allowed);
+			_delegate->fileWaitingForData();
+		}
 		_semaphore.acquire();
 		if (_interrupted) {
 			return -1;
