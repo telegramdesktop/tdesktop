@@ -296,9 +296,7 @@ void Controller::minimize() {
 }
 
 void Controller::close() {
-	if (!_widget.hideNoQuit()) {
-		_widget.close();
-	}
+	_widget.close();
 }
 
 QPoint Controller::getPointForCallPanelCenter() const {
