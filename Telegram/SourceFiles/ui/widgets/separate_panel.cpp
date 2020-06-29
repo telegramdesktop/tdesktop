@@ -555,12 +555,15 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		if (dragArea.contains(e->pos())) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			windowHandle()->startSystemMove();
+			const auto dragViaSystem = windowHandle()->startSystemMove();
 #else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-			_dragging = true;
-			_dragStartMousePosition = e->globalPos();
-			_dragStartMyPosition = QPoint(x(), y());
+			const auto dragViaSystem = false;
 #endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
+			if (!dragViaSystem) {
+				_dragging = true;
+				_dragStartMousePosition = e->globalPos();
+				_dragStartMyPosition = QPoint(x(), y());
+			}
 		} else if (!rect().contains(e->pos()) && _hideOnDeactivate) {
 			LOG(("Export Info: Panel Hide On Click."));
 			hideGetDuration();
@@ -569,7 +572,6 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 }
 
 void SeparatePanel::mouseMoveEvent(QMouseEvent *e) {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	if (_dragging) {
 		if (!(e->buttons() & Qt::LeftButton)) {
 			_dragging = false;
@@ -578,15 +580,12 @@ void SeparatePanel::mouseMoveEvent(QMouseEvent *e) {
 				+ (e->globalPos() - _dragStartMousePosition));
 		}
 	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 }
 
 void SeparatePanel::mouseReleaseEvent(QMouseEvent *e) {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (e->button() == Qt::LeftButton) {
+	if (e->button() == Qt::LeftButton && _dragging) {
 		_dragging = false;
 	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 }
 
 void SeparatePanel::leaveEventHook(QEvent *e) {

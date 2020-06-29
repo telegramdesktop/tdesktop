@@ -7,35 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/window_title.h"
-#include "window/window_title_qt.h"
-#include "window/themes/window_theme_preview.h"
+#include "platform/platform_window_title.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "base/object_ptr.h"
 
-namespace Platform {
+namespace Window {
+namespace Theme {
 
-object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
+int DefaultPreviewTitleHeight();
+void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
 
-int PreviewTitleHeight();
-void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
-
-} // namespace Platform
-
-// Platform dependent implementations.
-
-#ifdef Q_OS_MAC
-#include "platform/mac/window_title_mac.h"
-#elif defined Q_OS_WIN // Q_OS_MAC
-#include "platform/win/window_title_win.h"
-#elif defined Q_OS_UNIX // Q_OS_MAC || Q_OS_WIN
-#include "platform/linux/window_title_linux.h"
-#else // Q_OS_MAC || Q_OS_WIN || Q_OS_UNIX
+} // namespace Theme
+} // namespace Window
 
 namespace Platform {
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	return object_ptr<Window::TitleWidgetQt>(parent);
+	if (!DesktopEnvironment::IsUnity()) {
+		return object_ptr<Window::TitleWidgetQt>(parent);
+	}
 #endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
 
 	return { nullptr };
@@ -50,5 +41,3 @@ inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palet
 }
 
 } // namespace Platform
-
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_UNIX

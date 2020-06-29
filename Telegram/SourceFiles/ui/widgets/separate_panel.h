@@ -93,11 +93,9 @@ private:
 	bool _useTransparency = true;
 	style::margins _padding;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	bool _dragging = false;
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 
 	Ui::Animations::Simple _titleLeft;
 	bool _visible = false;
