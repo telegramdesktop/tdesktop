@@ -491,6 +491,7 @@ MainMenu::MainMenu(
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
 , _archiveButton(this, st::mainMenuCloudButton)
+, _cloudButton(this, st::mainMenuCloudButton)
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
@@ -513,6 +514,7 @@ MainMenu::MainMenu(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	setupArchiveButton();
+	setupCloudButton();
 	setupUserpicButton();
 	setupAccountsToggle();
 	setupAccounts();
@@ -630,6 +632,15 @@ void MainMenu::setupArchiveButton() {
 		_archiveButton->setVisible(checkArchive());
 		update();
 	}, lifetime());
+}
+
+void MainMenu::setupCloudButton() {
+	_cloudButton->setClickedCallback([=] {
+		_controller->content()->choosePeer(
+			_controller->session().userPeerId(),
+			ShowAtUnreadMsgId);
+	});
+	_cloudButton->show();
 }
 
 void MainMenu::setupUserpicButton() {
@@ -944,13 +955,22 @@ void MainMenu::resizeEvent(QResizeEvent *e) {
 }
 
 void MainMenu::updateControlsGeometry() {
-	_userpicButton->moveToLeft(st::mainMenuUserpicLeft, st::mainMenuUserpicTop);
+	_userpicButton->moveToLeft(
+		st::mainMenuUserpicLeft,
+		st::mainMenuUserpicTop);
 	if (_resetScaleButton) {
 		_resetScaleButton->moveToRight(0, 0);
-		_archiveButton->moveToRight(_resetScaleButton->width(), 0);
+		_cloudButton->moveToRight(_resetScaleButton->width(), 0);
+		_archiveButton->moveToRight(
+			_resetScaleButton->width() + _cloudButton->width(),
+			0);
 	} else {
-		const auto offset = st::mainMenuCloudSize / 4;
-		_archiveButton->moveToRight(offset, offset);
+		const auto right = st::mainMenuTogglePosition.x()
+			- (_cloudButton->width() / 2);
+		const auto top = st::mainMenuUserpicTop
+			- (_cloudButton->height() - st::mainMenuCloudSize) / 2;
+		_cloudButton->moveToRight(right, top);
+		_archiveButton->moveToRight(right + _cloudButton->width(), top);
 	}
 	_toggleAccounts->setGeometry(
 		0,
@@ -1011,6 +1031,18 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			width());
 		p.setFont(st::normalFont);
 		p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
+
+		// Draw Saved Messages button.
+		if (!_cloudButton->isHidden()) {
+			Ui::EmptyUserpic::PaintSavedMessages(
+				p,
+				_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
+				_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
+				width(),
+				st::mainMenuCloudSize,
+				isFill ? st::mainMenuCloudBg : st::msgServiceBg,
+				isFill ? st::mainMenuCloudFg : st::msgServiceFg);
+		}
 
 		// Draw Archive button.
 		if (!_archiveButton->isHidden()) {

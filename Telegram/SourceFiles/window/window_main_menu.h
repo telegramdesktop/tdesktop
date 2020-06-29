@@ -55,6 +55,7 @@ private:
 	class ResetScaleButton;
 
 	void setupArchiveButton();
+	void setupCloudButton();
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
@@ -72,6 +73,7 @@ private:
 	object_ptr<Ui::UserpicButton> _userpicButton;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
 	object_ptr<Ui::IconButton> _archiveButton;
+	object_ptr<Ui::IconButton> _cloudButton;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _inner;
