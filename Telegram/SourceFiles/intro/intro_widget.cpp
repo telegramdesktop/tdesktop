@@ -220,7 +220,8 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 }
 
 void Widget::createLanguageLink() {
-	if (_changeLanguage) {
+	if (_changeLanguage
+		|| Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 		return;
 	}
 
