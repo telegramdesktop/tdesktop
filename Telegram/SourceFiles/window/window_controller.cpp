@@ -45,6 +45,7 @@ Controller::Controller()
 
 Controller::~Controller() {
 	// We want to delete all widgets before the _sessionController.
+	_widget.ui_hideSettingsAndLayer(anim::type::instant);
 	_widget.clearWidgets();
 }
 

@@ -196,7 +196,6 @@ void MainWindow::finishFirstShow() {
 }
 
 void MainWindow::clearWidgetsHook() {
-	destroyLayer();
 	_mediaPreview.destroy();
 	_main.destroy();
 	_intro.destroy();
@@ -284,10 +283,17 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 void MainWindow::setupMain() {
 	Expects(account().sessionExists());
 
-	auto animated = (_intro || _passcodeLock);
-	auto bg = animated ? grabInner() : QPixmap();
-
-	destroyLayer();
+	const auto animated = (_intro || _passcodeLock);
+	const auto bg = animated ? grabInner() : QPixmap();
+	const auto weak = (_main && _layer)
+		? Ui::MakeWeak(_layer.get())
+		: nullptr;
+	if (weak) {
+		Assert(!animated);
+		_layer->hideAllAnimatedPrepare();
+	} else {
+		destroyLayer();
+	}
 	auto created = object_ptr<MainWidget>(bodyWidget(), sessionController());
 	clearWidgets();
 	_main = std::move(created);
@@ -304,6 +310,9 @@ void MainWindow::setupMain() {
 		Core::App().checkStartUrl();
 	}
 	fixOrder();
+	if (const auto strong = weak.data()) {
+		strong->hideAllAnimatedRun();
+	}
 }
 
 void MainWindow::showSettings() {
