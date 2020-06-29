@@ -853,7 +853,7 @@ std::unique_ptr<Main::SessionSettings> Account::applyReadContext(
 			_owner->setLegacyMtpKey(std::move(key));
 		}
 		if (context.mtpLegacyMainDcId) {
-			_owner->setLegacyMtpMainDcId(context.mtpLegacyMainDcId);
+			_owner->setMtpMainDcId(context.mtpLegacyMainDcId);
 			_owner->setSessionUserId(context.mtpLegacyUserId);
 		}
 	}

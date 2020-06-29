@@ -82,8 +82,9 @@ public:
 	[[nodiscard]] rpl::producer<not_null<MTP::Instance*>> mtpValue() const;
 
 	// Set from legacy storage.
-	void setLegacyMtpMainDcId(MTP::DcId mainDcId);
 	void setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key);
+
+	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setSessionUserId(UserId userId);
 	void setSessionFromStorage(
 		std::unique_ptr<SessionSettings> data,

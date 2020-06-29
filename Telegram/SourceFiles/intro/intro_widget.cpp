@@ -18,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
+#include "data/data_user.h"
+#include "data/data_countries.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -40,6 +43,20 @@ namespace Intro {
 namespace {
 
 using namespace ::Intro::details;
+
+[[nodiscard]] QString ComputeNewAccountCountry() {
+	if (const auto parent
+		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
+		if (const auto session = parent->maybeSession()) {
+			const auto iso = ::Data::CountryISO2ByPhone(
+				session->user()->phone());
+			if (!iso.isEmpty()) {
+				return iso;
+			}
+		}
+	}
+	return Platform::SystemCountry();
+}
 
 } // namespace
 
@@ -65,10 +82,11 @@ Widget::Widget(
 		rpl::single(true))) {
 	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
-	getNearestDC();
+	getData()->country = ComputeNewAccountCountry();
 
 	switch (point) {
 	case EnterPoint::Start:
+		getNearestDC();
 		appendStep(new StartWidget(this, _account, getData()));
 		break;
 	case EnterPoint::Phone:
@@ -81,8 +99,6 @@ Widget::Widget(
 	}
 
 	fixOrder();
-
-	getData()->country = Platform::SystemCountry();
 
 	_account->mtpValue(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {

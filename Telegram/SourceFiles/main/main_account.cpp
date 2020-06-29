@@ -236,7 +236,7 @@ rpl::producer<> Account::mtpNewSessionCreated() const {
 	return _mtpNewSessionCreated.events();
 }
 
-void Account::setLegacyMtpMainDcId(MTP::DcId mainDcId) {
+void Account::setMtpMainDcId(MTP::DcId mainDcId) {
 	Expects(!_mtp);
 
 	_mtpFields.mainDcId = mainDcId;

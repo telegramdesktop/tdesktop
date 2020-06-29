@@ -219,7 +219,9 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	static const auto cloneConfig = [](const MTP::Config &config) {
 		return std::make_unique<MTP::Config>(config);
 	};
-	static const auto accountConfig = [](not_null<Account*> account) {
+	auto mainDcId = MTP::Instance::Fields::kNotSetMainDc;
+	const auto accountConfig = [&](not_null<Account*> account) {
+		mainDcId = account->mtp().mainDcId();
 		return cloneConfig(account->mtp().config());
 	};
 	auto config = [&] {
@@ -244,6 +246,7 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 		.account = std::make_unique<Account>(this, _dataName, index)
 	});
 	const auto account = _accounts.back().account.get();
+	account->setMtpMainDcId(mainDcId);
 	_local->startAdded(account, std::move(config));
 	watchSession(account);
 	_accountsChanges.fire({});
