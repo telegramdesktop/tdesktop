@@ -1093,6 +1093,13 @@ PRIVATE
     settings.h
 )
 
+if (NOT LINUX)
+    remove_target_sources(Telegram ${src_loc}
+        window/window_title_qt.cpp
+        window/window_title_qt.h
+    )
+endif()
+
 if (DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
 else()
