@@ -54,6 +54,7 @@ bool ReadSetting(
 			ip.toStdString(),
 			port,
 			{});
+		context.legacyRead = true;
 	} break;
 
 	case dbiDcOptionOld: {
@@ -69,6 +70,7 @@ bool ReadSetting(
 			ip.toStdString(),
 			port,
 			{});
+		context.legacyRead = true;
 	} break;
 
 	case dbiDcOptionsOld: {
@@ -78,6 +80,7 @@ bool ReadSetting(
 
 		context.fallbackConfigLegacyDcOptions.constructFromSerialized(
 			serialized);
+		context.legacyRead = true;
 	} break;
 
 	case dbiApplicationSettings: {
@@ -94,6 +97,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacyChatSizeMax = maxSize;
+		context.legacyRead = true;
 	} break;
 
 	case dbiSavedGifsLimitOld: {
@@ -102,6 +106,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacySavedGifsLimit = limit;
+		context.legacyRead = true;
 	} break;
 
 	case dbiStickersRecentLimitOld: {
@@ -110,6 +115,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacyStickersRecentLimit = limit;
+		context.legacyRead = true;
 	} break;
 
 	case dbiStickersFavedLimitOld: {
@@ -118,6 +124,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacyStickersFavedLimit = limit;
+		context.legacyRead = true;
 	} break;
 
 	case dbiMegagroupSizeMaxOld: {
@@ -126,6 +133,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacyMegagroupSizeMax = maxSize;
+		context.legacyRead = true;
 	} break;
 
 	case dbiUser: {
@@ -204,6 +212,7 @@ bool ReadSetting(
 		context.cacheTotalTimeLimit = NoTimeLimit(time) ? 0 : time;
 		context.cacheBigFileTotalSizeLimit = size;
 		context.cacheBigFileTotalTimeLimit = NoTimeLimit(time) ? 0 : time;
+		context.legacyRead = true;
 	} break;
 
 	case dbiCacheSettings: {
@@ -241,6 +250,7 @@ bool ReadSetting(
 
 		Core::App().settings().setSoundNotify((v & 0x01) == 0x01);
 		Core::App().settings().setFlashBounceNotify((v & 0x02) == 0x00);
+		context.legacyRead = true;
 	} break;
 
 	case dbiAutoDownloadOld: {
@@ -268,6 +278,7 @@ bool ReadSetting(
 		set(Type::VoiceMessage, audio);
 		set(Type::AutoPlayGIF, gif);
 		set(Type::AutoPlayVideoMessage, gif);
+		context.legacyRead = true;
 	} break;
 
 	case dbiAutoPlayOld: {
@@ -294,12 +305,15 @@ bool ReadSetting(
 				}
 			}
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiDialogsModeOld: {
 		qint32 enabled, modeInt;
 		stream >> enabled >> modeInt;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiDialogsFiltersOld: {
@@ -308,6 +322,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.sessionSettings().setDialogsFiltersEnabled(enabled == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiModerateModeOld: {
@@ -316,6 +331,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setModerateModeEnabled(enabled == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiIncludeMutedOld: {
@@ -324,12 +340,15 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setIncludeMutedCounter(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiShowingSavedGifsOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiDesktopNotifyOld: {
@@ -338,12 +357,15 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setDesktopNotify(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiWindowsNotificationsOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiNativeNotificationsOld: {
@@ -352,6 +374,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setNativeNotifications(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiNotificationsCountOld: {
@@ -360,6 +383,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setNotificationsCount((v > 0 ? v : 3));
+		context.legacyRead = true;
 	} break;
 
 	case dbiNotificationsCornerOld: {
@@ -368,6 +392,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setNotificationsCorner(static_cast<Core::Settings::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
+		context.legacyRead = true;
 	} break;
 
 	case dbiDialogsWidthRatioOld: {
@@ -376,6 +401,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setDialogsWidthRatio(v / 1000000.);
+		context.legacyRead = true;
 	} break;
 
 	case dbiLastSeenWarningSeenOld: {
@@ -384,6 +410,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setLastSeenWarningSeen(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiSessionSettings: {
@@ -413,6 +440,8 @@ bool ReadSetting(
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiTxtDomainStringOld: {
@@ -421,6 +450,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.fallbackConfigLegacyTxtDomainString = v;
+		context.legacyRead = true;
 	} break;
 
 	case dbiConnectionTypeOld: {
@@ -452,6 +482,7 @@ bool ReadSetting(
 			Global::SetProxiesList({});
 		}
 		Core::App().refreshGlobalProxy();
+		context.legacyRead = true;
 	} break;
 
 	case dbiConnectionType: {
@@ -564,6 +595,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		context.themeKeyLegacy = key;
+		context.legacyRead = true;
 	} break;
 
 	case dbiThemeKey: {
@@ -658,6 +690,7 @@ bool ReadSetting(
 			}
 			return cConfigScale();
 		}());
+		context.legacyRead = true;
 	} break;
 
 	case dbiScalePercent: {
@@ -675,12 +708,16 @@ bool ReadSetting(
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiLangFileOld: { // deprecated
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiWindowPosition: {
@@ -697,12 +734,16 @@ bool ReadSetting(
 		QString v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiMutePeerOld: { // deprecated
 		quint64 peerId;
 		stream >> peerId;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiMutedPeersOld: { // deprecated
@@ -715,6 +756,8 @@ bool ReadSetting(
 			stream >> peerId;
 		}
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiSendKeyOld: {
@@ -730,12 +773,15 @@ bool ReadSetting(
 			return false;
 		}
 		Core::App().settings().setSendSubmitWay(unchecked);
+		context.legacyRead = true;
 	} break;
 
-	case dbiCatsAndDogs: { // deprecated
+	case dbiCatsAndDogsOld: { // deprecated
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiTileBackgroundOld: {
@@ -752,6 +798,7 @@ bool ReadSetting(
 			context.tileNight = tile;
 		}
 		context.tileRead = true;
+		context.legacyRead = true;
 	} break;
 
 	case dbiTileBackground: {
@@ -770,6 +817,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setAdaptiveForWide(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiAutoLockOld: {
@@ -779,6 +827,7 @@ bool ReadSetting(
 
 		Core::App().settings().setAutoLock(v);
 		Global::RefLocalPasscodeChanged().notify();
+		context.legacyRead = true;
 	} break;
 
 	case dbiReplaceEmojiOld: {
@@ -787,6 +836,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setReplaceEmoji(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiSuggestEmojiOld: {
@@ -795,6 +845,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setSuggestEmoji(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiSuggestStickersByEmojiOld: {
@@ -803,6 +854,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setSuggestStickersByEmoji(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiDefaultAttach: {
@@ -821,6 +873,7 @@ bool ReadSetting(
 		case dbinvShowName: Core::App().settings().setNotifyView(dbinvShowName); break;
 		default: Core::App().settings().setNotifyView(dbinvShowPreview); break;
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiAskDownloadPathOld: {
@@ -829,6 +882,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setAskDownloadPath(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiDownloadPathOldOld: {
@@ -840,6 +894,7 @@ bool ReadSetting(
 		Core::App().settings().setDownloadPathBookmark(QByteArray());
 		Core::App().settings().setDownloadPath(v);
 #endif // OS_WIN_STORE
+		context.legacyRead = true;
 	} break;
 
 	case dbiDownloadPathOld: {
@@ -854,6 +909,7 @@ bool ReadSetting(
 		Core::App().settings().setDownloadPath(v);
 		psDownloadPathEnableAccess();
 #endif // OS_WIN_STORE
+		context.legacyRead = true;
 	} break;
 
 	case dbiCompressPastedImageOld: {
@@ -864,14 +920,15 @@ bool ReadSetting(
 		Core::App().settings().setSendFilesWay((v == 1)
 			? SendFilesWay::Album
 			: SendFilesWay::Files);
+		context.legacyRead = true;
 	} break;
 
-	case dbiEmojiTabOld: {
+	case dbiEmojiTabOld: { // deprecated
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		// deprecated
+		context.legacyRead = true;
 	} break;
 
 	case dbiRecentEmojiOldOld: {
@@ -903,6 +960,7 @@ bool ReadSetting(
 			}
 			cSetRecentEmojiPreload(p);
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiRecentEmojiOld: {
@@ -921,6 +979,7 @@ bool ReadSetting(
 			}
 			cSetRecentEmojiPreload(p);
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiRecentEmoji: {
@@ -955,6 +1014,7 @@ bool ReadSetting(
 			}
 		}
 		cSetEmojiVariants(variants);
+		context.legacyRead = true;
 	} break;
 
 	case dbiEmojiVariants: {
@@ -975,6 +1035,7 @@ bool ReadSetting(
 				i.key(),
 				i.value());
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiDialogLastPath: {
@@ -991,6 +1052,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setSongVolume(snap(v / 1e6, 0., 1.));
+		context.legacyRead = true;
 	} break;
 
 	case dbiVideoVolumeOld: {
@@ -999,6 +1061,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setVideoVolume(snap(v / 1e6, 0., 1.));
+		context.legacyRead = true;
 	} break;
 
 	case dbiPlaybackSpeedOld: {
@@ -1007,6 +1070,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setVoiceMsgPlaybackDoubled(v == 2);
+		context.legacyRead = true;
 	} break;
 
 	case dbiCallSettingsOld: {
@@ -1035,6 +1099,7 @@ bool ReadSetting(
 			app.setCallInputVolume(inputVolume);
 			app.setCallAudioDuckingEnabled(duckingEnabled);
 		}
+		context.legacyRead = true;
 	} break;
 
 	case dbiFallbackProductionConfig: {

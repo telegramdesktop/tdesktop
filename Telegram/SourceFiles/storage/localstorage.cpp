@@ -405,6 +405,9 @@ void start() {
 	_settingsSalt = salt;
 
 	applyReadContext(std::move(context));
+	if (context.legacyRead) {
+		writeSettings();
+	}
 
 	InitialLoadTheme();
 

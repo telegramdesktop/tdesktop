@@ -824,7 +824,11 @@ std::unique_ptr<Main::SessionSettings> Account::readSessionSettings() {
 	_readingUserSettings = false;
 	LOG(("App Info: encrypted user settings read."));
 
-	return applyReadContext(std::move(context));
+	auto result = applyReadContext(std::move(context));
+	if (context.legacyRead) {
+		writeSessionSettings(result.get());
+	}
+	return result;
 }
 
 std::unique_ptr<Main::SessionSettings> Account::applyReadContext(

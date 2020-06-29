@@ -64,6 +64,8 @@ struct ReadSettingsContext {
 	std::vector<std::shared_ptr<MTP::AuthKey>> mtpLegacyKeys;
 	qint32 mtpLegacyMainDcId = 0;
 	qint32 mtpLegacyUserId = 0;
+
+	bool legacyRead = false;
 };
 
 [[nodiscard]] bool ReadSetting(
@@ -93,7 +95,7 @@ enum {
 	dbiConnectionTypeOld = 0x0f,
 	// 0x10 reserved
 	dbiDefaultAttach = 0x11,
-	dbiCatsAndDogs = 0x12,
+	dbiCatsAndDogsOld = 0x12,
 	dbiReplaceEmojiOld = 0x13,
 	dbiAskDownloadPathOld = 0x14,
 	dbiDownloadPathOldOld = 0x15,
