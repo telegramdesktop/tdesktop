@@ -1,13 +1,13 @@
 /*
- This file is part of Telegram Desktop,
- the official desktop application for the Telegram messaging service.
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
 
- For license and copyright information please follow this link:
- https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
- */
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "platform/mac/mac_touchbar.h"
 
-#import "mac_touchbar.h"
-#import <QuartzCore/QuartzCore.h>
+#ifndef OS_OSX
 
 #include "api/api_sending.h"
 #include "apiwrap.h"
@@ -48,6 +48,8 @@
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
+#import <QuartzCore/QuartzCore.h>
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -1907,3 +1909,5 @@ void AppendEmojiPacks(
 }
 
 @end // @implementation TouchBar
+
+#endif // OS_OSX

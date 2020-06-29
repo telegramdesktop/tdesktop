@@ -144,9 +144,9 @@ public:
 	void didExitFullScreen();
 
 	bool clipboardHasText();
-
+#ifndef OS_OSX
 	TouchBar *_touchBar = nil;
-
+#endif // OS_OSX
 	~Private();
 
 private:
@@ -475,6 +475,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initTouchBar() {
+#ifndef OS_OSX
 	if (!IsMac10_13OrGreater()) {
 		return;
 	}
@@ -502,14 +503,17 @@ void MainWindow::initTouchBar() {
 			destroyCurrentTouchBar();
 		}
 	}, lifetime());
+#endif // OS_OSX
 }
 
 void MainWindow::destroyCurrentTouchBar() {
+#ifndef OS_OSX
 	if (_private->_touchBar) {
 		[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
 		[_private->_touchBar release];
 	}
 	_private->_touchBar = nil;
+#endif // OS_OSX
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -831,9 +835,13 @@ void MainWindow::updateGlobalMenuHook() {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
+
+#ifndef OS_OSX
 	if (_private->_touchBar) {
 		[_private->_touchBar showInputFieldItem:showTouchBarItem];
 	}
+#endif // OS_OSX
+
 	App::wnd()->updateIsActive();
 	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
