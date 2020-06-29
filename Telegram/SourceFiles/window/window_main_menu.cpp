@@ -198,7 +198,7 @@ void MainMenu::AccountButton::paintUserpic(Painter &p) {
 		user->paintUserpicLeft(p, _userpicView, x, y, width(), size);
 		return;
 	}
-	const auto added = y;
+	const auto added = st::mainMenuAccountCheck.size;
 	const auto cacheSize = QSize(size + added, size + added)
 		* cIntRetinaFactor();
 	const auto key = user->userpicUniqueKey(_userpicView);
