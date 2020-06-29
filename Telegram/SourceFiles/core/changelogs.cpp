@@ -49,6 +49,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Allow export of a single chat message history "
 		"in JSON format."
+	},
+	{
+		2001014,
+		"\xE2\x80\xA2 Support for multiple accounts."
 	}
 	};
 };

@@ -1,3 +1,7 @@
+2.1.14 beta (29.06.20)
+
+- Support for multiple accounts.
+
 2.1.13 (23.06.20)
 
 - Fix photos loading.
