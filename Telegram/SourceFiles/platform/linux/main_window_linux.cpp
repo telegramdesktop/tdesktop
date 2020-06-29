@@ -585,7 +585,7 @@ void MainWindow::onSNIOwnerChanged(
 	}
 	trayIcon = nullptr;
 
-	SNIAvailable = IsSNIAvailable();
+	SNIAvailable = !newOwner.isEmpty();
 
 	const auto trayAvailable = SNIAvailable
 		|| QSystemTrayIcon::isSystemTrayAvailable();
