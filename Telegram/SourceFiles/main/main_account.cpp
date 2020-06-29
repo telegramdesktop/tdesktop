@@ -68,11 +68,7 @@ Storage::Domain &Account::domainLocal() const {
 		const QByteArray &passcode) {
 	Expects(!_appConfig);
 
-	const auto result = _local->legacyStart(passcode);
-	if (result == Storage::StartResult::Success) {
-		start(nullptr);
-	}
-	return result;
+	return _local->legacyStart(passcode);
 }
 
 std::unique_ptr<MTP::Config> Account::prepareToStart(

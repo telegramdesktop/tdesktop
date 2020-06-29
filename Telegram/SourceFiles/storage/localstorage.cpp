@@ -595,6 +595,8 @@ QString readAutoupdatePrefix() {
 }
 
 void writeBackground(const Data::WallPaper &paper, const QImage &image) {
+	Expects(_settingsWriteAllowed);
+
 	if (!_backgroundCanWrite) {
 		return;
 	}

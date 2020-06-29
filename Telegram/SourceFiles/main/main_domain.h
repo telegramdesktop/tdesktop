@@ -80,6 +80,7 @@ private:
 	void checkForLastProductionConfig(not_null<Main::Account*> account);
 	void updateUnreadBadge();
 	void scheduleUpdateUnreadBadge();
+	void suggestExportIfNeeded();
 
 	const QString _dataName;
 	const std::unique_ptr<Storage::Domain> _local;

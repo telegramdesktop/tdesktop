@@ -25,6 +25,10 @@ namespace Main {
 Domain::Domain(const QString &dataName)
 : _dataName(dataName)
 , _local(std::make_unique<Storage::Domain>(this, dataName)) {
+	_active.changes(
+	) | rpl::take(1) | rpl::start_with_next([] {
+		Local::rewriteSettingsIfNeeded();
+	}, _lifetime);
 }
 
 Domain::~Domain() = default;
@@ -39,7 +43,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
-		Local::rewriteSettingsIfNeeded();
+		crl::on_main(&Core::App(), [=] { suggestExportIfNeeded(); });
 	} else {
 		Assert(!started());
 	}
@@ -50,6 +54,19 @@ void Domain::finish() {
 	_accountToActivate = -1;
 	_active = nullptr;
 	base::take(_accounts);
+}
+
+void Domain::suggestExportIfNeeded() {
+	Expects(started());
+
+	for (const auto &[index, account] : _accounts) {
+		if (const auto session = account->maybeSession()) {
+			const auto settings = session->local().readExportSettings();
+			if (const auto availableAt = settings.availableAt) {
+				session->data().suggestStartExport(availableAt);
+			}
+		}
+	}
 }
 
 void Domain::accountAddedInStorage(AccountWithIndex accountWithIndex) {
@@ -95,15 +112,6 @@ void Domain::activateAfterStarting() {
 
 	activate(toActivate);
 	removePasscodeIfEmpty();
-
-	for (const auto &[index, account] : _accounts) {
-		if (const auto session = account->maybeSession()) {
-			const auto settings = session->local().readExportSettings();
-			if (const auto availableAt = settings.availableAt) {
-				session->data().suggestStartExport(availableAt);
-			}
-		}
-	}
 }
 
 const std::vector<Domain::AccountWithIndex> &Domain::accounts() const {

@@ -83,6 +83,7 @@ void Domain::startWithSingleAccount(
 	if (auto localKey = account->local().peekLegacyLocalKey()) {
 		_localKey = std::move(localKey);
 		encryptLocalKey(passcode);
+		account->start(nullptr);
 	} else {
 		generateLocalKey();
 		account->start(account->prepareToStart(_localKey));
