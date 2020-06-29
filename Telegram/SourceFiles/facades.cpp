@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "facades.h"
 
+#include "api/api_bot.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
@@ -106,9 +107,10 @@ void activateBotCommand(
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (const auto m = CheckMainWidget(&msg->history()->session())) {
-			m->app_sendBotCallback(button, msg, row, column);
-		}
+		Api::SendBotCallbackData(
+			const_cast<HistoryItem*>(msg.get()),
+			row,
+			column);
 	} break;
 
 	case ButtonType::Buy: {

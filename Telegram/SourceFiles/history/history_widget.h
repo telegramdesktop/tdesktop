@@ -268,12 +268,6 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	void app_sendBotCallback(
-		not_null<const HistoryMessageMarkupButton*> button,
-		not_null<const HistoryItem*> msg,
-		int row,
-		int column);
-
 	PeerData *ui_getPeerForMouseAction();
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
@@ -335,13 +329,6 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
-	struct BotCallbackInfo {
-		not_null<Main::Session*> session;
-		UserData *bot;
-		FullMsgId msgId;
-		int row, col;
-		bool game;
-	};
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
 		~PinnedBar();
@@ -550,9 +537,6 @@ private:
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	static void UnpinMessage(not_null<PeerData*> peer);
-
-	static void BotCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
-	static void BotCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
+#include "api/api_bot.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_send_progress.h"
@@ -601,6 +602,33 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		if (_keyboard->forMsgId() == update.item->fullId()) {
 			updateBotKeyboard(update.item->history(), true);
+		}
+	}, lifetime());
+
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::BotCallbackSent
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		const auto item = update.item;
+		if (item->id < 0 || _peer != item->history()->peer) {
+			return;
+		}
+
+		const auto keyId = _keyboard->forMsgId();
+		const auto lastKeyboardUsed = (keyId == FullMsgId(_channel, item->id))
+			&& (keyId == FullMsgId(_channel, _history->lastKeyboardId));
+
+		session().data().requestItemRepaint(item);
+
+		if (_replyToId == item->id) {
+			cancelReply();
+		}
+		if (_keyboard->singleUse()
+			&& _keyboard->hasMarkup()
+			&& lastKeyboardUsed) {
+			if (_kbShown) {
+				toggleKeyboard(false);
+			}
+			_history->lastKeyboardUsed = true;
 		}
 	}, lifetime());
 
@@ -3593,115 +3621,6 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 			if (_kbShown) toggleKeyboard(false);
 			_history->lastKeyboardUsed = true;
 		}
-	}
-}
-
-void HistoryWidget::app_sendBotCallback(
-		not_null<const HistoryMessageMarkupButton*> button,
-		not_null<const HistoryItem*> msg,
-		int row,
-		int column) {
-	if (msg->id < 0 || _peer != msg->history()->peer) {
-		return;
-	}
-
-	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, msg->id));
-
-	auto bot = msg->getMessageBot();
-
-	using ButtonType = HistoryMessageMarkupButton::Type;
-	BotCallbackInfo info = {
-		&session(),
-		bot,
-		msg->fullId(),
-		row,
-		column,
-		(button->type == ButtonType::Game)
-	};
-	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
-	QByteArray sendData;
-	if (info.game) {
-		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_game;
-	} else if (button->type == ButtonType::Callback) {
-		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
-		sendData = button->data;
-	}
-	button->requestId = session().api().request(MTPmessages_GetBotCallbackAnswer(
-		MTP_flags(flags),
-		_peer->input,
-		MTP_int(msg->id),
-		MTP_bytes(sendData)
-	)).done([info](const MTPmessages_BotCallbackAnswer &result, mtpRequestId requestId) {
-		BotCallbackDone(info, result, requestId);
-	}).fail([info](const RPCError &error, mtpRequestId requestId) {
-		BotCallbackFail(info, error, requestId);
-	}).send();
-	session().data().requestItemRepaint(msg);
-
-	if (_replyToId == msg->id) {
-		cancelReply();
-	}
-	if (_keyboard->singleUse() && _keyboard->hasMarkup() && lastKeyboardUsed) {
-		if (_kbShown) toggleKeyboard(false);
-		_history->lastKeyboardUsed = true;
-	}
-}
-
-void HistoryWidget::BotCallbackDone(
-		BotCallbackInfo info,
-		const MTPmessages_BotCallbackAnswer &answer,
-		mtpRequestId req) {
-	const auto session = info.session;
-	const auto item = session->data().message(info.msgId);
-	const auto button = HistoryMessageMarkupButton::Get(
-		&session->data(),
-		info.msgId,
-		info.row,
-		info.col);
-	if (button && button->requestId == req) {
-		button->requestId = 0;
-		session->data().requestItemRepaint(item);
-	}
-	answer.match([&](const MTPDmessages_botCallbackAnswer &data) {
-		if (const auto message = data.vmessage()) {
-			if (data.is_alert()) {
-				Ui::show(Box<InformBox>(qs(*message)));
-			} else {
-				Ui::Toast::Show(qs(*message));
-			}
-		} else if (const auto url = data.vurl()) {
-			auto link = qs(*url);
-			if (info.game) {
-				link = AppendShareGameScoreUrl(session, link, info.msgId);
-				BotGameUrlClickHandler(info.bot, link).onClick({});
-			} else {
-				UrlClickHandler::Open(link);
-			}
-		}
-		if (const auto item = info.session->data().message(info.msgId)) {
-			if (!data.vmessage() && data.vurl() && info.game) {
-				info.session->sendProgressManager().update(
-					item->history(),
-					Api::SendProgressType::PlayGame);
-			}
-		}
-	});
-}
-
-void HistoryWidget::BotCallbackFail(
-		BotCallbackInfo info,
-		const RPCError &error,
-		mtpRequestId req) {
-	// show error?
-	const auto owner = &info.session->data();
-	const auto button = HistoryMessageMarkupButton::Get(
-		owner,
-		info.msgId,
-		info.row,
-		info.col);
-	if (button && button->requestId == req) {
-		button->requestId = 0;
-		owner->requestItemRepaint(owner->message(info.msgId));
 	}
 }
 

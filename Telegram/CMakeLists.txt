@@ -208,6 +208,8 @@ nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
 
+    api/api_bot.cpp
+    api/api_bot.h
     api/api_chat_filters.cpp
     api/api_chat_filters.h
     api/api_common.h
