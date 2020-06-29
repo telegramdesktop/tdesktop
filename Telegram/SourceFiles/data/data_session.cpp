@@ -1804,6 +1804,9 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	_itemRemoved.fire_copy(item);
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::Destroyed);
 	groups().unregisterMessage(item);
 	removeDependencyMessage(item);
 	messagesListForInsert(peerToChannel(peerId))->erase(item->id);
