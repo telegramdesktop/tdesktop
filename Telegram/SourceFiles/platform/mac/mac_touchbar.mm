@@ -454,6 +454,7 @@ void AppendEmojiPacks(
 
 @interface PinnedDialogsPanel : NSImageView
 - (id)init:(not_null<Main::Session*>)session;
+- (void)dealloc;
 @end // @interface PinnedDialogsPanel
 
 @implementation PinnedDialogsPanel {
@@ -770,6 +771,9 @@ void AppendEmojiPacks(
 
 	const auto updatePanelSize = [=] {
 		const auto size = lastDialogsCount->current();
+		if (self.image) {
+			[self.image release];
+		}
 		self.image = [[NSImage alloc] initWithSize:NSMakeSize(
 			size * (kCircleDiameter + kPinnedButtonsSpace)
 				+ kPinnedButtonsLeftSkip
@@ -988,6 +992,13 @@ void AppendEmojiPacks(
 	listenToDownloaderFinished();
 	[self processHorizontalReorder];
 	return self;
+}
+
+- (void)dealloc {
+	if (self.image) {
+		[self.image release];
+	}
+	[super dealloc];
 }
 
 - (int)shift {
@@ -1890,6 +1901,8 @@ void AppendEmojiPacks(
 }
 
 -(void)dealloc {
+	[_touchBarMain release];
+	[_touchBarAudioPlayer release];
 	[super dealloc];
 }
 

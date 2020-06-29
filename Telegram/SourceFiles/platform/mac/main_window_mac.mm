@@ -491,14 +491,6 @@ void MainWindow::initTouchBar() {
 		}
 	};
 
-	const auto destroyCurrentTouchBar = [=] {
-		if (_private->_touchBar) {
-			[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
-			[_private->_touchBar release];
-		}
-		_private->_touchBar = nil;
-	};
-
 	Core::App().domain().activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
@@ -510,6 +502,14 @@ void MainWindow::initTouchBar() {
 			destroyCurrentTouchBar();
 		}
 	}, lifetime());
+}
+
+void MainWindow::destroyCurrentTouchBar() {
+	if (_private->_touchBar) {
+		[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
+		[_private->_touchBar release];
+	}
+	_private->_touchBar = nil;
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -875,6 +875,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 }
 
 MainWindow::~MainWindow() {
+	destroyCurrentTouchBar();
 }
 
 } // namespace
