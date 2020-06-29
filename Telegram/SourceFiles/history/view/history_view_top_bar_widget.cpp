@@ -20,8 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
@@ -37,9 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "support/support_helper.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_window.h"
@@ -127,39 +130,41 @@ TopBarWidget::TopBarWidget(
 		}, lifetime());
 	}
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto flags = UpdateFlag::UserHasCalls
-		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserSupportInfoChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [=](const Notify::PeerUpdate &update) {
-		if (update.flags & UpdateFlag::UserHasCalls) {
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	session().changes().peerUpdates(
+		UpdateFlag::HasCalls
+		| UpdateFlag::OnlineStatus
+		| UpdateFlag::Members
+		| UpdateFlag::SupportInfo
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & UpdateFlag::HasCalls) {
 			if (update.peer->isUser()) {
 				updateControlsVisibility();
 			}
 		} else {
 			updateOnlineDisplay();
 		}
-	}));
-	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
+	}, lifetime());
+
+	session().serverConfig().phoneCallsEnabled.changes(
+	) | rpl::start_with_next([=] {
 		updateControlsVisibility();
-	});
+	}, lifetime());
 
 	rpl::combine(
-		session().settings().thirdSectionInfoEnabledValue(),
-		session().settings().tabbedReplacedWithInfoValue()
-	) | rpl::start_with_next(
-		[this] { updateInfoToggleActive(); },
-		lifetime());
+		Core::App().settings().thirdSectionInfoEnabledValue(),
+		Core::App().settings().tabbedReplacedWithInfoValue()
+	) | rpl::start_with_next([=] {
+		updateInfoToggleActive();
+	}, lifetime());
 
 	rpl::single(rpl::empty_value()) | rpl::then(
 		base::ObservableViewer(Global::RefConnectionTypeChanged())
-	) | rpl::start_with_next(
-		[=] { updateConnectingState(); },
-		lifetime());
+	) | rpl::start_with_next([=] {
+		updateConnectingState();
+	}, lifetime());
 
 	setCursor(style::cur_pointer);
-	updateControlsVisibility();
 }
 
 TopBarWidget::~TopBarWidget() = default;
@@ -169,8 +174,8 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
-	const auto mtp = MTP::dcstate();
-	if (mtp == MTP::ConnectedState) {
+	const auto state = _controller->session().mtp().dcstate();
+	if (state == MTP::ConnectedState) {
 		if (_connecting) {
 			_connecting = nullptr;
 			update();
@@ -196,14 +201,14 @@ void TopBarWidget::refreshLang() {
 
 void TopBarWidget::onSearch() {
 	if (_activeChat) {
-		App::main()->searchInChat(_activeChat);
+		_controller->content()->searchInChat(_activeChat);
 	}
 }
 
 void TopBarWidget::onCall() {
 	if (const auto peer = _activeChat.peer()) {
 		if (const auto user = peer->asUser()) {
-			user->session().calls().startOutgoingCall(user);
+			Core::App().calls().startOutgoingCall(user);
 		}
 	}
 }
@@ -262,13 +267,13 @@ void TopBarWidget::showMenu() {
 
 void TopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
-		&& (session().settings().thirdSectionInfoEnabled()
-			|| session().settings().tabbedReplacedWithInfo())) {
+		&& (Core::App().settings().thirdSectionInfoEnabled()
+			|| Core::App().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
 	} else if (_activeChat.peer()) {
 		if (_controller->canShowThirdSection()) {
-			session().settings().setThirdSectionInfoEnabled(true);
-			session().saveSettingsDelayed();
+			Core::App().settings().setThirdSectionInfoEnabled(true);
+			Core::App().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
 					Info::Memento::Default(_activeChat.peer()),
@@ -301,7 +306,7 @@ bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 			break;
 		}
 	}
-	return TWidget::eventFilter(obj, e);
+	return RpWidget::eventFilter(obj, e);
 }
 
 int TopBarWidget::resizeGetHeight(int newWidth) {
@@ -469,7 +474,7 @@ void TopBarWidget::infoClicked() {
 	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (_activeChat.peer()->isSelf()) {
 		_controller->showSection(Info::Memento(
-			_activeChat.peer()->id,
+			_activeChat.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else {
 		_controller->showPeerInfo(_activeChat.peer());
@@ -642,7 +647,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_sendNow->setVisible(_canSendNow);
 
 	auto backVisible = Adaptive::OneColumn()
-		|| (App::main() && !App::main()->stackIsEmpty())
+		|| !_controller->content()->stackIsEmpty()
 		|| _activeChat.folder();
 	_back->setVisible(backVisible);
 	if (_info) {
@@ -682,7 +687,8 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.peer()) {
 			if (const auto user = peer->asUser()) {
-				return Global::PhoneCallsEnabled() && user->hasCalls();
+				return session().serverConfig().phoneCallsEnabled.current()
+					&& user->hasCalls();
 			}
 		}
 		return false;
@@ -696,11 +702,8 @@ void TopBarWidget::updateControlsVisibility() {
 }
 
 void TopBarWidget::updateMembersShowArea() {
-	if (!App::main()) {
-		return;
-	}
-	auto membersShowAreaNeeded = [this]() {
-		auto peer = App::main()->peer();
+	const auto membersShowAreaNeeded = [&] {
+		auto peer = _controller->content()->peer();
 		if ((_selectedCount > 0) || !peer) {
 			return false;
 		}
@@ -708,11 +711,13 @@ void TopBarWidget::updateMembersShowArea() {
 			return chat->amIn();
 		}
 		if (auto megagroup = peer->asMegagroup()) {
-			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
+			return megagroup->canViewMembers()
+				&& (megagroup->membersCount()
+					< megagroup->session().serverConfig().chatSizeMax);
 		}
 		return false;
-	};
-	if (!membersShowAreaNeeded()) {
+	}();
+	if (!membersShowAreaNeeded) {
 		if (_membersShowArea) {
 			_membersShowAreaActive.fire(false);
 			_membersShowArea.destroy();
@@ -787,10 +792,7 @@ void TopBarWidget::updateAdaptiveLayout() {
 
 void TopBarWidget::refreshUnreadBadge() {
 	if (!Adaptive::OneColumn() && !_activeChat.folder()) {
-		if (_unreadBadge) {
-			unsubscribe(base::take(_unreadCounterSubscription));
-			_unreadBadge.destroy();
-		}
+		_unreadBadge.destroy();
 		return;
 	} else if (_unreadBadge) {
 		return;
@@ -808,9 +810,10 @@ void TopBarWidget::refreshUnreadBadge() {
 
 	_unreadBadge->show();
 	_unreadBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_unreadCounterSubscription = subscribe(
-		Global::RefUnreadCounterUpdate(),
-		[=] { updateUnreadBadge(); });
+	_controller->session().data().unreadBadgeChanges(
+	) | rpl::start_with_next([=] {
+		updateUnreadBadge();
+	}, _unreadBadge->lifetime());
 	updateUnreadBadge();
 }
 
@@ -832,8 +835,8 @@ void TopBarWidget::updateUnreadBadge() {
 
 void TopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
-		&& (session().settings().thirdSectionInfoEnabled()
-			|| session().settings().tabbedReplacedWithInfo());
+		&& (Core::App().settings().thirdSectionInfoEnabled()
+			|| Core::App().settings().tabbedReplacedWithInfo());
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;
@@ -891,7 +894,10 @@ void TopBarWidget::updateOnlineDisplay() {
 			}
 		}
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
-		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
+		if (channel->isMegagroup()
+			&& (channel->membersCount() > 0)
+			&& (channel->membersCount()
+				<= channel->session().serverConfig().chatSizeMax)) {
 			if (channel->lastParticipantsRequestNeeded()) {
 				session().api().requestLastParticipants(channel);
 			}

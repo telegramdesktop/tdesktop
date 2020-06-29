@@ -17,13 +17,17 @@ template <typename Widget>
 class FadeWrap;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Settings {
 
 class IntroWidget;
 
 class LayerWidget : public Ui::LayerWidget {
 public:
-	LayerWidget(QWidget*);
+	LayerWidget(QWidget*, not_null<Window::Controller*> window);
 
 	void showFinished() override;
 	void parentResized() override;

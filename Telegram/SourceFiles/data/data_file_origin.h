@@ -61,13 +61,21 @@ struct FileOriginSavedGifs {
 };
 
 struct FileOriginWallpaper {
-	FileOriginWallpaper(uint64 paperId, uint64 accessHash)
+	FileOriginWallpaper(
+		uint64 paperId,
+		uint64 accessHash,
+		UserId ownerId,
+		const QString &slug)
 	: paperId(paperId)
-	, accessHash(accessHash) {
+	, accessHash(accessHash)
+	, ownerId(ownerId)
+	, slug(slug) {
 	}
 
 	uint64 paperId = 0;
 	uint64 accessHash = 0;
+	UserId ownerId = 0;
+	QString slug;
 
 	inline bool operator<(const FileOriginWallpaper &other) const {
 		return paperId < other.paperId;

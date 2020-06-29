@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "base/qthelp_url.h" // qthelp::url_encode
 #include "base/platform/base_platform_info.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "numbers.h"
 #include "app.h"
@@ -203,36 +204,54 @@ QString SentCodeCall::getText() const {
 	return QString();
 }
 
-void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
-	if (CurrentConfirmPhoneBox && CurrentConfirmPhoneBox->getPhone() != phone) {
+void ConfirmPhoneBox::Start(
+		not_null<Main::Session*> session,
+		const QString &phone,
+		const QString &hash) {
+	if (CurrentConfirmPhoneBox
+		&& (CurrentConfirmPhoneBox->getPhone() != phone
+			|| &CurrentConfirmPhoneBox->session() != session)) {
 		CurrentConfirmPhoneBox.destroyDelayed();
 	}
 	if (!CurrentConfirmPhoneBox) {
-		CurrentConfirmPhoneBox = Box<ConfirmPhoneBox>(phone, hash);
+		CurrentConfirmPhoneBox = Box<ConfirmPhoneBox>(session, phone, hash);
 	}
 	CurrentConfirmPhoneBox->checkPhoneAndHash();
 }
 
-ConfirmPhoneBox::ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash)
-: _phone(phone)
+ConfirmPhoneBox::ConfirmPhoneBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	const QString &phone,
+	const QString &hash)
+: _session(session)
+, _api(&session->mtp())
+, _phone(phone)
 , _hash(hash)
 , _call([this] { sendCall(); }, [this] { update(); }) {
 }
 
 void ConfirmPhoneBox::sendCall() {
-	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_phoneHash)), rpcDone(&ConfirmPhoneBox::callDone));
+	_api.request(MTPauth_ResendCode(
+		MTP_string(_phone),
+		MTP_string(_phoneHash)
+	)).done([=](const MTPauth_SentCode &result) {
+		callDone(result);
+	}).send();
 }
 
 void ConfirmPhoneBox::checkPhoneAndHash() {
 	if (_sendCodeRequestId) {
 		return;
 	}
-	_sendCodeRequestId = MTP::send(
-		MTPaccount_SendConfirmPhoneCode(
-			MTP_string(_hash),
-			MTP_codeSettings(MTP_flags(0))),
-		rpcDone(&ConfirmPhoneBox::sendCodeDone),
-		rpcFail(&ConfirmPhoneBox::sendCodeFail));
+	_sendCodeRequestId = _api.request(MTPaccount_SendConfirmPhoneCode(
+		MTP_string(_hash),
+		MTP_codeSettings(MTP_flags(0))
+	)).done([=](const MTPauth_SentCode &result) {
+		sendCodeDone(result);
+	}).fail([=](const RPCError &error) {
+		sendCodeFail(error);
+	}).handleFloodErrors().send();
 }
 
 void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
@@ -259,12 +278,10 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 	});
 }
 
-bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
+void ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = tr::lng_flood_error(tr::now);
-	} else if (MTP::isDefaultHandledError(error)) {
-		return false;
 	} else if (error.code() == 400) {
 		errorText = tr::lng_confirm_phone_link_invalid(tr::now);
 	}
@@ -275,7 +292,6 @@ bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
 	} else {
 		deleteLater();
 	}
-	return true;
 }
 
 void ConfirmPhoneBox::launch() {
@@ -327,10 +343,14 @@ void ConfirmPhoneBox::sendCode() {
 
 	showError(QString());
 
-	_sendCodeRequestId = MTP::send(
-		MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(code)),
-		rpcDone(&ConfirmPhoneBox::confirmDone),
-		rpcFail(&ConfirmPhoneBox::confirmFail));
+	_sendCodeRequestId = _api.request(MTPaccount_ConfirmPhone(
+		MTP_string(_phoneHash),
+		MTP_string(code)
+	)).done([=](const MTPBool &result) {
+		confirmDone(result);
+	}).fail([=](const RPCError &error) {
+		confirmFail(error);
+	}).handleFloodErrors().send();
 }
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
@@ -338,12 +358,10 @@ void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 	Ui::show(Box<InformBox>(tr::lng_confirm_phone_success(tr::now, lt_phone, App::formatPhone(_phone))));
 }
 
-bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
+void ConfirmPhoneBox::confirmFail(const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = tr::lng_flood_error(tr::now);
-	} else if (MTP::isDefaultHandledError(error)) {
-		return false;
 	} else {
 		auto &errorType = error.type();
 		if (errorType == qstr("PHONE_CODE_EMPTY") || errorType == qstr("PHONE_CODE_INVALID")) {
@@ -354,7 +372,6 @@ bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
 	_code->setDisabled(false);
 	_code->setFocus();
 	showError(errorText);
-	return true;
 }
 
 void ConfirmPhoneBox::showError(const QString &error) {
@@ -405,10 +422,4 @@ void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {
 
 void ConfirmPhoneBox::setInnerFocus() {
 	_code->setFocusFast();
-}
-
-ConfirmPhoneBox::~ConfirmPhoneBox() {
-	if (_sendCodeRequestId) {
-		MTP::cancel(_sendCodeRequestId);
-	}
 }

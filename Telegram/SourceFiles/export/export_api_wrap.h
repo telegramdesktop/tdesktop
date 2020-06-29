@@ -35,7 +35,7 @@ struct Settings;
 
 class ApiWrap {
 public:
-	explicit ApiWrap(Fn<void(FnMut<void()>)> runner);
+	ApiWrap(QPointer<MTP::Instance> weak, Fn<void(FnMut<void()>)> runner);
 
 	rpl::producer<RPCError> errors() const;
 	rpl::producer<Output::Result> ioErrors() const;

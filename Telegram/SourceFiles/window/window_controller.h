@@ -18,21 +18,26 @@ namespace Window {
 
 class Controller final {
 public:
-	explicit Controller(not_null<Main::Account*> account);
+	Controller();
 	~Controller();
 
 	Controller(const Controller &other) = delete;
 	Controller &operator=(const Controller &other) = delete;
 
-	Main::Account &account() const {
-		return *_account;
-	}
-	not_null<::MainWindow*> widget() {
+	void showAccount(not_null<Main::Account*> account);
+
+	[[nodiscard]] not_null<::MainWindow*> widget() {
 		return &_widget;
 	}
-	SessionController *sessionController() const {
+	[[nodiscard]] Main::Account &account() const {
+		Expects(_account != nullptr);
+
+		return *_account;
+	}
+	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
+	[[nodiscard]] bool locked() const;
 
 	void finishFirstShow();
 
@@ -59,13 +64,13 @@ public:
 
 	void activate();
 	void reActivate();
-	void updateIsActive(int timeout);
+	void updateIsActiveFocus();
+	void updateIsActiveBlur();
+	void updateIsActive();
 	void minimize();
 	void close();
 
 	QPoint getPointForCallPanelCenter() const;
-
-	void tempDirDelete(int task);
 
 private:
 	void showBox(
@@ -73,11 +78,17 @@ private:
 		Ui::LayerOptions options,
 		anim::type animated);
 	void checkThemeEditor();
+	void checkLockByTerms();
+	void showTermsDecline();
+	void showTermsDelete();
 
-	not_null<Main::Account*> _account;
+	Main::Account *_account = nullptr;
 	::MainWindow _widget;
 	std::unique_ptr<SessionController> _sessionController;
+	base::Timer _isActiveTimer;
+	QPointer<Ui::BoxContent> _termsBox;
 
+	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;
 
 };

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/integration.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Core {
 
 class UiIntegration : public Ui::Integration {
@@ -19,6 +23,7 @@ public:
 		Instagram,
 	};
 	struct Context {
+		Main::Session *session = nullptr;
 		HashtagMentionType type = HashtagMentionType::Telegram;
 	};
 

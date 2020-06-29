@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/ui_utility.h"
+#include "mtproto/mtp_instance.h"
 #include "mtproto/facade.h"
+#include "main/main_account.h"
 #include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
@@ -74,7 +76,10 @@ void Progress::animationStep() {
 
 class ConnectionState::Widget : public Ui::AbstractButton {
 public:
-	Widget(QWidget *parent, const Layout &layout);
+	Widget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		const Layout &layout);
 
 	void refreshRetryLink(bool hasRetry);
 	void setLayout(const Layout &layout);
@@ -98,6 +103,7 @@ private:
 	QRect contentRect() const;
 	QRect textRect() const;
 
+	const not_null<Main::Account*> _account;
 	Layout _currentLayout;
 	base::unique_qptr<Ui::LinkButton> _retry;
 	QPointer<Ui::RpWidget> _progress;
@@ -201,8 +207,10 @@ bool ConnectionState::State::operator==(const State &other) const {
 
 ConnectionState::ConnectionState(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Main::Account*> account,
 	rpl::producer<bool> shown)
-: _parent(parent)
+: _account(account)
+, _parent(parent)
 , _refreshTimer([=] { refreshState(); })
 , _currentLayout(computeLayout(_state)) {
 	rpl::combine(
@@ -232,7 +240,7 @@ ConnectionState::ConnectionState(
 }
 
 void ConnectionState::createWidget() {
-	_widget = base::make_unique_q<Widget>(_parent, _currentLayout);
+	_widget = base::make_unique_q<Widget>(_parent, _account, _currentLayout);
 	_widget->setVisible(!_forceHidden);
 
 	updateWidth();
@@ -282,19 +290,19 @@ void ConnectionState::refreshState() {
 	const auto state = [&]() -> State {
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
-		const auto mtp = MTP::dcstate();
+		const auto state = _account->mtp().dcstate();
 		const auto proxy
 			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
-		if (mtp == MTP::ConnectingState
-			|| mtp == MTP::DisconnectedState
-			|| (mtp < 0 && mtp > -600)) {
+		if (state == MTP::ConnectingState
+			|| state == MTP::DisconnectedState
+			|| (state < 0 && state > -600)) {
 			return { State::Type::Connecting, proxy, under, ready };
-		} else if (mtp < 0
-			&& mtp >= -kMinimalWaitingStateDuration
+		} else if (state < 0
+			&& state >= -kMinimalWaitingStateDuration
 			&& _state.type != State::Type::Waiting) {
 			return { State::Type::Connecting, proxy, under, ready };
-		} else if (mtp < 0) {
-			const auto wait = ((-mtp) / 1000) + 1;
+		} else if (state < 0) {
+			const auto wait = ((-state) / 1000) + 1;
 			return { State::Type::Waiting, proxy, under, ready, wait };
 		}
 		return { State::Type::Connected, proxy, under, ready };
@@ -469,14 +477,18 @@ void ConnectionState::updateWidth() {
 	refreshProgressVisibility();
 }
 
-ConnectionState::Widget::Widget(QWidget *parent, const Layout &layout)
+ConnectionState::Widget::Widget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	const Layout &layout)
 : AbstractButton(parent)
+, _account(account)
 , _currentLayout(layout) {
 	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
 	_progress = Ui::CreateChild<Progress>(this);
 
 	addClickHandler([=] {
-		Ui::show(ProxiesBoxController::CreateOwningBox());
+		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
 }
 
@@ -603,7 +615,7 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 			tr::lng_reconnecting_try_now(tr::now),
 			st::connectingRetryLink);
 		_retry->addClickHandler([=] {
-			MTP::restart();
+			_account->mtp().restart();
 		});
 		updateRetryGeometry();
 	} else if (!hasRetry) {

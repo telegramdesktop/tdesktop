@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -503,10 +504,12 @@ void Autocomplete::submitValue(const QString &value) {
 
 ConfirmContactBox::ConfirmContactBox(
 	QWidget*,
+	not_null<Window::SessionController*> controller,
 	not_null<History*> history,
 	const Contact &data,
 	Fn<void(Qt::KeyboardModifiers)> submit)
-: _comment(GenerateCommentItem(this, history, data))
+: SimpleElementDelegate(controller)
+, _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {
 }

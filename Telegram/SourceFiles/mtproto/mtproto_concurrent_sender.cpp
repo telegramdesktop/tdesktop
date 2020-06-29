@@ -102,8 +102,11 @@ bool ConcurrentSender::RPCFailHandler::operator()(
 template <typename Method>
 auto ConcurrentSender::with_instance(Method &&method)
 -> std::enable_if_t<is_callable_v<Method, not_null<Instance*>>> {
-	crl::on_main([method = std::forward<Method>(method)]() mutable {
-		if (const auto instance = MainInstance()) {
+	crl::on_main([
+		weak = _weak,
+		method = std::forward<Method>(method)
+	]() mutable {
+		if (const auto instance = weak.data()) {
 			std::move(method)(instance);
 		}
 	});
@@ -162,8 +165,11 @@ mtpRequestId ConcurrentSender::RequestBuilder::send() {
 	return requestId;
 }
 
-ConcurrentSender::ConcurrentSender(Fn<void(FnMut<void()>)> runner)
-: _runner(runner) {
+ConcurrentSender::ConcurrentSender(
+	QPointer<Instance> weak,
+	Fn<void(FnMut<void()>)> runner)
+: _weak(weak)
+, _runner(runner) {
 }
 
 ConcurrentSender::~ConcurrentSender() {

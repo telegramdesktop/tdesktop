@@ -44,6 +44,7 @@ class DictLoader : public Storage::CloudBlob::BlobLoader {
 public:
 	DictLoader(
 		QObject *parent,
+		not_null<Main::Session*> session,
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,

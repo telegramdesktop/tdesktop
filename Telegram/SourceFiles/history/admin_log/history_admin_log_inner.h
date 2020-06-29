@@ -96,8 +96,6 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const HistoryView::Element*> view) override;
 	crl::time elementHighlightTime(
 		not_null<const HistoryView::Element*> element) override;
 	bool elementInSelectionMode() override;
@@ -113,6 +111,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	bool elementIsGifPaused() override;
 
 	~InnerWidget();
 

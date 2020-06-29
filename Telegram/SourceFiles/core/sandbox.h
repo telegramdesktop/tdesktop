@@ -78,6 +78,7 @@ private:
 
 	void closeApplication(); // will be done in aboutToQuit()
 	void checkForQuit(); // will be done in exec()
+	void checkForEmptyLoopNestingLevel();
 	void registerEnterFromEventLoop();
 	void incrementEventNestingLevel();
 	void decrementEventNestingLevel();

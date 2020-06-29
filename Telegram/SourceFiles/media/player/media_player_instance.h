@@ -158,6 +158,7 @@ public:
 		return _updatedNotifier.events();
 	}
 
+	bool pauseGifByRoundVideo() const;
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -180,9 +181,11 @@ private:
 		std::optional<SliceKey> playlistRequestedKey;
 		std::optional<int> playlistIndex;
 		rpl::lifetime playlistLifetime;
+		rpl::lifetime sessionLifetime;
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
 		History *migrated = nullptr;
+		Main::Session *session = nullptr;
 		bool repeatEnabled = false;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
@@ -252,8 +255,12 @@ private:
 	void requestRoundVideoResize() const;
 	void requestRoundVideoRepaint() const;
 
+	void setHistory(not_null<Data*> data, History *history);
+	void setSession(not_null<Data*> data, Main::Session *session);
+
 	Data _songData;
 	Data _voiceData;
+	bool _roundPlaying = false;
 
 	base::Observable<Switch> _switchToNextNotifier;
 	base::Observable<bool> _playerWidgetOver;

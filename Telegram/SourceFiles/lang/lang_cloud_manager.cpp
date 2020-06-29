@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
-#include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -158,14 +158,18 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 
 CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
-	Core::App().activeAccount().mtpValue(
-	) | rpl::start_with_next([=](MTP::Instance *instance) {
-		if (instance) {
-			_api.emplace(instance);
-			resendRequests();
-		} else {
+	Core::App().domain().activeValue(
+	) | rpl::map([=](Main::Account *account) {
+		if (!account) {
 			_api.reset();
 		}
+		return account
+			? account->mtpValue()
+			: rpl::never<not_null<MTP::Instance*>>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		resendRequests();
 	}, _lifetime);
 }
 
@@ -249,7 +253,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 		_languageWasSuggested = true;
 		_firstLanguageSuggestion.notify();
 
-		if (Main::Session::Exists()
+		if (Core::App().offerLegacyLangPackSwitch()
 			&& _langpack.id().isEmpty()
 			&& !_suggestedLanguage.isEmpty()) {
 			_offerSwitchToId = _suggestedLanguage;
@@ -386,9 +390,7 @@ bool CloudManager::canApplyWithoutRestart(const QString &id) const {
 	if (id == qstr("#TEST_X") || id == qstr("#TEST_0")) {
 		return true;
 	}
-
-	// We don't support instant language switch if the auth session exists :(
-	return !Main::Session::Exists();
+	return Core::App().canApplyLangPackWithoutRestart();
 }
 
 void CloudManager::resetToDefault() {
@@ -603,7 +605,7 @@ void CloudManager::switchLangPackId(const Language &data) {
 void CloudManager::changeIdAndReInitConnection(const Language &data) {
 	_langpack.switchToId(data);
 	if (_api) {
-		const auto mtproto = _api->instance();
+		const auto mtproto = &_api->instance();
 		mtproto->reInitConnection(mtproto->mainDcId());
 	}
 }

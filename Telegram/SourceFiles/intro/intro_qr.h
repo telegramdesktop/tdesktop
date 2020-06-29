@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/countryinput.h"
 #include "intro/intro_step.h"
-#include "mtproto/sender.h"
 #include "base/timer.h"
 
 namespace Ui {
@@ -53,7 +52,6 @@ private:
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
 
-	MTP::Sender _api;
 	rpl::event_stream<QByteArray> _qrCodes;
 	base::Timer _refreshTimer;
 	mtpRequestId _requestId = 0;

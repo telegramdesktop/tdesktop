@@ -246,15 +246,15 @@ void FilterRowButton::updateButtonsVisibility() {
 }
 
 rpl::producer<> FilterRowButton::removeRequests() const {
-	return _remove.clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _remove.clicks() | rpl::to_empty;
 }
 
 rpl::producer<> FilterRowButton::restoreRequests() const {
-	return _restore.clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _restore.clicks() | rpl::to_empty;
 }
 
 rpl::producer<> FilterRowButton::addRequests() const {
-	return _add.clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _add.clicks() | rpl::to_empty;
 }
 
 void FilterRowButton::paintEvent(QPaintEvent *e) {

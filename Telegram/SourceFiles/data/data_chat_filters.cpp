@@ -216,17 +216,6 @@ bool ChatFilter::contains(not_null<History*> history) const {
 }
 
 ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
-	//using Flag = ChatFilter::Flag;
-	//const auto all = Flag::Contacts
-	//	| Flag::NonContacts
-	//	| Flag::Groups
-	//	| Flag::Channels
-	//	| Flag::Bots
-	//	| Flag::NoArchived;
-	//_list.push_back(
-	//	ChatFilter(1, "Unmuted", all | Flag::NoMuted, {}, {}));
-	//_list.push_back(
-	//	ChatFilter(2, "Unread", all | Flag::NoRead, {}, {}));
 	load();
 }
 
@@ -236,6 +225,7 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	auto &pointer = _chatsLists[filterId];
 	if (!pointer) {
 		pointer = std::make_unique<Dialogs::MainList>(
+			&_owner->session(),
 			filterId,
 			rpl::single(ChatFilter::kPinnedLimit));
 	}
@@ -559,12 +549,9 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 }
 
 void ChatFilters::refreshHistory(not_null<History*> history) {
-	_refreshHistoryRequests.fire_copy(history);
-}
-
-auto ChatFilters::refreshHistoryRequests() const
--> rpl::producer<not_null<History*>> {
-	return _refreshHistoryRequests.events();
+	if (history->inChatList() && !list().empty()) {
+		_owner->refreshChatListEntry(history);
+	}
 }
 
 void ChatFilters::requestSuggested() {

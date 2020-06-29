@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
+#include "core/application.h"
 #include "calls/calls_instance.h"
 #include "core/shortcuts.h"
 #include "window/window_session_controller.h"
@@ -28,11 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
@@ -138,9 +140,9 @@ void WrapWidget::injectActiveProfile(Dialogs::Key key) {
 }
 
 void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
-	const auto firstPeerId = hasStackHistory()
-		? _historyStack.front().section->peerId()
-		: _controller->peerId();
+	const auto firstPeer = hasStackHistory()
+		? _historyStack.front().section->peer()
+		: _controller->peer();
 	const auto firstSectionType = hasStackHistory()
 		? _historyStack.front().section->section().type()
 		: _controller->section().type();
@@ -160,12 +162,12 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		: Section::MediaType::kCount;
 	if (firstSectionType != expectedType
 		|| firstSectionMediaType != expectedMediaType
-		|| firstPeerId != peer->id) {
+		|| firstPeer != peer) {
 		auto section = peer->isSelf()
 			? Section(Section::MediaType::Photo)
 			: Section(Section::Type::Profile);
 		injectActiveProfileMemento(std::move(
-			Memento(peer->id, section).takeStack().front()));
+			Memento(peer, section).takeStack().front()));
 	}
 }
 // // #feed
@@ -478,13 +480,15 @@ void WrapWidget::addProfileCallsButton() {
 
 	const auto peer = key().peer();
 	const auto user = peer ? peer->asUser() : nullptr;
-	if (!user || user->isSelf() || !Global::PhoneCallsEnabled()) {
+	if (!user
+		|| user->isSelf()
+		|| !user->session().serverConfig().phoneCallsEnabled.current()) {
 		return;
 	}
 
-	Notify::PeerUpdateValue(
+	user->session().changes().peerFlagsValue(
 		user,
-		Notify::PeerUpdate::Flag::UserHasCalls
+		Data::PeerUpdate::Flag::HasCalls
 	) | rpl::filter([=] {
 		return user->hasCalls();
 	}) | rpl::take(
@@ -497,7 +501,7 @@ void WrapWidget::addProfileCallsButton() {
 					? st::infoLayerTopBarCall
 					: st::infoTopBarCall))
 		)->addClickHandler([=] {
-			user->session().calls().startOutgoingCall(user);
+			Core::App().calls().startOutgoingCall(user);
 		});
 	}, _topBar->lifetime());
 
@@ -519,11 +523,11 @@ void WrapWidget::addProfileNotificationsButton() {
 			(wrap() == Wrap::Layer
 				? st::infoLayerTopBarNotifications
 				: st::infoTopBarNotifications)));
-	notifications->addClickHandler([peer] {
-		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+	notifications->addClickHandler([=] {
+		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
 			? 0
 			: Data::NotifySettings::kDefaultMutePeriod;
-		Auth().data().updateNotifySettings(peer, muteForSeconds);
+		peer->owner().updateNotifySettings(peer, muteForSeconds);
 	});
 	Profile::NotificationsEnabledValue(
 		peer
@@ -908,9 +912,9 @@ bool WrapWidget::returnToFirstStackFrame(
 	if (!hasStackHistory()) {
 		return false;
 	}
-	auto firstPeerId = _historyStack.front().section->peerId();
+	auto firstPeer = _historyStack.front().section->peer();
 	auto firstSection = _historyStack.front().section->section();
-	if (firstPeerId == memento->peerId()
+	if (firstPeer == memento->peer()
 		&& firstSection.type() == memento->section().type()
 		&& firstSection.type() == Section::Type::Profile) {
 		_historyStack.resize(1);
@@ -1023,12 +1027,12 @@ void WrapWidget::updateContentGeometry() {
 	}
 }
 
-bool WrapWidget::wheelEventFromFloatPlayer(QEvent *e) {
-	return _content->wheelEventFromFloatPlayer(e);
+bool WrapWidget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return _content->floatPlayerHandleWheelEvent(e);
 }
 
-QRect WrapWidget::rectForFloatPlayer() const {
-	return _content->rectForFloatPlayer();
+QRect WrapWidget::floatPlayerAvailableRect() {
+	return _content->floatPlayerAvailableRect();
 }
 
 object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(

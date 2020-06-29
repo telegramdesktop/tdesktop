@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_main_list.h"
 
-#include "observer_peer.h"
+#include "data/data_changes.h"
+#include "main/main_session.h"
 #include "history/history.h"
 
 namespace Dialogs {
 
-MainList::MainList(FilterId filterId, rpl::producer<int> pinnedLimit)
+MainList::MainList(
+	not_null<Main::Session*> session,
+	FilterId filterId,
+	rpl::producer<int> pinnedLimit)
 : _filterId(filterId)
 , _all(SortMode::Date, filterId)
 , _pinned(filterId, 1) {
@@ -24,12 +28,9 @@ MainList::MainList(FilterId filterId, rpl::producer<int> pinnedLimit)
 		_pinned.setLimit(limit);
 	}, _lifetime);
 
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::NameChanged
-	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
-		const auto peer = update.peer;
-		const auto &oldLetters = update.oldNameFirstLetters;
-		_all.peerNameChanged(_filterId, peer, oldLetters);
+	session->changes().realtimeNameUpdates(
+	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
+		_all.peerNameChanged(_filterId, update.peer, update.oldFirstLetters);
 	}, _lifetime);
 }
 

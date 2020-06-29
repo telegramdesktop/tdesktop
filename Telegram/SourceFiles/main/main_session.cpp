@@ -8,24 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 #include "apiwrap.h"
+#include "api/api_updates.h"
 #include "core/application.h"
-#include "core/changelogs.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
+#include "main/main_session_settings.h"
+#include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
 #include "storage/file_download.h"
 #include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/storage_facade.h"
+#include "storage/storage_account.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
-#include "window/notifications_manager.h"
+#include "data/stickers/data_stickers.h"
+#include "window/window_session_controller.h"
+#include "window/window_lock_widgets.h"
 #include "window/themes/window_theme.h"
 //#include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
-#include "observer_peer.h"
 #include "facades.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
@@ -35,39 +41,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
-constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
+
+[[nodiscard]] QString ValidatedInternalLinksDomain(
+		not_null<const Session*> session) {
+	// This domain should start with 'http[s]://' and end with '/'.
+	// Like 'https://telegram.me/' or 'https://t.me/'.
+	const auto &domain = session->serverConfig().internalLinksDomain;
+	const auto prefixes = {
+		qstr("https://"),
+		qstr("http://"),
+	};
+	for (const auto &prefix : prefixes) {
+		if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
+			return domain.endsWith('/')
+				? domain
+				: MTP::ConfigFields().internalLinksDomain;
+		}
+	}
+	return MTP::ConfigFields().internalLinksDomain;
+}
 
 } // namespace
 
 Session::Session(
-	not_null<Main::Account*> account,
+	not_null<Account*> account,
 	const MTPUser &user,
-	Settings &&settings)
+	std::unique_ptr<SessionSettings> settings)
 : _account(account)
 , _settings(std::move(settings))
-, _saveSettingsTimer([=] { Local::writeUserSettings(); })
-, _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
-, _calls(std::make_unique<Calls::Instance>(this))
+, _updates(std::make_unique<Api::Updates>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
-, _notifications(std::make_unique<Window::Notifications::System>(this))
+, _changes(std::make_unique<Data::Changes>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
-, _changelogs(Core::Changelogs::Create(this))
-, _supportHelper(Support::Helper::Create(this)) {
-	Core::App().passcodeLockChanges(
-	) | rpl::start_with_next([=] {
-		_shouldLockAt = 0;
-	}, _lifetime);
-	Core::App().lockChanges(
-	) | rpl::start_with_next([=] {
-		notifications().updateAll();
-	}, _lifetime);
+, _supportHelper(Support::Helper::Create(this))
+, _saveSettingsTimer([=] { saveSettings(); }) {
+	Expects(_settings != nullptr);
+
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		_api->refreshTopPromotion();
 	});
@@ -75,24 +91,40 @@ Session::Session(
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
 
-	crl::on_main(this, [=] {
-		using Flag = Notify::PeerUpdate::Flag;
-		const auto events = Flag::NameChanged
-			| Flag::UsernameChanged
-			| Flag::PhotoChanged
-			| Flag::AboutChanged
-			| Flag::UserPhoneChanged;
-		subscribe(
-			Notify::PeerUpdated(),
-			Notify::PeerUpdatedHandler(
-				events,
-				[=](const Notify::PeerUpdate &update) {
-					if (update.peer == _user) {
-						Local::writeSelf();
-					}
-				}));
+	_api->instance().setUserPhone(_user->phone());
 
-		if (_settings.hadLegacyCallsPeerToPeerNobody()) {
+	// Load current userpic and keep it loaded.
+	_user->loadUserpic();
+	changes().peerFlagsValue(
+		_user,
+		Data::PeerUpdate::Flag::Photo
+	) | rpl::start_with_next([=] {
+		[[maybe_unused]] const auto image = _user->currentUserpic(
+			_selfUserpicView);
+	}, lifetime());
+
+	crl::on_main(this, [=] {
+		using Flag = Data::PeerUpdate::Flag;
+		changes().peerUpdates(
+			_user,
+			Flag::Name
+			| Flag::Username
+			| Flag::Photo
+			| Flag::About
+			| Flag::PhoneNumber
+		) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+			local().writeSelf();
+
+			if (update.flags & Flag::PhoneNumber) {
+				const auto phone = _user->phone();
+				_api->instance().setUserPhone(phone);
+				if (!phone.isEmpty()) {
+					_api->instance().requestConfig();
+				}
+			}
+		}, _lifetime);
+
+		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().savePrivacy(
 				MTP_inputPrivacyKeyPhoneP2P(),
 				QVector<MTPInputPrivacyRule>(
@@ -100,31 +132,63 @@ Session::Session(
 					MTP_inputPrivacyValueDisallowAll()));
 			saveSettingsDelayed();
 		}
-	});
 
-	Window::Theme::Background()->start();
+		local().readInstalledStickers();
+		local().readFeaturedStickers();
+		local().readRecentStickers();
+		local().readFavedStickers();
+		local().readSavedGifs();
+		data().stickers().notifyUpdated();
+		data().stickers().notifySavedGifsUpdated();
+	});
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	Spellchecker::Start(this);
 #endif // TDESKTOP_DISABLE_SPELLCHECK
+
+	_api->requestNotifySettings(MTP_inputNotifyUsers());
+	_api->requestNotifySettings(MTP_inputNotifyChats());
+	_api->requestNotifySettings(MTP_inputNotifyBroadcasts());
+}
+
+// Can be called only right before ~Session.
+void Session::finishLogout() {
+	unlockTerms();
+	data().clear();
+	data().clearLocalStorage();
 }
 
 Session::~Session() {
+	unlockTerms();
+	data().clear();
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
 }
 
-Main::Account &Session::account() const {
+Account &Session::account() const {
 	return *_account;
 }
 
-bool Session::Exists() {
-	return Core::IsAppLaunched()
-		&& Core::App().activeAccount().sessionExists();
+Storage::Account &Session::local() const {
+	return _account->local();
+}
+
+Domain &Session::domain() const {
+	return _account->domain();
+}
+
+Storage::Domain &Session::domainLocal() const {
+	return _account->domainLocal();
 }
 
 base::Observable<void> &Session::downloaderTaskFinished() {
 	return downloader().taskFinished();
+}
+
+uint64 Session::uniqueId() const {
+	// See also Account::willHaveSessionUniqueId.
+	return uint64(uint32(userId()))
+		| (mtp().isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
 UserId Session::userId() const {
@@ -147,20 +211,45 @@ bool Session::validateSelf(const MTPUser &user) {
 	return true;
 }
 
-void Session::saveSettingsDelayed(crl::time delay) {
-	Expects(this == &Auth());
+void Session::saveSettings() {
+	local().writeSessionSettings();
+}
 
+void Session::saveSettingsDelayed(crl::time delay) {
 	_saveSettingsTimer.callOnce(delay);
 }
 
-not_null<MTP::Instance*> Session::mtp() {
+void Session::saveSettingsNowIfNeeded() {
+	if (_saveSettingsTimer.isActive()) {
+		_saveSettingsTimer.cancel();
+		saveSettings();
+	}
+}
+
+MTP::DcId Session::mainDcId() const {
+	return _account->mtp().mainDcId();
+}
+
+MTP::Instance &Session::mtp() const {
 	return _account->mtp();
 }
 
-void Session::localPasscodeChanged() {
-	_shouldLockAt = 0;
-	_autoLockTimer.cancel();
-	checkAutoLock();
+const MTP::ConfigFields &Session::serverConfig() const {
+	return _account->mtp().configValues();
+}
+
+void Session::lockByTerms(const Window::TermsLock &data) {
+	if (!_termsLock || *_termsLock != data) {
+		_termsLock = std::make_unique<Window::TermsLock>(data);
+		_termsLockChanges.fire(true);
+	}
+}
+
+void Session::unlockTerms() {
+	if (_termsLock) {
+		_termsLock = nullptr;
+		_termsLockChanges.fire(false);
+	}
 }
 
 void Session::termsDeleteNow() {
@@ -169,34 +258,37 @@ void Session::termsDeleteNow() {
 	)).send();
 }
 
-void Session::checkAutoLock() {
-	if (!Global::LocalPasscode()
-		|| Core::App().passcodeLocked()) {
-		_shouldLockAt = 0;
-		_autoLockTimer.cancel();
-		return;
-	}
-
-	Core::App().checkLocalTime();
-	const auto now = crl::now();
-	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
-	const auto checkTimeMs = now - Core::App().lastNonIdleTime();
-	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		_shouldLockAt = 0;
-		_autoLockTimer.cancel();
-		Core::App().lockByPasscode();
-	} else {
-		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
-		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);
-	}
+std::optional<Window::TermsLock> Session::termsLocked() const {
+	return _termsLock ? base::make_optional(*_termsLock) : std::nullopt;
 }
 
-void Session::checkAutoLockIn(crl::time time) {
-	if (_autoLockTimer.isActive()) {
-		auto remain = _autoLockTimer.remainingTime();
-		if (remain > 0 && remain <= time) return;
+rpl::producer<bool> Session::termsLockChanges() const {
+	return _termsLockChanges.events();
+}
+
+rpl::producer<bool> Session::termsLockValue() const {
+	return rpl::single(
+		_termsLock != nullptr
+	) | rpl::then(termsLockChanges());
+}
+
+QString Session::createInternalLink(const QString &query) const {
+	auto result = createInternalLinkFull(query);
+	auto prefixes = {
+		qstr("https://"),
+		qstr("http://"),
+	};
+	for (auto &prefix : prefixes) {
+		if (result.startsWith(prefix, Qt::CaseInsensitive)) {
+			return result.mid(prefix.size());
+		}
 	}
-	_autoLockTimer.callOnce(time);
+	LOG(("Warning: bad internal url '%1'").arg(result));
+	return result;
+}
+
+QString Session::createInternalLinkFull(const QString &query) const {
+	return ValidatedInternalLinksDomain(this) + query;
 }
 
 bool Session::supportMode() const {
@@ -213,15 +305,20 @@ Support::Templates& Session::supportTemplates() const {
 	return supportHelper().templates();
 }
 
-void Session::saveSettingsNowIfNeeded() {
-	if (_saveSettingsTimer.isActive()) {
-		_saveSettingsTimer.cancel();
-		Local::writeUserSettings();
-	}
+void Session::addWindow(not_null<Window::SessionController*> controller) {
+	_windows.emplace(controller);
+	controller->lifetime().add([=] {
+		_windows.remove(controller);
+	});
+	updates().addActiveChat(controller->activeChatChanges(
+	) | rpl::map([=](const Dialogs::Key &chat) {
+		return chat.peer();
+	}) | rpl::distinct_until_changed());
+}
+
+auto Session::windows() const
+-> const base::flat_set<not_null<Window::SessionController*>> & {
+	return _windows;
 }
 
 } // namespace Main
-
-Main::Session &Auth() {
-	return Core::App().activeAccount().session();
-}

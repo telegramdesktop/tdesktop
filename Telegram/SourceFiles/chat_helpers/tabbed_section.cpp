@@ -61,12 +61,12 @@ bool TabbedSection::showInternal(
 	return false;
 }
 
-bool TabbedSection::wheelEventFromFloatPlayer(QEvent *e) {
-	return _selector->wheelEventFromFloatPlayer(e);
+bool TabbedSection::floatPlayerHandleWheelEvent(QEvent *e) {
+	return _selector->floatPlayerHandleWheelEvent(e);
 }
 
-QRect TabbedSection::rectForFloatPlayer() const {
-	return _selector->rectForFloatPlayer();
+QRect TabbedSection::floatPlayerAvailableRect() {
+	return _selector->floatPlayerAvailableRect();
 }
 
 TabbedSection::~TabbedSection() {

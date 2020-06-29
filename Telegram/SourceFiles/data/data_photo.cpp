@@ -233,32 +233,44 @@ void PhotoData::load(
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
 	const auto index = validSizeIndex(size);
-	auto &image = _images[index];
 
 	// Could've changed, if the requested size didn't have a location.
 	const auto loadingSize = static_cast<PhotoSize>(index);
-	const auto cacheTag = Data::kImageCacheTag;
-	Data::LoadCloudFile(image, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeMediaView()) {
 			return !active->image(size);
 		}
 		return true;
-	}, [=](QImage result) {
+	};
+	const auto done = [=](QImage result) {
 		if (const auto active = activeMediaView()) {
 			active->set(loadingSize, std::move(result));
 		}
 		if (loadingSize == PhotoSize::Large) {
 			_owner->photoLoadDone(this);
 		}
-	}, [=](bool started) {
+	};
+	const auto fail = [=](bool started) {
 		if (loadingSize == PhotoSize::Large) {
 			_owner->photoLoadFail(this, started);
 		}
-	}, [=] {
+	};
+	const auto progress = [=] {
 		if (loadingSize == PhotoSize::Large) {
 			_owner->photoLoadProgress(this);
 		}
-	});
+	};
+	Data::LoadCloudFile(
+		&session(),
+		_images[index],
+		origin,
+		fromCloud,
+		autoLoading,
+		Data::kImageCacheTag,
+		finalCheck,
+		done,
+		fail,
+		progress);
 
 	if (size == PhotoSize::Large) {
 		_owner->notifyPhotoLayoutChanged(this);
@@ -317,22 +329,16 @@ PhotoClickHandler::PhotoClickHandler(
 	not_null<PhotoData*> photo,
 	FullMsgId context,
 	PeerData *peer)
-: FileClickHandler(context)
-, _session(&photo->session())
+: FileClickHandler(&photo->session(), context)
 , _photo(photo)
 , _peer(peer) {
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	if (valid()) {
-		Core::App().showPhoto(this);
-	}
+	Core::App().showPhoto(this);
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
-	if (!valid()) {
-		return;
-	}
 	const auto data = photo();
 	if (!data->date) {
 		return;
@@ -342,15 +348,16 @@ void PhotoSaveClickHandler::onClickImpl() const {
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {
-	if (!valid()) {
-		return;
-	}
 	const auto data = photo();
 	if (!data->date) {
 		return;
 	} else if (data->uploading()) {
 		if (const auto item = data->owner().message(context())) {
-			App::main()->cancelUploadLayer(item);
+			if (const auto m = App::main()) { // multi good
+				if (&m->session() == &data->session()) {
+					m->cancelUploadLayer(item);
+				}
+			}
 		}
 	} else {
 		data->cancel();

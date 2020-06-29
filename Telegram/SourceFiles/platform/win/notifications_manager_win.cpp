@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
 #include "history/history.h"
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
-#include "facades.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
@@ -207,13 +209,13 @@ class ToastEventHandler final : public Implements<
 	DesktopToastDismissedEventHandler,
 	DesktopToastFailedEventHandler> {
 public:
+	using NotificationId = Manager::NotificationId;
+
 	// We keep a weak pointer to a member field of native notifications manager.
 	ToastEventHandler(
 		const std::shared_ptr<Manager*> &guarded,
-		const PeerId &peer,
-		MsgId msg)
-	: _peerId(peer)
-	, _msgId(msg)
+		NotificationId id)
+	: _id(id)
 	, _weak(guarded) {
 	}
 
@@ -226,8 +228,9 @@ public:
 
 	// DesktopToastActivatedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
-		performOnMainQueue([peerId = _peerId, msgId = _msgId](Manager *manager) {
-			manager->notificationActivated(peerId, msgId);
+		const auto my = _id;
+		performOnMainQueue([my](Manager *manager) {
+			manager->notificationActivated(my);
 		});
 		return S_OK;
 	}
@@ -242,8 +245,9 @@ public:
 			case ToastDismissalReason_UserCanceled:
 			case ToastDismissalReason_TimedOut:
 			default:
-				performOnMainQueue([peerId = _peerId, msgId = _msgId](Manager *manager) {
-					manager->clearNotification(peerId, msgId);
+				const auto my = _id;
+				performOnMainQueue([my](Manager *manager) {
+					manager->clearNotification(my);
 				});
 			break;
 			}
@@ -253,8 +257,9 @@ public:
 
 	// DesktopToastFailedEventHandler
 	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastFailedEventArgs *e) {
-		performOnMainQueue([peerId = _peerId, msgId = _msgId](Manager *manager) {
-			manager->clearNotification(peerId, msgId);
+		const auto my = _id;
+		performOnMainQueue([my](Manager *manager) {
+			manager->clearNotification(my);
 		});
 		return S_OK;
 	}
@@ -293,8 +298,7 @@ public:
 
 private:
 	ULONG _refCount = 0;
-	PeerId _peerId = 0;
-	MsgId _msgId = 0;
+	NotificationId _id;
 	std::weak_ptr<Manager*> _weak;
 
 };
@@ -323,7 +327,7 @@ bool Supported() {
 
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
-	if (Global::NativeNotifications() && Supported()) {
+	if (Core::App().settings().nativeNotifications() && Supported()) {
 		auto result = std::make_unique<Manager>(system);
 		if (result->init()) {
 			return std::move(result);
@@ -352,9 +356,10 @@ public:
 		bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(not_null<History*> history);
-	void beforeNotificationActivated(PeerId peerId, MsgId msgId);
-	void afterNotificationActivated(PeerId peerId, MsgId msgId);
-	void clearNotification(PeerId peerId, MsgId msgId);
+	void clearFromSession(not_null<Main::Session*> session);
+	void beforeNotificationActivated(NotificationId id);
+	void afterNotificationActivated(NotificationId id);
+	void clearNotification(NotificationId id);
 
 	~Private();
 
@@ -375,7 +380,7 @@ private:
 
 		ComPtr<IToastNotification> p;
 	};
-	QMap<PeerId, QMap<MsgId, NotificationPtr>> _notifications;
+	base::flat_map<FullPeer, base::flat_map<MsgId, NotificationPtr>> _notifications;
 
 };
 
@@ -413,8 +418,8 @@ void Manager::Private::clearAll() {
 	if (!_notifier) return;
 
 	auto temp = base::take(_notifications);
-	for_const (auto &notifications, temp) {
-		for_const (auto &notification, notifications) {
+	for (const auto &[key, notifications] : base::take(_notifications)) {
+		for (const auto &[msgId, notification] : notifications) {
 			_notifier->Hide(notification.p.Get());
 		}
 	}
@@ -423,32 +428,51 @@ void Manager::Private::clearAll() {
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!_notifier) return;
 
-	auto i = _notifications.find(history->peer->id);
+	auto i = _notifications.find(FullPeer{
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id
+	});
 	if (i != _notifications.cend()) {
-		auto temp = base::take(i.value());
+		auto temp = base::take(i->second);
 		_notifications.erase(i);
 
-		for_const (auto &notification, temp) {
+		for (const auto &[msgId, notification] : temp) {
 			_notifier->Hide(notification.p.Get());
 		}
 	}
 }
 
-void Manager::Private::beforeNotificationActivated(PeerId peerId, MsgId msgId) {
-	clearNotification(peerId, msgId);
+void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
+	if (!_notifier) return;
+
+	const auto sessionId = session->uniqueId();
+	for (auto i = _notifications.begin(); i != _notifications.end();) {
+		if (i->first.sessionId == sessionId) {
+			const auto temp = base::take(i->second);
+			_notifications.erase(i);
+
+			for (const auto &[msgId, notification] : temp) {
+				_notifier->Hide(notification.p.Get());
+			}
+		}
+	}
 }
 
-void Manager::Private::afterNotificationActivated(PeerId peerId, MsgId msgId) {
+void Manager::Private::beforeNotificationActivated(NotificationId id) {
+	clearNotification(id);
+}
+
+void Manager::Private::afterNotificationActivated(NotificationId id) {
 	if (auto window = App::wnd()) {
 		SetForegroundWindow(window->psHwnd());
 	}
 }
 
-void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
-	auto i = _notifications.find(peerId);
+void Manager::Private::clearNotification(NotificationId id) {
+	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
-		i.value().remove(msgId);
-		if (i.value().isEmpty()) {
+		i->second.remove(id.msgId);
+		if (i->second.empty()) {
 			_notifications.erase(i);
 		}
 	}
@@ -480,10 +504,10 @@ bool Manager::Private::showNotification(
 	hr = SetAudioSilent(toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
-	const auto key = hideNameAndPhoto
+	const auto userpicKey = hideNameAndPhoto
 		? InMemoryKey()
 		: peer->userpicUniqueKey(userpicView);
-	const auto userpicPath = _cachedUserpics.get(key, peer, userpicView);
+	const auto userpicPath = _cachedUserpics.get(userpicKey, peer, userpicView);
 	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
 	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
@@ -531,8 +555,19 @@ bool Manager::Private::showNotification(
 	hr = _notificationFactory->CreateToastNotification(toastXml.Get(), &toast);
 	if (!SUCCEEDED(hr)) return false;
 
+	const auto key = FullPeer{
+		.sessionId = peer->session().uniqueId(),
+		.peerId = peer->id,
+	};
+	const auto notificationId = NotificationId{
+		.full = key,
+		.msgId = msgId
+	};
+
 	EventRegistrationToken activatedToken, dismissedToken, failedToken;
-	ComPtr<ToastEventHandler> eventHandler(new ToastEventHandler(_guarded, peer->id, msgId));
+	ComPtr<ToastEventHandler> eventHandler(new ToastEventHandler(
+		_guarded,
+		notificationId));
 
 	hr = toast->add_Activated(eventHandler.Get(), &activatedToken);
 	if (!SUCCEEDED(hr)) return false;
@@ -543,26 +578,30 @@ bool Manager::Private::showNotification(
 	hr = toast->add_Failed(eventHandler.Get(), &failedToken);
 	if (!SUCCEEDED(hr)) return false;
 
-	auto i = _notifications.find(peer->id);
+	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto j = i->find(msgId);
-		if (j != i->cend()) {
-			ComPtr<IToastNotification> notify = j->p;
-			i->erase(j);
+		auto j = i->second.find(msgId);
+		if (j != i->second.end()) {
+			ComPtr<IToastNotification> notify = j->second.p;
+			i->second.erase(j);
 			_notifier->Hide(notify.Get());
-			i = _notifications.find(peer->id);
+			i = _notifications.find(key);
 		}
 	}
 	if (i == _notifications.cend()) {
-		i = _notifications.insert(peer->id, QMap<MsgId, NotificationPtr>());
+		i = _notifications.emplace(
+			key,
+			base::flat_map<MsgId, NotificationPtr>()).first;
 	}
 	hr = _notifier->Show(toast.Get());
 	if (!SUCCEEDED(hr)) {
-		i = _notifications.find(peer->id);
-		if (i != _notifications.cend() && i->isEmpty()) _notifications.erase(i);
+		i = _notifications.find(key);
+		if (i != _notifications.cend() && i->second.empty()) {
+			_notifications.erase(i);
+		}
 		return false;
 	}
-	_notifications[peer->id].insert(msgId, toast);
+	i->second.emplace(msgId, toast);
 
 	return true;
 }
@@ -575,8 +614,8 @@ bool Manager::init() {
 	return _private->init();
 }
 
-void Manager::clearNotification(PeerId peerId, MsgId msgId) {
-	_private->clearNotification(peerId, msgId);
+void Manager::clearNotification(NotificationId id) {
+	_private->clearNotification(id);
 }
 
 Manager::~Manager() = default;
@@ -609,12 +648,16 @@ void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
 
-void Manager::onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
-	_private->beforeNotificationActivated(peerId, msgId);
+void Manager::doClearFromSession(not_null<Main::Session*> session) {
+	_private->clearFromSession(session);
 }
 
-void Manager::onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
-	_private->afterNotificationActivated(peerId, msgId);
+void Manager::onBeforeNotificationActivated(NotificationId id) {
+	_private->beforeNotificationActivated(id);
+}
+
+void Manager::onAfterNotificationActivated(NotificationId id) {
+	_private->afterNotificationActivated(id);
 }
 #endif // !__MINGW32__
 

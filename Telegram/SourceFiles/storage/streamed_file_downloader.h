@@ -23,6 +23,8 @@ namespace Storage {
 class StreamedFileDownloader final : public FileLoader {
 public:
 	StreamedFileDownloader(
+		not_null<Main::Session*> session,
+
 		uint64 objectId,
 		MTP::DcId dcId,
 		Data::FileOrigin origin,

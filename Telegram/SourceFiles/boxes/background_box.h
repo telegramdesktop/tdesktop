@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Data {
 class WallPaper;
@@ -19,7 +19,7 @@ class WallPaper;
 
 class BackgroundBox : public Ui::BoxContent {
 public:
-	BackgroundBox(QWidget*, not_null<Main::Session*> session);
+	BackgroundBox(QWidget*, not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;
@@ -29,7 +29,7 @@ private:
 
 	void removePaper(const Data::WallPaper &paper);
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 
 	QPointer<Inner> _inner;
 

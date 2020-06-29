@@ -36,7 +36,9 @@ namespace {
 
 constexpr auto kMegabyte = 1024 * 1024;
 
-[[nodiscard]] PeerId ReadPeerId(const MTPInputPeer &data) {
+[[nodiscard]] PeerId ReadPeerId(
+		not_null<Main::Session*> session,
+		const MTPInputPeer &data) {
 	return data.match([](const MTPDinputPeerUser &data) {
 		return peerFromUser(data.vuser_id().v);
 	}, [](const MTPDinputPeerUserFromMessage &data) {
@@ -47,8 +49,8 @@ constexpr auto kMegabyte = 1024 * 1024;
 		return peerFromChannel(data.vchannel_id().v);
 	}, [](const MTPDinputPeerChannelFromMessage &data) {
 		return peerFromChannel(data.vchannel_id().v);
-	}, [](const MTPDinputPeerSelf &data) {
-		return Auth().userPeerId();
+	}, [&](const MTPDinputPeerSelf &data) {
+		return session->userPeerId();
 	}, [](const MTPDinputPeerEmpty &data) {
 		return PeerId(0);
 	});
@@ -106,11 +108,15 @@ int SizeLimitByIndex(int index) {
 	return megabytes * kMegabyte;
 }
 
-SettingsWidget::SettingsWidget(QWidget *parent, Settings data)
+SettingsWidget::SettingsWidget(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	Settings data)
 : RpWidget(parent)
-, _singlePeerId(ReadPeerId(data.singlePeer))
+, _session(session)
+, _singlePeerId(ReadPeerId(session, data.singlePeer))
 , _internal_data(std::move(data)) {
-	ResolveSettings(_internal_data);
+	ResolveSettings(session, _internal_data);
 	setupContent();
 }
 
@@ -278,9 +284,9 @@ void SettingsWidget::addLocationLabel(
 	auto pathLink = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
-	) | rpl::map([](const QString &path) {
-		const auto text = IsDefaultPath(path)
-			? QString("Downloads/Telegram Desktop")
+	) | rpl::map([=](const QString &path) {
+		const auto text = IsDefaultPath(_session, path)
+			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
@@ -326,9 +332,9 @@ void SettingsWidget::addFormatAndLocationLabel(
 	auto pathLink = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
-	) | rpl::map([](const QString &path) {
-		const auto text = IsDefaultPath(path)
-			? u"Downloads/Telegram Desktop"_q
+	) | rpl::map([=](const QString &path) {
+		const auto text = IsDefaultPath(_session, path)
+			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
 			: path;
 		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
@@ -736,10 +742,7 @@ void SettingsWidget::refreshButtons(
 		: nullptr;
 	if (start) {
 		start->show();
-		_startClicks = start->clicks(
-		) | rpl::map([] {
-			return rpl::empty_value();
-		});
+		_startClicks = start->clicks() | rpl::to_empty;
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
@@ -754,10 +757,7 @@ void SettingsWidget::refreshButtons(
 		tr::lng_cancel(),
 		st::defaultBoxButton);
 	cancel->show();
-	_cancelClicks = cancel->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	});
+	_cancelClicks = cancel->clicks() | rpl::to_empty;
 
 	rpl::combine(
 		container->sizeValue(),
@@ -774,7 +774,7 @@ void SettingsWidget::chooseFolder() {
 	const auto callback = [=](QString &&result) {
 		changeData([&](Settings &data) {
 			data.path = std::move(result);
-			data.forceSubPath = IsDefaultPath(data.path);
+			data.forceSubPath = IsDefaultPath(_session, data.path);
 		});
 	};
 	FileDialog::GetFolder(

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QSystemTrayIcon>
 
 namespace Main {
+class Session;
 class Account;
 } // namespace Main
 
@@ -31,7 +32,7 @@ struct TermsLock;
 
 QImage LoadLogo();
 QImage LoadLogoNoMargin();
-QIcon CreateIcon(Main::Account *account = nullptr);
+QIcon CreateIcon(Main::Session *session = nullptr);
 void ConvertIconToBlack(QImage &image);
 
 class MainWindow : public Ui::RpWidget, protected base::Subscriber {
@@ -40,17 +41,19 @@ class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
 
-	Window::Controller &controller() const {
+	[[nodiscard]] Window::Controller &controller() const {
 		return *_controller;
 	}
-	Main::Account &account() const;
-	Window::SessionController *sessionController() const;
+	[[nodiscard]] Main::Account &account() const;
+	[[nodiscard]] Window::SessionController *sessionController() const;
 
 	bool hideNoQuit();
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
-	void updateIsActive(int timeout);
+
+	void updateIsActive();
+
 	bool isActive() const {
 		return _isActive;
 	}
@@ -167,16 +170,13 @@ protected:
 	void attachToTrayIcon(not_null<QSystemTrayIcon*> icon);
 	virtual void handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) = 0;
+	void updateUnreadCounter();
 
 private:
 	void updatePalette();
-	void updateUnreadCounter();
 	void initSize();
 
 	bool computeIsActive() const;
-	void checkLockByTerms();
-	void showTermsDecline();
-	void showTermsDelete();
 
 	not_null<Window::Controller*> _controller;
 
@@ -187,14 +187,12 @@ private:
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<Ui::RpWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
-	QPointer<Ui::BoxContent> _termsBox;
 
 	QIcon _icon;
 	bool _usingSupportIcon = false;
 	QString _titleText;
 
 	bool _isActive = false;
-	base::Timer _isActiveTimer;
 
 	base::Observable<void> _dragFinished;
 	rpl::event_stream<> _leaveEvents;

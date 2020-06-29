@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/spellchecker_common.h"
 #include "core/application.h"
 #include "main/main_account.h"
-#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/spellcheck_utils.h"
@@ -27,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
+#include "window/window_session_controller.h"
 
 namespace Ui {
 namespace {
@@ -46,13 +46,18 @@ using QStringView = QString;
 
 class Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, Dictionaries enabledDictionaries);
+	Inner(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Dictionaries enabledDictionaries);
 
 	Dictionaries enabledRows() const;
 	QueryCallback queryCallback() const;
 
 private:
-	void setupContent(Dictionaries enabledDictionaries);
+	void setupContent(
+		not_null<Window::SessionController*> controller,
+		Dictionaries enabledDictionaries);
 
 	Dictionaries _enabledRows;
 	QueryCallback _queryCallback;
@@ -96,8 +101,10 @@ auto CreateMultiSelect(QWidget *parent) {
 
 Inner::Inner(
 	QWidget *parent,
-	Dictionaries enabledDictionaries) : RpWidget(parent) {
-	setupContent(std::move(enabledDictionaries));
+	not_null<Window::SessionController*> controller,
+	Dictionaries enabledDictionaries)
+: RpWidget(parent) {
+	setupContent(controller, std::move(enabledDictionaries));
 }
 
 QueryCallback Inner::queryCallback() const {
@@ -110,6 +117,7 @@ Dictionaries Inner::enabledRows() const {
 
 auto AddButtonWithLoader(
 		not_null<Ui::VerticalLayout*> content,
+		not_null<Window::SessionController*> controller,
 		const Spellchecker::Dict &dict,
 		bool buttonEnabled,
 		rpl::producer<QStringView> query) {
@@ -238,22 +246,15 @@ auto AddButtonWithLoader(
 		) | rpl::then(
 			rpl::merge(
 				// Events to toggle on.
-				dictionaryFromGlobalLoader->events(
-				) | rpl::map([] {
-					return true;
-				}),
+				dictionaryFromGlobalLoader->events() | rpl::map_to(true),
 				// Events to toggle off.
 				rpl::merge(
 					dictionaryRemoved->events(),
 					buttonState->value(
 					) | rpl::filter([](const DictState &state) {
 						return state.is<Failed>();
-					}) | rpl::map([] {
-						return rpl::empty_value();
-					})
-				) | rpl::map([] {
-					return false;
-				})
+					}) | rpl::to_empty
+				) | rpl::map_to(false)
 			)
 		)
 	);
@@ -267,10 +268,7 @@ auto AddButtonWithLoader(
 				buttonEnabled
 			) | rpl::then(
 				rpl::merge(
-					dictionaryRemoved->events(
-					) | rpl::map([] {
-						return false;
-					}),
+					dictionaryRemoved->events() | rpl::map_to(false),
 					button->toggledValue()
 				)
 			) | rpl::map([=](auto enabled) {
@@ -287,7 +285,8 @@ auto AddButtonWithLoader(
 		if (toggled && (state.is<Available>() || state.is<Failed>())) {
 			const auto weak = Ui::MakeWeak(button);
 			setLocalLoader(base::make_unique_q<Loader>(
-				App::main(),
+				QCoreApplication::instance(),
+				&controller->session(),
 				id,
 				Spellchecker::GetDownloadLocation(id),
 				Spellchecker::DictPathByLangId(id),
@@ -336,7 +335,9 @@ auto AddButtonWithLoader(
 	return button;
 }
 
-void Inner::setupContent(Dictionaries enabledDictionaries) {
+void Inner::setupContent(
+		not_null<Window::SessionController*> controller,
+		Dictionaries enabledDictionaries) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto queryStream = content->lifetime()
@@ -346,6 +347,7 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 		const auto id = dict.id;
 		const auto row = AddButtonWithLoader(
 			content,
+			controller,
 			dict,
 			ranges::contains(enabledDictionaries, id),
 			queryStream->events());
@@ -375,8 +377,8 @@ void Inner::setupContent(Dictionaries enabledDictionaries) {
 
 ManageDictionariesBox::ManageDictionariesBox(
 	QWidget*,
-	not_null<Main::Session*> session)
-: _session(session) {
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
 }
 
 void ManageDictionariesBox::setInnerFocus() {
@@ -386,10 +388,12 @@ void ManageDictionariesBox::setInnerFocus() {
 void ManageDictionariesBox::prepare() {
 	const auto multiSelect = CreateMultiSelect(this);
 
+	const auto session = &_controller->session();
 	const auto inner = setInnerWidget(
 		object_ptr<Inner>(
 			this,
-			_session->settings().dictionariesEnabled()),
+			_controller,
+			Core::App().settings().dictionariesEnabled()),
 		st::boxScroll,
 		multiSelect->height()
 	);
@@ -407,9 +411,9 @@ void ManageDictionariesBox::prepare() {
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
-		_session->settings().setDictionariesEnabled(
+		Core::App().settings().setDictionariesEnabled(
 			FilterEnabledDict(inner->enabledRows()));
-		_session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 		// Ignore boxClosing() when the Save button was pressed.
 		lifetime().destroy();
 		closeBox();
@@ -417,9 +421,9 @@ void ManageDictionariesBox::prepare() {
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	boxClosing() | rpl::start_with_next([=] {
-		_session->settings().setDictionariesEnabled(
+		Core::App().settings().setDictionariesEnabled(
 			FilterEnabledDict(initialEnabledRows));
-		_session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, lifetime());
 
 	setDimensionsToContent(st::boxWidth, inner);

@@ -17,20 +17,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 //#include "history/feed/history_feed_section.h" // #feed
+#include "media/player/media_player_instance.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_filters.h"
+#include "data/data_photo.h" // requestAttachedStickerSets.
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/unixtime.h"
 #include "boxes/calendar_box.h"
+#include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
+#include "boxes/confirm_box.h" // requestAttachedStickerSets.
+#include "boxes/stickers_box.h" // requestAttachedStickerSets.
+#include "lang/lang_keys.h" // requestAttachedStickerSets.
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "support/support_helper.h"
 #include "facades.h"
@@ -68,18 +77,18 @@ Main::Session &SessionNavigation::session() const {
 void SessionNavigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
-	//if (Adaptive::ThreeColumn()
-	//	&& !_session->settings().thirdSectionInfoEnabled()) {
-	//	_session->settings().setThirdSectionInfoEnabled(true);
-	//	_session->saveSettingsDelayed();
-	//}
-	showSection(Info::Memento(peerId), params);
+	showPeerInfo(_session->data().peer(peerId), params);
 }
 
 void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
-	showPeerInfo(peer->id, params);
+	//if (Adaptive::ThreeColumn()
+	//	&& !Core::App().settings().thirdSectionInfoEnabled()) {
+	//	Core::App().settings().setThirdSectionInfoEnabled(true);
+	//	Core::App().saveSettingsDelayed();
+	//}
+	showSection(Info::Memento(peer), params);
 }
 
 void SessionNavigation::showPeerInfo(
@@ -120,6 +129,10 @@ SessionController::SessionController(
 		this)) {
 	init();
 
+	if (Media::Player::instance()->pauseGifByRoundVideo()) {
+		enableGifPauseReason(GifPauseReason::RoundPlaying);
+	}
+
 	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
 		if (peer == _showEditPeer) {
 			_showEditPeer = nullptr;
@@ -140,10 +153,12 @@ SessionController::SessionController(
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
 		checkOpenedFilter();
-		crl::on_main(session, [=] {
+		crl::on_main(this, [=] {
 			refreshFiltersMenu();
 		});
-	}, session->lifetime());
+	}, lifetime());
+
+	session->addWindow(this);
 }
 
 not_null<::MainWindow*> SessionController::widget() const {
@@ -158,7 +173,7 @@ auto SessionController::tabbedSelector() const
 void SessionController::takeTabbedSelectorOwnershipFrom(
 		not_null<QWidget*> parent) {
 	if (_tabbedSelector->parent() == parent) {
-		if (const auto chats = widget()->chatsWidget()) {
+		if (const auto chats = widget()->sessionContent()) {
 			chats->returnTabbedSelector();
 		}
 		if (_tabbedSelector->parent() == parent) {
@@ -213,16 +228,41 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 }
 
 void SessionController::refreshFiltersMenu() {
-	const auto enabled = !session().data().chatsFilters().list().empty();
-	if (enabled != Global::DialogsFiltersEnabled()) {
-		Global::SetDialogsFiltersEnabled(enabled);
-		session().saveSettingsDelayed();
-		toggleFiltersMenu(enabled);
-	}
+	toggleFiltersMenu(!session().data().chatsFilters().list().empty());
 }
 
 rpl::producer<> SessionController::filtersMenuChanged() const {
 	return _filtersMenuChanged.events();
+}
+
+void SessionController::requestAttachedStickerSets(
+		not_null<PhotoData*> photo) {
+	session().api().request(_attachedStickerSetsRequestId).cancel();
+	_attachedStickerSetsRequestId = session().api().request(
+		MTPmessages_GetAttachedStickers(
+			MTP_inputStickeredMediaPhoto(photo->mtpInput())
+	)).done([=](const MTPVector<MTPStickerSetCovered> &result) {
+		if (result.v.isEmpty()) {
+			Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+			return;
+		} else if (result.v.size() > 1) {
+			Ui::show(Box<StickersBox>(this, result));
+			return;
+		}
+		// Single attached sticker pack.
+		const auto setData = result.v.front().match([&](const auto &data) {
+			return data.vset().match([&](const MTPDstickerSet &data) {
+				return &data;
+			});
+		});
+
+		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
+			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
+			: MTP_inputStickerSetShortName(setData->vshort_name());
+		Ui::show(Box<StickerSetBox>(this, setId), Ui::LayerOption::KeepOther);
+	}).fail([=](const RPCError &error) {
+		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+	}).send();
 }
 
 void SessionController::checkOpenedFilter() {
@@ -379,6 +419,12 @@ bool SessionController::isGifPausedAtLeastFor(GifPauseReason reason) const {
 	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !widget()->isActive();
 }
 
+void SessionController::floatPlayerAreaUpdated() {
+	if (const auto main = widget()->sessionContent()) {
+		main->floatPlayerAreaUpdated();
+	}
+}
+
 int SessionController::dialogsSmallColumnWidth() const {
 	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
 }
@@ -395,7 +441,7 @@ bool SessionController::forceWideDialogs() const {
 	} else if (dialogsListFocused().value()) {
 		return true;
 	}
-	return !App::main()->isMainSectionShown();
+	return !content()->isMainSectionShown();
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
@@ -418,8 +464,8 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!session().settings().tabbedSelectorSectionEnabled()
-			&& !session().settings().thirdSectionInfoEnabled()) {
+		if (!Core::App().settings().tabbedSelectorSectionEnabled()
+			&& !Core::App().settings().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -449,14 +495,14 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 }
 
 int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
-	auto result = qRound(bodyWidth * session().settings().dialogsWidthRatio());
+	auto result = qRound(bodyWidth * Core::App().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
 int SessionController::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = session().settings().thirdColumnWidth();
+	auto result = Core::App().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -499,7 +545,7 @@ bool SessionController::canShowThirdSectionWithoutResize() const {
 }
 
 bool SessionController::takeThirdSectionFromLayer() {
-	return App::wnd()->takeThirdSectionFromLayer();
+	return widget()->takeThirdSectionFromLayer();
 }
 
 void SessionController::resizeForThirdSection() {
@@ -507,13 +553,14 @@ void SessionController::resizeForThirdSection() {
 		return;
 	}
 
+	auto &settings = Core::App().settings();
 	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
-		session().settings().tabbedSelectorSectionEnabled();
+		settings.tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =
-		session().settings().thirdSectionInfoEnabled();
-	session().settings().setTabbedSelectorSectionEnabled(false);
-	session().settings().setThirdSectionInfoEnabled(false);
+		settings.thirdSectionInfoEnabled();
+	settings.setTabbedSelectorSectionEnabled(false);
+	settings.setThirdSectionInfoEnabled(false);
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
 	auto minimal = st::columnMinimalWidthThird;
@@ -534,46 +581,47 @@ void SessionController::resizeForThirdSection() {
 		return widget()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != session().settings().thirdColumnWidth()) {
-			session().settings().setThirdColumnWidth(extendBy);
+		if (extendBy != settings.thirdColumnWidth()) {
+			settings.setThirdColumnWidth(extendBy);
 		}
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = session().settings().dialogsWidthRatio();
-		session().settings().setDialogsWidthRatio(
+		auto currentRatio = settings.dialogsWidthRatio();
+		settings.setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
-	session().settings().setThirdSectionExtendedBy(savedValue);
+	settings.setThirdSectionExtendedBy(savedValue);
 
-	session().settings().setTabbedSelectorSectionEnabled(
+	settings.setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
-	session().settings().setThirdSectionInfoEnabled(
+	settings.setThirdSectionInfoEnabled(
 		thirdSectionInfoEnabled);
 }
 
 void SessionController::closeThirdSection() {
+	auto &settings = Core::App().settings();
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
-		auto savedValue = session().settings().thirdSectionExtendedBy();
+		auto savedValue = settings.thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = session().settings().dialogsWidthRatio();
-		session().settings().setDialogsWidthRatio(
+		auto currentRatio = settings.dialogsWidthRatio();
+		settings.setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			widget()->width() + (newBodyWidth - layout.bodyWidth),
 			widget()->height());
 	}
-	session().settings().setTabbedSelectorSectionEnabled(false);
-	session().settings().setThirdSectionInfoEnabled(false);
-	session().saveSettingsDelayed();
+	settings.setTabbedSelectorSectionEnabled(false);
+	settings.setThirdSectionInfoEnabled(false);
+	Core::App().saveSettingsDelayed();
 	if (widget()->size() != newWindowSize) {
 		widget()->resize(newWindowSize);
 	} else {
@@ -682,14 +730,14 @@ void SessionController::clearPassportForm() {
 }
 
 void SessionController::updateColumnLayout() {
-	App::main()->updateColumnLayout();
+	content()->updateColumnLayout();
 }
 
 void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
-	App::main()->ui_showPeerHistory(
+	content()->ui_showPeerHistory(
 		peerId,
 		params,
 		msgId);
@@ -718,63 +766,30 @@ void SessionController::showPeerHistory(
 void SessionController::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
-	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
+	if (!params.thirdColumn && widget()->showSectionInExistingLayer(
 			&memento,
 			params)) {
 		return;
 	}
-	App::main()->showSection(std::move(memento), params);
+	content()->showSection(std::move(memento), params);
 }
 
 void SessionController::showBackFromStack(const SectionShow &params) {
-	chats()->showBackFromStack(params);
+	content()->showBackFromStack(params);
 }
 
 void SessionController::showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated) {
-	App::wnd()->showSpecialLayer(std::move(layer), animated);
+	widget()->showSpecialLayer(std::move(layer), animated);
 }
 
 void SessionController::removeLayerBlackout() {
-	App::wnd()->ui_removeLayerBlackout();
+	widget()->ui_removeLayerBlackout();
 }
 
-not_null<MainWidget*> SessionController::chats() const {
-	return App::wnd()->chatsWidget();
-}
-
-void SessionController::setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate) {
-	Expects(_defaultFloatPlayerDelegate == nullptr);
-
-	_defaultFloatPlayerDelegate = delegate;
-	_floatPlayers = std::make_unique<Media::Player::FloatController>(
-		delegate);
-}
-
-void SessionController::replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	_replacementFloatPlayerDelegate = replacement;
-	_floatPlayers->replaceDelegate(replacement);
-}
-
-void SessionController::restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	if (_replacementFloatPlayerDelegate == replacement) {
-		_replacementFloatPlayerDelegate = nullptr;
-		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
-	}
-}
-
-rpl::producer<FullMsgId> SessionController::floatPlayerClosed() const {
-	Expects(_floatPlayers != nullptr);
-
-	return _floatPlayers->closeEvents();
+not_null<MainWidget*> SessionController::content() const {
+	return widget()->sessionContent();
 }
 
 int SessionController::filtersWidth() const {
@@ -798,10 +813,12 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 		closeFolder();
 	}
 	if (Adaptive::OneColumn()) {
-		Ui::showChatsList();
+		Ui::showChatsList(&session());
 	}
 }
 
-SessionController::~SessionController() = default;
+SessionController::~SessionController() {
+	session().api().request(_attachedStickerSetsRequestId).cancel();
+}
 
 } // namespace Window

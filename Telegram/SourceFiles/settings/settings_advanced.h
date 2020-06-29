@@ -9,10 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Settings {
 
 bool HasConnectionType();
-void SetupConnectionType(not_null<Ui::VerticalLayout*> container);
+void SetupConnectionType(
+	not_null<Main::Account*> account,
+	not_null<Ui::VerticalLayout*> container);
 bool HasUpdate();
 void SetupUpdate(not_null<Ui::VerticalLayout*> container);
 bool HasTray();

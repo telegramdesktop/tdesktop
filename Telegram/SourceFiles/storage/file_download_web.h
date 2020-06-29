@@ -14,6 +14,7 @@ class WebLoadManager;
 class webFileLoader final : public FileLoader {
 public:
 	webFileLoader(
+		not_null<Main::Session*> session,
 		const QString &url,
 		const QString &to,
 		LoadFromCloudSetting fromCloud,

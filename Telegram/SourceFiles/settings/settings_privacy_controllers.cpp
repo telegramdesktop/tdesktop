@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "storage/localstorage.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -87,14 +88,16 @@ Main::Session &BlockUserBoxController::session() const {
 
 void BlockUserBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_blocked_list_add_title());
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (auto user = update.peer->asUser()) {
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::IsBlocked
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (const auto user = update.peer->asUser()) {
 			if (auto row = delegate()->peerListFindRow(user->id)) {
 				updateIsBlocked(row, user);
 				delegate()->peerListUpdateRow(row);
 			}
 		}
-	}));
+	}, lifetime());
 }
 
 void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const {
@@ -181,7 +184,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 BlockedBoxController::BlockedBoxController(
 	not_null<Window::SessionController*> window)
 : _window(window)
-, _api(_window->session().api().instance()) {
+, _api(&_window->session().mtp()) {
 }
 
 Main::Session &BlockedBoxController::session() const {
@@ -193,11 +196,13 @@ void BlockedBoxController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
 
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::IsBlocked
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (const auto user = update.peer->asUser()) {
 			handleBlockedEvent(user);
 		}
-	}));
+	}, lifetime());
 
 	_loadRequestId = -1;
 	_window->session().api().blockedUsersSlice(
@@ -247,8 +252,9 @@ void BlockedBoxController::loadMoreRows() {
 }
 
 void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
-	InvokeQueued(App::main(), [peerId = row->peer()->id] {
-		Ui::showPeerHistory(peerId, ShowAtUnreadMsgId);
+	const auto peer = row->peer();
+	crl::on_main(&peer->session(), [=] {
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	});
 }
 
@@ -506,7 +512,7 @@ rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
 void LastSeenPrivacyController::confirmSave(
 		bool someAreDisallowed,
 		FnMut<void()> saveCallback) {
-	if (someAreDisallowed && !_session->settings().lastSeenWarningSeen()) {
+	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		const auto session = _session;
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [=, saveCallback = std::move(saveCallback)]() mutable {
@@ -514,8 +520,8 @@ void LastSeenPrivacyController::confirmSave(
 				box->closeBox();
 			}
 			saveCallback();
-			session->settings().setLastSeenWarningSeen(true);
-			Local::writeUserSettings();
+			Core::App().settings().setLastSeenWarningSeen(true);
+			Core::App().saveSettingsDelayed();
 		};
 		auto box = Box<ConfirmBox>(
 			tr::lng_edit_privacy_lastseen_warning(tr::now),
@@ -682,8 +688,9 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() 
 }
 
 ForwardsPrivacyController::ForwardsPrivacyController(
-	not_null<::Main::Session*> session)
-: _session(session) {
+	not_null<Window::SessionController*> controller)
+: SimpleElementDelegate(controller)
+, _controller(controller) {
 }
 
 ApiWrap::Privacy::Key ForwardsPrivacyController::key() {
@@ -736,7 +743,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	auto message = GenerateForwardedItem(
 		delegate(),
-		_session->data().history(
+		_controller->session().data().history(
 			peerFromUser(PeerData::kServiceNotificationsId)),
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
@@ -761,7 +768,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 
 	widget->paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
-		Window::SectionWidget::PaintBackground(widget, rect);
+		Window::SectionWidget::PaintBackground(_controller, widget, rect);
 
 		Painter p(widget);
 		p.translate(0, padding + view->marginBottom());

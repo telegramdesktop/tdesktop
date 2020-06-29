@@ -96,6 +96,7 @@ private:
 	void hideAndDeactivate();
 	void updateTitleCounter();
 	void updateIconCounters();
+	void destroyCurrentTouchBar();
 
 	std::unique_ptr<Private> _private;
 

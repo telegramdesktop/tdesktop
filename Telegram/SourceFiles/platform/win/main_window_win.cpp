@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "window/themes/window_theme.h"
 #include "history/history.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtWidgets/QDesktopWidget>

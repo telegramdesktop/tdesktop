@@ -18,9 +18,15 @@ class Radioenum;
 class LinkButton;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class DownloadPathBox : public Ui::BoxContent {
 public:
-	DownloadPathBox(QWidget *parent);
+	DownloadPathBox(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 protected:
 	void prepare() override;
@@ -48,6 +54,7 @@ private:
 	void setPathText(const QString &text);
 	void editPath();
 
+	const not_null<Window::SessionController*> _controller;
 	QString _path;
 	QByteArray _pathBookmark;
 

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
-#include "chat_helpers/stickers.h"
 #include "main/main_session.h"
 #include "app.h"
 

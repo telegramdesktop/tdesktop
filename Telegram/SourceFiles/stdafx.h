@@ -91,6 +91,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unordered_set>
 #include <algorithm>
 #include <memory>
+#include <any>
 #include <optional>
 
 #include <range/v3/all.hpp>

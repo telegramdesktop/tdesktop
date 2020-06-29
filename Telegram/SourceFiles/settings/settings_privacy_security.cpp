@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sessions_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/self_destruction_box.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
@@ -164,7 +166,7 @@ void SetupPrivacy(
 	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
-		[=] { return std::make_unique<ForwardsPrivacyController>(session); });
+		[=] { return std::make_unique<ForwardsPrivacyController>(controller); });
 	add(
 		tr::lng_settings_profile_photo_privacy(),
 		Key::ProfilePhoto,
@@ -238,7 +240,7 @@ void SetupLocalPasscode(
 		: tr::lng_passcode_autolock_inactive;
 	auto value = PasscodeChanges(
 	) | rpl::map([] {
-		const auto autolock = Global::AutoLock();
+		const auto autolock = Core::App().settings().autoLock();
 		return (autolock % 3600)
 			? tr::lng_passcode_autolock_minutes(tr::now, lt_count, autolock / 60)
 			: tr::lng_passcode_autolock_hours(tr::now, lt_count, autolock / 3600);
@@ -366,7 +368,9 @@ void SetupCloudPassword(
 		if (!state) {
 			return;
 		}
-		auto validation = ConfirmRecoveryEmail(state->unconfirmedPattern);
+		auto validation = ConfirmRecoveryEmail(
+			&controller->session(),
+			state->unconfirmedPattern);
 
 		std::move(
 			validation.reloadRequests
@@ -552,7 +556,7 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 	const auto box = result.data();
 
 	rpl::merge(
-		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
+		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
 		session->api().reloadPasswordState();
@@ -579,8 +583,7 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	const auto box = Ui::show(Box<PasscodeBox>(session, fields));
 
 	rpl::merge(
-		box->newPasswordSet(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
 		session->api().reloadPasswordState();

@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "mtproto/facade.h"
+#include "mtproto/sender.h"
+#include "apiwrap.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -76,14 +77,15 @@ protected:
 
 private:
 	void submit();
-	void sendPhoneDone(const QString &phoneNumber, const MTPauth_SentCode &result);
-	bool sendPhoneFail(const QString &phoneNumber, const RPCError &error);
+	void sendPhoneDone(const MTPauth_SentCode &result, const QString &phoneNumber);
+	void sendPhoneFail(const RPCError &error, const QString &phoneNumber);
 	void showError(const QString &text);
 	void hideError() {
 		showError(QString());
 	}
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	object_ptr<Ui::PhoneInput> _phone = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
@@ -112,7 +114,7 @@ private:
 	void submit();
 	void sendCall();
 	void updateCall();
-	bool sendCodeFail(const RPCError &error);
+	void sendCodeFail(const RPCError &error);
 	void showError(const QString &text);
 	void hideError() {
 		showError(QString());
@@ -120,6 +122,7 @@ private:
 	int countHeight();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	QString _phone;
 	QString _hash;
@@ -136,7 +139,8 @@ private:
 ChangePhoneBox::EnterPhone::EnterPhone(
 	QWidget*,
 	not_null<Main::Session*> session)
-: _session(session) {
+: _session(session)
+, _api(&session->mtp()) {
 }
 
 void ChangePhoneBox::EnterPhone::prepare() {
@@ -171,20 +175,19 @@ void ChangePhoneBox::EnterPhone::submit() {
 	hideError();
 
 	auto phoneNumber = _phone->getLastText().trimmed();
-	_requestId = MTP::send(
-		MTPaccount_SendChangePhoneCode(
-			MTP_string(phoneNumber),
-			MTP_codeSettings(MTP_flags(0))),
-		rpcDone(crl::guard(this, [=](
-				const MTPauth_SentCode &result) {
-			return sendPhoneDone(phoneNumber, result);
-		})), rpcFail(crl::guard(this, [=](
-				const RPCError &error) {
-			return sendPhoneFail(phoneNumber, error);
-		})));
+	_requestId = _api.request(MTPaccount_SendChangePhoneCode(
+		MTP_string(phoneNumber),
+		MTP_codeSettings(MTP_flags(0))
+	)).done([=](const MTPauth_SentCode &result) {
+		sendPhoneDone(result, phoneNumber);
+	}).fail([=](const RPCError &error) {
+		sendPhoneFail(error, phoneNumber);
+	}).handleFloodErrors().send();
 }
 
-void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const MTPauth_SentCode &result) {
+void ChangePhoneBox::EnterPhone::sendPhoneDone(
+		const MTPauth_SentCode &result,
+		const QString &phoneNumber) {
 	Expects(result.type() == mtpc_auth_sentCode);
 	_requestId = 0;
 
@@ -219,18 +222,14 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 		Ui::LayerOption::KeepOther);
 }
 
-bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {
-	auto errorText = Lang::Hard::ServerError();
+void ChangePhoneBox::EnterPhone::sendPhoneFail(const RPCError &error, const QString &phoneNumber) {
+	_requestId = 0;
 	if (MTP::isFloodError(error)) {
-		errorText = tr::lng_flood_error(tr::now);
-	} else if (MTP::isDefaultHandledError(error)) {
-		return false;
+		showError(tr::lng_flood_error(tr::now));
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
-		errorText = tr::lng_bad_phone(tr::now);
+		showError(tr::lng_bad_phone(tr::now));
 	} else if (error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(phoneNumber);
-		_requestId = 0;
-		return true;
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		Ui::show(Box<InformBox>(
 			tr::lng_change_phone_occupied(
@@ -238,12 +237,9 @@ bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const
 				lt_phone,
 				App::formatPhone(phoneNumber)),
 			tr::lng_box_ok(tr::now)));
-		_requestId = 0;
-		return true;
+	} else {
+		showError(Lang::Hard::ServerError());
 	}
-	showError(errorText);
-	_requestId = 0;
-	return true;
 }
 
 void ChangePhoneBox::EnterPhone::showError(const QString &text) {
@@ -261,6 +257,7 @@ ChangePhoneBox::EnterCode::EnterCode(
 	int codeLength,
 	int callTimeout)
 : _session(session)
+, _api(&session->mtp())
 , _phone(phone)
 , _hash(hash)
 , _codeLength(codeLength)
@@ -313,25 +310,28 @@ void ChangePhoneBox::EnterCode::submit() {
 	const auto session = _session;
 	const auto code = _code->getDigitsOnly();
 	const auto weak = Ui::MakeWeak(this);
-	_requestId = MTP::send(MTPaccount_ChangePhone(
+	_requestId = session->api().request(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),
 		MTP_string(code)
-	), rpcDone([=](const MTPUser &result) {
+	)).done([=](const MTPUser &result) {
 		session->data().processUser(result);
 		if (weak) {
 			Ui::hideLayer();
 		}
 		Ui::Toast::Show(tr::lng_change_phone_success(tr::now));
-	}), rpcFail(crl::guard(this, [this](const RPCError &error) {
-		return sendCodeFail(error);
-	})));
+	}).fail(crl::guard(this, [=](const RPCError &error) {
+		sendCodeFail(error);
+	})).handleFloodErrors().send();
 }
 
 void ChangePhoneBox::EnterCode::sendCall() {
-	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_hash)), rpcDone(crl::guard(this, [this] {
+	_api.request(MTPauth_ResendCode(
+		MTP_string(_phone),
+		MTP_string(_hash)
+	)).done([=](const MTPauth_SentCode &result) {
 		_call.callDone();
-	})));
+	}).send();
 }
 
 void ChangePhoneBox::EnterCode::updateCall() {
@@ -354,25 +354,20 @@ void ChangePhoneBox::EnterCode::showError(const QString &text) {
 	}
 }
 
-bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
-	auto errorText = Lang::Hard::ServerError();
+void ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
+	_requestId = 0;
 	if (MTP::isFloodError(error)) {
-		errorText = tr::lng_flood_error(tr::now);
-	} else if (MTP::isDefaultHandledError(error)) {
-		return false;
+		showError(tr::lng_flood_error(tr::now));
 	} else if (error.type() == qstr("PHONE_CODE_EMPTY") || error.type() == qstr("PHONE_CODE_INVALID")) {
-		errorText = tr::lng_bad_code(tr::now);
+		showError(tr::lng_bad_code(tr::now));
 	} else if (error.type() == qstr("PHONE_CODE_EXPIRED")
 		|| error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		closeBox(); // Go back to phone input.
-		_requestId = 0;
-		return true;
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
-		errorText = tr::lng_bad_phone(tr::now);
+		showError(tr::lng_bad_phone(tr::now));
+	} else {
+		showError(Lang::Hard::ServerError());
 	}
-	_requestId = 0;
-	showError(errorText);
-	return true;
 }
 
 ChangePhoneBox::ChangePhoneBox(QWidget*, not_null<Main::Session*> session)

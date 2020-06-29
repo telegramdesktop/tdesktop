@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
+#include "window/window_controller.h"
 #include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -56,14 +57,16 @@ private:
 
 };
 
-object_ptr<Ui::RpWidget> CreateIntroSettings(QWidget *parent) {
+object_ptr<Ui::RpWidget> CreateIntroSettings(
+		QWidget *parent,
+		not_null<Window::Controller*> window) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
 	AddDivider(result);
 	AddSkip(result);
 	SetupLanguageButton(result, false);
 	if (HasConnectionType()) {
-		SetupConnectionType(result);
+		SetupConnectionType(&window->account(), result);
 	}
 	AddSkip(result);
 	if (HasUpdate()) {
@@ -162,7 +165,9 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 class IntroWidget : public Ui::RpWidget {
 public:
-	IntroWidget(QWidget *parent);
+	IntroWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> window);
 
 	void forceContentRepaint();
 
@@ -184,7 +189,7 @@ private:
 	void updateControlsGeometry();
 	QRect contentGeometry() const;
 	void setInnerWidget(object_ptr<Ui::RpWidget> content);
-	void showContent();
+	void showContent(not_null<Window::Controller*> window);
 	rpl::producer<bool> topShadowToggledValue() const;
 	void createTopBar();
 	void applyAdditionalScroll(int additionalScroll);
@@ -203,7 +208,9 @@ private:
 
 };
 
-IntroWidget::IntroWidget(QWidget *parent)
+IntroWidget::IntroWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> window)
 : RpWidget(parent)
 , _wrap(this)
 , _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data(), st::infoScroll))
@@ -221,7 +228,7 @@ IntroWidget::IntroWidget(QWidget *parent)
 	}, lifetime());
 
 	createTopBar();
-	showContent();
+	showContent(window);
 	_topShadow->toggleOn(
 		topShadowToggledValue(
 		) | rpl::filter([](bool shown) {
@@ -316,8 +323,8 @@ rpl::producer<bool> IntroWidget::topShadowToggledValue() const {
 	) | rpl::map((_1 > 0) || (_2 > 0));
 }
 
-void IntroWidget::showContent() {
-	setInnerWidget(CreateIntroSettings(_scroll));
+void IntroWidget::showContent(not_null<Window::Controller*> window) {
+	setInnerWidget(CreateIntroSettings(_scroll, window));
 
 	_additionalScroll = 0;
 	updateControlsGeometry();
@@ -393,8 +400,8 @@ rpl::producer<int> IntroWidget::scrollTillBottomChanges() const {
 
 IntroWidget::~IntroWidget() = default;
 
-LayerWidget::LayerWidget(QWidget*)
-: _content(this) {
+LayerWidget::LayerWidget(QWidget*, not_null<Window::Controller*> window)
+: _content(this, window) {
 	setupHeightConsumers();
 }
 

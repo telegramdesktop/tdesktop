@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_session.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "core/sandbox.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
@@ -412,7 +414,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (Libs::gtk_clipboard_get != nullptr) {
+	if (GtkClipboardSupported()) {
 		_gtkClipboard = Libs::gtk_clipboard_get(Libs::gdk_atom_intern("CLIPBOARD", true));
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -583,7 +585,7 @@ void MainWindow::onSNIOwnerChanged(
 	}
 	trayIcon = nullptr;
 
-	SNIAvailable = IsSNIAvailable();
+	SNIAvailable = !newOwner.isEmpty();
 
 	const auto trayAvailable = SNIAvailable
 		|| QSystemTrayIcon::isSystemTrayAvailable();
@@ -756,10 +758,10 @@ void MainWindow::createGlobalMenu() {
 
 	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
-	psLogout = file->addAction(
-		tr::lng_mac_menu_logout(tr::now),
-		App::wnd(),
-		SLOT(onLogout()));
+	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now));
+	connect(psLogout, &QAction::triggered, psLogout, [] {
+		if (App::wnd()) App::wnd()->showLogoutConfirmation();
+	});
 
 	auto quit = file->addAction(
 		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, qsl("Telegram")),
@@ -872,7 +874,7 @@ void MainWindow::createGlobalMenu() {
 				App::wnd()->showFromTray();
 			}
 
-			if (!account().sessionExists()) {
+			if (!sessionController()) {
 				return;
 			}
 
@@ -1025,12 +1027,11 @@ void MainWindow::updateGlobalMenuHook() {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
-	App::wnd()->updateIsActive(0);
-	const auto logged = account().sessionExists();
-	const auto locked = Core::App().locked();
-	const auto inactive = !logged || locked;
+	App::wnd()->updateIsActive();
+	const auto logged = (sessionController() != nullptr);
+	const auto inactive = !logged || controller().locked();
 	const auto support = logged && account().session().supportMode();
-	ForceDisabled(psLogout, !logged && !locked);
+	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
 	ForceDisabled(psUndo, !canUndo);
 	ForceDisabled(psRedo, !canRedo);
 	ForceDisabled(psCut, !canCut);

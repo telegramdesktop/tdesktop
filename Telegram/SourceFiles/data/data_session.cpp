@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_session.h"
 
-#include "observer_peer.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
+#include "main/main_account.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "api/api_text_entities.h"
@@ -17,22 +18,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
-#include "export/export_controller.h"
+#include "export/export_manager.h"
 #include "export/view/export_view_panel_controller.h"
+#include "mtproto/mtproto_config.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
-#include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
+#include "data/stickers/data_stickers.h"
+#include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -53,7 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
-#include "facades.h"
+#include "facades.h" // Notify::switchInlineBotButtonReceived
 #include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
@@ -93,6 +96,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 					using ButtonType = HistoryMessageMarkupButton::Type;
 					if (button.type == ButtonType::SwitchInline) {
 						Notify::switchInlineBotButtonReceived(
+							&item->history()->session(),
 							QString::fromUtf8(button.data));
 						return;
 					}
@@ -186,28 +190,20 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	return FindInlineThumbnail(data.vsizes().v);
 }
 
-[[nodiscard]] rpl::producer<int> PinnedDialogsCountMaxValue(
-		not_null<Main::Session*> session) {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		session->account().configUpdates()
-	) | rpl::map([=] {
-		return Global::PinnedDialogsCountMax();
-	});
-}
-
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _cache(Core::App().databases().get(
-	Local::cachePath(),
-	Local::cacheSettings()))
+	_session->local().cachePath(),
+	_session->local().cacheSettings()))
 , _bigFileCache(Core::App().databases().get(
-	Local::cacheBigFilePath(),
-	Local::cacheBigFileSettings()))
-, _chatsList(FilterId(), PinnedDialogsCountMaxValue(session))
+	_session->local().cacheBigFilePath(),
+	_session->local().cacheBigFileSettings()))
+, _chatsList(
+	session,
+	FilterId(),
+	session->serverConfig().pinnedDialogsCountMax.value())
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
@@ -222,30 +218,44 @@ Session::Session(not_null<Main::Session*> session)
 , _cloudThemes(std::make_unique<CloudThemes>(session))
 , _streaming(std::make_unique<Streaming>(this))
 , _mediaRotation(std::make_unique<MediaRotation>())
-, _histories(std::make_unique<Histories>(this)) {
-	_cache->open(Local::cacheKey());
-	_bigFileCache->open(Local::cacheBigFileKey());
+, _histories(std::make_unique<Histories>(this))
+, _stickers(std::make_unique<Stickers>(this)) {
+	_cache->open(_session->local().cacheKey());
+	_bigFileCache->open(_session->local().cacheBigFileKey());
 
 	if constexpr (Platform::IsLinux()) {
-		const auto wasVersion = Local::oldMapVersion();
+		const auto wasVersion = _session->local().oldMapVersion();
 		if (wasVersion >= 1007011 && wasVersion < 1007015) {
 			_bigFileCache->clear();
 			_cache->clearByTag(Data::kImageCacheTag);
 		}
 	}
 
-	setupContactViewsViewer();
+	setupMigrationViewer();
 	setupChannelLeavingViewer();
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
 
 	_chatsList.unreadStateChanges(
-	) | rpl::start_with_next([] {
-		Notify::unreadCounterUpdated();
+	) | rpl::start_with_next([=] {
+		notifyUnreadBadgeChanged();
 	}, _lifetime);
+
+	_chatsFilters->changed(
+	) | rpl::start_with_next([=] {
+		const auto enabled = !_chatsFilters->list().empty();
+		if (enabled != session->settings().dialogsFiltersEnabled()) {
+			session->settings().setDialogsFiltersEnabled(enabled);
+			session->saveSettingsDelayed();
+		}
+	}, _lifetime);
+
 }
 
 void Session::clear() {
+	// Optimization: clear notifications before destroying items.
+	Core::App().notifications().clearFromSession(_session);
+
 	_sendActions.clear();
 
 	_histories->unloadAll();
@@ -350,8 +360,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const MTPUserStatus *status = nullptr;
 	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
 
-	Notify::PeerUpdate update;
-	using UpdateFlag = Notify::PeerUpdate::Flag;
+	using UpdateFlag = PeerUpdate::Flag;
+	auto flags = UpdateFlag::None | UpdateFlag::None;
 	data.match([&](const MTPDuserEmpty &data) {
 		const auto canShareThisContact = result->canShareThisContactFast();
 
@@ -363,13 +373,13 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		result->setFlags(MTPDuser::Flag::f_deleted);
 		if (!result->phone().isEmpty()) {
 			result->setPhone(QString());
-			update.flags |= UpdateFlag::UserPhoneChanged;
+			flags |= UpdateFlag::PhoneNumber;
 		}
 		result->setBotInfoVersion(-1);
 		status = &emptyStatus;
 		result->setIsContact(false);
 		if (canShareThisContact != result->canShareThisContactFast()) {
-			update.flags |= UpdateFlag::UserCanShareContact;
+			flags |= UpdateFlag::CanShareContact;
 		}
 	}, [&](const MTPDuser &data) {
 		minimal = data.is_min();
@@ -404,7 +414,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (data.is_deleted()) {
 			if (!result->phone().isEmpty()) {
 				result->setPhone(QString());
-				update.flags |= UpdateFlag::UserPhoneChanged;
+				flags |= UpdateFlag::PhoneNumber;
 			}
 			result->setName(tr::lng_deleted(tr::now), QString(), QString(), QString());
 			result->setPhoto(MTP_userProfilePhotoEmpty());
@@ -422,7 +432,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			const auto phoneChanged = (result->phone() != phone);
 			if (phoneChanged) {
 				result->setPhone(phone);
-				update.flags |= UpdateFlag::UserPhoneChanged;
+				flags |= UpdateFlag::PhoneNumber;
 			}
 			const auto nameChanged = (result->firstName != fname)
 				|| (result->lastName != lname);
@@ -446,7 +456,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					&& (result->id != _session->userPeerId());
 			}
 
-			// see also Local::readPeer
+			// see also Serialize::readPeer
 
 			const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
 				? ((showPhone && !phone.isEmpty())
@@ -474,7 +484,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->botInfo->readsAllHistory = data.is_bot_chat_history();
 				if (result->botInfo->cantJoinGroups != data.is_bot_nochats()) {
 					result->botInfo->cantJoinGroups = data.is_bot_nochats();
-					update.flags |= UpdateFlag::BotCanAddToGroups;
+					flags |= UpdateFlag::BotCanBeInvited;
 				}
 				if (const auto placeholder = data.vbot_inline_placeholder()) {
 					result->botInfo->inlinePlaceholder = '_' + qs(*placeholder);
@@ -489,7 +499,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		}
 
 		if (canShareThisContact != result->canShareThisContactFast()) {
-			update.flags |= UpdateFlag::UserCanShareContact;
+			flags |= UpdateFlag::CanShareContact;
 		}
 	});
 
@@ -509,15 +519,12 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			oldOnlineTill);
 		if (oldOnlineTill != newOnlineTill) {
 			result->onlineTill = newOnlineTill;
-			update.flags |= UpdateFlag::UserOnlineChanged;
+			flags |= UpdateFlag::OnlineStatus;
 		}
 	}
 
-	if (App::main()) {
-		if (update.flags) {
-			update.peer = result;
-			Notify::peerUpdatedDelayed(update);
-		}
+	if (flags) {
+		session().changes().peerUpdated(result, flags);
 	}
 	return result;
 }
@@ -536,9 +543,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	});
 	auto minimal = false;
 
-	Notify::PeerUpdate update;
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	auto flags = UpdateFlag::None | UpdateFlag::None;
 	data.match([&](const MTPDchat &data) {
 		const auto chat = result->asChat();
 
@@ -584,7 +590,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		chat->count = data.vparticipants_count().v;
 
 		if (canAddMembers != chat->canAddMembers()) {
-			update.flags |= UpdateFlag::RightsChanged;
+			flags |= UpdateFlag::Rights;
 		}
 	}, [&](const MTPDchatForbidden &data) {
 		const auto chat = result->asChat();
@@ -603,7 +609,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 
 		if (canAddMembers != chat->canAddMembers()) {
-			update.flags |= UpdateFlag::RightsChanged;
+			flags |= UpdateFlag::Rights;
 		}
 	}, [&](const MTPDchannel &data) {
 		const auto channel = result->asChannel();
@@ -677,12 +683,12 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setPhoto(data.vphoto());
 
 		if (wasInChannel != channel->amIn()) {
-			update.flags |= UpdateFlag::ChannelAmIn;
+			flags |= UpdateFlag::ChannelAmIn;
 		}
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
-			update.flags |= UpdateFlag::RightsChanged;
+			flags |= UpdateFlag::Rights;
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
@@ -710,12 +716,12 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setMembersCount(0);
 
 		if (wasInChannel != channel->amIn()) {
-			update.flags |= UpdateFlag::ChannelAmIn;
+			flags |= UpdateFlag::ChannelAmIn;
 		}
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
-			update.flags |= UpdateFlag::RightsChanged;
+			flags |= UpdateFlag::Rights;
 		}
 	}, [](const MTPDchatEmpty &) {
 	});
@@ -727,9 +733,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	} else if (result->loadedStatus != PeerData::FullLoaded) {
 		result->loadedStatus = PeerData::FullLoaded;
 	}
-	if (update.flags) {
-		update.peer = result;
-		Notify::peerUpdatedDelayed(update);
+	if (flags) {
+		session().changes().peerUpdated(result, flags);
 	}
 	return result;
 }
@@ -828,7 +833,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 		if (history->folderKnown()) {
 			setChatPinned(history, FilterId(), false);
 		}
-		App::main()->removeDialog(history);
+		removeChatListEntry(history);
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
@@ -841,6 +846,13 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			}
 		}
 	}
+}
+
+void Session::cancelForwarding(not_null<History*> history) {
+	history->setForwardDraft({});
+	session().changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::ForwardDraft);
 }
 
 void Session::registerSendAction(
@@ -891,34 +903,31 @@ void Session::chatsListDone(Data::Folder *folder) {
 	_chatsListLoadedEvents.fire_copy(folder);
 }
 
+void Session::userIsBotChanged(not_null<UserData*> user) {
+	if (const auto history = this->history(user)) {
+		chatsFilters().refreshHistory(history);
+	}
+	_userIsBotChanges.fire_copy(user);
+}
+
+rpl::producer<not_null<UserData*>> Session::userIsBotChanges() const {
+	return _userIsBotChanges.events();
+}
+
+void Session::botCommandsChanged(not_null<UserData*> user) {
+	_botCommandsChanges.fire_copy(user);
+}
+
+rpl::producer<not_null<UserData*>> Session::botCommandsChanges() const {
+	return _botCommandsChanges.events();
+}
+
 Storage::Cache::Database &Session::cache() {
 	return *_cache;
 }
 
 Storage::Cache::Database &Session::cacheBigFile() {
 	return *_bigFileCache;
-}
-
-void Session::startExport(PeerData *peer) {
-	startExport(peer ? peer->input : MTP_inputPeerEmpty());
-}
-
-void Session::startExport(const MTPInputPeer &singlePeer) {
-	if (_exportPanel) {
-		_exportPanel->activatePanel();
-		return;
-	}
-	_export = std::make_unique<Export::Controller>(singlePeer);
-	_exportPanel = std::make_unique<Export::View::PanelController>(
-		_export.get());
-
-	_exportViewChanges.fire(_exportPanel.get());
-
-	_exportPanel->stopRequests(
-	) | rpl::start_with_next([=] {
-		LOG(("Export Info: Stop requested."));
-		stopExport();
-	}, _export->lifetime());
 }
 
 void Session::suggestStartExport(TimeId availableAt) {
@@ -947,45 +956,11 @@ void Session::suggestStartExport() {
 			std::min(left + 5, 3600) * crl::time(1000),
 			_session,
 			[=] { suggestStartExport(); });
-	} else if (_export) {
-		Export::View::ClearSuggestStart();
+	} else if (Core::App().exportManager().inProgress()) {
+		Export::View::ClearSuggestStart(&session());
 	} else {
-		_exportSuggestion = Export::View::SuggestStart();
+		_exportSuggestion = Export::View::SuggestStart(&session());
 	}
-}
-
-rpl::producer<Export::View::PanelController*> Session::currentExportView(
-) const {
-	return _exportViewChanges.events_starting_with(_exportPanel.get());
-}
-
-bool Session::exportInProgress() const {
-	return _export != nullptr;
-}
-
-void Session::stopExportWithConfirmation(FnMut<void()> callback) {
-	if (!_exportPanel) {
-		callback();
-		return;
-	}
-	auto closeAndCall = [=, callback = std::move(callback)]() mutable {
-		auto saved = std::move(callback);
-		LOG(("Export Info: Stop With Confirmation."));
-		stopExport();
-		if (saved) {
-			saved();
-		}
-	};
-	_exportPanel->stopWithConfirmation(std::move(closeAndCall));
-}
-
-void Session::stopExport() {
-	if (_exportPanel) {
-		LOG(("Export Info: Destroying."));
-		_exportPanel = nullptr;
-		_exportViewChanges.fire(nullptr);
-	}
-	_export = nullptr;
 }
 
 const Passport::SavedCredentials *Session::passportCredentials() const {
@@ -1012,26 +987,36 @@ void Session::forgetPassportCredentials() {
 	_passportCredentials = nullptr;
 }
 
-void Session::setupContactViewsViewer() {
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::UserIsContact
-	) | rpl::map([](const Notify::PeerUpdate &update) {
-		return update.peer->asUser();
-	}) | rpl::filter([](UserData *user) {
-		return user != nullptr;
-	}) | rpl::start_with_next([=](not_null<UserData*> user) {
-		userIsContactUpdated(user);
+void Session::setupMigrationViewer() {
+	session().changes().peerUpdates(
+		PeerUpdate::Flag::Migration
+	) | rpl::map([](const PeerUpdate &update) {
+		return update.peer->asChat();
+	}) | rpl::filter([=](ChatData *chat) {
+		return (chat != nullptr);
+	}) | rpl::start_with_next([=](not_null<ChatData*> chat) {
+		const auto channel = chat->migrateTo();
+		if (!channel) {
+			return;
+		}
+
+		if (const auto from = historyLoaded(chat)) {
+			if (const auto to = historyLoaded(channel)) {
+				if (to->inChatList() && from->inChatList()) {
+					removeChatListEntry(from);
+				}
+			}
+		}
 	}, _lifetime);
 }
 
 void Session::setupChannelLeavingViewer() {
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::ChannelAmIn
-	) | rpl::map([](const Notify::PeerUpdate &update) {
+	session().changes().peerUpdates(
+		PeerUpdate::Flag::ChannelAmIn
+	) | rpl::map([](const PeerUpdate &update) {
 		return update.peer->asChannel();
-	}) | rpl::filter([](ChannelData *channel) {
-		return (channel != nullptr)
-			&& !(channel->amIn());
+	}) | rpl::filter([](not_null<ChannelData*> channel) {
+		return !(channel->amIn());
 	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
 //		channel->clearFeed(); // #feed
 		if (const auto history = historyLoaded(channel->id)) {
@@ -1043,47 +1028,46 @@ void Session::setupChannelLeavingViewer() {
 }
 
 void Session::setupPeerNameViewer() {
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::NameChanged
-	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
+	session().changes().realtimeNameUpdates(
+	) | rpl::start_with_next([=](const NameUpdate &update) {
 		const auto peer = update.peer;
-		const auto &oldLetters = update.oldNameFirstLetters;
+		const auto &oldLetters = update.oldFirstLetters;
 		_contactsNoChatsList.peerNameChanged(peer, oldLetters);
 		_contactsList.peerNameChanged(peer, oldLetters);
 	}, _lifetime);
 }
 
 void Session::setupUserIsContactViewer() {
-	Notify::PeerUpdateViewer(
-		Notify::PeerUpdate::Flag::UserIsContact
-	) | rpl::filter([=](const Notify::PeerUpdate &update) {
-		return update.peer->isUser();
-	}) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
-		const auto user = update.peer->asUser();
+	session().changes().peerUpdates(
+		PeerUpdate::Flag::IsContact
+	) | rpl::map([](const PeerUpdate &update) {
+		return update.peer->asUser();
+	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+		const auto i = _contactViews.find(peerToUser(user->id));
+		if (i != _contactViews.end()) {
+			for (const auto view : i->second) {
+				requestViewResize(view);
+			}
+		}
 		if (user->loadedStatus != PeerData::FullLoaded) {
 			LOG(("API Error: "
 				"userIsContactChanged() called for a not loaded user!"));
 			return;
 		}
 		if (user->isContact()) {
-			const auto history = user->owner().history(user->id);
+			const auto history = this->history(user->id);
 			_contactsList.addByName(history);
 			if (!history->inChatList()) {
 				_contactsNoChatsList.addByName(history);
 			}
-		} else if (const auto history = user->owner().historyLoaded(user)) {
+		} else if (const auto history = historyLoaded(user)) {
 			_contactsNoChatsList.del(history);
 			_contactsList.del(history);
 		}
 	}, _lifetime);
 }
 
-Session::~Session() {
-	// Optimization: clear notifications before destroying items.
-	_session->notifications().clearAllFast();
-
-	clear();
-}
+Session::~Session() = default;
 
 template <typename Method>
 void Session::enumerateItemViews(
@@ -1381,6 +1365,14 @@ void Session::sendHistoryChangeNotifications() {
 	}
 }
 
+void Session::notifyPinnedDialogsOrderUpdated() {
+	_pinnedDialogsOrderUpdated.fire({});
+}
+
+rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
+	return _pinnedDialogsOrderUpdated.events();
+}
+
 void Session::registerHeavyViewPart(not_null<ViewElement*> view) {
 	_heavyViewParts.emplace(view);
 }
@@ -1474,47 +1466,6 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	}) | rpl::map([](auto updateChannel, auto user) {
 		return user;
 	});
-}
-
-void Session::notifyStickersUpdated() {
-	_stickersUpdated.fire({});
-}
-
-rpl::producer<> Session::stickersUpdated() const {
-	return _stickersUpdated.events();
-}
-
-void Session::notifyRecentStickersUpdated() {
-	_recentStickersUpdated.fire({});
-}
-
-rpl::producer<> Session::recentStickersUpdated() const {
-	return _recentStickersUpdated.events();
-}
-
-void Session::notifySavedGifsUpdated() {
-	_savedGifsUpdated.fire({});
-}
-
-rpl::producer<> Session::savedGifsUpdated() const {
-	return _savedGifsUpdated.events();
-}
-
-void Session::notifyPinnedDialogsOrderUpdated() {
-	_pinnedDialogsOrderUpdated.fire({});
-}
-
-rpl::producer<> Session::pinnedDialogsOrderUpdated() const {
-	return _pinnedDialogsOrderUpdated.events();
-}
-
-void Session::userIsContactUpdated(not_null<UserData*> user) {
-	const auto i = _contactViews.find(peerToUser(user->id));
-	if (i != _contactViews.end()) {
-		for (const auto view : i->second) {
-			requestViewResize(view);
-		}
-	}
 }
 
 HistoryItemsList Session::idsToItems(
@@ -1620,12 +1571,12 @@ void Session::applyDialog(
 	setPinnedFromDialog(history, data.is_pinned());
 
 	if (const auto from = history->peer->migrateFrom()) {
-		if (const auto historyFrom = from->owner().historyLoaded(from)) {
-			App::main()->removeDialog(historyFrom);
+		if (const auto historyFrom = historyLoaded(from)) {
+			removeChatListEntry(historyFrom);
 		}
 	} else if (const auto to = history->peer->migrateTo()) {
 		if (to->amIn()) {
-			App::main()->removeDialog(history);
+			removeChatListEntry(history);
 		}
 	}
 }
@@ -1657,8 +1608,8 @@ int Session::pinnedChatsLimit(
 		FilterId filterId) const {
 	if (!filterId) {
 		return folder
-			? Global::PinnedDialogsInFolderMax()
-			: Global::PinnedDialogsCountMax();
+			? session().serverConfig().pinnedDialogsInFolderMax.current()
+			: session().serverConfig().pinnedDialogsCountMax.current();
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
@@ -1719,46 +1670,12 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		requestItemTextRefresh(existing);
 		updateDependentMessages(existing);
 		if (existing->mainView()) {
-			checkSavedGif(existing);
+			stickers().checkSavedGif(existing);
 			return true;
 		}
 		return false;
 	}
 	return false;
-}
-
-void Session::addSavedGif(not_null<DocumentData*> document) {
-	const auto index = _savedGifs.indexOf(document);
-	if (!index) {
-		return;
-	}
-	if (index > 0) {
-		_savedGifs.remove(index);
-	}
-	_savedGifs.push_front(document);
-	if (_savedGifs.size() > Global::SavedGifsLimit()) {
-		_savedGifs.pop_back();
-	}
-	Local::writeSavedGifs();
-
-	notifySavedGifsUpdated();
-	setLastSavedGifsUpdate(0);
-	session().api().updateStickers();
-}
-
-void Session::checkSavedGif(not_null<HistoryItem*> item) {
-	if (item->Has<HistoryMessageForwarded>()
-		|| (!item->out()
-			&& item->history()->peer != session().user())) {
-		return;
-	}
-	if (const auto media = item->media()) {
-		if (const auto document = media->document()) {
-			if (document->isGifv()) {
-				addSavedGif(document);
-			}
-		}
-	}
 }
 
 void Session::updateEditedMessage(const MTPMessage &data) {
@@ -1891,6 +1808,9 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	_itemRemoved.fire_copy(item);
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::Destroyed);
 	groups().unregisterMessage(item);
 	removeDependencyMessage(item);
 	messagesListForInsert(peerToChannel(peerId))->erase(item->id);
@@ -1933,9 +1853,9 @@ void Session::updateDependentMessages(not_null<HistoryItem*> item) {
 			dependent->updateDependencyItem();
 		}
 	}
-	if (App::main()) {
-		App::main()->itemEdited(item);
-	}
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::Edited);
 }
 
 void Session::registerDependentMessage(
@@ -2009,16 +1929,16 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 	if (history && history->changeMute(muted)) {
 		// Notification already sent.
 	} else {
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			peer,
-			Notify::PeerUpdate::Flag::NotificationsEnabled);
+			PeerUpdate::Flag::Notifications);
 	}
 
 	if (muted) {
 		_mutedPeers.emplace(peer);
 		unmuteByFinishedDelayed(changesIn);
 		if (history) {
-			_session->notifications().clearIncomingFromHistory(history);
+			Core::App().notifications().clearIncomingFromHistory(history);
 		}
 	} else {
 		_mutedPeers.erase(peer);
@@ -2104,7 +2024,7 @@ int Session::unreadBadgeIgnoreOne(const Dialogs::Key &key) const {
 }
 
 bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
-	if (!_session->settings().includeMutedCounter()) {
+	if (!Core::App().settings().includeMutedCounter()) {
 		return false;
 	}
 	const auto remove = (key && key.entry()->inChatList())
@@ -2115,26 +2035,34 @@ bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
 
 int Session::unreadOnlyMutedBadge() const {
 	const auto state = _chatsList.unreadState();
-	return _session->settings().countUnreadMessages()
+	return Core::App().settings().countUnreadMessages()
 		? state.messagesMuted
 		: state.chatsMuted;
 }
 
+rpl::producer<> Session::unreadBadgeChanges() const {
+	return _unreadBadgeChanges.events();
+}
+
+void Session::notifyUnreadBadgeChanged() {
+	_unreadBadgeChanges.fire({});
+}
+
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
-	const auto all = _session->settings().includeMutedCounter();
+	const auto all = Core::App().settings().includeMutedCounter();
 	return std::max(state.marks - (all ? 0 : state.marksMuted), 0)
-		+ (_session->settings().countUnreadMessages()
+		+ (Core::App().settings().countUnreadMessages()
 			? std::max(state.messages - (all ? 0 : state.messagesMuted), 0)
 			: std::max(state.chats - (all ? 0 : state.chatsMuted), 0));
 }
 
 bool Session::computeUnreadBadgeMuted(
 		const Dialogs::UnreadState &state) const {
-	if (!_session->settings().includeMutedCounter()) {
+	if (!Core::App().settings().includeMutedCounter()) {
 		return false;
 	}
 	return (state.marksMuted >= state.marks)
-		&& (_session->settings().countUnreadMessages()
+		&& (Core::App().settings().countUnreadMessages()
 			? (state.messagesMuted >= state.messages)
 			: (state.chatsMuted >= state.chats));
 }
@@ -2491,8 +2419,8 @@ void Session::documentConvert(
 	if (idChanged) {
 		cache().moveIfEmpty(oldCacheKey, original->cacheKey());
 		cache().moveIfEmpty(oldGoodKey, original->goodThumbnailCacheKey());
-		if (savedGifs().indexOf(original) >= 0) {
-			Local::writeSavedGifs();
+		if (stickers().savedGifs().indexOf(original) >= 0) {
+			_session->local().writeSavedGifs();
 		}
 	}
 }
@@ -2523,7 +2451,7 @@ DocumentData *Session::documentFromWeb(
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
-		MTP::maindc(),
+		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
 		data.vurl().v,
@@ -2545,7 +2473,7 @@ DocumentData *Session::documentFromWeb(
 		QByteArray(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
-		MTP::maindc(),
+		session().mainDcId(),
 		int32(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
 	return result;
@@ -2620,7 +2548,9 @@ void Session::documentApplyFields(
 not_null<WebPageData*> Session::webpage(WebPageId id) {
 	auto i = _webpages.find(id);
 	if (i == _webpages.cend()) {
-		i = _webpages.emplace(id, std::make_unique<WebPageData>(id)).first;
+		i = _webpages.emplace(
+			id,
+			std::make_unique<WebPageData>(this, id)).first;
 	}
 	return i->second.get();
 }
@@ -2777,7 +2707,7 @@ void Session::webpageApplyFields(
 		description,
 		photo ? processPhoto(*photo).get() : nullptr,
 		document ? processDocument(*document).get() : lookupThemeDocument(),
-		WebPageCollage(data),
+		WebPageCollage(this, data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		pendingTill);
@@ -3192,9 +3122,9 @@ void Session::registerContactItem(
 	_contactItems[contactId].insert(item);
 
 	if (contact && canShare != contact->canShareThisContact()) {
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			contact,
-			Notify::PeerUpdate::Flag::UserCanShareContact);
+			PeerUpdate::Flag::CanShareContact);
 	}
 
 	if (const auto i = _views.find(item); i != _views.end()) {
@@ -3224,9 +3154,9 @@ void Session::unregisterContactItem(
 	}
 
 	if (contact && canShare != contact->canShareThisContact()) {
-		Notify::peerUpdatedDelayed(
+		session().changes().peerUpdated(
 			contact,
-			Notify::PeerUpdate::Flag::UserCanShareContact);
+			PeerUpdate::Flag::CanShareContact);
 	}
 }
 
@@ -3309,6 +3239,7 @@ void Session::notifyPollUpdateDelayed(not_null<PollData*> poll) {
 
 void Session::sendWebPageGamePollNotifications() {
 	for (const auto page : base::take(_webpagesUpdated)) {
+		_webpageUpdates.fire_copy(page);
 		const auto i = _webpageViews.find(page);
 		if (i != _webpageViews.end()) {
 			for (const auto view : i->second) {
@@ -3330,6 +3261,18 @@ void Session::sendWebPageGamePollNotifications() {
 			}
 		}
 	}
+}
+
+rpl::producer<not_null<WebPageData*>> Session::webPageUpdates() const {
+	return _webpageUpdates.events();
+}
+
+void Session::channelDifferenceTooLong(not_null<ChannelData*> channel) {
+	_channelDifferenceTooLong.fire_copy(channel);
+}
+
+rpl::producer<not_null<ChannelData*>> Session::channelDifferenceTooLong() const {
+	return _channelDifferenceTooLong.events();
 }
 
 void Session::registerItemView(not_null<ViewElement*> view) {
@@ -3421,10 +3364,7 @@ not_null<Dialogs::IndexedList*> Session::contactsNoChatsList() {
 	return &_contactsNoChatsList;
 }
 
-auto Session::refreshChatListEntry(
-	Dialogs::Key key,
-	FilterId filterIdForResult)
--> RefreshChatListEntryResult {
+void Session::refreshChatListEntry(Dialogs::Key key) {
 	Expects(key.entry()->folderKnown());
 
 	using namespace Dialogs;
@@ -3432,42 +3372,47 @@ auto Session::refreshChatListEntry(
 	const auto entry = key.entry();
 	const auto history = key.history();
 	const auto mainList = chatsList(entry->folder());
-	auto mainListResult = RefreshChatListEntryResult();
-	mainListResult.changed = !entry->inChatList();
-	if (mainListResult.changed) {
+	auto event = ChatListEntryRefresh{ .key = key };
+	const auto creating = event.existenceChanged = !entry->inChatList();
+	if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		mainListResult.moved = entry->adjustByPosInChatList(0, mainList);
+		event.moved = entry->adjustByPosInChatList(0, mainList);
 	}
-	auto result = filterIdForResult
-		? RefreshChatListEntryResult()
-		: mainListResult;
+	if (event) {
+		_chatListEntryRefreshes.fire(std::move(event));
+	}
 	if (!history) {
-		return result;
+		return;
 	}
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		const auto filterList = chatsFilters().chatsList(id);
-		auto filterResult = RefreshChatListEntryResult();
+		auto event = ChatListEntryRefresh{ .key = key, .filterId = id };
 		if (filter.contains(history)) {
-			filterResult.changed = !entry->inChatList(id);
-			if (filterResult.changed) {
+			event.existenceChanged = !entry->inChatList(id);
+			if (event.existenceChanged) {
 				entry->addToChatList(id, filterList);
 			} else {
-				filterResult.moved = entry->adjustByPosInChatList(
-					id,
-					filterList);
+				event.moved = entry->adjustByPosInChatList(id, filterList);
 			}
 		} else if (entry->inChatList(id)) {
 			entry->removeFromChatList(id, filterList);
-			filterResult.changed = true;
+			event.existenceChanged = true;
 		}
-		if (id == filterIdForResult) {
-			result = filterResult;
+		if (event) {
+			_chatListEntryRefreshes.fire(std::move(event));
 		}
 	}
-	return result;
+
+	if (creating) {
+		if (const auto from = history->peer->migrateFrom()) {
+			if (const auto migrated = historyLoaded(from)) {
+				removeChatListEntry(migrated);
+			}
+		}
+	}
 }
 
 void Session::removeChatListEntry(Dialogs::Key key) {
@@ -3478,20 +3423,38 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		return;
 	}
 	Assert(entry->folderKnown());
-	const auto mainList = chatsList(entry->folder());
-	entry->removeFromChatList(0, mainList);
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		if (entry->inChatList(id)) {
 			entry->removeFromChatList(id, chatsFilters().chatsList(id));
+			_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+				.key = key,
+				.filterId = id,
+				.existenceChanged = true
+			});
 		}
 	}
+	const auto mainList = chatsList(entry->folder());
+	entry->removeFromChatList(0, mainList);
+	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+		.key = key,
+		.existenceChanged = true
+	});
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {
 			_contactsNoChatsList.addByName(key);
 		}
 	}
+	if (const auto history = key.history()) {
+		Core::App().notifications().clearFromHistory(history);
+	}
 }
+
+auto Session::chatListEntryRefreshes() const
+-> rpl::producer<ChatListEntryRefresh> {
+	return _chatListEntryRefreshes.events();
+}
+
 
 void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 	_dialogsRowReplacements.fire(std::move(replacement));
@@ -3753,36 +3716,33 @@ MessageIdsList Session::takeMimeForwardIds() {
 }
 
 void Session::setTopPromoted(
-		PeerData *promoted,
+		History *promoted,
 		const QString &type,
 		const QString &message) {
 	const auto changed = (_topPromoted != promoted);
-	const auto history = promoted ? this->history(promoted).get() : nullptr;
-	if (changed
-		|| (history && history->topPromotionMessage() != message)) {
-		if (changed) {
-			if (const auto history = historyLoaded(_topPromoted)) {
-				history->cacheTopPromotion(false, QString(), QString());
-			}
-		}
-		const auto old = std::exchange(_topPromoted, promoted);
-		if (history) {
-			history->cacheTopPromotion(true, type, message);
-			history->requestChatListMessage();
-			Notify::peerUpdatedDelayed(
-				_topPromoted,
-				Notify::PeerUpdate::Flag::TopPromotedChanged);
-		}
-		if (changed && old) {
-			Notify::peerUpdatedDelayed(
-				old,
-				Notify::PeerUpdate::Flag::TopPromotedChanged);
+	if (!changed
+		&& (!promoted || promoted->topPromotionMessage() == message)) {
+		return;
+	}
+	if (changed) {
+		if (_topPromoted) {
+			_topPromoted->cacheTopPromotion(false, QString(), QString());
 		}
 	}
-}
-
-PeerData *Session::topPromoted() const {
-	return _topPromoted;
+	const auto old = std::exchange(_topPromoted, promoted);
+	if (_topPromoted) {
+		histories().requestDialogEntry(_topPromoted);
+		_topPromoted->cacheTopPromotion(true, type, message);
+		_topPromoted->requestChatListMessage();
+		session().changes().historyUpdated(
+			_topPromoted,
+			HistoryUpdate::Flag::TopPromoted);
+	}
+	if (changed && old) {
+		session().changes().historyUpdated(
+			old,
+			HistoryUpdate::Flag::TopPromoted);
+	}
 }
 
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
@@ -3804,14 +3764,11 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
 		u":/gui/art/bg_initial.jpg"_q));
 	for (const auto &paper : data) {
-		if (const auto parsed = Data::WallPaper::Create(paper)) {
+		if (const auto parsed = Data::WallPaper::Create(&session(), paper)) {
 			_wallpapers.push_back(*parsed);
 		}
 	}
-	const auto defaultFound = ranges::find_if(
-		_wallpapers,
-		Data::IsDefaultWallPaper);
-	if (defaultFound == end(_wallpapers)) {
+	if (ranges::none_of(_wallpapers, Data::IsDefaultWallPaper)) {
 		_wallpapers.push_back(Data::DefaultWallPaper());
 		_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
 			u":/gui/arg/bg.jpg"_q));
@@ -3834,10 +3791,10 @@ int32 Session::wallpapersHash() const {
 }
 
 void Session::clearLocalStorage() {
-	clear();
-
 	_cache->close();
 	_cache->clear();
+	_bigFileCache->close();
+	_bigFileCache->clear();
 }
 
 } // namespace Data

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
 #include "layout.h"
@@ -48,13 +49,15 @@ bool HasConnectionType() {
 	return false;
 }
 
-void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
+void SetupConnectionType(
+		not_null<Main::Account*> account,
+		not_null<Ui::VerticalLayout*> container) {
 	if (!HasConnectionType()) {
 		return;
 	}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	const auto connectionType = [] {
-		const auto transport = MTP::dctransport();
+	const auto connectionType = [=] {
+		const auto transport = account->mtp().dctransport();
 		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
@@ -74,8 +77,8 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 			Global::RefConnectionTypeChanged()
 		)) | rpl::map(connectionType),
 		st::settingsButton);
-	button->addClickHandler([] {
-		Ui::show(ProxiesBoxController::CreateOwningBox());
+	button->addClickHandler([=] {
+		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
@@ -262,7 +265,7 @@ void SetupSpellchecker(
 		not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto session = &controller->session();
-	const auto settings = &session->settings();
+	const auto settings = &Core::App().settings();
 	const auto isSystem = Platform::Spellchecker::IsSystemSpellchecker();
 	const auto button = AddButton(
 		container,
@@ -279,7 +282,7 @@ void SetupSpellchecker(
 		return (enabled != settings->spellcheckerEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
 		settings->setSpellcheckerEnabled(enabled);
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
 
 	if (isSystem) {
@@ -302,7 +305,7 @@ void SetupSpellchecker(
 		return (enabled != settings->autoDownloadDictionaries());
 	}) | rpl::start_with_next([=](bool enabled) {
 		settings->setAutoDownloadDictionaries(enabled);
-		session->saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}, sliding->entity()->lifetime());
 
 	AddButtonWithLabel(
@@ -311,7 +314,7 @@ void SetupSpellchecker(
 		Spellchecker::ButtonManageDictsState(session),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<Ui::ManageDictionariesBox>(session));
+		Ui::show(Box<Ui::ManageDictionariesBox>(controller));
 	});
 
 	button->toggledValue(
@@ -563,7 +566,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 		addDivider();
 		AddSkip(content);
 		AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-		SetupConnectionType(content);
+		SetupConnectionType(&controller->session().account(), content);
 		AddSkip(content);
 	}
 	SetupDataStorage(controller, content);

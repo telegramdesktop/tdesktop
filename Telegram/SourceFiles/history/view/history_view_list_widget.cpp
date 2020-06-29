@@ -305,6 +305,10 @@ Main::Session &ListWidget::session() const {
 	return _controller->session();
 }
 
+not_null<Window::SessionController*> ListWidget::controller() const {
+	return _controller;
+}
+
 not_null<ListDelegate*> ListWidget::delegate() const {
 	return _delegate;
 }
@@ -598,7 +602,7 @@ void ListWidget::visibleTopBottomUpdated(
 	} else {
 		scrollDateHideByTimer();
 	}
-	_controller->floatPlayerAreaUpdated().notify(true);
+	_controller->floatPlayerAreaUpdated();
 	_applyUpdatedScrollState.call();
 }
 
@@ -1123,17 +1127,6 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-void ListWidget::elementAnimationAutoplayAsync(
-		not_null<const Element*> view) {
-	crl::on_main(this, [this, msgId = view->data()->fullId()]{
-		if (const auto view = viewForItem(msgId)) {
-			if (const auto media = view->media()) {
-				media->autoplayAnimation();
-			}
-		}
-	});
-}
-
 crl::time ListWidget::elementHighlightTime(
 		not_null<const HistoryView::Element*> element) {
 	if (element->data()->fullId() == _highlightedMessageId) {
@@ -1170,6 +1163,10 @@ void ListWidget::elementShowPollResults(
 void ListWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {
+}
+
+bool ListWidget::elementIsGifPaused() {
+	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {
@@ -2175,7 +2172,7 @@ void ListWidget::mouseActionUpdate() {
 					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
 					auto dateLeft = st::msgServiceMargin.left();
 					auto maxwidth = view->width();
-					if (Adaptive::ChatWide()) {
+					if (Core::App().settings().chatWide()) {
 						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 					}
 					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();

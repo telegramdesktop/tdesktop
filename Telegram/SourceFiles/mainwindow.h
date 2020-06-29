@@ -17,11 +17,8 @@ class MainWidget;
 
 namespace Intro {
 class Widget;
+enum class EnterPoint : uchar;
 } // namespace Intro
-
-namespace Local {
-class ClearManager;
-} // namespace Local
 
 namespace Window {
 class MediaPreviewWidget;
@@ -53,34 +50,20 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro();
+	void setupIntro(Intro::EnterPoint point);
 	void setupMain();
 
-	MainWidget *chatsWidget() {
-		return mainWidget();
-	}
-
-	MainWidget *mainWidget();
+	MainWidget *sessionContent() const;
 
 	[[nodiscard]] bool doWeMarkAsRead();
 
 	void activate();
 
-	void noIntro(Intro::Widget *was);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
 
 	void fixOrder();
-
-	enum TempDirState {
-		TempDirRemoving,
-		TempDirExists,
-		TempDirEmpty,
-	};
-	TempDirState tempDirState();
-	TempDirState localStorageState();
-	void tempDirDelete(int task);
 
 	void sendPaths();
 
@@ -118,6 +101,8 @@ public:
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();
 
+	void showLogoutConfirmation();
+
 	void updateControlsGeometry() override;
 
 protected:
@@ -136,17 +121,9 @@ public slots:
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
-	void onClearFinished(int task, void *manager);
-	void onClearFailed(int task, void *manager);
-
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
-	void onLogout();
-
-signals:
-	void tempDirCleared(int task);
-	void tempDirClearFailed(int task);
 
 private:
 	[[nodiscard]] bool skipTrayClick() const;
@@ -176,8 +153,6 @@ private:
 	object_ptr<Window::MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
-
-	Local::ClearManager *_clearManager = nullptr;
 
 };
 

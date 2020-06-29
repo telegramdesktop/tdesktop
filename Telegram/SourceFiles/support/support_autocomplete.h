@@ -17,6 +17,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Ui {
 class ScrollArea;
 class InputField;
@@ -65,6 +69,7 @@ class ConfirmContactBox
 public:
 	ConfirmContactBox(
 		QWidget*,
+		not_null<Window::SessionController*> controller,
 		not_null<History*> history,
 		const Contact &data,
 		Fn<void(Qt::KeyboardModifiers)> submit);

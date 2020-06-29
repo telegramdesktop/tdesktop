@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_changes.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -24,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
-#include "observer_peer.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -298,7 +298,7 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 }
 
 void Cover::initViewers(rpl::producer<QString> title) {
-	using Flag = Notify::PeerUpdate::Flag;
+	using Flag = Data::PeerUpdate::Flag;
 	std::move(
 		title
 	) | rpl::start_with_next([=](const QString &title) {
@@ -306,16 +306,16 @@ void Cover::initViewers(rpl::producer<QString> title) {
 		refreshNameGeometry(width());
 	}, lifetime());
 
-	Notify::PeerUpdateValue(
+	_peer->session().changes().peerFlagsValue(
 		_peer,
-		Flag::UserOnlineChanged | Flag::MembersChanged
+		Flag::OnlineStatus | Flag::Members
 	) | rpl::start_with_next(
 		[=] { refreshStatusText(); },
 		lifetime());
 	if (!_peer->isUser()) {
-		Notify::PeerUpdateValue(
+		_peer->session().changes().peerFlagsValue(
 			_peer,
-			Flag::RightsChanged
+			Flag::Rights
 		) | rpl::start_with_next(
 			[=] { refreshUploadPhotoOverlay(); },
 			lifetime());

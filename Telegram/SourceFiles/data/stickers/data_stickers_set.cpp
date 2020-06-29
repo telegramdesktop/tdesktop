@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "chat_helpers/stickers_set.h"
+#include "data/stickers/data_stickers_set.h"
 
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -14,16 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "app.h"
 
-namespace Stickers {
+namespace Data {
 
-SetThumbnailView::SetThumbnailView(not_null<Set*> owner) : _owner(owner) {
+StickersSetThumbnailView::StickersSetThumbnailView(
+	not_null<StickersSet*> owner)
+: _owner(owner) {
 }
 
-not_null<Set*> SetThumbnailView::owner() const {
+not_null<StickersSet*> StickersSetThumbnailView::owner() const {
 	return _owner;
 }
 
-void SetThumbnailView::set(
+void StickersSetThumbnailView::set(
 		not_null<Main::Session*> session,
 		QByteArray content) {
 	auto image = App::readImage(content, nullptr, false);
@@ -35,15 +37,15 @@ void SetThumbnailView::set(
 	session->downloaderTaskFinished().notify();
 }
 
-Image *SetThumbnailView::image() const {
+Image *StickersSetThumbnailView::image() const {
 	return _image.get();
 }
 
-QByteArray SetThumbnailView::content() const {
+QByteArray StickersSetThumbnailView::content() const {
 	return _content;
 }
 
-Set::Set(
+StickersSet::StickersSet(
 	not_null<Data::Session*> owner,
 	uint64 id,
 	uint64 access,
@@ -64,21 +66,21 @@ Set::Set(
 , _owner(owner) {
 }
 
-Data::Session &Set::owner() const {
+Data::Session &StickersSet::owner() const {
 	return *_owner;
 }
 
-Main::Session &Set::session() const {
+Main::Session &StickersSet::session() const {
 	return _owner->session();
 }
 
-MTPInputStickerSet Set::mtpInput() const {
+MTPInputStickerSet StickersSet::mtpInput() const {
 	return (id && access)
 		? MTP_inputStickerSetID(MTP_long(id), MTP_long(access))
 		: MTP_inputStickerSetShortName(MTP_string(shortName));
 }
 
-void Set::setThumbnail(const ImageWithLocation &data) {
+void StickersSet::setThumbnail(const ImageWithLocation &data) {
 	Data::UpdateCloudFile(
 		_thumbnail,
 		data,
@@ -95,54 +97,60 @@ void Set::setThumbnail(const ImageWithLocation &data) {
 	}
 }
 
-bool Set::hasThumbnail() const {
+bool StickersSet::hasThumbnail() const {
 	return _thumbnail.location.valid();
 }
 
-bool Set::thumbnailLoading() const {
+bool StickersSet::thumbnailLoading() const {
 	return (_thumbnail.loader != nullptr);
 }
 
-bool Set::thumbnailFailed() const {
+bool StickersSet::thumbnailFailed() const {
 	return (_thumbnail.flags & Data::CloudFile::Flag::Failed);
 }
 
-void Set::loadThumbnail() {
-	auto &file = _thumbnail;
-	const auto origin = Data::FileOriginStickerSet(id, access);
-	const auto fromCloud = LoadFromCloudOrLocal;
-	const auto cacheTag = Data::kImageCacheTag;
+void StickersSet::loadThumbnail() {
 	const auto autoLoading = false;
-	Data::LoadCloudFile(file, origin, fromCloud, autoLoading, cacheTag, [=] {
+	const auto finalCheck = [=] {
 		if (const auto active = activeThumbnailView()) {
 			return !active->image() && active->content().isEmpty();
 		}
 		return true;
-	}, [=](QByteArray result) {
+	};
+	const auto done = [=](QByteArray result) {
 		if (const auto active = activeThumbnailView()) {
 			active->set(&_owner->session(), std::move(result));
 		}
-	});
+	};
+	Data::LoadCloudFile(
+		&_owner->session(),
+		_thumbnail,
+		Data::FileOriginStickerSet(id, access),
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kImageCacheTag,
+		finalCheck,
+		done);
 }
 
-const ImageLocation &Set::thumbnailLocation() const {
+const ImageLocation &StickersSet::thumbnailLocation() const {
 	return _thumbnail.location;
 }
 
-int Set::thumbnailByteSize() const {
+int StickersSet::thumbnailByteSize() const {
 	return _thumbnail.byteSize;
 }
 
-std::shared_ptr<SetThumbnailView> Set::createThumbnailView() {
+std::shared_ptr<StickersSetThumbnailView> StickersSet::createThumbnailView() {
 	if (auto active = activeThumbnailView()) {
 		return active;
 	}
-	auto view = std::make_shared<SetThumbnailView>(this);
+	auto view = std::make_shared<StickersSetThumbnailView>(this);
 	_thumbnailView = view;
 	return view;
 }
 
-std::shared_ptr<SetThumbnailView> Set::activeThumbnailView() {
+std::shared_ptr<StickersSetThumbnailView> StickersSet::activeThumbnailView() {
 	return _thumbnailView.lock();
 }
 

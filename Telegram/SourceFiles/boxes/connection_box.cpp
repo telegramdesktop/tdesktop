@@ -978,8 +978,9 @@ void ProxyBox::addLabel(
 
 } // namespace
 
-ProxiesBoxController::ProxiesBoxController()
-: _saveTimer([] { Local::writeSettings(); }) {
+ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
+: _account(account)
+, _saveTimer([] { Local::writeSettings(); }) {
 	_list = ranges::view::all(
 		Global::ProxiesList()
 	) | ranges::view::transform([&](const ProxyData &proxy) {
@@ -1027,7 +1028,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				: QString());
 		*box = Ui::show(Box<ConfirmBox>(text, tr::lng_sure_enable(tr::now), [=] {
 			auto &proxies = Global::RefProxiesList();
-			if (ranges::find(proxies, proxy) == end(proxies)) {
+			if (!ranges::contains(proxies, proxy)) {
 				proxies.push_back(proxy);
 			}
 			Core::App().setCurrentProxy(
@@ -1058,7 +1059,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
 		: Variants::Tcp;
-	const auto mtproto = Core::App().activeAccount().mtp();
+	const auto mtproto = &_account->mtp();
 	const auto dcId = mtproto->mainDcId();
 
 	item.state = ItemState::Checking;
@@ -1081,7 +1082,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 			dcId);
 		item.checkerv6 = nullptr;
 	} else {
-		const auto options = mtproto->dcOptions()->lookup(
+		const auto options = mtproto->dcOptions().lookup(
 			dcId,
 			MTP::DcType::Regular,
 			true);
@@ -1142,8 +1143,9 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
 	pointer->connect(pointer, &Connection::error, failed);
 }
 
-object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox() {
-	auto controller = std::make_unique<ProxiesBoxController>();
+object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
+		not_null<Main::Account*> account) {
+	auto controller = std::make_unique<ProxiesBoxController>(account);
 	auto box = controller->create();
 	Ui::AttachAsChild(box, std::move(controller));
 	return box;
@@ -1372,7 +1374,7 @@ void ProxiesBoxController::setTryIPv6(bool enabled) {
 		return;
 	}
 	Global::SetTryIPv6(enabled);
-	MTP::restart();
+	_account->mtp().restart();
 	Global::RefConnectionTypeChanged().notify();
 	saveDelayed();
 }
@@ -1404,7 +1406,7 @@ void ProxiesBoxController::updateView(const Item &item) {
 		if (!selected
 			|| (Global::ProxySettings() != ProxyData::Settings::Enabled)) {
 			return item.state;
-		} else if (MTP::dcstate() == MTP::ConnectedState) {
+		} else if (_account->mtp().dcstate() == MTP::ConnectedState) {
 			return ItemState::Online;
 		}
 		return ItemState::Connecting;

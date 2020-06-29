@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "base/weak_ptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class UserPhotosSlice {
 public:
 	using Key = Storage::UserPhotosKey;
@@ -46,11 +50,13 @@ private:
 };
 
 rpl::producer<UserPhotosSlice> UserPhotosViewer(
+	not_null<Main::Session*> session,
 	UserPhotosSlice::Key key,
 	int limitBefore,
 	int limitAfter);
 
 rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
+	not_null<Main::Session*> session,
 	UserPhotosSlice::Key key,
 	int limitBefore,
 	int limitAfter);

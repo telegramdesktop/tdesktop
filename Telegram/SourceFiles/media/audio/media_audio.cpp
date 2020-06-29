@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_audio.h"
 #include "core/application.h"
 #include "main/main_session.h"
-#include "facades.h"
 #include "app.h"
 
 #include <al.h>
@@ -575,12 +574,17 @@ Mixer::Mixer(not_null<Audio::Instance*> instance)
 	connect(this, SIGNAL(suppressSong()), _fader, SLOT(onSuppressSong()));
 	connect(this, SIGNAL(unsuppressSong()), _fader, SLOT(onUnsuppressSong()));
 	connect(this, SIGNAL(suppressAll(qint64)), _fader, SLOT(onSuppressAll(qint64)));
-	subscribe(Global::RefSongVolumeChanged(), [this] {
+
+	Core::App().settings().songVolumeChanges(
+	) | rpl::start_with_next([=] {
 		QMetaObject::invokeMethod(_fader, "onSongVolumeChanged");
-	});
-	subscribe(Global::RefVideoVolumeChanged(), [this] {
+	}, _lifetime);
+
+	Core::App().settings().videoVolumeChanges(
+	) | rpl::start_with_next([=] {
 		QMetaObject::invokeMethod(_fader, "onVideoVolumeChanged");
-	});
+	}, _lifetime);
+
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&, qint64)), _loader, SLOT(onStart(const AudioMsgId&, qint64)));
 	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
 	connect(_loader, SIGNAL(needToCheck()), _fader, SLOT(onTimer()));
@@ -756,8 +760,8 @@ void Mixer::play(
 	Expects(externalData != nullptr);
 	Expects(audio.externalPlayId() != 0);
 
-	setSongVolume(Global::SongVolume());
-	setVideoVolume(Global::VideoVolume());
+	setSongVolume(Core::App().settings().songVolume());
+	setVideoVolume(Core::App().settings().videoVolume());
 
 	auto type = audio.type();
 	AudioMsgId stopped;

@@ -18,12 +18,12 @@ namespace Members {
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
-	controller->peerId(),
+	controller->peer(),
 	controller->migratedPeerId()) {
 }
 
-Memento::Memento(PeerId peerId, PeerId migratedPeerId)
-: ContentMemento(peerId, migratedPeerId) {
+Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
+: ContentMemento(peer, migratedPeerId) {
 }
 
 Section Memento::section() const {

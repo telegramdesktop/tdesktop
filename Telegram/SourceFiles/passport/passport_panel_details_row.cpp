@@ -381,7 +381,7 @@ void CountryRow::chooseCountry() {
 	const auto top = _value.current();
 	const auto name = Data::CountryNameByISO2(top);
 	const auto isoByPhone = Data::CountryISO2ByPhone(
-		Auth().user()->phone());
+		_controller->bot()->session().user()->phone());
 	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
 		? top
 		: !isoByPhone.isEmpty()

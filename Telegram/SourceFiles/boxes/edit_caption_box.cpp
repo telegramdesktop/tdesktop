@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "base/event_filter.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
@@ -37,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_local.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
+#include "mtproto/mtproto_config.h"
 #include "ui/image/image.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
@@ -45,7 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
-#include "facades.h"
+#include "apiwrap.h"
+#include "facades.h" // App::LambdaDelayed.
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -66,6 +70,7 @@ EditCaptionBox::EditCaptionBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item)
 : _controller(controller)
+, _api(&controller->session().mtp())
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
@@ -302,16 +307,18 @@ EditCaptionBox::EditCaptionBox(
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_photo_caption(),
 		editData);
-	_field->setMaxLength(Global::CaptionLengthMax());
-	_field->setSubmitSettings(_controller->session().settings().sendSubmitWay());
+	_field->setMaxLength(
+		_controller->session().serverConfig().captionLengthMax);
+	_field->setSubmitSettings(
+		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
-		_controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(&_controller->session(), _field));
+		DefaultEditLinkCallback(_controller, _field));
 
-	InitSpellchecker(&_controller->session(), _field);
+	InitSpellchecker(_controller, _field);
 
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
@@ -963,18 +970,20 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	_saveRequestId = MTP::send(
-		MTPmessages_EditMessage(
-			MTP_flags(flags),
-			item->history()->peer->input,
-			MTP_int(item->id),
-			MTP_string(sending.text),
-			MTPInputMedia(),
-			MTPReplyMarkup(),
-			sentEntities,
-			MTP_int(0)), // schedule_date
-		rpcDone(&EditCaptionBox::saveDone),
-		rpcFail(&EditCaptionBox::saveFail));
+	_saveRequestId = _api.request(MTPmessages_EditMessage(
+		MTP_flags(flags),
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTP_string(sending.text),
+		MTPInputMedia(),
+		MTPReplyMarkup(),
+		sentEntities,
+		MTP_int(0)
+	)).done([=](const MTPUpdates &result) {
+		saveDone(result);
+	}).fail([=](const RPCError &error) {
+		saveFail(error);
+	}).send();
 }
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
@@ -984,26 +993,24 @@ void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	controller->session().api().applyUpdates(updates);
 }
 
-bool EditCaptionBox::saveFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void EditCaptionBox::saveFail(const RPCError &error) {
 	_saveRequestId = 0;
 	const auto &type = error.type();
 	if (type == qstr("MESSAGE_ID_INVALID")
 		|| type == qstr("CHAT_ADMIN_REQUIRED")
 		|| type == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
 		_error = tr::lng_edit_error(tr::now);
+		update();
 	} else if (type == qstr("MESSAGE_NOT_MODIFIED")) {
 		closeBox();
-		return true;
 	} else if (type == qstr("MESSAGE_EMPTY")) {
 		_field->setFocus();
 		_field->showError();
+		update();
 	} else {
 		_error = tr::lng_edit_error(tr::now);
+		update();
 	}
-	update();
-	return true;
 }
 
 void EditCaptionBox::setName(QString nameString, qint64 size) {

@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
@@ -29,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "mtproto/sender.h"
-#include "observer_peer.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
@@ -192,9 +193,11 @@ void SaveSlowmodeSeconds(
 	api->registerModifyRequest(key, requestId);
 }
 
-void ShowEditPermissions(not_null<PeerData*> peer) {
+void ShowEditPermissions(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
 	const auto box = Ui::show(
-		Box<EditPeerPermissionsBox>(peer),
+		Box<EditPeerPermissionsBox>(navigation, peer),
 		Ui::LayerOption::KeepOther);
 	const auto saving = box->lifetime().make_state<int>(0);
 	const auto save = [=](
@@ -356,7 +359,7 @@ Controller::Controller(
 : _navigation(navigation)
 , _box(box)
 , _peer(peer)
-, _api(_peer->session().api().instance())
+, _api(&_peer->session().mtp())
 , _isGroup(_peer->isChat() || _peer->isMegagroup()) {
 	_box->setTitle(_isGroup
 		? tr::lng_edit_group()
@@ -465,7 +468,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	result->entity()->setMaxLength(kMaxGroupChannelTitle);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		_peer->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
 		result->entity(),
@@ -499,8 +502,8 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setMaxLength(kMaxChannelDescription);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		_peer->session().settings().replaceEmojiValue());
-	result->entity()->setSubmitSettings(_peer->session().settings().sendSubmitWay());
+		Core::App().settings().replaceEmojiValue());
+	result->entity()->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
 		result->entity(),
@@ -561,7 +564,9 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		tr::lng_group_stickers_add(tr::now),
 		st::editPeerInviteLinkButton)
 	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(channel), Ui::LayerOption::KeepOther);
+		Ui::show(
+			Box<StickersBox>(_navigation->parentController(), channel),
+			Ui::LayerOption::KeepOther);
 	});
 
 	return result;
@@ -830,8 +835,6 @@ void Controller::fillHistoryVisibilityButton() {
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto navigation = App::wnd()->sessionController();
-
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	const auto isChannel = (!chat);
@@ -943,7 +946,7 @@ void Controller::fillManageSection() {
 				Info::Profile::RestrictionsCountValue
 			) | rpl::flatten_latest(
 			) | ToPositiveNumberStringRestrictions(),
-			[=] { ShowEditPermissions(_peer); },
+			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
 	if (canViewAdmins) {
@@ -958,7 +961,7 @@ void Controller::fillManageSection() {
 			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Admins);
 			},
@@ -976,7 +979,7 @@ void Controller::fillManageSection() {
 			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Members);
 			},
@@ -990,7 +993,7 @@ void Controller::fillManageSection() {
 			| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
@@ -1002,7 +1005,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
 			[=] {
-				navigation->showSection(AdminLog::SectionMemento(channel));
+				_navigation->showSection(AdminLog::SectionMemento(channel));
 			},
 			st::infoIconRecentActions);
 	}
@@ -1440,15 +1443,22 @@ void Controller::deleteChannel() {
 	const auto channel = _peer->asChannel();
 	const auto chat = channel->migrateFrom();
 
+	const auto session = &_peer->session();
+
 	Ui::hideLayer();
-	Ui::showChatsList();
+	Ui::showChatsList(session);
 	if (chat) {
-		chat->session().api().deleteConversation(chat, false);
+		session->api().deleteConversation(chat, false);
 	}
-	MTP::send(
-		MTPchannels_DeleteChannel(channel->inputChannel),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::deleteChannelFailed));
+	session->api().request(MTPchannels_DeleteChannel(
+		channel->inputChannel
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+	//}).fail([=](const RPCError &error) {
+	//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
+	//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+	//	}
+	}).send();
 }
 
 } // namespace

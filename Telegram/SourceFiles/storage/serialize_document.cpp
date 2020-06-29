@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_document.h"
 
 #include "storage/serialize_common.h"
-#include "chat_helpers/stickers.h"
+#include "storage/serialize_peer.h"
 #include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
 
@@ -56,7 +57,11 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	stream << qint32(document->videoThumbnailByteSize());
 }
 
-DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info) {
+DocumentData *Document::readFromStreamHelper(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo *info) {
 	quint64 id, access;
 	QString name, mime;
 	qint32 date, dc, size, width, height, type, versionTag, version = 0;
@@ -91,10 +96,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
-			if (info->setId == Stickers::DefaultSetId
-				|| info->setId == Stickers::CloudRecentSetId
-				|| info->setId == Stickers::FavedSetId
-				|| info->setId == Stickers::CustomSetId) {
+			if (info->setId == Data::Stickers::DefaultSetId
+				|| info->setId == Data::Stickers::CloudRecentSetId
+				|| info->setId == Data::Stickers::FavedSetId
+				|| info->setId == Data::Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
 			}
 
@@ -151,7 +156,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
 		return nullptr;
 	}
-	return Auth().data().document(
+	return session->data().document(
 		id,
 		access,
 		fileReference,
@@ -171,12 +176,19 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		size);
 }
 
-DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
-	return readFromStreamHelper(streamAppVersion, stream, &info);
+DocumentData *Document::readStickerFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo &info) {
+	return readFromStreamHelper(session, streamAppVersion, stream, &info);
 }
 
-DocumentData *Document::readFromStream(int streamAppVersion, QDataStream &stream) {
-	return readFromStreamHelper(streamAppVersion, stream, nullptr);
+DocumentData *Document::readFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream) {
+	return readFromStreamHelper(session, streamAppVersion, stream, nullptr);
 }
 
 int Document::sizeInStream(DocumentData *document) {

@@ -50,7 +50,7 @@ enum class ParticipantsRole {
 	Kicked,
 };
 
-class ParticipantsOnlineSorter : private base::Subscriber {
+class ParticipantsOnlineSorter {
 public:
 	ParticipantsOnlineSorter(
 		not_null<PeerData*> peer,
@@ -63,10 +63,11 @@ private:
 	void sortDelayed();
 	void refreshOnlineCount();
 
-	not_null<PeerData*> _peer;
-	not_null<PeerListDelegate*> _delegate;
+	const not_null<PeerData*> _peer;
+	const not_null<PeerListDelegate*> _delegate;
 	base::Timer _sortByOnlineTimer;
 	rpl::variable<int> _onlineCount = 0;
+	rpl::lifetime _lifetime;
 
 };
 

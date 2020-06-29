@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "inline_bots/inline_results_widget.h"
 #include "facades.h"
 #include "styles/style_history.h"
@@ -94,20 +96,16 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 }
 
 rpl::producer<> ComposeControls::sendRequests() const {
-	auto toEmpty = rpl::map([] { return rpl::empty_value(); });
 	auto submits = base::qt_signal_producer(
 		_field.get(),
 		&Ui::InputField::submitted);
 	return rpl::merge(
-		_send->clicks() | toEmpty,
-		std::move(submits) | toEmpty);
+		_send->clicks() | rpl::to_empty,
+		std::move(submits) | rpl::to_empty);
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
-	return _attachToggle->clicks(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	});
+	return _attachToggle->clicks() | rpl::to_empty;
 }
 
 void ComposeControls::setMimeDataHook(MimeDataHook hook) {
@@ -205,7 +203,7 @@ void ComposeControls::init() {
 
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
-	_field->setSubmitSettings(_window->session().settings().sendSubmitWay());
+	_field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
 	//Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
@@ -347,11 +345,11 @@ bool ComposeControls::pushTabbedSelectorToThirdSection(
 	if (!_tabbedPanel) {
 		return true;
 	//} else if (!_canSendMessages) {
-	//	session().settings().setTabbedReplacedWithInfo(true);
+	//	Core::App().settings().setTabbedReplacedWithInfo(true);
 	//	_window->showPeerInfo(_peer, params.withThirdColumn());
 	//	return;
 	}
-	session().settings().setTabbedReplacedWithInfo(false);
+	Core::App().settings().setTabbedReplacedWithInfo(false);
 	_tabbedSelectorToggle->setColorOverrides(
 		&st::historyAttachEmojiActive,
 		&st::historyRecordVoiceFgActive,
@@ -396,8 +394,8 @@ void ComposeControls::toggleTabbedSelectorMode() {
 	}
 	if (_tabbedPanel) {
 		if (_window->canShowThirdSection() && !Adaptive::OneColumn()) {
-			session().settings().setTabbedSelectorSectionEnabled(true);
-			session().saveSettingsDelayed();
+			Core::App().settings().setTabbedSelectorSectionEnabled(true);
+			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
 				_history->peer,
 				Window::SectionShow::Way::ClearStack);

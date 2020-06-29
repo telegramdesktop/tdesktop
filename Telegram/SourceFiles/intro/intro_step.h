@@ -28,12 +28,10 @@ namespace Intro {
 namespace details {
 
 struct Data;
-enum class Direction;
+enum class StackAction;
+enum class Animate;
 
-class Step
-	: public Ui::RpWidget
-	, public RPCSender
-	, protected base::Subscriber {
+class Step : public Ui::RpWidget, protected base::Subscriber {
 public:
 	Step(
 		QWidget *parent,
@@ -46,6 +44,11 @@ public:
 		return *_account;
 	}
 
+	// It should not be called in StartWidget, in other steps it should be
+	// present and not changing.
+	[[nodiscard]] MTP::Sender &api() const;
+	void apiClear();
+
 	virtual void finishInit() {
 	}
 	virtual void setInnerFocus() {
@@ -53,15 +56,15 @@ public:
 	}
 
 	void setGoCallback(
-		Fn<void(Step *step, Direction direction)> callback);
+		Fn<void(Step *step, StackAction action, Animate animate)> callback);
 	void setShowResetCallback(Fn<void()> callback);
-	void setShowTermsCallback(
-		Fn<void()> callback);
+	void setShowTermsCallback(Fn<void()> callback);
+	void setCancelNearestDcCallback(Fn<void()> callback);
 	void setAcceptTermsCallback(
 		Fn<void(Fn<void()> callback)> callback);
 
 	void prepareShowAnimated(Step *after);
-	void showAnimated(Direction direction);
+	void showAnimated(Animate animate);
 	void showFast();
 	[[nodiscard]] bool animating() const;
 	void setShowAnimationClipping(QRect clipping);
@@ -112,8 +115,8 @@ protected:
 	}
 
 	template <typename StepType>
-	void goReplace() {
-		goReplace(new StepType(parentWidget(), _account, _data));
+	void goReplace(Animate animate) {
+		goReplace(new StepType(parentWidget(), _account, _data), animate);
 	}
 
 	void showResetButton() {
@@ -126,6 +129,9 @@ protected:
 		if (_acceptTermsCallback) {
 			_acceptTermsCallback(callback);
 		}
+	}
+	void cancelNearestDcRequest() {
+		if (_cancelNearestDcCallback) _cancelNearestDcCallback();
 	}
 
 	virtual int errorTop() const;
@@ -155,7 +161,7 @@ private:
 	void refreshError(const QString &text);
 
 	void goNext(Step *step);
-	void goReplace(Step *step);
+	void goReplace(Step *step, Animate animate);
 
 	[[nodiscard]] CoverAnimation prepareCoverAnimation(Step *step);
 	[[nodiscard]] QPixmap prepareContentSnapshot();
@@ -167,11 +173,13 @@ private:
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;
+	mutable std::optional<MTP::Sender> _api;
 
 	bool _hasCover = false;
-	Fn<void(Step *step, Direction direction)> _goCallback;
+	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
+	Fn<void()> _cancelNearestDcCallback;
 	Fn<void(Fn<void()> callback)> _acceptTermsCallback;
 
 	rpl::variable<QString> _titleText;

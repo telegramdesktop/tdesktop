@@ -20,18 +20,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 namespace CommonGroups {
 
+Memento::Memento(not_null<UserData*> user)
+: ContentMemento(user, 0) {
+}
+
 Section Memento::section() const {
 	return Section(Section::Type::CommonGroups);
+}
+
+not_null<UserData*> Memento::user() const {
+	return peer()->asUser();
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(
-		parent,
-		controller,
-		Auth().data().user(userId()));
+	auto result = object_ptr<Widget>(parent, controller, user());
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -66,7 +71,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto groupsMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (groupsMemento->userId() == user()->bareId()) {
+		if (groupsMemento->user() == user()) {
 			restoreState(groupsMemento);
 			return true;
 		}
@@ -83,7 +88,7 @@ void Widget::setInternalState(
 }
 
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_unique<Memento>(user()->bareId());
+	auto result = std::make_unique<Memento>(user());
 	saveState(result.get());
 	return result;
 }

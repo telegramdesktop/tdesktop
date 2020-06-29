@@ -436,12 +436,14 @@ void WebLoadManager::sendUpdate(int id, Update &&data) {
 }
 
 webFileLoader::webFileLoader(
+	not_null<Main::Session*> session,
 	const QString &url,
 	const QString &to,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
 : FileLoader(
+	session,
 	QString(),
 	0,
 	UnknownFileLocation,

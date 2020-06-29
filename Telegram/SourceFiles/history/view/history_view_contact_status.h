@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -25,7 +25,7 @@ namespace HistoryView {
 class ContactStatus final {
 public:
 	ContactStatus(
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer);
 
@@ -87,7 +87,7 @@ private:
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 
-	not_null<Window::Controller*> _window;
+	const not_null<Window::SessionController*> _controller;
 	State _state = State::None;
 	Ui::SlideWrap<Bar> _bar;
 	Ui::PlainShadow _shadow;

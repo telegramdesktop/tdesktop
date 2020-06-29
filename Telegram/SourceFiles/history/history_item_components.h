@@ -13,13 +13,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct WebPageData;
 
+namespace Data {
+class Session;
+} // namespace Data
+
 namespace HistoryView {
 class Element;
 class Document;
 } // namespace HistoryView
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
-	void create(UserId userId);
+	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;
 
 	UserData *bot = nullptr;
@@ -181,6 +185,7 @@ struct HistoryMessageMarkupButton {
 		int32 buttonId = 0);
 
 	static HistoryMessageMarkupButton *Get(
+		not_null<Data::Session*> owner,
 		FullMsgId itemId,
 		int row,
 		int column);
@@ -208,9 +213,6 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
-	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
-	int oldTop = -1;
-
 private:
 	void createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v);
 
@@ -218,7 +220,11 @@ private:
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
 public:
-	ReplyMarkupClickHandler(int row, int column, FullMsgId context);
+	ReplyMarkupClickHandler(
+		not_null<Data::Session*> owner,
+		int row,
+		int column,
+		FullMsgId context);
 
 	QString tooltip() const override {
 		return _fullDisplayed ? QString() : buttonText();
@@ -248,6 +254,7 @@ protected:
 	void onClickImpl() const override;
 
 private:
+	const not_null<Data::Session*> _owner;
 	FullMsgId _itemId;
 	int _row = 0;
 	int _column = 0;

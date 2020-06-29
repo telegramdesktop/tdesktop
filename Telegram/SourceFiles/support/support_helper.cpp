@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "api/api_text_entities.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
@@ -26,8 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -48,7 +50,7 @@ class EditInfoBox : public Ui::BoxContent {
 public:
 	EditInfoBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const TextWithTags &text,
 		Fn<void(TextWithTags, Fn<void(bool success)>)> submit);
 
@@ -57,7 +59,7 @@ protected:
 	void setInnerFocus() override;
 
 private:
-	not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	object_ptr<Ui::InputField> _field = { nullptr };
 	Fn<void(TextWithTags, Fn<void(bool success)>)> _submit;
 
@@ -65,10 +67,10 @@ private:
 
 EditInfoBox::EditInfoBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const TextWithTags &text,
 	Fn<void(TextWithTags, Fn<void(bool success)>)> submit)
-: _session(session)
+: _controller(controller)
 , _field(
 	this,
 	st::supportInfoField,
@@ -77,12 +79,13 @@ EditInfoBox::EditInfoBox(
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
-	_field->setSubmitSettings(session->settings().sendSubmitWay());
+	_field->setSubmitSettings(
+		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(
-		session->settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(DefaultEditLinkCallback(session, _field));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(controller, _field));
 }
 
 void EditInfoBox::prepare() {
@@ -106,7 +109,7 @@ void EditInfoBox::prepare() {
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
-		_session);
+		&_controller->session());
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
@@ -288,7 +291,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 
 Helper::Helper(not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->api().instance())
+, _api(&_session->mtp())
 , _templates(_session)
 , _reoccupyTimer([=] { reoccupy(); })
 , _checkOccupiedTimer([=] { checkOccupiedChats(); }) {
@@ -333,14 +336,14 @@ void Helper::cloudDraftChanged(not_null<History*> history) {
 void Helper::chatOccupiedUpdated(not_null<History*> history) {
 	if (const auto till = OccupiedBySomeoneTill(history)) {
 		_occupiedChats[history] = till + 2;
-		Notify::peerUpdatedDelayed(
-			history->peer,
-			Notify::PeerUpdate::Flag::UserOccupiedChanged);
+		history->session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::ChatOccupied);
 		checkOccupiedChats();
 	} else if (_occupiedChats.take(history)) {
-		Notify::peerUpdatedDelayed(
-			history->peer,
-			Notify::PeerUpdate::Flag::UserOccupiedChanged);
+		history->session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::ChatOccupied);
 	}
 }
 
@@ -354,9 +357,9 @@ void Helper::checkOccupiedChats() {
 		if (nearest->second <= now) {
 			const auto history = nearest->first;
 			_occupiedChats.erase(nearest);
-			Notify::peerUpdatedDelayed(
-				history->peer,
-				Notify::PeerUpdate::Flag::UserOccupiedChanged);
+			history->session().changes().historyUpdated(
+				history,
+				Data::HistoryUpdate::Flag::ChatOccupied);
 		} else {
 			_checkOccupiedTimer.callOnce(
 				(nearest->second - now) * crl::time(1000));
@@ -427,9 +430,10 @@ void Helper::refreshInfo(not_null<UserData*> user) {
 		user->inputUser
 	)).done([=](const MTPhelp_UserInfo &result) {
 		applyInfo(user, result);
-		if (_userInfoEditPending.contains(user)) {
-			_userInfoEditPending.erase(user);
-			showEditInfoBox(user);
+		if (const auto controller = _userInfoEditPending.take(user)) {
+			if (const auto strong = controller->get()) {
+				showEditInfoBox(strong, user);
+			}
 		}
 	}).send();
 }
@@ -438,9 +442,9 @@ void Helper::applyInfo(
 		not_null<UserData*> user,
 		const MTPhelp_UserInfo &result) {
 	const auto notify = [&] {
-		Notify::peerUpdatedDelayed(
+		user->session().changes().peerUpdated(
 			user,
-			Notify::PeerUpdate::Flag::UserSupportInfoChanged);
+			Data::PeerUpdate::Flag::SupportInfo);
 	};
 	const auto remove = [&] {
 		if (_userInformation.take(user)) {
@@ -466,9 +470,9 @@ void Helper::applyInfo(
 }
 
 rpl::producer<UserInfo> Helper::infoValue(not_null<UserData*> user) const {
-	return Notify::PeerUpdateValue(
+	return user->session().changes().peerFlagsValue(
 		user,
-		Notify::PeerUpdate::Flag::UserSupportInfoChanged
+		Data::PeerUpdate::Flag::SupportInfo
 	) | rpl::map([=] {
 		return infoCurrent(user);
 	});
@@ -497,14 +501,18 @@ UserInfo Helper::infoCurrent(not_null<UserData*> user) const {
 	return (i != end(_userInformation)) ? i->second : UserInfo();
 }
 
-void Helper::editInfo(not_null<UserData*> user) {
+void Helper::editInfo(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
 	if (!_userInfoEditPending.contains(user)) {
-		_userInfoEditPending.emplace(user);
+		_userInfoEditPending.emplace(user, controller.get());
 		refreshInfo(user);
 	}
 }
 
-void Helper::showEditInfoBox(not_null<UserData*> user) {
+void Helper::showEditInfoBox(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user) {
 	const auto info = infoCurrent(user);
 	const auto editData = TextWithTags{
 		info.text.text,
@@ -518,7 +526,7 @@ void Helper::showEditInfoBox(not_null<UserData*> user) {
 		}, done);
 	};
 	Ui::show(
-		Box<EditInfoBox>(&user->session(), editData, save),
+		Box<EditInfoBox>(controller, editData, save),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -571,7 +579,9 @@ QString ChatOccupiedString(not_null<History*> history) {
 		: hand + ' ' + name + " is here";
 }
 
-QString InterpretSendPath(const QString &path) {
+QString InterpretSendPath(
+		not_null<Window::SessionController*> window,
+		const QString &path) {
 	QFile f(path);
 	if (!f.open(QIODevice::ReadOnly)) {
 		return "App Error: Could not open interpret file: " + path;
@@ -584,7 +594,7 @@ QString InterpretSendPath(const QString &path) {
 	auto caption = QString();
 	for (const auto &line : lines) {
 		if (line.startsWith(qstr("from: "))) {
-			if (Auth().userId() != line.mid(qstr("from: ").size()).toInt()) {
+			if (window->session().userId() != line.mid(qstr("from: ").size()).toInt()) {
 				return "App Error: Wrong current user.";
 			}
 		} else if (line.startsWith(qstr("channel: "))) {
@@ -604,7 +614,7 @@ QString InterpretSendPath(const QString &path) {
 			return "App Error: Invalid command: " + line;
 		}
 	}
-	const auto history = Auth().data().historyLoaded(toId);
+	const auto history = window->session().data().historyLoaded(toId);
 	if (!history) {
 		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
 	}

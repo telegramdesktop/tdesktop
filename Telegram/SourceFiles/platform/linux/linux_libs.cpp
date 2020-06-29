@@ -20,7 +20,12 @@ namespace Platform {
 namespace Libs {
 namespace {
 
+bool gtkTriedToInit = false;
+
 bool loadLibrary(QLibrary &lib, const char *name, int version) {
+#if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
+	return true;
+#else // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
 	DEBUG_LOG(("Loading '%1' with version %2...").arg(QLatin1String(name)).arg(version));
 	lib.setFileNameAndVersion(QLatin1String(name), version);
 	if (lib.load()) {
@@ -34,6 +39,7 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
 	}
 	LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
 	return false;
+#endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -67,74 +73,56 @@ void gtkMessageHandler(
 }
 
 bool setupGtkBase(QLibrary &lib_gtk) {
-	if (!load(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
-	if (!load(lib_gtk, "gtk_settings_get_default", gtk_settings_get_default)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_settings_get_default", gtk_settings_get_default)) return false;
 
-	if (!load(lib_gtk, "gtk_widget_show", gtk_widget_show)) return false;
-	if (!load(lib_gtk, "gtk_widget_hide", gtk_widget_hide)) return false;
-	if (!load(lib_gtk, "gtk_widget_get_window", gtk_widget_get_window)) return false;
-	if (!load(lib_gtk, "gtk_widget_realize", gtk_widget_realize)) return false;
-	if (!load(lib_gtk, "gtk_widget_hide_on_delete", gtk_widget_hide_on_delete)) return false;
-	if (!load(lib_gtk, "gtk_widget_destroy", gtk_widget_destroy)) return false;
-	if (!load(lib_gtk, "gtk_clipboard_get", gtk_clipboard_get)) return false;
-	if (!load(lib_gtk, "gtk_clipboard_store", gtk_clipboard_store)) return false;
-	if (!load(lib_gtk, "gtk_clipboard_wait_for_contents", gtk_clipboard_wait_for_contents)) return false;
-	if (!load(lib_gtk, "gtk_clipboard_wait_for_image", gtk_clipboard_wait_for_image)) return false;
-	if (!load(lib_gtk, "gtk_selection_data_targets_include_image", gtk_selection_data_targets_include_image)) return false;
-	if (!load(lib_gtk, "gtk_selection_data_free", gtk_selection_data_free)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_dialog_new", gtk_file_chooser_dialog_new)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_get_type", gtk_file_chooser_get_type)) return false;
-	if (!load(lib_gtk, "gtk_image_get_type", gtk_image_get_type)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_current_folder", gtk_file_chooser_set_current_folder)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_get_current_folder", gtk_file_chooser_get_current_folder)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_current_name", gtk_file_chooser_set_current_name)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_select_filename", gtk_file_chooser_select_filename)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_get_filenames", gtk_file_chooser_get_filenames)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_filter", gtk_file_chooser_set_filter)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_get_filter", gtk_file_chooser_get_filter)) return false;
-	if (!load(lib_gtk, "gtk_window_get_type", gtk_window_get_type)) return false;
-	if (!load(lib_gtk, "gtk_window_set_title", gtk_window_set_title)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_local_only", gtk_file_chooser_set_local_only)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_action", gtk_file_chooser_set_action)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_select_multiple", gtk_file_chooser_set_select_multiple)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_do_overwrite_confirmation", gtk_file_chooser_set_do_overwrite_confirmation)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_remove_filter", gtk_file_chooser_remove_filter)) return false;
-	if (!load(lib_gtk, "gtk_file_filter_set_name", gtk_file_filter_set_name)) return false;
-	if (!load(lib_gtk, "gtk_file_filter_add_pattern", gtk_file_filter_add_pattern)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_add_filter", gtk_file_chooser_add_filter)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_preview_widget", gtk_file_chooser_set_preview_widget)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_get_preview_filename", gtk_file_chooser_get_preview_filename)) return false;
-	if (!load(lib_gtk, "gtk_file_chooser_set_preview_widget_active", gtk_file_chooser_set_preview_widget_active)) return false;
-	if (!load(lib_gtk, "gtk_file_filter_new", gtk_file_filter_new)) return false;
-	if (!load(lib_gtk, "gtk_image_new", gtk_image_new)) return false;
-	if (!load(lib_gtk, "gtk_image_set_from_pixbuf", gtk_image_set_from_pixbuf)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_show", gtk_widget_show)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_hide", gtk_widget_hide)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_get_window", gtk_widget_get_window)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_realize", gtk_widget_realize)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_hide_on_delete", gtk_widget_hide_on_delete)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_destroy", gtk_widget_destroy)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_get", gtk_clipboard_get)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_store", gtk_clipboard_store)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_contents", gtk_clipboard_wait_for_contents)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_image", gtk_clipboard_wait_for_image)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_selection_data_targets_include_image", gtk_selection_data_targets_include_image)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_selection_data_free", gtk_selection_data_free)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_dialog_new", gtk_file_chooser_dialog_new)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_type", gtk_file_chooser_get_type)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_image_get_type", gtk_image_get_type)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_current_folder", gtk_file_chooser_set_current_folder)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_current_folder", gtk_file_chooser_get_current_folder)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_current_name", gtk_file_chooser_set_current_name)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_select_filename", gtk_file_chooser_select_filename)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_filenames", gtk_file_chooser_get_filenames)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_filter", gtk_file_chooser_set_filter)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_filter", gtk_file_chooser_get_filter)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_window_get_type", gtk_window_get_type)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_window_set_title", gtk_window_set_title)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_local_only", gtk_file_chooser_set_local_only)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_action", gtk_file_chooser_set_action)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_select_multiple", gtk_file_chooser_set_select_multiple)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_do_overwrite_confirmation", gtk_file_chooser_set_do_overwrite_confirmation)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_remove_filter", gtk_file_chooser_remove_filter)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_filter_set_name", gtk_file_filter_set_name)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_filter_add_pattern", gtk_file_filter_add_pattern)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_add_filter", gtk_file_chooser_add_filter)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_preview_widget", gtk_file_chooser_set_preview_widget)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_preview_filename", gtk_file_chooser_get_preview_filename)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_set_preview_widget_active", gtk_file_chooser_set_preview_widget_active)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_filter_new", gtk_file_filter_new)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_image_new", gtk_image_new)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_image_set_from_pixbuf", gtk_image_set_from_pixbuf)) return false;
 
-	if (!load(lib_gtk, "gdk_window_set_modal_hint", gdk_window_set_modal_hint)) return false;
-	if (!load(lib_gtk, "gdk_window_focus", gdk_window_focus)) return false;
-	if (!load(lib_gtk, "gtk_dialog_get_type", gtk_dialog_get_type)) return false;
-	if (!load(lib_gtk, "gtk_dialog_run", gtk_dialog_run)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gdk_window_set_modal_hint", gdk_window_set_modal_hint)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gdk_window_focus", gdk_window_focus)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_dialog_get_type", gtk_dialog_get_type)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_dialog_run", gtk_dialog_run)) return false;
 
-	if (!load(lib_gtk, "g_type_check_instance_cast", g_type_check_instance_cast)) return false;
-	if (!load(lib_gtk, "g_type_check_instance_is_a", g_type_check_instance_is_a)) return false;
-	if (!load(lib_gtk, "g_signal_connect_data", g_signal_connect_data)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
 
-	if (!load(lib_gtk, "g_object_get", g_object_get)) return false;
-	if (!load(lib_gtk, "g_object_unref", g_object_unref)) return false;
-	if (!load(lib_gtk, "g_free", g_free)) return false;
-
-	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
-
-	if (!load(lib_gtk, "g_log_set_handler", g_log_set_handler)) return false;
-	if (!load(lib_gtk, "g_log_default_handler", g_log_default_handler)) return false;
-
-	if (!load(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_width", gdk_pixbuf_get_width)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_height", gdk_pixbuf_get_height)) return false;
-	if (!load(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride)) return false;
-
-	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
+	if (LOAD_SYMBOL(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
 		// We work only with X11 GDK backend.
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
@@ -153,6 +141,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	int (*oldErrorHandler)(Display *, XErrorEvent *) = XSetErrorHandler(nullptr);
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
+	gtkTriedToInit = true;
 	if (!gtk_init_check(0, 0)) {
 		gtk_init_check = nullptr;
 		DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
@@ -220,9 +209,6 @@ f_gdk_window_set_modal_hint gdk_window_set_modal_hint = nullptr;
 f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
 f_gtk_dialog_run gtk_dialog_run = nullptr;
-f_g_type_check_instance_cast g_type_check_instance_cast = nullptr;
-f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
-f_g_signal_connect_data g_signal_connect_data = nullptr;
 f_gdk_atom_intern gdk_atom_intern = nullptr;
 f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
 f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha = nullptr;
@@ -230,12 +216,6 @@ f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
 f_gdk_pixbuf_get_width gdk_pixbuf_get_width = nullptr;
 f_gdk_pixbuf_get_height gdk_pixbuf_get_height = nullptr;
 f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
-f_g_object_get g_object_get = nullptr;
-f_g_object_unref g_object_unref = nullptr;
-f_g_free g_free = nullptr;
-f_g_slist_free g_slist_free = nullptr;
-f_g_log_set_handler g_log_set_handler = nullptr;
-f_g_log_default_handler g_log_default_handler = nullptr;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
@@ -253,18 +233,23 @@ void start() {
 	if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
-	if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+	if (!gtkLoaded && !gtkTriedToInit && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 		gtkLoaded = setupGtkBase(lib_gtk);
 	}
 
 	if (gtkLoaded) {
-		load(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_width", gdk_pixbuf_get_width);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_height", gdk_pixbuf_get_height);
+		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride);
 
 		internal::GdkHelperLoad(lib_gtk);
 
-		load(lib_gtk, "gtk_dialog_get_widget_for_response", gtk_dialog_get_widget_for_response);
-		load(lib_gtk, "gtk_button_set_label", gtk_button_set_label);
-		load(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
+		LOAD_SYMBOL(lib_gtk, "gtk_dialog_get_widget_for_response", gtk_dialog_get_widget_for_response);
+		LOAD_SYMBOL(lib_gtk, "gtk_button_set_label", gtk_button_set_label);
+		LOAD_SYMBOL(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
 
 		// change the icon theme only if it isn't already set by a platformtheme plugin
 		// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme

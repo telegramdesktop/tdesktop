@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/observer.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 // legacy
 bool filedialogGetSaveFile(
 	QString &file,
@@ -36,7 +40,9 @@ void OpenWith(const QString &filepath, QPoint menuPosition);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
 
-[[nodiscard]] QString DefaultDownloadPath();
+[[nodiscard]] QString DefaultDownloadPathFolder(
+	not_null<Main::Session*> session);
+[[nodiscard]] QString DefaultDownloadPath(not_null<Main::Session*> session);
 
 namespace internal {
 

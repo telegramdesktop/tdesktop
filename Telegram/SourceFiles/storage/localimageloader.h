@@ -84,7 +84,7 @@ struct SendMediaReady {
 
 };
 
-SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image);
+SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image);
 
 using TaskId = void*; // no interface, just id
 
@@ -270,6 +270,7 @@ public:
 		std::unique_ptr<FileMediaInformation> &result);
 
 	FileLoadTask(
+		not_null<Main::Session*> session,
 		const QString &filepath,
 		const QByteArray &content,
 		std::unique_ptr<FileMediaInformation> information,
@@ -279,6 +280,7 @@ public:
 		std::shared_ptr<SendingAlbum> album = nullptr,
 		MsgId msgIdToEdit = 0);
 	FileLoadTask(
+		not_null<Main::Session*> session,
 		const QByteArray &voice,
 		int32 duration,
 		const VoiceWaveform &waveform,
@@ -316,7 +318,9 @@ private:
 	}
 	void removeFromAlbum();
 
-	uint64 _id;
+	uint64 _id = 0;
+	base::weak_ptr<Main::Session> _session;
+	MTP::DcId _dcId = 0;
 	FileLoadTo _to;
 	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;

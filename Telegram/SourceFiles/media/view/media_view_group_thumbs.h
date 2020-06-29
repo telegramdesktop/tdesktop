@@ -15,6 +15,10 @@ class SharedMediaWithLastSlice;
 class UserPhotosSlice;
 struct WebPageCollage;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Media {
 namespace View {
 
@@ -36,16 +40,19 @@ public:
 	using Key = base::variant<PhotoId, FullMsgId, CollageKey>;
 
 	static void Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const SharedMediaWithLastSlice &slice,
 		int index,
 		int availableWidth);
 	static void Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const UserPhotosSlice &slice,
 		int index,
 		int availableWidth);
 	static void Refresh(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const CollageSlice &slice,
 		int index,
@@ -78,7 +85,7 @@ public:
 		MessageGroupId,
 		FullMsgId>;
 
-	GroupThumbs(Context context);
+	GroupThumbs(not_null<Main::Session*> session, Context context);
 	~GroupThumbs();
 
 private:
@@ -86,6 +93,7 @@ private:
 
 	template <typename Slice>
 	static void RefreshFromSlice(
+		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const Slice &slice,
 		int index,
@@ -115,6 +123,7 @@ private:
 	void animatePreviouslyAlive(const std::vector<not_null<Thumb*>> &old);
 	void startDelayedAnimation();
 
+	const not_null<Main::Session*> _session;
 	Context _context;
 	bool _waitingForAnimationStart = true;
 	Ui::Animations::Simple _animation;

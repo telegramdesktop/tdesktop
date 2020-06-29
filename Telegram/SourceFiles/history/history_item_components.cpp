@@ -38,8 +38,10 @@ const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
 } // namespace
 
-void HistoryMessageVia::create(UserId userId) {
-	bot = Auth().data().user(userId);
+void HistoryMessageVia::create(
+		not_null<Data::Session*> owner,
+		UserId userId) {
+	bot = owner->user(userId);
 	maxWidth = st::msgServiceNameFont->width(
 		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot] {
@@ -229,7 +231,9 @@ bool HistoryMessageReply::updateData(
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
-				replyToVia->create(peerToUser(bot->id));
+				replyToVia->create(
+					&holder->history()->owner(),
+					peerToUser(bot->id));
 			}
 		}
 	} else if (force) {
@@ -385,10 +389,12 @@ void HistoryMessageReply::refreshReplyToDocument() {
 }
 
 ReplyMarkupClickHandler::ReplyMarkupClickHandler(
+	not_null<Data::Session*> owner,
 	int row,
 	int column,
 	FullMsgId context)
-: _itemId(context)
+: _owner(owner)
+, _itemId(context)
 , _row(row)
 , _column(column) {
 }
@@ -425,11 +431,11 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 // Note: it is possible that we will point to the different button
 // than the one was used when constructing the handler, but not a big deal.
 const HistoryMessageMarkupButton *ReplyMarkupClickHandler::getButton() const {
-	return HistoryMessageMarkupButton::Get(_itemId, _row, _column);
+	return HistoryMessageMarkupButton::Get(_owner, _itemId, _row, _column);
 }
 
 void ReplyMarkupClickHandler::onClickImpl() const {
-	if (const auto item = Auth().data().message(_itemId)) {
+	if (const auto item = _owner->message(_itemId)) {
 		App::activateBotCommand(item, _row, _column);
 	}
 }
@@ -457,6 +463,7 @@ ReplyKeyboard::ReplyKeyboard(
 })
 , _st(std::move(s)) {
 	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
+		const auto owner = &_item->history()->owner();
 		const auto context = _item->fullId();
 		const auto rowCount = int(markup->rows.size());
 		_rows.reserve(rowCount);
@@ -470,6 +477,7 @@ ReplyKeyboard::ReplyKeyboard(
 				const auto text = row[j].text;
 				button.type = row.at(j).type;
 				button.link = std::make_shared<ReplyMarkupClickHandler>(
+					owner,
 					i,
 					j,
 					context);
@@ -794,10 +802,11 @@ HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 }
 
 HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
+		not_null<Data::Session*> owner,
 		FullMsgId itemId,
 		int row,
 		int column) {
-	if (const auto item = Auth().data().message(itemId)) {
+	if (const auto item = owner->message(itemId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (row < markup->rows.size()) {
 				auto &buttons = markup->rows[row];

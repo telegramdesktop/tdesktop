@@ -11,12 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_rsa_public_key.h"
 #include "mtproto/special_config_request.h"
 #include "mtproto/session.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_config.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "mtproto/config_loader.h"
 #include "mtproto/sender.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
-#include "main/main_session.h" // Session::Exists.
 #include "main/main_account.h" // Account::configUpdated.
 #include "apiwrap.h"
 #include "core/application.h"
@@ -54,9 +54,18 @@ int GetNextRequestId() {
 
 class Instance::Private : private Sender {
 public:
-	Private(not_null<Instance*> instance, not_null<DcOptions*> options, Instance::Mode mode);
+	Private(
+		not_null<Instance*> instance,
+		Instance::Mode mode,
+		Fields &&fields);
 
-	void start(Config &&config);
+	void start();
+
+	[[nodiscard]] Config &config() const;
+	[[nodiscard]] const ConfigFields &configValues() const;
+	[[nodiscard]] DcOptions &dcOptions() const;
+	[[nodiscard]] Environment environment() const;
+	[[nodiscard]] bool isTestMode() const;
 
 	void resolveProxyDomain(const QString &host);
 	void setGoodProxyDomain(const QString &host, const QString &ip);
@@ -64,14 +73,14 @@ public:
 	void setMainDcId(DcId mainDcId);
 	[[nodiscard]] DcId mainDcId() const;
 
+	[[nodiscard]] rpl::producer<> writeKeysRequests() const;
+
 	void dcPersistentKeyChanged(DcId dcId, const AuthKeyPtr &persistentKey);
 	void dcTemporaryKeyChanged(DcId dcId);
 	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 	[[nodiscard]] rpl::producer<> allKeysDestroyed() const;
-
-	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
 	// Thread safe.
 	[[nodiscard]] QString deviceModel() const;
@@ -106,7 +115,6 @@ public:
 		ShiftedDcId shiftedDcId,
 		AuthKeyPtr &&key = nullptr);
 	void removeDc(ShiftedDcId shiftedDcId);
-	void unpaused();
 
 	void sendRequest(
 		mtpRequestId requestId,
@@ -159,13 +167,16 @@ public:
 
 	void prepareToDestroy();
 
+	[[nodiscard]] rpl::lifetime &lifetime();
+
 private:
-	bool hasAuthorization();
 	void importDone(const MTPauth_Authorization &result, mtpRequestId requestId);
 	bool importFail(const RPCError &error, mtpRequestId requestId);
 	void exportDone(const MTPauth_ExportedAuthorization &result, mtpRequestId requestId);
 	bool exportFail(const RPCError &error, mtpRequestId requestId);
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error);
+
+	void unpaused();
 
 	Session *findSession(ShiftedDcId shiftedDcId);
 	not_null<Session*> startSession(ShiftedDcId shiftedDcId);
@@ -192,8 +203,8 @@ private:
 	void checkDelayedRequests();
 
 	const not_null<Instance*> _instance;
-	const not_null<DcOptions*> _dcOptions;
 	const Instance::Mode _mode = Instance::Mode::Normal;
+	const std::unique_ptr<Config> _config;
 
 	std::unique_ptr<QThread> _mainSessionThread;
 	std::unique_ptr<QThread> _otherSessionsThread;
@@ -202,7 +213,7 @@ private:
 	QString _deviceModel;
 	QString _systemVersion;
 
-	DcId _mainDcId = Config::kDefaultMainDc;
+	DcId _mainDcId = Fields::kDefaultMainDc;
 	bool _mainDcIdForced = false;
 	base::flat_map<DcId, std::unique_ptr<Dcenter>> _dcenters;
 	std::vector<std::unique_ptr<Dcenter>> _dcentersToDestroy;
@@ -224,6 +235,7 @@ private:
 	base::flat_map<DcId, AuthKeyPtr> _keysForWrite;
 	base::flat_map<ShiftedDcId, mtpRequestId> _logoutGuestRequestIds;
 
+	rpl::event_stream<> _writeKeysRequests;
 	rpl::event_stream<> _allKeysDestroyed;
 
 	// holds dcWithShift for request to this dc or -dc for request to main dc
@@ -253,25 +265,40 @@ private:
 
 	base::Timer _checkDelayedTimer;
 
+	rpl::lifetime _lifetime;
+
 };
+
+Instance::Fields::Fields() = default;
+
+Instance::Fields::Fields(Fields &&other) = default;
+
+auto Instance::Fields::operator=(Fields &&other) -> Fields & = default;
+
+Instance::Fields::~Fields() = default;
 
 Instance::Private::Private(
 	not_null<Instance*> instance,
-	not_null<DcOptions*> options,
-	Instance::Mode mode)
+	Instance::Mode mode,
+	Fields &&fields)
 : Sender(instance)
 , _instance(instance)
-, _dcOptions(options)
-, _mode(mode) {
+, _mode(mode)
+, _config(std::move(fields.config)) {
+	Expects(_config != nullptr);
+
 	const auto idealThreadPoolSize = QThread::idealThreadCount();
 	_fileSessionThreads.resize(2 * std::max(idealThreadPoolSize / 2, 1));
-}
 
-void Instance::Private::start(Config &&config) {
-	_deviceModel = std::move(config.deviceModel);
-	_systemVersion = std::move(config.systemVersion);
+	details::unpaused(
+	) | rpl::start_with_next([=] {
+		unpaused();
+	}, _lifetime);
 
-	for (auto &key : config.keys) {
+	_deviceModel = std::move(fields.deviceModel);
+	_systemVersion = std::move(fields.systemVersion);
+
+	for (auto &key : fields.keys) {
 		auto dcId = key->dcId();
 		auto shiftedDcId = dcId;
 		if (isKeysDestroyer()) {
@@ -287,22 +314,24 @@ void Instance::Private::start(Config &&config) {
 		addDc(shiftedDcId, std::move(key));
 	}
 
-	if (config.mainDcId != Config::kNotSetMainDc) {
-		_mainDcId = config.mainDcId;
+	if (fields.mainDcId != Fields::kNotSetMainDc) {
+		_mainDcId = fields.mainDcId;
 		_mainDcIdForced = true;
 	}
+}
 
+void Instance::Private::start() {
 	if (isKeysDestroyer()) {
 		for (const auto &[shiftedDcId, dc] : _dcenters) {
 			startSession(shiftedDcId);
 		}
-	} else if (_mainDcId != Config::kNoneMainDc) {
+	} else if (_mainDcId != Fields::kNoneMainDc) {
 		_mainSession = startSession(_mainDcId);
 	}
 
 	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
 
-	Assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
+	Assert((_mainDcId == Fields::kNoneMainDc) == isKeysDestroyer());
 	requestConfig();
 }
 
@@ -388,8 +417,9 @@ void Instance::Private::setGoodProxyDomain(
 }
 
 void Instance::Private::suggestMainDcId(DcId mainDcId) {
-	if (_mainDcIdForced) return;
-	setMainDcId(mainDcId);
+	if (!_mainDcIdForced) {
+		setMainDcId(mainDcId);
+	}
 }
 
 void Instance::Private::setMainDcId(DcId mainDcId) {
@@ -404,11 +434,12 @@ void Instance::Private::setMainDcId(DcId mainDcId) {
 	if (oldMainDcId != _mainDcId) {
 		killSession(oldMainDcId);
 	}
-	Local::writeMtpData();
+	_writeKeysRequests.fire({});
 }
 
 DcId Instance::Private::mainDcId() const {
-	Expects(_mainDcId != Config::kNoneMainDc);
+	Expects(_mainDcId != Fields::kNoneMainDc);
+
 	return _mainDcId;
 }
 
@@ -447,7 +478,7 @@ void Instance::Private::syncHttpUnixtime() {
 		InvokeQueued(_instance, [=] {
 			_httpUnixtimeLoader = nullptr;
 		});
-	});
+	}, configValues().txtDomainString);
 }
 
 void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
@@ -459,7 +490,7 @@ rpl::producer<ShiftedDcId> Instance::Private::restartsByTimeout() const {
 }
 
 void Instance::Private::requestConfigIfOld() {
-	const auto timeout = Global::BlockedMode()
+	const auto timeout = _config->values().blockedMode
 		? kConfigBecomesOldForBlockedIn
 		: kConfigBecomesOldIn;
 	if (crl::now() - _lastConfigLoadedTime >= timeout) {
@@ -480,7 +511,7 @@ void Instance::Private::requestConfigIfExpired() {
 }
 
 void Instance::Private::requestCDNConfig() {
-	if (_cdnConfigLoadRequestId || _mainDcId == Config::kNoneMainDc) {
+	if (_cdnConfigLoadRequestId || _mainDcId == Fields::kNoneMainDc) {
 		return;
 	}
 	_cdnConfigLoadRequestId = request(
@@ -488,7 +519,7 @@ void Instance::Private::requestCDNConfig() {
 	).done([this](const MTPCdnConfig &result) {
 		_cdnConfigLoadRequestId = 0;
 		result.match([&](const MTPDcdnConfig &data) {
-			dcOptions()->setCDNConfig(data);
+			dcOptions().setCDNConfig(data);
 		});
 		Local::writeSettings();
 	}).send();
@@ -632,7 +663,7 @@ void Instance::Private::logoutGuestDcs() {
 		dcIds.push_back(key.first);
 	}
 	for (const auto dcId : dcIds) {
-		if (dcId == mainDcId() || dcOptions()->dcType(dcId) == DcType::Cdn) {
+		if (dcId == mainDcId() || dcOptions().dcType(dcId) == DcType::Cdn) {
 			continue;
 		}
 		const auto shiftedDcId = MTP::logoutDcId(dcId);
@@ -724,8 +755,9 @@ void Instance::Private::dcPersistentKeyChanged(
 	} else {
 		_keysForWrite.emplace(dcId, persistentKey);
 	}
-	DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
-	Local::writeMtpData();
+	DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1"
+		).arg(dcId));
+	_writeKeysRequests.fire({});
 }
 
 void Instance::Private::dcTemporaryKeyChanged(DcId dcId) {
@@ -769,8 +801,28 @@ rpl::producer<> Instance::Private::allKeysDestroyed() const {
 	return _allKeysDestroyed.events();
 }
 
-not_null<DcOptions*> Instance::Private::dcOptions() {
-	return _dcOptions;
+rpl::producer<> Instance::Private::writeKeysRequests() const {
+	return _writeKeysRequests.events();
+}
+
+Config &Instance::Private::config() const {
+	return *_config;
+}
+
+const ConfigFields &Instance::Private::configValues() const {
+	return _config->values();
+}
+
+DcOptions &Instance::Private::dcOptions() const {
+	return _config->dcOptions();
+}
+
+Environment Instance::Private::environment() const {
+	return _config->environment();
+}
+
+bool Instance::Private::isTestMode() const {
+	return _config->isTestMode();
 }
 
 QString Instance::Private::deviceModel() const {
@@ -794,62 +846,16 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_lastConfigLoadedTime = crl::now();
 
 	const auto &data = result.c_config();
-	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max().v).arg(data.vdate().v).arg(mtpIsTrue(data.vtest_mode())).arg(data.vthis_dc().v).arg(data.vdc_options().v.size()));
-	if (data.vdc_options().v.empty()) {
-		LOG(("MTP Error: config with empty dc_options received!"));
-	} else {
-		_dcOptions->setFromList(data.vdc_options());
-	}
-
-	Global::SetChatSizeMax(data.vchat_size_max().v);
-	Global::SetMegagroupSizeMax(data.vmegagroup_size_max().v);
-	Global::SetForwardedCountMax(data.vforwarded_count_max().v);
-	Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms().v);
-	Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms().v);
-	Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms().v);
-	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms().v);
-	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms().v);
-	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms().v);
-	Global::SetPushChatPeriod(data.vpush_chat_period_ms().v);
-	Global::SetPushChatLimit(data.vpush_chat_limit().v);
-	Global::SetSavedGifsLimit(data.vsaved_gifs_limit().v);
-	Global::SetEditTimeLimit(data.vedit_time_limit().v);
-	Global::SetRevokeTimeLimit(data.vrevoke_time_limit().v);
-	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit().v);
-	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
-	Global::SetStickersRecentLimit(data.vstickers_recent_limit().v);
-	Global::SetStickersFavedLimit(data.vstickers_faved_limit().v);
-	Global::SetPinnedDialogsCountMax(
-		std::max(data.vpinned_dialogs_count_max().v, 1));
-	Global::SetPinnedDialogsInFolderMax(
-		std::max(data.vpinned_infolder_count_max().v, 1));
-	Core::App().setInternalLinkDomain(qs(data.vme_url_prefix()));
-	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period().v);
-	Global::SetWebFileDcId(data.vwebfile_dc_id().v);
-	Global::SetTxtDomainString(qs(data.vdc_txt_domain_name()));
-	Global::SetCallReceiveTimeoutMs(data.vcall_receive_timeout_ms().v);
-	Global::SetCallRingTimeoutMs(data.vcall_ring_timeout_ms().v);
-	Global::SetCallConnectTimeoutMs(data.vcall_connect_timeout_ms().v);
-	Global::SetCallPacketTimeoutMs(data.vcall_packet_timeout_ms().v);
-	if (Global::PhoneCallsEnabled() != data.is_phonecalls_enabled()) {
-		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
-		Global::RefPhoneCallsEnabledChanged().notify();
-	}
-	Global::SetBlockedMode(data.is_blocked_mode());
-	Global::SetCaptionLengthMax(data.vcaption_length_max().v);
+	_config->apply(data);
 
 	const auto lang = qs(data.vsuggested_lang_code().value_or_empty());
 	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
 	Lang::CurrentCloudManager().setCurrentVersions(
 		data.vlang_pack_version().value_or_empty(),
 		data.vbase_lang_pack_version().value_or_empty());
-
-	Core::App().activeAccount().configUpdated();
-
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));
 	}
-	Local::writeSettings();
 
 	_configExpiresAt = crl::now()
 		+ (data.vexpires().v - base::unixtime::now()) * crl::time(1000);
@@ -1094,10 +1100,6 @@ bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHan
 	return true;
 }
 
-bool Instance::Private::hasAuthorization() {
-	return Main::Session::Exists();
-}
-
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {
 	const auto shiftedDcId = queryRequestByDc(requestId);
 	if (!shiftedDcId) {
@@ -1218,7 +1220,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 
 		DEBUG_LOG(("MTP Info: changing request %1 from dcWithShift%2 to dc%3").arg(requestId).arg(dcWithShift).arg(newdcWithShift));
 		if (dcWithShift < 0) { // newdc shift = 0
-			if (false && hasAuthorization() && _authExportRequests.find(requestId) == _authExportRequests.cend()) {
+			if (false/* && hasAuthorization() && _authExportRequests.find(requestId) == _authExportRequests.cend()*/) {
 				//
 				// migrate not supported at this moment
 				// this was not tested even once
@@ -1293,7 +1295,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			LOG(("MTP Error: unauthorized request without dc info, requestId %1").arg(requestId));
 		}
 		auto newdc = BareDcId(qAbs(dcWithShift));
-		if (!newdc || newdc == mainDcId() || !hasAuthorization()) {
+		if (!newdc || newdc == mainDcId()) {
 			if (!badGuestDc && _globalHandler.onFail) {
 				(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
 			}
@@ -1419,6 +1421,10 @@ not_null<Session*> Instance::Private::getSession(
 	return startSession(shiftedDcId);
 }
 
+rpl::lifetime &Instance::Private::lifetime() {
+	return _lifetime;
+}
+
 Session *Instance::Private::findSession(ShiftedDcId shiftedDcId) {
 	const auto i = _sessions.find(shiftedDcId);
 	return (i != _sessions.end()) ? i->second.get() : nullptr;
@@ -1505,7 +1511,7 @@ not_null<QThread*> Instance::Private::getThreadForDc(
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 	Expects(isKeysDestroyer());
 
-	if (dcOptions()->dcType(shiftedDcId) == DcType::Cdn) {
+	if (dcOptions().dcType(shiftedDcId) == DcType::Cdn) {
 		performKeyDestroy(shiftedDcId);
 	} else {
 		_instance->send(MTPauth_LogOut(), rpcDone([=](const MTPBool &) {
@@ -1628,10 +1634,10 @@ void Instance::Private::prepareToDestroy() {
 	}
 }
 
-Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config)
+Instance::Instance(Mode mode, Fields &&fields)
 : QObject()
-, _private(std::make_unique<Private>(this, options, mode)) {
-	_private->start(std::move(config));
+, _private(std::make_unique<Private>(this, mode, std::move(fields))) {
+	_private->start();
 }
 
 void Instance::resolveProxyDomain(const QString &host) {
@@ -1664,6 +1670,10 @@ QString Instance::cloudLangCode() const {
 
 QString Instance::langPackName() const {
 	return Lang::Current().langPackName();
+}
+
+rpl::producer<> Instance::writeKeysRequests() const {
+	return _private->writeKeysRequests();
 }
 
 rpl::producer<> Instance::allKeysDestroyed() const {
@@ -1768,8 +1778,24 @@ void Instance::addKeysForDestroy(AuthKeysList &&keys) {
 	_private->addKeysForDestroy(std::move(keys));
 }
 
-not_null<DcOptions*> Instance::dcOptions() {
+Config &Instance::config() const {
+	return _private->config();
+}
+
+const ConfigFields &Instance::configValues() const {
+	return _private->configValues();
+}
+
+DcOptions &Instance::dcOptions() const {
 	return _private->dcOptions();
+}
+
+Environment Instance::environment() const {
+	return _private->environment();
+}
+
+bool Instance::isTestMode() const {
+	return _private->isTestMode();
 }
 
 QString Instance::deviceModel() const {
@@ -1778,10 +1804,6 @@ QString Instance::deviceModel() const {
 
 QString Instance::systemVersion() const {
 	return _private->systemVersion();
-}
-
-void Instance::unpaused() {
-	_private->unpaused();
 }
 
 void Instance::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
@@ -1860,6 +1882,10 @@ void Instance::sendRequest(
 
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
 	_private->getSession(shiftedDcId)->sendAnything(msCanWait);
+}
+
+rpl::lifetime &Instance::lifetime() {
+	return _private->lifetime();
 }
 
 Instance::~Instance() {

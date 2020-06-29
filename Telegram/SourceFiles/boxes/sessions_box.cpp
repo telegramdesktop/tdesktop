@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "apiwrap.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
@@ -78,7 +77,7 @@ private:
 
 SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
-, _api(_session->api().instance())
+, _api(&_session->mtp())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
@@ -426,9 +425,7 @@ void SessionsBox::Inner::showData(const Full &data) {
 }
 
 rpl::producer<> SessionsBox::Inner::terminateAll() const {
-	return _terminateAll->clicks() | rpl::map([] {
-		return rpl::empty_value();
-	});
+	return _terminateAll->clicks() | rpl::to_empty;
 }
 
 rpl::producer<uint64> SessionsBox::Inner::terminateOne() const {

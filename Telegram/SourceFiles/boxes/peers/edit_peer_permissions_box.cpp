@@ -310,8 +310,10 @@ ChatAdminRights FullAdminRights(bool isGroup) {
 
 EditPeerPermissionsBox::EditPeerPermissionsBox(
 	QWidget*,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer)
-: _peer(peer->migrateToOrMe()) {
+: _navigation(navigation)
+, _peer(peer->migrateToOrMe()) {
 }
 
 auto EditPeerPermissionsBox::saveEvents() const -> rpl::producer<Result> {
@@ -525,8 +527,6 @@ void EditPeerPermissionsBox::addBannedButtons(
 		}
 	}
 	const auto channel = _peer->asChannel();
-
-	const auto navigation = App::wnd()->sessionController();
 	container->add(EditPeerInfoBox::CreateButton(
 		container,
 		tr::lng_manage_peer_exceptions(),
@@ -535,7 +535,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 			: rpl::single(0)) | ToPositiveNumberString(),
 		[=] {
 			ParticipantsBoxController::Start(
-				navigation,
+				_navigation,
 				_peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
@@ -548,7 +548,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 			| ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
-					navigation,
+					_navigation,
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},

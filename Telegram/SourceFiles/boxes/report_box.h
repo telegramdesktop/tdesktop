@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 template <typename Enum>
@@ -18,7 +18,7 @@ class Radioenum;
 class InputField;
 } // namespace Ui
 
-class ReportBox : public Ui::BoxContent, public RPCSender {
+class ReportBox final : public Ui::BoxContent {
 public:
 	ReportBox(QWidget*, not_null<PeerData*> peer);
 	ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids);
@@ -43,9 +43,10 @@ private:
 	void report();
 
 	void reportDone(const MTPBool &result);
-	bool reportFail(const RPCError &error);
+	void reportFail(const RPCError &error);
 
-	not_null<PeerData*> _peer;
+	const not_null<PeerData*> _peer;
+	MTP::Sender _api;
 	std::optional<MessageIdsList> _ids;
 
 	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;

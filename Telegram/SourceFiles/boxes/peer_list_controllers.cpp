@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 
 #include "boxes/confirm_box.h"
-#include "observer_peer.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
@@ -147,7 +146,7 @@ void PeerListRowWithLink::paintAction(
 PeerListGlobalSearchController::PeerListGlobalSearchController(
 	not_null<Window::SessionNavigation*> navigation)
 : _navigation(navigation)
-, _api(_navigation->session().api().instance()) {
+, _api(&_navigation->session().mtp()) {
 	_timer.setCallback([this] { searchOnServer(); });
 }
 

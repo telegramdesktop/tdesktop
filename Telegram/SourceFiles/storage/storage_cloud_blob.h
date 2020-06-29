@@ -14,6 +14,10 @@ template <typename ...>
 struct phrase;
 } // namespace tr
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Storage::CloudBlob {
 
 constexpr auto kCloudLocationUsername = "tdhbcfiles"_cs;
@@ -79,6 +83,7 @@ class BlobLoader : public QObject {
 public:
 	BlobLoader(
 		QObject *parent,
+		not_null<Main::Session*> session,
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,
@@ -102,6 +107,7 @@ private:
 	rpl::variable<BlobState> _state;
 
 	MTP::WeakInstance _mtproto;
+
 	std::unique_ptr<MTP::DedicatedLoader> _implementation;
 
 };

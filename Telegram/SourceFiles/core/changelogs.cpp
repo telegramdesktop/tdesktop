@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/changelogs.h"
 
-#include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "core/application.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "storage/storage_domain.h"
 #include "data/data_session.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -46,6 +49,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Allow export of a single chat message history "
 		"in JSON format."
+	},
+	{
+		2001014,
+		"\xE2\x80\xA2 Support for multiple accounts."
 	}
 	};
 };
@@ -79,7 +86,9 @@ Changelogs::Changelogs(not_null<Main::Session*> session, int oldVersion)
 
 std::unique_ptr<Changelogs> Changelogs::Create(
 		not_null<Main::Session*> session) {
-	const auto oldVersion = Local::oldMapVersion();
+	auto &local = Core::App().domain().local();
+	const auto oldVersion = local.oldVersion();
+	local.clearOldVersion();
 	return (oldVersion > 0 && oldVersion < AppVersion)
 		? std::make_unique<Changelogs>(session, oldVersion)
 		: nullptr;

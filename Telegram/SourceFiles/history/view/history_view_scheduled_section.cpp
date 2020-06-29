@@ -32,9 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
 #include "storage/storage_media_prepare.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
@@ -605,7 +606,7 @@ void ScheduledWidget::sendInlineResult(
 			bots.resize(RecentInlineBotsLimit - 1);
 		}
 		bots.push_front(bot);
-		Local::writeRecentHashtagsAndBots();
+		bot->session().local().writeRecentHashtagsAndBots();
 	}
 
 	_composeControls->hidePanelsAnimated();
@@ -851,7 +852,7 @@ void ScheduledWidget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(this, e->rect());
+	SectionWidget::PaintBackground(controller(), this, e->rect());
 }
 
 void ScheduledWidget::onScroll() {
@@ -881,11 +882,11 @@ void ScheduledWidget::showFinishedHook() {
 	_composeControls->showFinished();
 }
 
-bool ScheduledWidget::wheelEventFromFloatPlayer(QEvent *e) {
+bool ScheduledWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect ScheduledWidget::rectForFloatPlayer() const {
+QRect ScheduledWidget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 

@@ -34,9 +34,6 @@ class UniversalImages;
 } // namespace Ui
 
 namespace Stickers {
-namespace details {
-class EmojiImageLoader;
-} // namespace details
 
 using IsolatedEmoji = Ui::Text::IsolatedEmoji;
 
@@ -84,8 +81,6 @@ private:
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
 	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &list);
-	std::shared_ptr<Ui::Emoji::UniversalImages> prepareSourceImages();
-	void clearSourceImages();
 
 	not_null<Main::Session*> _session;
 	base::flat_map<EmojiPtr, not_null<DocumentData*>> _map;
@@ -94,9 +89,6 @@ private:
 		base::flat_set<not_null<HistoryItem*>>> _items;
 	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
 	mtpRequestId _requestId = 0;
-
-	crl::object_on_queue<details::EmojiImageLoader> _imageLoader;
-	base::Timer _clearTimer;
 
 	rpl::lifetime _lifetime;
 

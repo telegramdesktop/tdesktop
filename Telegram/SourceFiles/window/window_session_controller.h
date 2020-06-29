@@ -11,9 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/observer.h"
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
 
+class PhotoData;
 class MainWidget;
 class MainWindow;
 class HistoryMessage;
@@ -34,13 +36,6 @@ class Session;
 namespace Settings {
 enum class Type;
 } // namespace Settings
-
-namespace Media {
-namespace Player {
-class FloatController;
-class FloatDelegate;
-} // namespace Player
-} // namespace Media
 
 namespace Passport {
 struct FormRequest;
@@ -163,6 +158,7 @@ private:
 
 class SessionController
 	: public SessionNavigation
+	, public base::has_weak_ptr
 	, private base::Subscriber {
 public:
 	SessionController(
@@ -173,6 +169,7 @@ public:
 		return *_window;
 	}
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
+	[[nodiscard]] not_null<MainWidget*> content() const;
 
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;
@@ -204,9 +201,7 @@ public:
 		return _gifPauseLevelChanged;
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
-	base::Observable<void> &floatPlayerAreaUpdated() {
-		return _floatPlayerAreaUpdated;
-	}
+	void floatPlayerAreaUpdated();
 
 	struct ColumnLayout {
 		int bodyWidth;
@@ -285,14 +280,6 @@ public:
 		return this;
 	}
 
-	void setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate);
-	void replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
-	void restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
-	rpl::producer<FullMsgId> floatPlayerClosed() const;
-
 	[[nodiscard]] int filtersWidth() const;
 	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
 	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
@@ -300,6 +287,8 @@ public:
 
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
+
+	void requestAttachedStickerSets(not_null<PhotoData*> photo);
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -314,7 +303,6 @@ private:
 	void checkOpenedFilter();
 
 	int minimalThreeColumnWidth() const;
-	not_null<MainWidget*> chats() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;
 	int countThirdColumnWidthFromRatio(int bodyWidth) const;
 	struct ShrinkResult {
@@ -337,7 +325,6 @@ private:
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
-	base::Observable<void> _floatPlayerAreaUpdated;
 
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
@@ -350,14 +337,12 @@ private:
 
 	rpl::variable<FilterId> _activeChatsFilter;
 
-	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
-	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
-	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
-
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
 
 	rpl::event_stream<> _filtersMenuChanged;
+
+	mtpRequestId _attachedStickerSetsRequestId = 0;
 
 	rpl::lifetime _lifetime;
 

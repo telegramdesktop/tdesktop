@@ -83,7 +83,7 @@ class Controller {
 public:
 	Controller(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<UserData*> user);
 
 	void prepare();
@@ -100,7 +100,7 @@ private:
 		bool inverted);
 
 	not_null<Ui::GenericBox*> _box;
-	not_null<Window::Controller*> _window;
+	not_null<Window::SessionController*> _window;
 	not_null<UserData*> _user;
 	Ui::Checkbox *_sharePhone = nullptr;
 	QString _phone;
@@ -111,7 +111,7 @@ private:
 
 Controller::Controller(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	not_null<UserData*> user)
 : _box(box)
 , _window(window)
@@ -143,7 +143,7 @@ void Controller::setupCover() {
 		object_ptr<Info::Profile::Cover>(
 			_box,
 			_user,
-			_window->sessionController(),
+			_window,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
 				: rpl::single(App::formatPhone(_phone)))),
@@ -266,7 +266,7 @@ void Controller::setupSharePhoneNumber() {
 
 void EditContactBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<UserData*> user) {
 	box->lifetime().make_state<Controller>(box, window, user)->prepare();
 }

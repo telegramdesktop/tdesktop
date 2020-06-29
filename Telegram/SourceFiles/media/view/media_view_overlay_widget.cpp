@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "core/ui_integration.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
@@ -46,13 +47,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "main/main_account.h" // Account::sessionValue.
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
-#include "observer_peer.h"
+#include "main/main_account.h"
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "layout.h"
 #include "storage/file_download.h"
+#include "storage/storage_account.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
 #include "app.h"
@@ -107,16 +110,16 @@ PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
 }
 
 void PipDelegate::pipSaveGeometry(QByteArray geometry) {
-	_session->settings().setVideoPipGeometry(geometry);
-	_session->saveSettingsDelayed();
+	Core::App().settings().setVideoPipGeometry(geometry);
+	Core::App().saveSettingsDelayed();
 }
 
 QByteArray PipDelegate::pipLoadGeometry() {
-	return _session->settings().videoPipGeometry();
+	return Core::App().settings().videoPipGeometry();
 }
 
 float64 PipDelegate::pipPlaybackSpeed() {
-	return _session->settings().videoPlaybackSpeed();
+	return Core::App().settings().videoPlaybackSpeed();
 }
 
 QWidget *PipDelegate::pipParentWidget() {
@@ -300,11 +303,10 @@ OverlayWidget::OverlayWidget()
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	_lastPositiveVolume = (Global::VideoVolume() > 0.)
-		? Global::VideoVolume()
-		: Global::kDefaultVolume;
+	_lastPositiveVolume = (Core::App().settings().videoVolume() > 0.)
+		? Core::App().settings().videoVolume()
+		: Core::Settings::kDefaultVolume;
 
-	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
 	const auto text = tr::lng_mediaview_saved_to(
@@ -318,40 +320,6 @@ OverlayWidget::OverlayWidget()
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
-
-	// While we have one mediaview for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (session) {
-			subscribe(session->downloaderTaskFinished(), [=] {
-				if (!isHidden()) {
-					updateControls();
-				}
-			});
-			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
-				if (!_streamed) {
-					return;
-				}
-				if (call) {
-					playbackPauseOnCall();
-				} else {
-					playbackResumeOnCall();
-				}
-			});
-			subscribe(session->documentUpdated, [=](DocumentData *document) {
-				if (!isHidden()) {
-					documentUpdated(document);
-				}
-			});
-			subscribe(session->messageIdChanging, [=](std::pair<not_null<HistoryItem*>, MsgId> update) {
-				changingMsgId(update.first, update.second);
-			});
-		} else {
-			_sharedMedia = nullptr;
-			_userPhotos = nullptr;
-			_collage = nullptr;
-		}
-	}, lifetime());
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
 	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
@@ -372,6 +340,17 @@ OverlayWidget::OverlayWidget()
 	if (!Platform::IsMac()) {
 		setWindowState(Qt::WindowFullScreen);
 	}
+
+	Core::App().calls().currentCallValue(
+	) | rpl::start_with_next([=](Calls::Call *call) {
+		if (!_streamed) {
+			return;
+		} else if (call) {
+			playbackPauseOnCall();
+		} else {
+			playbackResumeOnCall();
+		}
+	}, lifetime());
 
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
@@ -546,15 +525,17 @@ void OverlayWidget::documentUpdated(DocumentData *doc) {
 	}
 }
 
-void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
-	if (row->fullId() == _msgid) {
-		_msgid = FullMsgId(_msgid.channel, newId);
+void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId oldId) {
+	if (FullMsgId(row->channelId(), oldId) == _msgid) {
+		_msgid = row->fullId();
 		refreshMediaViewer();
 	}
 }
 
 void OverlayWidget::updateDocSize() {
-	if (!_document || !documentBubbleShown()) return;
+	if (!_document || !documentBubbleShown()) {
+		return;
+	}
 
 	if (_document->loading()) {
 		quint64 ready = _document->loadOffset(), total = _document->size;
@@ -646,7 +627,9 @@ void OverlayWidget::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (const auto item = Auth().data().message(_msgid)) {
+		if (!_session) {
+			return dNow;
+		} else if (const auto item = _session->data().message(_msgid)) {
 			return ItemDateTime(item);
 		} else if (_photo) {
 			return base::unixtime::parse(_photo->date);
@@ -752,10 +735,13 @@ void OverlayWidget::updateActions() {
 	if (_canForwardItem) {
 		_actions.push_back({ tr::lng_mediaview_forward(tr::now), SLOT(onForward()) });
 	}
-	auto canDelete = [&] {
+	const auto canDelete = [&] {
 		if (_canDeleteItem) {
 			return true;
-		} else if (!_msgid && _photo && _user && _user == Auth().user()) {
+		} else if (!_msgid
+			&& _photo
+			&& _user
+			&& _user == _user->session().user()) {
 			return _userPhotosData && _fullIndex && _fullCount;
 		} else if (_photo && _photo->peer && _photo->peer->userpicPhotoId() == _photo->id) {
 			if (auto chat = _photo->peer->asChat()) {
@@ -1075,10 +1061,11 @@ void OverlayWidget::zoomUpdate(int32 &newZoom) {
 	setZoomLevel(newZoom);
 }
 
-void OverlayWidget::clearData() {
+void OverlayWidget::clearSession() {
 	if (!isHidden()) {
 		hide();
 	}
+	_sessionLifetime.destroy();
 	if (!_animations.empty()) {
 		_animations.clear();
 		_stateAnimation.stop();
@@ -1093,13 +1080,16 @@ void OverlayWidget::clearData() {
 	_from = nullptr;
 	_fromName = QString();
 	assignMediaPointer(nullptr);
-	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
+	_sharedMedia = nullptr;
+	_userPhotos = nullptr;
+	_collage = nullptr;
+	_session = nullptr;
 }
 
 OverlayWidget::~OverlayWidget() {
-	delete base::take(_menu);
+	clearSession();
 }
 
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
@@ -1143,7 +1133,7 @@ void OverlayWidget::showSaveMsgFile() {
 
 void OverlayWidget::updateMixerVideoVolume() const {
 	if (_streamed) {
-		Player::mixer()->setVideoVolume(Global::VideoVolume());
+		Player::mixer()->setVideoVolume(Core::App().settings().videoVolume());
 	}
 }
 
@@ -1224,7 +1214,10 @@ void OverlayWidget::onScreenResized(int screen) {
 }
 
 void OverlayWidget::onToMessage() {
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return;
+	}
+	if (const auto item = _session->data().message(_msgid)) {
 		close();
 		Ui::showPeerHistoryAtItem(item);
 	}
@@ -1263,7 +1256,14 @@ void OverlayWidget::onSaveAs() {
 				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
-			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
+			file = FileNameForSave(
+				_session,
+				tr::lng_save_file(tr::now),
+				filter,
+				qsl("doc"),
+				name,
+				true,
+				alreadyDir);
 			if (!file.isEmpty() && file != location.name()) {
 				if (bytes.isEmpty()) {
 					QFile(file).remove();
@@ -1319,7 +1319,7 @@ void OverlayWidget::onDocClick() {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
 			_document,
-			Auth().data().message(_msgid));
+			_document->owner().message(_msgid));
 		if (_document->loading() && !_radial.animating()) {
 			_radial.start(_documentMedia->progress());
 		}
@@ -1331,17 +1331,21 @@ PeerData *OverlayWidget::ui_getPeerForMouseAction() {
 }
 
 void OverlayWidget::onDownload() {
-	if (Global::AskDownloadPath()) {
+	if (!_photo && !_document) {
+		return;
+	}
+	if (Core::App().settings().askDownloadPath()) {
 		return onSaveAs();
 	}
 
 	QString path;
-	if (Global::DownloadPath().isEmpty()) {
-		path = File::DefaultDownloadPath();
-	} else if (Global::DownloadPath() == qsl("tmp")) {
-		path = cTempDir();
+	const auto session = _photo ? &_photo->session() : &_document->session();
+	if (Core::App().settings().downloadPath().isEmpty()) {
+		path = File::DefaultDownloadPath(session);
+	} else if (Core::App().settings().downloadPath() == qsl("tmp")) {
+		path = session->local().tempDirectory();
 	} else {
-		path = Global::DownloadPath();
+		path = Core::App().settings().downloadPath();
 	}
 	QString toName;
 	if (_document) {
@@ -1418,18 +1422,30 @@ void OverlayWidget::onShowInFolder() {
 }
 
 void OverlayWidget::onForward() {
-	auto item = Auth().data().message(_msgid);
+	if (!_session) {
+		return;
+	}
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
+	const auto item = _session->data().message(_msgid);
 	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return;
 	}
 
 	close();
 	Window::ShowForwardMessagesBox(
-		App::wnd()->sessionController(),
+		active.front(),
 		{ 1, item->fullId() });
 }
 
 void OverlayWidget::onDelete() {
+	const auto session = _session;
+	if (!session) {
+		return;
+	}
+
 	close();
 	const auto deletingPeerPhoto = [this] {
 		if (!_msgid) {
@@ -1443,9 +1459,14 @@ void OverlayWidget::onDelete() {
 		return false;
 	};
 
+	Core::App().domain().activate(&_session->account());
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
 	if (deletingPeerPhoto()) {
-		App::main()->deletePhotoLayer(_photo);
-	} else if (const auto item = Auth().data().message(_msgid)) {
+		active.front()->content()->deletePhotoLayer(_photo);
+	} else if (const auto item = session->data().message(_msgid)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
@@ -1474,13 +1495,24 @@ void OverlayWidget::onCopy() {
 }
 
 void OverlayWidget::onAttachedStickers() {
+	const auto session = _session;
+	if (!session) {
+		return;
+	}
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
 	close();
-	Auth().api().requestAttachedStickerSets(_photo);
+	active.front()->requestAttachedStickerSets(_photo);
 }
 
-std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() const {
+auto OverlayWidget::sharedMediaType() const
+-> std::optional<SharedMediaType> {
 	using Type = SharedMediaType;
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return std::nullopt;
+	} else if (const auto item = _session->data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (media->webpage()) {
 				return std::nullopt;
@@ -1503,8 +1535,12 @@ std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() c
 	return std::nullopt;
 }
 
-std::optional<OverlayWidget::SharedMediaKey> OverlayWidget::sharedMediaKey() const {
-	if (!_msgid && _peer && !_user && _photo && _peer->userpicPhotoId() == _photo->id) {
+auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
+	if (!_msgid
+		&& _peer
+		&& !_user
+		&& _photo
+		&& _peer->userpicPhotoId() == _photo->id) {
 		return SharedMediaKey {
 			_history->peer->id,
 			_migrated ? _migrated->peer->id : 0,
@@ -1589,12 +1625,15 @@ bool OverlayWidget::validSharedMedia() const {
 }
 
 void OverlayWidget::validateSharedMedia() {
-	if (auto key = sharedMediaKey()) {
+	if (const auto key = sharedMediaKey()) {
+		Assert(_history != nullptr);
+
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
 		auto viewer = (key->type == SharedMediaType::ChatPhoto)
 			? SharedMediaWithLastReversedViewer
 			: SharedMediaWithLastViewer;
 		viewer(
+			&_history->session(),
 			*key,
 			kIdsLimit,
 			kIdsLimit
@@ -1656,8 +1695,11 @@ bool OverlayWidget::validUserPhotos() const {
 
 void OverlayWidget::validateUserPhotos() {
 	if (const auto key = userPhotosKey()) {
+		Assert(_user != nullptr);
+
 		_userPhotos = std::make_unique<UserPhotos>(*key);
 		UserPhotosReversedViewer(
+			&_user->session(),
 			*key,
 			kIdsLimit,
 			kIdsLimit
@@ -1683,7 +1725,9 @@ void OverlayWidget::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 }
 
 std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
-	if (const auto item = Auth().data().message(_msgid)) {
+	if (!_session) {
+		return std::nullopt;
+	} else if (const auto item = _session->data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (const auto page = media->webpage()) {
 				for (const auto &item : page->collage.items) {
@@ -1729,7 +1773,7 @@ void OverlayWidget::validateCollage() {
 	if (const auto key = collageKey()) {
 		_collage = std::make_unique<Collage>(*key);
 		_collageData = WebPageCollage();
-		if (const auto item = Auth().data().message(_msgid)) {
+		if (const auto item = _session->data().message(_msgid)) {
 			if (const auto media = item->media()) {
 				if (const auto page = media->webpage()) {
 					_collageData = page->collage;
@@ -1800,28 +1844,35 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	const auto base = duration
 		? DocumentTimestampLinkBase(_document, item->fullId())
 		: QString();
+	const auto context = Core::UiIntegration::Context{
+		.session = &item->history()->session()
+	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
 		AddTimestampLinks(caption, duration, base),
-		Ui::ItemTextOptions(item));
+		Ui::ItemTextOptions(item),
+		context);
 }
 
 void OverlayWidget::refreshGroupThumbs() {
 	const auto existed = (_groupThumbs != nullptr);
 	if (_index && _sharedMediaData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			*_sharedMediaData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _userPhotosData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			*_userPhotosData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _collageData) {
 		View::GroupThumbs::Refresh(
+			_session,
 			_groupThumbs,
 			{ _msgid, &*_collageData },
 			*_index,
@@ -1853,7 +1904,7 @@ void OverlayWidget::initGroupThumbs() {
 	) | rpl::start_with_next([this](View::GroupThumbs::Key key) {
 		using CollageKey = View::GroupThumbs::CollageKey;
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
-			const auto photo = Auth().data().photo(*photoId);
+			const auto photo = _session->data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
@@ -1887,7 +1938,11 @@ void OverlayWidget::clearControlsState() {
 	}
 }
 
-void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
+void OverlayWidget::showPhoto(
+		not_null<PhotoData*> photo,
+		HistoryItem *context) {
+	setSession(&photo->session());
+
 	if (context) {
 		setContext(context);
 	} else {
@@ -1903,7 +1958,10 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) 
 	activateControls();
 }
 
-void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context) {
+void OverlayWidget::showPhoto(
+		not_null<PhotoData*> photo,
+		not_null<PeerData*> context) {
+	setSession(&photo->session());
 	setContext(context);
 
 	clearControlsState();
@@ -1932,6 +1990,8 @@ void OverlayWidget::showDocument(
 		HistoryItem *context,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
+	setSession(&document->session());
+
 	if (context) {
 		setContext(context);
 	} else {
@@ -1991,10 +2051,10 @@ void OverlayWidget::destroyThemePreview() {
 }
 
 void OverlayWidget::redisplayContent() {
-	if (isHidden()) {
+	if (isHidden() || !_session) {
 		return;
 	}
-	const auto item = Auth().data().message(_msgid);
+	const auto item = _session->data().message(_msgid);
 	if (_photo) {
 		displayPhoto(_photo, item);
 	} else {
@@ -2391,6 +2451,7 @@ void OverlayWidget::initThemePreview() {
 		return result;
 	}();
 
+	const auto weakSession = base::make_weak(&_document->session());
 	const auto path = _document->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = Ui::MakeWeak(this);
@@ -2402,7 +2463,8 @@ void OverlayWidget::initThemePreview() {
 			std::move(data),
 			Window::Theme::PreviewType::Extended);
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
-			if (id != _themePreviewId) {
+			const auto session = weakSession.get();
+			if (id != _themePreviewId || !session) {
 				return;
 			}
 			_themePreviewId = 0;
@@ -2438,7 +2500,7 @@ void OverlayWidget::initThemePreview() {
 					_themeShare->show();
 					_themeShare->setClickedCallback([=] {
 						QGuiApplication::clipboard()->setText(
-							Core::App().createInternalLinkFull("addtheme/" + slug));
+							session->createInternalLinkFull("addtheme/" + slug));
 						Ui::Toast::Show(
 							this,
 							tr::lng_background_link_copied(tr::now));
@@ -2555,7 +2617,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
 	} else {
-		options.speed = _document->session().settings().videoPlaybackSpeed();
+		options.speed = Core::App().settings().videoPlaybackSpeed();
 		if (_pip) {
 			_pip = nullptr;
 		}
@@ -2590,25 +2652,24 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
-	Global::SetVideoVolume(volume);
+	Core::App().settings().setVideoVolume(volume);
 	updateMixerVideoVolume();
-	Global::RefVideoVolumeChanged().notify();
 	if (_document) {
 		_document->session().saveSettingsDelayed();
 	}
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
-	return Global::VideoVolume();
+	return Core::App().settings().videoVolume();
 }
 
 void OverlayWidget::playbackControlsVolumeToggled() {
-	const auto volume = Global::VideoVolume();
+	const auto volume = Core::App().settings().videoVolume();
 	playbackControlsVolumeChanged(volume ? 0. : _lastPositiveVolume);
 }
 
 void OverlayWidget::playbackControlsVolumeChangeFinished() {
-	const auto volume = Global::VideoVolume();
+	const auto volume = Core::App().settings().videoVolume();
 	if (volume > 0.) {
 		_lastPositiveVolume = volume;
 	}
@@ -2618,8 +2679,8 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 	DEBUG_LOG(("Media playback speed: change to %1.").arg(speed));
 	if (_document) {
 		DEBUG_LOG(("Media playback speed: %1 to settings.").arg(speed));
-		_document->session().settings().setVideoPlaybackSpeed(speed);
-		_document->session().saveSettingsDelayed();
+		Core::App().settings().setVideoPlaybackSpeed(speed);
+		Core::App().saveSettingsDelayed();
 	}
 	if (_streamed && !videoIsGifv()) {
 		DEBUG_LOG(("Media playback speed: %1 to _streamed.").arg(speed));
@@ -2628,12 +2689,8 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 }
 
 float64 OverlayWidget::playbackControlsCurrentSpeed() {
-	const auto result = _document
-		? _document->session().settings().videoPlaybackSpeed()
-		: 1.;
-	DEBUG_LOG(("Media playback speed: now %1 (doc %2)."
-		).arg(result
-		).arg(Logs::b(_document != nullptr)));
+	const auto result = Core::App().settings().videoPlaybackSpeed();
+	DEBUG_LOG(("Media playback speed: now %1.").arg(result));
 	return result;
 }
 
@@ -3361,11 +3418,13 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 
 OverlayWidget::Entity OverlayWidget::entityForUserPhotos(int index) const {
 	Expects(_userPhotosData.has_value());
+	Expects(_session != nullptr);
 
 	if (index < 0 || index >= _userPhotosData->size()) {
 		return { std::nullopt, nullptr };
 	}
-	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
+	const auto id = (*_userPhotosData)[index];
+	if (const auto photo = _session->data().photo(id)) {
 		return { photo, nullptr };
 	}
 	return { std::nullopt, nullptr };
@@ -3389,8 +3448,9 @@ OverlayWidget::Entity OverlayWidget::entityForSharedMedia(int index) const {
 
 OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 	Expects(_collageData.has_value());
+	Expects(_session != nullptr);
 
-	const auto item = Auth().data().message(_msgid);
+	const auto item = _session->data().message(_msgid);
 	const auto &items = _collageData->items;
 	if (!item || index < 0 || index >= items.size()) {
 		return { std::nullopt, nullptr };
@@ -3404,7 +3464,9 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 }
 
 OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) const {
-	if (const auto item = Auth().data().message(itemId)) {
+	Expects(_session != nullptr);
+
+	if (const auto item = _session->data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
 				return { photo, item };
@@ -3459,6 +3521,42 @@ void OverlayWidget::setContext(
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
+}
+
+void OverlayWidget::setSession(not_null<Main::Session*> session) {
+	if (_session == session) {
+		return;
+	}
+
+	clearSession();
+	_session = session;
+	setWindowIcon(Window::CreateIcon(session));
+
+	base::ObservableViewer(
+		session->downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		if (!isHidden()) {
+			updateControls();
+		}
+	}, _sessionLifetime);
+
+	base::ObservableViewer(
+		session->documentUpdated
+	) | rpl::start_with_next([=](DocumentData *document) {
+		if (!isHidden()) {
+			documentUpdated(document);
+		}
+	}, _sessionLifetime);
+
+	session->data().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		changingMsgId(change.item, change.oldId);
+	}, _sessionLifetime);
+
+	session->account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		clearSession();
+	}, _sessionLifetime);
 }
 
 bool OverlayWidget::moveToNext(int delta) {
@@ -3740,6 +3838,11 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		if (activated->dragText() == qstr("internal:show_saved_message")) {
 			showSaveMsgFile();
 			return;
+		}
+		// There may be a mention / hashtag / bot command link.
+		// For now activate account for all activated links.
+		if (_session) {
+			Core::App().domain().activate(&_session->account());
 		}
 		ActivateClickHandler(this, activated, e->button());
 		return;

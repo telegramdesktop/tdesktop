@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
+#include "window/window_session_controller.h"
 #include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_layers.h"
@@ -131,8 +132,10 @@ private:
 
 };
 
-BackgroundBox::BackgroundBox(QWidget*, not_null<Main::Session*> session)
-: _session(session) {
+BackgroundBox::BackgroundBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
 }
 
 void BackgroundBox::prepare() {
@@ -143,13 +146,13 @@ void BackgroundBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, _session),
+		object_ptr<Inner>(this, &_controller->session()),
 		st::backgroundScroll);
 
 	_inner->chooseEvents(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
 		Ui::show(
-			Box<BackgroundPreviewBox>(_session, paper),
+			Box<BackgroundPreviewBox>(_controller, paper),
 			Ui::LayerOption::KeepOther);
 	}, _inner->lifetime());
 
@@ -161,7 +164,7 @@ void BackgroundBox::prepare() {
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto session = _session;
+	const auto session = &_controller->session();
 	const auto remove = [=, weak = Ui::MakeWeak(this)]{
 		if (*box) {
 			(*box)->closeBox();
@@ -171,7 +174,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 		}
 		session->data().removeWallpaper(paper);
 		session->api().request(MTPaccount_SaveWallPaper(
-			paper.mtpInput(),
+			paper.mtpInput(session),
 			MTP_bool(true),
 			paper.mtpSettings()
 		)).send();
@@ -190,7 +193,7 @@ BackgroundBox::Inner::Inner(
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
-, _api(_session->api().instance())
+, _api(&_session->mtp())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, anim::type::instant);
 	if (_session->data().wallpapers().empty()) {

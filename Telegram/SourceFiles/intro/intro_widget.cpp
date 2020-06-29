@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/intro_start.h"
 #include "intro/intro_phone.h"
+#include "intro/intro_qr.h"
 #include "intro/intro_code.h"
 #include "intro/intro_signup.h"
 #include "intro/intro_password_check.h"
@@ -16,7 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "storage/localstorage.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
+#include "data/data_user.h"
+#include "data/data_countries.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -24,12 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "core/update_checker.h"
 #include "core/application.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
+#include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "api/api_text_entities.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"
@@ -39,9 +44,26 @@ namespace {
 
 using namespace ::Intro::details;
 
+[[nodiscard]] QString ComputeNewAccountCountry() {
+	if (const auto parent
+		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
+		if (const auto session = parent->maybeSession()) {
+			const auto iso = ::Data::CountryISO2ByPhone(
+				session->user()->phone());
+			if (!iso.isEmpty()) {
+				return iso;
+			}
+		}
+	}
+	return Platform::SystemCountry();
+}
+
 } // namespace
 
-Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	EnterPoint point)
 : RpWidget(parent)
 , _account(account)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
@@ -56,21 +78,34 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	object_ptr<Ui::RoundButton>(this, nullptr, st::introNextButton))
 , _connecting(std::make_unique<Window::ConnectionState>(
 		this,
+		account,
 		rpl::single(true))) {
-	appendStep(new StartWidget(this, _account, getData()));
-	fixOrder();
+	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
-	getData()->country = Platform::SystemCountry();
+	getData()->country = ComputeNewAccountCountry();
 
 	_account->mtpValue(
-	) | rpl::start_with_next([=](MTP::Instance *instance) {
-		if (instance) {
-			_api.emplace(instance);
-			createLanguageLink();
-		} else {
-			_api.reset();
-		}
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		crl::on_main(this, [=] { createLanguageLink(); });
 	}, lifetime());
+
+	switch (point) {
+	case EnterPoint::Start:
+		getNearestDC();
+		appendStep(new StartWidget(this, _account, getData()));
+		break;
+	case EnterPoint::Phone:
+		appendStep(new PhoneWidget(this, _account, getData()));
+		break;
+	case EnterPoint::Qr:
+		appendStep(new QrWidget(this, _account, getData()));
+		break;
+	default: Unexpected("Enter point in Intro::Widget::Widget.");
+	}
+
+	fixOrder();
+
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
 		createLanguageLink();
 	});
@@ -80,16 +115,12 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		handleUpdates(updates);
 	}, lifetime());
 
-	_back->entity()->setClickedCallback([=] {
-		historyMove(Direction::Back);
-	});
+	_back->entity()->setClickedCallback([=] { backRequested(); });
 	_back->hide(anim::type::instant);
 
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
-
-	getNearestDC();
 
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
@@ -118,6 +149,42 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	}
 }
 
+not_null<Media::Player::FloatDelegate*> Widget::floatPlayerDelegate() {
+	return static_cast<Media::Player::FloatDelegate*>(this);
+}
+
+auto Widget::floatPlayerSectionDelegate()
+-> not_null<Media::Player::FloatSectionDelegate*> {
+	return static_cast<Media::Player::FloatSectionDelegate*>(this);
+}
+
+not_null<Ui::RpWidget*> Widget::floatPlayerWidget() {
+	return this;
+}
+
+auto Widget::floatPlayerGetSection(Window::Column column)
+-> not_null<Media::Player::FloatSectionDelegate*> {
+	return this;
+}
+
+void Widget::floatPlayerEnumerateSections(Fn<void(
+		not_null<Media::Player::FloatSectionDelegate*> widget,
+		Window::Column widgetColumn)> callback) {
+	callback(this, Window::Column::Second);
+}
+
+bool Widget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
+	return false;
+}
+
+QRect Widget::floatPlayerAvailableRect() {
+	return mapToGlobal(rect());
+}
+
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
+	return false;
+}
+
 void Widget::refreshLang() {
 	_changeLanguage.destroy();
 	createLanguageLink();
@@ -140,9 +207,9 @@ void Widget::handleUpdates(const MTPUpdates &updates) {
 
 void Widget::handleUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateDcOptions &data) {
-		Core::App().dcOptions()->addFromList(data.vdc_options());
+		_account->mtp().dcOptions().addFromList(data.vdc_options());
 	}, [&](const MTPDupdateConfig &data) {
-		_account->mtp()->requestConfig();
+		_account->mtp().requestConfig();
 	}, [&](const MTPDupdateServiceNotification &data) {
 		const auto text = TextWithEntities{
 			qs(data.vmessage()),
@@ -153,7 +220,8 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 }
 
 void Widget::createLanguageLink() {
-	if (_changeLanguage) {
+	if (_changeLanguage
+		|| Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 		return;
 	}
 
@@ -230,18 +298,18 @@ void Widget::setInnerFocus() {
 	}
 }
 
-void Widget::historyMove(Direction direction) {
+void Widget::historyMove(StackAction action, Animate animate) {
 	Expects(_stepHistory.size() > 1);
 
 	if (getStep()->animating()) {
 		return;
 	}
 
-	auto wasStep = getStep((direction == Direction::Back) ? 0 : 1);
-	if (direction == Direction::Back) {
+	auto wasStep = getStep((action == StackAction::Back) ? 0 : 1);
+	if (action == StackAction::Back) {
 		_stepHistory.pop_back();
 		wasStep->cancelled();
-	} else if (direction == Direction::Replace) {
+	} else if (action == StackAction::Replace) {
 		_stepHistory.erase(_stepHistory.end() - 2);
 	}
 
@@ -261,10 +329,10 @@ void Widget::historyMove(Direction direction) {
 	}
 
 	_stepLifetime.destroy();
-	if (direction == Direction::Forward || direction == Direction::Replace) {
+	if (action == StackAction::Forward || action == StackAction::Replace) {
 		wasStep->finished();
 	}
-	if (direction == Direction::Back || direction == Direction::Replace) {
+	if (action == StackAction::Back || action == StackAction::Replace) {
 		delete base::take(wasStep);
 	}
 	_back->toggle(getStep()->hasBack(), anim::type::normal);
@@ -277,7 +345,7 @@ void Widget::historyMove(Direction direction) {
 	setupNextButton();
 	if (_resetAccount) _resetAccount->show(anim::type::normal);
 	if (_terms) _terms->show(anim::type::normal);
-	getStep()->showAnimated(direction);
+	getStep()->showAnimated(animate);
 	fixOrder();
 }
 
@@ -298,10 +366,11 @@ void Widget::fixOrder() {
 	if (_changeLanguage) _changeLanguage->raise();
 	_settings->raise();
 	_back->raise();
+	floatPlayerRaiseAll();
 	_connecting->raise();
 }
 
-void Widget::moveToStep(Step *step, Direction direction) {
+void Widget::moveToStep(Step *step, StackAction action, Animate animate) {
 	appendStep(step);
 	_back->raise();
 	_settings->raise();
@@ -310,24 +379,29 @@ void Widget::moveToStep(Step *step, Direction direction) {
 	}
 	_connecting->raise();
 
-	historyMove(direction);
+	historyMove(action, animate);
 }
 
 void Widget::appendStep(Step *step) {
 	_stepHistory.push_back(step);
 	step->setGeometry(rect());
-	step->setGoCallback([=](Step *step, Direction direction) {
-		if (direction == Direction::Back) {
-			historyMove(direction);
+	step->setGoCallback([=](Step *step, StackAction action, Animate animate) {
+		if (action == StackAction::Back) {
+			historyMove(action, animate);
 		} else {
-			moveToStep(step, direction);
+			moveToStep(step, action, animate);
 		}
 	});
 	step->setShowResetCallback([=] {
 		showResetButton();
 	});
-	step->setShowTermsCallback([=]() {
+	step->setShowTermsCallback([=] {
 		showTerms();
+	});
+	step->setCancelNearestDcCallback([=] {
+		if (_api) {
+			_api->request(base::take(_nearestDcRequestId)).cancel();
+		}
 	});
 	step->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
@@ -402,7 +476,8 @@ void Widget::resetAccount() {
 			Ui::hideLayer();
 			moveToStep(
 				new SignupWidget(this, _account, getData()),
-				Direction::Replace);
+				StackAction::Replace,
+				Animate::Forward);
 		}).fail([=](const RPCError &error) {
 			_resetRequest = 0;
 
@@ -466,8 +541,9 @@ void Widget::getNearestDC() {
 	if (!_api) {
 		return;
 	}
-	_api->request(MTPhelp_GetNearestDc(
+	_nearestDcRequestId = _api->request(MTPhelp_GetNearestDc(
 	)).done([=](const MTPNearestDc &result) {
+		_nearestDcRequestId = 0;
 		const auto &nearest = result.c_nearestDc();
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3"
 			).arg(qs(nearest.vcountry())
@@ -534,7 +610,7 @@ void Widget::showTerms(Fn<void()> callback) {
 void Widget::showControls() {
 	getStep()->show();
 	setupNextButton();
-	_next->show(anim::type::instant);
+	_next->toggle(_nextShown, anim::type::instant);
 	_nextShownAnimation.stop();
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
@@ -597,8 +673,10 @@ void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 
 	_a_show.stop();
 	showControls();
+	floatPlayerHideAll();
 	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideControls();
+	floatPlayerShowVisible();
 
 	_a_show.start(
 		[=] { animationCallback(); },
@@ -652,6 +730,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	updateControlsGeometry();
+	floatPlayerAreaUpdated();
 }
 
 void Widget::updateControlsGeometry() {
@@ -692,7 +771,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		if (getStep()->hasBack()) {
-			historyMove(Direction::Back);
+			backRequested();
 		}
 	} else if (e->key() == Qt::Key_Enter
 		|| e->key() == Qt::Key_Return
@@ -701,11 +780,24 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void Widget::backRequested() {
+	if (_stepHistory.size() > 1) {
+		historyMove(StackAction::Back, Animate::Back);
+	} else if (const auto parent
+		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
+		Core::App().domain().activate(parent);
+	} else {
+		moveToStep(
+			new StartWidget(this, _account, getData()),
+			StackAction::Replace,
+			Animate::Back);
+	}
+}
+
 Widget::~Widget() {
 	for (auto step : base::take(_stepHistory)) {
 		delete step;
 	}
-	if (App::wnd()) App::wnd()->noIntro(this);
 }
 
 } // namespace Intro

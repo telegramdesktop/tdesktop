@@ -68,9 +68,7 @@ Bar::Bar(not_null<QWidget*> parent, QDate date)
 }
 
 rpl::producer<> Bar::hideClicks() const {
-	return _close->clicks() | rpl::map([] {
-		return rpl::empty_value();
-	});
+	return _close->clicks() | rpl::to_empty;
 }
 
 int Bar::resizeGetHeight(int newWidth) {

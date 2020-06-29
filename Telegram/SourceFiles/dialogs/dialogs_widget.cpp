@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "core/application.h"
@@ -32,13 +33,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "storage/storage_media_prepare.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_dialogs.h"
@@ -176,6 +178,11 @@ Widget::Widget(
 , _singleMessageSearch(&controller->session()) {
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller));
 
+	_inner->updated(
+	) | rpl::start_with_next([=] {
+		onListScroll();
+	}, lifetime());
+
 	rpl::combine(
 		session().api().dialogsLoadMayBlockByDate(),
 		session().api().dialogsLoadBlockedByDate()
@@ -183,8 +190,14 @@ Widget::Widget(
 		refreshLoadMoreButton(mayBlock, isBlocked);
 	}, lifetime());
 
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::MessageSent
+	) | rpl::start_with_next([=] {
+		jumpToTop();
+	}, lifetime());
+
 	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
-	) | rpl::map([] { return rpl::empty_value(); }));
+	) | rpl::to_empty);
 
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
@@ -199,10 +212,10 @@ Widget::Widget(
 	});
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
-		const auto openSearchResult = !App::main()->selectingPeer()
+		const auto openSearchResult = !controller->content()->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
-			App::main()->choosePeer(
+			controller->content()->choosePeer(
 				history->peer->id,
 				(controller->uniqueChatsInSearchResults()
 					? ShowAtUnreadMsgId
@@ -271,7 +284,7 @@ Widget::Widget(
 		updateControlsGeometry();
 	}, lifetime());
 	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
-	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(); });
+	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(&session()); });
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));
@@ -318,6 +331,24 @@ Widget::Widget(
 	) | rpl::start_with_next([=](Data::Folder *folder) {
 		changeOpenedFolder(folder, anim::type::normal);
 	}, lifetime());
+}
+
+void Widget::setGeometryWithTopMoved(
+		const QRect &newGeometry,
+		int topDelta) {
+	_topDelta = topDelta;
+	bool willBeResized = (size() != newGeometry.size());
+	if (geometry() != newGeometry) {
+		auto weak = Ui::MakeWeak(this);
+		setGeometry(newGeometry);
+		if (!weak) {
+			return;
+		}
+	}
+	if (!willBeResized) {
+		resizeEvent(nullptr);
+	}
+	_topDelta = 0;
 }
 
 void Widget::setupScrollUpButton() {
@@ -381,6 +412,7 @@ void Widget::updateScrollUpPosition() {
 void Widget::setupConnectingWidget() {
 	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
+		&session().account(),
 		Window::AdaptiveIsOneColumn());
 }
 
@@ -390,7 +422,7 @@ void Widget::setupSupportMode() {
 	}
 
 	fullSearchRefreshOn(session().settings().supportAllSearchResultsValue(
-	) | rpl::map([] { return rpl::empty_value(); }));
+	) | rpl::to_empty);
 }
 
 void Widget::fullSearchRefreshOn(rpl::producer<> events) {
@@ -529,34 +561,6 @@ void Widget::setInnerFocus() {
 	}
 }
 
-void Widget::refreshDialog(Key key) {
-	const auto creating = !key.entry()->inChatList();
-	_inner->refreshDialog(key);
-	const auto history = key.history();
-	if (creating && history && history->peer->migrateFrom()) {
-		if (const auto migrated = history->owner().historyLoaded(
-				history->peer->migrateFrom())) {
-			if (migrated->inChatList()) {
-				_inner->removeDialog(migrated);
-			}
-		}
-	}
-}
-
-void Widget::repaintDialogRow(
-		FilterId filterId,
-		not_null<Row*> row) {
-	_inner->repaintDialogRow(filterId, row);
-}
-
-void Widget::repaintDialogRow(RowDescriptor row) {
-	_inner->repaintDialogRow(row);
-}
-
-void Widget::refreshDialogRow(RowDescriptor row) {
-	_inner->refreshDialogRow(row);
-}
-
 void Widget::jumpToTop() {
 	if (session().supportMode()) {
 		return;
@@ -641,7 +645,7 @@ void Widget::showAnimated(Window::SlideDirection direction, const Window::Sectio
 
 	_cacheUnder = params.oldContentCache;
 	showFast();
-	_cacheOver = App::main()->grabForShowAnimation(params);
+	_cacheOver = controller()->content()->grabForShowAnimation(params);
 
 	if (_updateTelegram) {
 		_updateTelegram->hide();
@@ -667,11 +671,11 @@ void Widget::startSlideAnimation() {
 	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer() const {
+QRect Widget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 
@@ -697,7 +701,7 @@ void Widget::escape() {
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
-	} else if (!_searchInChat && !App::main()->selectingPeer()) {
+	} else if (!_searchInChat && !controller()->content()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
 			emit cancelled();
 		}
@@ -706,8 +710,10 @@ void Widget::escape() {
 
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
 	if (!mayBlock) {
-		_loadMoreChats.destroy();
-		updateControlsGeometry();
+		if (_loadMoreChats) {
+			_loadMoreChats.destroy();
+			updateControlsGeometry();
+		}
 		return;
 	}
 	if (!_loadMoreChats) {
@@ -763,7 +769,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 	auto q = _filter->getLastText().trimmed();
 	if (q.isEmpty() && !_searchFromUser) {
 		cancelSearchRequest();
-		MTP::cancel(base::take(_peerSearchRequest));
+		session().api().request(base::take(_peerSearchRequest)).cancel();
 		return true;
 	}
 	if (searchCache) {
@@ -832,33 +838,39 @@ bool Widget::onSearchMessages(bool searchCache) {
 				return _searchRequest;
 			});
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	_searchRequest = MTP::send(
-		//		MTPchannels_SearchFeed(
-		//			MTP_int(feed->id()),
-		//			MTP_string(_searchQuery),
-		//			MTP_int(0),
-		//			MTP_inputPeerEmpty(),
-		//			MTP_int(0),
-		//			MTP_int(SearchPerPage)),
-		//		rpcDone(&Widget::searchReceived, SearchRequestType::FromStart),
-		//		rpcFail(&Widget::searchFailed, SearchRequestType::FromStart));
+		//	const auto type = SearchRequestType::FromStart;
+		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
+		//		MTP_int(feed->id()),
+		//		MTP_string(_searchQuery),
+		//		MTP_int(0),
+		//		MTP_inputPeerEmpty(),
+		//		MTP_int(0),
+		//		MTP_int(SearchPerPage)
+		//	)).done([=](const MTPmessages_Messages &result) {
+		//		searchReceived(type, result, _searchRequest);
+		//	}).fail([=](const RPCError &error) {
+		//		searchFailed(type, error, _searchRequest);
+		//	}).send();
 		//	_searchQueries.insert(_searchRequest, _searchQuery);
 		} else {
+			const auto type = SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
 				? MTPmessages_SearchGlobal::Flag::f_folder_id
 				: MTPmessages_SearchGlobal::Flag(0);
 			const auto folderId = 0;
-			_searchRequest = MTP::send(
-				MTPmessages_SearchGlobal(
-					MTP_flags(flags),
-					MTP_int(folderId),
-					MTP_string(_searchQuery),
-					MTP_int(0),
-					MTP_inputPeerEmpty(),
-					MTP_int(0),
-					MTP_int(SearchPerPage)),
-				rpcDone(&Widget::searchReceived, SearchRequestType::FromStart),
-				rpcFail(&Widget::searchFailed, SearchRequestType::FromStart));
+			_searchRequest = session().api().request(MTPmessages_SearchGlobal(
+				MTP_flags(flags),
+				MTP_int(folderId),
+				MTP_string(_searchQuery),
+				MTP_int(0),
+				MTP_inputPeerEmpty(),
+				MTP_int(0),
+				MTP_int(SearchPerPage)
+			)).done([=](const MTPmessages_Messages &result) {
+				searchReceived(type, result, _searchRequest);
+			}).fail([=](const RPCError &error) {
+				searchFailed(type, error, _searchRequest);
+			}).send();
 			_searchQueries.insert(_searchRequest, _searchQuery);
 		}
 	}
@@ -875,12 +887,14 @@ bool Widget::onSearchMessages(bool searchCache) {
 		} else if (_peerSearchQuery != query) {
 			_peerSearchQuery = query;
 			_peerSearchFull = false;
-			_peerSearchRequest = MTP::send(
-				MTPcontacts_Search(
-					MTP_string(_peerSearchQuery),
-					MTP_int(SearchPeopleLimit)),
-				rpcDone(&Widget::peerSearchReceived),
-				rpcFail(&Widget::peopleFailed));
+			_peerSearchRequest = session().api().request(MTPcontacts_Search(
+				MTP_string(_peerSearchQuery),
+				MTP_int(SearchPeopleLimit)
+			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
+				peerSearchReceived(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				peopleFailed(error, requestId);
+			}).send();
 			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
 		}
 	} else {
@@ -945,7 +959,7 @@ void Widget::searchMessages(
 		_searchTimer.stop();
 		onSearchMessages();
 
-		Local::saveRecentSearchHashtags(query);
+		session().local().saveRecentSearchHashtags(query);
 	}
 	if (inChat && from) {
 		setSearchInChat(inChat, from);
@@ -1002,39 +1016,49 @@ void Widget::onSearchMore() {
 				return _searchRequest;
 			});
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	_searchRequest = MTP::send(
-		//		MTPchannels_SearchFeed(
-		//			MTP_int(feed->id()),
-		//			MTP_string(_searchQuery),
-		//			MTP_int(offsetDate),
-		//			offsetPeer
-		//				? offsetPeer->input
-		//				: MTP_inputPeerEmpty(),
-		//			MTP_int(offsetId),
-		//			MTP_int(SearchPerPage)),
-		//		rpcDone(&Widget::searchReceived, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart),
-		//		rpcFail(&Widget::searchFailed, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart));
+		//	const auto type = offsetId
+		//		? SearchRequestType::FromOffset
+		//		: SearchRequestType::FromStart;
+		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
+		//		MTP_int(feed->id()),
+		//		MTP_string(_searchQuery),
+		//		MTP_int(offsetDate),
+		//		offsetPeer
+		//			? offsetPeer->input
+		//			: MTP_inputPeerEmpty(),
+		//		MTP_int(offsetId),
+		//		MTP_int(SearchPerPage)),
+		//	)).done([=](const MTPmessages_Messages &result) {
+		//		searchReceived(type, result, _searchRequest);
+		//	}).fail([=](const RPCError &error) {
+		//		searchFailed(type, error, _searchRequest);
+		//	}).send();
 		//	if (!offsetId) {
 		//		_searchQueries.insert(_searchRequest, _searchQuery);
 		//	}
 		} else {
+			const auto type = offsetId
+				? SearchRequestType::FromOffset
+				: SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
 				? MTPmessages_SearchGlobal::Flag::f_folder_id
 				: MTPmessages_SearchGlobal::Flag(0);
 			const auto folderId = 0;
-			_searchRequest = MTP::send(
-				MTPmessages_SearchGlobal(
-					MTP_flags(flags),
-					MTP_int(folderId),
-					MTP_string(_searchQuery),
-					MTP_int(_searchNextRate),
-					offsetPeer
-						? offsetPeer->input
-						: MTP_inputPeerEmpty(),
-					MTP_int(offsetId),
-					MTP_int(SearchPerPage)),
-				rpcDone(&Widget::searchReceived, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart),
-				rpcFail(&Widget::searchFailed, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart));
+			_searchRequest = session().api().request(MTPmessages_SearchGlobal(
+				MTP_flags(flags),
+				MTP_int(folderId),
+				MTP_string(_searchQuery),
+				MTP_int(_searchNextRate),
+				offsetPeer
+					? offsetPeer->input
+					: MTP_inputPeerEmpty(),
+				MTP_int(offsetId),
+				MTP_int(SearchPerPage)
+			)).done([=](const MTPmessages_Messages &result) {
+				searchReceived(type, result, _searchRequest);
+			}).fail([=](const RPCError &error) {
+				searchFailed(type, error, _searchRequest);
+			}).send();
 			if (!offsetId) {
 				_searchQueries.insert(_searchRequest, _searchQuery);
 			}
@@ -1219,12 +1243,10 @@ void Widget::peerSearchReceived(
 	}
 }
 
-bool Widget::searchFailed(
+void Widget::searchFailed(
 		SearchRequestType type,
 		const RPCError &error,
 		mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
 	if (_searchRequest == requestId) {
 		_searchRequest = 0;
 		if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
@@ -1233,23 +1255,21 @@ bool Widget::searchFailed(
 			_searchFull = true;
 		}
 	}
-	return true;
 }
 
-bool Widget::peopleFailed(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (_peerSearchRequest == req) {
+void Widget::peopleFailed(const RPCError &error, mtpRequestId requestId) {
+	if (_peerSearchRequest == requestId) {
 		_peerSearchRequest = 0;
 		_peerSearchFull = true;
 	}
-	return true;
 }
 
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
 
-	if (App::main()->selectingPeer()) return;
+	if (controller()->content()->selectingPeer()) {
+		return;
+	}
 
 	const auto data = e->mimeData();
 	_dragInScroll = false;
@@ -1301,9 +1321,9 @@ void Widget::updateDragInScroll(bool inScroll) {
 	if (_dragInScroll != inScroll) {
 		_dragInScroll = inScroll;
 		if (_dragInScroll) {
-			App::main()->showForwardLayer({});
+			controller()->content()->showForwardLayer({});
 		} else {
-			App::main()->dialogsCancelled();
+			controller()->content()->dialogsCancelled();
 		}
 	}
 }
@@ -1313,7 +1333,9 @@ void Widget::dropEvent(QDropEvent *e) {
 	if (_scroll->geometry().contains(e->pos())) {
 		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
-			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
+			controller()->content()->onFilesOrForwardDrop(
+				peer->id,
+				e->mimeData());
 			controller()->widget()->activateWindow();
 		}
 	}
@@ -1562,8 +1584,7 @@ void Widget::updateControlsGeometry() {
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
-	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
-	auto newScrollTop = _scroll->scrollTop() + addToScroll;
+	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
 		if (button && !button->isHidden()) {
@@ -1582,9 +1603,9 @@ void Widget::updateControlsGeometry() {
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
 	_inner->resize(width(), _inner->height());
 	if (scrollHeight != wasScrollHeight) {
-		controller()->floatPlayerAreaUpdated().notify(true);
+		controller()->floatPlayerAreaUpdated();
 	}
-	if (addToScroll) {
+	if (_topDelta) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
 		onListScroll();
@@ -1595,14 +1616,16 @@ void Widget::updateControlsGeometry() {
 }
 
 void Widget::updateForwardBar() {
-	auto selecting = App::main()->selectingPeer();
+	auto selecting = controller()->content()->selectingPeer();
 	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
 	if (!oneColumnSelecting == !_forwardCancel) {
 		return;
 	}
 	if (oneColumnSelecting) {
 		_forwardCancel.create(this, st::dialogsForwardCancel);
-		_forwardCancel->setClickedCallback([] { Global::RefPeerChooseCancel().notify(true); });
+		_forwardCancel->setClickedCallback([] {
+			Global::RefPeerChooseCancel().notify(true);
+		});
 		if (!_a_show.animating()) _forwardCancel->show();
 	} else {
 		_forwardCancel.destroyDelayed();
@@ -1702,15 +1725,8 @@ void Widget::scrollToEntry(const RowDescriptor &entry) {
 	_inner->scrollToEntry(entry);
 }
 
-void Widget::removeDialog(Key key) {
-	_inner->removeDialog(key);
-}
-
 void Widget::cancelSearchRequest() {
-	if (_searchRequest) {
-		MTP::cancel(_searchRequest);
-		_searchRequest = 0;
-	}
+	session().api().request(base::take(_searchRequest)).cancel();
 	if (_searchInHistoryRequest) {
 		session().data().histories().cancelRequest(_searchInHistoryRequest);
 		_searchInHistoryRequest = 0;
@@ -1743,7 +1759,7 @@ bool Widget::onCancelSearch() {
 void Widget::onCancelSearchInChat() {
 	cancelSearchRequest();
 	if (_searchInChat) {
-		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
+		if (Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 			//} else if (const auto feed = _searchInChat.feed()) { // #feed
@@ -1758,7 +1774,7 @@ void Widget::onCancelSearchInChat() {
 	_filter->clear();
 	_filter->updatePlaceholder();
 	applyFilterUpdate();
-	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
+	if (!Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
 		emit cancelled();
 	}
 }

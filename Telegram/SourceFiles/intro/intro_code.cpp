@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/confirm_box.h"
+#include "main/main_account.h"
+#include "mtproto/mtp_instance.h"
 #include "app.h"
 #include "styles/style_intro.h"
 
@@ -201,7 +203,7 @@ void CodeWidget::finished() {
 	Step::finished();
 	_checkRequestTimer.cancel();
 	_callTimer.cancel();
-	rpcInvalidate();
+	apiClear();
 
 	cancelled();
 	_sentCode.clear();
@@ -209,9 +211,12 @@ void CodeWidget::finished() {
 }
 
 void CodeWidget::cancelled() {
-	MTP::cancel(base::take(_sentRequest));
-	MTP::cancel(base::take(_callRequestId));
-	MTP::send(MTPauth_CancelCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)));
+	api().request(base::take(_sentRequest)).cancel();
+	api().request(base::take(_callRequestId)).cancel();
+	api().request(MTPauth_CancelCode(
+		MTP_string(getData()->phone),
+		MTP_bytes(getData()->phoneHash)
+	)).send();
 }
 
 void CodeWidget::stopCheck() {
@@ -219,12 +224,12 @@ void CodeWidget::stopCheck() {
 }
 
 void CodeWidget::checkRequest() {
-	auto status = MTP::state(_sentRequest);
+	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
 			if (_sentRequest) {
-				MTP::cancel(base::take(_sentRequest));
+				api().request(base::take(_sentRequest)).cancel();
 				_sentCode.clear();
 			}
 		}
@@ -243,7 +248,6 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 			showError(rpl::single(Lang::Hard::ServerError()));
 			return;
 		}
-		cSetLoggedPhoneNumber(getData()->phone);
 		finish(data.vuser());
 	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
 		if (const auto terms = data.vterms_of_service()) {
@@ -255,18 +259,17 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 		} else {
 			getData()->termsLock = Window::TermsLock();
 		}
-		goReplace<SignupWidget>();
+		goReplace<SignupWidget>(Animate::Forward);
 	});
 }
 
-bool CodeWidget::codeSubmitFail(const RPCError &error) {
+void CodeWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
 		showCodeError(tr::lng_flood_error());
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
 	_sentRequest = 0;
@@ -275,24 +278,21 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		|| err == qstr("PHONE_CODE_EXPIRED")
 		|| err == qstr("PHONE_NUMBER_BANNED")) { // show error
 		goBack();
-		return true;
 	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
 		showCodeError(tr::lng_bad_code());
-		return true;
 	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
 		_checkRequestTimer.callEach(1000);
-		_sentRequest = MTP::send(
-			MTPaccount_GetPassword(),
-			rpcDone(&CodeWidget::gotPassword),
-			rpcFail(&CodeWidget::codeSubmitFail));
-		return true;
-	}
-	if (Logs::DebugEnabled()) { // internal server error
+		_sentRequest = api().request(MTPaccount_GetPassword(
+		)).done([=](const MTPaccount_Password &result) {
+			gotPassword(result);
+		}).fail([=](const RPCError &error) {
+			codeSubmitFail(error);
+		}).handleFloodErrors().send();
+	} else if (Logs::DebugEnabled()) { // internal server error
 		showCodeError(rpl::single(err + ": " + error.description()));
 	} else {
 		showCodeError(rpl::single(Lang::Hard::ServerError()));
 	}
-	return false;
 }
 
 void CodeWidget::codeChanged() {
@@ -305,11 +305,12 @@ void CodeWidget::sendCall() {
 		if (--_callTimeout <= 0) {
 			_callStatus = CallStatus::Calling;
 			_callTimer.cancel();
-			_callRequestId = MTP::send(
-				MTPauth_ResendCode(
-					MTP_string(getData()->phone),
-					MTP_bytes(getData()->phoneHash)),
-				rpcDone(&CodeWidget::callDone));
+			_callRequestId = api().request(MTPauth_ResendCode(
+				MTP_string(getData()->phone),
+				MTP_bytes(getData()->phoneHash)
+			)).done([=](const MTPauth_SentCode &result) {
+				callDone(result);
+			}).send();
 		} else {
 			getData()->callStatus = _callStatus;
 			getData()->callTimeout = _callTimeout;
@@ -357,7 +358,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	getData()->hasRecovery = d.is_has_recovery();
 	getData()->pwdHint = qs(d.vhint().value_or_empty());
 	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
-	goReplace<PasswordCheckWidget>();
+	goReplace<PasswordCheckWidget>(Animate::Forward);
 }
 
 void CodeWidget::submit() {
@@ -382,25 +383,29 @@ void CodeWidget::submit() {
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
 	getData()->pwdNotEmptyPassport = false;
-	_sentRequest = MTP::send(
-		MTPauth_SignIn(
-			MTP_string(getData()->phone),
-			MTP_bytes(getData()->phoneHash),
-			MTP_string(_sentCode)),
-		rpcDone(&CodeWidget::codeSubmitDone),
-		rpcFail(&CodeWidget::codeSubmitFail));
+	_sentRequest = api().request(MTPauth_SignIn(
+		MTP_string(getData()->phone),
+		MTP_bytes(getData()->phoneHash),
+		MTP_string(_sentCode)
+	)).done([=](const MTPauth_Authorization &result) {
+		codeSubmitDone(result);
+	}).fail([=](const RPCError &error) {
+		codeSubmitFail(error);
+	}).handleFloodErrors().send();
 }
 
 void CodeWidget::noTelegramCode() {
 	if (_noTelegramCodeRequestId) {
 		return;
 	}
-	_noTelegramCodeRequestId = MTP::send(
-		MTPauth_ResendCode(
-			MTP_string(getData()->phone),
-			MTP_bytes(getData()->phoneHash)),
-		rpcDone(&CodeWidget::noTelegramCodeDone),
-		rpcFail(&CodeWidget::noTelegramCodeFail));
+	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
+		MTP_string(getData()->phone),
+		MTP_bytes(getData()->phoneHash)
+	)).done([=](const MTPauth_SentCode &result) {
+		noTelegramCodeDone(result);
+	}).fail([=](const RPCError &error) {
+		noTelegramCodeFail(error);
+	}).handleFloodErrors().send();
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
@@ -426,14 +431,11 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	updateDescText();
 }
 
-bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
+void CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_noTelegramCodeRequestId = 0;
 		showCodeError(tr::lng_flood_error());
-		return true;
-	}
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
+		return;
 	}
 
 	_noTelegramCodeRequestId = 0;
@@ -442,7 +444,6 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	} else {
 		showCodeError(rpl::single(Lang::Hard::ServerError()));
 	}
-	return false;
 }
 
 } // namespace details

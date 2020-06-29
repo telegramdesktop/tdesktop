@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dedicated_file_loader.h"
 
 #include "mtproto/facade.h"
-#include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_session.h" // Session::account.
 #include "core/application.h"
 #include "base/call_delayed.h"
 
@@ -82,17 +82,19 @@ std::optional<DedicatedLoader::File> ParseFile(
 
 } // namespace
 
-WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
-: _instance(instance) {
+WeakInstance::WeakInstance(base::weak_ptr<Main::Session> session)
+: _session(session)
+, _instance(_session ? &_session->account().mtp() : nullptr) {
 	if (!valid()) {
 		return;
 	}
 
 	connect(_instance, &QObject::destroyed, this, [=] {
 		_instance = nullptr;
+		_session = nullptr;
 		die();
 	});
-	Core::App().activeAccount().sessionChanges(
+	_session->account().sessionChanges(
 	) | rpl::filter([](Main::Session *session) {
 		return !session;
 	}) | rpl::start_with_next([=] {
@@ -100,19 +102,22 @@ WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
 	}, _lifetime);
 }
 
-bool WeakInstance::valid() const {
-	return (_instance != nullptr) && Main::Session::Exists();
+base::weak_ptr<Main::Session> WeakInstance::session() const {
+	return _session;
 }
 
-QPointer<MTP::Instance> WeakInstance::instance() const {
+bool WeakInstance::valid() const {
+	return (_session != nullptr);
+}
+
+Instance *WeakInstance::instance() const {
 	return _instance;
 }
 
 void WeakInstance::die() {
-	const auto instance = _instance.data();
 	for (const auto &[requestId, fail] : base::take(_requests)) {
-		if (instance) {
-			instance->cancel(requestId);
+		if (_instance) {
+			_instance->cancel(requestId);
 		}
 		fail(RPCError::Local(
 			"UNAVAILABLE",
@@ -138,9 +143,9 @@ void WeakInstance::reportUnavailable(
 }
 
 WeakInstance::~WeakInstance() {
-	if (const auto instance = _instance.data()) {
+	if (_instance) {
 		for (const auto &[requestId, fail] : base::take(_requests)) {
-			instance->cancel(requestId);
+			_instance->cancel(requestId);
 		}
 	}
 }
@@ -280,14 +285,14 @@ rpl::lifetime &AbstractDedicatedLoader::lifetime() {
 }
 
 DedicatedLoader::DedicatedLoader(
-	QPointer<MTP::Instance> instance,
+	base::weak_ptr<Main::Session> session,
 	const QString &folder,
 	const File &file)
 : AbstractDedicatedLoader(folder + '/' + file.name, kChunkSize)
 , _size(file.size)
 , _dcId(file.dcId)
 , _location(file.location)
-, _mtp(instance) {
+, _mtp(session) {
 	Expects(_size > 0);
 }
 
@@ -373,20 +378,21 @@ void ResolveChannel(
 			).arg(username));
 		fail();
 	};
-	if (!Main::Session::Exists()) {
+	const auto session = mtp->session();
+	if (!mtp->valid()) {
 		failed();
 		return;
 	}
 
 	struct ResolveResult {
-		base::weak_ptr<Main::Session> auth;
+		base::weak_ptr<Main::Session> session;
 		MTPInputChannel channel;
 	};
 	static std::map<QString, ResolveResult> ResolveCache;
 
 	const auto i = ResolveCache.find(username);
 	if (i != end(ResolveCache)) {
-		if (i->second.auth.get() == &Auth()) {
+		if (i->second.session.get() == session.get()) {
 			done(i->second.channel);
 			return;
 		}
@@ -399,7 +405,7 @@ void ResolveChannel(
 		if (const auto channel = ExtractChannel(result)) {
 			ResolveCache.emplace(
 				username,
-				ResolveResult { base::make_weak(&Auth()), *channel });
+				ResolveResult { session, *channel });
 			done(*channel);
 		} else {
 			failed();
@@ -436,7 +442,7 @@ void StartDedicatedLoader(
 		const auto file = ParseFile(result);
 		ready(file
 			? std::make_unique<MTP::DedicatedLoader>(
-				mtp->instance(),
+				mtp->session(),
 				folder,
 				*file)
 			: nullptr);

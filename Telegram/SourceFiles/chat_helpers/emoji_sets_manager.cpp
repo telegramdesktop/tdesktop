@@ -51,7 +51,7 @@ using SetState = BlobState;
 class Loader final : public BlobLoader {
 public:
 	Loader(
-		QObject *parent,
+		not_null<Main::Session*> session,
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,
@@ -67,16 +67,18 @@ private:
 
 class Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent);
+	Inner(QWidget *parent, not_null<Main::Session*> session);
 
 private:
 	void setupContent();
+
+	const not_null<Main::Session*> _session;
 
 };
 
 class Row : public Ui::RippleButton {
 public:
-	Row(QWidget *widget, const Set &set);
+	Row(QWidget *widget, not_null<Main::Session*> session, const Set &set);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -98,6 +100,7 @@ private:
 	void radialAnimationCallback(crl::time now);
 	void updateLoadingToFinished();
 
+	const not_null<Main::Session*> _session;
 	int _id = 0;
 	bool _switching = false;
 	rpl::variable<SetState> _state;
@@ -160,12 +163,12 @@ bool UnpackSet(const QString &path, const QString &folder) {
 
 
 Loader::Loader(
-	QObject *parent,
+	not_null<Main::Session*> session,
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
 	int size)
-: BlobLoader(parent, id, location, folder, size) {
+: BlobLoader(nullptr, session, id, location, folder, size) {
 }
 
 void Loader::unpack(const QString &path) {
@@ -200,7 +203,9 @@ void Loader::fail() {
 	BlobLoader::fail();
 }
 
-Inner::Inner(QWidget *parent) : RpWidget(parent) {
+Inner::Inner(QWidget *parent, not_null<Main::Session*> session)
+: RpWidget(parent)
+, _session(session) {
 	setupContent();
 }
 
@@ -208,15 +213,16 @@ void Inner::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	for (const auto &set : kSets) {
-		content->add(object_ptr<Row>(content, set));
+		content->add(object_ptr<Row>(content, _session, set));
 	}
 
 	content->resizeToWidth(st::boxWidth);
 	Ui::ResizeFitChild(this, content);
 }
 
-Row::Row(QWidget *widget, const Set &set)
+Row::Row(QWidget *widget, not_null<Main::Session*> session, const Set &set)
 : RippleButton(widget, st::contactsRipple)
+, _session(session)
 , _id(set.id)
 , _state(Available{ set.size }) {
 	setupContent(set);
@@ -411,7 +417,7 @@ void Row::setupHandler() {
 }
 
 void Row::load() {
-	LoadAndSwitchTo(_id);
+	LoadAndSwitchTo(_session, _id);
 }
 
 void Row::setupLabels(const Set &set) {
@@ -530,11 +536,12 @@ void Row::setupAnimation() {
 
 } // namespace
 
-ManageSetsBox::ManageSetsBox(QWidget*) {
+ManageSetsBox::ManageSetsBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
 }
 
 void ManageSetsBox::prepare() {
-	const auto inner = setInnerWidget(object_ptr<Inner>(this));
+	const auto inner = setInnerWidget(object_ptr<Inner>(this, _session));
 
 	setTitle(tr::lng_emoji_manage_sets());
 
@@ -543,15 +550,13 @@ void ManageSetsBox::prepare() {
 	setDimensionsToContent(st::boxWidth, inner);
 }
 
-void LoadAndSwitchTo(int id) {
-	Expects(App::main() != nullptr);
-
+void LoadAndSwitchTo(not_null<Main::Session*> session, int id) {
 	if (!ranges::contains(kSets, id, &Set::id)) {
 		ClearNeedSwitchToId();
 		return;
 	}
 	SetGlobalLoader(base::make_unique_q<Loader>(
-		App::main(),
+		session,
 		id,
 		GetDownloadLocation(id),
 		internal::SetDataPath(id),

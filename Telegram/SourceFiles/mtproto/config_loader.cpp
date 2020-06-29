@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/special_config_request.h"
 #include "mtproto/facade.h"
-#include "mtproto/dc_options.h"
+#include "mtproto/mtproto_dc_options.h"
+#include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
 #include "facades.h"
 
@@ -40,7 +41,7 @@ void ConfigLoader::load() {
 		sendRequest(_instance->mainDcId());
 		_enumDCTimer.callOnce(kEnumerateDcTimeout);
 	} else {
-		auto ids = _instance->dcOptions()->configEnumDcIds();
+		auto ids = _instance->dcOptions().configEnumDcIds();
 		Assert(!ids.empty());
 		_enumCurrent = ids.front();
 		enumerate();
@@ -87,7 +88,7 @@ void ConfigLoader::enumerate() {
 	if (!_enumCurrent) {
 		_enumCurrent = _instance->mainDcId();
 	}
-	auto ids = _instance->dcOptions()->configEnumDcIds();
+	auto ids = _instance->dcOptions().configEnumDcIds();
 	Assert(!ids.empty());
 
 	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);
@@ -135,7 +136,7 @@ void ConfigLoader::createSpecialLoader() {
 		} else {
 			addSpecialEndpoint(dcId, ip, port, secret);
 		}
-	}, _phone);
+	}, _instance->configValues().txtDomainString, _phone);
 }
 
 void ConfigLoader::addSpecialEndpoint(
@@ -180,7 +181,7 @@ void ConfigLoader::sendSpecialRequest() {
 	using Flag = MTPDdcOption::Flag;
 	const auto flags = Flag::f_tcpo_only
 		| (endpoint->secret.empty() ? Flag(0) : Flag::f_secret);
-	_instance->dcOptions()->constructAddOne(
+	_instance->dcOptions().constructAddOne(
 		_specialEnumCurrent,
 		flags,
 		endpoint->ip,
@@ -212,7 +213,7 @@ void ConfigLoader::specialConfigLoaded(const MTPConfig &result) {
 
 	// We use special config only for dc options.
 	// For everything else we wait for normal config from main dc.
-	_instance->dcOptions()->setFromList(data.vdc_options());
+	_instance->dcOptions().setFromList(data.vdc_options());
 }
 
 } // namespace details

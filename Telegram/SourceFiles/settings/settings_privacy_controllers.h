@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "mtproto/sender.h"
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Settings {
 
 class BlockedBoxController
@@ -168,7 +172,8 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	explicit ForwardsPrivacyController(not_null<::Main::Session*> session);
+	explicit ForwardsPrivacyController(
+		not_null<Window::SessionController*> controller);
 
 	Key key() override;
 	MTPInputPrivacyKey apiKey() override;
@@ -195,7 +200,7 @@ private:
 		not_null<HistoryView::Element*> view,
 		Option value);
 
-	const not_null<::Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 
 };
 

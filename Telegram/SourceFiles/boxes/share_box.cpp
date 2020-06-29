@@ -8,12 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 
 #include "dialogs/dialogs_indexed_list.h"
-#include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "base/qthelp_url.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "boxes/confirm_box.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
@@ -35,16 +34,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_changes.h"
 #include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
-class ShareBox::Inner
-	: public Ui::RpWidget
-	, public RPCSender
-	, private base::Subscriber {
+class ShareBox::Inner final : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
@@ -94,7 +91,6 @@ private:
 		Ui::Animations::Simple nameActive;
 	};
 
-	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void invalidateCache();
 
 	int displayedChatsCount() const;
@@ -163,6 +159,7 @@ ShareBox::ShareBox(
 	SubmitCallback &&submitCallback,
 	FilterCallback &&filterCallback)
 : _navigation(navigation)
+, _api(&_navigation->session().mtp())
 , _copyCallback(std::move(copyCallback))
 , _submitCallback(std::move(submitCallback))
 , _filterCallback(std::move(filterCallback))
@@ -202,13 +199,13 @@ void ShareBox::prepareCommentField() {
 
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		_navigation->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
-		DefaultEditLinkCallback(&_navigation->session(), field));
-	field->setSubmitSettings(_navigation->session().settings().sendSubmitWay());
+		DefaultEditLinkCallback(_navigation->parentController(), field));
+	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
-	InitSpellchecker(&_navigation->session(), field);
+	InitSpellchecker(_navigation->parentController(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
 
@@ -309,18 +306,20 @@ bool ShareBox::searchByUsername(bool searchCache) {
 			if (i != _peopleCache.cend()) {
 				_peopleQuery = query;
 				_peopleRequest = 0;
-				peopleReceived(i.value(), 0);
+				peopleDone(i.value(), 0);
 				return true;
 			}
 		} else if (_peopleQuery != query) {
 			_peopleQuery = query;
 			_peopleFull = false;
-			_peopleRequest = MTP::send(
-				MTPcontacts_Search(
-					MTP_string(_peopleQuery),
-					MTP_int(SearchPeopleLimit)),
-				rpcDone(&ShareBox::peopleReceived),
-				rpcFail(&ShareBox::peopleFailed));
+			_peopleRequest = _api.request(MTPcontacts_Search(
+				MTP_string(_peopleQuery),
+				MTP_int(SearchPeopleLimit)
+			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
+				peopleDone(result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				peopleFail(error, requestId);
+			}).send();
 			_peopleQueries.insert(_peopleRequest, _peopleQuery);
 		}
 	}
@@ -333,7 +332,7 @@ void ShareBox::needSearchByUsername() {
 	}
 }
 
-void ShareBox::peopleReceived(
+void ShareBox::peopleDone(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
@@ -364,14 +363,11 @@ void ShareBox::peopleReceived(
 	}
 }
 
-bool ShareBox::peopleFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void ShareBox::peopleFail(const RPCError &error, mtpRequestId requestId) {
 	if (_peopleRequest == requestId) {
 		_peopleRequest = 0;
 		_peopleFull = true;
 	}
-	return true;
 }
 
 void ShareBox::setInnerFocus() {
@@ -561,11 +557,19 @@ ShareBox::Inner::Inner(
 	_filter = qsl("a");
 	updateFilter();
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto observeEvents = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
-		notifyPeerUpdated(update);
-	}));
+	_navigation->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Photo
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		updateChat(update.peer);
+	}, lifetime());
+
+	_navigation->session().changes().realtimeNameUpdates(
+	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
+		_chatsIndexed->peerNameChanged(
+			update.peer,
+			update.oldFirstLetters);
+	}, lifetime());
+
 	subscribe(_navigation->session().downloaderTaskFinished(), [=] {
 		update();
 	});
@@ -617,16 +621,6 @@ void ShareBox::Inner::activateSkipColumn(int direction) {
 
 void ShareBox::Inner::activateSkipPage(int pageHeight, int direction) {
 	activateSkipRow(direction * (pageHeight / _rowHeight));
-}
-
-void ShareBox::Inner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
-	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
-		_chatsIndexed->peerNameChanged(
-			update.peer,
-			update.oldNameFirstLetters);
-	}
-
-	updateChat(update.peer);
 }
 
 void ShareBox::Inner::updateChat(not_null<PeerData*> peer) {
@@ -1101,7 +1095,7 @@ QString AppendShareGameScoreUrl(
 	*reinterpret_cast<uint64*>(shareHashEncrypted.data()) ^= *reinterpret_cast<uint64*>(channelAccessHashInts);
 
 	// Encrypt data.
-	if (!Local::encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
+	if (!session->local().encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
 		return url;
 	}
 
@@ -1137,7 +1131,7 @@ void ShareGameScoreByHash(
 
 	// Decrypt data.
 	auto hashData = QByteArray(hashEncrypted.size() - key128Size, Qt::Uninitialized);
-	if (!Local::decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
+	if (!session->local().decrypt(hashEncrypted.constData() + key128Size, hashData.data(), hashEncrypted.size() - key128Size, hashEncrypted.constData())) {
 		return;
 	}
 

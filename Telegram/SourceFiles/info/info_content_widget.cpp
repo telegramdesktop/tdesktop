@@ -214,11 +214,11 @@ void ContentWidget::scrollTo(const Ui::ScrollToRequest &request) {
 	_scroll->scrollTo(request);
 }
 
-bool ContentWidget::wheelEventFromFloatPlayer(QEvent *e) {
+bool ContentWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect ContentWidget::rectForFloatPlayer() const {
+QRect ContentWidget::floatPlayerAvailableRect() const {
 	return mapToGlobal(_scroll->geometry());
 }
 
@@ -262,8 +262,8 @@ void ContentWidget::refreshSearchField(bool shown) {
 }
 
 Key ContentMemento::key() const {
-	if (const auto peerId = this->peerId()) {
-		return Key(Auth().data().peer(peerId));
+	if (const auto peer = this->peer()) {
+		return Key(peer);
 	//} else if (const auto feed = this->feed()) { // #feed
 	//	return Key(feed);
 	} else if (const auto poll = this->poll()) {

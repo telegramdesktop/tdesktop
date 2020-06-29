@@ -16,13 +16,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
+#include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_message.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "ui/text/text_entity.h" // TextWithEntities.
+#include "ui/text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "storage/localimageloader.h"
+#include "storage/file_upload.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "app.h"
@@ -167,9 +172,7 @@ void SendExistingMedia(
 	};
 	performRequest();
 
-	if (const auto main = App::main()) {
-		main->finishForwarding(message.action);
-	}
+	api->finishForwarding(message.action);
 }
 
 } // namespace
@@ -190,10 +193,7 @@ void SendExistingDocument(
 		document->stickerOrGifOrigin());
 
 	if (document->sticker()) {
-		if (const auto main = App::main()) {
-			main->incrementSticker(document);
-			document->owner().notifyRecentStickersUpdated();
-		}
+		document->owner().stickers().incrementSticker(document);
 	}
 }
 
@@ -322,6 +322,7 @@ bool SendDice(Api::MessageToSend &message) {
 		).send();
 		return history->sendRequestId;
 	});
+	api->finishForwarding(message.action);
 	return true;
 }
 
@@ -330,6 +331,205 @@ void FillMessagePostFlags(
 		not_null<PeerData*> peer,
 		MTPDmessage::Flags &flags) {
 	InnerFillMessagePostFlags(action.options, peer, flags);
+}
+
+void SendConfirmedFile(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FileLoadResult> &file,
+		const std::optional<FullMsgId> &oldId) {
+	const auto isEditing = oldId.has_value();
+	const auto channelId = peerToChannel(file->to.peer);
+
+	const auto newId = oldId.value_or(
+		FullMsgId(channelId, session->data().nextLocalMessageId()));
+	auto groupId = file->album ? file->album->groupId : uint64(0);
+	if (file->album) {
+		const auto proj = [](const SendingAlbum::Item &item) {
+			return item.taskId;
+		};
+		const auto it = ranges::find(file->album->items, file->taskId, proj);
+		Assert(it != file->album->items.end());
+
+		it->msgId = newId;
+	}
+	file->edit = isEditing;
+	session->uploader().upload(newId, file);
+
+	const auto itemToEdit = isEditing
+		? session->data().message(newId)
+		: nullptr;
+
+	const auto history = session->data().history(file->to.peer);
+	const auto peer = history->peer;
+
+	auto action = Api::SendAction(history);
+	action.options = file->to.options;
+	action.clearDraft = false;
+	action.replyTo = file->to.replyTo;
+	action.generateLocal = true;
+	session->api().sendAction(action);
+
+	auto caption = TextWithEntities{
+		file->caption.text,
+		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
+	};
+	const auto prepareFlags = Ui::ItemTextOptions(
+		history,
+		session->user()).flags;
+	TextUtilities::PrepareForSending(caption, prepareFlags);
+	TextUtilities::Trim(caption);
+	auto localEntities = Api::EntitiesToMTP(session, caption.entities);
+
+	if (itemToEdit) {
+		if (const auto id = itemToEdit->groupId()) {
+			groupId = id.value;
+		}
+	}
+
+	auto flags = (isEditing ? MTPDmessage::Flags() : NewMessageFlags(peer))
+		| MTPDmessage::Flag::f_entities
+		| MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
+	if (file->to.replyTo) {
+		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+	}
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = file->to.options.silent;
+	Api::FillMessagePostFlags(action, peer, flags);
+	if (silentPost) {
+		flags |= MTPDmessage::Flag::f_silent;
+	}
+	if (groupId) {
+		flags |= MTPDmessage::Flag::f_grouped_id;
+	}
+	if (file->to.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
+
+	const auto messageFromId = channelPost ? 0 : session->userId();
+	const auto messagePostAuthor = channelPost
+		? session->user()->name
+		: QString();
+
+	if (file->type == SendMediaType::Photo) {
+		const auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
+		const auto photo = MTP_messageMediaPhoto(
+			MTP_flags(photoFlags),
+			file->photo,
+			MTPint());
+
+		const auto mtpMessage = MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(file->to.peer),
+			MTPMessageFwdHeader(),
+			MTPint(),
+			MTP_int(file->to.replyTo),
+			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
+			MTP_string(caption.text),
+			photo,
+			MTPReplyMarkup(),
+			localEntities,
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTP_long(groupId),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>());
+
+		if (itemToEdit) {
+			itemToEdit->savePreviousMedia();
+			itemToEdit->applyEdition(mtpMessage.c_message());
+		} else {
+			history->addNewMessage(
+				mtpMessage,
+				clientFlags,
+				NewMessageType::Unread);
+		}
+	} else if (file->type == SendMediaType::File) {
+		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
+		const auto document = MTP_messageMediaDocument(
+			MTP_flags(documentFlags),
+			file->document,
+			MTPint());
+
+		const auto mtpMessage = MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(file->to.peer),
+			MTPMessageFwdHeader(),
+			MTPint(),
+			MTP_int(file->to.replyTo),
+			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
+			MTP_string(caption.text),
+			document,
+			MTPReplyMarkup(),
+			localEntities,
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTP_long(groupId),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>());
+
+		if (itemToEdit) {
+			itemToEdit->savePreviousMedia();
+			itemToEdit->applyEdition(mtpMessage.c_message());
+		} else {
+			history->addNewMessage(
+				mtpMessage,
+				clientFlags,
+				NewMessageType::Unread);
+		}
+	} else if (file->type == SendMediaType::Audio) {
+		if (!peer->isChannel() || peer->isMegagroup()) {
+			flags |= MTPDmessage::Flag::f_media_unread;
+		}
+		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
+		const auto document = MTP_messageMediaDocument(
+			MTP_flags(documentFlags),
+			file->document,
+			MTPint());
+		history->addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(newId.msg),
+				MTP_int(messageFromId),
+				peerToMTP(file->to.peer),
+				MTPMessageFwdHeader(),
+				MTPint(),
+				MTP_int(file->to.replyTo),
+				MTP_int(
+					HistoryItem::NewMessageDate(file->to.options.scheduled)),
+				MTP_string(caption.text),
+				document,
+				MTPReplyMarkup(),
+				localEntities,
+				MTP_int(1),
+				MTPint(),
+				MTP_string(messagePostAuthor),
+				MTP_long(groupId),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
+			clientFlags,
+			NewMessageType::Unread);
+		// Voices can't be edited.
+	} else {
+		Unexpected("Type in sendFilesConfirmed.");
+	}
+
+	if (isEditing) {
+		return;
+	}
+
+	session->data().sendHistoryChangeNotifications();
+	session->changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::MessageSent);
 }
 
 } // namespace Api

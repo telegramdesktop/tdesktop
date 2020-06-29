@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_changes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
@@ -24,13 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
-#include "apiwrap.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
-#include "observer_peer.h"
 #include "history/view/history_view_cursor_state.h"
 #include "facades.h"
 #include "app.h"
@@ -50,7 +49,7 @@ constexpr auto kInlineBotRequestDelay = 400;
 Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
@@ -67,15 +66,18 @@ Inner::Inner(
 			update();
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::RightsChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _inlineQueryPeer) {
-			auto isRestricted = (_restrictedLabel != nullptr);
-			if (isRestricted != isRestrictedView()) {
-				auto h = countHeight();
-				if (h != height()) resize(width(), h);
-			}
+
+	_controller->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		return (update.peer.get() == _inlineQueryPeer);
+	}) | rpl::start_with_next([=] {
+		auto isRestricted = (_restrictedLabel != nullptr);
+		if (isRestricted != isRestrictedView()) {
+			auto h = countHeight();
+			if (h != height()) resize(width(), h);
 		}
-	}));
+	}, lifetime());
 }
 
 void Inner::visibleTopBottomUpdated(
@@ -744,7 +746,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _api(_controller->session().api().instance())
+, _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {
@@ -1019,26 +1021,27 @@ bool Widget::overlaps(const QRect &globalRect) const {
 }
 
 void Widget::inlineBotChanged() {
-	if (!_inlineBot) return;
+	if (!_inlineBot) {
+		return;
+	}
 
 	if (!isHidden() && !_hiding) {
 		hideAnimated();
 	}
 
-	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
-	_inlineRequestId = 0;
+	_api.request(base::take(_inlineRequestId)).cancel();
 	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
 	_inlineBot = nullptr;
 	_inlineCache.clear();
 	_inner->inlineBotChanged();
 	_inner->hideInlineRowsPanel();
 
-	Notify::inlineBotRequesting(false);
+	_requesting.fire(false);
 }
 
 void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
-	Notify::inlineBotRequesting(false);
+	_requesting.fire(false);
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
@@ -1102,9 +1105,9 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {
-			MTP::cancel(_inlineRequestId);
+			_api.request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
-			Notify::inlineBotRequesting(false);
+			_requesting.fire(false);
 		}
 		if (_inlineCache.find(query) != _inlineCache.cend()) {
 			_inlineRequestTimer.stop();
@@ -1129,7 +1132,7 @@ void Widget::onInlineRequest() {
 			return;
 		}
 	}
-	Notify::inlineBotRequesting(true);
+	_requesting.fire(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_inlineBot->inputUser,
@@ -1141,7 +1144,7 @@ void Widget::onInlineRequest() {
 		inlineResultsDone(result);
 	}).fail([=](const RPCError &error) {
 		// show error?
-		Notify::inlineBotRequesting(false);
+		_requesting.fire(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 }

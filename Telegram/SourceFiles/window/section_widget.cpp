@@ -84,17 +84,20 @@ QPixmap SectionWidget::grabForShowAnimation(
 	return Ui::GrabWidget(this);
 }
 
-void SectionWidget::PaintBackground(not_null<QWidget*> widget, QRect clip) {
+void SectionWidget::PaintBackground(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> widget,
+		QRect clip) {
 	Painter p(widget);
 
-	auto fill = QRect(0, 0, widget->width(), App::main()->height());
+	auto fill = QRect(0, 0, widget->width(), controller->content()->height());
 	if (const auto color = Window::Theme::Background()->colorForFill()) {
 		p.fillRect(fill, *color);
 		return;
 	}
-	auto fromy = App::main()->backgroundFromY();
+	auto fromy = controller->content()->backgroundFromY();
 	auto x = 0, y = 0;
-	auto cached = App::main()->cachedBackground(fill, x, y);
+	auto cached = controller->content()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
 		if (Window::Theme::Background()->tile()) {
 			auto &pix = Window::Theme::Background()->pixmapForTiled();

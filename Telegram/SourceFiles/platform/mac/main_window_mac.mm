@@ -17,12 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
-#include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_account.h"
+#include "main/main_domain.h" // Domain::activeSessionValue
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "window/themes/window_theme.h"
 #include "platform/mac/mac_touchbar.h"
 #include "platform/platform_notifications_manager.h"
@@ -195,7 +197,7 @@ private:
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
-	Notify::unreadCounterUpdated();
+	Core::App().domain().notifyUnreadBadgeChanged();
 }
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
@@ -476,26 +478,38 @@ void MainWindow::initTouchBar() {
 	if (!IsMac10_13OrGreater()) {
 		return;
 	}
+	[NSApplication sharedApplication]
+		.automaticCustomizeTouchBarMenuItemEnabled = true;
+	const auto createNewTouchBar = [=](not_null<Main::Session*> session) {
+		if (_private->_touchBar) {
+			return;
+		}
+		if (auto view = reinterpret_cast<NSView*>(winId())) {
+			_private->_touchBar = [[TouchBar alloc]
+				init:view
+				session:session];
+		}
+	};
 
-	account().sessionValue(
+	Core::App().domain().activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
-			// We need only common pinned dialogs.
-			if (!_private->_touchBar) {
-				if (auto view = reinterpret_cast<NSView*>(winId())) {
-					// Create TouchBar.
-					[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-					_private->_touchBar = [[TouchBar alloc] init:view];
-				}
-			}
-		} else {
 			if (_private->_touchBar) {
-				[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
-				[_private->_touchBar release];
+				destroyCurrentTouchBar();
 			}
-			_private->_touchBar = nil;
+			createNewTouchBar(session);
+		} else {
+			destroyCurrentTouchBar();
 		}
 	}, lifetime());
+}
+
+void MainWindow::destroyCurrentTouchBar() {
+	if (_private->_touchBar) {
+		[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
+		[_private->_touchBar release];
+	}
+	_private->_touchBar = nil;
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -681,7 +695,10 @@ void MainWindow::createGlobalMenu() {
 	prefs->setMenuRole(QAction::PreferencesRole);
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
-	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now), App::wnd(), SLOT(onLogout()));
+	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now));
+	connect(psLogout, &QAction::triggered, psLogout, [] {
+		if (App::wnd()) App::wnd()->showLogoutConfirmation();
+	});
 
 	QMenu *edit = psMainMenu.addMenu(tr::lng_mac_menu_edit(tr::now));
 	psUndo = edit->addAction(tr::lng_mac_menu_undo(tr::now), this, SLOT(psMacUndo()), QKeySequence::Undo);
@@ -712,7 +729,7 @@ void MainWindow::createGlobalMenu() {
 		if (isHidden()) {
 			App::wnd()->showFromTray();
 		}
-		if (!account().sessionExists()) {
+		if (!sessionController()) {
 			return;
 		}
 		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(sessionController()), [](not_null<PeerListBox*> box) {
@@ -817,12 +834,11 @@ void MainWindow::updateGlobalMenuHook() {
 	if (_private->_touchBar) {
 		[_private->_touchBar showInputFieldItem:showTouchBarItem];
 	}
-	App::wnd()->updateIsActive(0);
-	const auto logged = account().sessionExists();
-	const auto locked = Core::App().locked();
-	const auto inactive = !logged || locked;
+	App::wnd()->updateIsActive();
+	const auto logged = (sessionController() != nullptr);
+	const auto inactive = !logged || controller().locked();
 	const auto support = logged && account().session().supportMode();
-	ForceDisabled(psLogout, !logged && !locked);
+	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
 	ForceDisabled(psUndo, !canUndo);
 	ForceDisabled(psRedo, !canRedo);
 	ForceDisabled(psCut, !canCut);
@@ -859,6 +875,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 }
 
 MainWindow::~MainWindow() {
+	destroyCurrentTouchBar();
 }
 
 } // namespace

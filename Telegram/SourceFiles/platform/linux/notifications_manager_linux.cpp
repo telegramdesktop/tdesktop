@@ -8,13 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/notifications_manager_linux.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#include "window/notifications_utilities.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/linux/specific_linux.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "history/history.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
@@ -71,7 +74,8 @@ void GetSupported() {
 	}
 	Checked = true;
 
-	if (Global::NativeNotifications() && !Platform::IsWayland()) {
+	if (Core::App().settings().nativeNotifications()
+		&& !Platform::IsWayland()) {
 		ComputeSupported(true);
 	} else {
 		ComputeSupported();
@@ -199,23 +203,21 @@ QString GetImageKey(const QVersionNumber &specificationVersion) {
 	return QString();
 }
 
-}
+} // namespace
 
 NotificationData::NotificationData(
-		const base::weak_ptr<Manager> &manager,
-		const QString &title,
-		const QString &subtitle,
-		const QString &msg,
-		PeerId peerId,
-		MsgId msgId,
-		bool hideReplyButton)
+	const base::weak_ptr<Manager> &manager,
+	const QString &title,
+	const QString &subtitle,
+	const QString &msg,
+	NotificationId id,
+	bool hideReplyButton)
 : _dbusConnection(QDBusConnection::sessionBus())
 , _manager(manager)
 , _title(title)
 , _imageKey(GetImageKey(ParseSpecificationVersion(
 	GetServerInformation())))
-, _peerId(peerId)
-, _msgId(msgId) {
+, _id(id) {
 	const auto capabilities = GetCapabilities();
 
 	if (capabilities.contains(qsl("body-markup"))) {
@@ -271,7 +273,7 @@ NotificationData::NotificationData(
 
 	// suppress system sound if telegram sound activated, otherwise use system sound
 	if (capabilities.contains(qsl("sound"))) {
-		if (Global::SoundNotify()) {
+		if (Core::App().settings().soundNotify()) {
 			_hints["suppress-sound"] = true;
 		} else {
 			// sound name according to http://0pointer.de/public/sound-naming-spec.html
@@ -375,8 +377,9 @@ void NotificationData::setImage(const QString &imagePath) {
 void NotificationData::notificationClosed(uint id) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
+		const auto my = _id;
 		crl::on_main(manager, [=] {
-			manager->clearNotification(_peerId, _msgId);
+			manager->clearNotification(my);
 		});
 	}
 }
@@ -389,13 +392,15 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 	if (actionName == qsl("default")
 		|| actionName == qsl("mail-reply-sender")) {
 		const auto manager = _manager;
+		const auto my = _id;
 		crl::on_main(manager, [=] {
-			manager->notificationActivated(_peerId, _msgId);
+			manager->notificationActivated(my);
 		});
 	} else if (actionName == qsl("mail-mark-read")) {
 		const auto manager = _manager;
+		const auto my = _id;
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(_peerId, _msgId, {});
+			manager->notificationReplied(my, {});
 		});
 	}
 }
@@ -403,8 +408,9 @@ void NotificationData::actionInvoked(uint id, const QString &actionName) {
 void NotificationData::notificationReplied(uint id, const QString &text) {
 	if (id == _notificationId) {
 		const auto manager = _manager;
+		const auto my = _id;
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(_peerId, _msgId, { text, {} });
+			manager->notificationReplied(my, { text, {} });
 		});
 	}
 }
@@ -474,17 +480,67 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	GetSupported();
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
-	if ((Global::NativeNotifications() && Supported())
+	if ((Core::App().settings().nativeNotifications() && Supported())
 		|| Platform::IsWayland()) {
 		return std::make_unique<Manager>(system);
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	return nullptr;
 }
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
+class Manager::Private {
+public:
+	using Type = Window::Notifications::CachedUserpics::Type;
+	explicit Private(not_null<Manager*> manager, Type type) {}
+
+	void showNotification(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {}
+	void clearAll() {}
+	void clearFromHistory(not_null<History*> history) {}
+	void clearFromSession(not_null<Main::Session*> session) {}
+	void clearNotification(NotificationId id) {}
+};
+#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
+class Manager::Private {
+public:
+	using Type = Window::Notifications::CachedUserpics::Type;
+	explicit Private(not_null<Manager*> manager, Type type);
+
+	void showNotification(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton);
+	void clearAll();
+	void clearFromHistory(not_null<History*> history);
+	void clearFromSession(not_null<Main::Session*> session);
+	void clearNotification(NotificationId id);
+
+	~Private();
+
+private:
+	base::flat_map<
+		FullPeer,
+		base::flat_map<MsgId, Notification>> _notifications;
+
+	Window::Notifications::CachedUserpics _cachedUserpics;
+	base::weak_ptr<Manager> _manager;
+};
+
 Manager::Private::Private(not_null<Manager*> manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager) {
@@ -528,39 +584,47 @@ void Manager::Private::showNotification(
 		bool hideReplyButton) {
 	if (!Supported()) return;
 
+	const auto key = FullPeer{
+		.sessionId = peer->session().uniqueId(),
+		.peerId = peer->id
+	};
 	auto notification = std::make_shared<NotificationData>(
 		_manager,
 		title,
 		subtitle,
 		msg,
-		peer->id,
-		msgId,
+		NotificationId{ .full = key, .msgId = msgId },
 		hideReplyButton);
 
 	if (!hideNameAndPhoto) {
-		const auto key = peer->userpicUniqueKey(userpicView);
-		notification->setImage(_cachedUserpics.get(key, peer, userpicView));
+		const auto userpicKey = peer->userpicUniqueKey(userpicView);
+		notification->setImage(
+			_cachedUserpics.get(userpicKey, peer, userpicView));
 	}
 
-	auto i = _notifications.find(peer->id);
+	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto j = i->find(msgId);
-		if (j != i->cend()) {
-			auto oldNotification = j.value();
-			i->erase(j);
+		auto j = i->second.find(msgId);
+		if (j != i->second.end()) {
+			auto oldNotification = j->second;
+			i->second.erase(j);
 			oldNotification->close();
-			i = _notifications.find(peer->id);
+			i = _notifications.find(key);
 		}
 	}
 	if (i == _notifications.cend()) {
-		i = _notifications.insert(peer->id, QMap<MsgId, Notification>());
+		i = _notifications.emplace(
+			key,
+			base::flat_map<MsgId, Notification>()).first;
 	}
-	_notifications[peer->id].insert(msgId, notification);
+	i->second.emplace(msgId, notification);
 	if (!notification->show()) {
-		i = _notifications.find(peer->id);
+		i = _notifications.find(key);
 		if (i != _notifications.cend()) {
-			i->remove(msgId);
-			if (i->isEmpty()) _notifications.erase(i);
+			i->second.remove(msgId);
+			if (i->second.empty()) {
+				_notifications.erase(i);
+			}
 		}
 	}
 }
@@ -568,9 +632,8 @@ void Manager::Private::showNotification(
 void Manager::Private::clearAll() {
 	if (!Supported()) return;
 
-	auto temp = base::take(_notifications);
-	for_const (auto &notifications, temp) {
-		for_const (auto notification, notifications) {
+	for (const auto &[key, notifications] : base::take(_notifications)) {
+		for (const auto &[msgId, notification] : notifications) {
 			notification->close();
 		}
 	}
@@ -579,24 +642,43 @@ void Manager::Private::clearAll() {
 void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!Supported()) return;
 
-	auto i = _notifications.find(history->peer->id);
+	const auto key = FullPeer{
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id
+	};
+	auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
-		auto temp = base::take(i.value());
+		const auto temp = base::take(i->second);
 		_notifications.erase(i);
 
-		for_const (auto notification, temp) {
+		for (const auto &[msgId, notification] : temp) {
 			notification->close();
 		}
 	}
 }
 
-void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
+void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	if (!Supported()) return;
 
-	auto i = _notifications.find(peerId);
+	const auto sessionId = session->uniqueId();
+	for (auto i = _notifications.begin(); i != _notifications.end();) {
+		if (i->first.sessionId == sessionId) {
+			const auto temp = base::take(i->second);
+			i = _notifications.erase(i);
+
+			for (const auto &[msgId, notification] : temp) {
+				notification->close();
+			}
+		}
+	}
+}
+
+void Manager::Private::clearNotification(NotificationId id) {
+	if (!Supported()) return;
+
+	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
-		i.value().remove(msgId);
-		if (i.value().isEmpty()) {
+		if (i->second.remove(id.msgId) && i->second.empty()) {
 			_notifications.erase(i);
 		}
 	}
@@ -605,14 +687,15 @@ void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
 Manager::Private::~Private() {
 	clearAll();
 }
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
 : NativeManager(system)
 , _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
 }
 
-void Manager::clearNotification(PeerId peerId, MsgId msgId) {
-	_private->clearNotification(peerId, msgId);
+void Manager::clearNotification(NotificationId id) {
+	_private->clearNotification(id);
 }
 
 Manager::~Manager() = default;
@@ -644,7 +727,10 @@ void Manager::doClearAllFast() {
 void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+void Manager::doClearFromSession(not_null<Main::Session*> session) {
+	_private->clearFromSession(session);
+}
 
 } // namespace Notifications
 } // namespace Platform

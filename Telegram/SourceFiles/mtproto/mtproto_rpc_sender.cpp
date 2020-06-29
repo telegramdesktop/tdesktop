@@ -30,24 +30,3 @@ RPCError::RPCError(const MTPrpcError &error)
 		}
 	}
 }
-
-
-RPCOwnedDoneHandler::RPCOwnedDoneHandler(RPCSender *owner) : _owner(owner) {
-	_owner->rpcRegHandler(this);
-}
-
-RPCOwnedDoneHandler::~RPCOwnedDoneHandler() {
-	if (_owner) {
-		_owner->rpcUnregHandler(this);
-	}
-}
-
-RPCOwnedFailHandler::RPCOwnedFailHandler(RPCSender *owner) : _owner(owner) {
-	_owner->rpcRegHandler(this);
-}
-
-RPCOwnedFailHandler::~RPCOwnedFailHandler() {
-	if (_owner) {
-		_owner->rpcUnregHandler(this);
-	}
-}

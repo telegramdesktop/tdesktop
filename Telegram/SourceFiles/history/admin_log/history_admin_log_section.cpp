@@ -107,7 +107,10 @@ FixedBar::FixedBar(
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::historyAdminLogSearchField, tr::lng_dlg_filter())
-, _backButton(this, tr::lng_admin_log_title_all(tr::now))
+, _backButton(
+	this,
+	&controller->session(),
+	tr::lng_admin_log_title_all(tr::now))
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
@@ -432,7 +435,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(this, e->rect());
+	SectionWidget::PaintBackground(controller(), this, e->rect());
 }
 
 void Widget::onScroll() {
@@ -450,11 +453,11 @@ void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer() const {
+QRect Widget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 

@@ -83,12 +83,15 @@ public:
 		int from,
 		int till) const;
 	void elementStartStickerLoop(not_null<const Element*> view);
+	[[nodiscard]] crl::time elementHighlightTime(
+		not_null<const Element*> view);
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
+	bool elementIsGifPaused();
 
 	void updateBotInfo(bool recount = true);
 
@@ -110,10 +113,6 @@ public:
 
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
-
-	// When inline keyboard has moved because of the edition of its item we want
-	// to move scroll position so that mouse points to the same button row.
-	int moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;

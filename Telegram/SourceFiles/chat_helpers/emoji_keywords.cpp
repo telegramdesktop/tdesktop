@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/emoji_config.h"
-#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 
@@ -205,7 +205,7 @@ void AppendLegacySuggestions(
 			&& (ch != '-')
 			&& (ch != '+');
 	};
-	if (ranges::find_if(query, badSuggestionChar) != query.end()) {
+	if (ranges::any_of(query, badSuggestionChar)) {
 		return;
 	}
 
@@ -516,7 +516,7 @@ void EmojiKeywords::langPackRefreshed() {
 }
 
 void EmojiKeywords::handleSessionChanges() {
-	Core::App().activeAccount().sessionValue(
+	Core::App().domain().activeSessionValue( // #TODO multi someSessionValue
 	) | rpl::map([](Main::Session *session) {
 		return session ? &session->api() : nullptr;
 	}) | rpl::start_with_next([=](ApiWrap *api) {
@@ -527,7 +527,7 @@ void EmojiKeywords::handleSessionChanges() {
 void EmojiKeywords::apiChanged(ApiWrap *api) {
 	_api = api;
 	if (_api) {
-		crl::on_main(&Auth(), crl::guard(&_guard, [=] {
+		crl::on_main(&_api->session(), crl::guard(&_guard, [=] {
 			base::ObservableViewer(
 				Lang::CurrentCloudManager().firstLanguageSuggestion()
 			) | rpl::filter([=] {
@@ -557,7 +557,7 @@ void EmojiKeywords::refresh() {
 }
 
 std::vector<QString> EmojiKeywords::languages() {
-	if (!Main::Session::Exists()) {
+	if (!_api) {
 		return {};
 	}
 	refreshInputLanguages();

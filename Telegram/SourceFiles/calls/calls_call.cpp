@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/mtproto_dh_utils.h"
+#include "mtproto/mtproto_config.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
@@ -96,7 +99,7 @@ Call::Call(
 	Type type)
 : _delegate(delegate)
 , _user(user)
-, _api(_user->session().api().instance())
+, _api(&_user->session().mtp())
 , _type(type) {
 	_discardByTimeoutTimer.setCallback([this] { hangup(); });
 
@@ -128,7 +131,8 @@ bool Call::isIncomingWaiting() const {
 	if (type() != Call::Type::Incoming) {
 		return false;
 	}
-	return (_state == State::Starting) || (_state == State::WaitingIncoming);
+	return (state() == State::Starting)
+		|| (state() == State::WaitingIncoming);
 }
 
 void Call::start(bytes::const_span random) {
@@ -139,13 +143,14 @@ void Call::start(bytes::const_span random) {
 	Assert(!_dhConfig.p.empty());
 
 	generateModExpFirst(random);
-	if (_state == State::Starting || _state == State::Requesting) {
+	const auto state = _state.current();
+	if (state == State::Starting || state == State::Requesting) {
 		if (_type == Type::Outgoing) {
 			startOutgoing();
 		} else {
 			startIncoming();
 		}
-	} else if (_state == State::ExchangingKeys
+	} else if (state == State::ExchangingKeys
 		&& _answerAfterDhConfigReceived) {
 		answer();
 	}
@@ -153,7 +158,7 @@ void Call::start(bytes::const_span random) {
 
 void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
-	Expects(_state == State::Requesting);
+	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
 	_api.request(MTPphone_RequestCall(
@@ -193,7 +198,8 @@ void Call::startOutgoing() {
 			return;
 		}
 
-		_discardByTimeoutTimer.callOnce(Global::CallReceiveTimeoutMs());
+		const auto &config = _user->session().serverConfig();
+		_discardByTimeoutTimer.callOnce(config.callReceiveTimeoutMs);
 		handleUpdate(phoneCall);
 	}).fail([this](const RPCError &error) {
 		handleRequestError(error);
@@ -202,12 +208,12 @@ void Call::startOutgoing() {
 
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
-	Expects(_state == State::Starting);
+	Expects(_state.current() == State::Starting);
 
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
 	)).done([=](const MTPBool &result) {
-		if (_state == State::Starting) {
+		if (_state.current() == State::Starting) {
 			setState(State::WaitingIncoming);
 		}
 	}).fail([=](const RPCError &error) {
@@ -224,8 +230,9 @@ void Call::answer() {
 void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 
-	if (_state != State::Starting && _state != State::WaitingIncoming) {
-		if (_state != State::ExchangingKeys
+	const auto state = _state.current();
+	if (state != State::Starting && state != State::WaitingIncoming) {
+		if (state != State::ExchangingKeys
 			|| !_answerAfterDhConfigReceived) {
 			return;
 		}
@@ -276,10 +283,11 @@ crl::time Call::getDurationMs() const {
 }
 
 void Call::hangup() {
-	if (_state == State::Busy) {
+	const auto state = _state.current();
+	if (state == State::Busy) {
 		_delegate->callFinished(this);
 	} else {
-		auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
+		auto missed = (state == State::Ringing || (state == State::Waiting && _type == Type::Outgoing));
 		auto declined = isIncomingWaiting();
 		auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
 			declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
@@ -288,7 +296,7 @@ void Call::hangup() {
 }
 
 void Call::redial() {
-	if (_state != State::Busy) {
+	if (_state.current() != State::Busy) {
 		return;
 	}
 	Assert(_controller == nullptr);
@@ -305,7 +313,7 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = _user->session().settings().getSoundPath(
+	auto trackFileName = Core::App().settings().getSoundPath(
 		(_type == Type::Outgoing)
 		? qsl("call_outgoing")
 		: qsl("call_incoming"));
@@ -380,9 +388,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return false;
 		}
 		if (_type == Type::Outgoing
-			&& _state == State::Waiting
+			&& _state.current() == State::Waiting
 			&& data.vreceive_date().value_or_empty() != 0) {
-			_discardByTimeoutTimer.callOnce(Global::CallRingTimeoutMs());
+			const auto &config = _user->session().serverConfig();
+			_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
 			setState(State::Ringing);
 			startWaitingTrack();
 		}
@@ -394,7 +403,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return false;
 		}
 		if (_type == Type::Incoming
-			&& _state == State::ExchangingKeys
+			&& _state.current() == State::ExchangingKeys
 			&& !_controller) {
 			startConfirmedCall(data);
 		}
@@ -410,12 +419,12 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 				? _controller->getDebugInfo()
 				: std::string();
 			if (!debugLog.empty()) {
-				MTP::send(
-					MTPphone_SaveCallDebug(
-						MTP_inputPhoneCall(
-							MTP_long(_id),
-							MTP_long(_accessHash)),
-						MTP_dataJSON(MTP_string(debugLog))));
+				user()->session().api().request(MTPphone_SaveCallDebug(
+					MTP_inputPhoneCall(
+						MTP_long(_id),
+						MTP_long(_accessHash)),
+					MTP_dataJSON(MTP_string(debugLog))
+				)).send();
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
@@ -427,7 +436,8 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
-		} else if (_type == Type::Outgoing || _state == State::HangingUp) {
+		} else if (_type == Type::Outgoing
+			|| _state.current() == State::HangingUp) {
 			setState(State::Ended);
 		} else {
 			setState(State::EndedByOtherDevice);
@@ -455,7 +465,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
-	if (_state == State::ExchangingKeys
+	if (_state.current() == State::ExchangingKeys
 		|| _controller) {
 		LOG(("Call Warning: Unexpected confirmAcceptedCall."));
 		return;
@@ -534,6 +544,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
+	const auto &serverConfig = _user->session().serverConfig();
 
 	TgVoipConfig config;
 	config.dataSaving = TgVoipDataSaving::Never;
@@ -541,8 +552,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	config.enableNS = true;
 	config.enableAGC = true;
 	config.enableVolumeControl = true;
-	config.initializationTimeout = Global::CallConnectTimeoutMs() / 1000.;
-	config.receiveTimeout = Global::CallPacketTimeoutMs() / 1000.;
+	config.initializationTimeout = serverConfig.callConnectTimeoutMs / 1000.;
+	config.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.;
 	config.enableP2P = call.is_p2p_allowed();
 	config.maxApiLayer = protocol.vmax_layer().v;
 	if (Logs::DebugEnabled()) {
@@ -605,13 +616,14 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	if (_mute) {
 		raw->setMuteMicrophone(_mute);
 	}
+	const auto &settings = Core::App().settings();
 	raw->setAudioOutputDevice(
-		Global::CallOutputDeviceID().toStdString());
+		settings.callOutputDeviceID().toStdString());
 	raw->setAudioInputDevice(
-		Global::CallInputDeviceID().toStdString());
-	raw->setOutputVolume(Global::CallOutputVolume() / 100.0f);
-	raw->setInputVolume(Global::CallInputVolume() / 100.0f);
-	raw->setAudioOutputDuckingEnabled(Global::CallAudioDuckingEnabled());
+		settings.callInputDeviceID().toStdString());
+	raw->setOutputVolume(settings.callOutputVolume() / 100.0f);
+	raw->setInputVolume(settings.callInputVolume() / 100.0f);
+	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
 void Call::handleControllerStateChange(
@@ -703,34 +715,33 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 }
 
 void Call::setState(State state) {
-	if (_state == State::Failed) {
+	if (_state.current() == State::Failed) {
 		return;
 	}
-	if (_state == State::FailedHangingUp && state != State::Failed) {
+	if (_state.current() == State::FailedHangingUp && state != State::Failed) {
 		return;
 	}
-	if (_state != state) {
+	if (_state.current() != state) {
 		_state = state;
-		_stateChanged.notify(state, true);
 
 		if (true
-			&& _state != State::Starting
-			&& _state != State::Requesting
-			&& _state != State::Waiting
-			&& _state != State::WaitingIncoming
-			&& _state != State::Ringing) {
+			&& state != State::Starting
+			&& state != State::Requesting
+			&& state != State::Waiting
+			&& state != State::WaitingIncoming
+			&& state != State::Ringing) {
 			_waitingTrack.reset();
 		}
 		if (false
-			|| _state == State::Ended
-			|| _state == State::EndedByOtherDevice
-			|| _state == State::Failed
-			|| _state == State::Busy) {
+			|| state == State::Ended
+			|| state == State::EndedByOtherDevice
+			|| state == State::Failed
+			|| state == State::Busy) {
 			// Destroy controller before destroying Call Panel,
 			// so that the panel hide animation is smooth.
 			destroyController();
 		}
-		switch (_state) {
+		switch (state) {
 		case State::Established:
 			_startTime = crl::now();
 			break;
@@ -787,16 +798,17 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 
 	auto finalState = (type == FinishType::Ended) ? State::Ended : State::Failed;
 	auto hangupState = (type == FinishType::Ended) ? State::HangingUp : State::FailedHangingUp;
-	if (_state == State::Requesting) {
+	const auto state = _state.current();
+	if (state == State::Requesting) {
 		_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
 		_finishAfterRequestingCall = type;
 		return;
 	}
-	if (_state == State::HangingUp
-		|| _state == State::FailedHangingUp
-		|| _state == State::EndedByOtherDevice
-		|| _state == State::Ended
-		|| _state == State::Failed) {
+	if (state == State::HangingUp
+		|| state == State::FailedHangingUp
+		|| state == State::EndedByOtherDevice
+		|| state == State::Ended
+		|| state == State::Failed) {
 		return;
 	}
 	if (!_id) {

@@ -10,14 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 
 namespace {
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -96,16 +96,12 @@ void ChatData::setName(const QString &newName) {
 }
 
 void ChatData::applyEditAdmin(not_null<UserData*> user, bool isAdmin) {
-	auto flags = Notify::PeerUpdate::Flag::AdminsChanged
-		| Notify::PeerUpdate::Flag::None;
 	if (isAdmin) {
 		admins.emplace(user);
 	} else {
 		admins.remove(user);
 	}
-	Notify::peerUpdatedDelayed(
-		this,
-		Notify::PeerUpdate::Flag::AdminsChanged);
+	session().changes().peerUpdated(this, UpdateFlag::Admins);
 }
 
 void ChatData::invalidateParticipants() {
@@ -115,15 +111,15 @@ void ChatData::invalidateParticipants() {
 	//setDefaultRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 	invitedByMe.clear();
 	botStatus = 0;
-	Notify::peerUpdatedDelayed(
+	session().changes().peerUpdated(
 		this,
-		UpdateFlag::MembersChanged | UpdateFlag::AdminsChanged);
+		UpdateFlag::Members | UpdateFlag::Admins);
 }
 
 void ChatData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;
-		Notify::peerUpdatedDelayed(this, UpdateFlag::InviteLinkChanged);
+		session().changes().peerUpdated(this, UpdateFlag::InviteLink);
 	}
 }
 
@@ -132,11 +128,9 @@ void ChatData::setAdminRights(const MTPChatAdminRights &rights) {
 		return;
 	}
 	_adminRights.set(rights.c_chatAdminRights().vflags().v);
-	Notify::peerUpdatedDelayed(
+	session().changes().peerUpdated(
 		this,
-		(UpdateFlag::RightsChanged
-			| UpdateFlag::AdminsChanged
-			| UpdateFlag::BannedUsersChanged));
+		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
 }
 
 void ChatData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
@@ -144,15 +138,15 @@ void ChatData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
 		return;
 	}
 	_defaultRestrictions.set(rights.c_chatBannedRights().vflags().v);
-	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
+	session().changes().peerUpdated(this, UpdateFlag::Rights);
 }
 
 void ChatData::refreshBotStatus() {
 	if (participants.empty()) {
 		botStatus = 0;
 	} else {
-		const auto bot = ranges::find_if(participants, &UserData::isBot);
-		botStatus = (bot == end(participants)) ? -1 : 2;
+		const auto bot = ranges::none_of(participants, &UserData::isBot);
+		botStatus = bot ? -1 : 2;
 	}
 }
 
@@ -176,7 +170,7 @@ void ChatData::setMigrateToChannel(ChannelData *channel) {
 	if (_migratedTo != channel) {
 		_migratedTo = channel;
 		if (channel->amIn()) {
-			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
+			session().changes().peerUpdated(this, UpdateFlag::Migration);
 		}
 	}
 }
@@ -199,6 +193,7 @@ void ApplyChatUpdate(
 		return;
 	}
 	const auto user = chat->owner().userLoaded(update.vuser_id().v);
+	const auto session = &chat->session();
 	if (!user
 		|| (!chat->participants.empty()
 			&& chat->participants.contains(user))) {
@@ -213,7 +208,7 @@ void ApplyChatUpdate(
 		chat->botStatus = 0;
 	} else {
 		chat->participants.emplace(user);
-		if (update.vinviter_id().v == chat->session().userId()) {
+		if (update.vinviter_id().v == session->userId()) {
 			chat->invitedByMe.insert(user);
 		} else {
 			chat->invitedByMe.remove(user);
@@ -222,13 +217,11 @@ void ApplyChatUpdate(
 		if (user->isBot()) {
 			chat->botStatus = 2;
 			if (!user->botInfo->inited) {
-				chat->session().api().requestFullPeer(user);
+				session->api().requestFullPeer(user);
 			}
 		}
 	}
-	Notify::peerUpdatedDelayed(
-		chat,
-		Notify::PeerUpdate::Flag::MembersChanged);
+	session->changes().peerUpdated(chat, UpdateFlag::Members);
 }
 
 void ApplyChatUpdate(
@@ -270,9 +263,7 @@ void ApplyChatUpdate(
 			chat->refreshBotStatus();
 		}
 	}
-	Notify::peerUpdatedDelayed(
-		chat,
-		Notify::PeerUpdate::Flag::MembersChanged);
+	chat->session().changes().peerUpdated(chat, UpdateFlag::Members);
 }
 
 void ApplyChatUpdate(
@@ -282,7 +273,7 @@ void ApplyChatUpdate(
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	}
-
+	const auto session = &chat->session();
 	const auto user = chat->owner().userLoaded(update.vuser_id().v);
 	if (!user) {
 		chat->invalidateParticipants();
@@ -295,16 +286,14 @@ void ApplyChatUpdate(
 	}
 	if (mtpIsTrue(update.vis_admin())) {
 		if (chat->noParticipantInfo()) {
-			chat->session().api().requestFullPeer(chat);
+			session->api().requestFullPeer(chat);
 		} else {
 			chat->admins.emplace(user);
 		}
 	} else {
 		chat->admins.erase(user);
 	}
-	Notify::peerUpdatedDelayed(
-		chat,
-		Notify::PeerUpdate::Flag::AdminsChanged);
+	session->changes().peerUpdated(chat, UpdateFlag::Admins);
 }
 
 void ApplyChatUpdate(
@@ -360,6 +349,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPChatParticipants &participants) {
+	const auto session = &chat->session();
 	participants.match([&](const MTPDchatParticipantsForbidden &data) {
 		if (const auto self = data.vself_participant()) {
 			// self->
@@ -381,7 +371,7 @@ void ApplyChatUpdate(
 		chat->invitedByMe.clear();
 		chat->admins.clear();
 		chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		const auto selfUserId = chat->session().userId();
+		const auto selfUserId = session->userId();
 		for (const auto &participant : list) {
 			const auto userId = participant.match([&](const auto &data) {
 				return data.vuser_id().v;
@@ -430,10 +420,9 @@ void ApplyChatUpdate(
 			}
 		}
 		chat->refreshBotStatus();
-		Notify::peerUpdatedDelayed(
+		session->changes().peerUpdated(
 			chat,
-			Notify::PeerUpdate::Flag::MembersChanged
-			| Notify::PeerUpdate::Flag::AdminsChanged);
+			UpdateFlag::Members | UpdateFlag::Admins);
 	});
 }
 

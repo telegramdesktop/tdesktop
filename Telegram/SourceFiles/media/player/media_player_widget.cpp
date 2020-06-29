@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
@@ -25,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "layout.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -80,7 +82,9 @@ QPoint Widget::PlayButton::prepareRippleStartPosition() const {
 	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
 }
 
-Widget::Widget(QWidget *parent) : RpWidget(parent)
+Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
+: RpWidget(parent)
+, _session(session)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _playPause(this)
@@ -124,11 +128,16 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 
 	updateVolumeToggleIcon();
 	_volumeToggle->setClickedCallback([=] {
-		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
-		mixer()->setSongVolume(Global::SongVolume());
-		Global::RefSongVolumeChanged().notify();
+		const auto volume = (Core::App().settings().songVolume() > 0)
+			? 0.
+			: Core::App().settings().rememberedSongVolume();
+		Core::App().settings().setSongVolume(volume);
+		mixer()->setSongVolume(volume);
 	});
-	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
+	Core::App().settings().songVolumeChanges(
+	) | rpl::start_with_next([=] {
+		updateVolumeToggleIcon();
+	}, lifetime());
 
 	updateRepeatTrackIcon();
 	_repeatTrack->setClickedCallback([=] {
@@ -137,11 +146,11 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
-		const auto doubled = !Global::VoiceMsgPlaybackDoubled();
-		Global::SetVoiceMsgPlaybackDoubled(doubled);
+		const auto doubled = !Core::App().settings().voiceMsgPlaybackDoubled();
+		Core::App().settings().setVoiceMsgPlaybackDoubled(doubled);
 		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
-		Local::writeUserSettings();
+		Core::App().saveSettingsDelayed();
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
@@ -176,7 +185,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 
 void Widget::updateVolumeToggleIcon() {
 	auto icon = []() -> const style::icon * {
-		auto volume = Global::SongVolume();
+		auto volume = Core::App().settings().songVolume();
 		if (volume > 0) {
 			if (volume < 1 / 3.) {
 				return &st::mediaPlayerVolumeIcon1;
@@ -302,9 +311,13 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 	if (auto downLabels = base::take(_labelsDown)) {
 		if (_labelsOver == downLabels) {
 			if (_type == AudioMsgId::Type::Voice) {
-				auto current = instance()->current(_type);
-				if (auto item = Auth().data().message(current.contextId())) {
-					Ui::showPeerHistoryAtItem(item);
+				const auto current = instance()->current(_type);
+				const auto document = current.audio();
+				const auto context = current.contextId();
+				if (document && context) {
+					if (const auto item = document->owner().message(context)) {
+						Ui::showPeerHistoryAtItem(item);
+					}
 				}
 			}
 		}
@@ -379,7 +392,7 @@ void Widget::updateRepeatTrackIcon() {
 }
 
 void Widget::updatePlaybackSpeedIcon() {
-	const auto doubled = Global::VoiceMsgPlaybackDoubled();
+	const auto doubled = Core::App().settings().voiceMsgPlaybackDoubled();
 	const auto isDefaultSpeed = !doubled;
 	_playbackSpeed->setIconOverride(
 		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
@@ -516,7 +529,7 @@ void Widget::handleSongChange() {
 
 	TextWithEntities textWithEntities;
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		if (const auto item = Auth().data().message(current.contextId())) {
+		if (const auto item = document->owner().message(current.contextId())) {
 			const auto name = item->fromOriginal()->name;
 			const auto date = [item] {
 				const auto parsed = ItemDateTime(item);

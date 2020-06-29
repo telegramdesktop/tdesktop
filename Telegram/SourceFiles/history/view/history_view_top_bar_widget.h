@@ -51,7 +51,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~TopBarWidget();
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
 	void updateControlsVisibility();
 	void finishAnimating();
@@ -158,7 +158,6 @@ private:
 	bool _animatingMode = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
 
-	int _unreadCounterSubscription = 0;
 	base::Timer _onlineUpdater;
 
 	rpl::event_stream<> _forwardSelection;

@@ -130,7 +130,7 @@ private:
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
 
-	int _stateChangedSubscription = 0;
+	rpl::lifetime _stateLifetime;
 
 	class Button;
 	object_ptr<Button> _answerHangupRedial;

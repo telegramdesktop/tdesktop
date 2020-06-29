@@ -35,6 +35,7 @@ QString SiteNameFromUrl(const QString &url) {
 }
 
 WebPageCollage ExtractCollage(
+		not_null<Data::Session*> owner,
 		const QVector<MTPPageBlock> &items,
 		const QVector<MTPPhoto> &photos,
 		const QVector<MTPDocument> &documents) {
@@ -51,25 +52,24 @@ WebPageCollage ExtractCollage(
 		return {};
 	}
 
-	auto &storage = Auth().data();
 	for (const auto &photo : photos) {
-		storage.processPhoto(photo);
+		owner->processPhoto(photo);
 	}
 	for (const auto &document : documents) {
-		storage.processDocument(document);
+		owner->processDocument(document);
 	}
 	auto result = WebPageCollage();
 	result.items.reserve(count);
 	for (const auto &item : items) {
 		const auto good = item.match([&](const MTPDpageBlockPhoto &data) {
-			const auto photo = storage.photo(data.vphoto_id().v);
+			const auto photo = owner->photo(data.vphoto_id().v);
 			if (photo->isNull()) {
 				return false;
 			}
 			result.items.emplace_back(photo);
 			return true;
 		}, [&](const MTPDpageBlockVideo &data) {
-			const auto document = storage.document(data.vvideo_id().v);
+			const auto document = owner->document(data.vvideo_id().v);
 			if (!document->isVideoFile()) {
 				return false;
 			}
@@ -85,17 +85,19 @@ WebPageCollage ExtractCollage(
 	return result;
 }
 
-WebPageCollage ExtractCollage(const MTPDwebPage &data) {
+WebPageCollage ExtractCollage(
+		not_null<Data::Session*> owner,
+		const MTPDwebPage &data) {
 	const auto page = data.vcached_page();
 	if (!page) {
 		return {};
 	}
 	const auto processMedia = [&] {
 		if (const auto photo = data.vphoto()) {
-			Auth().data().processPhoto(*photo);
+			owner->processPhoto(*photo);
 		}
 		if (const auto document = data.vdocument()) {
-			Auth().data().processDocument(*document);
+			owner->processDocument(*document);
 		}
 	};
 	return page->match([&](const auto &page) {
@@ -111,12 +113,14 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 			case mtpc_pageBlockSlideshow:
 				processMedia();
 				return ExtractCollage(
+					owner,
 					block.c_pageBlockSlideshow().vitems().v,
 					page.vphotos().v,
 					page.vdocuments().v);
 			case mtpc_pageBlockCollage:
 				processMedia();
 				return ExtractCollage(
+					owner,
 					block.c_pageBlockCollage().vitems().v,
 					page.vphotos().v,
 					page.vdocuments().v);
@@ -148,8 +152,23 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 	}
 }
 
-WebPageCollage::WebPageCollage(const MTPDwebPage &data)
-: WebPageCollage(ExtractCollage(data)) {
+WebPageCollage::WebPageCollage(
+	not_null<Data::Session*> owner,
+	const MTPDwebPage &data)
+: WebPageCollage(ExtractCollage(owner, data)) {
+}
+
+WebPageData::WebPageData(not_null<Data::Session*> owner, const WebPageId &id)
+: id(id)
+, _owner(owner) {
+}
+
+Data::Session &WebPageData::owner() const {
+	return *_owner;
+}
+
+Main::Session &WebPageData::session() const {
+	return _owner->session();
 }
 
 bool WebPageData::applyChanges(
@@ -211,7 +230,7 @@ bool WebPageData::applyChanges(
 		return false;
 	}
 	if (pendingTill > 0 && newPendingTill <= 0) {
-		Auth().api().clearWebPageRequest(this);
+		_owner->session().api().clearWebPageRequest(this);
 	}
 	type = newType;
 	url = resultUrl;

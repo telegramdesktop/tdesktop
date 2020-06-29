@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
-#include "facades.h"
 
 namespace Core {
 namespace {
@@ -94,12 +93,6 @@ void ComputeDebugMode() {
 	auto file = QFile(debugModeSettingPath);
 	if (file.exists() && file.open(QIODevice::ReadOnly)) {
 		Logs::SetDebugEnabled(file.read(1) != "0");
-	}
-}
-
-void ComputeTestMode() {
-	if (QFile::exists(cWorkingDir() + qsl("tdata/withtestmode"))) {
-		cSetTestMode(true);
 	}
 }
 
@@ -350,7 +343,6 @@ int Launcher::exec() {
 void Launcher::workingFolderReady() {
 	srand((unsigned int)time(nullptr));
 
-	ComputeTestMode();
 	ComputeDebugMode();
 	ComputeExternalUpdater();
 	ComputeFreeType();
@@ -476,7 +468,6 @@ void Launcher::processArguments() {
 	if (parseResult.contains("-externalupdater")) {
 		SetUpdaterDisabledAtStartup();
 	}
-	gTestMode = parseResult.contains("-testmode");
 	gUseFreeType = parseResult.contains("-freetype");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");

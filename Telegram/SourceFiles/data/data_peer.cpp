@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_changes.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
@@ -18,12 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "lang/lang_keys.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_app_config.h"
+#include "mtproto/mtproto_config.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -34,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "storage/file_download.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerProfile
 #include "app.h"
 
 namespace {
@@ -42,7 +44,7 @@ namespace {
 constexpr auto kUpdateFullPeerTimeout = crl::time(5000); // Not more than once in 5 seconds.
 constexpr auto kUserpicSize = 160;
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -85,25 +87,34 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 }
 
 void PeerClickHandler::onClick(ClickContext context) const {
-	if (context.button == Qt::LeftButton && App::wnd()) {
-		const auto controller = App::wnd()->sessionController();
-		const auto currentPeer = controller->activeChatCurrent().peer();
-		if (_peer && _peer->isChannel() && currentPeer != _peer) {
-			const auto clickedChannel = _peer->asChannel();
-			if (!clickedChannel->isPublic() && !clickedChannel->amIn()
-				&& (!currentPeer->isChannel()
-					|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
-				Ui::show(Box<InformBox>(_peer->isMegagroup()
-					? tr::lng_group_not_accessible(tr::now)
-					: tr::lng_channel_not_accessible(tr::now)));
-			} else {
-				controller->showPeerHistory(
-					_peer,
-					Window::SectionShow::Way::Forward);
-			}
-		} else {
-			Ui::showPeerProfile(_peer);
+	if (context.button != Qt::LeftButton) {
+		return;
+	}
+	const auto &windows = _peer->session().windows();
+	if (windows.empty()) {
+		Core::App().domain().activate(&_peer->session().account());
+		if (windows.empty()) {
+			return;
 		}
+	}
+	const auto window = windows.front();
+	const auto currentPeer = window->activeChatCurrent().peer();
+	if (_peer && _peer->isChannel() && currentPeer != _peer) {
+		const auto clickedChannel = _peer->asChannel();
+		if (!clickedChannel->isPublic()
+			&& !clickedChannel->amIn()
+			&& (!currentPeer->isChannel()
+				|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
+			Ui::show(Box<InformBox>(_peer->isMegagroup()
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now)));
+		} else {
+			window->showPeerHistory(
+				_peer,
+				Window::SectionShow::Way::Forward);
+		}
+	} else {
+		Ui::showPeerProfile(_peer);
 	}
 }
 
@@ -147,15 +158,17 @@ void PeerData::updateNameDelayed(
 	_nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	_userpicEmpty = nullptr;
 
-	Notify::PeerUpdate update(this);
-	if (nameVersion++ > 1) {
-		update.flags |= UpdateFlag::NameChanged;
-		update.oldNameFirstLetters = nameFirstLetters();
+	auto flags = UpdateFlag::None | UpdateFlag::None;
+	auto oldFirstLetters = base::flat_set<QChar>();
+	const auto nameUpdated = (nameVersion++ > 1);
+	if (nameUpdated) {
+		oldFirstLetters = nameFirstLetters();
+		flags |= UpdateFlag::Name;
 	}
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
 			asUser()->username = newUsername;
-			update.flags |= UpdateFlag::UsernameChanged;
+			flags |= UpdateFlag::Username;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
@@ -167,12 +180,15 @@ void PeerData::updateNameDelayed(
 			} else {
 				asChannel()->addFlags(MTPDchannel::Flag::f_username);
 			}
-			update.flags |= UpdateFlag::UsernameChanged;
+			flags |= UpdateFlag::Username;
 		}
 	}
 	fillNames();
-	if (update.flags) {
-		Notify::PeerUpdated().notify(update, true);
+	if (nameUpdated) {
+		session().changes().nameUpdated(this, std::move(oldFirstLetters));
+	}
+	if (flags) {
+		session().changes().peerUpdated(this, flags);
 	}
 }
 
@@ -204,7 +220,7 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	});
 	if (_userpicPhotoId != photoId) {
 		_userpicPhotoId = photoId;
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
 	}
 }
 
@@ -384,7 +400,7 @@ void PeerData::setUserpicChecked(
 		const ImageLocation &location) {
 	if (_userpicPhotoId != photoId || _userpic.location() != location) {
 		setUserpic(photoId, location);
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
 		//if (const auto channel = asChannel()) { // #feed
 		//	if (const auto feed = channel->feed()) {
 		//		owner().notifyFeedUpdated(
@@ -410,7 +426,7 @@ QString PeerData::computeUnavailableReason() const {
 	auto &&filtered = ranges::view::all(
 		list
 	) | ranges::view::filter([&](const Data::UnavailableReason &reason) {
-		return ranges::find(skip, reason.reason) == end(skip);
+		return !ranges::contains(skip, reason.reason);
 	});
 	const auto first = filtered.begin();
 	return (first != filtered.end()) ? first->text : QString();
@@ -454,9 +470,7 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 	messageId = (messageId > min) ? messageId : MsgId(0);
 	if (_pinnedMessageId != messageId) {
 		_pinnedMessageId = messageId;
-		Notify::peerUpdatedDelayed(
-			this,
-			Notify::PeerUpdate::Flag::PinnedMessageChanged);
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
@@ -479,7 +493,7 @@ bool PeerData::setAbout(const QString &newAbout) {
 		return false;
 	}
 	_about = newAbout;
-	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
+	session().changes().peerUpdated(this, UpdateFlag::About);
 	return true;
 }
 
@@ -760,8 +774,8 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 bool PeerData::canRevokeFullHistory() const {
 	return isUser()
 		&& !isSelf()
-		&& Global::RevokePrivateInbox()
-		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
+		&& session().serverConfig().revokePrivateInbox
+		&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
 }
 
 bool PeerData::slowmodeApplied() const {

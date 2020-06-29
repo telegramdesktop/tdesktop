@@ -469,10 +469,7 @@ uint64 Sandbox::installationTag() const {
 	return _launcher->installationTag();
 }
 
-void Sandbox::postponeCall(FnMut<void()> &&callable) {
-	Expects(callable != nullptr);
-	Expects(_eventNestingLevel >= _loopNestingLevel);
-
+void Sandbox::checkForEmptyLoopNestingLevel() {
 	// _loopNestingLevel == _eventNestingLevel means that we had a
 	// native event in a nesting loop that didn't get a notify() call
 	// after. That means we already have exited the nesting loop and
@@ -485,11 +482,17 @@ void Sandbox::postponeCall(FnMut<void()> &&callable) {
 		_loopNestingLevel = _previousLoopNestingLevels.back();
 		_previousLoopNestingLevels.pop_back();
 	}
+}
 
+void Sandbox::postponeCall(FnMut<void()> &&callable) {
+	Expects(callable != nullptr);
+	Expects(_eventNestingLevel >= _loopNestingLevel);
+
+	checkForEmptyLoopNestingLevel();
 	_postponedCalls.push_back({
 		_loopNestingLevel,
 		std::move(callable)
-		});
+	});
 }
 
 void Sandbox::incrementEventNestingLevel() {
@@ -497,16 +500,23 @@ void Sandbox::incrementEventNestingLevel() {
 }
 
 void Sandbox::decrementEventNestingLevel() {
+	Expects(_eventNestingLevel >= _loopNestingLevel);
+
 	if (_eventNestingLevel == _loopNestingLevel) {
 		_loopNestingLevel = _previousLoopNestingLevels.back();
 		_previousLoopNestingLevels.pop_back();
 	}
 	const auto processTillLevel = _eventNestingLevel - 1;
 	processPostponedCalls(processTillLevel);
+	checkForEmptyLoopNestingLevel();
 	_eventNestingLevel = processTillLevel;
+
+	Ensures(_eventNestingLevel >= _loopNestingLevel);
 }
 
 void Sandbox::registerEnterFromEventLoop() {
+	Expects(_eventNestingLevel >= _loopNestingLevel);
+
 	if (_eventNestingLevel > _loopNestingLevel) {
 		_previousLoopNestingLevels.push_back(_loopNestingLevel);
 		_loopNestingLevel = _eventNestingLevel;

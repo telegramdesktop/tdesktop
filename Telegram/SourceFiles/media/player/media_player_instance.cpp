@@ -23,10 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "main/main_account.h" // Account::sessionValue.
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "facades.h"
+#include "main/main_account.h" // session->account().sessionChanges().
+#include "main/main_session_settings.h"
 
 namespace Media {
 namespace Player {
@@ -113,26 +114,14 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
-	// While we have one Media::Player::Instance for all sessions we have to do this.
-	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (session) {
-			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
-				if (call) {
-					pauseOnCall(AudioMsgId::Type::Voice);
-					pauseOnCall(AudioMsgId::Type::Song);
-				} else {
-					resumeOnCall(AudioMsgId::Type::Voice);
-					resumeOnCall(AudioMsgId::Type::Song);
-				}
-			});
+	Core::App().calls().currentCallValue(
+	) | rpl::start_with_next([=](Calls::Call *call) {
+		if (call) {
+			pauseOnCall(AudioMsgId::Type::Voice);
+			pauseOnCall(AudioMsgId::Type::Song);
 		} else {
-			const auto reset = [&](AudioMsgId::Type type) {
-				const auto data = getData(type);
-				*data = Data(type, data->overview);
-			};
-			reset(AudioMsgId::Type::Voice);
-			reset(AudioMsgId::Type::Song);
+			resumeOnCall(AudioMsgId::Type::Voice);
+			resumeOnCall(AudioMsgId::Type::Song);
 		}
 	}, _lifetime);
 
@@ -176,16 +165,48 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		data->current = audioId;
 		data->isPlaying = false;
 
-		const auto item = Auth().data().message(data->current.contextId());
+		const auto item = (audioId.audio() && audioId.contextId())
+			? audioId.audio()->owner().message(audioId.contextId())
+			: nullptr;
 		if (item) {
-			data->history = item->history()->migrateToOrMe();
-			data->migrated = data->history->migrateFrom();
+			setHistory(data, item->history());
 		} else {
 			data->history = nullptr;
 			data->migrated = nullptr;
+			data->session = nullptr;
 		}
 		_trackChangedNotifier.notify(data->type, true);
 		refreshPlaylist(data);
+	}
+}
+
+void Instance::setHistory(not_null<Data*> data, History *history) {
+	if (history) {
+		data->history = history->migrateToOrMe();
+		data->migrated = data->history->migrateFrom();
+		setSession(data, &history->session());
+	} else {
+		data->history = data->migrated = nullptr;
+		setSession(data, nullptr);
+	}
+}
+
+void Instance::setSession(not_null<Data*> data, Main::Session *session) {
+	if (data->session == session) {
+		return;
+	}
+	data->playlistLifetime.destroy();
+	data->sessionLifetime.destroy();
+	data->session = session;
+	if (session) {
+		session->account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			setSession(data, nullptr);
+		}, data->sessionLifetime);
+	} else {
+		stop(data->type);
+		_tracksFinishedNotifier.notify(data->type);
+		*data = Data(data->type, data->overview);
 	}
 }
 
@@ -204,8 +225,14 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	requestRoundVideoResize();
 	emitUpdate(data->type);
 	data->streamed = nullptr;
-	App::wnd()->sessionController()->disableGifPauseReason(
-		Window::GifPauseReason::RoundPlaying);
+
+	_roundPlaying = false;
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
+			controller->disableGifPauseReason(
+				Window::GifPauseReason::RoundPlaying);
+		}
+	}
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -261,9 +288,11 @@ bool Instance::validPlaylist(not_null<Data*> data) {
 }
 
 void Instance::validatePlaylist(not_null<Data*> data) {
+	data->playlistLifetime.destroy();
 	if (const auto key = playlistKey(data)) {
 		data->playlistRequestedKey = key;
 		SharedMediaMergedViewer(
+			&data->history->session(),
 			SharedMediaMergedKey(*key, data->overview),
 			kIdsLimit,
 			kIdsLimit
@@ -302,8 +331,9 @@ HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
 		|| index >= data->playlistSlice->size()) {
 		return nullptr;
 	}
+	Assert(data->history != nullptr);
 	const auto fullId = (*data->playlistSlice)[index];
-	return Auth().data().message(fullId);
+	return data->history->owner().message(fullId);
 }
 
 bool Instance::moveInPlaylist(
@@ -444,7 +474,7 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 		: Streaming::Mode::Audio;
 	result.speed = (document
 		&& (document->isVoiceMessage() || document->isVideoMessage())
-		&& Global::VoiceMsgPlaybackDoubled())
+		&& Core::App().settings().voiceMsgPlaybackDoubled())
 		? kVoicePlaybackSpeedMultiplier
 		: 1.;
 	result.audioId = audioId;
@@ -594,7 +624,7 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 void Instance::updateVoicePlaybackSpeed() {
 	if (const auto data = getData(AudioMsgId::Type::Voice)) {
 		if (const auto streamed = data->streamed.get()) {
-			streamed->instance.setSpeed(Global::VoiceMsgPlaybackDoubled()
+			streamed->instance.setSpeed(Core::App().settings().voiceMsgPlaybackDoubled()
 				? kVoicePlaybackSpeedMultiplier
 				: 1.);
 		}
@@ -702,6 +732,10 @@ void Instance::setupShortcuts() {
 	}, _lifetime);
 }
 
+bool Instance::pauseGifByRoundVideo() const {
+	return _roundPlaying;
+}
+
 void Instance::handleStreamingUpdate(
 		not_null<Data*> data,
 		Streaming::Update &&update) {
@@ -714,8 +748,13 @@ void Instance::handleStreamingUpdate(
 					float64) {
 				requestRoundVideoRepaint();
 			});
-			App::wnd()->sessionController()->enableGifPauseReason(
-				Window::GifPauseReason::RoundPlaying);
+			_roundPlaying = true;
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->sessionController()) {
+					controller->enableGifPauseReason(
+						Window::GifPauseReason::RoundPlaying);
+				}
+			}
 			requestRoundVideoResize();
 		}
 		emitUpdate(data->type);
@@ -740,20 +779,21 @@ void Instance::handleStreamingUpdate(
 HistoryItem *Instance::roundVideoItem() const {
 	const auto data = getData(AudioMsgId::Type::Voice);
 	return (data->streamed
-		&& !data->streamed->instance.info().video.size.isEmpty())
-		? Auth().data().message(data->streamed->id.contextId())
+		&& !data->streamed->instance.info().video.size.isEmpty()
+		&& data->history)
+		? data->history->owner().message(data->streamed->id.contextId())
 		: nullptr;
 }
 
 void Instance::requestRoundVideoResize() const {
 	if (const auto item = roundVideoItem()) {
-		Auth().data().requestItemResize(item);
+		item->history()->owner().requestItemResize(item);
 	}
 }
 
 void Instance::requestRoundVideoRepaint() const {
 	if (const auto item = roundVideoItem()) {
-		Auth().data().requestItemRepaint(item);
+		item->history()->owner().requestItemRepaint(item);
 	}
 }
 

@@ -520,11 +520,25 @@ QString GetIconName() {
 	return Result;
 }
 
+bool GtkClipboardSupported() {
+	return (Libs::gtk_clipboard_get != nullptr)
+		&& (Libs::gtk_clipboard_wait_for_contents != nullptr)
+		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
+		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
+		&& (Libs::gtk_selection_data_free != nullptr)
+		&& (Libs::gdk_pixbuf_get_pixels != nullptr)
+		&& (Libs::gdk_pixbuf_get_width != nullptr)
+		&& (Libs::gdk_pixbuf_get_height != nullptr)
+		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
+		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
+		&& (Libs::gdk_atom_intern != nullptr);
+}
+
 QImage GetImageFromClipboard() {
 	QImage data;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!App::wnd()->gtkClipboard()) {
+	if (!GtkClipboardSupported() || !App::wnd()->gtkClipboard()) {
 		return data;
 	}
 
@@ -546,7 +560,7 @@ QImage GetImageFromClipboard() {
 						? QImage::Format_RGBA8888
 						: QImage::Format_RGB888).copy();
 
-				Libs::g_object_unref(img);
+				g_object_unref(img);
 			}
 		}
 
@@ -879,9 +893,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
-		return ranges::find_if(options, [](const QString &command) {
+		return ranges::any_of(options, [](const QString &command) {
 			return QProcess::startDetached(command);
-		}) != end(options);
+		});
 	}
 	return true;
 }

@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 
 #include "chat_helpers/emoji_keywords.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
@@ -99,8 +101,7 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 			return false;
 		}
 		// Suggest :D and :-P only as exact matches.
-		return ranges::find_if(_query, [](QChar ch) { return ch.isLower(); })
-			== _query.end();
+		return ranges::none_of(_query, [](QChar ch) { return ch.isLower(); });
 	}();
 	const auto exact = !middle || simple;
 	const auto list = Core::App().emojiKeywords().query(real, exact);
@@ -607,7 +608,7 @@ void SuggestionsController::setReplaceCallback(
 }
 
 void SuggestionsController::handleTextChange() {
-	if (_session->settings().suggestEmoji()
+	if (Core::App().settings().suggestEmoji()
 		&& _field->textCursor().position() > 0) {
 		Core::App().emojiKeywords().refresh();
 	}
@@ -637,7 +638,7 @@ void SuggestionsController::showWithQuery(const QString &query) {
 }
 
 QString SuggestionsController::getEmojiQuery() {
-	if (!_session->settings().suggestEmoji()) {
+	if (!Core::App().settings().suggestEmoji()) {
 		return QString();
 	}
 

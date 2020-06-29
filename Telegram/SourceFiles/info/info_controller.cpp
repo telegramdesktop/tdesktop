@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
-#include "observer_peer.h"
+#include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -25,19 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 namespace Info {
-namespace {
-
-not_null<PeerData*> CorrectPeer(PeerId peerId) {
-	Expects(peerId != 0);
-
-	const auto result = Auth().data().peer(peerId);
-	if (const auto to = result->migrateTo()) {
-		return to;
-	}
-	return result;
-}
-
-} // namespace
 
 Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
@@ -91,10 +78,13 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter) const {
+	Expects(peer() != nullptr);
+
 	return SharedMediaMergedViewer(
+		&session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
-				peerId(),
+				peer()->id,
 				migratedPeerId(),
 				aroundId),
 			section().mediaType()),
@@ -112,11 +102,8 @@ AbstractController::AbstractController(
 , _parent(parent) {
 }
 
-PeerId AbstractController::peerId() const {
-	if (const auto peer = key().peer()) {
-		return peer->id;
-	}
-	return PeerId(0);
+PeerData *AbstractController::peer() const {
+	return key().peer();
 }
 
 PeerId AbstractController::migratedPeerId() const {
@@ -154,7 +141,7 @@ Controller::Controller(
 , _widget(widget)
 , _key(memento->key())
 , _migrated(memento->migratedPeerId()
-	? Auth().data().peer(memento->migratedPeerId()).get()
+	? window->session().data().peer(memento->migratedPeerId()).get()
 	: nullptr)
 , _section(memento->section()) {
 	updateSearchControllers(memento);
@@ -166,22 +153,22 @@ void Controller::setupMigrationViewer() {
 	if (!peer || (!peer->isChat() && !peer->isChannel()) || _migrated) {
 		return;
 	}
-	Notify::PeerUpdateValue(
+	peer->session().changes().peerFlagsValue(
 		peer,
-		Notify::PeerUpdate::Flag::MigrationChanged
-	) | rpl::start_with_next([=] {
-		if (peer->migrateTo() || (peer->migrateFrom() != _migrated)) {
-			const auto window = parentController();
-			const auto section = _section;
-			InvokeQueued(_widget, [=] {
-				window->showSection(
-					Memento(peer->id, section),
-					Window::SectionShow(
-						Window::SectionShow::Way::Backward,
-						anim::type::instant,
-						anim::activation::background));
-			});
-		}
+		Data::PeerUpdate::Flag::Migration
+	) | rpl::filter([=] {
+		return peer->migrateTo() || (peer->migrateFrom() != _migrated);
+	}) | rpl::start_with_next([=] {
+		const auto window = parentController();
+		const auto section = _section;
+		InvokeQueued(_widget, [=] {
+			window->showSection(
+				Memento(peer, section),
+				Window::SectionShow(
+					Window::SectionShow::Way::Backward,
+					anim::type::instant,
+					anim::activation::background));
+		});
 	}, lifetime());
 }
 
@@ -195,7 +182,7 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
-	return memento->peerId() == peerId()
+	return memento->peer() == peer()
 		&& memento->migratedPeerId() == migratedPeerId()
 		//&& memento->feed() == feed() // #feed
 		&& memento->settingsSelf() == settingsSelf();
@@ -313,6 +300,7 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 	}
 
 	return SharedMediaMergedViewer(
+		&session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				query.peerId,

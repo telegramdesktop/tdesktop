@@ -93,7 +93,7 @@ inline auto AddButton(
 		tracker)->entity();
 	result->addClickHandler([=] {
 		navigation->showSection(
-			Info::Memento(peer->id, Section(type)));
+			Info::Memento(peer, Section(type)));
 	});
 	return result;
 };
@@ -112,7 +112,7 @@ inline auto AddCommonGroupsButton(
 		tracker)->entity();
 	result->addClickHandler([=] {
 		navigation->showSection(
-			Info::Memento(user->id, Section::Type::CommonGroups));
+			Info::Memento(user, Section::Type::CommonGroups));
 	});
 	return result;
 };

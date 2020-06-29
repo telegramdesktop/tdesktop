@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 
 struct FileOrigin;
@@ -31,13 +35,15 @@ public:
 	[[nodiscard]] bool isBlurred() const;
 	[[nodiscard]] int patternIntensity() const;
 	[[nodiscard]] bool hasShareUrl() const;
-	[[nodiscard]] QString shareUrl() const;
+	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 
 	void loadDocument() const;
 	void loadDocumentThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
 
-	[[nodiscard]] MTPInputWallPaper mtpInput() const;
+	[[nodiscard]] UserId ownerId() const;
+	[[nodiscard]] MTPInputWallPaper mtpInput(
+		not_null<Main::Session*> session) const;
 	[[nodiscard]] MTPWallPaperSettings mtpSettings() const;
 
 	[[nodiscard]] WallPaper withUrlParams(
@@ -49,8 +55,10 @@ public:
 	[[nodiscard]] WallPaper withoutImageData() const;
 
 	[[nodiscard]] static std::optional<WallPaper> Create(
+		not_null<Main::Session*> session,
 		const MTPWallPaper &data);
 	[[nodiscard]] static std::optional<WallPaper> Create(
+		not_null<Main::Session*> session,
 		const MTPDwallPaper &data);
 
 	[[nodiscard]] QByteArray serialize() const;
@@ -71,6 +79,7 @@ private:
 
 	WallPaperId _id = WallPaperId();
 	uint64 _accessHash = 0;
+	UserId _ownerId = 0;
 	MTPDwallPaper::Flags _flags;
 	QString _slug;
 

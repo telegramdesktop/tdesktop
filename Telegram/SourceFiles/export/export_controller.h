@@ -10,7 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "mtproto/mtproto_rpc_sender.h"
 
+#include <QtCore/QPointer>
 #include <crl/crl_object_on_queue.h>
+
+namespace MTP {
+class Instance;
+} // namespace MTP
 
 namespace Export {
 
@@ -112,7 +117,9 @@ using State = base::optional_variant<
 
 class Controller {
 public:
-	explicit Controller(const MTPInputPeer &peer);
+	Controller(
+		QPointer<MTP::Instance> mtproto,
+		const MTPInputPeer &peer);
 
 	rpl::producer<State> state() const;
 

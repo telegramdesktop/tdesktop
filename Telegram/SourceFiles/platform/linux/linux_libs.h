@@ -20,6 +20,12 @@ extern "C" {
 
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
+#if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
+#define LOAD_SYMBOL(lib, name, func) (func = ::func)
+#else // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
+#define LOAD_SYMBOL Platform::Libs::load
+#endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
+
 namespace Platform {
 namespace Libs {
 
@@ -167,9 +173,6 @@ extern f_gdk_window_set_modal_hint gdk_window_set_modal_hint;
 typedef void (*f_gdk_window_focus)(GdkWindow *window, guint32 timestamp);
 extern f_gdk_window_focus gdk_window_focus;
 
-typedef GTypeInstance* (*f_g_type_check_instance_cast)(GTypeInstance *instance, GType iface_type);
-extern f_g_type_check_instance_cast g_type_check_instance_cast;
-
 template <typename Result, typename Object>
 inline Result *g_type_cic_helper(Object *instance, GType iface_type) {
 	return reinterpret_cast<Result*>(g_type_check_instance_cast(reinterpret_cast<GTypeInstance*>(instance), iface_type));
@@ -181,11 +184,6 @@ extern f_gtk_dialog_get_type gtk_dialog_get_type;
 template <typename Object>
 inline GtkDialog *gtk_dialog_cast(Object *obj) {
 	return g_type_cic_helper<GtkDialog, Object>(obj, gtk_dialog_get_type());
-}
-
-template <typename Object>
-inline GObject *g_object_cast(Object *obj) {
-	return g_type_cic_helper<GObject, Object>(obj, G_TYPE_OBJECT);
 }
 
 typedef GType (*f_gtk_file_chooser_get_type)(void) G_GNUC_CONST;
@@ -220,9 +218,6 @@ inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
 }
 
-typedef gboolean (*f_g_type_check_instance_is_a)(GTypeInstance *instance, GType iface_type);
-extern f_g_type_check_instance_is_a g_type_check_instance_is_a;
-
 template <typename Object>
 inline bool g_type_cit_helper(Object *instance, GType iface_type) {
 	if (!instance) return false;
@@ -236,17 +231,6 @@ inline bool g_type_cit_helper(Object *instance, GType iface_type) {
 
 typedef gint (*f_gtk_dialog_run)(GtkDialog *dialog);
 extern f_gtk_dialog_run gtk_dialog_run;
-
-typedef gulong (*f_g_signal_connect_data)(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data, GConnectFlags connect_flags);
-extern f_g_signal_connect_data g_signal_connect_data;
-
-inline gulong g_signal_connect_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, (GConnectFlags)0);
-}
-
-inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data = nullptr) {
-	return g_signal_connect_data(instance, detailed_signal, c_handler, data, destroy_data, G_CONNECT_SWAPPED);
-}
 
 typedef GdkAtom (*f_gdk_atom_intern)(const gchar *atom_name, gboolean only_if_exists);
 extern f_gdk_atom_intern gdk_atom_intern;
@@ -268,24 +252,6 @@ extern f_gdk_pixbuf_get_height gdk_pixbuf_get_height;
 
 typedef int (*f_gdk_pixbuf_get_rowstride)(const GdkPixbuf *pixbuf);
 extern f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride;
-
-typedef void (*f_g_object_get)(gpointer object, const gchar *first_property_name, ...) G_GNUC_NULL_TERMINATED;
-extern f_g_object_get g_object_get;
-
-typedef void (*f_g_object_unref)(gpointer object);
-extern f_g_object_unref g_object_unref;
-
-typedef void (*f_g_free)(gpointer mem);
-extern f_g_free g_free;
-
-typedef void (*f_g_slist_free)(GSList *list);
-extern f_g_slist_free g_slist_free;
-
-typedef guint (*f_g_log_set_handler)(const gchar *log_domain, GLogLevelFlags log_levels, GLogFunc log_func, gpointer user_data);
-extern f_g_log_set_handler g_log_set_handler;
-
-typedef void (*f_g_log_default_handler)(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer unused_data);
-extern f_g_log_default_handler g_log_default_handler;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs

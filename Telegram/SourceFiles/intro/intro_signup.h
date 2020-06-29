@@ -40,7 +40,7 @@ private:
 	void updateControlsGeometry();
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
-	bool nameSubmitFail(const RPCError &error);
+	void nameSubmitFail(const RPCError &error);
 
 	object_ptr<Ui::UserpicButton> _photo;
 	object_ptr<Ui::InputField> _first;

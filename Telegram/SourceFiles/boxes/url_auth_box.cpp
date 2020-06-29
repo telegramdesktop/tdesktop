@@ -28,7 +28,11 @@ void UrlAuthBox::Activate(
 		int row,
 		int column) {
 	const auto itemId = message->fullId();
-	const auto button = HistoryMessageMarkupButton::Get(itemId, row, column);
+	const auto button = HistoryMessageMarkupButton::Get(
+		&message->history()->owner(),
+		itemId,
+		row,
+		column);
 	if (button->requestId || !IsServerMsgId(itemId.msg)) {
 		return;
 	}
@@ -43,10 +47,13 @@ void UrlAuthBox::Activate(
 		MTP_int(buttonId)
 	)).done([=](const MTPUrlAuthResult &result) {
 		const auto button = HistoryMessageMarkupButton::Get(
+			&session->data(),
 			itemId,
 			row,
 			column);
-		if (!button) return;
+		if (!button) {
+			return;
+		}
 
 		button->requestId = 0;
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
@@ -58,6 +65,7 @@ void UrlAuthBox::Activate(
 		});
 	}).fail([=](const RPCError &error) {
 		const auto button = HistoryMessageMarkupButton::Get(
+			&session->data(),
 			itemId,
 			row,
 			column);
@@ -74,7 +82,11 @@ void UrlAuthBox::Request(
 		int row,
 		int column) {
 	const auto itemId = message->fullId();
-	const auto button = HistoryMessageMarkupButton::Get(itemId, row, column);
+	const auto button = HistoryMessageMarkupButton::Get(
+		&message->history()->owner(),
+		itemId,
+		row,
+		column);
 	if (button->requestId || !IsServerMsgId(itemId.msg)) {
 		return;
 	}

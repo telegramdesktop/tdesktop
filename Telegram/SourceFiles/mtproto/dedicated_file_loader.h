@@ -9,11 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/mtp_instance.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace MTP {
 
 class WeakInstance : private QObject, private base::Subscriber {
 public:
-	WeakInstance(QPointer<Instance> instance);
+	explicit WeakInstance(base::weak_ptr<Main::Session> session);
 
 	template <typename T>
 	void send(
@@ -22,8 +26,9 @@ public:
 		Fn<void(const RPCError &error)> fail,
 		ShiftedDcId dcId = 0);
 
-	bool valid() const;
-	QPointer<Instance> instance() const;
+	[[nodiscard]] base::weak_ptr<Main::Session> session() const;
+	[[nodiscard]] bool valid() const;
+	[[nodiscard]] Instance *instance() const;
 
 	~WeakInstance();
 
@@ -32,7 +37,8 @@ private:
 	bool removeRequest(mtpRequestId requestId);
 	void reportUnavailable(Fn<void(const RPCError &error)> callback);
 
-	QPointer<Instance> _instance;
+	base::weak_ptr<Main::Session> _session;
+	Instance *_instance = nullptr;
 	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
 	rpl::lifetime _lifetime;
 
@@ -115,7 +121,7 @@ public:
 	};
 
 	DedicatedLoader(
-		QPointer<Instance> instance,
+		base::weak_ptr<Main::Session> session,
 		const QString &folder,
 		const File &file);
 

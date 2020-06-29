@@ -174,11 +174,12 @@ QrWidget::QrWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
-, _api(account->mtp())
 , _refreshTimer([=] { refreshCode(); }) {
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
+
+	cancelNearestDcRequest();
 
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
@@ -219,7 +220,7 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 }
 
 void QrWidget::submit() {
-	goReplace<PhoneWidget>();
+	goReplace<PhoneWidget>(Animate::Forward);
 }
 
 rpl::producer<QString> QrWidget::nextButtonText() const {
@@ -309,7 +310,7 @@ void QrWidget::refreshCode() {
 	if (_requestId) {
 		return;
 	}
-	_requestId = _api.request(MTPauth_ExportLoginToken(
+	_requestId = api().request(MTPauth_ExportLoginToken(
 		MTP_int(ApiId),
 		MTP_string(ApiHash),
 		MTP_vector<MTPint>(0)
@@ -357,8 +358,8 @@ void QrWidget::showToken(const QByteArray &token) {
 void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 	Expects(_requestId != 0);
 
-	_api.instance()->setMainDcId(dcId);
-	_requestId = _api.request(MTPauth_ImportLoginToken(
+	api().instance().setMainDcId(dcId);
+	_requestId = api().request(MTPauth_ImportLoginToken(
 		MTP_bytes(token)
 	)).done([=](const MTPauth_LoginToken &result) {
 		handleTokenResult(result);
@@ -374,8 +375,6 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 			showError(rpl::single(Lang::Hard::ServerError()));
 			return;
 		}
-		const auto phone = data.vuser().c_user().vphone().value_or_empty();
-		cSetLoggedPhoneNumber(phone);
 		finish(data.vuser());
 	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
 		_requestId = 0;
@@ -385,14 +384,14 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 }
 
 void QrWidget::sendCheckPasswordRequest() {
-	_requestId = _api.request(MTPaccount_GetPassword(
+	_requestId = api().request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		result.match([&](const MTPDaccount_password &data) {
 			getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(
 				data);
 			if (!data.vcurrent_algo() || !data.vsrp_id() || !data.vsrp_B()) {
 				LOG(("API Error: No current password received on login."));
-				goReplace<QrWidget>();
+				goReplace<QrWidget>(Animate::Forward);
 				return;
 			} else if (!getData()->pwdRequest) {
 				const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
@@ -409,7 +408,7 @@ void QrWidget::sendCheckPasswordRequest() {
 			getData()->hasRecovery = data.is_has_recovery();
 			getData()->pwdHint = qs(data.vhint().value_or_empty());
 			getData()->pwdNotEmptyPassport = data.is_has_secure_values();
-			goReplace<PasswordCheckWidget>();
+			goReplace<PasswordCheckWidget>(Animate::Forward);
 		});
 	}).fail([=](const RPCError &error) {
 		showTokenError(error);
@@ -424,12 +423,12 @@ void QrWidget::activate() {
 void QrWidget::finished() {
 	Step::finished();
 	_refreshTimer.cancel();
-	rpcInvalidate();
+	apiClear();
 	cancelled();
 }
 
 void QrWidget::cancelled() {
-	_api.request(base::take(_requestId)).cancel();
+	api().request(base::take(_requestId)).cancel();
 }
 
 } // namespace details

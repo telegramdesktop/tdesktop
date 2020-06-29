@@ -46,9 +46,11 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 
-style::InputField CreateBioFieldStyle();
+[[nodiscard]] style::InputField CreateBioFieldStyle();
 
-QString PeerFloodErrorText(PeerFloodType type);
+[[nodiscard]] QString PeerFloodErrorText(
+	not_null<Main::Session*> session,
+	PeerFloodType type);
 void ShowAddParticipantsError(
 	const QString &error,
 	not_null<PeerData*> chat,
@@ -140,9 +142,8 @@ private:
 
 };
 
-class SetupChannelBox
+class SetupChannelBox final
 	: public Ui::BoxContent
-	, public RPCSender
 	, private base::Subscriber {
 public:
 	SetupChannelBox(
@@ -174,12 +175,12 @@ private:
 	void check();
 	void save();
 
-	void onUpdateDone(const MTPBool &result);
-	bool onUpdateFail(const RPCError &error);
+	void updateDone(const MTPBool &result);
+	void updateFail(const RPCError &error);
 
-	void onCheckDone(const MTPBool &result);
-	bool onCheckFail(const RPCError &error);
-	bool onFirstCheckFail(const RPCError &error);
+	void checkDone(const MTPBool &result);
+	void checkFail(const RPCError &error);
+	void firstCheckFail(const RPCError &error);
 
 	void updateMaxHeight();
 
@@ -187,6 +188,7 @@ private:
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<ChannelData*> _channel;
+	MTP::Sender _api;
 
 	bool _existing = false;
 
@@ -210,7 +212,7 @@ private:
 
 };
 
-class EditNameBox : public Ui::BoxContent, public RPCSender {
+class EditNameBox : public Ui::BoxContent {
 public:
 	EditNameBox(QWidget*, not_null<UserData*> user);
 
@@ -224,9 +226,10 @@ private:
 	void submit();
 	void save();
 	void saveSelfDone(const MTPUser &user);
-	bool saveSelfFail(const RPCError &error);
+	void saveSelfFail(const RPCError &error);
 
-	not_null<UserData*> _user;
+	const not_null<UserData*> _user;
+	MTP::Sender _api;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
@@ -238,9 +241,8 @@ private:
 
 };
 
-class RevokePublicLinkBox
+class RevokePublicLinkBox final
 	: public Ui::BoxContent
-	, public RPCSender
 	, private base::Subscriber {
 public:
 	RevokePublicLinkBox(

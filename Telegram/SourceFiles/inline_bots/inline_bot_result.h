@@ -77,7 +77,7 @@ public:
 	~Result();
 
 private:
-	void createGame();
+	void createGame(not_null<Main::Session*> session);
 	QSize thumbBox() const;
 	MTPWebDocument adjustAttributes(const MTPWebDocument &document);
 	MTPVector<MTPDocumentAttribute> adjustAttributes(

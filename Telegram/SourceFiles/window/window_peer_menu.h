@@ -62,6 +62,7 @@ void PeerMenuAddChannelMembers(
 	not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 void PeerMenuCreatePoll(
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags());

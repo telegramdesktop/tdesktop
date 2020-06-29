@@ -145,10 +145,6 @@ public:
 		FullMsgId context = FullMsgId(),
 		PeerData *peer = nullptr);
 
-	[[nodiscard]] bool valid() const {
-		return !_session.empty();
-	}
-
 	[[nodiscard]] not_null<PhotoData*> photo() const {
 		return _photo;
 	}
@@ -157,7 +153,6 @@ public:
 	}
 
 private:
-	const base::weak_ptr<Main::Session> _session;
 	const not_null<PhotoData*> _photo;
 	PeerData * const _peer = nullptr;
 

@@ -62,8 +62,8 @@ public:
 	rpl::producer<int> scrollTillBottomChanges() const;
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
+	bool floatPlayerHandleWheelEvent(QEvent *e);
+	QRect floatPlayerAvailableRect() const;
 
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
 	virtual void cancelSelection() {
@@ -116,8 +116,8 @@ private:
 
 class ContentMemento {
 public:
-	ContentMemento(PeerId peerId, PeerId migratedPeerId)
-	: _peerId(peerId)
+	ContentMemento(not_null<PeerData*> peer, PeerId migratedPeerId)
+	: _peer(peer)
 	, _migratedPeerId(migratedPeerId) {
 	}
 	//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
@@ -133,8 +133,8 @@ public:
 		not_null<Controller*> controller,
 		const QRect &geometry) = 0;
 
-	PeerId peerId() const {
-		return _peerId;
+	PeerData *peer() const {
+		return _peer;
 	}
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
@@ -183,7 +183,7 @@ public:
 	}
 
 private:
-	const PeerId _peerId = 0;
+	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
 	//Data::Feed * const _feed = nullptr; // #feed
 	UserData * const _settingsSelf = nullptr;

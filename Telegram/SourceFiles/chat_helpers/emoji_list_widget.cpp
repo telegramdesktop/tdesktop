@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
+#include "main/main_session.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
 #include "app.h"
@@ -698,7 +701,7 @@ void EmojiListWidget::colorChosen(EmojiPtr emoji) {
 		cRefEmojiVariants().insert(
 			emoji->nonColoredId(),
 			emoji->variantIndex(emoji));
-		Auth().saveSettingsDelayed();
+		controller()->session().saveSettingsDelayed();
 	}
 	if (_pickerSel >= 0) {
 		auto section = (_pickerSel / MatrixRowShift);
@@ -835,8 +838,7 @@ void EmojiListWidget::setSelected(int newSelected) {
 	_selected = newSelected;
 	updateSelected();
 
-	if (_selected >= 0
-		&& controller()->session().settings().suggestEmoji()) {
+	if (_selected >= 0 && Core::App().settings().suggestEmoji()) {
 		Ui::Tooltip::Show(1000, this);
 	}
 

@@ -7,20 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_pts_waiter.h"
 
-#include "mainwidget.h"
-#include "main/main_session.h"
-#include "apiwrap.h"
-#include "app.h"
+#include "api/api_updates.h"
 
-uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue, int32 pts) {
-	return _queue.insert(uint64(uint32(pts)) << 32 | (++_skippedKey), queue).key();
+PtsWaiter::PtsWaiter(not_null<Api::Updates*> owner) : _owner(owner) {
 }
 
-void PtsWaiter::setWaitingForSkipped(ChannelData *channel, int32 ms) {
+uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue, int32 pts) {
+	return _queue.emplace(
+		uint64(uint32(pts)) << 32 | (++_skippedKey),
+		queue
+	).first->first;
+}
+
+void PtsWaiter::setWaitingForSkipped(ChannelData *channel, crl::time ms) {
 	if (ms >= 0) {
-		if (App::main()) {
-			App::main()->ptsWaiterStartTimerFor(channel, ms);
-		}
+		_owner->ptsWaiterStartTimerFor(channel, ms);
 		_waitingForSkipped = true;
 	} else {
 		_waitingForSkipped = false;
@@ -28,11 +29,9 @@ void PtsWaiter::setWaitingForSkipped(ChannelData *channel, int32 ms) {
 	}
 }
 
-void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, int32 ms) {
+void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, crl::time ms) {
 	if (ms >= 0) {
-		if (App::main()) {
-			App::main()->ptsWaiterStartTimerFor(channel, ms);
-		}
+		_owner->ptsWaiterStartTimerFor(channel, ms);
 		_waitingForShortPoll = true;
 	} else {
 		_waitingForShortPoll = false;
@@ -41,23 +40,31 @@ void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, int32 ms) {
 }
 
 void PtsWaiter::checkForWaiting(ChannelData *channel) {
-	if (!_waitingForSkipped && !_waitingForShortPoll && App::main()) {
-		App::main()->ptsWaiterStartTimerFor(channel, -1);
+	if (!_waitingForSkipped && !_waitingForShortPoll) {
+		_owner->ptsWaiterStartTimerFor(channel, -1);
 	}
 }
 
 void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
-	if (!_waitingForSkipped) return;
+	if (!_waitingForSkipped) {
+		return;
+	}
 
 	setWaitingForSkipped(channel, -1);
 
-	if (_queue.isEmpty()) return;
+	if (_queue.empty()) {
+		return;
+	}
 
 	++_applySkippedLevel;
 	for (auto i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
-		switch (i.value()) {
-		case SkippedUpdate: Auth().api().applyUpdateNoPtsCheck(_updateQueue.value(i.key())); break;
-		case SkippedUpdates: Auth().api().applyUpdatesNoPtsCheck(_updatesQueue.value(i.key())); break;
+		switch (i->second) {
+		case SkippedUpdate: {
+			_owner->applyUpdateNoPtsCheck(_updateQueue[i->first]);
+		} break;
+		case SkippedUpdates: {
+			_owner->applyUpdatesNoPtsCheck(_updatesQueue[i->first]);
+		} break;
 		}
 	}
 	--_applySkippedLevel;
@@ -71,7 +78,11 @@ void PtsWaiter::clearSkippedUpdates() {
 	_applySkippedLevel = 0;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
+bool PtsWaiter::updated(
+		ChannelData *channel,
+		int32 pts,
+		int32 count,
+		const MTPUpdates &updates) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
 	} else if (pts <= _good && count > 0) {
@@ -79,11 +90,15 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPU
 	} else if (check(channel, pts, count)) {
 		return true;
 	}
-	_updatesQueue.insert(ptsKey(SkippedUpdates, pts), updates);
+	_updatesQueue.emplace(ptsKey(SkippedUpdates, pts), updates);
 	return false;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update) {
+bool PtsWaiter::updated(
+		ChannelData *channel,
+		int32 pts,
+		int32 count,
+		const MTPUpdate &update) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
 	} else if (pts <= _good && count > 0) {
@@ -91,7 +106,7 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPU
 	} else if (check(channel, pts, count)) {
 		return true;
 	}
-	_updateQueue.insert(ptsKey(SkippedUpdate, pts), update);
+	_updateQueue.emplace(ptsKey(SkippedUpdate, pts), update);
 	return false;
 }
 
@@ -104,35 +119,46 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
 	return check(channel, pts, count);
 }
 
-bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
+bool PtsWaiter::updateAndApply(
+		ChannelData *channel,
+		int32 pts,
+		int32 count,
+		const MTPUpdates &updates) {
 	if (!updated(channel, pts, count, updates)) {
 		return false;
 	}
-	if (!_waitingForSkipped || _queue.isEmpty()) {
+	if (!_waitingForSkipped || _queue.empty()) {
 		// Optimization - no need to put in queue and back.
-		Auth().api().applyUpdatesNoPtsCheck(updates);
+		_owner->applyUpdatesNoPtsCheck(updates);
 	} else {
-		_updatesQueue.insert(ptsKey(SkippedUpdates, pts), updates);
+		_updatesQueue.emplace(ptsKey(SkippedUpdates, pts), updates);
 		applySkippedUpdates(channel);
 	}
 	return true;
 }
 
-bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update) {
+bool PtsWaiter::updateAndApply(
+		ChannelData *channel,
+		int32 pts,
+		int32 count,
+		const MTPUpdate &update) {
 	if (!updated(channel, pts, count, update)) {
 		return false;
 	}
-	if (!_waitingForSkipped || _queue.isEmpty()) {
+	if (!_waitingForSkipped || _queue.empty()) {
 		// Optimization - no need to put in queue and back.
-		Auth().api().applyUpdateNoPtsCheck(update);
+		_owner->applyUpdateNoPtsCheck(update);
 	} else {
-		_updateQueue.insert(ptsKey(SkippedUpdate, pts), update);
+		_updateQueue.emplace(ptsKey(SkippedUpdate, pts), update);
 		applySkippedUpdates(channel);
 	}
 	return true;
 }
 
-bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count) {
+bool PtsWaiter::updateAndApply(
+		ChannelData *channel,
+		int32 pts,
+		int32 count) {
 	if (!updated(channel, pts, count)) {
 		return false;
 	}

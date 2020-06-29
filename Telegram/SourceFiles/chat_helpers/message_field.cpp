@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "boxes/abstract_box.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
@@ -48,17 +50,13 @@ constexpr auto kParseLinksTimeout = crl::time(1000);
 // For mention tags save and validate userId, ignore tags for different userId.
 class FieldTagMimeProcessor : public Ui::InputField::TagMimeProcessor {
 public:
-	QString tagFromMimeTag(const QString &mimeTag) override {
-		if (TextUtilities::IsMentionLink(mimeTag)) {
-			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-			if (!match.hasMatch()
-				|| match.capturedRef(1).toInt() != Auth().userId()) {
-				return QString();
-			}
-			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
-		}
-		return mimeTag;
-	}
+	explicit FieldTagMimeProcessor(
+		not_null<Window::SessionController*> controller);
+
+	QString tagFromMimeTag(const QString &mimeTag) override;
+
+private:
+	const not_null<Window::SessionController*> _controller;
 
 };
 
@@ -66,7 +64,7 @@ class EditLinkBox : public Ui::BoxContent {
 public:
 	EditLinkBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const QString &text,
 		const QString &link,
 		Fn<void(QString, QString)> callback);
@@ -77,13 +75,31 @@ protected:
 	void prepare() override;
 
 private:
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	QString _startText;
 	QString _startLink;
 	Fn<void(QString, QString)> _callback;
 	Fn<void()> _setInnerFocus;
 
 };
+
+FieldTagMimeProcessor::FieldTagMimeProcessor(
+	not_null<Window::SessionController*> controller)
+: _controller(controller) {
+}
+
+QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
+	if (TextUtilities::IsMentionLink(mimeTag)) {
+		const auto userId = _controller->session().userId();
+		auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
+		if (!match.hasMatch()
+			|| match.capturedRef(1).toInt() != userId) {
+			return QString();
+		}
+		return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
+	}
+	return mimeTag;
+}
 
 //bool ValidateUrl(const QString &value) {
 //	const auto match = qthelp::RegExpDomain().match(value);
@@ -97,11 +113,11 @@ private:
 
 EditLinkBox::EditLinkBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	const QString &text,
 	const QString &link,
 	Fn<void(QString, QString)> callback)
-: _session(session)
+: _controller(controller)
 , _startText(text)
 , _startLink(link)
 , _callback(std::move(callback)) {
@@ -117,6 +133,7 @@ void EditLinkBox::setInnerFocus() {
 void EditLinkBox::prepare() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	const auto session = &_controller->session();
 	const auto text = content->add(
 		object_ptr<Ui::InputField>(
 			content,
@@ -126,12 +143,12 @@ void EditLinkBox::prepare() {
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(
-		_session->settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		text,
-		_session);
-	InitSpellchecker(_session, text);
+		session);
+	InitSpellchecker(_controller, text);
 
 	const auto url = content->add(
 		object_ptr<Ui::InputField>(
@@ -235,7 +252,7 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
 	const auto weak = Ui::MakeWeak(field);
 	return [=](
@@ -247,7 +264,7 @@ Fn<bool(
 			return Ui::InputField::IsValidMarkdownLink(link)
 				&& !TextUtilities::IsMentionLink(link);
 		}
-		Ui::show(Box<EditLinkBox>(session, text, link, [=](
+		Ui::show(Box<EditLinkBox>(controller, text, link, [=](
 				const QString &text,
 				const QString &link) {
 			if (const auto strong = weak.data()) {
@@ -264,7 +281,8 @@ void InitMessageField(
 	field->setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-	field->setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
+	field->setTagMimeProcessor(
+		std::make_unique<FieldTagMimeProcessor>(controller));
 
 	field->document()->setDocumentMargin(4.);
 	field->setAdditionalMargin(style::ConvertScale(4) - 4);
@@ -272,22 +290,21 @@ void InitMessageField(
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
-		controller->session().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(
-		DefaultEditLinkCallback(&controller->session(), field));
+	field->setEditLinkCallback(DefaultEditLinkCallback(controller, field));
 }
 
 void InitSpellchecker(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
 		field.get(),
-		session->settings().spellcheckerEnabledValue(),
+		Core::App().settings().spellcheckerEnabledValue(),
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
-			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(session)); }
+			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(controller)); }
 		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
@@ -307,7 +324,9 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 	return false;
 }
 
-InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
+InlineBotQuery ParseInlineBotQuery(
+		not_null<Main::Session*> session,
+		not_null<const Ui::InputField*> field) {
 	auto result = InlineBotQuery();
 
 	const auto &full = field->getTextWithTags();
@@ -345,7 +364,7 @@ InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
 			if (username != result.username) {
 				result.username = username.toString();
-				if (const auto peer = Auth().data().peerByUsername(result.username)) {
+				if (const auto peer = session->data().peerByUsername(result.username)) {
 					if (const auto user = peer->asUser()) {
 						result.bot = peer->asUser();
 					} else {

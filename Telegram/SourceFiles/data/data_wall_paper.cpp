@@ -51,11 +51,11 @@ std::optional<QColor> MaybeColorFromSerialized(quint32 serialized) {
 std::optional<QColor> ColorFromString(const QString &string) {
 	if (string.size() != 6) {
 		return {};
-	} else if (ranges::find_if(string, [](QChar ch) {
+	} else if (ranges::any_of(string, [](QChar ch) {
 		return (ch < 'a' || ch > 'f')
 			&& (ch < 'A' || ch > 'F')
 			&& (ch < '0' || ch > '9');
-	}) != string.end()) {
+	})) {
 		return {};
 	}
 	const auto component = [](const QString &text, int index) {
@@ -154,11 +154,11 @@ bool WallPaper::hasShareUrl() const {
 	return !_slug.isEmpty();
 }
 
-QString WallPaper::shareUrl() const {
+QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 	if (!hasShareUrl()) {
 		return QString();
 	}
-	const auto base = Core::App().createInternalLinkFull("bg/" + _slug);
+	const auto base = session->createInternalLinkFull("bg/" + _slug);
 	auto params = QStringList();
 	if (isPattern()) {
 		if (_backgroundColor) {
@@ -196,11 +196,17 @@ void WallPaper::loadDocument() const {
 }
 
 FileOrigin WallPaper::fileOrigin() const {
-	return FileOriginWallpaper(_id, _accessHash);
+	return FileOriginWallpaper(_id, _accessHash, _ownerId, _slug);
 }
 
-MTPInputWallPaper WallPaper::mtpInput() const {
-	return MTP_inputWallPaper(MTP_long(_id), MTP_long(_accessHash));
+UserId WallPaper::ownerId() const {
+	return _ownerId;
+}
+
+MTPInputWallPaper WallPaper::mtpInput(not_null<Main::Session*> session) const {
+	return (_ownerId && _ownerId != session->userId() && !_slug.isEmpty())
+		? MTP_inputWallPaperSlug(MTP_string(_slug))
+		: MTP_inputWallPaper(MTP_long(_id), MTP_long(_accessHash));
 }
 
 MTPWallPaperSettings WallPaper::mtpSettings() const {
@@ -302,24 +308,29 @@ WallPaper WallPaper::withoutImageData() const {
 	return result;
 }
 
-std::optional<WallPaper> WallPaper::Create(const MTPWallPaper &data) {
-	return data.match([](const MTPDwallPaper &data) {
-		return Create(data);
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const MTPWallPaper &data) {
+	return data.match([&](const MTPDwallPaper &data) {
+		return Create(session, data);
 	}, [](const MTPDwallPaperNoFile &data) {
 		return std::optional<WallPaper>(); // #TODO themes
 	});
 }
 
-std::optional<WallPaper> WallPaper::Create(const MTPDwallPaper &data) {
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const MTPDwallPaper &data) {
 	using Flag = MTPDwallPaper::Flag;
 
-	const auto document = Auth().data().processDocument(
+	const auto document = session->data().processDocument(
 		data.vdocument());
 	if (!document->checkWallPaperProperties()) {
 		return std::nullopt;
 	}
 	auto result = WallPaper(data.vid().v);
 	result._accessHash = data.vaccess_hash().v;
+	result._ownerId = session->userId();
 	result._flags = data.vflags().v;
 	result._slug = qs(data.vslug());
 	result._document = document;
@@ -368,7 +379,8 @@ QByteArray WallPaper::serialize() const {
 			<< _slug
 			<< qint32(_settings)
 			<< SerializeMaybeColor(_backgroundColor)
-			<< qint32(_intensity);
+			<< qint32(_intensity)
+			<< qint32(_ownerId);
 	}
 	return result;
 }
@@ -381,6 +393,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 
 	auto id = quint64();
 	auto accessHash = quint64();
+	auto ownerId = qint32();
 	auto flags = qint32();
 	auto slug = QString();
 	auto settings = qint32();
@@ -397,6 +410,9 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 		>> settings
 		>> backgroundColor
 		>> intensity;
+	if (!stream.atEnd()) {
+		stream >> ownerId;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		return std::nullopt;
 	} else if (intensity < 0 || intensity > 100) {
@@ -404,6 +420,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	}
 	auto result = WallPaper(id);
 	result._accessHash = accessHash;
+	result._ownerId = ownerId;
 	result._flags = MTPDwallPaper::Flags::from_raw(flags);
 	result._slug = slug;
 	result._settings = MTPDwallPaperSettings::Flags::from_raw(settings);

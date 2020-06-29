@@ -21,6 +21,8 @@ constexpr auto kRequestPartsCount = 8;
 } // namespace
 
 StreamedFileDownloader::StreamedFileDownloader(
+	not_null<Main::Session*> session,
+
 	uint64 objectId,
 	MTP::DcId dcId,
 	Data::FileOrigin origin,
@@ -37,6 +39,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 	bool autoLoading,
 	uint8 cacheTag)
 : FileLoader(
+	session,
 	toFile,
 	size,
 	locationType,

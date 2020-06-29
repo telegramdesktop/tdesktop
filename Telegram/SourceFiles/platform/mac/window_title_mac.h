@@ -17,7 +17,7 @@ namespace Platform {
 
 class MainWindow;
 
-class TitleWidget : public Window::TitleWidget, private base::Subscriber {
+class TitleWidget : public Window::TitleWidget {
 public:
 	TitleWidget(MainWindow *parent, int height);
 

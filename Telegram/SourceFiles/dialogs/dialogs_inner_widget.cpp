@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
@@ -30,16 +31,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_file.h"
+#include "data/data_changes.h"
+#include "data/stickers/data_stickers.h"
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
-#include "observer_peer.h"
-#include "chat_helpers/stickers.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -48,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "api/api_chat_filters.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -133,7 +134,7 @@ InnerWidget::InnerWidget(
 
 	subscribe(session().downloaderTaskFinished(), [=] { update(); });
 
-	subscribe(session().notifications().settingsChanged(), [=](
+	subscribe(Core::App().notifications().settingsChanged(), [=](
 			Window::Notifications::ChangeType change) {
 		if (change == Window::Notifications::ChangeType::CountMessages) {
 			// Folder rows change their unread badge with this setting.
@@ -197,8 +198,7 @@ InnerWidget::InnerWidget(
 	}, lifetime());
 
 	rpl::merge(
-		session().settings().archiveCollapsedChanges(
-		) | rpl::map([] { return rpl::empty_value(); }),
+		session().settings().archiveCollapsedChanges() | rpl::to_empty,
 		session().data().chatsFilters().changed()
 	) | rpl::start_with_next([=] {
 		refreshWithCollapsedRows();
@@ -209,50 +209,69 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	session().data().chatsFilters().refreshHistoryRequests(
-	) | rpl::start_with_next([=](not_null<History*> history) {
-		if (history->inChatList()
-			&& !session().data().chatsFilters().list().empty()) {
-			refreshDialog(history);
-		}
-	}, lifetime());
-
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Layout::clearUnreadBadgesCache();
 		}
 	});
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto changes = UpdateFlag::ChatPinnedChanged
-		| UpdateFlag::NameChanged
-		| UpdateFlag::PhotoChanged
-		| UpdateFlag::UserIsContact
-		| UpdateFlag::UserOccupiedChanged
-		| UpdateFlag::MigrationChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
-		if (update.flags & UpdateFlag::ChatPinnedChanged) {
+	session().changes().historyUpdates(
+		Data::HistoryUpdate::Flag::IsPinned
+		| Data::HistoryUpdate::Flag::ChatOccupied
+	) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+		if (update.flags & Data::HistoryUpdate::Flag::IsPinned) {
 			stopReorderPinned();
 		}
-		if (update.flags & UpdateFlag::NameChanged) {
+		if (update.flags & Data::HistoryUpdate::Flag::ChatOccupied) {
 			this->update();
+			_updated.fire({});
 		}
-		if (update.flags & (UpdateFlag::PhotoChanged | UpdateFlag::UserOccupiedChanged)) {
+	}, lifetime());
+
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	session().changes().peerUpdates(
+		UpdateFlag::Name
+		| UpdateFlag::Photo
+		| UpdateFlag::IsContact
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & (UpdateFlag::Name | UpdateFlag::Photo)) {
 			this->update();
-			emit App::main()->dialogsUpdated();
+			_updated.fire({});
 		}
-		if (update.flags & UpdateFlag::UserIsContact) {
-			if (update.peer->isUser()) {
-				// contactsNoChatsList could've changed.
-				Ui::PostponeCall(this, [=] { refresh(); });
-			}
+		if (update.flags & UpdateFlag::IsContact) {
+			// contactsNoChatsList could've changed.
+			Ui::PostponeCall(this, [=] { refresh(); });
 		}
-		if (update.flags & UpdateFlag::MigrationChanged) {
-			if (const auto chat = update.peer->asChat()) {
-				handleChatMigration(chat);
-			}
+	}, lifetime());
+
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::DialogRowRepaint
+		| Data::MessageUpdate::Flag::DialogRowRefresh
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		const auto item = update.item;
+		if (update.flags & Data::MessageUpdate::Flag::DialogRowRefresh) {
+			refreshDialogRow({ item->history(), item->fullId() });
 		}
-	}));
+		if (update.flags & Data::MessageUpdate::Flag::DialogRowRepaint) {
+			repaintDialogRow({ item->history(), item->fullId() });
+		}
+	}, lifetime());
+
+	session().changes().entryUpdates(
+		Data::EntryUpdate::Flag::Repaint
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		const auto entry = update.entry;
+		const auto repaintId = (_state == WidgetState::Default)
+			? _filterId
+			: 0;
+		if (const auto links = entry->chatListLinks(repaintId)) {
+			repaintDialogRow(repaintId, links->main);
+		}
+		if (session().supportMode()
+			&& !session().settings().supportAllSearchResults()) {
+			repaintDialogRow({ entry, FullMsgId() });
+		}
+	}, lifetime());
 
 	_controller->activeChatEntryValue(
 	) | rpl::combine_previous(
@@ -268,6 +287,8 @@ InnerWidget::InnerWidget(
 		switchToFilter(filterId);
 	}, lifetime());
 
+	handleChatListEntryRefreshes();
+
 	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
@@ -275,21 +296,6 @@ InnerWidget::InnerWidget(
 
 Main::Session &InnerWidget::session() const {
 	return _controller->session();
-}
-
-void InnerWidget::handleChatMigration(not_null<ChatData*> chat) {
-	const auto channel = chat->migrateTo();
-	if (!channel) {
-		return;
-	}
-
-	if (const auto from = chat->owner().historyLoaded(chat)) {
-		if (const auto to = chat->owner().historyLoaded(channel)) {
-			if (to->inChatList() && from->inChatList()) {
-				removeDialog(from);
-			}
-		}
-	}
 }
 
 void InnerWidget::refreshWithCollapsedRows(bool toTop) {
@@ -1439,68 +1445,56 @@ void InnerWidget::dialogRowReplaced(
 	}
 }
 
-void InnerWidget::refreshDialog(Key key) {
-	if (const auto history = key.history()) {
-		if (history->peer->loadedStatus
-			!= PeerData::LoadedStatus::FullLoaded) {
-			LOG(("API Error: "
-				"InnerWidget::refreshDialog() called for a non loaded peer!"
-				));
-			return;
-		}
-	}
+void InnerWidget::handleChatListEntryRefreshes() {
+	using Event = Data::Session::ChatListEntryRefresh;
+	session().data().chatListEntryRefreshes(
+	) | rpl::filter([=](const Event &event) {
+		return (event.filterId == _filterId);
+	}) | rpl::start_with_next([=](const Event &event) {
+		const auto rowHeight = st::dialogsRowHeight;
+		const auto from = dialogsOffset() + event.moved.from * rowHeight;
+		const auto to = dialogsOffset() + event.moved.to * rowHeight;
+		const auto &key = event.key;
+		const auto entry = key.entry();
 
-	const auto result = session().data().refreshChatListEntry(
-		key,
-		_filterId);
-	const auto rowHeight = st::dialogsRowHeight;
-	const auto from = dialogsOffset() + result.moved.from * rowHeight;
-	const auto to = dialogsOffset() + result.moved.to * rowHeight;
-	if (!_dragging
-		&& (from != to)
-		&& (key.entry()->folder() == _openedFolder)) {
 		// Don't jump in chats list scroll position while dragging.
-		emit dialogMoved(from, to);
-	}
-
-	if (result.changed) {
-		refresh();
-	} else if (_state == WidgetState::Default && from != to) {
-		update(
-			0,
-			std::min(from, to),
-			width(),
-			std::abs(from - to) + rowHeight);
-	}
-}
-
-void InnerWidget::removeDialog(Key key) {
-	if (key == _menuRow.key && _menu) {
-		InvokeQueued(this, [=] { _menu = nullptr; });
-	}
-	if (_selected && _selected->key() == key) {
-		_selected = nullptr;
-	}
-	if (_pressed && _pressed->key() == key) {
-		setPressed(nullptr);
-	}
-	session().data().removeChatListEntry(key);
-	if (const auto history = key.history()) {
-		session().notifications().clearFromHistory(history);
-	}
-	const auto i = ranges::find(_filterResults, key, &Row::key);
-	if (i != _filterResults.end()) {
-		if (_filteredSelected == (i - _filterResults.begin())
-			&& (i + 1) == _filterResults.end()) {
-			_filteredSelected = -1;
+		if (!_dragging
+			&& (from != to)
+			&& (entry->folder() == _openedFolder)
+			&& (_state == WidgetState::Default)) {
+			emit dialogMoved(from, to);
 		}
-		_filterResults.erase(i);
-		refresh();
-	}
 
-	emit App::main()->dialogsUpdated();
-
-	refresh();
+		if (event.existenceChanged) {
+			if (!entry->inChatList()) {
+				if (key == _menuRow.key && _menu) {
+					InvokeQueued(this, [=] { _menu = nullptr; });
+				}
+				if (_selected && _selected->key() == key) {
+					_selected = nullptr;
+				}
+				if (_pressed && _pressed->key() == key) {
+					setPressed(nullptr);
+				}
+				const auto i = ranges::find(_filterResults, key, &Row::key);
+				if (i != _filterResults.end()) {
+					if (_filteredSelected == (i - _filterResults.begin())
+						&& (i + 1) == _filterResults.end()) {
+						_filteredSelected = -1;
+					}
+					_filterResults.erase(i);
+				}
+				_updated.fire({});
+			}
+			refresh();
+		} else if (_state == WidgetState::Default && from != to) {
+			update(
+				0,
+				std::min(from, to),
+				width(),
+				std::abs(from - to) + rowHeight);
+		}
+	}, lifetime());
 }
 
 void InnerWidget::repaintCollapsedFolderRow(not_null<Data::Folder*> folder) {
@@ -1902,7 +1896,7 @@ void InnerWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	}
 	_hashtagFilter = newFilter.toString();
 	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
-		Local::readRecentHashtagsAndBots();
+		session().local().readRecentHashtagsAndBots();
 	}
 	auto &recent = cRecentSearchHashtags();
 	_hashtagResults.clear();
@@ -1961,6 +1955,10 @@ void InnerWidget::setLoadMoreCallback(Fn<void()> callback) {
 
 auto InnerWidget::chosenRow() const -> rpl::producer<ChosenRow> {
 	return _chosenRow.events();
+}
+
+rpl::producer<> InnerWidget::updated() const {
+	return _updated.events();
 }
 
 rpl::producer<> InnerWidget::listBottomReached() const {
@@ -2665,11 +2663,11 @@ bool InnerWidget::chooseHashtag() {
 			}
 		}
 		cSetRecentSearchHashtags(recent);
-		Local::writeRecentHashtagsAndBots();
+		session().local().writeRecentHashtagsAndBots();
 		emit refreshHashtags();
 		selectByMouse(QCursor::pos());
 	} else {
-		Local::saveRecentSearchHashtags('#' + hashtag->tag);
+		session().local().saveRecentSearchHashtags('#' + hashtag->tag);
 		emit completeHashtag(hashtag->tag);
 	}
 	return true;
@@ -2723,7 +2721,7 @@ bool InnerWidget::chooseRow() {
 	const auto chosen = computeChosenRow();
 	if (chosen.key) {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
-			Local::saveRecentSearchHashtags(_filter);
+			session().local().saveRecentSearchHashtags(_filter);
 		}
 		_chosenRow.fire_copy(chosen);
 		return true;
@@ -2948,16 +2946,15 @@ MsgId InnerWidget::lastSearchMigratedId() const {
 }
 
 void InnerWidget::setupOnlineStatusCheck() {
-	using namespace Notify;
-	subscribe(PeerUpdated(), PeerUpdatedHandler(
-		PeerUpdate::Flag::UserOnlineChanged,
-		[=](const PeerUpdate &update) { userOnlineUpdated(update); }));
+	session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		userOnlineUpdated(update.peer);
+	}, lifetime());
 }
 
-void InnerWidget::userOnlineUpdated(const Notify::PeerUpdate &update) {
-	const auto user = update.peer->isSelf()
-		? nullptr
-		: update.peer->asUser();
+void InnerWidget::userOnlineUpdated(not_null<PeerData*> peer) {
+	const auto user = peer->isSelf() ? nullptr : peer->asUser();
 	if (!user) {
 		return;
 	}
@@ -3019,7 +3016,7 @@ void InnerWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		if (App::main()->selectingPeer()) {
+		if (_controller->content()->selectingPeer()) {
 			return;
 		}
 		const auto row = _controller->activeChatEntryCurrent();
@@ -3059,7 +3056,9 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			App::main()->choosePeer(session().userPeerId(), ShowAtUnreadMsgId);
+			_controller->content()->choosePeer(
+				session().userPeerId(),
+				ShowAtUnreadMsgId);
 			return true;
 		});
 		request->check(Command::ShowArchive) && request->handle([=] {

@@ -26,6 +26,10 @@ class PlaybackProgress;
 } // namespace Clip
 } // namespace Media
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Media {
 namespace Player {
 
@@ -35,7 +39,7 @@ struct TrackState;
 
 class Widget : public Ui::RpWidget, private base::Subscriber {
 public:
-	Widget(QWidget *parent);
+	Widget(QWidget *parent, not_null<Main::Session*> session);
 
 	void setCloseCallback(Fn<void()> callback);
 	void stopAndClose();
@@ -84,6 +88,8 @@ private:
 
 	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
+
+	const not_null<Main::Session*> _session;
 
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;

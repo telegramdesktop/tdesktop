@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/unixtime.h"
 #include "ui/delayed_activation.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
 
 #include <QtWidgets/QFileDialog>
@@ -157,13 +158,15 @@ void ShowInFolder(const QString &filepath) {
 	});
 }
 
-QString DefaultDownloadPath() {
+QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
+	return session->supportMode() ? u"Tsupport Desktop"_q : AppName.utf16();
+}
+
+QString DefaultDownloadPath(not_null<Main::Session*> session) {
 	return QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
-		+ (Main::Session::Exists() && Auth().supportMode()
-			? "Tsupport Desktop"_cs
-			: AppName).utf16()
+		+ DefaultDownloadPathFolder(session)
 		+ '/';
 }
 
@@ -343,7 +346,7 @@ bool GetDefault(
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
-			Local::writeUserSettings();
+			Local::writeSettings();
 		}
 		return !files.isEmpty();
 	} else if (type == Type::ReadFolder) {
@@ -364,7 +367,7 @@ bool GetDefault(
 		auto path = QFileInfo(file).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
-			Local::writeUserSettings();
+			Local::writeSettings();
 		}
 	}
 	files = QStringList(file);

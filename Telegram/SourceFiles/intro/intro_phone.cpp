@@ -16,7 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/special_fields.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "data/data_user.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -94,7 +97,9 @@ void PhoneWidget::setupQrLogin() {
 				contentTop() + st::introQrLoginLinkTop);
 		}, qrLogin->lifetime());
 
-		qrLogin->setClickedCallback([=] { goReplace<QrWidget>(); });
+		qrLogin->setClickedCallback([=] {
+			goReplace<QrWidget>(Animate::Forward);
+		});
 	}, lifetime());
 }
 
@@ -127,7 +132,9 @@ void PhoneWidget::phoneChanged() {
 }
 
 void PhoneWidget::submit() {
-	if (_sentRequest || isHidden()) return;
+	if (_sentRequest || isHidden()) {
+		return;
+	}
 
 	const auto phone = fullNumber();
 	if (!AllowPhoneAttempt(phone)) {
@@ -136,20 +143,42 @@ void PhoneWidget::submit() {
 		return;
 	}
 
+	cancelNearestDcRequest();
+
+	// Check if such account is authorized already.
+	const auto digitsOnly = [](QString value) {
+		return value.replace(QRegularExpression("[^0-9]"), QString());
+	};
+	const auto phoneDigits = digitsOnly(phone);
+	for (const auto &[index, existing] : Core::App().domain().accounts()) {
+		const auto raw = existing.get();
+		if (const auto session = raw->maybeSession()) {
+			if (raw->mtp().environment() == account().mtp().environment()
+				&& digitsOnly(session->user()->phone()) == phoneDigits) {
+				crl::on_main(raw, [=] {
+					Core::App().domain().activate(raw);
+				});
+				return;
+			}
+		}
+	}
+
 	hidePhoneError();
 
 	_checkRequestTimer.callEach(1000);
 
 	_sentPhone = phone;
-	account().mtp()->setUserPhone(_sentPhone);
-	_sentRequest = MTP::send(
-		MTPauth_SendCode(
-			MTP_string(_sentPhone),
-			MTP_int(ApiId),
-			MTP_string(ApiHash),
-			MTP_codeSettings(MTP_flags(0))),
-		rpcDone(&PhoneWidget::phoneSubmitDone),
-		rpcFail(&PhoneWidget::phoneSubmitFail));
+	api().instance().setUserPhone(_sentPhone);
+	_sentRequest = api().request(MTPauth_SendCode(
+		MTP_string(_sentPhone),
+		MTP_int(ApiId),
+		MTP_string(ApiHash),
+		MTP_codeSettings(MTP_flags(0))
+	)).done([=](const MTPauth_SentCode &result) {
+		phoneSubmitDone(result);
+	}).fail([=](const RPCError &error) {
+		phoneSubmitFail(error);
+	}).handleFloodErrors().send();
 }
 
 void PhoneWidget::stopCheck() {
@@ -157,11 +186,11 @@ void PhoneWidget::stopCheck() {
 }
 
 void PhoneWidget::checkRequest() {
-	auto status = MTP::state(_sentRequest);
+	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
-			MTP::cancel(base::take(_sentRequest));
+			api().request(base::take(_sentRequest)).cancel();
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -193,34 +222,28 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	goNext<CodeWidget>();
 }
 
-bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
+void PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
 		showPhoneError(tr::lng_flood_error());
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
 		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
-		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
-		return true;
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(_sentPhone);
-		return true;
-	}
-	if (Logs::DebugEnabled()) { // internal server error
+	} else if (Logs::DebugEnabled()) { // internal server error
 		showPhoneError(rpl::single(err + ": " + error.description()));
 	} else {
 		showPhoneError(rpl::single(Lang::Hard::ServerError()));
 	}
-	return false;
 }
 
 QString PhoneWidget::fullNumber() const {
@@ -244,13 +267,13 @@ void PhoneWidget::activate() {
 void PhoneWidget::finished() {
 	Step::finished();
 	_checkRequestTimer.cancel();
-	rpcInvalidate();
+	apiClear();
 
 	cancelled();
 }
 
 void PhoneWidget::cancelled() {
-	MTP::cancel(base::take(_sentRequest));
+	api().request(base::take(_sentRequest)).cancel();
 }
 
 } // namespace details

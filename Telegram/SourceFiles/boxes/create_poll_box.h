@@ -18,9 +18,9 @@ namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 class CreatePollBox : public Ui::BoxContent {
 public:
@@ -31,7 +31,7 @@ public:
 
 	CreatePollBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
 		Api::SendType sendType);
@@ -62,7 +62,7 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<bool> shown);
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	const PollData::Flags _chosen = PollData::Flags();
 	const PollData::Flags _disabled = PollData::Flags();
 	const Api::SendType _sendType = Api::SendType();

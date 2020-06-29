@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -281,7 +282,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto loaded = dataLoaded();
 	const auto displayLoading = item->isSending() || _data->displayLoading();
 	const auto selected = (selection == FullSelection);
-	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed();
 	const auto autoplay = autoplayEnabled()
@@ -901,7 +902,7 @@ void Gif::drawGrouped(
 	const auto loaded = dataLoaded();
 	const auto displayLoading = (item->id < 0) || _data->displayLoading();
 	const auto selected = (selection == FullSelection);
-	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	const auto autoPaused = _parent->delegate()->elementIsGifPaused();
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed();
@@ -1464,8 +1465,7 @@ void Gif::repaintStreamedContent() {
 	if (own && !own->frozenFrame.isNull()) {
 		return;
 	}
-	if (App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any)
-		&& !activeRoundStreamed()) {
+	if (_parent->delegate()->elementIsGifPaused() && !activeRoundStreamed()) {
 		return;
 	}
 	history()->owner().requestViewRepaint(_parent);

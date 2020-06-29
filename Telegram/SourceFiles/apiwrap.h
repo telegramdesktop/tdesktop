@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 #include "mtproto/sender.h"
-#include "chat_helpers/stickers_set.h"
+#include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
 
 class TaskQueue;
@@ -38,6 +38,7 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 struct PreparedList;
 class DownloadMtprotoTask;
+class Account;
 } // namespace Storage
 
 namespace Dialogs {
@@ -64,6 +65,8 @@ inline QString ToString(uint64 value) {
 }
 
 } // namespace details
+
+class Updates;
 
 template <
 	typename ...Types,
@@ -136,7 +139,9 @@ public:
 	explicit ApiWrap(not_null<Main::Session*> session);
 	~ApiWrap();
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] Storage::Account &local() const;
+	[[nodiscard]] Api::Updates &updates() const;
 
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -151,6 +156,8 @@ public:
 	void applyNotifySettings(
 		MTPInputNotifyPeer peer,
 		const MTPPeerNotifySettings &settings);
+
+	void saveCurrentDraftToCloud();
 
 	void savePinnedOrder(Data::Folder *folder);
 	void toggleHistoryArchived(
@@ -192,7 +199,6 @@ public:
 	void requestBots(not_null<ChannelData*> channel);
 	void requestAdmins(not_null<ChannelData*> channel);
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
-	void requestChannelRangeDifference(not_null<History*> history);
 
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
 	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
@@ -256,12 +262,11 @@ public:
 	void clearWebPageRequest(WebPageData *page);
 	void clearWebPageRequests();
 
-	void requestAttachedStickerSets(not_null<PhotoData*> photo);
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
 	void saveStickerSets(
-		const Stickers::Order &localOrder,
-		const Stickers::Order &localRemoved);
+		const Data::StickersSetsOrder &localOrder,
+		const Data::StickersSetsOrder &localRemoved);
 	void updateStickers();
 	void requestRecentStickersForce();
 	void setGroupStickerSet(
@@ -307,9 +312,6 @@ public:
 	}
 
 	bool isQuitPrevent();
-
-	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
-	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
 	void jumpToDate(Dialogs::Key chat, const QDate &date);
 
@@ -371,6 +373,7 @@ public:
 		return _sendActions.events();
 	}
 	void sendAction(const SendAction &action);
+	void finishForwarding(const SendAction &action);
 	void forwardMessages(
 		HistoryItemsList &&items,
 		const SendAction &action,
@@ -552,15 +555,6 @@ private:
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	void channelRangeDifferenceSend(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		int32 pts);
-	void channelRangeDifferenceDone(
-		not_null<ChannelData*> channel,
-		MsgRange range,
-		const MTPupdates_ChannelDifference &result);
-
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
 
@@ -707,10 +701,6 @@ private:
 
 	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;
 
-	base::flat_map<
-		not_null<ChannelData*>,
-		mtpRequestId> _rangeDifferenceRequests;
-
 	QMap<WebPageData*, mtpRequestId> _webPagesPending;
 	base::Timer _webPagesTimer;
 
@@ -724,7 +714,7 @@ private:
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
-	Stickers::Order _stickersOrder;
+	Data::StickersSetsOrder _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
 
@@ -855,8 +845,6 @@ private:
 	mtpRequestId _contactSignupSilentRequestId = 0;
 	std::optional<bool> _contactSignupSilent;
 	rpl::event_stream<bool> _contactSignupSilentChanges;
-
-	mtpRequestId _attachedStickerSetsRequestId = 0;
 
 	base::flat_map<FullMsgId, QString> _unlikelyMessageLinks;
 

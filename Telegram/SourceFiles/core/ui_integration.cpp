@@ -112,8 +112,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 
 	case EntityType::MentionName: {
 		auto fields = TextUtilities::MentionNameDataToFields(data.data);
-		if (fields.userId) {
+		if (!my || !my->session) {
+			LOG(("Mention name without a session: %1").arg(data.data));
+		} else if (fields.userId) {
 			return std::make_shared<MentionNameClickHandler>(
+				my->session,
 				data.text,
 				fields.userId,
 				fields.accessHash);
@@ -150,17 +153,13 @@ bool UiIntegration::handleUrlClick(
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
-	return rpl::merge(
-		Core::App().passcodeLockChanges(),
-		Core::App().termsLockChanges()
-	) | rpl::map([] { return rpl::empty_value(); });
+	return Core::App().passcodeLockChanges() | rpl::to_empty;
 }
 
 QString UiIntegration::convertTagToMimeTag(const QString &tagId) {
 	if (TextUtilities::IsMentionLink(tagId)) {
-		const auto &account = Core::App().activeAccount();
-		if (account.sessionExists()) {
-			return tagId + ':' + QString::number(account.session().userId());
+		if (const auto session = Core::App().activeAccount().maybeSession()) {
+			return tagId + ':' + QString::number(session->userId());
 		}
 	}
 	return tagId;

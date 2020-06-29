@@ -335,16 +335,11 @@ public:
 		not_null<DocumentData*> document,
 		FullMsgId context = FullMsgId());
 
-	[[nodiscard]] bool valid() const {
-		return !_session.empty();
-	}
-
 	[[nodiscard]] not_null<DocumentData*> document() const {
 		return _document;
 	}
 
 private:
-	const base::weak_ptr<Main::Session> _session;
 	const not_null<DocumentData*> _document;
 
 };
@@ -432,6 +427,7 @@ private:
 };
 
 QString FileNameForSave(
+	not_null<Main::Session*> session,
 	const QString &title,
 	const QString &filter,
 	const QString &prefix,

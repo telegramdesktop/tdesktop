@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_cloud_file.h"
+#include "data/data_changes.h"
 #include "history/history.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "observer_peer.h"
 #include "facades.h"
 #include "app.h"
 
@@ -631,9 +631,9 @@ void UserpicButton::openPeerPhoto() {
 }
 
 void UserpicButton::setupPeerViewers() {
-	Notify::PeerUpdateViewer(
+	_peer->session().changes().peerUpdates(
 		_peer,
-		Notify::PeerUpdate::Flag::PhotoChanged
+		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=] {
 		processNewPeerPhoto();
 		update();
@@ -653,6 +653,7 @@ void UserpicButton::setupPeerViewers() {
 
 void UserpicButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
 	if (!_waiting && _notShownYet) {
 		_notShownYet = false;
 		startAnimation();

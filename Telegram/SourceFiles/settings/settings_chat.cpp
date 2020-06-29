@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "lang/lang_keys.h"
+#include "export/export_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "facades.h"
@@ -195,7 +197,7 @@ void ColorsPalette::Button::update(
 }
 
 rpl::producer<> ColorsPalette::Button::clicks() const {
-	return _widget.clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _widget.clicks() | rpl::to_empty;
 }
 
 bool ColorsPalette::Button::selected() const {
@@ -384,6 +386,7 @@ private:
 	crl::time radialTimeShift() const;
 	void radialAnimationCallback(crl::time now);
 
+	const not_null<Window::SessionController*> _controller;
 	QPixmap _background;
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
@@ -393,13 +396,14 @@ private:
 };
 
 void ChooseFromFile(
-	not_null<::Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	not_null<QWidget*> parent);
 
 BackgroundRow::BackgroundRow(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
+, _controller(controller)
 , _chooseFromGallery(
 	this,
 	tr::lng_settings_bg_from_gallery(tr::now),
@@ -409,10 +413,10 @@ BackgroundRow::BackgroundRow(
 	updateImage();
 
 	_chooseFromGallery->addClickHandler([=] {
-		Ui::show(Box<BackgroundBox>(&controller->session()));
+		Ui::show(Box<BackgroundBox>(controller));
 	});
 	_chooseFromFile->addClickHandler([=] {
-		ChooseFromFile(&controller->session(), this);
+		ChooseFromFile(controller, this);
 	});
 
 	using Update = const Window::Theme::BackgroundUpdate;
@@ -433,7 +437,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 	const auto radial = _radial.animating();
 	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	if (radial) {
-		const auto backThumb = App::main()->newBackgroundThumb();
+		const auto backThumb = _controller->content()->newBackgroundThumb();
 		if (!backThumb) {
 			p.drawPixmap(0, 0, _background);
 		} else {
@@ -494,14 +498,14 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 }
 
 float64 BackgroundRow::radialProgress() const {
-	return App::main()->chatBackgroundProgress();
+	return _controller->content()->chatBackgroundProgress();
 }
 
 bool BackgroundRow::radialLoading() const {
-	const auto main = App::main();
-	if (main->chatBackgroundLoading()) {
-		main->checkChatBackground();
-		if (main->chatBackgroundLoading()) {
+	const auto widget = _controller->content();
+	if (widget->chatBackgroundLoading()) {
+		widget->checkChatBackground();
+		if (widget->chatBackgroundLoading()) {
 			return true;
 		} else {
 			const_cast<BackgroundRow*>(this)->updateImage();
@@ -594,7 +598,7 @@ void BackgroundRow::updateImage() {
 }
 
 void ChooseFromFile(
-		not_null<::Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent) {
 	const auto &imgExtensions = cImgExtensions();
 	auto filters = QStringList(
@@ -602,7 +606,7 @@ void ChooseFromFile(
 		+ imgExtensions.join(qsl(" *"))
 		+ qsl(")"));
 	filters.push_back(FileDialog::AllFilesFilter());
-	const auto callback = crl::guard(session, [=](
+	const auto callback = crl::guard(controller, [=](
 			const FileDialog::OpenResult &result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
@@ -629,22 +633,13 @@ void ChooseFromFile(
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
 			std::move(image)));
-		Ui::show(Box<BackgroundPreviewBox>(session, local));
+		Ui::show(Box<BackgroundPreviewBox>(controller, local));
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),
 		tr::lng_choose_image(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
-}
-
-QString DownloadPathText() {
-	if (Global::DownloadPath().isEmpty()) {
-		return tr::lng_download_path_default(tr::now);
-	} else if (Global::DownloadPath() == qsl("tmp")) {
-		return tr::lng_download_path_temp(tr::now);
-	}
-	return QDir::toNativeSeparators(Global::DownloadPath());
 }
 
 void SetupStickersEmoji(
@@ -683,42 +678,42 @@ void SetupStickersEmoji(
 
 	add(
 		tr::lng_settings_large_emoji(tr::now),
-		session->settings().largeEmoji(),
+		Core::App().settings().largeEmoji(),
 		[=](bool checked) {
-			session->settings().setLargeEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setLargeEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_replace_emojis(tr::now),
-		session->settings().replaceEmoji(),
+		Core::App().settings().replaceEmoji(),
 		[=](bool checked) {
-			session->settings().setReplaceEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setReplaceEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_emoji(tr::now),
-		session->settings().suggestEmoji(),
+		Core::App().settings().suggestEmoji(),
 		[=](bool checked) {
-			session->settings().setSuggestEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setSuggestEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_by_emoji(tr::now),
-		session->settings().suggestStickersByEmoji(),
+		Core::App().settings().suggestStickersByEmoji(),
 		[=](bool checked) {
-			session->settings().setSuggestStickersByEmoji(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setSuggestStickersByEmoji(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_loop_stickers(tr::now),
-		session->settings().loopAnimatedStickers(),
+		Core::App().settings().loopAnimatedStickers(),
 		[=](bool checked) {
-			session->settings().setLoopAnimatedStickers(checked);
-			session->saveSettingsDelayed();
+			Core::App().settings().setLoopAnimatedStickers(checked);
+			Core::App().saveSettingsDelayed();
 		});
 
 	AddButton(
@@ -728,7 +723,8 @@ void SetupStickersEmoji(
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(session, StickersBox::Section::Installed));
+		Ui::show(
+			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
 	AddButton(
@@ -737,8 +733,8 @@ void SetupStickersEmoji(
 		st::settingsChatButton,
 		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
-	)->addClickHandler([] {
-		Ui::show(Box<Ui::Emoji::ManageSetsBox>());
+	)->addClickHandler([=] {
+		Ui::show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -766,7 +762,7 @@ void SetupMessages(
 			QMargins(0, skip, 0, skip)));
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
-		controller->session().settings().sendSubmitWay());
+		Core::App().settings().sendSubmitWay());
 	const auto add = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
@@ -787,11 +783,9 @@ void SetupMessages(
 			: tr::lng_settings_send_ctrlenter(tr::now)));
 
 	group->setChangedCallback([=](SendByType value) {
-		controller->session().settings().setSendSubmitWay(value);
-		if (App::main()) {
-			App::main()->ctrlEnterSubmitUpdated();
-		}
-		Local::writeUserSettings();
+		Core::App().settings().setSendSubmitWay(value);
+		Core::App().saveSettingsDelayed();
+		controller->content()->ctrlEnterSubmitUpdated();
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
@@ -810,7 +804,7 @@ void SetupExport(
 		base::call_delayed(
 			st::boxDuration,
 			session,
-			[=] { session->data().startExport(); });
+			[=] { Core::App().exportManager().start(session); });
 	});
 }
 
@@ -840,7 +834,7 @@ void SetupDataStorage(
 		container,
 		tr::lng_download_path_ask(),
 		st::settingsButton
-	)->toggleOn(rpl::single(Global::AskDownloadPath()));
+	)->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
 
 #ifndef OS_WIN_STORE
 	const auto showpath = Ui::CreateChild<rpl::event_stream<bool>>(ask);
@@ -851,30 +845,32 @@ void SetupDataStorage(
 				container,
 				tr::lng_download_path(),
 				st::settingsButton)));
-	auto pathtext = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(base::ObservableViewer(
-		Global::RefDownloadPathChanged()
-	)) | rpl::map([] {
-		return DownloadPathText();
+	auto pathtext = Core::App().settings().downloadPathValue(
+	) | rpl::map([](const QString &text) {
+		if (text.isEmpty()) {
+			return tr::lng_download_path_default(tr::now);
+		} else if (text == qsl("tmp")) {
+			return tr::lng_download_path_temp(tr::now);
+		}
+		return QDir::toNativeSeparators(text);
 	});
 	CreateRightLabel(
 		path->entity(),
 		std::move(pathtext),
 		st::settingsButton,
 		tr::lng_download_path());
-	path->entity()->addClickHandler([] {
-		Ui::show(Box<DownloadPathBox>());
+	path->entity()->addClickHandler([=] {
+		Ui::show(Box<DownloadPathBox>(controller));
 	});
 	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
 
 	ask->toggledValue(
 	) | rpl::filter([](bool checked) {
-		return (checked != Global::AskDownloadPath());
+		return (checked != Core::App().settings().askDownloadPath());
 	}) | rpl::start_with_next([=](bool checked) {
-		Global::SetAskDownloadPath(checked);
-		Local::writeUserSettings();
+		Core::App().settings().setAskDownloadPath(checked);
+		Core::App().saveSettingsDelayed();
 
 #ifndef OS_WIN_STORE
 		showpath->fire_copy(!checked);
@@ -950,7 +946,7 @@ void SetupChatBackground(
 			object_ptr<Ui::Checkbox>(
 				inner,
 				tr::lng_settings_adaptive_wide(tr::now),
-				Global::AdaptiveForWide(),
+				Core::App().settings().adaptiveForWide(),
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
 
@@ -979,10 +975,10 @@ void SetupChatBackground(
 	}));
 
 	adaptive->entity()->checkedChanges(
-	) | rpl::start_with_next([](bool checked) {
-		Global::SetAdaptiveForWide(checked);
+	) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setAdaptiveForWide(checked);
+		Core::App().saveSettingsDelayed();
 		Adaptive::Changed().notify();
-		Local::writeUserSettings();
 	}, adaptive->lifetime());
 }
 
@@ -1285,7 +1281,7 @@ void SetupSupportSwitchSettings(
 	add(SwitchType::Previous, "Send and switch to previous");
 	group->setChangedCallback([=](SwitchType value) {
 		controller->session().settings().setSupportSwitch(value);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	});
 }
 
@@ -1325,7 +1321,7 @@ void SetupSupportChatsLimitSlice(
 	group->setChangedCallback([=](int days) {
 		controller->session().settings().setSupportChatsTimeSlice(
 			days * kDayDuration);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	});
 }
 
@@ -1362,7 +1358,7 @@ void SetupSupport(
 	) | rpl::start_with_next([=](bool checked) {
 		controller->session().settings().setSupportTemplatesAutocomplete(
 			checked);
-		Local::writeUserSettings();
+		controller->session().saveSettingsDelayed();
 	}, inner->lifetime());
 
 	AddSkip(inner, st::settingsCheckboxesSkip);

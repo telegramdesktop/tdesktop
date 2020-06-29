@@ -32,6 +32,13 @@ enum class Error;
 
 class Reader final : public base::has_weak_ptr {
 public:
+	enum class FillState : uchar {
+		Success,
+		WaitingCache,
+		WaitingRemote,
+		Failed,
+	};
+
 	// Main thread.
 	explicit Reader(
 		std::unique_ptr<Loader> loader,
@@ -44,7 +51,7 @@ public:
 	[[nodiscard]] bool isRemoteLoader() const;
 
 	// Single thread.
-	[[nodiscard]] bool fill(
+	[[nodiscard]] FillState fill(
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify);
@@ -101,9 +108,8 @@ private:
 		StackIntVector<kReadFromCacheMax> sliceNumbersFromCache;
 		StackIntVector<kLoadFromRemoteMax> offsetsFromLoader;
 		SerializedSlice toCache;
-		bool filled = false;
+		FillState state = FillState::WaitingRemote;
 	};
-
 	struct Slice {
 		enum class Flag : uchar {
 			LoadingFromCache = 0x01,
@@ -209,7 +215,7 @@ private:
 
 	bool checkForSomethingMoreReceived();
 
-	bool fillFromSlices(int offset, bytes::span buffer);
+	FillState fillFromSlices(int offset, bytes::span buffer);
 
 	void finalizeCache();
 

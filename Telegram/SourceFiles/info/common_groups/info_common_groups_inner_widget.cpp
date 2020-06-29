@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
-#include "apiwrap.h"
 #include "styles/style_info.h"
 #include "styles/style_widgets.h"
 
@@ -69,7 +68,7 @@ ListController::ListController(
 	not_null<UserData*> user)
 : PeerListController()
 , _controller(controller)
-, _api(_controller->session().api().instance())
+, _api(&_controller->session().mtp())
 , _user(user) {
 	_controller->setSearchEnabledByContent(false);
 }

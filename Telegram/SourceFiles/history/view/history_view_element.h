@@ -17,6 +17,10 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -43,8 +47,6 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	virtual void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) = 0;
 	virtual crl::time elementHighlightTime(
 		not_null<const Element*> element) = 0;
 	virtual bool elementInSelectionMode() = 0;
@@ -59,11 +61,15 @@ public:
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
+	virtual bool elementIsGifPaused() = 0;
 
 };
 
 class SimpleElementDelegate : public ElementDelegate {
 public:
+	explicit SimpleElementDelegate(
+		not_null<Window::SessionController*> controller);
+
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message,
 		Element *replacing = nullptr) override;
@@ -71,8 +77,6 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) override;
 	crl::time elementHighlightTime(
 		not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;
@@ -87,6 +91,10 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	bool elementIsGifPaused() override;
+
+private:
+	const not_null<Window::SessionController*> _controller;
 
 };
 

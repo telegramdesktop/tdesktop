@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -230,7 +231,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _channel(channel)
 , _history(channel->owner().history(channel))
-, _api(_channel->session().api().instance())
+, _api(&_channel->session().mtp())
 , _scrollDateCheck([=] { scrollDateCheck(); })
 , _emptyText(
 		st::historyAdminLogEmptyWidth
@@ -326,7 +327,7 @@ void InnerWidget::visibleTopBottomUpdated(
 	} else {
 		scrollDateHideByTimer();
 	}
-	_controller->floatPlayerAreaUpdated().notify(true);
+	_controller->floatPlayerAreaUpdated();
 }
 
 void InnerWidget::updateVisibleTopItem() {
@@ -554,19 +555,6 @@ bool InnerWidget::elementUnderCursor(
 	return (App::hoveredItem() == view);
 }
 
-void InnerWidget::elementAnimationAutoplayAsync(
-		not_null<const HistoryView::Element*> view) {
-	crl::on_main(this, [this, msgId = view->data()->fullId()] {
-		if (const auto item = session().data().message(msgId)) {
-			if (const auto view = viewForItem(item)) {
-				if (const auto media = view->media()) {
-					media->autoplayAnimation();
-				}
-			}
-		}
-	});
-}
-
 crl::time InnerWidget::elementHighlightTime(
 		not_null<const HistoryView::Element*> element) {
 	return crl::time(0);
@@ -598,6 +586,10 @@ void InnerWidget::elementShowPollResults(
 void InnerWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {
+}
+
+bool InnerWidget::elementIsGifPaused() {
+	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {

@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
-#include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
+#include "core/application.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -19,10 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
-#include "apiwrap.h"
-#include "facades.h"
 #include "app.h"
 
 namespace Calls {
@@ -215,7 +214,7 @@ void BoxController::Row::stopLastActionRipple() {
 
 BoxController::BoxController(not_null<Window::SessionController*> window)
 : _window(window)
-, _api(_window->session().api().instance()) {
+, _api(&_window->session().mtp()) {
 }
 
 Main::Session &BoxController::session() const {
@@ -237,11 +236,11 @@ void BoxController::prepare() {
 		}
 	}, lifetime());
 
-	subscribe(session().calls().newServiceMessage(), [=](FullMsgId msgId) {
-		if (const auto item = session().data().message(msgId)) {
-			insertRow(item, InsertWay::Prepend);
-		}
-	});
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::CallAdded
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		insertRow(update.item, InsertWay::Prepend);
+	}, lifetime());
 
 	delegate()->peerListSetTitle(tr::lng_call_box_title());
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
@@ -300,10 +299,14 @@ void BoxController::refreshAbout() {
 }
 
 void BoxController::rowClicked(not_null<PeerListRow*> row) {
-	auto itemsRow = static_cast<Row*>(row.get());
-	auto itemId = itemsRow->maxItemId();
-	InvokeQueued(App::main(), [peerId = row->peer()->id, itemId] {
-		Ui::showPeerHistory(peerId, itemId);
+	const auto itemsRow = static_cast<Row*>(row.get());
+	const auto itemId = itemsRow->maxItemId();
+	const auto window = _window;
+	crl::on_main(window, [=, peer = row->peer()] {
+		window->showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			itemId);
 	});
 }
 
@@ -311,7 +314,7 @@ void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 
-	user->session().calls().startOutgoingCall(user);
+	Core::App().calls().startOutgoingCall(user);
 }
 
 void BoxController::receivedCalls(const QVector<MTPMessage> &result) {

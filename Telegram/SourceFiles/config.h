@@ -131,11 +131,6 @@ inline const QString &cDataFile() {
 	return res;
 }
 
-inline const QString &cTempDir() {
-	static const QString res = cWorkingDir() + qsl("tdata/tdld/");
-	return res;
-}
-
 inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
 	return regexp;

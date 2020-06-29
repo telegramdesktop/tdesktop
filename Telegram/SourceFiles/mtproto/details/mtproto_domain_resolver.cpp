@@ -294,7 +294,7 @@ void DomainResolver::performRequest(
 			request.setRawHeader("Host", host.toLatin1());
 		}
 	} break;
-	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
+	default: Unexpected("Type in DomainResolver::performRequest.");
 	}
 	request.setUrl(url);
 	request.setRawHeader("User-Agent", DnsUserAgent());

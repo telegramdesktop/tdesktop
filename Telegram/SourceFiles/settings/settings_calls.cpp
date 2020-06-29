@@ -17,12 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/single_choice_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
 #include "layout.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "window/window_session_controller.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "calls/calls_instance.h"
 #include "facades.h"
 
@@ -43,13 +45,14 @@ namespace Settings {
 Calls::Calls(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Section(parent) {
-	setupContent(controller);
+: Section(parent)
+, _controller(controller) {
+	setupContent();
 }
 
 Calls::~Calls() {
 	if (_needWriteSettings) {
-		Local::writeUserSettings();
+		_controller->session().saveSettingsDelayed();
 	}
 }
 
@@ -60,7 +63,7 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 	done();
 }
 
-void Calls::setupContent(not_null<Window::SessionController*> controller) {
+void Calls::setupContent() {
 	using VoIP = tgvoip::VoIPController;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -71,32 +74,33 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		return QString::fromStdString(device.displayName);
 	};
 
+	const auto &settings = Core::App().settings();
 	const auto currentOutputName = [&] {
-		if (Global::CallOutputDeviceID() == qsl("default")) {
+		if (settings.callOutputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIP::EnumerateAudioOutputs();
 		const auto i = ranges::find(
 			list,
-			Global::CallOutputDeviceID(),
+			settings.callOutputDeviceID(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: Global::CallOutputDeviceID();
+			: settings.callOutputDeviceID();
 	}();
 
 	const auto currentInputName = [&] {
-		if (Global::CallInputDeviceID() == qsl("default")) {
+		if (settings.callInputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIP::EnumerateAudioInputs();
 		const auto i = ranges::find(
 			list,
-			Global::CallInputDeviceID(),
+			settings.callInputDeviceID(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: Global::CallInputDeviceID();
+			: settings.callInputDeviceID();
 	}();
 
 	AddSkip(content);
@@ -118,7 +122,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Global::CallOutputDeviceID(),
+			Core::App().settings().callOutputDeviceID(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -128,9 +132,10 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Global::SetCallOutputDeviceID(QString::fromStdString(deviceId));
-			Local::writeUserSettings();
-			if (const auto call = controller->session().calls().currentCall()) {
+			Core::App().settings().setCallOutputDeviceID(
+				QString::fromStdString(deviceId));
+			_controller->session().saveSettingsDelayed();
+			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
 			}
 		});
@@ -159,8 +164,8 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 	const auto updateOutputVolume = [=](int value) {
 		_needWriteSettings = true;
 		updateOutputLabel(value);
-		Global::SetCallOutputVolume(value);
-		if (const auto call = controller->session().calls().currentCall()) {
+		Core::App().settings().setCallOutputVolume(value);
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioVolume(false, value / 100.0f);
 		}
 	};
@@ -168,9 +173,9 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 	outputSlider->setPseudoDiscrete(
 		201,
 		[](int val) { return val; },
-		Global::CallOutputVolume(),
+		settings.callOutputVolume(),
 		updateOutputVolume);
-	updateOutputLabel(Global::CallOutputVolume());
+	updateOutputLabel(Core::App().settings().callOutputVolume());
 
 	AddSkip(content);
 	AddDivider(content);
@@ -193,7 +198,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Global::CallInputDeviceID(),
+			Core::App().settings().callInputDeviceID(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -203,12 +208,13 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Global::SetCallInputDeviceID(QString::fromStdString(deviceId));
-			Local::writeUserSettings();
+			Core::App().settings().setCallInputDeviceID(
+				QString::fromStdString(deviceId));
+			_controller->session().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
 			}
-			if (const auto call = controller->session().calls().currentCall()) {
+			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(true, deviceId);
 			}
 		});
@@ -237,17 +243,17 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 	const auto updateInputVolume = [=](int value) {
 		_needWriteSettings = true;
 		updateInputLabel(value);
-		Global::SetCallInputVolume(value);
-		if (const auto call = controller->session().calls().currentCall()) {
+		Core::App().settings().setCallInputVolume(value);
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioVolume(true, value / 100.0f);
 		}
 	};
 	inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
 	inputSlider->setPseudoDiscrete(101,
 		[](int val) { return val; },
-		Global::CallInputVolume(),
+		settings.callInputVolume(),
 		updateInputVolume);
-	updateInputLabel(Global::CallInputVolume());
+	updateInputLabel(settings.callInputVolume());
 
 	AddButton(
 		content,
@@ -287,13 +293,13 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		tr::lng_settings_call_audio_ducking(),
 		st::settingsButton
 	)->toggleOn(
-		rpl::single(Global::CallAudioDuckingEnabled())
+		rpl::single(settings.callAudioDuckingEnabled())
 	)->toggledValue() | rpl::filter([](bool enabled) {
-		return (enabled != Global::CallAudioDuckingEnabled());
+		return (enabled != Core::App().settings().callAudioDuckingEnabled());
 	}) | rpl::start_with_next([=](bool enabled) {
-		Global::SetCallAudioDuckingEnabled(enabled);
-		Local::writeUserSettings();
-		if (const auto call = controller->session().calls().currentCall()) {
+		Core::App().settings().setCallAudioDuckingEnabled(enabled);
+		Core::App().saveSettingsDelayed();
+		if (const auto call = Core::App().calls().currentCall()) {
 			call->setAudioDuckingEnabled(enabled);
 		}
 	}, content->lifetime());
@@ -349,7 +355,7 @@ void Calls::startTestingMicrophone() {
 	_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
 	_levelUpdateTimer.callEach(50);
 	_micTester = std::make_unique<tgvoip::AudioInputTester>(
-		Global::CallInputDeviceID().toStdString());
+		Core::App().settings().callInputDeviceID().toStdString());
 	if (_micTester->Failed()) {
 		stopTestingMicrophone();
 		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));

@@ -67,9 +67,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cStartInTray()) {
 		argumentsList.push("-startintray");
 	}
-	if (cTestMode()) {
-		argumentsList.push("-testmode");
-	}
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (Core::UpdaterDisabled()) {
 		argumentsList.push("-externalupdater");

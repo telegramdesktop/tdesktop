@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/emoji_config.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
@@ -206,7 +206,7 @@ void LocalStorageBox::Row::radialAnimationCallback() {
 }
 
 rpl::producer<> LocalStorageBox::Row::clearRequests() const {
-	return _clear->clicks() | rpl::map([] { return rpl::empty_value(); });
+	return _clear->clicks() | rpl::to_empty;
 }
 
 int LocalStorageBox::Row::resizeGetHeight(int newWidth) {
@@ -271,8 +271,8 @@ LocalStorageBox::LocalStorageBox(
 : _session(session)
 , _db(&session->data().cache())
 , _dbBig(&session->data().cacheBigFile()) {
-	const auto &settings = Local::cacheSettings();
-	const auto &settingsBig = Local::cacheBigFileSettings();
+	const auto &settings = session->local().cacheSettings();
+	const auto &settingsBig = session->local().cacheBigFileSettings();
 	_totalSizeLimit = settings.totalSizeLimit + settingsBig.totalSizeLimit;
 	_mediaSizeLimit = settingsBig.totalSizeLimit;
 	_timeLimit = settings.totalTimeLimit;
@@ -560,8 +560,8 @@ void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
 }
 
 void LocalStorageBox::limitsChanged() {
-	const auto &settings = Local::cacheSettings();
-	const auto &settingsBig = Local::cacheBigFileSettings();
+	const auto &settings = _session->local().cacheSettings();
+	const auto &settingsBig = _session->local().cacheBigFileSettings();
 	const auto sizeLimit = _totalSizeLimit - _mediaSizeLimit;
 	const auto changed = (settings.totalSizeLimit != sizeLimit)
 		|| (settingsBig.totalSizeLimit != _mediaSizeLimit)
@@ -590,7 +590,7 @@ void LocalStorageBox::save() {
 	auto updateBig = Storage::Cache::Database::SettingsUpdate();
 	updateBig.totalSizeLimit = _mediaSizeLimit;
 	updateBig.totalTimeLimit = _timeLimit;
-	Local::updateCacheSettings(update, updateBig);
+	_session->local().updateCacheSettings(update, updateBig);
 	_session->data().cache().updateSettings(update);
 	closeBox();
 }

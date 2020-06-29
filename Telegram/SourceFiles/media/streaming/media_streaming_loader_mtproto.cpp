@@ -27,7 +27,7 @@ LoaderMtproto::LoaderMtproto(
 	Data::FileOrigin origin)
 : DownloadMtprotoTask(owner, location, origin)
 , _size(size)
-, _api(api().instance()) {
+, _api(&api().instance()) {
 }
 
 Storage::Cache::Key LoaderMtproto::baseCacheKey() const {

@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "apiwrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -233,7 +232,7 @@ ListController::ListController(
 , _poll(poll)
 , _context(context)
 , _option(option)
-, _api(_session->api().instance()) {
+, _api(&_session->mtp()) {
 	const auto i = ranges::find(poll->answers, option, &PollAnswer::option);
 	Assert(i != poll->answers.end());
 	_fullCount = i->votes;

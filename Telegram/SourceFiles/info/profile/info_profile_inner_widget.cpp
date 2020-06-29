@@ -81,7 +81,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_controller->parentController()));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(Info::Memento(_peer->id, section));
+		_controller->showSection(Info::Memento(_peer, section));
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	auto details = SetupDetails(_controller, parent, _peer);

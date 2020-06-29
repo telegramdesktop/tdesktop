@@ -16,6 +16,7 @@ windowDefaultWidth: 800px;
 windowDefaultHeight: 600px;
 windowBigDefaultWidth: 1024px;
 windowBigDefaultHeight: 768px;
+windowResizeArea: 4px;
 
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
@@ -113,7 +114,7 @@ mainMenuResetScaleIconLeft: 5px;
 mainMenuCoverTextLeft: 30px;
 mainMenuCoverNameTop: 84px;
 mainMenuCoverStatusTop: 102px;
-mainMenuSkip: 13px;
+mainMenuSkip: 10px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
@@ -145,6 +146,18 @@ mainMenuReload: icon {{ "menu_reload", menuIconFg }};
 mainMenuReloadOver: icon {{ "menu_reload", menuIconFgOver }};
 mainMenuFixOrder: icon {{ "menu_fix_order", menuIconFg }};
 mainMenuFixOrderOver: icon {{ "menu_fix_order", menuIconFgOver }};
+mainMenuAddAccount: icon {{ "menu_add_account", menuIconFg }};
+mainMenuAddAccountOver: icon {{ "menu_add_account", menuIconFgOver }};
+mainMenuAccountSize: 32px;
+mainMenuAccountCheckPosition: point(7px, 5px);
+mainMenuAccountCheckLine: 2px;
+mainMenuAccountCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 18px;
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	check: icon {{ "account_check", overviewCheckFgActive }};
+}
+
 mainMenuFooterLeft: 30px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
@@ -163,6 +176,10 @@ mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
 mainMenuVersionBottom: 21px;
+
+mainMenuToggleSize: 8px;
+mainMenuToggleFourStrokes: 4px;
+mainMenuTogglePosition: point(32px, 32px);
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);

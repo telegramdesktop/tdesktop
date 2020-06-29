@@ -16,6 +16,7 @@ namespace details {
 namespace {
 
 int PauseLevel = 0;
+rpl::event_stream<> Unpaused;
 
 } // namespace
 
@@ -30,18 +31,13 @@ void pause() {
 void unpause() {
 	--PauseLevel;
 	if (!PauseLevel) {
-		if (auto instance = MainInstance()) {
-			instance->unpaused();
-		}
+		Unpaused.fire({});
 	}
 }
 
-} // namespace details
-
-Instance *MainInstance() {
-	return Core::IsAppLaunched()
-		? Core::App().activeAccount().mtp()
-		: nullptr;
+rpl::producer<> unpaused() {
+	return Unpaused.events();
 }
 
+} // namespace details
 } // namespace MTP

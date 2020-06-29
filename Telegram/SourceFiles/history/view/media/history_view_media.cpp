@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
 
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "ui/text_options.h"
+#include "core/ui_integration.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -137,6 +139,9 @@ Ui::Text::String Media::createCaption(
 		- st::msgPadding.left()
 		- st::msgPadding.right();
 	auto result = Ui::Text::String(minResizeWidth);
+	const auto context = Core::UiIntegration::Context{
+		.session = &history()->session()
+	};
 	result.setMarkedText(
 		st::messageTextStyle,
 		(timestampLinksDuration
@@ -145,7 +150,8 @@ Ui::Text::String Media::createCaption(
 				timestampLinksDuration,
 				timestampLinkBase)
 			: item->originalText()),
-		Ui::ItemTextOptions(item));
+		Ui::ItemTextOptions(item),
+		context);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}

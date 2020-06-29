@@ -164,9 +164,13 @@ private:
 
 };
 
-class RecoverBox : public Ui::BoxContent, public RPCSender {
+class RecoverBox final : public Ui::BoxContent {
 public:
-	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
+	RecoverBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const QString &pattern,
+		bool notEmptyPassport);
 
 	rpl::producer<> passwordCleared() const;
 	rpl::producer<> recoveryExpired() const;
@@ -184,9 +188,10 @@ protected:
 private:
 	void submit();
 	void codeChanged();
-	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
-	bool codeSubmitFail(const RPCError &error);
+	void codeSubmitDone(const MTPauth_Authorization &result);
+	void codeSubmitFail(const RPCError &error);
 
+	MTP::Sender _api;
 	mtpRequestId _submitRequest = 0;
 
 	QString _pattern;
@@ -206,4 +211,6 @@ struct RecoveryEmailValidation {
 	rpl::producer<> reloadRequests;
 	rpl::producer<> cancelRequests;
 };
-RecoveryEmailValidation ConfirmRecoveryEmail(const QString &pattern);
+[[nodiscard]] RecoveryEmailValidation ConfirmRecoveryEmail(
+	not_null<Main::Session*> session,
+	const QString &pattern);

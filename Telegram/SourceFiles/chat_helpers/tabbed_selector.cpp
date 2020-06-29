@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
-#include "chat_helpers/stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -18,12 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
 #include "window/window_session_controller.h"
+#include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
+#include "data/stickers/data_stickers.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
-#include "observer_peer.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 
@@ -333,7 +335,7 @@ TabbedSelector::TabbedSelector(
 
 	rpl::merge(
 		(full()
-			? stickers()->scrollUpdated() | rpl::map([] { return 0; })
+			? stickers()->scrollUpdated() | rpl::map_to(0)
 			: rpl::never<int>() | rpl::type_erased()),
 		_scroll->scrollTopChanges()
 	) | rpl::start_with_next([=] {
@@ -347,16 +349,13 @@ TabbedSelector::TabbedSelector(
 	if (full()) {
 		_tabsSlider->raise();
 
-		const auto handleUpdate = [=](const Notify::PeerUpdate &update) {
-			if (update.peer == _currentPeer) {
-				checkRestrictedPeer();
-			}
-		};
-		subscribe(
-			Notify::PeerUpdated(),
-			Notify::PeerUpdatedHandler(
-				Notify::PeerUpdate::Flag::RightsChanged,
-				handleUpdate));
+		session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::Rights
+		) | rpl::filter([=](const Data::PeerUpdate &update) {
+			return (update.peer.get() == _currentPeer);
+		}) | rpl::start_with_next([=] {
+			checkRestrictedPeer();
+		}, lifetime());
 
 		session().api().stickerSetInstalled(
 		) | rpl::start_with_next([this](uint64 setId) {
@@ -366,7 +365,7 @@ TabbedSelector::TabbedSelector(
 			_showRequests.fire({});
 		}, lifetime());
 
-		session().data().stickersUpdated(
+		session().data().stickers().updated(
 		) | rpl::start_with_next([=] {
 			refreshStickers();
 		}, lifetime());
@@ -609,11 +608,11 @@ QImage TabbedSelector::grabForAnimation() {
 	return result;
 }
 
-bool TabbedSelector::wheelEventFromFloatPlayer(QEvent *e) {
+bool TabbedSelector::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect TabbedSelector::rectForFloatPlayer() const {
+QRect TabbedSelector::floatPlayerAvailableRect() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

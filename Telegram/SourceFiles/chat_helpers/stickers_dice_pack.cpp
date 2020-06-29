@@ -102,6 +102,7 @@ void DicePack::tryGenerateLocalZero() {
 		return;
 	}
 	auto task = FileLoadTask(
+		_session,
 		path,
 		QByteArray(),
 		nullptr,

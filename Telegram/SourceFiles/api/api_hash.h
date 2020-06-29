@@ -7,7 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Api {
+
+[[nodiscard]] int32 CountStickersHash(
+	not_null<Main::Session*> session,
+	bool checkOutdatedInfo = false);
+[[nodiscard]] int32 CountRecentStickersHash(
+	not_null<Main::Session*> session);
+[[nodiscard]] int32 CountFavedStickersHash(not_null<Main::Session*> session);
+[[nodiscard]] int32 CountFeaturedStickersHash(
+	not_null<Main::Session*> session);
+[[nodiscard]] int32 CountSavedGifsHash(not_null<Main::Session*> session);
 
 [[nodiscard]] inline uint32 HashInit() {
 	return 0;

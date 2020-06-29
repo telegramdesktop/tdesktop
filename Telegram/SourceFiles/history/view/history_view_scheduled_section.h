@@ -22,10 +22,6 @@ namespace Api {
 struct SendOptions;
 } // namespace Api
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
-
 namespace Storage {
 struct PreparedList;
 } // namespace Storage
@@ -88,8 +84,8 @@ public:
 	bool returnTabbedSelector() override;
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
+	QRect floatPlayerAvailableRect() override;
 
 	// ListDelegate interface.
 	Context listContext() override;

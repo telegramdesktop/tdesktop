@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
+class RPCError;
 struct FileLoadResult;
 struct FileMediaInformation;
 struct SendingAlbum;
@@ -96,9 +97,7 @@ class MessageField;
 class HistoryInner;
 struct HistoryMessageMarkupButton;
 
-class HistoryWidget final
-	: public Window::AbstractSectionWidget
-	, public RPCSender {
+class HistoryWidget final : public Window::AbstractSectionWidget {
 	Q_OBJECT
 
 public:
@@ -111,6 +110,11 @@ public:
 	void start();
 
 	void historyLoaded();
+
+	// When resizing the widget with top edge moved up or down and we
+	// want to add this top movement to the scroll position, so inner
+	// content will not move.
+	void setGeometryWithTopMoved(const QRect &newGeometry, int topDelta);
 
 	void windowShown();
 	[[nodiscard]] bool doWeReadServerHistory() const;
@@ -130,8 +134,6 @@ public:
 	void loadMessagesDown();
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
-
-	void historyToDown(History *history);
 
 	QRect historyRect() const;
 
@@ -170,7 +172,7 @@ public:
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
-	void itemEdited(HistoryItem *item);
+	void itemEdited(not_null<HistoryItem*> item);
 
 	void updateScrollColors();
 
@@ -182,7 +184,6 @@ public:
 	void unpinMessage(FullMsgId itemId);
 
 	MsgId replyToId() const;
-	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
 	bool cancelReply(bool lastKeyboardUsed = false);
@@ -204,7 +205,11 @@ public:
 
 	void escape();
 
-	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
+	void sendBotCommand(
+		not_null<PeerData*> peer,
+		UserData *bot,
+		const QString &cmd,
+		MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
@@ -259,8 +264,8 @@ public:
 	bool returnTabbedSelector() override;
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool floatPlayerHandleWheelEvent(QEvent *e) override;
+	QRect floatPlayerAvailableRect() override;
 
 	void app_sendBotCallback(
 		not_null<const HistoryMessageMarkupButton*> button,
@@ -270,12 +275,7 @@ public:
 
 	PeerData *ui_getPeerForMouseAction();
 
-	void notify_botCommandsChanged(UserData *user);
-	void notify_inlineBotRequesting(bool requesting);
-	void notify_replyMarkupUpdated(const HistoryItem *item);
-	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
-	void notify_userIsBotChanged(UserData *user);
 
 	~HistoryWidget();
 
@@ -376,6 +376,9 @@ private:
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
 
+	void requestMessageData(MsgId msgId);
+	void messageDataReceived(ChannelData *channel, MsgId msgId);
+
 	void send(Api::SendOptions options);
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendSilent();
@@ -426,7 +429,7 @@ private:
 		not_null<History*> history,
 		SendAction::Type type);
 	void cancelTypingAction();
-	void sendActionDone(const MTPBool &result, mtpRequestId req);
+	void sendActionDone(const MTPBool &result, mtpRequestId requestId);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -471,10 +474,6 @@ private:
 
 	void subscribeToUploader();
 
-	void photoUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
 	void photoProgress(const FullMsgId &msgId);
 	void photoFailed(const FullMsgId &msgId);
 	void documentUploaded(
@@ -491,11 +490,6 @@ private:
 	void documentFailed(const FullMsgId &msgId);
 
 	void documentEdited(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
-
-	void photoEdited(
 		const FullMsgId &msgId,
 		Api::SendOptions options,
 		const MTPInputFile &file);
@@ -547,7 +541,6 @@ private:
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
-	void unpinDone(const MTPUpdates &updates);
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
@@ -574,14 +567,14 @@ private:
 	void createUnreadBarAndResize();
 
 	void saveEditMsg();
-	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
-	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
+	void saveEditMsgDone(not_null<History*> history, const MTPUpdates &updates, mtpRequestId requestId);
+	void saveEditMsgFail(not_null<History*> history, const RPCError &error, mtpRequestId requestId);
 
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
-	bool messagesFailed(const RPCError &error, int requestId);
+	void messagesFailed(const RPCError &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
@@ -636,7 +629,7 @@ private:
 	void handleSupportSwitch(not_null<History*> updated);
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	bool inlineBotResolveFail(QString name, const RPCError &error);
+	void inlineBotResolveFail(const RPCError &error, const QString &username);
 
 	bool isBotStart() const;
 	bool isBlocked() const;
@@ -762,8 +755,6 @@ private:
 	int _recordingSamples = 0;
 	int _recordCancelWidth;
 
-	rpl::lifetime _uploaderSubscriptions;
-
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.
 	Ui::Animations::Basic _recordingAnimation;
@@ -804,7 +795,9 @@ private:
 	base::Timer _highlightTimer;
 	crl::time _highlightStart = 0;
 
-	QMap<QPair<not_null<History*>, SendAction::Type>, mtpRequestId> _sendActionRequests;
+	base::flat_map<
+		std::pair<not_null<History*>, SendAction::Type>,
+		mtpRequestId> _sendActionRequests;
 	base::Timer _sendActionStopTimer;
 
 	crl::time _saveDraftStart = 0;
@@ -815,5 +808,7 @@ private:
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
+
+	int _topDelta = 0;
 
 };

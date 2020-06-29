@@ -19,11 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mtproto/sender.h"
-#include "observer_peer.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
@@ -168,7 +168,7 @@ Controller::Controller(
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
-, _api(_peer->session().api().instance())
+, _api(&_peer->session().mtp())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
 , _useLocationPhrases(useLocationPhrases)
@@ -335,7 +335,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			st::setupChannelLink,
 			nullptr,
 			username,
-			true));
+			_peer->session().createInternalLink(QString())));
 	_controls.usernameInput->heightValue(
 	) | rpl::start_with_next([placeholder](int height) {
 		placeholder->resize(placeholder->width(), height);
@@ -485,12 +485,12 @@ void Controller::usernameChanged() {
 		_checkUsernameTimer.cancel();
 		return;
 	}
-	const auto bad = ranges::find_if(username, [](QChar ch) {
+	const auto bad = ranges::any_of(username, [](QChar ch) {
 		return (ch < 'A' || ch > 'Z')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < '0' || ch > '9')
 			&& (ch != '_');
-	}) != username.end();
+	});
 	if (bad) {
 		showUsernameError(tr::lng_create_channel_link_bad_symbols());
 	} else if (username.size() < kMinUsernameLength) {
@@ -574,9 +574,9 @@ void Controller::observeInviteLink() {
 	if (!_controls.editInviteLinkWrap) {
 		return;
 	}
-	Notify::PeerUpdateValue(
+	_peer->session().changes().peerFlagsValue(
 		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged
+		Data::PeerUpdate::Flag::InviteLink
 	) | rpl::start_with_next([=] {
 		refreshCreateInviteLink();
 		refreshEditInviteLink();

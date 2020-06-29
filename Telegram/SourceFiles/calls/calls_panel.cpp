@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_cloud_file.h"
+#include "data/data_changes.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "platform/platform_specific.h"
 #include "window/main_window.h"
 #include "layout.h"
@@ -315,7 +315,7 @@ Panel::Panel(not_null<Call*> call)
 	_cancel->setDuration(st::callPanelDuration);
 
 	setMouseTracking(true);
-	setWindowIcon(Window::CreateIcon(&_user->account()));
+	setWindowIcon(Window::CreateIcon(&_user->session()));
 	initControls();
 	initLayout();
 	showAndActivate();
@@ -361,13 +361,7 @@ void Panel::initControls() {
 	subscribe(_call->muteChanged(), [this](bool mute) {
 		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
-		if (!_call || update.peer != _call->user()) {
-			return;
-		}
-		_name->setText(_call->user()->name);
-		updateControlsGeometry();
-	}));
+
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
 			updateStatusText(_call->state());
@@ -411,11 +405,11 @@ void Panel::initControls() {
 void Panel::reinitControls() {
 	Expects(_call != nullptr);
 
-	unsubscribe(base::take(_stateChangedSubscription));
-	_stateChangedSubscription = subscribe(
-		_call->stateChanged(),
-		[=](State state) { stateChanged(state); });
-	stateChanged(_call->state());
+	_stateLifetime.destroy();
+	_call->stateValue(
+	) | rpl::start_with_next([=](State state) {
+		stateChanged(state);
+	}, _stateLifetime);
 
 	_signalBars.create(
 		this,
@@ -423,7 +417,7 @@ void Panel::reinitControls() {
 		st::callPanelSignalBars,
 		[=] { rtlupdate(signalBarsRect()); });
 
-	_name->setText(_call->user()->name);
+	_name->setText(_user->name);
 	updateStatusText(_call->state());
 }
 
@@ -435,12 +429,22 @@ void Panel::initLayout() {
 
 	initGeometry();
 
-	Notify::PeerUpdateValue(
-		_user,
-		Notify::PeerUpdate::Flag::PhotoChanged
-	) | rpl::start_with_next(
-		[this] { processUserPhoto(); },
-		lifetime());
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	_user->session().changes().peerUpdates(
+		UpdateFlag::Name | UpdateFlag::Photo
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		// _user may change for the same Panel.
+		return (_call != nullptr) && (update.peer == _user);
+	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (update.flags & UpdateFlag::Name) {
+			_name->setText(_call->user()->name);
+			updateControlsGeometry();
+		}
+		if (update.flags & UpdateFlag::Photo) {
+			processUserPhoto();
+		}
+	}, lifetime());
+	processUserPhoto();
 
 	subscribe(_user->session().downloaderTaskFinished(), [=] {
 		refreshUserPhoto();

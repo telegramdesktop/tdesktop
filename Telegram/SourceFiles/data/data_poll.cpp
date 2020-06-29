@@ -236,7 +236,7 @@ PollData::Flags PollData::flags() const {
 }
 
 bool PollData::voted() const {
-	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
+	return ranges::contains(answers, true, &PollAnswer::chosen);
 }
 
 bool PollData::closed() const {

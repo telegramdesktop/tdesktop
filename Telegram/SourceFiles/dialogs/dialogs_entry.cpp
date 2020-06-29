@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_chat_filters.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "app.h"
@@ -41,10 +43,10 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 } // namespace
 
-Entry::Entry(not_null<Data::Session*> owner, const Key &key)
+Entry::Entry(not_null<Data::Session*> owner, Type type)
 : lastItemTextCache(st::dialogsTextWidthMin)
 , _owner(owner)
-, _key(key) {
+, _isFolder(type == Type::Folder) {
 }
 
 Data::Session &Entry::owner() const {
@@ -53,6 +55,14 @@ Data::Session &Entry::owner() const {
 
 Main::Session &Entry::session() const {
 	return _owner->session();
+}
+
+History *Entry::asHistory() {
+	return _isFolder ? nullptr : static_cast<History*>(this);
+}
+
+Data::Folder *Entry::asFolder() {
+	return _isFolder ? static_cast<Data::Folder*>(this) : nullptr;
 }
 
 void Entry::pinnedIndexChanged(int was, int now) {
@@ -159,13 +169,11 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 }
 
 void Entry::setChatListExistence(bool exists) {
-	if (const auto main = App::main()) {
-		if (exists && _sortKeyInChatList) {
-			main->refreshDialog(_key);
-			updateChatListEntry();
-		} else {
-			main->removeDialog(_key);
-		}
+	if (exists && _sortKeyInChatList) {
+		owner().refreshChatListEntry(this);
+		updateChatListEntry();
+	} else {
+		owner().removeChatListEntry(this);
 	}
 }
 
@@ -228,7 +236,7 @@ not_null<Row*> Entry::addToChatList(
 	}
 	return _chatListLinks.emplace(
 		filterId,
-		list->addEntry(_key)
+		list->addEntry(this)
 	).first->second.main;
 }
 
@@ -236,7 +244,7 @@ void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
 	if (isPinnedDialog(filterId)) {
-		owner().setChatPinned(_key, filterId, false);
+		owner().setChatPinned(this, filterId, false);
 	}
 
 	const auto i = _chatListLinks.find(filterId);
@@ -244,7 +252,7 @@ void Entry::removeFromChatList(
 		return;
 	}
 	_chatListLinks.erase(i);
-	list->removeEntry(_key);
+	list->removeEntry(this);
 }
 
 void Entry::removeChatListEntryByLetter(FilterId filterId, QChar letter) {
@@ -264,16 +272,8 @@ void Entry::addChatListEntryByLetter(
 	}
 }
 
-void Entry::updateChatListEntry() const {
-	if (const auto main = App::main()) {
-		for (const auto &[filterId, links] : _chatListLinks) {
-			main->repaintDialogRow(filterId, links.main);
-		}
-		if (session().supportMode()
-			&& !session().settings().supportAllSearchResults()) {
-			main->repaintDialogRow({ _key, FullMsgId() });
-		}
-	}
+void Entry::updateChatListEntry() {
+	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Repaint);
 }
 
 } // namespace Dialogs

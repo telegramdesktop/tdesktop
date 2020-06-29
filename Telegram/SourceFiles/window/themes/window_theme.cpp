@@ -21,7 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "data/data_session.h"
-#include "main/main_account.h" // Account::sessionValue.
+#include "main/main_account.h" // Account::local.
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "ui/image/image.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
@@ -438,7 +439,7 @@ void ClearApplying() {
 	GlobalApplying = Applying();
 }
 
-SendMediaReady PrepareWallPaper(const QImage &image) {
+SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 	PreparedPhotoThumbs thumbnails;
 	QVector<MTPPhotoSize> sizes;
 
@@ -481,7 +482,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		MTP_int(jpeg.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
 		MTPVector<MTPVideoSize>(),
-		MTP_int(MTP::maindc()),
+		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
 
 	return SendMediaReady(
@@ -520,13 +521,6 @@ ChatBackground::ChatBackground() : _adjustableColors({
 		st::historyScrollBgOver,
 		st::historyScrollBarBg,
 		st::historyScrollBarBgOver }) {
-	saveAdjustableColors();
-
-	subscribe(this, [=](const BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			style::NotifyPaletteChanged();
-		}
-	});
 }
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
@@ -534,15 +528,32 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 	_themeTile = themeTile;
 }
 
-void ChatBackground::start() {
-	if (!Data::details::IsUninitializedWallPaper(_paper)) {
+void ChatBackground::initialRead() {
+	if (started()) {
 		return;
-	}
-	if (!Local::readBackground()) {
+	} else if (!Local::readBackground()) {
 		set(Data::ThemeWallPaper());
 	}
+	if (_localStoredTileDayValue) {
+		_tileDayValue = *_localStoredTileDayValue;
+	}
+	if (_localStoredTileNightValue) {
+		_tileNightValue = *_localStoredTileNightValue;
+	}
+}
 
-	Core::App().activeAccount().sessionValue(
+void ChatBackground::start() {
+	saveAdjustableColors();
+
+	subscribe(this, [=](const BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			style::NotifyPaletteChanged();
+		}
+	});
+
+	initialRead();
+
+	Core::App().domain().activeSessionValue(
 	) | rpl::filter([=](Main::Session *session) {
 		return session != _session;
 	}) | rpl::start_with_next([=](Main::Session *session) {
@@ -570,7 +581,7 @@ void ChatBackground::checkUploadWallPaper() {
 		return;
 	}
 
-	const auto ready = PrepareWallPaper(_original);
+	const auto ready = PrepareWallPaper(_session->mainDcId(), _original);
 	const auto documentId = ready.id;
 	_wallPaperUploadId = FullMsgId(0, _session->data().nextLocalMessageId());
 	_session->uploader().uploadMedia(_wallPaperUploadId, ready);
@@ -598,7 +609,7 @@ void ChatBackground::checkUploadWallPaper() {
 				LOG(("API Error: "
 					"Got wallPaperNoFile after account.UploadWallPaper."));
 			});
-			if (const auto paper = Data::WallPaper::Create(result)) {
+			if (const auto paper = Data::WallPaper::Create(_session, result)) {
 				setPaper(*paper);
 				writeNewBackgroundSettings();
 				notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
@@ -850,16 +861,9 @@ bool ChatBackground::isMonoColorImage() const {
 	return _isMonoColorImage;
 }
 
-void ChatBackground::ensureStarted() {
-	if (_pixmap.isNull() && !_paper.backgroundColor()) {
-		// We should start first, otherwise the default call
-		// to start() will reset this value to _themeTile.
-		start();
-	}
-}
-
 void ChatBackground::setTile(bool tile) {
-	ensureStarted();
+	Expects(started());
+
 	const auto old = this->tile();
 	if (nightMode()) {
 		setTileNightValue(tile);
@@ -869,20 +873,26 @@ void ChatBackground::setTile(bool tile) {
 	if (this->tile() != old) {
 		if (!Data::details::IsTestingThemeWallPaper(_paper)
 			&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
-			Local::writeUserSettings();
+			Local::writeSettings();
 		}
 		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, tile));
 	}
 }
 
 void ChatBackground::setTileDayValue(bool tile) {
-	ensureStarted();
-	_tileDayValue = tile;
+	if (started()) {
+		_tileDayValue = tile;
+	} else {
+		_localStoredTileDayValue = tile;
+	}
 }
 
 void ChatBackground::setTileNightValue(bool tile) {
-	ensureStarted();
-	_tileNightValue = tile;
+	if (started()) {
+		_tileNightValue = tile;
+	} else {
+		_localStoredTileNightValue = tile;
+	}
 }
 
 void ChatBackground::setThemeObject(const Object &object) {
@@ -912,10 +922,16 @@ void ChatBackground::reset() {
 		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
 	}
+	writeNewBackgroundSettings();
+}
+
+bool ChatBackground::started() const {
+	return !Data::details::IsUninitializedWallPaper(_paper);
 }
 
 void ChatBackground::saveForRevert() {
-	ensureStarted();
+	Expects(started());
+
 	if (!Data::details::IsTestingThemeWallPaper(_paper)
 		&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
 		_paperForRevert = _paper;
@@ -1007,7 +1023,7 @@ void ChatBackground::keepApplied(const Object &object, bool write) {
 }
 
 bool ChatBackground::isNonDefaultThemeOrBackground() {
-	start();
+	initialRead();
 	return nightMode()
 		? (_themeObject.pathAbsolute != NightThemePath()
 			|| !Data::IsThemeWallPaper(_paper))
@@ -1016,7 +1032,7 @@ bool ChatBackground::isNonDefaultThemeOrBackground() {
 }
 
 bool ChatBackground::isNonDefaultBackground() {
-	start();
+	initialRead();
 	return _themeObject.pathAbsolute.isEmpty()
 		? !Data::IsDefaultWallPaper(_paper)
 		: !Data::IsThemeWallPaper(_paper);
@@ -1024,7 +1040,7 @@ bool ChatBackground::isNonDefaultBackground() {
 
 void ChatBackground::writeNewBackgroundSettings() {
 	if (tile() != _tileForRevert) {
-		Local::writeUserSettings();
+		Local::writeSettings();
 	}
 	Local::writeBackground(
 		_paper,
@@ -1110,10 +1126,7 @@ void ChatBackground::reapplyWithNightMode(
 			}
 			ClearApplying();
 			keepApplied(saved.object, settingExactTheme);
-			if (tile() != _tileForRevert) {
-				Local::writeUserSettings();
-			}
-			if (nightModeChanged) {
+			if (tile() != _tileForRevert || nightModeChanged) {
 				Local::writeSettings();
 			}
 			if (!settingExactTheme && !Local::readBackground()) {

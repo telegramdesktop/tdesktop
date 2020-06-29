@@ -17,11 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
-#include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "main/main_domain.h"
 #include "boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
 #include "ui/layers/layer_widget.h"
@@ -33,22 +33,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "data/data_session.h"
 
+namespace {
+
+[[nodiscard]] MainWidget *CheckMainWidget(not_null<Main::Session*> session) {
+	if (const auto m = App::main()) { // multi good
+		if (&m->session() == session) {
+			return m;
+		}
+	}
+	if (&Core::App().domain().active() != &session->account()) {
+		Core::App().domain().activate(&session->account());
+	}
+	if (const auto m = App::main()) { // multi good
+		if (&m->session() == session) {
+			return m;
+		}
+	}
+	return nullptr;
+}
+
+} // namespace
+
 namespace App {
 
-void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
-	if (auto m = App::main()) {
+void sendBotCommand(
+		not_null<PeerData*> peer,
+		UserData *bot,
+		const QString &cmd, MsgId replyTo) {
+	if (const auto m = CheckMainWidget(&peer->session())) {
 		m->sendBotCommand(peer, bot, cmd, replyTo);
 	}
 }
 
-void hideSingleUseKeyboard(const HistoryItem *msg) {
-	if (auto m = App::main()) {
-		m->hideSingleUseKeyboard(msg->history()->peer, msg->id);
+void hideSingleUseKeyboard(not_null<const HistoryItem*> message) {
+	if (const auto m = CheckMainWidget(&message->history()->session())) {
+		m->hideSingleUseKeyboard(message->history()->peer, message->id);
 	}
 }
 
 bool insertBotCommand(const QString &cmd) {
-	if (auto m = App::main()) {
+	if (const auto m = App::main()) { // multi good
 		return m->insertBotCommand(cmd);
 	}
 	return false;
@@ -58,8 +82,14 @@ void activateBotCommand(
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
-	const auto button = HistoryMessageMarkupButton::Get(msg->fullId(), row, column);
-	if (!button) return;
+	const auto button = HistoryMessageMarkupButton::Get(
+		&msg->history()->owner(),
+		msg->fullId(),
+		row,
+		column);
+	if (!button) {
+		return;
+	}
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
 	switch (button->type) {
@@ -67,12 +97,16 @@ void activateBotCommand(
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
 		MsgId replyTo = (msg->id > 0) ? msg->id : 0;
-		sendBotCommand(msg->history()->peer, msg->fromOriginal()->asUser(), QString(button->text), replyTo);
+		sendBotCommand(
+			msg->history()->peer,
+			msg->fromOriginal()->asUser(),
+			QString(button->text),
+			replyTo);
 	} break;
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (auto m = App::main()) {
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
 			m->app_sendBotCallback(button, msg, row, column);
 		}
 	} break;
@@ -84,7 +118,7 @@ void activateBotCommand(
 	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
 		auto skipConfirmation = false;
-		if (auto bot = msg->getMessageBot()) {
+		if (const auto bot = msg->getMessageBot()) {
 			if (bot->isVerified()) {
 				skipConfirmation = true;
 			}
@@ -98,7 +132,8 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<InformBox>(tr::lng_bot_share_location_unavailable(tr::now)));
+		Ui::show(Box<InformBox>(
+			tr::lng_bot_share_location_unavailable(tr::now)));
 	} break;
 
 	case ButtonType::RequestPhone: {
@@ -126,26 +161,29 @@ void activateBotCommand(
 				chosen |= PollData::Flag::Quiz;
 			}
 		}
-		Window::PeerMenuCreatePoll(msg->history()->peer, chosen, disabled);
+		if (const auto m = CheckMainWidget(&msg->history()->session())) {
+			Window::PeerMenuCreatePoll(m->controller(), msg->history()->peer, chosen, disabled);
+		}
 	} break;
 
 	case ButtonType::SwitchInlineSame:
 	case ButtonType::SwitchInline: {
-		if (auto m = App::main()) {
-			if (auto bot = msg->getMessageBot()) {
-				auto tryFastSwitch = [bot, &button, msgId = msg->id]() -> bool {
+		const auto session = &msg->history()->session();
+		if (const auto m = CheckMainWidget(session)) {
+			if (const auto bot = msg->getMessageBot()) {
+				const auto fastSwitchDone = [&] {
 					auto samePeer = (button->type == ButtonType::SwitchInlineSame);
 					if (samePeer) {
-						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data), bot, msgId);
+						Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data), bot, msg->id);
 						return true;
 					} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
-						if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
+						if (Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data))) {
 							return true;
 						}
 					}
 					return false;
-				};
-				if (!tryFastSwitch()) {
+				}();
+				if (!fastSwitchDone) {
 					m->inlineSwitchLayer('@' + bot->username + ' ' + QString::fromUtf8(button->data));
 				}
 			}
@@ -159,11 +197,12 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
-	if (const auto window = App::wnd()) {
-		if (const auto controller = window->sessionController()) {
-			if (controller->openedFolder().current()) {
-				controller->closeFolder();
-			}
+	const auto m = inPeer
+		? CheckMainWidget(&inPeer->session())
+		: App::main(); // multi good
+	if (m) {
+		if (m->controller()->openedFolder().current()) {
+			m->controller()->closeFolder();
 		}
 		Ui::hideSettingsAndLayer();
 		Core::App().hideMediaView();
@@ -188,43 +227,52 @@ void showSettings() {
 
 namespace Ui {
 
-void showPeerProfile(const PeerId &peer) {
-	if (const auto window = App::wnd()) {
+void showPeerProfile(not_null<PeerData*> peer) {
+	if (const auto window = App::wnd()) { // multi good
 		if (const auto controller = window->sessionController()) {
-			controller->showPeerInfo(peer);
+			if (&controller->session() == &peer->session()) {
+				controller->showPeerInfo(peer);
+			}
+		}
+		if (&Core::App().domain().active() != &peer->session().account()) {
+			Core::App().domain().activate(&peer->session().account());
+		}
+		if (const auto controller = window->sessionController()) {
+			if (&controller->session() == &peer->session()) {
+				controller->showPeerInfo(peer);
+			}
 		}
 	}
 }
-void showPeerProfile(const PeerData *peer) {
-	showPeerProfile(peer->id);
-}
 
 void showPeerProfile(not_null<const History*> history) {
-	showPeerProfile(history->peer->id);
+	showPeerProfile(history->peer);
 }
 
-void showPeerHistory(
-		const PeerId &peer,
-		MsgId msgId) {
-	auto ms = crl::now();
-	if (auto m = App::main()) {
+void showChatsList(not_null<Main::Session*> session) {
+	if (const auto m = CheckMainWidget(session)) {
 		m->ui_showPeerHistory(
-			peer,
+			0,
 			Window::SectionShow::Way::ClearStack,
-			msgId);
+			0);
 	}
 }
 
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
-	showPeerHistory(item->history()->peer->id, item->id);
+	showPeerHistory(item->history()->peer, item->id);
 }
 
 void showPeerHistory(not_null<const History*> history, MsgId msgId) {
-	showPeerHistory(history->peer->id, msgId);
+	showPeerHistory(history->peer, msgId);
 }
 
-void showPeerHistory(const PeerData *peer, MsgId msgId) {
-	showPeerHistory(peer->id, msgId);
+void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
+	if (const auto m = CheckMainWidget(&peer->session())) {
+		m->ui_showPeerHistory(
+			peer->id,
+			Window::SectionShow::Way::ClearStack,
+			msgId);
+	}
 }
 
 PeerData *getPeerForMouseAction() {
@@ -244,42 +292,18 @@ bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 
 namespace Notify {
 
-void userIsBotChanged(UserData *user) {
-	if (MainWidget *m = App::main()) m->notify_userIsBotChanged(user);
-}
-
-void botCommandsChanged(UserData *user) {
-	if (MainWidget *m = App::main()) {
-		m->notify_botCommandsChanged(user);
-	}
-	peerUpdatedDelayed(user, PeerUpdate::Flag::BotCommandsChanged);
-}
-
-void inlineBotRequesting(bool requesting) {
-	if (MainWidget *m = App::main()) m->notify_inlineBotRequesting(requesting);
-}
-
-void replyMarkupUpdated(const HistoryItem *item) {
-	if (MainWidget *m = App::main()) {
-		m->notify_replyMarkupUpdated(item);
-	}
-}
-
-void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {
-	if (MainWidget *m = App::main()) {
-		m->notify_inlineKeyboardMoved(item, oldKeyboardTop, newKeyboardTop);
-	}
-}
-
-bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
-	if (auto main = App::main()) {
-		return main->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
+bool switchInlineBotButtonReceived(
+		not_null<Main::Session*> session,
+		const QString &query,
+		UserData *samePeerBot,
+		MsgId samePeerReplyTo) {
+	if (const auto m = CheckMainWidget(session)) {
+		return m->notify_switchInlineBotButtonReceived(
+			query,
+			samePeerBot,
+			samePeerReplyTo);
 	}
 	return false;
-}
-
-void unreadCounterUpdated() {
-	Global::RefHandleUnreadCounterUpdate().call();
 }
 
 } // namespace Notify
@@ -303,81 +327,11 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
-	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Core::App().call_handleDelayedPeerUpdates(); } };
-
+	bool ScreenIsLocked = false;
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
-	bool AdaptiveForWide = true;
 	base::Observable<void> AdaptiveChanged;
 
-	bool DialogsFiltersEnabled = false;
-	bool ModerateModeEnabled = false;
-
-	bool ScreenIsLocked = false;
-
-	int32 DebugLoggingFlags = 0;
-
-	float64 RememberedSongVolume = kDefaultVolume;
-	float64 SongVolume = kDefaultVolume;
-	base::Observable<void> SongVolumeChanged;
-	float64 VideoVolume = kDefaultVolume;
-	base::Observable<void> VideoVolumeChanged;
-
-	// config
-	int32 ChatSizeMax = 200;
-	int32 MegagroupSizeMax = 10000;
-	int32 ForwardedCountMax = 100;
-	int32 OnlineUpdatePeriod = 120000;
-	int32 OfflineBlurTimeout = 5000;
-	int32 OfflineIdleTimeout = 30000;
-	int32 OnlineFocusTimeout = 1000;
-	int32 OnlineCloudTimeout = 300000;
-	int32 NotifyCloudDelay = 30000;
-	int32 NotifyDefaultDelay = 1500;
-	int32 PushChatPeriod = 60000;
-	int32 PushChatLimit = 2;
-	int32 SavedGifsLimit = 200;
-	int32 EditTimeLimit = 172800;
-	int32 RevokeTimeLimit = 172800;
-	int32 RevokePrivateTimeLimit = 172800;
-	bool RevokePrivateInbox = false;
-	int32 StickersRecentLimit = 30;
-	int32 StickersFavedLimit = 5;
-	int32 PinnedDialogsCountMax = 5;
-	int32 PinnedDialogsInFolderMax = 100;
-	QString InternalLinksDomain = qsl("https://t.me/");
-	int32 ChannelsReadMediaPeriod = 86400 * 7;
-	int32 CallReceiveTimeoutMs = 20000;
-	int32 CallRingTimeoutMs = 90000;
-	int32 CallConnectTimeoutMs = 30000;
-	int32 CallPacketTimeoutMs = 10000;
-	int32 WebFileDcId = cTestMode() ? 2 : 4;
-	QString TxtDomainString = cTestMode()
-		? qsl("tapv3.stel.com")
-		: qsl("apv3.stel.com");
-	bool PhoneCallsEnabled = true;
-	bool BlockedMode = false;
-	int32 CaptionLengthMax = 1024;
-	base::Observable<void> PhoneCallsEnabledChanged;
-
-	HiddenPinnedMessagesMap HiddenPinnedMessages;
-
-	bool AskDownloadPath = false;
-	QString DownloadPath;
-	QByteArray DownloadPathBookmark;
-	base::Observable<void> DownloadPathChanged;
-
-	bool VoiceMsgPlaybackDoubled = false;
-	bool SoundNotify = true;
-	bool DesktopNotify = true;
-	bool FlashBounceNotify = true;
-	bool RestoreSoundNotifyFromTray = false;
-	bool RestoreFlashBounceNotifyFromTray = false;
-	DBINotifyView NotifyView = dbinvShowPreview;
-	bool NativeNotifications = false;
-	int NotificationsCount = 3;
-	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
 	bool TryIPv6 = !Platform::IsWindows();
@@ -387,20 +341,12 @@ struct Data {
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
-	int AutoLock = 3600;
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
 
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
-	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
-
-	QString CallOutputDeviceID = qsl("default");
-	QString CallInputDeviceID = qsl("default");
-	int CallOutputVolume = 100;
-	int CallInputVolume = 100;
-	bool CallAudioDuckingEnabled = true;
 };
 
 } // namespace internal
@@ -423,79 +369,11 @@ void finish() {
 	GlobalData = nullptr;
 }
 
-DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
-DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
-
+DefineVar(Global, bool, ScreenIsLocked);
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
-DefineVar(Global, bool, AdaptiveForWide);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
 
-DefineVar(Global, bool, DialogsFiltersEnabled);
-DefineVar(Global, bool, ModerateModeEnabled);
-
-DefineVar(Global, bool, ScreenIsLocked);
-
-DefineVar(Global, int32, DebugLoggingFlags);
-
-DefineVar(Global, float64, RememberedSongVolume);
-DefineVar(Global, float64, SongVolume);
-DefineRefVar(Global, base::Observable<void>, SongVolumeChanged);
-DefineVar(Global, float64, VideoVolume);
-DefineRefVar(Global, base::Observable<void>, VideoVolumeChanged);
-
-// config
-DefineVar(Global, int32, ChatSizeMax);
-DefineVar(Global, int32, MegagroupSizeMax);
-DefineVar(Global, int32, ForwardedCountMax);
-DefineVar(Global, int32, OnlineUpdatePeriod);
-DefineVar(Global, int32, OfflineBlurTimeout);
-DefineVar(Global, int32, OfflineIdleTimeout);
-DefineVar(Global, int32, OnlineFocusTimeout);
-DefineVar(Global, int32, OnlineCloudTimeout);
-DefineVar(Global, int32, NotifyCloudDelay);
-DefineVar(Global, int32, NotifyDefaultDelay);
-DefineVar(Global, int32, PushChatPeriod);
-DefineVar(Global, int32, PushChatLimit);
-DefineVar(Global, int32, SavedGifsLimit);
-DefineVar(Global, int32, EditTimeLimit);
-DefineVar(Global, int32, RevokeTimeLimit);
-DefineVar(Global, int32, RevokePrivateTimeLimit);
-DefineVar(Global, bool, RevokePrivateInbox);
-DefineVar(Global, int32, StickersRecentLimit);
-DefineVar(Global, int32, StickersFavedLimit);
-DefineVar(Global, int32, PinnedDialogsCountMax);
-DefineVar(Global, int32, PinnedDialogsInFolderMax);
-DefineVar(Global, QString, InternalLinksDomain);
-DefineVar(Global, int32, ChannelsReadMediaPeriod);
-DefineVar(Global, int32, CallReceiveTimeoutMs);
-DefineVar(Global, int32, CallRingTimeoutMs);
-DefineVar(Global, int32, CallConnectTimeoutMs);
-DefineVar(Global, int32, CallPacketTimeoutMs);
-DefineVar(Global, int32, WebFileDcId);
-DefineVar(Global, QString, TxtDomainString);
-DefineVar(Global, bool, PhoneCallsEnabled);
-DefineVar(Global, bool, BlockedMode);
-DefineVar(Global, int32, CaptionLengthMax);
-DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
-
-DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
-
-DefineVar(Global, bool, AskDownloadPath);
-DefineVar(Global, QString, DownloadPath);
-DefineVar(Global, QByteArray, DownloadPathBookmark);
-DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
-
-DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
-DefineVar(Global, bool, SoundNotify);
-DefineVar(Global, bool, DesktopNotify);
-DefineVar(Global, bool, FlashBounceNotify);
-DefineVar(Global, bool, RestoreSoundNotifyFromTray);
-DefineVar(Global, bool, RestoreFlashBounceNotifyFromTray);
-DefineVar(Global, DBINotifyView, NotifyView);
-DefineVar(Global, bool, NativeNotifications);
-DefineVar(Global, int, NotificationsCount);
-DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, bool, TryIPv6);
@@ -505,19 +383,11 @@ DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
-DefineVar(Global, int, AutoLock);
 DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
-DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
-
-DefineVar(Global, QString, CallOutputDeviceID);
-DefineVar(Global, QString, CallInputDeviceID);
-DefineVar(Global, int, CallOutputVolume);
-DefineVar(Global, int, CallInputVolume);
-DefineVar(Global, bool, CallAudioDuckingEnabled);
 
 } // namespace Global

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "mtproto/mtproto_config.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
@@ -41,8 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "observer_peer.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 
@@ -206,6 +206,7 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 		}
 	}
 
+	// Should be completely redesigned as the oldTop no longer exists.
 	//if (oldKeyboardTop >= 0) { // #TODO edit bot message
 	//	if (auto keyboard = Get<HistoryMessageReplyMarkup>()) {
 	//		keyboard->oldTop = oldKeyboardTop;
@@ -265,10 +266,9 @@ PeerData *HistoryItem::displayFrom() const {
 }
 
 void HistoryItem::invalidateChatListEntry() {
-	if (const auto main = App::main()) {
-		// #TODO feeds search results
-		main->refreshDialogRow({ history(), fullId() });
-	}
+	history()->session().changes().messageUpdated(
+		this,
+		Data::MessageUpdate::Flag::DialogRowRefresh);
 
 	// invalidate cache for drawInDialog
 	if (history()->textCachedFor == this) {
@@ -290,7 +290,8 @@ void HistoryItem::finishEditionToEmpty() {
 bool HistoryItem::hasUnreadMediaFlag() const {
 	if (_history->peer->isChannel()) {
 		const auto passed = base::unixtime::now() - date();
-		if (passed >= Global::ChannelsReadMediaPeriod()) {
+		const auto &config = _history->session().serverConfig();
+		if (passed >= config.channelsReadMediaPeriod) {
 			return false;
 		}
 	}
@@ -303,7 +304,7 @@ bool HistoryItem::isUnreadMention() const {
 
 bool HistoryItem::mentionsMe() const {
 	if (Has<HistoryServicePinned>()
-		&& !history()->session().settings().notifyAboutPinned()) {
+		&& !Core::App().settings().notifyAboutPinned()) {
 		return false;
 	}
 	return _flags & MTPDmessage::Flag::f_mentioned;
@@ -485,7 +486,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 	_history->owner().notifyItemIdChange({ this, oldId });
 
-	// We don't call Notify::replyMarkupUpdated(this) and update keyboard
+	// We don't fire MessageUpdate::Flag::ReplyMarkup and update keyboard
 	// in history widget, because it can't exist for an outgoing message.
 	// Only inline keyboards can be in outgoing messages.
 	if (const auto markup = inlineReplyMarkup()) {
@@ -567,12 +568,13 @@ bool HistoryItem::canDelete() const {
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	const auto peer = history()->peer;
+	const auto &config = history()->session().serverConfig();
 	const auto messageToMyself = peer->isSelf();
 	const auto messageTooOld = messageToMyself
 		? false
 		: peer->isUser()
-		? (now - date() >= Global::RevokePrivateTimeLimit())
-		: (now - date() >= Global::RevokeTimeLimit());
+		? (now - date() >= config.revokePrivateTimeLimit)
+		: (now - date() >= config.revokeTimeLimit);
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
@@ -600,7 +602,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 				return false;
 			}
 		} else if (peer->isUser()) {
-			return Global::RevokePrivateInbox();
+			return config.revokePrivateInbox;
 		} else {
 			return false;
 		}
@@ -725,11 +727,9 @@ void HistoryItem::sendFailed() {
 
 	_clientFlags = (_clientFlags | MTPDmessage_ClientFlag::f_failed)
 		& ~MTPDmessage_ClientFlag::f_sending;
-	if (history()->peer->isChannel()) {
-		Notify::peerUpdatedDelayed(
-			history()->peer,
-			Notify::PeerUpdate::Flag::ChannelLocalMessages);
-	}
+	history()->session().changes().historyUpdated(
+		history(),
+		Data::HistoryUpdate::Flag::LocalMessages);
 }
 
 bool HistoryItem::needCheck() const {
@@ -904,16 +904,18 @@ ClickHandlerPtr goToMessageClickHandler(
 		MsgId msgId,
 		FullMsgId returnToId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		if (const auto main = App::main()) {
-			if (const auto returnTo = peer->owner().message(returnToId)) {
-				if (returnTo->history()->peer == peer) {
-					main->pushReplyReturn(returnTo);
+		if (const auto main = App::main()) { // multi good
+			if (&main->session() == &peer->session()) {
+				if (const auto returnTo = peer->owner().message(returnToId)) {
+					if (returnTo->history()->peer == peer) {
+						main->pushReplyReturn(returnTo);
+					}
 				}
+				main->controller()->showPeerHistory(
+					peer,
+					Window::SectionShow::Way::Forward,
+					msgId);
 			}
-			App::wnd()->sessionController()->showPeerHistory(
-				peer,
-				Window::SectionShow::Way::Forward,
-				msgId);
 		}
 	});
 }

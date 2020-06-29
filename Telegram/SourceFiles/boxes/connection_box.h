@@ -24,18 +24,23 @@ template <typename Enum>
 class Radioenum;
 } // namespace Ui
 
+namespace Main {
+class Account;
+} // namespace Main
+
 class ProxiesBoxController : public base::Subscriber {
 public:
 	using ProxyData = MTP::ProxyData;
 	using Type = ProxyData::Type;
 
-	ProxiesBoxController();
+	explicit ProxiesBoxController(not_null<Main::Account*> account);
 
 	static void ShowApplyConfirmation(
 		Type type,
 		const QMap<QString, QString> &fields);
 
-	static object_ptr<Ui::BoxContent> CreateOwningBox();
+	static object_ptr<Ui::BoxContent> CreateOwningBox(
+		not_null<Main::Account*> account);
 	object_ptr<Ui::BoxContent> create();
 
 	enum class ItemState {
@@ -104,6 +109,7 @@ private:
 		const ProxyData &proxy);
 	void addNewItem(const ProxyData &proxy);
 
+	const not_null<Main::Account*> _account;
 	int _idCounter = 0;
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;

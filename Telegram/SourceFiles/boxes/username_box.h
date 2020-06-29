@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class UsernameInput;
@@ -19,7 +19,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class UsernameBox : public Ui::BoxContent, public RPCSender {
+class UsernameBox : public Ui::BoxContent {
 public:
 	UsernameBox(QWidget*, not_null<Main::Session*> session);
 
@@ -31,11 +31,11 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void onUpdateDone(const MTPUser &result);
-	bool onUpdateFail(const RPCError &error);
+	void updateDone(const MTPUser &result);
+	void updateFail(const RPCError &error);
 
-	void onCheckDone(const MTPBool &result);
-	bool onCheckFail(const RPCError &error);
+	void checkDone(const MTPBool &result);
+	void checkFail(const RPCError &error);
 
 	void save();
 
@@ -48,6 +48,7 @@ private:
 	void updateLinkText();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	object_ptr<Ui::UsernameInput> _username;
 	object_ptr<Ui::LinkButton> _link;

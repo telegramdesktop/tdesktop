@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_update" = "Update";
 "lng_menu_back" = "Back";
 "lng_menu_night_mode" = "Night Mode";
+"lng_menu_add_account" = "Add Account";
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";

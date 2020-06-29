@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
-#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
 #include "platform/platform_file_utilities.h"
@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
-#include "facades.h"
 #include "app.h"
 
 namespace {
@@ -30,6 +29,7 @@ namespace {
 class FromMemoryLoader final : public FileLoader {
 public:
 	FromMemoryLoader(
+		not_null<Main::Session*> session,
 		const QByteArray &data,
 		const QString &toFile,
 		int32 size,
@@ -50,6 +50,7 @@ private:
 };
 
 FromMemoryLoader::FromMemoryLoader(
+	not_null<Main::Session*> session,
 	const QByteArray &data,
 	const QString &toFile,
 	int32 size,
@@ -59,6 +60,7 @@ FromMemoryLoader::FromMemoryLoader(
 	bool autoLoading,
 	uint8 cacheTag
 ) : FileLoader(
+	session,
 	toFile,
 	size,
 	locationType,
@@ -87,6 +89,7 @@ void FromMemoryLoader::startLoading() {
 } // namespace
 
 FileLoader::FileLoader(
+	not_null<Main::Session*> session,
 	const QString &toFile,
 	int32 size,
 	LocationType locationType,
@@ -94,7 +97,7 @@ FileLoader::FileLoader(
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
-: _session(&Auth())
+: _session(session)
 , _autoLoading(autoLoading)
 , _cacheTag(cacheTag)
 , _filename(toFile)
@@ -421,7 +424,9 @@ bool FileLoader::finalizeResult() {
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = fileLocationKey()) {
 			if (!_filename.isEmpty()) {
-				Local::writeFileLocation(*key, FileLocation(_filename));
+				_session->local().writeFileLocation(
+					*key,
+					FileLocation(_filename));
 			}
 		}
 		const auto key = cacheKey();
@@ -441,6 +446,7 @@ bool FileLoader::finalizeResult() {
 }
 
 std::unique_ptr<FileLoader> CreateFileLoader(
+		not_null<Main::Session*> session,
 		const DownloadLocation &location,
 		Data::FileOrigin origin,
 		const QString &toFile,
@@ -453,6 +459,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 	auto result = std::unique_ptr<FileLoader>();
 	location.data.match([&](const StorageFileLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			origin,
 			locationType,
@@ -464,6 +471,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const WebFileLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			size,
 			fromCloud,
@@ -471,6 +479,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const GeoPointLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
+			session,
 			data,
 			size,
 			fromCloud,
@@ -478,6 +487,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const PlainUrlLocation &data) {
 		result = std::make_unique<webFileLoader>(
+			session,
 			data.url,
 			toFile,
 			fromCloud,
@@ -485,6 +495,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 	}, [&](const InMemoryLocation &data) {
 		result = std::make_unique<FromMemoryLoader>(
+			session,
 			data.bytes,
 			toFile,
 			size,

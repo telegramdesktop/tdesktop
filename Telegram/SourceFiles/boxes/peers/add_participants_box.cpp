@@ -15,16 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_changes.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_config.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerHistory
 #include "app.h"
 
 namespace {
@@ -87,10 +88,11 @@ void AddParticipantsBoxController::subscribeToMigration() {
 }
 
 void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	const auto &serverConfig = session().serverConfig();
 	auto count = fullCount();
 	auto limit = _peer && (_peer->isChat() || _peer->isMegagroup())
-		? Global::MegagroupSizeMax()
-		: Global::ChatSizeMax();
+		? serverConfig.megagroupSizeMax
+		: serverConfig.chatSizeMax;
 	if (count < limit || row->checked()) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
@@ -100,8 +102,8 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 				Box<MaxInviteBox>(_peer->asChannel()),
 				Ui::LayerOption::KeepOther);
 		}
-	} else if (count >= Global::ChatSizeMax()
-		&& count < Global::MegagroupSizeMax()) {
+	} else if (count >= serverConfig.chatSizeMax
+		&& count < serverConfig.megagroupSizeMax) {
 		Ui::show(
 			Box<InformBox>(tr::lng_profile_add_more_after_create(tr::now)),
 			Ui::LayerOption::KeepOther);
@@ -166,7 +168,9 @@ void AddParticipantsBoxController::updateTitle() {
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup())
 		? QString()
-		: qsl("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
+		: qsl("%1 / %2"
+		).arg(fullCount()
+		).arg(session().serverConfig().megagroupSizeMax);
 	delegate()->peerListSetTitle(tr::lng_profile_add_participant());
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }
@@ -240,7 +244,7 @@ void AddParticipantsBoxController::Start(
 			box->boxClosing() | rpl::start_with_next([=] {
 				auto params = Window::SectionShow();
 				params.activation = anim::activation::background;
-				App::wnd()->sessionController()->showPeerHistory(
+				navigation->parentController()->showPeerHistory(
 					channel,
 					params,
 					ShowAtTheEndMsgId);
@@ -276,7 +280,7 @@ AddSpecialBoxController::AddSpecialBoxController(
 	peer,
 	&_additional))
 , _peer(peer)
-, _api(_peer->session().api().instance())
+, _api(&_peer->session().mtp())
 , _role(role)
 , _additional(peer, Role::Members)
 , _adminDoneCallback(std::move(adminDoneCallback))
@@ -348,17 +352,16 @@ void AddSpecialBoxController::prepareChatRows(not_null<ChatData*> chat) {
 		chat->updateFullForced();
 	}
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		UpdateFlag::MembersChanged | UpdateFlag::AdminsChanged,
-		[=](const Notify::PeerUpdate &update) {
-			if (update.peer == chat) {
-				_additional.fillFromPeer();
-				if (update.flags & UpdateFlag::MembersChanged) {
-					rebuildChatRows(chat);
-				}
-			}
-		}));
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	chat->session().changes().peerUpdates(
+		chat,
+		UpdateFlag::Members | UpdateFlag::Admins
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		_additional.fillFromPeer();
+		if (update.flags & UpdateFlag::Members) {
+			rebuildChatRows(chat);
+		}
+	}, lifetime());
 }
 
 void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
@@ -830,7 +833,7 @@ AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<ParticipantsAdditionalData*> additional)
 : _peer(peer)
 , _additional(additional)
-, _api(_peer->session().api().instance())
+, _api(&_peer->session().mtp())
 , _timer([=] { searchOnServer(); }) {
 	subscribeToMigration();
 }

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "mtproto/facade.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -32,12 +31,13 @@ constexpr auto kMinUsernameLength = 5;
 
 UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
+, _api(&_session->mtp())
 , _username(
 	this,
 	st::defaultInputField,
 	rpl::single(qsl("@username")),
 	session->user()->username,
-	false)
+	QString())
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
 , _checkTimer(this) {
@@ -94,7 +94,8 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	if (_link->isHidden()) {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link_willbe(tr::now));
 		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), Core::App().createInternalLinkFull(qsl("username")));
+		const auto link = _session->createInternalLinkFull(qsl("username"));
+		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), link);
 	} else {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), tr::lng_username_link(tr::now));
 	}
@@ -115,21 +116,28 @@ void UsernameBox::save() {
 	if (_saveRequestId) return;
 
 	_sentUsername = getName();
-	_saveRequestId = MTP::send(MTPaccount_UpdateUsername(MTP_string(_sentUsername)), rpcDone(&UsernameBox::onUpdateDone), rpcFail(&UsernameBox::onUpdateFail));
+	_saveRequestId = _api.request(MTPaccount_UpdateUsername(
+		MTP_string(_sentUsername)
+	)).done([=](const MTPUser &result) {
+		updateDone(result);
+	}).fail([=](const RPCError &error) {
+		updateFail(error);
+	}).send();
 }
 
 void UsernameBox::check() {
-	if (_checkRequestId) {
-		MTP::cancel(_checkRequestId);
-	}
+	_api.request(base::take(_checkRequestId)).cancel();
+
 	QString name = getName();
 	if (name.size() >= kMinUsernameLength) {
 		_checkUsername = name;
-		_checkRequestId = MTP::send(
-			MTPaccount_CheckUsername(
-				MTP_string(name)),
-			rpcDone(&UsernameBox::onCheckDone),
-			rpcFail(&UsernameBox::onCheckFail));
+		_checkRequestId = _api.request(MTPaccount_CheckUsername(
+			MTP_string(name)
+		)).done([=](const MTPBool &result) {
+			checkDone(result);
+		}).fail([=](const RPCError &error) {
+			checkFail(error);
+		}).send();
 	}
 }
 
@@ -172,18 +180,17 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	QGuiApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
+	QGuiApplication::clipboard()->setText(
+		_session->createInternalLinkFull(getName()));
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
-void UsernameBox::onUpdateDone(const MTPUser &user) {
+void UsernameBox::updateDone(const MTPUser &user) {
 	_session->data().processUser(user);
 	closeBox();
 }
 
-bool UsernameBox::onUpdateFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void UsernameBox::updateFail(const RPCError &error) {
 	_saveRequestId = 0;
 	const auto self = _session->user();
 	const auto &err = error.type();
@@ -194,25 +201,22 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 			TextUtilities::SingleLine(self->nameOrPhone),
 			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
-		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
-		return true;
 	} else if (err == qstr("USERNAME_OCCUPIED") || err == qstr("USERNAMES_UNAVAILABLE")) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
-		return true;
+	} else {
+		_username->setFocus();
 	}
-	_username->setFocus();
-	return true;
 }
 
-void UsernameBox::onCheckDone(const MTPBool &result) {
+void UsernameBox::checkDone(const MTPBool &result) {
 	_checkRequestId = 0;
 	const auto newError = (mtpIsTrue(result)
 		|| _checkUsername == _session->user()->username)
@@ -228,23 +232,19 @@ void UsernameBox::onCheckDone(const MTPBool &result) {
 	}
 }
 
-bool UsernameBox::onCheckFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void UsernameBox::checkFail(const RPCError &error) {
 	_checkRequestId = 0;
 	QString err(error.type());
 	if (err == qstr("USERNAME_INVALID")) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
-		return true;
 	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _session->user()->username) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
-		return true;
+	} else {
+		_goodText = QString();
+		_username->setFocus();
 	}
-	_goodText = QString();
-	_username->setFocus();
-	return true;
 }
 
 QString UsernameBox::getName() const {
@@ -253,7 +253,7 @@ QString UsernameBox::getName() const {
 
 void UsernameBox::updateLinkText() {
 	QString uname = getName();
-	_link->setText(st::boxTextFont->elided(Core::App().createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
+	_link->setText(st::boxTextFont->elided(_session->createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

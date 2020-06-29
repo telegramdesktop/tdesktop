@@ -33,10 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_photo_media.h"
+#include "data/data_changes.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
-#include "observer_peer.h"
-#include "facades.h"
+#include "mtproto/mtproto_config.h"
+#include "facades.h" // Ui::showChatsList
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -351,7 +352,7 @@ MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxConten
 	tr::lng_participant_invite_sorry(
 		tr::now,
 		lt_count,
-		Global::ChatSizeMax()),
+		channel->session().serverConfig().chatSizeMax),
 	kInformBoxTextOptions,
 	(st::boxWidth
 		- st::boxPadding.left()
@@ -367,11 +368,12 @@ void MaxInviteBox::prepare() {
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom());
 
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
-		if (update.peer == _channel) {
-			rtlupdate(_invitationLink);
-		}
-	}));
+	_channel->session().changes().peerUpdates(
+		_channel,
+		Data::PeerUpdate::Flag::InviteLink
+	) | rpl::start_with_next([=] {
+		rtlupdate(_invitationLink);
+	}, lifetime());
 }
 
 void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
@@ -432,6 +434,7 @@ PinMessageBox::PinMessageBox(
 	not_null<PeerData*> peer,
 	MsgId msgId)
 : _peer(peer)
+, _api(&peer->session().mtp())
 , _msgId(msgId)
 , _text(this, tr::lng_pinned_pin_sure(tr::now), st::boxLabel) {
 }
@@ -474,24 +477,16 @@ void PinMessageBox::pinMessage() {
 	if (_notify && !_notify->checked()) {
 		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
 	}
-	_requestId = MTP::send(
-		MTPmessages_UpdatePinnedMessage(
-			MTP_flags(flags),
-			_peer->input,
-			MTP_int(_msgId)),
-		rpcDone(&PinMessageBox::pinDone),
-		rpcFail(&PinMessageBox::pinFail));
-}
-
-void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	_peer->session().api().applyUpdates(updates);
-	Ui::hideLayer();
-}
-
-bool PinMessageBox::pinFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-	Ui::hideLayer();
-	return true;
+	_requestId = _api.request(MTPmessages_UpdatePinnedMessage(
+		MTP_flags(flags),
+		_peer->input,
+		MTP_int(_msgId)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+		Ui::hideLayer();
+	}).fail([=](const RPCError &error) {
+		Ui::hideLayer();
+	}).send();
 }
 
 DeleteMessagesBox::DeleteMessagesBox(
@@ -683,10 +678,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 	const auto cannotRevoke = [&](HistoryItem *item) {
 		return !item->canDeleteForEveryone(now);
 	};
-	const auto canRevokeAll = ranges::find_if(
-		items,
-		cannotRevoke
-	) == end(items);
+	const auto canRevokeAll = ranges::none_of(items, cannotRevoke);
 	auto outgoing = items | ranges::view::filter(&HistoryItem::out);
 	const auto canRevokeOutgoingCount = canRevokeAll
 		? -1
@@ -775,9 +767,10 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (justClear) {
 			peer->session().api().clearHistory(peer, revoke);
 		} else {
-			const auto controller = App::wnd()->sessionController();
-			if (controller->activeChatCurrent().peer() == peer) {
-				Ui::showChatsList();
+			for (const auto controller : peer->session().windows()) {
+				if (controller->activeChatCurrent().peer() == peer) {
+					Ui::showChatsList(&peer->session());
+				}
 			}
 			// Don't delete old history by default,
 			// because Android app doesn't.
@@ -847,8 +840,8 @@ void DeleteMessagesBox::deleteAndClear() {
 		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
 			peer->input,
 			MTP_vector<MTPint>(ids)
-		)).done([=, peer=peer](const MTPUpdates &updates) {
-			peer->session().api().applyUpdates(updates);
+		)).done([peer=peer](const MTPUpdates &result) {
+			peer->session().api().applyUpdates(result);
 		}).send();
 	}
 

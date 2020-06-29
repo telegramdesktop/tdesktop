@@ -34,14 +34,14 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);
 
 void InitSpellchecker(
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);
 
 bool HasSendText(not_null<const Ui::InputField*> field);
@@ -52,7 +52,9 @@ struct InlineBotQuery {
 	UserData *bot = nullptr;
 	bool lookingUpBot = false;
 };
-InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field);
+InlineBotQuery ParseInlineBotQuery(
+	not_null<Main::Session*> session,
+	not_null<const Ui::InputField*> field);
 
 struct AutocompleteQuery {
 	QString query;

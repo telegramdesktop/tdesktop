@@ -59,7 +59,9 @@ public:
 	rpl::producer<TextWithEntities> infoTextValue(
 		not_null<UserData*> user) const;
 	UserInfo infoCurrent(not_null<UserData*> user) const;
-	void editInfo(not_null<UserData*> user);
+	void editInfo(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user);
 
 	Templates &templates();
 
@@ -80,7 +82,9 @@ private:
 	void applyInfo(
 		not_null<UserData*> user,
 		const MTPhelp_UserInfo &result);
-	void showEditInfoBox(not_null<UserData*> user);
+	void showEditInfoBox(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user);
 	void saveInfo(
 		not_null<UserData*> user,
 		TextWithEntities text,
@@ -98,7 +102,9 @@ private:
 	base::flat_map<not_null<History*>, TimeId> _occupiedChats;
 
 	base::flat_map<not_null<UserData*>, UserInfo> _userInformation;
-	base::flat_set<not_null<UserData*>> _userInfoEditPending;
+	base::flat_map<
+		not_null<UserData*>,
+		base::weak_ptr<Window::SessionController>> _userInfoEditPending;
 	base::flat_map<not_null<UserData*>, SavingInfo> _userInfoSaving;
 
 	rpl::lifetime _lifetime;
@@ -107,6 +113,8 @@ private:
 
 QString ChatOccupiedString(not_null<History*> history);
 
-QString InterpretSendPath(const QString &path);
+QString InterpretSendPath(
+	not_null<Window::SessionController*> window,
+	const QString &path);
 
 } // namespace Support

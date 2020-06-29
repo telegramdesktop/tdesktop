@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_cloud_blob.h"
 
 #include "base/zlib_help.h"
-#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "main/main_account.h"
+#include "main/main_session.h"
 
 namespace Storage::CloudBlob {
 
@@ -95,6 +95,7 @@ QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
 
 BlobLoader::BlobLoader(
 	QObject *parent,
+	not_null<Main::Session*> session,
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
@@ -103,7 +104,7 @@ BlobLoader::BlobLoader(
 , _folder(folder)
 , _id(id)
 , _state(Loading{ 0, size })
-, _mtproto(Core::App().activeAccount().mtp()) {
+, _mtproto(session.get()) {
 	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
 		if (loader) {
 			setImplementation(std::move(loader));

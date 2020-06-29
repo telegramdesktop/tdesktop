@@ -14,21 +14,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
+#include "mtproto/mtproto_config.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "observer_peer.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerProfile
 
 namespace Profile {
 namespace {
 
-using UpdateFlag = Notify::PeerUpdate::Flag;
+using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
@@ -41,18 +42,19 @@ not_null<UserData*> GroupMembersWidget::Member::user() const {
 
 GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
-	PeerData *peer,
+	not_null<PeerData*> peer,
 	const style::PeerListItem &st)
 : PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now)) {
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
 
-	auto observeEvents = UpdateFlag::AdminsChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserOnlineChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+	peer->session().changes().peerUpdates(
+		UpdateFlag::Admins
+		| UpdateFlag::Members
+		| UpdateFlag::OnlineStatus
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		notifyPeerUpdated(update);
-	}));
+	}, lifetime());
 
 	setRemovedCallback([=](PeerData *selectedPeer) {
 		removePeer(selectedPeer);
@@ -71,7 +73,7 @@ GroupMembersWidget::GroupMembersWidget(
 }
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
-	auto user = selectedPeer->asUser();
+	const auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
 
 	auto text = tr::lng_profile_sure_kick(tr::now, lt_user, user->firstName);
@@ -84,23 +86,29 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 		}
 		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	}();
-	Ui::show(Box<ConfirmBox>(text, tr::lng_box_remove(tr::now), [user, currentRestrictedRights, peer = peer()] {
+
+	const auto peer = this->peer();
+	const auto callback = [=] {
 		Ui::hideLayer();
 		if (const auto chat = peer->asChat()) {
-			Auth().api().kickParticipant(chat, user);
-			Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
+			chat->session().api().kickParticipant(chat, user);
+			Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 		} else if (const auto channel = peer->asChannel()) {
-			Auth().api().kickParticipant(
+			channel->session().api().kickParticipant(
 				channel,
 				user,
 				currentRestrictedRights);
 		}
-	}));
+	};
+	Ui::show(Box<ConfirmBox>(
+		text,
+		tr::lng_box_remove(tr::now),
+		crl::guard(&peer->session(), callback)));
 }
 
-void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
+void GroupMembersWidget::notifyPeerUpdated(const Data::PeerUpdate &update) {
 	if (update.peer != peer()) {
-		if (update.flags & UpdateFlag::UserOnlineChanged) {
+		if (update.flags & UpdateFlag::OnlineStatus) {
 			if (auto user = update.peer->asUser()) {
 				refreshUserOnline(user);
 			}
@@ -108,11 +116,11 @@ void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & UpdateFlag::MembersChanged) {
+	if (update.flags & UpdateFlag::Members) {
 		refreshMembers();
 		contentSizeUpdated();
 	}
-	if (update.flags & UpdateFlag::AdminsChanged) {
+	if (update.flags & UpdateFlag::Admins) {
 		if (const auto chat = peer()->asChat()) {
 			for (const auto item : items()) {
 				setItemFlags(getMember(item), chat);
@@ -152,7 +160,7 @@ void GroupMembersWidget::preloadMore() {
 	//if (auto megagroup = peer()->asMegagroup()) {
 	//	auto &megagroupInfo = megagroup->mgInfo;
 	//	if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
-	//		Auth().api().requestLastParticipants(megagroup, false);
+	//		peer()->session().api().requestLastParticipants(megagroup, false);
 	//	}
 	//}
 }
@@ -187,13 +195,13 @@ void GroupMembersWidget::refreshMembers() {
 	if (const auto chat = peer()->asChat()) {
 		checkSelfAdmin(chat);
 		if (chat->noParticipantInfo()) {
-			Auth().api().requestFullPeer(chat);
+			chat->session().api().requestFullPeer(chat);
 		}
 		fillChatMembers(chat);
 	} else if (const auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroup->lastParticipantsRequestNeeded()) {
-			Auth().api().requestLastParticipants(megagroup);
+			megagroup->session().api().requestLastParticipants(megagroup);
 		}
 		fillMegagroupMembers(megagroup);
 	}
@@ -338,7 +346,8 @@ void GroupMembersWidget::fillMegagroupMembers(
 	}
 
 	_sortByOnline = (megagroup->membersCount() > 0)
-		&& (megagroup->membersCount() <= Global::ChatSizeMax());
+		&& (megagroup->membersCount()
+			<= megagroup->session().serverConfig().chatSizeMax);
 
 	auto &membersList = megagroup->mgInfo->lastParticipants;
 	if (_sortByOnline) {

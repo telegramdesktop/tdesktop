@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/details/mtproto_serialized_request.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace MTP {
 namespace details {
@@ -21,20 +21,29 @@ class Session;
 } // namespace details
 
 class DcOptions;
+class Config;
+struct ConfigFields;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 using AuthKeysList = std::vector<AuthKeyPtr>;
+enum class Environment : uchar;
 
 class Instance : public QObject {
 	Q_OBJECT
 
 public:
-	struct Config {
+	struct Fields {
+		Fields();
+		Fields(Fields &&other);
+		Fields &operator=(Fields &&other);
+		~Fields();
+
 		static constexpr auto kNoneMainDc = -1;
 		static constexpr auto kNotSetMainDc = 0;
 		static constexpr auto kDefaultMainDc = 2;
 		static constexpr auto kTemporaryMainDc = 1000;
 
+		std::unique_ptr<Config> config;
 		DcId mainDcId = kNotSetMainDc;
 		AuthKeysList keys;
 		QString deviceModel;
@@ -46,7 +55,7 @@ public:
 		KeysDestroyer,
 	};
 
-	Instance(not_null<DcOptions*> options, Mode mode, Config &&config);
+	Instance(Mode mode, Fields &&fields);
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 	~Instance();
@@ -60,9 +69,15 @@ public:
 	[[nodiscard]] QString cloudLangCode() const;
 	[[nodiscard]] QString langPackName() const;
 
+	[[nodiscard]] rpl::producer<> writeKeysRequests() const;
 	[[nodiscard]] rpl::producer<> allKeysDestroyed() const;
 
 	// Thread-safe.
+	[[nodiscard]] Config &config() const;
+	[[nodiscard]] const ConfigFields &configValues() const;
+	[[nodiscard]] DcOptions &dcOptions() const;
+	[[nodiscard]] Environment environment() const;
+	[[nodiscard]] bool isTestMode() const;
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] QString systemVersion() const;
 
@@ -72,8 +87,6 @@ public:
 	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
-
-	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -88,8 +101,6 @@ public:
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(Fn<void()> done);
-
-	void unpaused();
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
@@ -194,6 +205,8 @@ public:
 			needsLayer,
 			afterRequestId);
 	}
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 signals:
 	void proxyDomainResolved(

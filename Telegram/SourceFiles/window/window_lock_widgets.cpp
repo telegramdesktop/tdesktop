@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
+#include "storage/storage_domain.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "api/api_text_entities.h"
@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
-#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -76,7 +76,9 @@ void LockWidget::animationCallback() {
 void LockWidget::showFinished() {
 	showChildren();
 	_window->widget()->setInnerFocus();
-	Ui::showChatsList();
+	if (const auto controller = _window->sessionController()) {
+		Ui::showChatsList(&controller->session());
+	}
 	_cacheUnder = _cacheOver = QPixmap();
 }
 
@@ -117,7 +119,9 @@ PasscodeLockWidget::PasscodeLockWidget(
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
 	_submit->setClickedCallback([=] { submit(); });
-	_logout->setClickedCallback([=] { window->widget()->onLogout(); });
+	_logout->setClickedCallback([=] {
+		window->widget()->showLogoutConfirmation();
+	});
 }
 
 void PasscodeLockWidget::paintContent(Painter &p) {
@@ -147,9 +151,11 @@ void PasscodeLockWidget::submit() {
 	}
 
 	const auto passcode = _passcode->text().toUtf8();
-	const auto correct = window()->account().sessionExists()
-		? Local::checkPasscode(passcode)
-		: (Local::readMap(passcode) != Local::ReadMapPassNeeded);
+	auto &domain = Core::App().domain();
+	const auto correct = domain.started()
+		? domain.local().checkPasscode(passcode)
+		: (domain.start(passcode)
+			!= Storage::StartResult::IncorrectPasscode);
 	if (!correct) {
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());
@@ -307,15 +313,11 @@ void TermsBox::prepare() {
 			return false;
 		}
 		return true;
-	}) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_agreeClicks, lifetime());
+	}) | rpl::to_empty | rpl::start_to_stream(_agreeClicks, lifetime());
 
 	if (_cancel) {
-		addButton(std::move(_cancel), [=] {})->clicks(
-		) | rpl::map([] {
-			return rpl::empty_value();
-		}) | rpl::start_to_stream(_cancelClicks, lifetime());
+		addButton(std::move(_cancel), [] {})->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(_cancelClicks, lifetime());
 	}
 
 	if (age) {

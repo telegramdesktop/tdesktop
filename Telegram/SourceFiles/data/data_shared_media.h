@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	Storage::SharedMediaType type);
 void SharedMediaShowOverview(
@@ -21,6 +25,7 @@ void SharedMediaShowOverview(
 bool SharedMediaAllowSearch(Storage::SharedMediaType type);
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(
+	not_null<Main::Session*> session,
 	Storage::SharedMediaKey key,
 	int limitBefore,
 	int limitAfter);
@@ -46,6 +51,7 @@ struct SharedMediaMergedKey {
 };
 
 rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
+	not_null<Main::Session*> session,
 	SharedMediaMergedKey key,
 	int limitBefore,
 	int limitAfter);
@@ -91,8 +97,11 @@ public:
 
 	};
 
-	SharedMediaWithLastSlice(Key key);
 	SharedMediaWithLastSlice(
+		not_null<Main::Session*> session,
+		Key key);
+	SharedMediaWithLastSlice(
+		not_null<Main::Session*> session,
 		Key key,
 		SparseIdsMergedSlice slice,
 		std::optional<SparseIdsMergedSlice> ending);
@@ -131,8 +140,11 @@ private:
 			: std::nullopt;
 	}
 
-	static std::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
+	static std::optional<PhotoId> LastPeerPhotoId(
+		not_null<Main::Session*> session,
+		PeerId peerId);
 	static std::optional<bool> IsLastIsolated(
+		not_null<Main::Session*> session,
 		const SparseIdsMergedSlice &slice,
 		const std::optional<SparseIdsMergedSlice> &ending,
 		std::optional<PhotoId> lastPeerPhotoId);
@@ -169,6 +181,7 @@ private:
 	std::optional<int> skippedAfterImpl() const;
 	std::optional<int> indexOfImpl(Value fullId) const;
 
+	not_null<Main::Session*> _session;
 	Key _key;
 	SparseIdsMergedSlice _slice;
 	std::optional<SparseIdsMergedSlice> _ending;
@@ -179,11 +192,13 @@ private:
 };
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
+	not_null<Main::Session*> session,
 	SharedMediaWithLastSlice::Key key,
 	int limitBefore,
 	int limitAfter);
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastReversedViewer(
+	not_null<Main::Session*> session,
 	SharedMediaWithLastSlice::Key key,
 	int limitBefore,
 	int limitAfter);

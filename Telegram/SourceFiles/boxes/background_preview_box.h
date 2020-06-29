@@ -19,9 +19,9 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Ui {
 class Checkbox;
@@ -34,11 +34,11 @@ class BackgroundPreviewBox
 public:
 	BackgroundPreviewBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const Data::WallPaper &paper);
 
 	static bool Start(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		const QString &slug,
 		const QMap<QString, QString> &params);
 
@@ -71,7 +71,7 @@ private:
 	void startFadeInFrom(QPixmap previous);
 	void checkBlurAnimationStart();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
 	Data::WallPaper _paper;

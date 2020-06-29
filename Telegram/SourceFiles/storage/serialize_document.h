@@ -25,12 +25,23 @@ public:
 	};
 
 	static void writeToStream(QDataStream &stream, DocumentData *document);
-	static DocumentData *readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info);
-	static DocumentData *readFromStream(int streamAppVersion, QDataStream &stream);
+	static DocumentData *readStickerFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo &info);
+	static DocumentData *readFromStream(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream);
 	static int sizeInStream(DocumentData *document);
 
 private:
-	static DocumentData *readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info);
+	static DocumentData *readFromStreamHelper(
+		not_null<Main::Session*> session,
+		int streamAppVersion,
+		QDataStream &stream,
+		const StickerSetInfo *info);
 
 };
 
