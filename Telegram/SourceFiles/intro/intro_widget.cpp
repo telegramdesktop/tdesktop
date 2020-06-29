@@ -84,6 +84,12 @@ Widget::Widget(
 
 	getData()->country = ComputeNewAccountCountry();
 
+	_account->mtpValue(
+	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+		_api.emplace(instance);
+		crl::on_main(this, [=] { createLanguageLink(); });
+	}, lifetime());
+
 	switch (point) {
 	case EnterPoint::Start:
 		getNearestDC();
@@ -99,12 +105,6 @@ Widget::Widget(
 	}
 
 	fixOrder();
-
-	_account->mtpValue(
-	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
-		_api.emplace(instance);
-		createLanguageLink();
-	}, lifetime());
 
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
 		createLanguageLink();
