@@ -59,7 +59,15 @@ int File::Context::read(bytes::span buffer) {
 		if (result == Reader::FillState::Success) {
 			break;
 		} else if (result == Reader::FillState::WaitingRemote) {
-			processQueuedPackets(SleepPolicy::Allowed);
+			// Perhaps for the correct sleeping in case of enough packets
+			// being read already we require SleepPolicy::Allowed here.
+			// Otherwise if we wait for the remote frequently and
+			// _queuedPackets never get to kMaxQueuedPackets and we don't call
+			// processQueuedPackets(SleepPolicy::Allowed) ever.
+			//
+			// But right now we can't simply pass SleepPolicy::Allowed here,
+			// it freezes because of two _semaphore.acquire one after another.
+			processQueuedPackets(SleepPolicy::Disallowed);
 			_delegate->fileWaitingForData();
 		}
 		_semaphore.acquire();
