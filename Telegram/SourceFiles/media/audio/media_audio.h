@@ -215,9 +215,7 @@ private:
 		int getNotQueuedBufferIndex();
 
 		void setExternalData(std::unique_ptr<ExternalSoundData> data);
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		void changeSpeedEffect(float64 speed);
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 		~Track();
 
@@ -243,7 +241,6 @@ private:
 		Stream stream;
 		std::unique_ptr<ExternalSoundData> externalData;
 
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		struct SpeedEffect {
 			uint32 effect = 0;
 			uint32 effectSlot = 0;
@@ -252,7 +249,6 @@ private:
 			float64 speed = 1.;
 		};
 		std::unique_ptr<SpeedEffect> speedEffect;
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 		crl::time lastUpdateWhen = 0;
 		crl::time lastUpdatePosition = 0;
 
@@ -260,11 +256,9 @@ private:
 		void createStream(AudioMsgId::Type type);
 		void destroyStream();
 		void resetStream();
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		void resetSpeedEffect();
 		void applySourceSpeedEffect();
 		void removeSourceSpeedEffect();
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 	};
 
