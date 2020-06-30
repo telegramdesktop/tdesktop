@@ -171,7 +171,7 @@ private:
 
 };
 
-class ProxyBox : public Ui::BoxContent {
+class ProxyBox final : public Ui::BoxContent {
 public:
 	ProxyBox(
 		QWidget*,
@@ -179,11 +179,13 @@ public:
 		Fn<void(ProxyData)> callback,
 		Fn<void(ProxyData)> shareCallback);
 
-protected:
-	void prepare() override;
-
 private:
 	using Type = ProxyData::Type;
+
+	void prepare() override;
+	void setInnerFocus() override {
+		_host->setFocusFast();
+	}
 
 	void refreshButtons();
 	ProxyData collectData();
@@ -764,6 +766,31 @@ ProxyBox::ProxyBox(
 
 void ProxyBox::prepare() {
 	setTitle(tr::lng_proxy_edit());
+
+	connect(_host.data(), &Ui::InputField::changed, [=] {
+		Ui::PostponeCall(_host, [=] {
+			const auto host = _host->getLastText().trimmed();
+			static const auto mask = u"^\\d+\\.\\d+\\.\\d+\\.\\d+:(\\d*)$"_q;
+			const auto match = QRegularExpression(mask).match(host);
+			if (_host->textCursor().position() == host.size()
+				&& match.hasMatch()) {
+				const auto port = match.captured(1);
+				_port->setText(port);
+				_port->setCursorPosition(port.size());
+				_port->setFocus();
+				_host->setText(host.mid(0, host.size() - port.size() - 1));
+			}
+		});
+	});
+	_port.data()->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress
+			&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Backspace)
+			&& _port->cursorPosition() == 0) {
+			_host->setCursorPosition(_host->getLastText().size());
+			_host->setFocus();
+		}
+	}, _port->lifetime());
 
 	refreshButtons();
 	setDimensionsToContent(st::boxWideWidth, _content);
