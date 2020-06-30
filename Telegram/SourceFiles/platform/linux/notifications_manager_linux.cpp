@@ -582,7 +582,9 @@ void Manager::Private::showNotification(
 		const QString &msg,
 		bool hideNameAndPhoto,
 		bool hideReplyButton) {
-	if (!Supported()) return;
+	if (!Supported()) {
+		return;
+	}
 
 	const auto key = FullPeer{
 		.sessionId = peer->session().uniqueId(),
@@ -630,7 +632,9 @@ void Manager::Private::showNotification(
 }
 
 void Manager::Private::clearAll() {
-	if (!Supported()) return;
+	if (!Supported()) {
+		return;
+	}
 
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
@@ -640,7 +644,9 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	if (!Supported()) return;
+	if (!Supported()) {
+		return;
+	}
 
 	const auto key = FullPeer{
 		.sessionId = history->session().uniqueId(),
@@ -658,23 +664,29 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	if (!Supported()) return;
+	if (!Supported()) {
+		return;
+	}
 
 	const auto sessionId = session->uniqueId();
 	for (auto i = _notifications.begin(); i != _notifications.end();) {
-		if (i->first.sessionId == sessionId) {
-			const auto temp = base::take(i->second);
-			i = _notifications.erase(i);
+		if (i->first.sessionId != sessionId) {
+			++i;
+			continue;
+		}
+		const auto temp = base::take(i->second);
+		i = _notifications.erase(i);
 
-			for (const auto &[msgId, notification] : temp) {
-				notification->close();
-			}
+		for (const auto &[msgId, notification] : temp) {
+			notification->close();
 		}
 	}
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	if (!Supported()) return;
+	if (!Supported()) {
+		return;
+	}
 
 	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {

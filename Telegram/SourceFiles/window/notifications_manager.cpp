@@ -207,15 +207,15 @@ void System::clearFromSession(not_null<Main::Session*> session) {
 
 	for (auto i = _whenMaps.begin(); i != _whenMaps.end();) {
 		const auto history = i->first;
-		if (&history->session() == session) {
-			history->clearNotifications();
-			i = _whenMaps.erase(i);
-			_whenAlerts.remove(history);
-			_waiters.remove(history);
-			_settingWaiters.remove(history);
-		} else {
+		if (&history->session() != session) {
 			++i;
+			continue;
 		}
+		history->clearNotifications();
+		i = _whenMaps.erase(i);
+		_whenAlerts.remove(history);
+		_waiters.remove(history);
+		_settingWaiters.remove(history);
 	}
 	const auto clearFrom = [&](auto &map) {
 		for (auto i = map.begin(); i != map.end();) {
