@@ -204,7 +204,7 @@ PeerData *readPeer(
 	const auto loaded = (peerId == selfId)
 		? session->user().get()
 		: session->data().peerLoaded(peerId);
-	const auto apply = (loaded->loadedStatus != PeerData::FullLoaded);
+	const auto apply = !loaded || (loaded->loadedStatus != PeerData::FullLoaded);
 	const auto result = loaded ? loaded : session->data().peer(peerId).get();
 	if (apply) {
 		result->loadedStatus = PeerData::FullLoaded;
