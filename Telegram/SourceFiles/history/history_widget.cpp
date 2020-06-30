@@ -259,6 +259,7 @@ HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Window::AbstractSectionWidget(parent, controller)
+, _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _previewTimer([=] { requestPreview(); })
@@ -1143,14 +1144,14 @@ void HistoryWidget::updateInlineBotQuery() {
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
 		if (_inlineBotResolveRequestId) {
-			session().api().request(_inlineBotResolveRequestId).cancel();
+			_api.request(_inlineBotResolveRequestId).cancel();
 			_inlineBotResolveRequestId = 0;
 		}
 		if (query.lookingUpBot) {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
-			_inlineBotResolveRequestId = session().api().request(MTPcontacts_ResolveUsername(
+			_inlineBotResolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 				MTP_string(username)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
 				inlineBotResolveDone(result);
@@ -1401,7 +1402,7 @@ void HistoryWidget::cancelSendAction(
 		SendAction::Type type) {
 	const auto i = _sendActionRequests.find({ history, type });
 	if (i != _sendActionRequests.end()) {
-		session().api().request(i->second).cancel();
+		_api.request(i->second).cancel();
 		_sendActionRequests.erase(i);
 	}
 }
@@ -1442,7 +1443,7 @@ void HistoryWidget::updateSendAction(
 			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
 			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
 			}
-			const auto requestId = session().api().request(MTPmessages_SetTyping(
+			const auto requestId = _api.request(MTPmessages_SetTyping(
 				peer->input,
 				action
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
@@ -3058,6 +3059,7 @@ void HistoryWidget::saveEditMsg() {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 
+	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
 	_saveEditMsgRequestId = history->session().api().request(
 		MTPmessages_EditMessage(
@@ -3069,55 +3071,60 @@ void HistoryWidget::saveEditMsg() {
 			MTPReplyMarkup(),
 			sentEntities,
 			MTP_int(0)
-	)).done([=](const MTPUpdates &result, mtpRequestId requestId) {
-		saveEditMsgDone(history, result, requestId);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
-		saveEditMsgFail(history, error, requestId);
+	)).done([history, weak](const MTPUpdates &result, mtpRequestId requestId) {
+		SaveEditMsgDone(history, result, requestId);
+		if (const auto strong = weak.data()) {
+			if (requestId == strong->_saveEditMsgRequestId) {
+				strong->_saveEditMsgRequestId = 0;
+				strong->cancelEdit();
+			}
+		}
+	}).fail([history, weak](const RPCError &error, mtpRequestId requestId) {
+		SaveEditMsgFail(history, error, requestId);
+		if (const auto strong = weak.data()) {
+			if (requestId == strong->_saveEditMsgRequestId) {
+				strong->_saveEditMsgRequestId = 0;
+			}
+			const auto &err = error.type();
+			if (err == qstr("MESSAGE_ID_INVALID")
+				|| err == qstr("CHAT_ADMIN_REQUIRED")
+				|| err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+				strong->cancelEdit();
+			} else if (err == qstr("MESSAGE_EMPTY")) {
+				strong->_field->selectAll();
+				strong->_field->setFocus();
+			} else {
+				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			}
+			strong->update();
+		}
 	}).send();
 }
 
-void HistoryWidget::saveEditMsgDone(
+void HistoryWidget::SaveEditMsgDone(
 		not_null<History*> history,
 		const MTPUpdates &updates,
 		mtpRequestId requestId) {
-	session().api().applyUpdates(updates);
-	if (requestId == _saveEditMsgRequestId) {
-		_saveEditMsgRequestId = 0;
-		cancelEdit();
-	}
+	history->session().api().applyUpdates(updates);
 	if (auto editDraft = history->editDraft()) {
 		if (editDraft->saveRequestId == requestId) {
 			history->clearEditDraft();
-			session().local().writeDrafts(history);
+			history->session().local().writeDrafts(history);
 		}
 	}
 }
 
-void HistoryWidget::saveEditMsgFail(
+void HistoryWidget::SaveEditMsgFail(
 		not_null<History*> history,
 		const RPCError &error,
 		mtpRequestId requestId) {
-	if (requestId == _saveEditMsgRequestId) {
-		_saveEditMsgRequestId = 0;
-	}
 	if (auto editDraft = history->editDraft()) {
 		if (editDraft->saveRequestId == requestId) {
 			editDraft->saveRequestId = 0;
 		}
 	}
-
-	const auto &err = error.type();
-	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
-		Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-	} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-		cancelEdit();
-	} else if (err == qstr("MESSAGE_EMPTY")) {
-		_field->selectAll();
-		_field->setFocus();
-	} else {
-		Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-	}
-	update();
 }
 
 void HistoryWidget::hideSelectorControlsAnimated() {
@@ -3674,6 +3681,7 @@ void HistoryWidget::app_sendBotCallback(
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
 	BotCallbackInfo info = {
+		&session(),
 		bot,
 		msg->fullId(),
 		row,
@@ -3688,15 +3696,24 @@ void HistoryWidget::app_sendBotCallback(
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
 		sendData = button->data;
 	}
+	const auto weak = Ui::MakeWeak(this);
 	button->requestId = session().api().request(MTPmessages_GetBotCallbackAnswer(
 		MTP_flags(flags),
 		_peer->input,
 		MTP_int(msg->id),
 		MTP_bytes(sendData)
-	)).done([=](const MTPmessages_BotCallbackAnswer &result, mtpRequestId requestId) {
-		botCallbackDone(info, result, requestId);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
-		botCallbackFail(info, error, requestId);
+	)).done([info, weak](const MTPmessages_BotCallbackAnswer &result, mtpRequestId requestId) {
+		BotCallbackDone(info, result, requestId);
+		result.match([&](const MTPDmessages_botCallbackAnswer &data) {
+			const auto item = info.session->data().message(info.msgId);
+			if (!data.vmessage() && data.vurl() && info.game && item) {
+				if (const auto strong = weak.data()) {
+					strong->updateSendAction(item->history(), SendAction::Type::PlayGame);
+				}
+			}
+		});
+	}).fail([info](const RPCError &error, mtpRequestId requestId) {
+		BotCallbackFail(info, error, requestId);
 	}).send();
 	session().data().requestItemRepaint(msg);
 
@@ -3709,19 +3726,20 @@ void HistoryWidget::app_sendBotCallback(
 	}
 }
 
-void HistoryWidget::botCallbackDone(
+void HistoryWidget::BotCallbackDone(
 		BotCallbackInfo info,
 		const MTPmessages_BotCallbackAnswer &answer,
 		mtpRequestId req) {
-	const auto item = session().data().message(info.msgId);
+	const auto session = info.session;
+	const auto item = session->data().message(info.msgId);
 	const auto button = HistoryMessageMarkupButton::Get(
-		&session().data(),
+		&session->data(),
 		info.msgId,
 		info.row,
 		info.col);
 	if (button && button->requestId == req) {
 		button->requestId = 0;
-		session().data().requestItemRepaint(item);
+		session->data().requestItemRepaint(item);
 	}
 	answer.match([&](const MTPDmessages_botCallbackAnswer &data) {
 		if (const auto message = data.vmessage()) {
@@ -3733,11 +3751,8 @@ void HistoryWidget::botCallbackDone(
 		} else if (const auto url = data.vurl()) {
 			auto link = qs(*url);
 			if (info.game) {
-				link = AppendShareGameScoreUrl(&session(), link, info.msgId);
+				link = AppendShareGameScoreUrl(session, link, info.msgId);
 				BotGameUrlClickHandler(info.bot, link).onClick({});
-				if (item) {
-					updateSendAction(item->history(), SendAction::Type::PlayGame);
-				}
 			} else {
 				UrlClickHandler::Open(link);
 			}
@@ -3745,21 +3760,21 @@ void HistoryWidget::botCallbackDone(
 	});
 }
 
-bool HistoryWidget::botCallbackFail(
+void HistoryWidget::BotCallbackFail(
 		BotCallbackInfo info,
 		const RPCError &error,
 		mtpRequestId req) {
 	// show error?
+	const auto owner = &info.session->data();
 	const auto button = HistoryMessageMarkupButton::Get(
-		&session().data(),
+		owner,
 		info.msgId,
 		info.row,
 		info.col);
 	if (button && button->requestId == req) {
 		button->requestId = 0;
-		session().data().requestItemRepaint(session().data().message(info.msgId));
+		owner->requestItemRepaint(owner->message(info.msgId));
 	}
-	return true;
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd) {
@@ -5982,21 +5997,28 @@ void HistoryWidget::pinMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::unpinMessage(FullMsgId itemId) {
-	const auto peer = _peer;
+	if (!_peer) {
+		return;
+	}
+	UnpinMessage(_peer);
+}
+
+void HistoryWidget::UnpinMessage(not_null<PeerData*> peer) {
 	if (!peer) {
 		return;
 	}
 
-	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(this, [=] {
+	const auto session = &peer->session();
+	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
 		peer->clearPinnedMessage();
 
 		Ui::hideLayer();
-		session().api().request(MTPmessages_UpdatePinnedMessage(
+		session->api().request(MTPmessages_UpdatePinnedMessage(
 			MTP_flags(0),
 			peer->input,
 			MTP_int(0)
 		)).done([=](const MTPUpdates &result) {
-			session().api().applyUpdates(result);
+			session->api().applyUpdates(result);
 		}).send();
 	})));
 }
@@ -6155,7 +6177,7 @@ void HistoryWidget::cancelFieldAreaState() {
 }
 
 void HistoryWidget::previewCancel() {
-	session().api().request(base::take(_previewRequest)).cancel();
+	_api.request(base::take(_previewRequest)).cancel();
 	_previewData = nullptr;
 	_previewLinks.clear();
 	updatePreview();
@@ -6171,7 +6193,7 @@ void HistoryWidget::checkPreview() {
 	}
 	const auto links = _parsedLinks.join(' ');
 	if (_previewLinks != links) {
-		session().api().request(base::take(_previewRequest)).cancel();
+		_api.request(base::take(_previewRequest)).cancel();
 		_previewLinks = links;
 		if (_previewLinks.isEmpty()) {
 			if (_previewData && _previewData->pendingTill >= 0) {
@@ -6180,7 +6202,7 @@ void HistoryWidget::checkPreview() {
 		} else {
 			const auto i = _previewCache.constFind(links);
 			if (i == _previewCache.cend()) {
-				_previewRequest = session().api().request(MTPmessages_GetWebPagePreview(
+				_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 					MTP_flags(0),
 					MTP_string(links),
 					MTPVector<MTPMessageEntity>()
@@ -6204,7 +6226,7 @@ void HistoryWidget::requestPreview() {
 		return;
 	}
 	const auto links = _previewLinks;
-	_previewRequest = session().api().request(MTPmessages_GetWebPagePreview(
+	_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 		MTP_flags(0),
 		MTP_string(links),
 		MTPVector<MTPMessageEntity>()

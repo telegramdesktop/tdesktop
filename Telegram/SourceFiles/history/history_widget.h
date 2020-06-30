@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "mtproto/sender.h"
 #include "base/flags.h"
 #include "base/timer.h"
 
@@ -335,6 +336,7 @@ private:
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
 	struct BotCallbackInfo {
+		not_null<Main::Session*> session;
 		UserData *bot;
 		FullMsgId msgId;
 		int row, col;
@@ -567,8 +569,8 @@ private:
 	void createUnreadBarAndResize();
 
 	void saveEditMsg();
-	void saveEditMsgDone(not_null<History*> history, const MTPUpdates &updates, mtpRequestId requestId);
-	void saveEditMsgFail(not_null<History*> history, const RPCError &error, mtpRequestId requestId);
+	static void SaveEditMsgDone(not_null<History*> history, const MTPUpdates &updates, mtpRequestId requestId);
+	static void SaveEditMsgFail(not_null<History*> history, const RPCError &error, mtpRequestId requestId);
 
 	void checkPreview();
 	void requestPreview();
@@ -578,8 +580,10 @@ private:
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	void botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
-	bool botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
+	static void UnpinMessage(not_null<PeerData*> peer);
+
+	static void BotCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
+	static void BotCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
@@ -644,6 +648,7 @@ private:
 	void setupScheduledToggle();
 	void refreshScheduledToggle();
 
+	MTP::Sender _api;
 	MsgId _replyToId = 0;
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
