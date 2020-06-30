@@ -2508,7 +2508,11 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 			externalLayout,
 			std::move(recentPack));
 		if (recentIt == _mySets.end()) {
-			_mySets.push_back(std::move(set));
+			const auto where = (_mySets.empty()
+				|| _mySets.begin()->id != Data::Stickers::FavedSetId)
+				? _mySets.begin()
+				: (_mySets.begin() + 1);
+			_mySets.insert(where, std::move(set));
 		} else {
 			std::swap(*recentIt, set);
 			takeHeavyData(*recentIt, set);
@@ -2533,7 +2537,7 @@ void StickersListWidget::refreshFavedStickers() {
 	const auto set = it->second.get();
 	const auto externalLayout = false;
 	const auto shortName = QString();
-	_mySets.emplace_back(
+	_mySets.insert(_mySets.begin(), Set{
 		Data::Stickers::FavedSetId,
 		nullptr,
 		(MTPDstickerSet::Flag::f_official
@@ -2542,7 +2546,8 @@ void StickersListWidget::refreshFavedStickers() {
 		shortName,
 		set->count,
 		externalLayout,
-		PrepareStickers(set->stickers));
+		PrepareStickers(set->stickers)
+	});
 	_favedStickersMap = base::flat_set<not_null<DocumentData*>> {
 		set->stickers.begin(),
 		set->stickers.end()
