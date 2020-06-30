@@ -286,7 +286,6 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 	}
 
 	if (!result.remoteContent.isEmpty()) {
-
 		auto list = Storage::PrepareMediaFromImage(
 			QImage(),
 			std::move(result.remoteContent),
@@ -311,7 +310,7 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 			}
 		}
 		Expects(list.files.size() == 1);
-		return std::move(list);
+		return list;
 	} else if (!result.paths.isEmpty()) {
 		const auto isSingleFile = (result.paths.size() == 1);
 		auto temp = Storage::PrepareMediaList(result.paths, previewWidth);
@@ -366,7 +365,7 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 		list.allFilesForCompress = temp.allFilesForCompress;
 		list.files = std::move(filteredFiles);
 
-		return std::move(list);
+		return list;
 	}
 	return std::nullopt;
 }
