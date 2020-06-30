@@ -192,8 +192,9 @@ void Step::createSession(
 	// "this" is already deleted here by creating the main widget.
 	account->local().writeMtpData();
 	auto &session = account->session();
+	session.data().chatsFilters().setPreloaded(filters);
 	if (!filters.isEmpty()) {
-		session.data().chatsFilters().setPreloaded(filters);
+		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {
 		session.api().uploadPeerPhoto(session.user(), std::move(photo));
