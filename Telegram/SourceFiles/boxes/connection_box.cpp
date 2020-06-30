@@ -693,8 +693,8 @@ void ProxiesBox::applyView(View &&view) {
 		setupButtons(id, i->second.get());
 		if (_noRows) {
 			_noRows.reset();
-			wrap->resizeToWidth(width());
 		}
+		wrap->resizeToWidth(width());
 	} else if (view.host.isEmpty()) {
 		_rows.erase(i);
 	} else {
