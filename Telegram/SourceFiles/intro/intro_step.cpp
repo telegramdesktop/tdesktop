@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "data/data_user.h"
 #include "data/data_auto_download.h"
+#include "data/data_session.h"
+#include "data/data_chat_filters.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
 #include "app.h"
@@ -160,6 +162,18 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		}
 	}
 
+	api().request(MTPmessages_GetDialogFilters(
+	)).done([=](const MTPVector<MTPDialogFilter> &result) {
+		createSession(user, photo, result.v);
+	}).fail([=](const RPCError &error) {
+		createSession(user, photo, QVector<MTPDialogFilter>());
+	}).send();
+}
+
+void Step::createSession(
+		const MTPUser &user,
+		QImage photo,
+		const QVector<MTPDialogFilter> &filters) {
 	// Save the default language if we've suggested some other and user ignored it.
 	const auto currentId = Lang::Current().id();
 	const auto defaultId = Lang::DefaultLanguageId();
@@ -168,12 +182,19 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		Lang::Current().switchToId(Lang::DefaultLanguage());
 		Local::writeLangPack();
 	}
+
+	auto settings = std::make_unique<Main::SessionSettings>();
+	settings->setDialogsFiltersEnabled(!filters.isEmpty());
+
 	const auto account = _account;
-	account->createSession(user);
+	account->createSession(user, std::move(settings));
 
 	// "this" is already deleted here by creating the main widget.
 	account->local().writeMtpData();
 	auto &session = account->session();
+	if (!filters.isEmpty()) {
+		session.data().chatsFilters().setPreloaded(filters);
+	}
 	if (!photo.isNull()) {
 		session.api().uploadPeerPhoto(session.user(), std::move(photo));
 	}

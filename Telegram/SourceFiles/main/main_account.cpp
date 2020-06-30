@@ -131,8 +131,14 @@ uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
 		| (config && config->isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
-void Account::createSession(const MTPUser &user) {
-	createSession(user, QByteArray(), 0, std::make_unique<SessionSettings>());
+void Account::createSession(
+		const MTPUser &user,
+		std::unique_ptr<SessionSettings> settings) {
+	createSession(
+		user,
+		QByteArray(),
+		0,
+		settings ? std::move(settings) : std::make_unique<SessionSettings>());
 }
 
 void Account::createSession(

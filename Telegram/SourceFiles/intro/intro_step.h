@@ -106,6 +106,10 @@ protected:
 		return _data;
 	}
 	void finish(const MTPUser &user, QImage &&photo = QImage());
+	void createSession(
+		const MTPUser &user,
+		QImage photo,
+		const QVector<MTPDialogFilter> &filters);
 
 	void goBack();
 

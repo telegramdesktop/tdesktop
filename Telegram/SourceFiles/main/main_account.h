@@ -49,7 +49,9 @@ public:
 	void start(std::unique_ptr<MTP::Config> config);
 
 	[[nodiscard]] uint64 willHaveSessionUniqueId(MTP::Config *config) const;
-	void createSession(const MTPUser &user);
+	void createSession(
+		const MTPUser &user,
+		std::unique_ptr<SessionSettings> settings = nullptr);
 	void createSession(
 		UserId id,
 		QByteArray serialized,
