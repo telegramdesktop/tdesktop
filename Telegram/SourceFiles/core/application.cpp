@@ -153,6 +153,7 @@ Application::~Application() {
 
 	_window = nullptr;
 	_mediaView = nullptr;
+	_notifications->clearAllFast();
 	_domain->finish();
 
 	Local::finish();

@@ -192,7 +192,7 @@ void Manager::showNextFromQueue() {
 		return;
 	}
 	int count = Core::App().settings().notificationsCount();
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		if (notification->isUnlinked()) continue;
 		--count;
 	}
