@@ -39,7 +39,7 @@ VolumeController::VolumeController(
 			Core::App().settings().setRememberedSongVolume(volume);
 		}
 		applyVolumeChange(volume);
-		controller->session().saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	});
 	Core::App().settings().songVolumeChanges(
 	) | rpl::start_with_next([=](float64 volume) {

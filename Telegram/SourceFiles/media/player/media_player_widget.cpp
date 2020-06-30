@@ -132,6 +132,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 			? 0.
 			: Core::App().settings().rememberedSongVolume();
 		Core::App().settings().setSongVolume(volume);
+		Core::App().saveSettingsDelayed();
 		mixer()->setSongVolume(volume);
 	});
 	Core::App().settings().songVolumeChanges(

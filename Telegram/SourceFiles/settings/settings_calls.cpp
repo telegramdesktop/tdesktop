@@ -52,7 +52,7 @@ Calls::Calls(
 
 Calls::~Calls() {
 	if (_needWriteSettings) {
-		_controller->session().saveSettingsDelayed();
+		Core::App().saveSettingsDelayed();
 	}
 }
 
@@ -134,7 +134,7 @@ void Calls::setupContent() {
 				: "default";
 			Core::App().settings().setCallOutputDeviceID(
 				QString::fromStdString(deviceId));
-			_controller->session().saveSettingsDelayed();
+			Core::App().saveSettingsDelayed();
 			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
 			}
@@ -210,7 +210,7 @@ void Calls::setupContent() {
 				: "default";
 			Core::App().settings().setCallInputDeviceID(
 				QString::fromStdString(deviceId));
-			_controller->session().saveSettingsDelayed();
+			Core::App().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
 			}

@@ -2653,10 +2653,8 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
 	Core::App().settings().setVideoVolume(volume);
+	Core::App().saveSettingsDelayed();
 	updateMixerVideoVolume();
-	if (_document) {
-		_document->session().saveSettingsDelayed();
-	}
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
