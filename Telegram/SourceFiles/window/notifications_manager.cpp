@@ -577,7 +577,17 @@ Manager::DisplayOptions Manager::GetNotificationOptions(HistoryItem *item) {
 QString Manager::addTargetAccountName(
 		const QString &title,
 		not_null<Main::Session*> session) {
-	return (Core::App().domain().accounts().size() > 1)
+	const auto add = [&] {
+		for (const auto &[index, account] : Core::App().domain().accounts()) {
+			if (const auto other = account->maybeSession()) {
+				if (other != session) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}();
+	return add
 		? (title
 			+ accountNameSeparator()
 			+ (session->user()->username.isEmpty()
