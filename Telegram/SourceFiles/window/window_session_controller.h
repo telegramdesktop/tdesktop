@@ -168,6 +168,15 @@ public:
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 
+	// We need access to this from MainWidget::MainWidget, where
+	// we can't call content() yet.
+	void setSelectingPeer(bool selecting) {
+		_selectingPeer = selecting;
+	}
+	[[nodiscard]] bool selectingPeer() const {
+		return _selectingPeer;
+	}
+
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;
 	void takeTabbedSelectorOwnershipFrom(not_null<QWidget*> parent);
@@ -331,6 +340,7 @@ private:
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
+	bool _selectingPeer = false;
 
 	rpl::variable<FilterId> _activeChatsFilter;
 

@@ -212,7 +212,7 @@ Widget::Widget(
 	});
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
-		const auto openSearchResult = !controller->content()->selectingPeer()
+		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		if (const auto history = row.key.history()) {
 			controller->content()->choosePeer(
@@ -701,7 +701,7 @@ void Widget::escape() {
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
-	} else if (!_searchInChat && !controller()->content()->selectingPeer()) {
+	} else if (!_searchInChat && !controller()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
 			emit cancelled();
 		}
@@ -1260,7 +1260,7 @@ void Widget::peopleFailed(const RPCError &error, mtpRequestId requestId) {
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
 
-	if (controller()->content()->selectingPeer()) {
+	if (controller()->selectingPeer()) {
 		return;
 	}
 
@@ -1609,7 +1609,7 @@ void Widget::updateControlsGeometry() {
 }
 
 void Widget::updateForwardBar() {
-	auto selecting = controller()->content()->selectingPeer();
+	auto selecting = controller()->selectingPeer();
 	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
 	if (!oneColumnSelecting == !_forwardCancel) {
 		return;
@@ -1752,7 +1752,7 @@ bool Widget::onCancelSearch() {
 void Widget::onCancelSearchInChat() {
 	cancelSearchRequest();
 	if (_searchInChat) {
-		if (Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
+		if (Adaptive::OneColumn() && !controller()->selectingPeer()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 			//} else if (const auto feed = _searchInChat.feed()) { // #feed
@@ -1767,7 +1767,7 @@ void Widget::onCancelSearchInChat() {
 	_filter->clear();
 	_filter->updatePlaceholder();
 	applyFilterUpdate();
-	if (!Adaptive::OneColumn() && !controller()->content()->selectingPeer()) {
+	if (!Adaptive::OneColumn() && !controller()->selectingPeer()) {
 		emit cancelled();
 	}
 }

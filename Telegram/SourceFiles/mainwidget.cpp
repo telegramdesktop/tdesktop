@@ -612,6 +612,8 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 		return;
 	}
 	_hider.release();
+	controller()->setSelectingPeer(false);
+
 	if (Adaptive::OneColumn()) {
 		if (_mainSection || (_history->peer() && _history->peer()->id)) {
 			auto animationParams = ([=] {
@@ -637,6 +639,8 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	}
 
 	_hider = std::move(hider);
+	controller()->setSelectingPeer(true);
+
 	_hider->setParent(this);
 
 	_hider->hidden(
@@ -1407,6 +1411,7 @@ void MainWidget::ui_showPeerHistory(
 	if (_hider) {
 		_hider->startHide();
 		_hider.release();
+		controller()->setSelectingPeer(false);
 	}
 
 	auto animatedShow = [&] {
