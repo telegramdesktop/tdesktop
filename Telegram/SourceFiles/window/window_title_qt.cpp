@@ -116,6 +116,12 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 				return startResize(mouseEvent->windowPos().toPoint());
 			}
 		}
+	} else if (e->type() == QEvent::Leave) {
+		if (window() == static_cast<QWidget*>(obj)) {
+			while (QGuiApplication::overrideCursor()) {
+				QGuiApplication::restoreOverrideCursor();
+			}
+		}
 	}
 
 	return TitleWidget::eventFilter(obj, e);
