@@ -68,6 +68,7 @@ private:
 	void initResetScaleButton();
 	void refreshMenu();
 	void refreshBackground();
+	void toggleAccounts();
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;

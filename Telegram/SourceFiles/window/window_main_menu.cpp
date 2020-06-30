@@ -644,12 +644,15 @@ void MainMenu::setupCloudButton() {
 }
 
 void MainMenu::setupUserpicButton() {
-	_userpicButton->setClickedCallback([=] {
-		_controller->content()->choosePeer(
-			_controller->session().userPeerId(),
-			ShowAtUnreadMsgId);
-	});
+	_userpicButton->setClickedCallback([=] { toggleAccounts(); });
 	_userpicButton->show();
+}
+
+void MainMenu::toggleAccounts() {
+	auto &settings = Core::App().settings();
+	const auto shown = !settings.mainMenuAccountsShown();
+	settings.setMainMenuAccountsShown(shown);
+	Core::App().saveSettingsDelayed();
 }
 
 void MainMenu::setupAccounts() {
@@ -813,12 +816,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 
 void MainMenu::setupAccountsToggle() {
 	_toggleAccounts->show();
-	_toggleAccounts->setClickedCallback([=] {
-		auto &settings = Core::App().settings();
-		const auto shown = !settings.mainMenuAccountsShown();
-		settings.setMainMenuAccountsShown(shown);
-		Core::App().saveSettingsDelayed();
-	});
+	_toggleAccounts->setClickedCallback([=] { toggleAccounts(); });
 }
 
 void MainMenu::parentResized() {
