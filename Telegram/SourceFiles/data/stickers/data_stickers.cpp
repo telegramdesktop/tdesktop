@@ -892,7 +892,7 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 		const auto document = owner().processDocument(item);
 		if (!document->isGifv()) {
 			LOG(("API Error: "
-				"bad document returned in HistoryWidget::savedGifsGot!"));
+				"bad document returned in Stickers::gifsReceived!"));
 			continue;
 		}
 

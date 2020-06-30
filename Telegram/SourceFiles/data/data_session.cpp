@@ -2559,6 +2559,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 		const auto result = webpage(data.c_webPageEmpty().vid().v);
 		if (result->pendingTill > 0) {
 			result->pendingTill = -1; // failed
+			notifyWebPageUpdateDelayed(result);
 		}
 		return result;
 	} break;
