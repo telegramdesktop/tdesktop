@@ -1,3 +1,9 @@
+2.1.15 beta (30.06.20)
+
+- Receive notifications only from the active account in Settings > Notifications.
+- Fix saving chats list width between application relaunches.
+- Multiple crash fixes.
+
 2.1.14 beta (29.06.20)
 
 - Support for multiple accounts.
