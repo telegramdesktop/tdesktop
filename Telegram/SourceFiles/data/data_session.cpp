@@ -464,9 +464,6 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					: QString())
 				: result->nameOrPhone;
 
-			if (!minimal && data.is_self() && uname != result->username) {
-				CrashReports::SetAnnotation("Username", uname);
-			}
 			result->setName(fname, lname, pname, uname);
 			if (const auto photo = data.vphoto()) {
 				result->setPhoto(*photo);
@@ -2563,6 +2560,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 		const auto result = webpage(data.c_webPageEmpty().vid().v);
 		if (result->pendingTill > 0) {
 			result->pendingTill = -1; // failed
+			notifyWebPageUpdateDelayed(result);
 		}
 		return result;
 	} break;

@@ -230,6 +230,7 @@ MainWidget::MainWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _api(&controller->session().mtp())
 , _dialogsWidth(st::columnMinimalWidthLeft)
 , _thirdColumnWidth(st::columnMinimalWidthThird)
 , _sideShadow(this)
@@ -370,8 +371,6 @@ MainWidget::MainWidget(
 	cSetOtherOnline(0);
 
 	_history->start();
-
-	Core::App().checkStartUrl();
 }
 
 MainWidget::~MainWidget() = default;
@@ -613,6 +612,8 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 		return;
 	}
 	_hider.release();
+	controller()->setSelectingPeer(false);
+
 	if (Adaptive::OneColumn()) {
 		if (_mainSection || (_history->peer() && _history->peer()->id)) {
 			auto animationParams = ([=] {
@@ -638,6 +639,8 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	}
 
 	_hider = std::move(hider);
+	controller()->setSelectingPeer(true);
+
 	_hider->setParent(this);
 
 	_hider->hidden(
@@ -1266,7 +1269,6 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 }
 
 void MainWidget::viewsIncrement() {
-	const auto api = &session().api();
 	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i->first)) {
 			++i;
@@ -1278,7 +1280,7 @@ void MainWidget::viewsIncrement() {
 		for (const auto msgId : i->second) {
 			ids.push_back(MTP_int(msgId));
 		}
-		const auto requestId = api->request(MTPmessages_GetMessagesViews(
+		const auto requestId = _api.request(MTPmessages_GetMessagesViews(
 			i->first->input,
 			MTP_vector<MTPint>(ids),
 			MTP_bool(true)
@@ -1409,6 +1411,7 @@ void MainWidget::ui_showPeerHistory(
 	if (_hider) {
 		_hider->startHide();
 		_hider.release();
+		controller()->setSelectingPeer(false);
 	}
 
 	auto animatedShow = [&] {
@@ -2626,7 +2629,7 @@ void MainWidget::openPeerByName(
 			});
 		}
 	} else {
-		session().api().request(MTPcontacts_ResolveUsername(
+		_api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
 			usernameResolveDone(result, msgId, startToken);

@@ -133,7 +133,7 @@ jobs:
 
       - name: OpenSSL cache.
         id: cache-openssl
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
           key: ${{ runner.OS }}-${{ env.OPENSSL_VER }}-${{ env.CACHE_KEY }}
@@ -163,7 +163,7 @@ jobs:
 
       - name: Opus cache.
         id: cache-opus
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/opus
           key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
@@ -185,7 +185,7 @@ jobs:
 
       - name: Libiconv cache.
         id: cache-libiconv
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/${{ env.LIBICONV_VER }}
           key: ${{ runner.OS }}-${{ env.LIBICONV_VER }}-${{ env.CACHE_KEY }}
@@ -206,7 +206,7 @@ jobs:
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/ffmpeg-cache
           key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}
@@ -362,7 +362,7 @@ jobs:
 
       - name: Crashpad cache.
         id: cache-crashpad
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/crashpad
           key: ${{ runner.OS }}-crashpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/crashpad.diff') }}-${{ hashFiles('**/mini_chromium.diff') }}
@@ -401,7 +401,7 @@ jobs:
 
       - name: Qt 5.12.8 cache.
         id: cache-qt
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
           key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}

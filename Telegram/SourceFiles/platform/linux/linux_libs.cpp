@@ -253,11 +253,10 @@ void start() {
 
 		// change the icon theme only if it isn't already set by a platformtheme plugin
 		// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
-		if ((((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
+		if (((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
 			&& QIcon::fallbackThemeName() == qstr("hicolor"))
 			|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
 			&& QIcon::fallbackThemeName() == qstr("gnome")))
-			&& DesktopEnvironment::IsGtkBased())
 			|| IsGtkIntegrationForced()) {
 			DEBUG_LOG(("Set GTK icon theme"));
 			QIcon::setThemeName(gtkSetting("gtk-icon-theme-name"));

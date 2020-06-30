@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
@@ -52,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -99,13 +101,15 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void paintUserpic(Painter &p);
 
-	const not_null<Main::Account*> _account;
+	const not_null<Main::Session*> _session;
 	const style::Menu &_st;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	InMemoryKey _userpicKey = {};
 	QImage _userpicCache;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	Dialogs::Layout::UnreadBadgeStyle _unreadSt;
 	int _unreadBadge = 0;
@@ -153,7 +157,7 @@ MainMenu::AccountButton::AccountButton(
 	QWidget *parent,
 	not_null<Main::Account*> account)
 : RippleButton(parent, st::defaultRippleAnimation)
-, _account(account)
+, _session(&account->session())
 , _st(st::mainMenu){
 	const auto height = _st.itemPadding.top()
 		+ _st.itemStyle.font->height
@@ -167,33 +171,27 @@ MainMenu::AccountButton::AccountButton(
 		}
 	});
 
-	_account->sessionValue(
-	) | rpl::filter([=](Main::Session *session) {
-		return (session != nullptr);
-	}) | rpl::start_with_next([=](not_null<Main::Session*> session) {
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(
-			session->data().unreadBadgeChanges()
-		) | rpl::start_with_next([=] {
-			_unreadBadge = session->data().unreadBadge();
-			_unreadBadgeMuted = session->data().unreadBadgeMuted();
-			update();
-		}, lifetime());
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		_session->data().unreadBadgeChanges()
+	) | rpl::start_with_next([=] {
+		_unreadBadge = _session->data().unreadBadge();
+		_unreadBadgeMuted = _session->data().unreadBadgeMuted();
+		update();
 	}, lifetime());
 }
 
 void MainMenu::AccountButton::paintUserpic(Painter &p) {
-	Expects(_account->sessionExists());
-
 	const auto size = st::mainMenuAccountSize;
 	const auto iconSize = height() - 2 * _st.itemIconPosition.y();
 	const auto shift = (size - iconSize) / 2;
 	const auto x = _st.itemIconPosition.x() - shift;
 	const auto y = (height() - size) / 2;
 
-	const auto check = (_account == &Core::App().domain().active());
-	const auto user = _account->session().user();
+	const auto check = (&_session->account()
+		== &Core::App().domain().active());
+	const auto user = _session->user();
 	if (!check) {
 		user->paintUserpicLeft(p, _userpicView, x, y, width(), size);
 		return;
@@ -234,8 +232,6 @@ void MainMenu::AccountButton::paintUserpic(Painter &p) {
 }
 
 void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
-	Expects(_account->sessionExists());
-
 	auto p = Painter(this);
 	const auto over = isOver();
 	p.fillRect(rect(), over ? _st.itemBgOver : _st.itemBg);
@@ -244,7 +240,8 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 	paintUserpic(p);
 
 	auto available = width() - _st.itemPadding.left();
-	if (_unreadBadge && _account != &Core::App().activeAccount()) {
+	if (_unreadBadge
+		&& (&_session->account() != &Core::App().activeAccount())) {
 		_unreadSt.muted = _unreadBadgeMuted;
 		const auto string = (_unreadBadge > 99)
 			? "99+"
@@ -267,11 +264,37 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 	}
 
 	p.setPen(over ? _st.itemFgOver : _st.itemFg);
-	_account->session().user()->nameText().drawElided(
+	_session->user()->nameText().drawElided(
 		p,
 		_st.itemPadding.left(),
 		_st.itemPadding.top(),
 		available);
+}
+
+void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
+	if (&_session->account() == &Core::App().activeAccount() || _menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu->addAction(tr::lng_menu_activate(tr::now), crl::guard(this, [=] {
+		Core::App().domain().activate(&_session->account());
+	}));
+	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
+		const auto session = _session;
+		const auto box = std::make_shared<QPointer<ConfirmBox>>();
+		const auto callback = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+			Core::App().logout(&session->account());
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			tr::lng_sure_logout(tr::now),
+			tr::lng_settings_logout(tr::now),
+			st::attentionBoxButton,
+			crl::guard(session, callback)));
+	}));
+	_menu->popup(QCursor::pos());
 }
 
 MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
@@ -644,12 +667,15 @@ void MainMenu::setupCloudButton() {
 }
 
 void MainMenu::setupUserpicButton() {
-	_userpicButton->setClickedCallback([=] {
-		_controller->content()->choosePeer(
-			_controller->session().userPeerId(),
-			ShowAtUnreadMsgId);
-	});
+	_userpicButton->setClickedCallback([=] { toggleAccounts(); });
 	_userpicButton->show();
+}
+
+void MainMenu::toggleAccounts() {
+	auto &settings = Core::App().settings();
+	const auto shown = !settings.mainMenuAccountsShown();
+	settings.setMainMenuAccountsShown(shown);
+	Core::App().saveSettingsDelayed();
 }
 
 void MainMenu::setupAccounts() {
@@ -690,7 +716,6 @@ void MainMenu::setupAccounts() {
 		rebuildAccounts();
 	}, lifetime());
 
-	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
 	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
 	_accounts->finishAnimating();
 
@@ -774,18 +799,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 	}, button->lifetime());
 
 	const auto add = [=](MTP::Environment environment) {
-		auto &domain = Core::App().domain();
-		if (domain.accounts().size() < Main::Domain::kMaxAccounts) {
-			domain.activate(domain.add(environment));
-		} else {
-			for (auto &[index, account] : domain.accounts()) {
-				if (!account->sessionExists()
-					&& account->mtp().environment() == environment) {
-					domain.activate(account.get());
-					break;
-				}
-			}
-		}
+		Core::App().domain().addActivated(environment);
 	};
 
 	button->setAcceptBoth(true);
@@ -814,12 +828,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 
 void MainMenu::setupAccountsToggle() {
 	_toggleAccounts->show();
-	_toggleAccounts->setClickedCallback([=] {
-		auto &settings = Core::App().settings();
-		const auto shown = !settings.mainMenuAccountsShown();
-		settings.setMainMenuAccountsShown(shown);
-		Core::App().saveSettingsDelayed();
-	});
+	_toggleAccounts->setClickedCallback([=] { toggleAccounts(); });
 }
 
 void MainMenu::parentResized() {

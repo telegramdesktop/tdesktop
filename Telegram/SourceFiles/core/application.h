@@ -331,6 +331,11 @@ private:
 	base::Timer _clearEmojiImageLoaderTimer;
 	const std::unique_ptr<Media::Audio::Instance> _audio;
 	mutable std::unique_ptr<MTP::Config> _fallbackProductionConfig;
+
+	// Notifications should be destroyed before _audio, after _domain.
+	// Mutable because is created in run() after OpenSSL is inited.
+	std::unique_ptr<Window::Notifications::System> _notifications;
+
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
@@ -346,10 +351,6 @@ private:
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
 	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
-
-	// Notifications should be destroyed before _audio.
-	// Mutable because is created in run() after OpenSSL is inited.
-	std::unique_ptr<Window::Notifications::System> _notifications;
 
 	const QImage _logo;
 	const QImage _logoNoMargin;

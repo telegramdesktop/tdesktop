@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
-#include "data/stickers/data_stickers.h"
 
 namespace Ui {
 class ScrollArea;

@@ -216,7 +216,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 }
 
 ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
-	load();
+	crl::on_main(&owner->session(), [=] { load(); });
 }
 
 ChatFilters::~ChatFilters() = default;
@@ -232,6 +232,16 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	return pointer.get();
 }
 
+void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
+	_loadRequestId = -1;
+	received(result);
+	crl::on_main(&_owner->session(), [=] {
+		if (_loadRequestId == -1) {
+			_loadRequestId = 0;
+		}
+	});
+}
+
 void ChatFilters::load() {
 	load(false);
 }
@@ -244,38 +254,42 @@ void ChatFilters::load(bool force) {
 	api.request(_loadRequestId).cancel();
 	_loadRequestId = api.request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPVector<MTPDialogFilter> &result) {
-		auto position = 0;
-		auto changed = false;
-		for (const auto &filter : result.v) {
-			auto parsed = ChatFilter::FromTL(filter, _owner);
-			const auto b = begin(_list) + position, e = end(_list);
-			const auto i = ranges::find(b, e, parsed.id(), &ChatFilter::id);
-			if (i == e) {
-				applyInsert(std::move(parsed), position);
-				changed = true;
-			} else if (i == b) {
-				if (applyChange(*b, std::move(parsed))) {
-					changed = true;
-				}
-			} else {
-				std::swap(*i, *b);
-				applyChange(*b, std::move(parsed));
-				changed = true;
-			}
-			++position;
-		}
-		while (position < _list.size()) {
-			applyRemove(position);
-			changed = true;
-		}
-		if (changed || !_loaded) {
-			_loaded = true;
-			_listChanged.fire({});
-		}
+		received(result.v);
 		_loadRequestId = 0;
 	}).fail([=](const RPCError &error) {
 		_loadRequestId = 0;
 	}).send();
+}
+
+void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
+	auto position = 0;
+	auto changed = false;
+	for (const auto &filter : list) {
+		auto parsed = ChatFilter::FromTL(filter, _owner);
+		const auto b = begin(_list) + position, e = end(_list);
+		const auto i = ranges::find(b, e, parsed.id(), &ChatFilter::id);
+		if (i == e) {
+			applyInsert(std::move(parsed), position);
+			changed = true;
+		} else if (i == b) {
+			if (applyChange(*b, std::move(parsed))) {
+				changed = true;
+			}
+		} else {
+			std::swap(*i, *b);
+			applyChange(*b, std::move(parsed));
+			changed = true;
+		}
+		++position;
+	}
+	while (position < _list.size()) {
+		applyRemove(position);
+		changed = true;
+	}
+	if (changed || !_loaded) {
+		_loaded = true;
+		_listChanged.fire({});
+	}
 }
 
 void ChatFilters::apply(const MTPUpdate &update) {

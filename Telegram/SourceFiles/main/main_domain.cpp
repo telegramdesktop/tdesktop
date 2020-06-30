@@ -9,15 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "core/crash_reports.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
+#include "data/data_user.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_domain.h"
 #include "storage/storage_account.h"
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
+#include "window/notifications_manager.h"
 #include "facades.h"
 
 namespace Main {
@@ -28,6 +32,22 @@ Domain::Domain(const QString &dataName)
 	_active.changes(
 	) | rpl::take(1) | rpl::start_with_next([] {
 		Local::rewriteSettingsIfNeeded();
+		Core::App().notifications().createManager();
+	}, _lifetime);
+
+	_active.changes(
+	) | rpl::map([](Main::Account *account) {
+		return account ? account->sessionValue() : rpl::never<Session*>();
+		}) | rpl::flatten_latest(
+	) | rpl::map([](Main::Session *session) {
+		return session
+			? session->changes().peerFlagsValue(
+				session->user(),
+				Data::PeerUpdate::Flag::Username)
+			: rpl::never<Data::PeerUpdate>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([](const Data::PeerUpdate &update) {
+		CrashReports::SetAnnotation("Username", update.peer->userName());
 	}, _lifetime);
 }
 
@@ -251,6 +271,20 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	watchSession(account);
 	_accountsChanges.fire({});
 	return account;
+}
+
+void Domain::addActivated(MTP::Environment environment) {
+	if (accounts().size() < Main::Domain::kMaxAccounts) {
+		activate(add(environment));
+	} else {
+		for (auto &[index, account] : accounts()) {
+			if (!account->sessionExists()
+				&& account->mtp().environment() == environment) {
+				activate(account.get());
+				break;
+			}
+		}
+	}
 }
 
 void Domain::watchSession(not_null<Account*> account) {

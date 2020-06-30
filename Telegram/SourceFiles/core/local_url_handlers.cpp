@@ -298,15 +298,12 @@ bool ResolveUsername(
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	if (const auto controller = App::wnd()->sessionController()) {
-		controller->content()->openPeerByName(
-			domain,
-			post,
-			startToken,
-			clickFromMessageId);
-		return true;
-	}
-	return false;
+	controller->content()->openPeerByName(
+		domain,
+		post,
+		startToken,
+		clickFromMessageId);
+	return true;
 }
 
 bool ResolvePrivatePost(
@@ -324,12 +321,12 @@ bool ResolvePrivatePost(
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}
-	const auto done = [=](not_null<PeerData*> peer) {
-		App::wnd()->sessionController()->showPeerHistory(
+	const auto done = crl::guard(controller, [=](not_null<PeerData*> peer) {
+		controller->showPeerHistory(
 			peer->id,
 			Window::SectionShow::Way::Forward,
 			msgId);
-	};
+	});
 	const auto fail = [=] {
 		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
 	};
@@ -391,7 +388,7 @@ bool HandleUnknown(
 		return false;
 	}
 	const auto request = match->captured(1);
-	const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
+	const auto callback = crl::guard(controller, [=](const MTPDhelp_deepLinkInfo &result) {
 		const auto text = TextWithEntities{
 			qs(result.vmessage()),
 			Api::EntitiesFromMTP(
@@ -411,7 +408,7 @@ bool HandleUnknown(
 		} else {
 			Ui::show(Box<InformBox>(text));
 		}
-	};
+	});
 	controller->session().api().requestDeepLinkInfo(request, callback);
 	return true;
 }

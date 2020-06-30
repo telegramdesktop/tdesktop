@@ -95,6 +95,8 @@ public:
 	explicit ChatFilters(not_null<Session*> owner);
 	~ChatFilters();
 
+	void setPreloaded(const QVector<MTPDialogFilter> &result);
+
 	void load();
 	void apply(const MTPUpdate &update);
 	void set(ChatFilter filter);
@@ -125,6 +127,7 @@ public:
 
 private:
 	void load(bool force);
+	void received(const QVector<MTPDialogFilter> &list);
 	bool applyOrder(const QVector<MTPint> &order);
 	bool applyChange(ChatFilter &filter, ChatFilter &&updated);
 	void applyInsert(ChatFilter filter, int position);

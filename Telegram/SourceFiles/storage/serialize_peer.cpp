@@ -204,8 +204,9 @@ PeerData *readPeer(
 	const auto loaded = (peerId == selfId)
 		? session->user().get()
 		: session->data().peerLoaded(peerId);
+	const auto apply = (loaded->loadedStatus != PeerData::FullLoaded);
 	const auto result = loaded ? loaded : session->data().peer(peerId).get();
-	if (!loaded) {
+	if (apply) {
 		result->loadedStatus = PeerData::FullLoaded;
 	}
 	if (const auto user = result->asUser()) {
@@ -230,7 +231,7 @@ PeerData *readPeer(
 			? App::formatPhone(phone)
 			: QString();
 
-		if (!loaded) {
+		if (apply) {
 			user->setPhone(phone);
 			user->setName(first, last, pname, username);
 
@@ -268,7 +269,7 @@ PeerData *readPeer(
 		if (oldForbidden) {
 			flags |= quint32(MTPDchat_ClientFlag::f_forbidden);
 		}
-		if (!loaded) {
+		if (apply) {
 			chat->setName(name);
 			chat->count = count;
 			chat->date = date;
@@ -296,7 +297,7 @@ PeerData *readPeer(
 		if (oldForbidden) {
 			flags |= quint32(MTPDchannel_ClientFlag::f_forbidden);
 		}
-		if (!loaded) {
+		if (apply) {
 			channel->setName(name, QString());
 			channel->access = access;
 			channel->date = date;
@@ -312,7 +313,7 @@ PeerData *readPeer(
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 		}
 	}
-	if (!loaded) {
+	if (apply) {
 		using LocationType = StorageFileLocation::Type;
 		const auto location = (userpic->valid() && userpic->isLegacy())
 			? userpic->convertToModern(

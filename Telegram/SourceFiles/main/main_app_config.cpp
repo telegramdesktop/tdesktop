@@ -24,6 +24,13 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 		_api.emplace(instance);
 		refresh();
 	}, _lifetime);
+
+	account->sessionChanges(
+	) | rpl::filter([=](Session *session) {
+		return (session != nullptr);
+	}) | rpl::start_with_next([=] {
+		refresh();
+	}, _lifetime);
 }
 
 void AppConfig::refresh() {

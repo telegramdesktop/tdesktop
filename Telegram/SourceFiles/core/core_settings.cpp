@@ -94,7 +94,17 @@ QByteArray Settings::serialize() const {
 		}
 		stream
 			<< qint32(_autoDownloadDictionaries.current() ? 1 : 0)
-			<< qint32(_mainMenuAccountsShown.current() ? 1 : 0);
+			<< qint32(_mainMenuAccountsShown.current() ? 1 : 0)
+			<< qint32(_tabbedSelectorSectionEnabled ? 1 : 0)
+			<< qint32(_floatPlayerColumn)
+			<< qint32(_floatPlayerCorner)
+			<< qint32(_thirdSectionInfoEnabled ? 1 : 0)
+			<< qint32(snap(
+				qRound(_dialogsWidthRatio.current() * 1000000),
+				0,
+				1000000))
+			<< qint32(_thirdColumnWidth.current())
+			<< qint32(_thirdSectionExtendedBy);
 	}
 	return result;
 }
@@ -150,6 +160,13 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	std::vector<int> dictionariesEnabled;
 	qint32 autoDownloadDictionaries = _autoDownloadDictionaries.current() ? 1 : 0;
 	qint32 mainMenuAccountsShown = _mainMenuAccountsShown.current() ? 1 : 0;
+	qint32 tabbedSelectorSectionEnabled = 1;
+	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
+	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
+	qint32 thirdSectionInfoEnabled = 0;
+	float64 dialogsWidthRatio = _dialogsWidthRatio.current();
+	qint32 thirdColumnWidth = _thirdColumnWidth.current();
+	qint32 thirdSectionExtendedBy = _thirdSectionExtendedBy;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -210,6 +227,18 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream
 			>> autoDownloadDictionaries
 			>> mainMenuAccountsShown;
+	}
+	if (!stream.atEnd()) {
+		auto dialogsWidthRatioInt = qint32();
+		stream
+			>> tabbedSelectorSectionEnabled
+			>> floatPlayerColumn
+			>> floatPlayerCorner
+			>> thirdSectionInfoEnabled
+			>> dialogsWidthRatioInt
+			>> thirdColumnWidth
+			>> thirdSectionExtendedBy;
+		dialogsWidthRatio = snap(dialogsWidthRatioInt / 1000000., 0., 1.);
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -281,6 +310,27 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_dictionariesEnabled = std::move(dictionariesEnabled);
 	_autoDownloadDictionaries = (autoDownloadDictionaries == 1);
 	_mainMenuAccountsShown = (mainMenuAccountsShown == 1);
+	_tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
+	auto uncheckedColumn = static_cast<Window::Column>(floatPlayerColumn);
+	switch (uncheckedColumn) {
+	case Window::Column::First:
+	case Window::Column::Second:
+	case Window::Column::Third: _floatPlayerColumn = uncheckedColumn; break;
+	}
+	auto uncheckedCorner = static_cast<RectPart>(floatPlayerCorner);
+	switch (uncheckedCorner) {
+	case RectPart::TopLeft:
+	case RectPart::TopRight:
+	case RectPart::BottomLeft:
+	case RectPart::BottomRight: _floatPlayerCorner = uncheckedCorner; break;
+	}
+	_thirdSectionInfoEnabled = thirdSectionInfoEnabled;
+	_dialogsWidthRatio = dialogsWidthRatio;
+	_thirdColumnWidth = thirdColumnWidth;
+	_thirdSectionExtendedBy = thirdSectionExtendedBy;
+	if (_thirdSectionInfoEnabled) {
+		_tabbedSelectorSectionEnabled = false;
+	}
 }
 
 bool Settings::chatWide() const {

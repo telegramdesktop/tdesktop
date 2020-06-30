@@ -64,6 +64,7 @@ public:
 
 	[[nodiscard]] not_null<Main::Account*> add(MTP::Environment environment);
 	void activate(not_null<Main::Account*> account);
+	void addActivated(MTP::Environment environment);
 
 	// Interface for Storage::Domain.
 	void accountAddedInStorage(AccountWithIndex accountWithIndex);

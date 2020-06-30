@@ -781,12 +781,12 @@ bool BackgroundPreviewBox::Start(
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
-	controller->session().api().requestWallPaper(slug, [=](
+	controller->session().api().requestWallPaper(slug, crl::guard(controller, [=](
 			const Data::WallPaper &result) {
 		Ui::show(Box<BackgroundPreviewBox>(
 			controller,
 			result.withUrlParams(params)));
-	}, [](const RPCError &error) {
+	}), [](const RPCError &error) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 	});
 	return true;

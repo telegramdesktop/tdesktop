@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
+#include "mtproto/sender.h"
 #include "data/data_pts_waiter.h"
 
 class RPCError;
@@ -350,6 +351,7 @@ private:
 	void handleHistoryBack();
 
 	const not_null<Window::SessionController*> _controller;
+	MTP::Sender _api;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;
