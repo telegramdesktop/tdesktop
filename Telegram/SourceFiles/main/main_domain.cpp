@@ -9,9 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "core/crash_reports.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
+#include "data/data_user.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "storage/storage_domain.h"
@@ -30,6 +33,21 @@ Domain::Domain(const QString &dataName)
 	) | rpl::take(1) | rpl::start_with_next([] {
 		Local::rewriteSettingsIfNeeded();
 		Core::App().notifications().createManager();
+	}, _lifetime);
+
+	_active.changes(
+	) | rpl::map([](Main::Account *account) {
+		return account ? account->sessionValue() : rpl::never<Session*>();
+		}) | rpl::flatten_latest(
+	) | rpl::map([](Main::Session *session) {
+		return session
+			? session->changes().peerFlagsValue(
+				session->user(),
+				Data::PeerUpdate::Flag::Username)
+			: rpl::never<Data::PeerUpdate>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([](const Data::PeerUpdate &update) {
+		CrashReports::SetAnnotation("Username", update.peer->userName());
 	}, _lifetime);
 }
 
