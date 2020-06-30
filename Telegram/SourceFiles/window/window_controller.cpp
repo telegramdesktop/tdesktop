@@ -85,9 +85,6 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			setupIntro();
 			_widget.updateGlobalMenu();
 		}
-		if (was) {
-			was->session().updates().updateOnline();
-		}
 	}, _accountLifetime);
 }
 
