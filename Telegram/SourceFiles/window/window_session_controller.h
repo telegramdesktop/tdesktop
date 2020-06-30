@@ -116,7 +116,7 @@ struct SectionShow {
 
 class SessionController;
 
-class SessionNavigation {
+class SessionNavigation : public base::has_weak_ptr {
 public:
 	explicit SessionNavigation(not_null<Main::Session*> session);
 
@@ -156,10 +156,7 @@ private:
 
 };
 
-class SessionController
-	: public SessionNavigation
-	, public base::has_weak_ptr
-	, private base::Subscriber {
+class SessionController : public SessionNavigation, private base::Subscriber {
 public:
 	SessionController(
 		not_null<Main::Session*> session,

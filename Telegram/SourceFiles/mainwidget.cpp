@@ -230,6 +230,7 @@ MainWidget::MainWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _api(&controller->session().mtp())
 , _dialogsWidth(st::columnMinimalWidthLeft)
 , _thirdColumnWidth(st::columnMinimalWidthThird)
 , _sideShadow(this)
@@ -1264,7 +1265,6 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 }
 
 void MainWidget::viewsIncrement() {
-	const auto api = &session().api();
 	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i->first)) {
 			++i;
@@ -1276,7 +1276,7 @@ void MainWidget::viewsIncrement() {
 		for (const auto msgId : i->second) {
 			ids.push_back(MTP_int(msgId));
 		}
-		const auto requestId = api->request(MTPmessages_GetMessagesViews(
+		const auto requestId = _api.request(MTPmessages_GetMessagesViews(
 			i->first->input,
 			MTP_vector<MTPint>(ids),
 			MTP_bool(true)
@@ -2624,7 +2624,7 @@ void MainWidget::openPeerByName(
 			});
 		}
 	} else {
-		session().api().request(MTPcontacts_ResolveUsername(
+		_api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
 			usernameResolveDone(result, msgId, startToken);

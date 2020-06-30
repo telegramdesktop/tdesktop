@@ -368,7 +368,6 @@ public:
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users);
 
-
 	rpl::producer<SendAction> sendActions() const {
 		return _sendActions.events();
 	}
