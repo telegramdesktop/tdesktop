@@ -298,15 +298,12 @@ bool ResolveUsername(
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	if (const auto controller = App::wnd()->sessionController()) {
-		controller->content()->openPeerByName(
-			domain,
-			post,
-			startToken,
-			clickFromMessageId);
-		return true;
-	}
-	return false;
+	controller->content()->openPeerByName(
+		domain,
+		post,
+		startToken,
+		clickFromMessageId);
+	return true;
 }
 
 bool ResolvePrivatePost(

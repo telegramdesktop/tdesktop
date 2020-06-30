@@ -370,8 +370,6 @@ MainWidget::MainWidget(
 	cSetOtherOnline(0);
 
 	_history->start();
-
-	Core::App().checkStartUrl();
 }
 
 MainWidget::~MainWidget() = default;
