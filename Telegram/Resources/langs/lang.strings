@@ -292,6 +292,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_empty_bio" = "None";
 
 "lng_settings_section_notify" = "Notifications";
+"lng_settings_show_from" = "Show notifications from";
+"lng_settings_notify_all" = "All accounts";
+"lng_settings_notify_all_about" = "Turn this off if you want to receive notifications only from the account you are currently using.";
 "lng_settings_notify_title" = "Notifications for chats";
 "lng_settings_desktop_notify" = "Desktop notifications";
 "lng_settings_show_name" = "Show sender's name";
