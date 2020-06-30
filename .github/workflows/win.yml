@@ -133,7 +133,7 @@ jobs:
 
       - name: OpenSSL cache.
         id: cache-openssl
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
           key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
@@ -177,7 +177,7 @@ jobs:
 
       - name: OpenAL Soft cache.
         id: cache-openal
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/openal-soft
           key: ${{ runner.OS }}-openal-soft-${{ env.CACHE_KEY }}
@@ -201,7 +201,7 @@ jobs:
 
       - name: Breakpad cache.
         id: cache-breakpad
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/breakpad
           key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/breakpad.diff') }}
@@ -250,7 +250,7 @@ jobs:
 
       - name: Opus cache.
         id: cache-opus
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/opus
           key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
@@ -269,7 +269,7 @@ jobs:
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/ffmpeg
           key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-2-${{ hashFiles('**/build_ffmpeg_win.sh') }}
@@ -291,7 +291,7 @@ jobs:
 
       - name: Qt 5.12.8 cache.
         id: cache-qt
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/Qt-5.12.8
           key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
