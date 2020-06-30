@@ -1779,6 +1779,8 @@ void Widget::onDialogMoved(int movedFrom, int movedTo) {
 	}
 }
 
-Widget::~Widget() = default;
+Widget::~Widget() {
+	cancelSearchRequest();
+}
 
 } // namespace Dialogs
