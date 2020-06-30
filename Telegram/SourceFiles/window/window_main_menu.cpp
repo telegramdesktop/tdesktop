@@ -691,7 +691,6 @@ void MainMenu::setupAccounts() {
 	}, lifetime());
 
 	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
-	_accounts->toggleOn(Core::App().settings().mainMenuAccountsShownValue());
 	_accounts->finishAnimating();
 
 	_shadow->setDuration(0)->toggleOn(_accounts->shownValue());
