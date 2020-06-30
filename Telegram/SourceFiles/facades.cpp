@@ -206,14 +206,12 @@ void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
 		}
 		Ui::hideSettingsAndLayer();
 		Core::App().hideMediaView();
-		if (const auto m = window->mainWidget()) {
-			m->searchMessages(
-				tag + ' ',
-				(inPeer && !inPeer->isUser())
-					? inPeer->owner().history(inPeer).get()
-					: Dialogs::Key(),
-				from);
-		}
+		m->searchMessages(
+			tag + ' ',
+			(inPeer && !inPeer->isUser())
+				? inPeer->owner().history(inPeer).get()
+				: Dialogs::Key(),
+			from);
 	}
 }
 
