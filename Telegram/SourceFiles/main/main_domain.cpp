@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
+#include "window/notifications_manager.h"
 #include "facades.h"
 
 namespace Main {
@@ -28,6 +29,7 @@ Domain::Domain(const QString &dataName)
 	_active.changes(
 	) | rpl::take(1) | rpl::start_with_next([] {
 		Local::rewriteSettingsIfNeeded();
+		Core::App().notifications().createManager();
 	}, _lifetime);
 }
 

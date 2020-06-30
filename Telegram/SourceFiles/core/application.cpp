@@ -183,6 +183,7 @@ void Application::run() {
 	refreshGlobalProxy(); // Depends on Global::start().
 
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
+	// Depends on notifications settings.
 	_notifications = std::make_unique<Window::Notifications::System>();
 
 	startLocalStorage();
