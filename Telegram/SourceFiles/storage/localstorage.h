@@ -94,12 +94,28 @@ bool readOldMtpData(
 bool readOldUserSettings(
 	bool remove,
 	Storage::details::ReadSettingsContext &context);
-	void fetchCustomLangPack(QString langPackId, QString langPackBaseId);
-	void fetchFinished();
-	void fetchError(QNetworkReply::NetworkError e);
-	QNetworkAccessManager networkManager;
-	QNetworkReply *_chkReply = nullptr;
+} // namespace Local
 
+class CustomLangPack : public QObject {
+	Q_OBJECT
+	Q_DISABLE_COPY(CustomLangPack)
+
+public:
+	static CustomLangPack *currentInstance();
+	static void initInstance();
+	static CustomLangPack *instance;
+
+	void fetchCustomLangPack(QString langPackId, QString langPackBaseId);
 	void loadDefaultLangFile();
 
-} // namespace Local
+public slots:
+	void fetchFinished();
+	void fetchError(QNetworkReply::NetworkError e);
+
+private:
+	CustomLangPack();
+	~CustomLangPack() = default;
+
+	QNetworkAccessManager networkManager;
+	QNetworkReply *_chkReply = nullptr;
+};

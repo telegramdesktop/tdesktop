@@ -1091,7 +1091,8 @@ void readLangPack() {
 	}
 	QString langPackBaseId = Lang::Current().baseId();
 	QString langPackId = Lang::Current().id();
-	_manager->fetchCustomLangPack(langPackId, langPackBaseId);
+	CustomLangPack::initInstance();
+	CustomLangPack::currentInstance()->fetchCustomLangPack(langPackId, langPackBaseId);
 }
 
 void writeLangPack() {
@@ -1267,10 +1268,25 @@ bool readOldMtpData(bool remove, ReadSettingsContext &context) {
 
 bool readOldUserSettings(bool remove, ReadSettingsContext &context) {
 	return _readOldUserSettings(remove, context);
-	}
 }
 
-void Manager::fetchCustomLangPack(QString langPackId, QString langPackBaseId) {
+} // namespace Local
+
+CustomLangPack *CustomLangPack::instance = nullptr;
+
+CustomLangPack::CustomLangPack() {
+}
+
+void CustomLangPack::initInstance() {
+	if (!instance)
+    	instance = new CustomLangPack;
+}
+
+CustomLangPack *CustomLangPack::currentInstance() {
+	return instance;
+}
+
+void CustomLangPack::fetchCustomLangPack(QString langPackId, QString langPackBaseId) {
 	LOG(("Current Language ID: %1, Base ID: %2").arg(langPackId, langPackBaseId));
 
 	QUrl url;
@@ -1281,11 +1297,12 @@ void Manager::fetchCustomLangPack(QString langPackId, QString langPackBaseId) {
 		url.setUrl(qsl("https://raw.githubusercontent.com/TDesktop-x64/Localization/master/%1.json").arg(langPackId));
 	}
 	_chkReply = networkManager.get(QNetworkRequest(url));
-	connect(_chkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
+	connect(_chkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(fetchError(QNetworkReply::NetworkError)));
 	connect(_chkReply, SIGNAL(finished()), this, SLOT(fetchFinished()));
+	LOG(("Fetching %1 lang pack...").arg(langPackId));
 }
 
-void Manager::fetchFinished() {
+void CustomLangPack::fetchFinished() {
 	if (!_chkReply) return;
 
 	QByteArray result = _chkReply->readAll().trimmed();
@@ -1302,7 +1319,7 @@ void Manager::fetchFinished() {
 	_chkReply = nullptr;
 }
 
-void Manager::fetchError(QNetworkReply::NetworkError e) {
+void CustomLangPack::fetchError(QNetworkReply::NetworkError e) {
 	LOG(("Network error: %1").arg(e));
 	LOG(("Fallback to default language: English..."));
 
@@ -1311,12 +1328,11 @@ void Manager::fetchError(QNetworkReply::NetworkError e) {
 	_chkReply = nullptr;
 }
 
-void Manager::loadDefaultLangFile() {
+void CustomLangPack::loadDefaultLangFile() {
 	QFile file(":/localization/en.json");
 	if (file.open(QIODevice::ReadOnly)) {
 		QJsonDocument str = QJsonDocument::fromJson(file.readAll());
 		Lang::Current().customLang = str.object();
 		file.close();
+	}
 }
-
-} // namespace Local
