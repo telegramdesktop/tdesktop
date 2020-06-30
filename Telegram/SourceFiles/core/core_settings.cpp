@@ -104,7 +104,8 @@ QByteArray Settings::serialize() const {
 				0,
 				1000000))
 			<< qint32(_thirdColumnWidth.current())
-			<< qint32(_thirdSectionExtendedBy);
+			<< qint32(_thirdSectionExtendedBy)
+			<< qint32(_notifyFromAll ? 1 : 0);
 	}
 	return result;
 }
@@ -167,6 +168,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	float64 dialogsWidthRatio = _dialogsWidthRatio.current();
 	qint32 thirdColumnWidth = _thirdColumnWidth.current();
 	qint32 thirdSectionExtendedBy = _thirdSectionExtendedBy;
+	qint32 notifyFromAll = _notifyFromAll ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -237,7 +239,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> thirdSectionInfoEnabled
 			>> dialogsWidthRatioInt
 			>> thirdColumnWidth
-			>> thirdSectionExtendedBy;
+			>> thirdSectionExtendedBy
+			>> notifyFromAll;
 		dialogsWidthRatio = snap(dialogsWidthRatioInt / 1000000., 0., 1.);
 	}
 	if (stream.status() != QDataStream::Ok) {
@@ -331,6 +334,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (_thirdSectionInfoEnabled) {
 		_tabbedSelectorSectionEnabled = false;
 	}
+	_notifyFromAll = (notifyFromAll == 1);
 }
 
 bool Settings::chatWide() const {
@@ -462,6 +466,7 @@ void Settings::resetOnLastLogout() {
 	_thirdSectionExtendedBy = -1; // per-window
 	_dialogsWidthRatio = DefaultDialogsWidthRatio(); // per-window
 	_thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
+	_notifyFromAll = true;
 	_tabbedReplacedWithInfo = false; // per-window
 }
 

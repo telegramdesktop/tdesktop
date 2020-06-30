@@ -401,6 +401,12 @@ public:
 	void setThirdColumnWidth(int width);
 	[[nodiscard]] int thirdColumnWidth() const;
 	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
+	void setNotifyFromAll(bool value) {
+		_notifyFromAll = value;
+	}
+	[[nodiscard]] bool notifyFromAll() const {
+		return _notifyFromAll;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] float64 DefaultDialogsWidthRatio();
@@ -467,6 +473,7 @@ private:
 	int _thirdSectionExtendedBy = -1; // per-window
 	rpl::variable<float64> _dialogsWidthRatio; // per-window
 	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
+	bool _notifyFromAll = true;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

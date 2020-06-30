@@ -89,6 +89,9 @@ System::SkipState System::skipNotification(
 	const auto notifyBy = item->specialNotificationPeer();
 	if (App::quitting() || !history->currentNotification()) {
 		return { SkipState::Skip };
+	} else if (!Core::App().settings().notifyFromAll()
+		&& &history->session().account() != &Core::App().domain().active()) {
+		return { SkipState::Skip };
 	}
 	const auto scheduled = item->out() && item->isFromScheduled();
 

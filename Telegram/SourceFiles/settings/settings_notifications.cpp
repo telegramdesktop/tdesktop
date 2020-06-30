@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "main/main_domain.h"
 #include "apiwrap.h"
 #include "facades.h"
@@ -540,9 +541,49 @@ void SetupAdvancedNotifications(
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
+void SetupMultiAccountNotifications(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	if (Core::App().domain().accounts().size() < 2) {
+		return;
+	}
+	AddSubsectionTitle(container, tr::lng_settings_show_from());
+
+	const auto fromAll = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_settings_notify_all(tr::now),
+			Core::App().settings().notifyFromAll(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding);
+	fromAll->checkedChanges(
+	) | rpl::filter([](bool checked) {
+		return (checked != Core::App().settings().notifyFromAll());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setNotifyFromAll(checked);
+		Core::App().saveSettingsDelayed();
+		if (!checked) {
+			auto &notifications = Core::App().notifications();
+			const auto &list = Core::App().domain().accounts();
+			for (const auto &[index, account] : list) {
+				if (account.get() == &Core::App().domain().active()) {
+					continue;
+				} else if (const auto session = account->maybeSession()) {
+					notifications.clearFromSession(session);
+				}
+			}
+		}
+	}, fromAll->lifetime());
+
+	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_notify_all_about());
+}
+
 void SetupNotificationsContent(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
+	SetupMultiAccountNotifications(controller, container);
+
 	AddSubsectionTitle(container, tr::lng_settings_notify_title());
 
 	const auto session = &controller->session();
