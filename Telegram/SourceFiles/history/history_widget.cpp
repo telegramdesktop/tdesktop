@@ -4943,12 +4943,11 @@ void HistoryWidget::updateControlsGeometry() {
 }
 
 void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
-	if (item == _replyEditMsg) {
-		if (_editMsgId) {
-			cancelEdit();
-		} else {
-			cancelReply();
-		}
+	if (item == _replyEditMsg && _editMsgId) {
+		cancelEdit();
+	}
+	if (item == _replyEditMsg && _replyToId) {
+		cancelReply();
 	}
 	while (item == _replyReturn) {
 		calcNextReplyReturn();
