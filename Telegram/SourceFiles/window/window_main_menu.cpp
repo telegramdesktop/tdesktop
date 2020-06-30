@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
@@ -52,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -99,6 +101,7 @@ public:
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void paintUserpic(Painter &p);
 
 	const not_null<Main::Session*> _session;
@@ -106,6 +109,7 @@ private:
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	InMemoryKey _userpicKey = {};
 	QImage _userpicCache;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	Dialogs::Layout::UnreadBadgeStyle _unreadSt;
 	int _unreadBadge = 0;
@@ -265,6 +269,32 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 		_st.itemPadding.left(),
 		_st.itemPadding.top(),
 		available);
+}
+
+void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
+	if (&_session->account() == &Core::App().activeAccount() || _menu) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	_menu->addAction(tr::lng_menu_activate(tr::now), crl::guard(this, [=] {
+		Core::App().domain().activate(&_session->account());
+	}));
+	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
+		const auto session = _session;
+		const auto box = std::make_shared<QPointer<ConfirmBox>>();
+		const auto callback = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+			Core::App().logout(&session->account());
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			tr::lng_sure_logout(tr::now),
+			tr::lng_settings_logout(tr::now),
+			st::attentionBoxButton,
+			crl::guard(session, callback)));
+	}));
+	_menu->popup(QCursor::pos());
 }
 
 MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
