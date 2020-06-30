@@ -197,7 +197,9 @@ private:
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
-	Core::App().domain().notifyUnreadBadgeChanged();
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Core::App().domain().notifyUnreadBadgeChanged();
+	});
 }
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
