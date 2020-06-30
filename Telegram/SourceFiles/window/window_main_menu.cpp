@@ -799,18 +799,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 	}, button->lifetime());
 
 	const auto add = [=](MTP::Environment environment) {
-		auto &domain = Core::App().domain();
-		if (domain.accounts().size() < Main::Domain::kMaxAccounts) {
-			domain.activate(domain.add(environment));
-		} else {
-			for (auto &[index, account] : domain.accounts()) {
-				if (!account->sessionExists()
-					&& account->mtp().environment() == environment) {
-					domain.activate(account.get());
-					break;
-				}
-			}
-		}
+		Core::App().domain().addActivated(environment);
 	};
 
 	button->setAcceptBoth(true);

@@ -273,6 +273,20 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	return account;
 }
 
+void Domain::addActivated(MTP::Environment environment) {
+	if (accounts().size() < Main::Domain::kMaxAccounts) {
+		activate(add(environment));
+	} else {
+		for (auto &[index, account] : accounts()) {
+			if (!account->sessionExists()
+				&& account->mtp().environment() == environment) {
+				activate(account.get());
+				break;
+			}
+		}
+	}
+}
+
 void Domain::watchSession(not_null<Account*> account) {
 	account->sessionValue(
 	) | rpl::filter([=](Session *session) {
