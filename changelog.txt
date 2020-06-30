@@ -1,3 +1,7 @@
+2.1.16 beta (01.07.20)
+
+- Crash fix.
+
 2.1.15 beta (30.06.20)
 
 - Receive notifications only from the active account in Settings > Notifications.
