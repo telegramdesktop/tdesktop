@@ -105,15 +105,16 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 		|| e->type() == QEvent::MouseButtonPress) {
 		if(window()->isAncestorOf(static_cast<QWidget*>(obj))) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
+			const auto edges = edgesFromPos(mouseEvent->windowPos().toPoint());
 
 			if (e->type() == QEvent::MouseMove) {
-				updateCursor(mouseEvent->windowPos().toPoint());
+				updateCursor(edges);
 			}
 
 			if(e->type() == QEvent::MouseButtonPress
 				&& mouseEvent->button() == Qt::LeftButton
 				&& window()->windowState() != Qt::WindowMaximized) {
-				return startResize(mouseEvent->windowPos().toPoint());
+				return startResize(edges);
 			}
 		}
 	} else if (e->type() == QEvent::Leave) {
@@ -195,9 +196,7 @@ Qt::Edges TitleWidgetQt::edgesFromPos(const QPoint &pos) {
 	}
 }
 
-void TitleWidgetQt::updateCursor(const QPoint &pos) {
-	const auto edges = edgesFromPos(pos);
-
+void TitleWidgetQt::updateCursor(Qt::Edges edges) {
 	if (!edges || window()->windowState() == Qt::WindowMaximized) {
 		while (QGuiApplication::overrideCursor()) {
 			QGuiApplication::restoreOverrideCursor();
@@ -221,9 +220,9 @@ void TitleWidgetQt::updateCursor(const QPoint &pos) {
 	}
 }
 
-bool TitleWidgetQt::startResize(const QPoint &pos) {
+bool TitleWidgetQt::startResize(Qt::Edges edges) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto edges = edgesFromPos(pos)) {
+	if (edges) {
 		return window()->windowHandle()->startSystemResize(edges);
 	}
 #endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
