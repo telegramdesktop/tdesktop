@@ -384,7 +384,7 @@ void start() {
 
 	EncryptedDescriptor settings;
 	if (!DecryptLocal(settings, settingsEncrypted, SettingsKey)) {
-		LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode..."));
+		LOG(("App Error: could not decrypt settings from settings file..."));
 		return writeSettings();
 	}
 
@@ -422,7 +422,12 @@ void start() {
 void writeSettings() {
 	if (!_settingsWriteAllowed) {
 		_settingsRewriteNeeded = true;
-		return;
+
+		// We need to generate SettingsKey anyway,
+		// for the moveLegacyBackground to work.
+		if (SettingsKey) {
+			return;
+		}
 	}
 	if (_basePath.isEmpty()) {
 		LOG(("App Error: _basePath is empty in writeSettings()"));
@@ -442,6 +447,11 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
+	if (!_settingsWriteAllowed) {
+		EncryptedDescriptor data(0);
+		settings.writeEncrypted(data, SettingsKey);
+		return;
+	}
 	const auto configSerialized = LookupFallbackConfig().serialize();
 	const auto applicationSettings = Core::App().settings().serialize();
 
