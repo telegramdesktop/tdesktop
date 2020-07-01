@@ -41,8 +41,8 @@ private:
 	void updateControlsPosition();
 
 	Qt::Edges edgesFromPos(const QPoint &pos);
-	void updateCursor(const QPoint &pos);
-	bool startResize(const QPoint &pos);
+	void updateCursor(Qt::Edges edges);
+	bool startResize(Qt::Edges edges);
 
 	const style::WindowTitle &_st;
 	object_ptr<Ui::IconButton> _minimize;
