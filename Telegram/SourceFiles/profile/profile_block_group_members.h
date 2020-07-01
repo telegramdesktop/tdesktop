@@ -26,8 +26,8 @@ class GroupMembersWidget : public PeerListWidget {
 
 public:
 	GroupMembersWidget(
-		QWidget *parent, 
-		not_null<PeerData*> peer, 
+		QWidget *parent,
+		not_null<PeerData*> peer,
 		const style::PeerListItem &st);
 
 	int onlineCount() const {
