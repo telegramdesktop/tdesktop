@@ -20,7 +20,7 @@ int __clock_gettime_glibc_old(clockid_t clk_id, struct timespec *tp);
 __asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_" GETTIME_GLIBC_VERSION);
 
 int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
-        return __clock_gettime_glibc_old(clk_id, tp);
+	return __clock_gettime_glibc_old(clk_id, tp);
 }
 
 uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_p);

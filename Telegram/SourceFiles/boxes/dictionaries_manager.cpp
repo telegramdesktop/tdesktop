@@ -259,9 +259,9 @@ auto AddButtonWithLoader(
 		)
 	);
 
-	 *buttonState = localLoaderValues->events_starting_with(
-	 	rawGlobalLoaderPtr() ? rawGlobalLoaderPtr() : localLoader->get()
-	 ) | rpl::map([=](Loader *loader) {
+	*buttonState = localLoaderValues->events_starting_with(
+		rawGlobalLoaderPtr() ? rawGlobalLoaderPtr() : localLoader->get()
+	) | rpl::map([=](Loader *loader) {
 		return (loader && loader->id() == id)
 			? loader->state()
 			: rpl::single(

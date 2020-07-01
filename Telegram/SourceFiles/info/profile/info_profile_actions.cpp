@@ -529,7 +529,7 @@ void ActionsFiller::addClearHistoryAction(not_null<UserData*> user) {
 		_wrap,
 		tr::lng_profile_clear_history(),
 		rpl::single(true),
-		 Window::ClearHistoryHandler(user));
+		Window::ClearHistoryHandler(user));
 }
 
 void ActionsFiller::addDeleteConversationAction(

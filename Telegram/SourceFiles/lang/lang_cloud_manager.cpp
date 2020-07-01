@@ -536,7 +536,7 @@ void CloudManager::performSwitchToCustom() {
 				};
 				const auto text = tr::lng_sure_save_language(tr::now)
 					+ "\n\n"
-					 + getValue(tr::lng_sure_save_language.base);
+					+ getValue(tr::lng_sure_save_language.base);
 				const auto change = [=] {
 					_langpack.switchToCustomFile(filePath);
 					App::restart();
