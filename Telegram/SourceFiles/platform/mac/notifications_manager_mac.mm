@@ -303,6 +303,8 @@ void Manager::Private::clearingThreadLoop() {
 			_clearingTasks.clear();
 		}
 
+		@autoreleasepool {
+
 		auto clearBySpecial = [&](NSDictionary *notificationUserInfo) {
 			NSNumber *sessionObject = [notificationUserInfo objectForKey:@"session"];
 			const auto notificationSessionId = sessionObject ? [sessionObject unsignedLongLongValue] : 0;
@@ -333,6 +335,8 @@ void Manager::Private::clearingThreadLoop() {
 					[center removeDeliveredNotification:notification];
 				}
 			}
+		}
+
 		}
 	}
 }
