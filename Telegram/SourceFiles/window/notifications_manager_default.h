@@ -56,6 +56,10 @@ private:
 	friend class internal::Widget;
 	using Notification = internal::Notification;
 	using HideAllButton = internal::HideAllButton;
+	struct SessionSubscription {
+		rpl::lifetime subscription;
+		rpl::lifetime lifetime;
+	};
 
 	[[nodiscard]] QPixmap hiddenUserpicPlaceholder() const;
 
@@ -91,7 +95,7 @@ private:
 	std::vector<std::unique_ptr<Notification>> _notifications;
 	base::flat_map<
 		not_null<Main::Session*>,
-		base::Subscription> _subscriptions;
+		SessionSubscription> _subscriptions;
 
 	std::unique_ptr<HideAllButton> _hideAll;
 

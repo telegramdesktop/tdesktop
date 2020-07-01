@@ -26,7 +26,7 @@ void CloudImageView::set(
 		not_null<Main::Session*> session,
 		QImage image) {
 	_image.emplace(std::move(image));
-	session->downloaderTaskFinished().notify();
+	session->notifyDownloaderTaskFinished();
 }
 
 CloudImage::CloudImage() = default;

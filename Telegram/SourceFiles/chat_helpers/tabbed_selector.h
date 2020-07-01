@@ -276,7 +276,7 @@ private:
 
 };
 
-class TabbedSelector::InnerFooter : public TWidget {
+class TabbedSelector::InnerFooter : public Ui::RpWidget {
 public:
 	InnerFooter(QWidget *parent);
 

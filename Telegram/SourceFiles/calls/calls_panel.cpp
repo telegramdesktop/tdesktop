@@ -446,9 +446,10 @@ void Panel::initLayout() {
 	}, lifetime());
 	processUserPhoto();
 
-	subscribe(_user->session().downloaderTaskFinished(), [=] {
+	_user->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		refreshUserPhoto();
-	});
+	}, lifetime());
 	createDefaultCacheImage();
 
 	Ui::Platform::InitOnTopPanel(this);

@@ -222,8 +222,7 @@ void CloudThemes::loadDocumentAndInvoke(
 		return;
 	}
 	if (!alreadyWaiting) {
-		base::ObservableViewer(
-			_session->downloaderTaskFinished()
+		_session->downloaderTaskFinished(
 		) | rpl::filter([=, &value] {
 			return value.documentMedia->loaded();
 		}) | rpl::start_with_next([=, &value] {

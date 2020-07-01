@@ -132,7 +132,10 @@ InnerWidget::InnerWidget(
 	});
 	_cancelSearchFromUser->hide();
 
-	subscribe(session().downloaderTaskFinished(), [=] { update(); });
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 
 	subscribe(Core::App().notifications().settingsChanged(), [=](
 			Window::Notifications::ChangeType change) {

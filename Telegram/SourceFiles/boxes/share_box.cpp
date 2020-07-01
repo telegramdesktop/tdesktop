@@ -570,9 +570,10 @@ ShareBox::Inner::Inner(
 			update.oldFirstLetters);
 	}, lifetime());
 
-	subscribe(_navigation->session().downloaderTaskFinished(), [=] {
+	_navigation->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {

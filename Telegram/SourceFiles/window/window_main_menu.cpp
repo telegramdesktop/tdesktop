@@ -580,7 +580,10 @@ MainMenu::MainMenu(
 	_version->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
-	subscribe(_controller->session().downloaderTaskFinished(), [=] { update(); });
+	_controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 
 	_controller->session().changes().peerUpdates(
 		_controller->session().user(),

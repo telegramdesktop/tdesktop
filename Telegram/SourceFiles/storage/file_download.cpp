@@ -140,7 +140,7 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 		Platform::File::PostprocessDownloaded(
 			QFileInfo(_file).absoluteFilePath());
 	}
-	_session->downloaderTaskFinished().notify();
+	_session->notifyDownloaderTaskFinished();
 	_updates.fire_done();
 }
 
@@ -440,7 +440,7 @@ bool FileLoader::finalizeResult() {
 					_cacheTag));
 		}
 	}
-	_session->downloaderTaskFinished().notify();
+	_session->notifyDownloaderTaskFinished();
 	_updates.fire_done();
 	return true;
 }

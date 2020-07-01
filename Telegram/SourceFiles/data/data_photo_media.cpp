@@ -82,7 +82,7 @@ void PhotoMedia::set(PhotoSize size, QImage image) {
 			Qt::SmoothTransformation);
 	}
 	_images[index] = std::make_unique<Image>(std::move(image));
-	_owner->session().downloaderTaskFinished().notify();
+	_owner->session().notifyDownloaderTaskFinished();
 }
 
 bool PhotoMedia::loaded() const {

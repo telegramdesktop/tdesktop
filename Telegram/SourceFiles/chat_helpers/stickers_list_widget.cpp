@@ -105,9 +105,7 @@ struct StickerIcon {
 
 };
 
-class StickersListWidget::Footer
-	: public TabbedSelector::InnerFooter
-	, private base::Subscriber {
+class StickersListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
 	explicit Footer(not_null<StickersListWidget*> parent);
 
@@ -132,7 +130,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	bool event(QEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 	void processHideFinished() override;
 
@@ -249,9 +247,10 @@ StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent)
 
 	_iconsLeft = _iconsRight = st::emojiCategorySkip + st::stickerIconWidth;
 
-	subscribe(_pan->session().downloaderTaskFinished(), [=] {
+	_pan->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 }
 
 void StickersListWidget::Footer::clearHeavyData() {
@@ -600,7 +599,7 @@ void StickersListWidget::Footer::finishDragging() {
 	updateSelected();
 }
 
-bool StickersListWidget::Footer::event(QEvent *e) {
+bool StickersListWidget::Footer::eventHook(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin) {
 	} else if (e->type() == QEvent::Wheel) {
 		if (!_icons.empty()
@@ -609,7 +608,7 @@ bool StickersListWidget::Footer::event(QEvent *e) {
 			scrollByWheelEvent(static_cast<QWheelEvent*>(e));
 		}
 	}
-	return InnerFooter::event(e);
+	return InnerFooter::eventHook(e);
 }
 
 void StickersListWidget::Footer::scrollByWheelEvent(
@@ -890,12 +889,13 @@ StickersListWidget::StickersListWidget(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
-	subscribe(session().downloaderTaskFinished(), [=] {
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		if (isVisible()) {
 			update();
 			readVisibleFeatured(getVisibleTop(), getVisibleBottom());
 		}
-	});
+	}, lifetime());
 
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::StickersSet

@@ -577,6 +577,7 @@ void SetupMultiAccountNotifications(
 
 	AddSkip(container);
 	AddDividerText(container, tr::lng_settings_notify_all_about());
+	AddSkip(container);
 }
 
 void SetupNotificationsContent(

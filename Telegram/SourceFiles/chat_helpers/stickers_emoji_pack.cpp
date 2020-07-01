@@ -198,7 +198,7 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 						if (!strong->image) {
 							strong->load = nullptr;
 							strong->image.emplace(std::move(image));
-							_session->downloaderTaskFinished().notify();
+							_session->notifyDownloaderTaskFinished();
 						}
 					}
 				}

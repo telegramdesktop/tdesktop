@@ -1364,7 +1364,10 @@ void RevokePublicLinkBox::prepare() {
 
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
+	_session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 
 	_inner->resizeToWidth(st::boxWideWidth);
 	setDimensions(st::boxWideWidth, _innerTop + _inner->height());
