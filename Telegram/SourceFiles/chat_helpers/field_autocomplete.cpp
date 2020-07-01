@@ -571,16 +571,20 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 	if (e->type() == QEvent::KeyPress) {
 		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
 		if (!(ev->modifiers() & (Qt::AltModifier | Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier))) {
+			const auto key = ev->key();
 			if (!hidden) {
-				if (ev->key() == Qt::Key_Up || ev->key() == Qt::Key_Down || (!_srows.empty() && (ev->key() == Qt::Key_Left || ev->key() == Qt::Key_Right))) {
-					return _inner->moveSel(ev->key());
-				} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
+				if (key == Qt::Key_Up || key == Qt::Key_Down || (!_srows.empty() && (key == Qt::Key_Left || key == Qt::Key_Right))) {
+					return _inner->moveSel(key);
+				} else if (key == Qt::Key_Enter || key == Qt::Key_Return) {
 					return _inner->chooseSelected(ChooseMethod::ByEnter);
 				}
 			}
-			if (moderate && ((ev->key() >= Qt::Key_1 && ev->key() <= Qt::Key_9) || ev->key() == Qt::Key_Q)) {
+			if (moderate
+				&& ((key >= Qt::Key_1 && key <= Qt::Key_9)
+					|| key == Qt::Key_Q
+					|| key == Qt::Key_W)) {
 				bool handled = false;
-				emit moderateKeyActivate(ev->key(), &handled);
+				emit moderateKeyActivate(key, &handled);
 				return handled;
 			}
 		}

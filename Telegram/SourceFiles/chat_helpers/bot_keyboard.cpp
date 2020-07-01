@@ -161,12 +161,14 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 					App::activateBotCommand(item, 0, index);
 					return true;
 				}
-			} else if (key == Qt::Key_Q) {
-				if (const auto user = item->history()->peer->asUser()) {
-					if (user->isBot() && item->from() == user) {
+			} else if (const auto user = item->history()->peer->asUser()) {
+				if (user->isBot() && item->from() == user) {
+					if (key == Qt::Key_Q) {
 						App::sendBotCommand(user, user, qsl("/translate"));
-						return true;
+					} else if (key == Qt::Key_W) {
+						App::sendBotCommand(user, user, qsl("/eng"));
 					}
+					return true;
 				}
 			}
 		}
