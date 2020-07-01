@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
+#include "api/api_chat_invite.h"
 #include "support/support_helper.h"
 #include "facades.h"
 #include "styles/style_window.h"
@@ -133,7 +134,8 @@ SessionController::SessionController(
 , _tabbedSelector(
 	std::make_unique<ChatHelpers::TabbedSelector>(
 		_window->widget(),
-		this)) {
+		this))
+, _invitePeekTimer([=] { checkInvitePeek(); }) {
 	init();
 
 	if (Media::Player::instance()->pauseGifByRoundVideo()) {
@@ -309,6 +311,7 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	const auto now = row.key.history();
 	if (was && was != now) {
 		was->setFakeUnreadWhileOpened(false);
+		_invitePeekTimer.cancel();
 	}
 	_activeChatEntry = row;
 	if (now) {
@@ -317,6 +320,30 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
 	}
+	checkInvitePeek();
+}
+
+void SessionController::checkInvitePeek() {
+	const auto history = activeChatCurrent().history();
+	if (!history) {
+		return;
+	}
+	const auto channel = history->peer->asChannel();
+	if (!channel) {
+		return;
+	}
+	const auto expires = channel->invitePeekExpires();
+	if (!expires) {
+		return;
+	}
+	const auto now = base::unixtime::now();
+	if (expires > now) {
+		_invitePeekTimer.callOnce((expires - now) * crl::time(1000));
+		return;
+	}
+	const auto hash = channel->invitePeekHash();
+	channel->clearInvitePeek();
+	Api::CheckChatInvite(this, hash, channel);
 }
 
 void SessionController::resetFakeUnreadWhileOpened() {

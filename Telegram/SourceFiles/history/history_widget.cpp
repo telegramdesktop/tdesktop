@@ -2391,6 +2391,10 @@ void HistoryWidget::unreadCountUpdated() {
 
 void HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
 	if (error.type() == qstr("CHANNEL_PRIVATE")
+		&& _peer->isChannel()
+		&& _peer->asChannel()->invitePeekExpires()) {
+		_peer->asChannel()->privateErrorReceived();
+	} else if (error.type() == qstr("CHANNEL_PRIVATE")
 		|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
 		|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		auto was = _peer;

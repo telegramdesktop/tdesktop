@@ -1008,14 +1008,16 @@ void Session::setupChannelLeavingViewer() {
 		PeerUpdate::Flag::ChannelAmIn
 	) | rpl::map([](const PeerUpdate &update) {
 		return update.peer->asChannel();
-	}) | rpl::filter([](not_null<ChannelData*> channel) {
-		return !(channel->amIn());
 	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
-//		channel->clearFeed(); // #feed
-		if (const auto history = historyLoaded(channel->id)) {
-			history->removeJoinedMessage();
-			history->updateChatListExistence();
-			history->updateChatListSortPosition();
+		if (channel->amIn()) {
+			channel->clearInvitePeek();
+		} else {
+//			channel->clearFeed(); // #feed
+			if (const auto history = historyLoaded(channel->id)) {
+				history->removeJoinedMessage();
+				history->updateChatListExistence();
+				history->updateChatListSortPosition();
+			}
 		}
 	}, _lifetime);
 }

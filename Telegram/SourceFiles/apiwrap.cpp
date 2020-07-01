@@ -1645,7 +1645,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	}).fail([=](const RPCError &error) {
 		_selfParticipantRequests.erase(channel);
 		if (error.type() == qstr("CHANNEL_PRIVATE")) {
-			channel->markForbidden();
+			channel->privateErrorReceived();
 		}
 		finalize(-1, 0);
 	}).afterDelay(kSmallDelayMs).send();
@@ -1962,6 +1962,9 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			applyUpdates(result);
 		}).fail([=](const RPCError &error) {
 			if (error.type() == qstr("CHANNEL_PRIVATE")
+				&& channel->invitePeekExpires()) {
+				channel->privateErrorReceived();
+			} else if (error.type() == qstr("CHANNEL_PRIVATE")
 				|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
 				|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 				Ui::show(Box<InformBox>(channel->isMegagroup()

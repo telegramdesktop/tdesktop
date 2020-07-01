@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#include "api/api_chat_invite.h"
 #include "apiwrap.h"
 
 namespace {
@@ -630,6 +631,40 @@ void ChannelData::growSlowmodeLastMessage(TimeId when) {
 		_slowmodeLastMessage = when;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::Slowmode);
+}
+
+void ChannelData::setInvitePeek(const QString &hash, TimeId expires) {
+	if (!_invitePeek) {
+		_invitePeek = std::make_unique<InvitePeek>();
+	}
+	_invitePeek->hash = hash;
+	_invitePeek->expires = expires;
+}
+
+void ChannelData::clearInvitePeek() {
+	_invitePeek = nullptr;
+}
+
+TimeId ChannelData::invitePeekExpires() const {
+	return _invitePeek ? _invitePeek->expires : 0;
+}
+
+QString ChannelData::invitePeekHash() const {
+	return _invitePeek ? _invitePeek->hash : QString();
+}
+
+void ChannelData::privateErrorReceived() {
+	if (const auto expires = invitePeekExpires()) {
+		const auto hash = invitePeekHash();
+		for (const auto window : session().windows()) {
+			clearInvitePeek();
+			Api::CheckChatInvite(window, hash, this);
+			return;
+		}
+		_invitePeek->expires = base::unixtime::now();
+	} else {
+		markForbidden();
+	}
 }
 
 namespace Data {

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
+#include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
 
@@ -324,6 +325,8 @@ private:
 	bool chatEntryHistoryMove(int steps);
 	void resetFakeUnreadWhileOpened();
 
+	void checkInvitePeek();
+
 	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
@@ -341,6 +344,8 @@ private:
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _selectingPeer = false;
+
+	base::Timer _invitePeekTimer;
 
 	rpl::variable<FilterId> _activeChatsFilter;
 
