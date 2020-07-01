@@ -305,7 +305,11 @@ HistoryWidget::HistoryWidget(
 , _topShadow(this) {
 	setAcceptDrops(true);
 
-	subscribe(session().downloaderTaskFinished(), [=] { update(); });
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	_historyDown->addClickHandler([=] { historyDownClicked(); });
 	_unreadMentions->addClickHandler([=] { showNextUnreadMention(); });

@@ -1002,10 +1002,12 @@ Main::Session &StickersBox::Inner::session() const {
 }
 
 void StickersBox::Inner::setup() {
-	subscribe(session().downloaderTaskFinished(), [this] {
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
 		readVisibleSets();
-	});
+	}, lifetime());
+
 	setMouseTracking(true);
 }
 

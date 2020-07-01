@@ -891,9 +891,10 @@ ConfirmInviteBox::ConfirmInviteBox(
 		_photo = photo->createMediaView();
 		_photo->wanted(Data::PhotoSize::Small, Data::FileOrigin());
 		if (!_photo->image(Data::PhotoSize::Small)) {
-			subscribe(_session->downloaderTaskFinished(), [=] {
+			_session->downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
 				update();
-			});
+			}, lifetime());
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(

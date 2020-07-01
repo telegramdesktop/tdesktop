@@ -33,7 +33,11 @@ PeerListWidget::PeerListWidget(
 , _removeText(removeText)
 , _removeWidth(st::normalFont->width(_removeText)) {
 	setMouseTracking(true);
-	subscribe(peer->session().downloaderTaskFinished(), [=] { update(); });
+
+	peer->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 int PeerListWidget::resizeGetHeight(int newWidth) {

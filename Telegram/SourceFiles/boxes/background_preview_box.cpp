@@ -419,9 +419,10 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	if (_media) {
 		_media->thumbnailWanted(_paper.fileOrigin());
 	}
-	subscribe(_controller->session().downloaderTaskFinished(), [=] {
+	_controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 }
 
 not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {

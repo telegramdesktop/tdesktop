@@ -203,7 +203,10 @@ BackgroundBox::Inner::Inner(
 	}
 	requestPapers();
 
-	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
+	_session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [=](const Update &update) {
 		if (update.paletteChanged()) {

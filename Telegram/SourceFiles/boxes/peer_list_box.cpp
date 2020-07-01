@@ -662,9 +662,10 @@ PeerListContent::PeerListContent(
 , _st(st)
 , _controller(controller)
 , _rowHeight(_st.item.height) {
-	subscribe(_controller->session().downloaderTaskFinished(), [=] {
+	_controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(

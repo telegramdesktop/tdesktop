@@ -153,9 +153,10 @@ GifsListWidget::GifsListWidget(
 		refreshSavedGifs();
 	}, lifetime());
 
-	subscribe(controller->session().downloaderTaskFinished(), [this] {
+	controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 
 	subscribe(controller->gifPauseLevelChanged(), [=] {
 		if (!controller->isGifPausedAtLeastFor(

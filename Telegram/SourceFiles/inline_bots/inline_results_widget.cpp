@@ -58,9 +58,11 @@ Inner::Inner(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	subscribe(_controller->session().downloaderTaskFinished(), [this] {
+	_controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
+
 	subscribe(controller->gifPauseLevelChanged(), [this] {
 		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
 			update();

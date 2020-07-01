@@ -938,7 +938,7 @@ void TabbedSelector::Inner::panelHideFinished() {
 }
 
 TabbedSelector::InnerFooter::InnerFooter(QWidget *parent)
-: TWidget(parent) {
+: RpWidget(parent) {
 	resize(st::emojiPanWidth, st::emojiFooterHeight);
 }
 

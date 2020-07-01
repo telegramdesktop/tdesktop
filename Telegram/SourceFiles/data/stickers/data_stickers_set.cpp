@@ -34,7 +34,7 @@ void StickersSetThumbnailView::set(
 	} else {
 		_image = std::make_unique<Image>(std::move(image));
 	}
-	session->downloaderTaskFinished().notify();
+	session->notifyDownloaderTaskFinished();
 }
 
 Image *StickersSetThumbnailView::image() const {

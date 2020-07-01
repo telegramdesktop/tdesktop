@@ -36,9 +36,10 @@ MediaPreviewWidget::MediaPreviewWidget(
 , _controller(controller)
 , _emojiSize(Ui::Emoji::GetSizeLarge() / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	subscribe(_controller->session().downloaderTaskFinished(), [=] {
+	_controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		update();
-	});
+	}, lifetime());
 }
 
 QRect MediaPreviewWidget::updateArea() const {

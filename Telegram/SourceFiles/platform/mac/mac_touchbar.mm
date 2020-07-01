@@ -812,8 +812,7 @@ void AppendEmojiPacks(
 		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
 	};
 	const auto listenToDownloaderFinished = [=] {
-		base::ObservableViewer(
-			_session->downloaderTaskFinished()
+		_session->downloaderTaskFinished(
 		) | rpl::start_with_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
 				return (!pin->peer->hasUserpic())
@@ -1193,8 +1192,7 @@ void AppendEmojiPacks(
 		[self updateImage];
 		return;
 	}
-	base::ObservableViewer(
-		document->session().downloaderTaskFinished()
+	document->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		_image = _media->getStickerSmall();
 		if (_image) {

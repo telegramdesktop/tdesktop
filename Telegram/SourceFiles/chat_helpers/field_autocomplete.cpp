@@ -604,9 +604,10 @@ FieldAutocompleteInner::FieldAutocompleteInner(
 , _brows(brows)
 , _srows(srows)
 , _previewTimer([=] { showPreview(); }) {
-	subscribe(
-		controller->session().downloaderTaskFinished(),
-		[=] { update(); });
+	controller->session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {

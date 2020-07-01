@@ -121,7 +121,8 @@ public:
 		-> const base::flat_set<not_null<Window::SessionController*>> &;
 
 	// Shortcuts.
-	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
+	void notifyDownloaderTaskFinished();
+	[[nodiscard]] rpl::producer<> downloaderTaskFinished() const;
 	[[nodiscard]] MTP::DcId mainDcId() const;
 	[[nodiscard]] MTP::Instance &mtp() const;
 	[[nodiscard]] const MTP::ConfigFields &serverConfig() const;

@@ -666,8 +666,7 @@ void CloudList::subscribeToDownloadFinished() {
 	if (_downloadFinishedLifetime) {
 		return;
 	}
-	base::ObservableViewer(
-		_window->session().downloaderTaskFinished()
+	_window->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		auto &&waiting = _elements | ranges::view::filter(&Element::waiting);
 		const auto still = ranges::count_if(waiting, [&](Element &element) {

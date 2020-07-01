@@ -585,21 +585,27 @@ void ListWidget::start() {
 			invalidatePaletteCache();
 		}
 	}, lifetime());
-	ObservableViewer(
-		session().downloaderTaskFinished()
-	) | rpl::start_with_next([this] { update(); }, lifetime());
+
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
 	session().data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {
 		itemLayoutChanged(item);
 	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
 	}, lifetime());
+
 	session().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		repaintItem(item);
 	}, lifetime());
+
 	_controller->mediaSourceQueryValue(
 	) | rpl::start_with_next([this]{
 		restart();

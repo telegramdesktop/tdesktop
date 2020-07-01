@@ -639,8 +639,7 @@ void UserpicButton::setupPeerViewers() {
 		update();
 	}, lifetime());
 
-	base::ObservableViewer(
-		_peer->session().downloaderTaskFinished()
+	_peer->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
 		return _waiting;
 	}) | rpl::start_with_next([=] {

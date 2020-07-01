@@ -38,8 +38,11 @@ public:
 	void enqueue(not_null<Task*> task, int priority);
 	void remove(not_null<Task*> task);
 
-	[[nodiscard]] base::Observable<void> &taskFinished() {
-		return _taskFinishedObservable;
+	void notifyTaskFinished() {
+		_taskFinished.fire({});
+	}
+	[[nodiscard]] rpl::producer<> taskFinished() const {
+		return _taskFinished.events();
 	}
 
 	int changeRequestedAmount(MTP::DcId dcId, int index, int delta);
@@ -101,7 +104,7 @@ private:
 
 	const not_null<ApiWrap*> _api;
 
-	base::Observable<void> _taskFinishedObservable;
+	rpl::event_stream<> _taskFinished;
 
 	base::flat_map<MTP::DcId, DcBalanceData> _balanceData;
 	base::Timer _resetGenerationTimer;

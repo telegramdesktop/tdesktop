@@ -181,7 +181,11 @@ Storage::Domain &Session::domainLocal() const {
 	return _account->domainLocal();
 }
 
-base::Observable<void> &Session::downloaderTaskFinished() {
+void Session::notifyDownloaderTaskFinished() {
+	downloader().notifyTaskFinished();
+}
+
+rpl::producer<> Session::downloaderTaskFinished() const {
 	return downloader().taskFinished();
 }
 

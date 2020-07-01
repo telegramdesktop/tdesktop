@@ -291,7 +291,8 @@ EditCaptionBox::EditCaptionBox(
 	Assert(_thumbnailImageLoaded || _refreshThumbnail);
 
 	if (!_thumbnailImageLoaded) {
-		subscribe(_controller->session().downloaderTaskFinished(), [=] {
+		_controller->session().downloaderTaskFinished(
+		) | rpl::start_with_next([=] {
 			if (_thumbnailImageLoaded
 				|| (_photoMedia && !_photoMedia->image(PhotoSize::Large))
 				|| (_documentMedia && !_documentMedia->thumbnail())) {
@@ -299,7 +300,7 @@ EditCaptionBox::EditCaptionBox(
 			}
 			_refreshThumbnail();
 			update();
-		});
+		}, lifetime());
 	}
 	_field.create(
 		this,

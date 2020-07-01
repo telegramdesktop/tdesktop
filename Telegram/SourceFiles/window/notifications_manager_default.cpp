@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "storage/file_download.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
@@ -229,14 +230,16 @@ void Manager::showNextFromQueue() {
 void Manager::subscribeToSession(not_null<Main::Session*> session) {
 	auto i = _subscriptions.find(session);
 	if (i == _subscriptions.end()) {
-		i = _subscriptions.emplace(session, base::Subscription()).first;
-		session->lifetime().add([=] {
+		i = _subscriptions.emplace(session).first;
+		session->account().sessionChanges(
+		) | rpl::start_with_next([=] {
 			_subscriptions.remove(session);
-		});
-	} else if (i->second) {
+		}, i->second.lifetime);
+	} else if (i->second.subscription) {
 		return;
 	}
-	i->second = session->downloaderTaskFinished().add_subscription([=] {
+	session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
 		auto found = false;
 		for (const auto &notification : _notifications) {
 			if (const auto history = notification->maybeHistory()) {
@@ -247,9 +250,9 @@ void Manager::subscribeToSession(not_null<Main::Session*> session) {
 			}
 		}
 		if (!found) {
-			_subscriptions[session].destroy();
+			_subscriptions[session].subscription.destroy();
 		}
-	});
+	}, i->second.subscription);
 }
 
 void Manager::moveWidgets() {
