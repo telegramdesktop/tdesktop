@@ -282,6 +282,19 @@ void Launcher::init() {
 
 	prepareSettings();
 
+	static QtMessageHandler originalMessageHandler = nullptr;
+	originalMessageHandler = qInstallMessageHandler([](
+		QtMsgType type,
+		const QMessageLogContext &context,
+		const QString &msg) {
+		if (originalMessageHandler) {
+			originalMessageHandler(type, context, msg);
+		}
+		if (Logs::DebugEnabled() || !Logs::started()) {
+			LOG((msg));
+		}
+	});
+
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
