@@ -98,7 +98,6 @@ void MessagesList::addRange(
 		bool incrementCount) {
 	Expects(!count || !incrementCount);
 
-	auto wasCount = _count;
 	auto update = MessagesSliceUpdate();
 	auto result = addRangeItemsAndCountNew(
 		update,

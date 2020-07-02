@@ -52,8 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kPinnedMessageTextLimit = 16;
-
 [[nodiscard]] MTPDmessage::Flags NewForwardedFlags(
 		not_null<PeerData*> peer,
 		UserId from,

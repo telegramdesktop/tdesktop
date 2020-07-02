@@ -62,7 +62,6 @@ void SelfDestructionBox::showContent() {
 	_description->moveToLeft(st::boxPadding.left(), y);
 	y += _description->height() + st::boxMediumSkip;
 
-	const auto count = int(_ttlValues.size());
 	for (const auto value : _ttlValues) {
 		const auto button = Ui::CreateChild<Ui::Radiobutton>(
 			this,

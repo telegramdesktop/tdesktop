@@ -358,7 +358,7 @@ std::optional<int> ListWidget::scrollTopForPosition(
 	}
 	const auto index = findNearestItem(position);
 	const auto view = _items[index];
-	return scrollTopForView(_items[index]);
+	return scrollTopForView(view);
 }
 
 std::optional<int> ListWidget::scrollTopForView(
@@ -1748,11 +1748,9 @@ void ListWidget::updateDragSelection() {
 	}
 	const auto fromView = selectingUp ? overView : pressView;
 	const auto tillView = selectingUp ? pressView : overView;
-	updateDragSelection(
-		selectingUp ? overView : pressView,
-		selectingUp ? _overState : _pressState,
-		selectingUp ? pressView : overView,
-		selectingUp ? _pressState : _overState);
+	const auto fromState = selectingUp ? _overState : _pressState;
+	const auto tillState = selectingUp ? _pressState : _overState;
+	updateDragSelection(fromView, fromState, tillView, tillState);
 }
 
 void ListWidget::updateDragSelection(

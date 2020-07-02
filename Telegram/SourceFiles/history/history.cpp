@@ -375,7 +375,7 @@ bool History::updateSendActionNeedsAnimating(
 	}, [&](const MTPDsendMessageRecordVideoAction &) {
 		emplaceAction(Type::RecordVideo, kStatusShowClientsideRecordVideo);
 	}, [&](const MTPDsendMessageRecordAudioAction &) {
-		emplaceAction(Type::RecordVoice, kStatusShowClientsideRecordVideo);
+		emplaceAction(Type::RecordVoice, kStatusShowClientsideRecordVoice);
 	}, [&](const MTPDsendMessageRecordRoundAction &) {
 		emplaceAction(Type::RecordRound, kStatusShowClientsideRecordRound);
 	}, [&](const MTPDsendMessageGeoLocationAction &) {

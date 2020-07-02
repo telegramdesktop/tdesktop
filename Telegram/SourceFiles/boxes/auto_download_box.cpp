@@ -97,9 +97,6 @@ void AutoDownloadBox::setupContent() {
 	setTitle(tr::lng_profile_settings_section());
 
 	const auto settings = &_session->settings().autoDownload();
-	const auto checked = [=](Source source, Type type) {
-		return (settings->bytesLimit(source, type) > 0);
-	};
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(this);
 	const auto content = wrap.data();

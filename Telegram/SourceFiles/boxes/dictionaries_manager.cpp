@@ -388,7 +388,6 @@ void ManageDictionariesBox::setInnerFocus() {
 void ManageDictionariesBox::prepare() {
 	const auto multiSelect = CreateMultiSelect(this);
 
-	const auto session = &_controller->session();
 	const auto inner = setInnerWidget(
 		object_ptr<Inner>(
 			this,

@@ -256,8 +256,6 @@ StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent)
 void StickersListWidget::Footer::clearHeavyData() {
 	const auto count = int(_icons.size());
 	const auto iconsX = qRound(_iconsX.current());
-	const auto index = iconsX / st::stickerIconWidth;
-	const auto x = _iconsLeft - (iconsX % st::stickerIconWidth);
 	const auto first = floorclamp(iconsX, st::stickerIconWidth, 0, count);
 	const auto last = ceilclamp(
 		iconsX + width(),

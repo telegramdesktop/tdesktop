@@ -37,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kFiltersLimit = 10;
 
 using Flag = Data::ChatFilter::Flag;

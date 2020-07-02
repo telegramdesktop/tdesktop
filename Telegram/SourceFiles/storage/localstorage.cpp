@@ -106,13 +106,13 @@ bool CheckStreamStatus(QDataStream &stream) {
 [[nodiscard]] const MTP::Config &LookupFallbackConfig() {
 	static const auto lookupConfig = [](not_null<Main::Account*> account) {
 		const auto mtp = &account->mtp();
-		return (mtp->environment() == MTP::Environment::Production)
+		const auto production = MTP::Environment::Production;
+		return (mtp->environment() == production)
 			? &mtp->config()
 			: nullptr;
 	};
 	const auto &app = Core::App();
 	const auto &domain = app.domain();
-	const auto production = MTP::Environment::Production;
 	if (!domain.started()) {
 		return app.fallbackProductionConfig();
 	}
