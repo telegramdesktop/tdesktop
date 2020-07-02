@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/special_buttons.h"
+#include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
 class RPCError;
@@ -174,6 +175,8 @@ private:
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
 
+	MTP::Sender _api;
+
 	bool _dragInScroll = false;
 	bool _dragForward = false;
 	QTimer _chooseByDragTimer;
@@ -225,11 +228,11 @@ private:
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _searchRequest = 0;
 
-	QMap<QString, MTPmessages_Messages> _searchCache;
+	base::flat_map<QString, MTPmessages_Messages> _searchCache;
 	Api::SingleMessageSearch _singleMessageSearch;
-	QMap<mtpRequestId, QString> _searchQueries;
-	QMap<QString, MTPcontacts_Found> _peerSearchCache;
-	QMap<mtpRequestId, QString> _peerSearchQueries;
+	base::flat_map<mtpRequestId, QString> _searchQueries;
+	base::flat_map<QString, MTPcontacts_Found> _peerSearchCache;
+	base::flat_map<mtpRequestId, QString> _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
 

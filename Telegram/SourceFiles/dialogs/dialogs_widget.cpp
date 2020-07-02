@@ -160,7 +160,8 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 Widget::Widget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Window::AbstractSectionWidget(parent, controller)
+	: Window::AbstractSectionWidget(parent, controller)
+, _api(&controller->session().mtp())
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
 , _searchForNarrowFilters(_searchControls, st::dialogsSearchForNarrowFilters)
@@ -434,7 +435,9 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 		_searchTimer.stop();
 		_searchCache.clear();
 		_singleMessageSearch.clear();
-		_searchQueries.clear();
+		for (const auto &[requestId, query] : base::take(_searchQueries)) {
+			session().api().request(requestId).cancel();
+		}
 		_searchQuery = QString();
 		_scroll->scrollToY(0);
 		cancelSearchRequest();
@@ -769,7 +772,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 	auto q = _filter->getLastText().trimmed();
 	if (q.isEmpty() && !_searchFromUser) {
 		cancelSearchRequest();
-		session().api().request(base::take(_peerSearchRequest)).cancel();
+		_api.request(base::take(_peerSearchRequest)).cancel();
 		return true;
 	}
 	if (searchCache) {
@@ -779,8 +782,8 @@ bool Widget::onSearchMessages(bool searchCache) {
 		if (!success) {
 			return false;
 		}
-		const auto i = _searchCache.constFind(q);
-		if (i != _searchCache.cend()) {
+		const auto i = _searchCache.find(q);
+		if (i != _searchCache.end()) {
 			_searchQuery = q;
 			_searchQueryFrom = _searchFromUser;
 			_searchNextRate = 0;
@@ -790,7 +793,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 				_searchInChat
 					? SearchRequestType::PeerFromStart
 					: SearchRequestType::FromStart,
-				i.value(),
+				i->second,
 				0);
 			result = true;
 		}
@@ -834,7 +837,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 					_searchInHistoryRequest = 0;
 					finish();
 				}).send();
-				_searchQueries.insert(_searchRequest, _searchQuery);
+				_searchQueries.emplace(_searchRequest, _searchQuery);
 				return _searchRequest;
 			});
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed
@@ -851,7 +854,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 		//	}).fail([=](const RPCError &error) {
 		//		searchFailed(type, error, _searchRequest);
 		//	}).send();
-		//	_searchQueries.insert(_searchRequest, _searchQuery);
+		//	_searchQueries.emplace(_searchRequest, _searchQuery);
 		} else {
 			const auto type = SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
@@ -871,23 +874,23 @@ bool Widget::onSearchMessages(bool searchCache) {
 			}).fail([=](const RPCError &error) {
 				searchFailed(type, error, _searchRequest);
 			}).send();
-			_searchQueries.insert(_searchRequest, _searchQuery);
+			_searchQueries.emplace(_searchRequest, _searchQuery);
 		}
 	}
 	const auto query = Api::ConvertPeerSearchQuery(q);
 	if (searchForPeersRequired(query)) {
 		if (searchCache) {
-			auto i = _peerSearchCache.constFind(query);
-			if (i != _peerSearchCache.cend()) {
+			auto i = _peerSearchCache.find(query);
+			if (i != _peerSearchCache.end()) {
 				_peerSearchQuery = query;
 				_peerSearchRequest = 0;
-				peerSearchReceived(i.value(), 0);
+				peerSearchReceived(i->second, 0);
 				result = true;
 			}
 		} else if (_peerSearchQuery != query) {
 			_peerSearchQuery = query;
 			_peerSearchFull = false;
-			_peerSearchRequest = session().api().request(MTPcontacts_Search(
+			_peerSearchRequest = _api.request(MTPcontacts_Search(
 				MTP_string(_peerSearchQuery),
 				MTP_int(SearchPeopleLimit)
 			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
@@ -895,7 +898,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 			}).fail([=](const RPCError &error, mtpRequestId requestId) {
 				peopleFailed(error, requestId);
 			}).send();
-			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
+			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
 		}
 	} else {
 		_peerSearchQuery = query;
@@ -1004,7 +1007,7 @@ void Widget::onSearchMore() {
 					finish();
 				}).send();
 				if (!offsetId) {
-					_searchQueries.insert(_searchRequest, _searchQuery);
+					_searchQueries.emplace(_searchRequest, _searchQuery);
 				}
 				return _searchRequest;
 			});
@@ -1027,7 +1030,7 @@ void Widget::onSearchMore() {
 		//		searchFailed(type, error, _searchRequest);
 		//	}).send();
 		//	if (!offsetId) {
-		//		_searchQueries.insert(_searchRequest, _searchQuery);
+		//		_searchQueries.emplace(_searchRequest, _searchQuery);
 		//	}
 		} else {
 			const auto type = offsetId
@@ -1053,7 +1056,7 @@ void Widget::onSearchMore() {
 				searchFailed(type, error, _searchRequest);
 			}).send();
 			if (!offsetId) {
-				_searchQueries.insert(_searchRequest, _searchQuery);
+				_searchQueries.emplace(_searchRequest, _searchQuery);
 			}
 		}
 	} else if (_searchInMigrated && !_searchFullMigrated) {
@@ -1106,8 +1109,8 @@ void Widget::searchReceived(
 	if (state == WidgetState::Filtered) {
 		if (type == SearchRequestType::FromStart || type == SearchRequestType::PeerFromStart) {
 			auto i = _searchQueries.find(requestId);
-			if (i != _searchQueries.cend()) {
-				_searchCache[i.value()] = result;
+			if (i != _searchQueries.end()) {
+				_searchCache[i->second] = result;
 				_searchQueries.erase(i);
 			}
 		}
@@ -1215,9 +1218,8 @@ void Widget::peerSearchReceived(
 	auto q = _peerSearchQuery;
 	if (state == WidgetState::Filtered) {
 		auto i = _peerSearchQueries.find(requestId);
-		if (i != _peerSearchQueries.cend()) {
-			q = i.value();
-			_peerSearchCache[q] = result;
+		if (i != _peerSearchQueries.end()) {
+			_peerSearchCache[i->second] = result;
 			_peerSearchQueries.erase(i);
 		}
 	}
@@ -1359,7 +1361,9 @@ void Widget::applyFilterUpdate(bool force) {
 
 	if (filterText.isEmpty()) {
 		_peerSearchCache.clear();
-		_peerSearchQueries.clear();
+		for (const auto &[requestId, query] : base::take(_peerSearchQueries)) {
+			_api.request(requestId).cancel();
+		}
 		_peerSearchQuery = QString();
 	}
 
@@ -1416,7 +1420,9 @@ void Widget::setSearchInChat(Key chat, UserData *from) {
 void Widget::clearSearchCache() {
 	_searchCache.clear();
 	_singleMessageSearch.clear();
-	_searchQueries.clear();
+	for (const auto &[requestId, query] : base::take(_searchQueries)) {
+		session().api().request(requestId).cancel();
+	}
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
 	cancelSearchRequest();
@@ -1720,10 +1726,8 @@ void Widget::scrollToEntry(const RowDescriptor &entry) {
 
 void Widget::cancelSearchRequest() {
 	session().api().request(base::take(_searchRequest)).cancel();
-	if (_searchInHistoryRequest) {
-		session().data().histories().cancelRequest(_searchInHistoryRequest);
-		_searchInHistoryRequest = 0;
-	}
+	session().data().histories().cancelRequest(
+		base::take(_searchInHistoryRequest));
 }
 
 bool Widget::onCancelSearch() {
