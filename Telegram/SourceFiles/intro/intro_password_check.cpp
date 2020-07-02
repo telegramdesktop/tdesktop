@@ -187,16 +187,18 @@ void PasswordCheckWidget::requestPasswordData() {
 	).done([=](const MTPaccount_Password &result) {
 		_sentRequest = 0;
 		result.match([&](const MTPDaccount_password &data) {
-			_request = Core::ParseCloudPasswordCheckRequest(data);
+			auto request = Core::ParseCloudPasswordCheckRequest(data);
+			if (request && request.id) {
+				_request = std::move(request);
+			} else {
+				// Maybe the password was removed? Just submit it once again.
+			}
 			passwordChecked();
 		});
 	}).send();
 }
 
 void PasswordCheckWidget::passwordChecked() {
-	if (!_request || !_request.id) {
-		return serverError();
-	}
 	const auto check = Core::ComputeCloudPasswordCheck(
 		_request,
 		_passwordHash);
