@@ -1186,10 +1186,17 @@ void History::applyServiceChanges(
 				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation(); break;
 				}
 				if (smallLoc && bigLoc) {
+					const auto chatPhoto = MTP_chatPhoto(
+						MTP_flags(photo->hasVideo()
+							? MTPDchatPhoto::Flag::f_has_video
+							: MTPDchatPhoto::Flag(0)),
+						*smallLoc,
+						*bigLoc,
+						data.vdc_id());
 					if (const auto chat = peer->asChat()) {
-						chat->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id()));
+						chat->setPhoto(photo->id, chatPhoto);
 					} else if (const auto channel = peer->asChannel()) {
-						channel->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id()));
+						channel->setPhoto(photo->id, chatPhoto);
 					}
 					peer->loadUserpic();
 				}

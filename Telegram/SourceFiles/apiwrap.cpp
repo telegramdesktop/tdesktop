@@ -4877,7 +4877,10 @@ void ApiWrap::photoUploadReady(
 		};
 		if (peer->isSelf()) {
 			request(MTPphotos_UploadProfilePhoto(
-				file
+				MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file),
+				file,
+				MTPInputFile(), // video
+				MTPdouble() // video_start_ts
 			)).done([=](const MTPphotos_Photo &result) {
 				result.match([&](const MTPDphotos_photo &data) {
 					_session->data().processPhoto(data.vphoto());
@@ -4888,13 +4891,21 @@ void ApiWrap::photoUploadReady(
 			const auto history = _session->data().history(chat);
 			history->sendRequestId = request(MTPmessages_EditChatPhoto(
 				chat->inputChat,
-				MTP_inputChatUploadedPhoto(file)
+				MTP_inputChatUploadedPhoto(
+					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
+					file,
+					MTPInputFile(), // video
+					MTPdouble()) // video_start_ts
 			)).done(applier).afterRequest(history->sendRequestId).send();
 		} else if (const auto channel = peer->asChannel()) {
 			const auto history = _session->data().history(channel);
 			history->sendRequestId = request(MTPchannels_EditPhoto(
 				channel->inputChannel,
-				MTP_inputChatUploadedPhoto(file)
+				MTP_inputChatUploadedPhoto(
+					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
+					file,
+					MTPInputFile(), // video
+					MTPdouble()) // video_start_ts
 			)).done(applier).afterRequest(history->sendRequestId).send();
 		}
 	}

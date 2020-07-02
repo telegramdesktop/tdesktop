@@ -74,7 +74,7 @@ inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> s
 inputMediaDice#e66fbf7b emoticon:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
-inputChatUploadedPhoto#927c55b4 file:InputFile = InputChatPhoto;
+inputChatUploadedPhoto#c642724e flags:# file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double = InputChatPhoto;
 inputChatPhoto#8953ad37 id:InputPhoto = InputChatPhoto;
 
 inputGeoPointEmpty#e4c123d6 = InputGeoPoint;
@@ -112,7 +112,7 @@ userEmpty#200250ba id:int = User;
 user#938458c1 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true scam:flags.24?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?Vector<RestrictionReason> bot_inline_placeholder:flags.19?string lang_code:flags.22?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
-userProfilePhoto#ecd75d8c photo_id:long photo_small:FileLocation photo_big:FileLocation dc_id:int = UserProfilePhoto;
+userProfilePhoto#69d3ab26 flags:# has_video:flags.0?true photo_id:long photo_small:FileLocation photo_big:FileLocation dc_id:int = UserProfilePhoto;
 
 userStatusEmpty#9d05049 = UserStatus;
 userStatusOnline#edb93949 expires:int = UserStatus;
@@ -138,7 +138,7 @@ chatParticipantsForbidden#fc900c2b flags:# chat_id:int self_participant:flags.0?
 chatParticipants#3f460fed chat_id:int participants:Vector<ChatParticipant> version:int = ChatParticipants;
 
 chatPhotoEmpty#37c1011c = ChatPhoto;
-chatPhoto#475cdbd5 photo_small:FileLocation photo_big:FileLocation dc_id:int = ChatPhoto;
+chatPhoto#d20b9f3c flags:# has_video:flags.0?true photo_small:FileLocation photo_big:FileLocation dc_id:int = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
 message#452c0e65 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true from_scheduled:flags.18?true legacy:flags.19?true edit_hide:flags.21?true id:int from_id:flags.8?int to_id:Peer fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int edit_date:flags.15?int post_author:flags.16?string grouped_id:flags.17?long restriction_reason:flags.22?Vector<RestrictionReason> = Message;
@@ -186,7 +186,7 @@ dialog#2c171f72 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer t
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
-photo#d07504a5 flags:# has_stickers:flags.0?true id:long access_hash:long file_reference:bytes date:int sizes:Vector<PhotoSize> dc_id:int = Photo;
+photo#fb197a65 flags:# has_stickers:flags.0?true id:long access_hash:long file_reference:bytes date:int sizes:Vector<PhotoSize> video_sizes:flags.1?Vector<VideoSize> dc_id:int = Photo;
 
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
@@ -212,7 +212,7 @@ inputPeerNotifySettings#9c3d198e flags:# show_previews:flags.0?Bool silent:flags
 
 peerNotifySettings#af509d20 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?string = PeerNotifySettings;
 
-peerSettings#818426cd flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true = PeerSettings;
+peerSettings#733f2961 flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true geo_distance:flags.6?int = PeerSettings;
 
 wallPaper#a437c3ed id:long flags:# creator:flags.0?true default:flags.1?true pattern:flags.3?true dark:flags.4?true access_hash:long slug:string document:Document settings:flags.2?WallPaperSettings = WallPaper;
 wallPaperNoFile#8af40b25 flags:# default:flags.1?true dark:flags.4?true settings:flags.2?WallPaperSettings = WallPaper;
@@ -357,6 +357,7 @@ updateDialogFilter#26ffde7d flags:# id:int filter:flags.0?DialogFilter = Update;
 updateDialogFilterOrder#a5d72105 order:Vector<int> = Update;
 updateDialogFilters#3504914f = Update;
 updatePhoneCallSignalingData#2661bf09 phone_call_id:long data:bytes = Update;
+updateChannelParticipant#65d2b464 flags:# channel_id:int date:int user_id:int prev_participant:flags.0?ChannelParticipant new_participant:flags.1?ChannelParticipant qts:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -394,7 +395,7 @@ help.inviteText#18cb9f78 message:string = help.InviteText;
 
 encryptedChatEmpty#ab7ec0a0 id:int = EncryptedChat;
 encryptedChatWaiting#3bf703dc id:int access_hash:long date:int admin_id:int participant_id:int = EncryptedChat;
-encryptedChatRequested#c878527e id:int access_hash:long date:int admin_id:int participant_id:int g_a:bytes = EncryptedChat;
+encryptedChatRequested#62718a82 flags:# folder_id:flags.0?int id:int access_hash:long date:int admin_id:int participant_id:int g_a:bytes = EncryptedChat;
 encryptedChat#fa56ce36 id:int access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long = EncryptedChat;
 encryptedChatDiscarded#13d6dd27 id:int = EncryptedChat;
 
@@ -1136,7 +1137,17 @@ stats.broadcastStats#bdf78394 period:StatsDateRangeDays followers:StatsAbsValueA
 help.promoDataEmpty#98f6ac75 expires:int = help.PromoData;
 help.promoData#8c39793f flags:# proxy:flags.0?true expires:int peer:Peer chats:Vector<Chat> users:Vector<User> psa_type:flags.1?string psa_message:flags.2?string = help.PromoData;
 
-videoSize#435bb987 type:string location:FileLocation w:int h:int size:int = VideoSize;
+videoSize#e831c556 flags:# type:string location:FileLocation w:int h:int size:int video_start_ts:flags.0?double = VideoSize;
+
+statsGroupTopPoster#18f3d0f7 user_id:int messages:int avg_chars:int = StatsGroupTopPoster;
+
+statsGroupTopAdmin#6014f412 user_id:int deleted:int kicked:int banned:int = StatsGroupTopAdmin;
+
+statsGroupTopInviter#31962a4c user_id:int invitations:int = StatsGroupTopInviter;
+
+stats.megagroupStats#ef7ff916 period:StatsDateRangeDays members:StatsAbsValueAndPrev messages:StatsAbsValueAndPrev viewers:StatsAbsValueAndPrev posters:StatsAbsValueAndPrev growth_graph:StatsGraph members_graph:StatsGraph new_members_by_source_graph:StatsGraph languages_graph:StatsGraph messages_graph:StatsGraph actions_graph:StatsGraph top_hours_graph:StatsGraph weekdays_graph:StatsGraph top_posters:Vector<StatsGroupTopPoster> top_admins:Vector<StatsGroupTopAdmin> top_inviters:Vector<StatsGroupTopInviter> users:Vector<User> = stats.MegagroupStats;
+
+globalPrivacySettings#bea2f424 flags:# archive_and_mute_new_noncontact_peers:flags.0?Bool = GlobalPrivacySettings;
 
 ---functions---
 
@@ -1232,6 +1243,8 @@ account.getThemes#285946f8 format:string hash:int = account.Themes;
 account.setContentSettings#b574b16b flags:# sensitive_enabled:flags.0?true = Bool;
 account.getContentSettings#8b9b4dae = account.ContentSettings;
 account.getMultiWallPapers#65ad71dc wallpapers:Vector<InputWallPaper> = Vector<WallPaper>;
+account.getGlobalPrivacySettings#eb2b4cf6 = GlobalPrivacySettings;
+account.setGlobalPrivacySettings#1edaaac2 settings:GlobalPrivacySettings = GlobalPrivacySettings;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
@@ -1386,7 +1399,7 @@ updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:
 updates.getChannelDifference#3173d78 flags:# force:flags.0?true channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
 
 photos.updateProfilePhoto#f0bb5152 id:InputPhoto = UserProfilePhoto;
-photos.uploadProfilePhoto#4f32c098 file:InputFile = photos.Photo;
+photos.uploadProfilePhoto#89f30f69 flags:# file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double = photos.Photo;
 photos.deletePhotos#87cf7f2f id:Vector<InputPhoto> = Vector<long>;
 photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int = photos.Photos;
 
@@ -1419,6 +1432,7 @@ help.getUserInfo#38a08d3 user_id:InputUser = help.UserInfo;
 help.editUserInfo#66b91b70 user_id:InputUser message:string entities:Vector<MessageEntity> = help.UserInfo;
 help.getPromoData#c0977421 = help.PromoData;
 help.hidePromoData#1e251c95 peer:InputPeer = Bool;
+help.dismissSuggestion#77fa99f suggestion:string = Bool;
 
 channels.readHistory#cc104937 channel:InputChannel max_id:int = Bool;
 channels.deleteMessages#84c1fd4e channel:InputChannel id:Vector<int> = messages.AffectedMessages;
@@ -1495,5 +1509,6 @@ folders.deleteFolder#1c295881 folder_id:int = Updates;
 
 stats.getBroadcastStats#ab42441a flags:# dark:flags.0?true channel:InputChannel = stats.BroadcastStats;
 stats.loadAsyncGraph#621d5fa0 flags:# token:string x:flags.0?long = StatsGraph;
+stats.getMegagroupStats#dcdf8607 flags:# dark:flags.0?true channel:InputChannel = stats.MegagroupStats;
 
-// LAYER 115
+// LAYER 116

@@ -222,6 +222,7 @@ SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 		MTP_bytes(),
 		MTP_int(base::unixtime::now()),
 		MTP_vector<MTPPhotoSize>(photoSizes),
+		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId));
 
 	QString file, filename;
@@ -882,6 +883,7 @@ void FileLoadTask::process() {
 					MTP_bytes(),
 					MTP_int(base::unixtime::now()),
 					MTP_vector<MTPPhotoSize>(photoSizes),
+					MTPVector<MTPVideoSize>(),
 					MTP_int(_dcId));
 
 				if (filesize < 0) {
