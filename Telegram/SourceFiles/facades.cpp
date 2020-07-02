@@ -229,6 +229,7 @@ void showPeerProfile(not_null<PeerData*> peer) {
 		if (const auto controller = window->sessionController()) {
 			if (&controller->session() == &peer->session()) {
 				controller->showPeerInfo(peer);
+				return;
 			}
 		}
 		if (&Core::App().domain().active() != &peer->session().account()) {
