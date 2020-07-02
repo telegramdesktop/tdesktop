@@ -23,36 +23,43 @@ std::map<int, const char*> BetaLogs() {
 	return {
 	{
 		1009020,
-		"\xE2\x80\xA2 Fix crash in shared links search.\n"
+		"- Fix crash in shared links search.\n"
 
-		"\xE2\x80\xA2 Fix blurred thumbnails in albums with video files.\n"
+		"- Fix blurred thumbnails in albums with video files.\n"
 
-		"\xE2\x80\xA2 Fix a possible crash in animated stickers rendering."
+		"- Fix a possible crash in animated stickers rendering."
 	},
 	{
 		1009022,
-		"\xE2\x80\xA2 Organize chats into Chat Folders "
-		"if you have too many chats.\n"
+		"- Organize chats into Chat Folders if you have too many chats.\n"
 	},
 	{
 		2000001,
-		"\xE2\x80\xA2 Switch between folders using Ctrl+1, ..., Ctrl+8.\n"
+		"- Switch between folders using Ctrl+1, ..., Ctrl+8.\n"
 
-		"\xE2\x80\xA2 Fix crash when a pinned in folder chat "
-		"was added to archive.\n"
+		"- Fix crash when a pinned in folder chat was added to archive.\n"
 
-		"\xE2\x80\xA2 Fix font issues in Linux version."
+		"- Fix font issues in Linux version."
 	},
 	{
 		2001008,
-		"\xE2\x80\xA2 Add support for full group message history export.\n"
+		"- Add support for full group message history export.\n"
 
-		"\xE2\x80\xA2 Allow export of a single chat message history "
-		"in JSON format."
+		"- Allow export of a single chat message history in JSON format."
 	},
 	{
 		2001014,
-		"\xE2\x80\xA2 Support for multiple accounts."
+		"- Support for multiple accounts."
+	},
+	{
+		2001017,
+		"- Fix messages editing in a non-active account.\n"
+
+		"- Fix large animated emoji messages editing.\n"
+
+		"- Fix high definition GIF animations opening in media viewer.\n"
+
+		"- Multiple crash fixes."
 	}
 	};
 };
@@ -161,10 +168,18 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 	if (_oldVersion >= changeVersion) {
 		return;
 	}
+	const auto text = [&] {
+		static const auto simple = u"\n- "_q;
+		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
+		auto result = QString::fromUtf8(changes).trimmed();
+		if (result.startsWith(simple.midRef(1))) {
+			result = separator.midRef(1) + result.midRef(simple.size() - 1);
+		}
+		return result.replace(simple, separator);
+	}();
 	const auto version = FormatVersionDisplay(changeVersion);
-	const auto text = qsl("New in version %1:\n\n").arg(version)
-		+ QString::fromUtf8(changes).trimmed();
-	addLocalLog(text);
+	const auto log = qsl("New in version %1:\n\n").arg(version) + text;
+	addLocalLog(log);
 }
 
 } // namespace Core
