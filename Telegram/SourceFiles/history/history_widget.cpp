@@ -502,15 +502,6 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	session().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
-		// While HistoryInner doesn't own item views we must refresh them
-		// even if the list is not yet created / was destroyed.
-		if (!_list) {
-			item->refreshMainView();
-		}
-	}, lifetime());
-
 	Core::App().settings().largeEmojiChanges(
 	) | rpl::start_with_next([=] {
 		crl::on_main(this, [=] {
