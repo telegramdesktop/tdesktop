@@ -71,7 +71,7 @@ Sticker::Sticker(
 		_data->loadThumbnail(parent->data()->fullId());
 	}
 	if (const auto media = replacing ? replacing->media() : nullptr) {
-		_lottie = media->stickerTakeLottie();
+		_lottie = media->stickerTakeLottie(_data, _replacements);
 		if (_lottie) {
 			lottieCreated();
 		}
@@ -341,8 +341,12 @@ void Sticker::unloadLottie() {
 	_parent->checkHeavyPart();
 }
 
-std::unique_ptr< Lottie::SinglePlayer> Sticker::stickerTakeLottie() {
-	return std::move(_lottie);
+std::unique_ptr<Lottie::SinglePlayer> Sticker::stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return (data == _data && replacements == _replacements)
+		? std::move(_lottie)
+		: nullptr;
 }
 
 } // namespace HistoryView

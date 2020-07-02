@@ -172,7 +172,9 @@ PointState Media::pointState(QPoint point) const {
 		: PointState::Outside;
 }
 
-std::unique_ptr<Lottie::SinglePlayer> Media::stickerTakeLottie() {
+std::unique_ptr<Lottie::SinglePlayer> Media::stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
 	return nullptr;
 }
 
