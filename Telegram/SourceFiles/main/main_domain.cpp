@@ -270,6 +270,13 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	_local->startAdded(account, std::move(config));
 	watchSession(account);
 	_accountsChanges.fire({});
+
+	auto &settings = Core::App().settings();
+	if (_accounts.size() == 2 && !settings.mainMenuAccountsShown()) {
+		settings.setMainMenuAccountsShown(true);
+		Core::App().saveSettingsDelayed();
+	}
+
 	return account;
 }
 

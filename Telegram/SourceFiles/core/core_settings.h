@@ -464,7 +464,7 @@ private:
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
-	rpl::variable<bool> _mainMenuAccountsShown = false;
+	rpl::variable<bool> _mainMenuAccountsShown = true;
 	bool _tabbedSelectorSectionEnabled = false; // per-window
 	Window::Column _floatPlayerColumn; // per-window
 	RectPart _floatPlayerCorner; // per-window
