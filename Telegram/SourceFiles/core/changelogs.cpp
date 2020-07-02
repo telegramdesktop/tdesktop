@@ -173,7 +173,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		static const auto separator = QString::fromUtf8("\n\xE2\x80\xA2 ");
 		auto result = QString::fromUtf8(changes).trimmed();
 		if (result.startsWith(simple.midRef(1))) {
-			result = separator.midRef(1) + result.midRef(simple.size() - 1);
+			result = separator.mid(1) + result.mid(simple.size() - 1);
 		}
 		return result.replace(simple, separator);
 	}();
