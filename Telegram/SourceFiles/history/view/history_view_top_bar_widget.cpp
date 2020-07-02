@@ -536,6 +536,9 @@ void TopBarWidget::updateSearchVisibility() {
 }
 
 void TopBarWidget::updateControlsGeometry() {
+	if (!_activeChat) {
+		return;
+	}
 	auto hasSelected = (_selectedCount > 0);
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
@@ -615,7 +618,9 @@ void TopBarWidget::setAnimatingMode(bool enabled) {
 }
 
 void TopBarWidget::updateControlsVisibility() {
-	if (_animatingMode) {
+	if (!_activeChat) {
+		return;
+	} else if (_animatingMode) {
 		hideChildren();
 		return;
 	}
@@ -660,14 +665,12 @@ void TopBarWidget::updateControlsVisibility() {
 
 void TopBarWidget::updateMembersShowArea() {
 	const auto membersShowAreaNeeded = [&] {
-		auto peer = _controller->content()->peer();
+		const auto peer = _activeChat.peer();
 		if ((_selectedCount > 0) || !peer) {
 			return false;
-		}
-		if (auto chat = peer->asChat()) {
+		} else if (const auto chat = peer->asChat()) {
 			return chat->amIn();
-		}
-		if (auto megagroup = peer->asMegagroup()) {
+		} else if (const auto megagroup = peer->asMegagroup()) {
 			return megagroup->canViewMembers()
 				&& (megagroup->membersCount()
 					< megagroup->session().serverConfig().chatSizeMax);
