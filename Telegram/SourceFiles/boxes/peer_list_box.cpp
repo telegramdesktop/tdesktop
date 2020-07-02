@@ -1299,7 +1299,6 @@ crl::time PeerListContent::paintRow(
 			p.drawTextLeft(_st.item.statusPosition.x(), _st.item.statusPosition.y(), width(), highlightedPart);
 		} else {
 			grayedPart = st::contactsStatusFont->elided(grayedPart, availableWidth - highlightedWidth);
-			auto grayedWidth = st::contactsStatusFont->width(grayedPart);
 			p.setPen(_st.item.statusFgActive);
 			p.drawTextLeft(_st.item.statusPosition.x(), _st.item.statusPosition.y(), width(), highlightedPart);
 			p.setPen(selected ? _st.item.statusFgOver : _st.item.statusFg);

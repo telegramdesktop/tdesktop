@@ -33,7 +33,6 @@ template <typename DataType, typename UpdateType>
 void Changes::Manager<DataType, UpdateType>::sendRealtimeNotifications(
 		not_null<DataType*> data,
 		Flags flags) {
-	auto clearRealtime = false;
 	for (auto i = 0; i != kCount; ++i) {
 		const auto flag = static_cast<Flag>(1U << i);
 		if (flags & flag) {

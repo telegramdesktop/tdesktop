@@ -349,7 +349,7 @@ void DownloadManagerMtproto::removeSession(MTP::DcId dcId) {
 
 	// Make sure we don't send anything to that session while redirecting.
 	session.requested += kMaxWaitedInSession * kMaxSessionsCount;
-	_queues[dcId].removeSession(index);
+	queue.removeSession(index);
 	Assert(session.requested == kMaxWaitedInSession * kMaxSessionsCount);
 
 	dc.sessions.pop_back();

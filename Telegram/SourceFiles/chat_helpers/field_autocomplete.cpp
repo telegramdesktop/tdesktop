@@ -620,8 +620,6 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	if (r != rect()) p.setClipRect(r);
 
-	auto atwidth = st::mentionFont->width('@');
-	auto hashwidth = st::mentionFont->width('#');
 	auto mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	auto mentionwidth = width()
 		- mentionleft

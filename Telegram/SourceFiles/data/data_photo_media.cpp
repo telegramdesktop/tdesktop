@@ -99,7 +99,6 @@ float64 PhotoMedia::progress() const {
 void PhotoMedia::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
-	const auto index = PhotoSizeIndex(PhotoSize::Large);
 	if (!item || loaded() || _owner->cancelled()) {
 		return;
 	}

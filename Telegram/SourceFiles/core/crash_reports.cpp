@@ -65,8 +65,6 @@ AnnotationRefs ProcessAnnotationRefs;
 QString ReportPath;
 FILE *ReportFile = nullptr;
 int ReportFileNo = 0;
-char LaunchedDateTimeStr[32] = { 0 };
-char LaunchedBinaryName[256] = { 0 };
 
 void SafeWriteChar(char ch) {
 	fwrite(&ch, 1, 1, ReportFile);

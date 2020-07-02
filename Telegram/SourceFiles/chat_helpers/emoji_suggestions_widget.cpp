@@ -698,9 +698,6 @@ QString SuggestionsController::getEmojiQuery() {
 		cursor.movePosition(QTextCursor::End);
 		return cursor.position();
 	}();
-	const auto is = [&](QLatin1String string) {
-		return (text.compare(string, Qt::CaseInsensitive) == 0);
-	};
 	if (!_options.suggestExactFirstWord
 		|| !length
 		|| text[0].isSpace()

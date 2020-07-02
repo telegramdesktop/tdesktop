@@ -1415,7 +1415,6 @@ auto ProxiesBoxController::views() const -> rpl::producer<ItemView> {
 }
 
 void ProxiesBoxController::updateView(const Item &item) {
-	const auto ping = 0;
 	const auto selected = (Global::SelectedProxy() == item.data);
 	const auto deleted = item.deleted;
 	const auto type = [&] {

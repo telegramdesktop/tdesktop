@@ -122,8 +122,6 @@ void CalendarBox::Context::applyMonth(const QDate &month, bool forced) {
 	_daysCount = month.daysInMonth();
 	_daysShift = daysShiftForMonth(month);
 	_rowsCount = rowsCountForMonth(month);
-	auto yearIndex = month.year();
-	auto monthIndex = month.month();
 	_highlightedIndex = month.daysTo(_highlighted);
 	_minDayIndex = _min.isNull() ? INT_MIN : month.daysTo(_min);
 	_maxDayIndex = _max.isNull() ? INT_MAX : month.daysTo(_max);
@@ -302,7 +300,6 @@ int CalendarBox::Inner::rowsTop() const {
 
 void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 	p.setFont(st::calendarDaysFont);
-	auto ms = crl::now();
 	auto y = rowsTop();
 	auto index = -_context->daysShift();
 	auto highlightedIndex = _context->highlightedIndex();
