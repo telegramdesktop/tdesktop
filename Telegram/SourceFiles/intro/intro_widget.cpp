@@ -725,6 +725,9 @@ void Widget::paintEvent(QPaintEvent *e) {
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
+	if (_stepHistory.empty()) {
+		return;
+	}
 	for (const auto step : _stepHistory) {
 		step->setGeometry(rect());
 	}
