@@ -1,3 +1,10 @@
+2.1.17 beta (02.07.20)
+
+- Fix messages editing in a non-active account.
+- Fix large animated emoji messages editing.
+- Fix high definition GIF animations opening in media viewer.
+- Multiple crash fixes.
+
 2.1.16 beta (01.07.20)
 
 - Crash fix.

@@ -458,7 +458,7 @@ void Settings::resetOnLastLogout() {
 	//_videoPipGeometry = QByteArray();
 	_dictionariesEnabled = std::vector<int>();
 	_autoDownloadDictionaries = true;
-	_mainMenuAccountsShown = false;
+	_mainMenuAccountsShown = true;
 	_tabbedSelectorSectionEnabled = false; // per-window
 	_floatPlayerColumn = Window::Column::Second; // per-window
 	_floatPlayerCorner = RectPart::TopRight; // per-window
