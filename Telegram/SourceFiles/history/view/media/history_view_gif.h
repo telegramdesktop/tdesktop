@@ -110,6 +110,8 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
+	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
+
 private:
 	struct Streamed;
 
