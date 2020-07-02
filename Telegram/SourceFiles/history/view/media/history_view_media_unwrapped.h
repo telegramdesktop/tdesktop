@@ -34,7 +34,9 @@ public:
 		}
 		virtual void stickerClearLoopPlayed() {
 		}
-		virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie();
+		virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+			not_null<DocumentData*> data,
+			const Lottie::ColorReplacements *replacements);
 		virtual bool hasHeavyPart() const {
 			return false;
 		}
@@ -85,7 +87,9 @@ public:
 	void stickerClearLoopPlayed() override {
 		_content->stickerClearLoopPlayed();
 	}
-	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie() override;
+	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
 
 	bool hasHeavyPart() const override {
 		return _content->hasHeavyPart();

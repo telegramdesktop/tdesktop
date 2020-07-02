@@ -30,14 +30,6 @@ extern f_SetDllDirectory SetDllDirectory;
 
 void start();
 
-template <typename Function>
-bool load(HINSTANCE library, LPCSTR name, Function &func) {
-	if (!library) return false;
-
-	func = reinterpret_cast<Function>(GetProcAddress(library, name));
-	return (func != nullptr);
-}
-
 // UXTHEME.DLL
 using f_SetWindowTheme = HRESULT(FAR STDAPICALLTYPE*)(
 	HWND hWnd,

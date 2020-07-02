@@ -50,11 +50,6 @@ int gifMaxStatusWidth(DocumentData *document) {
 	return result;
 }
 
-[[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
-	const auto dimensions = document->dimensions;
-	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
-}
-
 } // namespace
 
 struct Gif::Streamed {
@@ -107,6 +102,11 @@ Gif::~Gif() {
 		}
 		_parent->checkHeavyPart();
 	}
+}
+
+bool Gif::CanPlayInline(not_null<DocumentData*> document) {
+	const auto dimensions = document->dimensions;
+	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
 }
 
 QSize Gif::sizeForAspectRatio() const {

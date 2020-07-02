@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/media/history_view_gif.h"
 #include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
 #include "boxes/confirm_box.h"
@@ -340,7 +341,9 @@ void DocumentOpenClickHandler::Open(
 			|| data->isVideoMessage()) {
 			const auto msgId = context ? context->fullId() : FullMsgId();
 			Media::Player::instance()->playPause({ data, msgId });
-		} else if (context && data->isAnimation()) {
+		} else if (context
+			&& data->isAnimation()
+			&& HistoryView::Gif::CanPlayInline(data)) {
 			data->owner().requestAnimationPlayInline(context);
 		} else {
 			Core::App().showDocument(data, context);

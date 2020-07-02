@@ -50,7 +50,9 @@ public:
 	void stickerClearLoopPlayed() override {
 		_lottieOncePlayed = false;
 	}
-	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie() override;
+	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

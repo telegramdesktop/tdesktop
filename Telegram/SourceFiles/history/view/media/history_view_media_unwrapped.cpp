@@ -26,7 +26,9 @@ constexpr auto kMaxForwardedBarLines = 4;
 
 } // namespace
 
-auto UnwrappedMedia::Content::stickerTakeLottie()
+auto UnwrappedMedia::Content::stickerTakeLottie(
+	not_null<DocumentData*> data,
+	const Lottie::ColorReplacements *replacements)
 -> std::unique_ptr<Lottie::SinglePlayer> {
 	return nullptr;
 }
@@ -383,8 +385,10 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie() {
-	return _content->stickerTakeLottie();
+std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return _content->stickerTakeLottie(data, replacements);
 }
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {

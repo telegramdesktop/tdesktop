@@ -20,6 +20,6 @@ __asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_" GETTIME_GLIBC_V
 
 
 int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
-        return __clock_gettime_glibc_old(clk_id, tp);
+	return __clock_gettime_glibc_old(clk_id, tp);
 }
 

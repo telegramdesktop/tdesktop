@@ -26,6 +26,7 @@ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 
 namespace Lottie {
 class SinglePlayer;
+struct ColorReplacements;
 } // namespace Lottie
 
 namespace HistoryView {
@@ -145,7 +146,9 @@ public:
 	}
 	virtual void stickerClearLoopPlayed() {
 	}
-	virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie();
+	virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements);
 	virtual void checkAnimation() {
 	}
 

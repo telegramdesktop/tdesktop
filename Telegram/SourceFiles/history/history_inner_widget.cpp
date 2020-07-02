@@ -178,10 +178,6 @@ HistoryInner::HistoryInner(
 	) | rpl::start_with_next(
 		[this](auto view) { viewRemoved(view); },
 		lifetime());
-	session().data().itemViewRefreshRequest(
-	) | rpl::start_with_next(
-		[this](auto item) { refreshView(item); },
-		lifetime());
 	rpl::merge(
 		session().data().historyUnloaded(),
 		session().data().historyCleared()
@@ -1316,32 +1312,15 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 }
 
 void HistoryInner::viewRemoved(not_null<const Element*> view) {
-	if (_dragSelFrom == view) {
-		_dragSelFrom = nullptr;
-	}
-	if (_dragSelTo == view) {
-		_dragSelTo = nullptr;
-	}
-	if (_scrollDateLastItem == view) {
-		_scrollDateLastItem = nullptr;
-	}
-}
-
-void HistoryInner::refreshView(not_null<HistoryItem*> item) {
-	const auto dragSelFrom = (_dragSelFrom && _dragSelFrom->data() == item);
-	const auto dragSelTo = (_dragSelTo && _dragSelTo->data() == item);
-	const auto scrollDateLastItem = (_scrollDateLastItem
-		&& _scrollDateLastItem->data() == item);
-	item->refreshMainView();
-	if (dragSelFrom) {
-		_dragSelFrom = item->mainView();
-	}
-	if (dragSelTo) {
-		_dragSelTo = item->mainView();
-	}
-	if (scrollDateLastItem) {
-		_scrollDateLastItem = item->mainView();
-	}
+	const auto refresh = [&](auto &saved) {
+		if (saved == view) {
+			const auto now = view->data()->mainView();
+			saved = (now && now != view) ? now : nullptr;
+		}
+	};
+	refresh(_dragSelFrom);
+	refresh(_dragSelTo);
+	refresh(_scrollDateLastItem);
 }
 
 void HistoryInner::mouseActionFinish(

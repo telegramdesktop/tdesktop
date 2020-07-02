@@ -239,7 +239,6 @@ private:
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void viewRemoved(not_null<const Element*> view);
-	void refreshView(not_null<HistoryItem*> item);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();

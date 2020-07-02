@@ -1283,7 +1283,8 @@ rpl::producer<not_null<ViewElement*>> Session::viewResizeRequest() const {
 
 void Session::requestItemViewRefresh(not_null<HistoryItem*> item) {
 	if (const auto view = item->mainView()) {
-		view->setPendingResize();
+		notifyHistoryChangeDelayed(item->history());
+		view->refreshInBlock();
 	}
 	_itemViewRefreshRequest.fire_copy(item);
 }
