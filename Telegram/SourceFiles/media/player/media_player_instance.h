@@ -47,7 +47,7 @@ void SaveLastPlaybackPosition(
 	not_null<DocumentData*> document,
 	const TrackState &state);
 
-Instance *instance();
+not_null<Instance*> instance();
 
 class Instance : private base::Subscriber {
 public:

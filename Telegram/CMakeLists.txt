@@ -891,6 +891,8 @@ PRIVATE
     platform/mac/specific_mac_p.h
     platform/mac/window_title_mac.mm
     platform/mac/window_title_mac.h
+    platform/mac/touchbar/mac_touchbar_audio.h
+    platform/mac/touchbar/mac_touchbar_audio.mm
     platform/mac/touchbar/mac_touchbar_common.h
     platform/mac/touchbar/mac_touchbar_common.mm
     platform/win/audio_win.cpp

@@ -388,7 +388,7 @@ rpl::producer<> Media::Player::Instance::playlistChanges(
 	return data->playlistChanges.events();
 }
 
-Instance *instance() {
+not_null<Instance*> instance() {
 	Expects(SingleInstance != nullptr);
 	return SingleInstance;
 }
