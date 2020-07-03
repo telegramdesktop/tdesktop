@@ -21,11 +21,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "data/data_user.h"
+#include "data/data_streaming.h"
+#include "data/data_file_origin.h"
 #include "history/history.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_document.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -582,7 +588,7 @@ void UserpicButton::setClickHandlerByRole() {
 		break;
 
 	case Role::OpenPhoto:
-		addClickHandler([this] {
+		addClickHandler([=] {
 			openPeerPhoto();
 		});
 		break;
@@ -674,7 +680,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
 			p.setOpacity(_a_appearance.value(1.));
 		}
-		p.drawPixmapLeft(photoPosition, width(), _userpic);
+		paintUserpicFrame(p, photoPosition);
 	}
 
 	if (_role == Role::ChangePhoto) {
@@ -754,6 +760,27 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
+	checkStreamedIsStarted();
+	if (_streamed
+		&& _streamed->player().ready()
+		&& !_streamed->player().videoSize().isEmpty()) {
+		const auto paused = _controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::RoundPlaying);
+		auto request = Media::Streaming::FrameRequest();
+		auto size = QSize{ _st.photoSize, _st.photoSize };
+		request.outer = size * cIntRetinaFactor();
+		request.resize = size * cIntRetinaFactor();
+		request.radius = ImageRoundRadius::Ellipse;
+		p.drawImage(QRect(photoPosition, size), _streamed->frame(request));
+		if (!paused) {
+			_streamed->markFrameShown();
+		}
+	} else {
+		p.drawPixmapLeft(photoPosition, width(), _userpic);
+	}
+}
+
 QPoint UserpicButton::countPhotoPosition() const {
 	auto photoLeft = (_st.photoPosition.x() < 0)
 		? (width() - _st.photoSize) / 2
@@ -790,6 +817,7 @@ void UserpicButton::processPeerPhoto() {
 		}
 		_canOpenPhoto = (_peer->userpicPhotoId() != 0);
 		updateCursor();
+		updateVideo();
 	}
 }
 
@@ -799,6 +827,109 @@ void UserpicButton::updateCursor() {
 	auto pointer = _canOpenPhoto
 		|| (_changeOverlayEnabled && _cursorInChangeOverlay);
 	setPointerCursor(pointer);
+}
+
+bool UserpicButton::createStreamingObjects(not_null<PhotoData*> photo) {
+	Expects(_peer != nullptr);
+
+	using namespace Media::Streaming;
+
+	const auto origin = _peer->isUser()
+		? Data::FileOriginUserPhoto(_peer->asUser()->bareId(), photo->id)
+		: Data::FileOrigin(Data::FileOriginPeerPhoto(_peer->id));
+	_streamed = std::make_unique<Instance>(
+		photo->owner().streaming().sharedDocument(photo, origin),
+		[=] { update(); });
+	_streamed->player().updates(
+	) | rpl::start_with_next_error([=](Update &&update) {
+		handleStreamingUpdate(std::move(update));
+	}, [=](Error &&error) {
+		handleStreamingError(std::move(error));
+	}, _streamed->lifetime());
+	if (_streamed->ready()) {
+		streamingReady(base::duplicate(_streamed->info()));
+	}
+	if (!_streamed->valid()) {
+		clearStreaming();
+		return false;
+	}
+	return true;
+}
+
+void UserpicButton::clearStreaming() {
+	_streamed = nullptr;
+	_streamedPhoto = nullptr;
+}
+
+void UserpicButton::handleStreamingUpdate(Media::Streaming::Update &&update) {
+	using namespace Media::Streaming;
+
+	update.data.match([&](Information &update) {
+		streamingReady(std::move(update));
+	}, [&](const PreloadedVideo &update) {
+	}, [&](const UpdateVideo &update) {
+		this->update();
+	}, [&](const PreloadedAudio &update) {
+	}, [&](const UpdateAudio &update) {
+	}, [&](const WaitingForData &update) {
+	}, [&](MutedByOther) {
+	}, [&](Finished) {
+	});
+}
+
+void UserpicButton::handleStreamingError(Media::Streaming::Error &&error) {
+	Expects(_peer != nullptr);
+
+	_streamedPhoto->setVideoPlaybackFailed();
+	_streamedPhoto = nullptr;
+	_streamed = nullptr;
+}
+
+void UserpicButton::streamingReady(Media::Streaming::Information &&info) {
+	update();
+}
+
+void UserpicButton::updateVideo() {
+	Expects(_role == Role::OpenPhoto);
+
+	using namespace Media::Streaming;
+
+	const auto id = _peer->userpicPhotoId();
+	if (!id) {
+		clearStreaming();
+		return;
+	}
+	const auto photo = _peer->owner().photo(id);
+	if (!photo->date || !photo->videoCanBePlayed()) {
+		clearStreaming();
+		return;
+	} else if (_streamed && _streamedPhoto == photo) {
+		return;
+	}
+	if (!createStreamingObjects(photo)) {
+		photo->setVideoPlaybackFailed();
+		return;
+	}
+	_streamedPhoto = photo;
+	checkStreamedIsStarted();
+}
+
+void UserpicButton::checkStreamedIsStarted() {
+	Expects(!_streamed || _streamedPhoto);
+
+	if (!_streamed) {
+		return;
+	} else if (_streamed->paused()) {
+		_streamed->resume();
+	}
+	if (_streamed && !_streamed->active() && !_streamed->failed()) {
+		const auto position = _streamedPhoto->videoStartPosition();
+		auto options = Media::Streaming::PlaybackOptions();
+		options.position = position;
+		options.mode = Media::Streaming::Mode::Video;
+		options.loop = true;
+		_streamed->play(options);
+	}
 }
 
 void UserpicButton::mouseMoveEvent(QMouseEvent *e) {
