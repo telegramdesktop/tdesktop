@@ -1667,6 +1667,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							Ui::Toast::Show(tr::lng_share_done(tr::now));
 						});
 					});
+					if (item->originalText().text != "") {
+						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg_no_fwd"), [=] {
+							const auto api = &item->history()->peer->session().api();
+							auto message = ApiWrap::MessageToSend(_history);
+							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
+							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+							api->sendMessage(std::move(message));
+						});
+					}
 				}
 				if (item->canDelete()) {
 					_menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
@@ -1816,6 +1825,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							Ui::Toast::Show(tr::lng_share_done(tr::now));
 						});
 					});
+					if (item->originalText().text != "") {
+						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg_no_fwd"), [=] {
+							const auto api = &item->history()->peer->session().api();
+							auto message = ApiWrap::MessageToSend(_history);
+							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
+							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+							api->sendMessage(std::move(message));
+						});
+					}
 				}
 				if (canDelete) {
 					_menu->addAction((msg && msg->uploading()) ? tr::lng_context_cancel_upload(tr::now) : tr::lng_context_delete_msg(tr::now), [=] {
