@@ -14,6 +14,12 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Media {
+namespace Streaming {
+class Loader;
+} // namespace Streaming
+} // namespace Media
+
 namespace Data {
 
 class Session;
@@ -83,7 +89,8 @@ public:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video);
+		const ImageWithLocation &video,
+		crl::time videoStartTime);
 	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
@@ -118,6 +125,20 @@ public:
 	void loadVideo(Data::FileOrigin origin);
 	[[nodiscard]] const ImageLocation &videoLocation() const;
 	[[nodiscard]] int videoByteSize() const;
+	[[nodiscard]] crl::time videoStartPosition() const {
+		return _videoStartTime;
+	}
+	void setVideoPlaybackFailed() {
+		_videoPlaybackFailed = true;
+	}
+	[[nodiscard]] bool videoPlaybackFailed() const {
+		return _videoPlaybackFailed;
+	}
+	[[nodiscard]] bool videoCanBePlayed() const;
+	[[nodiscard]] auto createStreamingLoader(
+		Data::FileOrigin origin,
+		bool forceRemoteLoader) const
+	-> std::unique_ptr<Media::Streaming::Loader>;
 
 	// For now they return size of the 'large' image.
 	int width() const;
@@ -136,6 +157,8 @@ private:
 	QByteArray _inlineThumbnailBytes;
 	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
 	Data::CloudFile _video;
+	crl::time _videoStartTime = 0;
+	bool _videoPlaybackFailed = false;
 
 	int32 _dc = 0;
 	uint64 _access = 0;

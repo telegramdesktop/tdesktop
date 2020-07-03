@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_streaming.h"
 
+#include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
@@ -19,16 +20,16 @@ namespace {
 
 constexpr auto kKeepAliveTimeout = 5 * crl::time(1000);
 
-template <typename Object>
+template <typename Object, typename Data>
 bool PruneDestroyedAndSet(
 		base::flat_map<
-			not_null<DocumentData*>,
+			not_null<Data*>,
 			std::weak_ptr<Object>> &objects,
-		not_null<DocumentData*> document,
+		not_null<Data*> data,
 		const std::shared_ptr<Object> &object) {
 	auto result = false;
 	for (auto i = begin(objects); i != end(objects);) {
-		if (i->first == document) {
+		if (i->first == data) {
 			(i++)->second = object;
 			result = true;
 		} else if (i->second.lock() != nullptr) {
@@ -49,54 +50,87 @@ Streaming::Streaming(not_null<Session*> owner)
 
 Streaming::~Streaming() = default;
 
-std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
-		not_null<DocumentData*> document,
+
+template <typename Data>
+[[nodiscard]] std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
+		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
+		not_null<Data*> data,
 		FileOrigin origin,
 		bool forceRemoteLoader) {
-	const auto i = _readers.find(document);
-	if (i != end(_readers)) {
+	const auto i = readers.find(data);
+	if (i != end(readers)) {
 		if (auto result = i->second.lock()) {
 			if (!forceRemoteLoader || result->isRemoteLoader()) {
 				return result;
 			}
 		}
 	}
-	auto loader = document->createStreamingLoader(origin, forceRemoteLoader);
+	auto loader = data->createStreamingLoader(origin, forceRemoteLoader);
 	if (!loader) {
 		return nullptr;
 	}
 	auto result = std::make_shared<Reader>(
 		std::move(loader),
 		&_owner->cacheBigFile());
-	if (!PruneDestroyedAndSet(_readers, document, result)) {
-		_readers.emplace_or_assign(document, result);
+	if (!PruneDestroyedAndSet(readers, data, result)) {
+		readers.emplace_or_assign(data, result);
 	}
 	return result;
+
+}
+
+template <typename Data>
+[[nodiscard]] std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
+		base::flat_map<not_null<Data*>, std::weak_ptr<Document>> &documents,
+		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
+		not_null<Data*> data,
+		FileOrigin origin) {
+	const auto i = documents.find(data);
+	if (i != end(documents)) {
+		if (auto result = i->second.lock()) {
+			return result;
+		}
+	}
+	auto reader = sharedReader(readers, data, origin);
+	if (!reader) {
+		return nullptr;
+	}
+	auto result = std::make_shared<Document>(data, std::move(reader));
+	if (!PruneDestroyedAndSet(documents, data, result)) {
+		documents.emplace_or_assign(data, result);
+	}
+	return result;
+}
+
+std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
+		not_null<DocumentData*> document,
+		FileOrigin origin,
+		bool forceRemoteLoader) {
+	return sharedReader(_fileReaders, document, origin, forceRemoteLoader);
 }
 
 std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
 		not_null<DocumentData*> document,
 		FileOrigin origin) {
-	const auto i = _documents.find(document);
-	if (i != end(_documents)) {
-		if (auto result = i->second.lock()) {
-			return result;
-		}
-	}
-	auto reader = sharedReader(document, origin);
-	if (!reader) {
-		return nullptr;
-	}
-	auto result = std::make_shared<Document>(document, std::move(reader));
-	if (!PruneDestroyedAndSet(_documents, document, result)) {
-		_documents.emplace_or_assign(document, result);
-	}
-	return result;
+	return sharedDocument(_fileDocuments, _fileReaders, document, origin);
+}
+
+std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
+		not_null<PhotoData*> photo,
+		FileOrigin origin,
+		bool forceRemoteLoader) {
+	return sharedReader(_photoReaders, photo, origin, forceRemoteLoader);
+}
+
+std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
+		not_null<PhotoData*> photo,
+		FileOrigin origin) {
+	return sharedDocument(_photoDocuments, _photoReaders, photo, origin);
 }
 
 void Streaming::keepAlive(not_null<DocumentData*> document) {
-	const auto i = _documents.find(document);
-	if (i == end(_documents)) {
+	const auto i = _fileDocuments.find(document);
+	if (i == end(_fileDocuments)) {
 		return;
 	}
 	auto shared = i->second.lock();

@@ -404,7 +404,8 @@ public:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video);
+		const ImageWithLocation &video,
+		crl::time videoStartTime);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
@@ -673,7 +674,8 @@ private:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video);
+		const ImageWithLocation &video,
+		crl::time videoStartTime);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,

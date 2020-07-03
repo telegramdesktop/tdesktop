@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_reader.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_photo.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
@@ -34,19 +35,29 @@ constexpr auto kGoodThumbnailQuality = 87;
 Document::Document(
 	not_null<DocumentData*> document,
 	std::shared_ptr<Reader> reader)
-: Document(std::move(reader), document) {
+: Document(std::move(reader), document, nullptr) {
 	_player.fullInCache(
 	) | rpl::start_with_next([=](bool fullInCache) {
 		_document->setLoadedInMediaCache(fullInCache);
 	}, _player.lifetime());
 }
 
-Document::Document(std::unique_ptr<Loader> loader)
-: Document(std::make_shared<Reader>(std::move(loader)), nullptr) {
+Document::Document(
+	not_null<PhotoData*> photo,
+	std::shared_ptr<Reader> reader)
+: Document(std::move(reader), nullptr, photo) {
 }
 
-Document::Document(std::shared_ptr<Reader> reader, DocumentData *document)
+Document::Document(std::unique_ptr<Loader> loader)
+: Document(std::make_shared<Reader>(std::move(loader)), nullptr, nullptr) {
+}
+
+Document::Document(
+	std::shared_ptr<Reader> reader,
+	DocumentData *document,
+	PhotoData *photo)
 : _document(document)
+, _photo(photo)
 , _player(std::move(reader))
 , _radial(
 		[=] { waitingCallback(); },
@@ -70,10 +81,6 @@ const Player &Document::player() const {
 const Information &Document::info() const {
 	return _info;
 }
-
-//not_null<DocumentData*> Document::data() const {
-//	return _document;
-//}
 
 void Document::play(const PlaybackOptions &options) {
 	_player.play(options);
@@ -159,6 +166,10 @@ void Document::handleError(Error &&error) {
 			_document->setNotSupportsStreaming();
 		} else if (error == Error::OpenFailed) {
 			_document->setInappPlaybackFailed();
+		}
+	} else if (_photo) {
+		if (error == Error::NotStreamable || error == Error::OpenFailed) {
+			_photo->setVideoPlaybackFailed();
 		}
 	}
 	waitingChange(false);

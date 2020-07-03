@@ -51,8 +51,8 @@ ImageWithLocation FromPhotoSize(
 						data.vtype())) },
 				data.vw().v,
 				data.vh().v),
+			.bytes = bytes,
 			.bytesCount = bytes.size(),
-			.bytes = bytes
 		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();
@@ -69,8 +69,8 @@ ImageWithLocation FromPhotoSize(
 		//				data.vtype())) },
 		//		width, // ???
 		//		height), // ???
+		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
-		//	.bytes = bytes
 		//};
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
@@ -110,8 +110,8 @@ ImageWithLocation FromPhotoSize(
 						data.vtype())) },
 				data.vw().v,
 				data.vh().v),
+			.bytes = bytes,
 			.bytesCount = bytes.size(),
-			.bytes = bytes
 		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();
@@ -128,8 +128,8 @@ ImageWithLocation FromPhotoSize(
 		//				data.vtype())) },
 		//		width, // ???
 		//		height), // ???
+		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
-		//	.bytes = bytes
 		//};
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
@@ -172,8 +172,8 @@ ImageWithLocation FromPhotoSize(
 						location.vlocal_id())) },
 				data.vw().v,
 				data.vh().v),
+			.bytes = bytes,
 			.bytesCount = bytes.size(),
-			.bytes = bytes
 		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();
@@ -190,8 +190,8 @@ ImageWithLocation FromPhotoSize(
 		//				data.vtype())) },
 		//		width, // ???
 		//		height), // ???
+		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
-		//	.bytes = bytes
 		//};
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
@@ -212,9 +212,9 @@ ImageWithLocation FromImageInMemory(
 			DownloadLocation{ InMemoryLocation{ bytes } },
 			image.width(),
 			image.height()),
-		.bytesCount = bytes.size(),
 		.bytes = bytes,
-		.preloaded = image
+		.preloaded = image,
+		.bytesCount = bytes.size(),
 	};
 }
 
@@ -263,7 +263,7 @@ ImageWithLocation FromVideoSize(
 						data.vtype())) },
 				data.vw().v,
 				data.vh().v),
-			.bytesCount = data.vsize().v
+			.bytesCount = data.vsize().v,
 		};
 	});
 }
@@ -285,7 +285,7 @@ ImageWithLocation FromVideoSize(
 						data.vtype())) },
 				data.vw().v,
 				data.vh().v),
-			.bytesCount = data.vsize().v
+			.bytesCount = data.vsize().v,
 		};
 	});
 }

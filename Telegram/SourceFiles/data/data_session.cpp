@@ -190,6 +190,14 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	return FindInlineThumbnail(data.vsizes().v);
 }
 
+[[nodiscard]] int VideoStartTime(const MTPDvideoSize &data) {
+	return int(
+		std::clamp(
+			std::floor(data.vvideo_start_ts().value_or_empty() * 1000),
+			0.,
+			double(std::numeric_limits<int>::max())));
+}
+
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -2158,7 +2166,8 @@ not_null<PhotoData*> Session::processPhoto(
 			small,
 			thumbnail,
 			large,
-			ImageWithLocation{});
+			ImageWithLocation{},
+			crl::time(0));
 	}, [&](const MTPDphotoEmpty &data) {
 		return photo(data.vid().v);
 	});
@@ -2175,7 +2184,8 @@ not_null<PhotoData*> Session::photo(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video) {
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	const auto result = photo(id);
 	photoApplyFields(
 		result,
@@ -2188,7 +2198,8 @@ not_null<PhotoData*> Session::photo(
 		small,
 		thumbnail,
 		large,
-		video);
+		video,
+		videoStartTime);
 	return result;
 }
 
@@ -2237,7 +2248,8 @@ PhotoData *Session::photoFromWeb(
 		ImageWithLocation{},
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = large },
-		ImageWithLocation{});
+		ImageWithLocation{},
+		crl::time(0));
 }
 
 void Session::photoApplyFields(
@@ -2275,24 +2287,24 @@ void Session::photoApplyFields(
 			? ImageWithLocation()
 			: Images::FromPhotoSize(_session, data, *i);
 	};
-	const auto video = [&] {
+	const auto findVideoSize = [&]() -> std::optional<MTPVideoSize> {
 		const auto sizes = data.vvideo_sizes();
 		if (!sizes || sizes->v.isEmpty()) {
-			return ImageWithLocation();
+			return std::nullopt;
 		}
 		const auto area = [](const MTPVideoSize &size) {
 			return size.match([](const MTPDvideoSize &data) {
 				return data.vw().v * data.vh().v;
 			});
 		};
-		const auto max = ranges::max_element(
+		return *ranges::max_element(
 			sizes->v,
 			std::greater<>(),
 			area);
-		return Images::FromVideoSize(_session, data, *max);
 	};
 	const auto large = image(LargeLevels);
 	if (large.location.valid()) {
+		const auto video = findVideoSize();
 		photoApplyFields(
 			photo,
 			data.vaccess_hash().v,
@@ -2304,7 +2316,13 @@ void Session::photoApplyFields(
 			image(SmallLevels),
 			image(ThumbnailLevels),
 			large,
-			video());
+			(video
+				? Images::FromVideoSize(_session, data, *video)
+				: ImageWithLocation()),
+			(video
+				? VideoStartTime(
+					*video->match([](const auto &data) { return &data; }))
+				: 0));
 	}
 }
 
@@ -2319,7 +2337,8 @@ void Session::photoApplyFields(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video) {
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	if (!date) {
 		return;
 	}
@@ -2331,7 +2350,8 @@ void Session::photoApplyFields(
 		small,
 		thumbnail,
 		large,
-		video);
+		video,
+		videoStartTime);
 }
 
 not_null<DocumentData*> Session::document(DocumentId id) {

@@ -21,6 +21,8 @@ namespace {
 
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
+constexpr auto kPhotoBaseCacheTag = 0x0000000000020000ULL;
+constexpr auto kPhotoBaseCacheMask = 0x000000000000FF00ULL;
 constexpr auto kSerializeTypeShift = quint8(0x08);
 constexpr auto kNonStorageLocationToken = quint8(0x10);
 const auto kInMediaCacheLocation = QString("*media_cache*");
@@ -405,9 +407,6 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 }
 
 Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
-	// Skip '1' and '2' for legacy document cache keys.
-	const auto shifted = ((uint64(_type) + 3) << 8);
-	const auto sliced = uint64(_dcId) & 0xFFULL;
 	switch (_type) {
 	case Type::Document: {
 		const auto high = kDocumentBaseCacheTag
@@ -425,6 +424,18 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 			| ((uint64(_dcId) & 0xFFULL) << 8)
 			| (_volumeId >> 56);
 		const auto low = (_volumeId << 8);
+
+		Ensures((low & 0xFFULL) == 0);
+		return Storage::Cache::Key{ high, low };
+	}
+
+	case Type::Photo: {
+		const auto high = kPhotoBaseCacheTag
+			| ((uint64(_dcId) << 16) & kPhotoBaseCacheMask)
+			| (_id >> 48);
+		const auto low = (_id << 16);
+
+		Ensures((low & 0xFFULL) == 0);
 		return Storage::Cache::Key{ high, low };
 	}
 
@@ -432,7 +443,6 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 	case Type::PeerPhoto:
 	case Type::Encrypted:
 	case Type::Secure:
-	case Type::Photo:
 	case Type::Takeout:
 		Unexpected("Not implemented file location type.");
 

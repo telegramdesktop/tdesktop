@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "media/streaming/media_streaming_loader_local.h"
+#include "media/streaming/media_streaming_loader_mtproto.h"
 #include "mainwidget.h"
 #include "storage/file_download.h"
 #include "core/application.h"
@@ -296,7 +298,8 @@ void PhotoData::updateImages(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video) {
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
@@ -318,6 +321,9 @@ void PhotoData::updateImages(
 	update(PhotoSize::Thumbnail, thumbnail);
 	update(PhotoSize::Large, large);
 
+	if (video.location.valid()) {
+		_videoStartTime = videoStartTime;
+	}
 	Data::UpdateCloudFile(
 		_video,
 		video,
@@ -376,6 +382,32 @@ const ImageLocation &PhotoData::videoLocation() const {
 
 int PhotoData::videoByteSize() const {
 	return _video.byteSize;
+}
+
+bool PhotoData::videoCanBePlayed() const {
+	return hasVideo() && !videoPlaybackFailed();
+}
+
+auto PhotoData::createStreamingLoader(
+	Data::FileOrigin origin,
+	bool forceRemoteLoader) const
+-> std::unique_ptr<Media::Streaming::Loader> {
+	if (!hasVideo()) {
+		return nullptr;
+	}
+	if (!forceRemoteLoader) {
+		const auto media = activeMediaView();
+		if (media && !media->videoContent().isEmpty()) {
+			return Media::Streaming::MakeBytesLoader(media->videoContent());
+		}
+	}
+	return videoLocation().file().data.is<StorageFileLocation>()
+		? std::make_unique<Media::Streaming::LoaderMtproto>(
+			&session().downloader(),
+			videoLocation().file().data.get_unchecked<StorageFileLocation>(),
+			videoByteSize(),
+			origin)
+		: nullptr;
 }
 
 PhotoClickHandler::PhotoClickHandler(

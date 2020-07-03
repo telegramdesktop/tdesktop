@@ -283,7 +283,7 @@ private:
 	void refreshClipControllerGeometry();
 	void refreshCaptionGeometry();
 
-	[[nodiscard]] bool initStreaming(bool continueStreaming = false);
+	bool initStreaming(bool continueStreaming = false);
 	void startStreamingPlayer();
 	void initStreamingThumbnail();
 	void streamingReady(Streaming::Information &&info);
@@ -346,7 +346,7 @@ private:
 	void applyVideoSize();
 	[[nodiscard]] bool videoShown() const;
 	[[nodiscard]] QSize videoSize() const;
-	[[nodiscard]] bool videoIsGifv() const;
+	[[nodiscard]] bool videoIsGifOrUserpic() const;
 	[[nodiscard]] QImage videoFrame() const;
 	[[nodiscard]] QImage videoFrameForDirectPaint() const;
 	[[nodiscard]] QImage transformVideoFrame(QImage frame) const;
@@ -356,6 +356,7 @@ private:
 	void paintTransformedVideoFrame(Painter &p);
 	void paintTransformedStaticContent(Painter &p);
 	void clearStreaming(bool savePosition = true);
+	bool canInitStreaming() const;
 
 	QBrush _transparentBrush;
 
