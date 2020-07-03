@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
+#include "api/api_sensitive_content.h"
+#include "api/api_global_privacy.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
@@ -373,6 +375,8 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	// If we load this in advance it won't jump when we open its' section.
 	controller->session().api().reloadPasswordState();
 	controller->session().api().reloadContactSignupSilent();
+	controller->session().api().sensitiveContent().reload();
+	controller->session().api().globalPrivacy().reload();
 	controller->session().data().cloudThemes().refresh();
 }
 

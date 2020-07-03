@@ -67,6 +67,10 @@ rpl::producer<> AppConfig::refreshed() const {
 	return _refreshed.events();
 }
 
+rpl::producer<> AppConfig::value() const {
+	return _refreshed.events_starting_with({});
+}
+
 template <typename Extractor>
 auto AppConfig::getValue(const QString &key, Extractor &&extractor) const {
 	const auto i = _data.find(key);
@@ -124,6 +128,31 @@ std::vector<QString> AppConfig::getStringArray(
 			return std::move(fallback);
 		});
 	});
+}
+
+bool AppConfig::suggestionCurrent(const QString &key) const {
+	return !_dismissedSuggestions.contains(key)
+		&& ranges::contains(
+			get<std::vector<QString>>(
+				u"pending_suggestions"_q,
+				std::vector<QString>()),
+			key);
+}
+
+rpl::producer<> AppConfig::suggestionRequested(const QString &key) const {
+	return value(
+	) | rpl::filter([=] {
+		return suggestionCurrent(key);
+	});
+}
+
+void AppConfig::dismissSuggestion(const QString &key) {
+	if (!_dismissedSuggestions.emplace(key).second) {
+		return;
+	}
+	_api->request(MTPhelp_DismissSuggestion(
+		MTP_string(key)
+	)).send();
 }
 
 } // namespace Main

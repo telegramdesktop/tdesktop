@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_global_privacy.h"
 #include "api/api_updates.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -186,7 +187,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _topPromotionTimer([=] { refreshTopPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
-, _sensitiveContent(std::make_unique<Api::SensitiveContent>(this)) {
+, _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
+, _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -5239,6 +5241,10 @@ Api::SelfDestruct &ApiWrap::selfDestruct() {
 
 Api::SensitiveContent &ApiWrap::sensitiveContent() {
 	return *_sensitiveContent;
+}
+
+Api::GlobalPrivacy &ApiWrap::globalPrivacy() {
+	return *_globalPrivacy;
 }
 
 void ApiWrap::createPoll(

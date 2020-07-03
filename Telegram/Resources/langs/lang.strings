@@ -424,6 +424,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_password_title" = "Two-step verification";
 "lng_settings_sessions_title" = "Active sessions";
+"lng_settings_new_unknown" = "New chats from unknown users";
+"lng_settings_auto_archive" = "Archive and Mute";
+"lng_settings_auto_archive_about" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
 "lng_settings_destroy_title" = "Delete my account";
 "lng_settings_network_proxy" = "Network and proxy";
 "lng_settings_version_info" = "Version and updates";
