@@ -891,6 +891,8 @@ PRIVATE
     platform/mac/specific_mac_p.h
     platform/mac/window_title_mac.mm
     platform/mac/window_title_mac.h
+    platform/mac/touchbar/items/mac_pinned_chats_item.h
+    platform/mac/touchbar/items/mac_pinned_chats_item.mm
     platform/mac/touchbar/mac_touchbar_audio.h
     platform/mac/touchbar/mac_touchbar_audio.mm
     platform/mac/touchbar/mac_touchbar_common.h
