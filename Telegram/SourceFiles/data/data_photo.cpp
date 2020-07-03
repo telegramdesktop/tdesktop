@@ -39,6 +39,7 @@ PhotoData::~PhotoData() {
 	for (auto &image : _images) {
 		base::take(image.loader).reset();
 	}
+	base::take(_video.loader).reset();
 }
 
 Data::Session &PhotoData::owner() const {
@@ -294,7 +295,8 @@ void PhotoData::updateImages(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
@@ -315,6 +317,13 @@ void PhotoData::updateImages(
 	update(PhotoSize::Small, small);
 	update(PhotoSize::Thumbnail, thumbnail);
 	update(PhotoSize::Large, large);
+
+	Data::UpdateCloudFile(
+		_video,
+		video,
+		owner().cache(),
+		Data::kAnimationCacheTag,
+		[&](Data::FileOrigin origin) { loadVideo(origin); });
 }
 
 int PhotoData::width() const {
@@ -323,6 +332,50 @@ int PhotoData::width() const {
 
 int PhotoData::height() const {
 	return _images[PhotoSizeIndex(PhotoSize::Large)].location.height();
+}
+
+bool PhotoData::hasVideo() const {
+	return _video.location.valid();
+}
+
+bool PhotoData::videoLoading() const {
+	return _video.loader != nullptr;
+}
+
+bool PhotoData::videoFailed() const {
+	return (_video.flags & Data::CloudFile::Flag::Failed);
+}
+
+void PhotoData::loadVideo(Data::FileOrigin origin) {
+	const auto autoLoading = false;
+	const auto finalCheck = [=] {
+		if (const auto active = activeMediaView()) {
+			return active->videoContent().isEmpty();
+		}
+		return true;
+	};
+	const auto done = [=](QByteArray result) {
+		if (const auto active = activeMediaView()) {
+			active->setVideo(std::move(result));
+		}
+	};
+	Data::LoadCloudFile(
+		&session(),
+		_video,
+		origin,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kAnimationCacheTag,
+		finalCheck,
+		done);
+}
+
+const ImageLocation &PhotoData::videoLocation() const {
+	return _video.location;
+}
+
+int PhotoData::videoByteSize() const {
+	return _video.byteSize;
 }
 
 PhotoClickHandler::PhotoClickHandler(

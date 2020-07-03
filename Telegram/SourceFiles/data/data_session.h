@@ -403,7 +403,8 @@ public:
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large);
+		const ImageWithLocation &large,
+		const ImageWithLocation &video);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
@@ -671,7 +672,8 @@ private:
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large);
+		const ImageWithLocation &large,
+		const ImageWithLocation &video);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,

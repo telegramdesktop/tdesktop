@@ -31,6 +31,10 @@ namespace Images {
 	not_null<Main::Session*> session,
 	const MTPDdocument &document,
 	const MTPVideoSize &size);
+[[nodiscard]] ImageWithLocation FromVideoSize(
+	not_null<Main::Session*> session,
+	const MTPDphoto &photo,
+	const MTPVideoSize &size);
 [[nodiscard]] ImageWithLocation FromImageInMemory(
 	const QImage &image,
 	const char *format);

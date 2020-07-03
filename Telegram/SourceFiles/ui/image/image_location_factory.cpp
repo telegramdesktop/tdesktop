@@ -268,4 +268,26 @@ ImageWithLocation FromVideoSize(
 	});
 }
 
+ImageWithLocation FromVideoSize(
+		not_null<Main::Session*> session,
+		const MTPDphoto &photo,
+		const MTPVideoSize &size) {
+	return size.match([&](const MTPDvideoSize &data) {
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					photo.vdc_id().v,
+					session->userId(),
+					MTP_inputPhotoFileLocation(
+						photo.vid(),
+						photo.vaccess_hash(),
+						photo.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsize().v
+		};
+	});
+}
+
 } // namespace Images

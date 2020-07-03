@@ -2157,7 +2157,8 @@ not_null<PhotoData*> Session::processPhoto(
 			QByteArray(),
 			small,
 			thumbnail,
-			large);
+			large,
+			ImageWithLocation{});
 	}, [&](const MTPDphotoEmpty &data) {
 		return photo(data.vid().v);
 	});
@@ -2173,7 +2174,8 @@ not_null<PhotoData*> Session::photo(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video) {
 	const auto result = photo(id);
 	photoApplyFields(
 		result,
@@ -2185,7 +2187,8 @@ not_null<PhotoData*> Session::photo(
 		inlineThumbnailBytes,
 		small,
 		thumbnail,
-		large);
+		large,
+		video);
 	return result;
 }
 
@@ -2233,7 +2236,8 @@ PhotoData *Session::photoFromWeb(
 		QByteArray(),
 		ImageWithLocation{},
 		ImageWithLocation{ .location = thumbnailLocation },
-		ImageWithLocation{ .location = large });
+		ImageWithLocation{ .location = large },
+		ImageWithLocation{});
 }
 
 void Session::photoApplyFields(
@@ -2271,6 +2275,22 @@ void Session::photoApplyFields(
 			? ImageWithLocation()
 			: Images::FromPhotoSize(_session, data, *i);
 	};
+	const auto video = [&] {
+		const auto sizes = data.vvideo_sizes();
+		if (!sizes || sizes->v.isEmpty()) {
+			return ImageWithLocation();
+		}
+		const auto area = [](const MTPVideoSize &size) {
+			return size.match([](const MTPDvideoSize &data) {
+				return data.vw().v * data.vh().v;
+			});
+		};
+		const auto max = ranges::max_element(
+			sizes->v,
+			std::greater<>(),
+			area);
+		return Images::FromVideoSize(_session, data, *max);
+	};
 	const auto large = image(LargeLevels);
 	if (large.location.valid()) {
 		photoApplyFields(
@@ -2283,7 +2303,8 @@ void Session::photoApplyFields(
 			FindPhotoInlineThumbnail(data),
 			image(SmallLevels),
 			image(ThumbnailLevels),
-			large);
+			large,
+			video());
 	}
 }
 
@@ -2297,7 +2318,8 @@ void Session::photoApplyFields(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video) {
 	if (!date) {
 		return;
 	}
@@ -2308,7 +2330,8 @@ void Session::photoApplyFields(
 		inlineThumbnailBytes,
 		small,
 		thumbnail,
-		large);
+		large,
+		video);
 }
 
 not_null<DocumentData*> Session::document(DocumentId id) {

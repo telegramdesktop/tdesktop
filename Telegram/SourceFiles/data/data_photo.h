@@ -82,7 +82,8 @@ public:
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large);
+		const ImageWithLocation &large,
+		const ImageWithLocation &video);
 	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
@@ -111,6 +112,13 @@ public:
 	[[nodiscard]] std::optional<QSize> size(Data::PhotoSize size) const;
 	[[nodiscard]] int imageByteSize(Data::PhotoSize size) const;
 
+	[[nodiscard]] bool hasVideo() const;
+	[[nodiscard]] bool videoLoading() const;
+	[[nodiscard]] bool videoFailed() const;
+	void loadVideo(Data::FileOrigin origin);
+	[[nodiscard]] const ImageLocation &videoLocation() const;
+	[[nodiscard]] int videoByteSize() const;
+
 	// For now they return size of the 'large' image.
 	int width() const;
 	int height() const;
@@ -127,6 +135,7 @@ public:
 private:
 	QByteArray _inlineThumbnailBytes;
 	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
+	Data::CloudFile _video;
 
 	int32 _dc = 0;
 	uint64 _access = 0;

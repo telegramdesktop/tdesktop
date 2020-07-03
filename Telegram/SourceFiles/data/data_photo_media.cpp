@@ -85,6 +85,25 @@ void PhotoMedia::set(PhotoSize size, QImage image) {
 	_owner->session().notifyDownloaderTaskFinished();
 }
 
+QByteArray PhotoMedia::videoContent() const {
+	return _videoBytes;
+}
+
+QSize PhotoMedia::videoSize() const {
+	const auto &location = _owner->videoLocation();
+	return { location.width(), location.height() };
+}
+
+void PhotoMedia::videoWanted(Data::FileOrigin origin) {
+	if (_videoBytes.isEmpty()) {
+		_owner->loadVideo(origin);
+	}
+}
+
+void PhotoMedia::setVideo(QByteArray content) {
+	_videoBytes = std::move(content);
+}
+
 bool PhotoMedia::loaded() const {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
 	return (_images[index] != nullptr);
