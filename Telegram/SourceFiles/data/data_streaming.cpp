@@ -102,6 +102,30 @@ template <typename Data>
 	return result;
 }
 
+template <typename Data>
+void Streaming::keepAlive(
+		base::flat_map<not_null<Data*>, std::weak_ptr<Document>> &documents,
+		not_null<Data*> data) {
+	const auto i = documents.find(data);
+	if (i == end(documents)) {
+		return;
+	}
+	auto shared = i->second.lock();
+	if (!shared) {
+		return;
+	}
+	const auto till = crl::now() + kKeepAliveTimeout;
+	const auto j = _keptAlive.find(shared);
+	if (j != end(_keptAlive)) {
+		j->second = till;
+	} else {
+		_keptAlive.emplace(std::move(shared), till);
+	}
+	if (!_keptAliveTimer.isActive()) {
+		_keptAliveTimer.callOnce(kKeepAliveTimeout);
+	}
+}
+
 std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
 		not_null<DocumentData*> document,
 		FileOrigin origin,
@@ -129,24 +153,11 @@ std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
 }
 
 void Streaming::keepAlive(not_null<DocumentData*> document) {
-	const auto i = _fileDocuments.find(document);
-	if (i == end(_fileDocuments)) {
-		return;
-	}
-	auto shared = i->second.lock();
-	if (!shared) {
-		return;
-	}
-	const auto till = crl::now() + kKeepAliveTimeout;
-	const auto j = _keptAlive.find(shared);
-	if (j != end(_keptAlive)) {
-		j->second = till;
-	} else {
-		_keptAlive.emplace(std::move(shared), till);
-	}
-	if (!_keptAliveTimer.isActive()) {
-		_keptAliveTimer.callOnce(kKeepAliveTimeout);
-	}
+	keepAlive(_fileDocuments, document);
+}
+
+void Streaming::keepAlive(not_null<PhotoData*> photo) {
+	keepAlive(_photoDocuments, photo);
 }
 
 void Streaming::clearKeptAlive() {

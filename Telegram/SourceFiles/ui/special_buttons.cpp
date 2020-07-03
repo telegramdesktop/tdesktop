@@ -839,7 +839,7 @@ bool UserpicButton::createStreamingObjects(not_null<PhotoData*> photo) {
 		: Data::FileOrigin(Data::FileOriginPeerPhoto(_peer->id));
 	_streamed = std::make_unique<Instance>(
 		photo->owner().streaming().sharedDocument(photo, origin),
-		[=] { update(); });
+		nullptr);
 	_streamed->player().updates(
 	) | rpl::start_with_next_error([=](Update &&update) {
 		handleStreamingUpdate(std::move(update));
@@ -891,8 +891,6 @@ void UserpicButton::streamingReady(Media::Streaming::Information &&info) {
 
 void UserpicButton::updateVideo() {
 	Expects(_role == Role::OpenPhoto);
-
-	using namespace Media::Streaming;
 
 	const auto id = _peer->userpicPhotoId();
 	if (!id) {

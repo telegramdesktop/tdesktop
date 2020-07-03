@@ -51,6 +51,7 @@ public:
 		FileOrigin origin);
 
 	void keepAlive(not_null<DocumentData*> document);
+	void keepAlive(not_null<PhotoData*> photo);
 
 private:
 	void clearKeptAlive();
@@ -68,6 +69,11 @@ private:
 		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
 		not_null<Data*> data,
 		FileOrigin origin);
+
+	template <typename Data>
+	void keepAlive(
+		base::flat_map<not_null<Data*>, std::weak_ptr<Document>> &documents,
+		not_null<Data*> data);
 
 	const not_null<Session*> _owner;
 

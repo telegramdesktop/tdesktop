@@ -26,7 +26,6 @@ class SessionController;
 namespace Media {
 namespace Streaming {
 class Instance;
-class Document;
 struct Update;
 enum class Error;
 struct Information;
@@ -222,13 +221,13 @@ private:
 	void setCursorInChangeOverlay(bool inOverlay);
 	void updateCursor();
 	void updateVideo();
+	bool showSavedMessages() const;
 	void checkStreamedIsStarted();
 	bool createStreamingObjects(not_null<PhotoData*> photo);
 	void clearStreaming();
 	void handleStreamingUpdate(Media::Streaming::Update &&update);
 	void handleStreamingError(Media::Streaming::Error &&error);
 	void streamingReady(Media::Streaming::Information &&info);
-	bool showSavedMessages() const;
 	void paintUserpicFrame(Painter &p, QPoint photoPosition);
 
 	void grabOldUserpic();

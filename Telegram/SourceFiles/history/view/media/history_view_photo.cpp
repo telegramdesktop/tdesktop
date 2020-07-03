@@ -14,10 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_document.h"
 #include "main/main_session.h"
 #include "ui/image/image.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
@@ -54,9 +58,15 @@ Photo::Photo(
 }
 
 Photo::~Photo() {
-	if (_dataMedia) {
-		_data->owner().keepAlive(base::take(_dataMedia));
-		_parent->checkHeavyPart();
+	if (_streamed || _dataMedia) {
+		if (_streamed) {
+			_data->owner().streaming().keepAlive(_data);
+			setStreamed(nullptr);
+		}
+		if (_dataMedia) {
+			_data->owner().keepAlive(base::take(_dataMedia));
+			_parent->checkHeavyPart();
+		}
 	}
 }
 
@@ -93,10 +103,11 @@ void Photo::dataMediaCreated() const {
 }
 
 bool Photo::hasHeavyPart() const {
-	return (_dataMedia != nullptr);
+	return _streamed || _dataMedia;
 }
 
 void Photo::unloadHeavyPart() {
+	setStreamed(nullptr);
 	_dataMedia = nullptr;
 }
 
@@ -209,22 +220,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
-		const auto pix = [&] {
-			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixCircled(_pixw, _pixh);
-			} else if (const auto thumbnail = _dataMedia->image(
-					PhotoSize::Thumbnail)) {
-				return thumbnail->pixBlurredCircled(_pixw, _pixh);
-			} else if (const auto small = _dataMedia->image(
-					PhotoSize::Small)) {
-				return small->pixBlurredCircled(_pixw, _pixh);
-			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixBlurredCircled(_pixw, _pixh);
-			} else {
-				return QPixmap();
-			}
-		}();
-		p.drawPixmap(rthumb.topLeft(), pix);
+		paintUserpicFrame(p, rthumb.topLeft());
 	} else {
 		if (bubble) {
 			if (!_caption.isEmpty()) {
@@ -318,6 +314,42 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void Photo::paintUserpicFrame(Painter &p, QPoint photoPosition) const {
+	const_cast<Photo*>(this)->validateVideo();
+
+	if (_streamed
+		&& _streamed->player().ready()
+		&& !_streamed->player().videoSize().isEmpty()) {
+		const auto paused = _parent->delegate()->elementIsGifPaused();
+		auto request = ::Media::Streaming::FrameRequest();
+		auto size = QSize{ _pixw, _pixh };
+		request.outer = size * cIntRetinaFactor();
+		request.resize = size * cIntRetinaFactor();
+		request.radius = ImageRoundRadius::Ellipse;
+		p.drawImage(QRect(photoPosition, size), _streamed->frame(request));
+		if (!paused) {
+			_streamed->markFrameShown();
+		}
+		return;
+	}
+	const auto pix = [&] {
+		if (const auto large = _dataMedia->image(PhotoSize::Large)) {
+			return large->pixCircled(_pixw, _pixh);
+		} else if (const auto thumbnail = _dataMedia->image(
+			PhotoSize::Thumbnail)) {
+			return thumbnail->pixBlurredCircled(_pixw, _pixh);
+		} else if (const auto small = _dataMedia->image(
+			PhotoSize::Small)) {
+			return small->pixBlurredCircled(_pixw, _pixh);
+		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
+			return blurred->pixBlurredCircled(_pixw, _pixh);
+		} else {
+			return QPixmap();
+		}
+	}();
+	p.drawPixmap(photoPosition, pix);
 }
 
 TextState Photo::textState(QPoint point, StateRequest request) const {
@@ -578,6 +610,106 @@ void Photo::validateGroupedCache(
 
 	*cacheKey = key;
 	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
+}
+
+bool Photo::createStreamingObjects() {
+	using namespace ::Media::Streaming;
+
+	setStreamed(std::make_unique<Instance>(
+		history()->owner().streaming().sharedDocument(
+			_data,
+			_realParent->fullId()),
+		nullptr));
+	_streamed->player().updates(
+	) | rpl::start_with_next_error([=](Update &&update) {
+		handleStreamingUpdate(std::move(update));
+	}, [=](Error &&error) {
+		handleStreamingError(std::move(error));
+	}, _streamed->lifetime());
+	if (_streamed->ready()) {
+		streamingReady(base::duplicate(_streamed->info()));
+	}
+	if (!_streamed->valid()) {
+		setStreamed(nullptr);
+		return false;
+	}
+	return true;
+}
+
+void Photo::setStreamed(std::unique_ptr<::Media::Streaming::Instance> value) {
+	const auto removed = (_streamed && !value);
+	const auto set = (!_streamed && value);
+	_streamed = std::move(value);
+	if (set) {
+		history()->owner().registerHeavyViewPart(_parent);
+	} else if (removed) {
+		_parent->checkHeavyPart();
+	}
+}
+
+void Photo::handleStreamingUpdate(::Media::Streaming::Update &&update) {
+	using namespace ::Media::Streaming;
+
+	update.data.match([&](Information &update) {
+		streamingReady(std::move(update));
+	}, [&](const PreloadedVideo &update) {
+	}, [&](const UpdateVideo &update) {
+		repaintStreamedContent();
+	}, [&](const PreloadedAudio &update) {
+	}, [&](const UpdateAudio &update) {
+	}, [&](const WaitingForData &update) {
+	}, [&](MutedByOther) {
+	}, [&](Finished) {
+	});
+}
+
+void Photo::handleStreamingError(::Media::Streaming::Error &&error) {
+	_data->setVideoPlaybackFailed();
+	setStreamed(nullptr);
+}
+
+void Photo::repaintStreamedContent() {
+	/*	const auto own = activeOwnStreamed();
+		if (own && !own->frozenFrame.isNull()) {
+			return;
+		} else */if (_parent->delegate()->elementIsGifPaused()) {
+		return;
+	}
+	history()->owner().requestViewRepaint(_parent);
+}
+
+void Photo::streamingReady(::Media::Streaming::Information &&info) {
+	history()->owner().requestViewRepaint(_parent);
+}
+
+void Photo::validateVideo() {
+	if (!_data->videoCanBePlayed()) {
+		setStreamed(nullptr);
+		return;
+	} else if (_streamed) {
+		return;
+	}
+	if (!createStreamingObjects()) {
+		_data->setVideoPlaybackFailed();
+		return;
+	}
+	checkStreamedIsStarted();
+}
+
+void Photo::checkStreamedIsStarted() {
+	if (!_streamed) {
+		return;
+	} else if (_streamed->paused()) {
+		_streamed->resume();
+	}
+	if (_streamed && !_streamed->active() && !_streamed->failed()) {
+		const auto position = _data->videoStartPosition();
+		auto options = ::Media::Streaming::PlaybackOptions();
+		options.position = position;
+		options.mode = ::Media::Streaming::Mode::Video;
+		options.loop = true;
+		_streamed->play(options);
+	}
 }
 
 TextForMimeData Photo::selectedText(TextSelection selection) const {

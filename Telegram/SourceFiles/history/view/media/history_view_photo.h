@@ -13,6 +13,15 @@ namespace Data {
 class PhotoMedia;
 } // namespace Data
 
+namespace Media {
+namespace Streaming {
+class Instance;
+struct Update;
+enum class Error;
+struct Information;
+} // namespace Streaming
+} // namespace Media
+
 namespace HistoryView {
 
 class Photo : public File {
@@ -104,12 +113,23 @@ private:
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
 
+	void validateVideo();
+	void setStreamed(std::unique_ptr<::Media::Streaming::Instance> value);
+	void repaintStreamedContent();
+	void checkStreamedIsStarted();
+	bool createStreamingObjects();
+	void handleStreamingUpdate(::Media::Streaming::Update &&update);
+	void handleStreamingError(::Media::Streaming::Error &&error);
+	void streamingReady(::Media::Streaming::Information &&info);
+	void paintUserpicFrame(Painter &p, QPoint photoPosition) const;
+
 	not_null<PhotoData*> _data;
 	int _serviceWidth = 0;
 	int _pixw = 1;
 	int _pixh = 1;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
+	mutable std::unique_ptr<::Media::Streaming::Instance> _streamed;
 
 };
 
