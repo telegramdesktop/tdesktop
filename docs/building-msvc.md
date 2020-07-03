@@ -26,6 +26,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Python 2.7** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install to ***BuildPath*\\ThirdParty\\Python27**
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
+* Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
@@ -48,6 +49,9 @@ Add **GYP** and **Ninja** to your PATH:
 * Press **Edit**
 * Add ***BuildPath*\\ThirdParty\\gyp** value
 * Add ***BuildPath*\\ThirdParty\\Ninja** value
+* Add ***BuildPath*\\ThirdParty\\Python27** value
+* Add ***BuildPath*\\ThirdParty\\yasm** value
+* Add ***BuildPath*\\ThirdParty\\jom** value
 
 ## Clone source code and prepare libraries
 
