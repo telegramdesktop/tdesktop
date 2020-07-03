@@ -46,6 +46,8 @@ private:
 		ReportSpam,
 		Add,
 		AddOrBlock,
+		UnarchiveOrBlock,
+		UnarchiveOrReport,
 		SharePhoneNumber,
 	};
 
@@ -55,6 +57,7 @@ private:
 
 		void showState(State state);
 
+		rpl::producer<> unarchiveClicks() const;
 		rpl::producer<> addClicks() const;
 		rpl::producer<> blockClicks() const;
 		rpl::producer<> shareClicks() const;
@@ -69,6 +72,7 @@ private:
 
 		QString _name;
 		object_ptr<Ui::FlatButton> _add;
+		object_ptr<Ui::FlatButton> _unarchive;
 		object_ptr<Ui::FlatButton> _block;
 		object_ptr<Ui::FlatButton> _share;
 		object_ptr<Ui::FlatButton> _report;
@@ -82,6 +86,7 @@ private:
 	void setupAddHandler(not_null<UserData*> user);
 	void setupBlockHandler(not_null<UserData*> user);
 	void setupShareHandler(not_null<UserData*> user);
+	void setupUnarchiveHandler(not_null<PeerData*> peer);
 	void setupReportHandler(not_null<PeerData*> peer);
 	void setupCloseHandler(not_null<PeerData*> peer);
 

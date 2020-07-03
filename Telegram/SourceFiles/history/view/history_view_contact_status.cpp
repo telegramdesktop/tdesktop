@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_session.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -62,6 +63,10 @@ ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 	this,
 	QString(),
 	st::historyContactStatusButton)
+, _unarchive(
+	this,
+	tr::lng_new_contact_unarchive(tr::now).toUpper(),
+	st::historyContactStatusButton)
 , _block(
 	this,
 	tr::lng_new_contact_block(tr::now).toUpper(),
@@ -72,7 +77,7 @@ ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 	st::historyContactStatusButton)
 , _report(
 	this,
-	tr::lng_report_spam_and_leave(tr::now).toUpper(),
+	QString(),
 	st::historyContactStatusBlock)
 , _close(this, st::historyReplyCancel) {
 	resize(_close->size());
@@ -80,13 +85,24 @@ ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 
 void ContactStatus::Bar::showState(State state) {
 	_add->setVisible(state == State::AddOrBlock || state == State::Add);
-	_block->setVisible(state == State::AddOrBlock);
+	_unarchive->setVisible(state == State::UnarchiveOrBlock
+		|| state == State::UnarchiveOrReport);
+	_block->setVisible(state == State::AddOrBlock
+		|| state == State::UnarchiveOrBlock);
 	_share->setVisible(state == State::SharePhoneNumber);
-	_report->setVisible(state == State::ReportSpam);
+	_report->setVisible(state == State::ReportSpam
+		|| state == State::UnarchiveOrReport);
 	_add->setText((state == State::Add)
 		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
 		: tr::lng_new_contact_add(tr::now).toUpper());
+	_report->setText((state == State::ReportSpam)
+		? tr::lng_report_spam_and_leave(tr::now).toUpper()
+		: tr::lng_report_spam(tr::now).toUpper());
 	updateButtonsGeometry();
+}
+
+rpl::producer<> ContactStatus::Bar::unarchiveClicks() const {
+	return _unarchive->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::addClicks() const {
@@ -143,32 +159,34 @@ void ContactStatus::Bar::updateButtonsGeometry() {
 			closeWidth);
 		placeButton(button, full, margin);
 	};
-	if (!_add->isHidden() && !_block->isHidden()) {
-		const auto addWidth = buttonWidth(_add);
-		const auto blockWidth = buttonWidth(_block);
+	const auto &leftButton = _unarchive->isHidden() ? _add : _unarchive;
+	const auto &rightButton = _block->isHidden() ? _report : _block;
+	if (!leftButton->isHidden() && !rightButton->isHidden()) {
+		const auto leftWidth = buttonWidth(leftButton);
+		const auto rightWidth = buttonWidth(rightButton);
 		const auto half = full / 2;
-		if (addWidth <= half
-			&& blockWidth + 2 * closeWidth <= full - half) {
-			placeButton(_add, half);
-			placeButton(_block, full - half);
-		} else if (addWidth + blockWidth <= available) {
+		if (leftWidth <= half
+			&& rightWidth + 2 * closeWidth <= full - half) {
+			placeButton(leftButton, half);
+			placeButton(rightButton, full - half);
+		} else if (leftWidth + rightWidth <= available) {
 			const auto margin = std::clamp(
-				addWidth + blockWidth + closeWidth - available,
+				leftWidth + rightWidth + closeWidth - available,
 				0,
 				closeWidth);
-			const auto realBlockWidth = blockWidth + 2 * closeWidth - margin;
-			if (addWidth > realBlockWidth) {
-				placeButton(_add, addWidth);
-				placeButton(_block, full - addWidth, margin);
+			const auto realBlockWidth = rightWidth + 2 * closeWidth - margin;
+			if (leftWidth > realBlockWidth) {
+				placeButton(leftButton, leftWidth);
+				placeButton(rightButton, full - leftWidth, margin);
 			} else {
-				placeButton(_add, full - realBlockWidth);
-				placeButton(_block, realBlockWidth, margin);
+				placeButton(leftButton, full - realBlockWidth);
+				placeButton(rightButton, realBlockWidth, margin);
 			}
 		} else {
-			const auto forAdd = (available * addWidth)
-				/ (addWidth + blockWidth);
-			placeButton(_add, forAdd);
-			placeButton(_block, full - forAdd, closeWidth);
+			const auto forLeft = (available * leftWidth)
+				/ (leftWidth + rightWidth);
+			placeButton(leftButton, forLeft);
+			placeButton(rightButton, full - forLeft, closeWidth);
 		}
 	} else {
 		placeOne(_add);
@@ -245,6 +263,8 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				} else {
 					return State::None;
 				}
+			} else if (settings.value & Setting::f_autoarchived) {
+				return State::UnarchiveOrBlock;
 			} else if (settings.value & Setting::f_block_contact) {
 				return State::AddOrBlock;
 			} else if (settings.value & Setting::f_add_contact) {
@@ -257,7 +277,9 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 
 	return peer->settingsValue(
 	) | rpl::map([=](SettingsChange settings) {
-		return (settings.value & Setting::f_report_spam)
+		return (settings.value & Setting::f_autoarchived)
+			? State::UnarchiveOrReport
+			: (settings.value & Setting::f_report_spam)
 			? State::ReportSpam
 			: State::None;
 	});
@@ -287,6 +309,7 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 		setupBlockHandler(user);
 		setupShareHandler(user);
 	}
+	setupUnarchiveHandler(peer);
 	setupReportHandler(peer);
 	setupCloseHandler(peer);
 }
@@ -337,6 +360,21 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				Ui::Text::WithEntities),
 			tr::lng_box_ok(tr::now),
 			share));
+	}, _bar.lifetime());
+}
+
+void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
+	_bar.entity()->unarchiveClicks(
+	) | rpl::start_with_next([=] {
+		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
+		peer->owner().updateNotifySettings(peer, 0);
+		if (const auto settings = peer->settings()) {
+			using Flag = MTPDpeerSettings::Flag;
+			const auto flags = Flag::f_autoarchived
+				| Flag::f_block_contact
+				| Flag::f_report_spam;
+			peer->setSettings(*settings & ~flags);
+		}
 	}, _bar.lifetime());
 }
 

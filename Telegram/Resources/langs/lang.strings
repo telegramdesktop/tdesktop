@@ -442,6 +442,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
 "lng_settings_auto_night_disable" = "Disable";
 
+"lng_suggest_hide_new_title" = "Hide new chats?";
+"lng_suggest_hide_new_about" = "You are receiving lots of new chats from users who are not in your ContactList. Do you want to have such chats **automatically muted** and **archived**?";
+"lng_suggest_hide_new_to_settings" = "Go to Settings";
+
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";
 "lng_settings_custom_spellchecker" = "Use spell checker";
@@ -1290,6 +1294,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_share_done" = "{user} can now see your phone number.";
 "lng_new_contact_add_name" = "Add {user} to contacts";
 "lng_new_contact_add_done" = "{user} is now in your contact list.";
+"lng_new_contact_unarchive" = "Unarchive";
 "lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
 "lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";
