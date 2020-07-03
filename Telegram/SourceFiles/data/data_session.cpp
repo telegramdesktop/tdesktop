@@ -3208,6 +3208,10 @@ void Session::checkPlayingAnimations() {
 				if (document->isAnimation() || document->isVideoFile()) {
 					check.emplace(view);
 				}
+			} else if (const auto photo = media->getPhoto()) {
+				if (photo->hasVideo()) {
+					check.emplace(view);
+				}
 			}
 		}
 	}

@@ -120,6 +120,10 @@ private:
 	const Full &data,
 	not_null<PeerData*> peer,
 	not_null<DocumentData*> document);
+[[nodiscard]] bool ShouldAutoPlay(
+	const Full &data,
+	not_null<PeerData*> peer,
+	not_null<PhotoData*> photo);
 
 [[nodiscard]] Full WithDisabledAutoPlay(const Full &data);
 

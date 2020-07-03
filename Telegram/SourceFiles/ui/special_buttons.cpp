@@ -840,6 +840,7 @@ bool UserpicButton::createStreamingObjects(not_null<PhotoData*> photo) {
 	_streamed = std::make_unique<Instance>(
 		photo->owner().streaming().sharedDocument(photo, origin),
 		nullptr);
+	_streamed->lockPlayer();
 	_streamed->player().updates(
 	) | rpl::start_with_next_error([=](Update &&update) {
 		handleStreamingUpdate(std::move(update));

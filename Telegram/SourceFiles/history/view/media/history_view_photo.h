@@ -98,7 +98,13 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	struct Streamed;
+
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
+
+	void playAnimation(bool autoplay) override;
+	void stopAnimation() override;
+	void checkAnimation() override;
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
@@ -113,15 +119,18 @@ private:
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
 
-	void validateVideo();
-	void setStreamed(std::unique_ptr<::Media::Streaming::Instance> value);
+	bool videoAutoplayEnabled() const;
+	void setStreamed(std::unique_ptr<Streamed> value);
 	void repaintStreamedContent();
-	void checkStreamedIsStarted();
+	void checkStreamedIsStarted() const;
 	bool createStreamingObjects();
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);
 	void handleStreamingError(::Media::Streaming::Error &&error);
 	void streamingReady(::Media::Streaming::Information &&info);
-	void paintUserpicFrame(Painter &p, QPoint photoPosition) const;
+	void paintUserpicFrame(
+		Painter &p,
+		QPoint photoPosition,
+		bool selected) const;
 
 	not_null<PhotoData*> _data;
 	int _serviceWidth = 0;
@@ -129,7 +138,7 @@ private:
 	int _pixh = 1;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
-	mutable std::unique_ptr<::Media::Streaming::Instance> _streamed;
+	mutable std::unique_ptr<Streamed> _streamed;
 
 };
 
