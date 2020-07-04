@@ -598,6 +598,7 @@ void PipPanel::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
+	updateOverState(e->pos());
 	_pressState = _overState;
 	_pressPoint = e->globalPos();
 }
