@@ -1658,16 +1658,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
-					_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
-						const auto api = &item->history()->peer->session().api();
-						auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-						action.clearDraft = false;
-						action.generateLocal = false;
-						api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
-							Ui::Toast::Show(tr::lng_share_done(tr::now));
-						});
-					});
 					if (item->originalText().text != "") {
+						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
+							const auto api = &item->history()->peer->session().api();
+							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+							action.clearDraft = false;
+							action.generateLocal = false;
+							api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+								Ui::Toast::Show(tr::lng_share_done(tr::now));
+							});
+						});
 						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg_no_fwd"), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto message = ApiWrap::MessageToSend(_history);
