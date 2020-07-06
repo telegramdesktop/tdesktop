@@ -367,7 +367,7 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_bar.entity()->unarchiveClicks(
 	) | rpl::start_with_next([=] {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
-		peer->owner().updateNotifySettings(peer, 0);
+		peer->owner().resetNotifySettingsToDefault(peer);
 		if (const auto settings = peer->settings()) {
 			using Flag = MTPDpeerSettings::Flag;
 			const auto flags = Flag::f_autoarchived

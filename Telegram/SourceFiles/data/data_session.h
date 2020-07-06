@@ -596,6 +596,7 @@ public:
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt);
+	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
 	bool notifyIsMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn = nullptr) const;

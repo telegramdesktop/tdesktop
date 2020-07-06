@@ -3593,6 +3593,19 @@ void Session::updateNotifySettings(
 	}
 }
 
+void Session::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
+	const auto empty = MTP_peerNotifySettings(
+		MTP_flags(0),
+		MTPBool(),
+		MTPBool(),
+		MTPint(),
+		MTPstring());
+	if (peer->notifyChange(empty)) {
+		updateNotifySettingsLocal(peer);
+		_session->api().updateNotifySettingsDelayed(peer);
+	}
+}
+
 bool Session::notifyIsMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const {
