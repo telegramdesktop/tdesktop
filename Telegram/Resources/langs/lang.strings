@@ -443,7 +443,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_night_disable" = "Disable";
 
 "lng_suggest_hide_new_title" = "Hide new chats?";
-"lng_suggest_hide_new_about" = "You are receiving lots of new chats from users who are not in your ContactList. Do you want to have such chats **automatically muted** and **archived**?";
+"lng_suggest_hide_new_about" = "You are receiving lots of new chats from users who are not in your Contact List.\n\nDo you want to have such chats **automatically muted** and **archived**?";
 "lng_suggest_hide_new_to_settings" = "Go to Settings";
 
 "lng_settings_spellchecker" = "Spell checker";

@@ -19,7 +19,10 @@ GlobalPrivacy::GlobalPrivacy(not_null<ApiWrap*> api)
 , _api(&api->instance()) {
 }
 
-void GlobalPrivacy::reload() {
+void GlobalPrivacy::reload(Fn<void()> callback) {
+	if (callback) {
+		_callbacks.push_back(std::move(callback));
+	}
 	if (_requestId) {
 		return;
 	}
@@ -27,8 +30,14 @@ void GlobalPrivacy::reload() {
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
+		for (const auto &callback : base::take(_callbacks)) {
+			callback();
+		}
 	}).fail([=](const RPCError &error) {
 		_requestId = 0;
+		for (const auto &callback : base::take(_callbacks)) {
+			callback();
+		}
 	}).send();
 
 	_session->account().appConfig().value(
@@ -36,7 +45,7 @@ void GlobalPrivacy::reload() {
 		_showArchiveAndMute = _session->account().appConfig().get<bool>(
 			u"autoarchive_setting_available"_q,
 			false);
-		}, _session->lifetime());
+	}, _session->lifetime());
 }
 
 bool GlobalPrivacy::archiveAndMuteCurrent() const {

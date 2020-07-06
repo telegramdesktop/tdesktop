@@ -21,7 +21,7 @@ class GlobalPrivacy final {
 public:
 	explicit GlobalPrivacy(not_null<ApiWrap*> api);
 
-	void reload();
+	void reload(Fn<void()> callback = nullptr);
 	void update(bool archiveAndMute);
 
 	[[nodiscard]] bool archiveAndMuteCurrent() const;
@@ -38,6 +38,7 @@ private:
 	mtpRequestId _requestId = 0;
 	rpl::variable<bool> _archiveAndMute = false;
 	rpl::variable<bool> _showArchiveAndMute = false;
+	std::vector<Fn<void()>> _callbacks;
 
 };
 

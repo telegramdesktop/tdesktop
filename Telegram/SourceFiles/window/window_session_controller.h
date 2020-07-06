@@ -308,6 +308,7 @@ private:
 	void initSupportMode();
 	void refreshFiltersMenu();
 	void checkOpenedFilter();
+	void suggestArchiveAndMute();
 
 	int minimalThreeColumnWidth() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;

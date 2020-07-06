@@ -31,6 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "base/unixtime.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/delayed_activation.h"
 #include "boxes/calendar_box.h"
 #include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
 #include "boxes/confirm_box.h" // requestAttachedStickerSets.
@@ -42,11 +45,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "api/api_chat_invite.h"
+#include "api/api_global_privacy.h"
 #include "support/support_helper.h"
 #include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
-#include "ui/delayed_activation.h"
+#include "styles/style_layers.h" // st::boxLabel
 
 namespace Window {
 namespace {
@@ -167,7 +171,41 @@ SessionController::SessionController(
 		});
 	}, lifetime());
 
+	session->api().globalPrivacy().suggestArchiveAndMute(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		session->api().globalPrivacy().reload(crl::guard(this, [=] {
+			if (!session->api().globalPrivacy().archiveAndMuteCurrent()) {
+				suggestArchiveAndMute();
+			}
+		}));
+	}, _lifetime);
+
 	session->addWindow(this);
+}
+
+void SessionController::suggestArchiveAndMute() {
+	const auto weak = base::make_weak(this);
+	_window->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_suggest_hide_new_title());
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_suggest_hide_new_about(Ui::Text::RichLangValue),
+			st::boxLabel));
+		box->addButton(tr::lng_suggest_hide_new_to_settings(), [=] {
+			showSettings(Settings::Type::PrivacySecurity);
+		});
+		box->setCloseByOutsideClick(false);
+		box->boxClosing(
+		) | rpl::start_with_next([=] {
+			crl::on_main(weak, [=] {
+				auto &privacy = session().api().globalPrivacy();
+				privacy.dismissArchiveAndMuteSuggestion();
+			});
+		}, box->lifetime());
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	}));
 }
 
 not_null<::MainWindow*> SessionController::widget() const {
