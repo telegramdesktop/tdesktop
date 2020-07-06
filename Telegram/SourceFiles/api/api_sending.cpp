@@ -129,8 +129,7 @@ void SendExistingMedia(
 		caption,
 		MTPReplyMarkup());
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
-	auto performRequest = [=] {
+	auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
 		const auto requestType = Data::Histories::RequestType::Send;
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
@@ -149,28 +148,25 @@ void SendExistingMedia(
 				api->applyUpdates(result, randomId);
 				finish();
 			}).fail([=](const RPCError &error) {
-				(*failHandler)(error, usedFileReference);
+				if (error.code() == 400
+					&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+					api->refreshFileReference(origin, [=](const auto &result) {
+						if (media->fileReference() != usedFileReference) {
+							repeatRequest(repeatRequest);
+						} else {
+							api->sendMessageFail(error, peer, randomId, newId);
+						}
+						});
+				} else {
+					api->sendMessageFail(error, peer, randomId, newId);
+				}
 				finish();
 			}).afterRequest(history->sendRequestId
 			).send();
 			return history->sendRequestId;
 		});
 	};
-	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
-		if (error.code() == 400
-			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			api->refreshFileReference(origin, [=](const auto &result) {
-				if (media->fileReference() != usedFileReference) {
-					performRequest();
-				} else {
-					api->sendMessageFail(error, peer, randomId, newId);
-				}
-			});
-		} else {
-			api->sendMessageFail(error, peer, randomId, newId);
-		}
-	};
-	performRequest();
+	performRequest(performRequest);
 
 	api->finishForwarding(message.action);
 }

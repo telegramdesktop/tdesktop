@@ -604,7 +604,7 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
 		SendMenuType type,
-		FnMut<void(Api::SendOptions)> done,
+		Fn<void(Api::SendOptions)> done,
 		TimeId time) {
 	box->setTitle((type == SendMenuType::Reminder)
 		? tr::lng_remind_title()
@@ -697,8 +697,6 @@ void ScheduleBox(
 		}), (*calendar)->lifetime());
 	});
 
-	const auto shared = std::make_shared<FnMut<void(Api::SendOptions)>>(
-		std::move(done));
 	const auto collect = [=] {
 		const auto timeValue = timeInput->valueCurrent().split(':');
 		if (timeValue.size() != 2) {
@@ -731,9 +729,9 @@ void ScheduleBox(
 			return;
 		}
 
-		auto copy = shared;
+		auto copy = done;
 		box->closeBox();
-		(*copy)(result);
+		copy(result);
 	};
 	timeInput->submitRequests(
 	) | rpl::start_with_next([=] {

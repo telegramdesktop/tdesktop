@@ -209,10 +209,11 @@ void SetupInterfaceScale(
 		}
 		return (result == ScaleValues.size()) ? (result - 1) : result;
 	};
-	const auto inSetScale = Ui::CreateChild<bool>(container.get());
-	const auto setScale = std::make_shared<Fn<void(int)>>();
-	*setScale = [=](int scale) {
-		if (*inSetScale) return;
+	const auto inSetScale = container->lifetime().make_state<bool>();
+	const auto setScale = [=](int scale, const auto &repeatSetScale) -> void {
+		if (*inSetScale) {
+			return;
+		}
 		*inSetScale = true;
 		const auto guard = gsl::finally([=] { *inSetScale = false; });
 
@@ -228,7 +229,7 @@ void SetupInterfaceScale(
 				base::call_delayed(
 					st::defaultSettingsSlider.duration,
 					button,
-					[=] { (*setScale)(cConfigScale()); });
+					[=] { repeatSetScale(cConfigScale(), repeatSetScale); });
 			});
 			Ui::show(Box<ConfirmBox>(
 				tr::lng_settings_need_restart(tr::now),
@@ -256,16 +257,16 @@ void SetupInterfaceScale(
 	) | rpl::map([=](int section) {
 		return scaleByIndex(section);
 	}) | rpl::start_with_next([=](int scale) {
-		(*setScale)((scale == cScreenScale())
-			? style::kScaleAuto
-			: scale);
+		setScale(
+			(scale == cScreenScale()) ? style::kScaleAuto : scale,
+			setScale);
 	}, slider->lifetime());
 
 	button->toggledValue(
 	) | rpl::map([](bool checked) {
 		return checked ? style::kScaleAuto : cEvalScale(cConfigScale());
 	}) | rpl::start_with_next([=](int scale) {
-		(*setScale)(scale);
+		setScale(scale, setScale);
 	}, button->lifetime());
 }
 
