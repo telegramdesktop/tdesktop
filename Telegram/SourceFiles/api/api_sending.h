@@ -15,6 +15,7 @@ struct FileLoadResult;
 namespace Api {
 
 struct MessageToSend;
+struct SendAction;
 
 void SendExistingDocument(
 	Api::MessageToSend &&message,

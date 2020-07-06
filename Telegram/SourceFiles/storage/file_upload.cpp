@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_upload.h"
 
+#include "api/api_send_progress.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "data/data_document.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "ui/image/image_location_factory.h"
+#include "history/history_item.h"
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -153,6 +155,141 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
 	stopSessionsTimer.setSingleShot(true);
 	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
+
+	photoReady(
+	) | rpl::start_with_next([=](const UploadedPhoto &data) {
+		if (data.edit) {
+			_api->editUploadedFile(
+				data.fullId,
+				data.file,
+				std::nullopt,
+				data.options,
+				false);
+		} else {
+			_api->sendUploadedPhoto(
+				data.fullId,
+				data.file,
+				data.options);
+		}
+	}, _lifetime);
+
+	documentReady(
+	) | rpl::start_with_next([=](const UploadedDocument &data) {
+		if (data.edit) {
+			_api->editUploadedFile(
+				data.fullId,
+				data.file,
+				std::nullopt,
+				data.options,
+				true);
+		} else {
+			_api->sendUploadedDocument(
+				data.fullId,
+				data.file,
+				std::nullopt,
+				data.options);
+		}
+	}, _lifetime);
+
+	thumbDocumentReady(
+	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
+		if (data.edit) {
+			_api->editUploadedFile(
+				data.fullId,
+				data.file,
+				data.thumb,
+				data.options,
+				true);
+		} else {
+			_api->sendUploadedDocument(
+				data.fullId,
+				data.file,
+				data.thumb,
+				data.options);
+		}
+	}, _lifetime);
+
+
+	photoProgress(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		processPhotoProgress(fullId);
+	}, _lifetime);
+
+	photoFailed(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		processPhotoFailed(fullId);
+	}, _lifetime);
+
+	documentProgress(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		processDocumentProgress(fullId);
+	}, _lifetime);
+
+	documentFailed(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		processDocumentFailed(fullId);
+	}, _lifetime);
+}
+
+void Uploader::processPhotoProgress(const FullMsgId &newId) {
+	const auto session = &_api->session();
+	if (const auto item = session->data().message(newId)) {
+		const auto photo = item->media()
+			? item->media()->photo()
+			: nullptr;
+		session->sendProgressManager().update(
+			item->history(),
+			Api::SendProgressType::UploadPhoto,
+			0);
+		session->data().requestItemRepaint(item);
+	}
+}
+
+void Uploader::processDocumentProgress(const FullMsgId &newId) {
+	const auto session = &_api->session();
+	if (const auto item = session->data().message(newId)) {
+		const auto media = item->media();
+		const auto document = media ? media->document() : nullptr;
+		const auto sendAction = (document && document->isVoiceMessage())
+			? Api::SendProgressType::UploadVoice
+			: Api::SendProgressType::UploadFile;
+		const auto progress = (document && document->uploading())
+			? document->uploadingData->offset
+			: 0;
+
+		session->sendProgressManager().update(
+			item->history(),
+			sendAction,
+			progress);
+		session->data().requestItemRepaint(item);
+	}
+}
+
+void Uploader::processPhotoFailed(const FullMsgId &newId) {
+	const auto session = &_api->session();
+	if (const auto item = session->data().message(newId)) {
+		session->sendProgressManager().update(
+			item->history(),
+			Api::SendProgressType::UploadPhoto,
+			-1);
+		session->data().requestItemRepaint(item);
+	}
+}
+
+void Uploader::processDocumentFailed(const FullMsgId &newId) {
+	const auto session = &_api->session();
+	if (const auto item = session->data().message(newId)) {
+		const auto media = item->media();
+		const auto document = media ? media->document() : nullptr;
+		const auto sendAction = (document && document->isVoiceMessage())
+			? Api::SendProgressType::UploadVoice
+			: Api::SendProgressType::UploadFile;
+		session->sendProgressManager().update(
+			item->history(),
+			sendAction,
+			-1);
+		session->data().requestItemRepaint(item);
+	}
 }
 
 Uploader::~Uploader() {
@@ -282,7 +419,9 @@ void Uploader::stopSessions() {
 }
 
 void Uploader::sendNext() {
-	if (sentSize >= kMaxUploadFileParallelSize || _pausedId.msg) return;
+	if (sentSize >= kMaxUploadFileParallelSize || _pausedId.msg) {
+		return;
+	}
 
 	bool stopping = stopSessionsTimer.isActive();
 	if (queue.empty()) {

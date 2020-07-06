@@ -423,15 +423,6 @@ private:
 	void stopMessageHighlight();
 
 	auto computeSendButtonType() const;
-	void updateSendAction(
-		not_null<History*> history,
-		SendAction::Type type,
-		int32 progress = 0);
-	void cancelSendAction(
-		not_null<History*> history,
-		SendAction::Type type);
-	void cancelTypingAction();
-	void sendActionDone(const MTPBool &result, mtpRequestId requestId);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -473,28 +464,6 @@ private:
 		MsgId replyTo,
 		Api::SendOptions options,
 		std::shared_ptr<SendingAlbum> album = nullptr);
-
-	void subscribeToUploader();
-
-	void photoProgress(const FullMsgId &msgId);
-	void photoFailed(const FullMsgId &msgId);
-	void documentUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
-	void thumbDocumentUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file,
-		const MTPInputFile &thumb,
-		bool edit = false);
-	void documentProgress(const FullMsgId &msgId);
-	void documentFailed(const FullMsgId &msgId);
-
-	void documentEdited(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 
@@ -799,11 +768,6 @@ private:
 	std::deque<MsgId> _highlightQueue;
 	base::Timer _highlightTimer;
 	crl::time _highlightStart = 0;
-
-	base::flat_map<
-		std::pair<not_null<History*>, SendAction::Type>,
-		mtpRequestId> _sendActionRequests;
-	base::Timer _sendActionStopTimer;
 
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;

@@ -121,6 +121,11 @@ private:
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	void partFailed(const RPCError &error, mtpRequestId requestId);
 
+	void processPhotoProgress(const FullMsgId &msgId);
+	void processPhotoFailed(const FullMsgId &msgId);
+	void processDocumentProgress(const FullMsgId &msgId);
+	void processDocumentFailed(const FullMsgId &msgId);
+
 	void currentFailed();
 
 	not_null<ApiWrap*> _api;
@@ -146,6 +151,8 @@ private:
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
+
+	rpl::lifetime _lifetime;
 
 };
 

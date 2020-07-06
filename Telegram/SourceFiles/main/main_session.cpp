@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_updates.h"
+#include "api/api_send_progress.h"
 #include "core/application.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -72,6 +73,7 @@ Session::Session(
 , _settings(std::move(settings))
 , _api(std::make_unique<ApiWrap>(this))
 , _updates(std::make_unique<Api::Updates>(this))
+, _sendProgressManager(std::make_unique<Api::SendProgressManager>(this))
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())

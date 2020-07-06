@@ -215,6 +215,8 @@ PRIVATE
     api/api_hash.h
     api/api_self_destruct.cpp
     api/api_self_destruct.h
+    api/api_send_progress.cpp
+    api/api_send_progress.h
     api/api_sending.cpp
     api/api_sending.h
     api/api_sensitive_content.cpp

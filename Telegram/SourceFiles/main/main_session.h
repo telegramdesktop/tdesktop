@@ -16,6 +16,7 @@ class ApiWrap;
 
 namespace Api {
 class Updates;
+class SendProgressManager;
 } // namespace Api
 
 namespace MTP {
@@ -86,6 +87,9 @@ public:
 
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
+	}
+	[[nodiscard]] Api::SendProgressManager &sendProgressManager() const {
+		return *_sendProgressManager;
 	}
 	[[nodiscard]] Storage::DownloadManagerMtproto &downloader() const {
 		return *_downloader;
@@ -162,6 +166,7 @@ private:
 	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Api::Updates> _updates;
+	const std::unique_ptr<Api::SendProgressManager> _sendProgressManager;
 	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
