@@ -1556,7 +1556,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto peer = item->history()->peer;
 		if (peer->isChat() || peer->isMegagroup()) {
-			_menu->addAction(Lang::Current().getCustomLangValue("lng_context_show_messages_from"), [=] {
+			_menu->addAction(tr::lng_context_show_messages_from(tr::now), [=] {
 				App::searchByHashtag(QString(), peer, item->from()->asUser());
 			});
 		}
@@ -1659,7 +1659,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardItem(itemId);
 					});
 					if (item->originalText().text != "") {
-						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
+						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 							action.clearDraft = false;
@@ -1668,7 +1668,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Ui::Toast::Show(tr::lng_share_done(tr::now));
 							});
 						});
-						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg_no_fwd"), [=] {
+						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto message = ApiWrap::MessageToSend(_history);
 							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
@@ -1817,7 +1817,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardAsGroup(itemId);
 					});
 					if (item->originalText().text != "") {
-						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg"), [=] {
+						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 							action.clearDraft = false;
@@ -1826,7 +1826,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Ui::Toast::Show(tr::lng_share_done(tr::now));
 							});
 						});
-						_menu->addAction(Lang::Current().getCustomLangValue("lng_context_repeat_msg_no_fwd"), [=] {
+						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto message = ApiWrap::MessageToSend(_history);
 							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
@@ -3296,7 +3296,7 @@ QString HistoryInner::tooltipText() const {
 				}
 			}
 			if (const auto msgId = view->data()->fullId().msg) {
-				dateText += '\n' + Lang::Current().getCustomLangValue("lng_message_id") + QString::number(msgId);
+				dateText += '\n' + tr::lng_message_id(tr::now) + QString::number(msgId);
 			}
 			return dateText;
 		}

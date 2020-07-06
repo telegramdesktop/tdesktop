@@ -70,15 +70,14 @@ public:
 	QString id(Pack pack) const;
 	bool isCustom() const;
 	int version(Pack pack) const;
-	QJsonObject customLang;
-	QString getCustomLangValue(QString key);
 
 	QByteArray serialize() const;
 	void fillFromSerialized(const QByteArray &data, int dataAppVersion);
-
+	void applyValue(const QByteArray &key, const QByteArray &value);
 	void applyDifference(
 		Pack pack,
 		const MTPDlangPackDifference &difference);
+	void updatePluralRules();
 	static std::map<ushort, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
@@ -107,7 +106,6 @@ private:
 	void setBaseId(const QString &baseId, const QString &pluralId);
 
 	void applyDifferenceToMe(const MTPDlangPackDifference &difference);
-	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
 	void reset(const Language &language);
 	void fillFromCustomContent(
@@ -120,7 +118,6 @@ private:
 		const QString &absolutePath,
 		const QString &relativePath,
 		const QByteArray &content);
-	void updatePluralRules();
 
 	Instance *_derived = nullptr;
 

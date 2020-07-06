@@ -154,7 +154,7 @@ void SetupSections(
 		Type::Advanced,
 		&st::settingsIconGeneral);
 	addSection(
-		rpl::single(Lang::Current().getCustomLangValue("lng_settings_enhanced")),
+		tr::lng_settings_enhanced(),
 		Type::Enhanced,
 		&st::settingsIconGeneral);
 

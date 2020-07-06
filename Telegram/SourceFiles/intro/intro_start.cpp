@@ -25,7 +25,7 @@ StartWidget::StartWidget(
 : Step(parent, account, data, true) {
 	setMouseTracking(true);
 	setTitleText(rpl::single(qsl("Telegram Desktop")));
-	setDescriptionText(rpl::single(Lang::Current().getCustomLangValue("lng_intro_about2")));
+	setDescriptionText(tr::lng_intro_about2());
 	show();
 }
 

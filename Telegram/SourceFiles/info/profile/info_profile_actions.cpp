@@ -262,12 +262,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			addInfoOneLine(
 				tr::lng_profile_bot_id(),
 				IDValue(user, 2),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_profile_copy_id(tr::now));
 		} else {
 			addInfoOneLine(
 				tr::lng_profile_user_id(),
 				IDValue(user, 2),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_profile_copy_id(tr::now));
 		}
 
 		if (user->session().supportMode()) {
@@ -301,28 +301,28 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		// Source from kotatogram
 		if (_peer->isChat()) {
 			addInfoOneLine(
-				rpl::single(Lang::Current().getCustomLangValue("lng_profile_group_id")),
+				tr::lng_profile_group_id(),
 				IDValue(_peer, 0),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_profile_copy_id(tr::now));
 		} else if (_peer->isMegagroup()) {
 			addInfoOneLine(
-				rpl::single(Lang::Current().getCustomLangValue("lng_profile_supergroup_id")),
+				tr::lng_profile_supergroup_id(),
 				IDValue(_peer, 1),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_profile_copy_id(tr::now));
 			addInfoOneLine(
-				rpl::single(Lang::Current().getCustomLangValue("lng_chat_restriction_reason")),
+				tr::lng_chat_restriction_reason(),
 				StringValue(_peer->asMegagroup()->restriction_reason),
-				Lang::Current().getCustomLangValue("lng_copy_restriction_reason"));
+				tr::lng_copy_restriction_reason(tr::now));
 		
 		} else {
 			addInfoOneLine(
-				rpl::single(Lang::Current().getCustomLangValue("lng_profile_channel_id")),
+				tr::lng_profile_channel_id(),
 				IDValue(_peer, 1),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_profile_copy_id(tr::now));
 			addInfoOneLine(
-				rpl::single(Lang::Current().getCustomLangValue("lng_chat_restriction_reason")),
+				tr::lng_chat_restriction_reason(),
 				StringValue(_peer->asChannel()->restriction_reason),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				tr::lng_copy_restriction_reason(tr::now));
 		}
 
 		

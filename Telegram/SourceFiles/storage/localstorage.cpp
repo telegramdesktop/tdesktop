@@ -1319,7 +1319,11 @@ void CustomLangPack::fetchFinished() {
 	QJsonParseError error;
 	QJsonDocument str = QJsonDocument::fromJson(result, &error);
 	if (error.error == QJsonParseError::NoError) {
-		Lang::Current().customLang = str.object();
+		QJsonObject json = str.object();
+		foreach(const QString& key, json.keys()) {
+			Lang::Current().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
+		}
+		Lang::Current().updatePluralRules();
 	}
 	else {
 		LOG(("Incorrect JSON File. Fallback to default language: English..."));
@@ -1342,7 +1346,11 @@ void CustomLangPack::loadDefaultLangFile() {
 	QFile file(":/localization/en.json");
 	if (file.open(QIODevice::ReadOnly)) {
 		QJsonDocument str = QJsonDocument::fromJson(file.readAll());
-		Lang::Current().customLang = str.object();
+		QJsonObject json = str.object();
+		foreach(const QString& key, json.keys()) {
+			Lang::Current().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
+		}
+		Lang::Current().updatePluralRules();
 		file.close();
 	}
 }
