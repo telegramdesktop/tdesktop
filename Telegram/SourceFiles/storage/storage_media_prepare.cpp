@@ -190,7 +190,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		}
 
 		const auto filesize = info.size();
-		if (filesize > App::kFileSizeLimit) {
+		if (filesize > kFileSizeLimit) {
 			return MimeDataState::None;
 		} else if (allAreSmallImages) {
 			if (filesize > App::kImageSizeLimit) {
@@ -237,7 +237,7 @@ PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 				PreparedList::Error::EmptyFile,
 				file
 			};
-		} else if (filesize > App::kFileSizeLimit) {
+		} else if (filesize > kFileSizeLimit) {
 			return {
 				PreparedList::Error::TooLargeFile,
 				file

@@ -776,7 +776,7 @@ void FileLoadTask::process() {
 	}
 	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
 
-	if (!filesize || filesize > App::kFileSizeLimit) {
+	if (!filesize || filesize > kFileSizeLimit) {
 		return;
 	}
 
@@ -962,7 +962,7 @@ void FileLoadTask::finish() {
 				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (_result->filesize > App::kFileSizeLimit) {
+	} else if (_result->filesize > kFileSizeLimit) {
 		Ui::show(
 			Box<InformBox>(
 				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),

@@ -85,7 +85,6 @@ namespace App {
 	void setLaunchState(LaunchState state);
 	void restart();
 
-	constexpr auto kFileSizeLimit = 1500 * 1024 * 1024; // Load files up to 1500mb
 	constexpr auto kImageSizeLimit = 64 * 1024 * 1024; // Open images up to 64mb jpg/png/gif
 	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
 	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);

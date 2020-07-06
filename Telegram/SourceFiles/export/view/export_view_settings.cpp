@@ -88,21 +88,18 @@ int SizeLimitByIndex(int index) {
 	const auto megabytes = [&] {
 		if (index <= 10) {
 			return index;
-		}
-		else if (index <= 30) {
+		} else if (index <= 30) {
 			return 10 + (index - 10) * 2;
-		}
-		else if (index <= 40) {
+		} else if (index <= 40) {
 			return 50 + (index - 30) * 5;
-		}
-		else if (index <= 60) {
+		} else if (index <= 60) {
 			return 100 + (index - 40) * 10;
-		}
-		else if (index <= 70) {
+		} else if (index <= 70) {
 			return 300 + (index - 60) * 20;
-		}
-		else {
-			return 500 + (index - 70) * 100;
+		} else if (index <= 80) {
+			return 500 + (index - 70) * 50;
+		} else {
+			return 1000 + (index - 80) * 100;
 		}
 	}();
 	return megabytes * kMegabyte;
