@@ -369,6 +369,7 @@ TabbedSelector::TabbedSelector(
 		) | rpl::start_with_next([=] {
 			refreshStickers();
 		}, lifetime());
+		refreshStickers();
 	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);

@@ -135,6 +135,8 @@ Session::Session(
 			saveSettingsDelayed();
 		}
 
+		// Storage::Account uses Main::Account::session() in those methods.
+		// So they can't be called during Main::Session construction.
 		local().readInstalledStickers();
 		local().readFeaturedStickers();
 		local().readRecentStickers();
