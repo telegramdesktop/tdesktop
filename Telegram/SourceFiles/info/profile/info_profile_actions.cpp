@@ -301,28 +301,28 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		// Source from kotatogram
 		if (_peer->isChat()) {
 			addInfoOneLine(
-				tr::lng_profile_group_id(),
+				rpl::single(Lang::Current().getCustomLangValue("lng_profile_group_id")),
 				IDValue(_peer, 0),
 				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
 		} else if (_peer->isMegagroup()) {
 			addInfoOneLine(
-				tr::lng_profile_supergroup_id(),
+				rpl::single(Lang::Current().getCustomLangValue("lng_profile_supergroup_id")),
 				IDValue(_peer, 1),
 				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
 			addInfoOneLine(
-				tr::lng_chat_restriction_reason(),
+				rpl::single(Lang::Current().getCustomLangValue("lng_chat_restriction_reason")),
 				StringValue(_peer->asMegagroup()->restriction_reason),
-				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
+				Lang::Current().getCustomLangValue("lng_copy_restriction_reason"));
 		
 		} else {
 			addInfoOneLine(
-				tr::lng_profile_channel_id(),
+				rpl::single(Lang::Current().getCustomLangValue("lng_profile_channel_id")),
 				IDValue(_peer, 1),
-				tr::lng_profile_copy_id(tr::now));
+				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
 			addInfoOneLine(
-				tr::lng_chat_restriction_reason(),
+				rpl::single(Lang::Current().getCustomLangValue("lng_chat_restriction_reason")),
 				StringValue(_peer->asChannel()->restriction_reason),
-				tr::lng_copy_restriction_reason(tr::now));
+				Lang::Current().getCustomLangValue("lng_profile_copy_id"));
 		}
 
 		
