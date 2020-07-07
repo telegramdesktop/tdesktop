@@ -84,7 +84,7 @@ bool EventFilter::mainWindowEvent(
 		WPARAM wParam,
 		LPARAM lParam,
 		LRESULT *result) {
-	using ShadowsChange = MainWindow::ShadowsChange;
+	using Change = Ui::Platform::WindowShadow::Change;
 
 	if (const auto tbCreatedMsgId = Platform::MainWindow::TaskbarCreatedMsgId()) {
 		if (msg == tbCreatedMsgId) {
@@ -163,9 +163,9 @@ bool EventFilter::mainWindowEvent(
 		WINDOWPLACEMENT wp;
 		wp.length = sizeof(WINDOWPLACEMENT);
 		if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
-			_window->shadowsUpdate(ShadowsChange::Hidden);
+			_window->shadowsUpdate(Change::Hidden);
 		} else {
-			_window->shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized, (WINDOWPOS*)lParam);
+			_window->shadowsUpdate(Change::Moved | Change::Resized, (WINDOWPOS*)lParam);
 		}
 	} return false;
 
@@ -183,19 +183,19 @@ bool EventFilter::mainWindowEvent(
 				_window->positionUpdated();
 			}
 			_window->psUpdateMargins();
-			MainWindow::ShadowsChanges changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? ShadowsChange::Hidden : (ShadowsChange::Resized | ShadowsChange::Shown);
+			const auto changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? Change::Hidden : (Change::Resized | Change::Shown);
 			_window->shadowsUpdate(changes);
 		}
 	} return false;
 
 	case WM_SHOWWINDOW: {
 		LONG style = GetWindowLongPtr(hWnd, GWL_STYLE);
-		auto changes = ShadowsChange::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? ShadowsChange::Shown : ShadowsChange::Hidden);
+		const auto changes = Change::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? Change::Shown : Change::Hidden);
 		_window->shadowsUpdate(changes);
 	} return false;
 
 	case WM_MOVE: {
-		_window->shadowsUpdate(ShadowsChange::Moved);
+		_window->shadowsUpdate(Change::Moved);
 		_window->positionUpdated();
 	} return false;
 
