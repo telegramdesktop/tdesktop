@@ -388,6 +388,21 @@ rpl::producer<> Media::Player::Instance::playlistChanges(
 	return data->playlistChanges.events();
 }
 
+rpl::producer<> Media::Player::Instance::stops(AudioMsgId::Type type) const {
+	return _playerStopped.events(
+	) | rpl::filter([=](auto t) {
+		return t == type;
+	}) | rpl::to_empty;
+}
+
+rpl::producer<> Media::Player::Instance::startsPlay(
+		AudioMsgId::Type type) const {
+	return _playerStartedPlay.events(
+	) | rpl::filter([=](auto t) {
+		return t == type;
+	}) | rpl::to_empty;
+}
+
 not_null<Instance*> instance() {
 	Expects(SingleInstance != nullptr);
 	return SingleInstance;
@@ -426,6 +441,7 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
 		document->owner().markMediaRead(document);
 	}
+	_playerStartedPlay.fire_copy({audioId.type()});
 }
 
 void Instance::playPause(const AudioMsgId &audioId) {
@@ -507,6 +523,7 @@ void Instance::stop(AudioMsgId::Type type) {
 			clearStreamed(data);
 		}
 		data->resumeOnCallEnd = false;
+		_playerStopped.fire_copy({type});
 	}
 }
 

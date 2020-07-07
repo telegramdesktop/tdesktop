@@ -148,15 +148,12 @@ public:
 
 	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
 
-	void playerWidgetToggledNotify(bool toggled) {
-		_playerWidgetToggled.fire_copy({toggled});
-	}
-	rpl::producer<bool> playerWidgetToggled() const {
-		return _playerWidgetToggled.events();
-	}
 	rpl::producer<TrackState> updatedNotifier() const {
 		return _updatedNotifier.events();
 	}
+
+	rpl::producer<> stops(AudioMsgId::Type type) const;
+	rpl::producer<> startsPlay(AudioMsgId::Type type) const;
 
 	bool pauseGifByRoundVideo() const;
 
@@ -268,7 +265,8 @@ private:
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 
-	rpl::event_stream<bool> _playerWidgetToggled;
+	rpl::event_stream<AudioMsgId::Type> _playerStopped;
+	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;
 	rpl::lifetime _lifetime;
 

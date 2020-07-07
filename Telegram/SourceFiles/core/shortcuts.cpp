@@ -559,7 +559,6 @@ bool HandleEvent(not_null<QShortcutEvent*> event) {
 void ToggleMediaShortcuts(bool toggled) {
 	Data.toggleMedia(toggled);
 	Platform::SetWatchingMediaKeys(toggled);
-	Media::Player::instance()->playerWidgetToggledNotify(toggled);
 }
 
 void ToggleSupportShortcuts(bool toggled) {
