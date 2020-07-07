@@ -31,7 +31,9 @@ public:
 
 	void psInitSysMenu();
 	void updateSystemMenu(Qt::WindowState state);
-	void psUpdateMargins();
+	void updateCustomMargins();
+
+	void updateWindowIcon() override;
 
 	void psRefreshTaskbarIcon();
 
@@ -89,8 +91,10 @@ protected:
 
 private:
 	void updateIconCounters();
-
+	QMargins computeCustomMargins();
+	void validateWindowTheme();
 	void psDestroyIcons();
+	void fixMaximizedWindow();
 
 	static UINT _taskbarCreatedMsgId;
 

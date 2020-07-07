@@ -407,6 +407,15 @@ public:
 	[[nodiscard]] bool notifyFromAll() const {
 		return _notifyFromAll;
 	}
+	void setNativeWindowFrame(bool value) {
+		_nativeWindowFrame = value;
+	}
+	[[nodiscard]] bool nativeWindowFrame() const {
+		return _nativeWindowFrame.current();
+	}
+	[[nodiscard]] rpl::producer<bool> nativeWindowFrameChanges() const {
+		return _nativeWindowFrame.changes();
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] float64 DefaultDialogsWidthRatio();
@@ -474,6 +483,7 @@ private:
 	rpl::variable<float64> _dialogsWidthRatio; // per-window
 	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
 	bool _notifyFromAll = true;
+	rpl::variable<bool> _nativeWindowFrame = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

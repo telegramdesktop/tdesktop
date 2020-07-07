@@ -21,6 +21,7 @@ class Account;
 
 namespace Ui {
 class BoxContent;
+class PlainShadow;
 } // namespace Ui
 
 namespace Window {
@@ -80,6 +81,8 @@ public:
 
 	virtual void updateTrayMenu(bool force = false) {
 	}
+	virtual void fixOrder() {
+	}
 
 	virtual ~MainWindow();
 
@@ -101,6 +104,7 @@ public:
 	int computeMinWidth() const;
 	int computeMinHeight() const;
 
+	void recountGeometryConstraints();
 	virtual void updateControlsGeometry();
 
 public slots:
@@ -173,6 +177,8 @@ protected:
 	void updateUnreadCounter();
 
 private:
+	void refreshTitleWidget();
+	void updateMinimumSize();
 	void updatePalette();
 	void initSize();
 
@@ -184,6 +190,7 @@ private:
 	bool _positionInited = false;
 
 	object_ptr<TitleWidget> _title = { nullptr };
+	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<Ui::RpWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };

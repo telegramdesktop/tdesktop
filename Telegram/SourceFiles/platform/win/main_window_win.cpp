@@ -112,6 +112,12 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 			_shadow->setColor(st::windowShadowFg->c);
 		}
 	});
+	Core::App().settings().nativeWindowFrameChanges(
+	) | rpl::start_with_next([=] {
+		initShadows();
+		validateWindowTheme();
+		fixMaximizedWindow();
+	}, lifetime());
 }
 
 void MainWindow::TaskbarCreated() {
@@ -231,6 +237,10 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	}
 }
 
+void MainWindow::updateWindowIcon() {
+	updateIconCounters();
+}
+
 void MainWindow::unreadCounterChangedHook() {
 	setWindowTitle(titleText());
 	updateIconCounters();
@@ -294,18 +304,24 @@ void MainWindow::initHook() {
 	}
 
 	psInitSysMenu();
-
-	_shadow.emplace(this, st::windowShadowFg->c);
 }
 
 void MainWindow::initShadows() {
-	psUpdateMargins();
-	shadowsUpdate(Ui::Platform::WindowShadow::Change::Hidden);
+	if (Core::App().settings().nativeWindowFrame()) {
+		_shadow.reset();
+	} else {
+		_shadow.emplace(this, st::windowShadowFg->c);
+	}
+	updateCustomMargins();
+	firstShadowsUpdate();
 }
 
 void MainWindow::firstShadowsUpdate() {
-	if (!(windowState() & Qt::WindowMinimized) && !isHidden()) {
-		using Change = Ui::Platform::WindowShadow::Change;
+	using Change = Ui::Platform::WindowShadow::Change;
+	if ((windowState() & (Qt::WindowMinimized | Qt::WindowMaximized))
+		|| isHidden()) {
+		shadowsUpdate(Change::Hidden);
+	} else {
 		shadowsUpdate(Change::Moved | Change::Resized | Change::Shown);
 	}
 }
@@ -363,19 +379,40 @@ void MainWindow::updateSystemMenu(Qt::WindowState state) {
 	}
 }
 
-void MainWindow::psUpdateMargins() {
-	if (!ps_hWnd || _inUpdateMargins) return;
+void MainWindow::updateCustomMargins() {
+	if (!ps_hWnd || _inUpdateMargins) {
+		return;
+	}
 
 	_inUpdateMargins = true;
 
-	RECT r, a;
+	const auto margins = computeCustomMargins();
+	if (const auto native = QGuiApplication::platformNativeInterface()) {
+		native->setWindowProperty(
+			windowHandle()->handle(),
+			qsl("WindowsCustomMargins"),
+			QVariant::fromValue<QMargins>(margins));
+	}
+	if (!_themeInited) {
+		_themeInited = true;
+		validateWindowTheme();
+	}
+	_inUpdateMargins = false;
+}
 
+QMargins MainWindow::computeCustomMargins() {
+	if (Core::App().settings().nativeWindowFrame()) {
+		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
+		return QMargins();
+	}
+	auto r = RECT();
 	GetClientRect(ps_hWnd, &r);
-	a = r;
 
-	LONG style = GetWindowLongPtr(ps_hWnd, GWL_STYLE), styleEx = GetWindowLongPtr(ps_hWnd, GWL_EXSTYLE);
+	auto a = r;
+	const auto style = GetWindowLongPtr(ps_hWnd, GWL_STYLE);
+	const auto styleEx = GetWindowLongPtr(ps_hWnd, GWL_EXSTYLE);
 	AdjustWindowRectEx(&a, style, false, styleEx);
-	QMargins margins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
+	auto margins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
 	if (style & WS_MAXIMIZE) {
 		RECT w, m;
 		GetWindowRect(ps_hWnd, &w);
@@ -404,23 +441,39 @@ void MainWindow::psUpdateMargins() {
 		SetWindowPos(ps_hWnd, 0, 0, 0, w.right - w.left - _deltaLeft - _deltaRight, w.bottom - w.top - _deltaBottom - _deltaTop, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
 		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
 	}
+	return margins;
+}
 
-	if (const auto native = QGuiApplication::platformNativeInterface()) {
-		native->setWindowProperty(
-			windowHandle()->handle(),
-			qsl("WindowsCustomMargins"),
-			QVariant::fromValue<QMargins>(margins));
+void MainWindow::validateWindowTheme() {
+	if (IsWindows8OrGreater()) {
+		return;
+	} else if (Dlls::SetWindowTheme != nullptr) {
+		if (Core::App().settings().nativeWindowFrame()) {
+			Dlls::SetWindowTheme(ps_hWnd, nullptr, nullptr);
+		} else {
+			Dlls::SetWindowTheme(ps_hWnd, L" ", L" ");
+		}
+		QApplication::setStyle(QStyleFactory::create(qsl("Windows")));
 	}
-	if (!_themeInited) {
-		_themeInited = true;
-		if (!IsWindows8OrGreater()) {
-			if (Dlls::SetWindowTheme != nullptr) {
-				Dlls::SetWindowTheme(ps_hWnd, L" ", L" ");
-				QApplication::setStyle(QStyleFactory::create(qsl("Windows")));
-			}
+}
+
+void MainWindow::fixMaximizedWindow() {
+	auto r = RECT();
+	GetClientRect(ps_hWnd, &r);
+	const auto style = GetWindowLongPtr(ps_hWnd, GWL_STYLE);
+	const auto styleEx = GetWindowLongPtr(ps_hWnd, GWL_EXSTYLE);
+	AdjustWindowRectEx(&r, style, false, styleEx);
+	if (style & WS_MAXIMIZE) {
+		auto w = RECT();
+		GetWindowRect(ps_hWnd, &w);
+		if (const auto hMonitor = MonitorFromRect(&w, MONITOR_DEFAULTTONEAREST)) {
+			MONITORINFO mi;
+			mi.cbSize = sizeof(mi);
+			GetMonitorInfo(hMonitor, &mi);
+			const auto m = mi.rcWork;
+			SetWindowPos(ps_hWnd, 0, 0, 0, m.right - m.left - _deltaLeft - _deltaRight, m.bottom - m.top - _deltaTop - _deltaBottom, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
 		}
 	}
-	_inUpdateMargins = false;
 }
 
 HWND MainWindow::psHwnd() const {

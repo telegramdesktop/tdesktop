@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+bool AllowNativeWindowFrameToggle();
 object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
+bool NativeTitleRequiresShadow();
 
 int PreviewTitleHeight();
 void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
@@ -33,12 +35,22 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 
 namespace Platform {
 
-inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+inline bool AllowNativeWindowFrameToggle() {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	return object_ptr<Window::TitleWidgetQt>(parent);
+	return true;
+#else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+	return false;
 #endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+}
 
-	return { nullptr };
+inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+	return AllowNativeWindowFrameToggle()
+		? object_ptr<Window::TitleWidgetQt>(parent)
+		: object_ptr<Window::TitleWidgetQt>{ nullptr };
+}
+
+inline bool NativeTitleRequiresShadow() {
+	return false;
 }
 
 inline int PreviewTitleHeight() {

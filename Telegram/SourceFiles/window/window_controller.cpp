@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "platform/platform_window_title.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -239,6 +240,13 @@ void Controller::showSettings() {
 	_widget.showSettings();
 }
 
+int Controller::verticalShadowTop() const {
+	return (Platform::NativeTitleRequiresShadow()
+		&& Core::App().settings().nativeWindowFrame())
+		? st::lineWidth
+		: 0;
+}
+
 void Controller::showToast(const QString &text) {
 	Ui::Toast::Show(_widget.bodyWidget(), text);
 }
@@ -255,9 +263,7 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 }
 
 void Controller::sideBarChanged() {
-	_widget.setMinimumWidth(_widget.computeMinWidth());
-	_widget.updateControlsGeometry();
-	_widget.fixOrder();
+	_widget.recountGeometryConstraints();
 }
 
 void Controller::activate() {

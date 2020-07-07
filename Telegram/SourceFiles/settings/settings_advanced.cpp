@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
+#include "platform/platform_window_title.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
@@ -405,6 +406,20 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 				updateWorkmode();
 			}
 		}, taskbar->lifetime());
+	}
+
+	if (Platform::AllowNativeWindowFrameToggle()) {
+		const auto nativeFrame = addCheckbox(
+			"Use system window frame",
+			Core::App().settings().nativeWindowFrame());
+
+		nativeFrame->checkedChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().nativeWindowFrame());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setNativeWindowFrame(checked);
+			Core::App().saveSettingsDelayed();
+		}, nativeFrame->lifetime());
 	}
 
 	if (Platform::AutostartSupported()) {

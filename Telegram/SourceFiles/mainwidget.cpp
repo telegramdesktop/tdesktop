@@ -2177,13 +2177,19 @@ void MainWidget::updateControlsGeometry() {
 		auto mainSectionWidth = width() - dialogsWidth - thirdSectionWidth;
 
 		_dialogs->setGeometryWithTopMoved({ 0, 0, dialogsWidth, height() }, _contentScrollAddToY);
-		_sideShadow->setGeometryToLeft(dialogsWidth, 0, st::lineWidth, height());
+		const auto shadowTop = _controller->window().verticalShadowTop();
+		const auto shadowHeight = height() - shadowTop;
+		_sideShadow->setGeometryToLeft(
+			dialogsWidth, 
+			shadowTop,
+			st::lineWidth, 
+			shadowHeight);
 		if (_thirdShadow) {
 			_thirdShadow->setGeometryToLeft(
 				width() - thirdSectionWidth - st::lineWidth,
-				0,
+				shadowTop,
 				st::lineWidth,
-				height());
+				shadowHeight);
 		}
 		if (_callTopBar) {
 			_callTopBar->resizeToWidth(mainSectionWidth);

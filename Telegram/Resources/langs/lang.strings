@@ -338,6 +338,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_update_fail" = "Update check failed :(";
 "lng_settings_workmode_tray" = "Show tray icon";
 "lng_settings_workmode_window" = "Show taskbar icon";
+"lng_settings_native_frame" = "Use system window frame";
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
 "lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";

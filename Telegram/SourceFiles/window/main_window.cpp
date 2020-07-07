@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/crc32hash.h"
 #include "base/call_delayed.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/shadow.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -236,9 +237,14 @@ void MainWindow::init() {
 
 	updatePalette();
 
-	if ((_title = Platform::CreateTitleWidget(this))) {
-		_title->init();
+	if (Platform::AllowNativeWindowFrameToggle()) {
+		Core::App().settings().nativeWindowFrameChanges(
+		) | rpl::start_with_next([=](bool native) {
+			refreshTitleWidget();
+			recountGeometryConstraints();
+		}, lifetime());
 	}
+	refreshTitleWidget();
 
 	initSize();
 	updateUnreadCounter();
@@ -311,9 +317,34 @@ int MainWindow::computeMinHeight() const {
 	return title + outdated + st::windowMinHeight;
 }
 
-void MainWindow::initSize() {
+void MainWindow::refreshTitleWidget() {
+	if (Platform::AllowNativeWindowFrameToggle()
+		&& Core::App().settings().nativeWindowFrame()) {
+		_title.destroy();
+		if (Platform::NativeTitleRequiresShadow()) {
+			_titleShadow.create(this);
+			_titleShadow->show();
+		}
+	} else if ((_title = Platform::CreateTitleWidget(this))) {
+		_title->show();
+		_title->init();
+		_titleShadow.destroy();
+	}
+}
+
+void MainWindow::updateMinimumSize() {
 	setMinimumWidth(computeMinWidth());
 	setMinimumHeight(computeMinHeight());
+}
+
+void MainWindow::recountGeometryConstraints() {
+	updateMinimumSize();
+	updateControlsGeometry();
+	fixOrder();
+}
+
+void MainWindow::initSize() {
+	updateMinimumSize();
 
 	auto position = cWindowPos();
 	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
@@ -424,6 +455,9 @@ void MainWindow::updateControlsGeometry() {
 	if (_title && !_title->isHidden()) {
 		_title->setGeometry(0, bodyTop, width(), _title->height());
 		bodyTop += _title->height();
+	}
+	if (_titleShadow) {
+		_titleShadow->setGeometry(0, bodyTop, width(), st::lineWidth);
 	}
 	if (_outdated) {
 		Ui::SendPendingMoveResizeEvents(_outdated.data());

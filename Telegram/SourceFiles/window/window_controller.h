@@ -48,6 +48,8 @@ public:
 
 	void showSettings();
 
+	[[nodiscard]] int verticalShadowTop() const;
+
 	template <typename BoxType>
 	QPointer<BoxType> show(
 			object_ptr<BoxType> content,
