@@ -1,76 +1,64 @@
-# [Telegram Desktop][telegram_desktop] – Official Messenger
-
-This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
-
-[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Windows./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/MacOS./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Linux./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+# Unofficial Telegram Desktop x64
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
+[![Preview of Telegram Desktop x64][preview_image]][preview_image_url]
+
+## Project Goal
+
+Provide Windows 64bit build with some enhancements. *(Linux build is a PLUS!)*
+
+Cause official Telegram Desktop do not provide Windows 64bit build, so [Project TDesktop x64](https://github.com/TDesktop-x64) is aimed at provide Windows native x64 build(with few enhancements) to everybody.
+
+## Roadmap
+
+1. Drop Windows 32bit support in 1 September.
+
+## Features 
+
+*(Some features were taken from [Kotatogram](https://github.com/kotatogram/kotatogram-desktop))*
+
+1. Show Chat ID
+2. Show admin titles in member list
+3. Network(Download/Upload) Boost Setting
+4. Show chat restriction reason on profile page
+5. Ban members option in Recent Actions
+6. Always show discuss button if channel has discussion group
+7. Copy inline button callback data to Clipboard
+8. Expose all chat permissions setting
+9. Show bot privacy in member list and profile
+10. Show admin title in admin list
+11. Search Messages From User(Right click user pic or member list)
+12. Repeat user message to current group
+13. Recent Actions/Admins list button in top bar
+14. Show service message time
+15. Show message ID in tooltip
+16. Gif Shared Media section
+17. Don't share my phone number when add someone to contacts
+18. Multiple accounts increase to 10
+19. Support multiple chat forward
+20. [Time to RUSH! We should run faster than official TDesktop~] Upload file size limit increase to 2GB(2000MB)
+
 ## Supported systems
 
-The latest version is available for
+Windows 7 and above
 
-* [Windows 7 and above](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
-* [OS X 10.10 and 10.11](https://telegram.org/dl/desktop/osx)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux) ([32 bit](https://telegram.org/dl/desktop/linux32))
-* [Snap](https://snapcraft.io/telegram-desktop)
-* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
+Linux 64 bit
 
-## Old system versions
-
-Version **1.8.15** was the last that supports older systems
-
-* [Windows XP and Vista](https://updates.tdesktop.com/tsetup/tsetup.1.8.15.exe) ([portable](https://updates.tdesktop.com/tsetup/tportable.1.8.15.zip))
-* [OS X 10.8 and 10.9](https://updates.tdesktop.com/tmac/tsetup.1.8.15.dmg)
-* [OS X 10.6 and 10.7](https://updates.tdesktop.com/tmac32/tsetup32.1.8.15.dmg)
-
-## Third-party
-
-* Qt 5.12.8, 5.6.2 and 5.3.2 slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
-* OpenSSL 1.1.1 and 1.0.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
-* zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
-* LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
-* liblzma ([public domain](http://tukaani.org/xz/))
-* Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
-* Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
-* GYP ([BSD License](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
-* Ninja ([Apache License 2.0](https://github.com/ninja-build/ninja/blob/master/COPYING))
-* OpenAL Soft ([LGPL](https://github.com/kcat/openal-soft/blob/master/COPYING))
-* Opus codec ([BSD License](http://www.opus-codec.org/license/))
-* FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
-* Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
-* Mapbox Variant ([BSD License](https://github.com/mapbox/variant/blob/master/LICENSE))
-* Range-v3 ([Boost License](https://github.com/ericniebler/range-v3/blob/master/LICENSE.txt))
-* Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
-* Vazir font ([License](https://github.com/rastikerdar/vazir-font/blob/master/LICENSE))
-* Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
-* Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
-* xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
-* QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
-* CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
-* Hunspell ([GPL](https://github.com/hunspell/hunspell/blob/master/COPYING))
+The latest version is available on the [Release](https://github.com/TDesktop-x64/tdesktop/releases) page.
 
 ## Build instructions
 
 * [Visual Studio 2019 x64][msvc_x64]
-* [Xcode 11][xcode]
 * [CMake on GNU/Linux][cmake]
 
+## Links
+
+* [Official Telegram Channel](https://t.me/tg_x64)
+
 [//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
-[telegram_api]: https://core.telegram.org
-[telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
 [msvc_x64]: docs/building-msvc_x64.md
-[xcode]: docs/building-xcode.md
-[xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
-[preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
+[preview_image]: https://github.com/TDesktop-x64/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop x64"
+[preview_image_url]: https://raw.githubusercontent.com/TDesktop-x64/tdesktop/dev/docs/assets/preview.png
