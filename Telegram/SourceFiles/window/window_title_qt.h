@@ -24,6 +24,7 @@ namespace Window {
 class TitleWidgetQt : public TitleWidget {
 public:
 	TitleWidgetQt(QWidget *parent);
+	~TitleWidgetQt();
 
 	void init() override;
 
@@ -40,8 +41,10 @@ private:
 	void updateButtonsState();
 	void updateControlsPosition();
 
+	void toggleFramelessWindow(bool enabled);
 	Qt::Edges edgesFromPos(const QPoint &pos);
 	void updateCursor(Qt::Edges edges);
+	void restoreCursor();
 	bool startResize(Qt::Edges edges);
 
 	const style::WindowTitle &_st;
@@ -52,6 +55,8 @@ private:
 
 	bool _maximizedState = false;
 	bool _activeState = false;
+	bool _windowWasFrameless = false;
+	bool _cursorOverriden = false;
 
 };
 

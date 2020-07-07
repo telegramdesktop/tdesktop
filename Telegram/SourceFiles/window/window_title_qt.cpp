@@ -10,11 +10,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_window.h"
+#include "base/call_delayed.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 
 namespace Window {
+namespace {
+
+// If we toggle frameless window hint in maximized window, and
+// show it back too quickly, the mouse position inside the window
+// won't be correct (from Qt-s point of view) until we Alt-Tab from
+// that window. If we show the window back with this delay it works.
+constexpr auto kShowAfterFramelessToggleDelay = crl::time(1000);
+
+} // namespace
 
 TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 : TitleWidget(parent)
@@ -45,9 +55,33 @@ TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 
 	QCoreApplication::instance()->installEventFilter(this);
 
-	window()->setWindowFlag(Qt::FramelessWindowHint, true);
+	_windowWasFrameless = (window()->windowFlags() & Qt::FramelessWindowHint) != 0;
+	if (!_windowWasFrameless) {
+		toggleFramelessWindow(true);
+	}
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), _st.height);
+}
+
+TitleWidgetQt::~TitleWidgetQt() {
+	restoreCursor();
+	if (!_windowWasFrameless) {
+		toggleFramelessWindow(false);
+	}
+}
+
+void TitleWidgetQt::toggleFramelessWindow(bool enabled) {
+	// setWindowFlag calls setParent(parentWidget(), newFlags), which
+	// always calls hide() explicitly, we have to show() the window back.
+	const auto top = window();
+	const auto hidden = top->isHidden();
+	top->setWindowFlag(Qt::FramelessWindowHint, enabled);
+	if (!hidden) {
+		base::call_delayed(
+			kShowAfterFramelessToggleDelay,
+			top,
+			[=] { top->show(); });
+	}
 }
 
 void TitleWidgetQt::init() {
@@ -103,7 +137,7 @@ void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {
 bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 	if (e->type() == QEvent::MouseMove
 		|| e->type() == QEvent::MouseButtonPress) {
-		if(window()->isAncestorOf(static_cast<QWidget*>(obj))) {
+		if (window()->isAncestorOf(static_cast<QWidget*>(obj))) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
 			const auto edges = edgesFromPos(mouseEvent->windowPos().toPoint());
 
@@ -111,7 +145,7 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 				updateCursor(edges);
 			}
 
-			if(e->type() == QEvent::MouseButtonPress
+			if (e->type() == QEvent::MouseButtonPress
 				&& mouseEvent->button() == Qt::LeftButton
 				&& window()->windowState() != Qt::WindowMaximized) {
 				return startResize(edges);
@@ -119,9 +153,7 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 		}
 	} else if (e->type() == QEvent::Leave) {
 		if (window() == static_cast<QWidget*>(obj)) {
-			while (QGuiApplication::overrideCursor()) {
-				QGuiApplication::restoreOverrideCursor();
-			}
+			restoreCursor();
 		}
 	}
 
@@ -196,14 +228,22 @@ Qt::Edges TitleWidgetQt::edgesFromPos(const QPoint &pos) {
 	}
 }
 
+void TitleWidgetQt::restoreCursor() {
+	if (_cursorOverriden) {
+		_cursorOverriden = false;
+		QGuiApplication::restoreOverrideCursor();
+	}
+}
+
 void TitleWidgetQt::updateCursor(Qt::Edges edges) {
 	if (!edges || window()->windowState() == Qt::WindowMaximized) {
-		while (QGuiApplication::overrideCursor()) {
-			QGuiApplication::restoreOverrideCursor();
-		}
-
+		restoreCursor();
 		return;
 	} else if (!QGuiApplication::overrideCursor()) {
+		_cursorOverriden = false;
+	}
+	if (!_cursorOverriden) {
+		_cursorOverriden = true;
 		QGuiApplication::setOverrideCursor(QCursor());
 	}
 

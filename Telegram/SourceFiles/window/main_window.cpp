@@ -641,6 +641,8 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 	}
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow() {
+	_title.destroy();
+}
 
 } // namespace Window
