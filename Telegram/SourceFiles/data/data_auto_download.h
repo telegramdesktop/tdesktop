@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace AutoDownload {
 
-constexpr auto kMaxBytesLimit = 3000 * 512 * 1024;
+constexpr auto kMaxBytesLimit = 4000 * 512 * 1024;
 
 enum class Source {
 	User    = 0x00,

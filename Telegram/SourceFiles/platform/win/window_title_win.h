@@ -59,8 +59,16 @@ private:
 
 };
 
+inline bool AllowNativeWindowFrameToggle() {
+	return true;
+}
+
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 	return object_ptr<TitleWidget>(parent);
+}
+
+inline bool NativeTitleRequiresShadow() {
+	return true;
 }
 
 inline int PreviewTitleHeight() {

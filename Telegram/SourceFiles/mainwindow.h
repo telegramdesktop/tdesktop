@@ -63,8 +63,6 @@ public:
 
 	void checkHistoryActivation();
 
-	void fixOrder();
-
 	void sendPaths();
 
 	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
@@ -79,6 +77,7 @@ public:
 
 	void showMainMenu();
 	void updateTrayMenu(bool force = false) override;
+	void fixOrder() override;
 
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> layer,

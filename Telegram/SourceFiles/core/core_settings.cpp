@@ -105,7 +105,8 @@ QByteArray Settings::serialize() const {
 				1000000))
 			<< qint32(_thirdColumnWidth.current())
 			<< qint32(_thirdSectionExtendedBy)
-			<< qint32(_notifyFromAll ? 1 : 0);
+			<< qint32(_notifyFromAll ? 1 : 0)
+			<< qint32(_nativeWindowFrame.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -169,6 +170,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 thirdColumnWidth = _thirdColumnWidth.current();
 	qint32 thirdSectionExtendedBy = _thirdSectionExtendedBy;
 	qint32 notifyFromAll = _notifyFromAll ? 1 : 0;
+	qint32 nativeWindowFrame = _nativeWindowFrame.current() ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -242,6 +244,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> thirdSectionExtendedBy
 			>> notifyFromAll;
 		dialogsWidthRatio = snap(dialogsWidthRatioInt / 1000000., 0., 1.);
+	}
+	if (!stream.atEnd()) {
+		stream >> nativeWindowFrame;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -335,6 +340,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		_tabbedSelectorSectionEnabled = false;
 	}
 	_notifyFromAll = (notifyFromAll == 1);
+	_nativeWindowFrame = (nativeWindowFrame == 1);
 }
 
 bool Settings::chatWide() const {

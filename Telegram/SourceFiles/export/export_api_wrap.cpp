@@ -27,7 +27,7 @@ constexpr auto kFileNextRequestDelay = crl::time(20);
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
-constexpr auto kFileMaxSize = 1500 * 1024 * 1024;
+constexpr auto kFileMaxSize = 2000 * 1024 * 1024;
 constexpr auto kLocationCacheSize = 100'000;
 
 struct LocationKey {

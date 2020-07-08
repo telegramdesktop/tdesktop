@@ -16,7 +16,7 @@ namespace Streaming {
 namespace {
 
 // This is the maximum file size in Telegram API.
-constexpr auto kMaxFileSize = 3000 * 512 * 1024;
+constexpr auto kMaxFileSize = 4000 * 512 * 1024;
 
 int ValidateLocalSize(int64 size) {
 	return (size > 0 && size <= kMaxFileSize) ? int(size) : 0;

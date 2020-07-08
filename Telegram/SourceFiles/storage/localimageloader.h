@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "api/api_common.h"
 
+constexpr auto kFileSizeLimit = 2000 * 1024 * 1024; // Load files up to 1500mb
+
 enum class CompressConfirm {
 	Auto,
 	Yes,

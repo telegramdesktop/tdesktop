@@ -32,7 +32,15 @@ private:
 
 };
 
+inline bool AllowNativeWindowFrameToggle() {
+	return false;
+}
+
 object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
+
+inline bool NativeTitleRequiresShadow() {
+	return false;
+}
 
 int PreviewTitleHeight();
 void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);

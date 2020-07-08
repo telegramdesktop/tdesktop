@@ -78,17 +78,96 @@ bool EventFilter::nativeEventFilter(
 	});
 }
 
+bool EventFilter::customWindowFrameEvent(
+		HWND hWnd,
+		UINT msg,
+		WPARAM wParam,
+		LPARAM lParam,
+		LRESULT *result) {
+	switch (msg) {
+	case WM_NCPAINT: {
+		if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false;
+		if (result) *result = 0;
+	} return true;
+
+	case WM_NCCALCSIZE: {
+		WINDOWPLACEMENT wp;
+		wp.length = sizeof(WINDOWPLACEMENT);
+		if (GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
+			LPNCCALCSIZE_PARAMS params = (LPNCCALCSIZE_PARAMS)lParam;
+			LPRECT r = (wParam == TRUE) ? &params->rgrc[0] : (LPRECT)lParam;
+			HMONITOR hMonitor = MonitorFromPoint({ (r->left + r->right) / 2, (r->top + r->bottom) / 2 }, MONITOR_DEFAULTTONEAREST);
+			if (hMonitor) {
+				MONITORINFO mi;
+				mi.cbSize = sizeof(mi);
+				if (GetMonitorInfo(hMonitor, &mi)) {
+					*r = mi.rcWork;
+				}
+			}
+		}
+		if (result) *result = 0;
+		return true;
+	}
+
+	case WM_NCACTIVATE: {
+		if (IsCompositionEnabled()) {
+			const auto res = DefWindowProc(hWnd, msg, wParam, -1);
+			if (result) *result = res;
+		} else {
+			// Thanks https://github.com/melak47/BorderlessWindow
+			if (result) *result = 1;
+		}
+	} return true;
+
+	case WM_NCHITTEST: {
+		if (!result) return false;
+
+		POINTS p = MAKEPOINTS(lParam);
+		RECT r;
+		GetWindowRect(hWnd, &r);
+		auto res = _window->hitTest(QPoint(p.x - r.left + _window->deltaLeft(), p.y - r.top + _window->deltaTop()));
+		switch (res) {
+		case Window::HitTestResult::Client:
+		case Window::HitTestResult::SysButton:   *result = HTCLIENT; break;
+		case Window::HitTestResult::Caption:     *result = HTCAPTION; break;
+		case Window::HitTestResult::Top:         *result = HTTOP; break;
+		case Window::HitTestResult::TopRight:    *result = HTTOPRIGHT; break;
+		case Window::HitTestResult::Right:       *result = HTRIGHT; break;
+		case Window::HitTestResult::BottomRight: *result = HTBOTTOMRIGHT; break;
+		case Window::HitTestResult::Bottom:      *result = HTBOTTOM; break;
+		case Window::HitTestResult::BottomLeft:  *result = HTBOTTOMLEFT; break;
+		case Window::HitTestResult::Left:        *result = HTLEFT; break;
+		case Window::HitTestResult::TopLeft:     *result = HTTOPLEFT; break;
+		case Window::HitTestResult::None:
+		default:                                 *result = HTTRANSPARENT; break;
+		};
+	} return true;
+
+	case WM_NCRBUTTONUP: {
+		SendMessage(hWnd, WM_SYSCOMMAND, SC_MOUSEMENU, lParam);
+	} return true;
+	}
+
+	return false;
+}
+
 bool EventFilter::mainWindowEvent(
 		HWND hWnd,
 		UINT msg,
 		WPARAM wParam,
 		LPARAM lParam,
 		LRESULT *result) {
-	using ShadowsChange = MainWindow::ShadowsChange;
+	using Change = Ui::Platform::WindowShadow::Change;
 
 	if (const auto tbCreatedMsgId = Platform::MainWindow::TaskbarCreatedMsgId()) {
 		if (msg == tbCreatedMsgId) {
 			Platform::MainWindow::TaskbarCreated();
+		}
+	}
+
+	if (!Core::App().settings().nativeWindowFrame()) {
+		if (customWindowFrameEvent(hWnd, msg, wParam, lParam, result)) {
+			return true;
 		}
 	}
 
@@ -124,48 +203,14 @@ bool EventFilter::mainWindowEvent(
 		}
 	} return false;
 
-	case WM_NCPAINT: {
-		if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false;
-		if (result) *result = 0;
-	} return true;
-
-	case WM_NCCALCSIZE: {
-		WINDOWPLACEMENT wp;
-		wp.length = sizeof(WINDOWPLACEMENT);
-		if (GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
-			LPNCCALCSIZE_PARAMS params = (LPNCCALCSIZE_PARAMS)lParam;
-			LPRECT r = (wParam == TRUE) ? &params->rgrc[0] : (LPRECT)lParam;
-			HMONITOR hMonitor = MonitorFromPoint({ (r->left + r->right) / 2, (r->top + r->bottom) / 2 }, MONITOR_DEFAULTTONEAREST);
-			if (hMonitor) {
-				MONITORINFO mi;
-				mi.cbSize = sizeof(mi);
-				if (GetMonitorInfo(hMonitor, &mi)) {
-					*r = mi.rcWork;
-				}
-			}
-		}
-		if (result) *result = 0;
-		return true;
-	}
-
-	case WM_NCACTIVATE: {
-		if (IsCompositionEnabled()) {
-			const auto res = DefWindowProc(hWnd, msg, wParam, -1);
-			if (result) *result = res;
-		} else {
-			// Thanks https://github.com/melak47/BorderlessWindow
-			if (result) *result = 1;
-		}
-	} return true;
-
 	case WM_WINDOWPOSCHANGING:
 	case WM_WINDOWPOSCHANGED: {
 		WINDOWPLACEMENT wp;
 		wp.length = sizeof(WINDOWPLACEMENT);
 		if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
-			_window->shadowsUpdate(ShadowsChange::Hidden);
+			_window->shadowsUpdate(Change::Hidden);
 		} else {
-			_window->shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized, (WINDOWPOS*)lParam);
+			_window->shadowsUpdate(Change::Moved | Change::Resized, (WINDOWPOS*)lParam);
 		}
 	} return false;
 
@@ -182,50 +227,22 @@ bool EventFilter::mainWindowEvent(
 			} else {
 				_window->positionUpdated();
 			}
-			_window->psUpdateMargins();
-			MainWindow::ShadowsChanges changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? ShadowsChange::Hidden : (ShadowsChange::Resized | ShadowsChange::Shown);
+			_window->updateCustomMargins();
+			const auto changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? Change::Hidden : (Change::Resized | Change::Shown);
 			_window->shadowsUpdate(changes);
 		}
 	} return false;
 
 	case WM_SHOWWINDOW: {
 		LONG style = GetWindowLongPtr(hWnd, GWL_STYLE);
-		auto changes = ShadowsChange::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? ShadowsChange::Shown : ShadowsChange::Hidden);
+		const auto changes = Change::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? Change::Shown : Change::Hidden);
 		_window->shadowsUpdate(changes);
 	} return false;
 
 	case WM_MOVE: {
-		_window->shadowsUpdate(ShadowsChange::Moved);
+		_window->shadowsUpdate(Change::Moved);
 		_window->positionUpdated();
 	} return false;
-
-	case WM_NCHITTEST: {
-		if (!result) return false;
-
-		POINTS p = MAKEPOINTS(lParam);
-		RECT r;
-		GetWindowRect(hWnd, &r);
-		auto res = _window->hitTest(QPoint(p.x - r.left + _window->deltaLeft(), p.y - r.top + _window->deltaTop()));
-		switch (res) {
-		case Window::HitTestResult::Client:
-		case Window::HitTestResult::SysButton:   *result = HTCLIENT; break;
-		case Window::HitTestResult::Caption:     *result = HTCAPTION; break;
-		case Window::HitTestResult::Top:         *result = HTTOP; break;
-		case Window::HitTestResult::TopRight:    *result = HTTOPRIGHT; break;
-		case Window::HitTestResult::Right:       *result = HTRIGHT; break;
-		case Window::HitTestResult::BottomRight: *result = HTBOTTOMRIGHT; break;
-		case Window::HitTestResult::Bottom:      *result = HTBOTTOM; break;
-		case Window::HitTestResult::BottomLeft:  *result = HTBOTTOMLEFT; break;
-		case Window::HitTestResult::Left:        *result = HTLEFT; break;
-		case Window::HitTestResult::TopLeft:     *result = HTTOPLEFT; break;
-		case Window::HitTestResult::None:
-		default:                                 *result = HTTRANSPARENT; break;
-		};
-	} return true;
-
-	case WM_NCRBUTTONUP: {
-		SendMessage(hWnd, WM_SYSCOMMAND, SC_MOUSEMENU, lParam);
-	} return true;
 
 	case WM_SYSCOMMAND: {
 		if (wParam == SC_MOUSEMENU) {
