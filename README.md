@@ -37,7 +37,6 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 17. Don't share my phone number when add someone to contacts
 18. Multiple accounts increase to 10
 19. Support multiple chat forward
-20. [Time to RUSH! We should run faster than official TDesktop~] Upload file size limit increase to 2GB(2000MB)
 
 ## Supported systems
 
