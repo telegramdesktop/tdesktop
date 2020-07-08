@@ -60,7 +60,15 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix high definition GIF animations opening in media viewer.\n"
 
 		"- Multiple crash fixes."
-	}
+	},
+	{
+		2001018,
+		"- Fix a possible crash in Picture-in-Picture video player.\n"
+
+		"- Fix copying links from message texts.\n"
+
+		"- Allow using system window frame in Windows and Linux."
+	},
 	};
 };
 

@@ -1,3 +1,9 @@
+2.1.18 beta (08.07.20)
+
+- Fix a possible crash in Picture-in-Picture video player.
+- Fix copying links from message texts.
+- Allow using system window frame in Windows and Linux.
+
 2.1.17 beta (02.07.20)
 
 - Fix messages editing in a non-active account.
