@@ -936,32 +936,8 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	const auto owner = &history->owner();
 	const auto session = &history->session();
 	const auto isGroup = (owner->groups().find(item) != nullptr);
-	const auto isGame = item->getMessageBot()
-		&& item->media()
-		&& (item->media()->game() != nullptr);
-	const auto canCopyLink = items.size() == 1 && (item->hasDirectLink() || isGame);
 	const auto data = std::make_shared<ShareData>(history->peer, std::move(items));
 
-	auto copyCallback = [=]() {
-		if (const auto item = owner->message(data->msgIds[0])) {
-			if (item->hasDirectLink()) {
-				HistoryView::CopyPostLink(session, item->fullId());
-			} else if (const auto bot = item->getMessageBot()) {
-				if (const auto media = item->media()) {
-					if (const auto game = media->game()) {
-						const auto link = session->createInternalLinkFull(
-							bot->username
-							+ qsl("?game=")
-							+ game->shortName);
-
-						QGuiApplication::clipboard()->setText(link);
-
-						Ui::Toast::Show(tr::lng_share_game_link_copied(tr::now));
-					}
-				}
-			}
-		}
-	};
 	auto submitCallback = [=](
 			std::vector<not_null<PeerData*>> &&result,
 			TextWithTags &&comment,
@@ -1063,12 +1039,9 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	auto filterCallback = [](PeerData *peer) {
 		return peer->canWrite();
 	};
-	auto copyLinkCallback = canCopyLink
-		? Fn<void()>(std::move(copyCallback))
-		: Fn<void()>();
 	*weak = Ui::show(Box<ShareBox>(
 		App::wnd()->sessionController(),
-		std::move(copyLinkCallback),
+		nullptr,
 		std::move(submitCallback),
 		std::move(filterCallback)));
 	return weak->data();
