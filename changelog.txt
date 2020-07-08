@@ -2,6 +2,7 @@
 
 - Fix a possible crash in Picture-in-Picture video player.
 - Fix copying links from message texts.
+- Raise file size limit to 2000 MB.
 - Allow using system window frame in Windows and Linux.
 
 2.1.17 beta (02.07.20)

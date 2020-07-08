@@ -67,6 +67,8 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix copying links from message texts.\n"
 
+		"- Raise file size limit to 2000 MB.\n"
+
 		"- Allow using system window frame in Windows and Linux."
 	},
 	};
