@@ -6417,6 +6417,18 @@ void HistoryWidget::forwardSelected() {
 	});
 }
 
+void HistoryWidget::forwardNoQuoteSelected() {
+	if (!_list) {
+		return;
+	}
+	const auto weak = Ui::MakeWeak(this);
+	Window::ShowForwardNoQuoteMessagesBox(controller(), getSelectedItems(), [=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
+}
+
 void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 
