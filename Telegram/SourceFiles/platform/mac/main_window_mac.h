@@ -92,11 +92,9 @@ protected:
 private:
 	friend class Private;
 
-	void initTouchBar();
 	void hideAndDeactivate();
 	void updateTitleCounter();
 	void updateIconCounters();
-	void destroyCurrentTouchBar();
 
 	std::unique_ptr<Private> _private;
 
@@ -104,6 +102,8 @@ private:
 	mutable QTimer psIdleTimer;
 
 	base::Timer _hideAfterFullScreenTimer;
+
+	rpl::variable<bool> _canApplyMarkdown;
 
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;
