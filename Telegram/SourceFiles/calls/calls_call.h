@@ -19,11 +19,12 @@ class Track;
 } // namespace Audio
 } // namespace Media
 
-enum class TgVoipState;
+namespace tgcalls {
+class Instance;
+enum class State;
+} // namespace tgcalls
 
 namespace Calls {
-
-class Controller;
 
 struct DhConfig {
 	int32 version = 0;
@@ -153,9 +154,7 @@ private:
 	void displayNextFrame(QImage frame);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
-	void handleControllerStateChange(
-		not_null<Controller*> controller,
-		TgVoipState state);
+	void handleControllerStateChange(tgcalls::State state);
 	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
@@ -202,7 +201,7 @@ private:
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
-	std::unique_ptr<Controller> _controller;
+	std::unique_ptr<tgcalls::Instance> _instance;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

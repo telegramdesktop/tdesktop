@@ -35,6 +35,7 @@ include(cmake/lib_ffmpeg.cmake)
 include(cmake/lib_mtproto.cmake)
 include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
+include(cmake/lib_tgcalls.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -102,6 +103,8 @@ endif()
 
 target_link_libraries(Telegram
 PRIVATE
+    tdesktop::lib_tgcalls_legacy
+    tdesktop::lib_tgcalls
     tdesktop::lib_tgvoip
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
@@ -315,11 +318,6 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
-    calls/calls_controller.cpp
-    calls/calls_controller.h
-    calls/calls_controller_tgvoip.h
-    calls/calls_controller_webrtc.cpp
-    calls/calls_controller_webrtc.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp

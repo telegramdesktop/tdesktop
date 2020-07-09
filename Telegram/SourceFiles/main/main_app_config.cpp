@@ -117,11 +117,42 @@ std::vector<QString> AppConfig::getStringArray(
 	return getValue(key, [&](const MTPJSONValue &value) {
 		return value.match([&](const MTPDjsonArray &data) {
 			auto result = std::vector<QString>();
+			result.reserve(data.vvalue().v.size());
 			for (const auto &entry : data.vvalue().v) {
 				if (entry.type() != mtpc_jsonString) {
 					return std::move(fallback);
 				}
 				result.push_back(qs(entry.c_jsonString().vvalue()));
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
+std::vector<std::map<QString, QString>> AppConfig::getStringMapArray(
+		const QString &key,
+		std::vector<std::map<QString, QString>> &&fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonArray &data) {
+			auto result = std::vector<std::map<QString, QString>>();
+			result.reserve(data.vvalue().v.size());
+			for (const auto &entry : data.vvalue().v) {
+				if (entry.type() != mtpc_jsonObject) {
+					return std::move(fallback);
+				}
+				auto element = std::map<QString, QString>();
+				for (const auto &field : entry.c_jsonObject().vvalue().v) {
+					const auto &data = field.c_jsonObjectValue();
+					if (data.vvalue().type() != mtpc_jsonString) {
+						return std::move(fallback);
+					}
+					element.emplace(
+						qs(data.vkey()),
+						qs(data.vvalue().c_jsonString().vvalue()));
+				}
+				result.push_back(std::move(element));
 			}
 			return result;
 		}, [&](const auto &data) {

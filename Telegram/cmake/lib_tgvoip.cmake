@@ -48,8 +48,6 @@ else()
         OpusEncoder.cpp
         OpusEncoder.h
         threading.h
-        TgVoip.cpp
-        TgVoip.h
         VoIPController.cpp
         VoIPGroupController.cpp
         VoIPController.h

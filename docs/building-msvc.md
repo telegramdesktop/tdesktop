@@ -163,6 +163,16 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j4 install
     cd ..
 
+    mkdir webrtc
+    cd webrtc
+    copy ..\patches\webrtc.gclient .gclient
+    git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
+    gclient sync
+    cd src
+    ..\..\..\tdesktop\Telegram\lib_webrtc\gn_build_webrtc.bat
+    ninja -C out/Debug webrtc test:platform_video_capturer test:video_test_common
+    cd ..
+
 ## Build the project
 
 Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))

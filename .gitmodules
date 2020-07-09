@@ -97,3 +97,6 @@
 [submodule "Telegram/lib_webrtc"]
 	path = Telegram/lib_webrtc
 	url = https://github.com/desktop-app/lib_webrtc.git
+[submodule "Telegram/ThirdParty/tgcalls"]
+	path = Telegram/ThirdParty/tgcalls
+	url = https://github.com/TelegramMessenger/tgcalls.git
