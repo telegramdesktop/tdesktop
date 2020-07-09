@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
+#include "ui/text/text_entity.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
 #include "window/window_session_controller.h"
@@ -1671,7 +1672,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto message = ApiWrap::MessageToSend(_history);
-							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
+							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 							api->sendMessage(std::move(message));
 						});
@@ -1829,7 +1830,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto message = ApiWrap::MessageToSend(_history);
-							message.textWithTags = { item->originalText().text, TextWithTags::Tags() };;
+							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
 							api->sendMessage(std::move(message));
 						});
