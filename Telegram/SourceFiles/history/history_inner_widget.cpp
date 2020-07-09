@@ -1659,7 +1659,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
-					if (item->originalText().text != "") {
+					if (item->originalText().text != "" && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
@@ -1817,7 +1817,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					});
-					if (item->originalText().text != "") {
+					if (item->originalText().text != "" && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
