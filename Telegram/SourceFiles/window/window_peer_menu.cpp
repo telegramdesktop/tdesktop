@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "api/api_common.h"
 #include "api/api_chat_filters.h"
+#include "api/api_sending.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -1034,6 +1035,121 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 				return history->sendRequestId;
 			});
 			data->requests.insert(history->sendRequestId);
+		}
+	};
+	auto filterCallback = [](PeerData *peer) {
+		return peer->canWrite();
+	};
+	*weak = Ui::show(Box<ShareBox>(
+		App::wnd()->sessionController(),
+		nullptr,
+		std::move(submitCallback),
+		std::move(filterCallback)));
+	return weak->data();
+}
+
+QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		MessageIdsList &&items,
+		FnMut<void()> &&successCallback) {
+	struct ShareData {
+		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
+		: peer(peer)
+		, msgIds(std::move(ids)) {
+		}
+		not_null<PeerData*> peer;
+		MessageIdsList msgIds;
+		base::flat_set<mtpRequestId> requests;
+	};
+	const auto weak = std::make_shared<QPointer<ShareBox>>();
+	const auto item = App::wnd()->sessionController()->session().data().message(items[0]);
+	const auto history = item->history();
+	const auto owner = &history->owner();
+	const auto session = &history->session();
+	const auto isGroup = (owner->groups().find(item) != nullptr);
+	const auto data = std::make_shared<ShareData>(history->peer, std::move(items));
+
+	auto submitCallback = [=](
+			std::vector<not_null<PeerData*>> &&result,
+			TextWithTags &&comment,
+			Api::SendOptions options) {
+		if (!data->requests.empty()) {
+			return; // Share clicked already.
+		}
+		auto items = history->owner().idsToItems(data->msgIds);
+		if (items.empty() || result.empty()) {
+			return;
+		}
+
+		const auto error = [&] {
+			for (const auto peer : result) {
+				const auto error = GetErrorTextForSending(
+					peer,
+					items,
+					comment);
+				if (!error.isEmpty()) {
+					return std::make_pair(error, peer);
+				}
+			}
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(error.second->name)
+				).append("\n\n");
+			}
+			text.append(error.first);
+			Ui::show(
+				Box<InformBox>(text),
+				Ui::LayerOption::KeepOther);
+			return;
+		}
+
+		auto &api = owner->session().api();
+		auto &histories = owner->histories();
+		const auto requestType = Data::Histories::RequestType::Send;
+		for (const auto peer : result) {
+			const auto history = owner->history(peer);
+			if (!comment.text.isEmpty()) {
+				auto message = ApiWrap::MessageToSend(history);
+				message.textWithTags = comment;
+				message.action.options = options;
+				message.action.clearDraft = false;
+				api.sendMessage(std::move(message));
+			}
+
+			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+				const auto api = &item->history()->peer->session().api();
+				for (const auto item : items) {
+					if (item->media() != nullptr) {
+						if (item->media()->document() != nullptr) {
+							const auto document = item->media()->document();
+							auto message = ApiWrap::MessageToSend(history);
+							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+							message.action = Api::SendAction(history);
+							Api::SendExistingDocument(std::move(message), document);
+						}
+						else if (item->media()->photo() != nullptr) {
+							const auto photo = item->media()->photo();
+							auto message = ApiWrap::MessageToSend(history);
+							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+							message.action = Api::SendAction(history);
+							Api::SendExistingPhoto(std::move(message), photo);
+						}
+					} else {
+						auto message = ApiWrap::MessageToSend(history);
+						message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+						message.action = Api::SendAction(history);
+						api->sendMessage(std::move(message));
+					}
+				}
+				Ui::Toast::Show(tr::lng_share_done(tr::now));
+				Ui::hideLayer();
+				finish();
+				return 0;
+			});
 		}
 	};
 	auto filterCallback = [](PeerData *peer) {

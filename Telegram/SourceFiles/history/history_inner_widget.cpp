@@ -1659,6 +1659,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
+					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+						forwardItemNoQuote(itemId);
+					});
 					if (!item->emptyText() && item->media() == nullptr && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
@@ -1816,6 +1819,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (canForward) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
+					});
+					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+						forwardAsGroupNoQuote(itemId);
 					});
 					if (!item->emptyText() && item->media() == nullptr && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
@@ -3132,6 +3138,18 @@ void HistoryInner::forwardItem(FullMsgId itemId) {
 void HistoryInner::forwardAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		Window::ShowForwardMessagesBox(
+			_controller,
+			session().data().itemOrItsGroup(item));
+	}
+}
+
+void HistoryInner::forwardItemNoQuote(FullMsgId itemId) {
+	Window::ShowForwardNoQuoteMessagesBox(_controller, { 1, itemId });
+}
+
+void HistoryInner::forwardAsGroupNoQuote(FullMsgId itemId) {
+	if (const auto item = session().data().message(itemId)) {
+		Window::ShowForwardNoQuoteMessagesBox(
 			_controller,
 			session().data().itemOrItsGroup(item));
 	}

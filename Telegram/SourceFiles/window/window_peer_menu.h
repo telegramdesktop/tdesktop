@@ -82,6 +82,11 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
 
+QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
+	not_null<Window::SessionNavigation*> navigation,
+	MessageIdsList &&items,
+	FnMut<void()> &&successCallback = nullptr);
+
 QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<History*> history,
