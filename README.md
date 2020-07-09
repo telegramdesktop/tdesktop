@@ -37,6 +37,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 17. Don't share my phone number when add someone to contacts
 18. Multiple accounts increase to 10
 19. Support multiple chat forward
+20. Support Forward Message without quote
 
 ## Supported systems
 
