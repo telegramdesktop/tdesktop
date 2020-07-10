@@ -306,7 +306,7 @@ std::optional<crl::time> XCBLastUserInputTime() {
 }
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-std::optional<crl::time> DBusLastUserInputTime() {
+std::optional<crl::time> FreedesktopDBusLastUserInputTime() {
 	static auto NotSupported = false;
 
 	if (NotSupported) {
@@ -341,7 +341,51 @@ std::optional<crl::time> DBusLastUserInputTime() {
 			NotSupported = true;
 		}
 
-		LOG(("Unable to get last user input time: %1: %2")
+		LOG(("App Error: Unable to get last user input time "
+			"from org.freedesktop.ScreenSaver: %1: %2")
+			.arg(reply.error().name())
+			.arg(reply.error().message()));
+	}
+
+	return std::nullopt;
+}
+
+std::optional<crl::time> MutterDBusLastUserInputTime() {
+	static auto NotSupported = false;
+
+	if (NotSupported) {
+		return std::nullopt;
+	}
+
+	static const auto Message = QDBusMessage::createMethodCall(
+		qsl("org.gnome.Mutter.IdleMonitor"),
+		qsl("/org/gnome/Mutter/IdleMonitor/Core"),
+		qsl("org.gnome.Mutter.IdleMonitor"),
+		qsl("GetIdletime"));
+
+	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+		Message);
+
+	static const auto NotSupportedErrors = {
+		QDBusError::ServiceUnknown,
+	};
+
+	static const auto NotSupportedErrorsToLog = {
+		QDBusError::Disconnected,
+		QDBusError::AccessDenied,
+	};
+
+	if (reply.isValid()) {
+		return (crl::now() - static_cast<crl::time>(reply.value()));
+	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
+		NotSupported = true;
+	} else {
+		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
+			NotSupported = true;
+		}
+
+		LOG(("App Error: Unable to get last user input time "
+			"from org.gnome.Mutter.IdleMonitor: %1: %2")
 			.arg(reply.error().name())
 			.arg(reply.error().message()));
 	}
@@ -663,7 +707,15 @@ std::optional<crl::time> LastUserInputTime() {
 	}
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	return DBusLastUserInputTime();
+	const auto freedesktopResult = FreedesktopDBusLastUserInputTime();
+	if (freedesktopResult.has_value()) {
+		return freedesktopResult;
+	}
+
+	const auto mutterResult = MutterDBusLastUserInputTime();
+	if (mutterResult.has_value()) {
+		return mutterResult;
+	}
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	return std::nullopt;
