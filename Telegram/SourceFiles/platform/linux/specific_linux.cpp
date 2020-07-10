@@ -24,7 +24,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtCore/QVersionNumber>
+#include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
+
+#include <private/qwaylanddisplay_p.h>
+#include <private/qwaylandwindow_p.h>
+#include <private/qwaylandshellsurface_p.h>
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
@@ -36,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
+#include <wayland-client.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -48,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
+using QtWaylandClient::QWaylandWindow;
 
 namespace Platform {
 namespace {
@@ -393,6 +400,144 @@ std::optional<crl::time> MutterDBusLastUserInputTime() {
 	return std::nullopt;
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+uint XCBMoveResizeFromEdges(Qt::Edges edges) {
+	if (edges == (Qt::TopEdge | Qt::LeftEdge))
+		return 0;
+	if (edges == Qt::TopEdge)
+		return 1;
+	if (edges == (Qt::TopEdge | Qt::RightEdge))
+		return 2;
+	if (edges == Qt::RightEdge)
+		return 3;
+	if (edges == (Qt::RightEdge | Qt::BottomEdge))
+		return 4;
+	if (edges == Qt::BottomEdge)
+		return 5;
+	if (edges == (Qt::BottomEdge | Qt::LeftEdge))
+		return 6;
+	if (edges == Qt::LeftEdge)
+		return 7;
+
+	return 0;
+}
+
+enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
+	if (edges == (Qt::TopEdge | Qt::LeftEdge))
+		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
+	if (edges == Qt::TopEdge)
+		return WL_SHELL_SURFACE_RESIZE_TOP;
+	if (edges == (Qt::TopEdge | Qt::RightEdge))
+		return WL_SHELL_SURFACE_RESIZE_TOP_RIGHT;
+	if (edges == Qt::RightEdge)
+		return WL_SHELL_SURFACE_RESIZE_RIGHT;
+	if (edges == (Qt::RightEdge | Qt::BottomEdge))
+		return WL_SHELL_SURFACE_RESIZE_BOTTOM_RIGHT;
+	if (edges == Qt::BottomEdge)
+		return WL_SHELL_SURFACE_RESIZE_BOTTOM;
+	if (edges == (Qt::BottomEdge | Qt::LeftEdge))
+		return WL_SHELL_SURFACE_RESIZE_BOTTOM_LEFT;
+	if (edges == Qt::LeftEdge)
+		return WL_SHELL_SURFACE_RESIZE_LEFT;
+
+	return WL_SHELL_SURFACE_RESIZE_NONE;
+}
+
+bool StartXCBMoveResize(QWindow *window, int edges) {
+	const auto native = QGuiApplication::platformNativeInterface();
+
+	if (!native) {
+		return false;
+	}
+
+	const auto connection = reinterpret_cast<xcb_connection_t*>(
+		native->nativeResourceForIntegration(QByteArray("connection")));
+
+	if (!connection) {
+		return false;
+	}
+
+	const auto screen = xcb_setup_roots_iterator(
+		xcb_get_setup(connection)).data;
+
+	if (!screen) {
+		return false;
+	}
+
+	const auto moveResizeCookie = xcb_intern_atom(connection,
+		0,
+		strlen("_NET_WM_MOVERESIZE"),
+		"_NET_WM_MOVERESIZE");
+
+	auto moveResizeReply = xcb_intern_atom_reply(
+		connection,
+		moveResizeCookie,
+		nullptr);
+
+	if (!moveResizeReply) {
+		return false;
+	}
+
+	const auto moveResize = moveResizeReply->atom;
+	free(moveResizeReply);
+
+	const auto globalPos = QCursor::pos();
+
+	xcb_client_message_event_t xev;
+	xev.response_type = XCB_CLIENT_MESSAGE;
+	xev.type = moveResize;
+	xev.sequence = 0;
+	xev.window = window->winId();
+	xev.format = 32;
+	xev.data.data32[0] = globalPos.x();
+	xev.data.data32[1] = globalPos.y();
+	xev.data.data32[2] = (edges == 16)
+		? 8 // move
+		: XCBMoveResizeFromEdges(Qt::Edges(edges));
+	xev.data.data32[3] = XCB_BUTTON_INDEX_1;
+	xev.data.data32[4] = 0;
+
+	xcb_ungrab_pointer(connection, XCB_CURRENT_TIME);
+	xcb_send_event(connection,
+		false,
+		screen->root,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+		reinterpret_cast<const char*>(&xev));
+
+	return true;
+}
+
+bool StartWaylandMove(QWindow *window) {
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
+		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
+			if (const auto shellSurface = waylandWindow->shellSurface()) {
+				return shellSurface->move(seat);
+			}
+		}
+	}
+
+	return false;
+}
+
+bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
+		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
+			if (const auto shellSurface = waylandWindow->shellSurface()) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+				return shellSurface->resize(seat, edges);
+#elif QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+				shellSurface->resize(seat, edges);
+				return true;
+#else // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
+				shellSurface->resize(seat, WlResizeFromEdges(edges));
+				return true;
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
+			}
+		}
+	}
+
+	return false;
+}
 
 } // namespace
 
@@ -743,6 +888,22 @@ void FallbackFontConfigCheckEnd() {
 		return;
 	}
 	QFile(FallbackFontConfigCheckPath()).remove();
+}
+
+bool StartSystemMove(QWindow *window) {
+	if (IsWayland()) {
+		return StartWaylandMove(window);
+	} else {
+		return StartXCBMoveResize(window, 16);
+	}
+}
+
+bool StartSystemResize(QWindow *window, Qt::Edges edges) {
+	if (IsWayland()) {
+		return StartWaylandResize(window, edges);
+	} else {
+		return StartXCBMoveResize(window, edges);
+	}
 }
 
 } // namespace Platform
