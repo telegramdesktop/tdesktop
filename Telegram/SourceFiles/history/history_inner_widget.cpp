@@ -1667,7 +1667,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
 						forwardItemNoQuote(itemId);
 					});
-					if (!item->emptyText() && item->media() == nullptr && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
+					if ((item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
@@ -1677,13 +1677,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Ui::Toast::Show(tr::lng_share_done(tr::now));
 							});
 						});
-						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
-							const auto api = &item->history()->peer->session().api();
-							auto message = ApiWrap::MessageToSend(_history);
-							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
-							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-							api->sendMessage(std::move(message));
-						});
+						if (!item->emptyText() && item->media() == nullptr) {
+							_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
+								const auto api = &item->history()->peer->session().api();
+								auto message = ApiWrap::MessageToSend(_history);
+								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+								api->sendMessage(std::move(message));
+							});
+						}
 					}
 				}
 				if (item->canDelete()) {
@@ -1833,7 +1835,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
 						forwardAsGroupNoQuote(itemId);
 					});
-					if (!item->emptyText() && item->media() == nullptr && (item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
+					if ((item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
 						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
@@ -1843,13 +1845,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Ui::Toast::Show(tr::lng_share_done(tr::now));
 							});
 						});
-						_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
-							const auto api = &item->history()->peer->session().api();
-							auto message = ApiWrap::MessageToSend(_history);
-							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
-							message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-							api->sendMessage(std::move(message));
-						});
+						if (!item->emptyText() && item->media() == nullptr) {
+							_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
+								const auto api = &item->history()->peer->session().api();
+								auto message = ApiWrap::MessageToSend(_history);
+								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+								api->sendMessage(std::move(message));
+							});
+						}
 					}
 				}
 				if (canDelete) {
