@@ -23,12 +23,15 @@ PRIVATE
     Instance.h
     InstanceImpl.cpp
     InstanceImpl.h
+    SignalingMessage.cpp
+    SignalingMessage.h
     ThreadLocalObject.h
     VideoCaptureInterface.cpp
     VideoCaptureInterface.h
     VideoCaptureInterfaceImpl.cpp
     VideoCaptureInterfaceImpl.h
     VideoCapturerInterface.h
+
     platform/PlatformInterface.h
 
     # Windows
