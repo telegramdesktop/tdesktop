@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/specific_linux.h"
 
 #include "platform/linux/linux_libs.h"
+#include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtCore/QVersionNumber>
+#include <qpa/qplatformnativeinterface.h>
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
@@ -31,6 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+
+#include <xcb/xcb.h>
+#include <xcb/screensaver.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -267,6 +272,83 @@ bool GenerateDesktopFile(
 		return false;
 	}
 }
+
+std::optional<crl::time> XCBLastUserInputTime() {
+	if (const auto native = QGuiApplication::platformNativeInterface()) {
+		const auto connection = reinterpret_cast<xcb_connection_t*>(
+			native->nativeResourceForIntegration(QByteArray("connection")));
+
+		if (!connection) {
+			return std::nullopt;
+		}
+
+		const auto screen = xcb_setup_roots_iterator(
+			xcb_get_setup(connection)).data;
+
+		if (!screen) {
+			return std::nullopt;
+		}
+
+		const auto cookie = xcb_screensaver_query_info(connection, screen->root);
+		auto info = xcb_screensaver_query_info_reply(connection, cookie, nullptr);
+
+		if (!info) {
+			return std::nullopt;
+		}
+
+		const auto idle = info->ms_since_user_input;
+		free(info);
+
+		return (crl::now() - static_cast<crl::time>(idle));
+	}
+
+	return std::nullopt;
+}
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+std::optional<crl::time> DBusLastUserInputTime() {
+	static auto NotSupported = false;
+
+	if (NotSupported) {
+		return std::nullopt;
+	}
+
+	static const auto Message = QDBusMessage::createMethodCall(
+		qsl("org.freedesktop.ScreenSaver"),
+		qsl("/org/freedesktop/ScreenSaver"),
+		qsl("org.freedesktop.ScreenSaver"),
+		qsl("GetSessionIdleTime"));
+
+	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+		Message);
+
+	static const auto NotSupportedErrors = {
+		QDBusError::ServiceUnknown,
+		QDBusError::NotSupported,
+	};
+
+	static const auto NotSupportedErrorsToLog = {
+		QDBusError::Disconnected,
+		QDBusError::AccessDenied,
+	};
+
+	if (reply.isValid()) {
+		return (crl::now() - static_cast<crl::time>(reply.value()));
+	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
+		NotSupported = true;
+	} else {
+		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
+			NotSupported = true;
+		}
+
+		LOG(("Unable to get last user input time: %1: %2")
+			.arg(reply.error().name())
+			.arg(reply.error().message()));
+	}
+
+	return std::nullopt;
+}
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
 
@@ -576,47 +658,12 @@ QImage GetImageFromClipboard() {
 }
 
 std::optional<crl::time> LastUserInputTime() {
-	// TODO: a fallback pure-X11 implementation, this one covers only major DEs on X11 and Wayland
-	// an example: https://stackoverflow.com/q/9049087
+	if (!IsWayland()) {
+		return XCBLastUserInputTime();
+	}
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-	static auto NotSupported = false;
-
-	if (NotSupported) {
-		return std::nullopt;
-	}
-
-	static const auto Message = QDBusMessage::createMethodCall(
-		qsl("org.freedesktop.ScreenSaver"),
-		qsl("/org/freedesktop/ScreenSaver"),
-		qsl("org.freedesktop.ScreenSaver"),
-		qsl("GetSessionIdleTime"));
-
-	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
-		Message);
-
-	static const auto NotSupportedErrors = {
-		QDBusError::ServiceUnknown,
-		QDBusError::NotSupported,
-	};
-
-	static const auto NotSupportedErrorsToLog = {
-		QDBusError::Disconnected,
-		QDBusError::AccessDenied,
-	};
-
-	if (reply.isValid()) {
-		return (crl::now() - static_cast<crl::time>(reply.value()));
-	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
-		NotSupported = true;
-	} else {
-		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
-			NotSupported = true;
-		}
-
-		LOG(("Unable to get last user input time: %1: %2")
-			.arg(reply.error().name())
-			.arg(reply.error().message()));
-	}
+	return DBusLastUserInputTime();
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 	return std::nullopt;

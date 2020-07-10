@@ -95,7 +95,7 @@ jobs:
           libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
           autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
           libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
-          libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+          libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-screensaver0-dev \
           libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
           libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
           libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libegl1-mesa-dev \
