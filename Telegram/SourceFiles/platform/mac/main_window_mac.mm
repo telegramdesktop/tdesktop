@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
-#include "platform/mac/mac_touchbar.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_controllers.h"
@@ -144,9 +143,6 @@ public:
 	void didExitFullScreen();
 
 	bool clipboardHasText();
-#ifndef OS_OSX
-	TouchBar *_touchBar = nil;
-#endif // OS_OSX
 	~Private();
 
 private:
@@ -478,43 +474,11 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 void MainWindow::initTouchBar() {
 #ifndef OS_OSX
-	if (!IsMac10_13OrGreater()) {
-		return;
-	}
-	[NSApplication sharedApplication]
-		.automaticCustomizeTouchBarMenuItemEnabled = true;
-	const auto createNewTouchBar = [=](not_null<Main::Session*> session) {
-		if (_private->_touchBar) {
-			return;
-		}
-		if (auto view = reinterpret_cast<NSView*>(winId())) {
-			_private->_touchBar = [[TouchBar alloc]
-				init:view
-				session:session];
-		}
-	};
-
-	Core::App().domain().activeSessionChanges(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (session) {
-			if (_private->_touchBar) {
-				destroyCurrentTouchBar();
-			}
-			createNewTouchBar(session);
-		} else {
-			destroyCurrentTouchBar();
-		}
-	}, lifetime());
 #endif // OS_OSX
 }
 
 void MainWindow::destroyCurrentTouchBar() {
 #ifndef OS_OSX
-	if (_private->_touchBar) {
-		[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
-		[_private->_touchBar release];
-	}
-	_private->_touchBar = nil;
 #endif // OS_OSX
 }
 
@@ -839,9 +803,6 @@ void MainWindow::updateGlobalMenuHook() {
 	}
 
 #ifndef OS_OSX
-	if (_private->_touchBar) {
-		[_private->_touchBar showInputFieldItem:showTouchBarItem];
-	}
 #endif // OS_OSX
 
 	App::wnd()->updateIsActive();
