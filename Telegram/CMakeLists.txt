@@ -127,6 +127,23 @@ PRIVATE
     desktop-app::external_openal
 )
 
+if (LINUX)
+    if (DESKTOP_APP_USE_PACKAGED)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(XCB_SCREENSAVER REQUIRED IMPORTED_TARGET xcb-screensaver)
+        pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
+
+        target_link_libraries(Telegram
+        PRIVATE
+            PkgConfig::XCB_SCREENSAVER
+            PkgConfig::XCB
+        )
+    else()
+        target_link_static_libraries(Telegram PRIVATE xcb-screensaver)
+        target_link_libraries(Telegram PRIVATE xcb)
+    endif()
+endif()
+
 if (LINUX AND NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
     find_package(PkgConfig REQUIRED)
     target_compile_options(Telegram PRIVATE -Wno-register)
