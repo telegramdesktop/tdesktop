@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(lib_tgcalls STATIC)
-init_target(lib_tgcalls)
+init_target(lib_tgcalls cxx_std_14)
 add_library(tdesktop::lib_tgcalls ALIAS lib_tgcalls)
 
 set(tgcalls_dir ${third_party_loc}/tgcalls)
@@ -80,7 +80,7 @@ PRIVATE
 )
 
 add_library(lib_tgcalls_legacy STATIC)
-init_target(lib_tgcalls_legacy)
+init_target(lib_tgcalls_legacy cxx_std_14)
 add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
 
 nice_target_sources(lib_tgcalls_legacy ${tgcalls_loc}

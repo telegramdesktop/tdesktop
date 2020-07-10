@@ -23,11 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
+#include "webrtc/webrtc_video_sink.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "facades.h"
 
-#include "tgcalls/Instance.h"
+#include <tgcalls/Instance.h>
 
 namespace tgcalls {
 class InstanceImpl;
@@ -706,6 +707,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return static_cast<uint8_t>(byte);
 	}) | ranges::to_vector;
 
+	descriptor.videoCapture = tgcalls::CreateVideoCapture();
+
 	const auto version = call.vprotocol().match([&](
 			const MTPDphoneCallProtocol &data) {
 		return data.vlibrary_versions().v;
@@ -729,7 +732,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		raw->setMuteMicrophone(_mute);
 	}
 	const auto &settings = Core::App().settings();
-	//raw->setIncomingVideoOutput(std::make_shared<rtc::VideoSinkInterface<webrtc::VideoFrame>>())
+	raw->setIncomingVideoOutput(webrtc::CreateVideoSink([=](QImage frame) {
+		crl::on_main(weak, [=] {
+			_frames.fire_copy(frame);
+		});
+	}));
 	raw->setAudioOutputDevice(
 		settings.callOutputDeviceID().toStdString());
 	raw->setAudioInputDevice(
