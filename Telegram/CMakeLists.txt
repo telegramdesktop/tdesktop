@@ -127,6 +127,16 @@ PRIVATE
     desktop-app::external_openal
 )
 
+if (LINUX AND DESKTOP_APP_USE_PACKAGED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
+
+    target_include_directories(Telegram
+    PRIVATE
+        ${WAYLAND_CLIENT_INCLUDE_DIRS}
+    )
+endif()
+
 if (LINUX)
     if (DESKTOP_APP_USE_PACKAGED)
         find_package(PkgConfig REQUIRED)

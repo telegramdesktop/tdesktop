@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_window_title.h"
-#include "platform/linux/linux_desktop_environment.h"
 #include "base/object_ptr.h"
 
 namespace Window {
@@ -23,17 +22,11 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 namespace Platform {
 
 inline bool AllowNativeWindowFrameToggle() {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	return !DesktopEnvironment::IsUnity();
-#else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-	return false;
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+	return true;
 }
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
-	return AllowNativeWindowFrameToggle()
-		? object_ptr<Window::TitleWidgetQt>(parent)
-		: object_ptr<Window::TitleWidgetQt>{ nullptr };
+	return object_ptr<Window::TitleWidgetQt>(parent);
 }
 
 inline bool NativeTitleRequiresShadow() {
