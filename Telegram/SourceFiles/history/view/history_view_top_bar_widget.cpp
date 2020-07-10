@@ -59,6 +59,7 @@ TopBarWidget::TopBarWidget(
 , _controller(controller)
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
 , _forward(this, tr::lng_selected_forward(), st::defaultActiveButton)
+, _forwardNoQuote(this, tr::lng_selected_forward_no_quote(), st::defaultActiveButton)
 , _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
 , _delete(this, tr::lng_selected_delete(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
@@ -75,6 +76,8 @@ TopBarWidget::TopBarWidget(
 
 	_forward->setClickedCallback([=] { _forwardSelection.fire({}); });
 	_forward->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	_forwardNoQuote->setClickedCallback([=] { _forwardNoQuoteSelection.fire({}); });
+	_forwardNoQuote->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_sendNow->setClickedCallback([=] { _sendNowSelection.fire({}); });
 	_sendNow->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_delete->setClickedCallback([=] { _deleteSelection.fire({}); });
@@ -566,6 +569,7 @@ void TopBarWidget::updateControlsGeometry() {
 	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
 	_forward->setFullWidth(buttonFullWidth);
+	_forwardNoQuote->setFullWidth(buttonFullWidth);
 	_sendNow->setFullWidth(buttonFullWidth);
 	_delete->setFullWidth(buttonFullWidth);
 
@@ -574,6 +578,11 @@ void TopBarWidget::updateControlsGeometry() {
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
 	if (!_forward->isHidden()) {
 		buttonsLeft += _forward->width() + st::topBarActionSkip;
+	}
+
+	_forwardNoQuote->moveToLeft(buttonsLeft, selectedButtonsTop);
+	if (!_forwardNoQuote->isHidden()) {
+		buttonsLeft += _forwardNoQuote->width() + st::topBarActionSkip;
 	}
 
 	_sendNow->moveToLeft(buttonsLeft, selectedButtonsTop);
@@ -649,6 +658,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_clear->show();
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
+	_forwardNoQuote->setVisible(_canForward);
 	_sendNow->setVisible(_canSendNow);
 
 	auto backVisible = Adaptive::OneColumn()
@@ -752,10 +762,12 @@ void TopBarWidget::showSelected(SelectedState state) {
 	_selectedCount = state.count;
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);
+		_forwardNoQuote->setNumbersText(_selectedCount);
 		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
 		if (!wasSelected) {
 			_forward->finishNumbersAnimation();
+			_forwardNoQuote->finishNumbersAnimation();
 			_sendNow->finishNumbersAnimation();
 			_delete->finishNumbersAnimation();
 		}

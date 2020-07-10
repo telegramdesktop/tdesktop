@@ -66,6 +66,9 @@ public:
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
 	}
+	rpl::producer<> forwardNoQuoteSelectionRequest() const {
+		return _forwardNoQuoteSelection.events();
+	}
 	rpl::producer<> sendNowSelectionRequest() const {
 		return _sendNowSelection.events();
 	}
@@ -134,7 +137,7 @@ private:
 	Ui::Animations::Simple _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clear;
-	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete;
+	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete, _forwardNoQuote;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::UnreadBadge> _unreadBadge = { nullptr };
@@ -161,6 +164,7 @@ private:
 	base::Timer _onlineUpdater;
 
 	rpl::event_stream<> _forwardSelection;
+	rpl::event_stream<> _forwardNoQuoteSelection;
 	rpl::event_stream<> _sendNowSelection;
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;

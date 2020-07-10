@@ -2403,9 +2403,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_callback_data" = "Copy Callback Data";
 "lng_context_show_messages_from" = "Messages From User";
 "lng_context_repeat_msg" = "Repeat This Message";
-"lng_context_repeat_msg_no_fwd" = "Repeat This Message(!Forward)";
-"lng_context_forward_msg_no_quote" = "Forward Message(W/O quote)";
-"lng_context_forward_selected_no_quote" = "Forward Selected(W/O quote)";
+"lng_context_repeat_msg_no_fwd" = "Repeat This Message(w/o quote)";
+"lng_context_forward_msg_no_quote" = "Forward Message(w/o quote)";
+"lng_context_forward_selected_no_quote" = "Forward Selected(w/o quote)";
+"lng_selected_forward_no_quote" = "Forward(w/o quote)";
 "lng_message_id" = "Message ID: ";
 
 "lng_admin_log_banned_send_stickers2" = "Send stickers";
