@@ -60,6 +60,7 @@ TopBarWidget::TopBarWidget(
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
 , _forward(this, tr::lng_selected_forward(), st::defaultActiveButton)
 , _forwardNoQuote(this, tr::lng_selected_forward_no_quote(), st::defaultActiveButton)
+, _savedMessages(this, tr::lng_forward_to_saved_message(), st::defaultActiveButton)
 , _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
 , _delete(this, tr::lng_selected_delete(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
@@ -78,6 +79,8 @@ TopBarWidget::TopBarWidget(
 	_forward->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_forwardNoQuote->setClickedCallback([=] { _forwardNoQuoteSelection.fire({}); });
 	_forwardNoQuote->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	_savedMessages->setClickedCallback([=] { _savedMessagesSelection.fire({}); });
+	_savedMessages->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_sendNow->setClickedCallback([=] { _sendNowSelection.fire({}); });
 	_sendNow->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_delete->setClickedCallback([=] { _deleteSelection.fire({}); });
@@ -570,6 +573,7 @@ void TopBarWidget::updateControlsGeometry() {
 	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
 	_forward->setFullWidth(buttonFullWidth);
 	_forwardNoQuote->setFullWidth(buttonFullWidth);
+	_savedMessages->setFullWidth(buttonFullWidth);
 	_sendNow->setFullWidth(buttonFullWidth);
 	_delete->setFullWidth(buttonFullWidth);
 
@@ -583,6 +587,11 @@ void TopBarWidget::updateControlsGeometry() {
 	_forwardNoQuote->moveToLeft(buttonsLeft, selectedButtonsTop);
 	if (!_forwardNoQuote->isHidden()) {
 		buttonsLeft += _forwardNoQuote->width() + st::topBarActionSkip;
+	}
+
+	_savedMessages->moveToLeft(buttonsLeft, selectedButtonsTop);
+	if (!_savedMessages->isHidden()) {
+		buttonsLeft += _savedMessages->width() + st::topBarActionSkip;
 	}
 
 	_sendNow->moveToLeft(buttonsLeft, selectedButtonsTop);
@@ -659,6 +668,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
 	_forwardNoQuote->setVisible(_canForward);
+	_savedMessages->setVisible(_canForward);
 	_sendNow->setVisible(_canSendNow);
 
 	auto backVisible = Adaptive::OneColumn()
@@ -763,11 +773,13 @@ void TopBarWidget::showSelected(SelectedState state) {
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);
 		_forwardNoQuote->setNumbersText(_selectedCount);
+		_savedMessages->setNumbersText(_selectedCount);
 		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
 		if (!wasSelected) {
 			_forward->finishNumbersAnimation();
 			_forwardNoQuote->finishNumbersAnimation();
+			_savedMessages->finishNumbersAnimation();
 			_sendNow->finishNumbersAnimation();
 			_delete->finishNumbersAnimation();
 		}
