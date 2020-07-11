@@ -14,6 +14,7 @@ struct TrackState;
 } // namespace Media
 
 @class NSButton;
+@class NSCustomTouchBarItem;
 @class NSImage;
 @class NSSliderTouchBarItem;
 
@@ -54,6 +55,11 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 	NSString *itemId,
 	rpl::lifetime &lifetime,
 	Fn<void(bool, double, double)> callback,
+	rpl::producer<Media::Player::TrackState> stateChanged);
+
+[[nodiscard]] API_AVAILABLE(macos(10.12.2))
+NSCustomTouchBarItem *CreateTouchBarTrackPosition(
+	NSString *itemId,
 	rpl::producer<Media::Player::TrackState> stateChanged);
 
 } // namespace TouchBar

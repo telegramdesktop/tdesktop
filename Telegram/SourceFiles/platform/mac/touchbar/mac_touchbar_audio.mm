@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_audio.h"
 
-#include "core/sandbox.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
@@ -72,7 +71,7 @@ const auto kCurrentPositionItemIdentifier = Format(@"currentPosition");
 		kPlayItemIdentifier,
 		kPreviousItemIdentifier,
 		kNextItemIdentifier,
-		// kCurrentPositionItemIdentifier, // TODO.
+		kCurrentPositionItemIdentifier,
 		kSeekBarItemIdentifier,
 		kClosePlayerItemIdentifier];
 
@@ -163,6 +162,11 @@ const auto kCurrentPositionItemIdentifier = Format(@"currentPosition");
 
 		item.view = button;
 		item.customizationLabel = @"Close Player";
+		return [item autorelease];
+	} else if (isEqual(kCurrentPositionItemIdentifier)) {
+		auto *item = TouchBar::CreateTouchBarTrackPosition(
+			itemId,
+			rpl::duplicate(_trackState));
 		return [item autorelease];
 	}
 	return nil;

@@ -7,23 +7,125 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_controls.h"
 
+#include "base/platform/mac/base_utilities_mac.h" // Q2NSString()
 #include "core/sandbox.h" // Sandbox::customEnterFromEventLoop()
+#include "layout.h" // formatDurationText()
 #include "media/audio/media_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 
 #import <AppKit/NSButton.h>
+#import <AppKit/NSCustomTouchBarItem.h>
 #import <AppKit/NSImage.h>
+#import <AppKit/NSImageView.h>
 #import <AppKit/NSSlider.h>
 #import <AppKit/NSSliderTouchBarItem.h>
 
+using namespace TouchBar;
+
 namespace {
 
+constexpr auto kPadding = 7;
+
 inline NSImage *Icon(const style::icon &icon) {
-	using namespace TouchBar;
 	return CreateNSImageFromStyleIcon(icon, kCircleDiameter / 2);
 }
 
+inline NSDictionary *Attributes() {
+	return @{
+		NSFontAttributeName: [NSFont systemFontOfSize:14],
+		NSParagraphStyleAttributeName:
+			[NSMutableParagraphStyle defaultParagraphStyle],
+		NSForegroundColorAttributeName: [NSColor whiteColor]
+	};
+}
+
+inline NSString *FormatTime(TimeId time) {
+	return Platform::Q2NSString(formatDurationText(time));
+}
+
 } // namespace
+
+#pragma mark - TrackPosition
+
+@interface TrackPosition : NSImageView
+@end // @interface TrackPosition
+
+@implementation TrackPosition {
+	NSMutableString *_text;
+
+	double _width;
+	double _height;
+
+	rpl::lifetime _lifetime;
+}
+
+- (id)init:(rpl::producer< Media::Player::TrackState>)trackState {
+	self = [super init];
+	const auto textLength = _lifetime.make_state<rpl::variable<int>>(0);
+	_width = _height = 0;
+	_text = [[NSMutableString alloc] initWithCapacity:13];
+
+	rpl::combine(
+		rpl::duplicate(
+			trackState
+		) | rpl::map([](const auto &state) {
+			return state.position / 1000;
+		}) | rpl::distinct_until_changed(),
+		std::move(
+			trackState
+		) | rpl::map([](const auto &state) {
+			return state.length / 1000;
+		}) | rpl::distinct_until_changed()
+	) | rpl::start_with_next([=](int position, int length) {
+		[_text setString:[NSString stringWithFormat:@"%@ / %@",
+			FormatTime(position),
+			FormatTime(length)]];
+		*textLength = _text.length;
+
+		[self display];
+	}, _lifetime);
+
+	textLength->changes(
+	) | rpl::start_with_next([=] {
+		const auto size = [_text sizeWithAttributes:Attributes()];
+		_width = size.width + kPadding * 2;
+		_height = size.height;
+
+		if (self.image) {
+			[self.image release];
+		}
+		self.image = [[NSImage alloc] initWithSize:NSMakeSize(
+			_width,
+			kCircleDiameter)];
+	}, _lifetime);
+
+	return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+	if (!(_text && _text.length && _width && _height)) {
+		return;
+	}
+	const auto size = [_text sizeWithAttributes:Attributes()];
+	const auto rect = CGRectMake(
+		(_width - size.width) / 2,
+		-(kCircleDiameter - _height) / 2,
+		_width,
+		kCircleDiameter);
+	[_text drawInRect:rect withAttributes:Attributes()];
+}
+
+- (void)dealloc {
+	if (self.image) {
+		[self.image release];
+	}
+	if (_text) {
+		[_text release];
+	}
+	[super dealloc];
+}
+
+@end // @implementation TrackPosition
 
 namespace TouchBar {
 
@@ -157,6 +259,18 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 	});
 
 	return seekBar;
+}
+
+NSCustomTouchBarItem *CreateTouchBarTrackPosition(
+		NSString *itemId,
+		rpl::producer<Media::Player::TrackState> stateChanged) {
+	auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:itemId];
+	auto *trackPosition = [[[TrackPosition alloc]
+		init:std::move(stateChanged)] autorelease];
+
+	item.view = trackPosition;
+	item.customizationLabel = @"Track Position";
+	return item;
 }
 
 } // namespace TouchBar
