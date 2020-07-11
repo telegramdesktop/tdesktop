@@ -38,6 +38,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 18. Multiple accounts increase to 10
 19. Support multiple chat forward
 20. Support Forward Message without quote
+21. Quick Forward to Saved Messages
 
 ## Supported systems
 
