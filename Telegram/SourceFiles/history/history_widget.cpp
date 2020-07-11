@@ -6433,6 +6433,31 @@ void HistoryWidget::forwardNoQuoteSelected() {
 	});
 }
 
+void HistoryWidget::forwardSelectedToSavedMessages() {
+	if (!_list) {
+		return;
+	}
+	const auto weak = Ui::MakeWeak(this);
+
+	const auto items = getSelectedItems();
+	const auto item = App::wnd()->sessionController()->session().data().message(items[0]);
+	const auto api = &item->history()->peer->session().api();
+	const auto session = &item->history()->peer->session();
+	const auto self = api->session().user()->asUser();
+	auto msgItems = session->data().idsToItems(items);
+
+	auto action = Api::SendAction(item->history()->peer->owner().history(self));
+	action.clearDraft = false;
+	action.generateLocal = false;
+	api->forwardMessages(std::move(msgItems), action, [] {
+		Ui::Toast::Show(tr::lng_share_done(tr::now));
+	});
+
+	if (const auto strong = weak.data()) {
+		strong->clearSelected();
+	}
+}
+
 void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 

@@ -1649,6 +1649,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->forwardNoQuoteSelected();
 				});
 			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
+					_widget->forwardSelectedToSavedMessages();
+				});
+			}
 			if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
 				_menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 					_widget->confirmDeleteSelected();
@@ -1825,6 +1830,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
 				_menu->addAction(tr::lng_context_forward_selected_no_quote(tr::now), [=] {
 					_widget->forwardNoQuoteSelected();
+				});
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
+					_widget->forwardSelectedToSavedMessages();
 				});
 			}
 			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {

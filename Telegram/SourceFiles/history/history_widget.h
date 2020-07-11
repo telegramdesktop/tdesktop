@@ -248,6 +248,7 @@ public:
 
 	void forwardSelected();
 	void forwardNoQuoteSelected();
+	void forwardSelectedToSavedMessages();
 	void confirmDeleteSelected();
 	void clearSelected();
 
