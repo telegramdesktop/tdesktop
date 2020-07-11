@@ -554,11 +554,17 @@ void SeparatePanel::mousePressEvent(QMouseEvent *e) {
 		st::separatePanelTitleHeight);
 	if (e->button() == Qt::LeftButton) {
 		if (dragArea.contains(e->pos())) {
+			const auto dragViaSystem = [&] {
+				if (::Platform::StartSystemMove(windowHandle())) {
+					return true;
+				}
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			const auto dragViaSystem = windowHandle()->startSystemMove();
-#else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-			const auto dragViaSystem = false;
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
+				if (windowHandle()->startSystemMove()) {
+					return true;
+				}
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+				return false;
+			}();
 			if (!dragViaSystem) {
 				_dragging = true;
 				_dragStartMousePosition = e->globalPos();
