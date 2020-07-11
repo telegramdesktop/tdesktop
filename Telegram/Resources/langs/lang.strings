@@ -2410,6 +2410,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forward_to_saved_message" = "Forward to Saved Messages";
 "lng_message_id" = "Message ID: ";
 
+"lng_selected_forward_emoji" = "📠";
+"lng_selected_forward_no_quote_emoji" = "🖨️";
+"lng_forward_to_saved_message_emoji" = "💾";
+"lng_selected_delete_emoji" = "🗑️";
+
 "lng_admin_log_banned_send_stickers2" = "Send stickers";
 "lng_admin_log_banned_send_gifs" = "Send GIFs";
 "lng_admin_log_banned_send_games" = "Send Games";
