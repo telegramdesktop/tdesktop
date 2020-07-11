@@ -1686,6 +1686,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								api->sendMessage(std::move(message));
 							});
 						}
+						_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
+							const auto api = &item->history()->peer->session().api();
+							auto action = Api::SendAction(item->history()->peer->owner().history(api->session().user()->asUser()));
+							action.clearDraft = false;
+							action.generateLocal = false;
+							api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+								Ui::Toast::Show(tr::lng_share_done(tr::now));
+							});
+						});
 					}
 				}
 				if (item->canDelete()) {
@@ -1854,6 +1863,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								api->sendMessage(std::move(message));
 							});
 						}
+						_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
+							const auto api = &item->history()->peer->session().api();
+							auto action = Api::SendAction(item->history()->peer->owner().history(api->session().user()->asUser()));
+							action.clearDraft = false;
+							action.generateLocal = false;
+							api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+								Ui::Toast::Show(tr::lng_share_done(tr::now));
+							});
+						});
 					}
 				}
 				if (canDelete) {

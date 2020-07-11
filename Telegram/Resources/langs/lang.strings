@@ -2407,6 +2407,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_forward_msg_no_quote" = "Forward Message(w/o quote)";
 "lng_context_forward_selected_no_quote" = "Forward Selected(w/o quote)";
 "lng_selected_forward_no_quote" = "Forward(w/o quote)";
+"lng_forward_to_saved_message" = "Forward to Saved Messages";
 "lng_message_id" = "Message ID: ";
 
 "lng_admin_log_banned_send_stickers2" = "Send stickers";
