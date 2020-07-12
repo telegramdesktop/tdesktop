@@ -132,6 +132,18 @@ uint FileChooserPortalVersion() {
 }
 #endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
+QString FlatpakID() {
+	static const auto Result = [] {
+		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
+			return QString::fromLatin1(qgetenv("FLATPAK_ID"));
+		} else {
+			return GetLauncherBasename();
+		}
+	}();
+
+	return Result;
+}
+
 QString ProcessNameByPID(const QString &pid) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };
@@ -694,16 +706,7 @@ QString AppRuntimeDirectory() {
 			QStandardPaths::RuntimeLocation);
 
 		if (InFlatpak()) {
-			const auto flatpakId = [&] {
-				if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
-					return QString::fromLatin1(qgetenv("FLATPAK_ID"));
-				} else {
-					return GetLauncherBasename();
-				}
-			}();
-
-			runtimeDir += qsl("/app/")
-				+ flatpakId;
+			runtimeDir += qsl("/app/") + FlatpakID();
 		}
 
 		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
@@ -786,7 +789,7 @@ QString GetLauncherFilename() {
 
 QString GetIconName() {
 	static const auto Result = InFlatpak()
-		? GetLauncherBasename()
+		? FlatpakID()
 		: kIconName.utf16();
 	return Result;
 }
