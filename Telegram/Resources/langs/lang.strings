@@ -2433,5 +2433,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_gif_empty" = "No gifs here yet";
 
 "lng_create_supergroup_title" = "New Supergroup";
+"lng_action_group_migrate" = "The group was upgraded to a supergroup";
 
 // Keys finished
