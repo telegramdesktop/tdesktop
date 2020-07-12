@@ -845,6 +845,9 @@ void MainMenu::refreshMenu() {
 		_menu->addAction(tr::lng_create_group_title(tr::now), [] {
 			App::wnd()->onShowNewGroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
+		_menu->addAction(tr::lng_create_supergroup_title(tr::now), [] {
+			App::wnd()->onShowNewSupergroup();
+		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
 		_menu->addAction(tr::lng_create_channel_title(tr::now), [] {
 			App::wnd()->onShowNewChannel();
 		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);

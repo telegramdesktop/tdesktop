@@ -2432,4 +2432,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_gifs_header" = "Gifs";
 "lng_media_gif_empty" = "No gifs here yet";
 
+"lng_create_supergroup_title" = "New Supergroup";
+
 // Keys finished

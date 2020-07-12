@@ -122,6 +122,7 @@ public slots:
 
 	void onShowAddContact();
 	void onShowNewGroup();
+	void onShowNewSupergroup();
 	void onShowNewChannel();
 
 private:

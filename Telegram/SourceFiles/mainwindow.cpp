@@ -663,6 +663,16 @@ void MainWindow::onShowNewGroup() {
 	}
 }
 
+void MainWindow::onShowNewSupergroup() {
+	if (isHidden()) showFromTray();
+
+	if (const auto controller = sessionController()) {
+		Ui::show(
+			Box<GroupInfoBox>(controller, GroupInfoBox::Type::Megagroup),
+			Ui::LayerOption::KeepOther);
+	}
+}
+
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
