@@ -207,7 +207,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    ./config --prefix=/usr/local/desktop-app/openssl-1.1.1
+    ./config --prefix=/usr/local/desktop-app/openssl-1.1.1 no-tests
     make $MAKE_THREADS_CNT
     sudo make install_sw
     cd ..

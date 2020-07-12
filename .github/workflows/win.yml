@@ -146,7 +146,7 @@ jobs:
           git clone %GIT%/openssl/openssl.git openssl_%OPENSSL_VER%
           cd openssl_%OPENSSL_VER%
           git checkout OpenSSL_%OPENSSL_VER%-stable
-          perl Configure no-shared debug-VC-WIN32
+          perl Configure no-shared no-tests debug-VC-WIN32
           nmake
           mkdir out32.dbg
           move libcrypto.lib out32.dbg

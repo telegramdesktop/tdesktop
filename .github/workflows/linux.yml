@@ -369,7 +369,7 @@ jobs:
           git clone -b OpenSSL_${OPENSSL_VER}-stable --depth=1 \
             $GIT/openssl/openssl $opensslDir
           cd $opensslDir
-          ./config --prefix="$OPENSSL_PREFIX"
+          ./config --prefix="$OPENSSL_PREFIX" no-tests
           make -j$(nproc)
           sudo make DESTDIR="$LibrariesPath/openssl-cache" install_sw
           cd ..
