@@ -76,7 +76,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    perl Configure no-shared debug-VC-WIN32
+    perl Configure no-shared no-tests debug-VC-WIN32
     nmake
     mkdir out32.dbg
     move libcrypto.lib out32.dbg
