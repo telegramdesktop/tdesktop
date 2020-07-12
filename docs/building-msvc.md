@@ -49,9 +49,6 @@ Add **GYP** and **Ninja** to your PATH:
 * Press **Edit**
 * Add ***BuildPath*\\ThirdParty\\gyp** value
 * Add ***BuildPath*\\ThirdParty\\Ninja** value
-* Add ***BuildPath*\\ThirdParty\\Python27** value
-* Add ***BuildPath*\\ThirdParty\\yasm** value
-* Add ***BuildPath*\\ThirdParty\\jom** value
 
 ## Clone source code and prepare libraries
 
