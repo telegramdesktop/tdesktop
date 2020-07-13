@@ -13,16 +13,18 @@ set(tgcalls_loc ${tgcalls_dir}/tgcalls)
 
 nice_target_sources(lib_tgcalls ${tgcalls_loc}
 PRIVATE
+    CodecSelectHelper.cpp
+    CodecSelectHelper.h
+    Instance.cpp
+    Instance.h
+    InstanceImpl.cpp
+    InstanceImpl.h
     Manager.cpp
     Manager.h
     MediaManager.cpp
     MediaManager.h
     NetworkManager.cpp
     NetworkManager.h
-    Instance.cpp
-    Instance.h
-    InstanceImpl.cpp
-    InstanceImpl.h
     SignalingMessage.cpp
     SignalingMessage.h
     ThreadLocalObject.h
