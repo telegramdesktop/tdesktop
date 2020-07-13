@@ -1129,9 +1129,7 @@ if (NOT LINUX)
     )
 endif()
 
-if (DESKTOP_APP_USE_PACKAGED)
-    nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
-else()
+if (NOT DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE platform/mac/mac_iconv_helper.c)
 endif()
 
