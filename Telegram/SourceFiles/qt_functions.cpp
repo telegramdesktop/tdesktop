@@ -34,33 +34,7 @@
 // For QTextItemInt declaraion
 #include <private/qtextengine_p.h>
 
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 /* TODO: find a dynamic library with these symbols. */
-
-/* Debian maintainer: this function is taken from qfiledialog.cpp */
-/*
-    Makes a list of filters from ;;-separated text.
-    Used by the mac and windows implementations
-*/
-QStringList qt_make_filter_list(const QString &filter)
-{
-    QString f(filter);
-
-    if (f.isEmpty())
-        return QStringList();
-
-    QString sep(QLatin1String(";;"));
-    int i = f.indexOf(sep, 0);
-    if (i == -1) {
-        if (f.indexOf(QLatin1Char('\n'), 0) != -1) {
-            sep = QLatin1Char('\n');
-            i = f.indexOf(sep, 0);
-        }
-    }
-
-    return f.split(sep);
-}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 /* Debian maintainer: this constructor is taken from qtextengine.cpp for TextPainter::drawLine */
 QTextItemInt::QTextItemInt(const QGlyphLayout &g, QFont *font, const QChar *chars_, int numChars, QFontEngine *fe, const QTextCharFormat &format)
