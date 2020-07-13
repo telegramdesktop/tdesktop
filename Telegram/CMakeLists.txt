@@ -1271,7 +1271,7 @@ PRIVATE
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
 )
 
-if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)")
+if (APPLE OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL "" OR NOT "${output_name}" STREQUAL "Telegram")
     set(output_folder ${CMAKE_BINARY_DIR})
 elseif (DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
     set(output_folder ${CMAKE_BINARY_DIR}/bin)
