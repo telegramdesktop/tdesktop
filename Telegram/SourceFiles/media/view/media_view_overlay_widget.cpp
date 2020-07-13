@@ -631,11 +631,18 @@ void OverlayWidget::updateControls() {
 		|| (_document
 			&& _document->filepath(true).isEmpty()
 			&& !_document->loading());
-	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 3, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_rotateVisible = !_themePreviewShown;
+	const auto navRect = [&](int i) {
+		return myrtlrect(width() - st::mediaviewIconSize.width() * i,
+			height() - st::mediaviewIconSize.height(),
+			st::mediaviewIconSize.width(),
+			st::mediaviewIconSize.height());
+	};
+	_saveNav = navRect(_rotateVisible ? 3 : 2);
 	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
-	_rotateNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_rotateNav = navRect(2);
 	_rotateNavIcon = style::centerrect(_rotateNav, st::mediaviewRotate);
-	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_moreNav = navRect(1);
 	_moreNavIcon = style::centerrect(_moreNav, st::mediaviewMore);
 
 	const auto dNow = QDateTime::currentDateTime();
@@ -3003,7 +3010,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		// rotate button
-		if (_rotateNavIcon.intersects(r)) {
+		if (_rotateVisible && _rotateNavIcon.intersects(r)) {
 			auto o = overLevel(OverRotate);
 			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewRotate.paintInCenter(p, _rotateNavIcon);
@@ -3827,7 +3834,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
 		updateOverState(OverSave);
-	} else if (_rotateNav.contains(pos)) {
+	} else if (_rotateVisible && _rotateNav.contains(pos)) {
 		updateOverState(OverRotate);
 	} else if (_document && documentBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);

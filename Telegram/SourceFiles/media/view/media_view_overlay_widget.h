@@ -383,6 +383,7 @@ private:
 	bool _leftNavVisible = false;
 	bool _rightNavVisible = false;
 	bool _saveVisible = false;
+	bool _rotateVisible = false;
 	bool _headerHasLink = false;
 	QString _dateText;
 	QString _headerText;
