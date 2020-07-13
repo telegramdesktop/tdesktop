@@ -907,6 +907,8 @@ PRIVATE
     platform/mac/touchbar/mac_touchbar_main.mm
     platform/mac/touchbar/mac_touchbar_manager.h
     platform/mac/touchbar/mac_touchbar_manager.mm
+    platform/mac/touchbar/mac_touchbar_media_view.h
+    platform/mac/touchbar/mac_touchbar_media_view.mm
     platform/win/audio_win.cpp
     platform/win/audio_win.h
     platform/win/file_utilities_win.cpp

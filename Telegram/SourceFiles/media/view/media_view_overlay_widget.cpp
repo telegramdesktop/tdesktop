@@ -62,6 +62,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "styles/style_history.h"
 
+#ifdef Q_OS_MAC
+#include "platform/mac/touchbar/mac_touchbar_media_view.h"
+#endif // Q_OS_MAC
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QBuffer>
@@ -340,6 +344,15 @@ OverlayWidget::OverlayWidget()
 	if (!Platform::IsMac()) {
 		setWindowState(Qt::WindowFullScreen);
 	}
+
+#if defined Q_OS_MAC && !defined OS_OSX
+	TouchBar::SetupMediaViewTouchBar(
+		winId(),
+		static_cast<PlaybackControls::Delegate*>(this),
+		_touchbarTrackState.events(),
+		_touchbarDisplay.events(),
+		_touchbarFullscreenToggled.events());
+#endif // Q_OS_MAC && !OS_OSX
 
 	Core::App().calls().currentCallValue(
 	) | rpl::start_with_next([=](Calls::Call *call) {
@@ -2014,6 +2027,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	if (isHidden()) {
 		moveToScreen();
 	}
+	_touchbarDisplay.fire(TouchBarItemType::Photo);
 
 	clearStreaming();
 	destroyThemePreview();
@@ -2080,6 +2094,8 @@ void OverlayWidget::displayDocument(
 	_rotation = _document ? _document->owner().mediaRotation().get(_document) : 0;
 	_themeCloudData = cloud;
 	_radial.stop();
+
+	_touchbarDisplay.fire(TouchBarItemType::None);	
 
 	refreshMediaViewer();
 	if (_document) {
@@ -2283,6 +2299,8 @@ void OverlayWidget::startStreamingPlayer() {
 
 void OverlayWidget::initStreamingThumbnail() {
 	Expects(_document != nullptr);
+
+	_touchbarDisplay.fire(TouchBarItemType::Video);
 
 	const auto good = _documentMedia->goodThumbnail();
 	const auto useGood = (good != nullptr);
@@ -2730,6 +2748,7 @@ void OverlayWidget::playbackToggleFullScreen() {
 	}
 
 	_streamed->controls.setInFullScreen(_fullScreenVideo);
+	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
 	updateControls();
 	update();
 }
@@ -2776,6 +2795,7 @@ void OverlayWidget::updatePlaybackState() {
 	const auto state = _streamed->instance.player().prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		_streamed->controls.updatePlayback(state);
+		_touchbarTrackState.fire_copy(state);
 	}
 }
 

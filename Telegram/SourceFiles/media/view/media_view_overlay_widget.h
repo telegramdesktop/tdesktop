@@ -71,6 +71,12 @@ class OverlayWidget final
 public:
 	OverlayWidget();
 
+	enum class TouchBarItemType {
+		Photo,
+		Video,
+		None,
+	};
+
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
 	void showDocument(
@@ -495,6 +501,10 @@ private:
 
 	base::flat_map<OverState, crl::time> _animations;
 	base::flat_map<OverState, anim::value> _animationOpacities;
+
+	rpl::event_stream<Media::Player::TrackState> _touchbarTrackState;
+	rpl::event_stream<TouchBarItemType> _touchbarDisplay;
+	rpl::event_stream<bool> _touchbarFullscreenToggled;
 
 	int _verticalWheelDelta = 0;
 
