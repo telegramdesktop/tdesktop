@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 #include <AppKit/NSImageView.h>
 
 namespace Main {
@@ -18,3 +20,5 @@ API_AVAILABLE(macos(10.12.2))
 - (id)init:(not_null<Main::Session*>)session
 	destroyEvent:(rpl::producer<>)touchBarSwitches;
 @end
+
+#endif // OS_OSX

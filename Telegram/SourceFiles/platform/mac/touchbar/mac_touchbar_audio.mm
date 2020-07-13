@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_audio.h"
 
+#ifndef OS_OSX
+
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
@@ -17,8 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSCustomTouchBarItem.h>
 #import <AppKit/NSSlider.h>
 #import <AppKit/NSSliderTouchBarItem.h>
-
-#ifndef OS_OSX
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 using TouchBar::kCircleDiameter;

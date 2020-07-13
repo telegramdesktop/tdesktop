@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_main.h"
 
+#ifndef OS_OSX
+
 #include "platform/mac/touchbar/items/mac_formatter_item.h"
 #include "platform/mac/touchbar/items/mac_pinned_chats_item.h"
 #include "platform/mac/touchbar/items/mac_scrubber_item.h"
@@ -15,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #import <AppKit/NSCustomTouchBarItem.h>
-
-#ifndef OS_OSX
 
 using namespace TouchBar::Main;
 

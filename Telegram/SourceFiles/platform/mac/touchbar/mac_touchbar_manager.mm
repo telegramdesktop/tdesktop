@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
 
+#ifndef OS_OSX
+
 #include "apiwrap.h" // ApiWrap::updateStickers()
 #include "core/application.h"
 #include "data/data_peer.h" // PeerData::canWrite()
@@ -23,8 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #import <AppKit/NSGroupTouchBarItem.h>
-
-#ifndef OS_OSX
 
 using namespace TouchBar::Main;
 

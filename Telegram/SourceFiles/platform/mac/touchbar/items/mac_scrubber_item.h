@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 #import <AppKit/NSPopoverTouchBarItem.h>
 #import <AppKit/NSTouchBar.h>
 
@@ -19,3 +21,5 @@ API_AVAILABLE(macos(10.12.2))
 - (id)init:(not_null<Window::Controller*>)controller
 	identifier:(NSTouchBarItemIdentifier)identifier;
 @end
+
+#endif // OS_OSX

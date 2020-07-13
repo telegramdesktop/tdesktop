@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 #import <AppKit/NSTouchBar.h>
 
 namespace Window {
@@ -26,3 +28,5 @@ API_AVAILABLE(macos(10.12.2))
 - (id)init:(not_null<Window::Controller*>)controller
 	touchBarSwitches:(rpl::producer<>)touchBarSwitches;
 @end
+
+#endif // OS_OSX

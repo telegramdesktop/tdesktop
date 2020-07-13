@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/touchbar/mac_touchbar_controls.h"
 
+#ifndef OS_OSX
+
 #include "base/platform/mac/base_utilities_mac.h" // Q2NSString()
 #include "core/sandbox.h" // Sandbox::customEnterFromEventLoop()
 #include "layout.h" // formatDurationText()
@@ -274,3 +276,5 @@ NSCustomTouchBarItem *CreateTouchBarTrackPosition(
 }
 
 } // namespace TouchBar
+
+#endif // OS_OSX

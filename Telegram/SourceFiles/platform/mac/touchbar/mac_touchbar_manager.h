@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 #import <AppKit/NSTouchBar.h>
 
 namespace Main {
@@ -23,3 +25,5 @@ API_AVAILABLE(macos(10.12.2))
 	controller:(not_null<Window::Controller*>)controller
 	domain:(not_null<Main::Domain*>)domain;
 @end
+
+#endif // OS_OSX

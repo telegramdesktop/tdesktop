@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 namespace Media {
 namespace Player {
 struct TrackState;
@@ -63,3 +65,5 @@ NSCustomTouchBarItem *CreateTouchBarTrackPosition(
 	rpl::producer<Media::Player::TrackState> stateChanged);
 
 } // namespace TouchBar
+
+#endif // OS_OSX

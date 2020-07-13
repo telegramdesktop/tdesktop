@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#ifndef OS_OSX
+
 #import <AppKit/NSImage.h>
 #import <Foundation/Foundation.h>
 
@@ -30,3 +32,5 @@ int WidthFromString(NSString *s);
 NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size);
 
 } // namespace TouchBar
+
+#endif // OS_OSX
