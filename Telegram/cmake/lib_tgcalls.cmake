@@ -35,12 +35,12 @@ PRIVATE
     VideoCapturerInterface.h
 
     platform/PlatformInterface.h
+    platform/tdesktop/VideoCapturerInterfaceImpl.cpp
+    platform/tdesktop/VideoCapturerInterfaceImpl.h
 
     # Windows
     platform/windows/WindowsInterface.cpp
     platform/windows/WindowsInterface.h
-    platform/windows/VideoCapturerInterfaceImpl.cpp
-    platform/windows/VideoCapturerInterfaceImpl.h
 
     # iOS / macOS
     platform/darwin/DarwinInterface.h
@@ -53,22 +53,38 @@ PRIVATE
     platform/darwin/TGRTCVideoDecoderH265.mm
     platform/darwin/TGRTCVideoEncoderH265.h
     platform/darwin/TGRTCVideoEncoderH265.mm
-    platform/darwin/VideoCameraCapturer.h
-    platform/darwin/VideoCameraCapturer.mm
-    platform/darwin/VideoCapturerInterfaceImpl.h
-    platform/darwin/VideoCapturerInterfaceImpl.mm
-    platform/darwin/VideoMetalView.h
-    platform/darwin/VideoMetalView.mm
+    # platform/darwin/VideoCameraCapturer.h
+    # platform/darwin/VideoCameraCapturer.mm
+    # platform/darwin/VideoCapturerInterfaceImpl.h
+    # platform/darwin/VideoCapturerInterfaceImpl.mm
+    # platform/darwin/VideoMetalView.h
+    # platform/darwin/VideoMetalView.mm
 
     # Linux
 
     # POSIX
 )
 
+target_compile_definitions(lib_tgcalls
+PRIVATE
+    WEBRTC_APP_TDESKTOP
+    RTC_ENABLE_VP9
+)
+
 if (WIN32)
     target_compile_definitions(lib_tgcalls
     PRIVATE
-        TARGET_OS_WIN
+        WEBRTC_WIN
+    )
+elseif (APPLE)
+    target_compile_definitions(lib_tgcalls
+    PRIVATE
+        WEBRTC_MAC
+    )
+else()
+    target_compile_definitions(lib_tgcalls
+    PRIVATE
+        WEBRTC_LINUX
     )
 endif()
 
