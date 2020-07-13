@@ -74,8 +74,6 @@ using CornersMap = QMap<uint32, CornersPixmaps>;
 CornersMap cornersMap;
 QImage cornersMaskLarge[4], cornersMaskSmall[4];
 
-int32 serviceImageCacheSize = 0;
-
 } // namespace
 
 namespace App {

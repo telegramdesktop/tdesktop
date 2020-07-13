@@ -104,42 +104,6 @@ RecentEmojiPack &GetRecentEmoji() {
 				}
 			}
 		}
-		const auto defaultRecent = {
-			0xD83DDE02LLU,
-			0xD83DDE18LLU,
-			0x2764LLU,
-			0xD83DDE0DLLU,
-			0xD83DDE0ALLU,
-			0xD83DDE01LLU,
-			0xD83DDC4DLLU,
-			0x263ALLU,
-			0xD83DDE14LLU,
-			0xD83DDE04LLU,
-			0xD83DDE2DLLU,
-			0xD83DDC8BLLU,
-			0xD83DDE12LLU,
-			0xD83DDE33LLU,
-			0xD83DDE1CLLU,
-			0xD83DDE48LLU,
-			0xD83DDE09LLU,
-			0xD83DDE03LLU,
-			0xD83DDE22LLU,
-			0xD83DDE1DLLU,
-			0xD83DDE31LLU,
-			0xD83DDE21LLU,
-			0xD83DDE0FLLU,
-			0xD83DDE1ELLU,
-			0xD83DDE05LLU,
-			0xD83DDE1ALLU,
-			0xD83DDE4ALLU,
-			0xD83DDE0CLLU,
-			0xD83DDE00LLU,
-			0xD83DDE0BLLU,
-			0xD83DDE06LLU,
-			0xD83DDC4CLLU,
-			0xD83DDE10LLU,
-			0xD83DDE15LLU,
-		};
 		for (const auto emoji : Ui::Emoji::GetDefaultRecent()) {
 			if (result.size() >= kRecentEmojiLimit) break;
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "core/application.h"
+#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
@@ -311,6 +312,29 @@ Streaming::FrameRequest UnrotateRequest(
 		| unrotatedCorner(RectPart::BottomRight)
 		| unrotatedCorner(RectPart::BottomLeft);
 	return result;
+}
+
+Qt::Edges RectPartToQtEdges(RectPart rectPart) {
+	switch (rectPart) {
+	case RectPart::TopLeft:
+		return Qt::TopEdge | Qt::LeftEdge;
+	case RectPart::TopRight:
+		return Qt::TopEdge | Qt::RightEdge;
+	case RectPart::BottomRight:
+		return Qt::BottomEdge | Qt::RightEdge;
+	case RectPart::BottomLeft:
+		return Qt::BottomEdge | Qt::LeftEdge;
+	case RectPart::Left:
+		return Qt::LeftEdge;
+	case RectPart::Top:
+		return Qt::TopEdge;
+	case RectPart::Right:
+		return Qt::RightEdge;
+	case RectPart::Bottom:
+		return Qt::BottomEdge;
+	}
+
+	return 0;
 }
 
 } // namespace
@@ -682,40 +706,23 @@ void PipPanel::mouseMoveEvent(QMouseEvent *e) {
 	if (!_dragState
 		&& (point - _pressPoint).manhattanLength() > distance
 		&& !_dragDisabled) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
 		if (Platform::IsWayland()) {
-			switch (*_pressState) {
-			case RectPart::Center:
-				windowHandle()->startSystemMove();
-				break;
-			case RectPart::TopLeft:
-				windowHandle()->startSystemResize(Qt::TopEdge | Qt::LeftEdge);
-				break;
-			case RectPart::TopRight:
-				windowHandle()->startSystemResize(Qt::TopEdge | Qt::RightEdge);
-				break;
-			case RectPart::BottomRight:
-				windowHandle()->startSystemResize(Qt::BottomEdge | Qt::RightEdge);
-				break;
-			case RectPart::BottomLeft:
-				windowHandle()->startSystemResize(Qt::BottomEdge | Qt::LeftEdge);
-				break;
-			case RectPart::Left:
-				windowHandle()->startSystemResize(Qt::LeftEdge);
-				break;
-			case RectPart::Top:
-				windowHandle()->startSystemResize(Qt::TopEdge);
-				break;
-			case RectPart::Right:
-				windowHandle()->startSystemResize(Qt::RightEdge);
-				break;
-			case RectPart::Bottom:
-				windowHandle()->startSystemResize(Qt::BottomEdge);
-				break;
+			const auto stateEdges = RectPartToQtEdges(*_pressState);
+			if (stateEdges) {
+				if (!Platform::StartSystemResize(windowHandle(), stateEdges)) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+					windowHandle()->startSystemResize(stateEdges);
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+				}
+			} else {
+				if (!Platform::StartSystemMove(windowHandle())) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+					windowHandle()->startSystemMove();
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+				}
 			}
 			return;
 		}
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
 		_dragState = _pressState;
 		updateDecorations();
 		_dragStartGeometry = geometry().marginsRemoved(_padding);

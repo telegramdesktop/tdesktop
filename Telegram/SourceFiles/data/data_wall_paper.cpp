@@ -544,7 +544,6 @@ QImage PreparePatternImage(
 	const auto patternBg = anim::shifted(bg);
 	const auto patternFg = anim::shifted(fg);
 
-	const auto resultBytesPerPixel = (image.depth() >> 3);
 	constexpr auto resultIntsPerPixel = 1;
 	const auto resultIntsPerLine = (image.bytesPerLine() >> 2);
 	const auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;

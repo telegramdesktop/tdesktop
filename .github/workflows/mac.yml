@@ -147,6 +147,7 @@ jobs:
           git checkout OpenSSL_"$OPENSSL_VER"-stable
           ./Configure \
           --prefix=$PREFIX \
+          no-tests \
           darwin64-x86_64-cc \
           -static \
           $MIN_MAC

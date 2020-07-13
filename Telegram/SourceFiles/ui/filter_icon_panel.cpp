@@ -22,7 +22,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kHideTimeoutMs = crl::time(300);
-constexpr auto kDelayedHideTimeoutMs = 3 * crl::time(1000);
 constexpr auto kIconsPerRow = 6;
 
 constexpr auto kIcons = std::array{

@@ -14,13 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "platform/platform_specific.h"
 
-namespace {
-
-constexpr auto kCoordPrecision = 8;
-constexpr auto kMaxHttpRedirects = 5;
-
-} // namespace
-
 QString LocationClickHandler::copyToClipboardText() const {
 	return _text;
 }

@@ -23,8 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
-
-QStringList qt_make_filter_list(const QString &filter);
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
@@ -365,6 +363,24 @@ namespace {
 const char *filterRegExp =
 "^(.*)\\(([a-zA-Z0-9_.,*? +;#\\-\\[\\]@\\{\\}/!<>\\$%&=^~:\\|]*)\\)$";
 
+QStringList makeFilterList(const QString &filter) {
+	QString f(filter);
+
+	if (f.isEmpty())
+		return QStringList();
+
+	QString sep(QLatin1String(";;"));
+	int i = f.indexOf(sep, 0);
+	if (i == -1) {
+		if (f.indexOf(QLatin1Char('\n'), 0) != -1) {
+			sep = QLatin1Char('\n');
+			i = f.indexOf(sep, 0);
+		}
+	}
+
+	return f.split(sep);
+}
+
 // Makes a list of filters from a normal filter string "Image Files (*.png *.jpg)"
 QStringList cleanFilterList(const QString &filter) {
 	QRegExp regexp(QString::fromLatin1(filterRegExp));
@@ -382,7 +398,7 @@ QStringList cleanFilterList(const QString &filter) {
 GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QString &directory, const QString &filter) : QDialog(parent)
 , _windowTitle(caption)
 , _initialDirectory(directory) {
-	auto filters = qt_make_filter_list(filter);
+	auto filters = makeFilterList(filter);
 	const int numFilters = filters.count();
 	_nameFilters.reserve(numFilters);
 	for (int i = 0; i < numFilters; ++i) {

@@ -130,7 +130,6 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 EmojiPack::~EmojiPack() = default;
 
 bool EmojiPack::add(not_null<HistoryItem*> item) {
-	auto length = 0;
 	if (const auto emoji = item->isolatedEmoji()) {
 		_items[emoji].emplace(item);
 		return true;
@@ -141,7 +140,6 @@ bool EmojiPack::add(not_null<HistoryItem*> item) {
 void EmojiPack::remove(not_null<const HistoryItem*> item) {
 	Expects(item->isIsolatedEmoji());
 
-	auto length = 0;
 	const auto emoji = item->isolatedEmoji();
 	const auto i = _items.find(emoji);
 	Assert(i != end(_items));

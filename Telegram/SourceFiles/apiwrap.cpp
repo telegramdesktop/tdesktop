@@ -83,9 +83,6 @@ constexpr auto kReloadChannelMembersTimeout = 1000;
 // Save draft to the cloud with 1 sec extra delay.
 constexpr auto kSaveCloudDraftTimeout = 1000;
 
-// Give the app 1.5 secs to save drafts to cloud when quitting.
-constexpr auto kSaveDraftBeforeQuitTimeout = 1500;
-
 // Max users in one super group invite request.
 constexpr auto kMaxUsersPerInvite = 100;
 

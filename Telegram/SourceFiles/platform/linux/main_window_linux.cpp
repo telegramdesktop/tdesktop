@@ -262,12 +262,12 @@ bool IsIndicatorApplication() {
 
 std::unique_ptr<QTemporaryFile> TrayIconFile(
 		const QIcon &icon,
-		int size,
-		QObject *parent) {
+		QObject *parent = nullptr) {
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
-	const auto desiredSize = QSize(size, size);
+	const auto dpr = style::DevicePixelRatio();
+	const auto desiredSize = QSize(22 * dpr, 22 * dpr);
 
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
@@ -524,7 +524,7 @@ void MainWindow::setSNITrayIcon(int counter, bool muted) {
 		}
 
 		const auto icon = TrayIconGen(counter, muted);
-		_trayIconFile = TrayIconFile(icon, 22, this);
+		_trayIconFile = TrayIconFile(icon, this);
 
 		if (_trayIconFile) {
 			// indicator-application doesn't support tooltips

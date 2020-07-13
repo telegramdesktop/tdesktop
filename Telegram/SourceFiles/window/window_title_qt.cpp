@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_title_qt.h"
 
+#include "platform/platform_specific.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_window.h"
@@ -121,9 +122,7 @@ void TitleWidgetQt::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	window()->windowHandle()->startSystemMove();
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+	startMove();
 }
 
 void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {
@@ -260,12 +259,32 @@ void TitleWidgetQt::updateCursor(Qt::Edges edges) {
 	}
 }
 
-bool TitleWidgetQt::startResize(Qt::Edges edges) {
+bool TitleWidgetQt::startMove() {
+	if (Platform::StartSystemMove(window()->windowHandle())) {
+		return true;
+	}
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (edges) {
-		return window()->windowHandle()->startSystemResize(edges);
+	if (window()->windowHandle()->startSystemMove()) {
+		return true;
 	}
 #endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+
+	return false;
+}
+
+bool TitleWidgetQt::startResize(Qt::Edges edges) {
+	if (edges) {
+		if (Platform::StartSystemResize(window()->windowHandle(), edges)) {
+			return true;
+		}
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+		if (window()->windowHandle()->startSystemResize(edges)) {
+			return true;
+		}
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+	}
 
 	return false;
 }

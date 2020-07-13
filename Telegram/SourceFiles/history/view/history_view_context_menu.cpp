@@ -634,9 +634,6 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto document = linkDocument
 		? linkDocument->document().get()
 		: nullptr;
-	const auto isVideoLink = document ? document->isVideoFile() : false;
-	const auto isVoiceLink = document ? document->isVoiceMessage() : false;
-	const auto isAudioLink = document ? document->isAudioFile() : false;
 	const auto hasSelection = !request.selectedItems.empty()
 		|| !request.selectedText.empty();
 

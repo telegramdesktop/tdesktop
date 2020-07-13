@@ -32,6 +32,14 @@ inline QImage GetImageFromClipboard() {
 	return {};
 }
 
+inline bool StartSystemMove(QWindow *window) {
+	return false;
+}
+
+inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
+	return false;
+}
+
 namespace ThirdParty {
 
 void start();

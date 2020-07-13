@@ -45,6 +45,7 @@ private:
 	Qt::Edges edgesFromPos(const QPoint &pos);
 	void updateCursor(Qt::Edges edges);
 	void restoreCursor();
+	bool startMove();
 	bool startResize(Qt::Edges edges);
 
 	const style::WindowTitle &_st;

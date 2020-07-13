@@ -654,8 +654,6 @@ void AddSpecialBoxController::showRestricted(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto chat = _peer->asChat();
-	const auto channel = _peer->asChannel();
 	const auto showRestrictedSure = crl::guard(this, [=] {
 		showRestricted(user, true);
 	});

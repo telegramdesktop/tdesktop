@@ -26,13 +26,14 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Python 2.7** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install to ***BuildPath*\\ThirdParty\\Python27**
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
+* Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 0ba67e2
+    git checkout 53ed295
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -76,7 +77,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    perl Configure no-shared debug-VC-WIN32
+    perl Configure no-shared no-tests debug-VC-WIN32
     nmake
     mkdir out32.dbg
     move libcrypto.lib out32.dbg

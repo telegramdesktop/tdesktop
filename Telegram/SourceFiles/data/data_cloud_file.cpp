@@ -100,8 +100,6 @@ bool CloudImage::failed() const {
 }
 
 void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
-	const auto fromCloud = LoadFromCloudOrLocal;
-	const auto cacheTag = kImageCacheTag;
 	const auto autoLoading = false;
 	const auto finalCheck = [=] {
 		if (const auto active = activeView()) {

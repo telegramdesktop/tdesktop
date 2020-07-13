@@ -127,6 +127,33 @@ PRIVATE
     desktop-app::external_openal
 )
 
+if (LINUX AND DESKTOP_APP_USE_PACKAGED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
+
+    target_include_directories(Telegram
+    PRIVATE
+        ${WAYLAND_CLIENT_INCLUDE_DIRS}
+    )
+endif()
+
+if (LINUX)
+    if (DESKTOP_APP_USE_PACKAGED)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(XCB_SCREENSAVER REQUIRED IMPORTED_TARGET xcb-screensaver)
+        pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
+
+        target_link_libraries(Telegram
+        PRIVATE
+            PkgConfig::XCB_SCREENSAVER
+            PkgConfig::XCB
+        )
+    else()
+        target_link_static_libraries(Telegram PRIVATE xcb-screensaver)
+        target_link_libraries(Telegram PRIVATE xcb)
+    endif()
+endif()
+
 if (LINUX AND NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
     find_package(PkgConfig REQUIRED)
     target_compile_options(Telegram PRIVATE -Wno-register)
@@ -1108,9 +1135,7 @@ if (NOT LINUX)
     )
 endif()
 
-if (DESKTOP_APP_USE_PACKAGED)
-    nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
-else()
+if (NOT DESKTOP_APP_USE_PACKAGED)
     nice_target_sources(Telegram ${src_loc} PRIVATE platform/mac/mac_iconv_helper.c)
 endif()
 
@@ -1253,7 +1278,7 @@ PRIVATE
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
 )
 
-if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)")
+if (APPLE OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL "" OR NOT "${output_name}" STREQUAL "Telegram")
     set(output_folder ${CMAKE_BINARY_DIR})
 elseif (DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
     set(output_folder ${CMAKE_BINARY_DIR}/bin)

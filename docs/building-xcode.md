@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 0ba67e2
+    git checkout 53ed295
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -70,7 +70,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    ./Configure --prefix=/usr/local/macos darwin64-x86_64-cc -static $MIN_VER
+    ./Configure --prefix=/usr/local/macos no-tests darwin64-x86_64-cc -static $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     cd ..
 

@@ -19,11 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QFileInfo>
 
 namespace Stickers {
-namespace {
-
-constexpr auto kZeroDiceDocumentId = 0xa3b83c9f84fa9e83ULL;
-
-} // namespace
 
 DicePack::DicePack(not_null<Main::Session*> session, const QString &emoji)
 : _session(session)
