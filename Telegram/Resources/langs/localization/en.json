@@ -26,5 +26,31 @@
 
     "lng_context_copy_callback_data": "Copy Callback Data",
     "lng_context_show_messages_from": "Messages From User",
-    "lng_context_repeat_msg": "Repeat This Message"
+    "lng_context_repeat_msg": "Repeat This Message",
+    "lng_context_repeat_msg_no_fwd": "Repeat This Message(!Forward)",
+    "lng_context_forward_msg_no_quote": "Forward Message(W/O quote)",
+    "lng_context_forward_selected_no_quote": "Forward Selected(W/O quote)",
+    "lng_selected_forward_no_quote": "Forward(w/o quote)",
+    "lng_forward_to_saved_message": "Forward to Saved Messages",
+    "lng_message_id": "Message ID: ",
+    
+    "lng_admin_log_banned_send_stickers2": "Send stickers",
+    "lng_admin_log_banned_send_gifs": "Send GIFs",
+    "lng_admin_log_banned_send_games": "Send Games",
+    "lng_admin_log_banned_use_inline": "Use Inline Bots",
+    "lng_rights_chat_send_stickers2": "Send stickers",
+    "lng_rights_chat_send_gifs": "Send GIFs",
+    "lng_rights_chat_send_games": "Send Games",
+    "lng_rights_chat_use_inline": "Use Inline Bots",
+    
+    "lng_media_selected_gif#one": "{count} Gif",
+    "lng_media_selected_gif#other": "{count} Gifs",
+    "lng_media_type_gifs": "Gifs",
+    "lng_profile_gifs#one": "{count} gif",
+    "lng_profile_gifs#other": "{count} gifs",
+    "lng_profile_gifs_header": "Gifs",
+    "lng_media_gif_empty": "No gifs here yet",
+    
+    "lng_create_supergroup_title": "New Supergroup",
+    "lng_action_group_migrate": "The group was upgraded to a supergroup"
 }
