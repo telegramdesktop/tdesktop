@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
+#include "platform/mac/touchbar/mac_touchbar_controls.h"
 #include "styles/style_media_player.h"
 
 #import <AppKit/NSButton.h>
@@ -39,25 +40,6 @@ const auto kNextItemIdentifier = Format(@"nextItem");
 const auto kPreviousItemIdentifier = Format(@"previousItem");
 const auto kClosePlayerItemIdentifier = Format(@"closePlayer");
 const auto kCurrentPositionItemIdentifier = Format(@"currentPosition");
-
-API_AVAILABLE(macos(10.12.2))
-NSButton* CreateTouchBarButton(
-		const style::icon &icon,
-		rpl::lifetime &lifetime,
-		Fn<void()> callback) {
-	id block = [^{
-		Core::Sandbox::Instance().customEnterFromEventLoop(callback);
-	} copy];
-
-	NSButton* button = [NSButton
-		buttonWithImage:CreateNSImageFromStyleIcon(icon, kCircleDiameter / 2)
-		target:block
-		action:@selector(invoke)];
-	lifetime.add([=] {
-		[block release];
-	});
-	return button;
-}
 
 } // namespace
 
@@ -113,58 +95,24 @@ NSButton* CreateTouchBarButton(
 	};
 
 	if (isEqual(kSeekBarItemIdentifier)) {
-		auto *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:itemId];
-		item.slider.minValue = 0.0f;
-		item.slider.maxValue = 1.0f;
-		item.customizationLabel = @"Seek Bar";
-
-		id block = [^{
-			// https://stackoverflow.com/a/45891017
-			auto *event = [[NSApplication sharedApplication] currentEvent];
-			const auto touchUp = [event
-				touchesMatchingPhase:NSTouchPhaseEnded
-				inView:nil].count > 0;
-			Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+		auto *item = TouchBar::CreateTouchBarSlider(
+			itemId,
+			_lifetime,
+			[=](bool touchUp, double value, double duration) {
 				if (touchUp) {
-					mediaPlayer->finishSeeking(kSongType, item.doubleValue);
+					mediaPlayer->finishSeeking(kSongType, value);
 				} else {
 					mediaPlayer->startSeeking(kSongType);
 				}
-			});
-		} copy];
-
-		rpl::duplicate(
-			_trackState
-		) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
-			const auto stop = Media::Player::IsStoppedOrStopping(state.state);
-			const auto duration = double(stop ? 0 : state.length);
-			auto slider = item.slider;
-			if (duration <= 0) {
-				slider.enabled = false;
-				slider.doubleValue = 0;
-			} else {
-				slider.enabled = true;
-				if (!slider.highlighted) {
-					const auto pos = stop
-						? 0
-						: std::max(state.position, int64(0));
-					slider.doubleValue = (pos / duration) * slider.maxValue;
-				}
-			}
-		}, _lifetime);
-
-		item.target = block;
-		item.action = @selector(invoke);
-		_lifetime.add([=] {
-			[block release];
-		});
+			},
+			rpl::duplicate(_trackState));
 		return [item autorelease];
 	} else if (isEqual(kNextItemIdentifier)
 			|| isEqual(kPreviousItemIdentifier)) {
 		const auto isNext = isEqual(kNextItemIdentifier);
 		auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:itemId];
 
-		auto *button = CreateTouchBarButton(
+		auto *button = TouchBar::CreateTouchBarButton(
 			isNext
 				? st::touchBarIconPlayerNext
 				: st::touchBarIconPlayerPrevious,
@@ -191,36 +139,24 @@ NSButton* CreateTouchBarButton(
 	} else if (isEqual(kPlayItemIdentifier)) {
 		auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:itemId];
 
-		auto *button = CreateTouchBarButton(
+		auto *button = TouchBar::CreateTouchBarButtonWithTwoStates(
 			st::touchBarIconPlayerPause,
-			_lifetime,
-			[=] { mediaPlayer->playPause(kSongType); });
-
-		auto *pause = [button.image retain];
-		auto *play = [CreateNSImageFromStyleIcon(
 			st::touchBarIconPlayerPlay,
-			kCircleDiameter / 2) retain];
-
-		rpl::duplicate(
-			_trackState
-		) | rpl::start_with_next([=](const auto &state) {
-			button.image = (state.state == Media::Player::State::Playing)
-				? pause
-				: play;
-		}, _lifetime);
-
-		_lifetime.add([=] {
-			// Avoid a memory leak from retaining of images.
-			[pause release];
-			[play release];
-		});
+			_lifetime,
+			[=](bool value) { mediaPlayer->playPause(kSongType); },
+			false,
+			rpl::duplicate(
+				_trackState
+			) | rpl::map([](const auto &state) {
+				return (state.state == Media::Player::State::Playing);
+			}) | rpl::distinct_until_changed());
 
 		item.view = button;
 		item.customizationLabel = @"Play/Pause";
 		return [item autorelease];
 	} else if (isEqual(kClosePlayerItemIdentifier)) {
 		auto *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:itemId];
-		auto *button = CreateTouchBarButton(
+		auto *button = TouchBar::CreateTouchBarButton(
 			st::touchBarIconPlayerClose,
 			_lifetime,
 			[=] { _closeRequests.fire({}); });

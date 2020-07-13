@@ -901,6 +901,8 @@ PRIVATE
     platform/mac/touchbar/mac_touchbar_audio.mm
     platform/mac/touchbar/mac_touchbar_common.h
     platform/mac/touchbar/mac_touchbar_common.mm
+    platform/mac/touchbar/mac_touchbar_controls.h
+    platform/mac/touchbar/mac_touchbar_controls.mm
     platform/mac/touchbar/mac_touchbar_main.h
     platform/mac/touchbar/mac_touchbar_main.mm
     platform/mac/touchbar/mac_touchbar_manager.h
