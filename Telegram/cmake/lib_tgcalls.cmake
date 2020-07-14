@@ -35,8 +35,12 @@ PRIVATE
     VideoCapturerInterface.h
 
     platform/PlatformInterface.h
+
+    # Teleram Desktop
     platform/tdesktop/VideoCapturerInterfaceImpl.cpp
     platform/tdesktop/VideoCapturerInterfaceImpl.h
+    platform/tdesktop/VideoCapturerTrackSource.cpp
+    platform/tdesktop/VideoCapturerTrackSource.h
 
     # Windows
     platform/windows/WindowsInterface.cpp
