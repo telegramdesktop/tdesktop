@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_event_filter.h"
 
 #include "platform/win/windows_dlls.h"
+#include "platform/win/specific_win.h"
 #include "core/sandbox.h"
+#include "core/core_settings.h"
 #include "core/application.h"
 #include "ui/inactive_press.h"
 #include "mainwindow.h"
@@ -273,6 +275,10 @@ bool EventFilter::mainWindowEvent(
 			return true;
 		}
 	} return true;
+
+	case WM_SETTINGCHANGE: {
+		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+	} return false;
 
 	}
 	return false;

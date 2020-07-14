@@ -120,6 +120,14 @@ auto GenerateCodes() {
 			window->showSettings(Settings::Type::Folders);
 		}
 	});
+	codes.emplace(qsl("autodark"), [](SessionController *window) {
+		auto text = Core::App().settings().systemDarkModeEnabled() ? qsl("Disable system dark mode?") : qsl("Enable system dark mode?");
+		Ui::show(Box<ConfirmBox>(text, [=] {
+			Core::App().settings().setSystemDarkModeEnabled(!Core::App().settings().systemDarkModeEnabled());
+			Core::App().saveSettingsDelayed();
+			Ui::hideLayer();
+		}));
+	});
 
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("registertg"), [](SessionController *window) {

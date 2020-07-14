@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
 
+#include <QtCore/QOperatingSystemVersion>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 #include <QtGui/QDesktopServices>
@@ -380,6 +381,30 @@ std::optional<crl::time> LastUserInputTime() {
 		return std::min(LastTrackedWhen + add, now);
 	}
 	return LastTrackedWhen;
+}
+
+std::optional<bool> IsDarkMode() {
+	if (QOperatingSystemVersion::current()
+        < QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 17763)) {
+		return std::nullopt;
+	}
+
+	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+	LPCWSTR lpValueName = L"AppsUseLightTheme";
+	HKEY key;
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	return value == 0;
 }
 
 bool AutostartSupported() {

@@ -902,6 +902,19 @@ void MainMenu::refreshMenu() {
 	*_nightThemeAction = action;
 	action->setCheckable(true);
 	action->setChecked(Window::Theme::IsNightMode());
+	Core::App().settings().systemDarkModeValue(
+	) | rpl::start_with_next([=](std::optional<bool> darkMode) {
+		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
+		if (darkModeEnabled && darkMode.has_value()) {
+			action->setChecked(*darkMode);
+		}
+		action->setEnabled(!darkModeEnabled || !darkMode.has_value());
+	}, lifetime());
+	Core::App().settings().systemDarkModeEnabledChanges(
+	) | rpl::start_with_next([=](bool darkModeEnabled) {
+		const auto darkMode = Core::App().settings().systemDarkMode();
+		action->setEnabled(!darkModeEnabled || !darkMode.has_value());
+	}, lifetime());
 	_menu->finishAnimating();
 
 	updatePhone();

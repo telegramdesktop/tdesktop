@@ -18,6 +18,10 @@ namespace Platform {
 
 void RemoveQuarantine(const QString &path);
 
+inline std::optional<bool> IsDarkMode() {
+	return std::nullopt;
+}
+
 inline void FallbackFontConfigCheckBegin() {
 }
 
