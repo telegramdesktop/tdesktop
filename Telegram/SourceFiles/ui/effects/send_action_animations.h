@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Api {
+enum class SendProgressType;
+} // namespace Api
+
 namespace Ui {
 
 class SendActionAnimation {
 public:
-	using Type = SendAction::Type;
+	using Type = Api::SendProgressType;
 
 	void start(Type type);
 	void stop();
@@ -31,7 +35,7 @@ public:
 
 	class Impl {
 	public:
-		using Type = SendAction::Type;
+		using Type = Api::SendProgressType;
 
 		Impl(int period) : _period(period), _started(crl::now()) {
 		}

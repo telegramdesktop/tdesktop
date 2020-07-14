@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/send_action_animations.h"
 
+#include "api/api_send_progress.h"
 #include "ui/effects/animation_value.h"
 #include "styles/style_widgets.h"
 
@@ -17,7 +18,7 @@ constexpr int kTypingDotsCount = 3;
 constexpr int kRecordArcsCount = 4;
 constexpr int kUploadArrowsCount = 3;
 
-using ImplementationsMap = QMap<SendAction::Type, const SendActionAnimation::Impl::MetaData*>;
+using ImplementationsMap = QMap<Api::SendProgressType, const SendActionAnimation::Impl::MetaData*>;
 NeverFreedPointer<ImplementationsMap> Implementations;
 
 class TypingAnimation : public SendActionAnimation::Impl {
@@ -162,7 +163,7 @@ void CreateImplementationsMap() {
 	if (Implementations) {
 		return;
 	}
-	using Type = SendAction::Type;
+	using Type = Api::SendProgressType;
 	Implementations.createIfNull();
 	Type recordTypes[] = {
 		Type::RecordVideo,

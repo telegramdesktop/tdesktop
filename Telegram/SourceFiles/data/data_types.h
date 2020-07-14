@@ -422,35 +422,6 @@ inline bool operator==(
 		&& (a.scroll == b.scroll);
 }
 
-struct SendAction {
-	enum class Type {
-		Typing,
-		RecordVideo,
-		UploadVideo,
-		RecordVoice,
-		UploadVoice,
-		RecordRound,
-		UploadRound,
-		UploadPhoto,
-		UploadFile,
-		ChooseLocation,
-		ChooseContact,
-		PlayGame,
-	};
-	SendAction(
-		Type type,
-		crl::time until,
-		int progress = 0)
-	: type(type)
-	, until(until)
-	, progress(progress) {
-	}
-	Type type = Type::Typing;
-	crl::time until = 0;
-	int progress = 0;
-
-};
-
 class FileClickHandler : public LeftButtonClickHandler {
 public:
 	FileClickHandler(

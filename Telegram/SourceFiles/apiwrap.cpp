@@ -2995,8 +2995,7 @@ void ApiWrap::toggleFavedSticker(
 		return;
 	}
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
-	auto performRequest = [=] {
+	auto performRequest = [=](const auto &repeatRequest) -> void {
 		const auto usedFileReference = document->fileReference();
 		request(MTPmessages_FaveSticker(
 			document->mtpInput(),
@@ -3006,21 +3005,18 @@ void ApiWrap::toggleFavedSticker(
 				_session->data().stickers().setFaved(document, faved);
 			}
 		}).fail([=](const RPCError &error) {
-			(*failHandler)(error, usedFileReference);
+			if (error.code() == 400
+				&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+				auto refreshed = [=](const UpdatedFileReferences &data) {
+					if (document->fileReference() != usedFileReference) {
+						repeatRequest(repeatRequest);
+					}
+				};
+				refreshFileReference(origin, std::move(refreshed));
+			}
 		}).send();
 	};
-	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
-		if (error.code() == 400
-			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != usedFileReference) {
-					performRequest();
-				}
-			};
-			refreshFileReference(origin, std::move(refreshed));
-		}
-	};
-	performRequest();
+	performRequest(performRequest);
 }
 
 void ApiWrap::toggleSavedGif(
@@ -3031,8 +3027,7 @@ void ApiWrap::toggleSavedGif(
 		return;
 	}
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
-	auto performRequest = [=] {
+	auto performRequest = [=](const auto &repeatRequest) -> void {
 		const auto usedFileReference = document->fileReference();
 		request(MTPmessages_SaveGif(
 			document->mtpInput(),
@@ -3044,21 +3039,18 @@ void ApiWrap::toggleSavedGif(
 				}
 			}
 		}).fail([=](const RPCError &error) {
-			(*failHandler)(error, usedFileReference);
+			if (error.code() == 400
+				&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+				auto refreshed = [=](const UpdatedFileReferences &data) {
+					if (document->fileReference() != usedFileReference) {
+						repeatRequest(repeatRequest);
+					}
+				};
+				refreshFileReference(origin, std::move(refreshed));
+			}
 		}).send();
 	};
-	*failHandler = [=](const RPCError & error, QByteArray usedFileReference) {
-		if (error.code() == 400
-			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != usedFileReference) {
-					performRequest();
-				}
-			};
-			refreshFileReference(origin, std::move(refreshed));
-		}
-	};
-	performRequest();
+	performRequest(performRequest);
 }
 
 void ApiWrap::requestStickers(TimeId now) {

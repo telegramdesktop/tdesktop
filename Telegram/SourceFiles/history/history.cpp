@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history.h"
 
+#include "api/api_send_progress.h"
 #include "history/view/history_view_element.h"
 #include "history/history_message.h"
 #include "history/history_service.h"
@@ -357,7 +358,7 @@ bool History::updateSendActionNeedsAnimating(
 		return false;
 	}
 
-	using Type = SendAction::Type;
+	using Type = Api::SendProgressType;
 	if (action.type() == mtpc_sendMessageCancelAction) {
 		clearSendAction(user);
 		return false;
@@ -420,7 +421,7 @@ bool History::updateSendActionNeedsAnimating(
 	return updateSendActionNeedsAnimating(now, true);
 }
 
-bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
+bool History::mySendActionUpdated(Api::SendProgressType type, bool doing) {
 	const auto now = crl::now();
 	const auto i = _mySendActions.find(type);
 	if (doing) {
@@ -508,7 +509,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 					begin(_typing)->first->firstName);
 		} else if (!_sendActions.empty()) {
 			// Handles all actions except game playing.
-			using Type = SendAction::Type;
+			using Type = Api::SendProgressType;
 			auto sendActionString = [](Type type, const QString &name) -> QString {
 				switch (type) {
 				case Type::RecordVideo: return name.isEmpty() ? tr::lng_send_action_record_video(tr::now) : tr::lng_user_action_record_video(tr::now, lt_user, name);
@@ -562,7 +563,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 			}
 		}
 		if (typingCount > 0) {
-			_sendActionAnimation.start(SendAction::Type::Typing);
+			_sendActionAnimation.start(Api::SendProgressType::Typing);
 		} else if (newTypingString.isEmpty()) {
 			_sendActionAnimation.stop();
 		}

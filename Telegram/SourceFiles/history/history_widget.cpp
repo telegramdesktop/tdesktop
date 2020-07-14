@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
+#include "api/api_bot.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
+#include "api/api_send_progress.h"
 #include "boxes/confirm_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
@@ -123,7 +125,6 @@ constexpr auto kSkipRepaintWhileScrollMs = 100;
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
 constexpr auto kDisplayEditTimeWarningMs = 300 * 1000;
 constexpr auto kFullDayInMs = 86400 * 1000;
-constexpr auto kCancelTypingActionTimeout = crl::time(5000);
 constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
@@ -299,7 +300,6 @@ HistoryWidget::HistoryWidget(
 , _attachDragState(DragState::None)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
-, _sendActionStopTimer([this] { cancelTypingAction(); })
 , _topShadow(this) {
 	setAcceptDrops(true);
 
@@ -605,6 +605,33 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::BotCallbackSent
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		const auto item = update.item;
+		if (item->id < 0 || _peer != item->history()->peer) {
+			return;
+		}
+
+		const auto keyId = _keyboard->forMsgId();
+		const auto lastKeyboardUsed = (keyId == FullMsgId(_channel, item->id))
+			&& (keyId == FullMsgId(_channel, _history->lastKeyboardId));
+
+		session().data().requestItemRepaint(item);
+
+		if (_replyToId == item->id) {
+			cancelReply();
+		}
+		if (_keyboard->singleUse()
+			&& _keyboard->hasMarkup()
+			&& lastKeyboardUsed) {
+			if (_kbShown) {
+				toggleKeyboard(false);
+			}
+			_history->lastKeyboardUsed = true;
+		}
+	}, lifetime());
+
 	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
 		if (pair.from.type() == AudioMsgId::Type::Voice) {
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
@@ -745,7 +772,6 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	subscribeToUploader();
 	setupScheduledToggle();
 	orderWidgets();
 	setupShortcuts();
@@ -1255,7 +1281,9 @@ void HistoryWidget::onTextChange() {
 		if (!_inlineBot
 			&& !_editMsgId
 			&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
-			updateSendAction(_history, SendAction::Type::Typing);
+			session().sendProgressManager().update(
+				_history,
+				Api::SendProgressType::Typing);
 		}
 	}
 
@@ -1398,77 +1426,6 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 	}
 }
 
-void HistoryWidget::cancelSendAction(
-		not_null<History*> history,
-		SendAction::Type type) {
-	const auto i = _sendActionRequests.find({ history, type });
-	if (i != _sendActionRequests.end()) {
-		_api.request(i->second).cancel();
-		_sendActionRequests.erase(i);
-	}
-}
-
-void HistoryWidget::cancelTypingAction() {
-	if (_history) {
-		cancelSendAction(_history, SendAction::Type::Typing);
-	}
-	_sendActionStopTimer.cancel();
-}
-
-void HistoryWidget::updateSendAction(
-		not_null<History*> history,
-		SendAction::Type type,
-		int32 progress) {
-	const auto peer = history->peer;
-	if (peer->isSelf() || (peer->isChannel() && !peer->isMegagroup())) {
-		return;
-	}
-
-	const auto doing = (progress >= 0);
-	if (history->mySendActionUpdated(type, doing)) {
-		cancelSendAction(history, type);
-		if (doing) {
-			using Type = SendAction::Type;
-			MTPsendMessageAction action;
-			switch (type) {
-			case Type::Typing: action = MTP_sendMessageTypingAction(); break;
-			case Type::RecordVideo: action = MTP_sendMessageRecordVideoAction(); break;
-			case Type::UploadVideo: action = MTP_sendMessageUploadVideoAction(MTP_int(progress)); break;
-			case Type::RecordVoice: action = MTP_sendMessageRecordAudioAction(); break;
-			case Type::UploadVoice: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
-			case Type::RecordRound: action = MTP_sendMessageRecordRoundAction(); break;
-			case Type::UploadRound: action = MTP_sendMessageUploadRoundAction(MTP_int(progress)); break;
-			case Type::UploadPhoto: action = MTP_sendMessageUploadPhotoAction(MTP_int(progress)); break;
-			case Type::UploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
-			case Type::ChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
-			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
-			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
-			}
-			const auto requestId = _api.request(MTPmessages_SetTyping(
-				peer->input,
-				action
-			)).done([=](const MTPBool &result, mtpRequestId requestId) {
-				sendActionDone(result, requestId);
-			}).send();
-			_sendActionRequests.emplace(std::pair(history, type), requestId);
-			if (type == Type::Typing) {
-				_sendActionStopTimer.callOnce(kCancelTypingActionTimeout);
-			}
-		}
-	}
-}
-
-void HistoryWidget::sendActionDone(
-		const MTPBool &result,
-		mtpRequestId requestId) {
-	for (auto i = _sendActionRequests.begin(), e = _sendActionRequests.end(); i != e; ++i) {
-		if (i->second == requestId) {
-			_sendActionRequests.erase(i);
-			break;
-		}
-	}
-}
-
 void HistoryWidget::activate() {
 	if (_history) {
 		if (!_historyInited) {
@@ -1523,7 +1480,9 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	Core::App().updateNonIdle();
 	updateField();
 	if (_history) {
-		updateSendAction(_history, SendAction::Type::RecordVoice);
+		session().sendProgressManager().update(
+			_history,
+			Api::SendProgressType::RecordVoice);
 	}
 }
 
@@ -1803,9 +1762,12 @@ void HistoryWidget::showHistory(
 			}
 			return;
 		}
-		updateSendAction(_history, SendAction::Type::Typing, -1);
+		session().sendProgressManager().update(
+			_history,
+			Api::SendProgressType::Typing,
+			-1);
 		session().data().histories().sendPendingReadInbox(_history);
-		cancelTypingAction();
+		session().sendProgressManager().cancelTyping(_history);
 	}
 
 	clearReplyReturns();
@@ -3608,7 +3570,10 @@ void HistoryWidget::stopRecording(bool send) {
 	_recording = false;
 	_recordingSamples = 0;
 	if (_history) {
-		updateSendAction(_history, SendAction::Type::RecordVoice, -1);
+		session().sendProgressManager().update(
+			_history,
+			Api::SendProgressType::RecordVoice,
+			-1);
 	}
 
 	updateControlsVisibility();
@@ -3676,117 +3641,6 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 			if (_kbShown) toggleKeyboard(false);
 			_history->lastKeyboardUsed = true;
 		}
-	}
-}
-
-void HistoryWidget::app_sendBotCallback(
-		not_null<const HistoryMessageMarkupButton*> button,
-		not_null<const HistoryItem*> msg,
-		int row,
-		int column) {
-	if (msg->id < 0 || _peer != msg->history()->peer) {
-		return;
-	}
-
-	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, msg->id));
-
-	auto bot = msg->getMessageBot();
-
-	using ButtonType = HistoryMessageMarkupButton::Type;
-	BotCallbackInfo info = {
-		&session(),
-		bot,
-		msg->fullId(),
-		row,
-		column,
-		(button->type == ButtonType::Game)
-	};
-	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
-	QByteArray sendData;
-	if (info.game) {
-		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_game;
-	} else if (button->type == ButtonType::Callback) {
-		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
-		sendData = button->data;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	button->requestId = session().api().request(MTPmessages_GetBotCallbackAnswer(
-		MTP_flags(flags),
-		_peer->input,
-		MTP_int(msg->id),
-		MTP_bytes(sendData)
-	)).done([info, weak](const MTPmessages_BotCallbackAnswer &result, mtpRequestId requestId) {
-		BotCallbackDone(info, result, requestId);
-		result.match([&](const MTPDmessages_botCallbackAnswer &data) {
-			const auto item = info.session->data().message(info.msgId);
-			if (!data.vmessage() && data.vurl() && info.game && item) {
-				if (const auto strong = weak.data()) {
-					strong->updateSendAction(item->history(), SendAction::Type::PlayGame);
-				}
-			}
-		});
-	}).fail([info](const RPCError &error, mtpRequestId requestId) {
-		BotCallbackFail(info, error, requestId);
-	}).send();
-	session().data().requestItemRepaint(msg);
-
-	if (_replyToId == msg->id) {
-		cancelReply();
-	}
-	if (_keyboard->singleUse() && _keyboard->hasMarkup() && lastKeyboardUsed) {
-		if (_kbShown) toggleKeyboard(false);
-		_history->lastKeyboardUsed = true;
-	}
-}
-
-void HistoryWidget::BotCallbackDone(
-		BotCallbackInfo info,
-		const MTPmessages_BotCallbackAnswer &answer,
-		mtpRequestId req) {
-	const auto session = info.session;
-	const auto item = session->data().message(info.msgId);
-	const auto button = HistoryMessageMarkupButton::Get(
-		&session->data(),
-		info.msgId,
-		info.row,
-		info.col);
-	if (button && button->requestId == req) {
-		button->requestId = 0;
-		session->data().requestItemRepaint(item);
-	}
-	answer.match([&](const MTPDmessages_botCallbackAnswer &data) {
-		if (const auto message = data.vmessage()) {
-			if (data.is_alert()) {
-				Ui::show(Box<InformBox>(qs(*message)));
-			} else {
-				Ui::Toast::Show(qs(*message));
-			}
-		} else if (const auto url = data.vurl()) {
-			auto link = qs(*url);
-			if (info.game) {
-				link = AppendShareGameScoreUrl(session, link, info.msgId);
-				BotGameUrlClickHandler(info.bot, link).onClick({});
-			} else {
-				UrlClickHandler::Open(link);
-			}
-		}
-	});
-}
-
-void HistoryWidget::BotCallbackFail(
-		BotCallbackInfo info,
-		const RPCError &error,
-		mtpRequestId req) {
-	// show error?
-	const auto owner = &info.session->data();
-	const auto button = HistoryMessageMarkupButton::Get(
-		owner,
-		info.msgId,
-		info.row,
-		info.col);
-	if (button && button->requestId == req) {
-		button->requestId = 0;
-		owner->requestItemRepaint(owner->message(info.msgId));
 	}
 }
 
@@ -4677,144 +4531,6 @@ void HistoryWidget::uploadFile(
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
 	session().api().sendFile(fileContent, type, action);
-}
-
-void HistoryWidget::subscribeToUploader() {
-	using namespace Storage;
-
-	session().uploader().photoReady(
-	) | rpl::start_with_next([=](const UploadedPhoto &data) {
-		if (data.edit) {
-			session().api().editUploadedFile(
-				data.fullId,
-				data.file,
-				std::nullopt,
-				data.options,
-				false);
-		} else {
-			session().api().sendUploadedPhoto(
-				data.fullId,
-				data.file,
-				data.options);
-		}
-	}, lifetime());
-
-	session().uploader().photoProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
-		photoProgress(fullId);
-	}, lifetime());
-
-	session().uploader().photoFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
-		photoFailed(fullId);
-	}, lifetime());
-
-	session().uploader().documentReady(
-	) | rpl::start_with_next([=](const UploadedDocument &data) {
-		if (data.edit) {
-			documentEdited(data.fullId, data.options, data.file);
-		} else {
-			documentUploaded(data.fullId, data.options, data.file);
-		}
-	}, lifetime());
-
-	session().uploader().thumbDocumentReady(
-	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
-		thumbDocumentUploaded(
-			data.fullId,
-			data.options,
-			data.file,
-			data.thumb,
-			data.edit);
-	}, lifetime());
-
-	session().uploader().documentProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
-		documentProgress(fullId);
-	}, lifetime());
-
-	session().uploader().documentFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
-		documentFailed(fullId);
-	}, lifetime());
-}
-
-void HistoryWidget::documentUploaded(
-		const FullMsgId &newId,
-		Api::SendOptions options,
-		const MTPInputFile &file) {
-	session().api().sendUploadedDocument(newId, file, std::nullopt, options);
-}
-
-void HistoryWidget::documentEdited(
-		const FullMsgId &newId,
-		Api::SendOptions options,
-		const MTPInputFile &file) {
-	session().api().editUploadedFile(newId, file, std::nullopt, options, true);
-}
-
-void HistoryWidget::thumbDocumentUploaded(
-		const FullMsgId &newId,
-		Api::SendOptions options,
-		const MTPInputFile &file,
-		const MTPInputFile &thumb,
-		bool edit) {
-	if (edit) {
-		session().api().editUploadedFile(newId, file, thumb, options, true);
-	} else {
-		session().api().sendUploadedDocument(newId, file, thumb, options);
-	}
-}
-
-void HistoryWidget::photoProgress(const FullMsgId &newId) {
-	if (const auto item = session().data().message(newId)) {
-		const auto photo = item->media()
-			? item->media()->photo()
-			: nullptr;
-		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
-		session().data().requestItemRepaint(item);
-	}
-}
-
-void HistoryWidget::documentProgress(const FullMsgId &newId) {
-	if (const auto item = session().data().message(newId)) {
-		const auto media = item->media();
-		const auto document = media ? media->document() : nullptr;
-		const auto sendAction = (document && document->isVoiceMessage())
-			? SendAction::Type::UploadVoice
-			: SendAction::Type::UploadFile;
-		const auto progress = (document && document->uploading())
-			? document->uploadingData->offset
-			: 0;
-
-		updateSendAction(
-			item->history(),
-			sendAction,
-			progress);
-		session().data().requestItemRepaint(item);
-	}
-}
-
-void HistoryWidget::photoFailed(const FullMsgId &newId) {
-	if (const auto item = session().data().message(newId)) {
-		updateSendAction(
-			item->history(),
-			SendAction::Type::UploadPhoto,
-			-1);
-		session().data().requestItemRepaint(item);
-	}
-}
-
-void HistoryWidget::documentFailed(const FullMsgId &newId) {
-	if (const auto item = session().data().message(newId)) {
-		const auto media = item->media();
-		const auto document = media ? media->document() : nullptr;
-		const auto sendAction = (document && document->isVoiceMessage())
-			? SendAction::Type::UploadVoice
-			: SendAction::Type::UploadFile;
-		updateSendAction(item->history(), sendAction, -1);
-		session().data().requestItemRepaint(item);
-	}
 }
 
 void HistoryWidget::handleHistoryChange(not_null<const History*> history) {

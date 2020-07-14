@@ -23,6 +23,11 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 
+namespace Api {
+enum class SendProgressType;
+struct SendProgress;
+} // namespace Api
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -266,7 +271,7 @@ public:
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
 
-	bool mySendActionUpdated(SendAction::Type type, bool doing);
+	bool mySendActionUpdated(Api::SendProgressType type, bool doing);
 	bool paintSendAction(
 		Painter &p,
 		int x,
@@ -573,11 +578,11 @@ private:
 	QString _topPromotedType;
 
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
-	base::flat_map<not_null<UserData*>, SendAction> _sendActions;
+	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;
 	QString _sendActionString;
 	Ui::Text::String _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
-	base::flat_map<SendAction::Type, crl::time> _mySendActions;
+	base::flat_map<Api::SendProgressType, crl::time> _mySendActions;
 
 	std::deque<not_null<HistoryItem*>> _notifications;
 

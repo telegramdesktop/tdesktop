@@ -219,12 +219,6 @@ public:
 
 	void searchInChat(Dialogs::Key chat);
 
-	void app_sendBotCallback(
-		not_null<const HistoryMessageMarkupButton*> button,
-		not_null<const HistoryItem*> msg,
-		int row,
-		int column);
-
 	void ui_showPeerHistory(
 		PeerId peer,
 		const SectionShow &params,

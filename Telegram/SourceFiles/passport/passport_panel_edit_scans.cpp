@@ -853,56 +853,20 @@ void EditScans::ChooseScan(
 		Fn<void(ReadScanError)> errorCallback) {
 	Expects(parent != nullptr);
 
-	const auto processFiles = std::make_shared<Fn<void(QStringList&&)>>();
 	const auto filter = FileDialog::AllFilesFilter()
 		+ qsl(";;Image files (*")
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
 	const auto guardedCallback = crl::guard(parent, doneCallback);
 	const auto guardedError = crl::guard(parent, errorCallback);
-	const auto onMainCallback = [=](
-			QByteArray &&content,
-			QStringList &&remainingFiles) {
-		crl::on_main([
-			=,
-			bytes = std::move(content),
-			remainingFiles = std::move(remainingFiles)
-		]() mutable {
-			guardedCallback(std::move(bytes));
-			(*processFiles)(std::move(remainingFiles));
-		});
-	};
 	const auto onMainError = [=](ReadScanError error) {
 		crl::on_main([=] {
 			guardedError(error);
 		});
 	};
-	const auto processImage = [=](
-			QByteArray &&content,
-			QStringList &&remainingFiles) {
-		crl::async([
-			=,
-			bytes = std::move(content),
-			remainingFiles = std::move(remainingFiles)
-		]() mutable {
-			auto result = ProcessImage(std::move(bytes));
-			if (const auto error = base::get_if<ReadScanError>(&result)) {
-				onMainError(*error);
-			} else {
-				auto content = base::get_if<QByteArray>(&result);
-				Assert(content != nullptr);
-				onMainCallback(std::move(*content), std::move(remainingFiles));
-			}
-		});
-	};
-	const auto processOpened = [=](FileDialog::OpenResult &&result) {
-		if (result.paths.size() > 0) {
-			(*processFiles)(std::move(result.paths));
-		} else if (!result.remoteContent.isEmpty()) {
-			processImage(std::move(result.remoteContent), {});
-		}
-	};
-	*processFiles = [=](QStringList &&files) {
+	const auto processFiles = [=](
+			QStringList &&files,
+			const auto &handleImage) -> void {
 		while (!files.isEmpty()) {
 			auto file = files.front();
 			files.removeAt(0);
@@ -919,9 +883,47 @@ void EditScans::ChooseScan(
 				return f.readAll();
 			}();
 			if (!content.isEmpty()) {
-				processImage(std::move(content), std::move(files));
+				handleImage(
+					std::move(content),
+					std::move(files),
+					handleImage);
 				return;
 			}
+		}
+	};
+	const auto processImage = [=](
+			QByteArray &&content,
+			QStringList &&remainingFiles,
+			const auto &repeatProcessImage) -> void {
+		crl::async([
+			=,
+			bytes = std::move(content),
+			remainingFiles = std::move(remainingFiles)
+		]() mutable {
+			auto result = ProcessImage(std::move(bytes));
+			if (const auto error = base::get_if<ReadScanError>(&result)) {
+				onMainError(*error);
+			} else {
+				auto content = base::get_if<QByteArray>(&result);
+				Assert(content != nullptr);
+				crl::on_main([
+					=,
+					bytes = std::move(*content),
+					remainingFiles = std::move(remainingFiles)
+				]() mutable {
+					guardedCallback(std::move(bytes));
+					processFiles(
+						std::move(remainingFiles),
+						repeatProcessImage);
+				});
+			}
+		});
+	};
+	const auto processOpened = [=](FileDialog::OpenResult &&result) {
+		if (result.paths.size() > 0) {
+			processFiles(std::move(result.paths), processImage);
+		} else if (!result.remoteContent.isEmpty()) {
+			processImage(std::move(result.remoteContent), {}, processImage);
 		}
 	};
 	const auto allowMany = (type == FileType::Scan)

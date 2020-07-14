@@ -22,7 +22,7 @@ namespace HistoryView {
 void ScheduleBox(
 	not_null<Ui::GenericBox*> box,
 	SendMenuType type,
-	FnMut<void(Api::SendOptions)> done,
+	Fn<void(Api::SendOptions)> done,
 	TimeId time);
 
 template <typename Guard, typename Submit>

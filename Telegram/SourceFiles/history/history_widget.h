@@ -270,12 +270,6 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
-	void app_sendBotCallback(
-		not_null<const HistoryMessageMarkupButton*> button,
-		not_null<const HistoryItem*> msg,
-		int row,
-		int column);
-
 	PeerData *ui_getPeerForMouseAction();
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
@@ -337,13 +331,6 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
-	struct BotCallbackInfo {
-		not_null<Main::Session*> session;
-		UserData *bot;
-		FullMsgId msgId;
-		int row, col;
-		bool game;
-	};
 	struct PinnedBar {
 		PinnedBar(MsgId msgId, HistoryWidget *parent);
 		~PinnedBar();
@@ -425,15 +412,6 @@ private:
 	void stopMessageHighlight();
 
 	auto computeSendButtonType() const;
-	void updateSendAction(
-		not_null<History*> history,
-		SendAction::Type type,
-		int32 progress = 0);
-	void cancelSendAction(
-		not_null<History*> history,
-		SendAction::Type type);
-	void cancelTypingAction();
-	void sendActionDone(const MTPBool &result, mtpRequestId requestId);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -475,28 +453,6 @@ private:
 		MsgId replyTo,
 		Api::SendOptions options,
 		std::shared_ptr<SendingAlbum> album = nullptr);
-
-	void subscribeToUploader();
-
-	void photoProgress(const FullMsgId &msgId);
-	void photoFailed(const FullMsgId &msgId);
-	void documentUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
-	void thumbDocumentUploaded(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file,
-		const MTPInputFile &thumb,
-		bool edit = false);
-	void documentProgress(const FullMsgId &msgId);
-	void documentFailed(const FullMsgId &msgId);
-
-	void documentEdited(
-		const FullMsgId &msgId,
-		Api::SendOptions options,
-		const MTPInputFile &file);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 
@@ -583,9 +539,6 @@ private:
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	static void UnpinMessage(not_null<PeerData*> peer);
-
-	static void BotCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
-	static void BotCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
@@ -801,11 +754,6 @@ private:
 	std::deque<MsgId> _highlightQueue;
 	base::Timer _highlightTimer;
 	crl::time _highlightStart = 0;
-
-	base::flat_map<
-		std::pair<not_null<History*>, SendAction::Type>,
-		mtpRequestId> _sendActionRequests;
-	base::Timer _sendActionStopTimer;
 
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;

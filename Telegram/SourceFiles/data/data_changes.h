@@ -134,8 +134,9 @@ struct MessageUpdate {
 		DialogRowRefresh = (1 << 3),
 		CallAdded        = (1 << 4),
 		ReplyMarkup      = (1 << 5),
+		BotCallbackSent  = (1 << 6),
 
-		LastUsedBit      = (1 << 5),
+		LastUsedBit      = (1 << 6),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
