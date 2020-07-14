@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
 #include "platform/platform_specific.h"
+#include "platform/platform_file_utilities.h"
+#include "base/platform/base_platform_info.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_gif.h"
@@ -80,11 +82,21 @@ void LaunchWithWarning(
 		}
 		return true;
 	}();
-	if (!warn) {
+	const auto extension = '.' + Data::FileExtension(name);
+	if (Platform::IsWindows() && extension == u"."_q) {
+		// If you launch a file without extension, like "test", in case
+		// there is an executable file with the same name in this folder,
+		// like "test.bat", the executable file will be launched.
+		//
+		// Now we always force an Open With dialog box for such files.
+		crl::on_main([=] {
+			Platform::File::UnsafeShowOpenWith(name);
+		});
+		return;
+	} else if (!warn) {
 		File::Launch(name);
 		return;
 	}
-	const auto extension = '.' + Data::FileExtension(name);
 	const auto callback = [=](bool checked) {
 		if (checked) {
 			Core::App().settings().setExeLaunchWarning(false);
