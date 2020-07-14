@@ -22,6 +22,8 @@ namespace {
 
 uint64 InstallationTag = 0;
 
+QString ApplicationName = qsl("TelegramDesktop");
+
 class FilteredCommandLineArguments {
 public:
 	FilteredCommandLineArguments(int argc, char **argv);
@@ -295,7 +297,7 @@ void Launcher::init() {
 		}
 	});
 
-	QApplication::setApplicationName(qsl("TelegramDesktop"));
+	QApplication::setApplicationName(ApplicationName);
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 	QApplication::setDesktopFileName(Platform::GetLauncherFilename());
@@ -454,6 +456,7 @@ void Launcher::processArguments() {
 		{ "-workdir"        , KeyFormat::OneValue },
 		{ "--"              , KeyFormat::OneValue },
 		{ "-scale"          , KeyFormat::OneValue },
+		{ "-name"           , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
@@ -480,6 +483,9 @@ void Launcher::processArguments() {
 
 	if (parseResult.contains("-externalupdater")) {
 		SetUpdaterDisabledAtStartup();
+	}
+	if (parseResult.contains("-name")) {
+		ApplicationName = parseResult.value("-name", {}).join(QString());
 	}
 	gUseFreeType = parseResult.contains("-freetype");
 	Logs::SetDebugEnabled(parseResult.contains("-debug"));
