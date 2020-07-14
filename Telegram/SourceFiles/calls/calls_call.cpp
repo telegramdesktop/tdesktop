@@ -628,6 +628,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
 	const auto &serverConfig = _user->session().serverConfig();
 
+	auto encryptionKeyValue = ranges::view::all(
+		_authKey
+	) | ranges::view::transform([](bytes::type byte) {
+		return static_cast<uint8_t>(byte);
+	}) | ranges::to_vector;
+
 	const auto weak = base::make_weak(this);
 	auto descriptor = tgcalls::Descriptor{
 		.config = tgcalls::Config{
@@ -641,14 +647,14 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			.enableVolumeControl = true,
 			.maxApiLayer = protocol.vmax_layer().v,
 		},
+		.encryptionKey = tgcalls::EncryptionKey(
+			std::move(encryptionKeyValue),
+			(_type == Type::Outgoing)),
 		.videoCapture = nullptr,
-		.stateUpdated = [=](tgcalls::State state) {
+		.stateUpdated = [=](tgcalls::State state, tgcalls::VideoState videoState) {
 			crl::on_main(weak, [=] {
-				handleControllerStateChange(state);
+				handleControllerStateChange(state, videoState);
 			});
-		},
-		.videoStateUpdated = [=](bool state) {
-
 		},
 		.signalBarsUpdated = [=](int count) {
 			crl::on_main(weak, [=] {
@@ -700,13 +706,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		}
 	}
 
-	descriptor.encryptionKey.isOutgoing = (_type == Type::Outgoing);
-	descriptor.encryptionKey.value = ranges::view::all(
-		_authKey
-	) | ranges::view::transform([](bytes::type byte) {
-		return static_cast<uint8_t>(byte);
-	}) | ranges::to_vector;
-
 	descriptor.videoCapture = tgcalls::CreateVideoCapture();
 
 	const auto version = call.vprotocol().match([&](
@@ -746,7 +745,9 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
-void Call::handleControllerStateChange(tgcalls::State state) {
+void Call::handleControllerStateChange(
+		tgcalls::State state,
+		tgcalls::VideoState videoState) {
 	switch (state) {
 	case tgcalls::State::WaitInit: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInit."));

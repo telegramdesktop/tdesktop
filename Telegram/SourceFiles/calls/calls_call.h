@@ -22,6 +22,7 @@ class Track;
 namespace tgcalls {
 class Instance;
 enum class State;
+enum class VideoState;
 } // namespace tgcalls
 
 namespace Calls {
@@ -154,7 +155,7 @@ private:
 	void displayNextFrame(QImage frame);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
-	void handleControllerStateChange(tgcalls::State state);
+	void handleControllerStateChange(tgcalls::State state, tgcalls::VideoState videoState);
 	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
