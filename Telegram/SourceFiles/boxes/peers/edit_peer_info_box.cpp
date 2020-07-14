@@ -294,6 +294,7 @@ private:
 	void submitDescription();
 	void deleteWithConfirmation();
 	void deleteChannel();
+	void upgradeWithConfirmation();
 
 	std::optional<Saving> validate() const;
 	bool validateUsername(Saving &to) const;
@@ -900,6 +901,9 @@ void Controller::fillManageSection() {
 			? channel->canDelete()
 			: false;
 	}();
+	const auto canUpgradeToSupergroup = [&] {
+		return isChannel ? false : chat->amCreator() && chat->asChat();
+	}();
 
 	const auto canViewOrEditLinkedChat = [&] {
 		return !isChannel
@@ -1017,6 +1021,14 @@ void Controller::fillManageSection() {
 
 	if (canEditStickers) {
 		_controls.buttonsLayout->add(createStickersEdit());
+	}
+
+	if (canUpgradeToSupergroup) {
+		AddButtonDelete(
+			_controls.buttonsLayout,
+			tr::lng_profile_migrate_button(),
+			[=] { upgradeWithConfirmation(); }
+		);
 	}
 
 	if (canDeleteChannel) {
@@ -1459,6 +1471,28 @@ void Controller::deleteChannel() {
 	//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
 	//	}
 	}).send();
+}
+
+void Controller::upgradeWithConfirmation() {
+	const auto chat = _peer->asChat();
+	Assert(chat != nullptr);
+
+    auto text = tr::lng_sure_upgrade_group(tr::now);
+	text.append("\n\n" + tr::lng_profile_convert_feature2(tr::now));
+	text.append("\n" + tr::lng_profile_convert_feature4(tr::now));
+	text.append("\n\n" + tr::lng_chat_upgrade_warning(tr::now));
+	
+	const auto upgradedCallback = crl::guard(this, [=] {
+		chat->session().api().migrateChat(chat, nullptr);
+		Ui::hideLayer();
+	});
+	Ui::show(
+		Box<ConfirmBox>(
+			text,
+			tr::lng_profile_convert_confirm(tr::now),
+			st::attentionBoxButton,
+			upgradedCallback),
+		Ui::LayerOption::KeepOther);
 }
 
 } // namespace

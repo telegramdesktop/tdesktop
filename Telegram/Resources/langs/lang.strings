@@ -2434,5 +2434,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_create_supergroup_title" = "New Supergroup";
 "lng_action_group_migrate" = "The group was upgraded to a supergroup";
+"lng_sure_upgrade_group" = "Are you sure you want to upgrade this group to supergroup?";
+"lng_chat_upgrade_warning" = "Note: This action can not be undone";
 
 // Keys finished
