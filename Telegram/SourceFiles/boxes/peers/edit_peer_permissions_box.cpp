@@ -157,22 +157,19 @@ auto Dependencies(ChatRestrictions)
 	using Flag = ChatRestriction;
 
 	return {
-		// stickers <-> gifs
-		//{ Flag::f_send_gifs, Flag::f_send_gifs },
-		//{ Flag::f_send_stickers, Flag::f_send_gifs },
+		// gifs <-> send_messages
+		{ Flag::f_send_gifs, Flag::f_send_messages },
 
-		// stickers <-> games
-		//{ Flag::f_send_games, Flag::f_send_games },
-		//{ Flag::f_send_stickers, Flag::f_send_games },
+		// games <-> games
+		{ Flag::f_send_games, Flag::f_send_messages },
 
-		// stickers <-> inline
-		//{ Flag::f_send_inline, Flag::f_send_inline },
-		//{ Flag::f_send_stickers, Flag::f_send_inline },
+		// inline <-> inline
+		{ Flag::f_send_inline, Flag::f_send_messages },
 
-		// stickers -> send_media
+		// stickers -> send_messages
 		{ Flag::f_send_stickers, Flag::f_send_messages },
 
-		// embed_links -> send_media
+		// embed_links -> send_messages
 		{ Flag::f_embed_links, Flag::f_send_messages },
 
 		// send_media -> send_messages
