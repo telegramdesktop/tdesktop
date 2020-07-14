@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
 #include "core/ui_integration.h"
+#include "core/core_settings.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/platform/base_platform_info.h"
@@ -213,6 +214,23 @@ void Application::run() {
 	startEmojiImageLoader();
 	Media::Player::start(_audio.get());
 
+	const auto darkModeChanged = [] {
+		const auto darkMode = Core::App().settings().systemDarkMode();
+		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
+		if (darkModeEnabled
+			&& darkMode.has_value()
+			&& (*darkMode != Window::Theme::IsNightMode())) {
+			Window::Theme::ToggleNightMode();
+			Window::Theme::KeepApplied();
+		}
+	};
+
+	Core::App().settings().systemDarkModeChanges(
+	) | rpl::start_with_next(darkModeChanged, _lifetime);
+
+	Core::App().settings().systemDarkModeEnabledChanges(
+	) | rpl::start_with_next(darkModeChanged, _lifetime);
+
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
 		if (playing) {
@@ -235,6 +253,7 @@ void Application::run() {
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
 		_window->showAccount(account);
+		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 	}, _window->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);

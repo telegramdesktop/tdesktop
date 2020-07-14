@@ -869,6 +869,27 @@ std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
 }
 
+std::optional<bool> IsDarkMode() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Libs::GtkSettingSupported()
+		&& Libs::GtkLoaded()) {
+		if (Libs::gtk_check_version != nullptr
+			&& !Libs::gtk_check_version(3, 0, 0)
+			&& Libs::GtkSetting<gboolean>("gtk-application-prefer-dark-theme")) {
+			return true;
+		}
+
+		if (Libs::GtkSetting("gtk-theme-name").toLower().endsWith(qsl("-dark"))) {
+			return true;
+		}
+
+		return false;
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	return std::nullopt;
+}
+
 bool AutostartSupported() {
 	// snap sandbox doesn't allow creating files in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
