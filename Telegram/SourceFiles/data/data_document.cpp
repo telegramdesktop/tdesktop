@@ -47,7 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-const auto kAnimatedStickerDimensions = QSize(512, 512);
+const auto kAnimatedStickerDimensions = QSize(
+	kStickerSideSize,
+	kStickerSideSize);
 
 QString JoinStringList(const QStringList &list, const QString &separator) {
 	const auto count = list.size();
@@ -570,15 +572,11 @@ void DocumentData::setattributes(
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 		});
 	}
-	if (type == StickerDocument) {
-		if (dimensions.width() <= 0
-			|| dimensions.height() <= 0
-			|| dimensions.width() > StickerMaxSize
-			|| dimensions.height() > StickerMaxSize
-			|| !saveToCache()) {
-			type = FileDocument;
-			_additional = nullptr;
-		}
+	if (type == StickerDocument
+		&& (!GoodStickerDimensions(dimensions.width(), dimensions.height())
+			|| (size > Storage::kMaxStickerBytesSize))) {
+		type = FileDocument;
+		_additional = nullptr;
 	}
 	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
 		setMaybeSupportsStreaming(true);
