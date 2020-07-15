@@ -8,13 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 
 #include "base/platform/base_platform_info.h"
+#include "platform/linux/linux_xlib_helper.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
-
-extern "C" {
-#include <X11/Xlib.h>
-}
+#include "core/sandbox.h"
+#include "core/application.h"
+#include "main/main_domain.h"
+#include "mainwindow.h"
 
 namespace Platform {
 namespace Libs {
@@ -138,7 +139,8 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 
 	// gtk_init will reset the Xlib error handler, and that causes
 	// Qt applications to quit on X errors. Therefore, we need to manually restore it.
-	int (*oldErrorHandler)(Display *, XErrorEvent *) = XSetErrorHandler(nullptr);
+	internal::XErrorHandlerRestorer handlerRestorer;
+	handlerRestorer.save();
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
 	gtkTriedToInit = true;
@@ -149,12 +151,39 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	}
 	DEBUG_LOG(("Checked gtk with gtk_init_check!"));
 
-	XSetErrorHandler(oldErrorHandler);
+	handlerRestorer.restore();
 
 	// Use our custom log handler.
 	g_log_set_handler("Gtk", G_LOG_LEVEL_MESSAGE, gtkMessageHandler, nullptr);
 
 	return true;
+}
+
+bool IconThemeShouldBeSet() {
+	// change the icon theme only if it isn't already set by a platformtheme plugin
+	// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
+	static const auto Result = ((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
+		&& QIcon::fallbackThemeName() == qstr("hicolor"))
+		|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
+		&& QIcon::fallbackThemeName() == qstr("gnome")))
+		|| IsGtkIntegrationForced();
+
+	return Result;
+}
+
+void SetIconTheme() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		if (IconThemeShouldBeSet()) {
+			DEBUG_LOG(("Set GTK icon theme"));
+			QIcon::setThemeName(gtkSetting("gtk-icon-theme-name"));
+			QIcon::setFallbackThemeName(gtkSetting("gtk-fallback-icon-theme"));
+			Platform::SetApplicationIcon(Window::CreateIcon());
+			if (App::wnd()) {
+				App::wnd()->setWindowIcon(Window::CreateIcon());
+			}
+			Core::App().domain().notifyUnreadBadgeChanged();
+		}
+	});
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
@@ -251,17 +280,10 @@ void start() {
 		LOAD_SYMBOL(lib_gtk, "gtk_button_set_label", gtk_button_set_label);
 		LOAD_SYMBOL(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
 
-		// change the icon theme only if it isn't already set by a platformtheme plugin
-		// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
-		if (((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
-			&& QIcon::fallbackThemeName() == qstr("hicolor"))
-			|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
-			&& QIcon::fallbackThemeName() == qstr("gnome")))
-			|| IsGtkIntegrationForced()) {
-			DEBUG_LOG(("Set GTK icon theme"));
-			QIcon::setThemeName(gtkSetting("gtk-icon-theme-name"));
-			QIcon::setFallbackThemeName(gtkSetting("gtk-fallback-icon-theme"));
-		}
+		SetIconTheme();
+
+		const auto settings = gtk_settings_get_default();
+		g_signal_connect(settings, "notify::gtk-icon-theme-name", G_CALLBACK(SetIconTheme), nullptr);
 	} else {
 		LOG(("Could not load gtk-3 or gtk-x11-2.0!"));
 	}
