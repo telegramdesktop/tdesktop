@@ -866,6 +866,8 @@ PRIVATE
     platform/linux/linux_gdk_helper.h
     platform/linux/linux_libs.cpp
     platform/linux/linux_libs.h
+    platform/linux/linux_xlib_helper.cpp
+    platform/linux/linux_xlib_helper.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
