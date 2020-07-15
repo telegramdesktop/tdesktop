@@ -113,6 +113,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
+#include <QGuiApplication> // keyboardModifiers()
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
 
@@ -2932,7 +2933,9 @@ void HistoryWidget::onWindowVisibleChanged() {
 }
 
 void HistoryWidget::historyDownClicked() {
-	if (_replyReturn && _replyReturn->history() == _history) {
+	if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		showHistory(_peer->id, ShowAtUnreadMsgId);
+	} else if (_replyReturn && _replyReturn->history() == _history) {
 		showHistory(_peer->id, _replyReturn->id);
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
 		showHistory(_peer->id, -_replyReturn->id);
