@@ -11,6 +11,8 @@ add_library(tdesktop::lib_tgcalls ALIAS lib_tgcalls)
 set(tgcalls_dir ${third_party_loc}/tgcalls)
 set(tgcalls_loc ${tgcalls_dir}/tgcalls)
 
+target_compile_options(lib_tgcalls PRIVATE -fobjc-arc)
+
 nice_target_sources(lib_tgcalls ${tgcalls_loc}
 PRIVATE
     CodecSelectHelper.cpp
@@ -57,12 +59,16 @@ PRIVATE
     platform/darwin/TGRTCVideoDecoderH265.mm
     platform/darwin/TGRTCVideoEncoderH265.h
     platform/darwin/TGRTCVideoEncoderH265.mm
-    # platform/darwin/VideoCameraCapturer.h
-    # platform/darwin/VideoCameraCapturer.mm
-    # platform/darwin/VideoCapturerInterfaceImpl.h
-    # platform/darwin/VideoCapturerInterfaceImpl.mm
-    # platform/darwin/VideoMetalView.h
-    # platform/darwin/VideoMetalView.mm
+    platform/darwin/VideoCameraCapturer.h
+    platform/darwin/VideoCameraCapturer.mm
+    platform/darwin/VideoCameraCapturerMac.h
+    platform/darwin/VideoCameraCapturerMac.mm
+    platform/darwin/VideoCapturerInterfaceImpl.h
+    platform/darwin/VideoCapturerInterfaceImpl.mm
+    platform/darwin/VideoMetalView.h
+    platform/darwin/VideoMetalView.mm
+    platform/darwin/VideoMetalViewMac.h
+    platform/darwin/VideoMetalViewMac.mm
 
     # Linux
 
@@ -84,6 +90,18 @@ elseif (APPLE)
     target_compile_definitions(lib_tgcalls
     PRIVATE
         WEBRTC_MAC
+    )
+    remove_target_sources(lib_tgcalls ${tgcalls_loc}
+        platform/darwin/VideoCameraCapturer.h
+        platform/darwin/VideoCameraCapturer.mm
+        platform/darwin/VideoMetalView.h
+        platform/darwin/VideoMetalView.mm
+        platform/darwin/VideoMetalViewMac.h
+        platform/darwin/VideoMetalViewMac.mm
+        platform/tdesktop/VideoCapturerTrackSource.cpp
+        platform/tdesktop/VideoCapturerTrackSource.h
+        platform/tdesktop/VideoCapturerInterfaceImpl.cpp
+        platform/tdesktop/VideoCapturerInterfaceImpl.h
     )
 else()
     target_compile_definitions(lib_tgcalls
