@@ -51,8 +51,25 @@ Controller::~Controller() {
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
+	const auto prevSessionUniqueId = (_account && _account->sessionExists())
+		? _account->session().uniqueId()
+		: 0;
 	_accountLifetime.destroy();
 	_account = account;
+
+	const auto updateOnlineOfPrevSesssion = crl::guard(_account, [=] {
+		if (!prevSessionUniqueId) {
+			return;
+		}
+		for (auto &[index, account] : _account->domain().accounts()) {
+			if (const auto anotherSession = account->maybeSession()) {
+				if (anotherSession->uniqueId() == prevSessionUniqueId) {
+					anotherSession->updates().updateOnline();
+					return;
+				}
+			}
+		}
+	});
 
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
@@ -84,6 +101,8 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			setupIntro();
 			_widget.updateGlobalMenu();
 		}
+
+		crl::on_main(updateOnlineOfPrevSesssion);
 	}, _accountLifetime);
 }
 

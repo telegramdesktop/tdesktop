@@ -157,6 +157,7 @@ Session::Session(
 
 // Can be called only right before ~Session.
 void Session::finishLogout() {
+	updates().updateOnline();
 	unlockTerms();
 	data().clear();
 	data().clearLocalStorage();
