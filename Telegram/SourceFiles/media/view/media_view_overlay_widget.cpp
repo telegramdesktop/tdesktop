@@ -2131,6 +2131,7 @@ void OverlayWidget::displayDocument(
 					const auto &path = location.name();
 					if (QImageReader(path).canRead()) {
 						_staticContent = PrepareStaticImage(path);
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}
 				}
 				location.accessDisable();
