@@ -39,6 +39,9 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 19. Support multiple chat forward
 20. Support Forward Message without quote
 21. Quick Forward to Saved Messages
+22. [Restore] Convert to Supergroup feature
+23. [Restore] upgraded to supergroup service message
+24. Create new supergroup
 
 ## Supported systems
 
