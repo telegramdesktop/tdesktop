@@ -11,8 +11,6 @@ add_library(tdesktop::lib_tgcalls ALIAS lib_tgcalls)
 set(tgcalls_dir ${third_party_loc}/tgcalls)
 set(tgcalls_loc ${tgcalls_dir}/tgcalls)
 
-target_compile_options(lib_tgcalls PRIVATE -fobjc-arc)
-
 nice_target_sources(lib_tgcalls ${tgcalls_loc}
 PRIVATE
     CodecSelectHelper.cpp
@@ -43,6 +41,8 @@ PRIVATE
     platform/tdesktop/VideoCapturerInterfaceImpl.h
     platform/tdesktop/VideoCapturerTrackSource.cpp
     platform/tdesktop/VideoCapturerTrackSource.h
+    platform/tdesktop/VideoCameraCapturer.cpp
+    platform/tdesktop/VideoCameraCapturer.h
 
     # Windows
     platform/windows/WindowsInterface.cpp
@@ -87,6 +87,10 @@ if (WIN32)
         WEBRTC_WIN
     )
 elseif (APPLE)
+    target_compile_options(lib_tgcalls
+    PRIVATE
+        -fobjc-arc
+    )
     target_compile_definitions(lib_tgcalls
     PRIVATE
         WEBRTC_MAC
