@@ -48,7 +48,6 @@ void SendBotCallbackData(
 	}
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
-	const auto gameProgressType = Api::SendProgressType::PlayGame;
 	const auto isGame = (button->type == ButtonType::Game);
 
 	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
@@ -87,12 +86,9 @@ void SendBotCallbackData(
 					link,
 					item->fullId());
 				BotGameUrlClickHandler(bot, scoreLink).onClick({});
-
-				if (history->mySendActionUpdated(gameProgressType, true)) {
-					session->sendProgressManager().update(
-						history,
-						gameProgressType);
-				}
+				session->sendProgressManager().update(
+					history,
+					Api::SendProgressType::PlayGame);
 			}
 		});
 	}).fail([=](const RPCError &error, auto id) {

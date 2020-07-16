@@ -136,10 +136,9 @@ QSize Sticker::GetAnimatedEmojiSize(not_null<Main::Session*> session) {
 QSize Sticker::GetAnimatedEmojiSize(
 		not_null<Main::Session*> session,
 		QSize documentSize) {
-	constexpr auto kIdealStickerSize = 512;
 	const auto zoom = GetEmojiStickerZoom(session);
 	const auto convert = [&](int size) {
-		return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
+		return int(size * st::maxStickerSize * zoom / kStickerSideSize);
 	};
 	return { convert(documentSize.width()), convert(documentSize.height()) };
 }

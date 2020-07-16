@@ -62,6 +62,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "styles/style_history.h"
 
+#ifdef Q_OS_MAC
+#include "platform/mac/touchbar/mac_touchbar_media_view.h"
+#endif // Q_OS_MAC
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QBuffer>
@@ -341,6 +345,15 @@ OverlayWidget::OverlayWidget()
 		setWindowState(Qt::WindowFullScreen);
 	}
 
+#if defined Q_OS_MAC && !defined OS_OSX
+	TouchBar::SetupMediaViewTouchBar(
+		winId(),
+		static_cast<PlaybackControls::Delegate*>(this),
+		_touchbarTrackState.events(),
+		_touchbarDisplay.events(),
+		_touchbarFullscreenToggled.events());
+#endif // Q_OS_MAC && !OS_OSX
+
 	Core::App().calls().currentCallValue(
 	) | rpl::start_with_next([=](Calls::Call *call) {
 		if (!_streamed) {
@@ -618,11 +631,18 @@ void OverlayWidget::updateControls() {
 		|| (_document
 			&& _document->filepath(true).isEmpty()
 			&& !_document->loading());
-	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 3, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_rotateVisible = !_themePreviewShown;
+	const auto navRect = [&](int i) {
+		return myrtlrect(width() - st::mediaviewIconSize.width() * i,
+			height() - st::mediaviewIconSize.height(),
+			st::mediaviewIconSize.width(),
+			st::mediaviewIconSize.height());
+	};
+	_saveNav = navRect(_rotateVisible ? 3 : 2);
 	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
-	_rotateNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_rotateNav = navRect(2);
 	_rotateNavIcon = style::centerrect(_rotateNav, st::mediaviewRotate);
-	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
+	_moreNav = navRect(1);
 	_moreNavIcon = style::centerrect(_moreNav, st::mediaviewMore);
 
 	const auto dNow = QDateTime::currentDateTime();
@@ -2014,6 +2034,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	if (isHidden()) {
 		moveToScreen();
 	}
+	_touchbarDisplay.fire(TouchBarItemType::Photo);
 
 	clearStreaming();
 	destroyThemePreview();
@@ -2080,6 +2101,8 @@ void OverlayWidget::displayDocument(
 	_rotation = _document ? _document->owner().mediaRotation().get(_document) : 0;
 	_themeCloudData = cloud;
 	_radial.stop();
+
+	_touchbarDisplay.fire(TouchBarItemType::None);	
 
 	refreshMediaViewer();
 	if (_document) {
@@ -2283,6 +2306,8 @@ void OverlayWidget::startStreamingPlayer() {
 
 void OverlayWidget::initStreamingThumbnail() {
 	Expects(_document != nullptr);
+
+	_touchbarDisplay.fire(TouchBarItemType::Video);
 
 	const auto good = _documentMedia->goodThumbnail();
 	const auto useGood = (good != nullptr);
@@ -2730,6 +2755,7 @@ void OverlayWidget::playbackToggleFullScreen() {
 	}
 
 	_streamed->controls.setInFullScreen(_fullScreenVideo);
+	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
 	updateControls();
 	update();
 }
@@ -2776,6 +2802,7 @@ void OverlayWidget::updatePlaybackState() {
 	const auto state = _streamed->instance.player().prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		_streamed->controls.updatePlayback(state);
+		_touchbarTrackState.fire_copy(state);
 	}
 }
 
@@ -2983,7 +3010,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		// rotate button
-		if (_rotateNavIcon.intersects(r)) {
+		if (_rotateVisible && _rotateNavIcon.intersects(r)) {
 			auto o = overLevel(OverRotate);
 			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewRotate.paintInCenter(p, _rotateNavIcon);
@@ -3807,7 +3834,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
 		updateOverState(OverSave);
-	} else if (_rotateNav.contains(pos)) {
+	} else if (_rotateVisible && _rotateNav.contains(pos)) {
 		updateOverState(OverRotate);
 	} else if (_document && documentBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);

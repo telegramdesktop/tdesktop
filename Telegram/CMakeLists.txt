@@ -895,8 +895,24 @@ PRIVATE
     platform/mac/specific_mac_p.h
     platform/mac/window_title_mac.mm
     platform/mac/window_title_mac.h
-    platform/mac/mac_touchbar.h
-    platform/mac/mac_touchbar.mm
+    platform/mac/touchbar/items/mac_formatter_item.h
+    platform/mac/touchbar/items/mac_formatter_item.mm
+    platform/mac/touchbar/items/mac_pinned_chats_item.h
+    platform/mac/touchbar/items/mac_pinned_chats_item.mm
+    platform/mac/touchbar/items/mac_scrubber_item.h
+    platform/mac/touchbar/items/mac_scrubber_item.mm
+    platform/mac/touchbar/mac_touchbar_audio.h
+    platform/mac/touchbar/mac_touchbar_audio.mm
+    platform/mac/touchbar/mac_touchbar_common.h
+    platform/mac/touchbar/mac_touchbar_common.mm
+    platform/mac/touchbar/mac_touchbar_controls.h
+    platform/mac/touchbar/mac_touchbar_controls.mm
+    platform/mac/touchbar/mac_touchbar_main.h
+    platform/mac/touchbar/mac_touchbar_main.mm
+    platform/mac/touchbar/mac_touchbar_manager.h
+    platform/mac/touchbar/mac_touchbar_manager.mm
+    platform/mac/touchbar/mac_touchbar_media_view.h
+    platform/mac/touchbar/mac_touchbar_media_view.mm
     platform/win/audio_win.cpp
     platform/win/audio_win.h
     platform/win/file_utilities_win.cpp

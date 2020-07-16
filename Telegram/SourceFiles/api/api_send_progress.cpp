@@ -62,21 +62,24 @@ void SendProgressManager::send(
 		SendProgressType type,
 		int32 progress) {
 	using Type = SendProgressType;
-	MTPsendMessageAction action;
-	switch (type) {
-	case Type::Typing: action = MTP_sendMessageTypingAction(); break;
-	case Type::RecordVideo: action = MTP_sendMessageRecordVideoAction(); break;
-	case Type::UploadVideo: action = MTP_sendMessageUploadVideoAction(MTP_int(progress)); break;
-	case Type::RecordVoice: action = MTP_sendMessageRecordAudioAction(); break;
-	case Type::UploadVoice: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
-	case Type::RecordRound: action = MTP_sendMessageRecordRoundAction(); break;
-	case Type::UploadRound: action = MTP_sendMessageUploadRoundAction(MTP_int(progress)); break;
-	case Type::UploadPhoto: action = MTP_sendMessageUploadPhotoAction(MTP_int(progress)); break;
-	case Type::UploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
-	case Type::ChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
-	case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
-	case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
-	}
+	const auto action = [&]() -> MTPsendMessageAction {
+		const auto p = MTP_int(progress);
+		switch (type) {
+		case Type::Typing: return MTP_sendMessageTypingAction();
+		case Type::RecordVideo: return MTP_sendMessageRecordVideoAction();
+		case Type::UploadVideo: return MTP_sendMessageUploadVideoAction(p);
+		case Type::RecordVoice: return MTP_sendMessageRecordAudioAction();
+		case Type::UploadVoice: return MTP_sendMessageUploadAudioAction(p);
+		case Type::RecordRound: return MTP_sendMessageRecordRoundAction();
+		case Type::UploadRound: return MTP_sendMessageUploadRoundAction(p);
+		case Type::UploadPhoto: return MTP_sendMessageUploadPhotoAction(p);
+		case Type::UploadFile: return MTP_sendMessageUploadDocumentAction(p);
+		case Type::ChooseLocation: return MTP_sendMessageGeoLocationAction();
+		case Type::ChooseContact: return MTP_sendMessageChooseContactAction();
+		case Type::PlayGame: return MTP_sendMessageGamePlayAction();
+		default: return MTP_sendMessageTypingAction();
+		}
+	}();
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		history->peer->input,
 		action

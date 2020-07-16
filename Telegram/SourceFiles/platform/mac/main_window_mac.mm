@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
-#include "platform/mac/mac_touchbar.h"
+#include "platform/mac/touchbar/mac_touchbar_manager.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_controllers.h"
@@ -131,6 +131,10 @@ public:
 	explicit Private(not_null<MainWindow*> window);
 
 	void setNativeWindow(NSWindow *window, NSView *view);
+	void initTouchBar(
+		NSWindow *window,
+		not_null<Window::Controller*> controller,
+		rpl::producer<bool> canApplyMarkdown);
 	void setWindowBadge(const QString &str);
 	void setWindowTitle(const QString &str);
 	void updateNativeTitle();
@@ -144,9 +148,6 @@ public:
 	void didExitFullScreen();
 
 	bool clipboardHasText();
-#ifndef OS_OSX
-	TouchBar *_touchBar = nil;
-#endif // OS_OSX
 	~Private();
 
 private:
@@ -283,6 +284,27 @@ void MainWindow::Private::setNativeWindow(NSWindow *window, NSView *view) {
 	_nativeWindow = window;
 	_nativeView = view;
 	initCustomTitle();
+}
+
+void MainWindow::Private::initTouchBar(
+		NSWindow *window,
+		not_null<Window::Controller*> controller,
+		rpl::producer<bool> canApplyMarkdown) {
+#ifndef OS_OSX
+	if (!IsMac10_13OrGreater()) {
+		return;
+	}
+	[NSApplication sharedApplication]
+		.automaticCustomizeTouchBarMenuItemEnabled = true;
+
+	[window
+		performSelectorOnMainThread:@selector(setTouchBar:)
+		withObject:[[[RootTouchBar alloc]
+			init:std::move(canApplyMarkdown)
+			controller:controller
+			domain:(&Core::App().domain())] autorelease]
+		waitUntilDone:true];
+#endif
 }
 
 void MainWindow::Private::initCustomTitle() {
@@ -472,50 +494,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 			_private->updateNativeTitle();
 		}
 	});
-
-	initTouchBar();
-}
-
-void MainWindow::initTouchBar() {
-#ifndef OS_OSX
-	if (!IsMac10_13OrGreater()) {
-		return;
-	}
-	[NSApplication sharedApplication]
-		.automaticCustomizeTouchBarMenuItemEnabled = true;
-	const auto createNewTouchBar = [=](not_null<Main::Session*> session) {
-		if (_private->_touchBar) {
-			return;
-		}
-		if (auto view = reinterpret_cast<NSView*>(winId())) {
-			_private->_touchBar = [[TouchBar alloc]
-				init:view
-				session:session];
-		}
-	};
-
-	Core::App().domain().activeSessionChanges(
-	) | rpl::start_with_next([=](Main::Session *session) {
-		if (session) {
-			if (_private->_touchBar) {
-				destroyCurrentTouchBar();
-			}
-			createNewTouchBar(session);
-		} else {
-			destroyCurrentTouchBar();
-		}
-	}, lifetime());
-#endif // OS_OSX
-}
-
-void MainWindow::destroyCurrentTouchBar() {
-#ifndef OS_OSX
-	if (_private->_touchBar) {
-		[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
-		[_private->_touchBar release];
-	}
-	_private->_touchBar = nil;
-#endif // OS_OSX
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -545,6 +523,10 @@ void MainWindow::initHook() {
 	if (auto view = reinterpret_cast<NSView*>(winId())) {
 		if (auto window = [view window]) {
 			_private->setNativeWindow(window, view);
+			_private->initTouchBar(
+				window,
+				&controller(),
+				_canApplyMarkdown.changes());
 		}
 	}
 }
@@ -815,7 +797,7 @@ void MainWindow::updateGlobalMenuHook() {
 	auto focused = QApplication::focusWidget();
 	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
 	auto clipboardHasText = _private->clipboardHasText();
-	auto showTouchBarItem = false;
+	auto canApplyMarkdown = false;
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
@@ -829,8 +811,9 @@ void MainWindow::updateGlobalMenuHook() {
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(focused->parentWidget())) {
-				showTouchBarItem = inputField->isMarkdownEnabled();
+			if (const auto inputField = qobject_cast<Ui::InputField*>(
+					focused->parentWidget())) {
+				canApplyMarkdown = inputField->isMarkdownEnabled();
 			}
 		}
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
@@ -838,11 +821,7 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 
-#ifndef OS_OSX
-	if (_private->_touchBar) {
-		[_private->_touchBar showInputFieldItem:showTouchBarItem];
-	}
-#endif // OS_OSX
+	_canApplyMarkdown = canApplyMarkdown;
 
 	App::wnd()->updateIsActive();
 	const auto logged = (sessionController() != nullptr);
@@ -862,12 +841,12 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psNewChannel, inactive || support);
 	ForceDisabled(psShowTelegram, App::wnd()->isActive());
 
-	ForceDisabled(psBold, !showTouchBarItem);
-	ForceDisabled(psItalic, !showTouchBarItem);
-	ForceDisabled(psUnderline, !showTouchBarItem);
-	ForceDisabled(psStrikeOut, !showTouchBarItem);
-	ForceDisabled(psMonospace, !showTouchBarItem);
-	ForceDisabled(psClearFormat, !showTouchBarItem);
+	ForceDisabled(psBold, !canApplyMarkdown);
+	ForceDisabled(psItalic, !canApplyMarkdown);
+	ForceDisabled(psUnderline, !canApplyMarkdown);
+	ForceDisabled(psStrikeOut, !canApplyMarkdown);
+	ForceDisabled(psMonospace, !canApplyMarkdown);
+	ForceDisabled(psClearFormat, !canApplyMarkdown);
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {
@@ -885,7 +864,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 }
 
 MainWindow::~MainWindow() {
-	destroyCurrentTouchBar();
 }
 
 } // namespace
