@@ -519,7 +519,8 @@ void MainWindow::setSNITrayIcon(int counter, bool muted) {
 		_sniTrayIcon->setToolTipIconByName(iconName);
 	} else if (IsIndicatorApplication()) {
 		if (!IsIconRegenerationNeeded(counter, muted)
-			&& !_sniTrayIcon->iconName().isEmpty()) {
+			&& _trayIconFile
+			&& _sniTrayIcon->iconName() == _trayIconFile->fileName()) {
 			return;
 		}
 
@@ -532,7 +533,8 @@ void MainWindow::setSNITrayIcon(int counter, bool muted) {
 		}
 	} else {
 		if (!IsIconRegenerationNeeded(counter, muted)
-			&& !_sniTrayIcon->iconPixmap().isEmpty()) {
+			&& !_sniTrayIcon->iconPixmap().isEmpty()
+			&& _sniTrayIcon->iconName().isEmpty()) {
 			return;
 		}
 

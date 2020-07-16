@@ -12,8 +12,6 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Download libraries
 
-Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/xz-5.0.5**
-
 Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) and unpack to ***BuildPath*/Libraries/libiconv-1.15**
 
 ### Clone source code and prepare libraries
@@ -35,7 +33,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout 7df6fdd
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -52,14 +50,17 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout 7df6fdd
     cd ../
 
-    cd xz-5.0.5
-    CFLAGS="-mmacosx-version-min=10.10" LDFLAGS="-mmacosx-version-min=10.10" ./configure
+    git clone https://git.tukaani.org/xz.git
+    cd xz
+    git checkout v5.2.5
+    mkdir build
+    cd build
+    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.10 ..
     make $MAKE_THREADS_CNT
-    sudo make install
-    cd ..
+    cd ../..
 
     git clone https://github.com/desktop-app/zlib.git
     cd zlib

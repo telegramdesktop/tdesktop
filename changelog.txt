@@ -1,3 +1,12 @@
+2.1.19 beta (16.07.20)
+
+- File uploading in an inactive account correctly finishes.
+- Stickers panel works correctly after switching between accounts.
+- Large .webp files are not shown as stickers.
+- MacBook TouchBar support was fully rewritten with fixes for multiple accounts.
+- Custom window title bar works in all Linux versions.
+- Passcode doesn't auto-lock while you're active in other apps on Linux X11.
+
 2.1.18 beta (08.07.20)
 
 - Fix a possible crash in Picture-in-Picture video player.
