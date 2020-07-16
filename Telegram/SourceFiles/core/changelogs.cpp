@@ -71,6 +71,20 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Allow using system window frame in Windows and Linux."
 	},
+	{
+		2001019,
+		"- File uploading in an inactive account correctly finishes.\n"
+
+		"- Stickers panel works correctly after switching between accounts.\n"
+
+		"- Large .webp files are not shown as stickers.\n"
+
+		"- MacBook TouchBar support was fully rewritten with fixes for multiple accounts.\n"
+
+		"- Custom window title bar works in all Linux versions.\n"
+
+		"- Passcode doesn't auto-lock while you're active in other apps on Linux X11."
+	},
 	};
 };
 
