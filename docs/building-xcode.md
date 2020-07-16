@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 53ed295
+    git checkout 7df6fdd
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -47,8 +47,17 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b08b497
+    git checkout 7df6fdd
     cd ..
+
+    git clone https://git.tukaani.org/xz.git
+    cd xz
+    git checkout v5.2.5
+    mkdir build
+    cd build
+    CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macos ..
+    make $MAKE_THREADS_CNT
+    cd ../..
 
     xz_ver=5.2.4
     wget https://tukaani.org/xz/xz-$xz_ver.tar.gz
