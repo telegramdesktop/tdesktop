@@ -19,6 +19,8 @@ PRIVATE
     Instance.h
     InstanceImpl.cpp
     InstanceImpl.h
+    LogSinkImpl.cpp
+    LogSinkImpl.h
     Manager.cpp
     Manager.h
     MediaManager.cpp

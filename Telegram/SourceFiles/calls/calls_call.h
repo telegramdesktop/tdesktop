@@ -21,6 +21,7 @@ class Track;
 
 namespace tgcalls {
 class Instance;
+class VideoCaptureInterface;
 enum class State;
 enum class VideoState;
 } // namespace tgcalls
@@ -91,29 +92,50 @@ public:
 		Ringing,
 		Busy,
 	};
-	State state() const {
+	[[nodiscard]] State state() const {
 		return _state.current();
 	}
-	rpl::producer<State> stateValue() const {
+	[[nodiscard]] rpl::producer<State> stateValue() const {
 		return _state.value();
+	}
+
+	enum class VideoState {
+		Disabled,
+		OutgoingRequested,
+		IncomingRequested,
+		Enabled
+	};
+	[[nodiscard]] VideoState videoState() const {
+		return _videoState.current();
+	}
+	[[nodiscard]] rpl::producer<VideoState> videoStateValue() const {
+		return _videoState.value();
 	}
 
 	static constexpr auto kSignalBarStarting = -1;
 	static constexpr auto kSignalBarFinished = -2;
 	static constexpr auto kSignalBarCount = 4;
-	base::Observable<int> &signalBarCountChanged() {
-		return _signalBarCountChanged;
+	[[nodiscard]] rpl::producer<int> signalBarCountValue() const {
+		return _signalBarCount.value();
 	}
 
-	void setMute(bool mute);
-	bool isMute() const {
-		return _mute;
+	void setMuted(bool mute);
+	[[nodiscard]] bool muted() const {
+		return _muted.current();
 	}
-	base::Observable<bool> &muteChanged() {
-		return _muteChanged;
+	[[nodiscard]] rpl::producer<bool> mutedValue() const {
+		return _muted.value();
 	}
 
-	rpl::producer<QImage> frames() const {
+	void setVideoEnabled(bool enabled);
+	[[nodiscard]] bool videoEnabled() const {
+		return _videoEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> videoEnabledValue() const {
+		return _videoEnabled.value();
+	}
+
+	[[nodiscard]] rpl::producer<QImage> frames() const {
 		return _frames.events();
 	}
 
@@ -178,17 +200,18 @@ private:
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
+	rpl::variable<VideoState> _videoState = VideoState::Disabled;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
-	int _signalBarCount = kSignalBarStarting;
-	base::Observable<int> _signalBarCountChanged;
+	rpl::variable<int> _signalBarCount = kSignalBarStarting;
 	crl::time _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
 
-	bool _mute = false;
-	base::Observable<bool> _muteChanged;
+	rpl::variable<bool> _muted = false;
+	rpl::variable<bool> _videoEnabled = false;
 	rpl::event_stream<QImage> _frames;
+	crl::time _remoteVideoInactiveFrom = 0;
 
 	DhConfig _dhConfig;
 	bytes::vector _ga;
@@ -203,6 +226,7 @@ private:
 	uint64 _keyFingerprint = 0;
 
 	std::unique_ptr<tgcalls::Instance> _instance;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

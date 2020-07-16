@@ -89,9 +89,10 @@ SignalBars::SignalBars(
 	resize(
 		_st.width + (_st.width + _st.skip) * (Call::kSignalBarCount - 1),
 		_st.width * Call::kSignalBarCount);
-	subscribe(call->signalBarCountChanged(), [=](int count) {
+	call->signalBarCountValue(
+	) | rpl::start_with_next([=](int count) {
 		changed(count);
-	});
+	}, lifetime());
 }
 
 bool SignalBars::isDisplayed() const {
@@ -307,6 +308,7 @@ Panel::Panel(not_null<Call*> call)
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
 , _decline(this, object_ptr<Button>(this, st::callHangup))
 , _cancel(this, object_ptr<Button>(this, st::callCancel))
+, _camera(this, st::callCameraToggle)
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
 , _status(this, st::callStatus)
@@ -353,14 +355,24 @@ void Panel::hideDeactivated() {
 
 void Panel::initControls() {
 	_hangupShown = (_call->type() == Type::Outgoing);
-	_mute->setClickedCallback([this] {
+	_mute->setClickedCallback([=] {
 		if (_call) {
-			_call->setMute(!_call->isMute());
+			_call->setMuted(!_call->muted());
 		}
 	});
-	subscribe(_call->muteChanged(), [this](bool mute) {
+	_call->mutedValue(
+	) | rpl::start_with_next([=](bool mute) {
 		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
+	}, lifetime());
+	_camera->setClickedCallback([=] {
+		if (_call) {
+			_call->setVideoEnabled(!_call->videoEnabled());
+		}
 	});
+	_call->videoEnabledValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		_camera->setIconOverride(enabled ? nullptr : &st::callNoCameraIcon);
+	}, lifetime());
 
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
@@ -691,6 +703,7 @@ void Panel::updateControlsGeometry() {
 	updateHangupGeometry();
 
 	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
+	_camera->moveToLeft(_padding.right() + st::callMuteRight, controlsTop);
 
 	const auto skip = st::callSignalMargin + st::callSignalPadding;
 	const auto delta = (_signalBars->width() - _signalBars->height());

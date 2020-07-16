@@ -34,7 +34,7 @@ struct CallSignalBars;
 
 namespace Calls {
 
-class SignalBars : public Ui::RpWidget, private base::Subscriber {
+class SignalBars final : public Ui::RpWidget {
 public:
 	SignalBars(
 		QWidget *parent,
@@ -56,10 +56,7 @@ private:
 
 };
 
-class Panel
-	: public Ui::RpWidget
-	, private base::Subscriber
-	, private Ui::AbstractTooltipShower {
+class Panel final : public Ui::RpWidget, private Ui::AbstractTooltipShower {
 
 public:
 	Panel(not_null<Call*> call);
@@ -138,6 +135,7 @@ private:
 	object_ptr<Ui::FadeWrap<Button>> _cancel;
 	bool _hangupShown = false;
 	Ui::Animations::Simple _hangupShownProgress;
+	object_ptr<Ui::IconButton> _camera;
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;

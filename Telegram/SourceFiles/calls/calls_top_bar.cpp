@@ -94,14 +94,14 @@ TopBar::TopBar(
 void TopBar::initControls() {
 	_mute->setClickedCallback([=] {
 		if (const auto call = _call.get()) {
-			call->setMute(!call->isMute());
+			call->setMuted(!call->muted());
 		}
 	});
-	setMuted(_call->isMute());
-	subscribe(_call->muteChanged(), [=](bool mute) {
-		setMuted(mute);
+	_call->mutedValue(
+	) | rpl::start_with_next([=](bool muted) {
+		setMuted(muted);
 		update();
-	});
+	}, lifetime());
 
 	_call->user()->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Name

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <tgcalls/Instance.h>
+#include <tgcalls/VideoCaptureInterface.h>
 
 namespace tgcalls {
 class InstanceImpl;
@@ -42,6 +43,7 @@ namespace {
 constexpr auto kMinLayer = 65;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
+constexpr auto kDropFramesWhileInactive = 5 * crl::time(1000);
 const auto kDefaultVersion = "2.4.4"_q;
 
 const auto RegisterTag = tgcalls::Register<tgcalls::InstanceImpl>();
@@ -319,12 +321,31 @@ void Call::actuallyAnswer() {
 	}).send();
 }
 
-void Call::setMute(bool mute) {
-	_mute = mute;
+void Call::setMuted(bool mute) {
+	_muted = mute;
 	if (_instance) {
-		_instance->setMuteMicrophone(_mute);
+		_instance->setMuteMicrophone(mute);
 	}
-	_muteChanged.notify(_mute);
+}
+
+void Call::setVideoEnabled(bool enabled) {
+	if (_state.current() != State::Established) {
+		return;
+	}
+	_videoEnabled = enabled;
+	if (enabled) {
+		if (!_videoCapture) {
+			_videoCapture = tgcalls::VideoCaptureInterface::Create();
+		}
+		if (_instance) {
+			_instance->requestVideo(_videoCapture);
+		} else {
+			_videoState = VideoState::OutgoingRequested;
+		}
+		_videoCapture->setIsVideoEnabled(true);
+	} else if (_videoCapture) {
+		_videoCapture->setIsVideoEnabled(false);
+	}
 }
 
 crl::time Call::getDurationMs() const {
@@ -430,6 +451,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
+		setVideoEnabled(data.is_video());
 		auto gaHashBytes = bytes::make_span(data.vg_a_hash().v);
 		if (gaHashBytes.size() != kSha256Size) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2."
@@ -650,7 +672,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.encryptionKey = tgcalls::EncryptionKey(
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
-		.videoCapture = nullptr,
+		.videoCapture = _videoEnabled.current() ? _videoCapture : nullptr,
 		.stateUpdated = [=](tgcalls::State state, tgcalls::VideoState videoState) {
 			crl::on_main(weak, [=] {
 				handleControllerStateChange(state, videoState);
@@ -662,6 +684,14 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			});
 		},
 		.remoteVideoIsActiveUpdated = [=](bool active) {
+			crl::on_main(weak, [=] {
+				if (!active) {
+					_frames.fire(QImage());
+					_remoteVideoInactiveFrom = crl::now();
+				} else {
+					_remoteVideoInactiveFrom = 0;
+				}
+			});
 		},
 		.signalingDataEmitted = [=](const std::vector<uint8_t> &data) {
 			const auto bytes = QByteArray(
@@ -706,8 +736,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		}
 	}
 
-	descriptor.videoCapture = tgcalls::CreateVideoCapture();
-
 	const auto version = call.vprotocol().match([&](
 			const MTPDphoneCallProtocol &data) {
 		return data.vlibrary_versions().v;
@@ -727,13 +755,18 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	const auto raw = _instance.get();
-	if (_mute) {
-		raw->setMuteMicrophone(_mute);
+	if (_muted.current()) {
+		raw->setMuteMicrophone(_muted.current());
 	}
 	const auto &settings = Core::App().settings();
 	raw->setIncomingVideoOutput(webrtc::CreateVideoSink([=](QImage frame) {
 		crl::on_main(weak, [=] {
-			_frames.fire_copy(frame);
+			if (_remoteVideoInactiveFrom > 0
+				&& (_remoteVideoInactiveFrom + kDropFramesWhileInactive
+					> crl::now())) {
+			} else {
+				_frames.fire_copy(frame);
+			}
 		});
 	}));
 	raw->setAudioOutputDevice(
@@ -748,6 +781,18 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 void Call::handleControllerStateChange(
 		tgcalls::State state,
 		tgcalls::VideoState videoState) {
+	_videoState = [&] {
+		switch (videoState) {
+		case tgcalls::VideoState::Possible: return VideoState::Disabled;
+		case tgcalls::VideoState::OutgoingRequested:
+			return VideoState::OutgoingRequested;
+		case tgcalls::VideoState::IncomingRequested:
+			return VideoState::IncomingRequested;
+		case tgcalls::VideoState::Active: return VideoState::Enabled;
+		}
+		Unexpected("VideoState value in Call::handleControllerStateChange.");
+	}();
+
 	switch (state) {
 	case tgcalls::State::WaitInit: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInit."));
@@ -780,10 +825,7 @@ void Call::handleControllerBarCountChange(int count) {
 }
 
 void Call::setSignalBarCount(int count) {
-	if (_signalBarCount != count) {
-		_signalBarCount = count;
-		_signalBarCountChanged.notify(count);
-	}
+	_signalBarCount = count;
 }
 
 template <typename T>
@@ -986,9 +1028,7 @@ void Call::handleControllerError(const QString &error) {
 
 void Call::destroyController() {
 	if (_instance) {
-		AssertIsDebug();
 		const auto state = _instance->stop();
-		LOG(("CALL_LOG: %1").arg(QString::fromStdString(state.debugLog)));
 
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		_instance.reset();

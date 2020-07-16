@@ -84,6 +84,13 @@ callMuteToggle: IconButton(callButton) {
 	}
 }
 callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
+callCameraToggle: IconButton(callButton) {
+	icon: icon {{ "call_camera_active", callIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callMuteRipple;
+	}
+}
+callNoCameraIcon: icon {{ "call_camera_muted", callIconFg }};
 
 callControlsTop: 80px;
 callControlsSkip: 0px;
@@ -124,7 +131,7 @@ callBarMuteToggle: IconButton {
 	height: 38px;
 
 	icon: icon {{ "call_record_active", callBarFg }};
-	iconPosition: point(9px, 8px);
+	iconPosition: point(3px, 2px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: callBarMuteRipple;
@@ -137,7 +144,7 @@ callBarRightSkip: 12px;
 callBarSkip: 10px;
 callBarHangup: IconButton(callBarMuteToggle) {
 	icon: icon {{ "call_discard", callBarFg }};
-	iconPosition: point(9px, 11px);
+	iconPosition: point(3px, 1px);
 }
 callBarLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
