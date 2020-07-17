@@ -77,6 +77,11 @@ void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 
+QPointer<Ui::RpWidget> ShowOldForwardMessagesBox(
+	not_null<Window::SessionNavigation*> navigation,
+	MessageIdsList &&items,
+	FnMut<void()> &&successCallback = nullptr);
+
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,

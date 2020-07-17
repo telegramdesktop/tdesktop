@@ -299,6 +299,8 @@ private:
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
+	void oldForwardItem(FullMsgId itemId);
+	void oldForwardAsGroup(FullMsgId itemId);
 	void forwardItem(FullMsgId itemId);
 	void forwardAsGroup(FullMsgId itemId);
 	void forwardItemNoQuote(FullMsgId itemId);

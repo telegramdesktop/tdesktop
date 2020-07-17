@@ -1640,6 +1640,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
+				_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
+					_widget->oldForwardSelected();
+				});
 				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
@@ -1662,6 +1665,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto itemId = item->fullId();
 			if (isUponSelected != -2) {
 				if (item->allowsForward()) {
+					_menu->addAction(tr::lng_context_forward_msg_old(tr::now), [=] {
+						oldForwardItem(itemId);
+					});
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
@@ -1819,6 +1825,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
+					_widget->oldForwardSelected();
+				});
 				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
@@ -1840,6 +1849,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
 			if (isUponSelected != -2) {
 				if (canForward) {
+					_menu->addAction(tr::lng_context_forward_msg_old(tr::now), [=] {
+						oldForwardAsGroup(itemId);
+					});
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					});
@@ -3162,6 +3174,18 @@ void HistoryInner::changeSelectionAsGroup(
 		for (const auto other : group->items) {
 			removeFromSelection(toItems, other);
 		}
+	}
+}
+
+void HistoryInner::oldForwardItem(FullMsgId itemId) {
+	Window::ShowOldForwardMessagesBox(_controller, { 1, itemId });
+}
+
+void HistoryInner::oldForwardAsGroup(FullMsgId itemId) {
+	if (const auto item = session().data().message(itemId)) {
+		Window::ShowOldForwardMessagesBox(
+			_controller,
+			session().data().itemOrItsGroup(item));
 	}
 }
 

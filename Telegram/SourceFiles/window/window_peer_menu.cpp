@@ -917,6 +917,50 @@ void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
 	});
 }
 
+QPointer<Ui::RpWidget> ShowOldForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		MessageIdsList &&items,
+		FnMut<void()> &&successCallback) {
+	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	auto callback = [
+		ids = std::move(items),
+		callback = std::move(successCallback),
+		weak
+	](not_null<PeerData*> peer) mutable {
+		if (peer->isSelf()) {
+			auto items = peer->owner().idsToItems(ids);
+			if (!items.empty()) {
+				const auto api = &peer->session().api();
+				auto action = Api::SendAction(peer->owner().history(peer));
+				action.clearDraft = false;
+				action.generateLocal = false;
+				api->forwardMessages(std::move(items), action, [] {
+					Ui::Toast::Show(tr::lng_share_done(tr::now));
+				});
+			}
+		} else if (!App::main()->setForwardDraft(peer->id, std::move(ids))) {
+			return;
+		}
+		if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+		if (callback) {
+			callback();
+		}
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(
+			navigation,
+			std::move(callback)),
+		std::move(initBox)), Ui::LayerOption::KeepOther);
+	return weak->data();
+}
+
 // Source from kotatogram
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,

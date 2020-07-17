@@ -63,6 +63,9 @@ public:
 
 	void setActiveChat(Dialogs::Key chat, Section section);
 
+	rpl::producer<> oldForwardSelectionRequest() const {
+		return _oldForwardSelection.events();
+	}
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
 	}
@@ -140,7 +143,7 @@ private:
 	Ui::Animations::Simple _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clear;
-	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete, _forwardNoQuote, _savedMessages;
+	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete, _forwardNoQuote, _savedMessages, _oldForward;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::UnreadBadge> _unreadBadge = { nullptr };
@@ -166,6 +169,7 @@ private:
 
 	base::Timer _onlineUpdater;
 
+	rpl::event_stream<> _oldForwardSelection;
 	rpl::event_stream<> _forwardSelection;
 	rpl::event_stream<> _forwardNoQuoteSelection;
 	rpl::event_stream<> _savedMessagesSelection;

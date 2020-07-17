@@ -58,6 +58,7 @@ TopBarWidget::TopBarWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
+, _oldForward(this, tr::lng_selected_forward_emoji_classic(), st::defaultActiveButton)
 , _forward(this, tr::lng_selected_forward_emoji(), st::defaultActiveButton)
 , _forwardNoQuote(this, tr::lng_selected_forward_no_quote_emoji(), st::defaultActiveButton)
 , _savedMessages(this, tr::lng_forward_to_saved_message_emoji(), st::defaultActiveButton)
@@ -75,6 +76,8 @@ TopBarWidget::TopBarWidget(
 	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	_oldForward->setClickedCallback([=] { _oldForwardSelection.fire({}); });
+	_oldForward->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_forward->setClickedCallback([=] { _forwardSelection.fire({}); });
 	_forward->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_forwardNoQuote->setClickedCallback([=] { _forwardNoQuoteSelection.fire({}); });
@@ -571,6 +574,7 @@ void TopBarWidget::updateControlsGeometry() {
 
 	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
+	_oldForward->setFullWidth(buttonFullWidth);
 	_forward->setFullWidth(buttonFullWidth);
 	_forwardNoQuote->setFullWidth(buttonFullWidth);
 	_savedMessages->setFullWidth(buttonFullWidth);
@@ -578,6 +582,11 @@ void TopBarWidget::updateControlsGeometry() {
 	_delete->setFullWidth(buttonFullWidth);
 
 	selectedButtonsTop += (height() - _forward->height()) / 2;
+
+	_oldForward->moveToLeft(buttonsLeft, selectedButtonsTop);
+	if (!_oldForward->isHidden()) {
+		buttonsLeft += _oldForward->width() + st::topBarActionSkip;
+	}
 
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
 	if (!_forward->isHidden()) {
@@ -771,12 +780,14 @@ void TopBarWidget::showSelected(SelectedState state) {
 	auto wasSelected = (_selectedCount > 0);
 	_selectedCount = state.count;
 	if (_selectedCount > 0) {
+		_oldForward->setNumbersText(_selectedCount);
 		_forward->setNumbersText(_selectedCount);
 		_forwardNoQuote->setNumbersText(_selectedCount);
 		_savedMessages->setNumbersText(_selectedCount);
 		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
 		if (!wasSelected) {
+			_oldForward->finishNumbersAnimation();
 			_forward->finishNumbersAnimation();
 			_forwardNoQuote->finishNumbersAnimation();
 			_savedMessages->finishNumbersAnimation();

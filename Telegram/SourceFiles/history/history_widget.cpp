@@ -727,6 +727,10 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=](bool active) {
 		setMembersShowAreaActive(active);
 	}, _topBar->lifetime());
+	_topBar->oldForwardSelectionRequest(
+	) | rpl::start_with_next([=] {
+		oldForwardSelected();
+	}, _topBar->lifetime());
 	_topBar->forwardSelectionRequest(
 	) | rpl::start_with_next([=] {
 		forwardSelected();
@@ -6125,6 +6129,18 @@ void HistoryWidget::handlePeerUpdate() {
 			updateControlsGeometry();
 		}
 	}
+}
+
+void HistoryWidget::oldForwardSelected() {
+	if (!_list) {
+		return;
+	}
+	const auto weak = Ui::MakeWeak(this);
+	Window::ShowOldForwardMessagesBox(controller(), getSelectedItems(), [=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
 }
 
 void HistoryWidget::forwardSelected() {
