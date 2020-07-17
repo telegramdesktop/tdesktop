@@ -151,7 +151,6 @@ QIcon TrayIconGen(int counter, bool muted) {
 		24,
 		32,
 		48,
-		64
 	};
 
 	for (const auto iconSize : iconSizes) {
