@@ -52,6 +52,8 @@ public:
 		const FrameRequest &request);
 	void removeFrameRequest(const Instance *instance);
 
+	void rasterizeFrame(not_null<Frame*> frame);
+
 private:
 	enum class FrameResult {
 		Done,
@@ -354,36 +356,37 @@ QSize VideoTrackObject::chooseOriginalResize() const {
 	return chosen;
 }
 
+void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
+	Expects(frame->position != kFinishedPosition);
+
+	fillRequests(frame);
+	frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA);
+	frame->original = ConvertFrame(
+		_stream,
+		frame->decoded.get(),
+		chooseOriginalResize(),
+		std::move(frame->original));
+	if (frame->original.isNull()) {
+		frame->prepared.clear();
+		fail(Error::InvalidData);
+		return;
+	}
+
+	VideoTrack::PrepareFrameByRequests(frame, _stream.rotation);
+
+	Ensures(VideoTrack::IsRasterized(frame));
+}
+
 void VideoTrackObject::presentFrameIfNeeded() {
 	if (_pausedTime != kTimeUnknown || _resumedTime == kTimeUnknown) {
 		return;
 	}
-	const auto rasterize = [&](not_null<Frame*> frame) {
-		Expects(frame->position != kFinishedPosition);
-
-		fillRequests(frame);
-		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA);
-		frame->original = ConvertFrame(
-			_stream,
-			frame->decoded.get(),
-			chooseOriginalResize(),
-			std::move(frame->original));
-		if (frame->original.isNull()) {
-			frame->prepared.clear();
-			fail(Error::InvalidData);
-			return;
-		}
-
-		VideoTrack::PrepareFrameByRequests(frame, _stream.rotation);
-
-		Ensures(VideoTrack::IsRasterized(frame));
-	};
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto presented = _shared->presentFrame(
+		this,
 		trackTime(),
 		_options.speed,
-		dropStaleFrames,
-		rasterize);
+		dropStaleFrames);
 	addTimelineDelay(presented.addedWorldTimeDelay);
 	if (presented.displayPosition == kFinishedPosition) {
 		interrupt();
@@ -693,12 +696,11 @@ bool VideoTrack::Shared::firstPresentHappened() const {
 	Unexpected("Counter value in VideoTrack::Shared::firstPresentHappened.");
 }
 
-template <typename RasterizeCallback>
 auto VideoTrack::Shared::presentFrame(
+	not_null<VideoTrackObject*> object,
 	TimePoint time,
 	float64 playbackSpeed,
-	bool dropStaleFrames,
-	RasterizeCallback &&rasterize)
+	bool dropStaleFrames)
 -> PresentFrame {
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
@@ -707,7 +709,7 @@ auto VideoTrack::Shared::presentFrame(
 		if (position == kFinishedPosition) {
 			return { kFinishedPosition, kTimeUnknown, addedWorldTimeDelay };
 		}
-		rasterize(frame);
+		object->rasterizeFrame(frame);
 		if (!IsRasterized(frame)) {
 			// Error happened during frame prepare.
 			return { kTimeUnknown, kTimeUnknown, addedWorldTimeDelay };

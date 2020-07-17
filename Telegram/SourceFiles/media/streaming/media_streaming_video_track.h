@@ -108,13 +108,11 @@ private:
 			crl::time trackTime,
 			bool dropStaleFrames);
 
-		// RasterizeCallback(not_null<Frame*>).
-		template <typename RasterizeCallback>
 		[[nodiscard]] PresentFrame presentFrame(
+			not_null<VideoTrackObject*> object,
 			TimePoint trackTime,
 			float64 playbackSpeed,
-			bool dropStaleFrames,
-			RasterizeCallback &&rasterize);
+			bool dropStaleFrames);
 		[[nodiscard]] bool firstPresentHappened() const;
 
 		// Called from the main thread.
