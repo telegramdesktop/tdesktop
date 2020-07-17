@@ -26,6 +26,10 @@ enum class State;
 enum class VideoState;
 } // namespace tgcalls
 
+namespace webrtc {
+class VideoTrack;
+} // namespace webrtc
+
 namespace Calls {
 
 struct DhConfig {
@@ -227,6 +231,7 @@ private:
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
+	std::shared_ptr<webrtc::VideoTrack> _videoTrack;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
-#include "webrtc/webrtc_video_sink.h"
+#include "webrtc/webrtc_video_track.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "facades.h"
@@ -758,17 +758,21 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	if (_muted.current()) {
 		raw->setMuteMicrophone(_muted.current());
 	}
+
+	_videoTrack = std::make_shared<webrtc::VideoTrack>();
+	_videoTrack->renderNextFrame(
+	) | rpl::start_with_next([=] {
+		if (_remoteVideoInactiveFrom > 0
+			&& (_remoteVideoInactiveFrom + kDropFramesWhileInactive
+				> crl::now())) {
+		} else {
+			_frames.fire_copy(_videoTrack->frame(webrtc::FrameRequest()));
+			_videoTrack->markFrameShown();
+		}
+	}, lifetime());
+	raw->setIncomingVideoOutput(_videoTrack->sink());
+
 	const auto &settings = Core::App().settings();
-	raw->setIncomingVideoOutput(webrtc::CreateVideoSink([=](QImage frame) {
-		crl::on_main(weak, [=] {
-			if (_remoteVideoInactiveFrom > 0
-				&& (_remoteVideoInactiveFrom + kDropFramesWhileInactive
-					> crl::now())) {
-			} else {
-				_frames.fire_copy(frame);
-			}
-		});
-	}));
 	raw->setAudioOutputDevice(
 		settings.callOutputDeviceID().toStdString());
 	raw->setAudioInputDevice(
