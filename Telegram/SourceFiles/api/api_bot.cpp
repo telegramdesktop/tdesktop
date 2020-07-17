@@ -35,10 +35,11 @@ void SendBotCallbackData(
 	const auto owner = &history->owner();
 	const auto api = &session->api();
 	const auto bot = item->getMessageBot();
+	const auto fullId = item->fullId();
 	const auto getButton = [=] {
 		return HistoryMessageMarkupButton::Get(
 			owner,
-			item->fullId(),
+			fullId,
 			row,
 			column);
 	};
@@ -63,7 +64,11 @@ void SendBotCallbackData(
 		history->peer->input,
 		MTP_int(item->id),
 		MTP_bytes(sendData)
-	)).done([=](const MTPmessages_BotCallbackAnswer &result, auto id) {
+	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
+		const auto item = owner->message(fullId);
+		if (!item) {
+			return;
+		}
 		if (const auto button = getButton()) {
 			button->requestId = 0;
 			owner->requestItemRepaint(item);
@@ -91,7 +96,11 @@ void SendBotCallbackData(
 					Api::SendProgressType::PlayGame);
 			}
 		});
-	}).fail([=](const RPCError &error, auto id) {
+	}).fail([=](const RPCError &error) {
+		const auto item = owner->message(fullId);
+		if (!item) {
+			return;
+		}
 		// Show error?
 		if (const auto button = getButton()) {
 			button->requestId = 0;

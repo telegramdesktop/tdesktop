@@ -102,9 +102,13 @@ MimeType MimeTypeForData(const QByteArray &data) {
 	return MimeType(QMimeDatabase().mimeTypeForData(data));
 }
 
+bool IsMimeStickerAnimated(const QString &mime) {
+	return mime == qsl("application/x-tgsticker");
+}
+
 bool IsMimeSticker(const QString &mime) {
 	return mime == qsl("image/webp")
-		|| mime == qsl("application/x-tgsticker");
+		|| IsMimeStickerAnimated(mime);
 }
 
 } // namespace Core
