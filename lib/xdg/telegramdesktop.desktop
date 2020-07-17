@@ -2,6 +2,7 @@
 Version=1.0
 Name=Telegram Desktop
 Comment=Official desktop version of Telegram messaging app
+Comment[ru]=Официальная версия мессенджера Telegram для настольного ПК
 TryExec=telegram-desktop
 Exec=telegram-desktop -- %u
 Icon=telegram
