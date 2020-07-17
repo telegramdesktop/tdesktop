@@ -573,8 +573,11 @@ void DocumentData::setattributes(
 		});
 	}
 	if (type == StickerDocument
-		&& (!GoodStickerDimensions(dimensions.width(), dimensions.height())
-			|| (size > Storage::kMaxStickerBytesSize))) {
+		&& ((size > Storage::kMaxStickerBytesSize)
+			|| (!sticker()->animated
+				&& !GoodStickerDimensions(
+					dimensions.width(),
+					dimensions.height())))) {
 		type = FileDocument;
 		_additional = nullptr;
 	}
