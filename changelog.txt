@@ -1,3 +1,8 @@
+2.1.20 beta (17.07.20)
+
+- Fix animated emoji.
+- Fix crash in bot callback sending.
+
 2.1.19 beta (16.07.20)
 
 - File uploading in an inactive account correctly finishes.
