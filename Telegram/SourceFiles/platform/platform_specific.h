@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "window/window_controls_layout.h"
+
 namespace Platform {
 
 void start();
@@ -52,6 +54,7 @@ bool TrayIconSupported();
 QImage GetImageFromClipboard();
 bool StartSystemMove(QWindow *window);
 bool StartSystemResize(QWindow *window, Qt::Edges edges);
+Window::ControlsLayout WindowControlsLayout();
 
 namespace ThirdParty {
 

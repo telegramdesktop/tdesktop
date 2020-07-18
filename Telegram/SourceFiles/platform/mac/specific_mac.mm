@@ -283,6 +283,17 @@ void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
 
+Window::ControlsLayout WindowControlsLayout() {
+	Window::ControlsLayout controls;
+	controls.left = {
+		Window::Control::Close,
+		Window::Control::Minimize,
+		Window::Control::Maximize,
+	};
+
+	return controls;
+}
+
 } // namespace Platform
 
 void psNewVersion() {

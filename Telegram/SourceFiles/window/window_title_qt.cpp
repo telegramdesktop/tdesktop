@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "core/core_settings.h"
+#include "core/application.h"
 #include "styles/style_window.h"
 #include "base/call_delayed.h"
 
@@ -53,6 +55,11 @@ TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 		_close->clearState();
 	});
 	_close->setPointerCursor(false);
+
+	Core::App().settings().windowControlsLayoutChanges(
+	) | rpl::start_with_next([=] {
+		updateControlsPosition();
+	}, lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -106,10 +113,74 @@ void TitleWidgetQt::paintEvent(QPaintEvent *e) {
 }
 
 void TitleWidgetQt::updateControlsPosition() {
-	auto right = 0;
-	_close->moveToRight(right, 0); right += _close->width();
-	_maximizeRestore->moveToRight(right, 0); right += _maximizeRestore->width();
-	_minimize->moveToRight(right, 0);
+	const auto controlsLayout = Core::App().settings().windowControlsLayout();
+	const auto controlsLeft = controlsLayout.left;
+	const auto controlsRight = controlsLayout.right;
+
+	if (ranges::contains(controlsLeft, Control::Minimize)
+		|| ranges::contains(controlsRight, Control::Minimize)) {
+		_minimize->show();
+	} else {
+		_minimize->hide();
+	}
+
+	if (ranges::contains(controlsLeft, Control::Maximize)
+		|| ranges::contains(controlsRight, Control::Maximize)) {
+		_maximizeRestore->show();
+	} else {
+		_maximizeRestore->hide();
+	}
+
+	if (ranges::contains(controlsLeft, Control::Close)
+		|| ranges::contains(controlsRight, Control::Close)) {
+		_close->show();
+	} else {
+		_close->hide();
+	}
+
+	updateControlsPositionBySide(controlsLeft, false);
+	updateControlsPositionBySide(controlsRight, true);
+}
+
+void TitleWidgetQt::updateControlsPositionBySide(
+		const std::vector<Control> &controls,
+		bool right) {
+	const auto preparedControls = right
+		? (ranges::view::reverse(controls) | ranges::to_vector)
+		: controls;
+
+	auto position = 0;
+	for (const auto &control : preparedControls) {
+		switch (control) {
+		case Control::Minimize:
+			if (right) {
+				_minimize->moveToRight(position, 0);
+			} else {
+				_minimize->moveToLeft(position, 0);
+			}
+
+			position += _minimize->width();
+			break;
+		case Control::Maximize:
+			if (right) {
+				_maximizeRestore->moveToRight(position, 0);
+			} else {
+				_maximizeRestore->moveToLeft(position, 0);
+			}
+
+			position += _maximizeRestore->width();
+			break;
+		case Control::Close:
+			if (right) {
+				_close->moveToRight(position, 0);
+			} else {
+				_close->moveToLeft(position, 0);
+			}
+
+			position += _close->width();
+			break;
+		}
+	}
 }
 
 void TitleWidgetQt::resizeEvent(QResizeEvent *e) {

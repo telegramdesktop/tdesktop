@@ -181,6 +181,12 @@ void DarkModeChanged() {
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 	});
 }
+
+void DecorationLayoutChanged() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
+	});
+}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
@@ -288,6 +294,10 @@ void start() {
 
 		if (!gtk_check_version(3, 0, 0)) {
 			g_signal_connect(settings, "notify::gtk-application-prefer-dark-theme", G_CALLBACK(DarkModeChanged), nullptr);
+		}
+
+		if (!gtk_check_version(3, 12, 0)) {
+			g_signal_connect(settings, "notify::gtk-decoration-layout", G_CALLBACK(DecorationLayoutChanged), nullptr);
 		}
 	} else {
 		LOG(("Could not load gtk-3 or gtk-x11-2.0!"));

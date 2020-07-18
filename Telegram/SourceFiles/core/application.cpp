@@ -205,6 +205,8 @@ void Application::run() {
 		return;
 	}
 
+	Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
+
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 

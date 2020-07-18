@@ -580,6 +580,18 @@ bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
 	return false;
 }
 
+Window::Control GtkKeywordToWindowControl(const QString &keyword) {
+	if (keyword == qstr("minimize")) {
+		return Window::Control::Minimize;
+	} else if (keyword == qstr("maximize")) {
+		return Window::Control::Maximize;
+	} else if (keyword == qstr("close")) {
+		return Window::Control::Close;
+	}
+
+	return Window::Control::Unknown;
+}
+
 } // namespace
 
 void SetApplicationIcon(const QIcon &icon) {
@@ -937,6 +949,57 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
+}
+
+Window::ControlsLayout WindowControlsLayout() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Libs::GtkSettingSupported()
+		&& Libs::GtkLoaded()
+		&& Libs::gtk_check_version != nullptr
+		&& !Libs::gtk_check_version(3, 12, 0)) {
+		const auto decorationLayout = Libs::GtkSetting("gtk-decoration-layout").split(':');
+
+		std::vector<Window::Control> controlsLeft;
+		ranges::transform(
+			decorationLayout[0].split(','),
+			ranges::back_inserter(controlsLeft),
+			GtkKeywordToWindowControl
+		);
+
+		std::vector<Window::Control> controlsRight;
+		if (decorationLayout.size() > 1) {
+			ranges::transform(
+				decorationLayout[1].split(','),
+				ranges::back_inserter(controlsRight),
+				GtkKeywordToWindowControl
+			);
+		}
+
+		Window::ControlsLayout controls;
+		controls.left = controlsLeft;
+		controls.right = controlsRight;
+
+		return controls;
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	Window::ControlsLayout controls;
+
+	if (DesktopEnvironment::IsUnity()) {
+		controls.left = {
+			Window::Control::Close,
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+		};
+	} else {
+		controls.right = {
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+			Window::Control::Close,
+		};
+	}
+
+	return controls;
 }
 
 } // namespace Platform
