@@ -326,23 +326,27 @@ void SetupSpellchecker(
 }
 
 void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
-	const auto checkbox = [&](const QString &label, bool checked) {
+	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			label,
+			std::move(label),
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](const QString &label, bool checked) {
+	const auto addCheckbox = [&](
+			rpl::producer<QString> &&label,
+			bool checked) {
 		return container->add(
-			checkbox(label, checked),
+			checkbox(std::move(label), checked),
 			st::settingsCheckboxPadding);
 	};
-	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
+	const auto addSlidingCheckbox = [&](
+			rpl::producer<QString> &&label,
+			bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
-				checkbox(label, checked),
+				checkbox(std::move(label), checked),
 				st::settingsCheckboxPadding));
 	};
 	if (Platform::TrayIconSupported()) {
@@ -352,7 +356,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 				|| (workMode == dbiwmWindowAndTray);
 		};
 		const auto tray = addCheckbox(
-			tr::lng_settings_workmode_tray(tr::now),
+			tr::lng_settings_workmode_tray(),
 			trayEnabled());
 
 		const auto taskbarEnabled = [] {
@@ -362,7 +366,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 		};
 		const auto taskbar = Platform::IsWindows()
 			? addCheckbox(
-				tr::lng_settings_workmode_window(tr::now),
+				tr::lng_settings_workmode_window(),
 				taskbarEnabled())
 			: nullptr;
 
@@ -406,7 +410,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 	}
 	if (Platform::AllowNativeWindowFrameToggle()) {
 		const auto nativeFrame = addCheckbox(
-			tr::lng_settings_native_frame(tr::now),
+			tr::lng_settings_native_frame(),
 			Core::App().settings().nativeWindowFrame());
 
 		nativeFrame->checkedChanges(
@@ -423,10 +427,10 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 		};
 
 		const auto autostart = addCheckbox(
-			tr::lng_settings_auto_start(tr::now),
+			tr::lng_settings_auto_start(),
 			cAutoStart());
 		const auto minimized = addSlidingCheckbox(
-			tr::lng_settings_start_min(tr::now),
+			tr::lng_settings_start_min(),
 			minimizedToggled());
 
 		autostart->checkedChanges(
@@ -468,7 +472,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 
 	if (Platform::IsWindows() && !Platform::IsWindowsStoreBuild()) {
 		const auto sendto = addCheckbox(
-			tr::lng_settings_add_sendto(tr::now),
+			tr::lng_settings_add_sendto(),
 			cSendToMenu());
 
 		sendto->checkedChanges(
