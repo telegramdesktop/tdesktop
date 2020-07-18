@@ -418,6 +418,17 @@ bool AutostartSupported() {
 	return !IsWindowsStoreBuild();
 }
 
+Window::ControlsLayout WindowControlsLayout() {
+	Window::ControlsLayout controls;
+	controls.right = {
+		Window::Control::Minimize,
+		Window::Control::Maximize,
+		Window::Control::Close,
+	};
+
+	return controls;
+}
+
 } // namespace Platform
 
 namespace {
