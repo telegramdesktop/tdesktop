@@ -410,7 +410,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 
 	if (Platform::AllowNativeWindowFrameToggle()) {
 		const auto nativeFrame = addCheckbox(
-			"Use system window frame",
+			tr::lng_settings_native_frame(tr::now),
 			Core::App().settings().nativeWindowFrame());
 
 		nativeFrame->checkedChanges(
