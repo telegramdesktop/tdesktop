@@ -72,11 +72,11 @@ void SetupConnectionType(
 	const auto button = AddButtonWithLabel(
 		container,
 		tr::lng_settings_connection_type(),
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::ObservableViewer(
-			Global::RefConnectionTypeChanged()
-		)) | rpl::map(connectionType),
+		rpl::merge(
+			base::ObservableViewer(Global::RefConnectionTypeChanged()),
+			// Handle language switch.
+			tr::lng_connection_auto_connecting() | rpl::to_empty
+		) | rpl::map(connectionType),
 		st::settingsButton);
 	button->addClickHandler([=] {
 		Ui::show(ProxiesBoxController::CreateOwningBox(account));
