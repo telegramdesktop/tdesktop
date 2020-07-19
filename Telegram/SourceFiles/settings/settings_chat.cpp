@@ -1052,6 +1052,10 @@ void SetupDefaultThemes(
 			scheme.name(tr::now),
 			st::settingsTheme,
 			std::move(check));
+		scheme.name(
+		) | rpl::start_with_next([=](const auto &themeName) {
+			result->setText(themeName);
+		}, result->lifetime());
 		result->addClickHandler([=] {
 			schemeClicked(scheme, result->clickModifiers());
 		});
