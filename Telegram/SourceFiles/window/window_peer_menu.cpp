@@ -1167,7 +1167,7 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 				const auto api = &item->history()->peer->session().api();
 				for (const auto item : items) {
-					if (item->media() != nullptr) {
+					if (item->media() != nullptr && item->media()->webpage() == nullptr) {
 						if (item->media()->document() != nullptr) {
 							const auto document = item->media()->document();
 							auto message = ApiWrap::MessageToSend(history);
