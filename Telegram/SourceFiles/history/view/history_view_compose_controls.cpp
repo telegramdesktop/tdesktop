@@ -351,7 +351,7 @@ bool FieldHeader::isEditingMessage() const {
 }
 
 bool FieldHeader::hasPreview() const {
-	return _preview.data != nullptr;
+	return ShowWebPagePreview(_preview.data);
 }
 
 WebPageId FieldHeader::webPageId() const {
@@ -1012,6 +1012,13 @@ void ComposeControls::initWebpageProcess() {
 	}) | rpl::start_with_next((
 		requestRepaint
 	), lifetime);
+
+	_window->session().data().webPageUpdates(
+	) | rpl::filter([=](not_null<WebPageData*> page) {
+		return (*previewData == page.get());
+	}) | rpl::start_with_next([=] {
+		updatePreview();
+	}, lifetime);
 
 	const auto fieldLinksParser =
 		lifetime.make_state<MessageLinksParser>(_field);
