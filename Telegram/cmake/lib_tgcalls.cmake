@@ -15,6 +15,10 @@ nice_target_sources(lib_tgcalls ${tgcalls_loc}
 PRIVATE
     CodecSelectHelper.cpp
     CodecSelectHelper.h
+    CryptoHelper.cpp
+    CryptoHelper.h
+    EncryptedConnection.cpp
+    EncryptedConnection.h
     Instance.cpp
     Instance.h
     InstanceImpl.cpp
@@ -25,10 +29,10 @@ PRIVATE
     Manager.h
     MediaManager.cpp
     MediaManager.h
+    Message.cpp
+    Message.h
     NetworkManager.cpp
     NetworkManager.h
-    SignalingMessage.cpp
-    SignalingMessage.h
     ThreadLocalObject.h
     VideoCaptureInterface.cpp
     VideoCaptureInterface.h

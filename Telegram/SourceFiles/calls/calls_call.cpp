@@ -643,18 +643,15 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 
 void Call::createAndStartController(const MTPDphoneCall &call) {
 	_discardByTimeoutTimer.cancel();
-	if (!checkCallFields(call)) {
+	if (!checkCallFields(call) || _authKey.size() != 256) {
 		return;
 	}
 
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
 	const auto &serverConfig = _user->session().serverConfig();
 
-	auto encryptionKeyValue = ranges::view::all(
-		_authKey
-	) | ranges::view::transform([](bytes::type byte) {
-		return static_cast<uint8_t>(byte);
-	}) | ranges::to_vector;
+	auto encryptionKeyValue = std::make_shared<std::array<uint8_t, 256>>();
+	memcpy(encryptionKeyValue->data(), _authKey.data(), 256);
 
 	const auto weak = base::make_weak(this);
 	auto descriptor = tgcalls::Descriptor{
