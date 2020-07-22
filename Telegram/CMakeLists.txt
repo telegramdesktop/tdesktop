@@ -193,16 +193,6 @@ if (NOT HAVE_LONG_ATOMIC_WITHOUT_LIB)
     target_link_libraries(Telegram PRIVATE atomic)
 endif()
 
-if (DESKTOP_APP_USE_PACKAGED)
-    set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-    find_package(Threads REQUIRED)
-
-    target_link_libraries(Telegram
-    PRIVATE
-        Threads::Threads
-    )
-endif()
-
 target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 nice_target_sources(Telegram ${src_loc}
 PRIVATE
