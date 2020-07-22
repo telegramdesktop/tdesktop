@@ -79,7 +79,6 @@ struct TWindowPos {
 	int h = 0;
 };
 DeclareSetting(TWindowPos, WindowPos);
-DeclareSetting(bool, SupportTray);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);

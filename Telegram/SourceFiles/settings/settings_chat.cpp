@@ -982,7 +982,9 @@ void SetupChatBackground(
 	}, adaptive->lifetime());
 }
 
-void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
+void SetupDefaultThemes(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container) {
 	using Type = Window::Theme::EmbeddedType;
 	using Scheme = Window::Theme::EmbeddedScheme;
 	using Check = Window::Theme::CloudListCheck;
@@ -1015,13 +1017,18 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		};
 		const auto currentlyIsCustom = (chosen() == Type(-1))
 			&& !Background()->themeObject().cloud.id;
+		const auto keep = [=] {
+			if (!currentlyIsCustom) {
+				KeepApplied();
+			}
+		};
 		if (IsNightMode() == isNight(scheme)) {
 			ApplyDefaultWithPath(scheme.path);
+			keep();
 		} else {
-			ToggleNightMode(scheme.path);
-		}
-		if (!currentlyIsCustom) {
-			KeepApplied();
+			Window::Theme::ToggleNightModeWithConfirmation(
+				window,
+				[=, path = scheme.path] { ToggleNightMode(path); keep();});
 		}
 	};
 	const auto schemeClicked = [=](
@@ -1163,7 +1170,7 @@ void SetupThemeOptions(
 	AddSubsectionTitle(container, tr::lng_settings_themes());
 
 	AddSkip(container, st::settingsThemesTopSkip);
-	SetupDefaultThemes(container);
+	SetupDefaultThemes(&controller->window(), container);
 	AddSkip(container);
 }
 
@@ -1258,6 +1265,47 @@ void SetupCloudThemes(
 	AddSkip(inner, 2 * st::settingsSectionSkip);
 
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
+}
+
+void SetupAutoNightMode(not_null<Ui::VerticalLayout*> container) {
+	if (!Platform::IsDarkModeSupported()) {
+		return;
+	}
+
+	AddDivider(container);
+	AddSkip(container, st::settingsPrivacySkip);
+
+	AddSubsectionTitle(container, tr::lng_settings_auto_night_mode());
+
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	const auto autoNight = wrap->add(
+		object_ptr<Ui::Checkbox>(
+			wrap,
+			tr::lng_settings_auto_night_enabled(tr::now),
+			Core::App().settings().systemDarkModeEnabled(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding);
+
+	autoNight->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != Core::App().settings().systemDarkModeEnabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setSystemDarkModeEnabled(checked);
+		Core::App().saveSettingsDelayed();
+	}, autoNight->lifetime());
+
+	Core::App().settings().systemDarkModeEnabledChanges(
+	) | rpl::filter([=](bool value) {
+		return (value != autoNight->checked());
+	}) | rpl::start_with_next([=](bool value) {
+		autoNight->setChecked(value);
+	}, autoNight->lifetime());
+
+	container->add(object_ptr<Ui::OverrideMargins>(
+		container,
+		std::move(wrap)));
+
+	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupSupportSwitchSettings(
@@ -1381,6 +1429,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupThemeOptions(controller, content);
+	SetupAutoNightMode(content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);

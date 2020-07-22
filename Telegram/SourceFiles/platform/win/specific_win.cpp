@@ -384,27 +384,34 @@ std::optional<crl::time> LastUserInputTime() {
 }
 
 std::optional<bool> IsDarkMode() {
-	if (QOperatingSystemVersion::current()
-        < QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 17763)) {
+	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		17763);
+	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
+	if (!kSupported) {
 		return std::nullopt;
 	}
 
-	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
-	LPCWSTR lpValueName = L"AppsUseLightTheme";
-	HKEY key;
-	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
+	const auto keyName = L""
+		"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+	const auto valueName = L"AppsUseLightTheme";
+	auto key = HKEY();
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, keyName, 0, KEY_READ, &key);
 	if (result != ERROR_SUCCESS) {
 		return std::nullopt;
 	}
 
 	DWORD value = 0, type = 0, size = sizeof(value);
-	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
+	result = RegQueryValueEx(key, valueName, 0, &type, (LPBYTE)&value, &size);
 	RegCloseKey(key);
 	if (result != ERROR_SUCCESS) {
 		return std::nullopt;
 	}
 
-	return value == 0;
+	return (value == 0);
 }
 
 bool AutostartSupported() {

@@ -47,6 +47,7 @@ void FallbackFontConfigCheckBegin();
 void FallbackFontConfigCheckEnd();
 
 bool GtkClipboardSupported();
+void SetTrayIconSupported(bool supported);
 
 } // namespace Platform
 

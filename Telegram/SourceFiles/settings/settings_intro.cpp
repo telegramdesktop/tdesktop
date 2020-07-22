@@ -75,16 +75,14 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 		SetupUpdate(result);
 		AddSkip(result);
 	}
-	if (HasTray()) {
-		AddDivider(result);
-		AddSkip(result);
-		SetupTray(result);
-		AddSkip(result);
-	}
+	AddDivider(result);
+	AddSkip(result);
+	SetupSystemIntegrationContent(result);
+	AddSkip(result);
 	AddDivider(result);
 	AddSkip(result);
 	SetupInterfaceScale(result, false);
-	SetupDefaultThemes(result);
+	SetupDefaultThemes(window, result);
 	AddSkip(result);
 
 	if (anim::Disabled()) {

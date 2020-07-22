@@ -212,24 +212,8 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
 	startEmojiImageLoader();
+	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
-
-	const auto darkModeChanged = [] {
-		const auto darkMode = Core::App().settings().systemDarkMode();
-		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
-		if (darkModeEnabled
-			&& darkMode.has_value()
-			&& (*darkMode != Window::Theme::IsNightMode())) {
-			Window::Theme::ToggleNightMode();
-			Window::Theme::KeepApplied();
-		}
-	};
-
-	Core::App().settings().systemDarkModeChanges(
-	) | rpl::start_with_next(darkModeChanged, _lifetime);
-
-	Core::App().settings().systemDarkModeEnabledChanges(
-	) | rpl::start_with_next(darkModeChanged, _lifetime);
 
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
@@ -250,10 +234,10 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<Window::Controller>();
+
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
 		_window->showAccount(account);
-		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 	}, _window->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
@@ -267,16 +251,8 @@ void Application::run() {
 
 	// Depend on activeWindow() for now :(
 	startShortcuts();
-
 	App::initMedia();
-
-	const auto state = _domain->start(QByteArray());
-	if (state == Storage::StartResult::IncorrectPasscode) {
-		Global::SetLocalPasscode(true);
-		Global::RefLocalPasscodeChanged().notify();
-		lockByPasscode();
-		DEBUG_LOG(("Application Info: passcode needed..."));
-	}
+	startDomain();
 
 	_window->widget()->show();
 
@@ -296,6 +272,47 @@ void Application::run() {
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
+}
+
+void Application::startDomain() {
+	const auto state = _domain->start(QByteArray());
+	if (state != Storage::StartResult::IncorrectPasscodeLegacy) {
+		// In case of non-legacy passcoded app all global settings are ready.
+		startSettingsAndBackground();
+	}
+	if (state != Storage::StartResult::Success) {
+		Global::SetLocalPasscode(true);
+		Global::RefLocalPasscodeChanged().notify();
+		lockByPasscode();
+		DEBUG_LOG(("Application Info: passcode needed..."));
+	}
+}
+
+void Application::startSettingsAndBackground() {
+	Local::rewriteSettingsIfNeeded();
+	Window::Theme::Background()->start();
+	checkSystemDarkMode();
+}
+
+void Application::checkSystemDarkMode() {
+	const auto maybeDarkMode = _settings.systemDarkMode();
+	const auto darkModeEnabled = _settings.systemDarkModeEnabled();
+	const auto needToSwitch = darkModeEnabled
+		&& maybeDarkMode
+		&& (*maybeDarkMode != Window::Theme::IsNightMode());
+	if (needToSwitch) {
+		Window::Theme::ToggleNightMode();
+		Window::Theme::KeepApplied();
+	}
+}
+
+void Application::startSystemDarkModeViewer() {
+	rpl::merge(
+		_settings.systemDarkModeChanges() | rpl::to_empty,
+		_settings.systemDarkModeEnabledChanges() | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		checkSystemDarkMode();
+	}, _lifetime);
 }
 
 auto Application::prepareEmojiSourceImages()

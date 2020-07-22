@@ -894,10 +894,19 @@ void MainMenu::refreshMenu() {
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();
 	auto action = _menu->addAction(tr::lng_menu_night_mode(tr::now), [=] {
-		if (auto action = *_nightThemeAction) {
-			action->setChecked(!action->isChecked());
-			_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
-		}
+		const auto weak = MakeWeak(this);
+		const auto toggle = [=] {
+			if (!weak) {
+				Window::Theme::ToggleNightMode();
+				Window::Theme::KeepApplied();
+			} else if (auto action = *_nightThemeAction) {
+				action->setChecked(!action->isChecked());
+				_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
+			}
+		};
+		Window::Theme::ToggleNightModeWithConfirmation(
+			&_controller->window(),
+			toggle);
 	}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
 	*_nightThemeAction = action;
 	action->setCheckable(true);
@@ -908,12 +917,6 @@ void MainMenu::refreshMenu() {
 		if (darkModeEnabled && darkMode.has_value()) {
 			action->setChecked(*darkMode);
 		}
-		action->setEnabled(!darkModeEnabled || !darkMode.has_value());
-	}, lifetime());
-	Core::App().settings().systemDarkModeEnabledChanges(
-	) | rpl::start_with_next([=](bool darkModeEnabled) {
-		const auto darkMode = Core::App().settings().systemDarkMode();
-		action->setEnabled(!darkModeEnabled || !darkMode.has_value());
 	}, lifetime());
 	_menu->finishAnimating();
 

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Settings {
 
 void SetupDataStorage(
@@ -17,7 +21,9 @@ void SetupDataStorage(
 void SetupAutoDownload(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container);
-void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
+void SetupDefaultThemes(
+	not_null<Window::Controller*> window,
+	not_null<Ui::VerticalLayout*> container);
 void SetupSupport(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container);

@@ -263,10 +263,6 @@ void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
 
-bool AutostartSupported() {
-	return false;
-}
-
 } // namespace Platform
 
 void psNewVersion() {
