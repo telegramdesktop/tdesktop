@@ -72,9 +72,7 @@ if (LINUX)
     PRIVATE
         desktop-app::external_materialdecoration
         desktop-app::external_nimf_qt5
-        desktop-app::external_qt5ct
-        desktop-app::external_qt5ct_style
-        desktop-app::external_qt5ct_qtplugin
+        desktop-app::external_qt5ct_support
     )
 
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
@@ -106,6 +104,7 @@ PRIVATE
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
     tdesktop::lib_export
+    tdesktop::lib_tgvoip
     desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::lib_ui
@@ -122,7 +121,6 @@ PRIVATE
     desktop-app::external_qr_code_generator
     desktop-app::external_crash_reports
     desktop-app::external_auto_updates
-    tdesktop::lib_tgvoip
     desktop-app::external_openssl
     desktop-app::external_openal
 )
