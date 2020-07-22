@@ -238,8 +238,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	updateDragAreas();
 
 	return {
+		.document = attachDragDocument,
 		.photo = attachDragPhoto,
-		.document = attachDragDocument
 	};
 }
 
