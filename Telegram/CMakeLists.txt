@@ -127,7 +127,7 @@ PRIVATE
     desktop-app::external_openal
 )
 
-if (LINUX AND DESKTOP_APP_USE_PACKAGED)
+if (LINUX AND DESKTOP_APP_USE_PACKAGED AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
 

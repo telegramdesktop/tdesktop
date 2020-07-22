@@ -41,7 +41,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
 #include <wayland-client.h>
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -463,6 +466,7 @@ uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	return 0;
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
 enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 	if (edges == (Qt::TopEdge | Qt::LeftEdge))
 		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
@@ -483,6 +487,7 @@ enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 
 	return WL_SHELL_SURFACE_RESIZE_NONE;
 }
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 bool StartXCBMoveResize(QWindow *window, int edges) {
 	const auto native = QGuiApplication::platformNativeInterface();
