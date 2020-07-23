@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // e is NSEvent*
 bool objc_handleMediaKeyEvent(void *e);
 
-bool objc_darkMode();
-
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
 

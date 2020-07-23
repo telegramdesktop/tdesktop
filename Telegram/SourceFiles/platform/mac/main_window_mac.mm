@@ -199,6 +199,7 @@ private:
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 		Core::App().domain().notifyUnreadBadgeChanged();
 	});
 }
@@ -650,7 +651,7 @@ void MainWindow::updateIconCounters() {
 	_private->setWindowBadge(string);
 
 	if (trayIcon) {
-		bool dm = objc_darkMode();
+		bool dm = Platform::IsDarkMenuBar();
 		auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "base/platform/base_platform_info.h"
 
 #include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
@@ -135,6 +136,25 @@ void RemoveQuarantine(const QString &path) {
 	DEBUG_LOG(("Removing quarantine attribute: %1").arg(path));
 	const auto local = QFile::encodeName(path);
 	removexattr(local.data(), kQuarantineAttribute, 0);
+}
+
+bool IsDarkMenuBar() {
+	bool result = false;
+	@autoreleasepool {
+
+	NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
+	id style = [dict objectForKey:Q2NSString(strStyleOfInterface())];
+	BOOL darkModeOn = (style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"]);
+	result = darkModeOn ? true : false;
+
+	}
+	return result;
+}
+
+std::optional<bool> IsDarkMode() {
+	return IsMac10_14OrGreater()
+		? std::make_optional(IsDarkMenuBar())
+		: std::nullopt;
 }
 
 void RegisterCustomScheme(bool force) {

@@ -18,9 +18,7 @@ namespace Platform {
 
 void RemoveQuarantine(const QString &path);
 
-inline std::optional<bool> IsDarkMode() {
-	return std::nullopt;
-}
+[[nodiscard]] bool IsDarkMenuBar();
 
 inline void FallbackFontConfigCheckBegin() {
 }

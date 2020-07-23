@@ -218,19 +218,6 @@ void SetApplicationIcon(const QIcon &icon) {
 
 } // namespace Platform
 
-bool objc_darkMode() {
-	bool result = false;
-	@autoreleasepool {
-
-	NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
-	id style = [dict objectForKey:Q2NSString(strStyleOfInterface())];
-	BOOL darkModeOn = (style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"]);
-	result = darkModeOn ? true : false;
-
-	}
-	return result;
-}
-
 bool objc_handleMediaKeyEvent(void *ev) {
 	auto e = reinterpret_cast<NSEvent*>(ev);
 
