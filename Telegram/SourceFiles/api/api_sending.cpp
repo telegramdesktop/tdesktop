@@ -525,9 +525,13 @@ void SendConfirmedFile(
 	}
 
 	session->data().sendHistoryChangeNotifications();
-	session->changes().historyUpdated(
-		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+	if (!itemToEdit) {
+		session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+	}
 }
 
 } // namespace Api

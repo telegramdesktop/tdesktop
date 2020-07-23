@@ -3116,7 +3116,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 	}
 	session().changes().historyUpdated(
 		_history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {

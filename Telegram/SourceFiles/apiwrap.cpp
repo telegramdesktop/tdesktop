@@ -3903,8 +3903,10 @@ void ApiWrap::userPhotosDone(
 //}
 
 void ApiWrap::sendAction(const SendAction &action) {
-	_session->data().histories().readInbox(action.history);
-	action.history->getReadyFor(ShowAtTheEndMsgId);
+	if (!action.options.scheduled) {
+		_session->data().histories().readInbox(action.history);
+		action.history->getReadyFor(ShowAtTheEndMsgId);
+	}
 	_sendActions.fire_copy(action);
 }
 
@@ -3924,7 +3926,9 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
 		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(action.options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void ApiWrap::forwardMessages(
@@ -4164,7 +4168,9 @@ void ApiWrap::sendSharedContact(
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
 		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(action.options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void ApiWrap::sendVoiceMessage(
