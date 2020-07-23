@@ -370,7 +370,7 @@ protected:
 	void updateUserpic(
 		PhotoId photoId,
 		MTP::DcId dcId,
-		const MTPFileLocation &location);
+		const MTPFileLocation &small);
 	void clearUserpic();
 
 private:
