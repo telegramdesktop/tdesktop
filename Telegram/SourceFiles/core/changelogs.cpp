@@ -85,6 +85,16 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Passcode doesn't auto-lock while you're active in other apps on Linux X11."
 	},
+	{
+		2001021,
+		"- Edit your scheduled messages.\n"
+
+		"- See the unread messages indicator for the secondary accounts on the main menu button.\n"
+
+		"- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.\n"
+
+		"- Enjoy dark native window frame for Telegram night mode on Windows.\n"
+	},
 	};
 };
 

@@ -1,3 +1,10 @@
+2.1.21 beta (24.07.20)
+
+- Edit your scheduled messages.
+- See the unread messages indicator for the secondary accounts on the main menu button.
+- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.
+- Enjoy dark native window frame for Telegram night mode on Windows.
+
 2.1.20 beta (17.07.20)
 
 - Fix animated emoji.
