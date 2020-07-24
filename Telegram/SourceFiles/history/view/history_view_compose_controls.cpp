@@ -39,6 +39,7 @@ namespace HistoryView {
 
 namespace {
 
+using FileChosen = ComposeControls::FileChosen;
 using MessageToEdit = ComposeControls::MessageToEdit;
 
 constexpr auto kMouseEvent = {
@@ -502,7 +503,7 @@ void ComposeControls::setMimeDataHook(MimeDataHook hook) {
 	_field->setMimeDataHook(std::move(hook));
 }
 
-rpl::producer<not_null<DocumentData*>> ComposeControls::fileChosen() const {
+rpl::producer<FileChosen> ComposeControls::fileChosen() const {
 	return _fileChosen.events();
 }
 

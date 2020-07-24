@@ -248,7 +248,9 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
-	bool sendExistingDocument(not_null<DocumentData*> document);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options);
 	bool sendExistingPhoto(not_null<PhotoData*> photo);
 
 	void showInfoTooltip(

@@ -409,10 +409,10 @@ rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
 	return emoji()->chosen();
 }
 
-rpl::producer<not_null<DocumentData*>> TabbedSelector::fileChosen() const {
+rpl::producer<TabbedSelector::FileChosen> TabbedSelector::fileChosen() const {
 	return full()
 		? rpl::merge(stickers()->chosen(), gifs()->fileChosen())
-		: rpl::never<not_null<DocumentData*>>() | rpl::type_erased();
+		: rpl::never<TabbedSelector::FileChosen>() | rpl::type_erased();
 }
 
 rpl::producer<not_null<PhotoData*>> TabbedSelector::photoChosen() const {

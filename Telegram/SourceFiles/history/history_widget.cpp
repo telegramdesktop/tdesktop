@@ -387,7 +387,7 @@ HistoryWidget::HistoryWidget(
 	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, &FieldAutocomplete::stickerChosen, this, [=](not_null<DocumentData*> document) {
-		sendExistingDocument(document);
+		sendExistingDocument(document, Api::SendOptions());
 	});
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	if (_supportAutocomplete) {
@@ -818,8 +818,8 @@ void HistoryWidget::initTabbedSelector() {
 	selector->fileChosen(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		sendExistingDocument(document);
+	}) | rpl::start_with_next([=](TabbedSelector::FileChosen data) {
+		sendExistingDocument(data.document, data.options);
 	}, lifetime());
 
 	selector->photoChosen(
@@ -5368,7 +5368,9 @@ void HistoryWidget::destroyPinnedBar() {
 	_inPinnedMsg = false;
 }
 
-bool HistoryWidget::sendExistingDocument(not_null<DocumentData*> document) {
+bool HistoryWidget::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_stickers)
 		: std::nullopt;
@@ -5382,6 +5384,7 @@ bool HistoryWidget::sendExistingDocument(not_null<DocumentData*> document) {
 	}
 
 	auto message = Api::MessageToSend(_history);
+	message.action.options = std::move(options);
 	message.action.replyTo = replyToId();
 	Api::SendExistingDocument(std::move(message), document);
 

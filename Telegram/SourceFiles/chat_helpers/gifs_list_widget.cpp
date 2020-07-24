@@ -165,7 +165,7 @@ GifsListWidget::GifsListWidget(
 	});
 }
 
-rpl::producer<not_null<DocumentData*>> GifsListWidget::fileChosen() const {
+rpl::producer<TabbedSelector::FileChosen> GifsListWidget::fileChosen() const {
 	return _fileChosen.events();
 }
 
@@ -391,7 +391,7 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		const auto media = document->activeMediaView();
 		const auto preview = Data::VideoPreviewState(media.get());
 		if (ctrl || (media && preview.loaded())) {
-			_fileChosen.fire_copy(document);
+			_fileChosen.fire_copy({ .document = document });
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {
 				document->cancel();

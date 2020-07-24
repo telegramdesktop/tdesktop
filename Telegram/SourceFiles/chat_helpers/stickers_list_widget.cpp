@@ -913,7 +913,7 @@ Main::Session &StickersListWidget::session() const {
 	return controller()->session();
 }
 
-rpl::producer<not_null<DocumentData*>> StickersListWidget::chosen() const {
+rpl::producer<TabbedSelector::FileChosen> StickersListWidget::chosen() const {
 	return _chosen.events();
 }
 
@@ -2087,7 +2087,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 						document));
 				}
 			} else {
-				_chosen.fire_copy(document);
+				_chosen.fire_copy({ .document = document });
 			}
 		} else if (auto set = base::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());

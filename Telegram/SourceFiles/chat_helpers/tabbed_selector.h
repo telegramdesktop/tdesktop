@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -46,6 +47,10 @@ class GifsListWidget;
 
 class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
 public:
+	struct FileChosen {
+		not_null<DocumentData*> document;
+		Api::SendOptions options;
+	};
 	struct InlineChosen {
 		not_null<InlineBots::Result*> result;
 		not_null<UserData*> bot;
@@ -64,7 +69,7 @@ public:
 	Main::Session &session() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
-	rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<not_null<PhotoData*>> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 

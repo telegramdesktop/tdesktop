@@ -199,8 +199,9 @@ void ScheduledWidget::setupComposeControls() {
 	}, lifetime());
 
 	_composeControls->fileChosen(
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		sendExistingDocument(document);
+	) | rpl::start_with_next([=](
+			ChatHelpers::TabbedSelector::FileChosen chosen) {
+		sendExistingDocument(chosen.document);
 	}, lifetime());
 
 	_composeControls->photoChosen(

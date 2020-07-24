@@ -54,6 +54,7 @@ class FieldHeader;
 
 class ComposeControls final {
 public:
+	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
 	enum class Mode {
 		Normal,
 		Scheduled,
@@ -85,7 +86,7 @@ public:
 	[[nodiscard]] rpl::producer<> sendRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<> attachRequests() const;
-	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
 	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
@@ -154,7 +155,7 @@ private:
 	const std::unique_ptr<FieldHeader> _header;
 
 	rpl::event_stream<> _cancelRequests;
-	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
+	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
 
