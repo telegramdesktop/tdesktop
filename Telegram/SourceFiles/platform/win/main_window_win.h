@@ -90,9 +90,10 @@ protected:
 	QTimer psUpdatedPositionTimer;
 
 private:
+	void setupNativeWindowFrame();
 	void updateIconCounters();
 	QMargins computeCustomMargins();
-	void validateWindowTheme();
+	void validateWindowTheme(bool native, bool night);
 	void psDestroyIcons();
 	void fixMaximizedWindow();
 
@@ -102,6 +103,8 @@ private:
 
 	bool _themeInited = false;
 	bool _inUpdateMargins = false;
+	bool _wasNativeFrame = false;
+	bool _hasActiveFrame = false;
 
 	HWND ps_hWnd = nullptr;
 	HWND ps_tbHider_hWnd = nullptr;
