@@ -70,9 +70,9 @@ bool DrawWebPageDataPreview(Painter &p, not_null<WebPageData*> d, QRect to) {
 	const auto preview = photo
 		? photo->getReplyPreview(Data::FileOrigin())
 		: document->getReplyPreview(Data::FileOrigin());
-	const auto w = preview->width();
-	const auto h = preview->height();
 	if (preview) {
+		const auto w = preview->width();
+		const auto h = preview->height();
 		if (w == h) {
 			p.drawPixmap(to.x(), to.y(), preview->pix());
 		} else {

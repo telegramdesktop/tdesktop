@@ -89,7 +89,7 @@ std::map<int, const char*> BetaLogs() {
 		2001021,
 		"- Edit your scheduled messages.\n"
 
-		"- See the unread messages indicator for the secondary accounts on the main menu button.\n"
+		"- See the unread messages indicator for your additional accounts on the main menu button.\n"
 
 		"- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.\n"
 
