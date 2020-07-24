@@ -26,6 +26,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 QString PrepareMentionTag(not_null<UserData*> user);
 TextWithTags PrepareEditText(not_null<HistoryItem*> item);
 
@@ -105,6 +109,12 @@ enum class SendMenuType {
 	ScheduledToUser, // For "Send when online".
 	Reminder,
 };
+
+bool FillSendMenu(
+	not_null<Ui::PopupMenu*> menu,
+	Fn<SendMenuType()> type,
+	Fn<void()> silent,
+	Fn<void()> schedule);
 
 void SetupSendMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
