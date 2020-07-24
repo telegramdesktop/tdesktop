@@ -1,3 +1,7 @@
+2.1.22 beta (24.07.20)
+
+- Fix crash in web page preview display.
+
 2.1.21 beta (24.07.20)
 
 - Edit your scheduled messages.
