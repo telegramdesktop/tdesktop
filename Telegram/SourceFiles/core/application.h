@@ -140,6 +140,7 @@ public:
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
 	[[nodiscard]] QWidget *getModalParent();
+	void checkSystemDarkMode();
 
 	// Media view interface.
 	void checkMediaViewActivation();
@@ -161,6 +162,7 @@ public:
 		return _logoNoMargin;
 	}
 
+	void startSettingsAndBackground();
 	[[nodiscard]] Settings &settings() {
 		return _settings;
 	}
@@ -290,7 +292,9 @@ private:
 		-> std::shared_ptr<Ui::Emoji::UniversalImages>;
 	void startLocalStorage();
 	void startShortcuts();
+	void startDomain();
 	void startEmojiImageLoader();
+	void startSystemDarkModeViewer();
 
 	void stateChanged(Qt::ApplicationState state);
 

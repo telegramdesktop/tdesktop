@@ -29,6 +29,10 @@ extern "C" {
 namespace Platform {
 namespace Libs {
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+bool GtkLoaded();
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
 void start();
 
 template <typename Function>
@@ -49,6 +53,9 @@ bool load(QLibrary &lib, const char *name, Function &func) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 typedef gboolean (*f_gtk_init_check)(int *argc, char ***argv);
 extern f_gtk_init_check gtk_init_check;
+
+typedef const gchar* (*f_gtk_check_version)(guint required_major, guint required_minor, guint required_micro);
+extern f_gtk_check_version gtk_check_version;
 
 typedef GtkSettings* (*f_gtk_settings_get_default)(void);
 extern f_gtk_settings_get_default gtk_settings_get_default;
@@ -252,6 +259,25 @@ extern f_gdk_pixbuf_get_height gdk_pixbuf_get_height;
 
 typedef int (*f_gdk_pixbuf_get_rowstride)(const GdkPixbuf *pixbuf);
 extern f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride;
+
+inline bool GtkSettingSupported() {
+	return gtk_settings_get_default != nullptr;
+}
+
+template <typename T>
+inline T GtkSetting(const gchar *propertyName) {
+	GtkSettings *settings = gtk_settings_get_default();
+	T value;
+	g_object_get(settings, propertyName, &value, nullptr);
+	return value;
+}
+
+inline QString GtkSetting(const gchar *propertyName) {
+	gchararray value = GtkSetting<gchararray>(propertyName);
+	QString str = QString::fromUtf8(value);
+	g_free(value);
+	return str;
+}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs

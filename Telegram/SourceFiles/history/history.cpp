@@ -2895,20 +2895,7 @@ HistoryItem *History::lastSentMessage() const {
 	for (const auto &block : ranges::view::reverse(blocks)) {
 		for (const auto &message : ranges::view::reverse(block->messages)) {
 			const auto item = message->data();
-			// Skip if message is editing media.
-			if (item->isEditingMedia()) {
-				continue;
-			}
-			// Skip if message is video message or sticker.
-			if (const auto media = item->media()) {
-				// Skip only if media is not webpage.
-				if (!media->webpage() && !media->allowsEditCaption()) {
-					continue;
-				}
-			}
-			if (IsServerMsgId(item->id)
-				&& !item->serviceMsg()
-				&& (item->out() || peer->isSelf())) {
+			if (item->canBeEditedFromHistory()) {
 				return item;
 			}
 		}

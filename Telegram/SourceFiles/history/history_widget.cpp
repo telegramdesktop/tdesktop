@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
+#include "api/api_editing.h"
 #include "api/api_bot.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
@@ -58,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_schedule_box.h"
+#include "history/view/history_view_webpage_preview.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
@@ -87,7 +89,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "ui/unread_badge.h"
-#include "ui/delayed_activation.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "window/themes/window_theme.h"
@@ -112,6 +113,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
+#include <QGuiApplication> // keyboardModifiers()
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
 
@@ -135,12 +137,6 @@ constexpr auto kCommonModifiers = 0
 	| Qt::MetaModifier
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
-
-void ActivateWindow(not_null<Window::SessionController*> controller) {
-	const auto window = controller->widget();
-	window->activateWindow();
-	Ui::ActivateWindowDelayed(window);
-}
 
 object_ptr<Ui::FlatButton> SetupDiscussButton(
 		not_null<QWidget*> parent,
@@ -297,9 +293,6 @@ HistoryWidget::HistoryWidget(
 	return recordingAnimationCallback(now);
 })
 , _kbScroll(this, st::botKbScroll)
-, _attachDragState(DragState::None)
-, _attachDragDocument(this)
-, _attachDragPhoto(this)
 , _topShadow(this) {
 	setAcceptDrops(true);
 
@@ -453,18 +446,22 @@ HistoryWidget::HistoryWidget(
 	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
 	_botCommandStart->addClickHandler([=] { startBotCommand(); });
 
-	_attachDragDocument->hide();
-	_attachDragPhoto->hide();
-
 	_topShadow->hide();
 
-	_attachDragDocument->setDroppedCallback([=](const QMimeData *data) {
+	_attachDragAreas = DragArea::SetupDragAreaToContainer(
+		this,
+		crl::guard(this, [=](not_null<const QMimeData*> d) {
+			return _history && _canSendMessages;
+		}),
+		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
+		crl::guard(this, [=] { updateControlsGeometry(); }));
+	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::No);
-		ActivateWindow(controller);
+		Window::ActivateWindow(controller);
 	});
-	_attachDragPhoto->setDroppedCallback([=](const QMimeData *data) {
+	_attachDragAreas.photo->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
-		ActivateWindow(controller);
+		Window::ActivateWindow(controller);
 	});
 
 	subscribe(Adaptive::Changed(), [=] {
@@ -1249,8 +1246,8 @@ void HistoryWidget::orderWidgets() {
 		_tabbedPanel->raise();
 	}
 	_raiseEmojiSuggestions();
-	_attachDragDocument->raise();
-	_attachDragPhoto->raise();
+	_attachDragAreas.document->raise();
+	_attachDragAreas.photo->raise();
 }
 
 void HistoryWidget::updateStickersByEmoji() {
@@ -1463,7 +1460,7 @@ void HistoryWidget::onRecordDone(
 		qint32 samples) {
 	if (!canWriteMessage() || result.isEmpty()) return;
 
-	ActivateWindow(controller());
+	Window::ActivateWindow(controller());
 	const auto duration = samples / Media::Player::kDefaultFrequency;
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
@@ -2078,8 +2075,8 @@ void HistoryWidget::refreshScheduledToggle() {
 }
 
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
-	return (_attachDragDocument->overlaps(globalRect)
-			|| _attachDragPhoto->overlaps(globalRect)
+	return (_attachDragAreas.document->overlaps(globalRect)
+			|| _attachDragAreas.photo->overlaps(globalRect)
 			|| _fieldAutocomplete->overlaps(globalRect)
 			|| (_tabbedPanel && _tabbedPanel->overlaps(globalRect))
 			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
@@ -2960,7 +2957,9 @@ void HistoryWidget::onWindowVisibleChanged() {
 }
 
 void HistoryWidget::historyDownClicked() {
-	if (_replyReturn && _replyReturn->history() == _history) {
+	if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		showHistory(_peer->id, ShowAtUnreadMsgId);
+	} else if (_replyReturn && _replyReturn->history() == _history) {
 		showHistory(_peer->id, _replyReturn->id);
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
 		showHistory(_peer->id, -_replyReturn->id);
@@ -3011,8 +3010,9 @@ void HistoryWidget::saveEditMsg() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
+	const auto item = session().data().message(_channel, _editMsgId);
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		if (const auto item = session().data().message(_channel, _editMsgId)) {
+		if (item) {
 			const auto suggestModerateActions = false;
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		} else {
@@ -3025,85 +3025,55 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	auto sendFlags = MTPmessages_EditMessage::Flag::f_message | 0;
-	if (webPageId == CancelledWebPageId) {
-		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
-	}
-	auto localEntities = Api::EntitiesToMTP(&session(), sending.entities);
-	auto sentEntities = Api::EntitiesToMTP(
-		&session(),
-		sending.entities,
-		Api::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
-	}
-
 	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
-	_saveEditMsgRequestId = history->session().api().request(
-		MTPmessages_EditMessage(
-			MTP_flags(sendFlags),
-			_history->peer->input,
-			MTP_int(_editMsgId),
-			MTP_string(sending.text),
-			MTPInputMedia(),
-			MTPReplyMarkup(),
-			sentEntities,
-			MTP_int(0)
-	)).done([history, weak](const MTPUpdates &result, mtpRequestId requestId) {
-		SaveEditMsgDone(history, result, requestId);
-		if (const auto strong = weak.data()) {
-			if (requestId == strong->_saveEditMsgRequestId) {
-				strong->_saveEditMsgRequestId = 0;
-				strong->cancelEdit();
+
+	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
+		crl::guard(weak, [=] {
+			if (requestId == _saveEditMsgRequestId) {
+				_saveEditMsgRequestId = 0;
+				cancelEdit();
+			}
+		})();
+		if (auto editDraft = history->editDraft()) {
+			if (editDraft->saveRequestId == requestId) {
+				history->clearEditDraft();
+				history->session().local().writeDrafts(history);
 			}
 		}
-	}).fail([history, weak](const RPCError &error, mtpRequestId requestId) {
-		SaveEditMsgFail(history, error, requestId);
-		if (const auto strong = weak.data()) {
-			if (requestId == strong->_saveEditMsgRequestId) {
-				strong->_saveEditMsgRequestId = 0;
+	};
+
+	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+		if (const auto editDraft = history->editDraft()) {
+			if (editDraft->saveRequestId == requestId) {
+				editDraft->saveRequestId = 0;
+			}
+		}
+		crl::guard(weak, [=] {
+			if (requestId == _saveEditMsgRequestId) {
+				_saveEditMsgRequestId = 0;
 			}
 			const auto &err = error.type();
-			if (err == qstr("MESSAGE_ID_INVALID")
-				|| err == qstr("CHAT_ADMIN_REQUIRED")
-				|| err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+			if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
 				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
-			} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-				strong->cancelEdit();
-			} else if (err == qstr("MESSAGE_EMPTY")) {
-				strong->_field->selectAll();
-				strong->_field->setFocus();
+			} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
+				cancelEdit();
+			} else if (err == u"MESSAGE_EMPTY"_q) {
+				_field->selectAll();
+				_field->setFocus();
 			} else {
 				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 			}
-			strong->update();
-		}
-	}).send();
-}
+			update();
+		})();
+	};
 
-void HistoryWidget::SaveEditMsgDone(
-		not_null<History*> history,
-		const MTPUpdates &updates,
-		mtpRequestId requestId) {
-	history->session().api().applyUpdates(updates);
-	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == requestId) {
-			history->clearEditDraft();
-			history->session().local().writeDrafts(history);
-		}
-	}
-}
-
-void HistoryWidget::SaveEditMsgFail(
-		not_null<History*> history,
-		const RPCError &error,
-		mtpRequestId requestId) {
-	if (auto editDraft = history->editDraft()) {
-		if (editDraft->saveRequestId == requestId) {
-			editDraft->saveRequestId = 0;
-		}
-	}
+	_saveEditMsgRequestId = Api::EditTextMessage(
+		item,
+		sending,
+		{ .removeWebPageId = (webPageId == CancelledWebPageId) },
+		done,
+		fail);
 }
 
 void HistoryWidget::hideSelectorControlsAnimated() {
@@ -3170,7 +3140,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 	}
 	session().changes().historyUpdated(
 		_history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
@@ -3462,30 +3434,7 @@ void HistoryWidget::sendButtonClicked() {
 	}
 }
 
-void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
-	if (!_history || !_canSendMessages) return;
-
-	_attachDragState = Storage::ComputeMimeDataState(e->mimeData());
-	updateDragAreas();
-
-	if (_attachDragState != DragState::None) {
-		e->setDropAction(Qt::IgnoreAction);
-		e->accept();
-	}
-}
-
-void HistoryWidget::dragLeaveEvent(QDragLeaveEvent *e) {
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
-	}
-}
-
 void HistoryWidget::leaveEventHook(QEvent *e) {
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
-	}
 	if (hasMouseTracking()) {
 		mouseMoveEvent(nullptr);
 	}
@@ -3555,10 +3504,6 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
-	}
-	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDragState = DragState::None;
-		updateDragAreas();
 	}
 	if (_recording) {
 		stopRecording(_peer && _inField);
@@ -3736,34 +3681,6 @@ QRect HistoryWidget::floatPlayerAvailableRect() {
 	return _peer ? mapToGlobal(_scroll->geometry()) : mapToGlobal(rect());
 }
 
-void HistoryWidget::updateDragAreas() {
-	_field->setAcceptDrops(_attachDragState == DragState::None);
-	updateControlsGeometry();
-
-	switch (_attachDragState) {
-	case DragState::None:
-		_attachDragDocument->otherLeave();
-		_attachDragPhoto->otherLeave();
-	break;
-	case DragState::Files:
-		_attachDragDocument->setText(tr::lng_drag_files_here(tr::now), tr::lng_drag_to_send_files(tr::now));
-		_attachDragDocument->otherEnter();
-		_attachDragPhoto->hideFast();
-	break;
-	case DragState::PhotoFiles:
-		_attachDragDocument->setText(tr::lng_drag_images_here(tr::now), tr::lng_drag_to_send_no_compression(tr::now));
-		_attachDragPhoto->setText(tr::lng_drag_photos_here(tr::now), tr::lng_drag_to_send_quick(tr::now));
-		_attachDragDocument->otherEnter();
-		_attachDragPhoto->otherEnter();
-	break;
-	case DragState::Image:
-		_attachDragPhoto->setText(tr::lng_drag_images_here(tr::now), tr::lng_drag_to_send_quick(tr::now));
-		_attachDragDocument->hideFast();
-		_attachDragPhoto->otherEnter();
-	break;
-	};
-}
-
 bool HistoryWidget::readyToForward() const {
 	return _canSendMessages && !_toForward.empty();
 }
@@ -3900,12 +3817,6 @@ bool HistoryWidget::updateCmdStartShown() {
 
 bool HistoryWidget::kbWasHidden() const {
 	return _history && (_keyboard->forMsgId() == FullMsgId(_history->channelId(), _history->lastKeyboardHiddenId));
-}
-
-void HistoryWidget::dropEvent(QDropEvent *e) {
-	_attachDragState = DragState::None;
-	updateDragAreas();
-	e->acceptProposedAction();
 }
 
 void HistoryWidget::toggleKeyboard(bool manual) {
@@ -4413,7 +4324,7 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 	}));
 
-	ActivateWindow(controller());
+	Window::ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
@@ -4652,23 +4563,6 @@ void HistoryWidget::updateControlsGeometry() {
 
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
-	}
-
-	switch (_attachDragState) {
-	case DragState::Files:
-		_attachDragDocument->resize(width() - st::dragMargin.left() - st::dragMargin.right(), height() - st::dragMargin.top() - st::dragMargin.bottom());
-		_attachDragDocument->move(st::dragMargin.left(), st::dragMargin.top());
-	break;
-	case DragState::PhotoFiles:
-		_attachDragDocument->resize(width() - st::dragMargin.left() - st::dragMargin.right(), (height() - st::dragMargin.top() - st::dragMargin.bottom()) / 2);
-		_attachDragDocument->move(st::dragMargin.left(), st::dragMargin.top());
-		_attachDragPhoto->resize(_attachDragDocument->width(), _attachDragDocument->height());
-		_attachDragPhoto->move(st::dragMargin.left(), height() - _attachDragPhoto->height() - st::dragMargin.bottom());
-	break;
-	case DragState::Image:
-		_attachDragPhoto->resize(width() - st::dragMargin.left() - st::dragMargin.right(), height() - st::dragMargin.top() - st::dragMargin.bottom());
-		_attachDragPhoto->move(st::dragMargin.left(), st::dragMargin.top());
-	break;
 	}
 
 	auto topShadowLeft = (Adaptive::OneColumn() || _inGrab) ? 0 : st::lineWidth;
@@ -6022,38 +5916,22 @@ void HistoryWidget::updatePreview() {
 			const auto timeout = (_previewData->pendingTill - base::unixtime::now());
 			_previewTimer.callOnce(std::max(timeout, 0) * crl::time(1000));
 		} else {
-			QString title, desc;
-			if (_previewData->siteName.isEmpty()) {
-				if (_previewData->title.isEmpty()) {
-					if (_previewData->description.text.isEmpty()) {
-						title = _previewData->author;
-						desc = ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url);
-					} else {
-						title = _previewData->description.text;
-						desc = _previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author;
-					}
-				} else {
-					title = _previewData->title;
-					desc = _previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author) : _previewData->description.text;
-				}
-			} else {
-				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->filename().isEmpty()) ? _previewData->document->filename() : _previewData->url) : _previewData->author) : _previewData->description.text) : _previewData->title;
-			}
-			if (title.isEmpty()) {
+			auto preview =
+				HistoryView::TitleAndDescriptionFromWebPage(_previewData);
+			if (preview.title.isEmpty()) {
 				if (_previewData->document) {
-					title = tr::lng_attach_file(tr::now);
+					preview.title = tr::lng_attach_file(tr::now);
 				} else if (_previewData->photo) {
-					title = tr::lng_attach_photo(tr::now);
+					preview.title = tr::lng_attach_photo(tr::now);
 				}
 			}
 			_previewTitle.setText(
 				st::msgNameStyle,
-				title,
+				preview.title,
 				Ui::NameTextOptions());
 			_previewDescription.setText(
 				st::messageTextStyle,
-				TextUtilities::Clean(desc),
+				TextUtilities::Clean(preview.description),
 				Ui::DialogTextOptions());
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
@@ -6509,27 +6387,43 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		}
 	}
 	if (drawWebPagePreview) {
+		const auto textTop = backy + st::msgReplyPadding.top();
 		auto previewLeft = st::historyReplySkip + st::webPageLeft;
-		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
-		if ((_previewData->photo && !_previewData->photo->isNull()) || (_previewData->document && _previewData->document->hasThumbnail() && !_previewData->document->isPatternWallPaper())) {
-			const auto preview = _previewData->photo
-				? _previewData->photo->getReplyPreview(Data::FileOrigin())
-				: _previewData->document->getReplyPreview(Data::FileOrigin());
-			if (preview) {
-				auto to = QRect(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				if (preview->width() == preview->height()) {
-					p.drawPixmap(to.x(), to.y(), preview->pix());
-				} else {
-					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
-					p.drawPixmap(to, preview->pix(), from);
-				}
-			}
-			previewLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
+		p.fillRect(
+			st::historyReplySkip,
+			textTop,
+			st::webPageBar,
+			st::msgReplyBarSize.height(),
+			st::msgInReplyBarColor);
+
+		const auto to = QRect(
+			previewLeft,
+			textTop,
+			st::msgReplyBarSize.height(),
+			st::msgReplyBarSize.height());
+		if (HistoryView::DrawWebPageDataPreview(p, _previewData, to)) {
+			previewLeft += st::msgReplyBarSize.height()
+				+ st::msgReplyBarSkip
+				- st::msgReplyBarSize.width()
+				- st::msgReplyBarPos.x();
 		}
 		p.setPen(st::historyReplyNameFg);
-		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+		const auto elidedWidth = width()
+			- previewLeft
+			- _fieldBarCancel->width()
+			- st::msgReplyPadding.right();
+
+		_previewTitle.drawElided(
+			p,
+			previewLeft,
+			textTop,
+			elidedWidth);
 		p.setPen(st::historyComposeAreaFg);
-		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+		_previewDescription.drawElided(
+			p,
+			previewLeft,
+			textTop + st::msgServiceNameFont->height,
+			elidedWidth);
 	}
 }
 

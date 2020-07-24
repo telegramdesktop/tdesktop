@@ -41,6 +41,7 @@ void init() {
 		u"dwmapi.dll"_q,
 		u"rstrtmgr.dll"_q,
 		u"psapi.dll"_q,
+		u"user32.dll"_q,
 	};
 	for (const auto &lib : list) {
 		SafeLoadLibrary(lib);
@@ -48,6 +49,11 @@ void init() {
 }
 
 f_SetWindowTheme SetWindowTheme;
+//f_RefreshImmersiveColorPolicyState RefreshImmersiveColorPolicyState;
+//f_AllowDarkModeForApp AllowDarkModeForApp;
+//f_SetPreferredAppMode SetPreferredAppMode;
+//f_AllowDarkModeForWindow AllowDarkModeForWindow;
+//f_FlushMenuThemes FlushMenuThemes;
 f_OpenAs_RunDLL OpenAs_RunDLL;
 f_SHOpenWithDialog SHOpenWithDialog;
 f_SHAssocEnumHandlers SHAssocEnumHandlers;
@@ -63,12 +69,14 @@ f_WindowsDeleteString WindowsDeleteString;
 f_PropVariantToString PropVariantToString;
 f_PSStringFromPropertyKey PSStringFromPropertyKey;
 f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
+f_DwmSetWindowAttribute DwmSetWindowAttribute;
 f_RmStartSession RmStartSession;
 f_RmRegisterResources RmRegisterResources;
 f_RmGetList RmGetList;
 f_RmShutdown RmShutdown;
 f_RmEndSession RmEndSession;
 f_GetProcessMemoryInfo GetProcessMemoryInfo;
+f_SetWindowCompositionAttribute SetWindowCompositionAttribute;
 
 void start() {
 	init();
@@ -84,6 +92,21 @@ void start() {
 
 	const auto LibUxTheme = SafeLoadLibrary(u"uxtheme.dll"_q);
 	LoadMethod(LibUxTheme, "SetWindowTheme", SetWindowTheme);
+	//if (IsWindows10OrGreater()) {
+	//	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	//	static const auto kMinor = kSystemVersion.minorVersion();
+	//	static const auto kBuild = kSystemVersion.microVersion();
+	//	if (kMinor > 0 || (kMinor == 0 && kBuild >= 17763)) {
+	//		if (kBuild < 18362) {
+	//			LoadMethod(LibUxTheme, "AllowDarkModeForApp", AllowDarkModeForApp, 135);
+	//		} else {
+	//			LoadMethod(LibUxTheme, "SetPreferredAppMode", SetPreferredAppMode, 135);
+	//		}
+	//		LoadMethod(LibUxTheme, "AllowDarkModeForWindow", AllowDarkModeForWindow, 133);
+	//		LoadMethod(LibUxTheme, "RefreshImmersiveColorPolicyState", RefreshImmersiveColorPolicyState, 104);
+	//		LoadMethod(LibUxTheme, "FlushMenuThemes", FlushMenuThemes, 136);
+	//	}
+	//}
 
 	if (IsWindowsVistaOrGreater()) {
 		const auto LibWtsApi32 = SafeLoadLibrary(u"wtsapi32.dll"_q);
@@ -103,6 +126,7 @@ void start() {
 
 		const auto LibDwmApi = SafeLoadLibrary(u"dwmapi.dll"_q);
 		LoadMethod(LibDwmApi, "DwmIsCompositionEnabled", DwmIsCompositionEnabled);
+		LoadMethod(LibDwmApi, "DwmSetWindowAttribute", DwmSetWindowAttribute);
 
 		const auto LibRstrtMgr = SafeLoadLibrary(u"rstrtmgr.dll"_q);
 		LoadMethod(LibRstrtMgr, "RmStartSession", RmStartSession);
@@ -114,6 +138,9 @@ void start() {
 
 	const auto LibPsApi = SafeLoadLibrary(u"psapi.dll"_q);
 	LoadMethod(LibPsApi, "GetProcessMemoryInfo", GetProcessMemoryInfo);
+
+	const auto LibUser32 = SafeLoadLibrary(u"user32.dll"_q);
+	LoadMethod(LibUser32, "SetWindowCompositionAttribute", SetWindowCompositionAttribute);
 }
 
 } // namespace Dlls

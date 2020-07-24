@@ -1642,15 +1642,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		if (auto user = session().data().userLoaded(d.vuser_id().v)) {
 			user->setPhoto(d.vphoto());
 			user->loadUserpic();
-			if (mtpIsTrue(d.vprevious()) || !user->userpicPhotoId()) {
+			// After that update we don't have enough information to
+			// create a 'photo' with all necessary fields. So if
+			// we receive second such update we end up with a 'photo_id'
+			// in user_photos list without a loaded 'photo'.
+			// It fails to show in media overview if you try to open it.
+			//
+			//if (mtpIsTrue(d.vprevious()) || !user->userpicPhotoId()) {
 				session().storage().remove(Storage::UserPhotosRemoveAfter(
 					user->bareId(),
 					user->userpicPhotoId()));
-			} else {
-				session().storage().add(Storage::UserPhotosAddNew(
-					user->bareId(),
-					user->userpicPhotoId()));
-			}
+			//} else {
+			//	session().storage().add(Storage::UserPhotosAddNew(
+			//		user->bareId(),
+			//		user->userpicPhotoId()));
+			//}
 		}
 	} break;
 

@@ -285,6 +285,12 @@ ListWidget::ListWidget(
 			}
 		}
 	}, lifetime());
+
+	session().downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
@@ -2548,6 +2554,14 @@ QPoint ListWidget::mapPointToItem(
 		return QPoint();
 	}
 	return point - QPoint(0, itemTop(view));
+}
+
+rpl::producer<FullMsgId> ListWidget::editMessageRequested() const {
+	return _requestedToEditMessage.events();
+}
+
+void ListWidget::editMessageRequestNotify(FullMsgId item) {
+	_requestedToEditMessage.fire(std::move(item));
 }
 
 ListWidget::~ListWidget() = default;

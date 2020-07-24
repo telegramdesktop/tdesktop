@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/themes/window_themes_embedded.h"
+#include "window/window_controls_layout.h"
 
 enum class SendFilesWay;
 enum class RectPart;
@@ -416,6 +417,42 @@ public:
 	[[nodiscard]] rpl::producer<bool> nativeWindowFrameChanges() const {
 		return _nativeWindowFrame.changes();
 	}
+	void setSystemDarkMode(std::optional<bool> value) {
+		_systemDarkMode = value;
+	}
+	[[nodiscard]] std::optional<bool> systemDarkMode() const {
+		return _systemDarkMode.current();
+	}
+	[[nodiscard]] rpl::producer<std::optional<bool>> systemDarkModeValue() const {
+		return _systemDarkMode.value();
+	}
+	[[nodiscard]] rpl::producer<std::optional<bool>> systemDarkModeChanges() const {
+		return _systemDarkMode.changes();
+	}
+	void setSystemDarkModeEnabled(bool value) {
+		_systemDarkModeEnabled = value;
+	}
+	[[nodiscard]] bool systemDarkModeEnabled() const {
+		return _systemDarkModeEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> systemDarkModeEnabledValue() const {
+		return _systemDarkModeEnabled.value();
+	}
+	[[nodiscard]] rpl::producer<bool> systemDarkModeEnabledChanges() const {
+		return _systemDarkModeEnabled.changes();
+	}
+	void setWindowControlsLayout(Window::ControlsLayout value) {
+		_windowControlsLayout = value;
+	}
+	[[nodiscard]] Window::ControlsLayout windowControlsLayout() const {
+		return _windowControlsLayout.current();
+	}
+	[[nodiscard]] rpl::producer<Window::ControlsLayout> windowControlsLayoutValue() const {
+		return _windowControlsLayout.value();
+	}
+	[[nodiscard]] rpl::producer<Window::ControlsLayout> windowControlsLayoutChanges() const {
+		return _windowControlsLayout.changes();
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] float64 DefaultDialogsWidthRatio();
@@ -484,6 +521,9 @@ private:
 	rpl::variable<int> _thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
 	bool _notifyFromAll = true;
 	rpl::variable<bool> _nativeWindowFrame = false;
+	rpl::variable<std::optional<bool>> _systemDarkMode = std::nullopt;
+	rpl::variable<bool> _systemDarkModeEnabled = false;
+	rpl::variable<Window::ControlsLayout> _windowControlsLayout;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

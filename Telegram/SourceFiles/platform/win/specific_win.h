@@ -40,6 +40,10 @@ inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	return false;
 }
 
+inline bool TrayIconSupported() {
+	return true;
+}
+
 namespace ThirdParty {
 
 void start();

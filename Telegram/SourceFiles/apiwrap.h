@@ -422,12 +422,6 @@ public:
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
 		Api::SendOptions options);
-	void editUploadedFile(
-		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		Api::SendOptions options,
-		bool isDocument);
 
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
@@ -477,10 +471,6 @@ public:
 		const std::vector<QByteArray> &options);
 	void closePoll(not_null<HistoryItem*> item);
 	void reloadPollResults(not_null<HistoryItem*> item);
-
-	void rescheduleMessage(
-		not_null<HistoryItem*> item,
-		Api::SendOptions options);
 
 private:
 	struct MessageDataRequest {

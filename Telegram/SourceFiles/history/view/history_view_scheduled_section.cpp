@@ -12,18 +12,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
+#include "history/history_drag_area.h"
 #include "history/history_item.h"
 #include "chat_helpers/message_field.h" // SendMenuType.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "api/api_common.h"
+#include "api/api_editing.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
+#include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -34,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_user.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -130,6 +135,20 @@ ScheduledWidget::ScheduledWidget(
 	_scroll->show();
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
+	_inner->editMessageRequested(
+	) | rpl::start_with_next([=](auto fullId) {
+		if (const auto item = session().data().message(fullId)) {
+			const auto media = item->media();
+			if (media && !media->webpage()) {
+				if (media->allowsEditCaption()) {
+					Ui::show(Box<EditCaptionBox>(controller, item));
+				}
+			} else {
+				_composeControls->editMessage(fullId);
+			}
+		}
+	}, _inner->lifetime());
+
 	setupScrollDownButton();
 	setupComposeControls();
 }
@@ -141,17 +160,31 @@ void ScheduledWidget::setupComposeControls() {
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
+		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
 		updateControlsGeometry();
+		if (wasMax) {
+			listScrollTo(_scroll->scrollTopMax());
+		}
 	}, lifetime());
 
 	_composeControls->cancelRequests(
 	) | rpl::start_with_next([=] {
-		controller()->showBackFromStack();
+		listCancelRequest();
 	}, lifetime());
 
 	_composeControls->sendRequests(
 	) | rpl::start_with_next([=] {
 		send();
+	}, lifetime());
+
+	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
+	_composeControls->editRequests(
+	) | rpl::start_with_next([=](auto data) {
+		if (const auto item = session().data().message(data.fullId)) {
+			if (item->isScheduled()) {
+				edit(item, data.options, saveEditMsgRequestId);
+			}
+		}
 	}, lifetime());
 
 	_composeControls->attachRequests(
@@ -179,6 +212,31 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](
 			ChatHelpers::TabbedSelector::InlineChosen chosen) {
 		sendInlineResult(chosen.result, chosen.bot);
+	}, lifetime());
+
+	_composeControls->scrollRequests(
+	) | rpl::start_with_next([=](Data::MessagePosition pos) {
+		showAtPosition(pos);
+	}, lifetime());
+
+	_composeControls->keyEvents(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		if (e->key() == Qt::Key_Up) {
+			if (!_composeControls->isEditingMessage()) {
+				auto &messages = session().data().scheduledMessages();
+				if (const auto item = messages.lastSentMessage(_history)) {
+					_inner->editMessageRequestNotify(item->fullId());
+				} else {
+					_scroll->keyPressEvent(e);
+				}
+			} else {
+				_scroll->keyPressEvent(e);
+			}
+			e->accept();
+		} else if (e->key() == Qt::Key_Down) {
+			_scroll->keyPressEvent(e);
+			e->accept();
+		}
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](
@@ -463,7 +521,7 @@ void ScheduledWidget::send() {
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
-	const auto webPageId = 0;/* _previewCancelled
+	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
 			? _previewData->id
@@ -494,6 +552,79 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	_composeControls->hidePanelsAnimated();
 
 	//if (_previewData && _previewData->pendingTill) previewCancel();
+	_composeControls->focus();
+}
+
+void ScheduledWidget::edit(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options,
+		mtpRequestId *const saveEditMsgRequestId) {
+	if (*saveEditMsgRequestId) {
+		return;
+	}
+	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history,
+		session().user()).flags;
+	auto sending = TextWithEntities();
+	auto left = TextWithEntities {
+		textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
+
+	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		if (item) {
+			Ui::show(Box<DeleteMessagesBox>(item, false));
+		} else {
+			_composeControls->focus();
+		}
+		return;
+	} else if (!left.text.isEmpty()) {
+		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		return;
+	}
+
+	lifetime().add([=] {
+		if (!*saveEditMsgRequestId) {
+			return;
+		}
+		session().api().request(base::take(*saveEditMsgRequestId)).cancel();
+	});
+
+	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
+		if (requestId == *saveEditMsgRequestId) {
+			*saveEditMsgRequestId = 0;
+			_composeControls->cancelEditMessage();
+		}
+	};
+
+	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+		if (requestId == *saveEditMsgRequestId) {
+			*saveEditMsgRequestId = 0;
+		}
+
+		const auto &err = error.type();
+		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
+			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
+			_composeControls->cancelEditMessage();
+		} else if (err == u"MESSAGE_EMPTY"_q) {
+			_composeControls->focus();
+		} else {
+			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+		}
+		update();
+		return true;
+	};
+
+	*saveEditMsgRequestId = Api::EditTextMessage(
+		item,
+		sending,
+		options,
+		crl::guard(this, done),
+		crl::guard(this, fail));
+
+	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 }
 
@@ -880,6 +1011,11 @@ void ScheduledWidget::showAnimatedHook(
 void ScheduledWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	_composeControls->showFinished();
+
+	// We should setup the drag area only after
+	// the section animation is finished,
+	// because after that the method showChildren() is called.
+	setupDragArea();
 }
 
 bool ScheduledWidget::floatPlayerHandleWheelEvent(QEvent *e) {
@@ -905,6 +1041,10 @@ void ScheduledWidget::listScrollTo(int top) {
 void ScheduledWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
+		return;
+	}
+	if (_composeControls->isEditingMessage()) {
+		_composeControls->cancelEditMessage();
 		return;
 	}
 	controller()->showBackFromStack();
@@ -1036,6 +1176,23 @@ void ScheduledWidget::confirmDeleteSelected() {
 
 void ScheduledWidget::clearSelected() {
 	_inner->cancelSelection();
+}
+
+void ScheduledWidget::setupDragArea() {
+	const auto areas = DragArea::SetupDragAreaToContainer(
+		this,
+		[=](not_null<const QMimeData*> d) { return _history; },
+		nullptr,
+		[=] { updateControlsGeometry(); });
+
+	const auto droppedCallback = [=](CompressConfirm compressed) {
+		return [=](const QMimeData *data) {
+			confirmSendingFiles(data, compressed);
+			Window::ActivateWindow(controller());
+		};
+	};
+	areas.document->setDroppedCallback(droppedCallback(CompressConfirm::No));
+	areas.photo->setDroppedCallback(droppedCallback(CompressConfirm::Yes));
 }
 
 } // namespace HistoryView

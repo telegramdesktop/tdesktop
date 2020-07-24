@@ -15,6 +15,10 @@ class Session;
 } // namespace Main
 
 namespace Window {
+class Controller;
+} // namespace Window
+
+namespace Window {
 namespace Theme {
 
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
@@ -76,6 +80,9 @@ QString NightThemePath();
 void SetNightModeValue(bool nightMode);
 void ToggleNightMode();
 void ToggleNightMode(const QString &themePath);
+void ToggleNightModeWithConfirmation(
+	not_null<Controller*> window,
+	Fn<void()> toggle);
 void ResetToSomeDefault();
 [[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
@@ -169,6 +176,7 @@ public:
 	[[nodiscard]] bool tileDay() const;
 	[[nodiscard]] bool tileNight() const;
 	[[nodiscard]] bool isMonoColorImage() const;
+	[[nodiscard]] bool nightModeChangeAllowed() const;
 
 private:
 	struct AdjustableColor {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "api/api_hash.h"
+#include "api/api_media.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
@@ -110,63 +111,6 @@ constexpr auto kBlockedFirstSlice = 16;
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
-
-MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
-		not_null<DocumentData*> document) {
-	const auto filenameAttribute = MTP_documentAttributeFilename(
-		MTP_string(document->filename()));
-	const auto dimensions = document->dimensions;
-	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
-	if (dimensions.width() > 0 && dimensions.height() > 0) {
-		const auto duration = document->getDuration();
-		if (duration >= 0 && !document->hasMimeType(qstr("image/gif"))) {
-			auto flags = MTPDdocumentAttributeVideo::Flags(0);
-			if (document->isVideoMessage()) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
-			}
-			if (document->supportsStreaming()) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
-			}
-			attributes.push_back(MTP_documentAttributeVideo(
-				MTP_flags(flags),
-				MTP_int(duration),
-				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
-		} else {
-			attributes.push_back(MTP_documentAttributeImageSize(
-				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
-		}
-	}
-	if (document->type == AnimatedDocument) {
-		attributes.push_back(MTP_documentAttributeAnimated());
-	} else if (document->type == StickerDocument && document->sticker()) {
-		attributes.push_back(MTP_documentAttributeSticker(
-			MTP_flags(0),
-			MTP_string(document->sticker()->alt),
-			document->sticker()->set,
-			MTPMaskCoords()));
-	} else if (const auto song = document->song()) {
-		const auto flags = MTPDdocumentAttributeAudio::Flag::f_title
-			| MTPDdocumentAttributeAudio::Flag::f_performer;
-		attributes.push_back(MTP_documentAttributeAudio(
-			MTP_flags(flags),
-			MTP_int(song->duration),
-			MTP_string(song->title),
-			MTP_string(song->performer),
-			MTPstring()));
-	} else if (const auto voice = document->voice()) {
-		const auto flags = MTPDdocumentAttributeAudio::Flag::f_voice
-			| MTPDdocumentAttributeAudio::Flag::f_waveform;
-		attributes.push_back(MTP_documentAttributeAudio(
-			MTP_flags(flags),
-			MTP_int(voice->duration),
-			MTPstring(),
-			MTPstring(),
-			MTP_bytes(documentWaveformEncode5bit(voice->waveform))));
-	}
-	return MTP_vector<MTPDocumentAttribute>(attributes);
-}
 
 } // namespace
 
@@ -3959,8 +3903,10 @@ void ApiWrap::userPhotosDone(
 //}
 
 void ApiWrap::sendAction(const SendAction &action) {
-	_session->data().histories().readInbox(action.history);
-	action.history->getReadyFor(ShowAtTheEndMsgId);
+	if (!action.options.scheduled) {
+		_session->data().histories().readInbox(action.history);
+		action.history->getReadyFor(ShowAtTheEndMsgId);
+	}
 	_sendActions.fire_copy(action);
 }
 
@@ -3980,7 +3926,9 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
 		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(action.options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void ApiWrap::forwardMessages(
@@ -4220,7 +4168,9 @@ void ApiWrap::sendSharedContact(
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
 		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+		(action.options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -4339,11 +4289,7 @@ void ApiWrap::sendUploadedPhoto(
 		const MTPInputFile &file,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		const auto media = MTP_inputMediaUploadedPhoto(
-			MTP_flags(0),
-			file,
-			MTPVector<MTPInputDocument>(),
-			MTP_int(0));
+		const auto media = Api::PrepareUploadedPhoto(file);
 		if (const auto groupId = item->groupId()) {
 			uploadAlbumMedia(item, groupId, media);
 		} else {
@@ -4358,125 +4304,17 @@ void ApiWrap::sendUploadedDocument(
 		const std::optional<MTPInputFile> &thumb,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		auto media = item->media();
-		if (auto document = media ? media->document() : nullptr) {
-			const auto groupId = item->groupId();
-			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
-				| (thumb
-					? MTPDinputMediaUploadedDocument::Flag::f_thumb
-					: MTPDinputMediaUploadedDocument::Flag(0))
-				| (groupId
-					? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
-					: MTPDinputMediaUploadedDocument::Flag(0));
-			const auto media = MTP_inputMediaUploadedDocument(
-				MTP_flags(flags),
-				file,
-				thumb ? *thumb : MTPInputFile(),
-				MTP_string(document->mimeString()),
-				ComposeSendingDocumentAttributes(document),
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-			if (groupId) {
-				uploadAlbumMedia(item, groupId, media);
-			} else {
-				sendMedia(item, media, options);
-			}
+		if (!item->media() || !item->media()->document()) {
+			return;
 		}
-	}
-}
-
-void ApiWrap::editUploadedFile(
-		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		Api::SendOptions options,
-		bool isDocument) {
-	const auto item = _session->data().message(localId);
-	if (!item) {
-		return;
-	}
-	if (!item->media()) {
-		return;
-	}
-
-	auto sentEntities = Api::EntitiesToMTP(
-		_session,
-		item->originalText().entities,
-		Api::ConvertOption::SkipLocal);
-
-	auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
-	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
-
-	const auto media = [&]() -> std::optional<MTPInputMedia> {
-		if (!isDocument) {
-			if (!item->media()->photo()) {
-				return std::nullopt;
-			}
-			return MTP_inputMediaUploadedPhoto(
-				MTP_flags(0),
-				file,
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-		}
-
-		const auto document = item->media()->document();
-		if (!document) {
-			return std::nullopt;
-		}
-
-		const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
-			| (thumb
-				? MTPDinputMediaUploadedDocument::Flag::f_thumb
-				: MTPDinputMediaUploadedDocument::Flag(0))
-			| (item->groupId()
-				? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
-				: MTPDinputMediaUploadedDocument::Flag(0));
-		return MTP_inputMediaUploadedDocument(
-			MTP_flags(flags),
-			file,
-			thumb ? *thumb : MTPInputFile(),
-			MTP_string(document->mimeString()),
-			ComposeSendingDocumentAttributes(document),
-			MTPVector<MTPInputDocument>(),
-			MTP_int(0));
-	}();
-
-	if (!media) {
-		return;
-	}
-
-	const auto peer = item->history()->peer;
-	request(MTPmessages_EditMessage(
-		MTP_flags(flagsEditMsg),
-		peer->input,
-		MTP_int(item->id),
-		MTP_string(item->originalText().text),
-		*media,
-		MTPReplyMarkup(),
-		sentEntities,
-		MTP_int(0) // schedule_date
-	)).done([=](const MTPUpdates &result) {
-		item->clearSavedMedia();
-		item->setIsLocalUpdateMedia(true);
-		applyUpdates(result);
-		item->setIsLocalUpdateMedia(false);
-	}).fail([=](const RPCError &error) {
-		QString err = error.type();
-		if (err == qstr("MESSAGE_NOT_MODIFIED")) {
-			item->returnSavedMedia();
-			_session->data().sendHistoryChangeNotifications();
-		} else if (err == qstr("MEDIA_NEW_INVALID")) {
-			item->returnSavedMedia();
-			_session->data().sendHistoryChangeNotifications();
-			Ui::show(
-				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-				Ui::LayerOption::KeepOther);
+		const auto media = Api::PrepareUploadedDocument(item, file, thumb);
+		const auto groupId = item->groupId();
+		if (groupId) {
+			uploadAlbumMedia(item, groupId, media);
 		} else {
-			sendMessageFail(error, peer);
+			sendMedia(item, media, options);
 		}
-	}).send();
+	}
 }
 
 void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
@@ -5517,44 +5355,6 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		_pollCloseRequestIds.erase(itemId);
 	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
-}
-
-void ApiWrap::rescheduleMessage(
-		not_null<HistoryItem*> item,
-		Api::SendOptions options) {
-	const auto text = item->originalText().text;
-	const auto sentEntities = Api::EntitiesToMTP(
-		_session,
-		item->originalText().entities,
-		Api::ConvertOption::SkipLocal);
-	const auto media = item->media();
-
-	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
-	const auto flags = MTPmessages_EditMessage::Flag::f_schedule_date
-	| (!text.isEmpty()
-		? MTPmessages_EditMessage::Flag::f_message
-		: emptyFlag)
-	| ((!media || !media->webpage())
-		? MTPmessages_EditMessage::Flag::f_no_webpage
-		: emptyFlag)
-	| (!sentEntities.v.isEmpty()
-		? MTPmessages_EditMessage::Flag::f_entities
-		: emptyFlag);
-
-	const auto id = _session->data().scheduledMessages().lookupId(item);
-	request(MTPmessages_EditMessage(
-		MTP_flags(flags),
-		item->history()->peer->input,
-		MTP_int(id),
-		MTP_string(text),
-		MTPInputMedia(),
-		MTPReplyMarkup(),
-		sentEntities,
-		MTP_int(options.scheduled)
-	)).done([=](const MTPUpdates &result) {
-		applyUpdates(result);
-	}).fail([](const RPCError &error) {
-	}).send();
 }
 
 void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {

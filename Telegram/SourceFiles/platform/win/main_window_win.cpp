@@ -112,11 +112,44 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 			_shadow->setColor(st::windowShadowFg->c);
 		}
 	});
-	Core::App().settings().nativeWindowFrameChanges(
-	) | rpl::start_with_next([=] {
-		initShadows();
-		validateWindowTheme();
-		fixMaximizedWindow();
+	setupNativeWindowFrame();
+}
+
+void MainWindow::setupNativeWindowFrame() {
+	auto nativeFrame = rpl::single(
+		Core::App().settings().nativeWindowFrame()
+	) | rpl::then(
+		Core::App().settings().nativeWindowFrameChanges()
+	);
+
+	using BackgroundUpdate = Window::Theme::BackgroundUpdate;
+	auto paletteChanges = base::ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::filter([=](const BackgroundUpdate &update) {
+		return update.type == BackgroundUpdate::Type::ApplyingTheme;
+	}) | rpl::to_empty;
+
+	auto nightMode = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		std::move(paletteChanges)
+	) | rpl::map([=] {
+		return Window::Theme::IsNightMode();
+	}) | rpl::distinct_until_changed();
+
+	rpl::combine(
+		std::move(nativeFrame),
+		std::move(nightMode)
+	) | rpl::skip(1) | rpl::start_with_next([=](bool native, bool night) {
+		const auto nativeChanged = (_wasNativeFrame != native);
+		if (nativeChanged) {
+			_wasNativeFrame = native;
+			initShadows();
+		}
+		validateWindowTheme(native, night);
+		if (nativeChanged) {
+			fixMaximizedWindow();
+		}
 	}, lifetime());
 }
 
@@ -136,11 +169,13 @@ void MainWindow::shadowsUpdate(
 }
 
 void MainWindow::shadowsActivate() {
+	_hasActiveFrame = true;
 //	_shadow->setColor(_shActive);
 	shadowsUpdate(Ui::Platform::WindowShadow::Change::Activate);
 }
 
 void MainWindow::shadowsDeactivate() {
+	_hasActiveFrame = false;
 //	_shadow->setColor(_shInactive);
 }
 
@@ -395,7 +430,9 @@ void MainWindow::updateCustomMargins() {
 	}
 	if (!_themeInited) {
 		_themeInited = true;
-		validateWindowTheme();
+		validateWindowTheme(
+			Core::App().settings().nativeWindowFrame(),
+			Window::Theme::IsNightMode());
 	}
 	_inUpdateMargins = false;
 }
@@ -444,17 +481,104 @@ QMargins MainWindow::computeCustomMargins() {
 	return margins;
 }
 
-void MainWindow::validateWindowTheme() {
-	if (IsWindows8OrGreater()) {
+void MainWindow::validateWindowTheme(bool native, bool night) {
+	if (!Dlls::SetWindowTheme) {
 		return;
-	} else if (Dlls::SetWindowTheme != nullptr) {
-		if (Core::App().settings().nativeWindowFrame()) {
-			Dlls::SetWindowTheme(ps_hWnd, nullptr, nullptr);
-		} else {
-			Dlls::SetWindowTheme(ps_hWnd, L" ", L" ");
-		}
-		QApplication::setStyle(QStyleFactory::create(qsl("Windows")));
+	} else if (!IsWindows8OrGreater()) {
+		const auto empty = native ? nullptr : L" ";
+		Dlls::SetWindowTheme(ps_hWnd, empty, empty);
+		QApplication::setStyle(QStyleFactory::create(u"Windows"_q));
+	} else if (!Platform::IsDarkModeSupported()/*
+		|| (!Dlls::AllowDarkModeForApp && !Dlls::SetPreferredAppMode)
+		|| !Dlls::AllowDarkModeForWindow
+		|| !Dlls::RefreshImmersiveColorPolicyState
+		|| !Dlls::FlushMenuThemes*/) {
+		return;
+	} else if (!native) {
+		Dlls::SetWindowTheme(ps_hWnd, nullptr, nullptr);
+		return;
 	}
+
+	// See "https://github.com/microsoft/terminal/blob/"
+	// "eb480b6bbbd83a2aafbe62992d360838e0ab9da5/"
+	// "src/interactivity/win32/windowtheme.cpp#L43-L63"
+
+	auto darkValue = BOOL(night ? TRUE : FALSE);
+
+	const auto updateStyle = [&] {
+		static const auto kSystemVersion = QOperatingSystemVersion::current();
+		if (kSystemVersion.microVersion() < 18362) {
+			SetPropW(
+				ps_hWnd,
+				L"UseImmersiveDarkModeColors",
+				reinterpret_cast<HANDLE>(static_cast<INT_PTR>(darkValue)));
+		} else if (Dlls::SetWindowCompositionAttribute) {
+			Dlls::WINDOWCOMPOSITIONATTRIBDATA data = {
+				Dlls::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS,
+				&darkValue,
+				sizeof(darkValue)
+			};
+			Dlls::SetWindowCompositionAttribute(ps_hWnd, &data);
+		} else if (Dlls::DwmSetWindowAttribute) {
+			static constexpr auto DWMWA_USE_IMMERSIVE_DARK_MODE_0 = DWORD(19);
+			static constexpr auto DWMWA_USE_IMMERSIVE_DARK_MODE = DWORD(20);
+			const auto set = [&](DWORD attribute) {
+				return Dlls::DwmSetWindowAttribute(
+					ps_hWnd,
+					attribute,
+					&darkValue,
+					sizeof(darkValue));
+			};
+			if (FAILED(set(DWMWA_USE_IMMERSIVE_DARK_MODE))) {
+				set(DWMWA_USE_IMMERSIVE_DARK_MODE_0);
+			}
+		}
+	};
+
+	updateStyle();
+
+	// See "https://osdn.net/projects/tortoisesvn/scm/svn/blobs/28812/"
+	// "trunk/src/TortoiseIDiff/MainWindow.cpp"
+	//
+	// But for now it works event with a small part of that.
+	//
+
+	//const auto updateWindowTheme = [&] {
+	//	const auto set = [&](LPCWSTR name) {
+	//		return Dlls::SetWindowTheme(ps_hWnd, name, nullptr);
+	//	};
+	//	if (!night || FAILED(set(L"DarkMode_Explorer"))) {
+	//		set(L"Explorer");
+	//	}
+	//};
+	//
+	//if (night) {
+	//	if (Dlls::SetPreferredAppMode) {
+	//		Dlls::SetPreferredAppMode(Dlls::PreferredAppMode::AllowDark);
+	//	} else {
+	//		Dlls::AllowDarkModeForApp(TRUE);
+	//	}
+	//	Dlls::AllowDarkModeForWindow(ps_hWnd, TRUE);
+	//	updateWindowTheme();
+	//	updateStyle();
+	//	Dlls::FlushMenuThemes();
+	//	Dlls::RefreshImmersiveColorPolicyState();
+	//} else {
+	//	updateWindowTheme();
+	//	Dlls::AllowDarkModeForWindow(ps_hWnd, FALSE);
+	//	updateStyle();
+	//	Dlls::FlushMenuThemes();
+	//	Dlls::RefreshImmersiveColorPolicyState();
+	//	if (Dlls::SetPreferredAppMode) {
+	//		Dlls::SetPreferredAppMode(Dlls::PreferredAppMode::Default);
+	//	} else {
+	//		Dlls::AllowDarkModeForApp(FALSE);
+	//	}
+	//}
+
+	// Didn't find any other way to definitely repaint with the new style.
+	SendMessage(ps_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 0 : 1, 0);
+	SendMessage(ps_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 1 : 0, 0);
 }
 
 void MainWindow::fixMaximizedWindow() {

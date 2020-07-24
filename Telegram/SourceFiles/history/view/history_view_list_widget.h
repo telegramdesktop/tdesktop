@@ -181,6 +181,9 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
+	rpl::producer<FullMsgId> editMessageRequested() const;
+	void editMessageRequestNotify(FullMsgId item);
+
 	// ElementDelegate interface.
 	Context elementContext() override;
 	std::unique_ptr<Element> elementCreate(
@@ -511,6 +514,8 @@ private:
 	crl::time _highlightStart = 0;
 	FullMsgId _highlightedMessageId;
 	base::Timer _highlightTimer;
+
+	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 
 	rpl::lifetime _viewerLifetime;
 

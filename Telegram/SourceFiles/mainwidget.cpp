@@ -706,16 +706,16 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 	session().uploader().pause(itemId);
 	const auto stopUpload = [=] {
 		Ui::hideLayer();
-		if (const auto item = session().data().message(itemId)) {
-			const auto history = item->history();
-			if (!IsServerMsgId(itemId.msg)) {
+		auto &data = session().data();
+		if (const auto item = data.message(itemId)) {
+			if (!item->isEditingMedia()) {
 				item->destroy();
-				history->requestChatListMessage();
+				item->history()->requestChatListMessage();
 			} else {
 				item->returnSavedMedia();
 				session().uploader().cancel(item->fullId());
 			}
-			session().data().sendHistoryChangeNotifications();
+			data.sendHistoryChangeNotifications();
 		}
 		session().uploader().unpause();
 	};

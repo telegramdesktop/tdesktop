@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_upload.h"
 
+#include "api/api_editing.h"
 #include "api/api_send_progress.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
@@ -156,15 +157,12 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	stopSessionsTimer.setSingleShot(true);
 	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
 
+	const auto session = &_api->session();
 	photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
 		if (data.edit) {
-			_api->editUploadedFile(
-				data.fullId,
-				data.file,
-				std::nullopt,
-				data.options,
-				false);
+			const auto item = session->data().message(data.fullId);
+			Api::EditMessageWithUploadedPhoto(item, data.file, data.options);
 		} else {
 			_api->sendUploadedPhoto(
 				data.fullId,
@@ -176,12 +174,12 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	documentReady(
 	) | rpl::start_with_next([=](const UploadedDocument &data) {
 		if (data.edit) {
-			_api->editUploadedFile(
-				data.fullId,
+			const auto item = session->data().message(data.fullId);
+			Api::EditMessageWithUploadedDocument(
+				item,
 				data.file,
 				std::nullopt,
-				data.options,
-				true);
+				data.options);
 		} else {
 			_api->sendUploadedDocument(
 				data.fullId,
@@ -194,12 +192,12 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	thumbDocumentReady(
 	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
 		if (data.edit) {
-			_api->editUploadedFile(
-				data.fullId,
+			const auto item = session->data().message(data.fullId);
+			Api::EditMessageWithUploadedDocument(
+				item,
 				data.file,
 				data.thumb,
-				data.options,
-				true);
+				data.options);
 		} else {
 			_api->sendUploadedDocument(
 				data.fullId,

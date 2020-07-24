@@ -555,7 +555,7 @@ HistoryMessage::HistoryMessage(
 	const auto fwdViewsCount = original->viewsCount();
 	if (fwdViewsCount > 0) {
 		config.viewsCount = fwdViewsCount;
-	} else if (isPost()
+	} else if ((isPost() && !isScheduled())
 		|| (original->senderOriginal()
 			&& original->senderOriginal()->isChannel())) {
 		config.viewsCount = 1;
@@ -774,11 +774,12 @@ bool HistoryMessage::allowsForward() const {
 }
 
 bool HistoryMessage::allowsSendNow() const {
-	return isScheduled() && !isSending() && !hasFailed();
+	return isScheduled() && !isSending() && !hasFailed() && !isEditingMedia();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	return !_history->peer->canEditMessagesIndefinitely()
+		&& !isScheduled()
 		&& (now - date() >= _history->session().serverConfig().editTimeLimit);
 }
 
@@ -901,11 +902,13 @@ void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 }
 
 void HistoryMessage::returnSavedMedia() {
-	if (!_savedMedia) {
+	if (!isEditingMedia()) {
 		return;
 	}
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
-	_media = std::move(_savedMedia);
+	_media = std::move(_savedLocalEditMediaData.media);
+	setText(_savedLocalEditMediaData.text);
+	clearSavedMedia();
 	if (wasGrouped) {
 		history()->owner().groups().refreshMessage(this, true);
 	} else {
@@ -1405,7 +1408,7 @@ std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
 
 HistoryMessage::~HistoryMessage() {
 	_media.reset();
-	_savedMedia.reset();
+	clearSavedMedia();
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}

@@ -129,6 +129,8 @@ private:
 
 	void setupComposeControls();
 
+	void setupDragArea();
+
 	void setupScrollDownButton();
 	void scrollDownClicked();
 	void scrollDownAnimationFinish();
@@ -141,6 +143,10 @@ private:
 
 	void send();
 	void send(Api::SendOptions options);
+	void edit(
+		not_null<HistoryItem*> item,
+		Api::SendOptions options,
+		mtpRequestId *const saveEditMsgRequestId);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
 	[[nodiscard]] SendMenuType sendMenuType() const;

@@ -109,12 +109,13 @@ struct HistoryUpdate {
 		LocalMessages  = (1 << 5),
 		ChatOccupied   = (1 << 6),
 		MessageSent    = (1 << 7),
-		ForwardDraft   = (1 << 8),
-		OutboxRead     = (1 << 9),
-		BotKeyboard    = (1 << 10),
-		CloudDraft     = (1 << 11),
+		ScheduledSent  = (1 << 8),
+		ForwardDraft   = (1 << 9),
+		OutboxRead     = (1 << 10),
+		BotKeyboard    = (1 << 11),
+		CloudDraft     = (1 << 12),
 
-		LastUsedBit    = (1 << 11),
+		LastUsedBit    = (1 << 12),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

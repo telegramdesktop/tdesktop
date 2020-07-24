@@ -72,9 +72,7 @@ if (LINUX)
     PRIVATE
         desktop-app::external_materialdecoration
         desktop-app::external_nimf_qt5
-        desktop-app::external_qt5ct
-        desktop-app::external_qt5ct_style
-        desktop-app::external_qt5ct_qtplugin
+        desktop-app::external_qt5ct_support
     )
 
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
@@ -106,6 +104,7 @@ PRIVATE
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
     tdesktop::lib_export
+    tdesktop::lib_tgvoip
     desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::lib_ui
@@ -122,12 +121,11 @@ PRIVATE
     desktop-app::external_qr_code_generator
     desktop-app::external_crash_reports
     desktop-app::external_auto_updates
-    tdesktop::lib_tgvoip
     desktop-app::external_openssl
     desktop-app::external_openal
 )
 
-if (LINUX AND DESKTOP_APP_USE_PACKAGED)
+if (LINUX AND DESKTOP_APP_USE_PACKAGED AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
 
@@ -183,26 +181,6 @@ if (LINUX AND NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
     endif()
 endif()
 
-# Telegram uses long atomic types, so on some architectures libatomic is needed.
-check_cxx_source_compiles("
-#include <atomic>
-std::atomic_int64_t foo;
-int main() {return foo;}
-" HAVE_LONG_ATOMIC_WITHOUT_LIB)
-if (NOT HAVE_LONG_ATOMIC_WITHOUT_LIB)
-    target_link_libraries(Telegram PRIVATE atomic)
-endif()
-
-if (DESKTOP_APP_USE_PACKAGED)
-    set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-    find_package(Threads REQUIRED)
-
-    target_link_libraries(Telegram
-    PRIVATE
-        Threads::Threads
-    )
-endif()
-
 target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 nice_target_sources(Telegram ${src_loc}
 PRIVATE
@@ -213,8 +191,12 @@ PRIVATE
     api/api_chat_filters.cpp
     api/api_chat_filters.h
     api/api_common.h
+    api/api_editing.cpp
+    api/api_editing.h
     api/api_hash.cpp
     api/api_hash.h
+    api/api_media.cpp
+    api/api_media.h
     api/api_self_destruct.cpp
     api/api_self_destruct.h
     api/api_send_progress.cpp
@@ -604,6 +586,8 @@ PRIVATE
     history/view/history_view_service_message.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
+    history/view/history_view_webpage_preview.cpp
+    history/view/history_view_webpage_preview.h
     history/history.cpp
     history/history.h
     history/history_drag_area.cpp
@@ -1089,6 +1073,7 @@ PRIVATE
     window/window_connecting_widget.h
     window/window_controller.cpp
     window/window_controller.h
+    window/window_controls_layout.h
     window/window_filters_menu.cpp
     window/window_filters_menu.h
     window/window_history_hider.cpp

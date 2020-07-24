@@ -7,12 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_libs.h"
 
-#include "base/platform/base_platform_info.h"
 #include "platform/linux/linux_xlib_helper.h"
 #include "platform/linux/linux_gdk_helper.h"
-#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
 #include "core/sandbox.h"
+#include "core/core_settings.h"
 #include "core/application.h"
 #include "main/main_domain.h"
 #include "mainwindow.h"
@@ -22,6 +21,7 @@ namespace Libs {
 namespace {
 
 bool gtkTriedToInit = false;
+bool gtkLoaded = false;
 
 bool loadLibrary(QLibrary &lib, const char *name, int version) {
 #if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
@@ -44,21 +44,6 @@ bool loadLibrary(QLibrary &lib, const char *name, int version) {
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-template <typename T>
-T gtkSetting(const gchar *propertyName) {
-	GtkSettings *settings = gtk_settings_get_default();
-	T value;
-	g_object_get(settings, propertyName, &value, nullptr);
-	return value;
-}
-
-QString gtkSetting(const gchar *propertyName) {
-	gchararray value = gtkSetting<gchararray>(propertyName);
-	QString str = QString::fromUtf8(value);
-	g_free(value);
-	return str;
-}
-
 void gtkMessageHandler(
 		const gchar *log_domain,
 		GLogLevelFlags log_level,
@@ -75,6 +60,7 @@ void gtkMessageHandler(
 
 bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_init_check", gtk_init_check)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_check_version", gtk_check_version)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_settings_get_default", gtk_settings_get_default)) return false;
 
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_show", gtk_widget_show)) return false;
@@ -124,17 +110,12 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!LOAD_SYMBOL(lib_gtk, "gdk_atom_intern", gdk_atom_intern)) return false;
 
 	if (LOAD_SYMBOL(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
-		// We work only with X11 GDK backend.
+		// We work only with Wayland and X11 GDK backends.
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		if(Platform::IsWayland() && !lib_gtk.fileName().contains("gtk-x11-2.0")) {
-			DEBUG_LOG(("Limit allowed GDK backends to wayland"));
-			gdk_set_allowed_backends("wayland");
-		} else {
-			DEBUG_LOG(("Limit allowed GDK backends to x11"));
-			gdk_set_allowed_backends("x11");
-		}
+		DEBUG_LOG(("Limit allowed GDK backends to wayland and x11"));
+		gdk_set_allowed_backends("wayland,x11");
 	}
 
 	// gtk_init will reset the Xlib error handler, and that causes
@@ -173,10 +154,12 @@ bool IconThemeShouldBeSet() {
 
 void SetIconTheme() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		if (IconThemeShouldBeSet()) {
+		if (GtkSettingSupported()
+			&& GtkLoaded()
+			&& IconThemeShouldBeSet()) {
 			DEBUG_LOG(("Set GTK icon theme"));
-			QIcon::setThemeName(gtkSetting("gtk-icon-theme-name"));
-			QIcon::setFallbackThemeName(gtkSetting("gtk-fallback-icon-theme"));
+			QIcon::setThemeName(GtkSetting("gtk-icon-theme-name"));
+			QIcon::setFallbackThemeName(GtkSetting("gtk-fallback-icon-theme"));
 			Platform::SetApplicationIcon(Window::CreateIcon());
 			if (App::wnd()) {
 				App::wnd()->setWindowIcon(Window::CreateIcon());
@@ -185,12 +168,25 @@ void SetIconTheme() {
 		}
 	});
 }
+
+void DarkModeChanged() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+	});
+}
+
+void DecorationLayoutChanged() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
+	});
+}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 f_gtk_init_check gtk_init_check = nullptr;
+f_gtk_check_version gtk_check_version = nullptr;
 f_gtk_settings_get_default gtk_settings_get_default = nullptr;
 f_gtk_widget_show gtk_widget_show = nullptr;
 f_gtk_widget_hide gtk_widget_hide = nullptr;
@@ -245,6 +241,10 @@ f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
 f_gdk_pixbuf_get_width gdk_pixbuf_get_width = nullptr;
 f_gdk_pixbuf_get_height gdk_pixbuf_get_height = nullptr;
 f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
+
+bool GtkLoaded() {
+	return gtkLoaded;
+}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
@@ -255,7 +255,6 @@ void start() {
 
 	DEBUG_LOG(("Loading libraries"));
 
-	bool gtkLoaded = false;
 	QLibrary lib_gtk;
 	lib_gtk.setLoadHints(QLibrary::DeepBindHint);
 
@@ -284,6 +283,15 @@ void start() {
 
 		const auto settings = gtk_settings_get_default();
 		g_signal_connect(settings, "notify::gtk-icon-theme-name", G_CALLBACK(SetIconTheme), nullptr);
+		g_signal_connect(settings, "notify::gtk-theme-name", G_CALLBACK(DarkModeChanged), nullptr);
+
+		if (!gtk_check_version(3, 0, 0)) {
+			g_signal_connect(settings, "notify::gtk-application-prefer-dark-theme", G_CALLBACK(DarkModeChanged), nullptr);
+		}
+
+		if (!gtk_check_version(3, 12, 0)) {
+			g_signal_connect(settings, "notify::gtk-decoration-layout", G_CALLBACK(DecorationLayoutChanged), nullptr);
+		}
 	} else {
 		LOG(("Could not load gtk-3 or gtk-x11-2.0!"));
 	}

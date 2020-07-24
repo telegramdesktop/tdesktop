@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/enhanced_settings.h"
 #include "core/ui_integration.h"
+#include "core/core_settings.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/platform/base_platform_info.h"
@@ -207,6 +208,8 @@ void Application::run() {
 		return;
 	}
 
+	Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
+
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
@@ -214,6 +217,7 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
 	startEmojiImageLoader();
+	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
 
 	style::ShortAnimationPlaying(
@@ -235,6 +239,7 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<Window::Controller>();
+
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
 		_window->showAccount(account);
@@ -251,16 +256,8 @@ void Application::run() {
 
 	// Depend on activeWindow() for now :(
 	startShortcuts();
-
 	App::initMedia();
-
-	const auto state = _domain->start(QByteArray());
-	if (state == Storage::StartResult::IncorrectPasscode) {
-		Global::SetLocalPasscode(true);
-		Global::RefLocalPasscodeChanged().notify();
-		lockByPasscode();
-		DEBUG_LOG(("Application Info: passcode needed..."));
-	}
+	startDomain();
 
 	_window->widget()->show();
 
@@ -280,6 +277,50 @@ void Application::run() {
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
+}
+
+void Application::startDomain() {
+	const auto state = _domain->start(QByteArray());
+	if (state != Storage::StartResult::IncorrectPasscodeLegacy) {
+		// In case of non-legacy passcoded app all global settings are ready.
+		startSettingsAndBackground();
+	}
+	if (state != Storage::StartResult::Success) {
+		Global::SetLocalPasscode(true);
+		Global::RefLocalPasscodeChanged().notify();
+		lockByPasscode();
+		DEBUG_LOG(("Application Info: passcode needed..."));
+	}
+}
+
+void Application::startSettingsAndBackground() {
+	Local::rewriteSettingsIfNeeded();
+	Window::Theme::Background()->start();
+	checkSystemDarkMode();
+}
+
+void Application::checkSystemDarkMode() {
+	const auto maybeDarkMode = _settings.systemDarkMode();
+	const auto darkModeEnabled = _settings.systemDarkModeEnabled();
+	const auto needToSwitch = darkModeEnabled
+		&& maybeDarkMode
+		&& (*maybeDarkMode != Window::Theme::IsNightMode());
+	if (needToSwitch) {
+		Window::Theme::ToggleNightMode();
+		Window::Theme::KeepApplied();
+	}
+}
+
+void Application::startSystemDarkModeViewer() {
+	if (Window::Theme::Background()->editingTheme()) {
+		_settings.setSystemDarkModeEnabled(false);
+	}
+	rpl::merge(
+		_settings.systemDarkModeChanges() | rpl::to_empty,
+		_settings.systemDarkModeEnabledChanges() | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		checkSystemDarkMode();
+	}, _lifetime);
 }
 
 auto Application::prepareEmojiSourceImages()

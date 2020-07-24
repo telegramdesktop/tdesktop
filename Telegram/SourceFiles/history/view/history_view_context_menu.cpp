@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_context_menu.h"
 
+#include "api/api_editing.h"
+#include "base/unixtime.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
@@ -71,6 +73,23 @@ MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 	}
 	const auto session = &item->history()->session();
 	return session->data().scheduledMessages().lookupId(item);
+}
+
+bool HasEditScheduledMessageAction(const ContextMenuRequest &request) {
+	const auto item = request.item;
+	if (!item
+		|| item->isSending()
+		|| item->isEditingMedia()
+		|| !request.selectedItems.empty()) {
+		return false;
+	}
+	const auto peer = item->history()->peer;
+	if (const auto channel = peer->asChannel()) {
+		if (!channel->isMegagroup() && !channel->canEditMessages()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void SavePhotoToFile(not_null<PhotoData*> photo) {
@@ -396,16 +415,10 @@ bool AddSendNowMessageAction(
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request) {
-	const auto item = request.item;
-	if (!item || item->isSending() || !request.selectedItems.empty()) {
+	if (!HasEditScheduledMessageAction(request)) {
 		return false;
 	}
-	const auto peer = item->history()->peer;
-	if (const auto channel = peer->asChannel()) {
-		if (!channel->canEditMessages()) {
-			return false;
-		}
-	}
+	const auto item = request.item;
 	const auto owner = &item->history()->owner();
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_reschedule(tr::now), [=] {
@@ -414,9 +427,13 @@ bool AddRescheduleMessageAction(
 			return;
 		}
 		const auto callback = [=](Api::SendOptions options) {
-			item->history()->session().api().rescheduleMessage(item, options);
+			if (!item->media() || !item->media()->webpage()) {
+				options.removeWebPageId = true;
+			}
+			Api::RescheduleMessage(item, options);
 		};
 
+		const auto peer = item->history()->peer;
 		const auto sendMenuType = !peer
 			? SendMenuType::Disabled
 			: peer->isSelf()
@@ -437,6 +454,29 @@ bool AddRescheduleMessageAction(
 				callback,
 				date),
 			Ui::LayerOption::KeepOther);
+	});
+	return true;
+}
+
+bool AddEditMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!HasEditScheduledMessageAction(request)) {
+		return false;
+	}
+	const auto item = request.item;
+	if (!item->allowsEdit(base::unixtime::now())) {
+		return false;
+	}
+	const auto owner = &item->history()->owner();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
+		const auto item = owner->message(itemId);
+		if (!item) {
+			return;
+		}
+		list->editMessageRequestNotify(item->fullId());
 	});
 	return true;
 }
@@ -519,7 +559,15 @@ bool AddDeleteMessageAction(
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		}
 	});
-	menu->addAction(tr::lng_context_delete_msg(tr::now), callback);
+	const auto text = [&] {
+		if (const auto message = item->toHistoryMessage()) {
+			if (message->uploading()) {
+				return tr::lng_context_cancel_upload;
+			}
+		}
+		return tr::lng_context_delete_msg;
+	}()(tr::now);
+	menu->addAction(text, callback);
 	return true;
 }
 
@@ -586,6 +634,7 @@ void AddMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
+	AddEditMessageAction(menu, request, list);
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
 	AddSendNowAction(menu, request, list);

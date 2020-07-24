@@ -433,27 +433,13 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
-	const auto active = &Core::App().activeAccount();
-	auto allMuted = true;
-	for (const auto &[index, account] : Core::App().domain().accounts()) {
-		if (account.get() == active) {
-			continue;
-		} else if (const auto session = account->maybeSession()) {
-			if (!session->data().unreadBadgeMuted()) {
-				allMuted = false;
-				break;
-			}
-		}
-	}
-	if (allMuted) {
-		return QString();
-	}
-	const auto count = Core::App().unreadBadge()
-		- active->session().data().unreadBadge();
-	return (count > 99)
+	const auto state = OtherAccountsUnreadStateCurrent();
+	return state.allMuted
+		? QString()
+		: (state.count > 99)
 		? u"99+"_q
-		: (count > 0)
-		? QString::number(count)
+		: (state.count > 0)
+		? QString::number(state.count)
 		: QString();
 }
 
@@ -897,14 +883,35 @@ void MainMenu::refreshMenu() {
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();
 	auto action = _menu->addAction(tr::lng_menu_night_mode(tr::now), [=] {
-		if (auto action = *_nightThemeAction) {
-			action->setChecked(!action->isChecked());
-			_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
+		if (Window::Theme::Background()->editingTheme()) {
+			Ui::show(Box<InformBox>(
+				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			return;
 		}
+		const auto weak = MakeWeak(this);
+		const auto toggle = [=] {
+			if (!weak) {
+				Window::Theme::ToggleNightMode();
+				Window::Theme::KeepApplied();
+			} else if (auto action = *_nightThemeAction) {
+				action->setChecked(!action->isChecked());
+				_nightThemeSwitch.callOnce(st::mainMenu.itemToggle.duration);
+			}
+		};
+		Window::Theme::ToggleNightModeWithConfirmation(
+			&_controller->window(),
+			toggle);
 	}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
 	*_nightThemeAction = action;
 	action->setCheckable(true);
 	action->setChecked(Window::Theme::IsNightMode());
+	Core::App().settings().systemDarkModeValue(
+	) | rpl::start_with_next([=](std::optional<bool> darkMode) {
+		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
+		if (darkModeEnabled && darkMode.has_value()) {
+			action->setChecked(*darkMode);
+		}
+	}, lifetime());
 	_menu->finishAnimating();
 
 	updatePhone();
@@ -1121,5 +1128,34 @@ void MainMenu::initResetScaleButton() {
 		}
 	}, lifetime());
 }
+
+OthersUnreadState OtherAccountsUnreadStateCurrent() {
+	auto &app = Core::App();
+	const auto active = &app.activeAccount();
+	auto allMuted = true;
+	for (const auto &[index, account] : app.domain().accounts()) {
+		if (account.get() == active) {
+			continue;
+		} else if (const auto session = account->maybeSession()) {
+			if (!session->data().unreadBadgeMuted()) {
+				allMuted = false;
+				break;
+			}
+		}
+	}
+	return {
+		.count = (app.unreadBadge() - active->session().data().unreadBadge()),
+		.allMuted = allMuted,
+	};
+}
+
+rpl::producer<OthersUnreadState> OtherAccountsUnreadState() {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		Core::App().unreadBadgeChanges()
+	) | rpl::map(OtherAccountsUnreadStateCurrent);
+}
+
 
 } // namespace Window

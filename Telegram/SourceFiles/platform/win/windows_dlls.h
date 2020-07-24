@@ -37,6 +37,29 @@ using f_SetWindowTheme = HRESULT(FAR STDAPICALLTYPE*)(
 	LPCWSTR pszSubIdList);
 extern f_SetWindowTheme SetWindowTheme;
 
+//using f_RefreshImmersiveColorPolicyState = void(FAR STDAPICALLTYPE*)();
+//extern f_RefreshImmersiveColorPolicyState RefreshImmersiveColorPolicyState;
+//
+//using f_AllowDarkModeForApp = BOOL(FAR STDAPICALLTYPE*)(BOOL allow);
+//extern f_AllowDarkModeForApp AllowDarkModeForApp;
+//
+//enum class PreferredAppMode {
+//	Default,
+//	AllowDark,
+//	ForceDark,
+//	ForceLight,
+//	Max
+//};
+//
+//using f_SetPreferredAppMode = PreferredAppMode(FAR STDAPICALLTYPE*)(PreferredAppMode appMode);
+//extern f_SetPreferredAppMode SetPreferredAppMode;
+//
+//using f_AllowDarkModeForWindow = BOOL(FAR STDAPICALLTYPE*)(HWND hwnd, BOOL allow);
+//extern f_AllowDarkModeForWindow AllowDarkModeForWindow;
+//
+//using f_FlushMenuThemes = void(FAR STDAPICALLTYPE*)();
+//extern f_FlushMenuThemes FlushMenuThemes;
+
 // SHELL32.DLL
 using f_SHAssocEnumHandlers = HRESULT(FAR STDAPICALLTYPE*)(
 	PCWSTR pszExtra,
@@ -128,6 +151,13 @@ using f_DwmIsCompositionEnabled = HRESULT(FAR STDAPICALLTYPE*)(
 	_Out_ BOOL* pfEnabled);
 extern f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
 
+using f_DwmSetWindowAttribute = HRESULT(FAR STDAPICALLTYPE*)(
+	HWND hwnd,
+	DWORD dwAttribute,
+	_In_reads_bytes_(cbAttribute) LPCVOID pvAttribute,
+	DWORD cbAttribute);
+extern f_DwmSetWindowAttribute DwmSetWindowAttribute;
+
 // RSTRTMGR.DLL
 
 using f_RmStartSession = DWORD(FAR STDAPICALLTYPE*)(
@@ -171,6 +201,48 @@ using f_GetProcessMemoryInfo = BOOL(FAR STDAPICALLTYPE*)(
 	PPROCESS_MEMORY_COUNTERS ppsmemCounters,
 	DWORD cb);
 extern f_GetProcessMemoryInfo GetProcessMemoryInfo;
+
+// USER32.DLL
+
+enum class WINDOWCOMPOSITIONATTRIB {
+	WCA_UNDEFINED = 0,
+	WCA_NCRENDERING_ENABLED = 1,
+	WCA_NCRENDERING_POLICY = 2,
+	WCA_TRANSITIONS_FORCEDISABLED = 3,
+	WCA_ALLOW_NCPAINT = 4,
+	WCA_CAPTION_BUTTON_BOUNDS = 5,
+	WCA_NONCLIENT_RTL_LAYOUT = 6,
+	WCA_FORCE_ICONIC_REPRESENTATION = 7,
+	WCA_EXTENDED_FRAME_BOUNDS = 8,
+	WCA_HAS_ICONIC_BITMAP = 9,
+	WCA_THEME_ATTRIBUTES = 10,
+	WCA_NCRENDERING_EXILED = 11,
+	WCA_NCADORNMENTINFO = 12,
+	WCA_EXCLUDED_FROM_LIVEPREVIEW = 13,
+	WCA_VIDEO_OVERLAY_ACTIVE = 14,
+	WCA_FORCE_ACTIVEWINDOW_APPEARANCE = 15,
+	WCA_DISALLOW_PEEK = 16,
+	WCA_CLOAK = 17,
+	WCA_CLOAKED = 18,
+	WCA_ACCENT_POLICY = 19,
+	WCA_FREEZE_REPRESENTATION = 20,
+	WCA_EVER_UNCLOAKED = 21,
+	WCA_VISUAL_OWNER = 22,
+	WCA_HOLOGRAPHIC = 23,
+	WCA_EXCLUDED_FROM_DDA = 24,
+	WCA_PASSIVEUPDATEMODE = 25,
+	WCA_USEDARKMODECOLORS = 26,
+	WCA_LAST = 27
+};
+
+struct WINDOWCOMPOSITIONATTRIBDATA {
+	WINDOWCOMPOSITIONATTRIB Attrib;
+	PVOID pvData;
+	SIZE_T cbData;
+};
+
+using f_SetWindowCompositionAttribute = BOOL(WINAPI *)(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA*);
+extern f_SetWindowCompositionAttribute SetWindowCompositionAttribute;
 
 } // namespace Dlls
 } // namespace Platform

@@ -434,6 +434,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 
+"lng_settings_auto_night_mode" = "Auto-Night mode";
+"lng_settings_auto_night_enabled" = "Match the system settings";
+"lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
+"lng_settings_auto_night_disable" = "Disable";
+
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";
 "lng_settings_custom_spellchecker" = "Use spell checker";

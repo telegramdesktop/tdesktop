@@ -41,7 +41,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
 #include <wayland-client.h>
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -68,6 +71,8 @@ constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_c
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 QStringList PlatformThemes;
+
+bool IsTrayIconSupported = true;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
@@ -461,6 +466,7 @@ uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	return 0;
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
 enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 	if (edges == (Qt::TopEdge | Qt::LeftEdge))
 		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
@@ -481,6 +487,7 @@ enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 
 	return WL_SHELL_SURFACE_RESIZE_NONE;
 }
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 bool StartXCBMoveResize(QWindow *window, int edges) {
 	const auto native = QGuiApplication::platformNativeInterface();
@@ -576,6 +583,18 @@ bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
 	}
 
 	return false;
+}
+
+Window::Control GtkKeywordToWindowControl(const QString &keyword) {
+	if (keyword == qstr("minimize")) {
+		return Window::Control::Minimize;
+	} else if (keyword == qstr("maximize")) {
+		return Window::Control::Maximize;
+	} else if (keyword == qstr("close")) {
+		return Window::Control::Close;
+	}
+
+	return Window::Control::Unknown;
 }
 
 } // namespace
@@ -869,11 +888,39 @@ std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
 }
 
+std::optional<bool> IsDarkMode() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Libs::GtkSettingSupported() && Libs::GtkLoaded()) {
+		if (Libs::gtk_check_version != nullptr
+			&& !Libs::gtk_check_version(3, 0, 0)
+			&& Libs::GtkSetting<gboolean>("gtk-application-prefer-dark-theme")) {
+			return true;
+		}
+
+		if (Libs::GtkSetting("gtk-theme-name").toLower().endsWith(qsl("-dark"))) {
+			return true;
+		}
+
+		return false;
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	return std::nullopt;
+}
+
 bool AutostartSupported() {
 	// snap sandbox doesn't allow creating files in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
 	// thus, autostart isn't supported in snap
 	return !InSnap();
+}
+
+bool TrayIconSupported() {
+	return IsTrayIconSupported;
+}
+
+void SetTrayIconSupported(bool supported) {
+	IsTrayIconSupported = supported;
 }
 
 void FallbackFontConfigCheckBegin() {
@@ -907,6 +954,57 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
+}
+
+Window::ControlsLayout WindowControlsLayout() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (Libs::GtkSettingSupported()
+		&& Libs::GtkLoaded()
+		&& Libs::gtk_check_version != nullptr
+		&& !Libs::gtk_check_version(3, 12, 0)) {
+		const auto decorationLayout = Libs::GtkSetting("gtk-decoration-layout").split(':');
+
+		std::vector<Window::Control> controlsLeft;
+		ranges::transform(
+			decorationLayout[0].split(','),
+			ranges::back_inserter(controlsLeft),
+			GtkKeywordToWindowControl
+		);
+
+		std::vector<Window::Control> controlsRight;
+		if (decorationLayout.size() > 1) {
+			ranges::transform(
+				decorationLayout[1].split(','),
+				ranges::back_inserter(controlsRight),
+				GtkKeywordToWindowControl
+			);
+		}
+
+		Window::ControlsLayout controls;
+		controls.left = controlsLeft;
+		controls.right = controlsRight;
+
+		return controls;
+	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+	Window::ControlsLayout controls;
+
+	if (DesktopEnvironment::IsUnity()) {
+		controls.left = {
+			Window::Control::Close,
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+		};
+	} else {
+		controls.right = {
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+			Window::Control::Close,
+		};
+	}
+
+	return controls;
 }
 
 } // namespace Platform

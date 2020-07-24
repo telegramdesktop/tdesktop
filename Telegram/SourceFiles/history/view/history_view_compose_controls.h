@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -19,6 +20,10 @@ namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;
 } // namespace ChatHelpers
+
+namespace Data {
+struct MessagePosition;
+} // namespace Data
 
 namespace InlineBots {
 namespace Layout {
@@ -45,11 +50,19 @@ struct SectionShow;
 
 namespace HistoryView {
 
+class FieldHeader;
+
 class ComposeControls final {
 public:
 	enum class Mode {
 		Normal,
 		Scheduled,
+	};
+
+	struct MessageToEdit {
+		FullMsgId fullId;
+		Api::SendOptions options;
+		TextWithTags textWithTags;
 	};
 
 	ComposeControls(
@@ -70,9 +83,12 @@ public:
 	void focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> sendRequests() const;
+	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<> attachRequests() const;
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
 	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
+	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
 
@@ -86,11 +102,17 @@ public:
 		const Window::SectionShow &params);
 	bool returnTabbedSelector();
 
+	bool isEditingMessage() const;
+
 	void showForGrab();
 	void showStarted();
 	void showFinished();
 
+	void editMessage(FullMsgId edit);
+	void cancelEditMessage();
+
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
+	[[nodiscard]] WebPageId webPageId() const;
 	void clear();
 	void hidePanelsAnimated();
 
@@ -99,6 +121,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
+	void initWebpageProcess();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateControlsGeometry(QSize size);
@@ -110,6 +133,8 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 	void setText(const TextWithTags &text);
+
+	void setTextFromEditingMessage(not_null<HistoryItem*> item);
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
@@ -125,10 +150,15 @@ private:
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 
+	friend class FieldHeader;
+	const std::unique_ptr<FieldHeader> _header;
+
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
 	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
+
+	TextWithTags _localSavedText;
 
 	//bool _recording = false;
 	//bool _inField = false;

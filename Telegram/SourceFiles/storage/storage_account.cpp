@@ -134,7 +134,7 @@ StartResult Account::legacyStart(const QByteArray &passcode) {
 	if (result == ReadMapResult::Failed) {
 		Assert(_localKey == nullptr);
 	} else if (result == ReadMapResult::IncorrectPasscode) {
-		return StartResult::IncorrectPasscode;
+		return StartResult::IncorrectPasscodeLegacy;
 	}
 	clearLegacyFiles();
 	return StartResult::Success;

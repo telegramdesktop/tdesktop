@@ -31,7 +31,9 @@ Domain::Domain(const QString &dataName)
 , _local(std::make_unique<Storage::Domain>(this, dataName)) {
 	_active.changes(
 	) | rpl::take(1) | rpl::start_with_next([] {
-		Local::rewriteSettingsIfNeeded();
+		// In case we had a legacy passcoded app we start settings here.
+		Core::App().startSettingsAndBackground();
+
 		Core::App().notifications().createManager();
 	}, _lifetime);
 

@@ -139,6 +139,7 @@ private:
 
 	void setupSupportMode();
 	void setupConnectingWidget();
+	void setupMainMenuToggle();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Key chat, UserData *from = nullptr);
 	void showJumpToDate();

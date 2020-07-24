@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_preview.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor.h"
+#include "window/window_controller.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::local.
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "ui/image/image.h"
+#include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
 #include "app.h"
@@ -560,6 +562,8 @@ void ChatBackground::start() {
 		_session = session;
 		checkUploadWallPaper();
 	}, _lifetime);
+
+	Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 }
 
 void ChatBackground::checkUploadWallPaper() {
@@ -1074,6 +1078,14 @@ bool ChatBackground::nightMode() const {
 void ChatBackground::reapplyWithNightMode(
 		std::optional<QString> themePath,
 		bool newNightMode) {
+	if (!started()) {
+		// We can get here from legacy passcoded state.
+		// In this case Background() is not started yet, because
+		// some settings and the background itself were not read.
+		return;
+	} else if (_nightMode != newNightMode && !nightModeChangeAllowed()) {
+		return;
+	}
 	const auto settingExactTheme = themePath.has_value();
 	const auto nightModeChanged = (newNightMode != _nightMode);
 	const auto oldNightMode = _nightMode;
@@ -1134,6 +1146,14 @@ void ChatBackground::reapplyWithNightMode(
 			}
 		};
 	}
+}
+
+bool ChatBackground::nightModeChangeAllowed() const {
+	const auto &settings = Core::App().settings();
+	const auto allowedToBeAfterChange = settings.systemDarkModeEnabled()
+		? settings.systemDarkMode().value_or(!_nightMode)
+		: !_nightMode;
+	return (_nightMode != allowedToBeAfterChange);
 }
 
 void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
@@ -1291,6 +1311,28 @@ void ToggleNightMode() {
 
 void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
+}
+
+void ToggleNightModeWithConfirmation(
+		not_null<Controller*> window,
+		Fn<void()> toggle) {
+	if (Background()->nightModeChangeAllowed()) {
+		toggle();
+	} else {
+		const auto box = std::make_shared<QPointer<ConfirmBox>>();
+		const auto disableAndToggle = [=] {
+			Core::App().settings().setSystemDarkModeEnabled(false);
+			Core::App().saveSettingsDelayed();
+			toggle();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = window->show(Box<ConfirmBox>(
+			tr::lng_settings_auto_night_warning(tr::now),
+			tr::lng_settings_auto_night_disable(tr::now),
+			disableAndToggle));
+	}
 }
 
 void ResetToSomeDefault() {

@@ -23,6 +23,7 @@ namespace Storage {
 enum class StartResult : uchar {
 	Success,
 	IncorrectPasscode,
+	IncorrectPasscodeLegacy,
 };
 
 class Domain final {

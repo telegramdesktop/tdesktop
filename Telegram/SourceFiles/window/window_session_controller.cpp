@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
+#include "ui/delayed_activation.h"
 
 namespace Window {
 namespace {
@@ -52,6 +53,12 @@ namespace {
 constexpr auto kMaxChatEntryHistorySize = 50;
 
 } // namespace
+
+void ActivateWindow(not_null<SessionController*> controller) {
+	const auto window = controller->widget();
+	window->activateWindow();
+	Ui::ActivateWindowDelayed(window);
+}
 
 DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
 : _chat(chat)

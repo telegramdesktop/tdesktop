@@ -400,6 +400,8 @@ void SendConfirmedFile(
 	}
 	if (file->to.options.scheduled) {
 		flags |= MTPDmessage::Flag::f_from_scheduled;
+		// Scheduled messages have no the 'edited' badge.
+		flags |= MTPDmessage::Flag::f_edit_hide;
 	} else {
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}
@@ -523,9 +525,13 @@ void SendConfirmedFile(
 	}
 
 	session->data().sendHistoryChangeNotifications();
-	session->changes().historyUpdated(
-		history,
-		Data::HistoryUpdate::Flag::MessageSent);
+	if (!itemToEdit) {
+		session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+	}
 }
 
 } // namespace Api

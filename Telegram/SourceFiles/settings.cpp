@@ -42,7 +42,6 @@ bool gUseFreeType = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 LaunchMode gLaunchMode = LaunchModeNormal;
-bool gSupportTray = true;
 bool gSeenTrayTooltip = false;
 bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;

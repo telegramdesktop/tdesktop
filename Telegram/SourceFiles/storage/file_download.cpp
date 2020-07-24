@@ -140,8 +140,9 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 		Platform::File::PostprocessDownloaded(
 			QFileInfo(_file).absoluteFilePath());
 	}
-	_session->notifyDownloaderTaskFinished();
+	const auto session = _session;
 	_updates.fire_done();
+	session->notifyDownloaderTaskFinished();
 }
 
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {

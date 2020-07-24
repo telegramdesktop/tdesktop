@@ -101,7 +101,7 @@ dialogsMenuToggle: IconButton {
 
 	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_menu", dialogsMenuIconFgOver }};
-	iconPosition: point(10px, 10px);
+	iconPosition: point(-1px, -1px);
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 40px;
@@ -109,6 +109,15 @@ dialogsMenuToggle: IconButton {
 		color: windowBgOver;
 	}
 }
+dialogsMenuToggleUnread: icon {
+	{ "dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs_menu_unread_dot", dialogsUnreadBg },
+};
+dialogsMenuToggleUnreadMuted: icon {
+	{ "dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs_menu_unread_dot", dialogsMenuIconFg },
+};
+
 dialogsLock: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_lock", dialogsMenuIconFgOver }};

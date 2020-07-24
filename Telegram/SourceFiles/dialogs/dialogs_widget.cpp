@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
+#include "window/window_main_menu.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "data/data_session.h"
@@ -274,17 +275,9 @@ Widget::Widget(
 		Core::App().lockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->filtersMenuChanged()
-	) | rpl::start_with_next([=] {
-		const auto filtersHidden = !controller->filtersWidth();
-		_mainMenuToggle->setVisible(filtersHidden);
-		_searchForNarrowFilters->setVisible(!filtersHidden);
-		updateControlsGeometry();
-	}, lifetime());
-	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+
+	setupMainMenuToggle();
+
 	_searchForNarrowFilters->setClickedCallback([=] { Ui::showChatsList(&session()); });
 
 	_chooseByDragTimer.setSingleShot(true);
@@ -424,6 +417,31 @@ void Widget::setupSupportMode() {
 
 	fullSearchRefreshOn(session().settings().supportAllSearchResultsValue(
 	) | rpl::to_empty);
+}
+
+void Widget::setupMainMenuToggle() {
+	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller()->filtersMenuChanged()
+	) | rpl::start_with_next([=] {
+		const auto filtersHidden = !controller()->filtersWidth();
+		_mainMenuToggle->setVisible(filtersHidden);
+		_searchForNarrowFilters->setVisible(!filtersHidden);
+		updateControlsGeometry();
+	}, lifetime());
+
+	Window::OtherAccountsUnreadState(
+	) | rpl::start_with_next([=](const Window::OthersUnreadState &state) {
+		const auto icon = !state.count
+			? nullptr
+			: !state.allMuted
+			? &st::dialogsMenuToggleUnread
+			: &st::dialogsMenuToggleUnreadMuted;
+		_mainMenuToggle->setIconOverride(icon, icon);
+	}, _mainMenuToggle->lifetime());
 }
 
 void Widget::fullSearchRefreshOn(rpl::producer<> events) {

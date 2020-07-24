@@ -72,11 +72,11 @@ void SetupConnectionType(
 	const auto button = AddButtonWithLabel(
 		container,
 		tr::lng_settings_connection_type(),
-		rpl::single(
-			rpl::empty_value()
-		) | rpl::then(base::ObservableViewer(
-			Global::RefConnectionTypeChanged()
-		)) | rpl::map(connectionType),
+		rpl::merge(
+			base::ObservableViewer(Global::RefConnectionTypeChanged()),
+			// Handle language switch.
+			tr::lng_connection_auto_connecting() | rpl::to_empty
+		) | rpl::map(connectionType),
 		st::settingsButton);
 	button->addClickHandler([=] {
 		Ui::show(ProxiesBoxController::CreateOwningBox(account));
@@ -325,92 +325,92 @@ void SetupSpellchecker(
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 }
 
-bool HasTray() {
-	return cSupportTray() || Platform::IsWindows();
-}
-
-void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
-	const auto checkbox = [&](const QString &label, bool checked) {
+void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
+	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			label,
+			std::move(label),
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](const QString &label, bool checked) {
+	const auto addCheckbox = [&](
+			rpl::producer<QString> &&label,
+			bool checked) {
 		return container->add(
-			checkbox(label, checked),
+			checkbox(std::move(label), checked),
 			st::settingsCheckboxPadding);
 	};
-	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
+	const auto addSlidingCheckbox = [&](
+			rpl::producer<QString> &&label,
+			bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
-				checkbox(label, checked),
+				checkbox(std::move(label), checked),
 				st::settingsCheckboxPadding));
 	};
+	if (Platform::TrayIconSupported()) {
+		const auto trayEnabled = [] {
+			const auto workMode = Global::WorkMode().value();
+			return (workMode == dbiwmTrayOnly)
+				|| (workMode == dbiwmWindowAndTray);
+		};
+		const auto tray = addCheckbox(
+			tr::lng_settings_workmode_tray(),
+			trayEnabled());
 
-	const auto trayEnabled = [] {
-		const auto workMode = Global::WorkMode().value();
-		return (workMode == dbiwmTrayOnly)
-			|| (workMode == dbiwmWindowAndTray);
-	};
-	const auto tray = addCheckbox(
-		tr::lng_settings_workmode_tray(tr::now),
-		trayEnabled());
+		const auto taskbarEnabled = [] {
+			const auto workMode = Global::WorkMode().value();
+			return (workMode == dbiwmWindowOnly)
+				|| (workMode == dbiwmWindowAndTray);
+		};
+		const auto taskbar = Platform::IsWindows()
+			? addCheckbox(
+				tr::lng_settings_workmode_window(),
+				taskbarEnabled())
+			: nullptr;
 
-	const auto taskbarEnabled = [] {
-		const auto workMode = Global::WorkMode().value();
-		return (workMode == dbiwmWindowOnly)
-			|| (workMode == dbiwmWindowAndTray);
-	};
-	const auto taskbar = Platform::IsWindows()
-		? addCheckbox(
-			tr::lng_settings_workmode_window(tr::now),
-			taskbarEnabled())
-		: nullptr;
+		const auto updateWorkmode = [=] {
+			const auto newMode = tray->checked()
+				? ((!taskbar || taskbar->checked())
+					? dbiwmWindowAndTray
+					: dbiwmTrayOnly)
+				: dbiwmWindowOnly;
+			if ((newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)
+				&& Global::WorkMode().value() != newMode) {
+				cSetSeenTrayTooltip(false);
+			}
+			Global::RefWorkMode().set(newMode);
+			Local::writeSettings();
+		};
 
-	const auto updateWorkmode = [=] {
-		const auto newMode = tray->checked()
-			? ((!taskbar || taskbar->checked())
-				? dbiwmWindowAndTray
-				: dbiwmTrayOnly)
-			: dbiwmWindowOnly;
-		if ((newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)
-			&& Global::WorkMode().value() != newMode) {
-			cSetSeenTrayTooltip(false);
-		}
-		Global::RefWorkMode().set(newMode);
-		Local::writeSettings();
-	};
-
-	tray->checkedChanges(
-	) | rpl::filter([=](bool checked) {
-		return (checked != trayEnabled());
-	}) | rpl::start_with_next([=](bool checked) {
-		if (!checked && taskbar && !taskbar->checked()) {
-			taskbar->setChecked(true);
-		} else {
-			updateWorkmode();
-		}
-	}, tray->lifetime());
-
-	if (taskbar) {
-		taskbar->checkedChanges(
+		tray->checkedChanges(
 		) | rpl::filter([=](bool checked) {
-			return (checked != taskbarEnabled());
+			return (checked != trayEnabled());
 		}) | rpl::start_with_next([=](bool checked) {
-			if (!checked && !tray->checked()) {
-				tray->setChecked(true);
+			if (!checked && taskbar && !taskbar->checked()) {
+				taskbar->setChecked(true);
 			} else {
 				updateWorkmode();
 			}
-		}, taskbar->lifetime());
-	}
+		}, tray->lifetime());
 
+		if (taskbar) {
+			taskbar->checkedChanges(
+			) | rpl::filter([=](bool checked) {
+				return (checked != taskbarEnabled());
+			}) | rpl::start_with_next([=](bool checked) {
+				if (!checked && !tray->checked()) {
+					tray->setChecked(true);
+				} else {
+					updateWorkmode();
+				}
+			}, taskbar->lifetime());
+		}
+	}
 	if (Platform::AllowNativeWindowFrameToggle()) {
 		const auto nativeFrame = addCheckbox(
-			"Use system window frame",
+			tr::lng_settings_native_frame(),
 			Core::App().settings().nativeWindowFrame());
 
 		nativeFrame->checkedChanges(
@@ -421,17 +421,16 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			Core::App().saveSettingsDelayed();
 		}, nativeFrame->lifetime());
 	}
-
 	if (Platform::AutostartSupported()) {
 		const auto minimizedToggled = [] {
 			return cStartMinimized() && !Global::LocalPasscode();
 		};
 
 		const auto autostart = addCheckbox(
-			tr::lng_settings_auto_start(tr::now),
+			tr::lng_settings_auto_start(),
 			cAutoStart());
 		const auto minimized = addSlidingCheckbox(
-			tr::lng_settings_start_min(tr::now),
+			tr::lng_settings_start_min(),
 			minimizedToggled());
 
 		autostart->checkedChanges(
@@ -471,10 +470,9 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		}, minimized->lifetime());
 	}
 
-#ifndef OS_WIN_STORE
-	if (Platform::IsWindows()) {
+	if (Platform::IsWindows() && !Platform::IsWindowsStoreBuild()) {
 		const auto sendto = addCheckbox(
-			tr::lng_settings_add_sendto(tr::now),
+			tr::lng_settings_add_sendto(),
 			cSendToMenu());
 
 		sendto->checkedChanges(
@@ -486,22 +484,18 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			Local::writeSettings();
 		}, sendto->lifetime());
 	}
-#endif // OS_WIN_STORE
 }
 
-void SetupTray(not_null<Ui::VerticalLayout*> container) {
-	if (!HasTray()) {
-		return;
-	}
-
+void SetupSystemIntegrationOptions(not_null<Ui::VerticalLayout*> container) {
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupTrayContent(wrap.data());
+	SetupSystemIntegrationContent(wrap.data());
+	if (wrap->count() > 0) {
+		container->add(object_ptr<Ui::OverrideMargins>(
+			container,
+			std::move(wrap)));
 
-	container->add(object_ptr<Ui::OverrideMargins>(
-		container,
-		std::move(wrap)));
-
-	AddSkip(container, st::settingsCheckboxesSkip);
+		AddSkip(container, st::settingsCheckboxesSkip);
+	}
 }
 
 void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
@@ -539,7 +533,7 @@ void SetupSystemIntegration(
 	)->addClickHandler([=] {
 		showOther(Type::Calls);
 	});
-	SetupTray(container);
+	SetupSystemIntegrationOptions(container);
 	AddSkip(container);
 }
 
