@@ -880,6 +880,11 @@ void MainMenu::refreshMenu() {
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();
 	auto action = _menu->addAction(tr::lng_menu_night_mode(tr::now), [=] {
+		if (Window::Theme::Background()->editingTheme()) {
+			Ui::show(Box<InformBox>(
+				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			return;
+		}
 		const auto weak = MakeWeak(this);
 		const auto toggle = [=] {
 			if (!weak) {

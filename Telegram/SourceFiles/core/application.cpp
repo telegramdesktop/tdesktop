@@ -309,6 +309,9 @@ void Application::checkSystemDarkMode() {
 }
 
 void Application::startSystemDarkModeViewer() {
+	if (Window::Theme::Background()->editingTheme()) {
+		_settings.setSystemDarkModeEnabled(false);
+	}
 	rpl::merge(
 		_settings.systemDarkModeChanges() | rpl::to_empty,
 		_settings.systemDarkModeEnabledChanges() | rpl::to_empty
