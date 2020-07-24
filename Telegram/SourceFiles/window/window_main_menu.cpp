@@ -433,27 +433,13 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
-	const auto active = &Core::App().activeAccount();
-	auto allMuted = true;
-	for (const auto &[index, account] : Core::App().domain().accounts()) {
-		if (account.get() == active) {
-			continue;
-		} else if (const auto session = account->maybeSession()) {
-			if (!session->data().unreadBadgeMuted()) {
-				allMuted = false;
-				break;
-			}
-		}
-	}
-	if (allMuted) {
-		return QString();
-	}
-	const auto count = Core::App().unreadBadge()
-		- active->session().data().unreadBadge();
-	return (count > 99)
+	const auto state = OtherAccountsUnreadStateCurrent();
+	return state.allMuted
+		? QString()
+		: (state.count > 99)
 		? u"99+"_q
-		: (count > 0)
-		? QString::number(count)
+		: (state.count > 0)
+		? QString::number(state.count)
 		: QString();
 }
 
@@ -1134,5 +1120,34 @@ void MainMenu::initResetScaleButton() {
 		}
 	}, lifetime());
 }
+
+OthersUnreadState OtherAccountsUnreadStateCurrent() {
+	auto &app = Core::App();
+	const auto active = &app.activeAccount();
+	auto allMuted = true;
+	for (const auto &[index, account] : app.domain().accounts()) {
+		if (account.get() == active) {
+			continue;
+		} else if (const auto session = account->maybeSession()) {
+			if (!session->data().unreadBadgeMuted()) {
+				allMuted = false;
+				break;
+			}
+		}
+	}
+	return {
+		.count = (app.unreadBadge() - active->session().data().unreadBadge()),
+		.allMuted = allMuted,
+	};
+}
+
+rpl::producer<OthersUnreadState> OtherAccountsUnreadState() {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		Core::App().unreadBadgeChanges()
+	) | rpl::map(OtherAccountsUnreadStateCurrent);
+}
+
 
 } // namespace Window

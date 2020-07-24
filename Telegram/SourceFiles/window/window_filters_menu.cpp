@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "window/window_main_menu.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -75,6 +76,8 @@ FiltersMenu::FiltersMenu(
 FiltersMenu::~FiltersMenu() = default;
 
 void FiltersMenu::setup() {
+	setupMainMenuIcon();
+
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
 	_outer.show();
 	_outer.paintRequest(
@@ -132,6 +135,18 @@ void FiltersMenu::setup() {
 	_menu.setClickedCallback([=] {
 		_session->widget()->showMainMenu();
 	});
+}
+
+void FiltersMenu::setupMainMenuIcon() {
+	OtherAccountsUnreadState(
+	) | rpl::start_with_next([=](const OthersUnreadState &state) {
+		const auto icon = !state.count
+			? nullptr
+			: !state.allMuted
+			? &st::windowFiltersMainMenuUnread
+			: &st::windowFiltersMainMenuUnreadMuted;
+		_menu.setIconOverride(icon, icon);
+	}, _outer.lifetime());
 }
 
 void FiltersMenu::scrollToButton(not_null<Ui::RpWidget*> widget) {

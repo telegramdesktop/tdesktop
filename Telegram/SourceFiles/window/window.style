@@ -285,6 +285,14 @@ windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
 	iconPosition: point(-1px, -1px);
 	minHeight: 54px;
 }
+windowFiltersMainMenuUnread: icon {
+	{ "dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs_menu_unread_dot", sideBarBadgeBg },
+};
+windowFiltersMainMenuUnreadMuted: icon {
+	{ "dialogs_menu_unread", sideBarIconFg },
+	{ "dialogs_menu_unread_dot", sideBarBadgeBgMuted },
+};
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
 	photoPosition: point(15px, 5px);

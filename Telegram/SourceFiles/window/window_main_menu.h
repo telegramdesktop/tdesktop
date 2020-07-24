@@ -99,4 +99,12 @@ private:
 
 };
 
+struct OthersUnreadState {
+	int count = 0;
+	bool allMuted = false;
+};
+
+[[nodiscard]] OthersUnreadState OtherAccountsUnreadStateCurrent();
+[[nodiscard]] rpl::producer<OthersUnreadState> OtherAccountsUnreadState();
+
 } // namespace Window
