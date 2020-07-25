@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
 #include "window/window_session_controller.h"
@@ -584,7 +585,13 @@ void TabbedSelector::refreshStickers() {
 }
 
 bool TabbedSelector::preventAutoHide() const {
-	return full() ? stickers()->preventAutoHide() : false;
+	return full()
+		? (stickers()->preventAutoHide() || hasMenu())
+		: false;
+}
+
+bool TabbedSelector::hasMenu() const {
+	return (_menu && !_menu->actions().empty());
 }
 
 QImage TabbedSelector::grabForAnimation() {
@@ -864,6 +871,15 @@ void TabbedSelector::scrollToY(int y) {
 	// Qt render glitch workaround, shadow sometimes disappears if we just scroll to y.
 	if (full()) {
 		_topShadow->update();
+	}
+}
+
+void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	currentTab()->widget()->fillContextMenu(_menu);
+
+	if (!_menu->actions().empty()) {
+		_menu->popup(QCursor::pos());
 	}
 }
 

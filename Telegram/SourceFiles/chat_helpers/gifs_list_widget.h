@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -22,6 +26,7 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
+class PopupMenu;
 class RoundButton;
 } // namespace Ui
 
@@ -65,6 +70,8 @@ public:
 
 	void cancelled();
 	rpl::producer<> cancelRequests() const;
+
+	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
 
 	~GifsListWidget();
 
@@ -158,6 +165,11 @@ private:
 
 	int validateExistingInlineRows(const InlineResults &results);
 	void selectInlineResult(int row, int column);
+	void selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options,
+		bool forceSend = false);
 
 	Footer *_footer = nullptr;
 

@@ -24,6 +24,7 @@ class Session;
 
 namespace Ui {
 class PlainShadow;
+class PopupMenu;
 class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
@@ -94,6 +95,7 @@ public:
 	bool isSliding() const {
 		return _a_slide.animating();
 	}
+	bool hasMenu() const;
 
 	void setAfterShownCallback(Fn<void(SelectorTab)> callback) {
 		_afterShownCallback = std::move(callback);
@@ -116,6 +118,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	class Tab {
@@ -211,6 +214,8 @@ private:
 	std::array<Tab, Tab::kCount> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 
+	base::unique_qptr<Ui::PopupMenu> _menu;
+
 	Fn<void(SelectorTab)> _afterShownCallback;
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
@@ -245,6 +250,8 @@ public:
 	virtual void afterShown() {
 	}
 	virtual void beforeHiding() {
+	}
+	virtual void fillContextMenu(not_null<Ui::PopupMenu*> menu) {
 	}
 
 	rpl::producer<int> scrollToRequests() const;

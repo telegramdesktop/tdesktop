@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "chat_helpers/message_field.h" // FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
@@ -24,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
+#include "history/view/history_view_schedule_box.h"
 #include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -2041,6 +2044,40 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 		return myrtlrect(featuredAddRect(section)).topLeft();
 	}
 	return myrtlrect(removeButtonRect(section)).topLeft() + st::stickerPanRemoveSet.rippleAreaPosition;
+}
+
+void StickersListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+	auto selected = _selected;
+	auto &sets = shownSets();
+	if (!selected || _pressed) {
+		return;
+	}
+	if (auto sticker = base::get_if<OverSticker>(&selected)) {
+		Assert(sticker->section >= 0 && sticker->section < sets.size());
+		auto &set = sets[sticker->section];
+		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
+
+		const auto document = set.stickers[sticker->index].document;
+		const auto send = [=](Api::SendOptions options) {
+			_chosen.fire_copy({
+				.document = document,
+				.options = options });
+		};
+		const auto silent = [=] { send({ .silent = true }); };
+		const auto schedule = [=] {
+			checkHideWithBox(Ui::show(
+				HistoryView::PrepareScheduleBox(
+					this,
+					SendMenuType::Scheduled,
+					[=](Api::SendOptions options) { send(options); }),
+				Ui::LayerOption::KeepOther).data());
+		};
+		FillSendMenu(
+			menu,
+			[] { return SendMenuType::Scheduled; },
+			silent,
+			schedule);
+	}
 }
 
 void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {

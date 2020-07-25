@@ -22,6 +22,7 @@ class SessionController;
 
 namespace Ui {
 class LinkButton;
+class PopupMenu;
 class RippleAnimation;
 class BoxContent;
 } // namespace Ui
@@ -81,6 +82,8 @@ public:
 	void searchForSets(const QString &query);
 
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
+	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
 
 	~StickersListWidget();
 

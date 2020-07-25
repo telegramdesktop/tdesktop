@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/gifs_list_widget.h"
 
+#include "api/api_common.h"
 #include "base/const_string.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -16,8 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
+#include "chat_helpers/message_field.h" // FillSendMenu
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "boxes/stickers_box.h"
@@ -28,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_schedule_box.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
 
@@ -343,6 +347,32 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
+void GifsListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+	if (_selected < 0 || _pressed >= 0) {
+		return;
+	}
+	const auto row = _selected / MatrixRowShift;
+	const auto column = _selected % MatrixRowShift;
+
+	const auto send = [=](Api::SendOptions options) {
+		selectInlineResult(row, column, options, true);
+	};
+	const auto silent = [=] { send({ .silent = true }); };
+	const auto schedule = [=] {
+		Ui::show(
+			HistoryView::PrepareScheduleBox(
+				this,
+				SendMenuType::Scheduled,
+				[=](Api::SendOptions options) { send(options); }),
+			Ui::LayerOption::KeepOther);
+	};
+	FillSendMenu(
+		menu,
+		[] { return SendMenuType::Scheduled; },
+		silent,
+		schedule);
+}
+
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.cancel();
 
@@ -370,17 +400,25 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void GifsListWidget::selectInlineResult(int row, int column) {
+	selectInlineResult(row, column, Api::SendOptions());
+}
+
+void GifsListWidget::selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options,
+		bool forceSend) {
 	if (row >= _rows.size() || column >= _rows[row].items.size()) {
 		return;
 	}
 
-	const auto ctrl = (QGuiApplication::keyboardModifiers()
+	forceSend |= (QGuiApplication::keyboardModifiers()
 		== Qt::ControlModifier);
 	auto item = _rows[row].items[column];
 	if (const auto photo = item->getPhoto()) {
 		using Data::PhotoSize;
 		const auto media = photo->activeMediaView();
-		if (ctrl
+		if (forceSend
 			|| (media && media->image(PhotoSize::Thumbnail))
 			|| (media && media->image(PhotoSize::Large))) {
 			_photoChosen.fire_copy(photo);
@@ -390,8 +428,10 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 	} else if (const auto document = item->getDocument()) {
 		const auto media = document->activeMediaView();
 		const auto preview = Data::VideoPreviewState(media.get());
-		if (ctrl || (media && preview.loaded())) {
-			_fileChosen.fire_copy({ .document = document });
+		if (forceSend || (media && preview.loaded())) {
+			_fileChosen.fire_copy({
+				.document = document,
+				.options = options });
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {
 				document->cancel();
