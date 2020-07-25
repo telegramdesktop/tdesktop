@@ -38,6 +38,8 @@ enum class SendMenuType;
 
 namespace ChatHelpers {
 
+void DeleteSavedGif(not_null<DocumentData*> document);
+
 class GifsListWidget
 	: public TabbedSelector::Inner
 	, public InlineBots::Layout::Context

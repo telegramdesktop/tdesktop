@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/gifs_list_widget.h"
 
-#include "api/api_common.h"
+#include "apiwrap.h" // ApiWrap::toggleSavedGif
 #include "base/const_string.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_schedule_box.h"
 #include "app.h"
+#include "storage/storage_account.h" // Account::writeSavedGifs
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -45,6 +46,21 @@ constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = "gif"_cs;
 
 } // namespace
+
+void DeleteSavedGif(not_null<DocumentData*> document) {
+	auto &data = document->owner();
+	document->session().api().toggleSavedGif(
+		document,
+		Data::FileOriginSavedGifs(),
+		false);
+
+	const auto index = data.stickers().savedGifs().indexOf(document);
+	if (index >= 0) {
+		data.stickers().savedGifsRef().remove(index);
+		document->session().local().writeSavedGifs();
+	}
+	data.stickers().notifySavedGifsUpdated();
+}
 
 class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
@@ -373,6 +389,24 @@ void GifsListWidget::fillContextMenu(
 		[&] { return type; },
 		silent,
 		schedule);
+
+	[&] {
+		const auto row = _selected / MatrixRowShift;
+		const auto column = _selected % MatrixRowShift;
+		if (row >= _rows.size() || column >= _rows[row].items.size()) {
+			return;
+		}
+		const auto item = _rows[row].items[column];
+		if (const auto document = item->getDocument()) {
+			auto &data = document->owner();
+			if (data.stickers().savedGifs().indexOf(document) < 0) {
+				return;
+			}
+			menu->addAction(tr::lng_context_delete_gif(tr::now), [=] {
+				ChatHelpers::DeleteSavedGif(document);
+			});
+		}
+	}();
 }
 
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {

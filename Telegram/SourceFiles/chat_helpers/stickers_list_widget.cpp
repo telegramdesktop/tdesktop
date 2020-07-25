@@ -2046,6 +2046,14 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 	return myrtlrect(removeButtonRect(section)).topLeft() + st::stickerPanRemoveSet.rippleAreaPosition;
 }
 
+void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
+	if (document->sticker()
+		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+		_displayingSet = true;
+		checkHideWithBox(StickerSetBox::Show(controller(), document));
+	}
+}
+
 void StickersListWidget::fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		SendMenuType type) {
@@ -2079,6 +2087,22 @@ void StickersListWidget::fillContextMenu(
 			[&] { return type; },
 			silent,
 			schedule);
+
+		const auto toggleFavedSticker = [=] {
+			document->session().api().toggleFavedSticker(
+				document,
+				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0),
+				!document->owner().stickers().isFaved(document));
+		};
+		menu->addAction(
+			(document->owner().stickers().isFaved(document)
+				? tr::lng_faved_stickers_remove
+				: tr::lng_faved_stickers_add)(tr::now),
+			toggleFavedSticker);
+
+		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
+			showStickerSetBox(document);
+		});
 	}
 }
 
@@ -2118,13 +2142,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			}
 			const auto document = set.stickers[sticker->index].document;
 			if (e->modifiers() & Qt::ControlModifier) {
-				if (document->sticker()
-					&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-					_displayingSet = true;
-					checkHideWithBox(StickerSetBox::Show(
-						controller(),
-						document));
-				}
+				showStickerSetBox(document);
 			} else {
 				_chosen.fire_copy({ .document = document });
 			}

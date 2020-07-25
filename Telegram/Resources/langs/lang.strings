@@ -1468,6 +1468,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_text" = "Copy Text";
 "lng_context_open_gif" = "Open GIF";
 "lng_context_save_gif" = "Save GIF";
+"lng_context_delete_gif" = "Delete GIF";
 "lng_context_attached_stickers" = "Attached Stickers";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";

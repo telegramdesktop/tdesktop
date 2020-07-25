@@ -303,6 +303,8 @@ private:
 	void setColumnCount(int count);
 	void refreshFooterIcons();
 
+	void showStickerSetBox(not_null<DocumentData*> document);
+
 	void cancelSetsSearch();
 	void showSearchResults();
 	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
