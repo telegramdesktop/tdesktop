@@ -83,7 +83,9 @@ public:
 
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
-	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
+	void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenuType type) override;
 
 	~StickersListWidget();
 

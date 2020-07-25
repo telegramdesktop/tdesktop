@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/tabbed_selector.h"
 
+#include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
@@ -876,7 +877,10 @@ void TabbedSelector::scrollToY(int y) {
 
 void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	currentTab()->widget()->fillContextMenu(_menu);
+	const auto type = _sendMenuType
+		? _sendMenuType()
+		: SendMenuType::Disabled;
+	currentTab()->widget()->fillContextMenu(_menu, type);
 
 	if (!_menu->actions().empty()) {
 		_menu->popup(QCursor::pos());

@@ -2046,7 +2046,9 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 	return myrtlrect(removeButtonRect(section)).topLeft() + st::stickerPanRemoveSet.rippleAreaPosition;
 }
 
-void StickersListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+void StickersListWidget::fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenuType type) {
 	auto selected = _selected;
 	auto &sets = shownSets();
 	if (!selected || _pressed) {
@@ -2068,13 +2070,13 @@ void StickersListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
 			checkHideWithBox(Ui::show(
 				HistoryView::PrepareScheduleBox(
 					this,
-					SendMenuType::Scheduled,
+					type,
 					[=](Api::SendOptions options) { send(options); }),
 				Ui::LayerOption::KeepOther).data());
 		};
 		FillSendMenu(
 			menu,
-			[] { return SendMenuType::Scheduled; },
+			[&] { return type; },
 			silent,
 			schedule);
 	}

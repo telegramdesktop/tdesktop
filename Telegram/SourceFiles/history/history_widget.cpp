@@ -835,6 +835,8 @@ void HistoryWidget::initTabbedSelector() {
 	}) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
 		sendInlineResult(data.result, data.bot);
 	}, lifetime());
+
+	selector->setSendMenuType([=] { return sendMenuType(); });
 }
 
 void HistoryWidget::supportInitAutocomplete() {

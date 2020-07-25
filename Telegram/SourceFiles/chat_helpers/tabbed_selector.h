@@ -34,6 +34,8 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+enum class SendMenuType;
+
 namespace ChatHelpers {
 
 enum class SelectorTab {
@@ -102,6 +104,10 @@ public:
 	}
 	void setBeforeHidingCallback(Fn<void(SelectorTab)> callback) {
 		_beforeHidingCallback = std::move(callback);
+	}
+
+	void setSendMenuType(Fn<SendMenuType()> callback) {
+		_sendMenuType = std::move(callback);
 	}
 
 	// Float player interface.
@@ -219,6 +225,8 @@ private:
 	Fn<void(SelectorTab)> _afterShownCallback;
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
+	Fn<SendMenuType()> _sendMenuType;
+
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;
 
@@ -251,7 +259,9 @@ public:
 	}
 	virtual void beforeHiding() {
 	}
-	virtual void fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+	virtual void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenuType type) {
 	}
 
 	rpl::producer<int> scrollToRequests() const;

@@ -34,6 +34,8 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+enum class SendMenuType;
+
 namespace ChatHelpers {
 
 class GifsListWidget
@@ -71,7 +73,9 @@ public:
 	void cancelled();
 	rpl::producer<> cancelRequests() const;
 
-	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
+	void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenuType type) override;
 
 	~GifsListWidget();
 

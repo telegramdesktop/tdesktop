@@ -347,7 +347,9 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
-void GifsListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+void GifsListWidget::fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenuType type) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
@@ -362,13 +364,13 @@ void GifsListWidget::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
 		Ui::show(
 			HistoryView::PrepareScheduleBox(
 				this,
-				SendMenuType::Scheduled,
+				type,
 				[=](Api::SendOptions options) { send(options); }),
 			Ui::LayerOption::KeepOther);
 	};
 	FillSendMenu(
 		menu,
-		[] { return SendMenuType::Scheduled; },
+		[&] { return type; },
 		silent,
 		schedule);
 }
