@@ -31,6 +31,12 @@ public:
 	}
 
 	[[nodiscard]] rpl::producer<> refreshed() const;
+	[[nodiscard]] rpl::producer<> value() const;
+
+	[[nodiscard]] bool suggestionCurrent(const QString &key) const;
+	[[nodiscard]] rpl::producer<> suggestionRequested(
+		const QString &key) const;
+	void dismissSuggestion(const QString &key);
 
 	void refresh();
 
@@ -60,6 +66,7 @@ private:
 	mtpRequestId _requestId = 0;
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
+	base::flat_set<QString> _dismissedSuggestions;
 	rpl::lifetime _lifetime;
 
 };

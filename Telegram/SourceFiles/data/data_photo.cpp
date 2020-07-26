@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "media/streaming/media_streaming_loader_local.h"
+#include "media/streaming/media_streaming_loader_mtproto.h"
 #include "mainwidget.h"
 #include "storage/file_download.h"
 #include "core/application.h"
@@ -39,6 +41,7 @@ PhotoData::~PhotoData() {
 	for (auto &image : _images) {
 		base::take(image.loader).reset();
 	}
+	base::take(_video.loader).reset();
 }
 
 Data::Session &PhotoData::owner() const {
@@ -294,7 +297,9 @@ void PhotoData::updateImages(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;
@@ -315,6 +320,16 @@ void PhotoData::updateImages(
 	update(PhotoSize::Small, small);
 	update(PhotoSize::Thumbnail, thumbnail);
 	update(PhotoSize::Large, large);
+
+	if (video.location.valid()) {
+		_videoStartTime = videoStartTime;
+	}
+	Data::UpdateCloudFile(
+		_video,
+		video,
+		owner().cache(),
+		Data::kAnimationCacheTag,
+		[&](Data::FileOrigin origin) { loadVideo(origin); });
 }
 
 int PhotoData::width() const {
@@ -323,6 +338,76 @@ int PhotoData::width() const {
 
 int PhotoData::height() const {
 	return _images[PhotoSizeIndex(PhotoSize::Large)].location.height();
+}
+
+bool PhotoData::hasVideo() const {
+	return _video.location.valid();
+}
+
+bool PhotoData::videoLoading() const {
+	return _video.loader != nullptr;
+}
+
+bool PhotoData::videoFailed() const {
+	return (_video.flags & Data::CloudFile::Flag::Failed);
+}
+
+void PhotoData::loadVideo(Data::FileOrigin origin) {
+	const auto autoLoading = false;
+	const auto finalCheck = [=] {
+		if (const auto active = activeMediaView()) {
+			return active->videoContent().isEmpty();
+		}
+		return true;
+	};
+	const auto done = [=](QByteArray result) {
+		if (const auto active = activeMediaView()) {
+			active->setVideo(std::move(result));
+		}
+	};
+	Data::LoadCloudFile(
+		&session(),
+		_video,
+		origin,
+		LoadFromCloudOrLocal,
+		autoLoading,
+		Data::kAnimationCacheTag,
+		finalCheck,
+		done);
+}
+
+const ImageLocation &PhotoData::videoLocation() const {
+	return _video.location;
+}
+
+int PhotoData::videoByteSize() const {
+	return _video.byteSize;
+}
+
+bool PhotoData::videoCanBePlayed() const {
+	return hasVideo() && !videoPlaybackFailed();
+}
+
+auto PhotoData::createStreamingLoader(
+	Data::FileOrigin origin,
+	bool forceRemoteLoader) const
+-> std::unique_ptr<Media::Streaming::Loader> {
+	if (!hasVideo()) {
+		return nullptr;
+	}
+	if (!forceRemoteLoader) {
+		const auto media = activeMediaView();
+		if (media && !media->videoContent().isEmpty()) {
+			return Media::Streaming::MakeBytesLoader(media->videoContent());
+		}
+	}
+	return videoLocation().file().data.is<StorageFileLocation>()
+		? std::make_unique<Media::Streaming::LoaderMtproto>(
+			&session().downloader(),
+			videoLocation().file().data.get_unchecked<StorageFileLocation>(),
+			videoByteSize(),
+			origin)
+		: nullptr;
 }
 
 PhotoClickHandler::PhotoClickHandler(

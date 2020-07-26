@@ -424,6 +424,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_password_title" = "Two-step verification";
 "lng_settings_sessions_title" = "Active sessions";
+"lng_settings_new_unknown" = "New chats from unknown users";
+"lng_settings_auto_archive" = "Archive and Mute";
+"lng_settings_auto_archive_about" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
 "lng_settings_destroy_title" = "Delete my account";
 "lng_settings_network_proxy" = "Network and proxy";
 "lng_settings_version_info" = "Version and updates";
@@ -438,6 +441,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_auto_night_enabled" = "Match the system settings";
 "lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
 "lng_settings_auto_night_disable" = "Disable";
+
+"lng_suggest_hide_new_title" = "Hide new chats?";
+"lng_suggest_hide_new_about" = "You are receiving lots of new chats from users who are not in your Contact List.\n\nDo you want to have such chats **automatically muted** and **archived**?";
+"lng_suggest_hide_new_to_settings" = "Go to Settings";
 
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";
@@ -1132,6 +1139,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_group_invite_members#one" = "{count} member, among them:";
 "lng_group_invite_members#other" = "{count} members, among them:";
+"lng_channel_invite_private" = "This channel is private.\nPlease join it to continue viewing its content.";
 
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
@@ -1286,6 +1294,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_share_done" = "{user} can now see your phone number.";
 "lng_new_contact_add_name" = "Add {user} to contacts";
 "lng_new_contact_add_done" = "{user} is now in your contact list.";
+"lng_new_contact_unarchive" = "Unarchive";
 "lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
 "lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";

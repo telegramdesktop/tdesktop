@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_global_privacy.h"
 #include "api/api_updates.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -186,7 +187,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _topPromotionTimer([=] { refreshTopPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
-, _sensitiveContent(std::make_unique<Api::SensitiveContent>(this)) {
+, _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
+, _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -1645,7 +1647,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	}).fail([=](const RPCError &error) {
 		_selfParticipantRequests.erase(channel);
 		if (error.type() == qstr("CHANNEL_PRIVATE")) {
-			channel->markForbidden();
+			channel->privateErrorReceived();
 		}
 		finalize(-1, 0);
 	}).afterDelay(kSmallDelayMs).send();
@@ -1962,6 +1964,9 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			applyUpdates(result);
 		}).fail([=](const RPCError &error) {
 			if (error.type() == qstr("CHANNEL_PRIVATE")
+				&& channel->invitePeekExpires()) {
+				channel->privateErrorReceived();
+			} else if (error.type() == qstr("CHANNEL_PRIVATE")
 				|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
 				|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 				Ui::show(Box<InformBox>(channel->isMegagroup()
@@ -4874,7 +4879,10 @@ void ApiWrap::photoUploadReady(
 		};
 		if (peer->isSelf()) {
 			request(MTPphotos_UploadProfilePhoto(
-				file
+				MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file),
+				file,
+				MTPInputFile(), // video
+				MTPdouble() // video_start_ts
 			)).done([=](const MTPphotos_Photo &result) {
 				result.match([&](const MTPDphotos_photo &data) {
 					_session->data().processPhoto(data.vphoto());
@@ -4885,13 +4893,21 @@ void ApiWrap::photoUploadReady(
 			const auto history = _session->data().history(chat);
 			history->sendRequestId = request(MTPmessages_EditChatPhoto(
 				chat->inputChat,
-				MTP_inputChatUploadedPhoto(file)
+				MTP_inputChatUploadedPhoto(
+					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
+					file,
+					MTPInputFile(), // video
+					MTPdouble()) // video_start_ts
 			)).done(applier).afterRequest(history->sendRequestId).send();
 		} else if (const auto channel = peer->asChannel()) {
 			const auto history = _session->data().history(channel);
 			history->sendRequestId = request(MTPchannels_EditPhoto(
 				channel->inputChannel,
-				MTP_inputChatUploadedPhoto(file)
+				MTP_inputChatUploadedPhoto(
+					MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
+					file,
+					MTPInputFile(), // video
+					MTPdouble()) // video_start_ts
 			)).done(applier).afterRequest(history->sendRequestId).send();
 		}
 	}
@@ -5225,6 +5241,10 @@ Api::SelfDestruct &ApiWrap::selfDestruct() {
 
 Api::SensitiveContent &ApiWrap::sensitiveContent() {
 	return *_sensitiveContent;
+}
+
+Api::GlobalPrivacy &ApiWrap::globalPrivacy() {
+	return *_globalPrivacy;
 }
 
 void ApiWrap::createPoll(

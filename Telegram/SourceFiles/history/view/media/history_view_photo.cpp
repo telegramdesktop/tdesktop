@@ -14,13 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_document.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "ui/image/image.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_auto_download.h"
+#include "core/application.h"
 #include "app.h"
 #include "styles/style_history.h"
 
@@ -30,6 +37,17 @@ namespace {
 using Data::PhotoSize;
 
 } // namespace
+
+struct Photo::Streamed {
+	explicit Streamed(std::shared_ptr<::Media::Streaming::Document> shared);
+	::Media::Streaming::Instance instance;
+	QImage frozenFrame;
+};
+
+Photo::Streamed::Streamed(
+	std::shared_ptr<::Media::Streaming::Document> shared)
+: instance(std::move(shared), nullptr) {
+}
 
 Photo::Photo(
 	not_null<Element*> parent,
@@ -54,9 +72,15 @@ Photo::Photo(
 }
 
 Photo::~Photo() {
-	if (_dataMedia) {
-		_data->owner().keepAlive(base::take(_dataMedia));
-		_parent->checkHeavyPart();
+	if (_streamed || _dataMedia) {
+		if (_streamed) {
+			_data->owner().streaming().keepAlive(_data);
+			stopAnimation();
+		}
+		if (_dataMedia) {
+			_data->owner().keepAlive(base::take(_dataMedia));
+			_parent->checkHeavyPart();
+		}
 	}
 }
 
@@ -93,10 +117,11 @@ void Photo::dataMediaCreated() const {
 }
 
 bool Photo::hasHeavyPart() const {
-	return (_dataMedia != nullptr);
+	return _streamed || _dataMedia;
 }
 
 void Photo::unloadHeavyPart() {
+	stopAnimation();
 	_dataMedia = nullptr;
 }
 
@@ -209,22 +234,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
-		const auto pix = [&] {
-			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixCircled(_pixw, _pixh);
-			} else if (const auto thumbnail = _dataMedia->image(
-					PhotoSize::Thumbnail)) {
-				return thumbnail->pixBlurredCircled(_pixw, _pixh);
-			} else if (const auto small = _dataMedia->image(
-					PhotoSize::Small)) {
-				return small->pixBlurredCircled(_pixw, _pixh);
-			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixBlurredCircled(_pixw, _pixh);
-			} else {
-				return QPixmap();
-			}
-		}();
-		p.drawPixmap(rthumb.topLeft(), pix);
+		paintUserpicFrame(p, rthumb.topLeft(), selected);
 	} else {
 		if (bubble) {
 			if (!_caption.isEmpty()) {
@@ -316,6 +326,82 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
+		}
+	}
+}
+
+void Photo::paintUserpicFrame(
+		Painter &p,
+		QPoint photoPosition,
+		bool selected) const {
+	const auto autoplay = _data->videoCanBePlayed() && videoAutoplayEnabled();
+	const auto startPlay = autoplay && !_streamed;
+	if (startPlay) {
+		const_cast<Photo*>(this)->playAnimation(true);
+	} else {
+		checkStreamedIsStarted();
+	}
+
+	const auto size = QSize{ _pixw, _pixh };
+	const auto rect = QRect(photoPosition, size);
+
+	if (_streamed
+		&& _streamed->instance.player().ready()
+		&& !_streamed->instance.player().videoSize().isEmpty()) {
+		const auto paused = _parent->delegate()->elementIsGifPaused();
+		auto request = ::Media::Streaming::FrameRequest();
+		request.outer = size * cIntRetinaFactor();
+		request.resize = size * cIntRetinaFactor();
+		request.radius = ImageRoundRadius::Ellipse;
+		if (_streamed->instance.playerLocked()) {
+			if (_streamed->frozenFrame.isNull()) {
+				_streamed->frozenFrame = _streamed->instance.frame(request);
+			}
+			p.drawImage(rect, _streamed->frozenFrame);
+		} else {
+			_streamed->frozenFrame = QImage();
+			p.drawImage(rect, _streamed->instance.frame(request));
+			if (!paused) {
+				_streamed->instance.markFrameShown();
+			}
+		}
+		return;
+	}
+	const auto pix = [&] {
+		if (const auto large = _dataMedia->image(PhotoSize::Large)) {
+			return large->pixCircled(_pixw, _pixh);
+		} else if (const auto thumbnail = _dataMedia->image(
+			PhotoSize::Thumbnail)) {
+			return thumbnail->pixBlurredCircled(_pixw, _pixh);
+		} else if (const auto small = _dataMedia->image(
+			PhotoSize::Small)) {
+			return small->pixBlurredCircled(_pixw, _pixh);
+		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
+			return blurred->pixBlurredCircled(_pixw, _pixh);
+		} else {
+			return QPixmap();
+		}
+	}();
+	p.drawPixmap(rect, pix);
+
+	if (_data->videoCanBePlayed() && !_streamed) {
+		auto inner = QRect(rect.x() + (rect.width() - st::msgFileSize) / 2, rect.y() + (rect.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		p.setPen(Qt::NoPen);
+		if (selected) {
+			p.setBrush(st::msgDateImgBgSelected);
+		} else {
+			const auto over = ClickHandler::showAsActive(_openl);
+			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
+		const auto icon = [&]() -> const style::icon * {
+			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
+		}();
+		if (icon) {
+			icon->paintInCenter(p, inner);
 		}
 	}
 }
@@ -578,6 +664,131 @@ void Photo::validateGroupedCache(
 
 	*cacheKey = key;
 	*cache = image->pixNoCache(pixWidth, pixHeight, options, width, height);
+}
+
+bool Photo::createStreamingObjects() {
+	using namespace ::Media::Streaming;
+
+	setStreamed(std::make_unique<Streamed>(
+		history()->owner().streaming().sharedDocument(
+			_data,
+			_realParent->fullId())));
+	_streamed->instance.player().updates(
+	) | rpl::start_with_next_error([=](Update &&update) {
+		handleStreamingUpdate(std::move(update));
+	}, [=](Error &&error) {
+		handleStreamingError(std::move(error));
+	}, _streamed->instance.lifetime());
+	if (_streamed->instance.ready()) {
+		streamingReady(base::duplicate(_streamed->instance.info()));
+	}
+	if (!_streamed->instance.valid()) {
+		stopAnimation();
+		return false;
+	}
+	checkStreamedIsStarted();
+	return true;
+}
+
+void Photo::setStreamed(std::unique_ptr<Streamed> value) {
+	const auto removed = (_streamed && !value);
+	const auto set = (!_streamed && value);
+	_streamed = std::move(value);
+	if (set) {
+		history()->owner().registerHeavyViewPart(_parent);
+	} else if (removed) {
+		_parent->checkHeavyPart();
+	}
+}
+
+void Photo::handleStreamingUpdate(::Media::Streaming::Update &&update) {
+	using namespace ::Media::Streaming;
+
+	update.data.match([&](Information &update) {
+		streamingReady(std::move(update));
+	}, [&](const PreloadedVideo &update) {
+	}, [&](const UpdateVideo &update) {
+		repaintStreamedContent();
+	}, [&](const PreloadedAudio &update) {
+	}, [&](const UpdateAudio &update) {
+	}, [&](const WaitingForData &update) {
+	}, [&](MutedByOther) {
+	}, [&](Finished) {
+	});
+}
+
+void Photo::handleStreamingError(::Media::Streaming::Error &&error) {
+	_data->setVideoPlaybackFailed();
+	stopAnimation();
+}
+
+void Photo::repaintStreamedContent() {
+	if (_streamed && !_streamed->frozenFrame.isNull()) {
+		return;
+	} else if (_parent->delegate()->elementIsGifPaused()) {
+		return;
+	}
+	history()->owner().requestViewRepaint(_parent);
+}
+
+void Photo::streamingReady(::Media::Streaming::Information &&info) {
+	history()->owner().requestViewRepaint(_parent);
+}
+
+void Photo::checkAnimation() {
+	if (_streamed && !videoAutoplayEnabled()) {
+		stopAnimation();
+	}
+}
+
+void Photo::stopAnimation() {
+	setStreamed(nullptr);
+}
+
+void Photo::playAnimation(bool autoplay) {
+	ensureDataMediaCreated();
+	if (_streamed && autoplay) {
+		return;
+	} else if (_streamed && videoAutoplayEnabled()) {
+		Core::App().showPhoto(_data, _parent->data());
+		return;
+	}
+	if (_streamed) {
+		stopAnimation();
+	} else if (_data->videoCanBePlayed()) {
+		if (!videoAutoplayEnabled()) {
+			history()->owner().checkPlayingAnimations();
+		}
+		if (!createStreamingObjects()) {
+			_data->setVideoPlaybackFailed();
+			return;
+		}
+	}
+}
+
+void Photo::checkStreamedIsStarted() const {
+	if (!_streamed) {
+		return;
+	} else if (_streamed->instance.paused()) {
+		_streamed->instance.resume();
+	}
+	if (_streamed
+		&& !_streamed->instance.active()
+		&& !_streamed->instance.failed()) {
+		const auto position = _data->videoStartPosition();
+		auto options = ::Media::Streaming::PlaybackOptions();
+		options.position = position;
+		options.mode = ::Media::Streaming::Mode::Video;
+		options.loop = true;
+		_streamed->instance.play(options);
+	}
+}
+
+bool Photo::videoAutoplayEnabled() const {
+	return Data::AutoDownload::ShouldAutoPlay(
+		_data->session().settings().autoDownload(),
+		_realParent->history()->peer,
+		_data);
 }
 
 TextForMimeData Photo::selectedText(TextSelection selection) const {

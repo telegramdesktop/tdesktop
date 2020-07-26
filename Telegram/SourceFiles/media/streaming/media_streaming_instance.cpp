@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/streaming/media_streaming_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
@@ -32,6 +33,15 @@ Instance::Instance(
 	Fn<void()> waitingCallback)
 : Instance(
 	document->owner().streaming().sharedDocument(document, origin),
+	std::move(waitingCallback)) {
+}
+
+Instance::Instance(
+	not_null<PhotoData*> photo,
+	Data::FileOrigin origin,
+	Fn<void()> waitingCallback)
+: Instance(
+	photo->owner().streaming().sharedDocument(photo, origin),
 	std::move(waitingCallback)) {
 }
 

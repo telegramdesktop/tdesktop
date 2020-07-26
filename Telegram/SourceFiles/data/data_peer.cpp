@@ -475,6 +475,11 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 }
 
 bool PeerData::canExportChatHistory() const {
+	if (const auto channel = asChannel()) {
+		if (!channel->amIn() && channel->invitePeekExpires()) {
+			return false;
+		}
+	}
 	for (const auto &block : _owner->history(id)->blocks) {
 		for (const auto &message : block->messages) {
 			if (!message->data()->serviceMsg()) {

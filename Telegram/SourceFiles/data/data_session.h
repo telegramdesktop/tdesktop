@@ -403,7 +403,9 @@ public:
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large);
+		const ImageWithLocation &large,
+		const ImageWithLocation &video,
+		crl::time videoStartTime);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
@@ -594,6 +596,7 @@ public:
 		not_null<PeerData*> peer,
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt);
+	void resetNotifySettingsToDefault(not_null<PeerData*> peer);
 	bool notifyIsMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn = nullptr) const;
@@ -671,7 +674,9 @@ private:
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large);
+		const ImageWithLocation &large,
+		const ImageWithLocation &video,
+		crl::time videoStartTime);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,

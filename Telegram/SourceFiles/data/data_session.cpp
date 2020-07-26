@@ -190,6 +190,14 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	return FindInlineThumbnail(data.vsizes().v);
 }
 
+[[nodiscard]] int VideoStartTime(const MTPDvideoSize &data) {
+	return int(
+		std::clamp(
+			std::floor(data.vvideo_start_ts().value_or_empty() * 1000),
+			0.,
+			double(std::numeric_limits<int>::max())));
+}
+
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -1012,14 +1020,16 @@ void Session::setupChannelLeavingViewer() {
 		PeerUpdate::Flag::ChannelAmIn
 	) | rpl::map([](const PeerUpdate &update) {
 		return update.peer->asChannel();
-	}) | rpl::filter([](not_null<ChannelData*> channel) {
-		return !(channel->amIn());
 	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
-//		channel->clearFeed(); // #feed
-		if (const auto history = historyLoaded(channel->id)) {
-			history->removeJoinedMessage();
-			history->updateChatListExistence();
-			history->updateChatListSortPosition();
+		if (channel->amIn()) {
+			channel->clearInvitePeek();
+		} else {
+//			channel->clearFeed(); // #feed
+			if (const auto history = historyLoaded(channel->id)) {
+				history->removeJoinedMessage();
+				history->updateChatListExistence();
+				history->updateChatListSortPosition();
+			}
 		}
 	}, _lifetime);
 }
@@ -2159,7 +2169,9 @@ not_null<PhotoData*> Session::processPhoto(
 			QByteArray(),
 			small,
 			thumbnail,
-			large);
+			large,
+			ImageWithLocation{},
+			crl::time(0));
 	}, [&](const MTPDphotoEmpty &data) {
 		return photo(data.vid().v);
 	});
@@ -2175,7 +2187,9 @@ not_null<PhotoData*> Session::photo(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	const auto result = photo(id);
 	photoApplyFields(
 		result,
@@ -2187,7 +2201,9 @@ not_null<PhotoData*> Session::photo(
 		inlineThumbnailBytes,
 		small,
 		thumbnail,
-		large);
+		large,
+		video,
+		videoStartTime);
 	return result;
 }
 
@@ -2235,7 +2251,9 @@ PhotoData *Session::photoFromWeb(
 		QByteArray(),
 		ImageWithLocation{},
 		ImageWithLocation{ .location = thumbnailLocation },
-		ImageWithLocation{ .location = large });
+		ImageWithLocation{ .location = large },
+		ImageWithLocation{},
+		crl::time(0));
 }
 
 void Session::photoApplyFields(
@@ -2273,8 +2291,24 @@ void Session::photoApplyFields(
 			? ImageWithLocation()
 			: Images::FromPhotoSize(_session, data, *i);
 	};
+	const auto findVideoSize = [&]() -> std::optional<MTPVideoSize> {
+		const auto sizes = data.vvideo_sizes();
+		if (!sizes || sizes->v.isEmpty()) {
+			return std::nullopt;
+		}
+		const auto area = [](const MTPVideoSize &size) {
+			return size.match([](const MTPDvideoSize &data) {
+				return data.vw().v * data.vh().v;
+			});
+		};
+		return *ranges::max_element(
+			sizes->v,
+			std::greater<>(),
+			area);
+	};
 	const auto large = image(LargeLevels);
 	if (large.location.valid()) {
+		const auto video = findVideoSize();
 		photoApplyFields(
 			photo,
 			data.vaccess_hash().v,
@@ -2285,7 +2319,14 @@ void Session::photoApplyFields(
 			FindPhotoInlineThumbnail(data),
 			image(SmallLevels),
 			image(ThumbnailLevels),
-			large);
+			large,
+			(video
+				? Images::FromVideoSize(_session, data, *video)
+				: ImageWithLocation()),
+			(video
+				? VideoStartTime(
+					*video->match([](const auto &data) { return &data; }))
+				: 0));
 	}
 }
 
@@ -2299,7 +2340,9 @@ void Session::photoApplyFields(
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &large) {
+		const ImageWithLocation &large,
+		const ImageWithLocation &video,
+		crl::time videoStartTime) {
 	if (!date) {
 		return;
 	}
@@ -2310,7 +2353,9 @@ void Session::photoApplyFields(
 		inlineThumbnailBytes,
 		small,
 		thumbnail,
-		large);
+		large,
+		video,
+		videoStartTime);
 }
 
 not_null<DocumentData*> Session::document(DocumentId id) {
@@ -3167,6 +3212,10 @@ void Session::checkPlayingAnimations() {
 				if (document->isAnimation() || document->isVideoFile()) {
 					check.emplace(view);
 				}
+			} else if (const auto photo = media->getPhoto()) {
+				if (photo->hasVideo()) {
+					check.emplace(view);
+				}
 			}
 		}
 	}
@@ -3543,6 +3592,19 @@ void Session::updateNotifySettings(
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts) {
 	if (peer->notifyChange(muteForSeconds, silentPosts)) {
+		updateNotifySettingsLocal(peer);
+		_session->api().updateNotifySettingsDelayed(peer);
+	}
+}
+
+void Session::resetNotifySettingsToDefault(not_null<PeerData*> peer) {
+	const auto empty = MTP_peerNotifySettings(
+		MTP_flags(0),
+		MTPBool(),
+		MTPBool(),
+		MTPint(),
+		MTPstring());
+	if (peer->notifyChange(empty)) {
 		updateNotifySettingsLocal(peer);
 		_session->api().updateNotifySettingsDelayed(peer);
 	}

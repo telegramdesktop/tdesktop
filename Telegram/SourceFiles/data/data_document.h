@@ -166,8 +166,8 @@ public:
 	[[nodiscard]] bool videoThumbnailLoading() const;
 	[[nodiscard]] bool videoThumbnailFailed() const;
 	void loadVideoThumbnail(Data::FileOrigin origin);
-	const ImageLocation &videoThumbnailLocation() const;
-	int videoThumbnailByteSize() const;
+	[[nodiscard]] const ImageLocation &videoThumbnailLocation() const;
+	[[nodiscard]] int videoThumbnailByteSize() const;
 
 	void updateThumbnails(
 		const QByteArray &inlineThumbnailBytes,

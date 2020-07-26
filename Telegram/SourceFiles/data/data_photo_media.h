@@ -28,6 +28,11 @@ public:
 	void wanted(PhotoSize size, Data::FileOrigin origin);
 	void set(PhotoSize size, QImage image);
 
+	[[nodiscard]] QByteArray videoContent() const;
+	[[nodiscard]] QSize videoSize() const;
+	void videoWanted(Data::FileOrigin origin);
+	void setVideo(QByteArray content);
+
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] float64 progress() const;
 
@@ -42,6 +47,7 @@ private:
 	const not_null<PhotoData*> _owner;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
 	std::array<std::unique_ptr<Image>, kPhotoSizeCount>  _images;
+	QByteArray _videoBytes;
 
 };
 

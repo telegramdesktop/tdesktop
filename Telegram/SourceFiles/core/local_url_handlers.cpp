@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 
 #include "api/api_text_entities.h"
+#include "api/api_chat_invite.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "lang/lang_cloud_manager.h"
@@ -50,31 +51,7 @@ bool JoinGroupByHash(
 	if (!controller) {
 		return false;
 	}
-	const auto hash = match->captured(1);
-	const auto session = &controller->session();
-	const auto weak = base::make_weak(controller);
-	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
-		Core::App().hideMediaView();
-		result.match([=](const MTPDchatInvite &data) {
-			Ui::show(Box<ConfirmInviteBox>(session, data, [=] {
-				session->api().importChatInvite(hash);
-			}));
-		}, [=](const MTPDchatInviteAlready &data) {
-			if (const auto chat = session->data().processChat(data.vchat())) {
-				if (const auto strong = weak.get()) {
-					strong->showPeerHistory(
-						chat,
-						Window::SectionShow::Way::Forward);
-				}
-			}
-		});
-	}, [=](const RPCError &error) {
-		if (error.code() != 400) {
-			return;
-		}
-		Core::App().hideMediaView();
-		Ui::show(Box<InformBox>(tr::lng_group_invite_bad_link(tr::now)));
-	});
+	Api::CheckChatInvite(controller, match->captured(1));
 	return true;
 }
 

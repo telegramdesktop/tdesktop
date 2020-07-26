@@ -611,9 +611,9 @@ inline bool operator>=(
 
 struct ImageWithLocation {
 	ImageLocation location;
-	int bytesCount = 0;
 	QByteArray bytes;
 	QImage preloaded;
+	int bytesCount = 0;
 };
 
 InMemoryKey inMemoryKey(const StorageFileLocation &location);

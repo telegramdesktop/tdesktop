@@ -190,9 +190,13 @@ PRIVATE
     api/api_bot.h
     api/api_chat_filters.cpp
     api/api_chat_filters.h
+    api/api_chat_invite.cpp
+    api/api_chat_invite.h
     api/api_common.h
     api/api_editing.cpp
     api/api_editing.h
+    api/api_global_privacy.cpp
+    api/api_global_privacy.h
     api/api_hash.cpp
     api/api_hash.h
     api/api_media.cpp

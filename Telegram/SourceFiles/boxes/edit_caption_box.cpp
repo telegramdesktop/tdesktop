@@ -816,8 +816,7 @@ int EditCaptionBox::errorTopSkip() const {
 void EditCaptionBox::checkStreamedIsStarted() {
 	if (!_streamed) {
 		return;
-	}
-	if (_streamed->paused()) {
+	} else if (_streamed->paused()) {
 		_streamed->resume();
 	}
 	if (!_streamed->active() && !_streamed->failed()) {

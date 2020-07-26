@@ -387,6 +387,12 @@ public:
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
 	void growSlowmodeLastMessage(TimeId when);
 
+	void setInvitePeek(const QString &hash, TimeId expires);
+	void clearInvitePeek();
+	[[nodiscard]] TimeId invitePeekExpires() const;
+	[[nodiscard]] QString invitePeekHash() const;
+	void privateErrorReceived();
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -404,6 +410,11 @@ public:
 	QString restriction_reason;
 
 private:
+	struct InvitePeek {
+		QString hash;
+		TimeId expires = 0;
+	};
+
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
 	bool canEditLastAdmin(not_null<UserData*> user) const;
@@ -426,6 +437,7 @@ private:
 	TimeId _restrictedUntil;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
+	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
 	ChannelData *_linkedChat = nullptr;
 

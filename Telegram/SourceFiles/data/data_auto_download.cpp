@@ -309,6 +309,18 @@ bool ShouldAutoPlay(
 		document->size);
 }
 
+bool ShouldAutoPlay(
+		const Full &data,
+		not_null<PeerData*> peer,
+		not_null<PhotoData*> photo) {
+	const auto source = SourceFromPeer(peer);
+	const auto size = photo->videoByteSize();
+	return photo->hasVideo()
+		&& (data.shouldDownload(source, Type::AutoPlayGIF, size)
+			|| data.shouldDownload(source, Type::AutoPlayVideo, size)
+			|| data.shouldDownload(source, Type::AutoPlayVideoMessage, size));
+}
+
 Full WithDisabledAutoPlay(const Full &data) {
 	auto result = data;
 	for (const auto source : enums_view<Source>(kSourcesCount)) {

@@ -94,7 +94,6 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 confirmInviteStatus: FlatLabel(boxLabel) {
 	align: align(center);
 	minWidth: 320px;
-	maxHeight: 20px;
 	textFg: windowSubTextFg;
 }
 confirmInviteTitleTop: 106px;

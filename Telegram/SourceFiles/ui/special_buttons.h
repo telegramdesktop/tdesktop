@@ -23,6 +23,15 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Media {
+namespace Streaming {
+class Instance;
+struct Update;
+enum class Error;
+struct Information;
+} // namespace Streaming
+} // namespace Media
+
 namespace Ui {
 
 class InfiniteRadialAnimation;
@@ -211,7 +220,15 @@ private:
 	void updateCursorInChangeOverlay(QPoint localPos);
 	void setCursorInChangeOverlay(bool inOverlay);
 	void updateCursor();
+	void updateVideo();
 	bool showSavedMessages() const;
+	void checkStreamedIsStarted();
+	bool createStreamingObjects(not_null<PhotoData*> photo);
+	void clearStreaming();
+	void handleStreamingUpdate(Media::Streaming::Update &&update);
+	void handleStreamingError(Media::Streaming::Error &&error);
+	void streamingReady(Media::Streaming::Information &&info);
+	void paintUserpicFrame(Painter &p, QPoint photoPosition);
 
 	void grabOldUserpic();
 	void setClickHandlerByRole();
@@ -233,6 +250,8 @@ private:
 	InMemoryKey _userpicUniqueKey;
 	Ui::Animations::Simple _a_appearance;
 	QImage _result;
+	std::unique_ptr<Media::Streaming::Instance> _streamed;
+	PhotoData *_streamedPhoto = nullptr;
 
 	bool _showSavedMessagesOnSelf = false;
 	bool _canOpenPhoto = false;

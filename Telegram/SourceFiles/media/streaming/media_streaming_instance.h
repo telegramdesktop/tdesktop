@@ -34,6 +34,10 @@ public:
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
 		Fn<void()> waitingCallback);
+	Instance(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin,
+		Fn<void()> waitingCallback);
 	~Instance();
 
 	[[nodiscard]] bool valid() const;
