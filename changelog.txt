@@ -1,3 +1,11 @@
+2.2 (26.07.20)
+
+- Quickly switch between different Telegram accounts if you use multiple phone numbers.
+- Share and store unlimited files of any type, now up to 2'000 MB each.
+- Edit your scheduled messages.
+- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.
+- Also added an option to switch to system window frame in Windows and Linux.
+
 2.1.22 beta (24.07.20)
 
 - Fix crash in web page preview display.
