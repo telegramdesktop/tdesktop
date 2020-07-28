@@ -206,7 +206,7 @@ ImageWithLocation FromImageInMemory(
 	}
 	auto bytes = QByteArray();
 	auto buffer = QBuffer(&bytes);
-	image.save(&buffer, format);
+	image.save(&buffer, format, 100);
 	return ImageWithLocation{
 		.location = ImageLocation(
 			DownloadLocation{ InMemoryLocation{ bytes } },

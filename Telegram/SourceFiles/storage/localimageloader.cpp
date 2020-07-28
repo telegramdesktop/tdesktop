@@ -193,7 +193,7 @@ SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 
 	QByteArray jpeg;
 	QBuffer jpegBuffer(&jpeg);
-	image.save(&jpegBuffer, "JPG", 87);
+	image.save(&jpegBuffer, "JPG", 100);
 
 	const auto scaled = [&](int size) {
 		return image.scaled(
