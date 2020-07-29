@@ -11,18 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
-#include "core/application.h"
-#include "mainwindow.h"
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
 #include "base/platform/base_platform_file_utilities.h"
-#include "base/call_delayed.h"
 
 #include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
+
+extern "C" {
+#undef signals
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#define signals public
+} // extern "C"
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
@@ -460,12 +464,6 @@ int GtkFileDialog::exec() {
 	setResult(0);
 
 	show();
-
-	if (const auto parent = parentWidget()) {
-		base::call_delayed(200, parent, [=] {
-			parent->activateWindow();
-		});
-	}
 
 	QPointer<QDialog> guard = this;
 	d->exec();

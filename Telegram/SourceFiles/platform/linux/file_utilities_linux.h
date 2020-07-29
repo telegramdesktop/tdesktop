@@ -12,14 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtWidgets/QFileDialog>
 
-extern "C" {
-#undef signals
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-#include <gtk/gtk.h>
-#include <gdk/gdk.h>
+typedef struct _GtkWidget GtkWidget;
+typedef struct _GtkDialog GtkDialog;
+typedef struct _GtkFileFilter GtkFileFilter;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-#define signals public
-} // extern "C"
 
 namespace Platform {
 namespace File {
