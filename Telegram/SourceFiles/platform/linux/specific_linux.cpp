@@ -27,9 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
 
+#ifdef QT_WAYLANDCLIENT_LIB
 #include <private/qwaylanddisplay_p.h>
 #include <private/qwaylandwindow_p.h>
 #include <private/qwaylandshellsurface_p.h>
+#endif // QT_WAYLANDCLIENT_LIB
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
@@ -42,9 +44,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) \
+	&& !defined(DESKTOP_APP_QT_PATCHED) \
+	&& __has_include(<wayland-client.h>)
 #include <wayland-client.h>
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
+#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED && <wayland-client.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -57,7 +61,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
+
+#ifdef QT_WAYLANDCLIENT_LIB
 using QtWaylandClient::QWaylandWindow;
+#endif // QT_WAYLANDCLIENT_LIB
 
 namespace Platform {
 namespace {
@@ -554,6 +561,7 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 }
 
 bool StartWaylandMove(QWindow *window) {
+#ifdef QT_WAYLANDCLIENT_LIB
 	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
@@ -561,11 +569,13 @@ bool StartWaylandMove(QWindow *window) {
 			}
 		}
 	}
+#endif // QT_WAYLANDCLIENT_LIB
 
 	return false;
 }
 
 bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
+#ifdef QT_WAYLANDCLIENT_LIB
 	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
@@ -581,6 +591,7 @@ bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
 			}
 		}
 	}
+#endif // QT_WAYLANDCLIENT_LIB
 
 	return false;
 }
