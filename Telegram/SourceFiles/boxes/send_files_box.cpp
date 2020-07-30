@@ -1865,12 +1865,13 @@ void SendFilesBox::prepare() {
 void SendFilesBox::setupDragArea() {
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {
+		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == Storage::MimeDataState::PhotoFiles)
-			? Storage::MimeDataState::Image
-			: (state == Storage::MimeDataState::Files)
-			// Temporary enable drag'n'drop only for images. TODO.
-			? Storage::MimeDataState::None
+		return (state == DragState::PhotoFiles)
+			? DragState::Image
+			: (state == DragState::Files
+				&& !Storage::ValidateDragData(data, true))
+			? DragState::None
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(

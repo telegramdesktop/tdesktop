@@ -79,6 +79,7 @@ struct PreparedList {
 
 };
 
+bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum);
 bool ValidateThumbDimensions(int width, int height);
 PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
 PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
