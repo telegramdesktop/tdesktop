@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace tgcalls {
 class InstanceImpl;
 class InstanceImplLegacy;
+class InstanceImplReference;
 void SetLegacyGlobalServerConfig(const std::string &serverConfig);
 } // namespace tgcalls
 
@@ -48,6 +49,7 @@ const auto kDefaultVersion = "2.4.4"_q;
 
 const auto RegisterTag = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterTagLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
+const auto RegisterTagReference = tgcalls::Register<tgcalls::InstanceImplReference>();
 
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
@@ -56,7 +58,7 @@ void AppendEndpoint(
 		if (data.vpeer_tag().v.length() != 16) {
 			return;
 		}
-		auto endpoint = tgcalls::Endpoint{
+		tgcalls::Endpoint endpoint = {
 			.endpointId = (int64_t)data.vid().v,
 			.host = tgcalls::EndpointHost{
 				.ipv4 = data.vip().v.toStdString(),
@@ -654,7 +656,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	memcpy(encryptionKeyValue->data(), _authKey.data(), 256);
 
 	const auto weak = base::make_weak(this);
-	auto descriptor = tgcalls::Descriptor{
+	tgcalls::Descriptor descriptor = {
 		.config = tgcalls::Config{
 			.initializationTimeout = serverConfig.callConnectTimeoutMs / 1000.,
 			.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.,

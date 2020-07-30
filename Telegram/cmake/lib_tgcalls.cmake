@@ -79,6 +79,9 @@ PRIVATE
     # Linux
 
     # POSIX
+
+    reference/InstanceImplReference.cpp
+    reference/InstanceImplReference.h
 )
 
 target_compile_definitions(lib_tgcalls
