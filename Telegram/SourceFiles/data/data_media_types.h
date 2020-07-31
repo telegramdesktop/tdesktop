@@ -51,6 +51,7 @@ struct Call {
 
 	int duration = 0;
 	FinishReason finishReason = FinishReason::Missed;
+	bool video = false;
 };
 
 struct Invoice {
@@ -287,7 +288,8 @@ public:
 
 	static QString Text(
 		not_null<HistoryItem*> item,
-		CallFinishReason reason);
+		CallFinishReason reason,
+		bool video);
 
 private:
 	Call _call;

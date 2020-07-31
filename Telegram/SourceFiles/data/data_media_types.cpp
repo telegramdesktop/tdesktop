@@ -67,6 +67,7 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 		return CallFinishReason::Hangup;
 	}();
 	result.duration = call.vduration().value_or_empty();
+	result.video = call.is_video();
 	return result;
 }
 
@@ -874,7 +875,7 @@ const Call *MediaCall::call() const {
 }
 
 QString MediaCall::notificationText() const {
-	auto result = Text(parent(), _call.finishReason);
+	auto result = Text(parent(), _call.finishReason, _call.video);
 	if (_call.duration > 0) {
 		result = tr::lng_call_type_and_duration(
 			tr::now,
@@ -916,17 +917,28 @@ std::unique_ptr<HistoryView::Media> MediaCall::createView(
 
 QString MediaCall::Text(
 		not_null<HistoryItem*> item,
-		CallFinishReason reason) {
+		CallFinishReason reason,
+		bool video) {
 	if (item->out()) {
-		return (reason == CallFinishReason::Missed)
-			? tr::lng_call_cancelled(tr::now)
-			: tr::lng_call_outgoing(tr::now);
+		return ((reason == CallFinishReason::Missed)
+			? (video
+				? tr::lng_call_video_cancelled
+				: tr::lng_call_cancelled)
+			: (video
+				? tr::lng_call_video_outgoing
+				: tr::lng_call_outgoing))(tr::now);
 	} else if (reason == CallFinishReason::Missed) {
-		return tr::lng_call_missed(tr::now);
+		return (video
+			? tr::lng_call_video_missed
+			: tr::lng_call_missed)(tr::now);
 	} else if (reason == CallFinishReason::Busy) {
-		return tr::lng_call_declined(tr::now);
+		return (video
+			? tr::lng_call_video_declined
+			: tr::lng_call_declined)(tr::now);
 	}
-	return tr::lng_call_incoming(tr::now);
+	return (video
+		? tr::lng_call_video_incoming
+		: tr::lng_call_incoming)(tr::now);
 }
 
 MediaWebPage::MediaWebPage(

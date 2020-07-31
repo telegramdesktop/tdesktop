@@ -974,8 +974,11 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _instance ? _instance->getPreferredRelayId() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
+	const auto flags = (_videoState.current() == VideoState::Enabled)
+		? MTPphone_DiscardCall::Flag::f_video
+		: MTPphone_DiscardCall::Flag(0);
 	_api.request(MTPphone_DiscardCall(
-		MTP_flags(0),
+		MTP_flags(flags),
 		MTP_inputPhoneCall(
 			MTP_long(_id),
 			MTP_long(_accessHash)),

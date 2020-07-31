@@ -1736,10 +1736,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_box_status_group" = "({amount}) {status}";
 
 "lng_call_outgoing" = "Outgoing call";
+"lng_call_video_outgoing" = "Outgoing video call";
 "lng_call_incoming" = "Incoming call";
+"lng_call_video_incoming" = "Incoming video call";
 "lng_call_missed" = "Missed call";
+"lng_call_video_missed" = "Missed video call";
 "lng_call_cancelled" = "Cancelled call";
+"lng_call_video_cancelled" = "Cancelled video call";
 "lng_call_declined" = "Declined call";
+"lng_call_video_declined" = "Declined video call";
 "lng_call_duration_info" = "{time}, {duration}";
 "lng_call_type_and_duration" = "{type} ({duration})";
 

@@ -21,29 +21,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 
 namespace HistoryView {
+namespace {
+
+using FinishReason = Data::CallFinishReason;
+
+[[nodiscard]] int ComputeDuration(FinishReason reason, int duration) {
+	return (reason != FinishReason::Missed
+		&& reason != FinishReason::Busy)
+		? duration
+		: 0;
+}
+
+} // namespace
 
 Call::Call(
 	not_null<Element*> parent,
 	not_null<Data::Call*> call)
-: Media(parent) {
-	_duration = call->duration;
-	_reason = call->finishReason;
-
+: Media(parent)
+, _duration(ComputeDuration(call->finishReason, call->duration))
+, _reason(call->finishReason)
+, _video(call->video) {
 	const auto item = parent->data();
-	_text = Data::MediaCall::Text(item, _reason);
+	_text = Data::MediaCall::Text(item, _reason, _video);
 	_status = parent->dateTime().time().toString(cTimeFormat());
 	if (_duration) {
-		if (_reason != FinishReason::Missed
-			&& _reason != FinishReason::Busy) {
-			_status = tr::lng_call_duration_info(
-				tr::now,
-				lt_time,
-				_status,
-				lt_duration,
-				formatDurationWords(_duration));
-		} else {
-			_duration = 0;
-		}
+		_status = tr::lng_call_duration_info(
+			tr::now,
+			lt_time,
+			_status,
+			lt_duration,
+			formatDurationWords(_duration));
 	}
 }
 

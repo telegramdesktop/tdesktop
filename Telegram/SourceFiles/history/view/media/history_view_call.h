@@ -39,15 +39,14 @@ public:
 		return true;
 	}
 
-	Data::CallFinishReason reason() const;
-
 private:
 	using FinishReason = Data::CallFinishReason;
 
 	QSize countOptimalSize() override;
 
-	FinishReason _reason;
-	int _duration = 0;
+	const int _duration = 0;
+	const FinishReason _reason;
+	const bool _video = false;
 
 	QString _text;
 	QString _status;
