@@ -18,8 +18,8 @@ CallSignalBars {
 	inactiveOpacity: double;
 }
 
-callWidth: 300px;
-callHeight: 470px;
+callWidth: 480px;
+callHeight: 640px;
 callRadius: 6px;
 callShadow: Shadow {
 	left: icon {{ "call_shadow_left", windowShadowFg }};
@@ -33,6 +33,7 @@ callShadow: Shadow {
 	extend: margins(9px, 8px, 9px, 10px);
 	fallback: windowShadowFgFallback;
 }
+callPhotoSize: 180px;
 
 callButton: IconButton {
 	width: 72px;

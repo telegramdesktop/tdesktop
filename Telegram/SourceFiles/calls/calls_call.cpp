@@ -44,12 +44,11 @@ namespace {
 constexpr auto kMinLayer = 65;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
-constexpr auto kDropFramesWhileInactive = 5 * crl::time(1000);
 const auto kDefaultVersion = "2.4.4"_q;
 
 const auto RegisterTag = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterTagLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
-const auto RegisterTagReference = tgcalls::Register<tgcalls::InstanceImplReference>();
+//const auto RegisterTagReference = tgcalls::Register<tgcalls::InstanceImplReference>();
 
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
@@ -153,14 +152,17 @@ Call::Call(
 : _delegate(delegate)
 , _user(user)
 , _api(&_user->session().mtp())
-, _type(type) {
-	_discardByTimeoutTimer.setCallback([this] { hangup(); });
+, _type(type)
+, _videoIncoming(std::make_unique<webrtc::VideoTrack>())
+, _videoOutgoing(std::make_unique<webrtc::VideoTrack>()) {
+	_discardByTimeoutTimer.setCallback([=] { hangup(); });
 
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
 	} else {
 		startWaitingTrack();
 	}
+	setupOutgoingVideo();
 }
 
 void Call::generateModExpFirst(bytes::const_span randomSeed) {
@@ -308,6 +310,7 @@ void Call::actuallyAnswer() {
 			MTP_vector(CollectVersionsForApi()))
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
+
 		auto &call = result.c_phone_phoneCall();
 		_user->session().data().processUsers(call.vusers());
 		if (call.vphone_call().type() != mtpc_phoneCallWaiting) {
@@ -330,24 +333,37 @@ void Call::setMuted(bool mute) {
 	}
 }
 
-void Call::setVideoEnabled(bool enabled) {
-	if (_state.current() != State::Established) {
-		return;
-	}
-	_videoEnabled = enabled;
-	if (enabled) {
-		if (!_videoCapture) {
-			_videoCapture = tgcalls::VideoCaptureInterface::Create();
+void Call::setupOutgoingVideo() {
+	const auto started = _videoOutgoing->enabled();
+	_videoOutgoing->enabledValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		if (_state.current() != State::Established
+			&& enabled != started
+			&& !(_type == Type::Incoming && !_id)) {
+			_videoOutgoing->setEnabled(started);
+		} else if (enabled) {
+			if (!_videoCapture) {
+				_videoCapture = tgcalls::VideoCaptureInterface::Create();
+				_videoCapture->setVideoOutput(_videoOutgoing->sink());
+			}
+			if (_instance) {
+				_instance->requestVideo(_videoCapture);
+			} else {
+				_videoState = VideoState::OutgoingRequested;
+			}
+			_videoCapture->setIsVideoEnabled(true);
+		} else if (_videoCapture) {
+			_videoCapture->setIsVideoEnabled(false);
 		}
-		if (_instance) {
-			_instance->requestVideo(_videoCapture);
-		} else {
-			_videoState = VideoState::OutgoingRequested;
-		}
-		_videoCapture->setIsVideoEnabled(true);
-	} else if (_videoCapture) {
-		_videoCapture->setIsVideoEnabled(false);
-	}
+	}, _lifetime);
+}
+
+not_null<webrtc::VideoTrack*> Call::videoIncoming() const {
+	return _videoIncoming.get();
+}
+
+not_null<webrtc::VideoTrack*> Call::videoOutgoing() const {
+	return _videoOutgoing.get();
 }
 
 crl::time Call::getDurationMs() const {
@@ -409,10 +425,6 @@ void Call::sendSignalingData(const QByteArray &data) {
 	}).send();
 }
 
-void Call::displayNextFrame(QImage frame) {
-	_frames.fire(std::move(frame));
-}
-
 float64 Call::getWaitingSoundPeakValue() const {
 	if (_waitingTrack) {
 		auto when = crl::now() + kSoundSampleMs / 4;
@@ -451,9 +463,13 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			finish(FinishType::Failed);
 			return true;
 		}
+
+		// We are allowed to change it for non-established call
+		// only in case `incoming && !_id`, only when we just received it.
+		_videoOutgoing->setEnabled(data.is_video());
+
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
-		setVideoEnabled(data.is_video());
 		auto gaHashBytes = bytes::make_span(data.vg_a_hash().v);
 		if (gaHashBytes.size() != kSha256Size) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2."
@@ -671,7 +687,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.encryptionKey = tgcalls::EncryptionKey(
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
-		.videoCapture = _videoEnabled.current() ? _videoCapture : nullptr,
+		.videoCapture = _videoOutgoing->enabled() ? _videoCapture : nullptr,
 		.stateUpdated = [=](tgcalls::State state, tgcalls::VideoState videoState) {
 			crl::on_main(weak, [=] {
 				handleControllerStateChange(state, videoState);
@@ -684,12 +700,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		},
 		.remoteVideoIsActiveUpdated = [=](bool active) {
 			crl::on_main(weak, [=] {
-				if (!active) {
-					_frames.fire(QImage());
-					_remoteVideoInactiveFrom = crl::now();
-				} else {
-					_remoteVideoInactiveFrom = 0;
-				}
+				_videoIncoming->setEnabled(active);
 			});
 		},
 		.signalingDataEmitted = [=](const std::vector<uint8_t> &data) {
@@ -758,18 +769,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		raw->setMuteMicrophone(_muted.current());
 	}
 
-	_videoTrack = std::make_shared<webrtc::VideoTrack>();
-	_videoTrack->renderNextFrame(
-	) | rpl::start_with_next([=] {
-		if (_remoteVideoInactiveFrom > 0
-			&& (_remoteVideoInactiveFrom + kDropFramesWhileInactive
-				> crl::now())) {
-		} else {
-			_frames.fire_copy(_videoTrack->frame(webrtc::FrameRequest()));
-			_videoTrack->markFrameShown();
-		}
-	}, lifetime());
-	raw->setIncomingVideoOutput(_videoTrack->sink());
+	_videoIncoming->setEnabled(_videoOutgoing->enabled());
+	raw->setIncomingVideoOutput(_videoIncoming->sink());
 
 	const auto &settings = Core::App().settings();
 	raw->setAudioOutputDevice(

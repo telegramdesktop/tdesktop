@@ -156,8 +156,6 @@ private:
 	QPixmap _bottomCache;
 	QPixmap _cache;
 
-	QImage _videoFrame;
-
 };
 
 } // namespace Calls

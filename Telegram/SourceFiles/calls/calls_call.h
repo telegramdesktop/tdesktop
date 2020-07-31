@@ -131,17 +131,8 @@ public:
 		return _muted.value();
 	}
 
-	void setVideoEnabled(bool enabled);
-	[[nodiscard]] bool videoEnabled() const {
-		return _videoEnabled.current();
-	}
-	[[nodiscard]] rpl::producer<bool> videoEnabledValue() const {
-		return _videoEnabled.value();
-	}
-
-	[[nodiscard]] rpl::producer<QImage> frames() const {
-		return _frames.events();
-	}
+	[[nodiscard]] not_null<webrtc::VideoTrack*> videoIncoming() const;
+	[[nodiscard]] not_null<webrtc::VideoTrack*> videoOutgoing() const;
 
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
@@ -178,7 +169,6 @@ private:
 	void startIncoming();
 	void startWaitingTrack();
 	void sendSignalingData(const QByteArray &data);
-	void displayNextFrame(QImage frame);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
 	void handleControllerStateChange(tgcalls::State state, tgcalls::VideoState videoState);
@@ -199,8 +189,10 @@ private:
 	void setSignalBarCount(int count);
 	void destroyController();
 
-	not_null<Delegate*> _delegate;
-	not_null<UserData*> _user;
+	void setupOutgoingVideo();
+
+	const not_null<Delegate*> _delegate;
+	const not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
@@ -213,9 +205,6 @@ private:
 	base::Timer _discardByTimeoutTimer;
 
 	rpl::variable<bool> _muted = false;
-	rpl::variable<bool> _videoEnabled = false;
-	rpl::event_stream<QImage> _frames;
-	crl::time _remoteVideoInactiveFrom = 0;
 
 	DhConfig _dhConfig;
 	bytes::vector _ga;
@@ -231,7 +220,8 @@ private:
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
-	std::shared_ptr<webrtc::VideoTrack> _videoTrack;
+	const std::unique_ptr<webrtc::VideoTrack> _videoIncoming;
+	const std::unique_ptr<webrtc::VideoTrack> _videoOutgoing;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

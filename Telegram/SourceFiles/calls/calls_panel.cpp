@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "layout.h"
 #include "app.h"
+#include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"
 
@@ -366,10 +367,11 @@ void Panel::initControls() {
 	}, lifetime());
 	_camera->setClickedCallback([=] {
 		if (_call) {
-			_call->setVideoEnabled(!_call->videoEnabled());
+			_call->videoOutgoing()->setEnabled(
+				!_call->videoOutgoing()->enabled());
 		}
 	});
-	_call->videoEnabledValue(
+	_call->videoOutgoing()->enabledValue(
 	) | rpl::start_with_next([=](bool enabled) {
 		_camera->setIconOverride(enabled ? nullptr : &st::callNoCameraIcon);
 	}, lifetime());
@@ -413,8 +415,10 @@ void Panel::initControls() {
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
 
-	_call->frames() | rpl::start_with_next([=](QImage frame) {
-		_videoFrame = std::move(frame);
+	rpl::merge(
+		_call->videoIncoming()->renderNextFrame(),
+		_call->videoOutgoing()->renderNextFrame()
+	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
 }
@@ -760,16 +764,44 @@ void Panel::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
 	}
 
-	if (!_videoFrame.isNull()) {
+	const auto incomingFrame = _call
+		? _call->videoIncoming()->frame(webrtc::FrameRequest())
+		: QImage();
+	if (!incomingFrame.isNull()) {
 		const auto to = rect().marginsRemoved(_padding);
 		p.save();
 		p.setClipRect(to);
-		const auto big = _videoFrame.size().scaled(to.size(), Qt::KeepAspectRatioByExpanding);
-		const auto pos = QPoint((to.width() - big.width()) / 2, (to.height() - big.height()) / 2);
+		const auto big = incomingFrame.size().scaled(to.size(), Qt::KeepAspectRatioByExpanding);
+		const auto pos = QPoint(
+			to.left() + (to.width() - big.width()) / 2,
+			to.top() + (to.height() - big.height()) / 2);
 		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(QRect(pos, big), _videoFrame);
+		p.drawImage(QRect(pos, big), incomingFrame);
 		p.restore();
 	}
+	_call->videoIncoming()->markFrameShown();
+
+	const auto outgoingFrame = _call
+		? _call->videoOutgoing()->frame(webrtc::FrameRequest())
+		: QImage();
+	if (!outgoingFrame.isNull()) {
+		const auto size = QSize(width() / 3, height() / 3);
+		const auto to = QRect(
+			width() - 2 * _padding.right() - size.width(),
+			2 * _padding.bottom(),
+			size.width(),
+			size.height());
+		p.save();
+		p.setClipRect(to);
+		const auto big = outgoingFrame.size().scaled(to.size(), Qt::KeepAspectRatioByExpanding);
+		const auto pos = QPoint(
+			to.left() + (to.width() - big.width()) / 2,
+			to.top() + (to.height() - big.height()) / 2);
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(QRect(pos, big), outgoingFrame);
+		p.restore();
+	}
+	_call->videoOutgoing()->markFrameShown();
 
 	if (_signalBars->isDisplayed()) {
 		paintSignalBarsBg(p);
