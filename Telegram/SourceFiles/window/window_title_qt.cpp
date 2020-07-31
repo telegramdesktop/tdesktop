@@ -211,7 +211,8 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
 			const auto edges = edgesFromPos(mouseEvent->windowPos().toPoint());
 
-			if (e->type() == QEvent::MouseMove) {
+			if (e->type() == QEvent::MouseMove
+				&& mouseEvent->buttons() == Qt::NoButton) {
 				updateCursor(edges);
 			}
 
