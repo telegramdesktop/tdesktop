@@ -159,10 +159,11 @@ Call::Call(
 
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
+		setupOutgoingVideo();
 	} else {
 		startWaitingTrack();
+		// setupOutgoingVideo will be called when we decide if it is enabled.
 	}
-	setupOutgoingVideo();
 }
 
 void Call::generateModExpFirst(bytes::const_span randomSeed) {
@@ -337,9 +338,7 @@ void Call::setupOutgoingVideo() {
 	const auto started = _videoOutgoing->enabled();
 	_videoOutgoing->enabledValue(
 	) | rpl::start_with_next([=](bool enabled) {
-		if (_state.current() != State::Established
-			&& enabled != started
-			&& !(_type == Type::Incoming && !_id)) {
+		if (_state.current() != State::Established && enabled != started) {
 			_videoOutgoing->setEnabled(started);
 		} else if (enabled) {
 			if (!_videoCapture) {
@@ -464,12 +463,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return true;
 		}
 
-		// We are allowed to change it for non-established call
-		// only in case `incoming && !_id`, only when we just received it.
-		_videoOutgoing->setEnabled(data.is_video());
-
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
+		_videoOutgoing->setEnabled(data.is_video());
+		setupOutgoingVideo();
 		auto gaHashBytes = bytes::make_span(data.vg_a_hash().v);
 		if (gaHashBytes.size() != kSha256Size) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2."
