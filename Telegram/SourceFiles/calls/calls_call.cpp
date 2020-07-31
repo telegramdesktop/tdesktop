@@ -148,22 +148,22 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 Call::Call(
 	not_null<Delegate*> delegate,
 	not_null<UserData*> user,
-	Type type)
+	Type type,
+	bool video)
 : _delegate(delegate)
 , _user(user)
 , _api(&_user->session().mtp())
 , _type(type)
-, _videoIncoming(std::make_unique<webrtc::VideoTrack>())
-, _videoOutgoing(std::make_unique<webrtc::VideoTrack>()) {
+, _videoIncoming(std::make_unique<webrtc::VideoTrack>(video))
+, _videoOutgoing(std::make_unique<webrtc::VideoTrack>(video)) {
 	_discardByTimeoutTimer.setCallback([=] { hangup(); });
 
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
-		setupOutgoingVideo();
 	} else {
 		startWaitingTrack();
-		// setupOutgoingVideo will be called when we decide if it is enabled.
 	}
+	setupOutgoingVideo();
 }
 
 void Call::generateModExpFirst(bytes::const_span randomSeed) {
@@ -217,8 +217,11 @@ void Call::startOutgoing() {
 	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
+	const auto flags = _videoCapture
+		? MTPphone_RequestCall::Flag::f_video
+		: MTPphone_RequestCall::Flag(0);
 	_api.request(MTPphone_RequestCall(
-		MTP_flags(0),
+		MTP_flags(flags),
 		_user->inputUser,
 		MTP_int(rand_value<int32>()),
 		MTP_bytes(_gaHash),
@@ -465,8 +468,6 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
-		_videoOutgoing->setEnabled(data.is_video());
-		setupOutgoingVideo();
 		auto gaHashBytes = bytes::make_span(data.vg_a_hash().v);
 		if (gaHashBytes.size() != kSha256Size) {
 			LOG(("Call Error: Wrong g_a_hash size %1, expected %2."
@@ -766,7 +767,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		raw->setMuteMicrophone(_muted.current());
 	}
 
-	_videoIncoming->setEnabled(_videoOutgoing->enabled());
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
 
 	const auto &settings = Core::App().settings();

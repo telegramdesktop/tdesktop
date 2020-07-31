@@ -43,7 +43,7 @@ Instance::~Instance() {
 	}
 }
 
-void Instance::startOutgoingCall(not_null<UserData*> user) {
+void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (alreadyInCall()) { // Already in a call.
 		_currentCallPanel->showAndActivate();
 		return;
@@ -56,7 +56,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 		return;
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
-		createCall(user, Call::Type::Outgoing);
+		createCall(user, Call::Type::Outgoing, video);
 	}));
 }
 
@@ -130,8 +130,8 @@ void Instance::destroyCurrentPanel() {
 	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
 }
 
-void Instance::createCall(not_null<UserData*> user, Call::Type type) {
-	auto call = std::make_unique<Call>(getCallDelegate(), user, type);
+void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
+	auto call = std::make_unique<Call>(getCallDelegate(), user, type, video);
 	const auto raw = call.get();
 
 	user->session().account().sessionChanges(
@@ -278,8 +278,11 @@ void Instance::handleCallUpdate(
 		}
 		const auto &config = session->serverConfig();
 		if (alreadyInCall() || !user || user->isSelf()) {
+			const auto flags = phoneCall.is_video()
+				? MTPphone_DiscardCall::Flag::f_video
+				: MTPphone_DiscardCall::Flag(0);
 			session->api().request(MTPphone_DiscardCall(
-				MTP_flags(0),
+				MTP_flags(flags),
 				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
 				MTP_int(0),
 				MTP_phoneCallDiscardReasonBusy(),
@@ -289,7 +292,7 @@ void Instance::handleCallUpdate(
 			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
 		} else {
-			createCall(user, Call::Type::Incoming);
+			createCall(user, Call::Type::Incoming, phoneCall.is_video());
 			_currentCall->handleUpdate(call);
 		}
 	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {

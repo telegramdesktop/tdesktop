@@ -56,9 +56,10 @@ Call::Call(
 
 QSize Call::countOptimalSize() {
 	const auto user = _parent->data()->history()->peer->asUser();
+	const auto video = _video;
 	_link = std::make_shared<LambdaClickHandler>([=] {
 		if (user) {
-			Core::App().calls().startOutgoingCall(user);
+			Core::App().calls().startOutgoingCall(user, video);
 		}
 	});
 

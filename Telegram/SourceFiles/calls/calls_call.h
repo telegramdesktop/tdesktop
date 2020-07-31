@@ -65,7 +65,7 @@ public:
 		Incoming,
 		Outgoing,
 	};
-	Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type);
+	Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type, bool video);
 
 	[[nodiscard]] Type type() const {
 		return _type;

@@ -36,7 +36,7 @@ public:
 	Instance();
 	~Instance();
 
-	void startOutgoingCall(not_null<UserData*> user);
+	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -58,7 +58,7 @@ private:
 	void callRedial(not_null<Call*> call) override;
 	using Sound = Call::Delegate::Sound;
 	void playSound(Sound sound) override;
-	void createCall(not_null<UserData*> user, Call::Type type);
+	void createCall(not_null<UserData*> user, Call::Type type, bool video);
 	void destroyCall(not_null<Call*> call);
 	void destroyCurrentPanel();
 	void requestPermissionsOrFail(Fn<void()> onSuccess) override;
