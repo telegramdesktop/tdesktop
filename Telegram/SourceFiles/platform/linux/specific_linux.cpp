@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <wayland-client.h>
 #endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
+#include <glib.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
@@ -61,6 +63,9 @@ using QtWaylandClient::QWaylandWindow;
 
 namespace Platform {
 namespace {
+
+constexpr auto kDisableGtkIntegration = "TDESKTOP_DISABLE_GTK_INTEGRATION"_cs;
+constexpr auto kIgnoreGtkIncompatibility = "TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY"_cs;
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
@@ -644,7 +649,7 @@ bool IsStaticBinary() {
 bool UseGtkIntegration() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static const auto Result = !qEnvironmentVariableIsSet(
-		"TDESKTOP_DISABLE_GTK_INTEGRATION");
+		kDisableGtkIntegration.utf8());
 
 	return Result;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -1162,10 +1167,48 @@ void start() {
 	if (UseGtkIntegration()
 		&& !IsStaticBinary()
 		&& !qEnvironmentVariableIsSet(
-			"TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY")) {
+			kIgnoreGtkIncompatibility.utf8())) {
+		g_warning(
+			"Unfortunately, GTK integration "
+			"conflicts with qgtk2 platformtheme and style. "
+			"Therefore, QT_QPA_PLATFORMTHEME "
+			"and QT_STYLE_OVERRIDE will be unset.");
+
+		g_warning(
+			"This can be ignored by setting %s environment variable "
+			"to any value, however, if qgtk2 theme or style is used, "
+			"this will lead to a crash.",
+			kIgnoreGtkIncompatibility.utf8().constData());
+
+		g_warning(
+			"GTK integration can be disabled by setting %s to any value. "
+			"Keep in mind that this will lead to clipboard issues "
+			"and tdesktop will be unable to get settings from GTK "
+			"(such as decoration layout, dark mode & more).",
+			kDisableGtkIntegration.utf8().constData());
+
 		qunsetenv("QT_QPA_PLATFORMTHEME");
 		qunsetenv("QT_STYLE_OVERRIDE");
 	}
+
+	if (!UseGtkIntegration()) {
+		g_warning(
+			"GTK integration was disabled on build or in runtime. "
+			"This will lead to clipboard issues and a lack of some features "
+			"(like Auto-Night Mode or system window controls layout).");
+	}
+
+#ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
+	g_warning(
+		"Application has been built with foreign rlottie, "
+		"animated emojis won't be colored to the selected pack.");
+#endif // DESKTOP_APP_USE_PACKAGED_RLOTTIE
+
+#ifdef DESKTOP_APP_USE_PACKAGED_FONTS
+	g_warning(
+		"Application was built without embedded fonts, "
+		"this may lead to font issues.");
+#endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
 	if(IsStaticBinary()
 		|| InAppImage()
