@@ -236,9 +236,9 @@ Go to ***BuildPath*** and run
 
     git clone git://code.qt.io/qt/qt5.git qt_5_12_8
     cd qt_5_12_8
-    perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qtx11extras
+    perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
     git checkout v5.12.8
-    git submodule update qtbase qtwayland qtimageformats qtsvg qtx11extras
+    git submodule update qtbase qtwayland qtimageformats qtsvg
     cd qtbase
     find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -r0 git apply
     cd ..
