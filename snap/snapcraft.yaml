@@ -77,7 +77,6 @@ parts:
       - libpulse-dev
       - libqt5svg5-dev
       - libqt5waylandclient5-dev
-      - libqt5x11extras5-dev
       - libssl-dev
       - libxcb1-dev
       - libxcb-screensaver0-dev
@@ -92,7 +91,6 @@ parts:
       - libpulse0
       - libqt5svg5
       - libqt5waylandclient5
-      - libqt5x11extras5
       - libssl1.1
       - libxcb1
       - libxcb-screensaver0
