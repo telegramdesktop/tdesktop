@@ -157,32 +157,38 @@ if (LINUX)
     endif()
 endif()
 
+if (LINUX AND (NOT TDESKTOP_DISABLE_GTK_INTEGRATION OR NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION))
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLIB2 REQUIRED IMPORTED_TARGET glib-2.0)
+    pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
+    pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+
+    target_link_libraries(Telegram
+    PRIVATE
+        PkgConfig::GLIB2
+        PkgConfig::GOBJECT
+        PkgConfig::GIO
+    )
+
+    target_compile_options(Telegram PRIVATE -Wno-register)
+endif()
+
 if (LINUX AND NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
     find_package(PkgConfig REQUIRED)
-    target_compile_options(Telegram PRIVATE -Wno-register)
 
     if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
-        pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
-        pkg_check_modules(GOBJECT2 REQUIRED IMPORTED_TARGET gobject-2.0)
-        pkg_check_modules(GLIB2 REQUIRED IMPORTED_TARGET glib-2.0)
         pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
+        pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
         target_link_libraries(Telegram
         PRIVATE
-            PkgConfig::X11
-            PkgConfig::GOBJECT2
-            PkgConfig::GLIB2
             PkgConfig::GTK3
+            PkgConfig::X11
         )
     else()
         pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
-        target_link_libraries(Telegram
-        PRIVATE
-            X11
-            gobject-2.0
-            glib-2.0
-        )
         target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
+        target_link_libraries(Telegram PRIVATE X11)
     endif()
 endif()
 
