@@ -69,38 +69,6 @@ generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
 
-if (LINUX)
-    target_link_libraries(Telegram
-    PRIVATE
-        desktop-app::external_materialdecoration
-        desktop-app::external_nimf_qt5
-        desktop-app::external_qt5ct_support
-    )
-
-    if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
-        # conflicts with Qt static link
-        if (DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES)
-            target_link_libraries(Telegram
-            PRIVATE
-                desktop-app::external_lxqt_qtplugin
-            )
-        endif()
-
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::external_statusnotifieritem
-            desktop-app::external_dbusmenu_qt
-            desktop-app::external_fcitx_qt5
-            desktop-app::external_fcitx5_qt5
-            desktop-app::external_hime_qt
-        )
-    endif()
-endif()
-
-if (add_hunspell_library)
-    target_link_libraries(Telegram PRIVATE desktop-app::external_hunspell)
-endif()
-
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_tgcalls_legacy
@@ -130,17 +98,43 @@ PRIVATE
     desktop-app::external_openal
 )
 
-if (LINUX AND DESKTOP_APP_USE_PACKAGED AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
-
-    target_include_directories(Telegram
-    PRIVATE
-        ${WAYLAND_CLIENT_INCLUDE_DIRS}
-    )
-endif()
-
 if (LINUX)
+    target_link_libraries(Telegram
+    PRIVATE
+        desktop-app::external_materialdecoration
+        desktop-app::external_nimf_qt5
+        desktop-app::external_qt5ct_support
+    )
+
+    if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+        # conflicts with Qt static link
+        if (DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES)
+            target_link_libraries(Telegram
+            PRIVATE
+                desktop-app::external_lxqt_qtplugin
+            )
+        endif()
+
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_statusnotifieritem
+            desktop-app::external_dbusmenu_qt
+            desktop-app::external_fcitx_qt5
+            desktop-app::external_fcitx5_qt5
+            desktop-app::external_hime_qt
+        )
+    endif()
+
+    if (DESKTOP_APP_USE_PACKAGED AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
+
+        target_include_directories(Telegram
+        PRIVATE
+            ${WAYLAND_CLIENT_INCLUDE_DIRS}
+        )
+    endif()
+
     if (DESKTOP_APP_USE_PACKAGED)
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(XCB_SCREENSAVER REQUIRED IMPORTED_TARGET xcb-screensaver)
@@ -155,9 +149,7 @@ if (LINUX)
         target_link_static_libraries(Telegram PRIVATE xcb-screensaver)
         target_link_libraries(Telegram PRIVATE xcb)
     endif()
-endif()
 
-if (LINUX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLIB2 REQUIRED IMPORTED_TARGET glib-2.0)
     pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
@@ -172,24 +164,24 @@ if (LINUX)
 
     target_compile_definitions(Telegram PRIVATE G_LOG_DOMAIN="Telegram")
     target_compile_options(Telegram PRIVATE -Wno-register)
-endif()
 
-if (LINUX AND NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
-    find_package(PkgConfig REQUIRED)
+    if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
+        find_package(PkgConfig REQUIRED)
 
-    if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
-        pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
-        pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+        if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
+            pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
+            pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
-        target_link_libraries(Telegram
-        PRIVATE
-            PkgConfig::GTK3
-            PkgConfig::X11
-        )
-    else()
-        pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
-        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
-        target_link_libraries(Telegram PRIVATE X11)
+            target_link_libraries(Telegram
+            PRIVATE
+                PkgConfig::GTK3
+                PkgConfig::X11
+            )
+        else()
+            pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
+            target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
+            target_link_libraries(Telegram PRIVATE X11)
+        endif()
     endif()
 endif()
 
