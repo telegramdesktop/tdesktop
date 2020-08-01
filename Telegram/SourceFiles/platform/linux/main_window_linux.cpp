@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusMetaType>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
+#include <glib.h>
+
 namespace Platform {
 namespace {
 
@@ -737,6 +739,13 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmap>();
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
+		g_warning(
+			"You can disable tray icon counter with %s "
+			"and make it look better if it is monochrome.",
+			kDisableTrayCounter.utf8().constData());
+	}
 }
 
 void MainWindow::initTrayMenuHook() {

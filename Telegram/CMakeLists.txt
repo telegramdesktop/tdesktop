@@ -157,7 +157,7 @@ if (LINUX)
     endif()
 endif()
 
-if (LINUX AND (NOT TDESKTOP_DISABLE_GTK_INTEGRATION OR NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION))
+if (LINUX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLIB2 REQUIRED IMPORTED_TARGET glib-2.0)
     pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
@@ -170,6 +170,7 @@ if (LINUX AND (NOT TDESKTOP_DISABLE_GTK_INTEGRATION OR NOT DESKTOP_APP_DISABLE_D
         PkgConfig::GIO
     )
 
+    target_compile_definitions(Telegram PRIVATE G_LOG_DOMAIN="Telegram")
     target_compile_options(Telegram PRIVATE -Wno-register)
 endif()
 
