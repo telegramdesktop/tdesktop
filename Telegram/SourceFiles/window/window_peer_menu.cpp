@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "api/api_common.h"
 #include "api/api_chat_filters.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
@@ -91,6 +90,8 @@ private:
 	void addBlockUser(not_null<UserData*> user);
 	void addChatActions(not_null<ChatData*> chat);
 	void addChannelActions(not_null<ChannelData*> channel);
+
+	void addPollAction(not_null<PeerData*> peer);
 
 	not_null<SessionController*> _controller;
 	not_null<PeerData*> _peer;
@@ -484,11 +485,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				tr::lng_profile_invite_to_group(tr::now),
 				[=] { AddBotToGroup::Start(controller, user); });
 		}
-		if (user->canSendPolls()) {
-			_addAction(
-				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(controller, user); });
-		}
+		addPollAction(user);
 		if (user->canExportChatHistory()) {
 			_addAction(
 				tr::lng_profile_export_chat(tr::now),
@@ -522,11 +519,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				tr::lng_profile_add_participant(tr::now),
 				[=] { AddChatMembers(controller, chat); });
 		}
-		if (chat->canSendPolls()) {
-			_addAction(
-				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(controller, chat); });
-		}
+		addPollAction(chat);
 		if (chat->canExportChatHistory()) {
 			_addAction(
 				tr::lng_profile_export_chat(tr::now),
@@ -568,11 +561,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				tr::lng_channel_add_members(tr::now),
 				[=] { PeerMenuAddChannelMembers(navigation, channel); });
 		}
-		if (channel->canSendPolls()) {
-			_addAction(
-				tr::lng_polls_create(tr::now),
-				[=] { PeerMenuCreatePoll(navigation, channel); });
-		}
+		addPollAction(channel);
 		if (channel->canExportChatHistory()) {
 			_addAction(
 				(isGroup
@@ -610,7 +599,26 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	}
 }
 
+void Filler::addPollAction(not_null<PeerData*> peer) {
+	if (!peer->canSendPolls()) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto source = (_source == PeerMenuSource::ScheduledSection)
+		? Api::SendType::Scheduled
+		: Api::SendType::Normal;
+	const auto flag = PollData::Flags();
+	auto callback = [=] {
+		PeerMenuCreatePoll(controller, peer, flag, flag, source);
+	};
+	_addAction(tr::lng_polls_create(tr::now), std::move(callback));
+}
+
 void Filler::fill() {
+	if (_source == PeerMenuSource::ScheduledSection) {
+		addPollAction(_peer);
+		return;
+	}
 	if (showHidePromotion()) {
 		addHidePromotion();
 	}
@@ -791,7 +799,8 @@ void PeerMenuCreatePoll(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		PollData::Flags chosen,
-		PollData::Flags disabled) {
+		PollData::Flags disabled,
+		Api::SendType sendType) {
 	if (peer->isChannel() && !peer->isMegagroup()) {
 		chosen &= ~PollData::Flag::PublicVotes;
 		disabled |= PollData::Flag::PublicVotes;
@@ -800,7 +809,7 @@ void PeerMenuCreatePoll(
 		controller,
 		chosen,
 		disabled,
-		Api::SendType::Normal));
+		sendType));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
 	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {
