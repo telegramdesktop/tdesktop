@@ -130,11 +130,12 @@ bool NativeSupported(Type type = Type::ReadFile) {
 	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
 	// or if portals is used and operation is to open folder
 	// and portal doesn't support folder choosing
-	return Platform::UseGtkFileDialog()
-		&& (Platform::DesktopEnvironment::IsGtkBased()
+	return (Platform::DesktopEnvironment::IsGtkBased()
 			|| Platform::IsGtkIntegrationForced()
 			|| Platform::UseXDGDesktopPortal())
-		&& (!Platform::UseXDGDesktopPortal()
+		&& ((!Platform::UseXDGDesktopPortal() &&
+			((!Platform::InFlatpak() && !Platform::InSnap())
+				|| Platform::IsGtkIntegrationForced()))
 			|| (type == Type::ReadFolder && !Platform::CanOpenDirectoryWithPortal()))
 		&& Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)

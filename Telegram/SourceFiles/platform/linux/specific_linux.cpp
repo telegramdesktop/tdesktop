@@ -682,14 +682,6 @@ bool IsGtkIntegrationForced() {
 	return false;
 }
 
-bool UseGtkFileDialog() {
-#ifdef TDESKTOP_USE_GTK_FILE_DIALOG
-	return true;
-#else // TDESKTOP_USE_GTK_FILE_DIALOG
-	return false;
-#endif // !TDESKTOP_USE_GTK_FILE_DIALOG
-}
-
 bool IsQtPluginsBundled() {
 #ifdef DESKTOP_APP_USE_PACKAGED_LAZY
 	return true;
@@ -1210,6 +1202,11 @@ void start() {
 
 		qunsetenv("QT_QPA_PLATFORMTHEME");
 		qunsetenv("QT_STYLE_OVERRIDE");
+
+		// Don't allow qgtk3 to init gtk earlier than us
+		if (DesktopEnvironment::IsGtkBased()) {
+			QApplication::setDesktopSettingsAware(false);
+		}
 	}
 
 	if (!UseGtkIntegration()) {
@@ -1241,10 +1238,10 @@ void start() {
 
 	if((IsStaticBinary()
 		|| InAppImage()
-		|| InSnap()
-		|| UseGtkFileDialog()
 		|| IsQtPluginsBundled())
-		&& !InFlatpak()) {
+		// it is handled by Qt for flatpak and snap
+		&& !InFlatpak()
+		&& !InSnap()) {
 		LOG(("Checking for XDG Desktop Portal..."));
 		// this can give us a chance to use
 		// a proper file dialog for current session

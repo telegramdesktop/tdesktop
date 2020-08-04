@@ -26,7 +26,6 @@ bool InAppImage();
 bool IsStaticBinary();
 bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
-bool UseGtkFileDialog();
 bool IsQtPluginsBundled();
 
 bool IsXDGDesktopPortalPresent();
