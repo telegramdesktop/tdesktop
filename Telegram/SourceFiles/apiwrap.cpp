@@ -4918,8 +4918,8 @@ void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
 	if (self->userpicPhotoId() == photo->id) {
 		request(MTPphotos_UpdateProfilePhoto(
 			MTP_inputPhotoEmpty()
-		)).done([=](const MTPUserProfilePhoto &result) {
-			self->setPhoto(result);
+		)).done([=](const MTPphotos_Photo &result) {
+			self->setPhoto(MTP_userProfilePhotoEmpty());
 		}).send();
 	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
 		const auto applier = [=](const MTPUpdates &result) {

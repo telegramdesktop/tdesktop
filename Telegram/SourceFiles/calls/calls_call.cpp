@@ -63,13 +63,54 @@ void AppendEndpoint(
 				.ipv4 = data.vip().v.toStdString(),
 				.ipv6 = data.vipv6().v.toStdString() },
 			.port = (uint16_t)data.vport().v,
-			.type = tgcalls::EndpointType::UdpRelay
+			.type = tgcalls::EndpointType::UdpRelay,
 		};
 		const auto tag = data.vpeer_tag().v;
 		if (tag.size() >= 16) {
 			memcpy(endpoint.peerTag, tag.data(), 16);
 		}
 		list.push_back(std::move(endpoint));
+	}, [&](const MTPDphoneConnectionWebrtc &data) {
+	});
+}
+
+void AppendServer(
+		std::vector<tgcalls::RtcServer> &list,
+		const MTPPhoneConnection &connection) {
+	connection.match([&](const MTPDphoneConnection &data) {
+	}, [&](const MTPDphoneConnectionWebrtc &data) {
+		const auto host = qs(data.vip());
+		const auto hostv6 = qs(data.vipv6());
+		const auto port = uint16_t(data.vport().v);
+		if (data.is_stun()) {
+			const auto pushStun = [&](const QString &host) {
+				if (host.isEmpty()) {
+					return;
+				}
+				list.push_back({
+					.host = host.toStdString(),
+					.port = port,
+					.isTurn = false
+				});
+			};
+			pushStun(host);
+			pushStun(hostv6);
+		}
+		const auto username = qs(data.vusername());
+		const auto password = qs(data.vpassword());
+		if (data.is_turn() && !username.isEmpty() && !password.isEmpty()) {
+			const auto pushTurn = [&](const QString &host) {
+				list.push_back({
+					.host = host.toStdString(),
+					.port = port,
+					.login = username.toStdString(),
+					.password = password.toStdString(),
+					.isTurn = true,
+				});
+			};
+			pushTurn(host);
+			pushTurn(hostv6);
+		}
 	});
 }
 
@@ -100,47 +141,6 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 
 [[nodiscard]] QVector<MTPstring> CollectVersionsForApi() {
 	return WrapVersions(tgcalls::Meta::Versions() | ranges::action::reverse);
-}
-
-[[nodiscard]] std::vector<tgcalls::RtcServer> CollectRtcServers(
-		not_null<UserData*> user) {
-	using tgcalls::RtcServer;
-	using List = std::vector<std::map<QString, QString>>;
-
-	auto result = std::vector<RtcServer>();
-	const auto list = user->account().appConfig().get<List>(
-		"rtc_servers",
-		List());
-	result.reserve(list.size() * 2);
-	for (const auto &entry : list) {
-		const auto find = [&](const QString &key) {
-			const auto i = entry.find(key);
-			return (i != entry.end()) ? i->second : QString();
-		};
-		const auto host = find(u"host"_q).toStdString();
-		const auto port = find(u"port"_q).toUShort();
-		const auto username = find(u"username"_q).toStdString();
-		const auto password = find(u"password"_q).toStdString();
-		if (host.empty() || !port) {
-			continue;
-		}
-		result.push_back(RtcServer{
-			.host = host,
-			.port = port,
-			.isTurn = false
-		});
-		if (username.empty() || password.empty()) {
-			continue;
-		}
-		result.push_back(RtcServer{
-			.host = host,
-			.port = port,
-			.login = username,
-			.password = password,
-			.isTurn = true,
-		});
-	}
-	return result;
 }
 
 } // namespace
@@ -728,8 +728,9 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	for (const auto &connection : call.vconnections().v) {
 		AppendEndpoint(descriptor.endpoints, connection);
 	}
-
-	descriptor.rtcServers = CollectRtcServers(_user);
+	for (const auto &connection : call.vconnections().v) {
+		AppendServer(descriptor.rtcServers, connection);
+	}
 
 	if (Global::UseProxyForCalls()
 		&& (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)) {
@@ -788,6 +789,7 @@ void Call::handleControllerStateChange(
 		case tgcalls::VideoState::OutgoingRequested:
 			return VideoState::OutgoingRequested;
 		case tgcalls::VideoState::IncomingRequested:
+		case tgcalls::VideoState::IncomingRequestedAndActive:
 			return VideoState::IncomingRequested;
 		case tgcalls::VideoState::Active: return VideoState::Enabled;
 		}
