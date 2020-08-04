@@ -18,8 +18,8 @@ CallSignalBars {
 	inactiveOpacity: double;
 }
 
-callWidth: 480px;
-callHeight: 640px;
+callWidth: 960px;
+callHeight: 540px;
 callRadius: 6px;
 callShadow: Shadow {
 	left: icon {{ "call_shadow_left", windowShadowFg }};
@@ -34,6 +34,9 @@ callShadow: Shadow {
 	fallback: windowShadowFgFallback;
 }
 callPhotoSize: 180px;
+
+callOutgoingPreviewSize: size(340px, 180px);
+callOutgoingDefaultSize: size(160px, 110px);
 
 callButton: IconButton {
 	width: 72px;
@@ -93,7 +96,7 @@ callCameraToggle: IconButton(callButton) {
 }
 callNoCameraIcon: icon {{ "call_camera_muted", callIconFg }};
 
-callControlsTop: 80px;
+callControlsTop: 460px;
 callControlsSkip: 0px;
 callMuteRight: 8px;
 

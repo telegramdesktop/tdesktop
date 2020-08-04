@@ -87,7 +87,7 @@ private:
 	bool tooltipWindowActive() const override;
 
 	void initControls();
-	void reinitControls();
+	void reinitWithCall(Call *call);
 	void initLayout();
 	void initGeometry();
 	void hideDeactivated();
@@ -113,6 +113,7 @@ private:
 	void toggleOpacityAnimation(bool visible);
 	void finishAnimating();
 	void destroyDelayed();
+	void setIncomingShown(bool shown);
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
@@ -120,14 +121,16 @@ private:
 	std::shared_ptr<Data::PhotoMedia> _photo;
 
 	bool _useTransparency = true;
+	bool _incomingShown = false;
 	style::margins _padding;
 	int _contentTop = 0;
+	int _controlsTop = 0;
 
 	bool _dragging = false;
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
 
-	rpl::lifetime _stateLifetime;
+	rpl::lifetime _callLifetime;
 
 	class Button;
 	object_ptr<Button> _answerHangupRedial;

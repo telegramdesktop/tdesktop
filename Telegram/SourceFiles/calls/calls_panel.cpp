@@ -335,9 +335,7 @@ void Panel::showAndActivate() {
 }
 
 void Panel::replaceCall(not_null<Call*> call) {
-	_call = call;
-	_user = call->user();
-	reinitControls();
+	reinitWithCall(call);
 	updateControlsGeometry();
 }
 
@@ -361,20 +359,12 @@ void Panel::initControls() {
 			_call->setMuted(!_call->muted());
 		}
 	});
-	_call->mutedValue(
-	) | rpl::start_with_next([=](bool mute) {
-		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
-	}, lifetime());
 	_camera->setClickedCallback([=] {
 		if (_call) {
 			_call->videoOutgoing()->setEnabled(
 				!_call->videoOutgoing()->enabled());
 		}
 	});
-	_call->videoOutgoing()->enabledValue(
-	) | rpl::start_with_next([=](bool enabled) {
-		_camera->setIconOverride(enabled ? nullptr : &st::callNoCameraIcon);
-	}, lifetime());
 
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
@@ -410,27 +400,53 @@ void Panel::initControls() {
 	_decline->entity()->setClickedCallback(hangupCallback);
 	_cancel->entity()->setClickedCallback(hangupCallback);
 
-	reinitControls();
+	reinitWithCall(_call);
 
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
+}
+
+void Panel::setIncomingShown(bool shown) {
+	if (_incomingShown == shown) {
+		return;
+	}
+	_incomingShown = shown;
+	if (_animationCache.isNull()) {
+		showControls();
+	}
+}
+
+void Panel::reinitWithCall(Call *call) {
+	_callLifetime.destroy();
+	_call = call;
+	if (!_call) {
+		return;
+	}
+
+	_user = _call->user();
+
+	_call->mutedValue(
+	) | rpl::start_with_next([=](bool mute) {
+		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
+	}, _callLifetime);
+
+	_call->videoOutgoing()->enabledValue(
+	) | rpl::start_with_next([=](bool enabled) {
+		_camera->setIconOverride(enabled ? nullptr : &st::callNoCameraIcon);
+	}, _callLifetime);
+
+	_call->stateValue(
+	) | rpl::start_with_next([=](State state) {
+		stateChanged(state);
+	}, _callLifetime);
 
 	rpl::merge(
 		_call->videoIncoming()->renderNextFrame(),
 		_call->videoOutgoing()->renderNextFrame()
 	) | rpl::start_with_next([=] {
+		setIncomingShown(!_call->videoIncoming()->frame({}).isNull());
 		update();
-	}, lifetime());
-}
-
-void Panel::reinitControls() {
-	Expects(_call != nullptr);
-
-	_stateLifetime.destroy();
-	_call->stateValue(
-	) | rpl::start_with_next([=](State state) {
-		stateChanged(state);
-	}, _stateLifetime);
+	}, _callLifetime);
 
 	_signalBars.create(
 		this,
@@ -521,6 +537,8 @@ void Panel::showControls() {
 	showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
+	_name->setVisible(!_incomingShown);
+	_status->setVisible(!_incomingShown);
 }
 
 void Panel::destroyDelayed() {
@@ -532,7 +550,7 @@ void Panel::destroyDelayed() {
 
 void Panel::hideAndDestroy() {
 	toggleOpacityAnimation(false);
-	_call = nullptr;
+	reinitWithCall(nullptr);
 	if (_animationCache.isNull()) {
 		destroyDelayed();
 	}
@@ -572,8 +590,9 @@ void Panel::refreshUserPhoto() {
 }
 
 void Panel::createUserpicCache(Image *image) {
-	auto size = st::callWidth * cIntRetinaFactor();
-	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
+	auto size = st::callPhotoSize * cIntRetinaFactor();
+	auto options = Images::Option::Smooth | Images::Option::Circled;
+	// _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
 		auto width = image->width();
 		auto height = image->height();
@@ -588,20 +607,20 @@ void Panel::createUserpicCache(Image *image) {
 			width,
 			height,
 			options,
-			st::callWidth,
-			st::callWidth);
+			st::callPhotoSize,
+			st::callPhotoSize);
 		_userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		auto filled = QImage(QSize(st::callPhotoSize, st::callPhotoSize) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		filled.setDevicePixelRatio(cRetinaFactor());
 		{
 			Painter p(&filled);
 			Ui::EmptyUserpic(
 				Data::PeerUserpicColor(_user->id),
 				_user->name
-			).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
+			).paint(p, 0, 0, st::callPhotoSize, st::callPhotoSize);
 		}
-		Images::prepareRound(filled, ImageRoundRadius::Large, RectPart::TopLeft | RectPart::TopRight);
+		//Images::prepareRound(filled, ImageRoundRadius::Large, RectPart::TopLeft | RectPart::TopRight);
 		_userPhoto = App::pixmapFromImageInPlace(std::move(filled));
 	}
 	refreshCacheImageUserPhoto();
@@ -626,7 +645,8 @@ void Panel::initGeometry() {
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
-	_contentTop = _padding.top() + st::callWidth;
+	_controlsTop = _padding.top() + st::callControlsTop;
+	_contentTop = _padding.top() + 2 * st::callPhotoSize;
 	const auto rect = [&] {
 		const QRect initRect(0, 0, st::callWidth, st::callHeight);
 		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
@@ -643,17 +663,18 @@ void Panel::createBottomImage() {
 		return;
 	}
 	auto bottomWidth = width();
-	auto bottomHeight = height() - _padding.top() - st::callWidth;
+	auto bottomHeight = height();
 	auto image = QImage(QSize(bottomWidth, bottomHeight) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	const auto inner = rect().marginsRemoved(_padding);
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		Ui::Shadow::paint(p, QRect(_padding.left(), 0, st::callWidth, bottomHeight - _padding.bottom()), width(), st::callShadow, RectPart::Left | RectPart::Right | RectPart::Bottom);
+		Ui::Shadow::paint(p, inner, width(), st::callShadow);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(_padding.left(), -st::callRadius, st::callWidth, bottomHeight - _padding.bottom() + st::callRadius), st::callRadius, st::callRadius);
+		p.drawRoundedRect(inner, st::callRadius, st::callRadius);
 	}
 	_bottomCache = App::pixmapFromImageInPlace(std::move(image));
 }
@@ -684,9 +705,8 @@ void Panel::refreshCacheImageUserPhoto() {
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
-		Ui::Shadow::paint(p, QRect(_padding.left(), _padding.top(), st::callWidth, st::callWidth), width(), st::callShadow, RectPart::Top | RectPart::Left | RectPart::Right);
-		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
-		p.drawPixmapLeft(0, _padding.top() + st::callWidth, width(), _bottomCache);
+		p.drawPixmapLeft(0, 0, width(), _bottomCache);
+		p.drawPixmapLeft((width() - st::callPhotoSize) / 2, st::callPhotoSize, width(), _userPhoto);
 	}
 	_cache = App::pixmapFromImageInPlace(std::move(cache));
 }
@@ -699,15 +719,12 @@ void Panel::updateControlsGeometry() {
 	_name->moveToLeft((width() - _name->width()) / 2, _contentTop + st::callNameTop);
 	updateStatusGeometry();
 
-	auto controlsTop = _contentTop + st::callControlsTop;
+	auto controlsTop = _padding.top() + st::callControlsTop;
 	auto bothWidth = _answerHangupRedial->width() + st::callControlsSkip + st::callCancel.button.width;
 	_decline->moveToLeft((width() - bothWidth) / 2, controlsTop);
 	_cancel->moveToLeft((width() - bothWidth) / 2, controlsTop);
 
 	updateHangupGeometry();
-
-	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
-	_camera->moveToLeft(_padding.right() + st::callMuteRight, controlsTop);
 
 	const auto skip = st::callSignalMargin + st::callSignalPadding;
 	const auto delta = (_signalBars->width() - _signalBars->height());
@@ -723,9 +740,11 @@ void Panel::updateHangupGeometry() {
 	auto rightTo = (width() - singleWidth) / 2;
 	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
-	auto controlsTop = _contentTop + st::callControlsTop;
+	auto controlsTop = _padding.top() + st::callControlsTop;
 	_answerHangupRedial->moveToRight(hangupRight, controlsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
+	_mute->moveToRight(hangupRight - _mute->width(), controlsTop);
+	_camera->moveToLeft(hangupRight - _mute->width(), controlsTop);
 }
 
 void Panel::updateStatusGeometry() {
@@ -757,11 +776,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
 		auto callBgOpaque = st::callBg->c;
 		callBgOpaque.setAlpha(255);
-		auto brush = QBrush(callBgOpaque);
-		p.fillRect(0, 0, width(), _padding.top(), brush);
-		p.fillRect(myrtlrect(0, _padding.top(), _padding.left(), _contentTop - _padding.top()), brush);
-		p.fillRect(myrtlrect(width() - _padding.right(), _padding.top(), _padding.right(), _contentTop - _padding.top()), brush);
-		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
+		p.fillRect(rect(), QBrush(callBgOpaque));
 	}
 
 	const auto incomingFrame = _call
@@ -771,7 +786,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		const auto to = rect().marginsRemoved(_padding);
 		p.save();
 		p.setClipRect(to);
-		const auto big = incomingFrame.size().scaled(to.size(), Qt::KeepAspectRatioByExpanding);
+		const auto big = incomingFrame.size().scaled(to.size(), Qt::KeepAspectRatio);
 		const auto pos = QPoint(
 			to.left() + (to.width() - big.width()) / 2,
 			to.top() + (to.height() - big.height()) / 2);
@@ -808,7 +823,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (!_fingerprint.empty()) {
-		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
+		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Large);
 
 		const auto realSize = Ui::Emoji::GetSizeLarge();
 		const auto size = realSize / cIntRetinaFactor();
@@ -959,7 +974,7 @@ void Panel::fillFingerprint() {
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
 	auto rectHeight = size;
 	auto left = (width() - rectWidth) / 2;
-	auto top = _contentTop - st::callFingerprintBottom - st::callFingerprintPadding.bottom() - size;
+	auto top = _padding.top() + st::callFingerprintBottom;
 	_fingerprintArea = QRect(left, top, rectWidth, rectHeight).marginsAdded(st::callFingerprintPadding);
 
 	update();
