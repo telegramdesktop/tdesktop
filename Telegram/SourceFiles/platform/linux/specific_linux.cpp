@@ -126,7 +126,8 @@ uint FileChooserPortalVersion() {
 			qsl("version")
 		});
 
-		const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(message);
+		const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+			message);
 
 		if (reply.isValid()) {
 			return reply.value();
@@ -345,8 +346,14 @@ std::optional<crl::time> XCBLastUserInputTime() {
 			return std::nullopt;
 		}
 
-		const auto cookie = xcb_screensaver_query_info(connection, screen->root);
-		auto info = xcb_screensaver_query_info_reply(connection, cookie, nullptr);
+		const auto cookie = xcb_screensaver_query_info(
+			connection,
+			screen->root);
+
+		auto info = xcb_screensaver_query_info_reply(
+			connection,
+			cookie,
+			nullptr);
 
 		if (!info) {
 			return std::nullopt;
@@ -515,7 +522,8 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 		return false;
 	}
 
-	const auto moveResizeCookie = xcb_intern_atom(connection,
+	const auto moveResizeCookie = xcb_intern_atom(
+		connection,
 		0,
 		strlen("_NET_WM_MOVERESIZE"),
 		"_NET_WM_MOVERESIZE");
@@ -549,17 +557,20 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 	xev.data.data32[4] = 0;
 
 	xcb_ungrab_pointer(connection, XCB_CURRENT_TIME);
-	xcb_send_event(connection,
+	xcb_send_event(
+		connection,
 		false,
 		screen->root,
-		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
 		reinterpret_cast<const char*>(&xev));
 
 	return true;
 }
 
 bool StartWaylandMove(QWindow *window) {
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
+		window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
 				return shellSurface->move(seat);
@@ -571,7 +582,8 @@ bool StartWaylandMove(QWindow *window) {
 }
 
 bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(window->handle())) {
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
+		window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
@@ -794,7 +806,10 @@ QString GetLauncherBasename() {
 				.toUtf8();
 
 			char md5Hash[33] = { 0 };
-			hashMd5Hex(appimagePath.constData(), appimagePath.size(), md5Hash);
+			hashMd5Hex(
+				appimagePath.constData(),
+				appimagePath.size(),
+				md5Hash);
 
 			return qsl("appimagekit_%1-%2")
 				.arg(md5Hash)
@@ -865,7 +880,8 @@ QImage GetImageFromClipboard() {
 
 	if (gsel) {
 		if (Libs::gtk_selection_data_targets_include_image(gsel, false)) {
-			auto img = Libs::gtk_clipboard_wait_for_image(App::wnd()->gtkClipboard());
+			auto img = Libs::gtk_clipboard_wait_for_image(
+				App::wnd()->gtkClipboard());
 
 			if (img) {
 				data = QImage(
@@ -913,11 +929,14 @@ std::optional<bool> IsDarkMode() {
 	if (Libs::GtkSettingSupported() && Libs::GtkLoaded()) {
 		if (Libs::gtk_check_version != nullptr
 			&& !Libs::gtk_check_version(3, 0, 0)
-			&& Libs::GtkSetting<gboolean>("gtk-application-prefer-dark-theme")) {
+			&& Libs::GtkSetting<gboolean>(
+				"gtk-application-prefer-dark-theme")) {
 			return true;
 		}
 
-		if (Libs::GtkSetting("gtk-theme-name").toLower().endsWith(qsl("-dark"))) {
+		const auto themeName = Libs::GtkSetting("gtk-theme-name").toLower();
+
+		if (themeName.endsWith(qsl("-dark"))) {
 			return true;
 		}
 
@@ -929,7 +948,8 @@ std::optional<bool> IsDarkMode() {
 }
 
 bool AutostartSupported() {
-	// snap sandbox doesn't allow creating files in folders with names started with a dot
+	// snap sandbox doesn't allow creating files
+	// in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
 	// thus, autostart isn't supported in snap
 	return !InSnap();
@@ -990,7 +1010,8 @@ Window::ControlsLayout WindowControlsLayout() {
 		&& Libs::GtkLoaded()
 		&& Libs::gtk_check_version != nullptr
 		&& !Libs::gtk_check_version(3, 12, 0)) {
-		const auto decorationLayout = Libs::GtkSetting("gtk-decoration-layout").split(':');
+		const auto decorationLayout = Libs::GtkSetting(
+			"gtk-decoration-layout").split(':');
 
 		std::vector<Window::Control> controlsLeft;
 		ranges::transform(
@@ -1225,7 +1246,8 @@ void start() {
 		|| IsQtPluginsBundled())
 		&& !InFlatpak()) {
 		LOG(("Checking for XDG Desktop Portal..."));
-		// this can give us a chance to use a proper file dialog for current session
+		// this can give us a chance to use
+		// a proper file dialog for current session
 		if (IsXDGDesktopPortalPresent()) {
 			LOG(("XDG Desktop Portal is present!"));
 			if (UseXDGDesktopPortal()) {
@@ -1262,10 +1284,8 @@ void RegisterCustomScheme(bool force) {
 
 	GenerateDesktopFile(applicationsPath, qsl("-- %u"));
 
-	const auto icons =
-		QStandardPaths::writableLocation(
-			QStandardPaths::GenericDataLocation)
-			+ qsl("/icons/");
+	const auto icons = QStandardPaths::writableLocation(
+		QStandardPaths::GenericDataLocation) + qsl("/icons/");
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 

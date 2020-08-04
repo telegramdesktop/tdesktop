@@ -240,8 +240,10 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 bool IsIndicatorApplication() {
-	// Hack for indicator-application, which doesn't handle icons sent across D-Bus:
-	// save the icon to a temp file and set the icon name to that filename.
+	// Hack for indicator-application,
+	// which doesn't handle icons sent across D-Bus:
+	// save the icon to a temp file
+	// and set the icon name to that filename.
 	static const auto Result = [] {
 		const auto interface = QDBusConnection::sessionBus().interface();
 
@@ -416,7 +418,8 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (GtkClipboardSupported()) {
-		_gtkClipboard = Libs::gtk_clipboard_get(Libs::gdk_atom_intern("CLIPBOARD", true));
+		_gtkClipboard = Libs::gtk_clipboard_get(
+			Libs::gdk_atom_intern("CLIPBOARD", true));
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
@@ -724,10 +727,20 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::updateWaylandDecorationColors() {
-	windowHandle()->setProperty("__material_decoration_backgroundColor", st::titleBgActive->c);
-	windowHandle()->setProperty("__material_decoration_foregroundColor", st::titleFgActive->c);
-	windowHandle()->setProperty("__material_decoration_backgroundInactiveColor", st::titleBg->c);
-	windowHandle()->setProperty("__material_decoration_foregroundInactiveColor", st::titleFg->c);
+	windowHandle()->setProperty(
+		"__material_decoration_backgroundColor",
+		st::titleBgActive->c);
+
+	windowHandle()->setProperty(
+		"__material_decoration_foregroundColor",
+		st::titleFgActive->c);
+
+	windowHandle()->setProperty(
+		"__material_decoration_backgroundInactiveColor",
+		st::titleBg->c);
+	windowHandle()->setProperty(
+		"__material_decoration_foregroundInactiveColor",
+		st::titleFg->c);
 
 	// Trigger a QtWayland client-side decoration update
 	windowHandle()->resize(windowHandle()->size());
