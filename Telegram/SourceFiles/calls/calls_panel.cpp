@@ -361,8 +361,10 @@ void Panel::initControls() {
 	});
 	_camera->setClickedCallback([=] {
 		if (_call) {
-			_call->videoOutgoing()->setEnabled(
-				!_call->videoOutgoing()->enabled());
+			_call->videoOutgoing()->setState(
+				(_call->videoOutgoing()->state() == webrtc::VideoState::Active)
+				? webrtc::VideoState::Inactive
+				: webrtc::VideoState::Active);
 		}
 	});
 
@@ -430,9 +432,11 @@ void Panel::reinitWithCall(Call *call) {
 		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
 	}, _callLifetime);
 
-	_call->videoOutgoing()->enabledValue(
-	) | rpl::start_with_next([=](bool enabled) {
-		_camera->setIconOverride(enabled ? nullptr : &st::callNoCameraIcon);
+	_call->videoOutgoing()->stateValue(
+	) | rpl::start_with_next([=](webrtc::VideoState state) {
+		_camera->setIconOverride((state == webrtc::VideoState::Active)
+			? nullptr
+			: &st::callNoCameraIcon);
 	}, _callLifetime);
 
 	_call->stateValue(

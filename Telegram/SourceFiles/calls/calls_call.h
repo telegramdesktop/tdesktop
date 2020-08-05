@@ -24,9 +24,11 @@ class Instance;
 class VideoCaptureInterface;
 enum class State;
 enum class VideoState;
+enum class AudioState;
 } // namespace tgcalls
 
 namespace webrtc {
+enum class VideoState;
 class VideoTrack;
 } // namespace webrtc
 
@@ -103,17 +105,24 @@ public:
 		return _state.value();
 	}
 
-	enum class VideoState {
-		Disabled,
-		OutgoingRequested,
-		IncomingRequested,
-		Enabled
+	enum class RemoteAudioState {
+		Muted,
+		Active,
 	};
-	[[nodiscard]] VideoState videoState() const {
-		return _videoState.current();
+	[[nodiscard]] RemoteAudioState remoteAudioState() const {
+		return _remoteAudioState.current();
 	}
-	[[nodiscard]] rpl::producer<VideoState> videoStateValue() const {
-		return _videoState.value();
+	[[nodiscard]] auto remoteAudioStateValue() const
+	-> rpl::producer<RemoteAudioState> {
+		return _remoteAudioState.value();
+	}
+
+	[[nodiscard]] webrtc::VideoState remoteVideoState() const {
+		return _remoteVideoState.current();
+	}
+	[[nodiscard]] auto remoteVideoStateValue() const
+	-> rpl::producer<webrtc::VideoState> {
+		return _remoteVideoState.value();
 	}
 
 	static constexpr auto kSignalBarStarting = -1;
@@ -164,14 +173,17 @@ private:
 	};
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
-	void finish(FinishType type, const MTPPhoneCallDiscardReason &reason = MTP_phoneCallDiscardReasonDisconnect());
+	void finish(
+		FinishType type,
+		const MTPPhoneCallDiscardReason &reason
+			= MTP_phoneCallDiscardReasonDisconnect());
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();
 	void sendSignalingData(const QByteArray &data);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
-	void handleControllerStateChange(tgcalls::State state, tgcalls::VideoState videoState);
+	void handleControllerStateChange(tgcalls::State state);
 	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
@@ -190,13 +202,17 @@ private:
 	void destroyController();
 
 	void setupOutgoingVideo();
+	void updateRemoteMediaState(
+		tgcalls::AudioState audio,
+		tgcalls::VideoState video);
 
 	const not_null<Delegate*> _delegate;
 	const not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
-	rpl::variable<VideoState> _videoState = VideoState::Disabled;
+	rpl::variable<RemoteAudioState> _remoteAudioState = RemoteAudioState::Active;
+	rpl::variable<webrtc::VideoState> _remoteVideoState;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
 	rpl::variable<int> _signalBarCount = kSignalBarStarting;

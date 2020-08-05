@@ -143,6 +143,11 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 	return WrapVersions(tgcalls::Meta::Versions() | ranges::action::reverse);
 }
 
+[[nodiscard]] webrtc::VideoState StartVideoState(bool enabled) {
+	using State = webrtc::VideoState;
+	return enabled ? State::Active : State::Inactive;
+}
+
 } // namespace
 
 Call::Call(
@@ -154,8 +159,8 @@ Call::Call(
 , _user(user)
 , _api(&_user->session().mtp())
 , _type(type)
-, _videoIncoming(std::make_unique<webrtc::VideoTrack>(video))
-, _videoOutgoing(std::make_unique<webrtc::VideoTrack>(video)) {
+, _videoIncoming(std::make_unique<webrtc::VideoTrack>(StartVideoState(video)))
+, _videoOutgoing(std::make_unique<webrtc::VideoTrack>(StartVideoState(video))) {
 	_discardByTimeoutTimer.setCallback([=] { hangup(); });
 
 	if (_type == Type::Outgoing) {
@@ -338,24 +343,26 @@ void Call::setMuted(bool mute) {
 }
 
 void Call::setupOutgoingVideo() {
-	const auto started = _videoOutgoing->enabled();
-	_videoOutgoing->enabledValue(
-	) | rpl::start_with_next([=](bool enabled) {
-		if (_state.current() != State::Established && enabled != started) {
-			_videoOutgoing->setEnabled(started);
-		} else if (enabled) {
+	const auto started = _videoOutgoing->state();
+	_videoOutgoing->stateValue(
+	) | rpl::start_with_next([=](webrtc::VideoState state) {
+		if (_state.current() != State::Established
+			&& state != started
+			&& !_videoCapture) {
+			_videoOutgoing->setState(started);
+		} else if (state != webrtc::VideoState::Inactive) {
+			// Paused not supported right now.
+			Assert(state == webrtc::VideoState::Active);
 			if (!_videoCapture) {
 				_videoCapture = tgcalls::VideoCaptureInterface::Create();
-				_videoCapture->setVideoOutput(_videoOutgoing->sink());
+				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
 			if (_instance) {
-				_instance->requestVideo(_videoCapture);
-			} else {
-				_videoState = VideoState::OutgoingRequested;
+				_instance->setVideoCapture(_videoCapture);
 			}
-			_videoCapture->setIsVideoEnabled(true);
+			_videoCapture->setState(tgcalls::VideoState::Active);
 		} else if (_videoCapture) {
-			_videoCapture->setIsVideoEnabled(false);
+			_videoCapture->setState(tgcalls::VideoState::Inactive);
 		}
 	}, _lifetime);
 }
@@ -568,6 +575,30 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 	Unexpected("phoneCall type inside an existing call handleUpdate()");
 }
 
+void Call::updateRemoteMediaState(
+		tgcalls::AudioState audio,
+		tgcalls::VideoState video) {
+	_remoteAudioState = [&] {
+		using From = tgcalls::AudioState;
+		using To = RemoteAudioState;
+		switch (audio) {
+		case From::Active: return To::Active;
+		case From::Muted: return To::Muted;
+		}
+		Unexpected("Audio state in remoteMediaStateUpdated.");
+	}();
+	_videoIncoming->setState([&] {
+		using From = tgcalls::VideoState;
+		using To = webrtc::VideoState;
+		switch (video) {
+		case From::Inactive: return To::Inactive;
+		case From::Paused: return To::Paused;
+		case From::Active: return To::Active;
+		}
+		Unexpected("Video state in remoteMediaStateUpdated.");
+	}());
+}
+
 bool Call::handleSignalingData(
 		const MTPDupdatePhoneCallSignalingData &data) {
 	if (data.vphone_call_id().v != _id || !_instance) {
@@ -685,10 +716,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.encryptionKey = tgcalls::EncryptionKey(
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
-		.videoCapture = _videoOutgoing->enabled() ? _videoCapture : nullptr,
-		.stateUpdated = [=](tgcalls::State state, tgcalls::VideoState videoState) {
+		.videoCapture = _videoCapture,
+		.stateUpdated = [=](tgcalls::State state) {
 			crl::on_main(weak, [=] {
-				handleControllerStateChange(state, videoState);
+				handleControllerStateChange(state);
 			});
 		},
 		.signalBarsUpdated = [=](int count) {
@@ -696,9 +727,9 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				handleControllerBarCountChange(count);
 			});
 		},
-		.remoteVideoIsActiveUpdated = [=](bool active) {
+		.remoteMediaStateUpdated = [=](tgcalls::AudioState audio, tgcalls::VideoState video) {
 			crl::on_main(weak, [=] {
-				_videoIncoming->setEnabled(active);
+				updateRemoteMediaState(audio, video);
 			});
 		},
 		.signalingDataEmitted = [=](const std::vector<uint8_t> &data) {
@@ -780,22 +811,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
-void Call::handleControllerStateChange(
-		tgcalls::State state,
-		tgcalls::VideoState videoState) {
-	_videoState = [&] {
-		switch (videoState) {
-		case tgcalls::VideoState::Possible: return VideoState::Disabled;
-		case tgcalls::VideoState::OutgoingRequested:
-			return VideoState::OutgoingRequested;
-		case tgcalls::VideoState::IncomingRequested:
-		case tgcalls::VideoState::IncomingRequestedAndActive:
-			return VideoState::IncomingRequested;
-		case tgcalls::VideoState::Active: return VideoState::Enabled;
-		}
-		Unexpected("VideoState value in Call::handleControllerStateChange.");
-	}();
-
+void Call::handleControllerStateChange(tgcalls::State state) {
 	switch (state) {
 	case tgcalls::State::WaitInit: {
 		DEBUG_LOG(("Call Info: State changed to WaitingInit."));
@@ -976,7 +992,8 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _instance ? _instance->getPreferredRelayId() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
-	const auto flags = (_videoState.current() == VideoState::Enabled)
+	const auto flags = ((_videoIncoming->state() != webrtc::VideoState::Inactive)
+		|| (_videoOutgoing->state() != webrtc::VideoState::Inactive))
 		? MTPphone_DiscardCall::Flag::f_video
 		: MTPphone_DiscardCall::Flag(0);
 	_api.request(MTPphone_DiscardCall(
