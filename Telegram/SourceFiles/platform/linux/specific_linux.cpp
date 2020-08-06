@@ -181,13 +181,24 @@ QString RealExecutablePath(int argc, char *argv[]) {
 			: QString();
 }
 
-bool RunShellCommand(const QByteArray &command) {
-	auto result = system(command.constData());
+bool RunShellCommand(const QString &program, const QStringList &arguments) {
+	const auto result = QProcess::execute(program, arguments);
+
+	const auto command = qsl("%1 %2")
+		.arg(program)
+		.arg(arguments.join(' '));
+
 	if (result) {
-		DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
+		DEBUG_LOG(("App Error: command failed, code: %1, command: %2")
+			.arg(result)
+			.arg(command));
+
 		return false;
 	}
-	DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
+
+	DEBUG_LOG(("App Info: command succeeded, command: %1")
+		.arg(command));
+
 	return true;
 }
 
@@ -1103,13 +1114,13 @@ void psActivateProcess(uint64 pid) {
 namespace {
 
 QString getHomeDir() {
-	auto home = QDir::homePath();
+	const auto home = QString(g_get_home_dir());
 
-	if (home != QDir::rootPath())
+	if (!home.isEmpty() && !home.endsWith('/')) {
 		return home + '/';
+	}
 
-	struct passwd *pw = getpwuid(getuid());
-	return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QFile::decodeName(pw->pw_dir) + '/') : QString();
+	return home;
 }
 
 } // namespace
@@ -1292,12 +1303,15 @@ void RegisterCustomScheme(bool force) {
 		}
 	}
 
-	RunShellCommand("update-desktop-database "
-		+ EscapeShell(QFile::encodeName(applicationsPath)));
+	RunShellCommand("update-desktop-database", {
+		applicationsPath
+	});
 
-	RunShellCommand("xdg-mime default "
-		+ GetLauncherFilename().toLatin1()
-		+ " x-scheme-handler/tg");
+	RunShellCommand("xdg-mime", {
+		"default",
+		GetLauncherFilename(),
+		"x-scheme-handler/tg"
+	});
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
