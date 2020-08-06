@@ -48,6 +48,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <glib.h>
 
+extern "C" {
+#undef signals
+#include <gio/gio.h>
+#define signals public
+} // extern "C"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
@@ -69,6 +75,7 @@ constexpr auto kIgnoreGtkIncompatibility = "TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIB
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
+constexpr auto kHandlerTypeName = "x-scheme-handler/tg"_cs;
 
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
@@ -1265,8 +1272,7 @@ void start() {
 void finish() {
 }
 
-void RegisterCustomScheme(bool force) {
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+void InstallMainDesktopFile() {
 	const auto home = getHomeDir();
 	if (home.isEmpty() || cExeName().isEmpty())
 		return;
@@ -1275,8 +1281,7 @@ void RegisterCustomScheme(bool force) {
 		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
 
 	// don't update desktop file for alpha version or if updater is disabled
-	if ((cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
-		&& !force)
+	if (cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
 		return;
 
 	const auto applicationsPath = QStandardPaths::writableLocation(
@@ -1306,12 +1311,54 @@ void RegisterCustomScheme(bool force) {
 	RunShellCommand("update-desktop-database", {
 		applicationsPath
 	});
+}
 
-	RunShellCommand("xdg-mime", {
-		"default",
-		GetLauncherFilename(),
-		"x-scheme-handler/tg"
-	});
+void RegisterCustomScheme(bool force) {
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+	GError *error = nullptr;
+
+	const auto actualCommandlineBuilder = qsl("%1 --")
+		.arg((IsStaticBinary() || InAppImage())
+			? cExeDir() + cExeName()
+			: cExeName());
+
+	const auto actualCommandline = qsl("%1 %u")
+		.arg(actualCommandlineBuilder);
+
+	auto currentAppInfo = g_app_info_get_default_for_type(
+		kHandlerTypeName.utf8(),
+		true);
+
+	if (currentAppInfo) {
+		const auto currentCommandline = QString(
+			g_app_info_get_commandline(currentAppInfo));
+
+		g_object_unref(currentAppInfo);
+
+		if (currentCommandline == actualCommandline) {
+			return;
+		}
+	}
+
+	auto newAppInfo = g_app_info_create_from_commandline(
+		actualCommandlineBuilder.toUtf8(),
+		AppName.utf8(),
+		G_APP_INFO_CREATE_SUPPORTS_URIS,
+		&error);
+
+	if (newAppInfo) {
+		g_app_info_set_as_default_for_type(
+			newAppInfo,
+			kHandlerTypeName.utf8(),
+			&error);
+
+		g_object_unref(newAppInfo);
+	}
+
+	if (error) {
+		LOG(("App Error: %1").arg(error->message));
+		g_error_free(error);
+	}
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
@@ -1369,6 +1416,7 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
+	Platform::InstallMainDesktopFile();
 	Platform::RegisterCustomScheme();
 }
 
