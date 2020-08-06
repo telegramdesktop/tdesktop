@@ -68,7 +68,6 @@ constexpr auto kDisableGtkIntegration = "TDESKTOP_DISABLE_GTK_INTEGRATION"_cs;
 constexpr auto kIgnoreGtkIncompatibility = "TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY"_cs;
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
-constexpr auto kSnapLauncherDir = "/var/lib/snapd/desktop/applications/"_cs;
 constexpr auto kIconName = "telegram"_cs;
 
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
@@ -264,14 +263,7 @@ bool GenerateDesktopFile(
 	DEBUG_LOG(("App Info: placing .desktop file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
-	const auto sourceFile = [&] {
-		if (InSnap()) {
-			return kSnapLauncherDir.utf16() + GetLauncherFilename();
-		} else {
-			return kDesktopFile.utf16();
-		}
-	}();
-
+	const auto sourceFile = kDesktopFile.utf16();
 	const auto targetFile = targetPath + GetLauncherFilename();
 
 	QString fileText;
@@ -1380,19 +1372,9 @@ void psAutoStart(bool start, bool silent) {
 		PortalAutostart(start, silent);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	} else {
-		const auto autostart = [&] {
-			if (InSnap()) {
-				QDir realHomeDir(home);
-				realHomeDir.cd(qsl("../../.."));
-
-				return realHomeDir
-					.absoluteFilePath(qsl(".config/autostart/"));
-			} else {
-				return QStandardPaths::writableLocation(
-					QStandardPaths::GenericConfigLocation)
-					+ qsl("/autostart/");
-			}
-		}();
+		const auto autostart = QStandardPaths::writableLocation(
+			QStandardPaths::GenericConfigLocation)
+			+ qsl("/autostart/");
 
 		if (start) {
 			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
