@@ -34,27 +34,9 @@ struct CallSignalBars;
 
 namespace Calls {
 
-class SignalBars final : public Ui::RpWidget {
-public:
-	SignalBars(
-		QWidget *parent,
-		not_null<Call*> call,
-		const style::CallSignalBars &st,
-		Fn<void()> displayedChangedCallback = nullptr);
-
-	bool isDisplayed() const;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void changed(int count);
-
-	const style::CallSignalBars &_st;
-	int _count = Call::kSignalBarStarting;
-	Fn<void()> _displayedChangedCallback;
-
-};
+class Userpic;
+class SignalBars;
+class VideoBubble;
 
 class Panel final : public Ui::RpWidget, private Ui::AbstractTooltipShower {
 
@@ -93,12 +75,7 @@ private:
 	void hideDeactivated();
 	void createBottomImage();
 	void createDefaultCacheImage();
-	void refreshCacheImageUserPhoto();
 
-	void processUserPhoto();
-	void refreshUserPhoto();
-	bool isGoodUserPhoto(PhotoData *photo);
-	void createUserpicCache(Image *image);
 	QRect signalBarsRect() const;
 	void paintSignalBarsBg(Painter &p);
 
@@ -115,10 +92,12 @@ private:
 	void destroyDelayed();
 	void setIncomingShown(bool shown);
 
+	[[nodiscard]] bool hasActiveVideo() const;
+	void checkForInactiveHide();
+	void checkForInactiveShow();
+
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
-	std::shared_ptr<Data::CloudImageView> _userpic;
-	std::shared_ptr<Data::PhotoMedia> _photo;
 
 	bool _useTransparency = true;
 	bool _incomingShown = false;
@@ -142,7 +121,9 @@ private:
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
-	object_ptr<SignalBars> _signalBars;
+	object_ptr<SignalBars> _signalBars = { nullptr };
+	std::unique_ptr<Userpic> _userpic;
+	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	std::vector<EmojiPtr> _fingerprint;
 	QRect _fingerprintArea;
 
@@ -150,9 +131,6 @@ private:
 	base::Timer _updateOuterRippleTimer;
 
 	bool _visible = false;
-	QPixmap _userPhoto;
-	PhotoId _userPhotoId = 0;
-	bool _userPhotoFull = false;
 
 	Ui::Animations::Simple _opacityAnimation;
 	QPixmap _animationCache;

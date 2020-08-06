@@ -324,8 +324,14 @@ PRIVATE
     calls/calls_instance.h
     calls/calls_panel.cpp
     calls/calls_panel.h
+    calls/calls_signal_bars.cpp
+    calls/calls_signal_bars.h
     calls/calls_top_bar.cpp
     calls/calls_top_bar.h
+    calls/calls_userpic.cpp
+    calls/calls_userpic.h
+    calls/calls_video_bubble.cpp
+    calls/calls_video_bubble.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp

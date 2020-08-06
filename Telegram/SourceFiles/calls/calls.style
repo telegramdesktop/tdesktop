@@ -34,6 +34,7 @@ callShadow: Shadow {
 	fallback: windowShadowFgFallback;
 }
 callPhotoSize: 180px;
+callPhotoSmallSize: 100px;
 
 callOutgoingPreviewSize: size(340px, 180px);
 callOutgoingDefaultSize: size(160px, 110px);
