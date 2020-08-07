@@ -18,8 +18,6 @@ CallSignalBars {
 	inactiveOpacity: double;
 }
 
-callWidth: 960px;
-callHeight: 540px;
 callRadius: 6px;
 callShadow: Shadow {
 	left: icon {{ "call_shadow_left", windowShadowFg }};
@@ -33,21 +31,59 @@ callShadow: Shadow {
 	extend: margins(9px, 8px, 9px, 10px);
 	fallback: windowShadowFgFallback;
 }
-callPhotoSize: 180px;
-callPhotoSmallSize: 100px;
 
-callOutgoingPreviewSize: size(340px, 180px);
+callWidthMin: 380px;
+callHeightMin: 440px;
+callWidth: 960px;
+callHeight: 540px;
+
+callBottomControlsHeight: 85px;
+
+CallBodyLayout {
+	height: pixels;
+	photoTop: pixels;
+	photoSize: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+}
+
+callBodyLayout: CallBodyLayout {
+	height: 284px;
+	photoTop: 21px;
+	photoSize: 180px;
+	nameTop: 221px;
+	statusTop: 254px;
+}
+callBodyWithPreview: CallBodyLayout {
+	height: 185px;
+	photoTop: 21px;
+	photoSize: 100px;
+	nameTop: 132px;
+	statusTop: 163px;
+}
+
+callOutgoingPreviewMin: size(360px, 120px);
+callOutgoingPreview: size(540px, 180px); // default, for height == callHeight.
+callOutgoingPreviewMax: size(1080px, 360px);
 callOutgoingDefaultSize: size(160px, 110px);
 
+callFingerprintPadding: margins(9px, 4px, 9px, 5px);
+callFingerprintTop: 11px;
+callFingerprintSkip: 3px;
+callFingerprintBottom: -16px;
+
 callButton: IconButton {
-	width: 72px;
-	height: 72px;
+	width: 64px;
+	height: 64px;
 
 	iconPosition: point(-1px, -1px);
 
-	rippleAreaPosition: point(12px, 12px);
-	rippleAreaSize: 48px;
+	rippleAreaPosition: point(10px, 10px);
+	rippleAreaSize: 44px;
 	ripple: defaultRippleAnimation;
+}
+callButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: callNameFg;
 }
 
 callAnswer: CallButton {
@@ -61,6 +97,7 @@ callAnswer: CallButton {
 	angle: 135.;
 	outerRadius: 12px;
 	outerBg: callAnswerBgOuter;
+	label: callButtonLabel;
 }
 callHangup: CallButton {
 	button: IconButton(callButton) {
@@ -71,6 +108,7 @@ callHangup: CallButton {
 	}
 	bg: callHangupBg;
 	outerBg: callHangupBg;
+	label: callButtonLabel;
 }
 callCancel: CallButton {
 	button: IconButton(callButton) {
@@ -81,27 +119,30 @@ callCancel: CallButton {
 	}
 	bg: callCancelBg;
 	outerBg: callCancelBg;
+	label: callButtonLabel;
 }
-callMuteToggle: IconButton(callButton) {
-	icon: icon {{ "call_record_active", callIconFg }};
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: callMuteRipple;
+callMuteToggle: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_record_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
 	}
+	bg: callMuteRipple;
+	outerBg: callMuteRipple;
+	label: callButtonLabel;
 }
 callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
-callCameraToggle: IconButton(callButton) {
-	icon: icon {{ "call_camera_active", callIconFg }};
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: callMuteRipple;
+callCameraToggle: CallButton(callMuteToggle) {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_camera_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
 	}
 }
 callNoCameraIcon: icon {{ "call_camera_muted", callIconFg }};
 
-callControlsTop: 460px;
-callControlsSkip: 0px;
-callMuteRight: 8px;
-
-callNameTop: 15px;
 callName: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
 	maxHeight: 30px;
@@ -113,7 +154,6 @@ callName: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(21px semibold underline);
 	}
 }
-callStatusTop: 46px;
 callStatus: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
 	maxHeight: 20px;
@@ -125,10 +165,6 @@ callStatus: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(14px underline);
 	}
 }
-
-callFingerprintPadding: margins(9px, 4px, 9px, 5px);
-callFingerprintSkip: 3px;
-callFingerprintBottom: 8px;
 
 callBarHeight: 38px;
 callBarMuteToggle: IconButton {

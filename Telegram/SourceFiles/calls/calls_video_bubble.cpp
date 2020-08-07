@@ -47,15 +47,39 @@ void VideoBubble::setup() {
 	}, lifetime());
 }
 
-void VideoBubble::setDragMode(DragMode mode) {
+void VideoBubble::updateGeometry(
+		DragMode mode,
+		QRect boundingRect,
+		QSize sizeMin,
+		QSize sizeMax) {
+	Expects(!boundingRect.isEmpty());
+	Expects(sizeMax.isEmpty() || !sizeMin.isEmpty());
+	Expects(sizeMax.isEmpty() || sizeMin.width() <= sizeMax.width());
+	Expects(sizeMax.isEmpty() || sizeMin.height() <= sizeMax.height());
+
+	if (sizeMin.isEmpty()) {
+		sizeMin = boundingRect.size();
+	}
+	if (sizeMax.isEmpty()) {
+		sizeMax = sizeMin;
+	}
 	if (_dragMode != mode) {
 		applyDragMode(mode);
 	}
+	if (_boundingRect != boundingRect) {
+		applyBoundingRect(boundingRect);
+	}
+	if (_min != sizeMin || _max != sizeMax) {
+		applySizeConstraints(sizeMin, sizeMax);
+	}
+	if (_geometryDirty && !_lastFrameSize.isEmpty()) {
+		updateSizeToFrame(base::take(_lastFrameSize));
+	}
 }
 
-void VideoBubble::setBoundingRect(QRect rect) {
+void VideoBubble::applyBoundingRect(QRect rect) {
 	_boundingRect = rect;
-	setSizeConstraints(rect.size());
+	_geometryDirty = true;
 }
 
 void VideoBubble::applyDragMode(DragMode mode) {
@@ -66,23 +90,21 @@ void VideoBubble::applyDragMode(DragMode mode) {
 	}
 	_content.setAttribute(
 		Qt::WA_TransparentForMouseEvents,
-		(_dragMode == DragMode::None));
-}
-
-void VideoBubble::setSizeConstraints(QSize min, QSize max) {
-	Expects(!min.isEmpty());
-	Expects(max.isEmpty() || min.width() <= max.width());
-	Expects(max.isEmpty() || min.height() <= max.height());
-
-	if (max.isEmpty()) {
-		max = min;
+		true/*(_dragMode == DragMode::None)*/);
+	if (_dragMode == DragMode::SnapToCorners) {
+		_corner = RectPart::BottomRight;
+	} else {
+		_corner = RectPart::None;
+		_lastDraggableSize = _size;
 	}
-	applySizeConstraints(min, max);
+	_size = QSize();
+	_geometryDirty = true;
 }
 
 void VideoBubble::applySizeConstraints(QSize min, QSize max) {
 	_min = min;
 	_max = max;
+	_geometryDirty = true;
 }
 
 void VideoBubble::paint() {
@@ -114,7 +136,11 @@ void VideoBubble::updateSizeToFrame(QSize frame) {
 	}
 	_lastFrameSize = frame;
 
-	auto size = _size;
+	auto size = !_size.isEmpty()
+		? _size
+		: (_dragMode == DragMode::None || _lastDraggableSize.isEmpty())
+		? QSize()
+		: _lastDraggableSize;
 	if (size.isEmpty()) {
 		size = frame.scaled((_min + _max) / 2, Qt::KeepAspectRatio);
 	} else {
@@ -130,15 +156,34 @@ void VideoBubble::updateSizeToFrame(QSize frame) {
 }
 
 void VideoBubble::setInnerSize(QSize size) {
-	if (_size == size) {
+	if (_size == size && !_geometryDirty) {
 		return;
 	}
+	_geometryDirty = false;
 	_size = size;
-	_content.setGeometry(
-		_boundingRect.x() + (_boundingRect.width() - size.width()) / 2,
-		_boundingRect.y() + (_boundingRect.height() - size.height()) / 2,
-		size.width(),
-		size.height());
+	_content.setGeometry(QRect([&] {
+		switch (_corner) {
+		case RectPart::None:
+			return _boundingRect.topLeft() + QPoint(
+				(_boundingRect.width() - size.width()) / 2,
+				(_boundingRect.height() - size.height()) / 2);
+		case RectPart::TopLeft:
+			return _boundingRect.topLeft();
+		case RectPart::TopRight:
+			return QPoint(
+				_boundingRect.x() + _boundingRect.width() - size.width(),
+				_boundingRect.y());
+		case RectPart::BottomRight:
+			return QPoint(
+				_boundingRect.x() + _boundingRect.width() - size.width(),
+				_boundingRect.y() + _boundingRect.height() - size.height());
+		case RectPart::BottomLeft:
+			return QPoint(
+				_boundingRect.x(),
+				_boundingRect.y() + _boundingRect.height() - size.height());
+		}
+		Unexpected("Corner value in VideoBubble::setInnerSize.");
+	}(), size));
 }
 
 void VideoBubble::updateVisibility() {

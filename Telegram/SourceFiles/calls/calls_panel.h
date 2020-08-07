@@ -30,6 +30,7 @@ class FadeWrap;
 
 namespace style {
 struct CallSignalBars;
+struct CallBodyLayout;
 } // namespace style
 
 namespace Calls {
@@ -60,6 +61,7 @@ protected:
 	bool eventHook(QEvent *e) override;
 
 private:
+	class Button;
 	using State = Call::State;
 	using Type = Call::Type;
 
@@ -82,6 +84,7 @@ private:
 	void updateControlsGeometry();
 	void updateHangupGeometry();
 	void updateStatusGeometry();
+	void updateOutgoingVideoBubbleGeometry();
 	void stateChanged(State state);
 	void showControls();
 	void updateStatusText(State state);
@@ -95,6 +98,7 @@ private:
 	[[nodiscard]] bool hasActiveVideo() const;
 	void checkForInactiveHide();
 	void checkForInactiveShow();
+	void refreshOutgoingPreviewInBody(State state);
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
@@ -102,8 +106,6 @@ private:
 	bool _useTransparency = true;
 	bool _incomingShown = false;
 	style::margins _padding;
-	int _contentTop = 0;
-	int _controlsTop = 0;
 
 	bool _dragging = false;
 	QPoint _dragStartMousePosition;
@@ -111,14 +113,15 @@ private:
 
 	rpl::lifetime _callLifetime;
 
-	class Button;
+	not_null<const style::CallBodyLayout*> _bodySt;
 	object_ptr<Button> _answerHangupRedial;
 	object_ptr<Ui::FadeWrap<Button>> _decline;
 	object_ptr<Ui::FadeWrap<Button>> _cancel;
 	bool _hangupShown = false;
+	bool _outgoingPreviewInBody = false;
 	Ui::Animations::Simple _hangupShownProgress;
-	object_ptr<Ui::IconButton> _camera;
-	object_ptr<Ui::IconButton> _mute;
+	object_ptr<Button> _camera;
+	object_ptr<Button> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<SignalBars> _signalBars = { nullptr };
@@ -126,6 +129,9 @@ private:
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	std::vector<EmojiPtr> _fingerprint;
 	QRect _fingerprintArea;
+	int _bodyTop = 0;
+	int _buttonsTop = 0;
+	int _fingerprintHeight = 0;
 
 	base::Timer _updateDurationTimer;
 	base::Timer _updateOuterRippleTimer;

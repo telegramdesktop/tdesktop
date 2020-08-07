@@ -26,9 +26,11 @@ public:
 		None,
 		SnapToCorners,
 	};
-	void setDragMode(DragMode mode);
-	void setBoundingRect(QRect rect);
-	void setSizeConstraints(QSize min, QSize max = QSize());
+	void updateGeometry(
+		DragMode mode,
+		QRect boundingRect,
+		QSize sizeMin = QSize(),
+		QSize sizeMax = QSize());
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();
@@ -39,6 +41,7 @@ private:
 	void paint();
 	void setState(webrtc::VideoState state);
 	void applyDragMode(DragMode mode);
+	void applyBoundingRect(QRect rect);
 	void applySizeConstraints(QSize min, QSize max);
 	void updateSizeToFrame(QSize frame);
 	void updateVisibility();
@@ -48,10 +51,12 @@ private:
 	const not_null<webrtc::VideoTrack*> _track;
 	webrtc::VideoState _state = webrtc::VideoState();
 	QImage _pausedFrame;
-	QSize _min, _max, _size, _lastFrameSize;
+	QSize _min, _max, _size, _lastDraggableSize, _lastFrameSize;
 	QRect _boundingRect;
 	DragMode _dragMode = DragMode::None;
+	RectPart _corner = RectPart::None;
 	bool _dragging = false;
+	bool _geometryDirty = false;
 
 };
 

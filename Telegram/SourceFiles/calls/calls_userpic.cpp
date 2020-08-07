@@ -44,10 +44,12 @@ void Userpic::setGeometry(int x, int y, int size) {
 	if (this->size() != size) {
 		_userPhoto = QPixmap();
 		_userPhotoFull = false;
-		refreshPhoto();
 	}
 	_content.setGeometry(x, y, size, size);
 	_content.update();
+	if (_userPhoto.isNull()) {
+		refreshPhoto();
+	}
 }
 
 void Userpic::setup(rpl::producer<bool> muted) {
@@ -139,28 +141,29 @@ void Userpic::refreshPhoto() {
 }
 
 void Userpic::createCache(Image *image) {
-	auto size = this->size() * cIntRetinaFactor();
+	const auto size = this->size();
+	const auto real = size * cIntRetinaFactor();
 	auto options = Images::Option::Smooth | Images::Option::Circled;
 	// _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
 		auto width = image->width();
 		auto height = image->height();
 		if (width > height) {
-			width = qMax((width * size) / height, 1);
-			height = size;
+			width = qMax((width * real) / height, 1);
+			height = real;
 		} else {
-			height = qMax((height * size) / width, 1);
-			width = size;
+			height = qMax((height * real) / width, 1);
+			width = real;
 		}
 		_userPhoto = image->pixNoCache(
 			width,
 			height,
 			options,
-			st::callPhotoSize,
-			st::callPhotoSize);
+			size,
+			size);
 		_userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		auto filled = QImage(QSize(st::callPhotoSize, st::callPhotoSize) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		auto filled = QImage(QSize(real, real), QImage::Format_ARGB32_Premultiplied);
 		filled.setDevicePixelRatio(cRetinaFactor());
 		filled.fill(Qt::transparent);
 		{
@@ -168,7 +171,7 @@ void Userpic::createCache(Image *image) {
 			Ui::EmptyUserpic(
 				Data::PeerUserpicColor(_peer->id),
 				_peer->name
-			).paint(p, 0, 0, st::callPhotoSize, st::callPhotoSize);
+			).paint(p, 0, 0, size, size);
 		}
 		//Images::prepareRound(filled, ImageRoundRadius::Large, RectPart::TopLeft | RectPart::TopRight);
 		_userPhoto = Images::PixmapFast(std::move(filled));

@@ -57,6 +57,8 @@ public:
 	void setProgress(float64 progress);
 	void setOuterValue(float64 value);
 
+	void setIconOverride(const style::icon *iconOverride);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -72,6 +74,8 @@ private:
 	not_null<const style::CallButton*> _stFrom;
 	const style::CallButton *_stTo = nullptr;
 	float64 _progress = 0.;
+
+	const style::icon *_iconOverride = nullptr;
 
 	QImage _bgMask, _bg;
 	QPixmap _bgFrom, _bgTo;
@@ -130,6 +134,11 @@ void Panel::Button::setOuterValue(float64 value) {
 	}
 }
 
+void Panel::Button::setIconOverride(const style::icon *iconOverride) {
+	_iconOverride = iconOverride;
+	update();
+}
+
 void Panel::Button::setProgress(float64 progress) {
 	_progress = progress;
 	update();
@@ -183,7 +192,8 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 
 	auto positionFrom = iconPosition(_stFrom);
 	if (paintFrom) {
-		_stFrom->button.icon.paint(p, positionFrom, width());
+		const auto icon = _iconOverride ? _iconOverride : &_stFrom->button.icon;
+		icon->paint(p, positionFrom, width());
 	} else {
 		auto positionTo = iconPosition(_stTo);
 		if (paintTo) {
@@ -248,6 +258,7 @@ Panel::Panel(not_null<Call*> call)
 : RpWidget(Core::App().getModalParent())
 , _call(call)
 , _user(call->user())
+, _bodySt(&st::callBodyLayout)
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
 , _decline(this, object_ptr<Button>(this, st::callHangup))
 , _cancel(this, object_ptr<Button>(this, st::callCancel))
@@ -381,8 +392,6 @@ void Panel::reinitWithCall(Call *call) {
 	_outgoingVideoBubble = std::make_unique<VideoBubble>(
 		this,
 		_call->videoOutgoing());
-	_outgoingVideoBubble->setSizeConstraints(
-		st::callOutgoingPreviewSize);
 
 	_call->mutedValue(
 	) | rpl::start_with_next([=](bool mute) {
@@ -412,6 +421,19 @@ void Panel::reinitWithCall(Call *call) {
 		_call->videoOutgoing()->stateChanges()
 	) | rpl::start_with_next([=] {
 		checkForInactiveShow();
+	}, _callLifetime);
+
+	rpl::combine(
+		_call->stateValue(),
+		_call->videoOutgoing()->renderNextFrame()
+	) | rpl::start_with_next([=](State state, auto) {
+		if (state != State::Ended
+			&& state != State::EndedByOtherDevice
+			&& state != State::Failed
+			&& state != State::FailedHangingUp
+			&& state != State::HangingUp) {
+			refreshOutgoingPreviewInBody(state);
+		}
 	}, _callLifetime);
 
 	_name->setText(_user->name);
@@ -512,8 +534,6 @@ void Panel::initGeometry() {
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
-	_controlsTop = _padding.top() + st::callControlsTop;
-	_contentTop = _padding.top() + 2 * st::callPhotoSize;
 	const auto rect = [&] {
 		const QRect initRect(0, 0, st::callWidth, st::callHeight);
 		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
@@ -522,6 +542,18 @@ void Panel::initGeometry() {
 	setMinimumSize(rect.size());
 	setMaximumSize(rect.size());
 	createBottomImage();
+	updateControlsGeometry();
+}
+
+void Panel::refreshOutgoingPreviewInBody(State state) {
+	const auto inBody = (state != State::Established)
+		&& (_call->videoOutgoing()->state() != webrtc::VideoState::Inactive)
+		&& !_call->videoOutgoing()->frameSize().isEmpty();
+	if (_outgoingPreviewInBody == inBody) {
+		return;
+	}
+	_outgoingPreviewInBody = inBody;
+	_bodySt = inBody ? &st::callBodyWithPreview : &st::callBodyLayout;
 	updateControlsGeometry();
 }
 
@@ -571,22 +603,54 @@ void Panel::resizeEvent(QResizeEvent *e) {
 }
 
 void Panel::updateControlsGeometry() {
-	const auto size = st::callPhotoSize;
-	_userpic->setGeometry((width() - size) / 2, st::callPhotoSize, size);
-	_name->moveToLeft((width() - _name->width()) / 2, _contentTop + st::callNameTop);
+	const auto innerHeight = height() - _padding.top() - _padding.bottom();
+	const auto availableTop = _padding.top() + _fingerprintHeight;
+	const auto available = height()
+		- (st::callBottomControlsHeight + _padding.bottom())
+		- availableTop;
+	const auto bodyPreviewSizeMax = st::callOutgoingPreviewMin
+		+ ((st::callOutgoingPreview
+			- st::callOutgoingPreviewMin)
+			* (innerHeight - st::callHeightMin)
+			/ (st::callHeight - st::callHeightMin));
+	const auto bodyPreviewSize = QSize(
+		std::min(bodyPreviewSizeMax.width(), st::callOutgoingPreviewMax.width()),
+		std::min(bodyPreviewSizeMax.height(), st::callOutgoingPreviewMax.height()));
+	const auto contentHeight = _bodySt->height
+		+ (_outgoingPreviewInBody ? bodyPreviewSize.height() : 0);
+	const auto remainingHeight = available - contentHeight;
+	const auto skipHeight = remainingHeight
+		/ (_outgoingPreviewInBody ? 3 : 2);
+
+	_bodyTop = availableTop + skipHeight;
+	_buttonsTop = availableTop + available;
+	const auto previewTop = _bodyTop + _bodySt->height + skipHeight;
+
+	_userpic->setGeometry(
+		(width() - _bodySt->photoSize) / 2,
+		_bodyTop + _bodySt->photoTop,
+		_bodySt->photoSize);
+
+	_name->moveToLeft(
+		(width() - _name->width()) / 2,
+		_bodyTop + _bodySt->nameTop);
 	updateStatusGeometry();
 
-	_outgoingVideoBubble->setBoundingRect({
-		(width() - st::callOutgoingPreviewSize.width()) / 2,
-		_contentTop + st::callStatusTop + _status->height(),
-		st::callOutgoingPreviewSize.width(),
-		st::callOutgoingPreviewSize.height()
-	});
+	if (_outgoingPreviewInBody) {
+		_outgoingVideoBubble->updateGeometry(
+			VideoBubble::DragMode::None,
+			QRect(
+				(width() - bodyPreviewSize.width()) / 2,
+				previewTop,
+				bodyPreviewSize.width(),
+				bodyPreviewSize.height()));
+	} else {
+		updateOutgoingVideoBubbleGeometry();
+	}
 
-	auto controlsTop = _padding.top() + st::callControlsTop;
-	auto bothWidth = _answerHangupRedial->width() + st::callControlsSkip + st::callCancel.button.width;
-	_decline->moveToLeft((width() - bothWidth) / 2, controlsTop);
-	_cancel->moveToLeft((width() - bothWidth) / 2, controlsTop);
+	auto bothWidth = _answerHangupRedial->width() + st::callCancel.button.width;
+	_decline->moveToLeft((width() - bothWidth) / 2, _buttonsTop);
+	_cancel->moveToLeft((width() - bothWidth) / 2, _buttonsTop);
 
 	updateHangupGeometry();
 
@@ -597,22 +661,37 @@ void Panel::updateControlsGeometry() {
 		_padding.top() + skip + delta / 2);
 }
 
+void Panel::updateOutgoingVideoBubbleGeometry() {
+	Expects(!_outgoingPreviewInBody);
+
+	const auto size = st::callOutgoingDefaultSize;
+	const auto availableHeight = height() - st::callBottomControlsHeight;
+	const auto padding = 2 * _padding;
+	_outgoingVideoBubble->updateGeometry(
+		VideoBubble::DragMode::SnapToCorners,
+		QRect(
+			padding.left(),
+			padding.top(),
+			width() - padding.left() - padding.right(),
+			height() - padding.left() - padding.bottom()),
+		size);
+}
+
 void Panel::updateHangupGeometry() {
 	auto singleWidth = _answerHangupRedial->width();
-	auto bothWidth = singleWidth + st::callControlsSkip + st::callCancel.button.width;
+	auto bothWidth = singleWidth + st::callCancel.button.width;
 	auto rightFrom = (width() - bothWidth) / 2;
 	auto rightTo = (width() - singleWidth) / 2;
 	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
-	auto controlsTop = _padding.top() + st::callControlsTop;
-	_answerHangupRedial->moveToRight(hangupRight, controlsTop);
+	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
-	_mute->moveToRight(hangupRight - _mute->width(), controlsTop);
-	_camera->moveToLeft(hangupRight - _mute->width(), controlsTop);
+	_mute->moveToRight(hangupRight - _mute->width(), _buttonsTop);
+	_camera->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
 }
 
 void Panel::updateStatusGeometry() {
-	_status->moveToLeft((width() - _status->width()) / 2, _contentTop + st::callStatusTop);
+	_status->moveToLeft((width() - _status->width()) / 2, _bodyTop + _bodySt->statusTop);
 }
 
 void Panel::paintEvent(QPaintEvent *e) {
@@ -707,10 +786,6 @@ void Panel::mousePressEvent(QMouseEvent *e) {
 			_dragging = true;
 			_dragStartMousePosition = e->globalPos();
 			_dragStartMyPosition = QPoint(x(), y());
-		} else if (!rect().contains(e->pos())) {
-			if (_call && _call->state() == State::Established) {
-				hideDeactivated();
-			}
 		}
 	}
 }
@@ -833,8 +908,14 @@ void Panel::fillFingerprint() {
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
 	auto rectHeight = size;
 	auto left = (width() - rectWidth) / 2;
-	auto top = _padding.top() + st::callFingerprintBottom;
-	_fingerprintArea = QRect(left, top, rectWidth, rectHeight).marginsAdded(st::callFingerprintPadding);
+	_fingerprintArea = QRect(
+		left,
+		_padding.top() + st::callFingerprintTop + st::callFingerprintPadding.top(),
+		rectWidth,
+		rectHeight
+	).marginsAdded(st::callFingerprintPadding);
+	_fingerprintHeight = st::callFingerprintTop + _fingerprintArea.height() + st::callFingerprintBottom;
+	updateControlsGeometry();
 
 	update();
 }
