@@ -189,11 +189,11 @@ void TitleWidgetQt::resizeEvent(QResizeEvent *e) {
 }
 
 void TitleWidgetQt::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) {
-		return;
+	if (e->button() == Qt::LeftButton) {
+		startMove();
+	} else if (e->button() == Qt::RightButton) {
+		Platform::ShowWindowMenu(window()->windowHandle());
 	}
-
-	startMove();
 }
 
 void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {

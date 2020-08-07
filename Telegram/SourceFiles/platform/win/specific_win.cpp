@@ -418,6 +418,18 @@ bool AutostartSupported() {
 	return !IsWindowsStoreBuild();
 }
 
+bool ShowWindowMenu(QWindow *window) {
+	const auto pos = QCursor::pos();
+
+	SendMessage(
+		window->winId(),
+		WM_SYSCOMMAND,
+		SC_MOUSEMENU,
+		MAKELPARAM(pos.x(), pos.y()));
+
+	return true;
+}
+
 Window::ControlsLayout WindowControlsLayout() {
 	Window::ControlsLayout controls;
 	controls.right = {
