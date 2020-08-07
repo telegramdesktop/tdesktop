@@ -42,9 +42,6 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-void FallbackFontConfigCheckBegin();
-void FallbackFontConfigCheckEnd();
-
 bool GtkClipboardSupported();
 void SetTrayIconSupported(bool supported);
 void InstallMainDesktopFile();
