@@ -57,12 +57,20 @@ PRIVATE
     # iOS / macOS
     platform/darwin/DarwinInterface.h
     platform/darwin/DarwinInterface.mm
+    platform/darwin/GLVideoView.h
+    platform/darwin/GLVideoView.mm
+    platform/darwin/TGRTCCVPixelBuffer.h
+    platform/darwin/TGRTCCVPixelBuffer.mm
     platform/darwin/TGRTCDefaultVideoDecoderFactory.h
     platform/darwin/TGRTCDefaultVideoDecoderFactory.mm
     platform/darwin/TGRTCDefaultVideoEncoderFactory.h
     platform/darwin/TGRTCDefaultVideoEncoderFactory.mm
+    platform/darwin/TGRTCVideoDecoderH264.h
+    platform/darwin/TGRTCVideoDecoderH264.mm
     platform/darwin/TGRTCVideoDecoderH265.h
     platform/darwin/TGRTCVideoDecoderH265.mm
+    platform/darwin/TGRTCVideoEncoderH264.h
+    platform/darwin/TGRTCVideoEncoderH264.mm
     platform/darwin/TGRTCVideoEncoderH265.h
     platform/darwin/TGRTCVideoEncoderH265.mm
     platform/darwin/VideoCameraCapturer.h
@@ -105,6 +113,8 @@ elseif (APPLE)
         WEBRTC_MAC
     )
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
+        platform/darwin/GLVideoView.h
+        platform/darwin/GLVideoView.mm
         platform/darwin/VideoCameraCapturer.h
         platform/darwin/VideoCameraCapturer.mm
         platform/darwin/VideoMetalView.h
