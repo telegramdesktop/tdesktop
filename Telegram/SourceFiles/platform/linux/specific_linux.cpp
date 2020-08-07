@@ -585,6 +585,21 @@ bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
 	return false;
 }
 
+bool ShowWaylandWindowMenu(QWindow *window) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
+		window->handle())) {
+		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
+			if (const auto shellSurface = waylandWindow->shellSurface()) {
+				return shellSurface->showWindowMenu(seat);
+			}
+		}
+	}
+#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
+
+	return false;
+}
+
 Window::Control GtkKeywordToWindowControl(const QString &keyword) {
 	if (keyword == qstr("minimize")) {
 		return Window::Control::Minimize;
@@ -954,6 +969,14 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
+}
+
+bool ShowWindowMenu(QWindow *window) {
+	if (IsWayland()) {
+		return ShowWaylandWindowMenu(window);
+	}
+
+	return false;
 }
 
 Window::ControlsLayout WindowControlsLayout() {
