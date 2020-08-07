@@ -40,6 +40,7 @@ namespace HistoryView {
 namespace {
 
 using FileChosen = ComposeControls::FileChosen;
+using PhotoChosen = ComposeControls::PhotoChosen;
 using MessageToEdit = ComposeControls::MessageToEdit;
 
 constexpr auto kMouseEvent = {
@@ -507,7 +508,7 @@ rpl::producer<FileChosen> ComposeControls::fileChosen() const {
 	return _fileChosen.events();
 }
 
-rpl::producer<not_null<PhotoData*>> ComposeControls::photoChosen() const {
+rpl::producer<PhotoChosen> ComposeControls::photoChosen() const {
 	return _photoChosen.events();
 }
 

@@ -50,7 +50,7 @@ public:
 	GifsListWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	rpl::producer<TabbedSelector::FileChosen> fileChosen() const;
-	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<TabbedSelector::PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	void refreshRecent() override;
@@ -196,7 +196,7 @@ private:
 	mtpRequestId _inlineRequestId = 0;
 
 	rpl::event_stream<TabbedSelector::FileChosen> _fileChosen;
-	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
+	rpl::event_stream<TabbedSelector::PhotoChosen> _photoChosen;
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<> _cancelled;
 

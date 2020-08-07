@@ -417,7 +417,8 @@ rpl::producer<TabbedSelector::FileChosen> TabbedSelector::fileChosen() const {
 		: rpl::never<TabbedSelector::FileChosen>() | rpl::type_erased();
 }
 
-rpl::producer<not_null<PhotoData*>> TabbedSelector::photoChosen() const {
+auto TabbedSelector::photoChosen() const
+-> rpl::producer<TabbedSelector::PhotoChosen>{
 	return full() ? gifs()->photoChosen() : nullptr;
 }
 

@@ -198,20 +198,20 @@ void ScheduledWidget::setupComposeControls() {
 			[=] { _choosingAttach = false; chooseAttach(); });
 	}, lifetime());
 
+	using Selector = ChatHelpers::TabbedSelector;
+
 	_composeControls->fileChosen(
-	) | rpl::start_with_next([=](
-			ChatHelpers::TabbedSelector::FileChosen chosen) {
+	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
 		sendExistingDocument(chosen.document);
 	}, lifetime());
 
 	_composeControls->photoChosen(
-	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
-		sendExistingPhoto(photo);
+	) | rpl::start_with_next([=](Selector::PhotoChosen chosen) {
+		sendExistingPhoto(chosen.photo);
 	}, lifetime());
 
 	_composeControls->inlineResultChosen(
-	) | rpl::start_with_next([=](
-			ChatHelpers::TabbedSelector::InlineChosen chosen) {
+	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
 		sendInlineResult(chosen.result, chosen.bot);
 	}, lifetime());
 

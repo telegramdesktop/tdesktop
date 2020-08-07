@@ -189,7 +189,8 @@ rpl::producer<TabbedSelector::FileChosen> GifsListWidget::fileChosen() const {
 	return _fileChosen.events();
 }
 
-rpl::producer<not_null<PhotoData*>> GifsListWidget::photoChosen() const {
+auto GifsListWidget::photoChosen() const
+-> rpl::producer<TabbedSelector::PhotoChosen> {
 	return _photoChosen.events();
 }
 
@@ -457,7 +458,9 @@ void GifsListWidget::selectInlineResult(
 		if (forceSend
 			|| (media && media->image(PhotoSize::Thumbnail))
 			|| (media && media->image(PhotoSize::Large))) {
-			_photoChosen.fire_copy(photo);
+			_photoChosen.fire_copy({
+				.photo = photo,
+				.options = options });
 		} else if (!photo->loading(PhotoSize::Thumbnail)) {
 			photo->load(PhotoSize::Thumbnail, Data::FileOrigin());
 		}
@@ -479,7 +482,7 @@ void GifsListWidget::selectInlineResult(
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			_inlineResultChosen.fire({ inlineResult, _searchBot });
+			_inlineResultChosen.fire({ inlineResult, _searchBot, options });
 		}
 	}
 }

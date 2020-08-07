@@ -825,15 +825,15 @@ void HistoryWidget::initTabbedSelector() {
 	selector->photoChosen(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
-		sendExistingPhoto(photo);
+	}) | rpl::start_with_next([=](TabbedSelector::PhotoChosen data) {
+		sendExistingPhoto(data.photo, data.options);
 	}, lifetime());
 
 	selector->inlineResultChosen(
 	) | rpl::filter([=] {
 		return !isHidden();
 	}) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
-		sendInlineResult(data.result, data.bot);
+		sendInlineResult(data.result, data.bot, data.options);
 	}, lifetime());
 
 	selector->setSendMenuType([=] { return sendMenuType(); });
@@ -1200,7 +1200,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::Result *result,
 					UserData *bot) {
-				sendInlineResult(result, bot);
+				sendInlineResult(result, bot, Api::SendOptions());
 			});
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
@@ -5218,7 +5218,8 @@ void HistoryWidget::onFieldTabbed() {
 
 void HistoryWidget::sendInlineResult(
 		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot) {
+		not_null<UserData*> bot,
+		Api::SendOptions options) {
 	if (!_peer || !_peer->canWrite()) {
 		return;
 	} else if (showSlowmodeError()) {
@@ -5233,6 +5234,7 @@ void HistoryWidget::sendInlineResult(
 
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
+	action.options = std::move(options);
 	action.generateLocal = true;
 	session().api().sendInlineResult(bot, result, action);
 
@@ -5404,7 +5406,9 @@ bool HistoryWidget::sendExistingDocument(
 	return true;
 }
 
-bool HistoryWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
+bool HistoryWidget::sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 		: std::nullopt;
@@ -5419,6 +5423,7 @@ bool HistoryWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 
 	auto message = Api::MessageToSend(_history);
 	message.action.replyTo = replyToId();
+	message.action.options = std::move(options);
 	Api::SendExistingPhoto(std::move(message), photo);
 
 	hideSelectorControlsAnimated();

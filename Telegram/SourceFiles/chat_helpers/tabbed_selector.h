@@ -54,9 +54,14 @@ public:
 		not_null<DocumentData*> document;
 		Api::SendOptions options;
 	};
+	struct PhotoChosen {
+		not_null<PhotoData*> photo;
+		Api::SendOptions options;
+	};
 	struct InlineChosen {
 		not_null<InlineBots::Result*> result;
 		not_null<UserData*> bot;
+		Api::SendOptions options;
 	};
 	enum class Mode {
 		Full,
@@ -73,7 +78,7 @@ public:
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
-	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	rpl::producer<> cancelled() const;

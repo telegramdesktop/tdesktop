@@ -251,7 +251,9 @@ public:
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options);
-	bool sendExistingPhoto(not_null<PhotoData*> photo);
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options);
 
 	void showInfoTooltip(
 		const TextWithEntities &text,
@@ -501,7 +503,8 @@ private:
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
+		not_null<UserData*> bot,
+		Api::SendOptions options);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(
