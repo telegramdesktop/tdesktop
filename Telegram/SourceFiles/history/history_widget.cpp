@@ -1199,8 +1199,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			_inlineResults.create(this, controller());
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::Result *result,
-					UserData *bot) {
-				sendInlineResult(result, bot, Api::SendOptions());
+					UserData *bot,
+					Api::SendOptions options) {
+				sendInlineResult(result, bot, options);
 			});
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {

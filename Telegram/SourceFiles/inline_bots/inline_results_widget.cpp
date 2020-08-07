@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_results_widget.h"
 
+#include "api/api_common.h"
+#include "chat_helpers/message_field.h" // FillSendMenu
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
@@ -15,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_changes.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
@@ -31,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_schedule_box.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
@@ -254,14 +258,24 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void Inner::selectInlineResult(int row, int column) {
+	selectInlineResult(row, column, Api::SendOptions());
+}
+
+void Inner::selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options) {
 	if (row >= _rows.size() || column >= _rows.at(row).items.size()) {
 		return;
 	}
 
 	auto item = _rows[row].items[column];
-	if (auto inlineResult = item->getResult()) {
+	if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			_resultSelectedCallback(inlineResult, _inlineBot);
+			_resultSelectedCallback(
+				inlineResult,
+				_inlineBot,
+				std::move(options));
 		}
 	}
 }
@@ -283,6 +297,39 @@ void Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
 void Inner::enterFromChildEvent(QEvent *e, QWidget *child) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
+}
+
+void Inner::contextMenuEvent(QContextMenuEvent *e) {
+	if (_selected < 0 || _pressed >= 0) {
+		return;
+	}
+	const auto row = _selected / MatrixRowShift;
+	const auto column = _selected % MatrixRowShift;
+	const auto type = SendMenuType::Scheduled;
+
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+
+	const auto send = [=](Api::SendOptions options) {
+		selectInlineResult(row, column, options);
+	};
+	const auto silent = [=] { send({ .silent = true }); };
+	const auto schedule = [=] {
+		Ui::show(
+			HistoryView::PrepareScheduleBox(
+				this,
+				type,
+				[=](Api::SendOptions options) { send(options); }),
+			Ui::LayerOption::KeepOther);
+	};
+	FillSendMenu(
+		_menu,
+		[&] { return type; },
+		silent,
+		schedule);
+
+	if (!_menu->actions().empty()) {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void Inner::clearSelection() {

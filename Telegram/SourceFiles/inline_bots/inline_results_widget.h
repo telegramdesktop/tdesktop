@@ -18,6 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace Ui {
 class ScrollArea;
 class IconButton;
@@ -25,6 +29,7 @@ class LinkButton;
 class RoundButton;
 class FlatLabel;
 class RippleAnimation;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -44,6 +49,7 @@ namespace internal {
 constexpr int kInlineItemsMaxPerRow = 5;
 
 using Results = std::vector<std::unique_ptr<Result>>;
+using ResultSelected = Fn<void(Result *, UserData *, Api::SendOptions)>;
 
 struct CacheEntry {
 	QString nextOffset;
@@ -79,7 +85,7 @@ public:
 
 	int countHeight();
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(ResultSelected callback) {
 		_resultSelectedCallback = std::move(callback);
 	}
 
@@ -102,6 +108,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private slots:
 	void onSwitchPm();
@@ -140,6 +147,7 @@ private:
 
 	int validateExistingInlineRows(const Results &results);
 	void selectInlineResult(int row, int column);
+	void selectInlineResult(int row, int column, Api::SendOptions options);
 
 	not_null<Window::SessionController*> _controller;
 
@@ -157,6 +165,8 @@ private:
 
 	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
 
+	base::unique_qptr<Ui::PopupMenu> _menu;
+
 	QVector<Row> _rows;
 
 	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
@@ -168,7 +178,7 @@ private:
 	base::Timer _previewTimer;
 	bool _previewShown = false;
 
-	Fn<void(Result *result, UserData *bot)> _resultSelectedCallback;
+	ResultSelected _resultSelectedCallback;
 
 };
 
@@ -195,7 +205,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(internal::ResultSelected callback) {
 		_inner->setResultSelectedCallback(std::move(callback));
 	}
 
