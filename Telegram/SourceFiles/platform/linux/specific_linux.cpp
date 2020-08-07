@@ -87,6 +87,10 @@ bool IsTrayIconSupported = true;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
+	if (cExeName().isEmpty()) {
+		return;
+	}
+
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
 	options["autostart"] = autostart;
@@ -213,6 +217,10 @@ bool GenerateDesktopFile(
 		const QString &targetPath,
 		const QString &args,
 		bool silent = false) {
+	if (targetPath.isEmpty() || cExeName().isEmpty()) {
+		return false;
+	}
+
 	DEBUG_LOG(("App Info: placing .desktop file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
@@ -725,7 +733,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 QString GetLauncherBasename() {
 	static const auto Result = [&] {
-		if (InSnap()) {
+		if (InSnap() && !cExeName().isEmpty()) {
 			const auto snapNameKey =
 				qEnvironmentVariableIsSet("SNAP_INSTANCE_NAME")
 					? "SNAP_INSTANCE_NAME"
@@ -736,7 +744,7 @@ QString GetLauncherBasename() {
 				.arg(cExeName());
 		}
 
-		if (InAppImage()) {
+		if (InAppImage() && !cExeName().isEmpty()) {
 			const auto appimagePath = qsl("file://%1%2")
 				.arg(cExeDir())
 				.arg(cExeName())
@@ -1187,10 +1195,6 @@ void finish() {
 }
 
 void InstallMainDesktopFile() {
-	const auto home = getHomeDir();
-	if (home.isEmpty() || cExeName().isEmpty())
-		return;
-
 	static const auto DisabledByEnv = qEnvironmentVariableIsSet(
 		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
 
@@ -1229,6 +1233,10 @@ void InstallMainDesktopFile() {
 
 void RegisterCustomScheme(bool force) {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+	if (cExeName().isEmpty()) {
+		return;
+	}
+
 	GError *error = nullptr;
 
 	const auto actualCommandlineBuilder = qsl("%1 --")
@@ -1339,10 +1347,6 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 }
 
 void psAutoStart(bool start, bool silent) {
-	const auto home = getHomeDir();
-	if (home.isEmpty() || cExeName().isEmpty())
-		return;
-
 	if (InFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(start, silent);
