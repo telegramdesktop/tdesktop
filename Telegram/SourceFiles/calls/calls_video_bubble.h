@@ -46,11 +46,12 @@ private:
 	void updateSizeToFrame(QSize frame);
 	void updateVisibility();
 	void setInnerSize(QSize size);
+	void prepareFrame();
 
 	Ui::RpWidget _content;
 	const not_null<webrtc::VideoTrack*> _track;
 	webrtc::VideoState _state = webrtc::VideoState();
-	QImage _pausedFrame;
+	QImage _frame, _pausedFrame;
 	QSize _min, _max, _size, _lastDraggableSize, _lastFrameSize;
 	QRect _boundingRect;
 	DragMode _dragMode = DragMode::None;

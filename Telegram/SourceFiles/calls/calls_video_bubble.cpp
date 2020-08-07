@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "webrtc/webrtc_video_track.h"
 #include "ui/image/image_prepare.h"
+#include "ui/widgets/shadow.h"
 #include "styles/style_calls.h"
+#include "styles/style_widgets.h"
+#include "styles/style_layers.h"
 
 namespace Calls {
 
@@ -110,9 +113,56 @@ void VideoBubble::applySizeConstraints(QSize min, QSize max) {
 void VideoBubble::paint() {
 	Painter p(&_content);
 
-	auto hq = PainterHighQualityEnabler(p);
-	p.drawImage(_content.rect(), _track->frame({}));
+	prepareFrame();
+	if (!_frame.isNull()) {
+		const auto padding = st::boxRoundShadow.extend;
+		const auto inner = _content.rect().marginsRemoved(padding);
+		Ui::Shadow::paint(p, inner, _content.width(), st::boxRoundShadow);
+		p.drawImage(
+			inner,
+			_frame,
+			QRect(QPoint(), inner.size() * cIntRetinaFactor()));
+	}
 	_track->markFrameShown();
+}
+
+void VideoBubble::prepareFrame() {
+	const auto original = _track->frameSize();
+	if (original.isEmpty()) {
+		_frame = QImage();
+		return;
+	}
+	const auto padding = st::boxRoundShadow.extend;
+	const auto size = _content.rect().marginsRemoved(padding).size()
+		* cIntRetinaFactor();
+
+	// Should we check 'original' and 'size' aspect ratios?..
+	const auto request = webrtc::FrameRequest{
+		.resize = size,
+		.outer = size,
+	};
+	const auto frame = _track->frame(request);
+	if (_frame.width() < size.width() || _frame.height() < size.height()) {
+		_frame = QImage(
+			_max * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	Assert(_frame.width() >= frame.width()
+		&& _frame.height() >= frame.height());
+	const auto toPerLine = _frame.bytesPerLine();
+	const auto fromPerLine = frame.bytesPerLine();
+	const auto lineSize = frame.width() * 4;
+	auto to = _frame.bits();
+	auto from = frame.bits();
+	const auto till = from + frame.height() * fromPerLine;
+	for (; from != till; from += fromPerLine, to += toPerLine) {
+		memcpy(to, from, lineSize);
+	}
+	Images::prepareRound(
+		_frame,
+		ImageRoundRadius::Large,
+		RectPart::AllCorners,
+		QRect(QPoint(), size));
 }
 
 void VideoBubble::setState(webrtc::VideoState state) {
@@ -161,7 +211,7 @@ void VideoBubble::setInnerSize(QSize size) {
 	}
 	_geometryDirty = false;
 	_size = size;
-	_content.setGeometry(QRect([&] {
+	const auto topLeft = [&] {
 		switch (_corner) {
 		case RectPart::None:
 			return _boundingRect.topLeft() + QPoint(
@@ -183,7 +233,9 @@ void VideoBubble::setInnerSize(QSize size) {
 				_boundingRect.y() + _boundingRect.height() - size.height());
 		}
 		Unexpected("Corner value in VideoBubble::setInnerSize.");
-	}(), size));
+	}();
+	const auto inner = QRect(topLeft, size);
+	_content.setGeometry(inner.marginsAdded(st::boxRoundShadow.extend));
 }
 
 void VideoBubble::updateVisibility() {

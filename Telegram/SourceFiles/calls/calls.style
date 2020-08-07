@@ -34,7 +34,7 @@ callShadow: Shadow {
 
 callWidthMin: 380px;
 callHeightMin: 440px;
-callWidth: 960px;
+callWidth: 720px;
 callHeight: 540px;
 
 callBottomControlsHeight: 85px;
