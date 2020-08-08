@@ -10,15 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "base/weak_ptr.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusArgument>
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
 namespace Notifications {
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 class NotificationData : public QObject {
 	Q_OBJECT
 
@@ -78,7 +78,7 @@ QDBusArgument &operator<<(
 const QDBusArgument &operator>>(
 	const QDBusArgument &argument,
 	NotificationData::ImageData &imageData);
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 class Manager
 	: public Window::Notifications::NativeManager
@@ -111,6 +111,6 @@ private:
 } // namespace Notifications
 } // namespace Platform
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 Q_DECLARE_METATYPE(Platform::Notifications::NotificationData::ImageData)
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
