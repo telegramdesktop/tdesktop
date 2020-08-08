@@ -17,18 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
 #include <QtDBus/QDBusMetaType>
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
 namespace Notifications {
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 namespace {
 
 constexpr auto kService = "org.freedesktop.Notifications"_cs;
@@ -446,16 +446,16 @@ const QDBusArgument &operator>>(
 	argument.endStructure();
 	return argument;
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 bool SkipAudio() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (Supported()
 		&& GetCapabilities().contains(qsl("inhibitions"))
 		&& !InhibitedNotSupported) {
 		return Inhibited();
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return false;
 }
@@ -469,18 +469,18 @@ bool SkipFlashBounce() {
 }
 
 bool Supported() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return NotificationsSupported;
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return false;
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	GetSupported();
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	if ((Core::App().settings().nativeNotifications() && Supported())
 		|| Platform::IsWayland()) {
@@ -490,7 +490,7 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 	return nullptr;
 }
 
-#ifdef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifdef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
@@ -510,7 +510,7 @@ public:
 	void clearFromSession(not_null<Main::Session*> session) {}
 	void clearNotification(NotificationId id) {}
 };
-#else // TDESKTOP_DISABLE_DBUS_INTEGRATION
+#else // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
@@ -699,7 +699,7 @@ void Manager::Private::clearNotification(NotificationId id) {
 Manager::Private::~Private() {
 	clearAll();
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
 : NativeManager(system)

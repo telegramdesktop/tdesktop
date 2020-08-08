@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/popup_menu.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "statusnotifieritem.h"
 #include <QtCore/QTemporaryFile>
 #include <QtDBus/QDBusObjectPath>
@@ -45,7 +45,7 @@ public:
 public slots:
 	void psShowTrayMenu();
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	void onSNIOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
@@ -73,7 +73,7 @@ public slots:
 
 	void onVisibleChanged(bool visible);
 
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	GtkClipboard *gtkClipboard() {
@@ -112,7 +112,7 @@ private:
 	void updateIconCounters();
 	void updateWaylandDecorationColors();
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
 
@@ -142,7 +142,7 @@ private:
 
 	void setSNITrayIcon(int counter, bool muted);
 	void attachToSNITrayIcon();
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	GtkClipboard *_gtkClipboard = nullptr;

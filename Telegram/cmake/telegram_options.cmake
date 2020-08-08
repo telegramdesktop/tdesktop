@@ -85,10 +85,6 @@ if (TDESKTOP_DISABLE_GTK_INTEGRATION)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_GTK_INTEGRATION)
 endif()
 
-if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
-    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_DBUS_INTEGRATION)
-endif()
-
 if (NOT TDESKTOP_LAUNCHER_BASENAME)
     set(TDESKTOP_LAUNCHER_BASENAME "telegramdesktop")
 endif()
