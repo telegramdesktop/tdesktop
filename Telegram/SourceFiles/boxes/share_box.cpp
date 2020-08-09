@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text_options.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_schedule_box.h"

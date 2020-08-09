@@ -101,23 +101,3 @@ private:
 	base::qt_connection _connection;
 
 };
-
-enum class SendMenuType {
-	Disabled,
-	SilentOnly,
-	Scheduled,
-	ScheduledToUser, // For "Send when online".
-	Reminder,
-};
-
-bool FillSendMenu(
-	not_null<Ui::PopupMenu*> menu,
-	Fn<SendMenuType()> type,
-	Fn<void()> silent,
-	Fn<void()> schedule);
-
-void SetupSendMenuAndShortcuts(
-	not_null<Ui::RpWidget*> button,
-	Fn<SendMenuType()> type,
-	Fn<void()> silent,
-	Fn<void()> schedule);

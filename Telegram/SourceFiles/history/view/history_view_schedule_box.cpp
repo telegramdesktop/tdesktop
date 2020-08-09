@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
-#include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_history.h"

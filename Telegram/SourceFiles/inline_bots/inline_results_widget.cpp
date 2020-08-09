@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_widget.h"
 
 #include "api/api_common.h"
-#include "chat_helpers/message_field.h" // FillSendMenu
+#include "chat_helpers/send_context_menu.h" // FillSendMenu
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"

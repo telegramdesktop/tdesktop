@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
-#include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"

@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "platform/platform_specific.h"
 #include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
