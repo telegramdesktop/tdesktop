@@ -325,8 +325,6 @@ private slots:
 	void onInlineBotCancel();
 	void onMembersDropdownShow();
 
-	void onModerateKeyActivate(int index, bool *outHandled);
-
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;

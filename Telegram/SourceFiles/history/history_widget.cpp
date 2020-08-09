@@ -382,15 +382,33 @@ HistoryWidget::HistoryWidget(
 
 	InitMessageField(controller, _field);
 	_fieldAutocomplete->hide();
-	connect(_fieldAutocomplete, &FieldAutocomplete::mentionChosen, this, [=](not_null<UserData*> user) {
-		onMentionInsert(user);
+
+	_fieldAutocomplete->mentionChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+		onMentionInsert(data.user);
+	}, lifetime());
+
+	_fieldAutocomplete->hashtagChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::HashtagChosen data) {
+		onHashtagOrBotCommandInsert(data.hashtag, data.method);
+	}, lifetime());
+
+	_fieldAutocomplete->botCommandChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
+		onHashtagOrBotCommandInsert(data.command, data.method);
+	}, lifetime());
+
+	_fieldAutocomplete->stickerChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
+		sendExistingDocument(data.sticker, Api::SendOptions());
+	}, lifetime());
+
+	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
+		return _keyboard->isHidden()
+			? false
+			: _keyboard->moderateKeyActivate(key);
 	});
-	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_fieldAutocomplete, &FieldAutocomplete::stickerChosen, this, [=](not_null<DocumentData*> document) {
-		sendExistingDocument(document, Api::SendOptions());
-	});
-	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
+
 	if (_supportAutocomplete) {
 		supportInitAutocomplete();
 	}
@@ -3919,10 +3937,6 @@ void HistoryWidget::onMembersDropdownShow() {
 		_membersDropdown->setHiddenCallback([this] { _membersDropdown.destroyDelayed(); });
 	}
 	_membersDropdown->otherEnter();
-}
-
-void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
-	*outHandled = _keyboard->isHidden() ? false : _keyboard->moderateKeyActivate(index);
 }
 
 bool HistoryWidget::pushTabbedSelectorToThirdSection(
