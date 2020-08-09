@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_schedule_box.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
@@ -312,20 +311,11 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	const auto send = [=](Api::SendOptions options) {
 		selectInlineResult(row, column, options);
 	};
-	const auto silent = [=] { send({ .silent = true }); };
-	const auto schedule = [=] {
-		Ui::show(
-			HistoryView::PrepareScheduleBox(
-				this,
-				type,
-				[=](Api::SendOptions options) { send(options); }),
-			Ui::LayerOption::KeepOther);
-	};
 	FillSendMenu(
 		_menu,
 		[&] { return type; },
-		silent,
-		schedule);
+		DefaultSilentCallback(send),
+		DefaultScheduleCallback(this, type, send));
 
 	if (!_menu->actions().empty()) {
 		_menu->popup(QCursor::pos());

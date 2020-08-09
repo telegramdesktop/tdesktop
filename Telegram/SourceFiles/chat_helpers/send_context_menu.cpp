@@ -9,11 +9,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "base/event_filter.h"
+#include "boxes/abstract_box.h"
 #include "core/shortcuts.h"
+#include "history/view/history_view_schedule_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 
 #include <QtWidgets/QApplication>
+
+Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
+	return [=] { send({ .silent = true }); };
+}
+
+Fn<void()> DefaultScheduleCallback(
+		not_null<Ui::RpWidget*> parent,
+		SendMenuType type,
+		Fn<void(Api::SendOptions)> send) {
+	const auto weak = Ui::MakeWeak(parent);
+	return [=] {
+		Ui::show(
+			HistoryView::PrepareScheduleBox(
+				weak,
+				type,
+				[=](Api::SendOptions options) { send(options); }),
+			Ui::LayerOption::KeepOther);
+	};
+}
 
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,

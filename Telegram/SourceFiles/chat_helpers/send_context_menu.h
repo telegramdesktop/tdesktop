@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -25,6 +29,12 @@ enum class FillMenuResult {
 	Success,
 	None,
 };
+
+Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send);
+Fn<void()> DefaultScheduleCallback(
+	not_null<Ui::RpWidget*> parent,
+	SendMenuType type,
+	Fn<void(Api::SendOptions)> send);
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,

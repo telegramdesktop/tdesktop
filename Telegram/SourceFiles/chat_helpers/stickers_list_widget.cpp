@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
-#include "history/view/history_view_schedule_box.h"
 #include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -2073,20 +2072,11 @@ void StickersListWidget::fillContextMenu(
 				.document = document,
 				.options = options });
 		};
-		const auto silent = [=] { send({ .silent = true }); };
-		const auto schedule = [=] {
-			checkHideWithBox(Ui::show(
-				HistoryView::PrepareScheduleBox(
-					this,
-					type,
-					[=](Api::SendOptions options) { send(options); }),
-				Ui::LayerOption::KeepOther).data());
-		};
 		FillSendMenu(
 			menu,
 			[&] { return type; },
-			silent,
-			schedule);
+			DefaultSilentCallback(send),
+			DefaultScheduleCallback(this, type, send));
 
 		const auto toggleFavedSticker = [=] {
 			document->session().api().toggleFavedSticker(

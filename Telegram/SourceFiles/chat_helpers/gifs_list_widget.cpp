@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_schedule_box.h"
 #include "app.h"
 #include "storage/storage_account.h" // Account::writeSavedGifs
 #include "styles/style_chat_helpers.h"
@@ -376,20 +375,11 @@ void GifsListWidget::fillContextMenu(
 	const auto send = [=](Api::SendOptions options) {
 		selectInlineResult(row, column, options, true);
 	};
-	const auto silent = [=] { send({ .silent = true }); };
-	const auto schedule = [=] {
-		Ui::show(
-			HistoryView::PrepareScheduleBox(
-				this,
-				type,
-				[=](Api::SendOptions options) { send(options); }),
-			Ui::LayerOption::KeepOther);
-	};
 	FillSendMenu(
 		menu,
 		[&] { return type; },
-		silent,
-		schedule);
+		DefaultSilentCallback(send),
+		DefaultScheduleCallback(this, type, send));
 
 	[&] {
 		const auto row = _selected / MatrixRowShift;
