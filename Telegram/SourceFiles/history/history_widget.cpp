@@ -400,7 +400,7 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->stickerChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
-		sendExistingDocument(data.sticker, Api::SendOptions());
+		sendExistingDocument(data.sticker, data.options);
 	}, lifetime());
 
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {

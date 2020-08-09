@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
+#include "chat_helpers/send_context_menu.h" // FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lottie/lottie_single_player.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
@@ -901,26 +903,38 @@ bool FieldAutocompleteInner::moveSel(int key) {
 	return true;
 }
 
-bool FieldAutocompleteInner::chooseSelected(FieldAutocomplete::ChooseMethod method) const {
+bool FieldAutocompleteInner::chooseSelected(
+		FieldAutocomplete::ChooseMethod method) const {
+	return chooseAtIndex(method, _sel);
+}
+
+bool FieldAutocompleteInner::chooseAtIndex(
+		FieldAutocomplete::ChooseMethod method,
+		int index,
+		Api::SendOptions options) const {
+	if (index < 0) {
+		return false;
+	}
 	if (!_srows->empty()) {
-		if (_sel >= 0 && _sel < _srows->size()) {
-			_stickerChosen.fire({ (*_srows)[_sel].document, method });
+		if (index < _srows->size()) {
+			const auto document = (*_srows)[index].document;
+			_stickerChosen.fire({ document, options, method });
 			return true;
 		}
 	} else if (!_mrows->empty()) {
-		if (_sel >= 0 && _sel < _mrows->size()) {
-			_mentionChosen.fire({ _mrows->at(_sel).user, method });
+		if (index < _mrows->size()) {
+			_mentionChosen.fire({ _mrows->at(index).user, method });
 			return true;
 		}
 	} else if (!_hrows->empty()) {
-		if (_sel >= 0 && _sel < _hrows->size()) {
-			_hashtagChosen.fire({ '#' + _hrows->at(_sel), method });
+		if (index < _hrows->size()) {
+			_hashtagChosen.fire({ '#' + _hrows->at(index), method });
 			return true;
 		}
 	} else if (!_brows->empty()) {
-		if (_sel >= 0 && _sel < _brows->size()) {
-			const auto user = _brows->at(_sel).user;
-			const auto command = _brows->at(_sel).command;
+		if (index < _brows->size()) {
+			const auto user = _brows->at(index).user;
+			const auto command = _brows->at(index).command;
 			const auto botStatus = _parent->chat()
 				? _parent->chat()->botStatus
 				: ((_parent->channel() && _parent->channel()->isMegagroup())
@@ -1001,6 +1015,29 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_sel < 0 || _sel != pressed || _srows->empty()) return;
 
 	chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
+}
+
+void FieldAutocompleteInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (_sel < 0 || _srows->empty() || _down >= 0) {
+		return;
+	}
+	const auto index = _sel;
+	const auto type = SendMenuType::Scheduled;
+	const auto method = FieldAutocomplete::ChooseMethod::ByClick;
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+
+	const auto send = [=](Api::SendOptions options) {
+		chooseAtIndex(method, index, options);
+	};
+	FillSendMenu(
+		_menu,
+		[&] { return type; },
+		DefaultSilentCallback(send),
+		DefaultScheduleCallback(this, type, send));
+
+	if (!_menu->actions().empty()) {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void FieldAutocompleteInner::enterEventHook(QEvent *e) {

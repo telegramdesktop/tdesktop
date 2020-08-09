@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
 namespace Ui {
+class PopupMenu;
 class ScrollArea;
 } // namespace Ui
 
@@ -103,6 +105,7 @@ public:
 	};
 	struct StickerChosen {
 		not_null<DocumentData*> sticker;
+		Api::SendOptions options;
 		ChooseMethod method;
 	};
 
@@ -210,6 +213,10 @@ public:
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
 	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
+	bool chooseAtIndex(
+		FieldAutocomplete::ChooseMethod method,
+		int index,
+		Api::SendOptions options = Api::SendOptions()) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
 	void rowsUpdated();
@@ -233,6 +240,7 @@ private:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
@@ -252,6 +260,7 @@ private:
 	const not_null<StickerRows*> _srows;
 	rpl::lifetime _stickersLifetime;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	int _stickersPerRow = 1;
 	int _recentInlineBotsInRows = 0;
 	int _sel = -1;
