@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
-#include <QtCore/QTimer>
-
 namespace Api {
 struct SendOptions;
 } // namespace Api
@@ -62,7 +60,6 @@ class Inner
 	, public Ui::AbstractTooltipShower
 	, public Context
 	, private base::Subscriber {
-	Q_OBJECT
 
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -94,6 +91,8 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
+	rpl::producer<> inlineRowsCleared() const;
+
 	~Inner();
 
 protected:
@@ -110,12 +109,6 @@ protected:
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
-private slots:
-	void onSwitchPm();
-
-signals:
-	void emptyInlineRows();
-
 private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
 	static constexpr bool kRefreshIconsNoAnimation = false;
@@ -124,6 +117,8 @@ private:
 		int height = 0;
 		QVector<ItemBase*> items;
 	};
+
+	void onSwitchPm();
 
 	void updateSelected();
 	void checkRestrictedPeer();
@@ -171,6 +166,8 @@ private:
 
 	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
 
+	rpl::event_stream<> _inlineRowsCleared;
+
 	int _selected = -1;
 	int _pressed = -1;
 	QPoint _lastMousePos;
@@ -185,7 +182,6 @@ private:
 } // namespace internal
 
 class Widget : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -218,17 +214,14 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-private slots:
-	void onScroll();
-
-	void onInlineRequest();
-	void onEmptyInlineRows();
-
 private:
 	void moveByBottom();
 	void paintContent(Painter &p);
 
 	style::margins innerPadding() const;
+
+	void onScroll();
+	void onInlineRequest();
 
 	// Rounded rect which has shadow around it.
 	QRect innerRect() const;
@@ -283,7 +276,7 @@ private:
 	QPointer<internal::Inner> _inner;
 
 	std::map<QString, std::unique_ptr<internal::CacheEntry>> _inlineCache;
-	QTimer _inlineRequestTimer;
+	base::Timer _inlineRequestTimer;
 
 	UserData *_inlineBot = nullptr;
 	PeerData *_inlineQueryPeer = nullptr;

@@ -159,6 +159,10 @@ bool Inner::tooltipWindowActive() const {
 	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
+rpl::producer<> Inner::inlineRowsCleared() const {
+	return _inlineRowsCleared.events();
+}
+
 Inner::~Inner() = default;
 
 void Inner::paintEvent(QPaintEvent *e) {
@@ -517,7 +521,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();
 		}
-		emit emptyInlineRows();
+		_inlineRowsCleared.fire({});
 		return 0;
 	}
 
@@ -788,7 +792,8 @@ Widget::Widget(
 , _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
-, _scroll(this, st::inlineBotsScroll) {
+, _scroll(this, st::inlineBotsScroll)
+, _inlineRequestTimer([=] { onInlineRequest(); }) {
 	resize(QRect(0, 0, st::emojiPanWidth, _contentHeight).marginsAdded(innerPadding()).size());
 	_width = width();
 	_height = height();
@@ -800,13 +805,17 @@ Widget::Widget(
 
 	_inner->moveToLeft(0, 0, _scroll->width());
 
-	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(
+		_scroll,
+		&Ui::ScrollArea::scrolled,
+		this,
+		&InlineBots::Layout::Widget::onScroll);
 
-	connect(_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
-
-	// inline bots
-	_inlineRequestTimer.setSingleShot(true);
-	connect(&_inlineRequestTimer, SIGNAL(timeout()), this, SLOT(onInlineRequest()));
+	_inner->inlineRowsCleared(
+	) | rpl::start_with_next([=] {
+		hideAnimated();
+		_inner->clearInlineRowsPanel();
+	}, lifetime());
 
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
@@ -1149,12 +1158,12 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 			_requesting.fire(false);
 		}
 		if (_inlineCache.find(query) != _inlineCache.cend()) {
-			_inlineRequestTimer.stop();
+			_inlineRequestTimer.cancel();
 			_inlineQuery = _inlineNextQuery = query;
 			showInlineRows(true);
 		} else {
 			_inlineNextQuery = query;
-			_inlineRequestTimer.start(internal::kInlineBotRequestDelay);
+			_inlineRequestTimer.callOnce(internal::kInlineBotRequestDelay);
 		}
 	}
 }
@@ -1186,11 +1195,6 @@ void Widget::onInlineRequest() {
 		_requesting.fire(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
-}
-
-void Widget::onEmptyInlineRows() {
-	hideAnimated();
-	_inner->clearInlineRowsPanel();
 }
 
 bool Widget::refreshInlineRows(int *added) {
