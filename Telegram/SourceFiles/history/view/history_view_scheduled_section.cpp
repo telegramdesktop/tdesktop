@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
-#include "chat_helpers/send_context_menu.h" // SendMenuType.
+#include "chat_helpers/send_context_menu.h" // SendMenu::Type.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -371,7 +371,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled,
-		SendMenuType::Disabled);
+		SendMenu::Type::Disabled);
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -745,12 +745,12 @@ void ScheduledWidget::sendInlineResult(
 	_composeControls->focus();
 }
 
-SendMenuType ScheduledWidget::sendMenuType() const {
+SendMenu::Type ScheduledWidget::sendMenuType() const {
 	return _history->peer->isSelf()
-		? SendMenuType::Reminder
+		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
-		? SendMenuType::ScheduledToUser
-		: SendMenuType::Scheduled;
+		? SendMenu::Type::ScheduledToUser
+		: SendMenu::Type::Scheduled;
 }
 
 void ScheduledWidget::setupScrollDownButton() {

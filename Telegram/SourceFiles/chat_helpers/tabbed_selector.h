@@ -34,7 +34,9 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-enum class SendMenuType;
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace ChatHelpers {
 
@@ -111,7 +113,7 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
-	void setSendMenuType(Fn<SendMenuType()> callback) {
+	void setSendMenuType(Fn<SendMenu::Type()> callback) {
 		_sendMenuType = std::move(callback);
 	}
 
@@ -230,7 +232,7 @@ private:
 	Fn<void(SelectorTab)> _afterShownCallback;
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
-	Fn<SendMenuType()> _sendMenuType;
+	Fn<SendMenu::Type()> _sendMenuType;
 
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;
@@ -266,7 +268,7 @@ public:
 	}
 	virtual void fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		SendMenuType type) {
+		SendMenu::Type type) {
 	}
 
 	rpl::producer<int> scrollToRequests() const;

@@ -603,10 +603,10 @@ bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 
 void ScheduleBox(
 		not_null<Ui::GenericBox*> box,
-		SendMenuType type,
+		SendMenu::Type type,
 		Fn<void(Api::SendOptions)> done,
 		TimeId time) {
-	box->setTitle((type == SendMenuType::Reminder)
+	box->setTitle((type == SendMenu::Type::Reminder)
 		? tr::lng_remind_title()
 		: tr::lng_schedule_title());
 	box->setWidth(st::boxWideWidth);
@@ -742,14 +742,14 @@ void ScheduleBox(
 	const auto submit = box->addButton(tr::lng_schedule_button(), [=] {
 		save(false);
 	});
-	SetupSendMenuAndShortcuts(
+	SendMenu::SetupMenuAndShortcuts(
 		submit.data(),
-		[=] { return SendMenuType::SilentOnly; },
+		[=] { return SendMenu::Type::SilentOnly; },
 		[=] { save(true); },
 		nullptr);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
-	if (type == SendMenuType::ScheduledToUser) {
+	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(st::infoTopBarMenu);
 		FillSendUntilOnlineMenu(
 			sendUntilOnline.data(),

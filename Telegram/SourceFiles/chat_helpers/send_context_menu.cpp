@@ -17,13 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+namespace SendMenu {
+
 Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send) {
 	return [=] { send({ .silent = true }); };
 }
 
 Fn<void()> DefaultScheduleCallback(
 		not_null<Ui::RpWidget*> parent,
-		SendMenuType type,
+		Type type,
 		Fn<void(Api::SendOptions)> send) {
 	const auto weak = Ui::MakeWeak(parent);
 	return [=] {
@@ -38,24 +40,24 @@ Fn<void()> DefaultScheduleCallback(
 
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
-		Fn<SendMenuType()> type,
+		Fn<Type()> type,
 		Fn<void()> silent,
 		Fn<void()> schedule) {
 	if (!silent && !schedule) {
 		return FillMenuResult::None;
 	}
 	const auto now = type();
-	if (now == SendMenuType::Disabled
-		|| (!silent && now == SendMenuType::SilentOnly)) {
+	if (now == Type::Disabled
+		|| (!silent && now == Type::SilentOnly)) {
 		return FillMenuResult::None;
 	}
 
-	if (silent && now != SendMenuType::Reminder) {
+	if (silent && now != Type::Reminder) {
 		menu->addAction(tr::lng_send_silent_message(tr::now), silent);
 	}
-	if (schedule && now != SendMenuType::SilentOnly) {
+	if (schedule && now != Type::SilentOnly) {
 		menu->addAction(
-			(now == SendMenuType::Reminder
+			(now == Type::Reminder
 				? tr::lng_reminder_message(tr::now)
 				: tr::lng_schedule_message(tr::now)),
 			schedule);
@@ -63,9 +65,9 @@ FillMenuResult FillSendMenu(
 	return FillMenuResult::Success;
 }
 
-void SetupSendMenuAndShortcuts(
+void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
-		Fn<SendMenuType()> type,
+		Fn<Type()> type,
 		Fn<void()> silent,
 		Fn<void()> schedule) {
 	if (!silent && !schedule) {
@@ -93,12 +95,12 @@ void SetupSendMenuAndShortcuts(
 		using Command = Shortcuts::Command;
 
 		const auto now = type();
-		if (now == SendMenuType::Disabled
-			|| (!silent && now == SendMenuType::SilentOnly)) {
+		if (now == Type::Disabled
+			|| (!silent && now == Type::SilentOnly)) {
 			return;
 		}
 		(silent
-			&& (now != SendMenuType::Reminder)
+			&& (now != Type::Reminder)
 			&& request->check(Command::SendSilentMessage)
 			&& request->handle([=] {
 				silent();
@@ -106,7 +108,7 @@ void SetupSendMenuAndShortcuts(
 			}))
 		||
 		(schedule
-			&& (now != SendMenuType::SilentOnly)
+			&& (now != Type::SilentOnly)
 			&& request->check(Command::ScheduleMessage)
 			&& request->handle([=] {
 				schedule();
@@ -130,3 +132,5 @@ void SetupSendMenuAndShortcuts(
 		}));
 	}, button->lifetime());
 }
+
+} // namespace SendMenu

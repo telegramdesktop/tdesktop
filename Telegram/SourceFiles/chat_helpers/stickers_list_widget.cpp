@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
-#include "chat_helpers/send_context_menu.h" // FillSendMenu
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -2055,7 +2055,7 @@ void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
 
 void StickersListWidget::fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		SendMenuType type) {
+		SendMenu::Type type) {
 	auto selected = _selected;
 	auto &sets = shownSets();
 	if (!selected || _pressed) {
@@ -2072,11 +2072,11 @@ void StickersListWidget::fillContextMenu(
 				.document = document,
 				.options = options });
 		};
-		FillSendMenu(
+		SendMenu::FillSendMenu(
 			menu,
 			[&] { return type; },
-			DefaultSilentCallback(send),
-			DefaultScheduleCallback(this, type, send));
+			SendMenu::DefaultSilentCallback(send),
+			SendMenu::DefaultScheduleCallback(this, type, send));
 
 		const auto toggleFavedSticker = [=] {
 			document->session().api().toggleFavedSticker(

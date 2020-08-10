@@ -409,13 +409,13 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-SendMenuType ShareBox::sendMenuType() const {
+SendMenu::Type ShareBox::sendMenuType() const {
 	const auto selected = _inner->selected();
 	return ranges::all_of(selected, HistoryView::CanScheduleUntilOnline)
-		? SendMenuType::ScheduledToUser
+		? SendMenu::Type::ScheduledToUser
 		: (selected.size() == 1 && selected.front()->isSelf())
-		? SendMenuType::Reminder
-		: SendMenuType::Scheduled;
+		? SendMenu::Type::Reminder
+		: SendMenu::Type::Scheduled;
 }
 
 void ShareBox::createButtons() {
@@ -424,7 +424,7 @@ void ShareBox::createButtons() {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		SetupSendMenuAndShortcuts(
+		SendMenu::SetupMenuAndShortcuts(
 			send,
 			[=] { return sendMenuType(); },
 			[=] { submitSilent(); },

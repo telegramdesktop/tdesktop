@@ -34,7 +34,9 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-enum class SendMenuType;
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace ChatHelpers {
 
@@ -77,7 +79,7 @@ public:
 
 	void fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		SendMenuType type) override;
+		SendMenu::Type type) override;
 
 	~GifsListWidget();
 

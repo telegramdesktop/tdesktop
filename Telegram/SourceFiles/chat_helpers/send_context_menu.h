@@ -17,7 +17,9 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-enum class SendMenuType {
+namespace SendMenu {
+
+enum class Type {
 	Disabled,
 	SilentOnly,
 	Scheduled,
@@ -33,17 +35,19 @@ enum class FillMenuResult {
 Fn<void()> DefaultSilentCallback(Fn<void(Api::SendOptions)> send);
 Fn<void()> DefaultScheduleCallback(
 	not_null<Ui::RpWidget*> parent,
-	SendMenuType type,
+	Type type,
 	Fn<void(Api::SendOptions)> send);
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
-	Fn<SendMenuType()> type,
+	Fn<Type()> type,
 	Fn<void()> silent,
 	Fn<void()> schedule);
 
-void SetupSendMenuAndShortcuts(
+void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
-	Fn<SendMenuType()> type,
+	Fn<Type()> type,
 	Fn<void()> silent,
 	Fn<void()> schedule);
+
+} // namespace SendMenu

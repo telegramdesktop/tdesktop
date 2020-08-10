@@ -85,7 +85,7 @@ public:
 
 	void fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		SendMenuType type) override;
+		SendMenu::Type type) override;
 
 	~StickersListWidget();
 

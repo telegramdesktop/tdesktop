@@ -16,7 +16,10 @@ class History;
 enum class CompressConfirm;
 enum class SendMediaType;
 struct SendingAlbum;
-enum class SendMenuType;
+
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace Api {
 struct SendOptions;
@@ -149,7 +152,7 @@ private:
 		mtpRequestId *const saveEditMsgRequestId);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
-	[[nodiscard]] SendMenuType sendMenuType() const;
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(

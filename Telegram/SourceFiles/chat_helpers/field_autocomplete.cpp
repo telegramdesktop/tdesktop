@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/send_context_menu.h" // FillSendMenu
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -1022,18 +1022,18 @@ void FieldAutocompleteInner::contextMenuEvent(QContextMenuEvent *e) {
 		return;
 	}
 	const auto index = _sel;
-	const auto type = SendMenuType::Scheduled;
+	const auto type = SendMenu::Type::Scheduled;
 	const auto method = FieldAutocomplete::ChooseMethod::ByClick;
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
 	const auto send = [=](Api::SendOptions options) {
 		chooseAtIndex(method, index, options);
 	};
-	FillSendMenu(
+	SendMenu::FillSendMenu(
 		_menu,
 		[&] { return type; },
-		DefaultSilentCallback(send),
-		DefaultScheduleCallback(this, type, send));
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(this, type, send));
 
 	if (!_menu->actions().empty()) {
 		_menu->popup(QCursor::pos());

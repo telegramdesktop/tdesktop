@@ -26,7 +26,10 @@ struct SendingAlbum;
 enum class SendMediaType;
 enum class CompressConfirm;
 class MessageLinksParser;
-enum class SendMenuType;
+
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace Api {
 struct SendOptions;
@@ -371,8 +374,8 @@ private:
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendSilent();
 	void sendScheduled();
-	[[nodiscard]] SendMenuType sendMenuType() const;
-	[[nodiscard]] SendMenuType sendButtonMenuType() const;
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();

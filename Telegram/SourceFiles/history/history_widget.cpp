@@ -308,7 +308,7 @@ HistoryWidget::HistoryWidget(
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
-	SetupSendMenuAndShortcuts(
+	SendMenu::SetupMenuAndShortcuts(
 		_send,
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
@@ -3169,14 +3169,14 @@ void HistoryWidget::sendScheduled() {
 		Ui::LayerOption::KeepOther);
 }
 
-SendMenuType HistoryWidget::sendMenuType() const {
+SendMenu::Type HistoryWidget::sendMenuType() const {
 	return !_peer
-		? SendMenuType::Disabled
+		? SendMenu::Type::Disabled
 		: _peer->isSelf()
-		? SendMenuType::Reminder
+		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_peer)
-		? SendMenuType::ScheduledToUser
-		: SendMenuType::Scheduled;
+		? SendMenu::Type::ScheduledToUser
+		: SendMenu::Type::Scheduled;
 }
 
 auto HistoryWidget::computeSendButtonType() const {
@@ -3192,10 +3192,10 @@ auto HistoryWidget::computeSendButtonType() const {
 	return Type::Send;
 }
 
-SendMenuType HistoryWidget::sendButtonMenuType() const {
+SendMenu::Type HistoryWidget::sendButtonMenuType() const {
 	return (computeSendButtonType() == Ui::SendButton::Type::Send)
 		? sendMenuType()
-		: SendMenuType::Disabled;
+		: SendMenu::Type::Disabled;
 }
 
 void HistoryWidget::unblockUser() {

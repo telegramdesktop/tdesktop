@@ -880,7 +880,7 @@ void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	const auto type = _sendMenuType
 		? _sendMenuType()
-		: SendMenuType::Disabled;
+		: SendMenu::Type::Disabled;
 	currentTab()->widget()->fillContextMenu(_menu, type);
 
 	if (!_menu->actions().empty()) {

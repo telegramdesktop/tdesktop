@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/send_context_menu.h" // FillSendMenu
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -365,7 +365,7 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 
 void GifsListWidget::fillContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		SendMenuType type) {
+		SendMenu::Type type) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
@@ -375,11 +375,11 @@ void GifsListWidget::fillContextMenu(
 	const auto send = [=](Api::SendOptions options) {
 		selectInlineResult(row, column, options, true);
 	};
-	FillSendMenu(
+	SendMenu::FillSendMenu(
 		menu,
 		[&] { return type; },
-		DefaultSilentCallback(send),
-		DefaultScheduleCallback(this, type, send));
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(this, type, send));
 
 	[&] {
 		const auto row = _selected / MatrixRowShift;

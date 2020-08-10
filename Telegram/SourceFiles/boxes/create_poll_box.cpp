@@ -1087,7 +1087,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		Ui::show(
 			HistoryView::PrepareScheduleBox(
 				this,
-				SendMenuType::Scheduled,
+				SendMenu::Type::Scheduled,
 				send),
 			Ui::LayerOption::KeepOther);
 	};
@@ -1108,9 +1108,11 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	if (_sendType == Api::SendType::Normal) {
 		const auto sendMenuType = [=] {
 			collectError();
-			return *error ? SendMenuType::Disabled : SendMenuType::Scheduled;
+			return *error
+				? SendMenu::Type::Disabled
+				: SendMenu::Type::Scheduled;
 		};
-		SetupSendMenuAndShortcuts(
+		SendMenu::SetupMenuAndShortcuts(
 			submit.data(),
 			sendMenuType,
 			sendSilent,
