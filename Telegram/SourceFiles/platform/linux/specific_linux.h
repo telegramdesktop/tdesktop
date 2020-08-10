@@ -42,7 +42,6 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-bool GtkClipboardSupported();
 void SetTrayIconSupported(bool supported);
 void InstallMainDesktopFile();
 

@@ -31,6 +31,7 @@ namespace Libs {
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 bool GtkLoaded();
+::GtkClipboard *GtkClipboard();
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start();
@@ -78,16 +79,16 @@ extern f_gtk_widget_hide_on_delete gtk_widget_hide_on_delete;
 typedef void (*f_gtk_widget_destroy)(GtkWidget *widget);
 extern f_gtk_widget_destroy gtk_widget_destroy;
 
-typedef GtkClipboard* (*f_gtk_clipboard_get)(GdkAtom selection);
+typedef ::GtkClipboard* (*f_gtk_clipboard_get)(GdkAtom selection);
 extern f_gtk_clipboard_get gtk_clipboard_get;
 
-typedef void (*f_gtk_clipboard_store)(GtkClipboard *clipboard);
+typedef void (*f_gtk_clipboard_store)(::GtkClipboard *clipboard);
 extern f_gtk_clipboard_store gtk_clipboard_store;
 
-typedef GtkSelectionData* (*f_gtk_clipboard_wait_for_contents)(GtkClipboard *clipboard, GdkAtom target);
+typedef GtkSelectionData* (*f_gtk_clipboard_wait_for_contents)(::GtkClipboard *clipboard, GdkAtom target);
 extern f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents;
 
-typedef GdkPixbuf* (*f_gtk_clipboard_wait_for_image)(GtkClipboard *clipboard);
+typedef GdkPixbuf* (*f_gtk_clipboard_wait_for_image)(::GtkClipboard *clipboard);
 extern f_gtk_clipboard_wait_for_image gtk_clipboard_wait_for_image;
 
 typedef gboolean (*f_gtk_selection_data_targets_include_image)(const GtkSelectionData *selection_data, gboolean writable);

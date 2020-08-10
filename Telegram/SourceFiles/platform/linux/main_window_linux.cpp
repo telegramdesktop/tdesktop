@@ -8,10 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/main_window_linux.h"
 
 #include "styles/style_window.h"
-#include "platform/linux/linux_libs.h"
 #include "platform/linux/specific_linux.h"
-#include "platform/linux/linux_desktop_environment.h"
-#include "platform/platform_notifications_manager.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -416,12 +413,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (GtkClipboardSupported()) {
-		_gtkClipboard = Libs::gtk_clipboard_get(
-			Libs::gdk_atom_intern("CLIPBOARD", true));
-	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::initHook() {
