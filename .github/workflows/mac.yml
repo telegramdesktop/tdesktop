@@ -462,7 +462,11 @@ jobs:
             echo ::set-env name=ARTIFACT_NAME::Telegram
           fi
 
-          ./configure.sh -D TDESKTOP_API_TEST=ON -D DESKTOP_APP_USE_PACKAGED=OFF $DEFINE
+          ./configure.sh \
+          -D TDESKTOP_API_TEST=ON \
+          -D DESKTOP_APP_USE_PACKAGED=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
+          $DEFINE
 
           cd ../out
 

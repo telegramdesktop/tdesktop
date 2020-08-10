@@ -530,6 +530,7 @@ jobs:
           -D CMAKE_CXX_FLAGS="-s" \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_USE_PACKAGED=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
 
           cd ../out/Debug
