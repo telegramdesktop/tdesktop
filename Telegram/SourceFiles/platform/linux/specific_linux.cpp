@@ -283,6 +283,21 @@ bool GenerateDesktopFile(
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+bool GetImageFromClipboardSupported() {
+	return (Libs::gtk_clipboard_wait_for_contents != nullptr)
+		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
+		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
+		&& (Libs::gtk_selection_data_free != nullptr)
+		&& (Libs::gdk_pixbuf_get_pixels != nullptr)
+		&& (Libs::gdk_pixbuf_get_width != nullptr)
+		&& (Libs::gdk_pixbuf_get_height != nullptr)
+		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
+		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
+		&& (Libs::gdk_atom_intern != nullptr);
+}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
 std::optional<crl::time> XCBLastUserInputTime() {
 	if (const auto native = QGuiApplication::platformNativeInterface()) {
 		const auto connection = reinterpret_cast<xcb_connection_t*>(
@@ -793,40 +808,22 @@ QString GetIconName() {
 	return Result;
 }
 
-bool GtkClipboardSupported() {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	return (Libs::gtk_clipboard_get != nullptr)
-		&& (Libs::gtk_clipboard_wait_for_contents != nullptr)
-		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
-		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
-		&& (Libs::gtk_selection_data_free != nullptr)
-		&& (Libs::gdk_pixbuf_get_pixels != nullptr)
-		&& (Libs::gdk_pixbuf_get_width != nullptr)
-		&& (Libs::gdk_pixbuf_get_height != nullptr)
-		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
-		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
-		&& (Libs::gdk_atom_intern != nullptr);
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-
-	return false;
-}
-
 QImage GetImageFromClipboard() {
 	QImage data;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!GtkClipboardSupported() || !App::wnd()->gtkClipboard()) {
+	if (!GetImageFromClipboardSupported() || !Libs::GtkClipboard()) {
 		return data;
 	}
 
 	auto gsel = Libs::gtk_clipboard_wait_for_contents(
-		App::wnd()->gtkClipboard(),
+		Libs::GtkClipboard(),
 		Libs::gdk_atom_intern("TARGETS", true));
 
 	if (gsel) {
 		if (Libs::gtk_selection_data_targets_include_image(gsel, false)) {
 			auto img = Libs::gtk_clipboard_wait_for_image(
-				App::wnd()->gtkClipboard());
+				Libs::GtkClipboard());
 
 			if (img) {
 				data = QImage(

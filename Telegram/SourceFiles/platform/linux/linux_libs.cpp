@@ -251,6 +251,14 @@ f_gdk_pixbuf_get_rowstride gdk_pixbuf_get_rowstride = nullptr;
 bool GtkLoaded() {
 	return gtkLoaded;
 }
+
+::GtkClipboard *GtkClipboard() {
+	if (gtk_clipboard_get != nullptr) {
+		return gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+	}
+
+	return nullptr;
+}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
