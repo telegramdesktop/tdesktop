@@ -79,6 +79,7 @@ jobs:
 
       - name: First set up.
         run: |
+          sudo chown -R `whoami`:admin /usr/local/share
           brew install automake fdk-aac lame libass libtool libvorbis libvpx \
           ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
 
