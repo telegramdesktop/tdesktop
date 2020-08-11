@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 #include <QtGui/QDesktopServices>
+#include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <Shobjidl.h>
@@ -422,7 +423,7 @@ bool ShowWindowMenu(QWindow *window) {
 	const auto pos = QCursor::pos();
 
 	SendMessage(
-		window->winId(),
+		HWND(window->winId()),
 		WM_SYSCOMMAND,
 		SC_MOUSEMENU,
 		MAKELPARAM(pos.x(), pos.y()));
