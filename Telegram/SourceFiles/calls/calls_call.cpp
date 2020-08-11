@@ -46,9 +46,11 @@ constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
 const auto kDefaultVersion = "2.4.4"_q;
 
+#ifndef DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
 const auto RegisterTag = tgcalls::Register<tgcalls::InstanceImpl>();
-const auto RegisterTagLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 //const auto RegisterTagReference = tgcalls::Register<tgcalls::InstanceImplReference>();
+#endif // DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
+const auto RegisterTagLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
@@ -352,6 +354,7 @@ void Call::setupOutgoingVideo() {
 			_videoOutgoing->setState(started);
 		} else if (state != Webrtc::VideoState::Inactive) {
 			// Paused not supported right now.
+#ifndef DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
 				_videoCapture = tgcalls::VideoCaptureInterface::Create();
@@ -361,6 +364,7 @@ void Call::setupOutgoingVideo() {
 				_instance->setVideoCapture(_videoCapture);
 			}
 			_videoCapture->setState(tgcalls::VideoState::Active);
+#endif // DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
 		} else if (_videoCapture) {
 			_videoCapture->setState(tgcalls::VideoState::Inactive);
 		}
