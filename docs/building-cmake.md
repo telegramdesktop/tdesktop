@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b2ee1fb
+    git checkout deeea06
     cd ../
 
     git clone https://github.com/xiph/opus
@@ -272,6 +272,28 @@ Go to ***BuildPath*** and run
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
+
+    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    export PATH=`pwd`/depot_tools:$PATH
+
+    mkdir webrtc
+    cd webrtc
+    cp ../patches/webrtc/.gclient ./
+    git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
+    gclient sync
+    cd src
+    git apply ../../patches/webrtc/src.diff
+    cd build
+    git apply ../../../patches/webrtc/build.diff
+    cd ../third_party
+    git apply ../../../patches/webrtc/third_party.diff
+    cd libsrtp
+    git apply ../../../../patches/webrtc/libsrtp.diff
+    cd ../..
+    ../../patches/webrtc/configure.sh
+    ninja -C out/Debug webrtc
+    ninja -C out/Release webrtc
+    cd ../..
 
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp

@@ -27,13 +27,14 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
+* Download **depot_tools** archive from [https://storage.googleapis.com/chrome-infra/depot_tools.zip](https://storage.googleapis.com/chrome-infra/depot_tools.zip) and unpack to ***BuildPath*\\ThirdParty\\depot_tools**
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b2ee1fb
+    git checkout deeea06
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -47,6 +48,7 @@ Add **GYP** and **Ninja** to your PATH:
 * Press **Environment Variables...**
 * Select **Path**
 * Press **Edit**
+* Add ***BuildPath*\\ThirdParty\\depot_tools** value
 * Add ***BuildPath*\\ThirdParty\\gyp** value
 * Add ***BuildPath*\\ThirdParty\\Ninja** value
 
@@ -54,7 +56,7 @@ Add **GYP** and **Ninja** to your PATH:
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
-    SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
+    SET PATH=%cd%\ThirdParty\depot_tools;%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
@@ -65,7 +67,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7df6fdd
+    git checkout deeea06
     cd ..
 
     git clone https://github.com/desktop-app/lzma.git
@@ -165,13 +167,22 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     mkdir webrtc
     cd webrtc
-    copy ..\patches\webrtc.gclient .gclient
+    copy ..\patches\webrtc\.gclient .gclient
     git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
     gclient sync
     cd src
-    ..\..\..\tdesktop\Telegram\lib_webrtc\gn_build_webrtc.bat
-    ninja -C out/Debug webrtc test:platform_video_capturer test:video_test_common
-    cd ..
+    git apply ../../patches/webrtc/src.diff
+    cd build
+    git apply ../../../patches/webrtc/build.diff
+    cd ..\third_party
+    git apply ../../../patches/webrtc/third_party.diff
+    cd libsrtp
+    git apply ../../../../patches/webrtc/libsrtp.diff
+    cd ..\..
+    ..\..\patches\webrtc\configure.bat
+    ninja -C out/Debug webrtc
+    ninja -C out/Release webrtc
+    cd ..\..
 
 ## Build the project
 
