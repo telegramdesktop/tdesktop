@@ -27,10 +27,10 @@ enum class VideoState;
 enum class AudioState;
 } // namespace tgcalls
 
-namespace webrtc {
+namespace Webrtc {
 enum class VideoState;
 class VideoTrack;
-} // namespace webrtc
+} // namespace Webrtc
 
 namespace Calls {
 
@@ -117,11 +117,11 @@ public:
 		return _remoteAudioState.value();
 	}
 
-	[[nodiscard]] webrtc::VideoState remoteVideoState() const {
+	[[nodiscard]] Webrtc::VideoState remoteVideoState() const {
 		return _remoteVideoState.current();
 	}
 	[[nodiscard]] auto remoteVideoStateValue() const
-	-> rpl::producer<webrtc::VideoState> {
+	-> rpl::producer<Webrtc::VideoState> {
 		return _remoteVideoState.value();
 	}
 
@@ -140,8 +140,8 @@ public:
 		return _muted.value();
 	}
 
-	[[nodiscard]] not_null<webrtc::VideoTrack*> videoIncoming() const;
-	[[nodiscard]] not_null<webrtc::VideoTrack*> videoOutgoing() const;
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> videoIncoming() const;
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> videoOutgoing() const;
 
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
@@ -212,7 +212,7 @@ private:
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
 	rpl::variable<RemoteAudioState> _remoteAudioState = RemoteAudioState::Active;
-	rpl::variable<webrtc::VideoState> _remoteVideoState;
+	rpl::variable<Webrtc::VideoState> _remoteVideoState;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
 	rpl::variable<int> _signalBarCount = kSignalBarStarting;
@@ -236,8 +236,8 @@ private:
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
-	const std::unique_ptr<webrtc::VideoTrack> _videoIncoming;
-	const std::unique_ptr<webrtc::VideoTrack> _videoOutgoing;
+	const std::unique_ptr<Webrtc::VideoTrack> _videoIncoming;
+	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

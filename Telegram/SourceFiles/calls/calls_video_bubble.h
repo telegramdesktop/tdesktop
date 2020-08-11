@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace webrtc {
+namespace Webrtc {
 class VideoTrack;
 enum class VideoState;
-} // namespace webrtc
+} // namespace Webrtc
 
 namespace Calls {
 
@@ -20,7 +20,7 @@ class VideoBubble final {
 public:
 	VideoBubble(
 		not_null<QWidget*> parent,
-		not_null<webrtc::VideoTrack*> track);
+		not_null<Webrtc::VideoTrack*> track);
 
 	enum class DragMode {
 		None,
@@ -39,7 +39,7 @@ public:
 private:
 	void setup();
 	void paint();
-	void setState(webrtc::VideoState state);
+	void setState(Webrtc::VideoState state);
 	void applyDragMode(DragMode mode);
 	void applyBoundingRect(QRect rect);
 	void applySizeConstraints(QSize min, QSize max);
@@ -49,8 +49,8 @@ private:
 	void prepareFrame();
 
 	Ui::RpWidget _content;
-	const not_null<webrtc::VideoTrack*> _track;
-	webrtc::VideoState _state = webrtc::VideoState();
+	const not_null<Webrtc::VideoTrack*> _track;
+	Webrtc::VideoState _state = Webrtc::VideoState();
 	QImage _frame, _pausedFrame;
 	QSize _min, _max, _size, _lastDraggableSize, _lastFrameSize;
 	QRect _boundingRect;

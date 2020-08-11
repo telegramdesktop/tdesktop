@@ -5,7 +5,13 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(lib_tgcalls STATIC)
+
+if (LINUX)
+init_target(lib_tgcalls) # All C++20 on Linux, because otherwise ODR violation.
+else()
 init_target(lib_tgcalls cxx_std_14)
+endif()
+
 add_library(tdesktop::lib_tgcalls ALIAS lib_tgcalls)
 
 set(tgcalls_dir ${third_party_loc}/tgcalls)
@@ -43,16 +49,14 @@ PRIVATE
     platform/PlatformInterface.h
 
     # Teleram Desktop
+    platform/tdesktop/DesktopInterface.cpp
+    platform/tdesktop/DesktopInterface.h
     platform/tdesktop/VideoCapturerInterfaceImpl.cpp
     platform/tdesktop/VideoCapturerInterfaceImpl.h
     platform/tdesktop/VideoCapturerTrackSource.cpp
     platform/tdesktop/VideoCapturerTrackSource.h
     platform/tdesktop/VideoCameraCapturer.cpp
     platform/tdesktop/VideoCameraCapturer.h
-
-    # Windows
-    platform/windows/WindowsInterface.cpp
-    platform/windows/WindowsInterface.h
 
     # iOS / macOS
     platform/darwin/DarwinInterface.h
@@ -83,8 +87,6 @@ PRIVATE
     platform/darwin/VideoMetalView.mm
     platform/darwin/VideoMetalViewMac.h
     platform/darwin/VideoMetalViewMac.mm
-
-    # Linux
 
     # POSIX
 
@@ -121,6 +123,8 @@ elseif (APPLE)
         platform/darwin/VideoMetalView.mm
         platform/darwin/VideoMetalViewMac.h
         platform/darwin/VideoMetalViewMac.mm
+        platform/tdesktop/DesktopInterface.cpp
+        platform/tdesktop/DesktopInterface.h
         platform/tdesktop/VideoCapturerTrackSource.cpp
         platform/tdesktop/VideoCapturerTrackSource.h
         platform/tdesktop/VideoCapturerInterfaceImpl.cpp
@@ -146,7 +150,13 @@ PRIVATE
 )
 
 add_library(lib_tgcalls_legacy STATIC)
-init_target(lib_tgcalls_legacy cxx_std_14)
+
+if (LINUX)
+    init_target(lib_tgcalls_legacy) # All C++20 on Linux, because otherwise ODR violation.
+else()
+    init_target(lib_tgcalls_legacy cxx_std_14)
+endif()
+
 add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
 
 nice_target_sources(lib_tgcalls_legacy ${tgcalls_loc}

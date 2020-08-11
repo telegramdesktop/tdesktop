@@ -18,10 +18,10 @@ namespace Calls {
 
 VideoBubble::VideoBubble(
 	not_null<QWidget*> parent,
-	not_null<webrtc::VideoTrack*> track)
+	not_null<Webrtc::VideoTrack*> track)
 : _content(parent)
 , _track(track)
-, _state(webrtc::VideoState::Inactive) {
+, _state(Webrtc::VideoState::Inactive) {
 	setup();
 }
 
@@ -35,7 +35,7 @@ void VideoBubble::setup() {
 	}, lifetime());
 
 	_track->stateValue(
-	) | rpl::start_with_next([=](webrtc::VideoState state) {
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		setState(state);
 	}, lifetime());
 
@@ -137,7 +137,7 @@ void VideoBubble::prepareFrame() {
 		* cIntRetinaFactor();
 
 	// Should we check 'original' and 'size' aspect ratios?..
-	const auto request = webrtc::FrameRequest{
+	const auto request = Webrtc::FrameRequest{
 		.resize = size,
 		.outer = size,
 	};
@@ -165,13 +165,13 @@ void VideoBubble::prepareFrame() {
 		QRect(QPoint(), size));
 }
 
-void VideoBubble::setState(webrtc::VideoState state) {
-	if (state == webrtc::VideoState::Paused) {
+void VideoBubble::setState(Webrtc::VideoState state) {
+	if (state == Webrtc::VideoState::Paused) {
 		using namespace Images;
 		static constexpr auto kRadius = 24;
 		_pausedFrame = Images::BlurLargeImage(_track->frame({}), kRadius);
 		if (_pausedFrame.isNull()) {
-			state = webrtc::VideoState::Inactive;
+			state = Webrtc::VideoState::Inactive;
 		}
 	}
 	_state = state;
@@ -240,7 +240,7 @@ void VideoBubble::setInnerSize(QSize size) {
 
 void VideoBubble::updateVisibility() {
 	const auto size = _track->frameSize();
-	const auto visible = (_state != webrtc::VideoState::Inactive)
+	const auto visible = (_state != Webrtc::VideoState::Inactive)
 		&& !size.isEmpty();
 	if (visible) {
 		updateSizeToFrame(size);

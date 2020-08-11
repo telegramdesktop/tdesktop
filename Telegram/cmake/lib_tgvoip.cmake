@@ -14,7 +14,13 @@ if (TDESKTOP_USE_PACKAGED_TGVOIP AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
     target_link_libraries(lib_tgvoip INTERFACE PkgConfig::TGVOIP)
 else()
     add_library(lib_tgvoip STATIC)
-    init_target(lib_tgvoip cxx_std_14)
+
+    if (LINUX)
+        init_target(lib_tgvoip) # All C++20 on Linux, because otherwise ODR violation.
+    else()
+        init_target(lib_tgvoip cxx_std_14)
+    endif()
+
     add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
     set(tgvoip_loc ${third_party_loc}/libtgvoip)

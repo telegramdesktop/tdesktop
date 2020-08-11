@@ -312,9 +312,9 @@ void Panel::initControls() {
 	_camera->setClickedCallback([=] {
 		if (_call) {
 			_call->videoOutgoing()->setState(
-				(_call->videoOutgoing()->state() == webrtc::VideoState::Active)
-				? webrtc::VideoState::Inactive
-				: webrtc::VideoState::Active);
+				(_call->videoOutgoing()->state() == Webrtc::VideoState::Active)
+				? Webrtc::VideoState::Inactive
+				: Webrtc::VideoState::Active);
 		}
 	});
 
@@ -399,8 +399,8 @@ void Panel::reinitWithCall(Call *call) {
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
-	) | rpl::start_with_next([=](webrtc::VideoState state) {
-		_camera->setIconOverride((state == webrtc::VideoState::Active)
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+		_camera->setIconOverride((state == Webrtc::VideoState::Active)
 			? nullptr
 			: &st::callNoCameraIcon);
 	}, _callLifetime);
@@ -547,7 +547,7 @@ void Panel::initGeometry() {
 
 void Panel::refreshOutgoingPreviewInBody(State state) {
 	const auto inBody = (state != State::Established)
-		&& (_call->videoOutgoing()->state() != webrtc::VideoState::Inactive)
+		&& (_call->videoOutgoing()->state() != Webrtc::VideoState::Inactive)
 		&& !_call->videoOutgoing()->frameSize().isEmpty();
 	if (_outgoingPreviewInBody == inBody) {
 		return;
@@ -722,7 +722,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	const auto incomingFrame = _call
-		? _call->videoIncoming()->frame(webrtc::FrameRequest())
+		? _call->videoIncoming()->frame(Webrtc::FrameRequest())
 		: QImage();
 	if (!incomingFrame.isNull()) {
 		const auto to = rect().marginsRemoved(_padding);
@@ -877,7 +877,7 @@ void Panel::stateChanged(State state) {
 }
 
 bool Panel::hasActiveVideo() const {
-	const auto inactive = webrtc::VideoState::Inactive;
+	const auto inactive = Webrtc::VideoState::Inactive;
 	return (_call->videoIncoming()->state() != inactive)
 		|| (_call->videoOutgoing()->state() != inactive);
 }

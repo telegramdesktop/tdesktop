@@ -87,7 +87,7 @@ void AppendServer(
 				if (host.isEmpty()) {
 					return;
 				}
-				list.push_back({
+				list.push_back(tgcalls::RtcServer{
 					.host = host.toStdString(),
 					.port = port,
 					.isTurn = false
@@ -100,7 +100,7 @@ void AppendServer(
 		const auto password = qs(data.vpassword());
 		if (data.is_turn() && !username.isEmpty() && !password.isEmpty()) {
 			const auto pushTurn = [&](const QString &host) {
-				list.push_back({
+				list.push_back(tgcalls::RtcServer{
 					.host = host.toStdString(),
 					.port = port,
 					.login = username.toStdString(),
@@ -143,8 +143,8 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 	return WrapVersions(tgcalls::Meta::Versions() | ranges::action::reverse);
 }
 
-[[nodiscard]] webrtc::VideoState StartVideoState(bool enabled) {
-	using State = webrtc::VideoState;
+[[nodiscard]] Webrtc::VideoState StartVideoState(bool enabled) {
+	using State = Webrtc::VideoState;
 	return enabled ? State::Active : State::Inactive;
 }
 
@@ -159,8 +159,8 @@ Call::Call(
 , _user(user)
 , _api(&_user->session().mtp())
 , _type(type)
-, _videoIncoming(std::make_unique<webrtc::VideoTrack>(StartVideoState(video)))
-, _videoOutgoing(std::make_unique<webrtc::VideoTrack>(StartVideoState(video))) {
+, _videoIncoming(std::make_unique<Webrtc::VideoTrack>(StartVideoState(video)))
+, _videoOutgoing(std::make_unique<Webrtc::VideoTrack>(StartVideoState(video))) {
 	_discardByTimeoutTimer.setCallback([=] { hangup(); });
 
 	if (_type == Type::Outgoing) {
@@ -345,14 +345,14 @@ void Call::setMuted(bool mute) {
 void Call::setupOutgoingVideo() {
 	const auto started = _videoOutgoing->state();
 	_videoOutgoing->stateValue(
-	) | rpl::start_with_next([=](webrtc::VideoState state) {
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		if (_state.current() != State::Established
 			&& state != started
 			&& !_videoCapture) {
 			_videoOutgoing->setState(started);
-		} else if (state != webrtc::VideoState::Inactive) {
+		} else if (state != Webrtc::VideoState::Inactive) {
 			// Paused not supported right now.
-			Assert(state == webrtc::VideoState::Active);
+			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
 				_videoCapture = tgcalls::VideoCaptureInterface::Create();
 				_videoCapture->setOutput(_videoOutgoing->sink());
@@ -367,11 +367,11 @@ void Call::setupOutgoingVideo() {
 	}, _lifetime);
 }
 
-not_null<webrtc::VideoTrack*> Call::videoIncoming() const {
+not_null<Webrtc::VideoTrack*> Call::videoIncoming() const {
 	return _videoIncoming.get();
 }
 
-not_null<webrtc::VideoTrack*> Call::videoOutgoing() const {
+not_null<Webrtc::VideoTrack*> Call::videoOutgoing() const {
 	return _videoOutgoing.get();
 }
 
@@ -589,7 +589,7 @@ void Call::updateRemoteMediaState(
 	}();
 	_videoIncoming->setState([&] {
 		using From = tgcalls::VideoState;
-		using To = webrtc::VideoState;
+		using To = Webrtc::VideoState;
 		switch (video) {
 		case From::Inactive: return To::Inactive;
 		case From::Paused: return To::Paused;
@@ -992,8 +992,8 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _instance ? _instance->getPreferredRelayId() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
-	const auto flags = ((_videoIncoming->state() != webrtc::VideoState::Inactive)
-		|| (_videoOutgoing->state() != webrtc::VideoState::Inactive))
+	const auto flags = ((_videoIncoming->state() != Webrtc::VideoState::Inactive)
+		|| (_videoOutgoing->state() != Webrtc::VideoState::Inactive))
 		? MTPphone_DiscardCall::Flag::f_video
 		: MTPphone_DiscardCall::Flag(0);
 	_api.request(MTPphone_DiscardCall(
