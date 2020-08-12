@@ -261,6 +261,7 @@ callSignalMargin: 8px;
 callSignalPadding: 4px;
 
 callTitle: WindowTitle(defaultWindowTitle) {
+	height: 0px;
 	bg: callBgOpaque;
 	bgActive: callBgOpaque;
 	fg: transparent;
