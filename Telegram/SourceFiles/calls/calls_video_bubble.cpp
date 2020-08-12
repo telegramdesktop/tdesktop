@@ -118,10 +118,13 @@ void VideoBubble::paint() {
 		const auto padding = st::boxRoundShadow.extend;
 		const auto inner = _content.rect().marginsRemoved(padding);
 		Ui::Shadow::paint(p, inner, _content.width(), st::boxRoundShadow);
+		const auto factor = cIntRetinaFactor();
 		p.drawImage(
 			inner,
 			_frame,
-			QRect(QPoint(), inner.size() * cIntRetinaFactor()));
+			QRect(
+				QPoint(_frame.width() - (inner.width() * factor), 0),
+				inner.size() * factor));
 	}
 	_track->markFrameShown();
 }
@@ -144,7 +147,7 @@ void VideoBubble::prepareFrame() {
 	const auto frame = _track->frame(request);
 	if (_frame.width() < size.width() || _frame.height() < size.height()) {
 		_frame = QImage(
-			_max * cIntRetinaFactor(),
+			size * cIntRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	Assert(_frame.width() >= frame.width()
@@ -163,6 +166,7 @@ void VideoBubble::prepareFrame() {
 		ImageRoundRadius::Large,
 		RectPart::AllCorners,
 		QRect(QPoint(), size));
+	_frame = std::move(_frame).mirrored(true, false);
 }
 
 void VideoBubble::setState(Webrtc::VideoState state) {
