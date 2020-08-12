@@ -53,15 +53,15 @@ if (NOT DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION)
 
         platform/PlatformInterface.h
 
-        # Teleram Desktop
-        platform/tdesktop/DesktopInterface.cpp
-        platform/tdesktop/DesktopInterface.h
-        platform/tdesktop/VideoCapturerInterfaceImpl.cpp
-        platform/tdesktop/VideoCapturerInterfaceImpl.h
-        platform/tdesktop/VideoCapturerTrackSource.cpp
-        platform/tdesktop/VideoCapturerTrackSource.h
-        platform/tdesktop/VideoCameraCapturer.cpp
-        platform/tdesktop/VideoCameraCapturer.h
+        # Android
+        platform/android/AndroidContext.cpp
+        platform/android/AndroidContext.h
+        platform/android/AndroidInterface.cpp
+        platform/android/AndroidInterface.h
+        platform/android/VideoCameraCapturer.cpp
+        platform/android/VideoCameraCapturer.h
+        platform/android/VideoCapturerInterfaceImpl.cpp
+        platform/android/VideoCapturerInterfaceImpl.h
 
         # iOS / macOS
         platform/darwin/DarwinInterface.h
@@ -95,6 +95,17 @@ if (NOT DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION)
 
         # POSIX
 
+        # Teleram Desktop
+        platform/tdesktop/DesktopInterface.cpp
+        platform/tdesktop/DesktopInterface.h
+        platform/tdesktop/VideoCapturerInterfaceImpl.cpp
+        platform/tdesktop/VideoCapturerInterfaceImpl.h
+        platform/tdesktop/VideoCapturerTrackSource.cpp
+        platform/tdesktop/VideoCapturerTrackSource.h
+        platform/tdesktop/VideoCameraCapturer.cpp
+        platform/tdesktop/VideoCameraCapturer.h
+
+        # All
         reference/InstanceImplReference.cpp
         reference/InstanceImplReference.h
     )
@@ -149,6 +160,17 @@ else()
         WEBRTC_LINUX
     )
 endif()
+
+remove_target_sources(lib_tgcalls ${tgcalls_loc}
+    platform/android/AndroidContext.cpp
+    platform/android/AndroidContext.h
+    platform/android/AndroidInterface.cpp
+    platform/android/AndroidInterface.h
+    platform/android/VideoCameraCapturer.cpp
+    platform/android/VideoCameraCapturer.h
+    platform/android/VideoCapturerInterfaceImpl.cpp
+    platform/android/VideoCapturerInterfaceImpl.h
+)
 
 target_include_directories(lib_tgcalls
 PUBLIC

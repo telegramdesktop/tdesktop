@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
+#include <QtGui/QWindow>
 
 namespace Calls {
 namespace {
@@ -296,25 +297,59 @@ void Panel::initWindow() {
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitle(u" "_q);
+	_window->setTitleStyle(st::callTitle);
 
 	_window->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
 			handleClose();
+		} else if (e->type() == QEvent::KeyPress) {
+			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
+				&& _window->isFullScreen()) {
+				_window->showNormal();
+			}
 		}
 	}, _window->lifetime());
 
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
-		return !_fingerprintArea.contains(widgetPoint)
-			&& !QRect(
+		const auto inControls = _fingerprintArea.contains(widgetPoint)
+			|| QRect(
 				(widget()->width() - buttonsWidth) / 2,
 				_answerHangupRedial->y(),
 				buttonsWidth,
 				_answerHangupRedial->height()).contains(widgetPoint)
-			&& !_outgoingVideoBubble->geometry().contains(widgetPoint);
+			|| (!_outgoingPreviewInBody
+				&& _outgoingVideoBubble->geometry().contains(widgetPoint));
+		using Flag = Ui::WindowTitleHitTestFlag;
+		return inControls
+			? Flag::None
+			: (Flag::Move | Flag::FullScreen);
 	});
+
+#ifdef Q_OS_WIN
+	// On Windows we replace snap-to-top maximizing with fullscreen.
+	//
+	// We have to switch first to showNormal, so that showFullScreen
+	// will remember correct normal window geometry and next showNormal
+	// will show it instead of a moving maximized window.
+	//
+	// We have to do it in InvokeQueued, otherwise it still captures
+	// the maximized window geometry and saves it.
+	//
+	// I couldn't find a less glitchy way to do that *sigh*.
+	const auto object = _window->windowHandle();
+	const auto signal = &QWindow::windowStateChanged;
+	QObject::connect(object, signal, [=](Qt::WindowState state) {
+		if (state == Qt::WindowMaximized) {
+			InvokeQueued(object, [=] {
+				_window->showNormal();
+				_window->showFullScreen();
+			});
+		}
+	});
+#endif // Q_OS_WIN
 }
 
 void Panel::initWidget() {
@@ -444,7 +479,9 @@ void Panel::reinitWithCall(Call *call) {
 		stateChanged(state);
 	}, _callLifetime);
 
-	_call->videoIncoming()->renderNextFrame(
+	rpl::merge(
+		_call->videoIncoming()->renderNextFrame(),
+		_call->videoOutgoing()->renderNextFrame()
 	) | rpl::start_with_next([=] {
 		setIncomingShown(!_call->videoIncoming()->frame({}).isNull());
 		widget()->update();
@@ -503,7 +540,6 @@ void Panel::initGeometry() {
 	const auto initRect = QRect(0, 0, st::callWidth, st::callHeight);
 	_window->setGeometry(initRect.translated(center - initRect.center()));
 	_window->setMinimumSize({ st::callWidthMin, st::callHeightMin });
-	_window->setTitleStyle(st::callTitle);
 	_window->show();
 	updateControlsGeometry();
 }

@@ -45,7 +45,11 @@ void VideoBubble::setup() {
 			_track->markFrameShown();
 		} else {
 			updateVisibility();
-			_content.update();
+			// We update whole parent widget in this case.
+			// In case we update only bubble without the parent incoming
+			// video frame we may get full parent of old frame with a
+			// rectangular piece of a new frame rendered with that update().
+			//_content.update();
 		}
 	}, lifetime());
 }
