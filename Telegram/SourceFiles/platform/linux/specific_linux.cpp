@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "platform/linux/linux_notification_service_watcher.h"
+#include "platform/linux/linux_mpris_support.h"
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -347,12 +348,25 @@ void SetGtkScaleFactor() {
 
 void SetWatchingMediaKeys(bool watching) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static std::unique_ptr<internal::GSDMediaKeys> Instance;
+	static std::unique_ptr<internal::MPRISSupport> MPRISInstance;
+	static std::unique_ptr<internal::GSDMediaKeys> GSDInstance;
 
-	if (watching && !Instance) {
-		Instance = std::make_unique<internal::GSDMediaKeys>();
-	} else if (!watching && Instance) {
-		Instance = nullptr;
+	if (watching) {
+		if (!MPRISInstance) {
+			MPRISInstance = std::make_unique<internal::MPRISSupport>();
+		}
+
+		if (!GSDInstance) {
+			GSDInstance = std::make_unique<internal::GSDMediaKeys>();
+		}
+	} else {
+		if (MPRISInstance) {
+			MPRISInstance = nullptr;
+		}
+
+		if (GSDInstance) {
+			GSDInstance = nullptr;
+		}
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
