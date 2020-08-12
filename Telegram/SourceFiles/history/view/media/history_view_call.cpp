@@ -105,7 +105,13 @@ void Call::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 	p.setPen(statusFg);
 	p.drawTextLeft(statusleft, statustop, paintw, _status);
 
-	auto &icon = outbg ? (selected ? st::historyCallOutIconSelected : st::historyCallOutIcon) : (selected ? st::historyCallInIconSelected : st::historyCallInIcon);
+	const auto &icon = _video
+		? (outbg
+			? (selected ? st::historyCallCameraOutIconSelected : st::historyCallCameraOutIcon)
+			: (selected ? st::historyCallCameraInIconSelected : st::historyCallCameraInIcon))
+		: (outbg
+			? (selected ? st::historyCallOutIconSelected : st::historyCallOutIcon)
+			: (selected ? st::historyCallInIconSelected : st::historyCallInIcon));
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }
 
