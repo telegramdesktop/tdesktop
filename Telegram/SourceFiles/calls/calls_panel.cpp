@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/window.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/wrap/fade_wrap.h"
@@ -50,7 +51,7 @@ constexpr auto kTooltipShowTimeoutMs = 1000;
 
 } // namespace
 
-class Panel::Button : public Ui::RippleButton {
+class Panel::Button final : public Ui::RippleButton {
 public:
 	Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo = nullptr);
 
@@ -86,7 +87,8 @@ private:
 
 };
 
-Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo) : Ui::RippleButton(parent, stFrom.button.ripple)
+Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo)
+: Ui::RippleButton(parent, stFrom.button.ripple)
 , _stFrom(&stFrom)
 , _stTo(stTo) {
 	resize(_stFrom->button.width, _stFrom->button.height);
@@ -255,22 +257,22 @@ QImage Panel::Button::prepareRippleMask() const {
 }
 
 Panel::Panel(not_null<Call*> call)
-: RpWidget(Core::App().getModalParent())
-, _call(call)
+: _call(call)
 , _user(call->user())
+, _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
 , _bodySt(&st::callBodyLayout)
-, _answerHangupRedial(this, st::callAnswer, &st::callHangup)
-, _decline(this, object_ptr<Button>(this, st::callHangup))
-, _cancel(this, object_ptr<Button>(this, st::callCancel))
-, _camera(this, st::callCameraToggle)
-, _mute(this, st::callMuteToggle)
-, _name(this, st::callName)
-, _status(this, st::callStatus) {
+, _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
+, _decline(widget(), object_ptr<Button>(widget(), st::callHangup))
+, _cancel(widget(), object_ptr<Button>(widget(), st::callCancel))
+, _camera(widget(), st::callCameraToggle)
+, _mute(widget(), st::callMuteToggle)
+, _name(widget(), st::callName)
+, _status(widget(), st::callStatus) {
 	_decline->setDuration(st::callPanelDuration);
 	_cancel->setDuration(st::callPanelDuration);
 
-	setMouseTracking(true);
-	setWindowIcon(Window::CreateIcon(&_user->session()));
+	initWindow();
+	initWidget();
 	initControls();
 	initLayout();
 	showAndActivate();
@@ -279,11 +281,10 @@ Panel::Panel(not_null<Call*> call)
 Panel::~Panel() = default;
 
 void Panel::showAndActivate() {
-	toggleOpacityAnimation(true);
-	raise();
-	setWindowState(windowState() | Qt::WindowActive);
-	activateWindow();
-	setFocus();
+	_window->raise();
+	_window->setWindowState(_window->windowState() | Qt::WindowActive);
+	_window->activateWindow();
+	_window->setFocus();
 }
 
 void Panel::replaceCall(not_null<Call*> call) {
@@ -291,15 +292,47 @@ void Panel::replaceCall(not_null<Call*> call) {
 	updateControlsGeometry();
 }
 
-bool Panel::eventHook(QEvent *e) {
-	if (e->type() == QEvent::WindowDeactivate) {
-		checkForInactiveHide();
-	}
-	return RpWidget::eventHook(e);
+void Panel::initWindow() {
+	_window->setWindowIcon(
+		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
+	_window->setTitle(u" "_q);
+
+	_window->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Close) {
+			handleClose();
+		}
+	}, _window->lifetime());
+
+	_window->setBodyTitleArea([=](QPoint widgetPoint) {
+		const auto buttonWidth = st::callCancel.button.width;
+		const auto buttonsWidth = buttonWidth * 4;
+		return !_fingerprintArea.contains(widgetPoint)
+			&& !QRect(
+				(widget()->width() - buttonsWidth) / 2,
+				_answerHangupRedial->y(),
+				buttonsWidth,
+				_answerHangupRedial->height()).contains(widgetPoint)
+			&& !_outgoingVideoBubble->geometry().contains(widgetPoint);
+	});
 }
 
-void Panel::hideDeactivated() {
-	toggleOpacityAnimation(false);
+void Panel::initWidget() {
+	widget()->setMouseTracking(true);
+
+	widget()->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		paint(clip);
+	}, widget()->lifetime());
+
+	widget()->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseMove) {
+			handleMouseMove(static_cast<QMouseEvent*>(e.get()));
+		} else if (e->type() == QEvent::Resize) {
+			updateControlsGeometry();
+		}
+	}, widget()->lifetime());
 }
 
 void Panel::initControls() {
@@ -363,9 +396,7 @@ void Panel::setIncomingShown(bool shown) {
 		return;
 	}
 	_incomingShown = shown;
-	if (_animationCache.isNull()) {
-		showControls();
-	}
+	showControls();
 }
 
 void Panel::reinitWithCall(Call *call) {
@@ -379,18 +410,21 @@ void Panel::reinitWithCall(Call *call) {
 	_user = _call->user();
 
 	_signalBars.create(
-		this,
+		widget(),
 		_call,
 		st::callPanelSignalBars,
-		[=] { rtlupdate(signalBarsRect()); });
+		[=] { widget()->rtlupdate(signalBarsRect()); });
 
 	auto remoteMuted = _call->remoteAudioStateValue(
 	) | rpl::map([=](Call::RemoteAudioState state) {
 		return (state == Call::RemoteAudioState::Muted);
 	});
-	_userpic = std::make_unique<Userpic>(this, _user, std::move(remoteMuted));
+	_userpic = std::make_unique<Userpic>(
+		widget(),
+		_user,
+		std::move(remoteMuted));
 	_outgoingVideoBubble = std::make_unique<VideoBubble>(
-		this,
+		widget(),
 		_call->videoOutgoing());
 
 	_call->mutedValue(
@@ -413,14 +447,7 @@ void Panel::reinitWithCall(Call *call) {
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
 		setIncomingShown(!_call->videoIncoming()->frame({}).isNull());
-		update();
-	}, _callLifetime);
-
-	rpl::merge(
-		_call->videoIncoming()->stateChanges(),
-		_call->videoOutgoing()->stateChanges()
-	) | rpl::start_with_next([=] {
-		checkForInactiveShow();
+		widget()->update();
 	}, _callLifetime);
 
 	rpl::combine(
@@ -441,11 +468,6 @@ void Panel::reinitWithCall(Call *call) {
 }
 
 void Panel::initLayout() {
-	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::NoDropShadowWindowHint | Qt::Dialog);
-	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
-	setAttribute(Qt::WA_NoSystemBackground);
-	setAttribute(Qt::WA_TranslucentBackground);
-
 	initGeometry();
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
@@ -457,56 +479,13 @@ void Panel::initLayout() {
 	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		_name->setText(_call->user()->name);
 		updateControlsGeometry();
-	}, lifetime());
-
-	createDefaultCacheImage();
-
-	Ui::Platform::InitOnTopPanel(this);
-}
-
-void Panel::toggleOpacityAnimation(bool visible) {
-	if (!_call || _visible == visible) {
-		return;
-	}
-
-	_visible = visible;
-	if (_useTransparency) {
-		if (_animationCache.isNull()) {
-			showControls();
-			_animationCache = Ui::GrabWidget(this);
-			hideChildren();
-		}
-		_opacityAnimation.start(
-			[this] { update(); },
-			_visible ? 0. : 1.,
-			_visible ? 1. : 0.,
-			st::callPanelDuration,
-			_visible ? anim::easeOutCirc : anim::easeInCirc);
-	} else if (!isHidden() && !_visible) {
-		hide();
-	}
-	if (isHidden() && _visible) {
-		show();
-	}
-}
-
-void Panel::finishAnimating() {
-	_animationCache = QPixmap();
-	if (_call) {
-		if (!_visible) {
-			hide();
-		} else {
-			showControls();
-		}
-	} else {
-		destroyDelayed();
-	}
+	}, widget()->lifetime());
 }
 
 void Panel::showControls() {
 	Expects(_call != nullptr);
 
-	showChildren();
+	widget()->showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
 	_name->setVisible(!_incomingShown);
@@ -514,34 +493,18 @@ void Panel::showControls() {
 	_userpic->setVisible(!_incomingShown);
 }
 
-void Panel::destroyDelayed() {
-	hide();
-	crl::on_main(this, [=] {
-		delete this;
-	});
-}
-
-void Panel::hideAndDestroy() {
-	toggleOpacityAnimation(false);
+void Panel::hideBeforeDestroy() {
+	_window->hide();
 	reinitWithCall(nullptr);
-	if (_animationCache.isNull()) {
-		destroyDelayed();
-	}
 }
 
 void Panel::initGeometry() {
 	const auto center = Core::App().getPointForCallPanelCenter();
-	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
-	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
-	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
-	const auto rect = [&] {
-		const QRect initRect(0, 0, st::callWidth, st::callHeight);
-		return initRect.translated(center - initRect.center()).marginsAdded(_padding);
-	}();
-	setGeometry(rect);
-	setMinimumSize(rect.size());
-	setMaximumSize(rect.size());
-	createBottomImage();
+	const auto initRect = QRect(0, 0, st::callWidth, st::callHeight);
+	_window->setGeometry(initRect.translated(center - initRect.center()));
+	_window->setMinimumSize({ st::callWidthMin, st::callHeightMin });
+	_window->setTitleStyle(st::callTitle);
+	_window->show();
 	updateControlsGeometry();
 }
 
@@ -557,56 +520,32 @@ void Panel::refreshOutgoingPreviewInBody(State state) {
 	updateControlsGeometry();
 }
 
-void Panel::createBottomImage() {
-	if (!_useTransparency) {
-		return;
-	}
-	auto bottomWidth = width();
-	auto bottomHeight = height();
-	auto image = QImage(QSize(bottomWidth, bottomHeight) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	const auto inner = rect().marginsRemoved(_padding);
-	image.fill(Qt::transparent);
-	{
-		Painter p(&image);
-		Ui::Shadow::paint(p, inner, width(), st::callShadow);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setBrush(st::callBg);
-		p.setPen(Qt::NoPen);
-		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(inner, st::callRadius, st::callRadius);
-	}
-	_bottomCache = App::pixmapFromImageInPlace(std::move(image));
-}
-
-void Panel::createDefaultCacheImage() {
-	if (!_useTransparency || !_cache.isNull()) {
-		return;
-	}
-	auto cache = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(cRetinaFactor());
-	cache.fill(Qt::transparent);
-	{
-		Painter p(&cache);
-		auto inner = rect().marginsRemoved(_padding);
-		Ui::Shadow::paint(p, inner, width(), st::callShadow);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setBrush(st::callBg);
-		p.setPen(Qt::NoPen);
-		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(inner), st::callRadius, st::callRadius);
-	}
-	_cache = App::pixmapFromImageInPlace(std::move(cache));
-}
-
-void Panel::resizeEvent(QResizeEvent *e) {
-	updateControlsGeometry();
+void Panel::updateFingerprintGeometry() {
+	auto realSize = Ui::Emoji::GetSizeLarge();
+	auto size = realSize / cIntRetinaFactor();
+	auto count = _fingerprint.size();
+	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
+	auto rectHeight = size;
+	auto left = (widget()->width() - rectWidth) / 2;
+	_fingerprintArea = QRect(
+		left,
+		st::callFingerprintTop + st::callFingerprintPadding.top(),
+		rectWidth,
+		rectHeight
+	).marginsAdded(st::callFingerprintPadding);
+	_fingerprintHeight = st::callFingerprintTop + _fingerprintArea.height() + st::callFingerprintBottom;
 }
 
 void Panel::updateControlsGeometry() {
-	const auto innerHeight = height() - _padding.top() - _padding.bottom();
-	const auto availableTop = _padding.top() + _fingerprintHeight;
-	const auto available = height()
-		- (st::callBottomControlsHeight + _padding.bottom())
+	if (widget()->width() < st::callWidthMin
+		|| widget()->height() < st::callHeightMin) {
+		return;
+	}
+	updateFingerprintGeometry();
+	const auto innerHeight = widget()->height();
+	const auto availableTop = _fingerprintHeight;
+	const auto available = widget()->height()
+		- st::callBottomControlsHeight
 		- availableTop;
 	const auto bodyPreviewSizeMax = st::callOutgoingPreviewMin
 		+ ((st::callOutgoingPreview
@@ -627,12 +566,12 @@ void Panel::updateControlsGeometry() {
 	const auto previewTop = _bodyTop + _bodySt->height + skipHeight;
 
 	_userpic->setGeometry(
-		(width() - _bodySt->photoSize) / 2,
+		(widget()->width() - _bodySt->photoSize) / 2,
 		_bodyTop + _bodySt->photoTop,
 		_bodySt->photoSize);
 
 	_name->moveToLeft(
-		(width() - _name->width()) / 2,
+		(widget()->width() - _name->width()) / 2,
 		_bodyTop + _bodySt->nameTop);
 	updateStatusGeometry();
 
@@ -640,7 +579,7 @@ void Panel::updateControlsGeometry() {
 		_outgoingVideoBubble->updateGeometry(
 			VideoBubble::DragMode::None,
 			QRect(
-				(width() - bodyPreviewSize.width()) / 2,
+				(widget()->width() - bodyPreviewSize.width()) / 2,
 				previewTop,
 				bodyPreviewSize.width(),
 				bodyPreviewSize.height()));
@@ -649,39 +588,31 @@ void Panel::updateControlsGeometry() {
 	}
 
 	auto bothWidth = _answerHangupRedial->width() + st::callCancel.button.width;
-	_decline->moveToLeft((width() - bothWidth) / 2, _buttonsTop);
-	_cancel->moveToLeft((width() - bothWidth) / 2, _buttonsTop);
+	_decline->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
+	_cancel->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
 
 	updateHangupGeometry();
 
 	const auto skip = st::callSignalMargin + st::callSignalPadding;
 	const auto delta = (_signalBars->width() - _signalBars->height());
-	_signalBars->moveToLeft(
-		_padding.left() + skip,
-		_padding.top() + skip + delta / 2);
+	_signalBars->moveToLeft(skip, skip + delta / 2);
 }
 
 void Panel::updateOutgoingVideoBubbleGeometry() {
 	Expects(!_outgoingPreviewInBody);
 
 	const auto size = st::callOutgoingDefaultSize;
-	const auto availableHeight = height() - st::callBottomControlsHeight;
-	const auto padding = 2 * _padding;
 	_outgoingVideoBubble->updateGeometry(
 		VideoBubble::DragMode::SnapToCorners,
-		QRect(
-			padding.left(),
-			padding.top(),
-			width() - padding.left() - padding.right(),
-			height() - padding.left() - padding.bottom()),
+		widget()->rect(),
 		size);
 }
 
 void Panel::updateHangupGeometry() {
 	auto singleWidth = _answerHangupRedial->width();
 	auto bothWidth = singleWidth + st::callCancel.button.width;
-	auto rightFrom = (width() - bothWidth) / 2;
-	auto rightTo = (width() - singleWidth) / 2;
+	auto rightFrom = (widget()->width() - bothWidth) / 2;
+	auto rightTo = (widget()->width() - singleWidth) / 2;
 	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
 	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
@@ -691,41 +622,21 @@ void Panel::updateHangupGeometry() {
 }
 
 void Panel::updateStatusGeometry() {
-	_status->moveToLeft((width() - _status->width()) / 2, _bodyTop + _bodySt->statusTop);
+	_status->moveToLeft(
+		(widget()->width() - _status->width()) / 2,
+		_bodyTop + _bodySt->statusTop);
 }
 
-void Panel::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (!_animationCache.isNull()) {
-		auto opacity = _opacityAnimation.value(_call ? 1. : 0.);
-		if (!_opacityAnimation.animating()) {
-			finishAnimating();
-			if (!_call || isHidden()) return;
-		} else {
-			p.setOpacity(opacity);
+void Panel::paint(QRect clip) {
+	Painter p(widget());
 
-			PainterHighQualityEnabler hq(p);
-			auto marginRatio = (1. - opacity) / 5;
-			auto marginWidth = qRound(width() * marginRatio);
-			auto marginHeight = qRound(height() * marginRatio);
-			p.drawPixmap(rect().marginsRemoved(QMargins(marginWidth, marginHeight, marginWidth, marginHeight)), _animationCache, QRect(QPoint(0, 0), _animationCache.size()));
-			return;
-		}
-	}
-
-	if (_useTransparency) {
-		p.drawPixmapLeft(0, 0, width(), _cache);
-	} else {
-		auto callBgOpaque = st::callBg->c;
-		callBgOpaque.setAlpha(255);
-		p.fillRect(rect(), QBrush(callBgOpaque));
-	}
+	p.fillRect(clip, st::callBgOpaque);
 
 	const auto incomingFrame = _call
 		? _call->videoIncoming()->frame(Webrtc::FrameRequest())
 		: QImage();
 	if (!incomingFrame.isNull()) {
-		const auto to = rect().marginsRemoved(_padding);
+		const auto to = widget()->rect();
 		p.save();
 		p.setClipRect(to);
 		const auto big = incomingFrame.size().scaled(to.size(), Qt::KeepAspectRatio);
@@ -759,8 +670,8 @@ void Panel::paintEvent(QPaintEvent *e) {
 QRect Panel::signalBarsRect() const {
 	const auto size = 2 * st::callSignalPadding + _signalBars->width();
 	return QRect(
-		_padding.left() + st::callSignalMargin,
-		_padding.top() + st::callSignalMargin,
+		st::callSignalMargin,
+		st::callSignalMargin,
 		size,
 		size);
 }
@@ -773,50 +684,22 @@ void Panel::paintSignalBarsBg(Painter &p) {
 		ImageRoundRadius::Small);
 }
 
-void Panel::closeEvent(QCloseEvent *e) {
+void Panel::handleClose() {
 	if (_call) {
 		_call->hangup();
 	}
 }
 
-void Panel::mousePressEvent(QMouseEvent *e) {
-	auto dragArea = myrtlrect(_padding.left(), _padding.top(), st::callWidth, st::callWidth);
-	if (e->button() == Qt::LeftButton) {
-		if (dragArea.contains(e->pos())) {
-			_dragging = true;
-			_dragStartMousePosition = e->globalPos();
-			_dragStartMyPosition = QPoint(x(), y());
-		}
-	}
-}
-
-void Panel::mouseMoveEvent(QMouseEvent *e) {
-	if (_dragging) {
-		Ui::Tooltip::Hide();
-		if (!(e->buttons() & Qt::LeftButton)) {
-			_dragging = false;
-		} else {
-			move(_dragStartMyPosition + (e->globalPos() - _dragStartMousePosition));
-		}
-	} else if (_fingerprintArea.contains(e->pos())) {
+void Panel::handleMouseMove(not_null<QMouseEvent*> e) {
+	if (_fingerprintArea.contains(e->pos())) {
 		Ui::Tooltip::Show(kTooltipShowTimeoutMs, this);
 	} else {
 		Ui::Tooltip::Hide();
 	}
 }
 
-void Panel::mouseReleaseEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton) {
-		_dragging = false;
-	}
-}
-
-void Panel::leaveEventHook(QEvent *e) {
-	Ui::Tooltip::Hide();
-}
-
-void Panel::leaveToChildEvent(QEvent *e, QWidget *child) {
-	Ui::Tooltip::Hide();
+not_null<Ui::RpWidget*> Panel::widget() const {
+	return _window->body();
 }
 
 QString Panel::tooltipText() const {
@@ -828,7 +711,7 @@ QPoint Panel::tooltipPos() const {
 }
 
 bool Panel::tooltipWindowActive() const {
-	return !isHidden();
+	return _window->isActiveWindow();
 }
 
 void Panel::stateChanged(State state) {
@@ -844,7 +727,7 @@ void Panel::stateChanged(State state) {
 		auto toggleButton = [this](auto &&button, bool visible) {
 			button->toggle(
 				visible,
-				isHidden()
+				_window->isHidden()
 				? anim::type::instant
 				: anim::type::normal);
 		};
@@ -864,60 +747,14 @@ void Panel::stateChanged(State state) {
 			fillFingerprint();
 		}
 	}
-	if (windowHandle()) {
-		// First stateChanged() is called before
-		// the first Platform::InitOnTopPanel(this).
-		if ((state == State::Starting) || (state == State::WaitingIncoming)) {
-			Ui::Platform::ReInitOnTopPanel(this);
-		} else {
-			Ui::Platform::DeInitOnTopPanel(this);
-		}
-		checkForInactiveHide();
-	}
-}
-
-bool Panel::hasActiveVideo() const {
-	const auto inactive = Webrtc::VideoState::Inactive;
-	return (_call->videoIncoming()->state() != inactive)
-		|| (_call->videoOutgoing()->state() != inactive);
-}
-
-void Panel::checkForInactiveHide() {
-	if (!_call
-		|| (_call->state() != State::Established)
-		|| isActiveWindow()
-		|| hasActiveVideo()) {
-		return;
-	}
-	hideDeactivated();
-}
-
-void Panel::checkForInactiveShow() {
-	if (!_visible && hasActiveVideo()) {
-		toggleOpacityAnimation(true);
-	}
 }
 
 void Panel::fillFingerprint() {
 	Expects(_call != nullptr);
+
 	_fingerprint = ComputeEmojiFingerprint(_call);
-
-	auto realSize = Ui::Emoji::GetSizeLarge();
-	auto size = realSize / cIntRetinaFactor();
-	auto count = _fingerprint.size();
-	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
-	auto rectHeight = size;
-	auto left = (width() - rectWidth) / 2;
-	_fingerprintArea = QRect(
-		left,
-		_padding.top() + st::callFingerprintTop + st::callFingerprintPadding.top(),
-		rectWidth,
-		rectHeight
-	).marginsAdded(st::callFingerprintPadding);
-	_fingerprintHeight = st::callFingerprintTop + _fingerprintArea.height() + st::callFingerprintBottom;
 	updateControlsGeometry();
-
-	update();
+	widget()->update();
 }
 
 void Panel::updateStatusText(State state) {

@@ -31,6 +31,7 @@ public:
 		QRect boundingRect,
 		QSize sizeMin = QSize(),
 		QSize sizeMax = QSize());
+	[[nodiscard]] QRect geometry() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();

@@ -259,3 +259,80 @@ callBarSignalBars: CallSignalBars(callPanelSignalBars) {
 }
 callSignalMargin: 8px;
 callSignalPadding: 4px;
+
+callTitle: WindowTitle(defaultWindowTitle) {
+	bg: callBgOpaque;
+	bgActive: callBgOpaque;
+	fg: transparent;
+	fgActive: transparent;
+	minimize: IconButton(windowTitleButton) {
+		icon: icon {
+			{ size(24px, 21px), callBgOpaque },
+			{ "title_button_minimize", callStatusFg, point(4px, 4px) },
+		};
+		iconOver: icon {
+			{ size(24px, 21px), callMuteRipple },
+			{ "title_button_minimize", callStatusFg, point(4px, 4px) },
+		};
+	}
+	minimizeIconActive: icon {
+		{ size(24px, 21px), callBgOpaque },
+		{ "title_button_minimize", callStatusFg, point(4px, 4px) },
+	};
+	minimizeIconActiveOver: icon {
+		{ size(24px, 21px), callMuteRipple },
+		{ "title_button_minimize", callStatusFg, point(4px, 4px) },
+	};
+	maximize: IconButton(windowTitleButton) {
+		icon: icon {
+			{ size(24px, 21px), callBgOpaque },
+			{ "title_button_maximize", callStatusFg, point(4px, 4px) },
+		};
+		iconOver: icon {
+			{ size(24px, 21px), callMuteRipple },
+			{ "title_button_maximize", callStatusFg, point(4px, 4px) },
+		};
+	}
+	maximizeIconActive: icon {
+		{ size(24px, 21px), callBgOpaque },
+		{ "title_button_maximize", callStatusFg, point(4px, 4px) },
+	};
+	maximizeIconActiveOver: icon {
+		{ size(24px, 21px), callMuteRipple },
+		{ "title_button_maximize", callStatusFg, point(4px, 4px) },
+	};
+	restoreIcon: icon {
+		{ size(24px, 21px), callBgOpaque },
+		{ "title_button_restore", callStatusFg, point(4px, 4px) },
+	};
+	restoreIconOver: icon {
+		{ size(24px, 21px), callMuteRipple },
+		{ "title_button_restore", callStatusFg, point(4px, 4px) },
+	};
+	restoreIconActive: icon {
+		{ size(24px, 21px), callBgOpaque },
+		{ "title_button_restore", callStatusFg, point(4px, 4px) },
+	};
+	restoreIconActiveOver: icon {
+		{ size(24px, 21px), callMuteRipple },
+		{ "title_button_restore", callStatusFg, point(4px, 4px) },
+	};
+	close: IconButton(windowTitleButtonClose) {
+		icon: icon {
+			{ size(25px, 21px), callBgOpaque },
+			{ "title_button_close", callStatusFg, point(5px, 4px) },
+		};
+		iconOver: icon {
+			{ size(25px, 21px), titleButtonCloseBgOver },
+			{ "title_button_close", titleButtonCloseFgOver, point(5px, 4px) },
+		};
+	}
+	closeIconActive: icon {
+		{ size(25px, 21px), callBgOpaque },
+		{ "title_button_close", callStatusFg, point(5px, 4px) },
+	};
+	closeIconActiveOver: icon {
+		{ size(25px, 21px), titleButtonCloseBgActiveOver },
+		{ "title_button_close", titleButtonCloseFgActiveOver, point(5px, 4px) },
+	};
+}

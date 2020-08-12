@@ -35,13 +35,7 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 Instance::Instance() = default;
 
-Instance::~Instance() {
-	for (const auto panel : _pendingPanels) {
-		if (panel) {
-			delete panel;
-		}
-	}
-}
+Instance::~Instance() = default;
 
 void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (alreadyInCall()) { // Already in a call.
@@ -120,14 +114,10 @@ void Instance::destroyCall(not_null<Call*> call) {
 }
 
 void Instance::destroyCurrentPanel() {
-	_pendingPanels.erase(
-		std::remove_if(
-			_pendingPanels.begin(),
-			_pendingPanels.end(),
-			[](auto &&panel) { return !panel; }),
-		_pendingPanels.end());
-	_pendingPanels.emplace_back(_currentCallPanel.release());
-	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
+	_currentCallPanel->hideBeforeDestroy();
+
+	// Always queue the destruction.
+	crl::on_main([panel = std::move(_currentCallPanel)]{});
 }
 
 void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {

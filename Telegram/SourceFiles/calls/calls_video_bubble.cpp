@@ -80,6 +80,10 @@ void VideoBubble::updateGeometry(
 	}
 }
 
+QRect VideoBubble::geometry() const {
+	return _content.isHidden() ? QRect() : _content.geometry();
+}
+
 void VideoBubble::applyBoundingRect(QRect rect) {
 	_boundingRect = rect;
 	_geometryDirty = true;

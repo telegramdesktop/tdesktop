@@ -26,6 +26,7 @@ class IconButton;
 class FlatLabel;
 template <typename Widget>
 class FadeWrap;
+class Window;
 } // namespace Ui
 
 namespace style {
@@ -39,48 +40,44 @@ class Userpic;
 class SignalBars;
 class VideoBubble;
 
-class Panel final : public Ui::RpWidget, private Ui::AbstractTooltipShower {
-
+class Panel final : private Ui::AbstractTooltipShower {
 public:
 	Panel(not_null<Call*> call);
 	~Panel();
 
 	void showAndActivate();
 	void replaceCall(not_null<Call*> call);
-	void hideAndDestroy();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void closeEvent(QCloseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	bool eventHook(QEvent *e) override;
+	void hideBeforeDestroy();
 
 private:
+	class Content;
 	class Button;
 	using State = Call::State;
 	using Type = Call::Type;
+
+	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
+	void paint(QRect clip);
+
+	void initWindow();
+	void initWidget();
 	void initControls();
 	void reinitWithCall(Call *call);
 	void initLayout();
 	void initGeometry();
-	void hideDeactivated();
-	void createBottomImage();
-	void createDefaultCacheImage();
+
+	void handleClose();
+	void handleMouseMove(not_null<QMouseEvent*> e);
 
 	QRect signalBarsRect() const;
 	void paintSignalBarsBg(Painter &p);
 
+	void updateFingerprintGeometry();
 	void updateControlsGeometry();
 	void updateHangupGeometry();
 	void updateStatusGeometry();
@@ -90,26 +87,16 @@ private:
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void fillFingerprint();
-	void toggleOpacityAnimation(bool visible);
-	void finishAnimating();
-	void destroyDelayed();
 	void setIncomingShown(bool shown);
 
-	[[nodiscard]] bool hasActiveVideo() const;
-	void checkForInactiveHide();
-	void checkForInactiveShow();
 	void refreshOutgoingPreviewInBody(State state);
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
-	bool _useTransparency = true;
-	bool _incomingShown = false;
-	style::margins _padding;
+	const std::unique_ptr<Ui::Window> _window;
 
-	bool _dragging = false;
-	QPoint _dragStartMousePosition;
-	QPoint _dragStartMyPosition;
+	bool _incomingShown = false;
 
 	rpl::lifetime _callLifetime;
 
@@ -135,13 +122,6 @@ private:
 
 	base::Timer _updateDurationTimer;
 	base::Timer _updateOuterRippleTimer;
-
-	bool _visible = false;
-
-	Ui::Animations::Simple _opacityAnimation;
-	QPixmap _animationCache;
-	QPixmap _bottomCache;
-	QPixmap _cache;
 
 };
 

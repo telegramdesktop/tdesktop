@@ -85,7 +85,6 @@ private:
 	std::unique_ptr<Panel> _currentCallPanel;
 	base::Observable<Call*> _currentCallChanged;
 	base::Observable<FullMsgId> _newServiceMessage;
-	std::vector<QPointer<Panel>> _pendingPanels;
 
 	std::unique_ptr<Media::Audio::Track> _callConnectingTrack;
 	std::unique_ptr<Media::Audio::Track> _callEndedTrack;
