@@ -243,8 +243,8 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_12_8
-    cd qt5_12_8
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
+    cd qt_5_12_8
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.12.8
     git submodule update qtbase qtimageformats

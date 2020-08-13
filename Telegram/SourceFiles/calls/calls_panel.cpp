@@ -312,6 +312,10 @@ void Panel::initWindow() {
 	}, _window->lifetime());
 
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
+		using Flag = Ui::WindowTitleHitTestFlag;
+		if (!widget()->rect().contains(widgetPoint)) {
+			return Flag::None | Flag(0);
+		}
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
 		const auto inControls = _fingerprintArea.contains(widgetPoint)
@@ -322,7 +326,6 @@ void Panel::initWindow() {
 				_answerHangupRedial->height()).contains(widgetPoint)
 			|| (!_outgoingPreviewInBody
 				&& _outgoingVideoBubble->geometry().contains(widgetPoint));
-		using Flag = Ui::WindowTitleHitTestFlag;
 		return inControls
 			? Flag::None
 			: (Flag::Move | Flag::FullScreen);
