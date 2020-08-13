@@ -591,7 +591,7 @@ void Panel::toggleFullScreen(bool fullscreen) {
 }
 
 void Panel::updateFingerprintGeometry() {
-	auto realSize = Ui::Emoji::GetSizeLarge();
+	auto realSize = Ui::Emoji::GetSizeNormal();
 	auto size = realSize / cIntRetinaFactor();
 	auto count = _fingerprint.size();
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
@@ -730,7 +730,7 @@ void Panel::paint(QRect clip) {
 		p.setPen(Qt::NoPen);
 		p.drawRoundedRect(_fingerprintArea, radius, radius);
 
-		const auto realSize = Ui::Emoji::GetSizeLarge();
+		const auto realSize = Ui::Emoji::GetSizeNormal();
 		const auto size = realSize / cIntRetinaFactor();
 		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
 		const auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
