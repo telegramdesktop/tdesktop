@@ -64,8 +64,10 @@ callBodyWithPreview: CallBodyLayout {
 
 callOutgoingPreviewMin: size(360px, 120px);
 callOutgoingPreview: size(540px, 180px); // default, for height == callHeight.
-callOutgoingPreviewMax: size(1080px, 360px);
+callOutgoingPreviewMax: size(1620px, 540px);
 callOutgoingDefaultSize: size(160px, 110px);
+
+callInnerPadding: 12px;
 
 callFingerprintPadding: margins(9px, 4px, 9px, 5px);
 callFingerprintTop: 11px;

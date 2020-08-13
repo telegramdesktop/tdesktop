@@ -607,12 +607,12 @@ void Panel::updateFingerprintGeometry() {
 }
 
 void Panel::updateControlsGeometry() {
-	if (widget()->width() < st::callWidthMin
-		|| widget()->height() < st::callHeightMin) {
+	if (widget()->size().isEmpty()) {
 		return;
 	}
 	updateFingerprintGeometry();
-	const auto innerHeight = widget()->height();
+	const auto innerHeight = std::max(widget()->height(), st::callHeightMin);
+	const auto innerWidth = widget()->width() - 2 * st::callInnerPadding;
 	const auto availableTop = _fingerprintHeight;
 	const auto available = widget()->height()
 		- st::callBottomControlsHeight
@@ -623,8 +623,12 @@ void Panel::updateControlsGeometry() {
 			* (innerHeight - st::callHeightMin)
 			/ (st::callHeight - st::callHeightMin));
 	const auto bodyPreviewSize = QSize(
-		std::min(bodyPreviewSizeMax.width(), st::callOutgoingPreviewMax.width()),
-		std::min(bodyPreviewSizeMax.height(), st::callOutgoingPreviewMax.height()));
+		std::min(
+			bodyPreviewSizeMax.width(),
+			std::min(innerWidth, st::callOutgoingPreviewMax.width())),
+		std::min(
+			bodyPreviewSizeMax.height(),
+			st::callOutgoingPreviewMax.height()));
 	const auto contentHeight = _bodySt->height
 		+ (_outgoingPreviewInBody ? bodyPreviewSize.height() : 0);
 	const auto remainingHeight = available - contentHeight;
@@ -671,10 +675,16 @@ void Panel::updateControlsGeometry() {
 void Panel::updateOutgoingVideoBubbleGeometry() {
 	Expects(!_outgoingPreviewInBody);
 
+	const auto margins = QMargins{
+		st::callInnerPadding,
+		st::callInnerPadding,
+		st::callInnerPadding,
+		st::callInnerPadding,
+	};
 	const auto size = st::callOutgoingDefaultSize;
 	_outgoingVideoBubble->updateGeometry(
 		VideoBubble::DragMode::SnapToCorners,
-		widget()->rect(),
+		widget()->rect().marginsRemoved(margins),
 		size);
 }
 

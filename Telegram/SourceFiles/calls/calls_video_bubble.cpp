@@ -199,7 +199,9 @@ void VideoBubble::updateSizeToFrame(QSize frame) {
 	_lastFrameSize = frame;
 
 	auto size = !_size.isEmpty()
-		? _size
+		? QSize(
+			std::clamp(_size.width(), _min.width(), _max.width()),
+			std::clamp(_size.height(), _min.height(), _max.height()))
 		: (_dragMode == DragMode::None || _lastDraggableSize.isEmpty())
 		? QSize()
 		: _lastDraggableSize;
@@ -208,10 +210,13 @@ void VideoBubble::updateSizeToFrame(QSize frame) {
 	} else {
 		const auto area = size.width() * size.height();
 		const auto w = int(std::round(std::max(
-			std::sqrt((frame.width() * area) / (frame.height() * 1.)),
+			std::sqrt((frame.width() * float64(area)) / (frame.height() * 1.)),
 			1.)));
 		const auto h = area / w;
 		size = QSize(w, h);
+		if (w > _max.width() || h > _max.height()) {
+			size = size.scaled(_max, Qt::KeepAspectRatio);
+		}
 	}
 	size = QSize(std::max(1, size.width()), std::max(1, size.height()));
 	setInnerSize(size);
