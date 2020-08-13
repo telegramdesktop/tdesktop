@@ -27,6 +27,9 @@ class FlatLabel;
 template <typename Widget>
 class FadeWrap;
 class Window;
+namespace Platform {
+class TitleControls;
+} // namespace Platform
 } // namespace Ui
 
 namespace style {
@@ -90,11 +93,16 @@ private:
 	void setIncomingShown(bool shown);
 
 	void refreshOutgoingPreviewInBody(State state);
+	void toggleFullScreen(bool fullscreen);
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
 	const std::unique_ptr<Ui::Window> _window;
+
+#ifdef Q_OS_WIN
+	std::unique_ptr<Ui::Platform::TitleControls> _controls;
+#endif // Q_OS_WIN
 
 	bool _incomingShown = false;
 

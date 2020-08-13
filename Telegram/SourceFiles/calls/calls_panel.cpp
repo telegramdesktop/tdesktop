@@ -34,12 +34,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "platform/platform_specific.h"
+#include "base/platform/base_platform_info.h"
 #include "window/main_window.h"
 #include "layout.h"
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"
+
+#ifdef Q_OS_WIN
+#include "ui/platform/win/ui_window_title_win.h"
+#endif // Q_OS_WIN
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
@@ -261,6 +266,11 @@ Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
 , _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
+#ifdef Q_OS_WIN
+, _controls(std::make_unique<Ui::Platform::TitleControls>(
+	_window.get(),
+	[=](bool maximized) { toggleFullScreen(maximized); }))
+#endif // Q_OS_WIN
 , _bodySt(&st::callBodyLayout)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Button>(widget(), st::callHangup))
@@ -299,6 +309,10 @@ void Panel::initWindow() {
 	_window->setTitle(u" "_q);
 	_window->setTitleStyle(st::callTitle);
 
+#ifdef Q_OS_WIN
+	_controls->setStyle(st::callTitle);
+#endif // Q_OS_WIN
+
 	_window->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
@@ -316,6 +330,11 @@ void Panel::initWindow() {
 		if (!widget()->rect().contains(widgetPoint)) {
 			return Flag::None | Flag(0);
 		}
+#ifdef Q_OS_WIN
+		if (_controls->geometry().contains(widgetPoint)) {
+			return Flag::None | Flag(0);
+		}
+#endif // Q_OS_WIN
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
 		const auto inControls = _fingerprintArea.contains(widgetPoint)
@@ -520,6 +539,10 @@ void Panel::initLayout() {
 		_name->setText(_call->user()->name);
 		updateControlsGeometry();
 	}, widget()->lifetime());
+
+#ifdef Q_OS_WIN
+	_controls->raise();
+#endif // Q_OS_WIN
 }
 
 void Panel::showControls() {
@@ -557,6 +580,14 @@ void Panel::refreshOutgoingPreviewInBody(State state) {
 	_outgoingPreviewInBody = inBody;
 	_bodySt = inBody ? &st::callBodyWithPreview : &st::callBodyLayout;
 	updateControlsGeometry();
+}
+
+void Panel::toggleFullScreen(bool fullscreen) {
+	if (fullscreen) {
+		_window->showFullScreen();
+	} else {
+		_window->showNormal();
+	}
 }
 
 void Panel::updateFingerprintGeometry() {
@@ -692,8 +723,12 @@ void Panel::paint(QRect clip) {
 		paintSignalBarsBg(p);
 	}
 
-	if (!_fingerprint.empty()) {
-		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Large);
+	if (!_fingerprint.empty() && clip.intersects(_fingerprintArea)) {
+		const auto radius = _fingerprintArea.height() / 2;
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::callBgButton);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(_fingerprintArea, radius, radius);
 
 		const auto realSize = Ui::Emoji::GetSizeLarge();
 		const auto size = realSize / cIntRetinaFactor();
@@ -719,7 +754,7 @@ void Panel::paintSignalBarsBg(Painter &p) {
 	App::roundRect(
 		p,
 		signalBarsRect(),
-		st::callFingerprintBg,
+		st::callBgButton,
 		ImageRoundRadius::Small);
 }
 
