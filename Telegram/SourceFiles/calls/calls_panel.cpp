@@ -448,11 +448,11 @@ void Panel::initControls() {
 	_cancel->finishAnimating();
 }
 
-void Panel::setIncomingShown(bool shown) {
-	if (_incomingShown == shown) {
+void Panel::setIncomingSize(QSize size) {
+	if (_incomingFrameSize == size) {
 		return;
 	}
-	_incomingShown = shown;
+	_incomingFrameSize = size;
 	showControls();
 }
 
@@ -501,12 +501,30 @@ void Panel::reinitWithCall(Call *call) {
 		stateChanged(state);
 	}, _callLifetime);
 
-	rpl::merge(
-		_call->videoIncoming()->renderNextFrame(),
-		_call->videoOutgoing()->renderNextFrame()
+	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
-		setIncomingShown(!_call->videoIncoming()->frame({}).isNull());
-		widget()->update();
+		setIncomingSize(_call->videoIncoming()->frameSize());
+		if (_incomingFrameSize.isEmpty()) {
+			return;
+		}
+		const auto incoming = incomingFrameGeometry();
+		const auto outgoing = outgoingFrameGeometry();
+		if (incoming.intersects(outgoing)) {
+			widget()->update(incoming.united(outgoing));
+		} else {
+			widget()->update(incoming);
+		}
+	}, _callLifetime);
+
+	_call->videoOutgoing()->renderNextFrame(
+	) | rpl::start_with_next([=] {
+		const auto incoming = incomingFrameGeometry();
+		const auto outgoing = outgoingFrameGeometry();
+		if (incoming.intersects(outgoing)) {
+			widget()->update(incoming.united(outgoing));
+		} else {
+			widget()->update(outgoing);
+		}
 	}, _callLifetime);
 
 	rpl::combine(
@@ -551,9 +569,11 @@ void Panel::showControls() {
 	widget()->showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
-	_name->setVisible(!_incomingShown);
-	_status->setVisible(!_incomingShown);
-	_userpic->setVisible(!_incomingShown);
+
+	const auto shown = !_incomingFrameSize.isEmpty();
+	_name->setVisible(!shown);
+	_status->setVisible(!shown);
+	_userpic->setVisible(!shown);
 }
 
 void Panel::hideBeforeDestroy() {
@@ -588,6 +608,31 @@ void Panel::toggleFullScreen(bool fullscreen) {
 	} else {
 		_window->showNormal();
 	}
+}
+
+QRect Panel::incomingFrameGeometry() const {
+	if (!_call || _incomingFrameSize.isEmpty()) {
+		return QRect();
+	}
+	const auto to = widget()->size();
+	const auto small = _incomingFrameSize.scaled(to, Qt::KeepAspectRatio);
+	const auto big = _incomingFrameSize.scaled(
+		to,
+		Qt::KeepAspectRatioByExpanding);
+
+	// If we cut out no more than 0.33 of the original, let's use expanding.
+	const auto use = ((big.width() * 3 <= to.width() * 4)
+		&& (big.height() * 3 <= to.height() * 4))
+		? big
+		: small;
+	const auto pos = QPoint(
+		(to.width() - use.width()) / 2,
+		(to.height() - use.height()) / 2);
+	return QRect(pos, use);
+}
+
+QRect Panel::outgoingFrameGeometry() const {
+	return _outgoingVideoBubble->geometry();
 }
 
 void Panel::updateFingerprintGeometry() {
@@ -712,20 +757,15 @@ void Panel::paint(QRect clip) {
 
 	p.fillRect(clip, st::callBgOpaque);
 
-	const auto incomingFrame = _call
-		? _call->videoIncoming()->frame(Webrtc::FrameRequest())
-		: QImage();
-	if (!incomingFrame.isNull()) {
-		const auto to = widget()->rect();
-		p.save();
-		p.setClipRect(to);
-		const auto big = incomingFrame.size().scaled(to.size(), Qt::KeepAspectRatio);
-		const auto pos = QPoint(
-			to.left() + (to.width() - big.width()) / 2,
-			to.top() + (to.height() - big.height()) / 2);
-		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(QRect(pos, big), incomingFrame);
-		p.restore();
+	const auto incoming = incomingFrameGeometry();
+	if (!incoming.isEmpty()) {
+		Assert(_call != nullptr);
+		const auto frame = _call->videoIncoming()->frame(
+			Webrtc::FrameRequest());
+		if (!frame.isNull()) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawImage(incoming, frame);
+		}
 	}
 	_call->videoIncoming()->markFrameShown();
 

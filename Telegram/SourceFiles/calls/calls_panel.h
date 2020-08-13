@@ -90,10 +90,13 @@ private:
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void fillFingerprint();
-	void setIncomingShown(bool shown);
+	void setIncomingSize(QSize size);
 
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
+
+	[[nodiscard]] QRect incomingFrameGeometry() const;
+	[[nodiscard]] QRect outgoingFrameGeometry() const;
 
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
@@ -104,7 +107,7 @@ private:
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;
 #endif // Q_OS_WIN
 
-	bool _incomingShown = false;
+	QSize _incomingFrameSize;
 
 	rpl::lifetime _callLifetime;
 
