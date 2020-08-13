@@ -45,6 +45,9 @@ CallBodyLayout {
 	photoSize: pixels;
 	nameTop: pixels;
 	statusTop: pixels;
+	muteStroke: pixels;
+	muteSize: pixels;
+	mutePosition: point;
 }
 
 callBodyLayout: CallBodyLayout {
@@ -53,6 +56,9 @@ callBodyLayout: CallBodyLayout {
 	photoSize: 160px;
 	nameTop: 221px;
 	statusTop: 254px;
+	muteStroke: 3px;
+	muteSize: 36px;
+	mutePosition: point(142px, 135px);
 }
 callBodyWithPreview: CallBodyLayout {
 	height: 185px;
@@ -60,7 +66,11 @@ callBodyWithPreview: CallBodyLayout {
 	photoSize: 100px;
 	nameTop: 132px;
 	statusTop: 163px;
+	muteStroke: 3px;
+	muteSize: 0px;
+	mutePosition: point(90px, 84px);
 }
+callMutedPeerIcon: icon {{ "calls_mute_userpic", callIconFg }};
 
 callOutgoingPreviewMin: size(360px, 120px);
 callOutgoingPreview: size(540px, 180px); // default, for height == callHeight.

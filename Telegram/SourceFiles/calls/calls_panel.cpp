@@ -449,7 +449,9 @@ void Panel::setIncomingSize(QSize size) {
 	if (_incomingFrameSize == size) {
 		return;
 	}
+	widget()->update(incomingFrameGeometry());
 	_incomingFrameSize = size;
+	widget()->update(incomingFrameGeometry());
 	showControls();
 }
 
@@ -498,7 +500,7 @@ void Panel::reinitWithCall(Call *call) {
 
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
-		setIncomingSize(_call->videoIncoming()->frameSize());
+		setIncomingSize(_call->videoIncoming()->frame({}).size());
 		if (_incomingFrameSize.isEmpty()) {
 			return;
 		}
@@ -686,6 +688,10 @@ void Panel::updateControlsGeometry() {
 		(widget()->width() - _bodySt->photoSize) / 2,
 		_bodyTop + _bodySt->photoTop,
 		_bodySt->photoSize);
+	_userpic->setMuteLayout(
+		_bodySt->mutePosition,
+		_bodySt->muteSize,
+		_bodySt->muteStroke);
 
 	_name->moveToLeft(
 		(widget()->width() - _name->width()) / 2,

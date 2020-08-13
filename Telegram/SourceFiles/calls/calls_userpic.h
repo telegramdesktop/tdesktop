@@ -30,6 +30,7 @@ public:
 
 	void setVisible(bool visible);
 	void setGeometry(int x, int y, int size);
+	void setMuteLayout(QPoint position, int size, int stroke);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();
@@ -55,6 +56,9 @@ private:
 	Ui::Animations::Simple _mutedAnimation;
 	QPixmap _userPhoto;
 	PhotoId _userPhotoId = 0;
+	QPoint _mutePosition;
+	int _muteSize = 0;
+	int _muteStroke = 0;
 	bool _userPhotoFull = false;
 	bool _muted = false;
 

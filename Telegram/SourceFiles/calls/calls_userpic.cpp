@@ -82,10 +82,31 @@ void Userpic::setup(rpl::producer<bool> muted) {
 	_mutedAnimation.stop();
 }
 
+void Userpic::setMuteLayout(QPoint position, int size, int stroke) {
+	_mutePosition = position;
+	_muteSize = size;
+	_muteStroke = stroke;
+	_content.update();
+}
+
 void Userpic::paint() {
 	Painter p(&_content);
 
 	p.drawPixmap(0, 0, _userPhoto);
+	if (_muted && _muteSize > 0) {
+		auto hq = PainterHighQualityEnabler(p);
+		auto pen = st::callBgOpaque->p;
+		pen.setWidth(_muteStroke);
+		p.setPen(pen);
+		p.setBrush(st::callHangupBg);
+		const auto rect = QRect(
+			_mutePosition.x() - _muteSize / 2,
+			_mutePosition.y() - _muteSize / 2,
+			_muteSize,
+			_muteSize);
+		p.drawEllipse(rect);
+		st::callMutedPeerIcon.paintInCenter(p, rect);
+	}
 }
 
 void Userpic::setMuted(bool muted) {
@@ -93,11 +114,12 @@ void Userpic::setMuted(bool muted) {
 		return;
 	}
 	_muted = muted;
-	_mutedAnimation.start(
-		[=] { _content.update(); },
-		_muted ? 0. : 1.,
-		_muted ? 1. : 0.,
-		st::fadeWrapDuration);
+	_content.update();
+	//_mutedAnimation.start(
+	//	[=] { _content.update(); },
+	//	_muted ? 0. : 1.,
+	//	_muted ? 1. : 0.,
+	//	st::fadeWrapDuration);
 }
 
 int Userpic::size() const {
