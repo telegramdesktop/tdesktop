@@ -269,6 +269,7 @@ Panel::Panel(not_null<Call*> call)
 #ifdef Q_OS_WIN
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window.get(),
+	st::callTitle,
 	[=](bool maximized) { toggleFullScreen(maximized); }))
 #endif // Q_OS_WIN
 , _bodySt(&st::callBodyLayout)
@@ -308,10 +309,6 @@ void Panel::initWindow() {
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitle(u" "_q);
 	_window->setTitleStyle(st::callTitle);
-
-#ifdef Q_OS_WIN
-	_controls->setStyle(st::callTitle);
-#endif // Q_OS_WIN
 
 	_window->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
@@ -546,6 +543,9 @@ void Panel::reinitWithCall(Call *call) {
 
 void Panel::initLayout() {
 	initGeometry();
+
+	_name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_user->session().changes().peerUpdates(
