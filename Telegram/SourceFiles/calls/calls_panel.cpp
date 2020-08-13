@@ -276,8 +276,8 @@ Panel::Panel(not_null<Call*> call)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Button>(widget(), st::callHangup))
 , _cancel(widget(), object_ptr<Button>(widget(), st::callCancel))
-, _camera(widget(), st::callCameraToggle)
-, _mute(widget(), st::callMuteToggle)
+, _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
+, _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute)
 , _name(widget(), st::callName)
 , _status(widget(), st::callStatus) {
 	_decline->setDuration(st::callPanelDuration);
@@ -483,14 +483,12 @@ void Panel::reinitWithCall(Call *call) {
 
 	_call->mutedValue(
 	) | rpl::start_with_next([=](bool mute) {
-		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
+		_mute->setProgress(mute ? 1. : 0.);
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		_camera->setIconOverride((state == Webrtc::VideoState::Active)
-			? nullptr
-			: &st::callNoCameraIcon);
+		_camera->setProgress((state == Webrtc::VideoState::Active) ? 0. : 1.);
 	}, _callLifetime);
 
 	_call->stateValue(
