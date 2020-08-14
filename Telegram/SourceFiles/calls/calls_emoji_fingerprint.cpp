@@ -235,6 +235,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 	const auto background = raw->lifetime().make_state<QImage>(
 		fullSize * cIntRetinaFactor(),
 		QImage::Format_ARGB32_Premultiplied);
+	background->setDevicePixelRatio(cRetinaFactor());
 	rpl::merge(
 		rpl::single(rpl::empty_value()),
 		Ui::Emoji::Updated(),
