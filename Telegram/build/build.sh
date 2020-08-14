@@ -267,8 +267,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
   fi
 
   if [ "$NotarizeRequestId" == "" ]; then
-    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-    rm "$ProjectPath/Telegram/CMakeFiles/Telegram.dir/Info.plist"
+    if [ -f "$ReleasePath/$BinaryName.app/Contents/Info.plist" ]; then
+      rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+    fi
+    if [ -f "$ProjectPath/Telegram/CMakeFiles/Telegram.dir/Info.plist" ]; then
+      rm "$ProjectPath/Telegram/CMakeFiles/Telegram.dir/Info.plist"
+    fi
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
 
     ./configure.sh
