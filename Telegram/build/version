@@ -1,7 +1,7 @@
-AppVersion         2002000
-AppVersionStrMajor 2.2
-AppVersionStrSmall 2.2
-AppVersionStr      2.2.0
+AppVersion         2003000
+AppVersionStrMajor 2.3
+AppVersionStrSmall 2.3
+AppVersionStr      2.3.0
 BetaChannel        0
-AlphaVersion       2002000002
-AppVersionOriginal 2.2.0.2
+AlphaVersion       0
+AppVersionOriginal 2.3
