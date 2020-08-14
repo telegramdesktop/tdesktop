@@ -606,6 +606,24 @@ void Panel::initLayout() {
 }
 
 void Panel::initBottomShadow() {
+	auto image = QImage(
+		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	const auto colorFrom = uint32(0);
+	const auto colorTill = uint32(74);
+	const auto rows = image.height();
+	const auto step = (uint64(colorTill - colorFrom) << 32) / rows;
+	auto accumulated = uint64();
+	auto bytes = image.bits();
+	for (auto y = 0; y != rows; ++y) {
+		accumulated += step;
+		const auto color = (colorFrom + uint32(accumulated >> 32)) << 24;
+		for (auto x = 0; x != image.width(); ++x) {
+			*(reinterpret_cast<uint32*>(bytes) + x) = color;
+		}
+		bytes += image.bytesPerLine();
+	}
+	_bottomShadow = Images::PixmapFast(std::move(image));
 }
 
 void Panel::showControls() {
@@ -825,6 +843,23 @@ void Panel::paint(QRect clip) {
 		if (!frame.isNull()) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.drawImage(incoming, frame);
+		}
+		const auto shadowArea = QRect(
+			0,
+			widget()->height() - st::callBottomShadowSize,
+			widget()->width(),
+			st::callBottomShadowSize);
+		const auto fill = shadowArea.intersected(incoming);
+		if (!fill.isEmpty()) {
+			const auto factor = cIntRetinaFactor();
+			p.drawPixmap(
+				fill,
+				_bottomShadow,
+				QRect(
+					0,
+					factor * (fill.y() - shadowArea.y()),
+					factor,
+					factor * fill.height()));
 		}
 	}
 	_call->videoIncoming()->markFrameShown();
