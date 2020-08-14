@@ -691,8 +691,8 @@ void Panel::showControls() {
 	}
 }
 
-void Panel::hideBeforeDestroy() {
-	_window->hide();
+void Panel::closeBeforeDestroy() {
+	_window->close();
 	reinitWithCall(nullptr);
 }
 

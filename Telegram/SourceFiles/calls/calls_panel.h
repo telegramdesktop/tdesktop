@@ -52,7 +52,7 @@ public:
 
 	void showAndActivate();
 	void replaceCall(not_null<Call*> call);
-	void hideBeforeDestroy();
+	void closeBeforeDestroy();
 
 private:
 	class Content;

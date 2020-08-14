@@ -60,7 +60,6 @@ private:
 	void playSound(Sound sound) override;
 	void createCall(not_null<UserData*> user, Call::Type type, bool video);
 	void destroyCall(not_null<Call*> call);
-	void destroyCurrentPanel();
 	void requestPermissionsOrFail(Fn<void()> onSuccess) override;
 	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
 

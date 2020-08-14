@@ -55,11 +55,15 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 }
 
 void Instance::callFinished(not_null<Call*> call) {
-	destroyCall(call);
+	crl::on_main(call, [=] {
+		destroyCall(call);
+	});
 }
 
 void Instance::callFailed(not_null<Call*> call) {
-	destroyCall(call);
+	crl::on_main(call, [=] {
+		destroyCall(call);
+	});
 }
 
 void Instance::callRedial(not_null<Call*> call) {
@@ -101,7 +105,9 @@ void Instance::playSound(Sound sound) {
 
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
-		destroyCurrentPanel();
+		_currentCallPanel->closeBeforeDestroy();
+		_currentCallPanel = nullptr;
+
 		auto taken = base::take(_currentCall);
 		_currentCallChanges.fire(nullptr);
 		taken.reset();
@@ -111,13 +117,6 @@ void Instance::destroyCall(not_null<Call*> call) {
 		}
 		Core::App().quitPreventFinished();
 	}
-}
-
-void Instance::destroyCurrentPanel() {
-	_currentCallPanel->hideBeforeDestroy();
-
-	// Always queue the destruction.
-	crl::on_main([panel = std::move(_currentCallPanel)]{});
 }
 
 void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
