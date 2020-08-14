@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout deeea06
+    git checkout 08351e3
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -47,7 +47,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout deeea06
+    git checkout 08351e3
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -276,7 +276,7 @@ Go to ***BuildPath*** and run
     cd webrtc
     cp ../patches/webrtc/.gclient ./
     git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-    gclient sync
+    gclient sync --no-history
     cd src
     git apply ../../patches/webrtc/src.diff
     cd build

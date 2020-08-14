@@ -419,8 +419,8 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone git://code.qt.io/qt/qt5.git qt$QT
-          cd qt$QT
+          git clone git://code.qt.io/qt/qt5.git qt_$QT
+          cd qt_$QT
           perl init-repository --module-subset=qtbase,qtimageformats
           git checkout v5.12.8
           git submodule update qtbase
@@ -448,6 +448,41 @@ jobs:
 
           make clean
           cp -r $QT_PREFIX $LibrariesPath/qt-cache
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/webrtc
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/patches/webrtc/*') }}
+      - name: WebRTC.
+        if: steps.cache-webrtc.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          export PATH=`pwd`/depot_tools:$PATH
+
+          mkdir webrtc
+          cd webrtc
+          cp ../patches/webrtc/.gclient ./
+          git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
+          gclient sync --no-history
+
+          applyPatch() {
+            cd $LibrariesPath/webrtc/$1
+            git apply $LibrariesPath/patches/webrtc/$(basename $1).diff
+          }
+          applyPatch src
+          applyPatch src/build
+          applyPatch src/third_party
+          applyPatch src/third_party/libsrtp
+
+          cd $LibrariesPath/webrtc/src
+          ../../patches/webrtc/configure.sh
+
+          ninja -C out/Debug webrtc
+          ../../patches/webrtc/cleanup_webrtc.sh
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'

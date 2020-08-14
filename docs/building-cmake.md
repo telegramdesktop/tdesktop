@@ -54,7 +54,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout deeea06
+    git checkout 08351e3
     cd ../
 
     git clone https://github.com/xiph/opus
@@ -280,7 +280,7 @@ Go to ***BuildPath*** and run
     cd webrtc
     cp ../patches/webrtc/.gclient ./
     git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-    gclient sync
+    gclient sync --no-history
     cd src
     git apply ../../patches/webrtc/src.diff
     cd build
