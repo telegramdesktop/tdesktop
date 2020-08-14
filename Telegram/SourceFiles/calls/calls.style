@@ -370,3 +370,4 @@ callTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: callTitleCloseIcon;
 	closeIconActiveOver: callTitleCloseIconOver;
 }
+callTitleShadow: icon {{ "calls_shadow_controls", windowShadowFg }};

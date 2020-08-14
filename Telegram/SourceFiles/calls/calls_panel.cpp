@@ -626,6 +626,45 @@ void Panel::initBottomShadow() {
 	_bottomShadow = Images::PixmapFast(std::move(image));
 }
 
+void Panel::fillTopShadow(QPainter &p, QRect incoming) {
+#ifdef Q_OS_WIN
+	const auto width = widget()->width();
+	const auto position = QPoint(width - st::callTitleShadow.width(), 0);
+	const auto shadowArea = QRect(
+		position,
+		st::callTitleShadow.size());
+	const auto fill = shadowArea.intersected(incoming);
+	if (fill.isEmpty()) {
+		return;
+	}
+	p.save();
+	p.setClipRect(fill);
+	st::callTitleShadow.paint(p, position, width);
+	p.restore();
+#endif // Q_OS_WIN
+}
+
+void Panel::fillBottomShadow(QPainter &p, QRect incoming) {
+	const auto shadowArea = QRect(
+		0,
+		widget()->height() - st::callBottomShadowSize,
+		widget()->width(),
+		st::callBottomShadowSize);
+	const auto fill = shadowArea.intersected(incoming);
+	if (fill.isEmpty()) {
+		return;
+	}
+	const auto factor = cIntRetinaFactor();
+	p.drawPixmap(
+		fill,
+		_bottomShadow,
+		QRect(
+			0,
+			factor * (fill.y() - shadowArea.y()),
+			factor,
+			factor * fill.height()));
+}
+
 void Panel::showControls() {
 	Expects(_call != nullptr);
 
@@ -844,23 +883,8 @@ void Panel::paint(QRect clip) {
 			auto hq = PainterHighQualityEnabler(p);
 			p.drawImage(incoming, frame);
 		}
-		const auto shadowArea = QRect(
-			0,
-			widget()->height() - st::callBottomShadowSize,
-			widget()->width(),
-			st::callBottomShadowSize);
-		const auto fill = shadowArea.intersected(incoming);
-		if (!fill.isEmpty()) {
-			const auto factor = cIntRetinaFactor();
-			p.drawPixmap(
-				fill,
-				_bottomShadow,
-				QRect(
-					0,
-					factor * (fill.y() - shadowArea.y()),
-					factor,
-					factor * fill.height()));
-		}
+		fillBottomShadow(p, incoming);
+		fillTopShadow(p, incoming);
 	}
 	_call->videoIncoming()->markFrameShown();
 

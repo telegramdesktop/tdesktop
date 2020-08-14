@@ -95,6 +95,8 @@ private:
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void fillFingerprint();
 	void setIncomingSize(QSize size);
+	void fillTopShadow(QPainter &p, QRect incoming);
+	void fillBottomShadow(QPainter &p, QRect incoming);
 
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
