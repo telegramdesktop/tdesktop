@@ -154,7 +154,7 @@ elseif (APPLE)
             platform/tdesktop/VideoCapturerInterfaceImpl.h
         )
     endif()
-else()
+elseif (LINUX)
     target_compile_definitions(lib_tgcalls
     PRIVATE
         WEBRTC_LINUX
