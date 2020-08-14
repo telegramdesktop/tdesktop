@@ -26,6 +26,8 @@ class IconButton;
 class FlatLabel;
 template <typename Widget>
 class FadeWrap;
+template <typename Widget>
+class PaddingWrap;
 class Window;
 namespace Platform {
 class TitleControls;
@@ -39,6 +41,7 @@ struct CallBodyLayout;
 
 namespace Calls {
 
+class Tooltip;
 class Userpic;
 class SignalBars;
 class VideoBubble;
@@ -73,6 +76,7 @@ private:
 	void reinitWithCall(Call *call);
 	void initLayout();
 	void initGeometry();
+	void initBottomShadow();
 
 	void handleClose();
 	void handleMouseMove(not_null<QMouseEvent*> e);
@@ -94,6 +98,7 @@ private:
 
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
+	void createRemoteAudioMute();
 
 	[[nodiscard]] QRect incomingFrameGeometry() const;
 	[[nodiscard]] QRect outgoingFrameGeometry() const;
@@ -123,10 +128,12 @@ private:
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<SignalBars> _signalBars = { nullptr };
+	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute = { nullptr };
 	std::unique_ptr<Userpic> _userpic;
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
 	std::vector<EmojiPtr> _fingerprint;
 	QRect _fingerprintArea;
+	QPixmap _bottomShadow;
 	int _bodyTop = 0;
 	int _buttonsTop = 0;
 	int _fingerprintHeight = 0;

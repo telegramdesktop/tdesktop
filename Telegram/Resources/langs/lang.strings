@@ -1751,6 +1751,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
 
+"lng_call_start_video" = "Start Video";
+"lng_call_stop_video" = "Stop Video";
+"lng_call_end_call" = "End Call";
+"lng_call_mute_audio" = "Mute";
+"lng_call_unmute_audio" = "Unmute";
+"lng_call_accept" = "Accept";
+"lng_call_decline" = "Decline";
+"lng_call_redial" = "Redial";
+"lng_call_cancel" = "Cancel";
+
+"lng_call_microphone_off" = "{user}'s microphone is off";
+
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";

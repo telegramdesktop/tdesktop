@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
@@ -287,6 +288,7 @@ Panel::Panel(not_null<Call*> call)
 	initWidget();
 	initControls();
 	initLayout();
+	initBottomShadow();
 	showAndActivate();
 }
 
@@ -475,6 +477,15 @@ void Panel::reinitWithCall(Call *call) {
 	) | rpl::map([=](Call::RemoteAudioState state) {
 		return (state == Call::RemoteAudioState::Muted);
 	});
+	rpl::duplicate(
+		remoteMuted
+	) | rpl::start_with_next([=](bool muted) {
+		if (muted) {
+			createRemoteAudioMute();
+		} else {
+			_remoteAudioMute.destroy();
+		}
+	}, _callLifetime);
 	_userpic = std::make_unique<Userpic>(
 		widget(),
 		_user,
@@ -541,6 +552,37 @@ void Panel::reinitWithCall(Call *call) {
 	updateStatusText(_call->state());
 }
 
+void Panel::createRemoteAudioMute() {
+	_remoteAudioMute.create(
+		widget(),
+		object_ptr<Ui::FlatLabel>(
+			widget(),
+			tr::lng_call_microphone_off(
+				lt_user,
+				rpl::single(_user->shortName())),
+			st::callRemoteAudioMute),
+		st::callTooltipPadding);
+
+	_remoteAudioMute->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_remoteAudioMute);
+		const auto height = _remoteAudioMute->height();
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::toastBg);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(_remoteAudioMute->rect(), height / 2, height / 2);
+
+		st::callTooltipMutedIcon.paint(
+			p,
+			st::callTooltipMutedIconPosition,
+			_remoteAudioMute->width());
+	}, _remoteAudioMute->lifetime());
+
+	showControls();
+	updateControlsGeometry();
+}
+
 void Panel::initLayout() {
 	initGeometry();
 
@@ -563,6 +605,9 @@ void Panel::initLayout() {
 #endif // Q_OS_WIN
 }
 
+void Panel::initBottomShadow() {
+}
+
 void Panel::showControls() {
 	Expects(_call != nullptr);
 
@@ -574,6 +619,9 @@ void Panel::showControls() {
 	_name->setVisible(!shown);
 	_status->setVisible(!shown);
 	_userpic->setVisible(!shown);
+	if (_remoteAudioMute) {
+		_remoteAudioMute->setVisible(shown);
+	}
 }
 
 void Panel::hideBeforeDestroy() {
@@ -697,6 +745,14 @@ void Panel::updateControlsGeometry() {
 		(widget()->width() - _name->width()) / 2,
 		_bodyTop + _bodySt->nameTop);
 	updateStatusGeometry();
+
+	if (_remoteAudioMute) {
+		_remoteAudioMute->moveToLeft(
+			(widget()->width() - _remoteAudioMute->width()) / 2,
+			(_buttonsTop
+				- st::callRemoteAudioMuteSkip
+				- _remoteAudioMute->height()));
+	}
 
 	if (_outgoingPreviewInBody) {
 		_outgoingVideoBubble->updateGeometry(

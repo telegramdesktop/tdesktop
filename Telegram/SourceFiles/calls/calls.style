@@ -37,7 +37,7 @@ callHeightMin: 440px;
 callWidth: 720px;
 callHeight: 540px;
 
-callBottomControlsHeight: 85px;
+callBottomControlsHeight: 87px;
 
 CallBodyLayout {
 	height: pixels;
@@ -83,6 +83,10 @@ callFingerprintPadding: margins(9px, 4px, 9px, 5px);
 callFingerprintTop: 11px;
 callFingerprintSkip: 3px;
 callFingerprintBottom: -16px;
+
+callTooltipMutedIcon: icon{{ "calls_mute_tooltip", toastFg }};
+callTooltipMutedIconPosition: point(8px, 4px);
+callTooltipPadding: margins(41px, 6px, 15px, 7px);
 
 callButton: IconButton {
 	width: 68px;
@@ -169,6 +173,7 @@ callCameraUnmute: CallButton(callMicrophoneUnmute) {
 		}
 	}
 }
+callBottomShadowSize: 124px;
 
 callName: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
@@ -192,6 +197,11 @@ callStatus: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(14px underline);
 	}
 }
+callRemoteAudioMute: FlatLabel(callStatus) {
+	minWidth: 0px;
+	textFg: toastFg;
+}
+callRemoteAudioMuteSkip: 12px;
 
 callBarHeight: 38px;
 callBarMuteToggle: IconButton {
