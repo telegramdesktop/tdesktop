@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 #include "calls/calls_call.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -41,12 +41,11 @@ struct CallBodyLayout;
 
 namespace Calls {
 
-class Tooltip;
 class Userpic;
 class SignalBars;
 class VideoBubble;
 
-class Panel final : private Ui::AbstractTooltipShower {
+class Panel final {
 public:
 	Panel(not_null<Call*> call);
 	~Panel();
@@ -68,11 +67,6 @@ private:
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
-	// AbstractTooltipShower interface
-	QString tooltipText() const override;
-	QPoint tooltipPos() const override;
-	bool tooltipWindowActive() const override;
-
 	void paint(QRect clip);
 
 	void initWindow();
@@ -84,12 +78,10 @@ private:
 	void initBottomShadow();
 
 	void handleClose();
-	void handleMouseMove(not_null<QMouseEvent*> e);
 
 	QRect signalBarsRect() const;
 	void paintSignalBarsBg(Painter &p);
 
-	void updateFingerprintGeometry();
 	void updateControlsGeometry();
 	void updateHangupGeometry();
 	void updateStatusGeometry();
@@ -98,7 +90,6 @@ private:
 	void showControls();
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(crl::time currentDuration);
-	void fillFingerprint();
 	void setIncomingSize(QSize size);
 	void fillTopShadow(QPainter &p, QRect incoming);
 	void fillBottomShadow(QPainter &p, QRect incoming);
@@ -136,16 +127,13 @@ private:
 	object_ptr<Button> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
-	object_ptr<SignalBars> _signalBars = { nullptr };
+	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute = { nullptr };
 	std::unique_ptr<Userpic> _userpic;
 	std::unique_ptr<VideoBubble> _outgoingVideoBubble;
-	std::vector<EmojiPtr> _fingerprint;
-	QRect _fingerprintArea;
 	QPixmap _bottomShadow;
 	int _bodyTop = 0;
 	int _buttonsTop = 0;
-	int _fingerprintHeight = 0;
 
 	base::Timer _updateDurationTimer;
 	base::Timer _updateOuterRippleTimer;

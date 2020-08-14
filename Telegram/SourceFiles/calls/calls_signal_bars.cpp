@@ -15,30 +15,20 @@ namespace Calls {
 SignalBars::SignalBars(
 	QWidget *parent,
 	not_null<Call*> call,
-	const style::CallSignalBars &st,
-	Fn<void()> displayedChangedCallback)
+	const style::CallSignalBars &st)
 : RpWidget(parent)
 , _st(st)
-, _count(Call::kSignalBarStarting)
-, _displayedChangedCallback(std::move(displayedChangedCallback)) {
+, _count(Call::kSignalBarStarting) {
 	resize(
 		_st.width + (_st.width + _st.skip) * (Call::kSignalBarCount - 1),
-		_st.width * Call::kSignalBarCount);
+		_st.max);
 	call->signalBarCountValue(
 	) | rpl::start_with_next([=](int count) {
 		changed(count);
 	}, lifetime());
 }
 
-bool SignalBars::isDisplayed() const {
-	return (_count >= 0);
-}
-
 void SignalBars::paintEvent(QPaintEvent *e) {
-	if (!isDisplayed()) {
-		return;
-	}
-
 	Painter p(this);
 
 	PainterHighQualityEnabler hq(p);
@@ -46,14 +36,16 @@ void SignalBars::paintEvent(QPaintEvent *e) {
 	p.setBrush(_st.color);
 	for (auto i = 0; i < Call::kSignalBarCount; ++i) {
 		p.setOpacity((i < _count) ? 1. : _st.inactiveOpacity);
-		const auto barHeight = (i + 1) * _st.width;
+		const auto barHeight = _st.min
+			+ (_st.max - _st.min) * (i / float64(Call::kSignalBarCount - 1));
 		const auto barLeft = i * (_st.width + _st.skip);
 		const auto barTop = height() - barHeight;
 		p.drawRoundedRect(
-			barLeft,
-			barTop,
-			_st.width,
-			barHeight,
+			QRectF(
+				barLeft,
+				barTop,
+				_st.width,
+				barHeight),
 			_st.radius,
 			_st.radius);
 	}
@@ -63,13 +55,8 @@ void SignalBars::paintEvent(QPaintEvent *e) {
 void SignalBars::changed(int count) {
 	if (_count == Call::kSignalBarFinished) {
 		return;
-	}
-	if (_count != count) {
-		const auto wasDisplayed = isDisplayed();
+	} else if (_count != count) {
 		_count = count;
-		if (isDisplayed() != wasDisplayed && _displayedChangedCallback) {
-			_displayedChangedCallback();
-		}
 		update();
 	}
 }

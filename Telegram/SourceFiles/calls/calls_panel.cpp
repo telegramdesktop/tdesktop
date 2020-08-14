@@ -52,11 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 namespace Calls {
-namespace {
-
-constexpr auto kTooltipShowTimeoutMs = 1000;
-
-} // namespace
 
 class Panel::Button final : public Ui::RippleButton {
 public:
@@ -352,7 +347,8 @@ void Panel::initWindow() {
 #endif // Q_OS_WIN
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
-		const auto inControls = _fingerprintArea.contains(widgetPoint)
+		const auto inControls = (_fingerprint
+			&& _fingerprint->geometry().contains(widgetPoint))
 			|| QRect(
 				(widget()->width() - buttonsWidth) / 2,
 				_answerHangupRedial->y(),
@@ -397,13 +393,9 @@ void Panel::initWidget() {
 		paint(clip);
 	}, widget()->lifetime());
 
-	widget()->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::MouseMove) {
-			handleMouseMove(static_cast<QMouseEvent*>(e.get()));
-		} else if (e->type() == QEvent::Resize) {
-			updateControlsGeometry();
-		}
+	widget()->sizeValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		updateControlsGeometry();
 	}, widget()->lifetime());
 }
 
@@ -482,12 +474,6 @@ void Panel::reinitWithCall(Call *call) {
 	}
 
 	_user = _call->user();
-
-	_signalBars.create(
-		widget(),
-		_call,
-		st::callPanelSignalBars,
-		[=] { widget()->rtlupdate(signalBarsRect()); });
 
 	auto remoteMuted = _call->remoteAudioStateValue(
 	) | rpl::map([=](Call::RemoteAudioState state) {
@@ -585,6 +571,7 @@ void Panel::createRemoteAudioMute() {
 				rpl::single(_user->shortName())),
 			st::callRemoteAudioMute),
 		st::callTooltipPadding);
+	_remoteAudioMute->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_remoteAudioMute->paintRequest(
 	) | rpl::start_with_next([=] {
@@ -763,30 +750,27 @@ QRect Panel::outgoingFrameGeometry() const {
 	return _outgoingVideoBubble->geometry();
 }
 
-void Panel::updateFingerprintGeometry() {
-	auto realSize = Ui::Emoji::GetSizeNormal();
-	auto size = realSize / cIntRetinaFactor();
-	auto count = _fingerprint.size();
-	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
-	auto rectHeight = size;
-	auto left = (widget()->width() - rectWidth) / 2;
-	_fingerprintArea = QRect(
-		left,
-		st::callFingerprintTop + st::callFingerprintPadding.top(),
-		rectWidth,
-		rectHeight
-	).marginsAdded(st::callFingerprintPadding);
-	_fingerprintHeight = st::callFingerprintTop + _fingerprintArea.height() + st::callFingerprintBottom;
-}
-
 void Panel::updateControlsGeometry() {
 	if (widget()->size().isEmpty()) {
 		return;
 	}
-	updateFingerprintGeometry();
+	if (_fingerprint) {
+#ifdef Q_OS_WIN
+		const auto minRight = _controls->geometry().width()
+			+ st::callFingerprintTop;
+#else // Q_OS_WIN
+		const auto minRight = 0;
+#endif // _controls
+		const auto desired = (widget()->width() - _fingerprint->width()) / 2;
+		_fingerprint->moveToRight(
+			std::max(desired, minRight),
+			st::callFingerprintTop);
+	}
 	const auto innerHeight = std::max(widget()->height(), st::callHeightMin);
 	const auto innerWidth = widget()->width() - 2 * st::callInnerPadding;
-	const auto availableTop = _fingerprintHeight;
+	const auto availableTop = st::callFingerprintTop
+		+ (_fingerprint ? _fingerprint->height() : 0)
+		+ st::callFingerprintBottom;
 	const auto available = widget()->height()
 		- st::callBottomControlsHeight
 		- availableTop;
@@ -851,10 +835,6 @@ void Panel::updateControlsGeometry() {
 	_cancel->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
 
 	updateHangupGeometry();
-
-	const auto skip = st::callSignalMargin + st::callSignalPadding;
-	const auto delta = (_signalBars->width() - _signalBars->height());
-	_signalBars->moveToLeft(skip, skip + delta / 2);
 }
 
 void Panel::updateOutgoingVideoBubbleGeometry() {
@@ -910,44 +890,6 @@ void Panel::paint(QRect clip) {
 		fillTopShadow(p, incoming);
 	}
 	_call->videoIncoming()->markFrameShown();
-
-	if (_signalBars->isDisplayed()) {
-		paintSignalBarsBg(p);
-	}
-
-	if (!_fingerprint.empty() && clip.intersects(_fingerprintArea)) {
-		const auto radius = _fingerprintArea.height() / 2;
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::callBgButton);
-		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(_fingerprintArea, radius, radius);
-
-		const auto realSize = Ui::Emoji::GetSizeNormal();
-		const auto size = realSize / cIntRetinaFactor();
-		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
-		const auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
-		for (const auto emoji : _fingerprint) {
-			Ui::Emoji::Draw(p, emoji, realSize, left, top);
-			left += st::callFingerprintSkip + size;
-		}
-	}
-}
-
-QRect Panel::signalBarsRect() const {
-	const auto size = 2 * st::callSignalPadding + _signalBars->width();
-	return QRect(
-		st::callSignalMargin,
-		st::callSignalMargin,
-		size,
-		size);
-}
-
-void Panel::paintSignalBarsBg(Painter &p) {
-	App::roundRect(
-		p,
-		signalBarsRect(),
-		st::callBgButton,
-		ImageRoundRadius::Small);
 }
 
 void Panel::handleClose() {
@@ -956,28 +898,8 @@ void Panel::handleClose() {
 	}
 }
 
-void Panel::handleMouseMove(not_null<QMouseEvent*> e) {
-	if (_fingerprintArea.contains(e->pos())) {
-		Ui::Tooltip::Show(kTooltipShowTimeoutMs, this);
-	} else {
-		Ui::Tooltip::Hide();
-	}
-}
-
 not_null<Ui::RpWidget*> Panel::widget() const {
 	return _window->body();
-}
-
-QString Panel::tooltipText() const {
-	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, _user->name);
-}
-
-QPoint Panel::tooltipPos() const {
-	return QCursor::pos();
-}
-
-bool Panel::tooltipWindowActive() const {
-	return _window->isActiveWindow();
 }
 
 void Panel::stateChanged(State state) {
@@ -990,7 +912,7 @@ void Panel::stateChanged(State state) {
 		&& (state != State::EndedByOtherDevice)
 		&& (state != State::FailedHangingUp)
 		&& (state != State::Failed)) {
-		auto toggleButton = [this](auto &&button, bool visible) {
+		auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,
 				_window->isHidden()
@@ -1018,8 +940,11 @@ void Panel::stateChanged(State state) {
 			_answerHangupRedialState = answerHangupRedialState;
 			refreshAnswerHangupRedialLabel();
 		}
-		if (_fingerprint.empty() && _call->isKeyShaForFingerprintReady()) {
-			fillFingerprint();
+		if (!_call->isKeyShaForFingerprintReady()) {
+			_fingerprint.destroy();
+		} else if (!_fingerprint) {
+			_fingerprint = CreateFingerprintAndSignalBars(widget(), _call);
+			updateControlsGeometry();
 		}
 	}
 }
@@ -1035,14 +960,6 @@ void Panel::refreshAnswerHangupRedialLabel() {
 		}
 		Unexpected("AnswerHangupRedialState value.");
 	}());
-}
-
-void Panel::fillFingerprint() {
-	Expects(_call != nullptr);
-
-	_fingerprint = ComputeEmojiFingerprint(_call);
-	updateControlsGeometry();
-	widget()->update();
 }
 
 void Panel::updateStatusText(State state) {

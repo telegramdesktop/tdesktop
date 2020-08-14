@@ -22,20 +22,15 @@ public:
 	SignalBars(
 		QWidget *parent,
 		not_null<Call*> call,
-		const style::CallSignalBars &st,
-		Fn<void()> displayedChangedCallback = nullptr);
-
-	bool isDisplayed() const;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
+		const style::CallSignalBars &st);
 
 private:
+	void paintEvent(QPaintEvent *e) override;
+
 	void changed(int count);
 
 	const style::CallSignalBars &_st;
 	int _count = 0;
-	Fn<void()> _displayedChangedCallback;
 
 };
 

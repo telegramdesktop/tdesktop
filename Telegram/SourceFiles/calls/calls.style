@@ -14,6 +14,8 @@ CallSignalBars {
 	width: pixels;
 	radius: pixels;
 	skip: pixels;
+	min: pixels;
+	max: pixels;
 	color: color;
 	inactiveOpacity: double;
 }
@@ -79,9 +81,12 @@ callOutgoingDefaultSize: size(160px, 110px);
 
 callInnerPadding: 12px;
 
-callFingerprintPadding: margins(9px, 4px, 9px, 5px);
-callFingerprintTop: 11px;
-callFingerprintSkip: 3px;
+callFingerprintPadding: margins(10px, 4px, 8px, 5px);
+callFingerprintSkip: 4px;
+callFingerprintSignalBarsSkip: 2px;
+callSignalBarsPadding: margins(8px, 9px, 11px, 5px);
+
+callFingerprintTop: 8px;
 callFingerprintBottom: -16px;
 
 callTooltipMutedIcon: icon{{ "calls_mute_tooltip", videoPlayIconFg }};
@@ -295,17 +300,21 @@ callDebugLabel: FlatLabel(defaultFlatLabel) {
 callPanelDuration: 150;
 
 callPanelSignalBars: CallSignalBars {
-	width: 3px;
+	width: 2px;
 	radius: 1px;
-	skip: 1px;
+	skip: 2px;
+	min: 4px;
+	max: 10px;
 	color: callNameFg;
 	inactiveOpacity: 0.5;
 }
 callBarSignalBars: CallSignalBars(callPanelSignalBars) {
+	width: 3px;
+	skip: 1px;
+	min: 3px;
+	max: 12px;
 	color: callBarFg;
 }
-callSignalMargin: 8px;
-callSignalPadding: 4px;
 
 callTitleButton: IconButton {
 	width: 34px;

@@ -8,10 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_emoji_fingerprint.h"
 
 #include "calls/calls_call.h"
+#include "calls/calls_signal_bars.h"
+#include "lang/lang_keys.h"
+#include "data/data_user.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/emoji_config.h"
+#include "ui/rp_widget.h"
+#include "styles/style_calls.h"
 
 namespace Calls {
 namespace {
+
+constexpr auto kTooltipShowTimeoutMs = 1000;
 
 const ushort Data[] = {
 0xd83d, 0xde09, 0xd83d, 0xde0d, 0xd83d, 0xde1b, 0xd83d, 0xde2d, 0xd83d, 0xde31, 0xd83d, 0xde21,
@@ -143,7 +151,146 @@ std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call) {
 		}
 	}
 	return result;
+}
 
+object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
+		not_null<QWidget*> parent,
+		not_null<Call*> call) {
+	class EmojiTooltipShower final : public Ui::AbstractTooltipShower {
+	public:
+		EmojiTooltipShower(not_null<QWidget*> window, const QString &text)
+		: _window(window)
+		, _text(text) {
+		}
+
+		QString tooltipText() const override {
+			return _text;
+		}
+		QPoint tooltipPos() const override {
+			return QCursor::pos();
+		}
+		bool tooltipWindowActive() const override {
+			return _window->isActiveWindow();
+		}
+
+	private:
+		const not_null<QWidget*> _window;
+		const QString _text;
+
+	};
+
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+
+	// Emoji tooltip.
+	const auto shower = raw->lifetime().make_state<EmojiTooltipShower>(
+		parent->window(),
+		tr::lng_call_fingerprint_tooltip(
+			tr::now,
+			lt_user,
+			call->user()->name));
+	raw->setMouseTracking(true);
+	raw->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseMove) {
+			Ui::Tooltip::Show(kTooltipShowTimeoutMs, shower);
+		} else if (e->type() == QEvent::Leave) {
+			Ui::Tooltip::Hide();
+		}
+	}, raw->lifetime());
+
+	// Signal bars.
+	const auto bars = Ui::CreateChild<SignalBars>(
+		raw,
+		call,
+		st::callPanelSignalBars);
+	bars->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	// Geometry.
+	const auto print = ComputeEmojiFingerprint(call);
+	auto realSize = Ui::Emoji::GetSizeNormal();
+	auto size = realSize / cIntRetinaFactor();
+	auto count = print.size();
+	const auto printSize = QSize(
+		count * size + (count - 1) * st::callFingerprintSkip,
+		size);
+	const auto fullPrintSize = QRect(
+		QPoint(),
+		printSize
+	).marginsAdded(st::callFingerprintPadding).size();
+	const auto fullBarsSize = bars->rect().marginsAdded(
+		st::callSignalBarsPadding
+	).size();
+	const auto fullSize = QSize(
+		(fullPrintSize.width()
+			+ st::callFingerprintSignalBarsSkip
+			+ fullBarsSize.width()),
+		fullPrintSize.height());
+	raw->resize(fullSize);
+	bars->moveToRight(
+		st::callSignalBarsPadding.right(),
+		st::callSignalBarsPadding.top());
+
+	// Paint.
+	const auto background = raw->lifetime().make_state<QImage>(
+		fullSize * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	rpl::merge(
+		rpl::single(rpl::empty_value()),
+		Ui::Emoji::Updated(),
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		background->fill(Qt::transparent);
+
+		// Prepare.
+		auto p = QPainter(background);
+		const auto height = fullSize.height();
+		const auto fullPrintRect = QRect(QPoint(), fullPrintSize);
+		const auto fullBarsRect = QRect(
+			fullSize.width() - fullBarsSize.width(),
+			0,
+			fullBarsSize.width(),
+			height);
+		const auto bigRadius = height / 2;
+		const auto smallRadius = st::buttonRadius;
+		const auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::callBgButton);
+
+		// Fingerprint part.
+		p.setClipRect(0, 0, fullPrintSize.width() / 2, height);
+		p.drawRoundedRect(fullPrintRect, bigRadius, bigRadius);
+		p.setClipRect(fullPrintSize.width() / 2, 0, fullSize.width(), height);
+		p.drawRoundedRect(fullPrintRect, smallRadius, smallRadius);
+
+		// Signal bars part.
+		const auto middle = fullBarsRect.center().x();
+		p.setClipRect(0, 0, middle, height);
+		p.drawRoundedRect(fullBarsRect, smallRadius, smallRadius);
+		p.setClipRect(middle, 0, fullBarsRect.width(), height);
+		p.drawRoundedRect(fullBarsRect, bigRadius, bigRadius);
+
+		// Emoji.
+		const auto realSize = Ui::Emoji::GetSizeNormal();
+		const auto size = realSize / cIntRetinaFactor();
+		auto left = st::callFingerprintPadding.left();
+		const auto top = st::callFingerprintPadding.top();
+		p.setClipping(false);
+		for (const auto emoji : print) {
+			Ui::Emoji::Draw(p, emoji, realSize, left, top);
+			left += st::callFingerprintSkip + size;
+		}
+
+		raw->update();
+	}, raw->lifetime());
+
+	raw->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		QPainter(raw).drawImage(raw->rect(), *background);
+	}, raw->lifetime());
+
+	raw->show();
+	return result;
 }
 
 } // namespace Calls
