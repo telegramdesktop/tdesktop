@@ -32,7 +32,7 @@ callShadow: Shadow {
 	fallback: windowShadowFgFallback;
 }
 
-callWidthMin: 380px;
+callWidthMin: 300px;
 callHeightMin: 440px;
 callWidth: 720px;
 callHeight: 540px;
@@ -85,12 +85,12 @@ callFingerprintSkip: 3px;
 callFingerprintBottom: -16px;
 
 callButton: IconButton {
-	width: 64px;
-	height: 64px;
+	width: 68px;
+	height: 68px;
 
 	iconPosition: point(-1px, -1px);
 
-	rippleAreaPosition: point(10px, 10px);
+	rippleAreaPosition: point(12px, 12px);
 	rippleAreaSize: 44px;
 	ripple: defaultRippleAnimation;
 }
