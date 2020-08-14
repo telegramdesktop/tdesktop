@@ -60,6 +60,11 @@ private:
 	class Button;
 	using State = Call::State;
 	using Type = Call::Type;
+	enum class AnswerHangupRedialState : uchar {
+		Answer,
+		Hangup,
+		Redial,
+	};
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
@@ -101,6 +106,7 @@ private:
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
 	void createRemoteAudioMute();
+	void refreshAnswerHangupRedialLabel();
 
 	[[nodiscard]] QRect incomingFrameGeometry() const;
 	[[nodiscard]] QRect outgoingFrameGeometry() const;
@@ -124,6 +130,7 @@ private:
 	object_ptr<Ui::FadeWrap<Button>> _cancel;
 	bool _hangupShown = false;
 	bool _outgoingPreviewInBody = false;
+	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
 	object_ptr<Button> _camera;
 	object_ptr<Button> _mute;

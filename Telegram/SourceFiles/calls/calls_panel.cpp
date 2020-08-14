@@ -60,12 +60,14 @@ constexpr auto kTooltipShowTimeoutMs = 1000;
 
 class Panel::Button final : public Ui::RippleButton {
 public:
-	Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo = nullptr);
+	Button(
+		QWidget *parent,
+		const style::CallButton &stFrom,
+		const style::CallButton *stTo = nullptr);
 
 	void setProgress(float64 progress);
 	void setOuterValue(float64 value);
-
-	void setIconOverride(const style::icon *iconOverride);
+	void setText(rpl::producer<QString> text);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -83,7 +85,7 @@ private:
 	const style::CallButton *_stTo = nullptr;
 	float64 _progress = 0.;
 
-	const style::icon *_iconOverride = nullptr;
+	object_ptr<Ui::FlatLabel> _label = { nullptr };
 
 	QImage _bgMask, _bg;
 	QPixmap _bgFrom, _bgTo;
@@ -94,7 +96,10 @@ private:
 
 };
 
-Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo)
+Panel::Button::Button(
+	QWidget *parent,
+	const style::CallButton &stFrom,
+	const style::CallButton *stTo)
 : Ui::RippleButton(parent, stFrom.button.ripple)
 , _stFrom(&stFrom)
 , _stTo(stTo) {
@@ -143,9 +148,18 @@ void Panel::Button::setOuterValue(float64 value) {
 	}
 }
 
-void Panel::Button::setIconOverride(const style::icon *iconOverride) {
-	_iconOverride = iconOverride;
-	update();
+void Panel::Button::setText(rpl::producer<QString> text) {
+	_label.create(this, std::move(text), _stFrom->label);
+	_label->show();
+	rpl::combine(
+		sizeValue(),
+		_label->sizeValue()
+	) | rpl::start_with_next([=](QSize my, QSize label) {
+		_label->moveToLeft(
+			(my.width() - label.width()) / 2,
+			my.height() - label.height(),
+			my.width());
+	}, _label->lifetime());
 }
 
 void Panel::Button::setProgress(float64 progress) {
@@ -201,7 +215,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 
 	auto positionFrom = iconPosition(_stFrom);
 	if (paintFrom) {
-		const auto icon = _iconOverride ? _iconOverride : &_stFrom->button.icon;
+		const auto icon = &_stFrom->button.icon;
 		icon->paint(p, positionFrom, width());
 	} else {
 		auto positionTo = iconPosition(_stTo);
@@ -282,7 +296,9 @@ Panel::Panel(not_null<Call*> call)
 , _name(widget(), st::callName)
 , _status(widget(), st::callStatus) {
 	_decline->setDuration(st::callPanelDuration);
+	_decline->entity()->setText(tr::lng_call_decline());
 	_cancel->setDuration(st::callPanelDuration);
+	_cancel->entity()->setText(tr::lng_call_cancel());
 
 	initWindow();
 	initWidget();
@@ -497,11 +513,18 @@ void Panel::reinitWithCall(Call *call) {
 	_call->mutedValue(
 	) | rpl::start_with_next([=](bool mute) {
 		_mute->setProgress(mute ? 1. : 0.);
+		_mute->setText(mute
+			? tr::lng_call_unmute_audio()
+			: tr::lng_call_mute_audio());
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		_camera->setProgress((state == Webrtc::VideoState::Active) ? 0. : 1.);
+		const auto active = (state == Webrtc::VideoState::Active);
+		_camera->setProgress(active ? 0. : 1.);
+		_camera->setText(active
+			? tr::lng_call_stop_video()
+			: tr::lng_call_start_video());
 	}, _callLifetime);
 
 	_call->stateValue(
@@ -569,7 +592,7 @@ void Panel::createRemoteAudioMute() {
 		const auto height = _remoteAudioMute->height();
 
 		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::toastBg);
+		p.setBrush(st::videoPlayIconBg);
 		p.setPen(Qt::NoPen);
 		p.drawRoundedRect(_remoteAudioMute->rect(), height / 2, height / 2);
 
@@ -986,10 +1009,32 @@ void Panel::stateChanged(State state) {
 			_hangupShown = hangupShown;
 			_hangupShownProgress.start([this] { updateHangupGeometry(); }, _hangupShown ? 0. : 1., _hangupShown ? 1. : 0., st::callPanelDuration, anim::sineInOut);
 		}
+		const auto answerHangupRedialState = incomingWaiting
+			? AnswerHangupRedialState::Answer
+			: (state == State::Busy)
+			? AnswerHangupRedialState::Redial
+			: AnswerHangupRedialState::Hangup;
+		if (_answerHangupRedialState != answerHangupRedialState) {
+			_answerHangupRedialState = answerHangupRedialState;
+			refreshAnswerHangupRedialLabel();
+		}
 		if (_fingerprint.empty() && _call->isKeyShaForFingerprintReady()) {
 			fillFingerprint();
 		}
 	}
+}
+
+void Panel::refreshAnswerHangupRedialLabel() {
+	Expects(_answerHangupRedialState.has_value());
+
+	_answerHangupRedial->setText([&] {
+		switch (*_answerHangupRedialState) {
+		case AnswerHangupRedialState::Answer: return tr::lng_call_accept();
+		case AnswerHangupRedialState::Hangup: return tr::lng_call_end_call();
+		case AnswerHangupRedialState::Redial: return tr::lng_call_redial();
+		}
+		Unexpected("AnswerHangupRedialState value.");
+	}());
 }
 
 void Panel::fillFingerprint() {

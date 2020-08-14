@@ -84,15 +84,15 @@ callFingerprintTop: 11px;
 callFingerprintSkip: 3px;
 callFingerprintBottom: -16px;
 
-callTooltipMutedIcon: icon{{ "calls_mute_tooltip", toastFg }};
-callTooltipMutedIconPosition: point(8px, 4px);
-callTooltipPadding: margins(41px, 6px, 15px, 7px);
+callTooltipMutedIcon: icon{{ "calls_mute_tooltip", videoPlayIconFg }};
+callTooltipMutedIconPosition: point(10px, 5px);
+callTooltipPadding: margins(41px, 7px, 15px, 8px);
 
 callButton: IconButton {
 	width: 68px;
-	height: 68px;
+	height: 79px;
 
-	iconPosition: point(-1px, -1px);
+	iconPosition: point(-1px, 16px);
 
 	rippleAreaPosition: point(12px, 12px);
 	rippleAreaSize: 44px;
@@ -100,6 +100,11 @@ callButton: IconButton {
 }
 callButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: callNameFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px underline);
+	}
 }
 
 callAnswer: CallButton {
@@ -128,7 +133,7 @@ callHangup: CallButton {
 }
 callCancel: CallButton {
 	button: IconButton(callButton) {
-		icon: icon {{ "box_button_close", callIconFgActive }};
+		icon: icon {{ "call_cancel", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callIconActiveRipple;
 		}
@@ -199,7 +204,12 @@ callStatus: FlatLabel(defaultFlatLabel) {
 }
 callRemoteAudioMute: FlatLabel(callStatus) {
 	minWidth: 0px;
-	textFg: toastFg;
+	textFg: videoPlayIconFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkFont: font(12px);
+		linkFontOver: font(12px underline);
+	}
 }
 callRemoteAudioMuteSkip: 12px;
 
