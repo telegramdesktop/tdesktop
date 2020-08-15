@@ -54,6 +54,7 @@ jobs:
         defines:
           - ""
           - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
+          - "TDESKTOP_DISABLE_GTK_INTEGRATION"
 
     env:
       GIT: "https://github.com"

@@ -53,11 +53,9 @@ void UiIntegration::activationFromTopPanel() {
 }
 
 void UiIntegration::startFontsBegin() {
-	Platform::FallbackFontConfigCheckBegin();
 }
 
 void UiIntegration::startFontsEnd() {
-	Platform::FallbackFontConfigCheckEnd();
 }
 
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(

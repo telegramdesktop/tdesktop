@@ -22,12 +22,6 @@ inline void SetWatchingMediaKeys(bool watching) {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline void FallbackFontConfigCheckBegin() {
-}
-
-inline void FallbackFontConfigCheckEnd() {
-}
-
 inline QImage GetImageFromClipboard() {
 	return {};
 }

@@ -26,7 +26,6 @@ bool InAppImage();
 bool IsStaticBinary();
 bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
-bool UseGtkFileDialog();
 bool IsQtPluginsBundled();
 
 bool IsXDGDesktopPortalPresent();
@@ -43,11 +42,8 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-void FallbackFontConfigCheckBegin();
-void FallbackFontConfigCheckEnd();
-
-bool GtkClipboardSupported();
 void SetTrayIconSupported(bool supported);
+void InstallMainDesktopFile();
 
 } // namespace Platform
 

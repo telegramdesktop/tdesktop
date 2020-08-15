@@ -8,10 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/main_window_linux.h"
 
 #include "styles/style_window.h"
-#include "platform/linux/linux_libs.h"
 #include "platform/linux/specific_linux.h"
-#include "platform/linux/linux_desktop_environment.h"
-#include "platform/platform_notifications_manager.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -43,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusError>
 #include <QtDBus/QDBusMetaType>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+#include <glib.h>
 
 namespace Platform {
 namespace {
@@ -238,8 +237,10 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 bool IsIndicatorApplication() {
-	// Hack for indicator-application, which doesn't handle icons sent across D-Bus:
-	// save the icon to a temp file and set the icon name to that filename.
+	// Hack for indicator-application,
+	// which doesn't handle icons sent across D-Bus:
+	// save the icon to a temp file
+	// and set the icon name to that filename.
 	static const auto Result = [] {
 		const auto interface = QDBusConnection::sessionBus().interface();
 
@@ -412,11 +413,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (GtkClipboardSupported()) {
-		_gtkClipboard = Libs::gtk_clipboard_get(Libs::gdk_atom_intern("CLIPBOARD", true));
-	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 void MainWindow::initHook() {
@@ -722,10 +718,20 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::updateWaylandDecorationColors() {
-	windowHandle()->setProperty("__material_decoration_backgroundColor", st::titleBgActive->c);
-	windowHandle()->setProperty("__material_decoration_foregroundColor", st::titleFgActive->c);
-	windowHandle()->setProperty("__material_decoration_backgroundInactiveColor", st::titleBg->c);
-	windowHandle()->setProperty("__material_decoration_foregroundInactiveColor", st::titleFg->c);
+	windowHandle()->setProperty(
+		"__material_decoration_backgroundColor",
+		st::titleBgActive->c);
+
+	windowHandle()->setProperty(
+		"__material_decoration_foregroundColor",
+		st::titleFgActive->c);
+
+	windowHandle()->setProperty(
+		"__material_decoration_backgroundInactiveColor",
+		st::titleBg->c);
+	windowHandle()->setProperty(
+		"__material_decoration_foregroundInactiveColor",
+		st::titleFg->c);
 
 	// Trigger a QtWayland client-side decoration update
 	windowHandle()->resize(windowHandle()->size());
@@ -737,6 +743,13 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmap>();
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
+		g_warning(
+			"You can disable tray icon counter with %s "
+			"and make it look better if it is monochrome.",
+			kDisableTrayCounter.utf8().constData());
+	}
 }
 
 void MainWindow::initTrayMenuHook() {
