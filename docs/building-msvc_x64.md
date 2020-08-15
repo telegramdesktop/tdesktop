@@ -26,13 +26,15 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Python 2.7** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install to ***BuildPath*\\ThirdParty\\Python27**
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
+* Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
+* Download **depot_tools** archive from [https://storage.googleapis.com/chrome-infra/depot_tools.zip](https://storage.googleapis.com/chrome-infra/depot_tools.zip) and unpack to ***BuildPath*\\ThirdParty\\depot_tools**
 
 Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 0ba67e2
+    git checkout 08351e3
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -46,6 +48,7 @@ Add **GYP** and **Ninja** to your PATH:
 * Press **Environment Variables...**
 * Select **Path**
 * Press **Edit**
+* Add ***BuildPath*\\ThirdParty\\depot_tools** value
 * Add ***BuildPath*\\ThirdParty\\gyp** value
 * Add ***BuildPath*\\ThirdParty\\Ninja** value
 
@@ -53,7 +56,7 @@ Add **GYP** and **Ninja** to your PATH:
 
 Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
-    SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
+    SET PATH=%cd%\ThirdParty\depot_tools;%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
@@ -64,19 +67,21 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 0ba67e2
+    git checkout 08351e3
     cd ..
 
     git clone https://github.com/TDesktop-x64/lzma.git
     cd lzma\C\Util\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="x64"
     msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="x64"
+    cp "x64/Debug/LzmaLib.lib" "Debug/LzmaLib.lib"
     cd ..\..\..\..
 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
     perl Configure no-shared debug-VC-WIN64A
+    sed -i 's/\/W3 \/wd4090 \/nologo \/Od/\/W3 \/wd4090 \/nologo \/Od \/FS \/MP/g' makefile
     jom -j %NUMBER_OF_PROCESSORS%
     mkdir out64.dbg
     move libcrypto.lib out64.dbg
@@ -85,6 +90,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     nmake clean
     move out64.dbg\ossl_static out64.dbg\ossl_static.pdb
     perl Configure no-shared VC-WIN64A
+    sed -i 's/\/W3 \/wd4090 \/nologo \/O2/\/W3 \/wd4090 \/nologo \/O2 \/FS \/MP/g' makefile
     jom -j %NUMBER_OF_PROCESSORS%
     mkdir out64
     move libcrypto.lib out64
@@ -161,6 +167,27 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j %NUMBER_OF_PROCESSORS%
     jom -j %NUMBER_OF_PROCESSORS% install
     cd ..
+ 
+    mkdir webrtc
+    cd webrtc
+    copy ..\patches\webrtc\.gclient .gclient
+    git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
+    gclient sync --no-history
+    cd src
+    git apply ../../patches/webrtc/src.diff
+    cd build
+    git apply ../../../patches/webrtc/build.diff
+    cd ..\third_party
+    git apply ../../../patches/webrtc/third_party.diff
+    cd libsrtp
+    git apply ../../../../patches/webrtc/libsrtp.diff
+    cd ..\..
+    sed -i 's/out32/out64/g' ..\..\patches\webrtc\configure.bat
+    sed -i 's/x86/x64/g' ..\..\patches\webrtc\configure.bat
+    ..\..\patches\webrtc\configure.bat
+    ninja -C out/Debug webrtc
+    ninja -C out/Release webrtc
+    cd ..\..
 
 ## Build the project
 
