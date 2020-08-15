@@ -627,7 +627,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				.index = index,
 				.onlineTill = onlineTill };
 			return std::make_unique<Pin>(std::move(pin));
-		});
+		}) | ranges::to_vector;
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
 
 		peerChangedLifetime->destroy();
