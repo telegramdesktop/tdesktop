@@ -198,8 +198,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 	if (_never.contains(history)) {
 		return false;
 	}
-	return false
-		|| ((_flags & flag)
+	return ((_flags & flag) || _always.contains(history))
 			&& (!(_flags & Flag::NoMuted)
 				|| !history->mute()
 				|| (history->hasUnreadMentions()
@@ -211,8 +210,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 				|| history->hasUnreadMentions()
 				|| history->fakeUnreadWhileOpened())
 			&& (!(_flags & Flag::NoArchived)
-				|| (history->folderKnown() && !history->folder())))
-		|| _always.contains(history);
+				|| (history->folderKnown() && !history->folder()));
 }
 
 ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
