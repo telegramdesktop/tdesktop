@@ -14,6 +14,7 @@ PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 ./configure --toolchain=msvc \
 --extra-ldflags="-libpath:$FullExecPath/../opus/win32/VS2015/x64/Release" \
+--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
 --disable-programs \
 --disable-doc \
 --disable-network \

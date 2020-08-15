@@ -83,6 +83,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define __STDC_FORMAT_MACROS
 #endif // Q_OS_UNIX
 
+// Remove 'small' macro definition.
+#ifdef Q_OS_WIN
+#include <rpc.h>
+#ifdef small
+#undef small
+#endif // small
+#endif // Q_OS_WIN
+
 #include <array>
 #include <vector>
 #include <set>

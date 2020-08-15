@@ -175,6 +175,7 @@ CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 		return {};
 	}
 	av_codec_set_pkt_timebase(context, stream->time_base);
+	av_opt_set(context, "threads", "auto", 0);
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
 
 	const auto codec = avcodec_find_decoder(context->codec_id);

@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
@@ -913,7 +915,7 @@ Main::Session &StickersListWidget::session() const {
 	return controller()->session();
 }
 
-rpl::producer<not_null<DocumentData*>> StickersListWidget::chosen() const {
+rpl::producer<TabbedSelector::FileChosen> StickersListWidget::chosen() const {
 	return _chosen.events();
 }
 
@@ -2043,6 +2045,57 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 	return myrtlrect(removeButtonRect(section)).topLeft() + st::stickerPanRemoveSet.rippleAreaPosition;
 }
 
+void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
+	if (document->sticker()
+		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+		_displayingSet = true;
+		checkHideWithBox(StickerSetBox::Show(controller(), document));
+	}
+}
+
+void StickersListWidget::fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) {
+	auto selected = _selected;
+	auto &sets = shownSets();
+	if (!selected || _pressed) {
+		return;
+	}
+	if (auto sticker = base::get_if<OverSticker>(&selected)) {
+		Assert(sticker->section >= 0 && sticker->section < sets.size());
+		auto &set = sets[sticker->section];
+		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
+
+		const auto document = set.stickers[sticker->index].document;
+		const auto send = [=](Api::SendOptions options) {
+			_chosen.fire_copy({
+				.document = document,
+				.options = options });
+		};
+		SendMenu::FillSendMenu(
+			menu,
+			[&] { return type; },
+			SendMenu::DefaultSilentCallback(send),
+			SendMenu::DefaultScheduleCallback(this, type, send));
+
+		const auto toggleFavedSticker = [=] {
+			document->session().api().toggleFavedSticker(
+				document,
+				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0),
+				!document->owner().stickers().isFaved(document));
+		};
+		menu->addAction(
+			(document->owner().stickers().isFaved(document)
+				? tr::lng_faved_stickers_remove
+				: tr::lng_faved_stickers_add)(tr::now),
+			toggleFavedSticker);
+
+		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
+			showStickerSetBox(document);
+		});
+	}
+}
+
 void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.cancel();
 
@@ -2079,15 +2132,9 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			}
 			const auto document = set.stickers[sticker->index].document;
 			if (e->modifiers() & Qt::ControlModifier) {
-				if (document->sticker()
-					&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-					_displayingSet = true;
-					checkHideWithBox(StickerSetBox::Show(
-						controller(),
-						document));
-				}
+				showStickerSetBox(document);
 			} else {
-				_chosen.fire_copy(document);
+				_chosen.fire_copy({ .document = document });
 			}
 		} else if (auto set = base::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());

@@ -26,7 +26,10 @@ struct SendingAlbum;
 enum class SendMediaType;
 enum class CompressConfirm;
 class MessageLinksParser;
-enum class SendMenuType;
+
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace Api {
 struct SendOptions;
@@ -251,8 +254,12 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
-	bool sendExistingDocument(not_null<DocumentData*> document);
-	bool sendExistingPhoto(not_null<PhotoData*> photo);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options);
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options);
 
 	void showInfoTooltip(
 		const TextWithEntities &text,
@@ -324,8 +331,6 @@ private slots:
 	void onInlineBotCancel();
 	void onMembersDropdownShow();
 
-	void onModerateKeyActivate(int index, bool *outHandled);
-
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
@@ -372,8 +377,8 @@ private:
 	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
 	void sendSilent();
 	void sendScheduled();
-	[[nodiscard]] SendMenuType sendMenuType() const;
-	[[nodiscard]] SendMenuType sendButtonMenuType() const;
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
@@ -502,7 +507,8 @@ private:
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
+		not_null<UserData*> bot,
+		Api::SendOptions options);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(

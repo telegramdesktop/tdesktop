@@ -217,7 +217,7 @@ void TopBarWidget::onSearch() {
 void TopBarWidget::onCall() {
 	if (const auto peer = _activeChat.peer()) {
 		if (const auto user = peer->asUser()) {
-			Core::App().calls().startOutgoingCall(user);
+			Core::App().calls().startOutgoingCall(user, false);
 		}
 	}
 }
@@ -256,7 +256,9 @@ void TopBarWidget::showMenu() {
 			peer,
 			FilterId(),
 			addAction,
-			Window::PeerMenuSource::History);
+			(_section == Section::Scheduled)
+				? Window::PeerMenuSource::ScheduledSection
+				: Window::PeerMenuSource::History);
 	} else if (const auto folder = _activeChat.folder()) {
 		Window::FillFolderMenu(
 			_controller,
@@ -691,8 +693,12 @@ void TopBarWidget::updateControlsVisibility() {
 		_unreadBadge->show();
 	}
 	const auto historyMode = (_section == Section::History);
+	const auto scheduledMode = (_section == Section::Scheduled);
+	const auto showInScheduledMode = (_activeChat.peer()
+		&& _activeChat.peer()->canSendPolls());
 	updateSearchVisibility();
-	_menuToggle->setVisible(historyMode && !_activeChat.folder());
+	_menuToggle->setVisible(!_activeChat.folder()
+		&& (scheduledMode ? showInScheduledMode : historyMode));
 	const auto isAdmin = [&] {
 		if (const auto peer = _activeChat.peer()) {
 			if (peer->isMegagroup()) {

@@ -35,15 +35,9 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 Instance::Instance() = default;
 
-Instance::~Instance() {
-	for (const auto panel : _pendingPanels) {
-		if (panel) {
-			delete panel;
-		}
-	}
-}
+Instance::~Instance() = default;
 
-void Instance::startOutgoingCall(not_null<UserData*> user) {
+void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (alreadyInCall()) { // Already in a call.
 		_currentCallPanel->showAndActivate();
 		return;
@@ -55,17 +49,21 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
 		return;
 	}
-	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
-		createCall(user, Call::Type::Outgoing);
+	requestPermissionsOrFail(crl::guard(this, [=] {
+		createCall(user, Call::Type::Outgoing, video);
 	}));
 }
 
 void Instance::callFinished(not_null<Call*> call) {
-	destroyCall(call);
+	crl::on_main(call, [=] {
+		destroyCall(call);
+	});
 }
 
 void Instance::callFailed(not_null<Call*> call) {
-	destroyCall(call);
+	crl::on_main(call, [=] {
+		destroyCall(call);
+	});
 }
 
 void Instance::callRedial(not_null<Call*> call) {
@@ -107,7 +105,9 @@ void Instance::playSound(Sound sound) {
 
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
-		destroyCurrentPanel();
+		_currentCallPanel->closeBeforeDestroy();
+		_currentCallPanel = nullptr;
+
 		auto taken = base::take(_currentCall);
 		_currentCallChanges.fire(nullptr);
 		taken.reset();
@@ -119,19 +119,8 @@ void Instance::destroyCall(not_null<Call*> call) {
 	}
 }
 
-void Instance::destroyCurrentPanel() {
-	_pendingPanels.erase(
-		std::remove_if(
-			_pendingPanels.begin(),
-			_pendingPanels.end(),
-			[](auto &&panel) { return !panel; }),
-		_pendingPanels.end());
-	_pendingPanels.emplace_back(_currentCallPanel.release());
-	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
-}
-
-void Instance::createCall(not_null<UserData*> user, Call::Type type) {
-	auto call = std::make_unique<Call>(getCallDelegate(), user, type);
+void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
+	auto call = std::make_unique<Call>(getCallDelegate(), user, type, video);
 	const auto raw = call.get();
 
 	user->session().account().sessionChanges(
@@ -232,13 +221,19 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([=](const RPCError &error) {
 		_serverConfigRequestSession = nullptr;
-		}).send();
+	}).send();
 }
 
 void Instance::handleUpdate(
 		not_null<Main::Session*> session,
-		const MTPDupdatePhoneCall& update) {
-	handleCallUpdate(session, update.vphone_call());
+		const MTPUpdate &update) {
+	update.match([&](const MTPDupdatePhoneCall &data) {
+		handleCallUpdate(session, data.vphone_call());
+	}, [&](const MTPDupdatePhoneCallSignalingData &data) {
+		handleSignalingData(data);
+	}, [](const auto &) {
+		Unexpected("Update type in Calls::Instance::handleUpdate.");
+	});
 }
 
 void Instance::showInfoPanel(not_null<Call*> call) {
@@ -272,8 +267,11 @@ void Instance::handleCallUpdate(
 		}
 		const auto &config = session->serverConfig();
 		if (alreadyInCall() || !user || user->isSelf()) {
+			const auto flags = phoneCall.is_video()
+				? MTPphone_DiscardCall::Flag::f_video
+				: MTPphone_DiscardCall::Flag(0);
 			session->api().request(MTPphone_DiscardCall(
-				MTP_flags(0),
+				MTP_flags(flags),
 				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
 				MTP_int(0),
 				MTP_phoneCallDiscardReasonBusy(),
@@ -283,11 +281,19 @@ void Instance::handleCallUpdate(
 			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
 		} else {
-			createCall(user, Call::Type::Incoming);
+			createCall(user, Call::Type::Incoming, phoneCall.is_video());
 			_currentCall->handleUpdate(call);
 		}
 	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));
+	}
+}
+
+void Instance::handleSignalingData(
+		const MTPDupdatePhoneCallSignalingData &data) {
+	if (!_currentCall || !_currentCall->handleSignalingData(data)) {
+		DEBUG_LOG(("API Warning: unexpected call signaling data %1"
+			).arg(data.vphone_call_id().v));
 	}
 }
 
@@ -303,13 +309,23 @@ rpl::producer<Call*> Instance::currentCallValue() const {
 	return _currentCallChanges.events_starting_with(currentCall());
 }
 
-void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
-	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
-	if (status==Platform::PermissionStatus::Granted) {
+void Instance::requestPermissionsOrFail(Fn<void()> onSuccess) {
+	using Type = Platform::PermissionType;
+	requestPermissionOrFail(Type::Microphone, [=] {
+		requestPermissionOrFail(Type::Camera, [=] {
+			crl::on_main(onSuccess);
+		});
+	});
+}
+
+void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess) {
+	using Status = Platform::PermissionStatus;
+	const auto status = Platform::GetPermissionStatus(type);
+	if (status == Status::Granted) {
 		onSuccess();
-	} else if(status==Platform::PermissionStatus::CanRequest) {
-		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [=](Platform::PermissionStatus status) {
-			if (status==Platform::PermissionStatus::Granted) {
+	} else if (status == Status::CanRequest) {
+		Platform::RequestPermission(type, crl::guard(this, [=](Status status) {
+			if (status == Status::Granted) {
 				crl::on_main(onSuccess);
 			} else {
 				if (_currentCall) {
@@ -321,8 +337,8 @@ void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 		if (alreadyInCall()) {
 			_currentCall->hangup();
 		}
-		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [] {
-			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
+		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [=] {
+			Platform::OpenSystemSettingsForPermission(type);
 			Ui::hideLayer();
 		})));
 	}

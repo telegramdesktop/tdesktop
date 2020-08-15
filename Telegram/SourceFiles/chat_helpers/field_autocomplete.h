@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
 namespace Ui {
+class PopupMenu;
 class ScrollArea;
 } // namespace Ui
 
@@ -59,7 +61,6 @@ class FieldAutocompleteInner;
 } // namespace internal
 
 class FieldAutocomplete final : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	FieldAutocomplete(
@@ -90,6 +91,24 @@ public:
 		ByTab,
 		ByClick,
 	};
+	struct MentionChosen {
+		not_null<UserData*> user;
+		ChooseMethod method;
+	};
+	struct HashtagChosen {
+		QString hashtag;
+		ChooseMethod method;
+	};
+	struct BotCommandChosen {
+		QString command;
+		ChooseMethod method;
+	};
+	struct StickerChosen {
+		not_null<DocumentData*> sticker;
+		Api::SendOptions options;
+		ChooseMethod method;
+	};
+
 	bool chooseSelected(ChooseMethod method) const;
 
 	bool stickersShown() const {
@@ -102,15 +121,16 @@ public:
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void setModerateKeyActivateCallback(Fn<bool(int)> callback) {
+		_moderateKeyActivateCallback = std::move(callback);
+	}
+
 	void hideFast();
 
-signals:
-	void mentionChosen(not_null<UserData*> user, FieldAutocomplete::ChooseMethod method) const;
-	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
-	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
-	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
-
-	void moderateKeyActivate(int key, bool *outHandled) const;
+	rpl::producer<MentionChosen> mentionChosen() const;
+	rpl::producer<HashtagChosen> hashtagChosen() const;
+	rpl::producer<BotCommandChosen> botCommandChosen() const;
+	rpl::producer<StickerChosen> stickerChosen() const;
 
 public slots:
 	void showAnimated();
@@ -160,10 +180,11 @@ private:
 	QRect _boundings;
 	bool _addInlineBots;
 
-	int32 _width, _height;
 	bool _hiding = false;
 
 	Ui::Animations::Simple _a_opacity;
+
+	Fn<bool(int)> _moderateKeyActivateCallback;
 
 	friend class internal::FieldAutocompleteInner;
 
@@ -174,9 +195,13 @@ namespace internal {
 class FieldAutocompleteInner final
 	: public Ui::RpWidget
 	, private base::Subscriber {
-	Q_OBJECT
 
 public:
+	struct ScrollTo {
+		int top;
+		int bottom;
+	};
+
 	FieldAutocompleteInner(
 		not_null<Window::SessionController*> controller,
 		not_null<FieldAutocomplete*> parent,
@@ -188,18 +213,21 @@ public:
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
 	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
+	bool chooseAtIndex(
+		FieldAutocomplete::ChooseMethod method,
+		int index,
+		Api::SendOptions options = Api::SendOptions()) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
 	void rowsUpdated();
 
-signals:
-	void mentionChosen(not_null<UserData*> user, FieldAutocomplete::ChooseMethod method) const;
-	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
-	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
-	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
-	void mustScrollTo(int scrollToTop, int scrollToBottom);
+	rpl::producer<FieldAutocomplete::MentionChosen> mentionChosen() const;
+	rpl::producer<FieldAutocomplete::HashtagChosen> hashtagChosen() const;
+	rpl::producer<FieldAutocomplete::BotCommandChosen>
+		botCommandChosen() const;
+	rpl::producer<FieldAutocomplete::StickerChosen> stickerChosen() const;
+	rpl::producer<ScrollTo> scrollToRequested() const;
 
-public slots:
 	void onParentGeometryChanged();
 
 private:
@@ -212,6 +240,7 @@ private:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
@@ -231,6 +260,7 @@ private:
 	const not_null<StickerRows*> _srows;
 	rpl::lifetime _stickersLifetime;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	int _stickersPerRow = 1;
 	int _recentInlineBotsInRows = 0;
 	int _sel = -1;
@@ -241,6 +271,12 @@ private:
 	bool _overDelete = false;
 
 	bool _previewShown = false;
+
+	rpl::event_stream<FieldAutocomplete::MentionChosen> _mentionChosen;
+	rpl::event_stream<FieldAutocomplete::HashtagChosen> _hashtagChosen;
+	rpl::event_stream<FieldAutocomplete::BotCommandChosen> _botCommandChosen;
+	rpl::event_stream<FieldAutocomplete::StickerChosen> _stickerChosen;
+	rpl::event_stream<ScrollTo> _scrollToRequested;
 
 	base::Timer _previewTimer;
 

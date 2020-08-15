@@ -368,9 +368,8 @@ void start() {
 		_readOldMtpData(false, context); // needed further in _readMtpData
 		applyReadContext(std::move(context));
 
-		if (!ApplyDefaultNightMode()) {
-			writeSettings();
-		}
+		_settingsRewriteNeeded = true;
+		ApplyDefaultNightMode();
 		return;
 	}
 	LOG(("App Info: reading settings..."));
@@ -1077,6 +1076,7 @@ bool ApplyDefaultNightMode() {
 		|| _themeKeyLegacy) {
 		return false;
 	}
+	Core::App().startSettingsAndBackground();
 	Window::Theme::ToggleNightMode();
 	Window::Theme::KeepApplied();
 	return true;

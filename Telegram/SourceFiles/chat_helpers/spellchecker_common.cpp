@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "spellcheck/platform/platform_spellcheck.h"
@@ -377,6 +379,7 @@ void Start(not_null<Main::Session*> session) {
 		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
 	} });
 	const auto settings = &Core::App().settings();
+	auto &lifetime = session->lifetime();
 
 	const auto onEnabled = [=](auto enabled) {
 		Platform::Spellchecker::UpdateLanguages(
@@ -390,31 +393,25 @@ void Start(not_null<Main::Session*> session) {
 	});
 
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
-
-		const auto scriptsLifetime =
-			session->lifetime().make_state<rpl::lifetime>();
-
-		Spellchecker::SupportedScriptsChanged(
-		) | rpl::start_with_next([=] {
-			AddExceptions();
-			scriptsLifetime->destroy();
-		}, *scriptsLifetime);
+		Spellchecker::SupportedScriptsChanged()
+		| rpl::take(1)
+		| rpl::start_with_next(AddExceptions, lifetime);
 
 		return;
 	}
 
 	Spellchecker::SupportedScriptsChanged(
-	) | rpl::start_with_next(AddExceptions, session->lifetime());
+	) | rpl::start_with_next(AddExceptions, lifetime);
 
 	Spellchecker::SetWorkingDirPath(DictionariesPath());
 
 	settings->dictionariesEnabledChanges(
 	) | rpl::start_with_next([](auto dictionaries) {
 		Platform::Spellchecker::UpdateLanguages(dictionaries);
-	}, session->lifetime());
+	}, lifetime);
 
 	settings->spellcheckerEnabledChanges(
-	) | rpl::start_with_next(onEnabled, session->lifetime());
+	) | rpl::start_with_next(onEnabled, lifetime);
 
 	const auto method = QGuiApplication::inputMethod();
 
@@ -448,10 +445,29 @@ void Start(not_null<Main::Session*> session) {
 			}
 
 			DownloadDictionaryInBackground(session, 0, DefaultLanguages());
-		}, session->lifetime());
+		}, lifetime);
 
 		connectInput();
 	}
+
+	const auto disconnect = [=] {
+		QObject::disconnect(
+			method,
+			&QInputMethod::localeChanged,
+			nullptr,
+			nullptr);
+	};
+	lifetime.add([=] {
+		disconnect();
+		for (auto &[index, account] : session->domain().accounts()) {
+			if (const auto anotherSession = account->maybeSession()) {
+				if (anotherSession->uniqueId() != session->uniqueId()) {
+					Spellchecker::Start(anotherSession);
+					return;
+				}
+			}
+		}
+	});
 
 	rpl::combine(
 		settings->spellcheckerEnabledValue(),
@@ -461,12 +477,8 @@ void Start(not_null<Main::Session*> session) {
 			connectInput();
 			return;
 		}
-		QObject::disconnect(
-			method,
-			&QInputMethod::localeChanged,
-			nullptr,
-			nullptr);
-	}, session->lifetime());
+		disconnect();
+	}, lifetime);
 
 }
 

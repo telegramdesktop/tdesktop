@@ -25,6 +25,8 @@ public:
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
 			return getStringArray(key, std::move(fallback));
+		} else if constexpr (std::is_same_v<Type, std::vector<std::map<QString, QString>>>) {
+			return getStringMapArray(key, std::move(fallback));
 		} else if constexpr (std::is_same_v<Type, bool>) {
 			return getBool(key, fallback);
 		}
@@ -60,6 +62,9 @@ private:
 	[[nodiscard]] std::vector<QString> getStringArray(
 		const QString &key,
 		std::vector<QString> &&fallback) const;
+	[[nodiscard]] std::vector<std::map<QString, QString>> getStringMapArray(
+		const QString &key,
+		std::vector<std::map<QString, QString>> &&fallback) const;
 
 	const not_null<Account*> _account;
 	std::optional<MTP::Sender> _api;

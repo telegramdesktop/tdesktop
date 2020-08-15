@@ -38,6 +38,10 @@ inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	return false;
 }
 
+inline bool ShowWindowMenu(QWindow *window) {
+	return false;
+}
+
 inline bool AutostartSupported() {
 	return false;
 }

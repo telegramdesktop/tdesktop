@@ -16,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
-#include <QtCore/QTimer>
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Ui {
 class ScrollArea;
@@ -25,6 +27,7 @@ class LinkButton;
 class RoundButton;
 class FlatLabel;
 class RippleAnimation;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -44,6 +47,7 @@ namespace internal {
 constexpr int kInlineItemsMaxPerRow = 5;
 
 using Results = std::vector<std::unique_ptr<Result>>;
+using ResultSelected = Fn<void(Result *, UserData *, Api::SendOptions)>;
 
 struct CacheEntry {
 	QString nextOffset;
@@ -56,7 +60,6 @@ class Inner
 	, public Ui::AbstractTooltipShower
 	, public Context
 	, private base::Subscriber {
-	Q_OBJECT
 
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -79,7 +82,7 @@ public:
 
 	int countHeight();
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(ResultSelected callback) {
 		_resultSelectedCallback = std::move(callback);
 	}
 
@@ -87,6 +90,8 @@ public:
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
+
+	rpl::producer<> inlineRowsCleared() const;
 
 	~Inner();
 
@@ -102,12 +107,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
-
-private slots:
-	void onSwitchPm();
-
-signals:
-	void emptyInlineRows();
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
@@ -117,6 +117,8 @@ private:
 		int height = 0;
 		QVector<ItemBase*> items;
 	};
+
+	void onSwitchPm();
 
 	void updateSelected();
 	void checkRestrictedPeer();
@@ -140,6 +142,7 @@ private:
 
 	int validateExistingInlineRows(const Results &results);
 	void selectInlineResult(int row, int column);
+	void selectInlineResult(int row, int column, Api::SendOptions options);
 
 	not_null<Window::SessionController*> _controller;
 
@@ -157,9 +160,13 @@ private:
 
 	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
 
+	base::unique_qptr<Ui::PopupMenu> _menu;
+
 	QVector<Row> _rows;
 
 	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
+
+	rpl::event_stream<> _inlineRowsCleared;
 
 	int _selected = -1;
 	int _pressed = -1;
@@ -168,14 +175,13 @@ private:
 	base::Timer _previewTimer;
 	bool _previewShown = false;
 
-	Fn<void(Result *result, UserData *bot)> _resultSelectedCallback;
+	ResultSelected _resultSelectedCallback;
 
 };
 
 } // namespace internal
 
 class Widget : public Ui::RpWidget {
-	Q_OBJECT
 
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -195,7 +201,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(internal::ResultSelected callback) {
 		_inner->setResultSelectedCallback(std::move(callback));
 	}
 
@@ -208,17 +214,14 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-private slots:
-	void onScroll();
-
-	void onInlineRequest();
-	void onEmptyInlineRows();
-
 private:
 	void moveByBottom();
 	void paintContent(Painter &p);
 
 	style::margins innerPadding() const;
+
+	void onScroll();
+	void onInlineRequest();
 
 	// Rounded rect which has shadow around it.
 	QRect innerRect() const;
@@ -273,7 +276,7 @@ private:
 	QPointer<internal::Inner> _inner;
 
 	std::map<QString, std::unique_ptr<internal::CacheEntry>> _inlineCache;
-	QTimer _inlineRequestTimer;
+	base::Timer _inlineRequestTimer;
 
 	UserData *_inlineBot = nullptr;
 	PeerData *_inlineQueryPeer = nullptr;

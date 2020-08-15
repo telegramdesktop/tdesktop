@@ -19,11 +19,20 @@ class Track;
 } // namespace Audio
 } // namespace Media
 
-enum class TgVoipState;
+namespace tgcalls {
+class Instance;
+class VideoCaptureInterface;
+enum class State;
+enum class VideoState;
+enum class AudioState;
+} // namespace tgcalls
+
+namespace Webrtc {
+enum class VideoState;
+class VideoTrack;
+} // namespace Webrtc
 
 namespace Calls {
-
-class Controller;
 
 struct DhConfig {
 	int32 version = 0;
@@ -46,9 +55,9 @@ public:
 			Ended,
 		};
 		virtual void playSound(Sound sound) = 0;
-		virtual void requestMicrophonePermissionOrFail(Fn<void()> result) = 0;
+		virtual void requestPermissionsOrFail(Fn<void()> result) = 0;
 
-		virtual ~Delegate();
+		virtual ~Delegate() = default;
 
 	};
 
@@ -58,7 +67,7 @@ public:
 		Incoming,
 		Outgoing,
 	};
-	Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type);
+	Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type, bool video);
 
 	[[nodiscard]] Type type() const {
 		return _type;
@@ -70,6 +79,7 @@ public:
 
 	void start(bytes::const_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
+	bool handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
 
 	enum State {
 		Starting,
@@ -88,27 +98,50 @@ public:
 		Ringing,
 		Busy,
 	};
-	State state() const {
+	[[nodiscard]] State state() const {
 		return _state.current();
 	}
-	rpl::producer<State> stateValue() const {
+	[[nodiscard]] rpl::producer<State> stateValue() const {
 		return _state.value();
+	}
+
+	enum class RemoteAudioState {
+		Muted,
+		Active,
+	};
+	[[nodiscard]] RemoteAudioState remoteAudioState() const {
+		return _remoteAudioState.current();
+	}
+	[[nodiscard]] auto remoteAudioStateValue() const
+	-> rpl::producer<RemoteAudioState> {
+		return _remoteAudioState.value();
+	}
+
+	[[nodiscard]] Webrtc::VideoState remoteVideoState() const {
+		return _remoteVideoState.current();
+	}
+	[[nodiscard]] auto remoteVideoStateValue() const
+	-> rpl::producer<Webrtc::VideoState> {
+		return _remoteVideoState.value();
 	}
 
 	static constexpr auto kSignalBarStarting = -1;
 	static constexpr auto kSignalBarFinished = -2;
 	static constexpr auto kSignalBarCount = 4;
-	base::Observable<int> &signalBarCountChanged() {
-		return _signalBarCountChanged;
+	[[nodiscard]] rpl::producer<int> signalBarCountValue() const {
+		return _signalBarCount.value();
 	}
 
-	void setMute(bool mute);
-	bool isMute() const {
-		return _mute;
+	void setMuted(bool mute);
+	[[nodiscard]] bool muted() const {
+		return _muted.current();
 	}
-	base::Observable<bool> &muteChanged() {
-		return _muteChanged;
+	[[nodiscard]] rpl::producer<bool> mutedValue() const {
+		return _muted.value();
 	}
+
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> videoIncoming() const;
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> videoOutgoing() const;
 
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
@@ -140,15 +173,17 @@ private:
 	};
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
-	void finish(FinishType type, const MTPPhoneCallDiscardReason &reason = MTP_phoneCallDiscardReasonDisconnect());
+	void finish(
+		FinishType type,
+		const MTPPhoneCallDiscardReason &reason
+			= MTP_phoneCallDiscardReasonDisconnect());
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();
+	void sendSignalingData(const QByteArray &data);
 
 	void generateModExpFirst(bytes::const_span randomSeed);
-	void handleControllerStateChange(
-		not_null<Controller*> controller,
-		TgVoipState state);
+	void handleControllerStateChange(tgcalls::State state);
 	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
 
@@ -166,21 +201,26 @@ private:
 	void setSignalBarCount(int count);
 	void destroyController();
 
-	not_null<Delegate*> _delegate;
-	not_null<UserData*> _user;
+	void setupOutgoingVideo();
+	void updateRemoteMediaState(
+		tgcalls::AudioState audio,
+		tgcalls::VideoState video);
+
+	const not_null<Delegate*> _delegate;
+	const not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
+	rpl::variable<RemoteAudioState> _remoteAudioState = RemoteAudioState::Active;
+	rpl::variable<Webrtc::VideoState> _remoteVideoState;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
-	int _signalBarCount = kSignalBarStarting;
-	base::Observable<int> _signalBarCountChanged;
+	rpl::variable<int> _signalBarCount = kSignalBarStarting;
 	crl::time _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
 
-	bool _mute = false;
-	base::Observable<bool> _muteChanged;
+	rpl::variable<bool> _muted = false;
 
 	DhConfig _dhConfig;
 	bytes::vector _ga;
@@ -194,7 +234,10 @@ private:
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
 
-	std::unique_ptr<Controller> _controller;
+	std::unique_ptr<tgcalls::Instance> _instance;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
+	const std::unique_ptr<Webrtc::VideoTrack> _videoIncoming;
+	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 
 	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 

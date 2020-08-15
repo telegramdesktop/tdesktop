@@ -267,6 +267,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
   fi
 
   if [ "$NotarizeRequestId" == "" ]; then
+    if [ -f "$ReleasePath/$BinaryName.app/Contents/Info.plist" ]; then
+      rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
+    fi
+    if [ -f "$ProjectPath/Telegram/CMakeFiles/Telegram.dir/Info.plist" ]; then
+      rm "$ProjectPath/Telegram/CMakeFiles/Telegram.dir/Info.plist"
+    fi
+    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
+
     ./configure.sh
 
     cd $ProjectPath
@@ -490,8 +498,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
-    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
     mv "$ReleasePath/$UpdateFile" "$DeployPath/"
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
@@ -518,8 +524,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
     mv "$ReleasePath/$BinaryName.pkg" "$DeployPath/"
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
-    rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
-    rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
   fi
 fi
 

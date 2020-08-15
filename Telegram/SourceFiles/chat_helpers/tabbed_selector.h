@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -23,6 +24,7 @@ class Session;
 
 namespace Ui {
 class PlainShadow;
+class PopupMenu;
 class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
@@ -31,6 +33,10 @@ class FlatLabel;
 namespace Window {
 class SessionController;
 } // namespace Window
+
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
 
 namespace ChatHelpers {
 
@@ -46,9 +52,18 @@ class GifsListWidget;
 
 class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
 public:
+	struct FileChosen {
+		not_null<DocumentData*> document;
+		Api::SendOptions options;
+	};
+	struct PhotoChosen {
+		not_null<PhotoData*> photo;
+		Api::SendOptions options;
+	};
 	struct InlineChosen {
 		not_null<InlineBots::Result*> result;
 		not_null<UserData*> bot;
+		Api::SendOptions options;
 	};
 	enum class Mode {
 		Full,
@@ -64,8 +79,8 @@ public:
 	Main::Session &session() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
-	rpl::producer<not_null<DocumentData*>> fileChosen() const;
-	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<FileChosen> fileChosen() const;
+	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	rpl::producer<> cancelled() const;
@@ -89,12 +104,17 @@ public:
 	bool isSliding() const {
 		return _a_slide.animating();
 	}
+	bool hasMenu() const;
 
 	void setAfterShownCallback(Fn<void(SelectorTab)> callback) {
 		_afterShownCallback = std::move(callback);
 	}
 	void setBeforeHidingCallback(Fn<void(SelectorTab)> callback) {
 		_beforeHidingCallback = std::move(callback);
+	}
+
+	void setSendMenuType(Fn<SendMenu::Type()> callback) {
+		_sendMenuType = std::move(callback);
 	}
 
 	// Float player interface.
@@ -111,6 +131,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	class Tab {
@@ -206,8 +227,12 @@ private:
 	std::array<Tab, Tab::kCount> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 
+	base::unique_qptr<Ui::PopupMenu> _menu;
+
 	Fn<void(SelectorTab)> _afterShownCallback;
 	Fn<void(SelectorTab)> _beforeHidingCallback;
+
+	Fn<SendMenu::Type()> _sendMenuType;
 
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;
@@ -240,6 +265,10 @@ public:
 	virtual void afterShown() {
 	}
 	virtual void beforeHiding() {
+	}
+	virtual void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) {
 	}
 
 	rpl::producer<int> scrollToRequests() const;

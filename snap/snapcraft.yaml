@@ -77,7 +77,6 @@ parts:
       - libpulse-dev
       - libqt5svg5-dev
       - libqt5waylandclient5-dev
-      - libqt5x11extras5-dev
       - libssl-dev
       - libxcb1-dev
       - libxcb-screensaver0-dev
@@ -92,7 +91,6 @@ parts:
       - libpulse0
       - libqt5svg5
       - libqt5waylandclient5
-      - libqt5x11extras5
       - libssl1.1
       - libxcb1
       - libxcb-screensaver0
@@ -103,7 +101,6 @@ parts:
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
-      - -DDESKTOP_APP_USE_PACKAGED_FONTS=OFF
       - -DTDESKTOP_USE_GTK_FILE_DIALOG=ON
       - -DDESKTOP_APP_QTWAYLANDCLIENT_PRIVATE_HEADERS=$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.8
     override-pull: |

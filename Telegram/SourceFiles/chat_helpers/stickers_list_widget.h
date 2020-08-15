@@ -22,6 +22,7 @@ class SessionController;
 
 namespace Ui {
 class LinkButton;
+class PopupMenu;
 class RippleAnimation;
 class BoxContent;
 } // namespace Ui
@@ -51,7 +52,7 @@ public:
 
 	Main::Session &session() const;
 
-	rpl::producer<not_null<DocumentData*>> chosen() const;
+	rpl::producer<TabbedSelector::FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<> checkForHide() const;
 
@@ -81,6 +82,10 @@ public:
 	void searchForSets(const QString &query);
 
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
+	void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) override;
 
 	~StickersListWidget();
 
@@ -298,6 +303,8 @@ private:
 	void setColumnCount(int count);
 	void refreshFooterIcons();
 
+	void showStickerSetBox(not_null<DocumentData*> document);
+
 	void cancelSetsSearch();
 	void showSearchResults();
 	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
@@ -358,7 +365,7 @@ private:
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
 
-	rpl::event_stream<not_null<DocumentData*>> _chosen;
+	rpl::event_stream<TabbedSelector::FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<> _checkForHide;
 

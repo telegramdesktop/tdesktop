@@ -18,6 +18,7 @@ endif()
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
+add_subdirectory(lib_webrtc)
 add_subdirectory(codegen)
 
 include(CheckCXXSourceCompiles)
@@ -34,6 +35,7 @@ include(cmake/lib_ffmpeg.cmake)
 include(cmake/lib_mtproto.cmake)
 include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
+include(cmake/lib_tgcalls.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -101,10 +103,13 @@ endif()
 
 target_link_libraries(Telegram
 PRIVATE
+    tdesktop::lib_tgcalls_legacy
+    tdesktop::lib_tgcalls
+    tdesktop::lib_tgvoip
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
     tdesktop::lib_export
-    tdesktop::lib_tgvoip
+    desktop-app::lib_webrtc
     desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::lib_ui
@@ -315,17 +320,20 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
-    calls/calls_controller.cpp
-    calls/calls_controller.h
-    calls/calls_controller_tgvoip.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp
     calls/calls_instance.h
     calls/calls_panel.cpp
     calls/calls_panel.h
+    calls/calls_signal_bars.cpp
+    calls/calls_signal_bars.h
     calls/calls_top_bar.cpp
     calls/calls_top_bar.h
+    calls/calls_userpic.cpp
+    calls/calls_userpic.h
+    calls/calls_video_bubble.cpp
+    calls/calls_video_bubble.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp
@@ -342,6 +350,8 @@ PRIVATE
     chat_helpers/gifs_list_widget.h
     chat_helpers/message_field.cpp
     chat_helpers/message_field.h
+    chat_helpers/send_context_menu.cpp
+    chat_helpers/send_context_menu.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
     chat_helpers/stickers_emoji_image_loader.cpp
@@ -1225,6 +1235,18 @@ elseif (APPLE)
                 COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
                 COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
             )
+        endif()
+    endif()
+elseif (LINUX)
+    if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
+        find_package(PkgConfig REQUIRED)
+
+        pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
+        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
+
+        if (DESKTOP_APP_USE_PACKAGED)
+            find_library(X11_LIBRARY X11)
+            target_link_libraries(Telegram PRIVATE ${X11_LIBRARY})
         endif()
     endif()
 endif()

@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -22,6 +26,7 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
+class PopupMenu;
 class RoundButton;
 } // namespace Ui
 
@@ -29,7 +34,13 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
 namespace ChatHelpers {
+
+void DeleteSavedGif(not_null<DocumentData*> document);
 
 class GifsListWidget
 	: public TabbedSelector::Inner
@@ -40,8 +51,8 @@ public:
 
 	GifsListWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	rpl::producer<not_null<DocumentData*>> fileChosen() const;
-	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<TabbedSelector::FileChosen> fileChosen() const;
+	rpl::producer<TabbedSelector::PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	void refreshRecent() override;
@@ -65,6 +76,10 @@ public:
 
 	void cancelled();
 	rpl::producer<> cancelRequests() const;
+
+	void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) override;
 
 	~GifsListWidget();
 
@@ -158,6 +173,11 @@ private:
 
 	int validateExistingInlineRows(const InlineResults &results);
 	void selectInlineResult(int row, int column);
+	void selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options,
+		bool forceSend = false);
 
 	Footer *_footer = nullptr;
 
@@ -177,8 +197,8 @@ private:
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId = 0;
 
-	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
-	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
+	rpl::event_stream<TabbedSelector::FileChosen> _fileChosen;
+	rpl::event_stream<TabbedSelector::PhotoChosen> _photoChosen;
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<> _cancelled;
 

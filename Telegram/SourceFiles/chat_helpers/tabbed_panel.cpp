@@ -364,6 +364,10 @@ void TabbedPanel::hideAnimated() {
 	} else {
 		startOpacityAnimation(true);
 	}
+
+	// There is no reason to worry about the message scheduling box
+	// while it moves the user to the separate scheduled section.
+	_shouldFinishHide = _selector->hasMenu();
 }
 
 void TabbedPanel::toggleAnimated() {
@@ -380,6 +384,7 @@ void TabbedPanel::hideFinished() {
 	_showAnimation.reset();
 	_cache = QPixmap();
 	_hiding = false;
+	_shouldFinishHide = false;
 	_selector->hideFinished();
 }
 
@@ -390,6 +395,9 @@ void TabbedPanel::showAnimated() {
 }
 
 void TabbedPanel::showStarted() {
+	if (_shouldFinishHide) {
+		return;
+	}
 	if (isHidden()) {
 		_selector->showStarted();
 		moveByBottom();

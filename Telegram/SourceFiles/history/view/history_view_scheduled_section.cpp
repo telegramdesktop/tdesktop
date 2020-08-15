@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
-#include "chat_helpers/message_field.h" // SendMenuType.
+#include "chat_helpers/send_context_menu.h" // SendMenu::Type.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -198,19 +198,20 @@ void ScheduledWidget::setupComposeControls() {
 			[=] { _choosingAttach = false; chooseAttach(); });
 	}, lifetime());
 
+	using Selector = ChatHelpers::TabbedSelector;
+
 	_composeControls->fileChosen(
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		sendExistingDocument(document);
+	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
+		sendExistingDocument(chosen.document);
 	}, lifetime());
 
 	_composeControls->photoChosen(
-	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
-		sendExistingPhoto(photo);
+	) | rpl::start_with_next([=](Selector::PhotoChosen chosen) {
+		sendExistingPhoto(chosen.photo);
 	}, lifetime());
 
 	_composeControls->inlineResultChosen(
-	) | rpl::start_with_next([=](
-			ChatHelpers::TabbedSelector::InlineChosen chosen) {
+	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
 		sendInlineResult(chosen.result, chosen.bot);
 	}, lifetime());
 
@@ -370,7 +371,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled,
-		SendMenuType::Disabled);
+		SendMenu::Type::Disabled);
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -744,12 +745,12 @@ void ScheduledWidget::sendInlineResult(
 	_composeControls->focus();
 }
 
-SendMenuType ScheduledWidget::sendMenuType() const {
+SendMenu::Type ScheduledWidget::sendMenuType() const {
 	return _history->peer->isSelf()
-		? SendMenuType::Reminder
+		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
-		? SendMenuType::ScheduledToUser
-		: SendMenuType::Scheduled;
+		? SendMenu::Type::ScheduledToUser
+		: SendMenu::Type::Scheduled;
 }
 
 void ScheduledWidget::setupScrollDownButton() {

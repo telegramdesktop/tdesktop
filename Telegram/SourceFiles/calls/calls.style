@@ -14,12 +14,12 @@ CallSignalBars {
 	width: pixels;
 	radius: pixels;
 	skip: pixels;
+	min: pixels;
+	max: pixels;
 	color: color;
 	inactiveOpacity: double;
 }
 
-callWidth: 300px;
-callHeight: 470px;
 callRadius: 6px;
 callShadow: Shadow {
 	left: icon {{ "call_shadow_left", windowShadowFg }};
@@ -34,15 +34,82 @@ callShadow: Shadow {
 	fallback: windowShadowFgFallback;
 }
 
-callButton: IconButton {
-	width: 72px;
-	height: 72px;
+callWidthMin: 300px;
+callHeightMin: 440px;
+callWidth: 720px;
+callHeight: 540px;
 
-	iconPosition: point(-1px, -1px);
+callBottomControlsHeight: 87px;
+
+CallBodyLayout {
+	height: pixels;
+	photoTop: pixels;
+	photoSize: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+	muteStroke: pixels;
+	muteSize: pixels;
+	mutePosition: point;
+}
+
+callBodyLayout: CallBodyLayout {
+	height: 284px;
+	photoTop: 21px;
+	photoSize: 160px;
+	nameTop: 221px;
+	statusTop: 254px;
+	muteStroke: 3px;
+	muteSize: 36px;
+	mutePosition: point(142px, 135px);
+}
+callBodyWithPreview: CallBodyLayout {
+	height: 185px;
+	photoTop: 21px;
+	photoSize: 100px;
+	nameTop: 132px;
+	statusTop: 163px;
+	muteStroke: 3px;
+	muteSize: 0px;
+	mutePosition: point(90px, 84px);
+}
+callMutedPeerIcon: icon {{ "calls_mute_userpic", callIconFg }};
+
+callOutgoingPreviewMin: size(360px, 120px);
+callOutgoingPreview: size(540px, 180px); // default, for height == callHeight.
+callOutgoingPreviewMax: size(1620px, 540px);
+callOutgoingDefaultSize: size(160px, 110px);
+
+callInnerPadding: 12px;
+
+callFingerprintPadding: margins(10px, 4px, 8px, 5px);
+callFingerprintSkip: 4px;
+callFingerprintSignalBarsSkip: 2px;
+callSignalBarsPadding: margins(8px, 9px, 11px, 5px);
+
+callFingerprintTop: 8px;
+callFingerprintBottom: -16px;
+
+callTooltipMutedIcon: icon{{ "calls_mute_tooltip", videoPlayIconFg }};
+callTooltipMutedIconPosition: point(10px, 5px);
+callTooltipPadding: margins(41px, 7px, 15px, 8px);
+
+callButton: IconButton {
+	width: 68px;
+	height: 79px;
+
+	iconPosition: point(-1px, 16px);
 
 	rippleAreaPosition: point(12px, 12px);
-	rippleAreaSize: 48px;
+	rippleAreaSize: 44px;
 	ripple: defaultRippleAnimation;
+}
+callButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: callNameFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px underline);
+	}
 }
 
 callAnswer: CallButton {
@@ -56,6 +123,7 @@ callAnswer: CallButton {
 	angle: 135.;
 	outerRadius: 12px;
 	outerBg: callAnswerBgOuter;
+	label: callButtonLabel;
 }
 callHangup: CallButton {
 	button: IconButton(callButton) {
@@ -66,30 +134,57 @@ callHangup: CallButton {
 	}
 	bg: callHangupBg;
 	outerBg: callHangupBg;
+	label: callButtonLabel;
 }
 callCancel: CallButton {
 	button: IconButton(callButton) {
-		icon: icon {{ "box_button_close", callCancelFg }};
+		icon: icon {{ "call_cancel", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: callCancelRipple;
+			color: callIconActiveRipple;
 		}
 	}
-	bg: callCancelBg;
-	outerBg: callCancelBg;
+	bg: callIconBgActive;
+	outerBg: callIconBgActive;
+	label: callButtonLabel;
 }
-callMuteToggle: IconButton(callButton) {
-	icon: icon {{ "call_record_active", callIconFg }};
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: callMuteRipple;
+callMicrophoneMute: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_record_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
+	}
+	bg: callIconBg;
+	outerBg: callMuteRipple;
+	label: callButtonLabel;
+}
+callMicrophoneUnmute: CallButton(callMicrophoneMute) {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_record_muted", callIconFgActive }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callIconActiveRipple;
+		}
+	}
+	bg: callIconBgActive;
+}
+callCameraMute: CallButton(callMicrophoneMute) {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_camera_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
 	}
 }
-callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
+callCameraUnmute: CallButton(callMicrophoneUnmute) {
+	button: IconButton(callButton) {
+		icon: icon {{ "call_camera_muted", callIconFgActive }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callIconActiveRipple;
+		}
+	}
+}
+callBottomShadowSize: 124px;
 
-callControlsTop: 80px;
-callControlsSkip: 0px;
-callMuteRight: 8px;
-
-callNameTop: 15px;
 callName: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
 	maxHeight: 30px;
@@ -101,7 +196,6 @@ callName: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(21px semibold underline);
 	}
 }
-callStatusTop: 46px;
 callStatus: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
 	maxHeight: 20px;
@@ -113,10 +207,16 @@ callStatus: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(14px underline);
 	}
 }
-
-callFingerprintPadding: margins(9px, 4px, 9px, 5px);
-callFingerprintSkip: 3px;
-callFingerprintBottom: 8px;
+callRemoteAudioMute: FlatLabel(callStatus) {
+	minWidth: 0px;
+	textFg: videoPlayIconFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkFont: font(12px);
+		linkFontOver: font(12px underline);
+	}
+}
+callRemoteAudioMuteSkip: 12px;
 
 callBarHeight: 38px;
 callBarMuteToggle: IconButton {
@@ -124,7 +224,7 @@ callBarMuteToggle: IconButton {
 	height: 38px;
 
 	icon: icon {{ "call_record_active", callBarFg }};
-	iconPosition: point(9px, 8px);
+	iconPosition: point(3px, 2px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: callBarMuteRipple;
@@ -137,7 +237,7 @@ callBarRightSkip: 12px;
 callBarSkip: 10px;
 callBarHangup: IconButton(callBarMuteToggle) {
 	icon: icon {{ "call_discard", callBarFg }};
-	iconPosition: point(9px, 11px);
+	iconPosition: point(3px, 1px);
 }
 callBarLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
@@ -200,14 +300,93 @@ callDebugLabel: FlatLabel(defaultFlatLabel) {
 callPanelDuration: 150;
 
 callPanelSignalBars: CallSignalBars {
-	width: 3px;
+	width: 2px;
 	radius: 1px;
-	skip: 1px;
+	skip: 2px;
+	min: 4px;
+	max: 10px;
 	color: callNameFg;
 	inactiveOpacity: 0.5;
 }
 callBarSignalBars: CallSignalBars(callPanelSignalBars) {
+	width: 3px;
+	skip: 1px;
+	min: 3px;
+	max: 12px;
 	color: callBarFg;
 }
-callSignalMargin: 8px;
-callSignalPadding: 4px;
+
+callTitleButton: IconButton {
+	width: 34px;
+	height: 30px;
+	iconPosition: point(0px, 0px);
+}
+callTitleMinimizeIcon: icon {
+	{ "calls_minimize_shadow", windowShadowFg },
+	{ "calls_minimize_main", callNameFg },
+};
+callTitleMinimizeIconOver: icon {
+	{ size(34px, 30px), callBgButton },
+	{ size(34px, 30px), callMuteRipple },
+	{ "calls_minimize_shadow", windowShadowFg },
+	{ "calls_minimize_main", callNameFg },
+};
+callTitleMaximizeIcon: icon {
+	{ "calls_maximize_shadow", windowShadowFg },
+	{ "calls_maximize_main", callNameFg },
+};
+callTitleMaximizeIconOver: icon {
+	{ size(34px, 30px), callBgButton },
+	{ size(34px, 30px), callMuteRipple },
+	{ "calls_maximize_shadow", windowShadowFg },
+	{ "calls_maximize_main", callNameFg },
+};
+callTitleRestoreIcon: icon {
+	{ "calls_restore_shadow", windowShadowFg },
+	{ "calls_restore_main", callNameFg },
+};
+callTitleRestoreIconOver: icon {
+	{ size(34px, 30px), callBgButton },
+	{ size(34px, 30px), callMuteRipple },
+	{ "calls_restore_shadow", windowShadowFg },
+	{ "calls_restore_main", callNameFg },
+};
+callTitleCloseIcon: icon {
+	{ "calls_close_shadow", windowShadowFg },
+	{ "calls_close_main", callNameFg },
+};
+callTitleCloseIconOver: icon {
+	{ size(34px, 30px), titleButtonCloseBgOver },
+	{ "calls_close_shadow", windowShadowFg },
+	{ "calls_close_main", titleButtonCloseFgOver },
+};
+callTitle: WindowTitle(defaultWindowTitle) {
+	height: 0px;
+	bg: callBgOpaque;
+	bgActive: callBgOpaque;
+	fg: transparent;
+	fgActive: transparent;
+	minimize: IconButton(callTitleButton) {
+		icon: callTitleMinimizeIcon;
+		iconOver: callTitleMinimizeIconOver;
+	}
+	minimizeIconActive: callTitleMinimizeIcon;
+	minimizeIconActiveOver: callTitleMinimizeIconOver;
+	maximize: IconButton(callTitleButton) {
+		icon: callTitleMaximizeIcon;
+		iconOver: callTitleMaximizeIconOver;
+	}
+	maximizeIconActive: callTitleMaximizeIcon;
+	maximizeIconActiveOver: callTitleMaximizeIconOver;
+	restoreIcon: callTitleRestoreIcon;
+	restoreIconOver: callTitleRestoreIconOver;
+	restoreIconActive: callTitleRestoreIcon;
+	restoreIconActiveOver: callTitleRestoreIconOver;
+	close: IconButton(callTitleButton) {
+		icon: callTitleCloseIcon;
+		iconOver: callTitleCloseIconOver;
+	}
+	closeIconActive: callTitleCloseIcon;
+	closeIconActiveOver: callTitleCloseIconOver;
+}
+callTitleShadow: icon {{ "calls_shadow_controls", windowShadowFg }};

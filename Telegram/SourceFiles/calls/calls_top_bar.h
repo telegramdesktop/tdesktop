@@ -28,7 +28,7 @@ namespace Calls {
 class Call;
 class SignalBars;
 
-class TopBar : public Ui::RpWidget, private base::Subscriber {
+class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, const base::weak_ptr<Call> &call);
 

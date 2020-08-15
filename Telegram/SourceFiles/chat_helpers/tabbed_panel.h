@@ -110,6 +110,8 @@ private:
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Ui::Animations::Simple _a_show;
 
+	bool _shouldFinishHide = false;
+
 	bool _hiding = false;
 	bool _hideAfterSlide = false;
 	QPixmap _cache;

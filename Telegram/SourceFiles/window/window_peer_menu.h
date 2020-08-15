@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "data/data_poll.h"
 
 class History;
@@ -30,6 +31,7 @@ enum class PeerMenuSource {
 	ChatsList,
 	History,
 	Profile,
+	ScheduledSection,
 };
 
 using PeerMenuCallback = Fn<QAction*(
@@ -65,7 +67,8 @@ void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	PollData::Flags chosen = PollData::Flags(),
-	PollData::Flags disabled = PollData::Flags());
+	PollData::Flags disabled = PollData::Flags(),
+	Api::SendType sendType = Api::SendType::Normal);
 void PeerMenuBlockUserBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,

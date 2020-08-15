@@ -31,13 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qwaylandwindow_p.h>
 #include <private/qwaylandshellsurface_p.h>
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
@@ -74,7 +74,7 @@ QStringList PlatformThemes;
 
 bool IsTrayIconSupported = true;
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
@@ -135,7 +135,7 @@ uint FileChooserPortalVersion() {
 
 	return Result;
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 QString FlatpakID() {
 	static const auto Result = [] {
@@ -356,7 +356,7 @@ std::optional<crl::time> XCBLastUserInputTime() {
 	return std::nullopt;
 }
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::optional<crl::time> FreedesktopDBusLastUserInputTime() {
 	static auto NotSupported = false;
 
@@ -443,7 +443,7 @@ std::optional<crl::time> MutterDBusLastUserInputTime() {
 
 	return std::nullopt;
 }
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	if (edges == (Qt::TopEdge | Qt::LeftEdge))
@@ -585,6 +585,21 @@ bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
 	return false;
 }
 
+bool ShowWaylandWindowMenu(QWindow *window) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
+	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
+		window->handle())) {
+		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
+			if (const auto shellSurface = waylandWindow->shellSurface()) {
+				return shellSurface->showWindowMenu(seat);
+			}
+		}
+	}
+#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
+
+	return false;
+}
+
 Window::Control GtkKeywordToWindowControl(const QString &keyword) {
 	if (keyword == qstr("minimize")) {
 		return Window::Control::Minimize;
@@ -667,13 +682,13 @@ bool IsQtPluginsBundled() {
 }
 
 bool IsXDGDesktopPortalPresent() {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = QDBusInterface(
 		kXDGDesktopPortalService.utf16(),
 		kXDGDesktopPortalObjectPath.utf16()).isValid();
 
 	return Result;
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return false;
 }
@@ -693,11 +708,11 @@ bool UseXDGDesktopPortal() {
 }
 
 bool CanOpenDirectoryWithPortal() {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED) && !defined TDESKTOP_DISABLE_DBUS_INTEGRATION
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED) && !defined DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return FileChooserPortalVersion() >= 3;
-#else // (Qt >= 5.15 || DESKTOP_APP_QT_PATCHED) && !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#else // (Qt >= 5.15 || DESKTOP_APP_QT_PATCHED) && !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return false;
-#endif // (Qt < 5.15 && !DESKTOP_APP_QT_PATCHED) || TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // (Qt < 5.15 && !DESKTOP_APP_QT_PATCHED) || DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
@@ -873,7 +888,7 @@ std::optional<crl::time> LastUserInputTime() {
 		return XCBLastUserInputTime();
 	}
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	const auto freedesktopResult = FreedesktopDBusLastUserInputTime();
 	if (freedesktopResult.has_value()) {
 		return freedesktopResult;
@@ -883,7 +898,7 @@ std::optional<crl::time> LastUserInputTime() {
 	if (mutterResult.has_value()) {
 		return mutterResult;
 	}
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return std::nullopt;
 }
@@ -954,6 +969,14 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
+}
+
+bool ShowWindowMenu(QWindow *window) {
+	if (IsWayland()) {
+		return ShowWaylandWindowMenu(window);
+	}
+
+	return false;
 }
 
 Window::ControlsLayout WindowControlsLayout() {
@@ -1293,9 +1316,9 @@ void psAutoStart(bool start, bool silent) {
 		return;
 
 	if (InFlatpak()) {
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(start, silent);
-#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	} else {
 		const auto autostart = [&] {
 			if (InSnap()) {

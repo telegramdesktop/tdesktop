@@ -170,19 +170,23 @@ void RegisterCustomScheme(bool force) {
 PermissionStatus GetPermissionStatus(PermissionType type) {
 #ifndef OS_MAC_OLD
 	switch (type) {
-		case PermissionType::Microphone:
-			if([AVCaptureDevice respondsToSelector: @selector(authorizationStatusForMediaType:)]) { // Available starting with 10.14
-				switch([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
-					case AVAuthorizationStatusNotDetermined:
-						return PermissionStatus::CanRequest;
-					case AVAuthorizationStatusAuthorized:
-						return PermissionStatus::Granted;
-					case AVAuthorizationStatusDenied:
-					case AVAuthorizationStatusRestricted:
-						return PermissionStatus::Denied;
-				}
+	case PermissionType::Microphone:
+	case PermissionType::Camera:
+		const auto nativeType = (type == PermissionType::Microphone)
+			? AVMediaTypeAudio
+			: AVMediaTypeVideo;
+		if ([AVCaptureDevice respondsToSelector: @selector(authorizationStatusForMediaType:)]) { // Available starting with 10.14
+			switch ([AVCaptureDevice authorizationStatusForMediaType:nativeType]) {
+				case AVAuthorizationStatusNotDetermined:
+					return PermissionStatus::CanRequest;
+				case AVAuthorizationStatusAuthorized:
+					return PermissionStatus::Granted;
+				case AVAuthorizationStatusDenied:
+				case AVAuthorizationStatusRestricted:
+					return PermissionStatus::Denied;
 			}
-			break;
+		}
+		break;
 	}
 #endif // OS_MAC_OLD
 	return PermissionStatus::Granted;
@@ -191,15 +195,19 @@ PermissionStatus GetPermissionStatus(PermissionType type) {
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
 #ifndef OS_MAC_OLD
 	switch (type) {
-		case PermissionType::Microphone:
-			if ([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
-				[AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
-					crl::on_main([=] {
-						resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
-					});
-				}];
-			}
-			break;
+	case PermissionType::Microphone:
+	case PermissionType::Camera:
+		const auto nativeType = (type == PermissionType::Microphone)
+			? AVMediaTypeAudio
+			: AVMediaTypeVideo;
+		if ([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
+			[AVCaptureDevice requestAccessForMediaType:nativeType completionHandler:^(BOOL granted) {
+				crl::on_main([=] {
+					resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
+				});
+			}];
+		}
+		break;
 	}
 #endif // OS_MAC_OLD
 	resultCallback(PermissionStatus::Granted);
@@ -209,9 +217,12 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type) {
 #ifndef OS_MAC_OLD
 	switch (type) {
-		case PermissionType::Microphone:
-			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
-			break;
+	case PermissionType::Microphone:
+		[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
+		break;
+	case PermissionType::Camera:
+		[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera"]];
+		break;
 	}
 #endif // OS_MAC_OLD
 }

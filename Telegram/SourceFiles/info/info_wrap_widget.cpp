@@ -501,7 +501,7 @@ void WrapWidget::addProfileCallsButton() {
 					? st::infoLayerTopBarCall
 					: st::infoTopBarCall))
 		)->addClickHandler([=] {
-			Core::App().calls().startOutgoingCall(user);
+			Core::App().calls().startOutgoingCall(user, false);
 		});
 	}, _topBar->lifetime());
 

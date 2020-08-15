@@ -154,8 +154,7 @@ void PasscodeLockWidget::submit() {
 	auto &domain = Core::App().domain();
 	const auto correct = domain.started()
 		? domain.local().checkPasscode(passcode)
-		: (domain.start(passcode)
-			!= Storage::StartResult::IncorrectPasscode);
+		: (domain.start(passcode) == Storage::StartResult::Success);
 	if (!correct) {
 		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 		cSetPasscodeLastTry(crl::now());

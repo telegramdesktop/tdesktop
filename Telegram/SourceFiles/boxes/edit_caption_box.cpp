@@ -91,25 +91,6 @@ auto ListFromMimeData(not_null<const QMimeData*> data) {
 	return result;
 }
 
-auto CheckMimeData(not_null<const QMimeData*> data, bool isAlbum) {
-	if (data->urls().size() > 1) {
-		return false;
-	} else if (data->hasImage()) {
-		return true;
-	}
-
-	if (isAlbum && data->hasUrls()) {
-		const auto url = data->urls().front();
-		if (url.isLocalFile()) {
-			using namespace Core;
-			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
-			return IsMimeAcceptedForAlbum(MimeTypeForFile(info).name());
-		}
-	}
-
-	return true;
-}
-
 } // namespace
 
 EditCaptionBox::EditCaptionBox(
@@ -663,7 +644,7 @@ void EditCaptionBox::prepare() {
 		if (action == Ui::InputField::MimeAction::Check) {
 			if (!data->hasText() && !_isAllowedEditMedia) {
 				return false;
-			} else if (CheckMimeData(data, _isAlbum)) {
+			} else if (Storage::ValidateDragData(data, _isAlbum)) {
 				return true;
 			}
 			return data->hasText();
@@ -766,7 +747,9 @@ void EditCaptionBox::setupEmojiPanel() {
 
 void EditCaptionBox::setupDragArea() {
 	auto enterFilter = [=](not_null<const QMimeData*> data) {
-		return !_isAllowedEditMedia ? false : CheckMimeData(data, _isAlbum);
+		return !_isAllowedEditMedia
+			? false
+			: Storage::ValidateDragData(data, _isAlbum);
 	};
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {

@@ -33,11 +33,9 @@ QString NormalizePath(const Settings &settings) {
 	}
 	const auto date = QDate::currentDate();
 	const auto base = QString(settings.onlySinglePeer()
-		? "ChatExport_%1_%2_%3"
-		: "DataExport_%1_%2_%3"
-	).arg(date.day(), 2, 10, QChar('0')
-	).arg(date.month(), 2, 10, QChar('0')
-	).arg(date.year());
+		? "ChatExport_%1"
+		: "DataExport_%1"
+	).arg(date.toString(Qt::ISODate));
 	const auto add = [&](int i) {
 		return base + (i ? " (" + QString::number(i) + ')' : QString());
 	};

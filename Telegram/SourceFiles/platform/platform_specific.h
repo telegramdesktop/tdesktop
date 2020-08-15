@@ -22,6 +22,7 @@ enum class PermissionStatus {
 
 enum class PermissionType {
 	Microphone,
+	Camera,
 };
 
 enum class SystemSettingsType {
@@ -54,6 +55,7 @@ bool TrayIconSupported();
 QImage GetImageFromClipboard();
 bool StartSystemMove(QWindow *window);
 bool StartSystemResize(QWindow *window, Qt::Edges edges);
+bool ShowWindowMenu(QWindow *window);
 Window::ControlsLayout WindowControlsLayout();
 
 namespace ThirdParty {

@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
+#include "chat_helpers/send_context_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
 #include "window/window_session_controller.h"
@@ -409,13 +411,14 @@ rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
 	return emoji()->chosen();
 }
 
-rpl::producer<not_null<DocumentData*>> TabbedSelector::fileChosen() const {
+rpl::producer<TabbedSelector::FileChosen> TabbedSelector::fileChosen() const {
 	return full()
 		? rpl::merge(stickers()->chosen(), gifs()->fileChosen())
-		: rpl::never<not_null<DocumentData*>>() | rpl::type_erased();
+		: rpl::never<TabbedSelector::FileChosen>() | rpl::type_erased();
 }
 
-rpl::producer<not_null<PhotoData*>> TabbedSelector::photoChosen() const {
+auto TabbedSelector::photoChosen() const
+-> rpl::producer<TabbedSelector::PhotoChosen>{
 	return full() ? gifs()->photoChosen() : nullptr;
 }
 
@@ -584,7 +587,13 @@ void TabbedSelector::refreshStickers() {
 }
 
 bool TabbedSelector::preventAutoHide() const {
-	return full() ? stickers()->preventAutoHide() : false;
+	return full()
+		? (stickers()->preventAutoHide() || hasMenu())
+		: false;
+}
+
+bool TabbedSelector::hasMenu() const {
+	return (_menu && !_menu->actions().empty());
 }
 
 QImage TabbedSelector::grabForAnimation() {
@@ -864,6 +873,18 @@ void TabbedSelector::scrollToY(int y) {
 	// Qt render glitch workaround, shadow sometimes disappears if we just scroll to y.
 	if (full()) {
 		_topShadow->update();
+	}
+}
+
+void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+	const auto type = _sendMenuType
+		? _sendMenuType()
+		: SendMenu::Type::Disabled;
+	currentTab()->widget()->fillContextMenu(_menu, type);
+
+	if (!_menu->actions().empty()) {
+		_menu->popup(QCursor::pos());
 	}
 }
 

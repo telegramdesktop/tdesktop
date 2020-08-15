@@ -1081,7 +1081,7 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 }
 
 bool MainWidget::sendExistingDocument(not_null<DocumentData*> document) {
-	return _history->sendExistingDocument(document);
+	return _history->sendExistingDocument(document, Api::SendOptions());
 }
 
 void MainWidget::dialogsCancelled() {

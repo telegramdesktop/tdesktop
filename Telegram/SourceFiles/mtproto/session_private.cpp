@@ -107,6 +107,19 @@ void WrapInvokeAfter(
 	}
 }
 
+[[nodiscard]] bool ConstTimeIsDifferent(
+		const void *a,
+		const void *b,
+		size_t size) {
+	auto ca = reinterpret_cast<const char*>(a);
+	auto cb = reinterpret_cast<const char*>(b);
+	volatile auto different = false;
+	for (const auto ce = ca + size; ca != ce; ++ca, ++cb) {
+		different |= (*ca != *cb);
+	}
+	return different;
+}
+
 } // namespace
 
 SessionPrivate::SessionPrivate(
@@ -1247,7 +1260,7 @@ void SessionPrivate::handleReceived() {
 		auto sha1ForMsgKeyCheck = hashSha1(decryptedInts, hashedDataLength);
 
 		constexpr auto kMsgKeyShift_oldmtp = 4U;
-		if (memcmp(&msgKey, sha1ForMsgKeyCheck.data() + kMsgKeyShift_oldmtp, sizeof(msgKey)) != 0) {
+		if (ConstTimeIsDifferent(&msgKey, sha1ForMsgKeyCheck.data() + kMsgKeyShift_oldmtp, sizeof(msgKey))) {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message."));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
@@ -1267,7 +1280,7 @@ void SessionPrivate::handleReceived() {
 		SHA256_Final(sha256Buffer.data(), &msgKeyLargeContext);
 
 		constexpr auto kMsgKeyShift = 8U;
-		if (memcmp(&msgKey, sha256Buffer.data() + kMsgKeyShift, sizeof(msgKey)) != 0) {
+		if (ConstTimeIsDifferent(&msgKey, sha256Buffer.data() + kMsgKeyShift, sizeof(msgKey))) {
 			LOG(("TCP Error: bad SHA256 hash after aesDecrypt in message"));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 

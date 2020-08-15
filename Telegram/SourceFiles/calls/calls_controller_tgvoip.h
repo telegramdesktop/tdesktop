@@ -33,7 +33,7 @@ public:
 		return TgVoip::getVersion();
 	}
 
-	[[nodiscard]] std::string version() override {
+	std::string version() override {
 		return Version();
 	}
 	void setNetworkType(TgVoipNetworkType networkType) override {
@@ -63,6 +63,9 @@ public:
 	void setAudioOutputDuckingEnabled(bool enabled) override {
 		_impl->setAudioOutputDuckingEnabled(enabled);
 	}
+	bool receiveSignalingData(const QByteArray &data) override {
+		return false;
+	}
 	std::string getLastError() override {
 		return _impl->getLastError();
 	}
@@ -81,8 +84,7 @@ public:
 	void setOnStateUpdated(Fn<void(TgVoipState)> onStateUpdated) override {
 		_impl->setOnStateUpdated(std::move(onStateUpdated));
 	}
-	void setOnSignalBarsUpdated(
-			Fn<void(int)> onSignalBarsUpdated) override {
+	void setOnSignalBarsUpdated(Fn<void(int)> onSignalBarsUpdated) override {
 		_impl->setOnSignalBarsUpdated(std::move(onSignalBarsUpdated));
 	}
 	TgVoipFinalState stop() override {

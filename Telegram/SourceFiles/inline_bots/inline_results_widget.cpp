@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_results_widget.h"
 
+#include "api/api_common.h"
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
@@ -15,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_changes.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
@@ -156,6 +159,10 @@ bool Inner::tooltipWindowActive() const {
 	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
+rpl::producer<> Inner::inlineRowsCleared() const {
+	return _inlineRowsCleared.events();
+}
+
 Inner::~Inner() = default;
 
 void Inner::paintEvent(QPaintEvent *e) {
@@ -254,14 +261,24 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void Inner::selectInlineResult(int row, int column) {
+	selectInlineResult(row, column, Api::SendOptions());
+}
+
+void Inner::selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options) {
 	if (row >= _rows.size() || column >= _rows.at(row).items.size()) {
 		return;
 	}
 
 	auto item = _rows[row].items[column];
-	if (auto inlineResult = item->getResult()) {
+	if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			_resultSelectedCallback(inlineResult, _inlineBot);
+			_resultSelectedCallback(
+				inlineResult,
+				_inlineBot,
+				std::move(options));
 		}
 	}
 }
@@ -283,6 +300,30 @@ void Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
 void Inner::enterFromChildEvent(QEvent *e, QWidget *child) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
+}
+
+void Inner::contextMenuEvent(QContextMenuEvent *e) {
+	if (_selected < 0 || _pressed >= 0) {
+		return;
+	}
+	const auto row = _selected / MatrixRowShift;
+	const auto column = _selected % MatrixRowShift;
+	const auto type = SendMenu::Type::Scheduled;
+
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+
+	const auto send = [=](Api::SendOptions options) {
+		selectInlineResult(row, column, options);
+	};
+	SendMenu::FillSendMenu(
+		_menu,
+		[&] { return type; },
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(this, type, send));
+
+	if (!_menu->actions().empty()) {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void Inner::clearSelection() {
@@ -480,7 +521,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();
 		}
-		emit emptyInlineRows();
+		_inlineRowsCleared.fire({});
 		return 0;
 	}
 
@@ -751,7 +792,8 @@ Widget::Widget(
 , _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
-, _scroll(this, st::inlineBotsScroll) {
+, _scroll(this, st::inlineBotsScroll)
+, _inlineRequestTimer([=] { onInlineRequest(); }) {
 	resize(QRect(0, 0, st::emojiPanWidth, _contentHeight).marginsAdded(innerPadding()).size());
 	_width = width();
 	_height = height();
@@ -763,13 +805,17 @@ Widget::Widget(
 
 	_inner->moveToLeft(0, 0, _scroll->width());
 
-	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(
+		_scroll,
+		&Ui::ScrollArea::scrolled,
+		this,
+		&InlineBots::Layout::Widget::onScroll);
 
-	connect(_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
-
-	// inline bots
-	_inlineRequestTimer.setSingleShot(true);
-	connect(&_inlineRequestTimer, SIGNAL(timeout()), this, SLOT(onInlineRequest()));
+	_inner->inlineRowsCleared(
+	) | rpl::start_with_next([=] {
+		hideAnimated();
+		_inner->clearInlineRowsPanel();
+	}, lifetime());
 
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
@@ -1112,12 +1158,12 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 			_requesting.fire(false);
 		}
 		if (_inlineCache.find(query) != _inlineCache.cend()) {
-			_inlineRequestTimer.stop();
+			_inlineRequestTimer.cancel();
 			_inlineQuery = _inlineNextQuery = query;
 			showInlineRows(true);
 		} else {
 			_inlineNextQuery = query;
-			_inlineRequestTimer.start(internal::kInlineBotRequestDelay);
+			_inlineRequestTimer.callOnce(internal::kInlineBotRequestDelay);
 		}
 	}
 }
@@ -1149,11 +1195,6 @@ void Widget::onInlineRequest() {
 		_requesting.fire(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
-}
-
-void Widget::onEmptyInlineRows() {
-	hideAnimated();
-	_inner->clearInlineRowsPanel();
 }
 
 bool Widget::refreshInlineRows(int *added) {

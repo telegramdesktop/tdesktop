@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -1666,7 +1667,7 @@ SendFilesBox::SendFilesBox(
 	CompressConfirm compressed,
 	SendLimit limit,
 	Api::SendType sendType,
-	SendMenuType sendMenuType)
+	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _sendType(sendType)
 , _list(std::move(list))
@@ -1836,7 +1837,7 @@ void SendFilesBox::setupShadows(
 void SendFilesBox::prepare() {
 	_send = addButton(tr::lng_send_button(), [=] { send({}); });
 	if (_sendType == Api::SendType::Normal) {
-		SetupSendMenuAndShortcuts(
+		SendMenu::SetupMenuAndShortcuts(
 			_send,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
@@ -1865,12 +1866,13 @@ void SendFilesBox::prepare() {
 void SendFilesBox::setupDragArea() {
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {
+		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == Storage::MimeDataState::PhotoFiles)
-			? Storage::MimeDataState::Image
-			: (state == Storage::MimeDataState::Files)
-			// Temporary enable drag'n'drop only for images. TODO.
-			? Storage::MimeDataState::None
+		return (state == DragState::PhotoFiles)
+			? DragState::Image
+			: (state == DragState::Files
+				&& !Storage::ValidateDragData(data, true))
+			? DragState::None
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
@@ -2416,7 +2418,7 @@ void SendFilesBox::sendSilent() {
 
 void SendFilesBox::sendScheduled() {
 	const auto type = (_sendType == Api::SendType::ScheduledToUser)
-		? SendMenuType::ScheduledToUser
+		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(

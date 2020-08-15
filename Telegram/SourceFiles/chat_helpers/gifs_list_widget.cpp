@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/gifs_list_widget.h"
 
+#include "apiwrap.h" // ApiWrap::toggleSavedGif
 #include "base/const_string.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -16,8 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
+#include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "boxes/stickers_box.h"
@@ -29,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
 #include "app.h"
+#include "storage/storage_account.h" // Account::writeSavedGifs
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -41,6 +45,21 @@ constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = "gif"_cs;
 
 } // namespace
+
+void DeleteSavedGif(not_null<DocumentData*> document) {
+	auto &data = document->owner();
+	document->session().api().toggleSavedGif(
+		document,
+		Data::FileOriginSavedGifs(),
+		false);
+
+	const auto index = data.stickers().savedGifs().indexOf(document);
+	if (index >= 0) {
+		data.stickers().savedGifsRef().remove(index);
+		document->session().local().writeSavedGifs();
+	}
+	data.stickers().notifySavedGifsUpdated();
+}
 
 class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
@@ -165,11 +184,12 @@ GifsListWidget::GifsListWidget(
 	});
 }
 
-rpl::producer<not_null<DocumentData*>> GifsListWidget::fileChosen() const {
+rpl::producer<TabbedSelector::FileChosen> GifsListWidget::fileChosen() const {
 	return _fileChosen.events();
 }
 
-rpl::producer<not_null<PhotoData*>> GifsListWidget::photoChosen() const {
+auto GifsListWidget::photoChosen() const
+-> rpl::producer<TabbedSelector::PhotoChosen> {
 	return _photoChosen.events();
 }
 
@@ -343,6 +363,43 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
+void GifsListWidget::fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) {
+	if (_selected < 0 || _pressed >= 0) {
+		return;
+	}
+	const auto row = _selected / MatrixRowShift;
+	const auto column = _selected % MatrixRowShift;
+
+	const auto send = [=](Api::SendOptions options) {
+		selectInlineResult(row, column, options, true);
+	};
+	SendMenu::FillSendMenu(
+		menu,
+		[&] { return type; },
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(this, type, send));
+
+	[&] {
+		const auto row = _selected / MatrixRowShift;
+		const auto column = _selected % MatrixRowShift;
+		if (row >= _rows.size() || column >= _rows[row].items.size()) {
+			return;
+		}
+		const auto item = _rows[row].items[column];
+		if (const auto document = item->getDocument()) {
+			auto &data = document->owner();
+			if (data.stickers().savedGifs().indexOf(document) < 0) {
+				return;
+			}
+			menu->addAction(tr::lng_context_delete_gif(tr::now), [=] {
+				ChatHelpers::DeleteSavedGif(document);
+			});
+		}
+	}();
+}
+
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.cancel();
 
@@ -370,28 +427,40 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void GifsListWidget::selectInlineResult(int row, int column) {
+	selectInlineResult(row, column, Api::SendOptions());
+}
+
+void GifsListWidget::selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options,
+		bool forceSend) {
 	if (row >= _rows.size() || column >= _rows[row].items.size()) {
 		return;
 	}
 
-	const auto ctrl = (QGuiApplication::keyboardModifiers()
+	forceSend |= (QGuiApplication::keyboardModifiers()
 		== Qt::ControlModifier);
 	auto item = _rows[row].items[column];
 	if (const auto photo = item->getPhoto()) {
 		using Data::PhotoSize;
 		const auto media = photo->activeMediaView();
-		if (ctrl
+		if (forceSend
 			|| (media && media->image(PhotoSize::Thumbnail))
 			|| (media && media->image(PhotoSize::Large))) {
-			_photoChosen.fire_copy(photo);
+			_photoChosen.fire_copy({
+				.photo = photo,
+				.options = options });
 		} else if (!photo->loading(PhotoSize::Thumbnail)) {
 			photo->load(PhotoSize::Thumbnail, Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
 		const auto media = document->activeMediaView();
 		const auto preview = Data::VideoPreviewState(media.get());
-		if (ctrl || (media && preview.loaded())) {
-			_fileChosen.fire_copy(document);
+		if (forceSend || (media && preview.loaded())) {
+			_fileChosen.fire_copy({
+				.document = document,
+				.options = options });
 		} else if (!preview.usingThumbnail()) {
 			if (preview.loading()) {
 				document->cancel();
@@ -403,7 +472,7 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			_inlineResultChosen.fire({ inlineResult, _searchBot });
+			_inlineResultChosen.fire({ inlineResult, _searchBot, options });
 		}
 	}
 }
