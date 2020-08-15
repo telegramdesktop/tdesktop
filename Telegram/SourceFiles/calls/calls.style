@@ -262,13 +262,18 @@ callReDial: IconButton {
 	width: 40px;
 	height: 56px;
 
-	icon: mainMenuCalls;
-	iconOver: mainMenuCallsOver;
+	icon: icon {{ "call_answer", menuIconFg }};
+	iconOver: icon {{ "call_answer", menuIconFgOver }};
 	iconPosition: point(-1px, -1px);
 
 	ripple: defaultRippleAnimation;
 	rippleAreaPosition: point(0px, 8px);
 	rippleAreaSize: 40px;
+}
+
+callCameraReDial: IconButton(callReDial) {
+	icon: icon {{ "call_camera_active", menuIconFg }};
+	iconOver: icon {{ "call_camera_active", menuIconFgOver }};
 }
 
 callRatingPadding: margins(24px, 12px, 24px, 0px);
