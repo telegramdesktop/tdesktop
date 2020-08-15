@@ -59,7 +59,10 @@ rpl::producer<bool> GlobalPrivacy::archiveAndMute() const {
 rpl::producer<bool> GlobalPrivacy::showArchiveAndMute() const {
 	using namespace rpl::mappers;
 
-	return rpl::single(true);
+	return rpl::combine(
+		archiveAndMute(),
+		_showArchiveAndMute.value(),
+		_1 || _2);
 }
 
 rpl::producer<> GlobalPrivacy::suggestArchiveAndMute() const {
