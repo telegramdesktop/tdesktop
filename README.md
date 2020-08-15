@@ -42,7 +42,6 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 22. [Restore] Convert to Supergroup feature
 23. [Restore] upgraded to supergroup service message
 24. Create new supergroup
-25. Always show Archive and Mute setting
 
 ## Supported systems
 
