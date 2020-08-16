@@ -1964,7 +1964,8 @@ void Message::refreshEditedBadge() {
 	const auto item = message();
 	const auto edited = displayedEditBadge();
 	const auto editDate = displayedEditDate();
-	const auto dateText = dateTime().toString(cTimeFormat());
+	QString msgId = " (" + QString::number(item->fullId().msg) + ")";
+	const auto dateText = dateTime().toString(cTimeFormat()) + msgId;
 	if (edited) {
 		edited->refresh(dateText, editDate != 0);
 	}
@@ -1984,7 +1985,8 @@ void Message::initTime() {
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
-		item->_timeText = dateTime().toString(cTimeFormat());
+		QString msgId = " (" + QString::number(item->fullId().msg) + ")";
+		item->_timeText = dateTime().toString(cTimeFormat()) + msgId;
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
 	if (const auto views = item->Get<HistoryMessageViews>()) {
