@@ -745,7 +745,7 @@ void MainWindow::LibsLoaded() {
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
-		g_warning(
+		g_message(
 			"You can disable tray icon counter with %s "
 			"and make it look better if it is monochrome.",
 			kDisableTrayCounter.utf8().constData());

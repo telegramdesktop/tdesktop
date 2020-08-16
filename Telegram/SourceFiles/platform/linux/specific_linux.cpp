@@ -1292,13 +1292,13 @@ void start() {
 			"Therefore, QT_QPA_PLATFORMTHEME "
 			"and QT_STYLE_OVERRIDE will be unset.");
 
-		g_warning(
+		g_message(
 			"This can be ignored by setting %s environment variable "
 			"to any value, however, if qgtk2 theme or style is used, "
 			"this will lead to a crash.",
 			kIgnoreGtkIncompatibility.utf8().constData());
 
-		g_warning(
+		g_message(
 			"GTK integration can be disabled by setting %s to any value. "
 			"Keep in mind that this will lead to clipboard issues "
 			"and tdesktop will be unable to get settings from GTK "
