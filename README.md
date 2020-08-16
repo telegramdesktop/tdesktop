@@ -32,10 +32,10 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 12. Repeat user message to current group
 13. Recent Actions/Admins list button in top bar
 14. Show service message time
-15. Show message ID in tooltip
+15. Show message ID in tooltip/message box
 16. Gif Shared Media section
 17. Don't share my phone number when add someone to contacts
-18. Multiple accounts increase to 10
+18. Multiple accounts up to 100
 19. Support multiple chat forward
 20. Support Forward Message without quote
 21. Quick Forward to Saved Messages
