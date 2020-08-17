@@ -55,7 +55,7 @@ public:
 	void closeBeforeDestroy();
 
 private:
-	class Content;
+	class Incoming;
 	class Button;
 	using State = Call::State;
 	using Type = Call::Type;
@@ -75,7 +75,6 @@ private:
 	void reinitWithCall(Call *call);
 	void initLayout();
 	void initGeometry();
-	void initBottomShadow();
 
 	void handleClose();
 
@@ -91,8 +90,7 @@ private:
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void setIncomingSize(QSize size);
-	void fillTopShadow(QPainter &p, QRect incoming);
-	void fillBottomShadow(QPainter &p, QRect incoming);
+	void refreshIncomingGeometry();
 
 	void refreshOutgoingPreviewInBody(State state);
 	void toggleFullScreen(bool fullscreen);
@@ -106,6 +104,7 @@ private:
 	not_null<UserData*> _user;
 
 	const std::unique_ptr<Ui::Window> _window;
+	std::unique_ptr<Incoming> _incoming;
 
 #ifdef Q_OS_WIN
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;

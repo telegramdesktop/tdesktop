@@ -52,6 +52,123 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 namespace Calls {
+namespace {
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+#define USE_OPENGL_OVERLAY_WIDGET
+#endif // Q_OS_MAC && !OS_MAC_OLD
+
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+using IncomingParent = Ui::RpWidgetWrap<QOpenGLWidget>;
+#else // USE_OPENGL_OVERLAY_WIDGET
+using IncomingParent = Ui::RpWidget;
+#endif // USE_OPENGL_OVERLAY_WIDGET
+
+} // namespace
+
+class Panel::Incoming final : public IncomingParent {
+public:
+	Incoming(
+		not_null<QWidget*> parent,
+		not_null<Webrtc::VideoTrack*> track);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	void initBottomShadow();
+	void fillTopShadow(QPainter &p);
+	void fillBottomShadow(QPainter &p);
+
+	const not_null<Webrtc::VideoTrack*> _track;
+	QPixmap _bottomShadow;
+
+};
+
+Panel::Incoming::Incoming(
+	not_null<QWidget*> parent,
+	not_null<Webrtc::VideoTrack*> track)
+: IncomingParent(parent)
+, _track(track) {
+	initBottomShadow();
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+void Panel::Incoming::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	const auto frame = _track->frame(Webrtc::FrameRequest());
+	if (frame.isNull()) {
+		p.fillRect(e->rect(), Qt::black);
+		fillBottomShadow(p);
+		fillTopShadow(p);
+	} else {
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(rect(), frame);
+	}
+	_track->markFrameShown();
+}
+
+void Panel::Incoming::initBottomShadow() {
+	auto image = QImage(
+		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	const auto colorFrom = uint32(0);
+	const auto colorTill = uint32(74);
+	const auto rows = image.height();
+	const auto step = (uint64(colorTill - colorFrom) << 32) / rows;
+	auto accumulated = uint64();
+	auto bytes = image.bits();
+	for (auto y = 0; y != rows; ++y) {
+		accumulated += step;
+		const auto color = (colorFrom + uint32(accumulated >> 32)) << 24;
+		for (auto x = 0; x != image.width(); ++x) {
+			*(reinterpret_cast<uint32*>(bytes) + x) = color;
+		}
+		bytes += image.bytesPerLine();
+	}
+	_bottomShadow = Images::PixmapFast(std::move(image));
+}
+
+void Panel::Incoming::fillTopShadow(QPainter &p) {
+#ifdef Q_OS_WIN
+	const auto width = parentWidget()->width();
+	const auto position = QPoint(width - st::callTitleShadow.width(), 0);
+	const auto shadowArea = QRect(
+		position,
+		st::callTitleShadow.size());
+	const auto fill = shadowArea.intersected(geometry()).translated(-x(), -y());
+	if (fill.isEmpty()) {
+		return;
+	}
+	p.save();
+	p.setClipRect(fill);
+	st::callTitleShadow.paint(p, position, width);
+	p.restore();
+#endif // Q_OS_WIN
+}
+
+void Panel::Incoming::fillBottomShadow(QPainter &p) {
+	const auto shadowArea = QRect(
+		0,
+		parentWidget()->height() - st::callBottomShadowSize,
+		parentWidget()->width(),
+		st::callBottomShadowSize);
+	const auto fill = shadowArea.intersected(geometry()).translated(-x(), -y());
+	if (fill.isEmpty()) {
+		return;
+	}
+	const auto factor = cIntRetinaFactor();
+	p.drawPixmap(
+		fill,
+		_bottomShadow,
+		QRect(
+			0,
+			factor * (fill.y() - shadowArea.y()),
+			factor,
+			factor * fill.height()));
+}
+
 
 class Panel::Button final : public Ui::RippleButton {
 public:
@@ -299,7 +416,6 @@ Panel::Panel(not_null<Call*> call)
 	initWidget();
 	initControls();
 	initLayout();
-	initBottomShadow();
 	showAndActivate();
 }
 
@@ -318,6 +434,8 @@ void Panel::replaceCall(not_null<Call*> call) {
 }
 
 void Panel::initWindow() {
+	_window->setAttribute(Qt::WA_OpaquePaintEvent);
+	_window->setAttribute(Qt::WA_NoSystemBackground);
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitle(u" "_q);
@@ -459,16 +577,42 @@ void Panel::setIncomingSize(QSize size) {
 	if (_incomingFrameSize == size) {
 		return;
 	}
-	widget()->update(incomingFrameGeometry());
 	_incomingFrameSize = size;
-	widget()->update(incomingFrameGeometry());
+	refreshIncomingGeometry();
 	showControls();
+}
+
+void Panel::refreshIncomingGeometry() {
+	Expects(_call != nullptr);
+	Expects(_incoming != nullptr);
+
+	if (_incomingFrameSize.isEmpty()) {
+		_incoming->hide();
+		return;
+	}
+	const auto to = widget()->size();
+	const auto small = _incomingFrameSize.scaled(to, Qt::KeepAspectRatio);
+	const auto big = _incomingFrameSize.scaled(
+		to,
+		Qt::KeepAspectRatioByExpanding);
+
+	// If we cut out no more than 0.33 of the original, let's use expanding.
+	const auto use = ((big.width() * 3 <= to.width() * 4)
+		&& (big.height() * 3 <= to.height() * 4))
+		? big
+		: small;
+	const auto pos = QPoint(
+		(to.width() - use.width()) / 2,
+		(to.height() - use.height()) / 2);
+	_incoming->setGeometry(QRect(pos, use));
+	_incoming->show();
 }
 
 void Panel::reinitWithCall(Call *call) {
 	_callLifetime.destroy();
 	_call = call;
 	if (!_call) {
+		_incoming = nullptr;
 		_outgoingVideoBubble = nullptr;
 		return;
 	}
@@ -495,6 +639,10 @@ void Panel::reinitWithCall(Call *call) {
 	_outgoingVideoBubble = std::make_unique<VideoBubble>(
 		widget(),
 		_call->videoOutgoing());
+	_incoming = std::make_unique<Incoming>(
+		widget(),
+		_call->videoIncoming());
+	_incoming->hide();
 
 	_call->mutedValue(
 	) | rpl::start_with_next([=](bool mute) {
@@ -521,15 +669,14 @@ void Panel::reinitWithCall(Call *call) {
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
 		setIncomingSize(_call->videoIncoming()->frame({}).size());
-		if (_incomingFrameSize.isEmpty()) {
+		if (_incoming->isHidden()) {
 			return;
 		}
 		const auto incoming = incomingFrameGeometry();
 		const auto outgoing = outgoingFrameGeometry();
+		_incoming->update();
 		if (incoming.intersects(outgoing)) {
-			widget()->update(incoming.united(outgoing));
-		} else {
-			widget()->update(incoming);
+			widget()->update(outgoing);
 		}
 	}, _callLifetime);
 
@@ -537,10 +684,9 @@ void Panel::reinitWithCall(Call *call) {
 	) | rpl::start_with_next([=] {
 		const auto incoming = incomingFrameGeometry();
 		const auto outgoing = outgoingFrameGeometry();
+		widget()->update(outgoing);
 		if (incoming.intersects(outgoing)) {
-			widget()->update(incoming.united(outgoing));
-		} else {
-			widget()->update(outgoing);
+			_incoming->update();
 		}
 	}, _callLifetime);
 
@@ -559,6 +705,8 @@ void Panel::reinitWithCall(Call *call) {
 
 	_name->setText(_user->name);
 	updateStatusText(_call->state());
+
+	_incoming->lower();
 }
 
 void Panel::createRemoteAudioMute() {
@@ -615,66 +763,6 @@ void Panel::initLayout() {
 #endif // Q_OS_WIN
 }
 
-void Panel::initBottomShadow() {
-	auto image = QImage(
-		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
-	const auto colorFrom = uint32(0);
-	const auto colorTill = uint32(74);
-	const auto rows = image.height();
-	const auto step = (uint64(colorTill - colorFrom) << 32) / rows;
-	auto accumulated = uint64();
-	auto bytes = image.bits();
-	for (auto y = 0; y != rows; ++y) {
-		accumulated += step;
-		const auto color = (colorFrom + uint32(accumulated >> 32)) << 24;
-		for (auto x = 0; x != image.width(); ++x) {
-			*(reinterpret_cast<uint32*>(bytes) + x) = color;
-		}
-		bytes += image.bytesPerLine();
-	}
-	_bottomShadow = Images::PixmapFast(std::move(image));
-}
-
-void Panel::fillTopShadow(QPainter &p, QRect incoming) {
-#ifdef Q_OS_WIN
-	const auto width = widget()->width();
-	const auto position = QPoint(width - st::callTitleShadow.width(), 0);
-	const auto shadowArea = QRect(
-		position,
-		st::callTitleShadow.size());
-	const auto fill = shadowArea.intersected(incoming);
-	if (fill.isEmpty()) {
-		return;
-	}
-	p.save();
-	p.setClipRect(fill);
-	st::callTitleShadow.paint(p, position, width);
-	p.restore();
-#endif // Q_OS_WIN
-}
-
-void Panel::fillBottomShadow(QPainter &p, QRect incoming) {
-	const auto shadowArea = QRect(
-		0,
-		widget()->height() - st::callBottomShadowSize,
-		widget()->width(),
-		st::callBottomShadowSize);
-	const auto fill = shadowArea.intersected(incoming);
-	if (fill.isEmpty()) {
-		return;
-	}
-	const auto factor = cIntRetinaFactor();
-	p.drawPixmap(
-		fill,
-		_bottomShadow,
-		QRect(
-			0,
-			factor * (fill.y() - shadowArea.y()),
-			factor,
-			factor * fill.height()));
-}
-
 void Panel::showControls() {
 	Expects(_call != nullptr);
 
@@ -683,6 +771,7 @@ void Panel::showControls() {
 	_cancel->setVisible(_cancel->toggled());
 
 	const auto shown = !_incomingFrameSize.isEmpty();
+	_incoming->setVisible(shown);
 	_name->setVisible(!shown);
 	_status->setVisible(!shown);
 	_userpic->setVisible(!shown);
@@ -726,24 +815,9 @@ void Panel::toggleFullScreen(bool fullscreen) {
 }
 
 QRect Panel::incomingFrameGeometry() const {
-	if (!_call || _incomingFrameSize.isEmpty()) {
-		return QRect();
-	}
-	const auto to = widget()->size();
-	const auto small = _incomingFrameSize.scaled(to, Qt::KeepAspectRatio);
-	const auto big = _incomingFrameSize.scaled(
-		to,
-		Qt::KeepAspectRatioByExpanding);
-
-	// If we cut out no more than 0.33 of the original, let's use expanding.
-	const auto use = ((big.width() * 3 <= to.width() * 4)
-		&& (big.height() * 3 <= to.height() * 4))
-		? big
-		: small;
-	const auto pos = QPoint(
-		(to.width() - use.width()) / 2,
-		(to.height() - use.height()) / 2);
-	return QRect(pos, use);
+	return (!_incoming || _incoming->isHidden())
+		? QRect()
+		: _incoming->geometry();
 }
 
 QRect Panel::outgoingFrameGeometry() const {
@@ -753,6 +827,9 @@ QRect Panel::outgoingFrameGeometry() const {
 void Panel::updateControlsGeometry() {
 	if (widget()->size().isEmpty()) {
 		return;
+	}
+	if (_incoming) {
+		refreshIncomingGeometry();
 	}
 	if (_fingerprint) {
 #ifdef Q_OS_WIN
@@ -875,21 +952,16 @@ void Panel::updateStatusGeometry() {
 void Panel::paint(QRect clip) {
 	Painter p(widget());
 
-	p.fillRect(clip, st::callBgOpaque);
-
-	const auto incoming = incomingFrameGeometry();
-	if (!incoming.isEmpty()) {
-		Assert(_call != nullptr);
-		const auto frame = _call->videoIncoming()->frame(
-			Webrtc::FrameRequest());
-		if (!frame.isNull()) {
-			auto hq = PainterHighQualityEnabler(p);
-			p.drawImage(incoming, frame);
-		}
-		fillBottomShadow(p, incoming);
-		fillTopShadow(p, incoming);
+	auto region = QRegion(clip);
+	if (!_incoming->isHidden()) {
+		region = region.subtracted(QRegion(_incoming->geometry()));
 	}
-	_call->videoIncoming()->markFrameShown();
+	for (const auto rect : region.rects()) {
+		p.fillRect(rect, st::callBgOpaque);
+	}
+	if (_incoming && _incoming->isHidden()) {
+		_call->videoIncoming()->markFrameShown();
+	}
 }
 
 void Panel::handleClose() {
