@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/gifs_list_widget.h"
 
-#include "apiwrap.h" // ApiWrap::toggleSavedGif
+#include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -48,7 +48,7 @@ constexpr auto kSearchBotUsername = "gif"_cs;
 
 void DeleteSavedGif(not_null<DocumentData*> document) {
 	auto &data = document->owner();
-	document->session().api().toggleSavedGif(
+	Api::ToggleSavedGif(
 		document,
 		Data::FileOriginSavedGifs(),
 		false);

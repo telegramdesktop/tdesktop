@@ -217,6 +217,8 @@ PRIVATE
     api/api_single_message_search.h
     api/api_text_entities.cpp
     api/api_text_entities.h
+    api/api_toggling_media.cpp
+    api/api_toggling_media.h
     api/api_updates.cpp
     api/api_updates.h
     boxes/filters/edit_filter_box.cpp
