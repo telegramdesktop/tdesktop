@@ -2994,8 +2994,17 @@ void HistoryWidget::showNextUnreadMention() {
 }
 
 void HistoryWidget::saveEditMsg() {
-	if (_saveEditMsgRequestId) return;
+	Expects(_history != nullptr);
 
+	if (_saveEditMsgRequestId) {
+		return;
+	}
+
+	const auto item = session().data().message(_channel, _editMsgId);
+	if (!item) {
+		cancelEdit();
+		return;
+	}
 	const auto webPageId = _previewCancelled
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
@@ -3012,15 +3021,9 @@ void HistoryWidget::saveEditMsg() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
-	const auto item = session().data().message(_channel, _editMsgId);
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		if (item) {
-			const auto suggestModerateActions = false;
-			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
-		} else {
-			_field->selectAll();
-			_field->setFocus();
-		}
+		const auto suggestModerateActions = false;
+		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		return;
 	} else if (!left.text.isEmpty()) {
 		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
@@ -5750,7 +5753,9 @@ int HistoryWidget::countMembersDropdownHeightMax() const {
 }
 
 void HistoryWidget::cancelEdit() {
-	if (!_editMsgId) return;
+	if (!_editMsgId) {
+		return;
+	}
 
 	_replyEditMsg = nullptr;
 	_editMsgId = 0;
