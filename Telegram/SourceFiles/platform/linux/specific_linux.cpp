@@ -386,41 +386,38 @@ std::vector<xcb_atom_t> GetXCBWMSupported(xcb_connection_t *connection) {
 }
 
 std::optional<crl::time> XCBLastUserInputTime() {
-	if (const auto native = QGuiApplication::platformNativeInterface()) {
-		const auto connection = reinterpret_cast<xcb_connection_t*>(
-			native->nativeResourceForIntegration(QByteArray("connection")));
-
-		if (!connection) {
-			return std::nullopt;
-		}
-
-		const auto screen = xcb_setup_roots_iterator(
-			xcb_get_setup(connection)).data;
-
-		if (!screen) {
-			return std::nullopt;
-		}
-
-		const auto cookie = xcb_screensaver_query_info(
-			connection,
-			screen->root);
-
-		auto reply = xcb_screensaver_query_info_reply(
-			connection,
-			cookie,
-			nullptr);
-
-		if (!reply) {
-			return std::nullopt;
-		}
-
-		const auto idle = reply->ms_since_user_input;
-		free(reply);
-
-		return (crl::now() - static_cast<crl::time>(idle));
+	const auto native = QGuiApplication::platformNativeInterface();
+	if (!native) {
+		return std::nullopt;
 	}
 
-	return std::nullopt;
+	const auto connection = reinterpret_cast<xcb_connection_t*>(
+		native->nativeResourceForIntegration(QByteArray("connection")));
+
+	if (!connection) {
+		return std::nullopt;
+	}
+
+	const auto root = static_cast<xcb_window_t>(reinterpret_cast<quintptr>(
+		native->nativeResourceForIntegration(QByteArray("rootwindow"))));
+
+	const auto cookie = xcb_screensaver_query_info(
+		connection,
+		root);
+
+	auto reply = xcb_screensaver_query_info_reply(
+		connection,
+		cookie,
+		nullptr);
+
+	if (!reply) {
+		return std::nullopt;
+	}
+
+	const auto idle = reply->ms_since_user_input;
+	free(reply);
+
+	return (crl::now() - static_cast<crl::time>(idle));
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
