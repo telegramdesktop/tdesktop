@@ -409,7 +409,9 @@ void Call::redial() {
 }
 
 QString Call::getDebugLog() const {
-	return QString::fromStdString(_instance->getDebugInfo());
+	return _instance
+		? QString::fromStdString(_instance->getDebugInfo())
+		: QString();
 }
 
 void Call::startWaitingTrack() {
@@ -833,7 +835,9 @@ void Call::handleControllerStateChange(tgcalls::State state) {
 	} break;
 
 	case tgcalls::State::Failed: {
-		auto error = QString::fromStdString(_instance->getLastError());
+		auto error = _instance
+			? QString::fromStdString(_instance->getLastError())
+			: QString();
 		LOG(("Call Info: State changed to Failed, error: %1.").arg(error));
 		handleControllerError(error);
 	} break;
