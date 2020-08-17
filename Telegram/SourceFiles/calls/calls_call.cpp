@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
 #include "webrtc/webrtc_video_track.h"
+#include "webrtc/webrtc_camera_utilities.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "facades.h"
@@ -348,7 +349,10 @@ void Call::setupOutgoingVideo() {
 	const auto started = _videoOutgoing->state();
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		if (_state.current() != State::Established
+		if (state != Webrtc::VideoState::Inactive
+			&& Webrtc::GetCamerasList().empty()) {
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		} else if (_state.current() != State::Established
 			&& state != started
 			&& !_videoCapture) {
 			_videoOutgoing->setState(started);
