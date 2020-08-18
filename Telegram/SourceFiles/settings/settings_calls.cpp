@@ -65,8 +65,6 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 }
 
 void Calls::setupContent() {
-	using VoIP = tgvoip::VoIPController;
-
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto getId = [](const auto &device) {
 		return device.id;
