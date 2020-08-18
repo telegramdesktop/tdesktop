@@ -176,13 +176,17 @@ public:
 		_autoLock = value;
 	}
 	[[nodiscard]] QString callOutputDeviceID() const {
-		return _callOutputDeviceID;
+		return _callOutputDeviceID.isEmpty()
+			? u"default"_q
+			: _callOutputDeviceID;
 	}
 	void setCallOutputDeviceID(const QString &value) {
 		_callOutputDeviceID = value;
 	}
 	[[nodiscard]] QString callInputDeviceID() const {
-		return _callInputDeviceID;
+		return _callInputDeviceID.isEmpty()
+			? u"default"_q
+			: _callInputDeviceID;
 	}
 	void setCallInputDeviceID(const QString &value) {
 		_callInputDeviceID = value;

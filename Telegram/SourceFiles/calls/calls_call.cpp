@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
 #include "webrtc/webrtc_video_track.h"
-#include "webrtc/webrtc_camera_utilities.h"
+#include "webrtc/webrtc_media_devices.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "facades.h"
@@ -350,7 +350,7 @@ void Call::setupOutgoingVideo() {
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		if (state != Webrtc::VideoState::Inactive
-			&& Webrtc::GetCamerasList().empty()) {
+			&& Webrtc::GetVideoInputList().empty()) {
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
 			&& state != started
@@ -710,6 +710,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	auto encryptionKeyValue = std::make_shared<std::array<uint8_t, 256>>();
 	memcpy(encryptionKeyValue->data(), _authKey.data(), 256);
 
+	const auto &settings = Core::App().settings();
+
 	const auto weak = base::make_weak(this);
 	tgcalls::Descriptor descriptor = {
 		.config = tgcalls::Config{
@@ -726,6 +728,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.encryptionKey = tgcalls::EncryptionKey(
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
+		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
+			.audioInputId = settings.callInputDeviceID().toStdString(),
+			.audioOutputId = settings.callOutputDeviceID().toStdString(),
+			.inputVolume = settings.callInputVolume() / 100.f,
+			.outputVolume = settings.callOutputVolume() / 100.f,
+		},
 		.videoCapture = _videoCapture,
 		.stateUpdated = [=](tgcalls::State state) {
 			crl::on_main(weak, [=] {
@@ -810,14 +818,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
-
-	const auto &settings = Core::App().settings();
-	raw->setAudioOutputDevice(
-		settings.callOutputDeviceID().toStdString());
-	raw->setAudioInputDevice(
-		settings.callInputDeviceID().toStdString());
-	raw->setOutputVolume(settings.callOutputVolume() / 100.0f);
-	raw->setInputVolume(settings.callInputVolume() / 100.0f);
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 

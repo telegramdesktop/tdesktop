@@ -170,6 +170,8 @@ remove_target_sources(lib_tgcalls ${tgcalls_loc}
     platform/android/VideoCameraCapturer.h
     platform/android/VideoCapturerInterfaceImpl.cpp
     platform/android/VideoCapturerInterfaceImpl.h
+    reference/InstanceImplReference.cpp
+    reference/InstanceImplReference.h
 )
 
 target_include_directories(lib_tgcalls

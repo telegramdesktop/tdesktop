@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "calls/calls_instance.h"
+#include "webrtc/webrtc_media_devices.h"
 #include "facades.h"
 
 #ifdef slots
@@ -68,10 +69,10 @@ void Calls::setupContent() {
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto getId = [](const auto &device) {
-		return QString::fromStdString(device.id);
+		return device.id;
 	};
 	const auto getName = [](const auto &device) {
-		return QString::fromStdString(device.displayName);
+		return device.name;
 	};
 
 	const auto &settings = Core::App().settings();
@@ -79,7 +80,7 @@ void Calls::setupContent() {
 		if (settings.callOutputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
-		const auto &list = VoIP::EnumerateAudioOutputs();
+		const auto list = Webrtc::GetAudioOutputList();
 		const auto i = ranges::find(
 			list,
 			settings.callOutputDeviceID(),
@@ -93,7 +94,7 @@ void Calls::setupContent() {
 		if (settings.callInputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
-		const auto &list = VoIP::EnumerateAudioInputs();
+		const auto list = Webrtc::GetAudioInputList();
 		const auto i = ranges::find(
 			list,
 			settings.callInputDeviceID(),
@@ -115,7 +116,7 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIP::EnumerateAudioOutputs();
+		const auto &devices = Webrtc::GetAudioOutputList();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
@@ -132,11 +133,10 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallOutputDeviceID(
-				QString::fromStdString(deviceId));
+			Core::App().settings().setCallOutputDeviceID(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (const auto call = Core::App().calls().currentCall()) {
-				call->setCurrentAudioDevice(false, deviceId);
+				call->setCurrentAudioDevice(false, deviceId.toStdString());
 			}
 		});
 		Ui::show(Box<SingleChoiceBox>(
@@ -171,7 +171,7 @@ void Calls::setupContent() {
 	};
 	outputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
 	outputSlider->setPseudoDiscrete(
-		201,
+		101,
 		[](int val) { return val; },
 		settings.callOutputVolume(),
 		updateOutputVolume);
@@ -191,7 +191,7 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIP::EnumerateAudioInputs();
+		const auto devices = Webrtc::GetAudioInputList();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
@@ -208,14 +208,13 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallInputDeviceID(
-				QString::fromStdString(deviceId));
+			Core::App().settings().setCallInputDeviceID(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
 			}
 			if (const auto call = Core::App().calls().currentCall()) {
-				call->setCurrentAudioDevice(true, deviceId);
+				call->setCurrentAudioDevice(true, deviceId.toStdString());
 			}
 		});
 		Ui::show(Box<SingleChoiceBox>(
