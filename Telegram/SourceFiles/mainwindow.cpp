@@ -114,6 +114,8 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	if (Platform::WindowsNeedShadow()) {
 		setAttribute(Qt::WA_TranslucentBackground);
+	} else {
+		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 }
 
