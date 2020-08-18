@@ -1093,9 +1093,9 @@ bool ReadSetting(
 		settingsStream >> duckingEnabled;
 		if (CheckStreamStatus(settingsStream)) {
 			auto &app = Core::App().settings();
-			app.setCallOutputDeviceID(outputDeviceID);
+			app.setCallOutputDeviceId(outputDeviceID);
 			app.setCallOutputVolume(outputVolume);
-			app.setCallInputDeviceID(inputDeviceID);
+			app.setCallInputDeviceId(inputDeviceID);
 			app.setCallInputVolume(inputVolume);
 			app.setCallAudioDuckingEnabled(duckingEnabled);
 		}

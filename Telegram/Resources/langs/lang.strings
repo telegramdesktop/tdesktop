@@ -370,6 +370,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
 "lng_settings_section_call_settings" = "Calls Settings";
+"lng_settings_call_camera" = "Camera";
 "lng_settings_call_section_output" = "Speakers and headphones";
 "lng_settings_call_section_input" = "Microphone";
 "lng_settings_call_input_device" = "Input device";
@@ -380,7 +381,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_call_stop_mic_test" = "Stop test";
 "lng_settings_call_section_other" = "Other settings";
 "lng_settings_call_open_system_prefs" = "Open system sound preferences";
-"lng_settings_call_device_default" = "Default";
+"lng_settings_call_device_default" = "Same as the System";
 "lng_settings_call_audio_ducking" = "Mute other sounds during calls";
 
 "lng_settings_language" = "Language";

@@ -175,21 +175,29 @@ public:
 	void setAutoLock(int value) {
 		_autoLock = value;
 	}
-	[[nodiscard]] QString callOutputDeviceID() const {
-		return _callOutputDeviceID.isEmpty()
+	[[nodiscard]] QString callOutputDeviceId() const {
+		return _callOutputDeviceId.isEmpty()
 			? u"default"_q
-			: _callOutputDeviceID;
+			: _callOutputDeviceId;
 	}
-	void setCallOutputDeviceID(const QString &value) {
-		_callOutputDeviceID = value;
+	void setCallOutputDeviceId(const QString &value) {
+		_callOutputDeviceId = value;
 	}
-	[[nodiscard]] QString callInputDeviceID() const {
-		return _callInputDeviceID.isEmpty()
+	[[nodiscard]] QString callInputDeviceId() const {
+		return _callInputDeviceId.isEmpty()
 			? u"default"_q
-			: _callInputDeviceID;
+			: _callInputDeviceId;
 	}
-	void setCallInputDeviceID(const QString &value) {
-		_callInputDeviceID = value;
+	void setCallInputDeviceId(const QString &value) {
+		_callInputDeviceId = value;
+	}
+	[[nodiscard]] QString callVideoInputDeviceId() const {
+		return _callVideoInputDeviceId.isEmpty()
+			? u"default"_q
+			: _callVideoInputDeviceId;
+	}
+	void setCallVideoInputDeviceId(const QString &value) {
+		_callVideoInputDeviceId = value;
 	}
 	[[nodiscard]] int callOutputVolume() const {
 		return _callOutputVolume;
@@ -493,8 +501,9 @@ private:
 	bool _countUnreadMessages = true;
 	rpl::variable<bool> _notifyAboutPinned = true;
 	int _autoLock = 3600;
-	QString _callOutputDeviceID = u"default"_q;
-	QString _callInputDeviceID = u"default"_q;
+	QString _callOutputDeviceId = u"default"_q;
+	QString _callInputDeviceId = u"default"_q;
+	QString _callVideoInputDeviceId = u"default"_q;
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;

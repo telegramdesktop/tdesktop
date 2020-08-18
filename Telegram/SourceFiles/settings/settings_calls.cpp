@@ -76,34 +76,86 @@ void Calls::setupContent() {
 	};
 
 	const auto &settings = Core::App().settings();
+
 	const auto currentOutputName = [&] {
-		if (settings.callOutputDeviceID() == qsl("default")) {
-			return tr::lng_settings_call_device_default(tr::now);
-		}
 		const auto list = Webrtc::GetAudioOutputList();
 		const auto i = ranges::find(
 			list,
-			settings.callOutputDeviceID(),
+			settings.callOutputDeviceId(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: settings.callOutputDeviceID();
+			: tr::lng_settings_call_device_default(tr::now);
 	}();
 
 	const auto currentInputName = [&] {
-		if (settings.callInputDeviceID() == qsl("default")) {
-			return tr::lng_settings_call_device_default(tr::now);
-		}
 		const auto list = Webrtc::GetAudioInputList();
 		const auto i = ranges::find(
 			list,
-			settings.callInputDeviceID(),
+			settings.callInputDeviceId(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: settings.callInputDeviceID();
+			: tr::lng_settings_call_device_default(tr::now);
 	}();
 
+	const auto cameras = Webrtc::GetVideoInputList();
+	if (!cameras.empty()) {
+		const auto currentCameraName = [&] {
+			const auto i = ranges::find(
+				cameras,
+				settings.callVideoInputDeviceId(),
+				getId);
+			return (i != end(cameras))
+				? getName(*i)
+				: tr::lng_settings_call_device_default(tr::now);
+		}();
+
+		AddSkip(content);
+		AddSubsectionTitle(content, tr::lng_settings_call_camera());
+		AddButtonWithLabel(
+			content,
+			tr::lng_settings_call_input_device(),
+			rpl::single(
+				currentCameraName
+			) | rpl::then(
+				_cameraNameStream.events()
+			),
+			st::settingsButton
+		)->addClickHandler([=] {
+			const auto &devices = Webrtc::GetVideoInputList();
+			const auto options = ranges::view::concat(
+				ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
+				devices | ranges::view::transform(getName)
+			) | ranges::to_vector;
+			const auto i = ranges::find(
+				devices,
+				Core::App().settings().callVideoInputDeviceId(),
+				getId);
+			const auto currentOption = (i != end(devices))
+				? int(i - begin(devices) + 1)
+				: 0;
+			const auto save = crl::guard(this, [=](int option) {
+				_cameraNameStream.fire_copy(options[option]);
+				const auto deviceId = option
+					? devices[option - 1].id
+					: "default";
+				Core::App().settings().setCallVideoInputDeviceId(deviceId);
+				Core::App().saveSettingsDelayed();
+				if (const auto call = Core::App().calls().currentCall()) {
+					call->setCurrentVideoDevice(deviceId.toStdString());
+				}
+			});
+			Ui::show(Box<SingleChoiceBox>(
+				tr::lng_settings_call_camera(),
+				options,
+				currentOption,
+				save));
+		});
+
+		AddSkip(content);
+		AddDivider(content);
+	}
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 	AddButtonWithLabel(
@@ -123,7 +175,7 @@ void Calls::setupContent() {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Core::App().settings().callOutputDeviceID(),
+			Core::App().settings().callOutputDeviceId(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -133,7 +185,7 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallOutputDeviceID(deviceId);
+			Core::App().settings().setCallOutputDeviceId(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId.toStdString());
@@ -198,7 +250,7 @@ void Calls::setupContent() {
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Core::App().settings().callInputDeviceID(),
+			Core::App().settings().callInputDeviceId(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -208,7 +260,7 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallInputDeviceID(deviceId);
+			Core::App().settings().setCallInputDeviceId(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (_micTester) {
 				stopTestingMicrophone();
@@ -354,7 +406,7 @@ void Calls::startTestingMicrophone() {
 	_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
 	_levelUpdateTimer.callEach(50);
 	_micTester = std::make_unique<tgvoip::AudioInputTester>(
-		Core::App().settings().callInputDeviceID().toStdString());
+		Core::App().settings().callInputDeviceId().toStdString());
 	if (_micTester->Failed()) {
 		stopTestingMicrophone();
 		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));

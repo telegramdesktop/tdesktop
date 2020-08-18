@@ -346,22 +346,35 @@ void Call::setMuted(bool mute) {
 }
 
 void Call::setupOutgoingVideo() {
+	static const auto hasDevices = [] {
+		return !Webrtc::GetVideoInputList().empty();
+	};
 	const auto started = _videoOutgoing->state();
+	if (!hasDevices()) {
+		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+	}
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		if (state != Webrtc::VideoState::Inactive
-			&& Webrtc::GetVideoInputList().empty()) {
+		if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
+			_errors.fire({ ErrorType::NoCamera });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
 			&& state != started
 			&& !_videoCapture) {
+			_errors.fire({ ErrorType::NotStartedCall });
 			_videoOutgoing->setState(started);
+		} else if (state != Webrtc::VideoState::Inactive
+			&& _instance
+			&& !_instance->supportsVideo()) {
+			_errors.fire({ ErrorType::NotVideoCall });
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (state != Webrtc::VideoState::Inactive) {
 			// Paused not supported right now.
 #ifndef DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
-				_videoCapture = tgcalls::VideoCaptureInterface::Create();
+				_videoCapture = tgcalls::VideoCaptureInterface::Create(
+					Core::App().settings().callVideoInputDeviceId().toStdString());
 				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
 			if (_instance) {
@@ -729,8 +742,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			std::move(encryptionKeyValue),
 			(_type == Type::Outgoing)),
 		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
-			.audioInputId = settings.callInputDeviceID().toStdString(),
-			.audioOutputId = settings.callOutputDeviceID().toStdString(),
+			.audioInputId = settings.callInputDeviceId().toStdString(),
+			.audioOutputId = settings.callOutputDeviceId().toStdString(),
 			.inputVolume = settings.callInputVolume() / 100.f,
 			.outputVolume = settings.callOutputVolume() / 100.f,
 		},
@@ -949,13 +962,19 @@ void Call::setState(State state) {
 	}
 }
 
-void Call::setCurrentAudioDevice(bool input, std::string deviceID) {
+void Call::setCurrentAudioDevice(bool input, std::string deviceId) {
 	if (_instance) {
 		if (input) {
-			_instance->setAudioInputDevice(deviceID);
+			_instance->setAudioInputDevice(deviceId);
 		} else {
-			_instance->setAudioOutputDevice(deviceID);
+			_instance->setAudioOutputDevice(deviceId);
 		}
+	}
+}
+
+void Call::setCurrentVideoDevice(std::string deviceId) {
+	if (_videoCapture) {
+		_videoCapture->switchToDevice(deviceId);
 	}
 }
 

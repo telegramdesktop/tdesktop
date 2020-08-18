@@ -40,6 +40,19 @@ struct DhConfig {
 	bytes::vector p;
 };
 
+enum class ErrorType {
+	NoCamera,
+	NoMicrophone,
+	NotStartedCall,
+	NotVideoCall,
+	Unknown,
+};
+
+struct Error {
+	ErrorType type = ErrorType::Unknown;
+	QString details;
+};
+
 class Call : public base::has_weak_ptr {
 public:
 	class Delegate {
@@ -105,6 +118,10 @@ public:
 		return _state.value();
 	}
 
+	[[nodiscard]] rpl::producer<Error> errors() const {
+		return _errors.events();
+	}
+
 	enum class RemoteAudioState {
 		Muted,
 		Active,
@@ -155,7 +172,8 @@ public:
 
 	QString getDebugLog() const;
 
-	void setCurrentAudioDevice(bool input, std::string deviceID);
+	void setCurrentAudioDevice(bool input, std::string deviceId);
+	void setCurrentVideoDevice(std::string deviceId);
 	void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
@@ -213,6 +231,7 @@ private:
 	rpl::variable<State> _state = State::Starting;
 	rpl::variable<RemoteAudioState> _remoteAudioState = RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;
+	rpl::event_stream<Error> _errors;
 	FinishType _finishAfterRequestingCall = FinishType::None;
 	bool _answerAfterDhConfigReceived = false;
 	rpl::variable<int> _signalBarCount = kSignalBarStarting;

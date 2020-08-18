@@ -38,6 +38,7 @@ private:
 	void stopTestingMicrophone();
 
 	const not_null<Window::SessionController*> _controller;
+	rpl::event_stream<QString> _cameraNameStream;
 	rpl::event_stream<QString> _outputNameStream;
 	rpl::event_stream<QString> _inputNameStream;
 	rpl::event_stream<QString> _micTestTextStream;
