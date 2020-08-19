@@ -69,6 +69,7 @@ parts:
     build-environment:
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib
     build-packages:
+      - python
       - qtbase5-private-dev
       - libasound2-dev
       - libglib2.0-dev
@@ -376,6 +377,8 @@ parts:
   webrtc:
     plugin: nil
     build-packages:
+      - curl
+      - python2
       - libopus-dev
       - libssl-dev
     stage-packages:
