@@ -11,25 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
-#include "data/stickers/data_stickers.h" // Stickers::addSavedGif
+#include "data/stickers/data_stickers.h"
 #include "main/main_session.h"
 
 namespace Api {
 namespace {
 
-template <typename MTPToggleRequest, typename DoneCallback>
+template <typename ToggleRequest, typename DoneCallback>
 void ToggleExistingMedia(
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
-		bool saved,
+		ToggleRequest toggleRequest,
 		DoneCallback &&done) {
 	const auto api = &document->owner().session().api();
 
 	auto performRequest = [=](const auto &repeatRequest) -> void {
 		const auto usedFileReference = document->fileReference();
-		api->request(MTPToggleRequest(
-			document->mtpInput(),
-			MTP_bool(!saved)
+		api->request(std::move(
+			toggleRequest
 		)).done([=](const MTPBool &result) {
 			if (mtpIsTrue(result)) {
 				done();
@@ -67,11 +66,33 @@ void ToggleFavedSticker(
 	if (faved && !document->sticker()) {
 		return;
 	}
-	ToggleExistingMedia<MTPmessages_FaveSticker>(
+	ToggleExistingMedia(
 		document,
 		std::move(origin),
-		faved,
+		MTPmessages_FaveSticker(document->mtpInput(), MTP_bool(!faved)),
 		[=] { document->owner().stickers().setFaved(document, faved); });
+}
+
+void ToggleRecentSticker(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		bool saved) {
+	if (!document->sticker()) {
+		return;
+	}
+	auto done = [=] {
+		if (!saved) {
+			document->owner().stickers().removeFromRecentSet(document);
+		}
+	};
+	ToggleExistingMedia(
+		document,
+		std::move(origin),
+		MTPmessages_SaveRecentSticker(
+			MTP_flags(MTPmessages_SaveRecentSticker::Flag(0)),
+			document->mtpInput(),
+			MTP_bool(!saved)),
+		std::move(done));
 }
 
 void ToggleSavedGif(
@@ -86,10 +107,10 @@ void ToggleSavedGif(
 			document->owner().stickers().addSavedGif(document);
 		}
 	};
-	ToggleExistingMedia<MTPmessages_SaveGif>(
+	ToggleExistingMedia(
 		document,
 		std::move(origin),
-		saved,
+		MTPmessages_SaveGif(document->mtpInput(), MTP_bool(!saved)),
 		std::move(done));
 }
 

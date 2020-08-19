@@ -18,6 +18,11 @@ void ToggleFavedSticker(
 	Data::FileOrigin origin,
 	bool faved);
 
+void ToggleRecentSticker(
+	not_null<DocumentData*> document,
+	Data::FileOrigin origin,
+	bool saved);
+
 void ToggleSavedGif(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,

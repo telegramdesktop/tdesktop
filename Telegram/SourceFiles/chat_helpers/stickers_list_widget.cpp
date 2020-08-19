@@ -2093,6 +2093,15 @@ void StickersListWidget::fillContextMenu(
 		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
 			showStickerSetBox(document);
 		});
+
+		if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
+			menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
+				Api::ToggleRecentSticker(
+					document,
+					Data::FileOriginStickerSet(id, 0),
+					false);
+			});
+		}
 	}
 }
 
