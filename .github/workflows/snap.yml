@@ -57,18 +57,19 @@ jobs:
 
       - name: First set up.
         run: |
-          # Workaround for permanent problems with third-party repository keys
-          sudo rm -rf /etc/apt/sources.list.d/*
-
-          sudo apt-get update
           sudo snap install --classic snapcraft
 
           # Workaround for snapcraft
           # See https://forum.snapcraft.io/t/13258
           sudo chown root:root /
 
+          sudo usermod -aG lxd $USER
+
+          sudo snap run lxd init --auto
+          sudo snap run lxd waitready
+
       - name: Telegram Desktop snap build.
-        run: sudo snap run snapcraft --destructive-mode
+        run: sg lxd -c 'snap run snapcraft --use-lxd'
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
