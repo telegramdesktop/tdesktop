@@ -252,6 +252,22 @@ Go to ***BuildPath*** and run
     find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
+    LibrariesPath=`pwd`
+    git clone https://github.com/desktop-app/tg_owt.git
+    cd tg_owt
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=mac -DTG_OWT_LIBJPEG_INCLUDE_PATH=$LibrariesPath/qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=$LibrariesPath/openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+    ninja
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=mac -DTG_OWT_LIBJPEG_INCLUDE_PATH=$LibrariesPath/qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=$LibrariesPath/openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+    ninja
+    cd ..\..
+
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
     -debug-and-release \
     -force-debug-info \

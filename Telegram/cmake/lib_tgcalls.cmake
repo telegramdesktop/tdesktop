@@ -6,10 +6,12 @@
 
 add_library(lib_tgcalls STATIC)
 
-if (LINUX)
-init_target(lib_tgcalls) # All C++20 on Linux, because otherwise ODR violation.
+if (WIN32)
+    init_target(lib_tgcalls cxx_std_17) # Small amount of patches required here.
+elseif (LINUX)
+    init_target(lib_tgcalls) # All C++20 on Linux, because otherwise ODR violation.
 else()
-init_target(lib_tgcalls cxx_std_14)
+    init_target(lib_tgcalls cxx_std_14) # Can't use std::optional::value on macOS.
 endif()
 
 add_library(tdesktop::lib_tgcalls ALIAS lib_tgcalls)
@@ -183,10 +185,12 @@ PRIVATE
 
 add_library(lib_tgcalls_legacy STATIC)
 
-if (LINUX)
+if (WIN32)
+    init_target(lib_tgcalls_legacy cxx_std_17) # Small amount of patches required here.
+elseif (LINUX)
     init_target(lib_tgcalls_legacy) # All C++20 on Linux, because otherwise ODR violation.
 else()
-    init_target(lib_tgcalls_legacy cxx_std_14)
+    init_target(lib_tgcalls_legacy cxx_std_14) # Can't use std::optional::value on macOS.
 endif()
 
 add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
