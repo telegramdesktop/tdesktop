@@ -46,7 +46,6 @@ Go to ***BuildPath*** and run
     cd ../..
 
     cd Libraries
-    LibrariesPath=`pwd`
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
@@ -69,10 +68,10 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://github.com/openssl/openssl
-    cd openssl
-    git checkout OpenSSL_1_0_1-stable
-    ./Configure darwin64-x86_64-cc -static -mmacosx-version-min=10.10
+    git clone https://github.com/openssl/openssl openssl_1_1_1
+    cd openssl_1_1_1
+    git checkout OpenSSL_1_1_1-stable
+    ./Configure --prefix=/usr/local/macos no-tests darwin64-x86_64-cc -static $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
@@ -245,6 +244,21 @@ Go to ***BuildPath*** and run
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
+
+    git clone https://github.com/desktop-app/tg_owt.git
+    cd tg_owt
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=osx -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt5_6_2/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=`pwd`/../../../ffmpeg ../..
+    ninja
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=osx -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt5_6_2/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=`pwd`/../../../ffmpeg ../..
+    ninja
+    cd ..\..
 
 ### Building the project
 

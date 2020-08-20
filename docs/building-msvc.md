@@ -165,19 +165,18 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j4 install
     cd ..
 
-    set LibrariesPath=%cd%
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
     mkdir out
     cd out
     mkdir Debug
     cd Debug
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%LibrariesPath%/qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%LibrariesPath%/openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%LibrariesPath%/opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%LibrariesPath%/ffmpeg ../..
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../..ffmpeg ../..
     ninja
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%LibrariesPath%/qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%LibrariesPath%/openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%LibrariesPath%/opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%LibrariesPath%/ffmpeg ../..
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
     cd ..\..
 

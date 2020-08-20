@@ -357,9 +357,11 @@ void MainWindow::updateShadowSize() {
 }
 
 void MainWindow::recountGeometryConstraints() {
+#ifdef Q_OS_LINUX
 	const auto hasShadow = this->hasShadow();
 	setWindowFlag(Qt::NoDropShadowWindowHint, hasShadow);
 	setAttribute(Qt::WA_OpaquePaintEvent, !hasShadow);
+#endif // Q_OS_LINUX
 
 	updateShadowSize();
 	updateMinimumSize();
