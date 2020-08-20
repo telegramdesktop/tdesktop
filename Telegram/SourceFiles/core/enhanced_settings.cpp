@@ -200,6 +200,11 @@ bool Manager::readCustomFile() {
 			SetNetworkBoost(v.toInt());
 		}
 	});
+
+	ReadBoolOption(settings, "show_messages_id", [&](auto v) {
+		cSetShowMessagesID(v);
+	});
+
 	return true;
 }
 
@@ -217,6 +222,7 @@ void Manager::writeDefaultFile() {
 
 	auto settings = QJsonObject();
 	settings.insert(qsl("net_speed_boost"), QJsonValue(QJsonValue::Null));
+	settings.insert(qsl("show_messages_id"), false);
 
 	auto document = QJsonDocument();
 	document.setObject(settings);
@@ -240,6 +246,7 @@ void Manager::writeCurrentSettings() {
 
 	auto settings = QJsonObject();
 	settings.insert(qsl("net_speed_boost"), cNetSpeedBoost());
+	settings.insert(qsl("show_messages_id"), cShowMessagesID());
 
 	auto document = QJsonDocument();
 	document.setObject(settings);

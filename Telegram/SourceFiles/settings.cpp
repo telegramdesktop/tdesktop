@@ -170,6 +170,7 @@ rpl::producer<> UpdatedRecentEmoji() {
 }
 
 bool gEnhancedFirstRun = true;
+bool gShowMessagesID = false;
 
 int gNetSpeedBoost = 0;
 int gNetRequestsCount = 2;

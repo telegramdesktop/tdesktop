@@ -2418,6 +2418,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_enhanced" = "Enhanced Setting";
 "lng_settings_network" = "Network";
 "lng_settings_net_speed_boost" = "Download/Upload Speed boost";
+"lng_settings_show_message_id" = "Show Messages ID";
 
 "lng_net_speed_boost_title" = "Network speed boost";
 "lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.";
@@ -2428,6 +2429,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_net_speed_boost_big" = "Big";
 
 "lng_net_boost_restart_desc" = "You'll need to restart app to change network boost.\n\nRestart now?";
+"lng_show_messages_id_desc" = "Warning: the changes will take effect immediately with restart.";
 
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";

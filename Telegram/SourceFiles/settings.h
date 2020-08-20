@@ -178,6 +178,7 @@ inline void ValidateScale() {
 }
 
 DeclareSetting(bool, EnhancedFirstRun);
+DeclareSetting(bool, ShowMessagesID);
 
 DeclareSetting(int, NetSpeedBoost);
 DeclareSetting(int, NetRequestsCount);
