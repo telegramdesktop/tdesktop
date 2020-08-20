@@ -17,10 +17,11 @@ You will need GCC 8 installed. To install them and all the required dependencies
     libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
     autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
     libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
-    libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-screensaver0-dev \
+    libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+    libxcb-screensaver0-dev ninja-build libegl1-mesa-dev \
     libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
     libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
-    libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libegl1-mesa-dev \
+    libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev \
     libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html bison yasm \
     zlib1g-dev xutils-dev python-xcbgen chrpath gperf -y --force-yes && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
@@ -279,36 +280,26 @@ Go to ***BuildPath*** and run
     cd out
     mkdir Debug
     cd Debug
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=linux -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
+    cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DTG_OWT_SPECIAL_TARGET=linux \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
+    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
     ninja
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=mac -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=$LibrariesPath/openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+    cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DTG_OWT_SPECIAL_TARGET=linux \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
+    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
     ninja
-    cd ..\..
-
-    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    export PATH=`pwd`/depot_tools:$PATH
-
-    mkdir webrtc
-    cd webrtc
-    cp ../patches/webrtc/.gclient ./
-    git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-    gclient sync --no-history
-    cd src
-    git apply ../../patches/webrtc/src.diff
-    cd build
-    git apply ../../../patches/webrtc/build.diff
-    cd ../third_party
-    git apply ../../../patches/webrtc/third_party.diff
-    cd libsrtp
-    git apply ../../../../patches/webrtc/libsrtp.diff
-    cd ../..
-    ../../patches/webrtc/configure.sh
-    ninja -C out/Debug webrtc
-    ninja -C out/Release webrtc
-    cd ../..
+    cd ../../..
 
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp

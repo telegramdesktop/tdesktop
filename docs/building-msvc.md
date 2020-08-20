@@ -27,7 +27,6 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
-* Download **depot_tools** archive from [https://storage.googleapis.com/chrome-infra/depot_tools.zip](https://storage.googleapis.com/chrome-infra/depot_tools.zip) and unpack to ***BuildPath*\\ThirdParty\\depot_tools**
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
@@ -48,7 +47,6 @@ Add **GYP** and **Ninja** to your PATH:
 * Press **Environment Variables...**
 * Select **Path**
 * Press **Edit**
-* Add ***BuildPath*\\ThirdParty\\depot_tools** value
 * Add ***BuildPath*\\ThirdParty\\gyp** value
 * Add ***BuildPath*\\ThirdParty\\Ninja** value
 
@@ -56,7 +54,7 @@ Add **GYP** and **Ninja** to your PATH:
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
-    SET PATH=%cd%\ThirdParty\depot_tools;%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
+    SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
@@ -171,14 +169,26 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd out
     mkdir Debug
     cd Debug
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
+    cmake -G Ninja ^
+    -DCMAKE_BUILD_TYPE=Debug ^
+    -DTG_OWT_SPECIAL_TARGET=win ^
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg ^
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
+    -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
+    cmake -G Ninja ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DTG_OWT_SPECIAL_TARGET=win ^
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg ^
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
+    -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
-    cd ..\..
+    cd ..\..\..
 
 ## Build the project
 

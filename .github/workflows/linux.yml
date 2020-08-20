@@ -97,7 +97,7 @@ jobs:
           autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
           libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
           libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
-          libxcb-screensaver0-dev libjpeg-dev \
+          libxcb-screensaver0-dev libjpeg-dev ninja-build \
           libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
           libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
           libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libegl1-mesa-dev \
@@ -518,48 +518,33 @@ jobs:
         id: cache-webrtc
         uses: actions/cache@v2
         with:
-          path: ${{ env.LibrariesPath }}/webrtc
-          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/patches/webrtc/*') }}
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
 
-          # # OpenSSL.
-          # opensslDir=openssl_${OPENSSL_VER}
-          # mkdir $opensslDir
-          # cp -R $OPENSSL_PREFIX/ $opensslDir/
-          # cd openssl-cache
-          # cp $(find . | grep libssl.a) $LibrariesPath/$opensslDir
-          # cp $(find . | grep libcrypto.a) $LibrariesPath/$opensslDir
-
-          # cd $LibrariesPath
-
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-          export PATH=`pwd`/depot_tools:$PATH
-
-          mkdir webrtc
-          cd webrtc
-          cp ../patches/webrtc/.gclient ./
-          git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-          gclient sync --no-history
-
-          applyPatch() {
-            cd $LibrariesPath/webrtc/$1
-            git apply $LibrariesPath/patches/webrtc/$(basename $1).diff
-          }
-          applyPatch src
-          applyPatch src/build
-          applyPatch src/third_party
-          applyPatch src/third_party/libsrtp
-
-          cd $LibrariesPath/webrtc/src
-          ../../patches/webrtc/configure.sh
-
-          ninja -C out/Debug webrtc
+          git clone $GIT/desktop-app/tg_owt.git
+          mkdir -p tg_owt/out/Debug
+          cd tg_owt/out/Debug
+          cmake -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DTG_OWT_SPECIAL_TARGET=linux \
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_$QT/qtbase/src/3rdparty/libjpeg \
+          -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
+          -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+          -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include \
+          ../..
+          ninja
 
           # Cleanup.
-          ../../patches/webrtc/cleanup_webrtc.sh
+          cd $LibrariesPath/tg_owt
+          mv out/Debug/libtg_owt.a libtg_owt.a
+          rm -rf out
+          mkdir -p out/Debug
+          mv libtg_owt.a out/Debug/libtg_owt.a
+
           rm -rf $LibrariesPath/openssl_${OPENSSL_VER}
 
       - name: Telegram Desktop build.
