@@ -171,7 +171,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd out
     mkdir Debug
     cd Debug
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../..ffmpeg ../..
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTG_OWT_SPECIAL_TARGET=win -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
     cd ..
     mkdir Release
