@@ -1,8 +1,8 @@
 /*
-This file is part of Kotatogram Desktop,
+This file is part of Telegram Desktop x64,
 the unofficial app based on Telegram Desktop.
 For license and copyright information please follow this link:
-https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
+https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 */
 #include "core/enhanced_settings.h"
 
@@ -214,14 +214,14 @@ void Manager::writeDefaultFile() {
 		return;
 	}
 	const char *defaultHeader = R"HEADER(
-// This is a list of default options for Kotatogram Desktop
+// This is a list of default options for Telegram Desktop x64
 // Please don't modify it, its content is not used in any way
-// You can place your own options in the 'kotato-settings-custom.json' file
+// You can place your own options in the 'enhanced-settings-custom.json' file
 )HEADER";
 	file.write(defaultHeader);
 
 	auto settings = QJsonObject();
-	settings.insert(qsl("net_speed_boost"), QJsonValue(QJsonValue::Null));
+	settings.insert(qsl("net_speed_boost"), 0);
 	settings.insert(qsl("show_messages_id"), false);
 
 	auto document = QJsonDocument();
