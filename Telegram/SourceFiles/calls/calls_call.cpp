@@ -744,8 +744,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		.mediaDevicesConfig = tgcalls::MediaDevicesConfig{
 			.audioInputId = settings.callInputDeviceId().toStdString(),
 			.audioOutputId = settings.callOutputDeviceId().toStdString(),
-			.inputVolume = settings.callInputVolume() / 100.f,
-			.outputVolume = settings.callOutputVolume() / 100.f,
+			.inputVolume = 1.f,//settings.callInputVolume() / 100.f,
+			.outputVolume = 1.f,//settings.callOutputVolume() / 100.f,
 		},
 		.videoCapture = _videoCapture,
 		.stateUpdated = [=](tgcalls::State state) {
@@ -962,19 +962,20 @@ void Call::setState(State state) {
 	}
 }
 
-void Call::setCurrentAudioDevice(bool input, std::string deviceId) {
+void Call::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	if (_instance) {
+		const auto id = deviceId.toStdString();
 		if (input) {
-			_instance->setAudioInputDevice(deviceId);
+			_instance->setAudioInputDevice(id);
 		} else {
-			_instance->setAudioOutputDevice(deviceId);
+			_instance->setAudioOutputDevice(id);
 		}
 	}
 }
 
-void Call::setCurrentVideoDevice(std::string deviceId) {
+void Call::setCurrentVideoDevice(const QString &deviceId) {
 	if (_videoCapture) {
-		_videoCapture->switchToDevice(deviceId);
+		_videoCapture->switchToDevice(deviceId.toStdString());
 	}
 }
 
