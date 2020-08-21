@@ -1726,6 +1726,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_error_not_available" = "Sorry, {user} doesn't accept calls.";
 "lng_call_error_outdated" = "{user}'s app does not support calls. They need to update their app before you can call them.";
+"lng_call_error_no_camera" = "No camera could be found. Please make sure that your camera is connected to the computer.";
+"lng_call_error_camera_not_started" = "You can switch to video call once you're connected.";
+"lng_call_error_camera_outdated" = "{user}'s app does not support video calls. They need to update their app.";
 "lng_call_error_audio_io" = "There seems to be a problem with audio playback on your computer. Please make sure that your computer's speakers and microphone are working and try again.";
 
 "lng_call_bar_hangup" = "End call";

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/toast/toast.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "core/application.h"
@@ -701,6 +702,30 @@ void Panel::reinitWithCall(Call *call) {
 			&& state != State::HangingUp) {
 			refreshOutgoingPreviewInBody(state);
 		}
+	}, _callLifetime);
+
+	_call->errors(
+	) | rpl::start_with_next([=](Error error) {
+		const auto text = [=] {
+			switch (error.type) {
+			case ErrorType::NoCamera:
+				return tr::lng_call_error_no_camera(tr::now);
+			case ErrorType::NotVideoCall:
+				return tr::lng_call_error_camera_outdated(tr::now, lt_user, _user->name);
+			case ErrorType::NotStartedCall:
+				return tr::lng_call_error_camera_not_started(tr::now);
+				//case ErrorType::NoMicrophone:
+				//	return tr::lng_call_error_no_camera(tr::now);
+			case ErrorType::Unknown:
+				return Lang::Hard::CallErrorIncompatible();
+			}
+			Unexpected("Error type in _call->errors().");
+		}();
+		Ui::Toast::Show(widget(), Ui::Toast::Config{
+			.text = { text },
+			.st = &st::callErrorToast,
+			.multiline = true,
+		});
 	}, _callLifetime);
 
 	_name->setText(_user->name);
