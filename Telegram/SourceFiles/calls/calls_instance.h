@@ -43,6 +43,7 @@ public:
 	void showInfoPanel(not_null<Call*> call);
 	[[nodiscard]] Call *currentCall() const;
 	[[nodiscard]] rpl::producer<Call*> currentCallValue() const;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
 
 	[[nodiscard]] bool isQuitPrevent();
 
@@ -78,6 +79,7 @@ private:
 
 	crl::time _lastServerConfigUpdateTime = 0;
 	base::weak_ptr<Main::Session> _serverConfigRequestSession;
+	std::weak_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 
 	std::unique_ptr<Call> _currentCall;
 	rpl::event_stream<Call*> _currentCallChanges;

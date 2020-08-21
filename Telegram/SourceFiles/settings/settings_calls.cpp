@@ -99,14 +99,16 @@ void Calls::setupContent() {
 
 	const auto cameras = Webrtc::GetVideoInputList();
 	if (!cameras.empty()) {
-		auto capturerOwner = tgcalls::VideoCaptureInterface::Create(
-			settings.callVideoInputDeviceId().toStdString());
+		const auto hasCall = (Core::App().calls().currentCall() != nullptr);
+
+		auto capturerOwner = Core::App().calls().getVideoCapture();
 		const auto capturer = capturerOwner.get();
 		content->lifetime().add([owner = std::move(capturerOwner)]{});
 
 		const auto track = content->lifetime().make_state<Webrtc::VideoTrack>(
-			Webrtc::VideoState::Active);
-		capturer->setOutput(track->sink());
+			(hasCall
+				? Webrtc::VideoState::Inactive
+				: Webrtc::VideoState::Active));
 
 		const auto currentCameraName = [&] {
 			const auto i = ranges::find(
@@ -181,16 +183,29 @@ void Calls::setupContent() {
 		track->renderNextFrame(
 		) | rpl::start_with_next([=] {
 			const auto size = track->frameSize();
-			if (size.isEmpty()) {
+			if (size.isEmpty() || Core::App().calls().currentCall()) {
 				return;
 			}
 			const auto width = bubbleWrap->width();
 			const auto use = (width - 2 * padding);
-			bubbleWrap->resize(
-				width,
-				top + ((use * size.height()) / size.width()) + bottom);
+			const auto height = std::min(
+				((use * size.height()) / size.width()),
+				(use * 480) / 640);
+			bubbleWrap->resize(width, top + height + bottom);
 			bubbleWrap->update();
 		}, bubbleWrap->lifetime());
+
+		Core::App().calls().currentCallValue(
+		) | rpl::start_with_next([=](::Calls::Call *value) {
+			if (value) {
+				track->setState(Webrtc::VideoState::Inactive);
+				bubbleWrap->resize(bubbleWrap->width(), 0);
+			} else {
+				capturer->setPreferredAspectRatio(0.);
+				track->setState(Webrtc::VideoState::Active);
+				capturer->setOutput(track->sink());
+			}
+		}, content->lifetime());
 
 		AddSkip(content);
 		AddDivider(content);

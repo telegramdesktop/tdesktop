@@ -373,8 +373,7 @@ void Call::setupOutgoingVideo() {
 #ifndef DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
-				_videoCapture = tgcalls::VideoCaptureInterface::Create(
-					Core::App().settings().callVideoInputDeviceId().toStdString());
+				_videoCapture = _delegate->getVideoCapture();
 				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
 			if (_instance) {
