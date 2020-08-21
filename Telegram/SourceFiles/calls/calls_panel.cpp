@@ -100,11 +100,11 @@ void Panel::Incoming::paintEvent(QPaintEvent *e) {
 	const auto frame = _track->frame(Webrtc::FrameRequest());
 	if (frame.isNull()) {
 		p.fillRect(e->rect(), Qt::black);
-		fillBottomShadow(p);
-		fillTopShadow(p);
 	} else {
 		auto hq = PainterHighQualityEnabler(p);
 		p.drawImage(rect(), frame);
+		fillBottomShadow(p);
+		fillTopShadow(p);
 	}
 	_track->markFrameShown();
 }
@@ -137,13 +137,13 @@ void Panel::Incoming::fillTopShadow(QPainter &p) {
 	const auto shadowArea = QRect(
 		position,
 		st::callTitleShadow.size());
-	const auto fill = shadowArea.intersected(geometry()).translated(-x(), -y());
+	const auto fill = shadowArea.intersected(geometry()).translated(-pos());
 	if (fill.isEmpty()) {
 		return;
 	}
 	p.save();
 	p.setClipRect(fill);
-	st::callTitleShadow.paint(p, position, width);
+	st::callTitleShadow.paint(p, position - pos(), width);
 	p.restore();
 #endif // Q_OS_WIN
 }
@@ -154,7 +154,7 @@ void Panel::Incoming::fillBottomShadow(QPainter &p) {
 		parentWidget()->height() - st::callBottomShadowSize,
 		parentWidget()->width(),
 		st::callBottomShadowSize);
-	const auto fill = shadowArea.intersected(geometry()).translated(-x(), -y());
+	const auto fill = shadowArea.intersected(geometry()).translated(-pos());
 	if (fill.isEmpty()) {
 		return;
 	}
@@ -164,7 +164,7 @@ void Panel::Incoming::fillBottomShadow(QPainter &p) {
 		_bottomShadow,
 		QRect(
 			0,
-			factor * (fill.y() - shadowArea.y()),
+			factor * (fill.y() - shadowArea.translated(-pos()).y()),
 			factor,
 			factor * fill.height()));
 }
