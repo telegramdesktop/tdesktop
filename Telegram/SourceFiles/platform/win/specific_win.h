@@ -38,6 +38,10 @@ inline bool TrayIconSupported() {
 	return true;
 }
 
+inline bool WindowsNeedShadow() {
+	return false;
+}
+
 namespace ThirdParty {
 
 void start();

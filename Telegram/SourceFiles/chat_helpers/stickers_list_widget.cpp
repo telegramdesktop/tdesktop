@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
+#include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "app.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -2079,10 +2080,9 @@ void StickersListWidget::fillContextMenu(
 			SendMenu::DefaultScheduleCallback(this, type, send));
 
 		const auto toggleFavedSticker = [=] {
-			document->session().api().toggleFavedSticker(
+			Api::ToggleFavedSticker(
 				document,
-				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0),
-				!document->owner().stickers().isFaved(document));
+				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
 		};
 		menu->addAction(
 			(document->owner().stickers().isFaved(document)
@@ -2093,6 +2093,15 @@ void StickersListWidget::fillContextMenu(
 		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
 			showStickerSetBox(document);
 		});
+
+		if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
+			menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
+				Api::ToggleRecentSticker(
+					document,
+					Data::FileOriginStickerSet(id, 0),
+					false);
+			});
+		}
 	}
 }
 
@@ -2219,7 +2228,7 @@ void StickersListWidget::removeFavedSticker(int section, int index) {
 	const auto &sticker = _mySets[section].stickers[index];
 	const auto document = sticker.document;
 	session().data().stickers().setFaved(document, false);
-	session().api().toggleFavedSticker(
+	Api::ToggleFavedSticker(
 		document,
 		Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0),
 		false);

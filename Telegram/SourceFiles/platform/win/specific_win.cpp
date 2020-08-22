@@ -593,6 +593,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
 		crl::on_main([] {
 			WinExec("control.exe mmsys.cpl", SW_SHOW);
+			//QDesktopServices::openUrl(QUrl("ms-settings:sound"));
 		});
 	}
 	return true;

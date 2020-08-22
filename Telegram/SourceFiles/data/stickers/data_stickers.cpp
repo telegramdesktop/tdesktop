@@ -29,6 +29,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+namespace {
+
+void RemoveFromSet(
+		StickersSets &sets,
+		not_null<DocumentData*> document,
+		uint64 setId) {
+	const auto it = sets.find(setId);
+	if (it == sets.end()) {
+		return;
+	}
+	const auto set = it->second.get();
+	const auto index = set->stickers.indexOf(document);
+	if (index < 0) {
+		return;
+	}
+	set->stickers.removeAt(index);
+	if (!set->dates.empty()) {
+		set->dates.erase(set->dates.begin() + index);
+	}
+	for (auto i = set->emoji.begin(); i != set->emoji.end();) {
+		const auto index = i->indexOf(document);
+		if (index >= 0) {
+			i->removeAt(index);
+			if (i->empty()) {
+				i = set->emoji.erase(i);
+				continue;
+			}
+		}
+		++i;
+	}
+	if (set->stickers.empty()) {
+		sets.erase(it);
+	}
+}
+
+} // namespace
+
 Stickers::Stickers(not_null<Session*> owner) : _owner(owner) {
 }
 
@@ -513,32 +550,14 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 	}).send();
 }
 
+void Stickers::removeFromRecentSet(not_null<DocumentData*> document) {
+	RemoveFromSet(setsRef(), document, CloudRecentSetId);
+	session().local().writeRecentStickers();
+	notifyRecentUpdated();
+}
+
 void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
-	auto &sets = setsRef();
-	auto it = sets.find(FavedSetId);
-	if (it == sets.end()) {
-		return;
-	}
-	const auto set = it->second.get();
-	auto index = set->stickers.indexOf(document);
-	if (index < 0) {
-		return;
-	}
-	set->stickers.removeAt(index);
-	for (auto i = set->emoji.begin(); i != set->emoji.end();) {
-		auto index = i->indexOf(document);
-		if (index >= 0) {
-			i->removeAt(index);
-			if (i->empty()) {
-				i = set->emoji.erase(i);
-				continue;
-			}
-		}
-		++i;
-	}
-	if (set->stickers.empty()) {
-		sets.erase(it);
-	}
+	RemoveFromSet(setsRef(), document, FavedSetId);
 	session().local().writeFavedStickers();
 	notifyUpdated();
 }

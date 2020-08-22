@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_toggling_media.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -1769,10 +1770,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								showStickerPackInfo(document);
 							});
 							_menu->addAction(session->data().stickers().isFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
-								session->api().toggleFavedSticker(
-									document,
-									itemId,
-									!session->data().stickers().isFaved(document));
+								Api::ToggleFavedSticker(document, itemId);
 							});
 						}
 						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
@@ -2010,7 +2008,7 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				session().api().toggleSavedGif(document, item->fullId(), true);
+				Api::ToggleSavedGif(document, item->fullId(), true);
 			}
 		}
 	}

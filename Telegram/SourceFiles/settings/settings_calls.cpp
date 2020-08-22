@@ -26,21 +26,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "calls/calls_instance.h"
+#include "calls/calls_video_bubble.h"
+#include "webrtc/webrtc_media_devices.h"
+#include "webrtc/webrtc_video_track.h"
+#include "webrtc/webrtc_audio_input_tester.h"
+#include "tgcalls/VideoCaptureInterface.h"
 #include "facades.h"
-
-#ifdef slots
-#undef slots
-#define NEED_TO_RESTORE_SLOTS
-#endif // slots
-
-#include <VoIPController.h>
-
-#ifdef NEED_TO_RESTORE_SLOTS
-#define slots Q_SLOTS
-#undef NEED_TO_RESTORE_SLOTS
-#endif // NEED_TO_RESTORE_SLOTS
+#include "styles/style_layers.h"
 
 namespace Settings {
+namespace {
+
+constexpr auto kMicTestUpdateInterval = crl::time(100);
+constexpr auto kMicTestAnimationDuration = crl::time(200);
+
+} // namespace
 
 Calls::Calls(
 	QWidget *parent,
@@ -48,6 +48,7 @@ Calls::Calls(
 : Section(parent)
 , _controller(controller) {
 	setupContent();
+	requestPermissionAndStartTestingMicrophone();
 }
 
 Calls::~Calls() {
@@ -64,45 +65,151 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 }
 
 void Calls::setupContent() {
-	using VoIP = tgvoip::VoIPController;
-
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto getId = [](const auto &device) {
-		return QString::fromStdString(device.id);
+		return device.id;
 	};
 	const auto getName = [](const auto &device) {
-		return QString::fromStdString(device.displayName);
+		return device.name;
 	};
 
 	const auto &settings = Core::App().settings();
+
 	const auto currentOutputName = [&] {
-		if (settings.callOutputDeviceID() == qsl("default")) {
-			return tr::lng_settings_call_device_default(tr::now);
-		}
-		const auto &list = VoIP::EnumerateAudioOutputs();
+		const auto list = Webrtc::GetAudioOutputList();
 		const auto i = ranges::find(
 			list,
-			settings.callOutputDeviceID(),
+			settings.callOutputDeviceId(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: settings.callOutputDeviceID();
+			: tr::lng_settings_call_device_default(tr::now);
 	}();
 
 	const auto currentInputName = [&] {
-		if (settings.callInputDeviceID() == qsl("default")) {
-			return tr::lng_settings_call_device_default(tr::now);
-		}
-		const auto &list = VoIP::EnumerateAudioInputs();
+		const auto list = Webrtc::GetAudioInputList();
 		const auto i = ranges::find(
 			list,
-			settings.callInputDeviceID(),
+			settings.callInputDeviceId(),
 			getId);
 		return (i != end(list))
 			? getName(*i)
-			: settings.callInputDeviceID();
+			: tr::lng_settings_call_device_default(tr::now);
 	}();
 
+	const auto cameras = Webrtc::GetVideoInputList();
+	if (!cameras.empty()) {
+		const auto hasCall = (Core::App().calls().currentCall() != nullptr);
+
+		auto capturerOwner = Core::App().calls().getVideoCapture();
+		const auto capturer = capturerOwner.get();
+		content->lifetime().add([owner = std::move(capturerOwner)]{});
+
+		const auto track = content->lifetime().make_state<Webrtc::VideoTrack>(
+			(hasCall
+				? Webrtc::VideoState::Inactive
+				: Webrtc::VideoState::Active));
+
+		const auto currentCameraName = [&] {
+			const auto i = ranges::find(
+				cameras,
+				settings.callVideoInputDeviceId(),
+				getId);
+			return (i != end(cameras))
+				? getName(*i)
+				: tr::lng_settings_call_device_default(tr::now);
+		}();
+
+		AddSkip(content);
+		AddSubsectionTitle(content, tr::lng_settings_call_camera());
+		AddButtonWithLabel(
+			content,
+			tr::lng_settings_call_input_device(),
+			rpl::single(
+				currentCameraName
+			) | rpl::then(
+				_cameraNameStream.events()
+			),
+			st::settingsButton
+		)->addClickHandler([=] {
+			const auto &devices = Webrtc::GetVideoInputList();
+			const auto options = ranges::view::concat(
+				ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
+				devices | ranges::view::transform(getName)
+			) | ranges::to_vector;
+			const auto i = ranges::find(
+				devices,
+				Core::App().settings().callVideoInputDeviceId(),
+				getId);
+			const auto currentOption = (i != end(devices))
+				? int(i - begin(devices) + 1)
+				: 0;
+			const auto save = crl::guard(this, [=](int option) {
+				_cameraNameStream.fire_copy(options[option]);
+				const auto deviceId = option
+					? devices[option - 1].id
+					: "default";
+				capturer->switchToDevice(deviceId.toStdString());
+				Core::App().settings().setCallVideoInputDeviceId(deviceId);
+				Core::App().saveSettingsDelayed();
+				if (const auto call = Core::App().calls().currentCall()) {
+					call->setCurrentVideoDevice(deviceId);
+				}
+			});
+			Ui::show(Box<SingleChoiceBox>(
+				tr::lng_settings_call_camera(),
+				options,
+				currentOption,
+				save));
+		});
+		const auto bubbleWrap = content->add(object_ptr<Ui::RpWidget>(content));
+		const auto bubble = content->lifetime().make_state<::Calls::VideoBubble>(
+			bubbleWrap,
+			track);
+		const auto padding = st::settingsButton.padding.left();
+		const auto top = st::boxRoundShadow.extend.top();
+		const auto bottom = st::boxRoundShadow.extend.bottom();
+
+		bubbleWrap->widthValue(
+		) | rpl::filter([=](int width) {
+			return (width > 2 * padding + 1);
+		}) | rpl::start_with_next([=](int width) {
+			const auto use = (width - 2 * padding);
+			bubble->updateGeometry(
+				::Calls::VideoBubble::DragMode::None,
+				QRect(padding, top, use, (use * 480) / 640));
+		}, bubbleWrap->lifetime());
+
+		track->renderNextFrame(
+		) | rpl::start_with_next([=] {
+			const auto size = track->frameSize();
+			if (size.isEmpty() || Core::App().calls().currentCall()) {
+				return;
+			}
+			const auto width = bubbleWrap->width();
+			const auto use = (width - 2 * padding);
+			const auto height = std::min(
+				((use * size.height()) / size.width()),
+				(use * 480) / 640);
+			bubbleWrap->resize(width, top + height + bottom);
+			bubbleWrap->update();
+		}, bubbleWrap->lifetime());
+
+		Core::App().calls().currentCallValue(
+		) | rpl::start_with_next([=](::Calls::Call *value) {
+			if (value) {
+				track->setState(Webrtc::VideoState::Inactive);
+				bubbleWrap->resize(bubbleWrap->width(), 0);
+			} else {
+				capturer->setPreferredAspectRatio(0.);
+				track->setState(Webrtc::VideoState::Active);
+				capturer->setOutput(track->sink());
+			}
+		}, content->lifetime());
+
+		AddSkip(content);
+		AddDivider(content);
+	}
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 	AddButtonWithLabel(
@@ -115,14 +222,14 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIP::EnumerateAudioOutputs();
+		const auto &devices = Webrtc::GetAudioOutputList();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Core::App().settings().callOutputDeviceID(),
+			Core::App().settings().callOutputDeviceId(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -132,8 +239,7 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallOutputDeviceID(
-				QString::fromStdString(deviceId));
+			Core::App().settings().setCallOutputDeviceId(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
@@ -146,36 +252,36 @@ void Calls::setupContent() {
 			save));
 	});
 
-	const auto outputLabel = content->add(
-		object_ptr<Ui::LabelSimple>(
-			content,
-			st::settingsAudioVolumeLabel),
-		st::settingsAudioVolumeLabelPadding);
-	const auto outputSlider = content->add(
-		object_ptr<Ui::MediaSlider>(
-			content,
-			st::settingsAudioVolumeSlider),
-		st::settingsAudioVolumeSliderPadding);
-	const auto updateOutputLabel = [=](int value) {
-		const auto percent = QString::number(value);
-		outputLabel->setText(
-			tr::lng_settings_call_output_volume(tr::now, lt_percent, percent));
-	};
-	const auto updateOutputVolume = [=](int value) {
-		_needWriteSettings = true;
-		updateOutputLabel(value);
-		Core::App().settings().setCallOutputVolume(value);
-		if (const auto call = Core::App().calls().currentCall()) {
-			call->setAudioVolume(false, value / 100.0f);
-		}
-	};
-	outputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
-	outputSlider->setPseudoDiscrete(
-		201,
-		[](int val) { return val; },
-		settings.callOutputVolume(),
-		updateOutputVolume);
-	updateOutputLabel(Core::App().settings().callOutputVolume());
+	//const auto outputLabel = content->add(
+	//	object_ptr<Ui::LabelSimple>(
+	//		content,
+	//		st::settingsAudioVolumeLabel),
+	//	st::settingsAudioVolumeLabelPadding);
+	//const auto outputSlider = content->add(
+	//	object_ptr<Ui::MediaSlider>(
+	//		content,
+	//		st::settingsAudioVolumeSlider),
+	//	st::settingsAudioVolumeSliderPadding);
+	//const auto updateOutputLabel = [=](int value) {
+	//	const auto percent = QString::number(value);
+	//	outputLabel->setText(
+	//		tr::lng_settings_call_output_volume(tr::now, lt_percent, percent));
+	//};
+	//const auto updateOutputVolume = [=](int value) {
+	//	_needWriteSettings = true;
+	//	updateOutputLabel(value);
+	//	Core::App().settings().setCallOutputVolume(value);
+	//	if (const auto call = Core::App().calls().currentCall()) {
+	//		call->setAudioVolume(false, value / 100.0f);
+	//	}
+	//};
+	//outputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
+	//outputSlider->setPseudoDiscrete(
+	//	101,
+	//	[](int val) { return val; },
+	//	settings.callOutputVolume(),
+	//	updateOutputVolume);
+	//updateOutputLabel(Core::App().settings().callOutputVolume());
 
 	AddSkip(content);
 	AddDivider(content);
@@ -191,14 +297,14 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIP::EnumerateAudioInputs();
+		const auto devices = Webrtc::GetAudioInputList();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
 		) | ranges::to_vector;
 		const auto i = ranges::find(
 			devices,
-			Core::App().settings().callInputDeviceID(),
+			Core::App().settings().callInputDeviceId(),
 			getId);
 		const auto currentOption = (i != end(devices))
 			? int(i - begin(devices) + 1)
@@ -208,11 +314,10 @@ void Calls::setupContent() {
 			const auto deviceId = option
 				? devices[option - 1].id
 				: "default";
-			Core::App().settings().setCallInputDeviceID(
-				QString::fromStdString(deviceId));
+			Core::App().settings().setCallInputDeviceId(deviceId);
 			Core::App().saveSettingsDelayed();
 			if (_micTester) {
-				stopTestingMicrophone();
+				_micTester->setDeviceId(deviceId);
 			}
 			if (const auto call = Core::App().calls().currentCall()) {
 				call->setCurrentAudioDevice(true, deviceId);
@@ -225,51 +330,51 @@ void Calls::setupContent() {
 			save));
 	});
 
-	const auto inputLabel = content->add(
-		object_ptr<Ui::LabelSimple>(
-			content,
-			st::settingsAudioVolumeLabel),
-		st::settingsAudioVolumeLabelPadding);
-	const auto inputSlider = content->add(
-		object_ptr<Ui::MediaSlider>(
-			content,
-			st::settingsAudioVolumeSlider),
-		st::settingsAudioVolumeSliderPadding);
-	const auto updateInputLabel = [=](int value) {
-		const auto percent = QString::number(value);
-		inputLabel->setText(
-			tr::lng_settings_call_input_volume(tr::now, lt_percent, percent));
-	};
-	const auto updateInputVolume = [=](int value) {
-		_needWriteSettings = true;
-		updateInputLabel(value);
-		Core::App().settings().setCallInputVolume(value);
-		if (const auto call = Core::App().calls().currentCall()) {
-			call->setAudioVolume(true, value / 100.0f);
-		}
-	};
-	inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
-	inputSlider->setPseudoDiscrete(101,
-		[](int val) { return val; },
-		settings.callInputVolume(),
-		updateInputVolume);
-	updateInputLabel(settings.callInputVolume());
+	//const auto inputLabel = content->add(
+	//	object_ptr<Ui::LabelSimple>(
+	//		content,
+	//		st::settingsAudioVolumeLabel),
+	//	st::settingsAudioVolumeLabelPadding);
+	//const auto inputSlider = content->add(
+	//	object_ptr<Ui::MediaSlider>(
+	//		content,
+	//		st::settingsAudioVolumeSlider),
+	//	st::settingsAudioVolumeSliderPadding);
+	//const auto updateInputLabel = [=](int value) {
+	//	const auto percent = QString::number(value);
+	//	inputLabel->setText(
+	//		tr::lng_settings_call_input_volume(tr::now, lt_percent, percent));
+	//};
+	//const auto updateInputVolume = [=](int value) {
+	//	_needWriteSettings = true;
+	//	updateInputLabel(value);
+	//	Core::App().settings().setCallInputVolume(value);
+	//	if (const auto call = Core::App().calls().currentCall()) {
+	//		call->setAudioVolume(true, value / 100.0f);
+	//	}
+	//};
+	//inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
+	//inputSlider->setPseudoDiscrete(101,
+	//	[](int val) { return val; },
+	//	settings.callInputVolume(),
+	//	updateInputVolume);
+	//updateInputLabel(settings.callInputVolume());
 
-	AddButton(
-		content,
-		rpl::single(
-			tr::lng_settings_call_test_mic(tr::now)
-		) | rpl::then(
-			_micTestTextStream.events()
-		),
-		st::settingsButton
-	)->addClickHandler([=] {
-		if (!_micTester) {
-			requestPermissionAndStartTestingMicrophone();
-		} else {
-			stopTestingMicrophone();
-		}
-	});
+	//AddButton(
+	//	content,
+	//	rpl::single(
+	//		tr::lng_settings_call_test_mic(tr::now)
+	//	) | rpl::then(
+	//		_micTestTextStream.events()
+	//	),
+	//	st::settingsButton
+	//)->addClickHandler([=] {
+	//	if (!_micTester) {
+	//		requestPermissionAndStartTestingMicrophone();
+	//	} else {
+	//		stopTestingMicrophone();
+	//	}
+	//});
 
 	_micTestLevel = content->add(
 		object_ptr<Ui::LevelMeter>(
@@ -279,7 +384,11 @@ void Calls::setupContent() {
 	_micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
 
 	_levelUpdateTimer.setCallback([=] {
-		_micTestLevel->setValue(_micTester->GetAndResetLevel());
+		const auto was = _micLevel;
+		_micLevel = _micTester->getAndResetLevel();
+		_micLevelAnimation.start([=] {
+			_micTestLevel->setValue(_micLevelAnimation.value(_micLevel));
+		}, was, _micLevel, kMicTestAnimationDuration);
 	});
 
 	AddSkip(content);
@@ -287,23 +396,23 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
-#if defined Q_OS_MAC && !defined OS_MAC_STORE
-	AddButton(
-		content,
-		tr::lng_settings_call_audio_ducking(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(settings.callAudioDuckingEnabled())
-	)->toggledValue() | rpl::filter([](bool enabled) {
-		return (enabled != Core::App().settings().callAudioDuckingEnabled());
-	}) | rpl::start_with_next([=](bool enabled) {
-		Core::App().settings().setCallAudioDuckingEnabled(enabled);
-		Core::App().saveSettingsDelayed();
-		if (const auto call = Core::App().calls().currentCall()) {
-			call->setAudioDuckingEnabled(enabled);
-		}
-	}, content->lifetime());
-#endif // Q_OS_MAC && !OS_MAC_STORE
+//#if defined Q_OS_MAC && !defined OS_MAC_STORE
+//	AddButton(
+//		content,
+//		tr::lng_settings_call_audio_ducking(),
+//		st::settingsButton
+//	)->toggleOn(
+//		rpl::single(settings.callAudioDuckingEnabled())
+//	)->toggledValue() | rpl::filter([](bool enabled) {
+//		return (enabled != Core::App().settings().callAudioDuckingEnabled());
+//	}) | rpl::start_with_next([=](bool enabled) {
+//		Core::App().settings().setCallAudioDuckingEnabled(enabled);
+//		Core::App().saveSettingsDelayed();
+//		if (const auto call = Core::App().calls().currentCall()) {
+//			call->setAudioDuckingEnabled(enabled);
+//		}
+//	}, content->lifetime());
+//#endif // Q_OS_MAC && !OS_MAC_STORE
 
 	AddButton(
 		content,
@@ -352,22 +461,22 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 }
 
 void Calls::startTestingMicrophone() {
-	_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
-	_levelUpdateTimer.callEach(50);
-	_micTester = std::make_unique<tgvoip::AudioInputTester>(
-		Core::App().settings().callInputDeviceID().toStdString());
-	if (_micTester->Failed()) {
-		stopTestingMicrophone();
-		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
-	}
+	//_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
+	_levelUpdateTimer.callEach(kMicTestUpdateInterval);
+	_micTester = std::make_unique<Webrtc::AudioInputTester>(
+		Core::App().settings().callInputDeviceId());
+	//if (_micTester->Failed()) {
+	//	stopTestingMicrophone();
+	//	Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
+	//}
 }
 
-void Calls::stopTestingMicrophone() {
-	_micTestTextStream.fire(tr::lng_settings_call_test_mic(tr::now));
-	_levelUpdateTimer.cancel();
-	_micTester.reset();
-	_micTestLevel->setValue(0.0f);
-}
+//void Calls::stopTestingMicrophone() {
+//	_micTestTextStream.fire(tr::lng_settings_call_test_mic(tr::now));
+//	_levelUpdateTimer.cancel();
+//	_micTester.reset();
+//	_micTestLevel->setValue(0.0f);
+//}
 
 } // namespace Settings
 

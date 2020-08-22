@@ -316,7 +316,7 @@ jobs:
           for /r %%i in (..\..\patches\qtbase_%QT%\*) do git apply %%i
           cd ..
 
-          SET SSL=%LibrariesPath%\openssl_1_1_1
+          SET SSL=%LibrariesPath%\openssl_%OPENSSL_VER%
           SET LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
 
           configure ^
@@ -352,15 +352,15 @@ jobs:
         id: cache-webrtc
         uses: actions/cache@v2
         with:
-          path: ${{ env.LibrariesPath }}/webrtc
-          key: ${{ runner.OS }}-webrtc-2-${{ env.CACHE_KEY }}-${{ hashFiles('**/patches/webrtc/*') }}
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         shell: cmd
         run: |
           %VC%
 
-          # Qt libjpeg.
+          :: Qt libjpeg.
           mkdir qt_%QT%
           cd qt_%QT%
           git clone -b %QT_VER% https://github.com/qt/qtbase
@@ -372,37 +372,30 @@ jobs:
           mkdir qt_%QT%\qtbase\src\3rdparty\
           move libjpeg qt_%QT%\qtbase\src\3rdparty\
 
-          # Depot tools.
+          :: WebRTC.
           cd %LibrariesPath%
 
-          curl -O https://storage.googleapis.com/chrome-infra/depot_tools.zip
-          7z x depot_tools.zip
-          cd depot_tools
-          SET PATH=%PY2%;%cd%;%PATH%
-          SET DEPOT_TOOLS_WIN_TOOLCHAIN=0
+          git clone %GIT%/desktop-app/tg_owt.git
+          mkdir tg_owt\out\Debug
+          cd tg_owt\out\Debug
+          cmake -G Ninja ^
+          -DCMAKE_BUILD_TYPE=Debug ^
+          -DTG_OWT_SPECIAL_TARGET=win ^
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_%QT%/qtbase/src/3rdparty/libjpeg ^
+          -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_%OPENSSL_VER%/include ^
+          -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
+          -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ^
+          ../..
 
-          # WebRTC.
-          cd %LibrariesPath%
+          ninja
 
-          mkdir webrtc
-          cd webrtc
-          copy ..\patches\webrtc\.gclient .gclient
-          git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-          gclient sync --no-history
-          cd src
-          git apply ..\..\patches\webrtc\src.diff
-          cd build
-          git apply ..\..\..\patches\webrtc\build.diff
-          cd ..\third_party
-          git apply ..\..\..\patches\webrtc\third_party.diff
-          cd libsrtp
-          git apply ..\..\..\..\patches\webrtc\libsrtp.diff
-          cd ..\..
-          ..\..\patches\webrtc\configure.bat
-          ninja -C out/Debug webrtc
+          :: Cleanup.
+          cd %LibrariesPath%\tg_owt
+          move out\Debug\tg_owt.lib tg_owt.lib
+          rmdir /S /Q out
+          mkdir out\Debug
+          move tg_owt.lib out\Debug\tg_owt.lib
 
-          # Cleanup.
-          ..\..\patches\webrtc\cleanup_webrtc.bat
           cd %LibrariesPath%
           rmdir /S /Q qt_%QT%
 

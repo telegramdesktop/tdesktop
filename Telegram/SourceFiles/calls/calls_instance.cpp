@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mtproto/mtproto_config.h"
 #include "boxes/rate_call_box.h"
+#include "tgcalls/VideoCaptureInterface.h"
 #include "app.h"
 
 namespace Calls {
@@ -342,6 +343,17 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 			Ui::hideLayer();
 		})));
 	}
+}
+
+std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture() {
+	if (auto result = _videoCapture.lock()) {
+		return result;
+	}
+	auto result = std::shared_ptr<tgcalls::VideoCaptureInterface>(
+		tgcalls::VideoCaptureInterface::Create(
+			Core::App().settings().callVideoInputDeviceId().toStdString()));
+	_videoCapture = result;
+	return result;
 }
 
 } // namespace Calls

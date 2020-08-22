@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 08351e3
+    git checkout ddd4084
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -43,11 +43,10 @@ Go to ***BuildPath*** and run
 
     mkdir -p Libraries/macos
     cd Libraries/macos
-    LibrariesPath=`pwd`
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 08351e3
+    git checkout ddd4084
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -269,27 +268,32 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    export PATH=`pwd`/depot_tools:$PATH
-
-    mkdir webrtc
-    cd webrtc
-    cp ../patches/webrtc/.gclient ./
-    git clone https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-    gclient sync --no-history
-    cd src
-    git apply ../../patches/webrtc/src.diff
-    cd build
-    git apply ../../../patches/webrtc/build.diff
-    cd ../third_party
-    git apply ../../../patches/webrtc/third_party.diff
-    cd libsrtp
-    git apply ../../../../patches/webrtc/libsrtp.diff
-    cd ../..
-    ../../patches/webrtc/configure.sh
-    ninja -C out/Debug webrtc
-    ninja -C out/Release webrtc
-    cd ../..
+    git clone https://github.com/desktop-app/tg_owt.git
+    cd tg_owt
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DTG_OWT_SPECIAL_TARGET=mac \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
+    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+    ninja
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DTG_OWT_SPECIAL_TARGET=mac \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
+    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
+    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+    ninja
+    cd ../../..
 
 ### Building the project
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 
 #include "api/api_editing.h"
+#include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_cursor_state.h"
@@ -128,10 +129,7 @@ void ShowStickerPackInfo(not_null<DocumentData*> document) {
 void ToggleFavedSticker(
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	document->session().api().toggleFavedSticker(
-		document,
-		contextId,
-		!document->owner().stickers().isFaved(document));
+	Api::ToggleFavedSticker(document, contextId);
 }
 
 void AddPhotoActions(

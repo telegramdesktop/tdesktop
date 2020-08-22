@@ -129,6 +129,7 @@ public:
 	SavedGifs &savedGifsRef() {
 		return _savedGifs;
 	}
+	void removeFromRecentSet(not_null<DocumentData*> document);
 
 	void addSavedGif(not_null<DocumentData*> document);
 	void checkSavedGif(not_null<HistoryItem*> item);
