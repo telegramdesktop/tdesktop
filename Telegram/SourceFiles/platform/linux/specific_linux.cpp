@@ -81,8 +81,6 @@ constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
-constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
-
 QStringList PlatformThemes;
 
 bool IsTrayIconSupported = true;
@@ -300,91 +298,6 @@ bool GetImageFromClipboardSupported() {
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-std::optional<xcb_atom_t> GetXCBAtom(
-		xcb_connection_t *connection,
-		const QString &name) {
-	const auto cookie = xcb_intern_atom(
-		connection,
-		0,
-		name.size(),
-		name.toUtf8());
-
-	auto reply = xcb_intern_atom_reply(
-		connection,
-		cookie,
-		nullptr);
-
-	if (!reply) {
-		return std::nullopt;
-	}
-
-	const auto atom = reply->atom;
-	free(reply);
-
-	return atom;
-}
-
-std::vector<xcb_atom_t> GetXCBWMSupported(xcb_connection_t *connection) {
-	auto netWmAtoms = std::vector<xcb_atom_t>{};
-
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return netWmAtoms;
-	}
-
-	const auto root = static_cast<xcb_window_t>(reinterpret_cast<quintptr>(
-		native->nativeResourceForIntegration(QByteArray("rootwindow"))));
-
-	const auto supportedAtom = GetXCBAtom(connection, "_NET_SUPPORTED");
-	if (!supportedAtom.has_value()) {
-		return netWmAtoms;
-	}
-
-	auto offset = 0;
-	auto remaining = 0;
-
-	do {
-		const auto cookie = xcb_get_property(
-			connection,
-			false,
-			root,
-			*supportedAtom,
-			XCB_ATOM_ATOM,
-			offset,
-			1024);
-
-		auto reply = xcb_get_property_reply(
-			connection,
-			cookie,
-			nullptr);
-
-		if (!reply) {
-			break;
-		}
-
-		remaining = 0;
-
-		if (reply->type == XCB_ATOM_ATOM && reply->format == 32) {
-			const auto len = xcb_get_property_value_length(reply)
-				/ sizeof(xcb_atom_t);
-
-			const auto atoms = reinterpret_cast<xcb_atom_t*>(
-				xcb_get_property_value(reply));
-
-			const auto s = netWmAtoms.size();
-			netWmAtoms.resize(s + len);
-			memcpy(netWmAtoms.data() + s, atoms, len * sizeof(xcb_atom_t));
-
-			remaining = reply->bytes_after;
-			offset += len;
-		}
-
-		free(reply);
-	} while (remaining > 0);
-
-	return netWmAtoms;
-}
-
 std::optional<crl::time> XCBLastUserInputTime() {
 	const auto native = QGuiApplication::platformNativeInterface();
 	if (!native) {
@@ -398,24 +311,24 @@ std::optional<crl::time> XCBLastUserInputTime() {
 		return std::nullopt;
 	}
 
-	const auto root = static_cast<xcb_window_t>(reinterpret_cast<quintptr>(
-		native->nativeResourceForIntegration(QByteArray("rootwindow"))));
+	const auto screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
+	if (!screen) {
+		return std::nullopt;
+	}
 
-	const auto cookie = xcb_screensaver_query_info(
-		connection,
-		root);
+	const auto cookie = xcb_screensaver_query_info(connection, screen->root);
 
-	auto reply = xcb_screensaver_query_info_reply(
+	auto info = xcb_screensaver_query_info_reply(
 		connection,
 		cookie,
 		nullptr);
 
-	if (!reply) {
+	if (!info) {
 		return std::nullopt;
 	}
 
-	const auto idle = reply->ms_since_user_input;
-	free(reply);
+	const auto idle = info->ms_since_user_input;
+	free(info);
 
 	return (crl::now() - static_cast<crl::time>(idle));
 }
@@ -555,6 +468,7 @@ enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 
 bool StartXCBMoveResize(QWindow *window, int edges) {
 	const auto native = QGuiApplication::platformNativeInterface();
+
 	if (!native) {
 		return false;
 	}
@@ -573,16 +487,29 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 		return false;
 	}
 
-	const auto moveResize = GetXCBAtom(connection, "_NET_WM_MOVERESIZE");
-	if (!moveResize.has_value()) {
+	const auto moveResizeCookie = xcb_intern_atom(
+		connection,
+		0,
+		strlen("_NET_WM_MOVERESIZE"),
+		"_NET_WM_MOVERESIZE");
+
+	auto moveResizeReply = xcb_intern_atom_reply(
+		connection,
+		moveResizeCookie,
+		nullptr);
+
+	if (!moveResizeReply) {
 		return false;
 	}
+
+	const auto moveResize = moveResizeReply->atom;
+	free(moveResizeReply);
 
 	const auto globalPos = QCursor::pos();
 
 	xcb_client_message_event_t xev;
 	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *moveResize;
+	xev.type = moveResize;
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
@@ -647,87 +574,6 @@ bool ShowWaylandWindowMenu(QWindow *window) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
 				return shellSurface->showWindowMenu(seat);
-			}
-		}
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool XCBFrameExtentsSupported() {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
-	if (!connection) {
-		return false;
-	}
-
-	const auto frameExtentsAtom = GetXCBAtom(
-		connection,
-		kXCBFrameExtentsAtomName.utf16());
-
-	if (!frameExtentsAtom.has_value()) {
-		return false;
-	}
-
-	return ranges::contains(GetXCBWMSupported(connection), *frameExtentsAtom);
-}
-
-bool SetXCBFrameExtents(QWindow *window, const QMargins &extents) {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
-	if (!connection) {
-		return false;
-	}
-
-	const auto frameExtentsAtom = GetXCBAtom(
-		connection,
-		kXCBFrameExtentsAtomName.utf16());
-
-	if (!frameExtentsAtom.has_value()) {
-		return false;
-	}
-
-	const auto extentsVector = std::vector<uint>{
-		uint(extents.left()),
-		uint(extents.right()),
-		uint(extents.top()),
-		uint(extents.bottom()),
-	};
-
-	xcb_change_property(
-		connection,
-		XCB_PROP_MODE_REPLACE,
-		window->winId(),
-		*frameExtentsAtom,
-		XCB_ATOM_CARDINAL,
-		32,
-		extentsVector.size(),
-		extentsVector.data());
-
-	return true;
-}
-
-bool SetWaylandWindowGeometry(QWindow *window, const QRect &geometry) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				shellSurface->setWindowGeometry(geometry);
-				return true;
 			}
 		}
 	}
@@ -1075,31 +921,6 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 bool ShowWindowMenu(QWindow *window) {
 	if (IsWayland()) {
 		return ShowWaylandWindowMenu(window);
-	}
-
-	return false;
-}
-
-bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	if (IsWayland()) {
-		const auto geometry = QRect(QPoint(), window->size())
-			.marginsRemoved(extents);
-
-		return SetWaylandWindowGeometry(window, geometry);
-	} else {
-		return SetXCBFrameExtents(window, extents);
-	}
-}
-
-bool WindowsNeedShadow() {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (IsWayland()) {
-		return true;
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
-	if (!IsWayland() && XCBFrameExtentsSupported()) {
-		return true;
 	}
 
 	return false;
