@@ -125,6 +125,7 @@ void InnerWidget::createTypeButtons() {
 	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(Type::Link, st::infoIconMediaLink);
 	addMediaButton(Type::RoundVoiceFile, st::infoIconMediaVoice);
+	addMediaButton(Type::GIF, st::infoIconMediaGif);
 //	if (auto user = _controller->key().peer()->asUser()) {
 //		addCommonGroupsButton(user, st::infoIconMediaGroup);
 //	}

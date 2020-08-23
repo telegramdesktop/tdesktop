@@ -170,6 +170,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	addMediaButton(MediaType::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(MediaType::Link, st::infoIconMediaLink);
 	addMediaButton(MediaType::RoundVoiceFile, st::infoIconMediaVoice);
+	addMediaButton(MediaType::GIF, st::infoIconMediaGif);
 	if (auto user = _peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
