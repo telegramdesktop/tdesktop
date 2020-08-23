@@ -1,3 +1,7 @@
+2.3.2 (23.08.20)
+
+- Revert custom window shadow on Linux.
+
 2.3.1 (21.08.20)
 
 - Fix Calls Settings for Video Calls.
