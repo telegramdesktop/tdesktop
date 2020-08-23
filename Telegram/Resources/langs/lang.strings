@@ -824,6 +824,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_photos_header" = "Photos";
+"lng_profile_gifs#one" = "{count} gif";
+"lng_profile_gifs#other" = "{count} gifs";
+"lng_profile_gifs_header" = "Gifs";
 "lng_profile_videos#one" = "{count} video";
 "lng_profile_videos#other" = "{count} videos";
 "lng_profile_videos_header" = "Videos";
@@ -866,6 +869,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_media_type_photos" = "Photos";
+"lng_media_type_gifs" = "Gifs";
 "lng_media_type_videos" = "Videos";
 "lng_media_type_songs" = "Audio files";
 "lng_media_type_files" = "Files";
@@ -885,6 +889,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_export_channel" = "Export channel history";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
+"lng_media_selected_gif#one" = "{count} Gif";
+"lng_media_selected_gif#other" = "{count} Gifs";
 "lng_media_selected_video#one" = "{count} Video";
 "lng_media_selected_video#other" = "{count} Videos";
 "lng_media_selected_song#one" = "{count} Audio file";
@@ -898,6 +904,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_selected_link#one" = "{count} Shared link";
 "lng_media_selected_link#other" = "{count} Shared links";
 "lng_media_photo_empty" = "No photos here yet";
+"lng_media_gif_empty" = "No gifs here yet";
 "lng_media_video_empty" = "No videos here yet";
 "lng_media_song_empty" = "No music files here yet";
 "lng_media_file_empty" = "No files here yet";

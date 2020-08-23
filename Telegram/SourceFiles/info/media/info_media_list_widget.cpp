@@ -212,6 +212,7 @@ void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 		auto date = item->dateTime().date();
 		switch (_type) {
 		case Type::Photo:
+		case Type::GIF:
 		case Type::Video:
 		case Type::RoundFile:
 		case Type::RoundVoiceFile:
@@ -238,6 +239,7 @@ bool ListWidget::Section::belongsHere(
 
 	switch (_type) {
 	case Type::Photo:
+	case Type::GIF:
 	case Type::Video:
 	case Type::RoundFile:
 	case Type::RoundVoiceFile:
@@ -463,6 +465,7 @@ void ListWidget::Section::resizeToWidth(int newWidth) {
 	};
 	switch (_type) {
 	case Type::Photo:
+	case Type::GIF:
 	case Type::Video:
 	case Type::RoundFile: {
 		_itemsLeft = st::infoMediaSkip;
@@ -495,6 +498,7 @@ int ListWidget::Section::MinItemHeight(Type type, int width) {
 	auto &songSt = st::overviewFileLayout;
 	switch (type) {
 	case Type::Photo:
+	case Type::GIF:
 	case Type::Video:
 	case Type::RoundFile: {
 		auto itemsLeft = st::infoMediaSkip;
@@ -520,6 +524,7 @@ int ListWidget::Section::recountHeight() const {
 
 	switch (_type) {
 	case Type::Photo:
+	case Type::GIF:
 	case Type::Video:
 	case Type::RoundFile: {
 		auto itemHeight = _itemWidth + st::infoMediaSkip;
@@ -910,6 +915,7 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 			return std::make_unique<Photo>(this, item, photo);
 		}
 		return nullptr;
+	case Type::GIF:
 	case Type::Video:
 		if (const auto file = getFile()) {
 			return std::make_unique<Video>(this, item, file);
