@@ -1157,15 +1157,15 @@ Article::Article(
 void Article::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
-	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
+	TextParseOptions titleOpts = { 0, textWidth, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
+	int32 titleHeight = qMin(_title.countHeight(textWidth), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
 	QString description = _result->getLayoutDescription();
-	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
+	TextParseOptions descriptionOpts = { TextParseMultiline, textWidth, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::defaultTextStyle, description, descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+	int32 descriptionHeight = qMin(_description.countHeight(textWidth), descriptionLines * st::normalFont->height);
 
 	_minh = titleHeight + descriptionHeight;
 	if (_url) _minh += st::normalFont->height;
