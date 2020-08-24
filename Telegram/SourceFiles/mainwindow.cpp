@@ -283,12 +283,13 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 void MainWindow::setupMain() {
 	Expects(account().sessionExists());
 
-	const auto animated = (_intro || _passcodeLock);
+	const auto animated = _intro
+		|| (_passcodeLock && !Core::App().passcodeLocked());
 	const auto bg = animated ? grabInner() : QPixmap();
-	const auto weak = (_main && _layer)
+	const auto weakAnimatedLayer = (_main && _layer && !_passcodeLock)
 		? Ui::MakeWeak(_layer.get())
 		: nullptr;
-	if (weak) {
+	if (weakAnimatedLayer) {
 		Assert(!animated);
 		_layer->hideAllAnimatedPrepare();
 	} else {
@@ -310,7 +311,7 @@ void MainWindow::setupMain() {
 		Core::App().checkStartUrl();
 	}
 	fixOrder();
-	if (const auto strong = weak.data()) {
+	if (const auto strong = weakAnimatedLayer.data()) {
 		strong->hideAllAnimatedRun();
 	}
 }
