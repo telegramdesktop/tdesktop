@@ -80,11 +80,13 @@ Sticker::Sticker(
 
 Sticker::~Sticker() {
 	if (_lottie || _dataMedia) {
-		unloadLottie();
+		if (_lottie) {
+			unloadLottie();
+		}
 		if (_dataMedia) {
 			_data->owner().keepAlive(base::take(_dataMedia));
+			_parent->checkHeavyPart();
 		}
-		_parent->checkHeavyPart();
 	}
 }
 

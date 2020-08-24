@@ -485,11 +485,27 @@ void Poll::updateRecentVoters() {
 		ranges::equal_to(),
 		&RecentVoter::user);
 	if (changed) {
-		_recentVoters = ranges::view::all(
+		auto updated = ranges::view::all(
 			sliced
 		) | ranges::views::transform([](not_null<UserData*> user) {
 			return RecentVoter{ user };
 		}) | ranges::to_vector;
+		const auto has = hasHeavyPart();
+		if (has) {
+			for (auto &voter : updated) {
+				const auto i = ranges::find(
+					_recentVoters,
+					voter.user,
+					&RecentVoter::user);
+				if (i != end(_recentVoters)) {
+					voter.userpic = std::move(i->userpic);
+				}
+			}
+		}
+		_recentVoters = std::move(updated);
+		if (has && !hasHeavyPart()) {
+			_parent->checkHeavyPart();
+		}
 	}
 }
 
