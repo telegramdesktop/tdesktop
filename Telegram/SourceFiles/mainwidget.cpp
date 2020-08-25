@@ -1293,10 +1293,10 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 		for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 			if (i->second == requestId) {
 				const auto peer = i->first;
-				ChannelId channel = peerToChannel(peer->id);
+				const auto channel = peerToChannel(peer->id);
 				for (int32 j = 0, l = ids.size(); j < l; ++j) {
-					if (HistoryItem *item = session().data().message(channel, ids.at(j).v)) {
-						item->setViewsCount(v.at(j).v);
+					if (const auto item = session().data().message(channel, ids[j].v)) {
+						item->setViewsCount(v[j].v);
 					}
 				}
 				_viewsIncrementRequests.erase(i);

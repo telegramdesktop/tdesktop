@@ -1082,7 +1082,7 @@ void Call::handleControllerError(const QString &error) {
 
 void Call::destroyController() {
 	if (_instance) {
-		const auto state = _instance->stop();
+		_instance->stop();
 
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		_instance.reset();

@@ -4067,6 +4067,7 @@ void ApiWrap::sendSharedContact(
 		: QString();
 	const auto vcard = QString();
 	const auto views = 1;
+	const auto forwards = 0;
 	const auto item = history->addNewMessage(
 		MTP_message(
 			MTP_flags(flags),

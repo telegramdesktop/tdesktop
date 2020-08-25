@@ -63,7 +63,8 @@ void SendBotCallbackData(
 		MTP_flags(flags),
 		history->peer->input,
 		MTP_int(item->id),
-		MTP_bytes(sendData)
+		MTP_bytes(sendData),
+		MTPInputCheckPasswordSRP() // #TODO layer118
 	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
 		const auto item = owner->message(fullId);
 		if (!item) {
