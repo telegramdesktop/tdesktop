@@ -26,7 +26,7 @@ public:
 	[[nodiscard]] Image *image(PhotoSize size) const;
 	[[nodiscard]] QSize size(PhotoSize size) const;
 	void wanted(PhotoSize size, Data::FileOrigin origin);
-	void set(PhotoSize size, QImage image);
+	void set(PhotoSize size, PhotoSize goodFor, QImage image);
 
 	[[nodiscard]] QByteArray videoContent() const;
 	[[nodiscard]] QSize videoSize() const;
@@ -41,12 +41,17 @@ public:
 	void collectLocalData(not_null<PhotoMedia*> local);
 
 private:
+	struct PhotoImage {
+		std::unique_ptr<Image> data;
+		PhotoSize goodFor = PhotoSize();
+	};
+
 	// NB! Right now DocumentMedia can outlive Main::Session!
 	// In DocumentData::collectLocalData a shared_ptr is sent on_main.
 	// In case this is a problem the ~Gif code should be rewritten.
 	const not_null<PhotoData*> _owner;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
-	std::array<std::unique_ptr<Image>, kPhotoSizeCount>  _images;
+	std::array<PhotoImage, kPhotoSizeCount>  _images;
 	QByteArray _videoBytes;
 
 };

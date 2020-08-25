@@ -39,6 +39,7 @@ struct CloudFile final {
 	ImageLocation location;
 	std::unique_ptr<FileLoader> loader;
 	int byteSize = 0;
+	int progressivePartSize = 0;
 	base::flags<Flag> flags;
 };
 
@@ -105,7 +106,8 @@ void LoadCloudFile(
 	Fn<bool()> finalCheck,
 	Fn<void(QImage)> done,
 	Fn<void(bool)> fail = nullptr,
-	Fn<void()> progress = nullptr);
+	Fn<void()> progress = nullptr,
+	int downloadFrontPartSize = 0);
 
 void LoadCloudFile(
 	not_null<Main::Session*> session,

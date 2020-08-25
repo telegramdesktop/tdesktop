@@ -80,9 +80,7 @@ public:
 	[[nodiscard]] virtual uint64 objId() const {
 		return 0;
 	}
-	[[nodiscard]] QByteArray imageFormat(
-		const QSize &shrinkBox = QSize()) const;
-	[[nodiscard]] QImage imageData(const QSize &shrinkBox = QSize()) const;
+	[[nodiscard]] QImage imageData(int progressiveSizeLimit = 0) const;
 	[[nodiscard]] QString fileName() const {
 		return _filename;
 	}
@@ -94,6 +92,7 @@ public:
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
+	void increaseLoadSize(int size);
 
 	void start();
 	void cancel();
@@ -126,14 +125,18 @@ protected:
 		Loaded,
 	};
 
-	void readImage(const QSize &shrinkBox) const;
+	void readImage(int progressiveSizeLimit) const;
 
+	bool checkForOpen();
 	bool tryLoadLocal();
 	void loadLocal(const Storage::Cache::Key &key);
 	virtual Storage::Cache::Key cacheKey() const = 0;
 	virtual std::optional<MediaKey> fileLocationKey() const = 0;
 	virtual void cancelHook() = 0;
 	virtual void startLoading() = 0;
+	virtual void startLoadingWithData(const QByteArray &data) {
+		startLoading();
+	}
 
 	void cancel(bool failed);
 

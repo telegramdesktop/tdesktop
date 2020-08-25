@@ -96,6 +96,21 @@ ImageWithLocation FromPhotoSize(
 	});
 }
 
+ImageWithLocation FromProgressiveSize(
+		not_null<Main::Session*> session,
+		const MTPPhotoSize &size,
+		int index) {
+	Expects(size.type() == mtpc_photoSizeProgressive);
+
+	const auto &data = size.c_photoSizeProgressive();
+	if (data.vsizes().v.size() <= index) {
+		return ImageWithLocation();
+	}
+	return ImageWithLocation{
+		.progressivePartSize = data.vsizes().v[index].v,
+	};
+}
+
 ImageWithLocation FromPhotoSize(
 		not_null<Main::Session*> session,
 		const MTPDdocument &document,
@@ -133,7 +148,6 @@ ImageWithLocation FromPhotoSize(
 			.bytesCount = bytes.size(),
 		};
 	}, [&](const MTPDphotoSizeProgressive &data) {
-		// #TODO layer118
 		if (data.vsizes().v.isEmpty()) {
 			return ImageWithLocation();
 		}
@@ -214,7 +228,6 @@ ImageWithLocation FromPhotoSize(
 			.bytesCount = bytes.size(),
 		};
 	}, [&](const MTPDphotoSizeProgressive &data) {
-		// #TODO layer118
 		if (data.vsizes().v.isEmpty()) {
 			return ImageWithLocation();
 		}

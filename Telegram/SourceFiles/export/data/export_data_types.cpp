@@ -265,8 +265,11 @@ Image ParseMaxImage(
 					result.file.content = data.vbytes().v;
 					result.file.size = result.file.content.size();
 				} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+					if (data.vsizes().v.isEmpty()) {
+						return;
+					}
 					result.file.content = QByteArray();
-					result.file.size = data.vsizes().v.size();
+					result.file.size = data.vsizes().v.back().v;
 				} else {
 					result.file.content = QByteArray();
 					result.file.size = data.vsize().v;
@@ -426,8 +429,11 @@ Image ParseDocumentThumb(
 			result.file.content = data.vbytes().v;
 			result.file.size = result.file.content.size();
 		} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+			if (data.vsizes().v.isEmpty()) {
+				return Image();
+			}
 			result.file.content = QByteArray();
-			result.file.size = data.vsizes().v.size();
+			result.file.size = data.vsizes().v.back().v;
 		} else {
 			result.file.content = QByteArray();
 			result.file.size = data.vsize().v;

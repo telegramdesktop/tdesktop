@@ -49,29 +49,34 @@ Image *PhotoMedia::thumbnailInline() const {
 }
 
 Image *PhotoMedia::image(PhotoSize size) const {
-	if (const auto image = _images[PhotoSizeIndex(size)].get()) {
-		return image;
+	const auto &original = _images[PhotoSizeIndex(size)];
+	if (const auto image = original.data.get()) {
+		return (original.goodFor >= size) ? image : nullptr;
 	}
-	return _images[_owner->validSizeIndex(size)].get();
+	const auto &valid = _images[_owner->validSizeIndex(size)];
+	if (const auto image = valid.data.get()) {
+		return (valid.goodFor >= size) ? image : nullptr;
+	}
+	return nullptr;
 }
 
 void PhotoMedia::wanted(PhotoSize size, Data::FileOrigin origin) {
 	const auto index = _owner->validSizeIndex(size);
-	if (!_images[index]) {
+	if (!_images[index].data || _images[index].goodFor < size) {
 		_owner->load(size, origin);
 	}
 }
 
 QSize PhotoMedia::size(PhotoSize size) const {
 	const auto index = PhotoSizeIndex(size);
-	if (const auto image = _images[index].get()) {
+	if (const auto image = _images[index].data.get()) {
 		return image->size();
 	}
 	const auto &location = _owner->location(size);
 	return { location.width(), location.height() };
 }
 
-void PhotoMedia::set(PhotoSize size, QImage image) {
+void PhotoMedia::set(PhotoSize size, PhotoSize goodFor, QImage image) {
 	const auto index = PhotoSizeIndex(size);
 	const auto limit = PhotoData::SideLimit();
 	if (image.width() > limit || image.height() > limit) {
@@ -81,7 +86,10 @@ void PhotoMedia::set(PhotoSize size, QImage image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	_images[index] = std::make_unique<Image>(std::move(image));
+	_images[index] = PhotoImage{
+		.data = std::make_unique<Image>(std::move(image)),
+		.goodFor = goodFor,
+	};
 	_owner->session().notifyDownloaderTaskFinished();
 }
 
@@ -106,7 +114,8 @@ void PhotoMedia::setVideo(QByteArray content) {
 
 bool PhotoMedia::loaded() const {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	return (_images[index] != nullptr);
+	return (_images[index].data != nullptr)
+		&& (_images[index].goodFor >= PhotoSize::Large);
 }
 
 float64 PhotoMedia::progress() const {
@@ -136,8 +145,11 @@ void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 		_inlineThumbnail = std::make_unique<Image>(image->original());
 	}
 	for (auto i = 0; i != kPhotoSizeCount; ++i) {
-		if (const auto image = local->_images[i].get()) {
-			_images[i] = std::make_unique<Image>(image->original());
+		if (const auto image = local->_images[i].data.get()) {
+			_images[i] = PhotoImage{
+				.data = std::make_unique<Image>(image->original()),
+				.goodFor = local->_images[i].goodFor
+			};
 		}
 	}
 }

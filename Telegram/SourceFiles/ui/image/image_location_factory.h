@@ -19,6 +19,10 @@ namespace Images {
 	not_null<Main::Session*> session,
 	const MTPDphoto &photo,
 	const MTPPhotoSize &size);
+[[nodiscard]] ImageWithLocation FromProgressiveSize(
+	not_null<Main::Session*> session,
+	const MTPPhotoSize &size,
+	int index);
 [[nodiscard]] ImageWithLocation FromPhotoSize(
 	not_null<Main::Session*> session,
 	const MTPDdocument &document,

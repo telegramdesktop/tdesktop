@@ -2262,6 +2262,21 @@ void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data) {
 	const auto &sizes = data.vsizes().v;
+	const auto progressive = [&] {
+		const auto kInvalidIndex = sizes.size();
+		const auto area = [&](const MTPPhotoSize &size) {
+			return size.match([](const MTPDphotoSizeProgressive &data) {
+				return data.vw().v * data.vh().v;
+			}, [](const auto &) {
+				return 0;
+			});
+		};
+		const auto found = ranges::max_element(sizes, std::greater<>(), area);
+		return (found == sizes.end()
+			|| found->type() != mtpc_photoSizeProgressive)
+			? sizes.end()
+			: found;
+	}();
 	const auto find = [&](const QByteArray &levels) {
 		const auto kInvalidIndex = int(levels.size());
 		const auto level = [&](const MTPPhotoSize &size) {
@@ -2300,7 +2315,10 @@ void Session::photoApplyFields(
 			std::greater<>(),
 			area);
 	};
-	const auto large = image(LargeLevels);
+	const auto useProgressive = (progressive != sizes.end());
+	const auto large = useProgressive
+		? Images::FromPhotoSize(_session, data, *progressive)
+		: image(LargeLevels);
 	if (large.location.valid()) {
 		const auto video = findVideoSize();
 		photoApplyFields(
@@ -2311,8 +2329,12 @@ void Session::photoApplyFields(
 			data.vdc_id().v,
 			data.is_has_stickers(),
 			FindPhotoInlineThumbnail(data),
-			image(SmallLevels),
-			image(ThumbnailLevels),
+			(useProgressive
+				? ImageWithLocation()
+				: image(SmallLevels)),
+			(useProgressive
+				? Images::FromProgressiveSize(_session, *progressive, 1)
+				: image(ThumbnailLevels)),
 			large,
 			(video
 				? Images::FromVideoSize(_session, data, *video)

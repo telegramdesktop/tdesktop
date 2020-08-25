@@ -614,6 +614,7 @@ struct ImageWithLocation {
 	QByteArray bytes;
 	QImage preloaded;
 	int bytesCount = 0;
+	int progressivePartSize = 0;
 };
 
 InMemoryKey inMemoryKey(const StorageFileLocation &location);

@@ -114,7 +114,9 @@ int mtpFileLoader::takeNextRequestOffset() {
 }
 
 bool mtpFileLoader::feedPart(int offset, const QByteArray &bytes) {
-	const auto buffer = bytes::make_span(bytes);
+	const auto buffer = (_size > 0 && offset + bytes.size() > _size)
+		? bytes::make_span(bytes).subspan(0, _size - offset)
+		: bytes::make_span(bytes);
 	if (!writeResultPart(offset, buffer)) {
 		return false;
 	}
@@ -153,6 +155,16 @@ bool mtpFileLoader::setWebFileSizeHook(int size) {
 
 void mtpFileLoader::startLoading() {
 	addToQueue();
+}
+
+void mtpFileLoader::startLoadingWithData(const QByteArray &data) {
+	const auto parts = data.size() / Storage::kDownloadPartSize;
+	const auto use = parts * Storage::kDownloadPartSize;
+	if (use > 0) {
+		_nextRequestOffset = use;
+		feedPart(0, QByteArray::fromRawData(data.data(), use));
+	}
+	startLoading();
 }
 
 void mtpFileLoader::cancelHook() {

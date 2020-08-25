@@ -48,6 +48,7 @@ private:
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void startLoading() override;
+	void startLoadingWithData(const QByteArray &data) override;
 	void cancelHook() override;
 
 	bool readyToRequest() const override;

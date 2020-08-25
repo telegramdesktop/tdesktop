@@ -145,29 +145,21 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 	session->notifyDownloaderTaskFinished();
 }
 
-QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
-	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
-		readImage(shrinkBox);
-	}
-	return _imageFormat;
-}
-
-QImage FileLoader::imageData(const QSize &shrinkBox) const {
+QImage FileLoader::imageData(int progressiveSizeLimit) const {
 	if (_imageData.isNull() && _locationType == UnknownFileLocation) {
-		readImage(shrinkBox);
+		readImage(progressiveSizeLimit);
 	}
 	return _imageData;
 }
 
-void FileLoader::readImage(const QSize &shrinkBox) const {
+void FileLoader::readImage(int progressiveSizeLimit) const {
+	const auto buffer = progressiveSizeLimit
+		? QByteArray::fromRawData(_data.data(), progressiveSizeLimit)
+		: _data;
 	auto format = QByteArray();
-	auto image = App::readImage(_data, &format, false);
+	auto image = App::readImage(buffer, &format, false);
 	if (!image.isNull()) {
-		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
-			_imageData = image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-		} else {
-			_imageData = std::move(image);
-		}
+		_imageData = std::move(image);
 		_imageFormat = format;
 	}
 }
@@ -199,6 +191,12 @@ void FileLoader::permitLoadFromCloud() {
 	_fromCloud = LoadFromCloudOrLocal;
 }
 
+void FileLoader::increaseLoadSize(int size) {
+	Expects(size > _size);
+
+	_size = size;
+}
+
 void FileLoader::notifyAboutProgress() {
 	_updates.fire({});
 }
@@ -211,6 +209,13 @@ void FileLoader::localLoaded(
 	if (result.data.isEmpty()) {
 		_localStatus = LocalStatus::NotFound;
 		start();
+		return;
+	}
+	if (result.data.size() < _size) {
+		_localStatus = LocalStatus::NotFound;
+		if (checkForOpen()) {
+			startLoadingWithData(result.data);
+		}
 		return;
 	}
 	if (!imageData.isNull()) {
@@ -228,13 +233,23 @@ void FileLoader::start() {
 		return;
 	}
 
-	if (!_filename.isEmpty() && _toCache == LoadToFileOnly && !_fileIsOpen) {
-		_fileIsOpen = _file.open(QIODevice::WriteOnly);
-		if (!_fileIsOpen) {
-			return cancel(true);
-		}
+	if (checkForOpen()) {
+		startLoading();
 	}
-	startLoading();
+}
+
+bool FileLoader::checkForOpen() {
+	if (_filename.isEmpty()
+		|| (_toCache != LoadToFileOnly)
+		|| _fileIsOpen) {
+		return true;
+	}
+	_fileIsOpen = _file.open(QIODevice::WriteOnly);
+	if (_fileIsOpen) {
+		return true;
+	}
+	cancel(true);
+	return false;
 }
 
 void FileLoader::loadLocal(const Storage::Cache::Key &key) {

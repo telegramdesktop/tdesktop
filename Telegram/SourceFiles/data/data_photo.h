@@ -92,6 +92,7 @@ public:
 		const ImageWithLocation &video,
 		crl::time videoStartTime);
 	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
+	[[nodiscard]] int existingSizeIndex(Data::PhotoSize size) const;
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
