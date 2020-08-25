@@ -113,6 +113,13 @@ void activateBotCommand(
 			column);
 	} break;
 
+	case ButtonType::CallbackWithPassword: {
+		Api::SendBotCallbackDataWithPassword(
+			const_cast<HistoryItem*>(msg.get()),
+			row,
+			column);
+	} break;
+
 	case ButtonType::Buy: {
 		Ui::show(Box<InformBox>(tr::lng_payments_not_supported(tr::now)));
 	} break;

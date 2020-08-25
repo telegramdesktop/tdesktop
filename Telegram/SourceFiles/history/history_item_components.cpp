@@ -762,7 +762,8 @@ void ReplyKeyboard::Style::paintButton(
 		}
 	}
 	paintButtonIcon(p, rect, outerWidth, button.type);
-	if (button.type == HistoryMessageMarkupButton::Type::Callback
+	if (button.type == HistoryMessageMarkupButton::Type::CallbackWithPassword
+		|| button.type == HistoryMessageMarkupButton::Type::Callback
 		|| button.type == HistoryMessageMarkupButton::Type::Game) {
 		if (auto data = button.link->getButton()) {
 			if (data->requestId) {
@@ -831,7 +832,9 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 					row.emplace_back(Type::Default, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonCallback &data) {
 					row.emplace_back(
-						Type::Callback,
+						(data.is_requires_password()
+							? Type::CallbackWithPassword
+							: Type::Callback),
 						qs(data.vtext()),
 						qba(data.vdata()));
 				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {

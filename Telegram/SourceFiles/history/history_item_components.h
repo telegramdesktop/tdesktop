@@ -167,6 +167,7 @@ struct HistoryMessageMarkupButton {
 		Default,
 		Url,
 		Callback,
+		CallbackWithPassword,
 		RequestPhone,
 		RequestLocation,
 		RequestPoll,

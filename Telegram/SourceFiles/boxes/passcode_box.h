@@ -214,3 +214,8 @@ struct RecoveryEmailValidation {
 [[nodiscard]] RecoveryEmailValidation ConfirmRecoveryEmail(
 	not_null<Main::Session*> session,
 	const QString &pattern);
+
+[[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
+	const RPCError &error,
+	not_null<Main::Session*> session,
+	TextWithEntities &&about);

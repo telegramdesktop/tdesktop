@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "core/application.h"
 #include "storage/storage_domain.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -24,12 +26,75 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
+#include "settings/settings_privacy_security.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
 
 namespace {
+
+enum class PasswordErrorType {
+	None,
+	NoPassword,
+	Later,
+};
+
+void SetCloudPassword(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	session->api().passwordState(
+	) | rpl::start_with_next([=] {
+		using namespace Settings;
+		const auto weak = Ui::MakeWeak(box);
+		if (CheckEditCloudPassword(session)) {
+			box->getDelegate()->show(
+				EditCloudPasswordBox(session));
+		} else {
+			box->getDelegate()->show(CloudPasswordAppOutdatedBox());
+		}
+		if (weak) {
+			weak->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void TransferPasswordError(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		TextWithEntities &&about,
+		PasswordErrorType error) {
+	box->setTitle(tr::lng_rights_transfer_check());
+	box->setWidth(st::transferCheckWidth);
+
+	auto text = std::move(about).append('\n').append('\n').append(
+		tr::lng_rights_transfer_check_password(
+			tr::now,
+			Ui::Text::RichLangValue)
+	).append('\n').append('\n').append(
+		tr::lng_rights_transfer_check_session(
+			tr::now,
+			Ui::Text::RichLangValue)
+	);
+	if (error == PasswordErrorType::Later) {
+		text.append('\n').append('\n').append(
+			tr::lng_rights_transfer_check_later(
+				tr::now,
+				Ui::Text::RichLangValue));
+	}
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		rpl::single(text),
+		st::boxLabel));
+	if (error == PasswordErrorType::Later) {
+		box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+	} else {
+		box->addButton(tr::lng_rights_transfer_set_password(), [=] {
+			SetCloudPassword(box, session);
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}
+}
 
 } // namespace
 
@@ -1138,4 +1203,29 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 
 	*weak = box.data();
 	return { std::move(box), reloads->events(), cancels->events() };
+}
+
+[[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
+		const RPCError &error,
+		not_null<Main::Session*> session,
+		TextWithEntities &&about) {
+	const auto type = [&] {
+		const auto &type = error.type();
+		if (type == qstr("PASSWORD_MISSING")) {
+			return PasswordErrorType::NoPassword;
+		} else if (type.startsWith(qstr("PASSWORD_TOO_FRESH_"))
+			|| type.startsWith(qstr("SESSION_TOO_FRESH_"))) {
+			return PasswordErrorType::Later;
+		}
+		return PasswordErrorType::None;
+	}();
+	if (type == PasswordErrorType::None) {
+		return nullptr;
+	}
+
+	return Box(
+		TransferPasswordError,
+		session,
+		std::move(about),
+		type);
 }

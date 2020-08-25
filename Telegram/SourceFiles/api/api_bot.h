@@ -16,4 +16,9 @@ void SendBotCallbackData(
 	int row,
 	int column);
 
+void SendBotCallbackDataWithPassword(
+	not_null<HistoryItem*> item,
+	int row,
+	int column);
+
 } // namespace Api

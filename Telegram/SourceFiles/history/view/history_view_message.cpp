@@ -123,6 +123,7 @@ int KeyboardStyle::minButtonWidth(
 	case Type::SwitchInlineSame:
 	case Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
 	case Type::Callback:
+	case Type::CallbackWithPassword:
 	case Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	}
 	if (iconWidth > 0) {

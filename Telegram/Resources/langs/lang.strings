@@ -1853,6 +1853,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_transfer_done_group" = "{user} is now the owner of the group.";
 "lng_rights_transfer_done_channel" = "{user} is now the owner of the channel.";
 
+"lng_bots_password_confirm_check_about" = "You can finish this action only if you have:";
+"lng_bots_password_confirm_title" = "Two-step verification";
+"lng_bots_password_confirm_description" = "Please enter your password to confirm the action.";
+
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
 "lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
 "lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
