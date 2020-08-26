@@ -1751,6 +1751,7 @@ void FormController::loadFile(File &file) {
 			SecureFileLocation,
 			QString(),
 			file.size,
+			file.size,
 			LoadToCacheAsWell,
 			LoadFromCloudOrLocal,
 			false,

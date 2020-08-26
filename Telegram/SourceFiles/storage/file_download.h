@@ -57,7 +57,8 @@ public:
 	FileLoader(
 		not_null<Main::Session*> session,
 		const QString &toFile,
-		int32 size,
+		int loadSize,
+		int fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
@@ -88,11 +89,16 @@ public:
 	[[nodiscard]] virtual Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] float64 currentProgress() const;
 	[[nodiscard]] virtual int currentOffset() const;
-	[[nodiscard]] int fullSize() const;
+	[[nodiscard]] int fullSize() const {
+		return _fullSize;
+	}
+	[[nodiscard]] int loadSize() const {
+		return _loadSize;
+	}
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
-	void increaseLoadSize(int size);
+	void increaseLoadSize(int size, bool autoLoading);
 
 	void start();
 	void cancel();
@@ -134,7 +140,7 @@ protected:
 	virtual std::optional<MediaKey> fileLocationKey() const = 0;
 	virtual void cancelHook() = 0;
 	virtual void startLoading() = 0;
-	virtual void startLoadingWithData(const QByteArray &data) {
+	virtual void startLoadingWithPartial(const QByteArray &data) {
 		startLoading();
 	}
 
@@ -163,7 +169,8 @@ protected:
 
 	QByteArray _data;
 
-	int _size = 0;
+	int _loadSize = 0;
+	int _fullSize = 0;
 	int _skippedBytes = 0;
 	LocationType _locationType = LocationType();
 
@@ -181,7 +188,8 @@ protected:
 	const DownloadLocation &location,
 	Data::FileOrigin origin,
 	const QString &toFile,
-	int size,
+	int loadSize,
+	int fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,

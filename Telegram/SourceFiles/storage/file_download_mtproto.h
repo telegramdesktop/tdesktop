@@ -20,7 +20,8 @@ public:
 		Data::FileOrigin origin,
 		LocationType type,
 		const QString &toFile,
-		int32 size,
+		int loadSize,
+		int fullSize,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
@@ -28,14 +29,16 @@ public:
 	mtpFileLoader(
 		not_null<Main::Session*> session,
 		const WebFileLocation &location,
-		int32 size,
+		int loadSize,
+		int fullSize,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
 		not_null<Main::Session*> session,
 		const GeoPointLocation &location,
-		int32 size,
+		int loadSize,
+		int fullSize,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
@@ -48,7 +51,7 @@ private:
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void startLoading() override;
-	void startLoadingWithData(const QByteArray &data) override;
+	void startLoadingWithPartial(const QByteArray &data) override;
 	void cancelHook() override;
 
 	bool readyToRequest() const override;

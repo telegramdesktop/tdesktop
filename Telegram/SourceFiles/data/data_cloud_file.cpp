@@ -214,14 +214,14 @@ void LoadCloudFile(
 		Fn<void()> progress,
 		int downloadFrontPartSize = 0) {
 	const auto loadSize = downloadFrontPartSize
-		? downloadFrontPartSize
+		? std::min(downloadFrontPartSize, file.byteSize)
 		: file.byteSize;
 	if (file.loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
 			file.loader->permitLoadFromCloud();
 		}
-		if (file.loader->fullSize() < loadSize) {
-			file.loader->increaseLoadSize(loadSize);
+		if (file.loader->loadSize() < loadSize) {
+			file.loader->increaseLoadSize(loadSize, autoLoading);
 		}
 		return;
 	} else if ((file.flags & CloudFile::Flag::Failed)
@@ -236,6 +236,7 @@ void LoadCloudFile(
 		origin,
 		QString(),
 		loadSize,
+		file.byteSize,
 		UnknownFileLocation,
 		LoadToCacheAsWell,
 		fromCloud,

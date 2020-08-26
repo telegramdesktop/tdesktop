@@ -426,15 +426,21 @@ SendMediaReady PrepareThemeMedia(
 		thumbnail.save(&buffer, "JPG", 87);
 	}
 
-	const auto push = [&](const char *type, QImage &&image) {
+	const auto push = [&](
+			const char *type,
+			QImage &&image,
+			QByteArray bytes = QByteArray()) {
 		sizes.push_back(MTP_photoSize(
 			MTP_string(type),
 			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		thumbnails.emplace(type[0], std::move(image));
+		thumbnails.emplace(type[0], PreparedPhotoThumb{
+			.image = std::move(image),
+			.bytes = std::move(bytes)
+		});
 	};
-	push("s", std::move(thumbnail));
+	push("s", std::move(thumbnail), thumbnailBytes);
 
 	const auto filename = base::FileNameFromUserString(name)
 		+ qsl(".tdesktop-theme");

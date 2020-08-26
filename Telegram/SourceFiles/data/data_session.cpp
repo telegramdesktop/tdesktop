@@ -2147,7 +2147,10 @@ not_null<PhotoData*> Session::processPhoto(
 		const auto i = find(levels);
 		return (i == thumbs.end())
 			? ImageWithLocation()
-			: Images::FromImageInMemory(i->second, "JPG");
+			: Images::FromImageInMemory(
+				i->second.image,
+				"JPG",
+				i->second.bytes);
 	};
 	const auto small = image(SmallLevels);
 	const auto thumbnail = image(ThumbnailLevels);
@@ -2271,7 +2274,7 @@ void Session::photoApplyFields(
 				return 0;
 			});
 		};
-		const auto found = ranges::max_element(sizes, std::greater<>(), area);
+		const auto found = ranges::max_element(sizes, std::less<>(), area);
 		return (found == sizes.end()
 			|| found->type() != mtpc_photoSizeProgressive)
 			? sizes.end()

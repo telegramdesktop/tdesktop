@@ -2137,7 +2137,7 @@ void OverlayWidget::displayDocument(
 	_themeCloudData = cloud;
 	_radial.stop();
 
-	_touchbarDisplay.fire(TouchBarItemType::None);	
+	_touchbarDisplay.fire(TouchBarItemType::None);
 
 	refreshMediaViewer();
 	if (_document) {
@@ -4161,6 +4161,9 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_userPhotosData = std::nullopt;
 		_collage = nullptr;
 		_collageData = std::nullopt;
+		assignMediaPointer(nullptr);
+		_preloadPhotos.clear();
+		_preloadDocuments.clear();
 		if (_menu) _menu->hideMenu(true);
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;

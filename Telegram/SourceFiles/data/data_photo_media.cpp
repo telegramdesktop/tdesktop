@@ -51,11 +51,15 @@ Image *PhotoMedia::thumbnailInline() const {
 Image *PhotoMedia::image(PhotoSize size) const {
 	const auto &original = _images[PhotoSizeIndex(size)];
 	if (const auto image = original.data.get()) {
-		return (original.goodFor >= size) ? image : nullptr;
+		if (original.goodFor >= size) {
+			return image;
+		}
 	}
 	const auto &valid = _images[_owner->validSizeIndex(size)];
 	if (const auto image = valid.data.get()) {
-		return (valid.goodFor >= size) ? image : nullptr;
+		if (valid.goodFor >= size) {
+			return image;
+		}
 	}
 	return nullptr;
 }

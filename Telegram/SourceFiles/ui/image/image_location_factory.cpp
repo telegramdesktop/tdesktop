@@ -270,13 +270,15 @@ ImageWithLocation FromPhotoSize(
 
 ImageWithLocation FromImageInMemory(
 		const QImage &image,
-		const char *format) {
+		const char *format,
+		QByteArray bytes) {
 	if (image.isNull()) {
 		return ImageWithLocation();
 	}
-	auto bytes = QByteArray();
-	auto buffer = QBuffer(&bytes);
-	image.save(&buffer, format);
+	if (bytes.isEmpty()) {
+		auto buffer = QBuffer(&bytes);
+		image.save(&buffer, format);
+	}
 	return ImageWithLocation{
 		.location = ImageLocation(
 			DownloadLocation{ InMemoryLocation{ bytes } },

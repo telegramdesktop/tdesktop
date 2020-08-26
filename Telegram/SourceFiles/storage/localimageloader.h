@@ -219,6 +219,7 @@ struct FileLoadResult {
 	uint64 thumbId = 0; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	QString thumbname;
 	UploadFileParts thumbparts;
+	QByteArray thumbbytes;
 	QByteArray thumbmd5;
 	QImage thumb;
 

@@ -311,8 +311,9 @@ void Uploader::uploadMedia(
 			: session().data().processDocument(
 				media.document,
 				Images::FromImageInMemory(
-					media.photoThumbs.front().second,
-					"JPG"));
+					media.photoThumbs.front().second.image,
+					"JPG",
+					media.photoThumbs.front().second.bytes));
 		if (!media.data.isEmpty()) {
 			document->setDataAndCache(media.data);
 			if (media.type == SendMediaType::ThemeFile) {
@@ -345,7 +346,8 @@ void Uploader::upload(
 				file->document,
 				Images::FromImageInMemory(
 					file->thumb,
-					ThumbnailFormat(file->filemime)));
+					ThumbnailFormat(file->filemime),
+					file->thumbbytes));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
 		if (const auto active = document->activeMediaView()) {

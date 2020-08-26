@@ -462,7 +462,9 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		thumbnails.emplace(type[0], std::move(image));
+		thumbnails.emplace(
+			type[0],
+			PreparedPhotoThumb{ .image = std::move(image) });
 	};
 	push("s", scaled(320));
 

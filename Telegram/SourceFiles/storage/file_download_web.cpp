@@ -446,6 +446,7 @@ webFileLoader::webFileLoader(
 	session,
 	QString(),
 	0,
+	0,
 	UnknownFileLocation,
 	LoadToCacheAsWell,
 	fromCloud,
@@ -489,7 +490,7 @@ int webFileLoader::currentOffset() const {
 }
 
 void webFileLoader::loadProgress(qint64 ready, qint64 total) {
-	_size = total;
+	_fullSize = _loadSize = total;
 	_ready = ready;
 	notifyAboutProgress();
 }

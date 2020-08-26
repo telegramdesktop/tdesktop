@@ -41,7 +41,8 @@ namespace Images {
 	const MTPVideoSize &size);
 [[nodiscard]] ImageWithLocation FromImageInMemory(
 	const QImage &image,
-	const char *format);
+	const char *format,
+	QByteArray bytes = QByteArray());
 [[nodiscard]] ImageLocation FromWebDocument(const MTPWebDocument &document);
 
 } // namespace Images

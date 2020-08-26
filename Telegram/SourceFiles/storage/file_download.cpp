@@ -32,7 +32,8 @@ public:
 		not_null<Main::Session*> session,
 		const QByteArray &data,
 		const QString &toFile,
-		int32 size,
+		int loadSize,
+		int fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
@@ -53,7 +54,8 @@ FromMemoryLoader::FromMemoryLoader(
 	not_null<Main::Session*> session,
 	const QByteArray &data,
 	const QString &toFile,
-	int32 size,
+	int loadSize,
+	int fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
@@ -62,7 +64,8 @@ FromMemoryLoader::FromMemoryLoader(
 ) : FileLoader(
 	session,
 	toFile,
-	size,
+	loadSize,
+	fullSize,
 	locationType,
 	toCache,
 	fromCloud,
@@ -91,7 +94,8 @@ void FromMemoryLoader::startLoading() {
 FileLoader::FileLoader(
 	not_null<Main::Session*> session,
 	const QString &toFile,
-	int32 size,
+	int loadSize,
+	int fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
@@ -104,9 +108,11 @@ FileLoader::FileLoader(
 , _file(_filename)
 , _toCache(toCache)
 , _fromCloud(fromCloud)
-, _size(size)
+, _loadSize(loadSize)
+, _fullSize(fullSize)
 , _locationType(locationType) {
-	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
+	Expects(_loadSize <= _fullSize);
+	Expects(!_filename.isEmpty() || (_fullSize <= Storage::kMaxFileInMemory));
 }
 
 FileLoader::~FileLoader() {
@@ -169,13 +175,11 @@ Data::FileOrigin FileLoader::fileOrigin() const {
 }
 
 float64 FileLoader::currentProgress() const {
-	if (_finished) return 1.;
-	if (!fullSize()) return 0.;
-	return snap(float64(currentOffset()) / fullSize(), 0., 1.);
-}
-
-int FileLoader::fullSize() const {
-	return _size;
+	return _finished
+		? 1.
+		: !_loadSize
+		? 0.
+		: std::clamp(float64(currentOffset()) / _loadSize, 0., 1.);
 }
 
 bool FileLoader::setFileName(const QString &fileName) {
@@ -191,10 +195,12 @@ void FileLoader::permitLoadFromCloud() {
 	_fromCloud = LoadFromCloudOrLocal;
 }
 
-void FileLoader::increaseLoadSize(int size) {
-	Expects(size > _size);
+void FileLoader::increaseLoadSize(int size, bool autoLoading) {
+	Expects(size > _loadSize);
+	Expects(size <= _fullSize);
 
-	_size = size;
+	_loadSize = size;
+	_autoLoading = autoLoading;
 }
 
 void FileLoader::notifyAboutProgress() {
@@ -211,10 +217,12 @@ void FileLoader::localLoaded(
 		start();
 		return;
 	}
-	if (result.data.size() < _size) {
+	const auto partial = result.data.startsWith("partial:");
+	constexpr auto kPrefix = 8;
+	if (partial	&& result.data.size() < _loadSize + kPrefix) {
 		_localStatus = LocalStatus::NotFound;
 		if (checkForOpen()) {
-			startLoadingWithData(result.data);
+			startLoadingWithPartial(result.data);
 		}
 		return;
 	}
@@ -222,7 +230,11 @@ void FileLoader::localLoaded(
 		_imageFormat = imageFormat;
 		_imageData = imageData;
 	}
-	finishWithBytes(result.data);
+	finishWithBytes(partial
+		? QByteArray::fromRawData(
+			result.data.data() + kPrefix,
+			result.data.size() - kPrefix)
+		: result.data);
 }
 
 void FileLoader::start() {
@@ -272,7 +284,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 	};
 	_session->data().cache().get(key, [=, callback = std::move(done)](
 			QByteArray &&value) mutable {
-		if (readImage) {
+		if (readImage && !value.startsWith("partial:")) {
 			crl::async([
 				value = std::move(value),
 				done = std::move(callback)
@@ -452,7 +464,9 @@ bool FileLoader::finalizeResult() {
 			_session->data().cache().put(
 				cacheKey(),
 				Storage::Cache::Database::TaggedValue(
-					base::duplicate(_data),
+					base::duplicate((!_fullSize || _data.size() == _fullSize)
+						? _data
+						: ("partial:" + _data)),
 					_cacheTag));
 		}
 	}
@@ -466,7 +480,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		const DownloadLocation &location,
 		Data::FileOrigin origin,
 		const QString &toFile,
-		int size,
+		int loadSize,
+		int fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
@@ -480,7 +495,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			origin,
 			locationType,
 			toFile,
-			size,
+			loadSize,
+			fullSize,
 			toCache,
 			fromCloud,
 			autoLoading,
@@ -489,7 +505,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
-			size,
+			loadSize,
+			fullSize,
 			fromCloud,
 			autoLoading,
 			cacheTag);
@@ -497,7 +514,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
-			size,
+			loadSize,
+			fullSize,
 			fromCloud,
 			autoLoading,
 			cacheTag);
@@ -514,7 +532,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			session,
 			data.bytes,
 			toFile,
-			size,
+			loadSize,
+			fullSize,
 			locationType,
 			toCache,
 			LoadFromCloudOrLocal,

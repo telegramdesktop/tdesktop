@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 
 #include <QtCore/QBuffer>
+#include <QtGui/QImageWriter>
 
 namespace {
 
@@ -202,17 +203,23 @@ SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	};
-	const auto push = [&](const char *type, QImage &&image) {
+	const auto push = [&](
+			const char *type,
+			QImage &&image,
+			QByteArray bytes = QByteArray()) {
 		photoSizes.push_back(MTP_photoSize(
 			MTP_string(type),
 			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		photoThumbs.emplace(type[0], std::move(image));
+		photoThumbs.emplace(type[0], PreparedPhotoThumb{
+			.image = std::move(image),
+			.bytes = std::move(bytes)
+		});
 	};
 	push("a", scaled(160));
 	push("b", scaled(320));
-	push("c", std::move(image));
+	push("c", std::move(image), jpeg);
 
 	const auto id = rand_value<PhotoId>();
 	const auto photo = MTP_photo(
@@ -467,6 +474,7 @@ void FileLoadResult::setFileData(const QByteArray &filedata) {
 
 void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
 	if (!thumbdata.isEmpty()) {
+		thumbbytes = thumbdata;
 		int32 size = thumbdata.size();
 		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
 			thumbparts.insert(part, thumbdata.mid(i, kPhotoUploadPartSize));
@@ -864,17 +872,22 @@ void FileLoadTask::process() {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
-				photoThumbs.emplace('m', medium);
-				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
-
 				auto full = (w > 1280 || h > 1280) ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
-				photoThumbs.emplace('y', full);
-				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
-
 				{
 					QBuffer buffer(&filedata);
-					full.save(&buffer, "JPG", 87);
+					QImageWriter writer(&buffer, "JPEG");
+					writer.setQuality(87);
+					writer.setProgressiveScanWrite(true);
+					writer.write(full);
 				}
+				photoThumbs.emplace('m', PreparedPhotoThumb{ .image = medium });
+				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+
+				photoThumbs.emplace('y', PreparedPhotoThumb{
+					.image = full,
+					.bytes = filedata
+				});
+				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
 				photo = MTP_photo(
 					MTP_flags(0),

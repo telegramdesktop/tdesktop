@@ -104,13 +104,17 @@ bool PhotoData::loading(PhotoSize size) const {
 	} else if (valid == existing) {
 		return true;
 	}
-	return (_images[valid].loader->fullSize()
+	return (_images[valid].loader->loadSize()
 		>= _images[existing].progressivePartSize);
 }
 
 bool PhotoData::failed(PhotoSize size) const {
 	const auto flags = _images[validSizeIndex(size)].flags;
 	return (flags & Data::CloudFile::Flag::Failed);
+}
+
+void PhotoData::clearFailed(PhotoSize size) {
+	_images[validSizeIndex(size)].flags &= ~Data::CloudFile::Flag::Failed;
 }
 
 const ImageLocation &PhotoData::location(PhotoSize size) const {
@@ -144,10 +148,11 @@ int PhotoData::imageByteSize(PhotoSize size) const {
 
 bool PhotoData::displayLoading() const {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	return _images[index].loader
-		? (!_images[index].loader->loadingLocal()
-			|| !_images[index].loader->autoLoading())
-		: (uploading() && !waitingForAlbum());
+	if (const auto loader = _images[index].loader.get()) {
+		return !loader->finished()
+			&& (!loader->loadingLocal() || !loader->autoLoading());
+	}
+	return (uploading() && !waitingForAlbum());
 }
 
 void PhotoData::cancel() {
@@ -262,7 +267,6 @@ void PhotoData::load(
 
 	// Could've changed, if the requested size didn't have a location.
 	const auto validSize = static_cast<PhotoSize>(valid);
-	const auto existingSize = static_cast<PhotoSize>(existing);
 	const auto finalCheck = [=] {
 		if (const auto active = activeMediaView()) {
 			return !active->image(size);
@@ -270,10 +274,25 @@ void PhotoData::load(
 		return true;
 	};
 	const auto done = [=](QImage result) {
-		if (const auto active = activeMediaView()) {
-			active->set(validSize, existingSize, std::move(result));
+		Expects(_images[valid].loader != nullptr);
+
+		// Find out what progressive photo size have we loaded exactly.
+		auto goodFor = validSize;
+		const auto loadSize = _images[valid].loader->loadSize();
+		if (valid > 0 && _images[valid].byteSize > loadSize) {
+			for (auto i = valid; i != 0;) {
+				--i;
+				const auto required = _images[i].progressivePartSize;
+				if (required > 0 && required <= loadSize) {
+					goodFor = static_cast<PhotoSize>(i);
+					break;
+				}
+			}
 		}
-		if (validSize == PhotoSize::Large) {
+		if (const auto active = activeMediaView()) {
+			active->set(validSize, goodFor, std::move(result));
+		}
+		if (validSize == PhotoSize::Large && goodFor == validSize) {
 			_owner->photoLoadDone(this);
 		}
 	};
@@ -453,6 +472,7 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	if (!data->date) {
 		return;
 	} else {
+		data->clearFailed(PhotoSize::Large);
 		data->load(context());
 	}
 }
