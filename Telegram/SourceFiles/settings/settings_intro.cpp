@@ -350,7 +350,9 @@ void IntroWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroWidget::keyPressEvent(QKeyEvent *e) {
-	CodesFeedString(nullptr, e->text());
+	crl::on_main(this, [text = e->text()]{
+		CodesFeedString(nullptr, text);
+	});
 	return RpWidget::keyPressEvent(e);
 }
 
