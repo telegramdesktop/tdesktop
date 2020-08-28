@@ -286,6 +286,7 @@ void TitleWidgetQt::windowStateChanged(Qt::WindowState state) {
 	if (_maximizedState != maximized) {
 		_maximizedState = maximized;
 		updateButtonsState();
+		updateWindowExtents();
 	}
 }
 
