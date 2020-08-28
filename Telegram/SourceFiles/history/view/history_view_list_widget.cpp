@@ -1562,7 +1562,7 @@ Element *ListWidget::strictFindItemByY(int y) const {
 }
 
 auto ListWidget::countScrollState() const -> ScrollTopState {
-	if (_items.empty()) {
+	if (_items.empty() || _visibleBottom == height()) {
 		return { Data::MessagePosition(), 0 };
 	}
 	auto topItem = findItemByY(_visibleTop);
