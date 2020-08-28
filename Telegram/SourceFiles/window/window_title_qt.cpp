@@ -85,10 +85,14 @@ TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 
 TitleWidgetQt::~TitleWidgetQt() {
 	restoreCursor();
+
 	if (!_windowWasFrameless) {
 		toggleFramelessWindow(false);
 	}
-	Platform::SetWindowExtents(window()->windowHandle(), QMargins());
+
+	if (_extentsSet) {
+		Platform::UnsetWindowExtents(window()->windowHandle());
+	}
 }
 
 void TitleWidgetQt::toggleFramelessWindow(bool enabled) {
@@ -137,10 +141,21 @@ void TitleWidgetQt::paintEvent(QPaintEvent *e) {
 }
 
 void TitleWidgetQt::updateWindowExtents() {
-	if (hasShadow() && !_maximizedState) {
-		Platform::SetWindowExtents(window()->windowHandle(), ShadowExtents());
-	} else {
-		Platform::SetWindowExtents(window()->windowHandle(), QMargins());
+	if (hasShadow()) {
+		if (!_maximizedState) {
+			Platform::SetWindowExtents(
+				window()->windowHandle(),
+				ShadowExtents());
+		} else {
+			Platform::SetWindowExtents(
+				window()->windowHandle(),
+				QMargins());
+		}
+
+		_extentsSet = true;
+	} else if (_extentsSet) {
+		Platform::UnsetWindowExtents(window()->windowHandle());
+		_extentsSet = false;
 	}
 }
 

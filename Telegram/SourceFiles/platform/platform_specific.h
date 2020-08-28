@@ -58,6 +58,7 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges);
 bool ShowWindowMenu(QWindow *window);
 bool WindowsNeedShadow();
 bool SetWindowExtents(QWindow *window, const QMargins &extents);
+bool UnsetWindowExtents(QWindow *window);
 Window::ControlsLayout WindowControlsLayout();
 
 namespace ThirdParty {
