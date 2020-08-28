@@ -398,7 +398,7 @@ ComposeControls::ComposeControls(
 	Mode mode)
 : _parent(parent)
 , _window(window)
-//, _mode(mode)
+, _mode(mode)
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
 , _send(Ui::CreateChild<Ui::SendButton>(_wrap.get()))
 , _attachToggle(Ui::CreateChild<Ui::IconButton>(
@@ -473,7 +473,10 @@ rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
 
 rpl::producer<> ComposeControls::sendRequests() const {
 	auto filter = rpl::filter([=] {
-		return _send->type() == Ui::SendButton::Type::Schedule;
+		const auto type = (_mode == Mode::Normal)
+			? Ui::SendButton::Type::Send
+			: Ui::SendButton::Type::Schedule;
+		return (_send->type() == type);
 	});
 	auto submits = base::qt_signal_producer(
 		_field.get(),
@@ -708,7 +711,7 @@ void ComposeControls::updateSendButtonType() {
 		//} else if (showRecordButton()) {
 		//	return Type::Record;
 		}
-		return Type::Schedule;
+		return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
 	}();
 	_send->setType(type);
 

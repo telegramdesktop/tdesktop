@@ -1710,7 +1710,7 @@ void Message::updateMediaInBubbleState() {
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
 			|| displayForwardedFrom()
-			|| item->Has<HistoryMessageReply>()
+			|| displayedReply()
 			|| item->Has<HistoryMessageVia>();
 	};
 	auto entry = logEntryOriginal();

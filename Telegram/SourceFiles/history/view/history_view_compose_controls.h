@@ -141,7 +141,7 @@ private:
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;
-	//Mode _mode = Mode::Normal;
+	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 

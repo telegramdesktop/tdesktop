@@ -374,10 +374,8 @@ bool RepliesWidget::confirmSendingFiles(
 		text,
 		boxCompressConfirm,
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
-		CanScheduleUntilOnline(_history->peer)
-			? Api::SendType::ScheduledToUser
-			: Api::SendType::Scheduled,
-		SendMenu::Type::Disabled);
+		Api::SendType::Normal,
+		SendMenu::Type::Disabled); // #TODO replies schedule
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -399,7 +397,7 @@ bool RepliesWidget::confirmSendingFiles(
 			std::move(list),
 			type,
 			std::move(caption),
-			MsgId(0),//replyToId(),
+			MsgId(_rootId),//replyToId(), // #TODO replies reply
 			options,
 			album);
 	}));
@@ -460,7 +458,7 @@ void RepliesWidget::uploadFilesAfterConfirmation(
 		return;
 	}
 	auto action = Api::SendAction(_history);
-	action.replyTo = replyTo;
+	action.replyTo = _rootId;// replyTo;// #TODO replies reply
 	action.options = options;
 	session().api().sendFiles(
 		std::move(list),
@@ -473,15 +471,10 @@ void RepliesWidget::uploadFilesAfterConfirmation(
 void RepliesWidget::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
-	const auto callback = [=](Api::SendOptions options) {
-		auto action = Api::SendAction(_history);
-		//action.replyTo = replyToId();
-		action.options = options;
-		session().api().sendFile(fileContent, type, action);
-	};
-	Ui::show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	// #TODO replies schedule
+	auto action = Api::SendAction(_history);
+	action.replyTo = _rootId;// #TODO replies reply
+	session().api().sendFile(fileContent, type, action);
 }
 
 bool RepliesWidget::showSendingFilesError(
@@ -521,10 +514,12 @@ void RepliesWidget::send() {
 	if (_composeControls->getTextWithAppliedMarkdown().text.isEmpty()) {
 		return;
 	}
-	const auto callback = [=](Api::SendOptions options) { send(options); };
-	Ui::show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	send(Api::SendOptions());
+	// #TODO replies schedule
+	//const auto callback = [=](Api::SendOptions options) { send(options); };
+	//Ui::show(
+	//	PrepareScheduleBox(this, sendMenuType(), callback),
+	//	Ui::LayerOption::KeepOther);
 }
 
 void RepliesWidget::send(Api::SendOptions options) {
@@ -537,7 +532,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	message.action.options = options;
-	//message.action.replyTo = replyToId();
+	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
 	message.webPageId = webPageId;
 
 	//const auto error = GetErrorTextForSending(
@@ -637,12 +632,14 @@ void RepliesWidget::edit(
 
 void RepliesWidget::sendExistingDocument(
 		not_null<DocumentData*> document) {
-	const auto callback = [=](Api::SendOptions options) {
-		sendExistingDocument(document, options);
-	};
-	Ui::show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	sendExistingDocument(document, Api::SendOptions());
+	// #TODO replies schedule
+	//const auto callback = [=](Api::SendOptions options) {
+	//	sendExistingDocument(document, options);
+	//};
+	//Ui::show(
+	//	PrepareScheduleBox(this, sendMenuType(), callback),
+	//	Ui::LayerOption::KeepOther);
 }
 
 bool RepliesWidget::sendExistingDocument(
@@ -657,7 +654,7 @@ bool RepliesWidget::sendExistingDocument(
 	}
 
 	auto message = Api::MessageToSend(_history);
-	//message.action.replyTo = replyToId();
+	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
 	message.action.options = options;
 	Api::SendExistingDocument(std::move(message), document);
 
@@ -675,12 +672,14 @@ bool RepliesWidget::sendExistingDocument(
 }
 
 void RepliesWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
-	const auto callback = [=](Api::SendOptions options) {
-		sendExistingPhoto(photo, options);
-	};
-	Ui::show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	sendExistingPhoto(photo, Api::SendOptions());
+	// #TODO replies schedule
+	//const auto callback = [=](Api::SendOptions options) {
+	//	sendExistingPhoto(photo, options);
+	//};
+	//Ui::show(
+	//	PrepareScheduleBox(this, sendMenuType(), callback),
+	//	Ui::LayerOption::KeepOther);
 }
 
 bool RepliesWidget::sendExistingPhoto(
@@ -695,7 +694,7 @@ bool RepliesWidget::sendExistingPhoto(
 	}
 
 	auto message = Api::MessageToSend(_history);
-	//message.action.replyTo = replyToId();
+	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
 	message.action.options = options;
 	Api::SendExistingPhoto(std::move(message), photo);
 
@@ -712,12 +711,13 @@ void RepliesWidget::sendInlineResult(
 		Ui::show(Box<InformBox>(errorText));
 		return;
 	}
-	const auto callback = [=](Api::SendOptions options) {
-		sendInlineResult(result, bot, options);
-	};
-	Ui::show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	sendInlineResult(result, bot, Api::SendOptions());
+	//const auto callback = [=](Api::SendOptions options) {
+	//	sendInlineResult(result, bot, options);
+	//};
+	//Ui::show(
+	//	PrepareScheduleBox(this, sendMenuType(), callback),
+	//	Ui::LayerOption::KeepOther);
 }
 
 void RepliesWidget::sendInlineResult(
@@ -725,7 +725,7 @@ void RepliesWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options) {
 	auto action = Api::SendAction(_history);
-	//action.replyTo = replyToId();
+	action.replyTo = _rootId;// replyToId();// #TODO replies reply
 	action.options = options;
 	action.generateLocal = true;
 	session().api().sendInlineResult(bot, result, action);
@@ -752,6 +752,7 @@ void RepliesWidget::sendInlineResult(
 }
 
 SendMenu::Type RepliesWidget::sendMenuType() const {
+	// #TODO replies schedule
 	return _history->peer->isSelf()
 		? SendMenu::Type::Reminder
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
