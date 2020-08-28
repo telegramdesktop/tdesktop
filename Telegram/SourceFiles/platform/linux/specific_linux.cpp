@@ -391,7 +391,7 @@ std::optional<crl::time> MutterDBusLastUserInputTime() {
 		qsl("org.gnome.Mutter.IdleMonitor"),
 		qsl("GetIdletime"));
 
-	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+	const QDBusReply<qulonglong> reply = QDBusConnection::sessionBus().call(
 		Message);
 
 	static const auto NotSupportedErrors = {
