@@ -324,6 +324,20 @@ std::optional<xcb_atom_t> GetXCBAtom(
 	return atom;
 }
 
+bool IsXCBExtensionPresent(
+		xcb_connection_t *connection,
+		xcb_extension_t *ext) {
+	const auto reply = xcb_get_extension_data(
+		connection,
+		ext);
+
+	if (!reply) {
+		return false;
+	}
+
+	return reply->present;
+}
+
 std::vector<xcb_atom_t> GetXCBWMSupported(xcb_connection_t *connection) {
 	auto netWmAtoms = std::vector<xcb_atom_t>{};
 
@@ -395,6 +409,10 @@ std::optional<crl::time> XCBLastUserInputTime() {
 		native->nativeResourceForIntegration(QByteArray("connection")));
 
 	if (!connection) {
+		return std::nullopt;
+	}
+
+	if (!IsXCBExtensionPresent(connection, &xcb_screensaver_id)) {
 		return std::nullopt;
 	}
 
