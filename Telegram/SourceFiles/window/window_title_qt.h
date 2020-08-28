@@ -66,6 +66,7 @@ private:
 	bool _activeState = false;
 	bool _windowWasFrameless = false;
 	bool _cursorOverriden = false;
+	bool _extentsSet = false;
 
 };
 

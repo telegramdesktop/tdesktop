@@ -720,6 +720,35 @@ bool SetXCBFrameExtents(QWindow *window, const QMargins &extents) {
 	return true;
 }
 
+bool UnsetXCBFrameExtents(QWindow *window) {
+	const auto native = QGuiApplication::platformNativeInterface();
+	if (!native) {
+		return false;
+	}
+
+	const auto connection = reinterpret_cast<xcb_connection_t*>(
+		native->nativeResourceForIntegration(QByteArray("connection")));
+
+	if (!connection) {
+		return false;
+	}
+
+	const auto frameExtentsAtom = GetXCBAtom(
+		connection,
+		kXCBFrameExtentsAtomName.utf16());
+
+	if (!frameExtentsAtom.has_value()) {
+		return false;
+	}
+
+	xcb_delete_property(
+		connection,
+		window->winId(),
+		*frameExtentsAtom);
+
+	return true;
+}
+
 bool SetWaylandWindowGeometry(QWindow *window, const QRect &geometry) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
 	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
@@ -1088,6 +1117,15 @@ bool SetWindowExtents(QWindow *window, const QMargins &extents) {
 		return SetWaylandWindowGeometry(window, geometry);
 	} else {
 		return SetXCBFrameExtents(window, extents);
+	}
+}
+
+bool UnsetWindowExtents(QWindow *window) {
+	if (IsWayland()) {
+		const auto geometry = QRect(QPoint(), window->size());
+		return SetWaylandWindowGeometry(window, geometry);
+	} else {
+		return UnsetXCBFrameExtents(window);
 	}
 }
 
