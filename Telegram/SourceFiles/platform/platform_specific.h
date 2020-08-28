@@ -56,6 +56,8 @@ QImage GetImageFromClipboard();
 bool StartSystemMove(QWindow *window);
 bool StartSystemResize(QWindow *window, Qt::Edges edges);
 bool ShowWindowMenu(QWindow *window);
+bool WindowsNeedShadow();
+bool SetWindowExtents(QWindow *window, const QMargins &extents);
 Window::ControlsLayout WindowControlsLayout();
 
 namespace ThirdParty {
