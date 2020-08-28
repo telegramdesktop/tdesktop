@@ -112,6 +112,10 @@ bool SimpleElementDelegate::elementIsGifPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
+bool SimpleElementDelegate::elementHideReply(not_null<const Element*> view) {
+	return false;
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -603,6 +607,10 @@ bool Element::displayEditedBadge() const {
 
 TimeId Element::displayedEditDate() const {
 	return TimeId(0);
+}
+
+HistoryMessageReply *Element::displayedReply() const {
+	return nullptr;
 }
 
 bool Element::hasVisibleText() const {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
+#include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "chat_helpers/send_context_menu.h" // SendMenu::Type.
 #include "ui/widgets/scroll_area.h"
@@ -1163,6 +1164,10 @@ void RepliesWidget::listContentRefreshed() {
 
 ClickHandlerPtr RepliesWidget::listDateLink(not_null<Element*> view) {
 	return nullptr;
+}
+
+bool RepliesWidget::listElementHideReply(not_null<const Element*> view) {
+	return (view->data()->replyToId() == _rootId);
 }
 
 void RepliesWidget::confirmSendNowSelected() {

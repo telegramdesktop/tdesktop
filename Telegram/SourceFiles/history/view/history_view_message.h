@@ -94,6 +94,7 @@ public:
 	ClickHandlerPtr rightActionLink() const override;
 	bool displayEditedBadge() const override;
 	TimeId displayedEditDate() const override;
+	HistoryMessageReply *displayedReply() const override;
 	int infoWidth() const override;
 
 	VerticalRepaintRange verticalRepaintRange() const override;

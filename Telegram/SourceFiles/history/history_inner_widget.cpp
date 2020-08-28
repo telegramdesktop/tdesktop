@@ -3368,7 +3368,9 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		bool elementIsGifPaused() override {
 			return Instance ? Instance->elementIsGifPaused() : false;
 		}
-
+		bool elementHideReply(not_null<const Element*> view) override {
+			return false;
+		}
 	};
 
 	static Result result;

@@ -1146,6 +1146,10 @@ ClickHandlerPtr ScheduledWidget::listDateLink(not_null<Element*> view) {
 	return nullptr;
 }
 
+bool ScheduledWidget::listElementHideReply(not_null<const Element*> view) {
+	return false;
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	auto items = _inner->getSelectedItems();
 	if (items.empty()) {

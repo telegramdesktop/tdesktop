@@ -235,7 +235,7 @@ QSize Message::performCountOptimalSize() {
 
 	if (drawBubble()) {
 		auto forwarded = item->Get<HistoryMessageForwarded>();
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = displayedReply();
 		auto via = item->Get<HistoryMessageVia>();
 		auto entry = logEntryOriginal();
 		if (forwarded) {
@@ -533,9 +533,10 @@ void Message::draw(
 		p.restore();
 	}
 
-	const auto reply = item->Get<HistoryMessageReply>();
-	if (reply && reply->isNameUpdated()) {
-		const_cast<Message*>(this)->setPendingResize();
+	if (const auto reply = displayedReply()) {
+		if (reply->isNameUpdated()) {
+			const_cast<Message*>(this)->setPendingResize();
+		}
 	}
 }
 
@@ -692,7 +693,7 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 
 void Message::paintReplyInfo(Painter &p, QRect &trect, bool selected) const {
 	const auto item = message();
-	if (auto reply = item->Get<HistoryMessageReply>()) {
+	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
 		auto flags = HistoryMessageReply::PaintFlag::InBubble | 0;
@@ -1108,7 +1109,7 @@ bool Message::getStateReplyInfo(
 		QRect &trect,
 		not_null<TextState*> outResult) const {
 	const auto item = message();
-	if (auto reply = item->Get<HistoryMessageReply>()) {
+	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
 			if (reply->replyToMsg && QRect(trect.x(), trect.y() + st::msgReplyPadding.top(), trect.width(), st::msgReplyBarSize.height()).contains(point)) {
@@ -1509,6 +1510,13 @@ WebPage *Message::logEntryOriginal() const {
 	return nullptr;
 }
 
+HistoryMessageReply *Message::displayedReply() const {
+	if (const auto reply = data()->Get<HistoryMessageReply>()) {
+		return delegate()->elementHideReply(this) ? nullptr : reply;
+	}
+	return nullptr;
+}
+
 bool Message::hasFromName() const {
 	switch (context()) {
 	case Context::AdminLog:
@@ -1871,7 +1879,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	}
 
 	if (bubble) {
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = displayedReply();
 		auto via = item->Get<HistoryMessageVia>();
 		auto entry = logEntryOriginal();
 

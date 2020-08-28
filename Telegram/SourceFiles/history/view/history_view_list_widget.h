@@ -74,6 +74,7 @@ public:
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
+	virtual bool listElementHideReply(not_null<const Element*> view) = 0;
 
 };
 
@@ -208,6 +209,7 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
+	bool elementHideReply(not_null<const Element*> view) override;
 
 	~ListWidget();
 

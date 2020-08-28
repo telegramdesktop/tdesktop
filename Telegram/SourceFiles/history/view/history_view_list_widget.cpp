@@ -1175,6 +1175,10 @@ bool ListWidget::elementIsGifPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
+bool ListWidget::elementHideReply(not_null<const Element*> view) {
+	return _delegate->listElementHideReply(view);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

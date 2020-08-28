@@ -16,6 +16,7 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
+struct HistoryMessageReply;
 
 namespace Window {
 class SessionController;
@@ -62,6 +63,7 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
 	virtual bool elementIsGifPaused() = 0;
+	virtual bool elementHideReply(not_null<const Element*> view) = 0;
 
 };
 
@@ -92,6 +94,7 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
+	bool elementHideReply(not_null<const Element*> view) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
@@ -267,6 +270,7 @@ public:
 	virtual bool displayEditedBadge() const;
 	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
+	virtual HistoryMessageReply *displayedReply() const;
 
 	struct VerticalRepaintRange {
 		int top = 0;

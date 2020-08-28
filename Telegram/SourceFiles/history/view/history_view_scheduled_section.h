@@ -110,6 +110,7 @@ public:
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
+	bool listElementHideReply(not_null<const Element*> view) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

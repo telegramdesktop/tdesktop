@@ -169,7 +169,7 @@ QSize Gif::countOptimalSize() {
 	} else if (isSeparateRoundVideo()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = _parent->displayedReply();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (forwarded) {
 			forwarded->create(via);
@@ -226,7 +226,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 	} else if (isSeparateRoundVideo()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = _parent->displayedReply();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (via || reply || forwarded) {
 			auto additional = additionalWidth(via, reply, forwarded);
@@ -348,7 +348,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	auto usex = 0, usew = paintw;
 	auto separateRoundVideo = isSeparateRoundVideo();
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
-	auto reply = separateRoundVideo ? item->Get<HistoryMessageReply>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
@@ -752,7 +752,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	auto separateRoundVideo = isSeparateRoundVideo();
 	const auto item = _parent->data();
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
-	auto reply = separateRoundVideo ? item->Get<HistoryMessageReply>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);

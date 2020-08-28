@@ -51,7 +51,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 	if (_parent->media() == this) {
 		const auto item = _parent->data();
 		const auto via = item->Get<HistoryMessageVia>();
-		const auto reply = item->Get<HistoryMessageReply>();
+		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();
 		if (forwarded) {
 			forwarded->create(via);
@@ -76,7 +76,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	if (_parent->media() == this) {
 		const auto infoWidth = _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
 		const auto via = item->Get<HistoryMessageVia>();
-		const auto reply = item->Get<HistoryMessageReply>();
+		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();
 		if (via || reply || forwarded) {
 			int usew = maxWidth() - additionalWidth(via, reply, forwarded);
@@ -116,7 +116,7 @@ void UnwrappedMedia::draw(
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
 	const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-	const auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
+	const auto reply = inWebPage ? nullptr : _parent->displayedReply();
 	const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
 	auto usex = 0;
 	auto usew = maxWidth();
@@ -243,7 +243,7 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
 	const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-	const auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
+	const auto reply = inWebPage ? nullptr : _parent->displayedReply();
 	const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
 	auto usex = 0;
 	auto usew = maxWidth();
@@ -283,7 +283,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	const auto inWebPage = (_parent->media() != this);
 	const auto item = _parent->data();
 	const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-	const auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
+	const auto reply = inWebPage ? nullptr : _parent->displayedReply();
 	const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
 	auto usex = 0;
 	auto usew = maxWidth();

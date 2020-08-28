@@ -112,6 +112,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
+	bool elementHideReply(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
