@@ -676,6 +676,9 @@ void Histories::checkPostponed(not_null<History*> history, int id) {
 }
 
 void Histories::cancelRequest(int id) {
+	if (!id) {
+		return;
+	}
 	const auto history = _historyByRequest.take(id);
 	if (!history) {
 		return;

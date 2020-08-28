@@ -44,24 +44,29 @@ namespace InlineBots {
 class Result;
 } // namespace InlineBots
 
+namespace Data {
+class RepliesList;
+} // namespace Data
+
 namespace HistoryView {
 
 class Element;
 class TopBarWidget;
-class ScheduledMemento;
+class RepliesMemento;
 class ComposeControls;
 
-class ScheduledWidget final
+class RepliesWidget final
 	: public Window::SectionWidget
 	, private ListDelegate {
 public:
-	ScheduledWidget(
+	RepliesWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history);
-	~ScheduledWidget();
+		not_null<History*> history,
+		MsgId rootId);
+	~RepliesWidget();
 
-	not_null<History*> history() const;
+	[[nodiscard]] not_null<History*> history() const;
 	Dialogs::RowDescriptor activeChat() const override;
 
 	bool hasTopBarShadow() const override {
@@ -78,7 +83,7 @@ public:
 
 	void setInternalState(
 		const QRect &geometry,
-		not_null<ScheduledMemento*> memento);
+		not_null<RepliesMemento*> memento);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
@@ -125,8 +130,8 @@ private:
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();
-	void saveState(not_null<ScheduledMemento*> memento);
-	void restoreState(not_null<ScheduledMemento*> memento);
+	void saveState(not_null<RepliesMemento*> memento);
+	void restoreState(not_null<RepliesMemento*> memento);
 	void showAtPosition(Data::MessagePosition position);
 	bool showAtPositionNow(Data::MessagePosition position);
 
@@ -194,6 +199,8 @@ private:
 		Api::SendOptions options);
 
 	const not_null<History*> _history;
+	const MsgId _rootId = 0;
+	std::shared_ptr<Data::RepliesList> _replies;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
@@ -214,10 +221,11 @@ private:
 
 };
 
-class ScheduledMemento : public Window::SectionMemento {
+class RepliesMemento : public Window::SectionMemento {
 public:
-	ScheduledMemento(not_null<History*> history)
-	: _history(history) {
+	RepliesMemento(not_null<History*> history, MsgId rootId)
+	: _history(history)
+	, _rootId(rootId) {
 	}
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -226,17 +234,29 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	not_null<History*> getHistory() const {
+	[[nodiscard]] not_null<History*> getHistory() const {
 		return _history;
 	}
+	[[nodiscard]] MsgId getRootId() const {
+		return _rootId;
+	}
 
-	not_null<ListMemento*> list() {
+	void setReplies(std::shared_ptr<Data::RepliesList> replies) {
+		_replies = std::move(replies);
+	}
+	[[nodiscard]] std::shared_ptr<Data::RepliesList> getReplies() const {
+		return _replies;
+	}
+
+	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
 	}
 
 private:
 	const not_null<History*> _history;
+	const MsgId _rootId = 0;
 	ListMemento _list;
+	std::shared_ptr<Data::RepliesList> _replies;
 
 };
 

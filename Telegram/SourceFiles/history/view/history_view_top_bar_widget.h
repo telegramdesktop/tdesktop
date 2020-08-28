@@ -44,6 +44,7 @@ public:
 	enum class Section {
 		History,
 		Scheduled,
+		Replies,
 	};
 
 	TopBarWidget(
@@ -62,6 +63,7 @@ public:
 	void setAnimatingMode(bool enabled);
 
 	void setActiveChat(Dialogs::Key chat, Section section);
+	void setCustomTitle(const QString &title);
 
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
@@ -125,6 +127,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	Dialogs::Key _activeChat;
 	Section _section = Section::History;
+	QString _customTitleText;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;

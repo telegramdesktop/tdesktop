@@ -320,7 +320,7 @@ bool Location::needsBubble() const {
 	}
 	const auto item = _parent->data();
 	return item->viaBot()
-		|| item->Has<HistoryMessageReply>()
+		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();
 	return false;

@@ -1343,14 +1343,25 @@ void Message::drawInfo(
 	}
 
 	if (auto views = item->Get<HistoryMessageViews>()) {
+		const auto showReplies = (views->views < 0) && (views->replies > 0);
 		auto icon = [&] {
 			if (item->id > 0) {
 				if (outbg) {
-					return &(invertedsprites ? st::historyViewsInvertedIcon : (selected ? st::historyViewsOutSelectedIcon : st::historyViewsOutIcon));
+					return &(invertedsprites
+						? (showReplies ? st::historyRepliesInvertedIcon : st::historyViewsInvertedIcon)
+						: selected
+						? (showReplies ? st::historyRepliesOutSelectedIcon : st::historyViewsOutSelectedIcon)
+						: (showReplies ? st::historyRepliesOutIcon : st::historyViewsOutIcon));
 				}
-				return &(invertedsprites ? st::historyViewsInvertedIcon : (selected ? st::historyViewsInSelectedIcon : st::historyViewsInIcon));
+				return &(invertedsprites
+					? (showReplies ? st::historyRepliesInvertedIcon : st::historyViewsInvertedIcon)
+					: selected
+					? (showReplies ? st::historyRepliesInSelectedIcon : st::historyViewsInSelectedIcon)
+					: (showReplies ? st::historyRepliesInIcon : st::historyViewsInIcon));
 			}
-			return &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
+			return &(invertedsprites
+				? st::historyViewsSendingInvertedIcon
+				: st::historyViewsSendingIcon);
 		}();
 		if (item->id > 0) {
 			icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);

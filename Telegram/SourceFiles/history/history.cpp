@@ -1060,6 +1060,9 @@ void History::applyMessageChanges(
 		applyServiceChanges(item, data.c_messageService());
 	}
 	owner().stickers().checkSavedGif(item);
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::NewAdded);
 }
 
 void History::applyServiceChanges(
@@ -1246,12 +1249,6 @@ void History::applyServiceChanges(
 				}
 			});
 		}
-	} break;
-
-	case mtpc_messageActionPhoneCall: {
-		item->history()->session().changes().messageUpdated(
-			item,
-			Data::MessageUpdate::Flag::CallAdded);
 	} break;
 	}
 }

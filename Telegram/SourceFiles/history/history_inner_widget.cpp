@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_replies_section.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
@@ -1538,6 +1539,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);
+			});
+		}
+		if (IsServerMsgId(item->id) && item->repliesCount() > 0) {
+			_menu->addAction(tr::lng_replies_view(tr::now, lt_count, item->repliesCount()), [=] {
+				controller->showSection(
+					HistoryView::RepliesMemento(_history, itemId.msg));
+			});
+		} else if (const auto replyToTop = item->replyToTop()) {
+			_menu->addAction(tr::lng_replies_view_thread(tr::now), [=] {
+				controller->showSection(
+					HistoryView::RepliesMemento(_history, replyToTop));
 			});
 		}
 		if (item->allowsEdit(base::unixtime::now())) {

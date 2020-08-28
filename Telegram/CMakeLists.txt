@@ -467,6 +467,8 @@ PRIVATE
     data/data_poll.h
     data/data_pts_waiter.cpp
     data/data_pts_waiter.h
+    data/data_replies_list.cpp
+    data/data_replies_list.h
     data/data_reply_preview.cpp
     data/data_reply_preview.h
     data/data_search_controller.cpp
@@ -588,6 +590,8 @@ PRIVATE
     history/view/history_view_message.cpp
     history/view/history_view_message.h
     history/view/history_view_object.h
+    history/view/history_view_replies_section.cpp
+    history/view/history_view_replies_section.h
     history/view/history_view_schedule_box.cpp
     history/view/history_view_schedule_box.h
     history/view/history_view_scheduled_section.cpp

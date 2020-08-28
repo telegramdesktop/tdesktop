@@ -1344,6 +1344,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scheduled_send_now_many#one" = "Send {count} message now?";
 "lng_scheduled_send_now_many#other" = "Send {count} messages now?";
 
+"lng_replies_view#one" = "View {count} Reply";
+"lng_replies_view#other" = "View {count} Replies";
+"lng_replies_view_thread" = "View Thread";
+"lng_replies_header#one" = "{count} reply";
+"lng_replies_header#other" = "{count} replies";
+"lng_replies_header_none" = "No replies";
+"lng_replies_send_placeholder" = "Reply";
+
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
 "lng_archived_remove" = "Unarchive";

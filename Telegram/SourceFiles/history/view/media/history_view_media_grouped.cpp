@@ -454,7 +454,7 @@ bool GroupedMedia::computeNeedBubble() const {
 	}
 	if (const auto item = _parent->data()) {
 		if (item->viaBot()
-			|| item->Has<HistoryMessageReply>()
+			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
 			) {

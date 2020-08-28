@@ -330,9 +330,12 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto folder = _activeChat.folder();
 	if (folder
 		|| history->peer->isSelf()
-		|| (_section == Section::Scheduled)) {
+		|| (_section == Section::Scheduled)
+		|| !_customTitleText.isEmpty()) {
 		// #TODO feed name emoji.
-		auto text = (_section == Section::Scheduled)
+		auto text = !_customTitleText.isEmpty()
+			? _customTitleText
+			: (_section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
@@ -495,6 +498,13 @@ void TopBarWidget::setActiveChat(Dialogs::Key chat, Section section) {
 	updateOnlineDisplay();
 	updateControlsVisibility();
 	refreshUnreadBadge();
+}
+
+void TopBarWidget::setCustomTitle(const QString &title) {
+	if (_customTitleText != title) {
+		_customTitleText = title;
+		update();
+	}
 }
 
 void TopBarWidget::refreshInfoButton() {

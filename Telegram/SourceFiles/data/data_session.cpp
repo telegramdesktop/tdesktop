@@ -1685,6 +1685,9 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 	if (result) {
 		stickers().checkSavedGif(existing);
 	}
+	session().changes().messageUpdated(
+		existing,
+		Data::MessageUpdate::Flag::NewMaybeAdded);
 	return result;
 }
 
