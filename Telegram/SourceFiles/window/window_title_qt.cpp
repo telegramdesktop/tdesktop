@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_title_qt.h"
 
 #include "platform/platform_specific.h"
+#include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -237,9 +238,10 @@ void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {
 
 bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 	// I tried to listen only QEvent::Move and QEvent::Resize
-	// but that didn't work
+	// but that doesn't work on Wayland
 	if (obj->isWidgetType()
-		&& window() == static_cast<QWidget*>(obj)) {
+		&& window() == static_cast<QWidget*>(obj)
+		&& Platform::IsWayland()) {
 		updateWindowExtents();
 	}
 
@@ -264,6 +266,11 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 	} else if (e->type() == QEvent::Leave) {
 		if (window() == static_cast<QWidget*>(obj)) {
 			restoreCursor();
+		}
+	} else if (e->type() == QEvent::Move
+		|| e->type() == QEvent::Resize) {
+		if (window() == static_cast<QWidget*>(obj)) {
+			updateWindowExtents();
 		}
 	}
 
