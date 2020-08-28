@@ -435,7 +435,12 @@ void MainWindow::initHook() {
 		sniWatcher,
 		&QDBusServiceWatcher::serviceOwnerChanged,
 		this,
-		&MainWindow::onSNIOwnerChanged);
+		[=](
+			const QString &service,
+			const QString &oldOwner,
+			const QString &newOwner) {
+			handleSNIOwnerChanged(service, oldOwner, newOwner);
+		});
 
 	AppMenuSupported = IsAppMenuSupported();
 
@@ -449,13 +454,18 @@ void MainWindow::initHook() {
 		appMenuWatcher,
 		&QDBusServiceWatcher::serviceOwnerChanged,
 		this,
-		&MainWindow::onAppMenuOwnerChanged);
+		[=](
+			const QString &service,
+			const QString &oldOwner,
+			const QString &newOwner) {
+			handleAppMenuOwnerChanged(service, oldOwner, newOwner);
+		});
 
 	connect(
 		windowHandle(),
 		&QWindow::visibleChanged,
 		this,
-		&MainWindow::onVisibleChanged);
+		[=](bool visible) { handleVisibleChanged(visible); });
 
 	if (AppMenuSupported) {
 		LOG(("Using D-Bus global menu."));
@@ -560,7 +570,7 @@ void MainWindow::attachToSNITrayIcon() {
 	updateTrayMenu();
 }
 
-void MainWindow::onSNIOwnerChanged(
+void MainWindow::handleSNIOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner) {
@@ -596,7 +606,7 @@ void MainWindow::onSNIOwnerChanged(
 	}
 }
 
-void MainWindow::onAppMenuOwnerChanged(
+void MainWindow::handleAppMenuOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner) {
@@ -780,7 +790,7 @@ void MainWindow::createGlobalMenu() {
 	auto quit = file->addAction(
 		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, qsl("Telegram")),
 		App::wnd(),
-		SLOT(quitFromTray()),
+		[=] { App::wnd()->quitFromTray(); },
 		QKeySequence::Quit);
 
 	quit->setMenuRole(QAction::QuitRole);
@@ -790,13 +800,13 @@ void MainWindow::createGlobalMenu() {
 	psUndo = edit->addAction(
 		tr::lng_linux_menu_undo(tr::now),
 		this,
-		SLOT(psLinuxUndo()),
+		[=] { psLinuxUndo(); },
 		QKeySequence::Undo);
 
 	psRedo = edit->addAction(
 		tr::lng_linux_menu_redo(tr::now),
 		this,
-		SLOT(psLinuxRedo()),
+		[=] { psLinuxRedo(); },
 		QKeySequence::Redo);
 
 	edit->addSeparator();
@@ -804,24 +814,24 @@ void MainWindow::createGlobalMenu() {
 	psCut = edit->addAction(
 		tr::lng_mac_menu_cut(tr::now),
 		this,
-		SLOT(psLinuxCut()),
+		[=] { psLinuxCut(); },
 		QKeySequence::Cut);
 	psCopy = edit->addAction(
 		tr::lng_mac_menu_copy(tr::now),
 		this,
-		SLOT(psLinuxCopy()),
+		[=] { psLinuxCopy(); },
 		QKeySequence::Copy);
 
 	psPaste = edit->addAction(
 		tr::lng_mac_menu_paste(tr::now),
 		this,
-		SLOT(psLinuxPaste()),
+		[=] { psLinuxPaste(); },
 		QKeySequence::Paste);
 
 	psDelete = edit->addAction(
 		tr::lng_mac_menu_delete(tr::now),
 		this,
-		SLOT(psLinuxDelete()),
+		[=] { psLinuxDelete(); },
 		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
 
 	edit->addSeparator();
@@ -829,44 +839,44 @@ void MainWindow::createGlobalMenu() {
 	psBold = edit->addAction(
 		tr::lng_menu_formatting_bold(tr::now),
 		this,
-		SLOT(psLinuxBold()),
+		[=] { psLinuxBold(); },
 		QKeySequence::Bold);
 
 	psItalic = edit->addAction(
 		tr::lng_menu_formatting_italic(tr::now),
 		this,
-		SLOT(psLinuxItalic()),
+		[=] { psLinuxItalic(); },
 		QKeySequence::Italic);
 
 	psUnderline = edit->addAction(
 		tr::lng_menu_formatting_underline(tr::now),
 		this,
-		SLOT(psLinuxUnderline()),
+		[=] { psLinuxUnderline(); },
 		QKeySequence::Underline);
 
 	psStrikeOut = edit->addAction(
 		tr::lng_menu_formatting_strike_out(tr::now),
 		this,
-		SLOT(psLinuxStrikeOut()),
+		[=] { psLinuxStrikeOut(); },
 		Ui::kStrikeOutSequence);
 
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
 		this,
-		SLOT(psLinuxMonospace()),
+		[=] { psLinuxMonospace(); },
 		Ui::kMonospaceSequence);
 
 	psClearFormat = edit->addAction(
 		tr::lng_menu_formatting_clear(tr::now),
 		this,
-		SLOT(psLinuxClearFormat()),
+		[=] { psLinuxClearFormat(); },
 		Ui::kClearFormatSequence);
 
 	edit->addSeparator();
 
 	psSelectAll = edit->addAction(
 		tr::lng_mac_menu_select_all(tr::now),
-		this, SLOT(psLinuxSelectAll()),
+		this, [=] { psLinuxSelectAll(); },
 		QKeySequence::SelectAll);
 
 	edit->addSeparator();
@@ -874,7 +884,7 @@ void MainWindow::createGlobalMenu() {
 	auto prefs = edit->addAction(
 		tr::lng_mac_menu_preferences(tr::now),
 		App::wnd(),
-		SLOT(showSettings()),
+		[=] { App::wnd()->showSettings(); },
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);
@@ -909,19 +919,19 @@ void MainWindow::createGlobalMenu() {
 	psAddContact = tools->addAction(
 		tr::lng_mac_menu_add_contact(tr::now),
 		App::wnd(),
-		SLOT(onShowAddContact()));
+		[=] { App::wnd()->onShowAddContact(); });
 
 	tools->addSeparator();
 
 	psNewGroup = tools->addAction(
 		tr::lng_mac_menu_new_group(tr::now),
 		App::wnd(),
-		SLOT(onShowNewGroup()));
+		[=] { App::wnd()->onShowNewGroup(); });
 
 	psNewChannel = tools->addAction(
 		tr::lng_mac_menu_new_channel(tr::now),
 		App::wnd(),
-		SLOT(onShowNewChannel()));
+		[=] { App::wnd()->onShowNewChannel(); });
 
 	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
@@ -1066,7 +1076,7 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psClearFormat, !markdownEnabled);
 }
 
-void MainWindow::onVisibleChanged(bool visible) {
+void MainWindow::handleVisibleChanged(bool visible) {
 	if (AppMenuSupported && !_mainMenuPath.path().isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);

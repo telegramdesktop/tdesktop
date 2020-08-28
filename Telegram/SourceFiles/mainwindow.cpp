@@ -764,7 +764,9 @@ void MainWindow::handleTrayIconActication(
 	}
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
-		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
+		base::call_delayed(1, this, [=] {
+			psShowTrayMenu();
+		});
 	} else if (!skipTrayClick()) {
 		if (Platform::IsWayland() ? isVisible() : isActive()) {
 			minimizeToTray();
