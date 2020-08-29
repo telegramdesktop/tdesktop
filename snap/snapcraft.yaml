@@ -68,6 +68,7 @@ parts:
     parse-info: [usr/share/metainfo/telegramdesktop.appdata.xml]
     build-environment:
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib
+      - tg_owt_DIR: $SNAPCRAFT_STAGE/tg_owt
     build-packages:
       - python
       - qtbase5-private-dev
@@ -104,7 +105,6 @@ parts:
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DDESKTOP_APP_QTWAYLANDCLIENT_PRIVATE_HEADERS=$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.8
-      - -DDESKTOP_APP_WEBRTC_LOCATION=$SNAPCRAFT_STAGE/webrtc/src
     override-pull: |
       snapcraftctl pull
 
@@ -128,27 +128,11 @@ parts:
       - qtwayland
       - webrtc
 
-  patches:
-    source: https://github.com/desktop-app/patches.git
-    source-depth: 1
-    plugin: dump
-    organize:
-      "*": patches/
-    prime: [-./*]
-
   telegram-patches:
     source: Telegram/Patches
     plugin: dump
     organize:
       "*": telegram_patches/
-    prime: [-./*]
-
-  depot-tools:
-    source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    source-depth: 1
-    plugin: dump
-    organize:
-      "*": depot_tools/
     prime: [-./*]
 
   desktop-qt5:
@@ -369,79 +353,31 @@ parts:
       qmake
       make -j$(nproc)
       make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
-    after:
-      - desktop-qt5
     stage: [-./usr/lib]
     prime: [-./*]
+    after:
+      - desktop-qt5
 
   webrtc:
-    plugin: nil
+    source: https://github.com/ilya-fedin/tg_owt.git
+    source-depth: 1
+    source-branch: improve-packaged-build
+    plugin: cmake
     build-packages:
-      - curl
-      - python2
+      - yasm
+      - libjpeg8-dev
       - libopus-dev
       - libssl-dev
     stage-packages:
+      - libjpeg8
       - libopus0
       - libssl1.1
-    override-pull: |
-      export PATH="$SNAPCRAFT_STAGE/depot_tools:$PATH"
-
-      mkdir webrtc
-      cd webrtc
-      cp "$SNAPCRAFT_STAGE/patches/webrtc/.gclient" .
-      git clone --depth=1 https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-      gclient sync --no-history
-
-      applyPatch() {
-        cd "$SNAPCRAFT_PART_SRC/webrtc/$1"
-        git apply "$SNAPCRAFT_STAGE/patches/webrtc/$(basename $1).diff"
-      }
-
-      applyPatch src
-      applyPatch src/build
-      applyPatch src/third_party
-      applyPatch src/third_party/libsrtp
     override-build: |
-      export PATH="$SNAPCRAFT_STAGE/depot_tools:$PATH"
-
-      cd webrtc/src
-
-      ArgumentsList=`echo \
-          target_os=\"linux\" \
-          treat_warnings_as_errors=false \
-          is_component_build=false \
-          is_debug=false \
-          is_clang=false \
-          proprietary_codecs=true \
-          use_custom_libcxx=false \
-          use_rtti=true \
-          use_gold=false \
-          use_sysroot=false \
-          linux_use_bundled_binutils=false \
-          enable_dsyms=true \
-          rtc_include_tests=false \
-          rtc_build_examples=false \
-          rtc_build_tools=false \
-          rtc_build_opus=false \
-          rtc_build_ssl=false \
-          rtc_ssl_root=\"/usr/include\" \
-          rtc_ssl_libs=[\"ssl\",\"crypto\"] \
-          rtc_builtin_ssl_root_certificates=true \
-          rtc_build_ffmpeg=false \
-          rtc_ffmpeg_root=\"$SNAPCRAFT_STAGE/usr/include\" \
-          rtc_ffmpeg_libs=[\"avcodec\",\"swscale\",\"swresample\",\"avutil\"] \
-          rtc_opus_root=\"/usr/include/opus\" \
-          rtc_enable_protobuf=false`
-
-      gn gen out/Release --args="$ArgumentsList"
-
-      ninja -C out/Release webrtc
-      cd ../..
-
-      cp -a webrtc "$SNAPCRAFT_PART_INSTALL"
-    after:
-      - depot-tools
-      - ffmpeg
-      - patches
+      cmake "$SNAPCRAFT_PART_SRC" -DCMAKE_BUILD_TYPE=Release
+      cmake --build . -- -j$(nproc)
+      cp -a . "$SNAPCRAFT_PART_INSTALL"
+    organize:
+      "*": tg_owt/
     prime: [-./*]
+    after:
+      - ffmpeg
