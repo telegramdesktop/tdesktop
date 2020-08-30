@@ -163,7 +163,6 @@ if (LINUX)
     )
 
     target_compile_definitions(Telegram PRIVATE G_LOG_DOMAIN="Telegram")
-    target_compile_options(Telegram PRIVATE -Wno-register)
 
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
