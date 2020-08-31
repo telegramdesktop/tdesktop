@@ -45,38 +45,39 @@ on:
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
 
+env:
+  SDK: "10.0.18362.0"
+  VC: "call vcvars32.bat && cd Libraries"
+  GIT: "https://github.com"
+  QT: "5_12_8"
+  QT_VER: "5.12.8"
+  OPENSSL_VER: "1_1_1"
+  UPLOAD_ARTIFACT: "false"
+  ONLY_CACHE: "false"
+  MANUAL_CACHING: "2"
+  DOC_PATH: "docs/building-msvc.md"
+  AUTO_CACHING: "1"
+
 jobs:
 
-  windows:
-    name: Windows
+  dependencies:
+    name: "Windows: dependencies"
     runs-on: windows-latest
 
     strategy:
       matrix:
         defines:
           - ""
-    env:
-      SDK: "10.0.18362.0"
-      VC: "call vcvars32.bat && cd Libraries"
-      GIT: "https://github.com"
-      QT: "5_12_8"
-      QT_VER: "5.12.8"
-      OPENSSL_VER: "1_1_1"
-      UPLOAD_ARTIFACT: "false"
-      ONLY_CACHE: "false"
-      MANUAL_CACHING: "2"
-      DOC_PATH: "docs/building-msvc.md"
-      AUTO_CACHING: "1"
 
     steps:
       - name: Get repository name.
         shell: bash
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
 
+      # We don't need recursive clone to build dependencies.
       - name: Clone.
         uses: actions/checkout@v2
         with:
-          submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: Set up environment variables.
@@ -136,16 +137,6 @@ jobs:
           echo Found %PY2%.
           echo ::set-env name=PY2::%PY2%
 
-      - name: LZMA.
-        shell: cmd
-        run: |
-          %VC%
-
-          git clone %GIT%/telegramdesktop/lzma.git
-          cd lzma
-          cd C\Util\LzmaLib
-          msbuild -m LzmaLib.sln /property:Configuration=Debug
-
       - name: OpenSSL cache.
         id: cache-openssl
         uses: actions/cache@v2
@@ -178,17 +169,6 @@ jobs:
 
           rmdir /S /Q test
           rmdir /S /Q .git
-
-      - name: Zlib.
-        shell: cmd
-        run: |
-          %VC%
-
-          git clone %GIT%/telegramdesktop/zlib.git
-          cd zlib
-          git checkout tdesktop
-          cd contrib\vstudio\vc14
-          msbuild -m zlibstat.vcxproj /property:Configuration=Debug
 
       - name: OpenAL Soft cache.
         id: cache-openal
@@ -398,6 +378,154 @@ jobs:
 
           cd %LibrariesPath%
           rmdir /S /Q qt_%QT%
+
+  telegram:
+    name: "Windows: Telegram"
+    runs-on: windows-latest
+    needs: dependencies
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+
+    steps:
+      - name: Get repository name.
+        shell: bash
+        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: Set up environment variables.
+        shell: cmd
+        run: |
+          echo ::add-path::C:\Strawberry\perl\bin\
+          echo ::add-path::"%programfiles%\NASM"
+
+          C:
+          cd "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\"
+          echo ::add-path::%cd%
+
+          call vcvars32.bat
+          D:
+          cd %GITHUB_WORKSPACE%
+          msbuild -version > CACHE_KEY.txt
+          echo %MANUAL_CACHING% >> CACHE_KEY.txt
+
+          mkdir Libraries
+          cd Libraries
+          echo ::set-env name=LibrariesPath::%cd%
+
+      - name: Generate cache key.
+        shell: bash
+        run: |
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/win.yml
+            echo `md5sum $thisFile | awk '{ print $1 }'` >> CACHE_KEY.txt
+          fi
+          echo ::set-env name=CACHE_KEY::`md5sum CACHE_KEY.txt | awk '{ print $1 }'`
+
+      - name: Choco installs.
+        run: |
+          choco install --no-progress -y nasm yasm jom ninja
+
+      - name: Patches.
+        shell: bash
+        run: |
+          echo "Find necessary commit from doc."
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          cd $LibrariesPath
+          git clone $GIT/desktop-app/patches.git
+          cd Patches
+          eval $checkoutCommit
+
+      - name: Find any version of Python 2.
+        shell: cmd
+        run: |
+          echo Find any version of Python 2.
+          for /D %%a in (C:\hostedtoolcache\windows\Python\2.*) do (
+            SET PY2=%%a\x64
+          )
+          if [%PY2%] == [] (
+            echo Python 2 is not found.
+            exit 1
+          )
+          echo Found %PY2%.
+          echo ::set-env name=PY2::%PY2%
+
+      - name: LZMA.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/lzma.git
+          cd lzma
+          cd C\Util\LzmaLib
+          msbuild -m LzmaLib.sln /property:Configuration=Debug
+
+      - name: OpenSSL cache.
+        id: cache-openssl
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
+          key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
+
+      - name: Zlib.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/zlib.git
+          cd zlib
+          git checkout tdesktop
+          cd contrib\vstudio\vc14
+          msbuild -m zlibstat.vcxproj /property:Configuration=Debug
+
+      - name: OpenAL Soft cache.
+        id: cache-openal
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/openal-soft
+          key: ${{ runner.OS }}-openal-soft-${{ env.CACHE_KEY }}
+
+      - name: Breakpad cache.
+        id: cache-breakpad
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/breakpad
+          key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/breakpad.diff') }}
+
+      - name: Opus cache.
+        id: cache-opus
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/opus
+          key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/ffmpeg
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-2-${{ hashFiles('**/build_ffmpeg_win.sh') }}
+
+      - name: Qt 5.12.8 cache.
+        id: cache-qt
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/Qt-${{ env.QT_VER }}
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
 
       - name: Read defines.
         shell: bash

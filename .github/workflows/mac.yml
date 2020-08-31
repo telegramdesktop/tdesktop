@@ -40,41 +40,42 @@ on:
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
 
+env:
+  MIN_MAC: "-mmacosx-version-min=10.12"
+  UNGUARDED: "-Werror=unguarded-availability-new"
+  GIT: "https://github.com"
+  PREFIX: "/usr/local/macos"
+  MACOSX_DEPLOYMENT_TARGET: "10.12"
+  XZ: "xz-5.2.4"
+  QT: "5_12_8"
+  OPENSSL_VER: "1_1_1"
+  QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
+  LIBICONV_VER: "libiconv-1.16"
+  UPLOAD_ARTIFACT: "false"
+  ONLY_CACHE: "false"
+  MANUAL_CACHING: "2"
+  DOC_PATH: "docs/building-xcode.md"
+  AUTO_CACHING: "1"
+
 jobs:
 
-  macos:
-    name: MacOS
+  dependencies:
+    name: "MacOS: dependencies"
     runs-on: macos-latest
 
     strategy:
       matrix:
         defines:
           - ""
-    env:
-      MIN_MAC: "-mmacosx-version-min=10.12"
-      UNGUARDED: "-Werror=unguarded-availability-new"
-      GIT: "https://github.com"
-      PREFIX: "/usr/local/macos"
-      MACOSX_DEPLOYMENT_TARGET: "10.12"
-      XZ: "xz-5.2.4"
-      QT: "5_12_8"
-      OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
-      LIBICONV_VER: "libiconv-1.16"
-      UPLOAD_ARTIFACT: "false"
-      ONLY_CACHE: "false"
-      MANUAL_CACHING: "2"
-      DOC_PATH: "docs/building-xcode.md"
-      AUTO_CACHING: "1"
 
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
 
+      # We don't need recursive clone to build dependencies.
       - name: Clone.
         uses: actions/checkout@v2
         with:
-          submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
@@ -110,27 +111,6 @@ jobs:
           git clone $GIT/desktop-app/patches.git
           cd Patches
           eval $checkoutCommit
-
-      - name: XZ.
-        run: |
-          cd $LibrariesPath
-
-          wget https://tukaani.org/xz/$XZ.tar.gz
-          tar -xvzf $XZ.tar.gz
-          cd $XZ
-          CFLAGS="$MIN_MAC" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
-          make -j$(nproc)
-          sudo make install
-
-      - name: Zlib.
-        run: |
-          cd $LibrariesPath
-
-          git clone $GIT/desktop-app/zlib.git
-          cd zlib
-          CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
-          make -j$(nproc)
-          sudo make install
 
       - name: OpenSSL cache.
         id: cache-openssl
@@ -201,10 +181,6 @@ jobs:
           cd $LIBICONV_VER
           CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --enable-static --prefix=$PREFIX
           make -j$(nproc)
-      - name: Libiconv install.
-        run: |
-          cd $LibrariesPath/$LIBICONV_VER
-          sudo make install
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -344,24 +320,6 @@ jobs:
           sudo cp -R ffmpeg-cache/. /usr/local/
           sudo cp -R ffmpeg-cache/include/. ffmpeg/
 
-      - name: OpenAL Soft.
-        run: |
-          cd $LibrariesPath
-
-          git clone $GIT/kcat/openal-soft.git
-          cd openal-soft
-          git checkout openal-soft-1.19.1
-          cd build
-
-          CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
-          -D CMAKE_INSTALL_PREFIX:PATH=$PREFIX \
-          -D ALSOFT_EXAMPLES=OFF \
-          -D LIBTYPE:STRING=STATIC \
-          -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET ..
-
-          make -j$(nproc)
-          sudo make install
-
       - name: Crashpad cache.
         id: cache-crashpad
         uses: actions/cache@v2
@@ -478,6 +436,179 @@ jobs:
           rm -rf out
           mkdir -p out/Debug
           mv libtg_owt.a out/Debug/libtg_owt.a
+
+  telegram:
+    name: "MacOS: Telegram"
+    runs-on: macos-latest
+    needs: dependencies
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+
+    steps:
+      - name: Get repository name.
+        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        run: |
+          sudo chown -R `whoami`:admin /usr/local/share
+          brew install automake fdk-aac lame libass libtool libvorbis libvpx \
+          ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
+
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+          xcodebuild -version > CACHE_KEY.txt
+          echo $MIN_MAC >> CACHE_KEY.txt
+          echo $PREFIX >> CACHE_KEY.txt
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
+          echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/mac.yml
+            echo `md5 -q $thisFile` >> CACHE_KEY.txt
+          fi
+          echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
+
+          echo ::add-path::$PWD/Libraries/depot_tools
+
+          mkdir -p Libraries/macos
+          cd Libraries/macos
+          echo ::set-env name=LibrariesPath::`pwd`
+
+      - name: Patches.
+        run: |
+          echo "Find necessary commit from doc."
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          cd $LibrariesPath
+          git clone $GIT/desktop-app/patches.git
+          cd Patches
+          eval $checkoutCommit
+
+      - name: XZ.
+        run: |
+          cd $LibrariesPath
+
+          wget https://tukaani.org/xz/$XZ.tar.gz
+          tar -xvzf $XZ.tar.gz
+          cd $XZ
+          CFLAGS="$MIN_MAC" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
+          make -j$(nproc)
+          sudo make install
+
+      - name: Zlib.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/desktop-app/zlib.git
+          cd zlib
+          CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
+          make -j$(nproc)
+          sudo make install
+
+      - name: OpenSSL cache.
+        id: cache-openssl
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
+          key: ${{ runner.OS }}-${{ env.OPENSSL_VER }}-${{ env.CACHE_KEY }}
+
+      - name: Opus cache.
+        id: cache-opus
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/opus
+          key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
+      - name: Opus install.
+        run: |
+          cd $LibrariesPath/opus
+          sudo make install
+
+      - name: Libiconv cache.
+        id: cache-libiconv
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/${{ env.LIBICONV_VER }}
+          key: ${{ runner.OS }}-${{ env.LIBICONV_VER }}-${{ env.CACHE_KEY }}
+      - name: Libiconv install.
+        run: |
+          cd $LibrariesPath/$LIBICONV_VER
+          sudo make install
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/ffmpeg-cache
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}
+      - name: FFmpeg install.
+        run: |
+          cd $LibrariesPath
+          #List of files from cmake/external/ffmpeg/CMakeLists.txt.
+          copyLib() {
+            mkdir -p ffmpeg/$1
+            \cp -fR ffmpeg-cache/lib/$1.a ffmpeg/$1/$1.a
+          }
+          copyLib libavformat
+          copyLib libavcodec
+          copyLib libswresample
+          copyLib libswscale
+          copyLib libavutil
+
+          sudo cp -R ffmpeg-cache/. /usr/local/
+          sudo cp -R ffmpeg-cache/include/. ffmpeg/
+
+      - name: OpenAL Soft.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/kcat/openal-soft.git
+          cd openal-soft
+          git checkout openal-soft-1.19.1
+          cd build
+
+          CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
+          -D CMAKE_INSTALL_PREFIX:PATH=$PREFIX \
+          -D ALSOFT_EXAMPLES=OFF \
+          -D LIBTYPE:STRING=STATIC \
+          -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET ..
+
+          make -j$(nproc)
+          sudo make install
+
+      - name: Crashpad cache.
+        id: cache-crashpad
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/crashpad
+          key: ${{ runner.OS }}-crashpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/crashpad.diff') }}-${{ hashFiles('**/mini_chromium.diff') }}
+
+      - name: Qt 5.12.8 cache.
+        id: cache-qt
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/qt-cache
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
+      - name: Use cached Qt 5.12.8.
+        if: steps.cache-qt.outputs.cache-hit == 'true'
+        run: |
+          cd $LibrariesPath
+          mv qt-cache Qt-5.12.8
+          sudo mkdir -p $QT_PREFIX
+          sudo mv -f Qt-5.12.8 "$(dirname "$QT_PREFIX")"/
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'

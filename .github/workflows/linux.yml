@@ -42,10 +42,23 @@ on:
       - 'Telegram/configure.bat'
       - 'Telegram/Telegram.plist'
 
+env:
+  GIT: "https://github.com"
+  QT: "5_12_8"
+  QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
+  OPENSSL_VER: "1_1_1"
+  OPENSSL_PREFIX: "/usr/local/desktop-app/openssl-1.1.1"
+  CMAKE_VER: "3.17.0"
+  UPLOAD_ARTIFACT: "false"
+  ONLY_CACHE: "false"
+  MANUAL_CACHING: "6"
+  DOC_PATH: "docs/building-cmake.md"
+  AUTO_CACHING: "1"
+
 jobs:
 
-  linux:
-    name: Ubuntu 14.04
+  dependencies:
+    name: "Ubuntu 14.04: dependencies"
     runs-on: ubuntu-latest
     container: ubuntu:trusty
 
@@ -53,21 +66,6 @@ jobs:
       matrix:
         defines:
           - ""
-          - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
-          - "TDESKTOP_DISABLE_GTK_INTEGRATION"
-
-    env:
-      GIT: "https://github.com"
-      QT: "5_12_8"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
-      OPENSSL_VER: "1_1_1"
-      OPENSSL_PREFIX: "/usr/local/desktop-app/openssl-1.1.1"
-      CMAKE_VER: "3.17.0"
-      UPLOAD_ARTIFACT: "false"
-      ONLY_CACHE: "false"
-      MANUAL_CACHING: "6"
-      DOC_PATH: "docs/building-cmake.md"
-      AUTO_CACHING: "1"
 
     steps:
       - name: Get repository name.
@@ -111,10 +109,10 @@ jobs:
           sudo update-alternatives --config gcc && \
           sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
 
+      # We don't need recursive clone to build dependencies.
       - name: Clone.
         uses: actions/checkout@v2
         with:
-          submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
@@ -177,30 +175,6 @@ jobs:
         run: |
           cd $LibrariesPath/opus
           sudo make install
-
-      - name: Libva.
-        run: |
-          cd $LibrariesPath
-
-          git clone $GIT/01org/libva.git
-          cd libva
-          ./autogen.sh --enable-static
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf libva
-
-      - name: Libvdpau.
-        run: |
-          cd $LibrariesPath
-
-          git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
-          cd libvdpau
-          ./autogen.sh --enable-static
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf libvdpau
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -361,6 +335,7 @@ jobs:
         with:
           path: ${{ env.LibrariesPath }}/openssl-cache
           key: ${{ runner.OS }}-${{ env.OPENSSL_VER }}-${{ env.CACHE_KEY }}
+
       - name: OpenSSL build.
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         run: |
@@ -375,25 +350,11 @@ jobs:
           sudo make DESTDIR="$LibrariesPath/openssl-cache" install_sw
           cd ..
           # rm -rf $opensslDir # Keep this folder for WebRTC.
+
       - name: OpenSSL install.
         run: |
           cd $LibrariesPath
           sudo cp -R openssl-cache/. /
-
-      - name: Libwayland.
-        run: |
-          cd $LibrariesPath
-
-          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
-          cd wayland
-          ./autogen.sh \
-          --enable-static \
-          --disable-documentation \
-          --disable-dtd-validation
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf wayland
 
       - name: Libxkbcommon.
         run: |
@@ -410,6 +371,21 @@ jobs:
           sudo make install
           cd ..
           rm -rf libxkbcommon
+
+      - name: Libwayland.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
+          cd wayland
+          ./autogen.sh \
+          --enable-static \
+          --disable-documentation \
+          --disable-dtd-validation
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf wayland
 
       - name: Qt 5.12.8 cache.
         id: cache-qt
@@ -455,10 +431,6 @@ jobs:
           sudo make INSTALL_ROOT="$LibrariesPath/qt-cache" install
           cd ..
           rm -rf qt_${QT}
-      - name: Qt 5.12.8 install.
-        run: |
-          cd $LibrariesPath
-          sudo cp -R qt-cache/. /
 
       - name: Breakpad cache.
         id: cache-breakpad
@@ -506,12 +478,6 @@ jobs:
           mv dump_syms $BreakpadCache/
           cd ..
           rm -rf gyp breakpad
-      - name: Breakpad install.
-        run: |
-          cd $LibrariesPath
-          sudo cp -R breakpad-cache/. /
-          mkdir -p breakpad/out/Default/
-          cp breakpad-cache/dump_syms breakpad/out/Default/dump_syms
 
       - name: WebRTC cache.
         id: cache-webrtc
@@ -545,6 +511,266 @@ jobs:
           mv libtg_owt.a out/Debug/libtg_owt.a
 
           rm -rf $LibrariesPath/openssl_${OPENSSL_VER}
+
+  telegram:
+    name: "Ubuntu 14.04: Telegram"
+    runs-on: ubuntu-latest
+    needs: dependencies
+    container: ubuntu:trusty
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+          - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
+          - "TDESKTOP_DISABLE_GTK_INTEGRATION"
+
+    steps:
+      - name: Get repository name.
+        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+
+      - name: Disable man for further package installs.
+        run: |
+          cfgFile="/etc/dpkg/dpkg.cfg.d/no_man"
+          sudo touch $cfgFile
+          p() {
+            sudo echo "path-exclude=/usr/share/$1/*" >> $cfgFile
+          }
+
+          p man
+          p locale
+          p doc
+
+      - name: Apt install.
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install software-properties-common -y && \
+          sudo add-apt-repository ppa:git-core/ppa -y && \
+          sudo apt-get update && \
+          sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
+          libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
+          autoconf automake build-essential libxml2-dev libass-dev libfreetype6-dev \
+          libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
+          libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+          libxcb-screensaver0-dev libjpeg-dev ninja-build \
+          libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
+          libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
+          libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libegl1-mesa-dev \
+          libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html bison yasm \
+          zlib1g-dev xutils-dev python-xcbgen chrpath gperf wget -y --force-yes && \
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+          sudo apt-get update && \
+          sudo apt-get install gcc-8 g++-8 -y && \
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 && \
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60 && \
+          sudo update-alternatives --config gcc && \
+          sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
+
+      - name: Clone.
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
+          gcc --version
+
+          gcc --version > CACHE_KEY.txt
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" == "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/linux.yml
+            echo `md5sum $thisFile | cut -c -32` >> CACHE_KEY.txt
+          fi
+          md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
+          echo ::set-env name=CACHE_KEY::$md5cache
+
+          mkdir -p Libraries
+          cd Libraries
+          echo ::set-env name=LibrariesPath::`pwd`
+
+      - name: Patches.
+        run: |
+          echo "Find necessary commit from doc."
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          cd $LibrariesPath
+          git clone $GIT/desktop-app/patches.git
+          cd patches
+          eval $checkoutCommit
+
+      - name: CMake.
+        run: |
+          cd $LibrariesPath
+
+          file=cmake-$CMAKE_VER-Linux-x86_64.sh
+          wget $GIT/Kitware/CMake/releases/download/v$CMAKE_VER/$file
+          sudo mkdir /opt/cmake
+          sudo sh $file --prefix=/opt/cmake --skip-license
+          sudo ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+          rm $file
+
+          cmake --version
+
+      - name: Libva.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/01org/libva.git
+          cd libva
+          ./autogen.sh --enable-static
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf libva
+
+      - name: Libvdpau.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
+          cd libvdpau
+          ./autogen.sh --enable-static
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf libvdpau
+
+      - name: Opus cache.
+        id: cache-opus
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/opus
+          key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
+      - name: Opus install.
+        run: |
+          cd $LibrariesPath/opus
+          sudo make install
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/ffmpeg-cache
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}
+      - name: FFmpeg install.
+        run: |
+          cd $LibrariesPath
+          #List of files from cmake/external/ffmpeg/CMakeLists.txt.
+          copyLib() {
+            mkdir -p ffmpeg/$1
+            yes | cp -i ffmpeg-cache/usr/local/lib/$1.a ffmpeg/$1/$1.a
+          }
+          copyLib libavformat
+          copyLib libavcodec
+          copyLib libswresample
+          copyLib libswscale
+          copyLib libavutil
+
+          sudo cp -R ffmpeg-cache/. /
+
+      - name: OpenAL Soft.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b openal-soft-1.20.1 --depth=1 $GIT/kcat/openal-soft.git
+          cd openal-soft/build
+          cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DLIBTYPE:STRING=STATIC \
+          -DALSOFT_EXAMPLES=OFF \
+          -DALSOFT_TESTS=OFF \
+          -DALSOFT_UTILS=OFF \
+          -DALSOFT_CONFIG=OFF
+          make -j$(nproc)
+          sudo make install
+          cd -
+          rm -rf openal-soft
+
+      - name: OpenSSL cache.
+        id: cache-openssl
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/openssl-cache
+          key: ${{ runner.OS }}-${{ env.OPENSSL_VER }}-${{ env.CACHE_KEY }}
+
+      - name: OpenSSL install.
+        run: |
+          cd $LibrariesPath
+          sudo cp -R openssl-cache/. /
+
+      - name: Libxkbcommon.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b xkbcommon-0.8.4 --depth=1 $GIT/xkbcommon/libxkbcommon.git
+          cd libxkbcommon
+          ./autogen.sh \
+          --disable-docs \
+          --disable-wayland \
+          --with-xkb-config-root=/usr/share/X11/xkb \
+          --with-x-locale-root=/usr/share/X11/locale
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf libxkbcommon
+
+      - name: Libwayland.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
+          cd wayland
+          ./autogen.sh \
+          --enable-static \
+          --disable-documentation \
+          --disable-dtd-validation
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf wayland
+
+      - name: Qt 5.12.8 cache.
+        id: cache-qt
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/qt-cache
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qt*_5_12_8/*') }}
+      - name: Qt 5.12.8 install.
+        run: |
+          cd $LibrariesPath
+          sudo cp -R qt-cache/. /
+
+      - name: Breakpad cache.
+        id: cache-breakpad
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/breakpad-cache
+          key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}
+      - name: Breakpad clone.
+        run: |
+          cd $LibrariesPath
+
+          git clone https://chromium.googlesource.com/breakpad/breakpad
+          cd breakpad
+          git checkout bc8fb886
+          git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
+          cd src/third_party/lss
+          git checkout a91633d1
+      - name: Breakpad install.
+        run: |
+          cd $LibrariesPath
+          sudo cp -R breakpad-cache/. /
+          mkdir -p breakpad/out/Default/
+          cp breakpad-cache/dump_syms breakpad/out/Default/dump_syms
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
