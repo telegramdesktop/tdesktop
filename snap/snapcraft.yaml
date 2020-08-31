@@ -221,9 +221,8 @@ parts:
       - desktop-qt5
 
   webrtc:
-    source: https://github.com/ilya-fedin/tg_owt.git
+    source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-branch: improve-packaged-build
     plugin: cmake
     build-packages:
       - yasm
