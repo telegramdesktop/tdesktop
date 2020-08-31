@@ -102,7 +102,7 @@ QByteArray SerializeMessage(
 		const QString &internalLinksDomain) {
 	using namespace Data;
 
-	if (message.media.content.is<UnsupportedMedia>()) {
+	if (v::is<UnsupportedMedia>(message.media.content)) {
 		return "Error! This message is not supported "
 			"by this version of Telegram Desktop. "
 			"Please update the application.";
@@ -219,7 +219,7 @@ QByteArray SerializeMessage(
 		}
 	};
 
-	message.action.content.match([&](const ActionChatCreate &data) {
+	v::match(message.action.content, [&](const ActionChatCreate &data) {
 		pushActor();
 		pushAction("Create group");
 		push("Title", data.title);
@@ -340,7 +340,7 @@ QByteArray SerializeMessage(
 		pushAction("Request Phone Number");
 	}, [](v::null_t) {});
 
-	if (!message.action.content) {
+	if (v::is_null(message.action.content)) {
 		pushFrom();
 		push("Author", message.signature);
 		if (message.forwardedFromId) {
@@ -357,7 +357,7 @@ QByteArray SerializeMessage(
 		}
 	}
 
-	message.media.content.match([&](const Photo &photo) {
+	v::match(message.media.content, [&](const Photo &photo) {
 		pushPhoto(photo.image);
 		pushTTL();
 	}, [&](const Document &data) {

@@ -221,7 +221,7 @@ QByteArray SerializeMessage(
 		const QString &internalLinksDomain) {
 	using namespace Data;
 
-	if (message.media.content.is<UnsupportedMedia>()) {
+	if (v::is<UnsupportedMedia>(message.media.content)) {
 		return SerializeObject(context, {
 			{ "id", Data::NumberToString(message.id) },
 			{ "type", SerializeString("unsupported") }
@@ -254,7 +254,9 @@ QByteArray SerializeMessage(
 	{ "id", NumberToString(message.id) },
 	{
 		"type",
-		SerializeString(message.action.content ? "service" : "message")
+		SerializeString(!v::is_null(message.action.content)
+			? "service"
+			: "message")
 	},
 	{ "date", SerializeDate(message.date) },
 	};
@@ -357,7 +359,7 @@ QByteArray SerializeMessage(
 		}
 	};
 
-	message.action.content.match([&](const ActionChatCreate &data) {
+	v::match(message.action.content, [&](const ActionChatCreate &data) {
 		pushActor();
 		pushAction("create_group");
 		push("title", data.title);
@@ -473,7 +475,7 @@ QByteArray SerializeMessage(
 		pushAction("requested_phone_number");
 	}, [](v::null_t) {});
 
-	if (!message.action.content) {
+	if (v::is_null(message.action.content)) {
 		pushFrom();
 		push("author", message.signature);
 		if (message.forwardedFromId) {
@@ -498,7 +500,7 @@ QByteArray SerializeMessage(
 		}
 	}
 
-	message.media.content.match([&](const Photo &photo) {
+	v::match(message.media.content, [&](const Photo &photo) {
 		pushPhoto(photo.image);
 		pushTTL();
 	}, [&](const Document &data) {

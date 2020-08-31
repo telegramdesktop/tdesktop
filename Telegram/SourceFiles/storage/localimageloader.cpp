@@ -717,7 +717,7 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(Core::MimeTypeForFile(info).name());
 		}
 		filemime = _information->filemime;
-		if (auto image = base::get_if<FileMediaInformation::Image>(
+		if (auto image = std::get_if<FileMediaInformation::Image>(
 				&_information->media)) {
 			fullimage = base::take(image->data);
 			if (!Core::IsMimeSticker(filemime)) {
@@ -732,7 +732,7 @@ void FileLoadTask::process() {
 			filemime = "audio/ogg";
 		} else {
 			if (_information) {
-				if (auto image = base::get_if<FileMediaInformation::Image>(
+				if (auto image = std::get_if<FileMediaInformation::Image>(
 						&_information->media)) {
 					fullimage = base::take(image->data);
 				}
@@ -757,7 +757,7 @@ void FileLoadTask::process() {
 		}
 	} else {
 		if (_information) {
-			if (auto image = base::get_if<FileMediaInformation::Image>(
+			if (auto image = std::get_if<FileMediaInformation::Image>(
 					&_information->media)) {
 				fullimage = base::take(image->data);
 			}
@@ -807,13 +807,13 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(filemime);
 			filemime = _information->filemime;
 		}
-		if (auto song = base::get_if<FileMediaInformation::Song>(
+		if (auto song = std::get_if<FileMediaInformation::Song>(
 				&_information->media)) {
 			isSong = true;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
 			thumbnail = PrepareFileThumbnail(std::move(song->cover));
-		} else if (auto video = base::get_if<FileMediaInformation::Video>(
+		} else if (auto video = std::get_if<FileMediaInformation::Video>(
 				&_information->media)) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();

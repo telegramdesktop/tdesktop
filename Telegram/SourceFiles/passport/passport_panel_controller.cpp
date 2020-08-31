@@ -676,8 +676,8 @@ void PanelController::setupPassword() {
 
 	const auto &settings = _form->passwordSettings();
 	if (settings.unknownAlgo
-		|| !settings.newAlgo
-		|| !settings.newSecureAlgo) {
+		|| v::is_null(settings.newAlgo)
+		|| v::is_null(settings.newSecureAlgo)) {
 		showUpdateAppBox();
 		return;
 	} else if (settings.request) {

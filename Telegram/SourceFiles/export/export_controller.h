@@ -96,7 +96,8 @@ struct FinishedState {
 	int64 bytesCount = 0;
 };
 
-using State = base::optional_variant<
+using State = std::variant<
+	v::null_t,
 	PasswordCheckState,
 	ProcessingState,
 	ApiErrorState,

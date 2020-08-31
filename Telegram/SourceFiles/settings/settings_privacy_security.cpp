@@ -583,8 +583,8 @@ bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
 	Assert(current.has_value());
 
 	if (!current->unknownAlgorithm
-		&& current->newPassword
-		&& current->newSecureSecret) {
+		&& !v::is_null(current->newPassword)
+		&& !v::is_null(current->newSecureSecret)) {
 		return true;
 	}
 	return false;

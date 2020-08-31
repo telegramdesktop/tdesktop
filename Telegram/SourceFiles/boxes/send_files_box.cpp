@@ -766,11 +766,11 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	auto preview = QImage();
 	bool animated = false;
 	bool animationPreview = false;
-	if (const auto image = base::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<FileMediaInformation::Image>(
 			&file.information->media)) {
 		preview = image->data;
 		animated = animationPreview = image->animated;
-	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
 			&file.information->media)) {
 		preview = video->thumbnail;
 		animated = true;
@@ -1004,10 +1004,10 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 
 void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	auto preview = QImage();
-	if (const auto image = base::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<FileMediaInformation::Image>(
 		&file.information->media)) {
 		preview = image->data;
-	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
 		&file.information->media)) {
 		preview = video->thumbnail;
 	}
@@ -1034,7 +1034,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 		auto songTitle = QString();
 		auto songPerformer = QString();
 		if (file.information) {
-			if (const auto song = base::get_if<FileMediaInformation::Song>(
+			if (const auto song = std::get_if<FileMediaInformation::Song>(
 					&file.information->media)) {
 				songTitle = song->title;
 				songPerformer = song->performer;

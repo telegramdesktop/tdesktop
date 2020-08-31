@@ -866,7 +866,7 @@ void FormController::submitPassword(
 			const auto &settings = wrapped->c_secureSecretSettings();
 			const auto algo = Core::ParseSecureSecretAlgo(
 				settings.vsecure_algo());
-			if (!algo) {
+			if (v::is_null(algo)) {
 				_view->showUpdateAppBox();
 				return;
 			}
@@ -956,7 +956,7 @@ void FormController::checkSavedPasswordSettings(
 			const auto &settings = wrapped->c_secureSecretSettings();
 			const auto algo = Core::ParseSecureSecretAlgo(
 				settings.vsecure_algo());
-			if (!algo) {
+			if (v::is_null(algo)) {
 				_view->showUpdateAppBox();
 				return;
 			} else if (!settings.vsecure_secret().v.isEmpty()
@@ -2609,8 +2609,8 @@ void FormController::showForm() {
 		return;
 	}
 	if (_password.unknownAlgo
-		|| !_password.newAlgo
-		|| !_password.newSecureAlgo) {
+		|| v::is_null(_password.newAlgo)
+		|| v::is_null(_password.newSecureAlgo)) {
 		_view->showUpdateAppBox();
 		return;
 	} else if (_password.request) {

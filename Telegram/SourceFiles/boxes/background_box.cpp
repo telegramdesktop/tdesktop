@@ -103,7 +103,7 @@ private:
 			return !(*this == other);
 		}
 	};
-	using Selection = base::optional_variant<Selected, DeleteSelected>;
+	using Selection = std::variant<v::null_t, Selected, DeleteSelected>;
 
 	int getSelectionIndex(const Selection &selection) const;
 	void repaintPaper(int index);
@@ -358,16 +358,16 @@ void BackgroundBox::Inner::paintPaper(
 		p.drawPixmap(x, y, paper.thumbnail);
 	}
 
-	const auto over = _overDown ? _overDown : _over;
+	const auto over = !v::is_null(_overDown) ? _overDown : _over;
 	if (paper.data.id() == Window::Theme::Background()->id()) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
 		_check->paint(p, checkLeft, checkTop, width());
 	} else if (Data::IsCloudWallPaper(paper.data)
 		&& !Data::IsDefaultWallPaper(paper.data)
-		&& over.has_value()
+		&& !v::is_null(over)
 		&& (&paper == &_papers[getSelectionIndex(over)])) {
-		const auto deleteSelected = over.is<DeleteSelected>();
+		const auto deleteSelected = v::is<DeleteSelected>(over);
 		const auto deletePos = QPoint(x + st::backgroundSize.width() - st::stickerPanDeleteIconBg.width(), y);
 		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityBgOver : st::stickerPanDeleteOpacityBg);
 		st::stickerPanDeleteIconBg.paint(p, deletePos, width());
@@ -414,7 +414,7 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		repaintPaper(getSelectionIndex(_over));
 		_over = newOver;
 		repaintPaper(getSelectionIndex(_over));
-		setCursor((_over.has_value() || _overDown.has_value())
+		setCursor((!v::is_null(_over) || !v::is_null(_overDown))
 			? style::cur_pointer
 			: style::cur_default);
 	}
@@ -442,7 +442,7 @@ void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 int BackgroundBox::Inner::getSelectionIndex(
 		const Selection &selection) const {
-	return selection.match([](const Selected &data) {
+	return v::match(selection, [](const Selected &data) {
 		return data.index;
 	}, [](const DeleteSelected &data) {
 		return data.index;
@@ -452,12 +452,12 @@ int BackgroundBox::Inner::getSelectionIndex(
 }
 
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	if (base::take(_overDown) == _over && _over.has_value()) {
+	if (base::take(_overDown) == _over && !v::is_null(_over)) {
 		const auto index = getSelectionIndex(_over);
 		if (index >= 0 && index < _papers.size()) {
-			if (base::get_if<DeleteSelected>(&_over)) {
+			if (std::get_if<DeleteSelected>(&_over)) {
 				_backgroundRemove.fire_copy(_papers[index].data);
-			} else if (base::get_if<Selected>(&_over)) {
+			} else if (std::get_if<Selected>(&_over)) {
 				auto &paper = _papers[index];
 				if (!paper.dataMedia) {
 					if (const auto document = paper.data.document()) {
@@ -468,7 +468,7 @@ void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 				_backgroundChosen.fire_copy(paper.data);
 			}
 		}
-	} else if (!_over.has_value()) {
+	} else if (v::is_null(_over)) {
 		setCursor(style::cur_default);
 	}
 }

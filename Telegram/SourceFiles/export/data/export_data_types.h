@@ -309,7 +309,8 @@ struct UnsupportedMedia {
 };
 
 struct Media {
-	base::optional_variant<
+	std::variant<
+		v::null_t,
 		Photo,
 		Document,
 		SharedContact,
@@ -449,7 +450,8 @@ struct ActionPhoneNumberRequest {
 };
 
 struct ServiceAction {
-	base::optional_variant<
+	std::variant<
+		v::null_t,
 		ActionChatCreate,
 		ActionChatEditTitle,
 		ActionChatEditPhoto,

@@ -858,7 +858,7 @@ Peer EmptyPeer(PeerId peerId) {
 }
 
 File &Media::file() {
-	return content.match([](Photo &data) -> File& {
+	return v::match(content, [](Photo &data) -> File& {
 		return data.image.file;
 	}, [](Document &data) -> File& {
 		return data.file;
@@ -871,7 +871,7 @@ File &Media::file() {
 }
 
 const File &Media::file() const {
-	return content.match([](const Photo &data) -> const File& {
+	return v::match(content, [](const Photo &data) -> const File& {
 		return data.image.file;
 	}, [](const Document &data) -> const File& {
 		return data.file;
@@ -884,7 +884,7 @@ const File &Media::file() const {
 }
 
 Image &Media::thumb() {
-	return content.match([](Document &data) -> Image& {
+	return v::match(content, [](Document &data) -> Image& {
 		return data.thumb;
 	}, [](auto&) -> Image& {
 		static Image result;
@@ -893,7 +893,7 @@ Image &Media::thumb() {
 }
 
 const Image &Media::thumb() const {
-	return content.match([](const Document &data) -> const Image& {
+	return v::match(content, [](const Document &data) -> const Image& {
 		return data.thumb;
 	}, [](const auto &) -> const Image& {
 		static const Image result;
@@ -1104,7 +1104,7 @@ ServiceAction ParseServiceAction(
 
 File &Message::file() {
 	const auto service = &action.content;
-	if (const auto photo = base::get_if<ActionChatEditPhoto>(service)) {
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
 		return photo->photo.image.file;
 	}
 	return media.file();
@@ -1112,7 +1112,7 @@ File &Message::file() {
 
 const File &Message::file() const {
 	const auto service = &action.content;
-	if (const auto photo = base::get_if<ActionChatEditPhoto>(service)) {
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
 		return photo->photo.image.file;
 	}
 	return media.file();

@@ -80,7 +80,8 @@ public:
 		return _lifetime;
 	}
 
-	using Context = base::optional_variant<
+	using Context = std::variant<
+		v::null_t,
 		PeerId,
 		MessageGroupId,
 		FullMsgId>;

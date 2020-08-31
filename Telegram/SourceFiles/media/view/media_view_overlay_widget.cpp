@@ -1621,10 +1621,10 @@ Data::FileOrigin OverlayWidget::fileOrigin() const {
 Data::FileOrigin OverlayWidget::fileOrigin(const Entity &entity) const {
 	if (const auto item = entity.item) {
 		return item->fullId();
-	} else if (!entity.data.is<not_null<PhotoData*>>()) {
+	} else if (!v::is<not_null<PhotoData*>>(entity.data)) {
 		return Data::FileOrigin();
 	}
-	const auto photo = entity.data.get_unchecked<not_null<PhotoData*>>();
+	const auto photo = std::get<not_null<PhotoData*>>(entity.data);
 	if (_user) {
 		return Data::FileOriginUserPhoto(_user->bareId(), photo->id);
 	} else if (_peer && _peer->userpicPhotoId() == photo->id) {
@@ -3605,16 +3605,17 @@ OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
 }
 
 void OverlayWidget::setContext(
-	base::optional_variant<
+	std::variant<
+		v::null_t,
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context) {
-	if (const auto item = base::get_if<not_null<HistoryItem*>>(&context)) {
+	if (const auto item = std::get_if<not_null<HistoryItem*>>(&context)) {
 		_msgid = (*item)->fullId();
 		_canForwardItem = (*item)->allowsForward();
 		_canDeleteItem = (*item)->canDelete();
 		_history = (*item)->history();
 		_peer = _history->peer;
-	} else if (const auto peer = base::get_if<not_null<PeerData*>>(&context)) {
+	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_msgid = FullMsgId();
 		_canForwardItem = _canDeleteItem = false;
 		_history = (*peer)->owner().history(*peer);
@@ -3681,7 +3682,7 @@ bool OverlayWidget::moveToNext(int delta) {
 }
 
 bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
-	if (!entity.data && !entity.item) {
+	if (v::is_null(entity.data) && !entity.item) {
 		return false;
 	}
 	if (const auto item = entity.item) {
@@ -3693,9 +3694,9 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 	}
 	clearStreaming();
 	_streamingStartPaused = false;
-	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
+	if (auto photo = std::get_if<not_null<PhotoData*>>(&entity.data)) {
 		displayPhoto(*photo, entity.item);
-	} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
+	} else if (auto document = std::get_if<not_null<DocumentData*>>(&entity.data)) {
 		displayDocument(*document, entity.item);
 	} else {
 		displayDocument(nullptr, entity.item);
@@ -3716,11 +3717,11 @@ void OverlayWidget::preloadData(int delta) {
 	auto documents = base::flat_set<std::shared_ptr<Data::DocumentMedia>>();
 	for (auto index = from; index != till + 1; ++index) {
 		auto entity = entityByIndex(index);
-		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
+		if (auto photo = std::get_if<not_null<PhotoData*>>(&entity.data)) {
 			const auto [i, ok] = photos.emplace((*photo)->createMediaView());
 			(*i)->wanted(Data::PhotoSize::Small, fileOrigin(entity));
 			(*photo)->load(fileOrigin(entity), LoadFromCloudOrLocal, true);
-		} else if (auto document = base::get_if<not_null<DocumentData*>>(
+		} else if (auto document = std::get_if<not_null<DocumentData*>>(
 				&entity.data)) {
 			const auto [i, ok] = documents.emplace(
 				(*document)->createMediaView());

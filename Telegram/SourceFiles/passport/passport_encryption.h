@@ -25,7 +25,7 @@ struct DataError {
 	// QByteArray - bad existing scan with such file_hash
 	// QString - bad data field value with such key
 	// std::nullopt - additional scan required
-	base::optional_variant<QByteArray, QString> key;
+	std::variant<v::null_t, QByteArray, QString> key;
 	QString type; // personal_details, passport, etc.
 	QString text;
 

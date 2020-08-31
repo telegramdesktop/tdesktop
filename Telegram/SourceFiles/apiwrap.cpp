@@ -2750,7 +2750,7 @@ void ApiWrap::refreshFileReference(
 	const auto fail = [&] {
 		handler(UpdatedFileReferences());
 	};
-	origin.data.match([&](Data::FileOriginMessage data) {
+	v::match(origin.data, [&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
 			if (item->isScheduled()) {
 				const auto &scheduled = _session->data().scheduledMessages();

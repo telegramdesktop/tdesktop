@@ -39,7 +39,7 @@ using Key = GroupThumbs::Key;
 
 Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	return v::match(key, [&](PhotoId photoId) {
-		return context.match([&](PeerId peerId) {
+		return v::match(context, [&](PeerId peerId) {
 			return peerIsUser(peerId)
 				? Data::FileOriginUserPhoto(peerToUser(peerId), photoId)
 				: Data::FileOrigin(Data::FileOriginPeerPhoto(peerId));
@@ -49,7 +49,7 @@ Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	}, [](FullMsgId itemId) {
 		return Data::FileOrigin(itemId);
 	}, [&](GroupThumbs::CollageKey) {
-		return context.match([](const GroupThumbs::CollageSlice &slice) {
+		return v::match(context, [](const GroupThumbs::CollageSlice &slice) {
 			return Data::FileOrigin(slice.context);
 		}, [](auto&&) {
 			return Data::FileOrigin();
@@ -442,7 +442,7 @@ void GroupThumbs::RefreshFromSlice(
 	if (instance) {
 		instance->updateContext(context);
 	}
-	if (!context) {
+	if (v::is_null(context)) {
 		if (instance) {
 			instance->resizeToWidth(availableWidth);
 		}
@@ -579,7 +579,7 @@ auto GroupThumbs::createThumb(Key key)
 		}
 		return createThumb(key, nullptr);
 	} else if (const auto collageKey = std::get_if<CollageKey>(&key)) {
-		if (const auto itemId = base::get_if<FullMsgId>(&_context)) {
+		if (const auto itemId = std::get_if<FullMsgId>(&_context)) {
 			if (const auto item = _session->data().message(*itemId)) {
 				if (const auto media = item->media()) {
 					if (const auto page = media->webpage()) {

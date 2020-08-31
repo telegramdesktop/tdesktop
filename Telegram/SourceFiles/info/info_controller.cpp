@@ -47,7 +47,7 @@ PeerData *Key::peer() const {
 }
 
 //Data::Feed *Key::feed() const { // #feed
-//	if (const auto feed = base::get_if<not_null<Data::Feed*>>(&_value)) {
+//	if (const auto feed = std::get_if<not_null<Data::Feed*>>(&_value)) {
 //		return *feed;
 //	}
 //	return nullptr;

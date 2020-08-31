@@ -1655,8 +1655,8 @@ bool ApiWrap::processFileLoad(
 	}
 
 	using Type = MediaSettings::Type;
-	const auto type = message ? message->media.content.match(
-	[&](const Data::Document &data) {
+	const auto type = message ? v::match(message->media.content, [&](
+			const Data::Document &data) {
 		if (data.isSticker) {
 			return Type::Sticker;
 		} else if (data.isVideoMessage) {

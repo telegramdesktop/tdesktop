@@ -489,7 +489,7 @@ void EditCaptionBox::updateEditPreview() {
 	auto isGif = false;
 	auto shouldAsDoc = true;
 	auto docPhotoSize = QSize();
-	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
+	if (const auto image = std::get_if<Info::Image>(fileMedia)) {
 		shouldAsDoc = !Storage::ValidateThumbDimensions(
 			image->data.width(),
 			image->data.height());
@@ -501,14 +501,14 @@ void EditCaptionBox::updateEditPreview() {
 		_animated = isGif;
 		_photo = !isGif && !shouldAsDoc;
 		_isImage = true;
-	} else if (const auto video = base::get_if<Info::Video>(fileMedia)) {
+	} else if (const auto video = std::get_if<Info::Video>(fileMedia)) {
 		isGif = video->isGifv;
 		_animated = true;
 		shouldAsDoc = false;
 	}
 	if (shouldAsDoc) {
 		auto nameString = filename;
-		if (const auto song = base::get_if<Info::Song>(fileMedia)) {
+		if (const auto song = std::get_if<Info::Song>(fileMedia)) {
 			nameString = DocumentData::ComposeNameString(
 				filename,
 				song->title,
@@ -684,7 +684,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		const auto imageAsDoc = [&] {
 			using Info = FileMediaInformation;
 			const auto fileMedia = &file->information->media;
-			if (const auto image = base::get_if<Info::Image>(fileMedia)) {
+			if (const auto image = std::get_if<Info::Image>(fileMedia)) {
 				return !Storage::ValidateThumbDimensions(
 					image->data.width(),
 					image->data.height());

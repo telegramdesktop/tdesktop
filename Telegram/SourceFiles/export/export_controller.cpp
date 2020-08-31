@@ -161,13 +161,13 @@ rpl::producer<State> ControllerObject::state() const {
 	) | rpl::then(
 		_stateChanges.events()
 	) | rpl::filter([](const State &state) {
-		const auto password = base::get_if<PasswordCheckState>(&state);
+		const auto password = std::get_if<PasswordCheckState>(&state);
 		return !password || !password->requesting;
 	});
 }
 
 void ControllerObject::setState(State &&state) {
-	if (_state.is<CancelledState>()) {
+	if (v::is<CancelledState>(_state)) {
 		return;
 	}
 	_state = std::move(state);

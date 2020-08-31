@@ -258,7 +258,7 @@ struct FileMediaInformation {
 	};
 
 	QString filemime;
-	base::optional_variant<Image, Song, Video> media;
+	std::variant<v::null_t, Image, Song, Video> media;
 };
 
 class FileLoadTask final : public Task {

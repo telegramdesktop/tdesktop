@@ -144,7 +144,8 @@ private:
 	friend inline bool operator==(OverGroupAdd a, OverGroupAdd b) {
 		return true;
 	}
-	using OverState = base::optional_variant<
+	using OverState = std::variant<
+		v::null_t,
 		OverSticker,
 		OverSet,
 		OverButton,

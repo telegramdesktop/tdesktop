@@ -1509,8 +1509,10 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 	}
 
 	auto &sets = shownSets();
-	auto selectedSticker = base::get_if<OverSticker>(&_selected);
-	auto selectedButton = base::get_if<OverButton>(_pressed ? &_pressed : &_selected);
+	auto selectedSticker = std::get_if<OverSticker>(&_selected);
+	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
+		? &_pressed
+		: &_selected);
 
 	if (sets.empty() && _section == Section::Search) {
 		paintEmptySearchResults(p);
@@ -1625,7 +1627,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		if (clip.top() + clip.height() <= info.rowsTop) {
 			return true;
 		} else if (set.id == Data::Stickers::MegagroupSetId && set.stickers.empty()) {
-			auto buttonSelected = (base::get_if<OverGroupAdd>(&_selected) != nullptr);
+			auto buttonSelected = (std::get_if<OverGroupAdd>(&_selected) != nullptr);
 			paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
 			return true;
 		}
@@ -1971,20 +1973,20 @@ void StickersListWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void StickersListWidget::setPressed(OverState newPressed) {
-	if (auto button = base::get_if<OverButton>(&_pressed)) {
+	if (auto button = std::get_if<OverButton>(&_pressed)) {
 		auto &sets = shownSets();
 		Assert(button->section >= 0 && button->section < sets.size());
 		auto &set = sets[button->section];
 		if (set.ripple) {
 			set.ripple->lastStop();
 		}
-	} else if (base::get_if<OverGroupAdd>(&_pressed)) {
+	} else if (std::get_if<OverGroupAdd>(&_pressed)) {
 		if (_megagroupSetButtonRipple) {
 			_megagroupSetButtonRipple->lastStop();
 		}
 	}
 	_pressed = newPressed;
-	if (auto button = base::get_if<OverButton>(&_pressed)) {
+	if (auto button = std::get_if<OverButton>(&_pressed)) {
 		auto &sets = shownSets();
 		Assert(button->section >= 0 && button->section < sets.size());
 		auto &set = sets[button->section];
@@ -1992,7 +1994,7 @@ void StickersListWidget::setPressed(OverState newPressed) {
 			set.ripple = createButtonRipple(button->section);
 		}
 		set.ripple->add(mapFromGlobal(QCursor::pos()) - buttonRippleTopLeft(button->section));
-	} else if (base::get_if<OverGroupAdd>(&_pressed)) {
+	} else if (std::get_if<OverGroupAdd>(&_pressed)) {
 		if (!_megagroupSetButtonRipple) {
 			auto maskSize = _megagroupSetButtonRect.size();
 			auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::buttonRadius);
@@ -2059,10 +2061,10 @@ void StickersListWidget::fillContextMenu(
 		SendMenu::Type type) {
 	auto selected = _selected;
 	auto &sets = shownSets();
-	if (!selected || _pressed) {
+	if (v::is_null(selected) || !v::is_null(_pressed)) {
 		return;
 	}
-	if (auto sticker = base::get_if<OverSticker>(&selected)) {
+	if (auto sticker = std::get_if<OverSticker>(&selected)) {
 		Assert(sticker->section >= 0 && sticker->section < sets.size());
 		auto &set = sets[sticker->section];
 		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
@@ -2124,8 +2126,8 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 
 	auto &sets = shownSets();
-	if (pressed && pressed == _selected) {
-		if (auto sticker = base::get_if<OverSticker>(&pressed)) {
+	if (!v::is_null(pressed) && pressed == _selected) {
+		if (auto sticker = std::get_if<OverSticker>(&pressed)) {
 			Assert(sticker->section >= 0 && sticker->section < sets.size());
 			auto &set = sets[sticker->section];
 			Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
@@ -2145,10 +2147,10 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			} else {
 				_chosen.fire_copy({ .document = document });
 			}
-		} else if (auto set = base::get_if<OverSet>(&pressed)) {
+		} else if (auto set = std::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());
 			displaySet(sets[set->section].id);
-		} else if (auto button = base::get_if<OverButton>(&pressed)) {
+		} else if (auto button = std::get_if<OverButton>(&pressed)) {
 			Assert(button->section >= 0 && button->section < sets.size());
 			if (sets[button->section].externalLayout) {
 				installSet(sets[button->section].id);
@@ -2159,7 +2161,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			} else {
 				removeSet(sets[button->section].id);
 			}
-		} else if (base::get_if<OverGroupAdd>(&pressed)) {
+		} else if (std::get_if<OverGroupAdd>(&pressed)) {
 			Ui::show(Box<StickersBox>(controller(), _megagroupSet));
 		}
 	}
@@ -2750,7 +2752,7 @@ bool StickersListWidget::preventAutoHide() {
 }
 
 void StickersListWidget::updateSelected() {
-	if (_pressed && !_previewShown) {
+	if (!v::is_null(_pressed) && !_previewShown) {
 		return;
 	}
 
@@ -2827,13 +2829,15 @@ bool StickersListWidget::stickerHasDeleteButton(const Set &set, int index) const
 
 void StickersListWidget::setSelected(OverState newSelected) {
 	if (_selected != newSelected) {
-		setCursor(newSelected ? style::cur_pointer : style::cur_default);
+		setCursor(!v::is_null(newSelected)
+			? style::cur_pointer
+			: style::cur_default);
 
 		auto &sets = shownSets();
 		auto updateSelected = [&]() {
-			if (auto sticker = base::get_if<OverSticker>(&_selected)) {
+			if (auto sticker = std::get_if<OverSticker>(&_selected)) {
 				rtlupdate(stickerRect(sticker->section, sticker->index));
-			} else if (auto button = base::get_if<OverButton>(&_selected)) {
+			} else if (auto button = std::get_if<OverButton>(&_selected)) {
 				if (button->section >= 0
 					&& button->section < sets.size()
 					&& sets[button->section].externalLayout) {
@@ -2841,7 +2845,7 @@ void StickersListWidget::setSelected(OverState newSelected) {
 				} else {
 					rtlupdate(removeButtonRect(button->section));
 				}
-			} else if (base::get_if<OverGroupAdd>(&_selected)) {
+			} else if (std::get_if<OverGroupAdd>(&_selected)) {
 				rtlupdate(megagroupSetButtonRectFinal());
 			}
 		};
@@ -2850,7 +2854,7 @@ void StickersListWidget::setSelected(OverState newSelected) {
 		updateSelected();
 
 		if (_previewShown && _pressed != _selected) {
-			if (const auto sticker = base::get_if<OverSticker>(&_selected)) {
+			if (const auto sticker = std::get_if<OverSticker>(&_selected)) {
 				_pressed = _selected;
 				Assert(sticker->section >= 0 && sticker->section < sets.size());
 				const auto &set = sets[sticker->section];
@@ -2865,7 +2869,7 @@ void StickersListWidget::setSelected(OverState newSelected) {
 }
 
 void StickersListWidget::showPreview() {
-	if (const auto sticker = base::get_if<OverSticker>(&_pressed)) {
+	if (const auto sticker = std::get_if<OverSticker>(&_pressed)) {
 		const auto &sets = shownSets();
 		Assert(sticker->section >= 0 && sticker->section < sets.size());
 		const auto &set = sets[sticker->section];
