@@ -94,7 +94,6 @@ Go to ***BuildPath*** and run
     --disable-network \
     --disable-autodetect \
     --disable-everything \
-    --disable-neon \
     --disable-alsa \
     --disable-iconv \
     --enable-libopus \
