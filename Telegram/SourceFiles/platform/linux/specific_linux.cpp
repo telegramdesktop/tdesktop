@@ -1461,7 +1461,6 @@ void InstallMainDesktopFile() {
 }
 
 void RegisterCustomScheme(bool force) {
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	if (cExeName().isEmpty()) {
 		return;
 	}
@@ -1510,7 +1509,6 @@ void RegisterCustomScheme(bool force) {
 		LOG(("App Error: %1").arg(error->message));
 		g_error_free(error);
 	}
-#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
 PermissionStatus GetPermissionStatus(PermissionType type) {
