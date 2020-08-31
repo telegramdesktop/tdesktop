@@ -46,7 +46,7 @@ private:
 		not_null<PollData*> poll;
 		FullMsgId contextId;
 	};
-	base::variant<
+	std::variant<
 		not_null<PeerData*>,
 		//not_null<Data::Feed*>, // #feed
 		Settings::Tag,

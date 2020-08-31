@@ -446,7 +446,7 @@ int BackgroundBox::Inner::getSelectionIndex(
 		return data.index;
 	}, [](const DeleteSelected &data) {
 		return data.index;
-	}, [](std::nullopt_t) {
+	}, [](v::null_t) {
 		return -1;
 	});
 }

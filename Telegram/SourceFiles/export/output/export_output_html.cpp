@@ -1090,7 +1090,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " joined Telegram";
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
-	}, [](std::nullopt_t) { return QByteArray(); });
+	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
 		const auto &content = message.action.content;
@@ -1753,7 +1753,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 	}, [](const Poll &data) {
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 	return result;
 }
 

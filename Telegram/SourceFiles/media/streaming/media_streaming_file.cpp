@@ -228,7 +228,7 @@ void File::Context::seekToPosition(
 	return logFatal(qstr("av_seek_frame"), error);
 }
 
-base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
+std::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
 	auto error = FFmpeg::AvErrorWrap();
 
 	auto result = FFmpeg::Packet();
@@ -312,7 +312,7 @@ void File::Context::readNextPacket() {
 	auto result = readPacket();
 	if (unroll()) {
 		return;
-	} else if (const auto packet = base::get_if<FFmpeg::Packet>(&result)) {
+	} else if (const auto packet = std::get_if<FFmpeg::Packet>(&result)) {
 		const auto index = packet->fields().stream_index;
 		const auto i = _queuedPackets.find(index);
 		if (i == end(_queuedPackets)) {
@@ -325,8 +325,8 @@ void File::Context::readNextPacket() {
 		Assert(i->second.size() < kMaxQueuedPackets);
 	} else {
 		// Still trying to read by drain.
-		Assert(result.is<FFmpeg::AvErrorWrap>());
-		Assert(result.get<FFmpeg::AvErrorWrap>().code() == AVERROR_EOF);
+		Assert(v::is<FFmpeg::AvErrorWrap>(result));
+		Assert(std::get<FFmpeg::AvErrorWrap>(result).code() == AVERROR_EOF);
 		processQueuedPackets(SleepPolicy::Allowed);
 		if (!finished()) {
 			handleEndOfFile();

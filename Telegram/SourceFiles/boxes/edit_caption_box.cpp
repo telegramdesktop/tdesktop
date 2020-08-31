@@ -431,7 +431,7 @@ void EditCaptionBox::setupStreamedPreview(std::shared_ptr<Document> shared) {
 }
 
 void EditCaptionBox::handleStreamingUpdate(Update &&update) {
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {

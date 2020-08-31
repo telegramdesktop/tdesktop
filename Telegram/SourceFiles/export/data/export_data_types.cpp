@@ -786,10 +786,10 @@ Utf8String User::name() const {
 }
 
 const User *Peer::user() const {
-	return base::get_if<User>(&data);
+	return std::get_if<User>(&data);
 }
 const Chat *Peer::chat() const {
-	return base::get_if<Chat>(&data);
+	return std::get_if<Chat>(&data);
 }
 
 PeerId Peer::id() const {

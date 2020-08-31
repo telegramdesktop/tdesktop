@@ -60,9 +60,9 @@ class SharedMediaWithLastSlice {
 public:
 	using Type = Storage::SharedMediaType;
 
-	using Value = base::variant<FullMsgId, not_null<PhotoData*>>;
+	using Value = std::variant<FullMsgId, not_null<PhotoData*>>;
 	using MessageId = SparseIdsMergedSlice::UniversalMsgId;
-	using UniversalMsgId = base::variant<
+	using UniversalMsgId = std::variant<
 		MessageId,
 		not_null<PhotoData*>>;
 
@@ -76,8 +76,7 @@ public:
 		, migratedPeerId(migratedPeerId)
 		, type(type)
 		, universalId(universalId) {
-			Expects(base::get_if<MessageId>(&universalId) != nullptr
-				|| type == Type::ChatPhoto);
+			Expects(v::is<MessageId>(universalId) || type == Type::ChatPhoto);
 		}
 
 		bool operator==(const Key &other) const {
@@ -120,8 +119,8 @@ public:
 		return {
 			key.peerId,
 			key.migratedPeerId,
-			base::get_if<MessageId>(&key.universalId)
-				? (*base::get_if<MessageId>(&key.universalId))
+			v::is<MessageId>(key.universalId)
+				? std::get<MessageId>(key.universalId)
 				: ServerMaxMsgId - 1
 		};
 	}
@@ -135,7 +134,7 @@ public:
 
 private:
 	static std::optional<SparseIdsMergedSlice> EndingSlice(const Key &key) {
-		return base::get_if<MessageId>(&key.universalId)
+		return v::is<MessageId>(key.universalId)
 			? base::make_optional(SparseIdsMergedSlice(EndingKey(key)))
 			: std::nullopt;
 	}
@@ -161,12 +160,12 @@ private:
 			msgId);
 	}
 	static Value ComputeId(const Key &key) {
-		if (auto messageId = base::get_if<MessageId>(&key.universalId)) {
+		if (const auto messageId = std::get_if<MessageId>(&key.universalId)) {
 			return (*messageId >= 0)
 				? ComputeId(key.peerId, *messageId)
 				: ComputeId(key.migratedPeerId, ServerMaxMsgId + *messageId);
 		}
-		return *base::get_if<not_null<PhotoData*>>(&key.universalId);
+		return std::get<not_null<PhotoData*>>(key.universalId);
 	}
 
 	bool isolatedInSlice() const {

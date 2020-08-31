@@ -65,7 +65,7 @@ struct Failed {
 };
 
 using Loading = MTP::DedicatedLoader::Progress;
-using BlobState = base::variant<
+using BlobState = std::variant<
 	Available,
 	Ready,
 	Active,

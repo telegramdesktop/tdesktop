@@ -35,7 +35,7 @@ enum Status {
 	Started
 };
 // Open status or crash report dump.
-using StartResult = base::variant<Status, QByteArray>;
+using StartResult = std::variant<Status, QByteArray>;
 StartResult Start();
 Status Restart(); // can be only CantOpen or Started
 void Finish();

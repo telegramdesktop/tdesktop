@@ -148,7 +148,7 @@ inline bool operator<(PhotoFileLocationId a, PhotoFileLocationId b) {
 	return a.id < b.id;
 }
 
-using FileLocationId = base::variant<
+using FileLocationId = std::variant<
 	DocumentFileLocationId,
 	PhotoFileLocationId>;
 

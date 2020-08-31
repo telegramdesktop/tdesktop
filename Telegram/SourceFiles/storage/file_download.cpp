@@ -488,7 +488,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		bool autoLoading,
 		uint8 cacheTag) {
 	auto result = std::unique_ptr<FileLoader>();
-	location.data.match([&](const StorageFileLocation &data) {
+	v::match(location.data, [&](const StorageFileLocation &data) {
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,

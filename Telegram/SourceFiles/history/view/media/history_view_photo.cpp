@@ -704,7 +704,7 @@ void Photo::setStreamed(std::unique_ptr<Streamed> value) {
 void Photo::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 	using namespace ::Media::Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {

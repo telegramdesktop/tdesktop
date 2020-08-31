@@ -338,7 +338,7 @@ QByteArray SerializeMessage(
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("Request Phone Number");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
 	if (!message.action.content) {
 		pushFrom();
@@ -456,7 +456,7 @@ QByteArray SerializeMessage(
 		}
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
 	auto value = JoinList(QByteArray(), ranges::view::all(
 		message.text

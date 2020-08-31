@@ -239,7 +239,7 @@ void VideoTrackObject::readFrames() {
 			if (delay != kTimeUnknown) {
 				queueReadFrames(delay);
 			}
-		}, [](std::nullopt_t) {
+		}, [](v::null_t) {
 		});
 		if (result.has_value()) {
 			break;
@@ -258,12 +258,12 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 				return result;
 			} else if (!dropStaleFrames
 				|| !VideoTrack::IsStale(frame, trackTime)) {
-				return std::nullopt;
+				return v::null;
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
 		return delay;
-	}, [&](std::nullopt_t) -> ReadEnoughState {
+	}, [&](v::null_t) -> ReadEnoughState {
 		return FrameResult::Done;
 	});
 }

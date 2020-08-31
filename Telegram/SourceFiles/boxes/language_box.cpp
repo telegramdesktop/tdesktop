@@ -395,7 +395,7 @@ void Rows::mouseReleaseEvent(QMouseEvent *e) {
 			activateByIndex(data.index);
 		}, [&](MenuSelection data) {
 			showMenu(data.index);
-		}, [](std::nullopt_t) {});
+		}, [](v::null_t) {});
 	}
 }
 
@@ -601,7 +601,7 @@ int Rows::indexFromSelection(Selection selected) const {
 		return data.index;
 	}, [&](MenuSelection data) {
 		return data.index;
-	}, [](std::nullopt_t) {
+	}, [](v::null_t) {
 		return -1;
 	});
 }
@@ -648,7 +648,7 @@ rpl::producer<bool> Rows::isEmpty() const {
 }
 
 void Rows::repaint(Selection selected) {
-	selected.match([](std::nullopt_t) {
+	selected.match([](v::null_t) {
 	}, [&](const auto &data) {
 		repaint(data.index);
 	});

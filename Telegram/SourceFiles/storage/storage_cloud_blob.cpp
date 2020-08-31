@@ -69,7 +69,7 @@ bool UnpackBlob(
 }
 
 QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
-	return state.match([](const Available &data) {
+	return v::match(state, [](const Available &data) {
 		return tr::lng_emoji_set_download(
 			tr::now,
 			lt_size,

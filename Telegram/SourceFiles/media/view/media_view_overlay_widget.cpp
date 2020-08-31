@@ -1116,7 +1116,7 @@ void OverlayWidget::clearSession() {
 	clearStreaming();
 	delete _menu;
 	_menu = nullptr;
-	setContext(std::nullopt);
+	setContext(v::null);
 	_from = nullptr;
 	_fromName = QString();
 	assignMediaPointer(nullptr);
@@ -1589,7 +1589,7 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 			_history->peer->id,
 			_migrated ? _migrated->peer->id : 0,
 			SharedMediaType::ChatPhoto,
-			_peer->userpicPhotoId()
+			_photo
 		};
 	}
 	if (!IsServerMsgId(_msgid.msg)) {
@@ -1947,12 +1947,12 @@ void OverlayWidget::initGroupThumbs() {
 	_groupThumbs->activateRequests(
 	) | rpl::start_with_next([this](View::GroupThumbs::Key key) {
 		using CollageKey = View::GroupThumbs::CollageKey;
-		if (const auto photoId = base::get_if<PhotoId>(&key)) {
+		if (const auto photoId = std::get_if<PhotoId>(&key)) {
 			const auto photo = _session->data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
-		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
+		} else if (const auto itemId = std::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
-		} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
+		} else if (const auto collageKey = std::get_if<CollageKey>(&key)) {
 			if (_collageData) {
 				moveToEntity(entityForCollage(collageKey->index));
 			}
@@ -1990,7 +1990,7 @@ void OverlayWidget::showPhoto(
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(std::nullopt);
+		setContext(v::null);
 	}
 
 	clearControlsState();
@@ -2039,7 +2039,7 @@ void OverlayWidget::showDocument(
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(std::nullopt);
+		setContext(v::null);
 	}
 
 	clearControlsState();
@@ -2490,7 +2490,7 @@ QImage OverlayWidget::transformStaticContent(QPixmap content) const {
 void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
@@ -3535,29 +3535,29 @@ OverlayWidget::Entity OverlayWidget::entityForUserPhotos(int index) const {
 	Expects(_session != nullptr);
 
 	if (index < 0 || index >= _userPhotosData->size()) {
-		return { std::nullopt, nullptr };
+		return { v::null, nullptr };
 	}
 	const auto id = (*_userPhotosData)[index];
 	if (const auto photo = _session->data().photo(id)) {
 		return { photo, nullptr };
 	}
-	return { std::nullopt, nullptr };
+	return { v::null, nullptr };
 }
 
 OverlayWidget::Entity OverlayWidget::entityForSharedMedia(int index) const {
 	Expects(_sharedMediaData.has_value());
 
 	if (index < 0 || index >= _sharedMediaData->size()) {
-		return { std::nullopt, nullptr };
+		return { v::null, nullptr };
 	}
 	auto value = (*_sharedMediaData)[index];
-	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
+	if (const auto photo = std::get_if<not_null<PhotoData*>>(&value)) {
 		// Last peer photo.
 		return { *photo, nullptr };
-	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
+	} else if (const auto itemId = std::get_if<FullMsgId>(&value)) {
 		return entityForItemId(*itemId);
 	}
-	return { std::nullopt, nullptr };
+	return { v::null, nullptr };
 }
 
 OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
@@ -3567,14 +3567,14 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 	const auto item = _session->data().message(_msgid);
 	const auto &items = _collageData->items;
 	if (!item || index < 0 || index >= items.size()) {
-		return { std::nullopt, nullptr };
+		return { v::null, nullptr };
 	}
-	if (const auto document = base::get_if<DocumentData*>(&items[index])) {
+	if (const auto document = std::get_if<DocumentData*>(&items[index])) {
 		return { *document, item };
-	} else if (const auto photo = base::get_if<PhotoData*>(&items[index])) {
+	} else if (const auto photo = std::get_if<PhotoData*>(&items[index])) {
 		return { *photo, item };
 	}
-	return { std::nullopt, nullptr };
+	return { v::null, nullptr };
 }
 
 OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) const {
@@ -3588,9 +3588,9 @@ OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) co
 				return { document, item };
 			}
 		}
-		return { std::nullopt, item };
+		return { v::null, item };
 	}
-	return { std::nullopt, nullptr };
+	return { v::null, nullptr };
 }
 
 OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
@@ -3601,7 +3601,7 @@ OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
 	} else if (_collageData) {
 		return entityForCollage(index);
 	}
-	return { std::nullopt, nullptr };
+	return { v::null, nullptr };
 }
 
 void OverlayWidget::setContext(
@@ -3689,7 +3689,7 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 	} else if (_peer) {
 		setContext(_peer);
 	} else {
-		setContext(std::nullopt);
+		setContext(v::null);
 	}
 	clearStreaming();
 	_streamingStartPaused = false;

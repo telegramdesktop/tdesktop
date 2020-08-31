@@ -240,7 +240,7 @@ struct Peer {
 	const User *user() const;
 	const Chat *chat() const;
 
-	base::variant<User, Chat> data;
+	std::variant<User, Chat> data;
 
 };
 

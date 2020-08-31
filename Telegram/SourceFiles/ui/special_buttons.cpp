@@ -865,7 +865,7 @@ void UserpicButton::clearStreaming() {
 void UserpicButton::handleStreamingUpdate(Media::Streaming::Update &&update) {
 	using namespace Media::Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {

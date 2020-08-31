@@ -40,7 +40,7 @@ Key::Key(not_null<PollData*> poll, FullMsgId contextId)
 }
 
 PeerData *Key::peer() const {
-	if (const auto peer = base::get_if<not_null<PeerData*>>(&_value)) {
+	if (const auto peer = std::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
 	}
 	return nullptr;
@@ -54,21 +54,21 @@ PeerData *Key::peer() const {
 //}
 
 UserData *Key::settingsSelf() const {
-	if (const auto tag = base::get_if<Settings::Tag>(&_value)) {
+	if (const auto tag = std::get_if<Settings::Tag>(&_value)) {
 		return tag->self;
 	}
 	return nullptr;
 }
 
 PollData *Key::poll() const {
-	if (const auto data = base::get_if<PollKey>(&_value)) {
+	if (const auto data = std::get_if<PollKey>(&_value)) {
 		return data->poll;
 	}
 	return nullptr;
 }
 
 FullMsgId Key::pollContextId() const {
-	if (const auto data = base::get_if<PollKey>(&_value)) {
+	if (const auto data = std::get_if<PollKey>(&_value)) {
 		return data->contextId;
 	}
 	return FullMsgId();

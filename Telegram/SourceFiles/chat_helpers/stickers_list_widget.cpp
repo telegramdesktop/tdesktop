@@ -143,7 +143,7 @@ private:
 		Search,
 		Settings,
 	};
-	using OverState = base::variant<SpecialOver, int>;
+	using OverState = std::variant<SpecialOver, int>;
 
 	template <typename Callback>
 	void enumerateVisibleIcons(Callback callback);
@@ -548,7 +548,7 @@ void StickersListWidget::Footer::mouseMoveEvent(QMouseEvent *e) {
 
 	if (!_iconsDragging
 		&& !_icons.empty()
-		&& base::get_if<int>(&_iconDown) != nullptr) {
+		&& v::is<int>(_iconDown)) {
 		if ((_iconsMousePos - _iconsMouseDown).manhattanLength() >= QApplication::startDragDistance()) {
 			_iconsDragging = true;
 		}
@@ -579,7 +579,7 @@ void StickersListWidget::Footer::mouseReleaseEvent(QMouseEvent *e) {
 
 	updateSelected();
 	if (wasDown == _iconOver) {
-		if (const auto index = base::get_if<int>(&_iconOver)) {
+		if (const auto index = std::get_if<int>(&_iconOver)) {
 			_iconSelX = anim::value(
 				*index * st::stickerIconWidth,
 				*index * st::stickerIconWidth);
@@ -604,7 +604,7 @@ bool StickersListWidget::Footer::eventHook(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin) {
 	} else if (e->type() == QEvent::Wheel) {
 		if (!_icons.empty()
-			&& (base::get_if<int>(&_iconOver) != nullptr)
+			&& v::is<int>(_iconOver)
 			&& (_iconDown == SpecialOver::None)) {
 			scrollByWheelEvent(static_cast<QWheelEvent*>(e));
 		}
@@ -635,7 +635,7 @@ void StickersListWidget::Footer::scrollByWheelEvent(
 }
 
 void StickersListWidget::Footer::updateSelected() {
-	if (_iconDown >= 0) {
+	if (_iconDown != SpecialOver::None) {
 		return;
 	}
 
@@ -2109,7 +2109,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.cancel();
 
 	auto pressed = _pressed;
-	setPressed(std::nullopt);
+	setPressed(v::null);
 	if (pressed != _selected) {
 		update();
 	}
@@ -2271,8 +2271,8 @@ void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 }
 
 void StickersListWidget::clearSelection() {
-	setPressed(std::nullopt);
-	setSelected(std::nullopt);
+	setPressed(v::null);
+	setSelected(v::null);
 	update();
 }
 
@@ -2754,7 +2754,7 @@ void StickersListWidget::updateSelected() {
 		return;
 	}
 
-	auto newSelected = OverState { std::nullopt };
+	auto newSelected = OverState { v::null };
 	auto p = mapFromGlobal(_lastMousePosition);
 	if (!rect().contains(p)
 		|| p.y() < getVisibleTop() || p.y() >= getVisibleBottom()

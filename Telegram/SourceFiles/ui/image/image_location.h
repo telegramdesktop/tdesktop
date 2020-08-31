@@ -446,7 +446,7 @@ inline bool operator>=(
 
 class DownloadLocation {
 public:
-	base::variant<
+	std::variant<
 		StorageFileLocation,
 		WebFileLocation,
 		GeoPointLocation,

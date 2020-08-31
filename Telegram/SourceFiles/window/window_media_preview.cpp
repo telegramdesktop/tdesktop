@@ -248,7 +248,7 @@ void MediaPreviewWidget::setupLottie() {
 
 	_lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
-		update.data.match([&](const Lottie::Information &) {
+		v::match(update.data, [&](const Lottie::Information &) {
 			this->update();
 		}, [&](const Lottie::DisplayFrameRequest &) {
 			this->update(updateArea());

@@ -37,7 +37,7 @@ public:
 
 		int size() const;
 	};
-	using Key = base::variant<PhotoId, FullMsgId, CollageKey>;
+	using Key = std::variant<PhotoId, FullMsgId, CollageKey>;
 
 	static void Refresh(
 		not_null<Main::Session*> session,

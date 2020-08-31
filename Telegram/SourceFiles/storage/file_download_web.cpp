@@ -44,7 +44,7 @@ struct Progress {
 	qint64 total = 0;
 };
 
-using Update = base::variant<Progress, QByteArray, Error>;
+using Update = std::variant<Progress, QByteArray, Error>;
 
 struct UpdateForLoader {
 	not_null<webFileLoader*> loader;
@@ -473,9 +473,9 @@ void webFileLoader::startLoading() {
 		_manager->updates(
 			this
 		) | rpl::start_with_next([=](const Update &data) {
-			if (const auto progress = base::get_if<Progress>(&data)) {
+			if (const auto progress = std::get_if<Progress>(&data)) {
 				loadProgress(progress->ready, progress->total);
-			} else if (const auto bytes = base::get_if<QByteArray>(&data)) {
+			} else if (const auto bytes = std::get_if<QByteArray>(&data)) {
 				loadFinished(*bytes);
 			} else {
 				loadFailed();

@@ -179,7 +179,7 @@ void mtpFileLoader::cancelHook() {
 }
 
 Storage::Cache::Key mtpFileLoader::cacheKey() const {
-	return location().data.match([&](const WebFileLocation &location) {
+	return v::match(location().data, [&](const WebFileLocation &location) {
 		return Data::WebDocumentCacheKey(location);
 	}, [&](const GeoPointLocation &location) {
 		return Data::GeoPointCacheKey(location);

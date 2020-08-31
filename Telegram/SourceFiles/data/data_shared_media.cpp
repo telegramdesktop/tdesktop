@@ -231,11 +231,11 @@ std::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
 }
 
 std::optional<int> SharedMediaWithLastSlice::indexOfImpl(Value value) const {
-	return base::get_if<FullMsgId>(&value)
-		? _slice.indexOf(*base::get_if<FullMsgId>(&value))
+	return std::get_if<FullMsgId>(&value)
+		? _slice.indexOf(*std::get_if<FullMsgId>(&value))
 		: (isolatedInSlice()
 			|| !_lastPhotoId
-			|| (*base::get_if<not_null<PhotoData*>>(&value))->id != *_lastPhotoId)
+			|| (*std::get_if<not_null<PhotoData*>>(&value))->id != *_lastPhotoId)
 			? std::nullopt
 			: Add(_slice.size() - 1, lastPhotoSkip());
 }
@@ -267,14 +267,14 @@ std::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
 		info.push_back((_ending && _ending->skippedAfter())
 			? QString::number(*_ending->skippedAfter())
 			: QString("-"));
-		if (const auto msgId = base::get_if<FullMsgId>(&value)) {
+		if (const auto msgId = std::get_if<FullMsgId>(&value)) {
 			info.push_back("value:" + QString::number(msgId->channel));
 			info.push_back(QString::number(msgId->msg));
-			const auto index = _slice.indexOf(*base::get_if<FullMsgId>(&value));
+			const auto index = _slice.indexOf(*std::get_if<FullMsgId>(&value));
 			info.push_back("index:" + (index
 				? QString::number(*index)
 				: QString("-")));
-		} else if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
+		} else if (const auto photo = std::get_if<not_null<PhotoData*>>(&value)) {
 			info.push_back("value:" + QString::number((*photo)->id));
 		} else {
 			info.push_back("value:bad");
@@ -373,7 +373,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 		int limitBefore,
 		int limitAfter) {
 	return [=](auto consumer) {
-		if (base::get_if<not_null<PhotoData*>>(&key.universalId)) {
+		if (std::get_if<not_null<PhotoData*>>(&key.universalId)) {
 			return SharedMediaMergedViewer(
 				session,
 				SharedMediaMergedKey(

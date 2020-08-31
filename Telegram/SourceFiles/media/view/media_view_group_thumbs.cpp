@@ -38,7 +38,7 @@ using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
 
 Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
-	return key.match([&](PhotoId photoId) {
+	return v::match(key, [&](PhotoId photoId) {
 		return context.match([&](PeerId peerId) {
 			return peerIsUser(peerId)
 				? Data::FileOriginUserPhoto(peerToUser(peerId), photoId)
@@ -64,12 +64,12 @@ Context ComputeContext(
 	Expects(index >= 0 && index < slice.size());
 
 	const auto value = slice[index];
-	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
+	if (const auto photo = std::get_if<not_null<PhotoData*>>(&value)) {
 		if (const auto peer = (*photo)->peer) {
 			return peer->id;
 		}
-		return std::nullopt;
-	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
+		return v::null;
+	} else if (const auto msgId = std::get_if<FullMsgId>(&value)) {
 		if (const auto item = session->data().message(*msgId)) {
 			if (!item->toHistoryMessage()) {
 				return item->history()->peer->id;
@@ -77,7 +77,7 @@ Context ComputeContext(
 				return groupId;
 			}
 		}
-		return std::nullopt;
+		return v::null;
 	}
 	Unexpected("Variant in ComputeContext(SharedMediaWithLastSlice::Value)");
 }
@@ -100,9 +100,9 @@ Key ComputeKey(const SharedMediaWithLastSlice &slice, int index) {
 	Expects(index >= 0 && index < slice.size());
 
 	const auto value = slice[index];
-	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
+	if (const auto photo = std::get_if<not_null<PhotoData*>>(&value)) {
 		return (*photo)->id;
-	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
+	} else if (const auto msgId = std::get_if<FullMsgId>(&value)) {
 		return *msgId;
 	}
 	Unexpected("Variant in ComputeKey(SharedMediaWithLastSlice::Value)");
@@ -564,10 +564,10 @@ void GroupThumbs::animatePreviouslyAlive(
 
 auto GroupThumbs::createThumb(Key key)
 -> std::unique_ptr<Thumb> {
-	if (const auto photoId = base::get_if<PhotoId>(&key)) {
+	if (const auto photoId = std::get_if<PhotoId>(&key)) {
 		const auto photo = _session->data().photo(*photoId);
 		return createThumb(key, photo);
-	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
+	} else if (const auto msgId = std::get_if<FullMsgId>(&key)) {
 		if (const auto item = _session->data().message(*msgId)) {
 			if (const auto media = item->media()) {
 				if (const auto photo = media->photo()) {
@@ -578,7 +578,7 @@ auto GroupThumbs::createThumb(Key key)
 			}
 		}
 		return createThumb(key, nullptr);
-	} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
+	} else if (const auto collageKey = std::get_if<CollageKey>(&key)) {
 		if (const auto itemId = base::get_if<FullMsgId>(&_context)) {
 			if (const auto item = _session->data().message(*itemId)) {
 				if (const auto media = item->media()) {
@@ -605,9 +605,9 @@ auto GroupThumbs::createThumb(
 		return createThumb(key, nullptr);
 	}
 	const auto &item = collage.items[index];
-	if (const auto photo = base::get_if<PhotoData*>(&item)) {
+	if (const auto photo = std::get_if<PhotoData*>(&item)) {
 		return createThumb(key, (*photo));
-	} else if (const auto document = base::get_if<DocumentData*>(&item)) {
+	} else if (const auto document = std::get_if<DocumentData*>(&item)) {
 		return createThumb(key, (*document));
 	}
 	return createThumb(key, nullptr);

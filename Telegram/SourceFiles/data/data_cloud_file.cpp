@@ -54,7 +54,7 @@ void CloudImage::set(
 		_file.flags = CloudFile::Flag();
 		_view = std::weak_ptr<CloudImageView>();
 	} else if (was != now
-		&& (!was.is<InMemoryLocation>() || now.is<InMemoryLocation>())) {
+		&& (!v::is<InMemoryLocation>(was) || v::is<InMemoryLocation>(now))) {
 		_file.location = ImageLocation();
 		_view = std::weak_ptr<CloudImageView>();
 	}
@@ -176,8 +176,8 @@ void UpdateCloudFile(
 	}
 	auto cacheBytes = !data.bytes.isEmpty()
 		? data.bytes
-		: file.location.file().data.is<InMemoryLocation>()
-		? file.location.file().data.get_unchecked<InMemoryLocation>().bytes
+		: v::is<InMemoryLocation>(file.location.file().data)
+		? std::get<InMemoryLocation>(file.location.file().data).bytes
 		: QByteArray();
 	if (!cacheBytes.isEmpty()) {
 		if (const auto cacheKey = data.location.file().cacheKey()) {

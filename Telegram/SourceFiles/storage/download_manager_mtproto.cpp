@@ -442,7 +442,7 @@ Data::FileOrigin DownloadMtprotoTask::fileOrigin() const {
 }
 
 uint64 DownloadMtprotoTask::objectId() const {
-	if (const auto v = base::get_if<StorageFileLocation>(&_location.data)) {
+	if (const auto v = std::get_if<StorageFileLocation>(&_location.data)) {
 		return v->objectId();
 	}
 	return 0;
@@ -456,7 +456,7 @@ void DownloadMtprotoTask::refreshFileReferenceFrom(
 		const Data::UpdatedFileReferences &updates,
 		int requestId,
 		const QByteArray &current) {
-	if (const auto v = base::get_if<StorageFileLocation>(&_location.data)) {
+	if (const auto v = std::get_if<StorageFileLocation>(&_location.data)) {
 		v->refreshFileReference(updates);
 		if (v->fileReference() == current) {
 			cancelOnFail();
@@ -525,7 +525,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 			cdnPartFailed(error, id);
 		}).toDC(shiftedDcId).send();
 	}
-	return _location.data.match([&](const WebFileLocation &location) {
+	return v::match(_location.data, [&](const WebFileLocation &location) {
 		return api().request(MTPupload_GetWebFile(
 			MTP_inputWebFileLocation(
 				MTP_bytes(location.url()),

@@ -471,7 +471,7 @@ QByteArray SerializeMessage(
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("requested_phone_number");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
 	if (!message.action.content) {
 		pushFrom();
@@ -612,7 +612,7 @@ QByteArray SerializeMessage(
 		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
 	pushBare("text", SerializeText(context, message.text));
 

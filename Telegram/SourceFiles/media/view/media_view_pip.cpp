@@ -1326,7 +1326,7 @@ void Pip::paintPlaybackTexts(QPainter &p) const {
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		_panel.setAspectRatio(
 			FlipSizeByRotation(update.video.size, _rotation));
 	}, [&](const PreloadedVideo &update) {

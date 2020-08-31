@@ -445,10 +445,10 @@ auto PhotoData::createStreamingLoader(
 			return Media::Streaming::MakeBytesLoader(media->videoContent());
 		}
 	}
-	return videoLocation().file().data.is<StorageFileLocation>()
+	return v::is<StorageFileLocation>(videoLocation().file().data)
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().downloader(),
-			videoLocation().file().data.get_unchecked<StorageFileLocation>(),
+			std::get<StorageFileLocation>(videoLocation().file().data),
 			videoByteSize(),
 			origin)
 		: nullptr;

@@ -621,7 +621,7 @@ InMemoryKey inMemoryKey(const InMemoryLocation &location) {
 }
 
 InMemoryKey inMemoryKey(const DownloadLocation &location) {
-	return location.data.match([](const auto &data) {
+	return v::match(location.data, [](const auto &data) {
 		return inMemoryKey(data);
 	});
 }
@@ -681,8 +681,8 @@ std::optional<StorageImageLocation> StorageImageLocation::FromSerialized(
 }
 
 QByteArray DownloadLocation::serialize() const {
-	if (!valid() || data.is<StorageFileLocation>()) {
-		return data.get_unchecked<StorageFileLocation>().serialize();
+	if (!valid() || v::is<StorageFileLocation>(data)) {
+		return std::get<StorageFileLocation>(data).serialize();
 	}
 	auto result = QByteArray();
 	auto buffer = QBuffer(&result);
@@ -691,7 +691,7 @@ QByteArray DownloadLocation::serialize() const {
 	stream.setVersion(QDataStream::Qt_5_1);
 	stream << quint16(0) << kNonStorageLocationToken;
 
-	data.match([&](const StorageFileLocation &data) {
+	v::match(data, [&](const StorageFileLocation &data) {
 		Unexpected("Variant in DownloadLocation::serialize.");
 	}, [&](const WebFileLocation &data) {
 		stream
@@ -718,11 +718,11 @@ QByteArray DownloadLocation::serialize() const {
 }
 
 int DownloadLocation::serializeSize() const {
-	if (!valid() || data.is<StorageFileLocation>()) {
-		return data.get_unchecked<StorageFileLocation>().serializeSize();
+	if (!valid() || v::is<StorageFileLocation>(data)) {
+		return std::get<StorageFileLocation>(data).serializeSize();
 	}
 	auto result = sizeof(quint16) + sizeof(quint8) + sizeof(quint8);
-	data.match([&](const StorageFileLocation &data) {
+	v::match(data, [&](const StorageFileLocation &data) {
 		Unexpected("Variant in DownloadLocation::serializeSize.");
 	}, [&](const WebFileLocation &data) {
 		result += Serialize::bytearraySize(data.url()) + sizeof(quint64);
@@ -809,15 +809,15 @@ DownloadLocation DownloadLocation::convertToModern(
 		StorageFileLocation::Type type,
 		uint64 id,
 		uint64 accessHash) const {
-	if (!data.is<StorageFileLocation>()) {
+	if (!v::is<StorageFileLocation>(data)) {
 		return *this;
 	}
-	auto &file = data.get_unchecked<StorageFileLocation>();
+	auto &file = std::get<StorageFileLocation>(data);
 	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
 }
 
 Storage::Cache::Key DownloadLocation::cacheKey() const {
-	return data.match([](const GeoPointLocation &data) {
+	return v::match(data, [](const GeoPointLocation &data) {
 		return Data::GeoPointCacheKey(data);
 	}, [](const StorageFileLocation &data) {
 		return data.valid()
@@ -837,13 +837,13 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 }
 
 Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
-	return data.is<StorageFileLocation>()
-		? data.get_unchecked<StorageFileLocation>().bigFileBaseCacheKey()
+	return v::is<StorageFileLocation>(data)
+		? std::get<StorageFileLocation>(data).bigFileBaseCacheKey()
 		: Storage::Cache::Key();
 }
 
 bool DownloadLocation::valid() const {
-	return data.match([](const GeoPointLocation &data) {
+	return v::match(data, [](const GeoPointLocation &data) {
 		return true;
 	}, [](const StorageFileLocation &data) {
 		return data.valid();
@@ -857,32 +857,32 @@ bool DownloadLocation::valid() const {
 }
 
 bool DownloadLocation::isLegacy() const {
-	return data.is<StorageFileLocation>()
-		? data.get_unchecked<StorageFileLocation>().isLegacy()
+	return v::is<StorageFileLocation>(data)
+		? std::get<StorageFileLocation>(data).isLegacy()
 		: false;
 }
 
 QByteArray DownloadLocation::fileReference() const {
-	if (!data.is<StorageFileLocation>()) {
+	if (!v::is<StorageFileLocation>(data)) {
 		return QByteArray();
 	}
-	return data.get_unchecked<StorageFileLocation>().fileReference();
+	return std::get<StorageFileLocation>(data).fileReference();
 }
 
 bool DownloadLocation::refreshFileReference(const QByteArray &data) {
-	if (!this->data.is<StorageFileLocation>()) {
+	if (!v::is<StorageFileLocation>(this->data)) {
 		return false;
 	}
-	auto &file = this->data.get_unchecked<StorageFileLocation>();
+	auto &file = std::get<StorageFileLocation>(this->data);
 	return file.refreshFileReference(data);
 }
 
 bool DownloadLocation::refreshFileReference(
 	const Data::UpdatedFileReferences &updates) {
-	if (!data.is<StorageFileLocation>()) {
+	if (!v::is<StorageFileLocation>(data)) {
 		return false;
 	}
-	auto &file = data.get_unchecked<StorageFileLocation>();
+	auto &file = std::get<StorageFileLocation>(data);
 	return file.refreshFileReference(updates);
 }
 

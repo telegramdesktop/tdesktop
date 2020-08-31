@@ -2684,14 +2684,14 @@ void ApiWrap::requestFileReference(
 			// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87122
 			const auto &origin = p.first;
 			const auto &reference = p.second;
-			const auto documentId = base::get_if<DocumentFileLocationId>(
+			const auto documentId = std::get_if<DocumentFileLocationId>(
 				&origin);
 			if (documentId) {
 				_session->data().document(
 					documentId->id
 				)->refreshFileReference(reference);
 			}
-			const auto photoId = base::get_if<PhotoFileLocationId>(&origin);
+			const auto photoId = std::get_if<PhotoFileLocationId>(&origin);
 			if (photoId) {
 				_session->data().photo(
 					photoId->id
@@ -2826,7 +2826,7 @@ void ApiWrap::refreshFileReference(
 				MTP_long(data.themeId),
 				MTP_long(data.accessHash)),
 			MTP_long(0)));
-	}, [&](std::nullopt_t) {
+	}, [&](v::null_t) {
 		fail();
 	});
 }

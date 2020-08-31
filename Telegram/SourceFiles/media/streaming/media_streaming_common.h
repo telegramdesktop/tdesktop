@@ -96,7 +96,7 @@ struct Finished {
 };
 
 struct Update {
-	base::variant<
+	std::variant<
 		Information,
 		PreloadedVideo,
 		UpdateVideo,

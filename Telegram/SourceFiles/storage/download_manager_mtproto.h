@@ -120,7 +120,7 @@ private:
 class DownloadMtprotoTask : public base::has_weak_ptr {
 public:
 	struct Location {
-		base::variant<
+		std::variant<
 			StorageFileLocation,
 			WebFileLocation,
 			GeoPointLocation> data;
