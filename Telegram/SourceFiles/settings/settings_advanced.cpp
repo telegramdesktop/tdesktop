@@ -43,20 +43,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-bool HasConnectionType() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	return true;
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
-	return false;
-}
-
 void SetupConnectionType(
 		not_null<Main::Account*> account,
 		not_null<Ui::VerticalLayout*> container) {
-	if (!HasConnectionType()) {
-		return;
-	}
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [=] {
 		const auto transport = account->mtp().dctransport();
 		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
@@ -81,7 +70,6 @@ void SetupConnectionType(
 	button->addClickHandler([=] {
 		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 bool HasUpdate() {
@@ -571,13 +559,11 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (!cAutoUpdate()) {
 		addUpdate();
 	}
-	if (HasConnectionType()) {
-		addDivider();
-		AddSkip(content);
-		AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-		SetupConnectionType(&controller->session().account(), content);
-		AddSkip(content);
-	}
+	addDivider();
+	AddSkip(content);
+	AddSubsectionTitle(content, tr::lng_settings_network_proxy());
+	SetupConnectionType(&controller->session().account(), content);
+	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
 	SetupSystemIntegration(content, [=](Type type) {

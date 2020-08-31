@@ -446,7 +446,6 @@ void Sandbox::checkForQuit() {
 }
 
 void Sandbox::refreshGlobalProxy() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = !Global::started()
 		? _sandboxProxy
 		: (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
@@ -462,7 +461,6 @@ void Sandbox::refreshGlobalProxy() {
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 uint64 Sandbox::installationTag() const {

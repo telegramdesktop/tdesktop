@@ -509,7 +509,6 @@ void RegisterCustomScheme(bool force) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	DEBUG_LOG(("App Info: Checking custom scheme 'tg'..."));
 
 	HKEY rkey;
@@ -547,7 +546,6 @@ void RegisterCustomScheme(bool force) {
 
 	if (!_psOpenRegKey(L"Software\\RegisteredApplications", &rkey)) return;
 	if (!_psSetKeyValue(rkey, L"Telegram Desktop", qsl("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
-#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
 PermissionStatus GetPermissionStatus(PermissionType type) {
