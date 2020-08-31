@@ -128,13 +128,6 @@ parts:
       - qtwayland
       - webrtc
 
-  telegram-patches:
-    source: Telegram/Patches
-    plugin: dump
-    organize:
-      "*": telegram_patches/
-    prime: [-./*]
-
   desktop-qt5:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
     source-subdir: qt
@@ -171,151 +164,20 @@ parts:
     stage-packages:
       - ibus
 
-  dav1d:
-    source: https://github.com/videolan/dav1d.git
-    source-depth: 1
-    source-tag: 0.6.0
-    plugin: meson
-    build-packages:
-      - nasm
-    meson-parameters:
-      - --prefix=/usr
-      - --libdir=lib
-      - -Denable_tools=false
-      - -Denable_tests=false
-    prime:
-      - -./usr/include
-      - -./usr/lib/pkgconfig
-
   ffmpeg:
-    source: https://github.com/FFmpeg/FFmpeg.git
-    source-depth: 1
-    source-branch: release/4.2
-    plugin: autotools
+    plugin: nil
     build-packages:
-      - nasm
-      - libopus-dev
-      - libva-dev
-      - libvdpau-dev
+      - libavcodec-dev
+      - libavformat-dev
+      - libavutil-dev
+      - libswresample-dev
+      - libswscale-dev
     stage-packages:
-      - libopus0
-      - libva2
-      - libva-drm2
-      - libvdpau1
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --disable-static
-      - --disable-debug
-      - --disable-programs
-      - --disable-doc
-      - --disable-network
-      - --disable-autodetect
-      - --disable-everything
-      - --disable-neon
-      - --disable-alsa
-      - --disable-iconv
-      - --enable-shared
-      - --enable-libdav1d
-      - --enable-libopus
-      - --enable-vaapi
-      - --enable-vdpau
-      - --enable-protocol=file
-      - --enable-hwaccel=h264_vaapi
-      - --enable-hwaccel=h264_vdpau
-      - --enable-hwaccel=mpeg4_vaapi
-      - --enable-hwaccel=mpeg4_vdpau
-      - --enable-decoder=aac
-      - --enable-decoder=aac_fixed
-      - --enable-decoder=aac_latm
-      - --enable-decoder=aasc
-      - --enable-decoder=alac
-      - --enable-decoder=flac
-      - --enable-decoder=gif
-      - --enable-decoder=h264
-      - --enable-decoder=hevc
-      - --enable-decoder=libdav1d
-      - --enable-decoder=mp1
-      - --enable-decoder=mp1float
-      - --enable-decoder=mp2
-      - --enable-decoder=mp2float
-      - --enable-decoder=mp3
-      - --enable-decoder=mp3adu
-      - --enable-decoder=mp3adufloat
-      - --enable-decoder=mp3float
-      - --enable-decoder=mp3on4
-      - --enable-decoder=mp3on4float
-      - --enable-decoder=mpeg4
-      - --enable-decoder=msmpeg4v2
-      - --enable-decoder=msmpeg4v3
-      - --enable-decoder=opus
-      - --enable-decoder=pcm_alaw
-      - --enable-decoder=pcm_f32be
-      - --enable-decoder=pcm_f32le
-      - --enable-decoder=pcm_f64be
-      - --enable-decoder=pcm_f64le
-      - --enable-decoder=pcm_lxf
-      - --enable-decoder=pcm_mulaw
-      - --enable-decoder=pcm_s16be
-      - --enable-decoder=pcm_s16be_planar
-      - --enable-decoder=pcm_s16le
-      - --enable-decoder=pcm_s16le_planar
-      - --enable-decoder=pcm_s24be
-      - --enable-decoder=pcm_s24daud
-      - --enable-decoder=pcm_s24le
-      - --enable-decoder=pcm_s24le_planar
-      - --enable-decoder=pcm_s32be
-      - --enable-decoder=pcm_s32le
-      - --enable-decoder=pcm_s32le_planar
-      - --enable-decoder=pcm_s64be
-      - --enable-decoder=pcm_s64le
-      - --enable-decoder=pcm_s8
-      - --enable-decoder=pcm_s8_planar
-      - --enable-decoder=pcm_u16be
-      - --enable-decoder=pcm_u16le
-      - --enable-decoder=pcm_u24be
-      - --enable-decoder=pcm_u24le
-      - --enable-decoder=pcm_u32be
-      - --enable-decoder=pcm_u32le
-      - --enable-decoder=pcm_u8
-      - --enable-decoder=pcm_zork
-      - --enable-decoder=vorbis
-      - --enable-decoder=wavpack
-      - --enable-decoder=wmalossless
-      - --enable-decoder=wmapro
-      - --enable-decoder=wmav1
-      - --enable-decoder=wmav2
-      - --enable-decoder=wmavoice
-      - --enable-encoder=libopus
-      - --enable-parser=aac
-      - --enable-parser=aac_latm
-      - --enable-parser=flac
-      - --enable-parser=h264
-      - --enable-parser=hevc
-      - --enable-parser=mpeg4video
-      - --enable-parser=mpegaudio
-      - --enable-parser=opus
-      - --enable-parser=vorbis
-      - --enable-demuxer=aac
-      - --enable-demuxer=flac
-      - --enable-demuxer=gif
-      - --enable-demuxer=h264
-      - --enable-demuxer=hevc
-      - --enable-demuxer=m4v
-      - --enable-demuxer=mov
-      - --enable-demuxer=mp3
-      - --enable-demuxer=ogg
-      - --enable-demuxer=wav
-      - --enable-muxer=ogg
-      - --enable-muxer=opus
-    override-pull: |
-      snapcraftctl pull
-      patch -p1 < "$SNAPCRAFT_STAGE/telegram_patches/ffmpeg.diff"
-    prime:
-      - -./usr/include
-      - -./usr/lib/pkgconfig
-    after:
-      - telegram-patches
-      - dav1d
+      - libavcodec58
+      - libavformat58
+      - libavutil56
+      - libswresample3
+      - libswscale5
 
   openal:
     source: https://github.com/kcat/openal-soft.git
