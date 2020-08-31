@@ -102,10 +102,10 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	const auto i = around
 		? ranges::lower_bound(_list, around, std::greater<>())
 		: end(_list);
-	const auto availableBefore = (i - begin(_list));
-	const auto availableAfter = (end(_list) - i);
-	const auto useBefore = std::min(availableBefore, viewer->limitBefore);
-	const auto useAfter = std::min(availableAfter, viewer->limitAfter + 1);
+	const auto availableBefore = (end(_list) - i);
+	const auto availableAfter = (i - begin(_list));
+	const auto useBefore = std::min(availableBefore, viewer->limitBefore + 1);
+	const auto useAfter = std::min(availableAfter, viewer->limitAfter);
 	const auto slice = &viewer->slice;
 	if (_skippedBefore.has_value()) {
 		slice->skippedBefore
@@ -115,20 +115,23 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		slice->skippedAfter
 			= (*_skippedAfter + (availableAfter - useAfter));
 	}
+
 	const auto channelId = _history->channelId();
 	slice->ids.clear();
-	slice->ids.reserve(useBefore + useAfter);
-	for (auto j = i - useBefore, e = i + useAfter; j != e; ++j) {
+	slice->ids.reserve(useAfter + useBefore);
+	for (auto j = i - useAfter, e = i + useBefore; j != e; ++j) {
 		slice->ids.emplace_back(channelId, *j);
 	}
 	ranges::reverse(slice->ids);
+
 	slice->fullCount = _fullCount.current();
-	if (_skippedBefore != 0 && useBefore < viewer->limitBefore) {
+	if (_skippedBefore != 0 && useBefore < viewer->limitBefore + 1) {
 		loadBefore();
 	}
-	if (_skippedAfter != 0 && useAfter < viewer->limitAfter + 1) {
+	if (_skippedAfter != 0 && useAfter < viewer->limitAfter) {
 		loadAfter();
 	}
+
 	return true;
 }
 
@@ -364,6 +367,11 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	if (toFront) {
 		refreshed.insert(refreshed.end(), _list.begin(), _list.end());
 		_list = std::move(refreshed);
+	}
+	if (_fullCount.current() && _skippedBefore && !_skippedAfter) {
+		_skippedAfter = *_fullCount.current() - *_skippedBefore - _list.size();
+	} else if (_fullCount.current() && _skippedAfter && !_skippedBefore) {
+		_skippedBefore = *_fullCount.current() - *_skippedAfter - _list.size();
 	}
 	return false;
 }

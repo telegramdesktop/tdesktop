@@ -204,8 +204,6 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	void pushReplyReturn(not_null<HistoryItem*> item);
-
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);

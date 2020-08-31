@@ -929,15 +929,13 @@ ClickHandlerPtr goToMessageClickHandler(
 	return std::make_shared<LambdaClickHandler>([=] {
 		if (const auto main = App::main()) { // multi good
 			if (&main->session() == &peer->session()) {
-				if (const auto returnTo = peer->owner().message(returnToId)) {
-					if (returnTo->history()->peer == peer) {
-						main->pushReplyReturn(returnTo);
-					}
-				}
-				main->controller()->showPeerHistory(
-					peer,
-					Window::SectionShow::Way::Forward,
-					msgId);
+				auto params = Window::SectionShow{
+					Window::SectionShow::Way::Forward
+				};
+				params.origin = Window::SectionShow::OriginMessage{
+					returnToId
+				};
+				main->controller()->showPeerHistory(peer, params, msgId);
 			}
 		}
 	});

@@ -1221,10 +1221,6 @@ Image *MainWidget::newBackgroundThumb() {
 		: nullptr;
 }
 
-void MainWidget::pushReplyReturn(not_null<HistoryItem*> item) {
-	_history->pushReplyReturn(item);
-}
-
 void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
 		if (!_hider && _mainSection) {
@@ -1379,6 +1375,20 @@ void MainWidget::ui_showPeerHistory(
 				Ui::show(Box<InformBox>(unavailable));
 			}
 			return;
+		}
+	}
+	if (IsServerMsgId(showAtMsgId)
+		&& _mainSection
+		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
+		return;
+	}
+
+	using OriginMessage = SectionShow::OriginMessage;
+	if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
+		if (const auto returnTo = session().data().message(origin->id)) {
+			if (returnTo->history()->peer->id == peerId) {
+				_history->pushReplyReturn(returnTo);
+			}
 		}
 	}
 
@@ -2642,15 +2652,13 @@ void MainWidget::openPeerByName(
 			}
 			const auto returnToId = clickFromMessageId;
 			InvokeQueued(this, [=] {
-				if (const auto returnTo = session().data().message(returnToId)) {
-					if (returnTo->history()->peer == peer) {
-						pushReplyReturn(returnTo);
-					}
-				}
-				_controller->showPeerHistory(
-					peer->id,
-					SectionShow::Way::Forward,
-					msgId);
+				auto params = SectionShow{
+					SectionShow::Way::Forward
+				};
+				params.origin = SectionShow::OriginMessage{
+					returnToId
+				};
+				_controller->showPeerHistory(peer->id, params, msgId);
 			});
 		}
 	} else {

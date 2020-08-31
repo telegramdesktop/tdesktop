@@ -40,20 +40,20 @@ class AbstractSectionWidget
 public:
 	AbstractSectionWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller)
+		not_null<SessionController*> controller)
 	: RpWidget(parent)
 	, _controller(controller) {
 	}
 
 	[[nodiscard]] Main::Session &session() const;
-	[[nodiscard]] not_null<Window::SessionController*> controller() const {
+	[[nodiscard]] not_null<SessionController*> controller() const {
 		return _controller;
 	}
 
 	// Tabbed selector management.
 	virtual bool pushTabbedSelectorToThirdSection(
 			not_null<PeerData*> peer,
-			const Window::SectionShow &params) {
+			const SectionShow &params) {
 		return false;
 	}
 	virtual bool returnTabbedSelector() {
@@ -61,7 +61,7 @@ public:
 	}
 
 private:
-	const not_null<Window::SessionController*> _controller;
+	const not_null<SessionController*> _controller;
 
 };
 
@@ -82,7 +82,7 @@ class SectionWidget : public AbstractSectionWidget {
 public:
 	SectionWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<SessionController*> controller);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};
@@ -118,6 +118,13 @@ public:
 		not_null<SectionMemento*> memento,
 		const SectionShow &params) = 0;
 
+	virtual bool showMessage(
+			PeerId peerId,
+			const SectionShow &params,
+			MsgId messageId) {
+		return false;
+	}
+
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
 	virtual std::unique_ptr<SectionMemento> createMemento();
@@ -135,7 +142,7 @@ public:
 	}
 
 	static void PaintBackground(
-		not_null<Window::SessionController*> controller,
+		not_null<SessionController*> controller,
 		not_null<QWidget*> widget,
 		QRect clip);
 
@@ -150,7 +157,7 @@ protected:
 
 	// Called after the hideChildren() call in showAnimated().
 	virtual void showAnimatedHook(
-		const Window::SectionSlideParams &params) {
+		const SectionSlideParams &params) {
 	}
 
 	// Called after the showChildren() call in showFinished().

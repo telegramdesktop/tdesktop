@@ -84,6 +84,12 @@ struct SectionShow {
 		Backward,
 		ClearStack,
 	};
+
+	struct OriginMessage {
+		FullMsgId id;
+	};
+	using Origin = std::variant<v::null_t, OriginMessage>;
+
 	SectionShow(
 		Way way = Way::Forward,
 		anim::type animated = anim::type::normal,
@@ -112,6 +118,7 @@ struct SectionShow {
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
+	Origin origin;
 
 };
 

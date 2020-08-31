@@ -80,6 +80,10 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
+	bool showMessage(
+		PeerId peerId,
+		const Window::SectionShow &params,
+		MsgId messageId) override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -156,7 +160,6 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId);
-	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 

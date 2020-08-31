@@ -930,6 +930,26 @@ std::unique_ptr<Window::SectionMemento> RepliesWidget::createMemento() {
 	return result;
 }
 
+bool RepliesWidget::showMessage(
+		PeerId peerId,
+		const Window::SectionShow &params,
+		MsgId messageId) {
+	if (peerId != _history->peer->id) {
+		return false;
+	}
+	const auto id = FullMsgId{
+		_history->channelId(),
+		messageId
+	};
+	const auto message = _history->owner().message(id);
+	if (!message || message->replyToTop() != _rootId) {
+		return false;
+	}
+	_highlightMessageId = id;
+	showAtPosition(Data::MessagePosition(message->date(), id));
+	return true;
+}
+
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	memento->setReplies(_replies);
 	_inner->saveState(memento->list());
@@ -1090,37 +1110,6 @@ rpl::producer<Data::MessagesSlice> RepliesWidget::listSource(
 		int limitBefore,
 		int limitAfter) {
 	return _replies->source(aroundId, limitBefore, limitAfter);
-}
-
-void RepliesWidget::highlightSingleNewMessage(
-		const Data::MessagesSlice &slice) {
-	const auto guard = gsl::finally([&] { _lastSlice = slice; });
-	if (_lastSlice.ids.empty()
-		|| (slice.ids.size() != _lastSlice.ids.size() + 1)) {
-		return;
-	}
-	auto firstDifferent = 0;
-	while (firstDifferent != _lastSlice.ids.size()) {
-		if (slice.ids[firstDifferent] != _lastSlice.ids[firstDifferent]) {
-			break;
-		}
-		++firstDifferent;
-	}
-	auto lastDifferent = slice.ids.size() - 1;
-	while (lastDifferent != firstDifferent) {
-		if (slice.ids[lastDifferent] != _lastSlice.ids[lastDifferent - 1]) {
-			break;
-		}
-		--lastDifferent;
-	}
-	if (firstDifferent != lastDifferent) {
-		return;
-	}
-	const auto newId = slice.ids[firstDifferent];
-	if (const auto item = session().data().message(newId)) {
-	//	_highlightMessageId = newId;
-		showAtPosition(item->position());
-	}
 }
 
 bool RepliesWidget::listAllowsMultiSelect() {
