@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "mainwidget.h"
-#include "mainwindow.h" // App::wnd()->sessionController
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -122,8 +121,10 @@ void CopyImage(not_null<PhotoData*> photo) {
 	QGuiApplication::clipboard()->setImage(image);
 }
 
-void ShowStickerPackInfo(not_null<DocumentData*> document) {
-	StickerSetBox::Show(App::wnd()->sessionController(), document);
+void ShowStickerPackInfo(
+		not_null<DocumentData*> document,
+		not_null<ListWidget*> list) {
+	StickerSetBox::Show(list->controller(), document);
 }
 
 void ToggleFavedSticker(
@@ -193,7 +194,8 @@ void AddSaveDocumentAction(
 void AddDocumentActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<DocumentData*> document,
-		FullMsgId contextId) {
+		FullMsgId contextId,
+		not_null<ListWidget*> list) {
 	if (document->loading()) {
 		menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 			document->cancel();
@@ -221,7 +223,7 @@ void AddDocumentActions(
 			(document->isStickerSetInstalled()
 				? tr::lng_context_pack_info(tr::now)
 				: tr::lng_context_pack_add(tr::now)),
-			[=] { ShowStickerPackInfo(document); });
+			[=] { ShowStickerPackInfo(document, list); });
 		menu->addAction(
 			(document->owner().stickers().isFaved(document)
 				? tr::lng_faved_stickers_remove(tr::now)
@@ -696,7 +698,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	if (linkPhoto) {
 		AddPhotoActions(result, photo);
 	} else if (linkDocument) {
-		AddDocumentActions(result, document, itemId);
+		AddDocumentActions(result, document, itemId, list);
 	//} else if (linkPeer) { // #feed
 	//	const auto peer = linkPeer->peer();
 	//	if (peer->isChannel()
@@ -714,7 +716,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 		if (const auto document = media ? media->getDocument() : nullptr) {
-			AddDocumentActions(result, document, view->data()->fullId());
+			AddDocumentActions(
+				result,
+				document,
+				view->data()->fullId(),
+				list);
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
