@@ -1,9 +1,6 @@
 [submodule "Telegram/ThirdParty/libtgvoip"]
 	path = Telegram/ThirdParty/libtgvoip
 	url = https://github.com/telegramdesktop/libtgvoip
-[submodule "Telegram/ThirdParty/variant"]
-	path = Telegram/ThirdParty/variant
-	url = https://github.com/desktop-app/variant.git
 [submodule "Telegram/ThirdParty/GSL"]
 	path = Telegram/ThirdParty/GSL
 	url = https://github.com/Microsoft/GSL.git
