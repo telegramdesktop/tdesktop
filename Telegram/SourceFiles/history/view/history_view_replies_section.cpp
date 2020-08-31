@@ -780,19 +780,10 @@ void RepliesWidget::scrollDownClicked() {
 }
 
 void RepliesWidget::showAtPosition(Data::MessagePosition position) {
-	if (showAtPositionNow(position)) {
-		if (const auto highlight = base::take(_highlightMessageId)) {
-			_inner->highlightMessage(highlight);
-		}
-	} else {
-		_nextAnimatedScrollPosition = position;
-		_nextAnimatedScrollDelta = _inner->isBelowPosition(position)
-			? -_scroll->height()
-			: _inner->isAbovePosition(position)
-			? _scroll->height()
-			: 0;
-		auto memento = HistoryView::ListMemento(position);
-		_inner->restoreState(&memento);
+	if (!showAtPositionNow(position)) {
+		_inner->showAroundPosition(position, [=] {
+			return showAtPositionNow(position);
+		});
 	}
 }
 
@@ -810,6 +801,9 @@ bool RepliesWidget::showAtPositionNow(Data::MessagePosition position) {
 			(std::abs(fullDelta) > limit
 				? HistoryView::ListWidget::AnimatedScroll::Part
 				: HistoryView::ListWidget::AnimatedScroll::Full));
+		if (const auto highlight = base::take(_highlightMessageId)) {
+			_inner->highlightMessage(highlight);
+		}
 		return true;
 	}
 	return false;

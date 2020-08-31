@@ -164,6 +164,9 @@ public:
 	bool isAbovePosition(Data::MessagePosition position) const;
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(FullMsgId itemId);
+	void showAroundPosition(
+		Data::MessagePosition position,
+		Fn<bool()> overrideInitialScroll);
 
 	TextForMimeData getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
@@ -472,6 +475,7 @@ private:
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
 	Ui::Animations::Simple _scrollToAnimation;
+	Fn<bool()> _overrideInitialScroll;
 
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;

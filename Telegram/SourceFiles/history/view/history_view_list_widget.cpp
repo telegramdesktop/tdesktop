@@ -455,6 +455,15 @@ void ListWidget::highlightMessage(FullMsgId itemId) {
 	}
 }
 
+void ListWidget::showAroundPosition(
+		Data::MessagePosition position,
+		Fn<bool()> overrideInitialScroll) {
+	_aroundPosition = position;
+	_aroundIndex = -1;
+	_overrideInitialScroll = std::move(overrideInitialScroll);
+	refreshViewer();
+}
+
 void ListWidget::updateHighlightedMessage() {
 	if (const auto item = session().data().message(_highlightedMessageId)) {
 		if (const auto view = viewForItem(item)) {
@@ -486,7 +495,9 @@ void ListWidget::saveScrollState() {
 }
 
 void ListWidget::restoreScrollState() {
-	if (_items.empty()) {
+	if (_items.empty()
+		|| (_overrideInitialScroll
+			&& base::take(_overrideInitialScroll)())) {
 		return;
 	}
 	if (!_scrollTopState.item) {

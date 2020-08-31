@@ -213,8 +213,6 @@ private:
 	bool _skipScrollEvent = false;
 
 	FullMsgId _highlightMessageId;
-	std::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
-	int _nextAnimatedScrollDelta = 0;
 
 	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;

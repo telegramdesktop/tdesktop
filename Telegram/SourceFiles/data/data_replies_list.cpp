@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kMessagesPerPage = 4; // #TODO replies
+constexpr auto kMessagesPerPage = 16;
 
 } // namespace
 
@@ -94,8 +94,8 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	const auto around = viewer->around;
 	if (_list.empty()
 		|| (!around && _skippedAfter != 0)
-		|| (around > 0 && around < _list.back())
-		|| (around > _list.front())) {
+		|| (around > _list.front() && _skippedAfter != 0)
+		|| (around > 0 && around < _list.back() && _skippedBefore != 0)) {
 		loadAround(around);
 		return false;
 	}
@@ -207,6 +207,13 @@ void RepliesList::loadAround(MsgId id) {
 			_list.clear();
 			if (processMessagesIsEmpty(result)) {
 				_fullCount = _skippedBefore = _skippedAfter = 0;
+			} else if (id > 0) {
+				Assert(!_list.empty());
+				if (_list.front() <= id) {
+					_skippedAfter = 0;
+				} else if (_list.back() >= id) {
+					_skippedBefore = 0;
+				}
 			}
 		}).fail([=](const RPCError &error) {
 			_beforeId = 0;
@@ -312,7 +319,8 @@ void RepliesList::loadAfter() {
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _partLoaded.fire({}); });
 
-	_fullCount = result.match([&](const MTPDmessages_messagesNotModified &) {
+	const auto fullCount = result.match([&](
+			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
 			"(HistoryWidget::messagesReceived)"));
 		return 0;
@@ -346,7 +354,8 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	}
 
 	const auto id = IdFromMessage(list.front());
-	const auto toFront = !_list.empty() && (id > _list.front());
+	const auto wasSize = int(_list.size());
+	const auto toFront = (wasSize > 0) && (id > _list.front());
 	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto type = NewMessageType::Existing;
 	auto refreshed = std::vector<MsgId>();
@@ -368,11 +377,31 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		refreshed.insert(refreshed.end(), _list.begin(), _list.end());
 		_list = std::move(refreshed);
 	}
-	if (_fullCount.current() && _skippedBefore && !_skippedAfter) {
-		_skippedAfter = *_fullCount.current() - *_skippedBefore - _list.size();
-	} else if (_fullCount.current() && _skippedAfter && !_skippedBefore) {
-		_skippedBefore = *_fullCount.current() - *_skippedAfter - _list.size();
+
+	const auto nowSize = int(_list.size());
+	auto &decrementFrom = toFront ? _skippedAfter : _skippedBefore;
+	if (decrementFrom.has_value()) {
+		*decrementFrom = std::max(
+			*decrementFrom - (nowSize - wasSize),
+			0);
 	}
+
+	const auto checkedCount = std::max(fullCount, nowSize);
+	if (_skippedBefore && _skippedAfter) {
+		auto &correct = toFront ? _skippedBefore : _skippedAfter;
+		*correct = std::max(
+			checkedCount - *decrementFrom - nowSize,
+			0);
+		*decrementFrom = *_fullCount.current() - *correct - nowSize;
+		Assert(*decrementFrom >= 0);
+	} else if (_skippedBefore) {
+		*_skippedBefore = std::min(*_skippedBefore, checkedCount - nowSize);
+		_skippedAfter = checkedCount - *_skippedBefore - nowSize;
+	} else if (_skippedAfter) {
+		*_skippedAfter = std::min(*_skippedAfter, checkedCount - nowSize);
+		_skippedBefore = checkedCount - *_skippedAfter - nowSize;
+	}
+	_fullCount = checkedCount;
 	return false;
 }
 
