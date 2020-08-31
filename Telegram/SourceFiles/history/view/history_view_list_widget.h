@@ -161,6 +161,7 @@ public:
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type);
+	[[nodiscard]] bool animatedScrolling() const;
 	bool isAbovePosition(Data::MessagePosition position) const;
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(FullMsgId itemId);

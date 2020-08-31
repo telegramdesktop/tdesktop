@@ -415,6 +415,10 @@ void ListWidget::animatedScrollTo(
 		transition);
 }
 
+bool ListWidget::animatedScrolling() const {
+	return _scrollToAnimation.animating();
+}
+
 void ListWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
@@ -495,9 +499,11 @@ void ListWidget::saveScrollState() {
 }
 
 void ListWidget::restoreScrollState() {
-	if (_items.empty()
-		|| (_overrideInitialScroll
-			&& base::take(_overrideInitialScroll)())) {
+	if (_items.empty()) {
+		return;
+	} else if (_overrideInitialScroll
+		&& base::take(_overrideInitialScroll)()) {
+		_scrollTopState = ScrollTopState();
 		return;
 	}
 	if (!_scrollTopState.item) {

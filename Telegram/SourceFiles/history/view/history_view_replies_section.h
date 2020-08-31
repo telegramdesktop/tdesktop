@@ -137,8 +137,12 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
-	void showAtPosition(Data::MessagePosition position);
-	bool showAtPositionNow(Data::MessagePosition position);
+	void showAtPosition(
+		Data::MessagePosition position,
+		HistoryItem *originItem = nullptr);
+	bool showAtPositionNow(
+		Data::MessagePosition position,
+		HistoryItem *originItem);
 
 	void setupComposeControls();
 
@@ -162,6 +166,12 @@ private:
 		mtpRequestId *const saveEditMsgRequestId);
 	void chooseAttach();
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
+
+	void pushReplyReturn(not_null<HistoryItem*> item);
+	void computeCurrentReplyReturn();
+	void calculateNextReplyReturn();
+	void restoreReplyReturns(const std::vector<MsgId> &list);
+	void checkReplyReturns();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -212,7 +222,8 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
 
-	FullMsgId _highlightMessageId;
+	std::vector<MsgId> _replyReturns;
+	HistoryItem *_replyReturn = nullptr;
 
 	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;
@@ -250,6 +261,13 @@ public:
 		return _replies;
 	}
 
+	void setReplyReturns(const std::vector<MsgId> &list) {
+		_replyReturns = list;
+	}
+	const std::vector<MsgId> &replyReturns() const {
+		return _replyReturns;
+	}
+
 	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
 	}
@@ -259,6 +277,7 @@ private:
 	const MsgId _rootId = 0;
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
+	std::vector<MsgId> _replyReturns;
 
 };
 

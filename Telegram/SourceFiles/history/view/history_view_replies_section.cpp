@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_replies_list.h"
 #include "data/data_user.h"
+#include "data/data_changes.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 #include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
 
 namespace HistoryView {
 namespace {
@@ -155,6 +157,16 @@ RepliesWidget::RepliesWidget(
 			}
 		}
 	}, _inner->lifetime());
+
+	_history->session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Destroyed
+	) | rpl::filter([=](const Data::MessageUpdate &update) {
+		return (update.item == _replyReturn);
+	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		while (update.item == _replyReturn) {
+			calculateNextReplyReturn();
+		}
+	}, lifetime());
 
 	setupScrollDownButton();
 	setupComposeControls();
@@ -468,6 +480,57 @@ void RepliesWidget::uploadFilesAfterConfirmation(
 		action);
 }
 
+void RepliesWidget::pushReplyReturn(not_null<HistoryItem*> item) {
+	if (item->history() == _history && item->replyToTop() == _rootId) {
+		_replyReturns.push_back(item->id);
+	} else {
+		return;
+	}
+	_replyReturn = item;
+	updateScrollDownVisibility();
+}
+
+void RepliesWidget::restoreReplyReturns(const std::vector<MsgId> &list) {
+	_replyReturns = list;
+	computeCurrentReplyReturn();
+	if (!_replyReturn) {
+		calculateNextReplyReturn();
+	}
+}
+
+void RepliesWidget::computeCurrentReplyReturn() {
+	_replyReturn = _replyReturns.empty()
+		? nullptr
+		: _history->owner().message(
+			_history->channelId(),
+			_replyReturns.back());
+}
+
+void RepliesWidget::calculateNextReplyReturn() {
+	_replyReturn = nullptr;
+	while (!_replyReturns.empty() && !_replyReturn) {
+		_replyReturns.pop_back();
+		computeCurrentReplyReturn();
+	}
+	if (!_replyReturn) {
+		updateScrollDownVisibility();
+	}
+}
+
+void RepliesWidget::checkReplyReturns() {
+	const auto currentTop = _scroll->scrollTop();
+	for (; _replyReturn != nullptr; calculateNextReplyReturn()) {
+		const auto position = _replyReturn->position();
+		const auto scrollTop = _inner->scrollTopForPosition(position);
+		const auto scrolledBelow = scrollTop
+			? (currentTop >= std::min(*scrollTop, _scroll->scrollTopMax()))
+			: _inner->isBelowPosition(position);
+		if (!scrolledBelow) {
+			break;
+		}
+	}
+}
+
 void RepliesWidget::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
@@ -776,19 +839,32 @@ void RepliesWidget::setupScrollDownButton() {
 }
 
 void RepliesWidget::scrollDownClicked() {
-	showAtPosition(Data::MaxMessagePosition);
+	if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+		showAtPosition(Data::MaxMessagePosition);
+	} else if (_replyReturn) {
+		showAtPosition(_replyReturn->position());
+	} else {
+		showAtPosition(Data::MaxMessagePosition);
+	}
 }
 
-void RepliesWidget::showAtPosition(Data::MessagePosition position) {
-	if (!showAtPositionNow(position)) {
+void RepliesWidget::showAtPosition(
+		Data::MessagePosition position,
+		HistoryItem *originItem) {
+	if (!showAtPositionNow(position, originItem)) {
 		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position);
+			return showAtPositionNow(position, originItem);
 		});
 	}
 }
 
-bool RepliesWidget::showAtPositionNow(Data::MessagePosition position) {
+bool RepliesWidget::showAtPositionNow(
+		Data::MessagePosition position,
+		HistoryItem *originItem) {
 	if (const auto scrollTop = _inner->scrollTopForPosition(position)) {
+		while (_replyReturn && position.fullId.msg == _replyReturn->id) {
+			calculateNextReplyReturn();
+		}
 		const auto currentScrollTop = _scroll->scrollTop();
 		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
 		const auto fullDelta = (wanted - currentScrollTop);
@@ -801,8 +877,12 @@ bool RepliesWidget::showAtPositionNow(Data::MessagePosition position) {
 			(std::abs(fullDelta) > limit
 				? HistoryView::ListWidget::AnimatedScroll::Part
 				: HistoryView::ListWidget::AnimatedScroll::Full));
-		if (const auto highlight = base::take(_highlightMessageId)) {
-			_inner->highlightMessage(highlight);
+		if (position != Data::MaxMessagePosition
+			&& position != Data::UnreadMessagePosition) {
+			_inner->highlightMessage(position.fullId);
+		}
+		if (originItem) {
+			pushReplyReturn(originItem);
 		}
 		return true;
 	}
@@ -816,10 +896,9 @@ void RepliesWidget::updateScrollDownVisibility() {
 
 	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-		if (top < _scroll->scrollTopMax()) {
+		if (top < _scroll->scrollTopMax() || _replyReturn) {
 			return true;
-		}
-		if (_inner->loadedAtBottomKnown()) {
+		} else if (_inner->loadedAtBottomKnown()) {
 			return !_inner->loadedAtBottom();
 		}
 		return std::nullopt;
@@ -939,13 +1018,27 @@ bool RepliesWidget::showMessage(
 	if (!message || message->replyToTop() != _rootId) {
 		return false;
 	}
-	_highlightMessageId = id;
-	showAtPosition(Data::MessagePosition(message->date(), id));
+
+	const auto originItem = [&]() -> HistoryItem* {
+		using OriginMessage = Window::SectionShow::OriginMessage;
+		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
+			if (const auto returnTo = session().data().message(origin->id)) {
+				if (returnTo->history() == _history
+					&& returnTo->replyToTop() == _rootId
+					&& _replyReturn != returnTo) {
+					return returnTo;
+				}
+			}
+		}
+		return nullptr;
+	}();
+	showAtPosition(Data::MessagePosition(message->date(), id), originItem);
 	return true;
 }
 
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	memento->setReplies(_replies);
+	memento->setReplyReturns(_replyReturns);
 	_inner->saveState(memento->list());
 }
 
@@ -972,6 +1065,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	} else if (!_replies) {
 		setReplies(std::make_shared<Data::RepliesList>(_history, _rootId));
 	}
+	restoreReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
 }
 
@@ -1039,6 +1133,9 @@ void RepliesWidget::onScroll() {
 }
 
 void RepliesWidget::updateInnerVisibleArea() {
+	if (!_inner->animatedScrolling()) {
+		checkReplyReturns();
+	}
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updateScrollDownVisibility();
@@ -1144,6 +1241,7 @@ std::optional<int> RepliesWidget::listUnreadBarView(
 }
 
 void RepliesWidget::listContentRefreshed() {
+
 }
 
 ClickHandlerPtr RepliesWidget::listDateLink(not_null<Element*> view) {
