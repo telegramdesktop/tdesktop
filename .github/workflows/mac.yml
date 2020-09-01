@@ -62,6 +62,8 @@ jobs:
   dependencies:
     name: "MacOS: dependencies"
     runs-on: macos-latest
+    outputs:
+      cache_key: ${{ steps.step_cache_key.outputs.cache_key }}
 
     steps:
       - name: Get repository name.
@@ -74,6 +76,7 @@ jobs:
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
+        id: step_cache_key
         run: |
           sudo chown -R `whoami`:admin /usr/local/share
           brew install automake fdk-aac lame libass libtool libvorbis libvpx \
@@ -90,7 +93,9 @@ jobs:
             thisFile=$REPO_NAME/.github/workflows/mac.yml
             echo `md5 -q $thisFile` >> CACHE_KEY.txt
           fi
-          echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
+          localKey=`md5 -q CACHE_KEY.txt`
+          echo ::set-env name=CACHE_KEY::$localKey
+          echo ::set-output name=cache_key::$localKey
 
           echo ::add-path::$PWD/Libraries/depot_tools
 
@@ -442,6 +447,9 @@ jobs:
         defines:
           - ""
 
+    env:
+      CACHE_KEY: ${{ needs.dependencies.outputs.cache_key }}
+
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
@@ -459,17 +467,6 @@ jobs:
           ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-          xcodebuild -version > CACHE_KEY.txt
-          echo $MIN_MAC >> CACHE_KEY.txt
-          echo $PREFIX >> CACHE_KEY.txt
-          echo $MANUAL_CACHING >> CACHE_KEY.txt
-          echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
-          if [ "$AUTO_CACHING" == "1" ]; then
-            thisFile=$REPO_NAME/.github/workflows/mac.yml
-            echo `md5 -q $thisFile` >> CACHE_KEY.txt
-          fi
-          echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
 
           echo ::add-path::$PWD/Libraries/depot_tools
 
