@@ -328,6 +328,7 @@ struct Media {
 };
 
 struct ParseMediaContext {
+	PeerId selfPeerId = 0;
 	int photos = 0;
 	int audios = 0;
 	int videos = 0;
@@ -509,8 +510,9 @@ struct Message {
 	int32 chatId = 0;
 	TimeId date = 0;
 	TimeId edited = 0;
-	int32 fromId = 0;
-	PeerId toId = 0;
+	PeerId fromId = 0;
+	PeerId peerId = 0;
+	PeerId selfId = 0;
 	PeerId forwardedFromId = 0;
 	Utf8String forwardedFromName;
 	TimeId forwardedDate = 0;
@@ -519,6 +521,7 @@ struct Message {
 	Utf8String signature;
 	int32 viaBotId = 0;
 	int32 replyToMsgId = 0;
+	PeerId replyToPeerId = 0;
 	std::vector<TextPart> text;
 	Media media;
 	ServiceAction action;
@@ -541,6 +544,7 @@ Message ParseMessage(
 	const MTPMessage &data,
 	const QString &mediaFolder);
 std::map<uint64, Message> ParseMessagesList(
+	PeerId selfId,
 	const MTPVector<MTPMessage> &data,
 	const QString &mediaFolder);
 

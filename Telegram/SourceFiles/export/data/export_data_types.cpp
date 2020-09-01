@@ -264,6 +264,9 @@ Image ParseMaxImage(
 				if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 					result.file.content = data.vbytes().v;
 					result.file.size = result.file.content.size();
+				} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+					result.file.content = QByteArray();
+					result.file.size = data.vsizes().v.size();
 				} else {
 					result.file.content = QByteArray();
 					result.file.size = data.vsize().v;
@@ -422,6 +425,9 @@ Image ParseDocumentThumb(
 		if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 			result.file.content = data.vbytes().v;
 			result.file.size = result.file.content.size();
+		} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+			result.file.content = QByteArray();
+			result.file.size = data.vsizes().v.size();
 		} else {
 			result.file.content = QByteArray();
 			result.file.size = data.vsize().v;
@@ -1122,24 +1128,27 @@ Message ParseMessage(
 	data.match([&](const auto &data) {
 		result.id = data.vid().v;
 		if constexpr (!MTPDmessageEmpty::Is<decltype(data)>()) {
-			result.toId = ParsePeerId(data.vto_id());
-			const auto fromId = data.vfrom_id();
-			const auto peerId = (!data.is_out()
-				&& fromId
-				&& data.vto_id().type() == mtpc_peerUser)
-				? UserPeerId(fromId->v)
-				: result.toId;
-			if (IsChatPeerId(peerId)) {
-				result.chatId = BarePeerId(peerId);
-			}
-			if (fromId) {
-				result.fromId = fromId->v;
-			}
-			if (const auto replyToMsgId = data.vreply_to_msg_id()) {
-				result.replyToMsgId = replyToMsgId->v;
-			}
 			result.date = data.vdate().v;
 			result.out = data.is_out();
+			result.selfId = context.selfPeerId;
+			result.peerId = ParsePeerId(data.vpeer_id());
+			const auto fromId = data.vfrom_id();
+			if (IsChatPeerId(result.peerId)) {
+				result.chatId = BarePeerId(result.peerId);
+			}
+			if (fromId) {
+				result.fromId = ParsePeerId(*fromId);
+			} else {
+				result.fromId = result.peerId;
+			}
+			if (const auto replyTo = data.vreply_to()) {
+				replyTo->match([&](const MTPDmessageReplyHeader &data) {
+					result.replyToMsgId = data.vreply_to_msg_id().v;
+					result.replyToPeerId = data.vreply_to_peer_id()
+						? ParsePeerId(*data.vreply_to_peer_id())
+						: 0;
+				});
+			}
 		}
 	});
 	data.match([&](const MTPDmessage &data) {
@@ -1149,12 +1158,9 @@ Message ParseMessage(
 		if (const auto fwdFrom = data.vfwd_from()) {
 			result.forwardedFromId = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				if (const auto channelId = data.vchannel_id()) {
-					return ChatPeerId(channelId->v);
-				} else if (const auto fromId = data.vfrom_id()) {
-					return UserPeerId(fromId->v);
-				}
-				return PeerId(0);
+				return data.vfrom_id()
+					? ParsePeerId(*data.vfrom_id())
+					: PeerId(0);
 			});
 			result.forwardedFromName = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
@@ -1180,8 +1186,13 @@ Message ParseMessage(
 		if (const auto postAuthor = data.vpost_author()) {
 			result.signature = ParseString(*postAuthor);
 		}
-		if (const auto replyToMsgId = data.vreply_to_msg_id()) {
-			result.replyToMsgId = replyToMsgId->v;
+		if (const auto replyTo = data.vreply_to()) {
+			replyTo->match([&](const MTPDmessageReplyHeader &data) {
+				result.replyToMsgId = data.vreply_to_msg_id().v;
+				result.replyToPeerId = data.vreply_to_peer_id()
+					? ParsePeerId(*data.vreply_to_peer_id())
+					: PeerId(0);
+			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {
 			result.viaBotId = viaBotId->v;
@@ -1219,9 +1230,10 @@ Message ParseMessage(
 }
 
 std::map<uint64, Message> ParseMessagesList(
+		PeerId selfId,
 		const MTPVector<MTPMessage> &data,
 		const QString &mediaFolder) {
-	auto context = ParseMediaContext();
+	auto context = ParseMediaContext{ .selfPeerId = selfId };
 	auto result = std::map<uint64, Message>();
 	for (const auto &message : data.v) {
 		auto parsed = ParseMessage(context, message, mediaFolder);
@@ -1460,7 +1472,10 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 		Unexpected("dialogsNotModified in ParseDialogsInfo.");
 	}, [&](const auto &data) { // MTPDmessages_dialogs &data) {
 		const auto peers = ParsePeersLists(data.vusers(), data.vchats());
-		const auto messages = ParseMessagesList(data.vmessages(), folder);
+		const auto messages = ParseMessagesList(
+			PeerId(0), // selfId, not used, we want only messages dates here.
+			data.vmessages(),
+			folder);
 		result.chats.reserve(result.chats.size() + data.vdialogs().v.size());
 		for (const auto &dialog : data.vdialogs().v) {
 			if (dialog.type() != mtpc_dialog) {

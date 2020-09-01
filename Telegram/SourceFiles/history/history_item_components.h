@@ -34,9 +34,10 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryIte
 };
 
 struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
-	QString _viewsText;
-	int _views = 0;
-	int _viewsWidth = 0;
+	QString text;
+	int textWidth = 0;
+	int views = -1;
+	int replies = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
@@ -96,6 +97,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
+		replyToMsgTop = other.replyToMsgTop;
 		replyToDocumentId = other.replyToDocumentId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
@@ -139,6 +141,9 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	[[nodiscard]] MsgId replyToId() const {
 		return replyToMsgId;
 	}
+	[[nodiscard]] MsgId replyToTop() const {
+		return replyToMsgTop;
+	}
 	[[nodiscard]] int replyToWidth() const {
 		return maxReplyWidth;
 	}
@@ -151,6 +156,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void refreshReplyToDocument();
 
 	MsgId replyToMsgId = 0;
+	MsgId replyToMsgTop = 0;
 	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
 	ClickHandlerPtr replyToLnk;

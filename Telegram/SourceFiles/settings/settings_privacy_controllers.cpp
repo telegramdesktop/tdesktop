@@ -46,62 +46,60 @@ namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockUserBoxController
+class BlockPeerBoxController
 	: public ChatsListBoxController
 	, private base::Subscriber {
 public:
-	explicit BlockUserBoxController(
+	explicit BlockPeerBoxController(
 		not_null<Window::SessionNavigation*> navigation);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	void setBlockUserCallback(Fn<void(not_null<UserData*> user)> callback) {
-		_blockUserCallback = std::move(callback);
+	void setBlockPeerCallback(Fn<void(not_null<PeerData*> peer)> callback) {
+		_blockPeerCallback = std::move(callback);
 	}
 
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 	void updateRowHook(not_null<Row*> row) override {
-		updateIsBlocked(row, row->peer()->asUser());
+		updateIsBlocked(row, row->peer());
 		delegate()->peerListUpdateRow(row);
 	}
 
 private:
-	void updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const;
+	void updateIsBlocked(not_null<PeerListRow*> row, PeerData *peer) const;
 
 	const not_null<Window::SessionNavigation*> _navigation;
-	Fn<void(not_null<UserData*> user)> _blockUserCallback;
+	Fn<void(not_null<PeerData*> peer)> _blockPeerCallback;
 
 };
 
-BlockUserBoxController::BlockUserBoxController(
+BlockPeerBoxController::BlockPeerBoxController(
 	not_null<Window::SessionNavigation*> navigation)
 : ChatsListBoxController(navigation)
 , _navigation(navigation) {
 }
 
-Main::Session &BlockUserBoxController::session() const {
+Main::Session &BlockPeerBoxController::session() const {
 	return _navigation->session();
 }
 
-void BlockUserBoxController::prepareViewHook() {
+void BlockPeerBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_blocked_list_add_title());
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::IsBlocked
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (const auto user = update.peer->asUser()) {
-			if (auto row = delegate()->peerListFindRow(user->id)) {
-				updateIsBlocked(row, user);
-				delegate()->peerListUpdateRow(row);
-			}
+		if (auto row = delegate()->peerListFindRow(update.peer->id)) {
+			updateIsBlocked(row, update.peer);
+			delegate()->peerListUpdateRow(row);
 		}
 	}, lifetime());
 }
 
-void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const {
-	auto blocked = user->isBlocked();
+void BlockPeerBoxController::updateIsBlocked(not_null<PeerListRow*> row, PeerData *peer) const {
+	auto blocked = peer->isBlocked();
 	row->setDisabledState(blocked ? PeerListRow::State::DisabledChecked : PeerListRow::State::Active);
 	if (blocked) {
 		row->setCustomStatus(tr::lng_blocked_list_already_blocked(tr::now));
@@ -110,20 +108,20 @@ void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserDat
 	}
 }
 
-void BlockUserBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_blockUserCallback(row->peer()->asUser());
+void BlockPeerBoxController::rowClicked(not_null<PeerListRow*> row) {
+	_blockPeerCallback(row->peer());
 }
 
-std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(not_null<History*> history) {
-	if (history->peer->isSelf()) {
+auto BlockPeerBoxController::createRow(not_null<History*> history)
+-> std::unique_ptr<BlockPeerBoxController::Row> {
+	if (!history->peer->isUser()
+		|| history->peer->isServiceUser()
+		|| history->peer->isSelf()) {
 		return nullptr;
 	}
-	if (auto user = history->peer->asUser()) {
-		auto row = std::make_unique<Row>(history);
-		updateIsBlocked(row.get(), user);
-		return row;
-	}
-	return nullptr;
+	auto row = std::make_unique<Row>(history);
+	updateIsBlocked(row.get(), history->peer);
+	return row;
 }
 
 AdminLog::OwnedItem GenerateForwardedItem(
@@ -142,27 +140,28 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	const auto item = MTP_message(
 		MTP_flags(flags),
 		MTP_int(++id),
-		MTP_int(peerToUser(history->peer->id)),
-		peerToMTP(history->session().userPeerId()),
+		peerToMTP(history->peer->id),
+		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(
 			MTP_flags(FwdFlag::f_from_id),
-			MTP_int(history->session().userId()),
+			peerToMTP(history->session().userPeerId()),
 			MTPstring(), // from_name
 			MTP_int(base::unixtime::now()),
-			MTPint(), // channel_id
 			MTPint(), // channel_post
 			MTPstring(), // post_author
 			MTPPeer(), // saved_from_peer
 			MTPint(), // saved_from_msg_id
 			MTPstring()), // psa_type
 		MTPint(), // via_bot_id
-		MTPint(), // reply_to_msg_id,
+		MTPMessageReplyHeader(),
 		MTP_int(base::unixtime::now()), // date
 		MTP_string(text),
 		MTPMessageMedia(),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTPint(), // views
+		MTPint(), // forwards
+		MTPMessageReplies(),
 		MTPint(), // edit_date
 		MTPstring(), // post_author
 		MTPlong(), // grouped_id
@@ -199,22 +198,20 @@ void BlockedBoxController::prepare() {
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::IsBlocked
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (const auto user = update.peer->asUser()) {
-			handleBlockedEvent(user);
-		}
+		handleBlockedEvent(update.peer);
 	}, lifetime());
 
 	_loadRequestId = -1;
-	_window->session().api().blockedUsersSlice(
+	_window->session().api().blockedPeersSlice(
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](const ApiWrap::BlockedUsersSlice &result) {
+	) | rpl::start_with_next([=](const ApiWrap::BlockedPeersSlice &result) {
 		setDescriptionText(tr::lng_blocked_list_about(tr::now));
 		_loadRequestId = 0;
 		_offset = result.list.size();
 		_allLoaded = (_offset >= result.total);
 		for (const auto item : result.list) {
-			appendRow(item.user);
+			appendRow(item.peer);
 		};
 		delegate()->peerListRefreshRows();
 		loadMoreRows();
@@ -234,15 +231,16 @@ void BlockedBoxController::loadMoreRows() {
 
 		auto handleContactsBlocked = [&](auto &list) {
 			_window->session().data().processUsers(list.vusers());
+			_window->session().data().processChats(list.vchats());
 			return list.vblocked().v;
 		};
 		switch (result.type()) {
 		case mtpc_contacts_blockedSlice: {
-			receivedUsers(handleContactsBlocked(result.c_contacts_blockedSlice()));
+			receivedPeers(handleContactsBlocked(result.c_contacts_blockedSlice()));
 		} break;
 		case mtpc_contacts_blocked: {
 			_allLoaded = true;
-			receivedUsers(handleContactsBlocked(result.c_contacts_blocked()));
+			receivedPeers(handleContactsBlocked(result.c_contacts_blocked()));
 		} break;
 		default: Unexpected("Bad type() in MTPcontacts_GetBlocked() result.");
 		}
@@ -259,30 +257,28 @@ void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void BlockedBoxController::rowActionClicked(not_null<PeerListRow*> row) {
-	auto user = row->peer()->asUser();
-	Expects(user != nullptr);
-
-	_window->session().api().unblockUser(user);
+	_window->session().api().unblockPeer(row->peer());
 }
 
-void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &result) {
+void BlockedBoxController::receivedPeers(
+		const QVector<MTPPeerBlocked> &result) {
 	if (result.empty()) {
 		_allLoaded = true;
 	}
 
 	_offset += result.size();
 	for (const auto &item : result) {
-		item.match([&](const MTPDcontactBlocked &data) {
-			if (const auto user = _window->session().data().userLoaded(data.vuser_id().v)) {
-				appendRow(user);
-				user->setIsBlocked(true);
+		item.match([&](const MTPDpeerBlocked &data) {
+			if (const auto peer = _window->session().data().peerLoaded(peerFromMTP(data.vpeer_id()))) {
+				appendRow(peer);
+				peer->setIsBlocked(true);
 			}
 		});
 	}
 	delegate()->peerListRefreshRows();
 }
 
-void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
+void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
 			delegate()->peerListRefreshRows();
@@ -294,13 +290,13 @@ void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
 	}
 }
 
-void BlockedBoxController::BlockNewUser(
+void BlockedBoxController::BlockNewPeer(
 		not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<BlockUserBoxController>(window);
+	auto controller = std::make_unique<BlockPeerBoxController>(window);
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
-		controller->setBlockUserCallback([=](not_null<UserData*> user) {
-			window->session().api().blockUser(user);
+		controller->setBlockPeerCallback([=](not_null<PeerData*> peer) {
+			window->session().api().blockPeer(peer);
 			box->closeBox();
 		});
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
@@ -310,28 +306,31 @@ void BlockedBoxController::BlockNewUser(
 		Ui::LayerOption::KeepOther);
 }
 
-bool BlockedBoxController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
+bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
+	if (delegate()->peerListFindRow(peer->id)) {
 		return false;
 	}
-	delegate()->peerListAppendRow(createRow(user));
+	delegate()->peerListAppendRow(createRow(peer));
 	return true;
 }
 
-bool BlockedBoxController::prependRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
+bool BlockedBoxController::prependRow(not_null<PeerData*> peer) {
+	if (delegate()->peerListFindRow(peer->id)) {
 		return false;
 	}
-	delegate()->peerListPrependRow(createRow(user));
+	delegate()->peerListPrependRow(createRow(peer));
 	return true;
 }
 
 std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
-		not_null<UserData*> user) const {
-	auto row = std::make_unique<PeerListRowWithLink>(user);
+		not_null<PeerData*> peer) const {
+	auto row = std::make_unique<PeerListRowWithLink>(peer);
 	row->setActionLink(tr::lng_blocked_list_unblock(tr::now));
 	const auto status = [&] {
-		if (!user->phone().isEmpty()) {
+		const auto user = peer->asUser();
+		if (!user) {
+			return tr::lng_group_status(tr::now);
+		} else if (!user->phone().isEmpty()) {
 			return App::formatPhone(user->phone());
 		} else if (!user->username.isEmpty()) {
 			return '@' + user->username;

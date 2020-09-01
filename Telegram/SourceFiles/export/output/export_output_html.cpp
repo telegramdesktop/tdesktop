@@ -1604,7 +1604,9 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 	const auto &action = message.action;
 	if (const auto call = base::get_if<ActionPhoneCall>(&action.content)) {
 		result.classes = "media_call";
-		result.title = peers.peer(message.toId).name();
+		result.title = peers.peer(message.out
+				? message.peerId
+				: message.selfId).name();
 		result.status = [&] {
 			using Reason = ActionPhoneCall::DiscardReason;
 			const auto reason = call->discardReason;

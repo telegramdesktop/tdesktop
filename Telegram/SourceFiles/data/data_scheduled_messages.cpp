@@ -35,30 +35,30 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 				| MTPDmessageService::Flag(
 					MTPDmessage::Flag::f_from_scheduled)),
 			MTP_int(id),
-			MTP_int(data.vfrom_id().value_or_empty()),
-			data.vto_id(),
-			MTP_int(data.vreply_to_msg_id().value_or_empty()),
+			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
+			data.vpeer_id(),
+			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
 			data.vdate(),
 			data.vaction());
 	}, [&](const MTPDmessage &data) {
-		const auto fwdFrom = data.vfwd_from();
-		const auto media = data.vmedia();
-		const auto markup = data.vreply_markup();
-		const auto entities = data.ventities();
 		return MTP_message(
 			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_from_scheduled),
 			MTP_int(id),
-			MTP_int(data.vfrom_id().value_or_empty()),
-			data.vto_id(),
-			fwdFrom ? *fwdFrom : MTPMessageFwdHeader(),
+			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
+			data.vpeer_id(),
+			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_int(data.vvia_bot_id().value_or_empty()),
-			MTP_int(data.vreply_to_msg_id().value_or_empty()),
+			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
 			data.vdate(),
 			data.vmessage(),
-			media ? *media : MTPMessageMedia(),
-			markup ? *markup : MTPReplyMarkup(),
-			entities ? *entities : MTPVector<MTPMessageEntity>(),
+			data.vmedia() ? *data.vmedia() : MTPMessageMedia(),
+			data.vreply_markup() ? *data.vreply_markup() : MTPReplyMarkup(),
+			(data.ventities()
+				? *data.ventities()
+				: MTPVector<MTPMessageEntity>()),
 			MTP_int(data.vviews().value_or_empty()),
+			MTP_int(data.vforwards().value_or_empty()),
+			data.vreplies() ? *data.vreplies() : MTPMessageReplies(),
 			MTP_int(data.vedit_date().value_or_empty()),
 			MTP_bytes(data.vpost_author().value_or_empty()),
 			MTP_long(data.vgrouped_id().value_or_empty()),
@@ -157,24 +157,28 @@ void ScheduledMessages::sendNowSimpleMessage(
 	// views count, etc.
 
 	const auto history = local->history();
+	auto action = Api::SendAction(history);
+	action.replyTo = local->replyToId();
+	const auto replyHeader = NewMessageReplyHeader(action);
 	auto flags = NewMessageFlags(history->peer)
 		| MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| (local->replyToId()
-			? MTPDmessage::Flag::f_reply_to_msg_id
+			? MTPDmessage::Flag::f_reply_to
 			: MTPDmessage::Flag(0));
 	auto clientFlags = NewMessageClientFlags()
 		| MTPDmessage_ClientFlag::f_local_history_entry;
-
+	const auto views = 1;
+	const auto forwards = 0;
 	history->addNewMessage(
 		MTP_message(
 			MTP_flags(flags),
 			update.vid(),
-			MTP_int(_session->userId()),
+			peerToMTP(_session->userPeerId()),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
 			MTPint(),
-			MTP_int(local->replyToId()),
+			replyHeader,
 			update.vdate(),
 			MTP_string(local->originalText().text),
 			MTP_messageMediaEmpty(),
@@ -182,8 +186,10 @@ void ScheduledMessages::sendNowSimpleMessage(
 			Api::EntitiesToMTP(
 				&history->session(),
 				local->originalText().entities),
-			MTP_int(1),
-			MTPint(),
+			MTP_int(views),
+			MTP_int(forwards),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(),
 			MTPlong(),
 			//MTPMessageReactions(),
@@ -215,7 +221,7 @@ void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 	// while the recipient is already online, the server sends
 	// updateNewMessage to the client and the client calls this method.
 
-	const auto peer = peerFromMTP(data.vto_id());
+	const auto peer = peerFromMTP(data.vpeer_id());
 	if (!peerIsUser(peer)) {
 		return;
 	}

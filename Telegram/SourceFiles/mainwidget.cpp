@@ -1276,7 +1276,7 @@ void MainWidget::viewsIncrement() {
 			i->first->input,
 			MTP_vector<MTPint>(ids),
 			MTP_bool(true)
-		)).done([=](const MTPVector<MTPint> &result, mtpRequestId requestId) {
+		)).done([=](const MTPmessages_MessageViews &result, mtpRequestId requestId) {
 			viewsIncrementDone(ids, result, requestId);
 		}).fail([=](const RPCError &error, mtpRequestId requestId) {
 			viewsIncrementFail(error, requestId);
@@ -1287,8 +1287,14 @@ void MainWidget::viewsIncrement() {
 	}
 }
 
-void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId requestId) {
-	auto &v = result.v;
+void MainWidget::viewsIncrementDone(
+		QVector<MTPint> ids,
+		const MTPmessages_MessageViews &result,
+		mtpRequestId requestId) {
+	const auto &data = result.c_messages_messageViews();
+	session().data().processUsers(data.vusers());
+	session().data().processChats(data.vchats());
+	auto &v = data.vviews().v;
 	if (ids.size() == v.size()) {
 		for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 			if (i->second == requestId) {
@@ -1296,7 +1302,23 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 				const auto channel = peerToChannel(peer->id);
 				for (int32 j = 0, l = ids.size(); j < l; ++j) {
 					if (const auto item = session().data().message(channel, ids[j].v)) {
-						item->setViewsCount(v[j].v);
+						v[j].match([&](const MTPDmessageViews &data) {
+							if (const auto views = data.vviews()) {
+								item->setViewsCount(views->v);
+							}
+							if (const auto forwards = data.vforwards()) {
+								item->setForwardsCount(forwards->v);
+							}
+							if (const auto replies = data.vreplies()) {
+								item->setRepliesCount(
+									replies->match([&](const MTPDmessageReplies &data) {
+										return data.vreplies().v;
+									}),
+									replies->match([&](const MTPDmessageReplies &data) {
+										return data.vreplies_pts().v;
+									}));
+							}
+						});
 					}
 				}
 				_viewsIncrementRequests.erase(i);

@@ -180,19 +180,6 @@ public:
 	}
 	void setIsContact(bool is);
 
-	enum class BlockStatus : char {
-		Unknown,
-		Blocked,
-		NotBlocked,
-	};
-	BlockStatus blockStatus() const {
-		return _blockStatus;
-	}
-	bool isBlocked() const {
-		return (blockStatus() == BlockStatus::Blocked);
-	}
-	void setIsBlocked(bool is);
-
 	enum class CallsStatus : char {
 		Unknown,
 		Enabled,
@@ -225,7 +212,6 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
-	BlockStatus _blockStatus = BlockStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
 

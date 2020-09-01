@@ -73,7 +73,7 @@ public:
 		TimeId date,
 		const PreparedText &message,
 		MTPDmessage::Flags flags = 0,
-		UserId from = 0,
+		PeerId from = 0,
 		PhotoData *photo = nullptr);
 
 	bool updateDependencyItem() override;

@@ -53,6 +53,7 @@ generate({
     'ipPortSecret#37982646',
     'accessPointRule#4679b65f',
     'help.configSimple#5a592a6c',
+    'messageReplies#81834865',
   ],
 
   'renamedTypes': {

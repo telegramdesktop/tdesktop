@@ -658,7 +658,7 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	const auto peerId = peer->id;
 	if (item->isHistoryEntry()) {
 		// All this must be done for all items manually in History::clear()!
-		item->eraseFromUnreadMentions();
+		item->destroyHistoryEntry();
 		if (IsServerMsgId(item->id)) {
 			if (const auto types = item->sharedMediaTypes()) {
 				session().storage().remove(Storage::SharedMediaRemoveOne(
@@ -735,7 +735,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<HistoryMessage*> forwardOriginal) {
 	return addNewItem(
@@ -757,7 +757,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
@@ -785,7 +785,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
@@ -813,7 +813,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup) {
@@ -1238,10 +1238,13 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionPinMessage: {
-		if (const auto replyToMsgId = data.vreply_to_msg_id()) {
-			if (item) {
-				item->history()->peer->setPinnedMessageId(replyToMsgId->v);
-			}
+		if (const auto replyTo = data.vreply_to()) {
+			replyTo->match([&](const MTPDmessageReplyHeader &data) {
+				if (item) {
+					item->history()->peer->setPinnedMessageId(
+						data.vreply_to_msg_id().v);
+				}
+			});
 		}
 	} break;
 
@@ -1317,6 +1320,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (item->out() && !item->unread()) {
 		outboxRead(item);
 	}
+	item->incrementReplyToTopCounter();
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}

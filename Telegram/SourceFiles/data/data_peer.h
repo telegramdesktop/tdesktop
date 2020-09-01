@@ -349,15 +349,37 @@ public:
 			: (_settings.value() | rpl::type_erased());
 	}
 
-	enum LoadedStatus {
-		NotLoaded = 0x00,
-		MinimalLoaded = 0x01,
-		FullLoaded = 0x02,
+	enum class BlockStatus : char {
+		Unknown,
+		Blocked,
+		NotBlocked,
 	};
+	[[nodiscard]] BlockStatus blockStatus() const {
+		return _blockStatus;
+	}
+	[[nodiscard]] bool isBlocked() const {
+		return (blockStatus() == BlockStatus::Blocked);
+	}
+	void setIsBlocked(bool is);
+
+	enum class LoadedStatus : char {
+		Not,
+		Minimal,
+		Full,
+	};
+	[[nodiscard]] LoadedStatus loadedStatus() const {
+		return _loadedStatus;
+	}
+	[[nodiscard]] bool isMinimalLoaded() const {
+		return (loadedStatus() != LoadedStatus::Not);
+	}
+	[[nodiscard]] bool isFullLoaded() const {
+		return (loadedStatus() == LoadedStatus::Full);
+	}
+	void setLoadedStatus(LoadedStatus status);
 
 	const PeerId id;
 	QString name;
-	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
 	int nameVersion = 1;
@@ -400,6 +422,8 @@ private:
 	MsgId _pinnedMessageId = 0;
 
 	Settings _settings = { kSettingsUnknown };
+	BlockStatus _blockStatus = BlockStatus::Unknown;
+	LoadedStatus _loadedStatus = LoadedStatus::Not;
 
 	QString _about;
 

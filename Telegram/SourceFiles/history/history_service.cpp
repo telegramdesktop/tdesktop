@@ -508,7 +508,7 @@ HistoryService::HistoryService(
 		data.vflags().v,
 		clientFlags,
 		data.vdate().v,
-		data.vfrom_id().value_or_empty()) {
+		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
 }
 
@@ -522,7 +522,7 @@ HistoryService::HistoryService(
 		mtpCastFlags(data.vflags().v),
 		clientFlags,
 		data.vdate().v,
-		data.vfrom_id().value_or_empty()) {
+		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
 }
 
@@ -533,7 +533,7 @@ HistoryService::HistoryService(
 	TimeId date,
 	const PreparedText &message,
 	MTPDmessage::Flags flags,
-	UserId from,
+	PeerId from,
 	PhotoData *photo)
 : HistoryItem(history, id, flags, clientFlags, date, from) {
 	setServiceText(message);
@@ -680,19 +680,21 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		auto currency = qs(message.vaction().c_messageActionPaymentSent().vcurrency());
 		Get<HistoryServicePayment>()->amount = HistoryView::FillAmountAndCurrency(amount, currency);
 	}
-	if (const auto replyToMsgId = message.vreply_to_msg_id()) {
+	if (const auto replyTo = message.vreply_to()) {
 		if (message.vaction().type() == mtpc_messageActionPinMessage) {
 			UpdateComponents(HistoryServicePinned::Bit());
 		}
-		if (const auto dependent = GetDependentData()) {
-			dependent->msgId = replyToMsgId->v;
-			if (!updateDependent()) {
-				history()->session().api().requestMessageData(
-					history()->peer->asChannel(),
-					dependent->msgId,
-					HistoryDependentItemCallback(this));
+		replyTo->match([&](const MTPDmessageReplyHeader &data) {
+			if (const auto dependent = GetDependentData()) {
+				dependent->msgId = data.vreply_to_msg_id().v;
+				if (!updateDependent()) {
+					history()->session().api().requestMessageData(
+						history()->peer->asChannel(),
+						dependent->msgId,
+						HistoryDependentItemCallback(this));
+				}
 			}
-		}
+		});
 	}
 	setMessageByAction(message.vaction());
 }

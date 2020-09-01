@@ -281,7 +281,7 @@ void ListController::loadMoreRows() {
 			for (const auto &vote : data.vvotes().v) {
 				vote.match([&](const auto &data) {
 					const auto user = owner.user(data.vuser_id().v);
-					if (user->loadedStatus != PeerData::NotLoaded) {
+					if (user->isMinimalLoaded()) {
 						if (add) {
 							appendRow(user);
 							--add;

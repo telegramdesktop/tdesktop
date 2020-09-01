@@ -51,49 +51,48 @@ MTPMessage PrepareLogMessage(
 		TimeId newDate) {
 	return message.match([&](const MTPDmessageEmpty &) {
 		return MTP_messageEmpty(MTP_int(newId));
-	}, [&](const MTPDmessageService &message) {
+	}, [&](const MTPDmessageService &data) {
 		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
-			/* | MTPDmessageService::Flag::f_reply_to_msg_id*/;
-		const auto flags = message.vflags().v & ~removeFlags;
-		const auto fromId = message.vfrom_id();
+			| MTPDmessageService::Flag::f_reply_to;
 		return MTP_messageService(
-			MTP_flags(flags),
+			MTP_flags(data.vflags().v & ~removeFlags),
 			MTP_int(newId),
-			MTP_int(message.vfrom_id().value_or_empty()),
-			message.vto_id(),
-			MTP_int(0), // reply_to_msg_id
+			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
+			data.vpeer_id(),
+			MTPMessageReplyHeader(),
 			MTP_int(newDate),
-			message.vaction());
-	}, [&](const MTPDmessage &message) {
+			data.vaction());
+	}, [&](const MTPDmessage &data) {
 		const auto removeFlags = MTPDmessage::Flag::f_out
 			| MTPDmessage::Flag::f_post
-			| MTPDmessage::Flag::f_reply_to_msg_id
+			| MTPDmessage::Flag::f_reply_to
+			| MTPDmessage::Flag::f_replies
 			| MTPDmessage::Flag::f_edit_date
 			| MTPDmessage::Flag::f_grouped_id
 			| MTPDmessage::Flag::f_views
+			| MTPDmessage::Flag::f_forwards
 			//| MTPDmessage::Flag::f_reactions
 			| MTPDmessage::Flag::f_restriction_reason;
-		const auto flags = message.vflags().v & ~removeFlags;
-		const auto fwdFrom = message.vfwd_from();
-		const auto media = message.vmedia();
-		const auto markup = message.vreply_markup();
-		const auto entities = message.ventities();
 		return MTP_message(
-			MTP_flags(flags),
+			MTP_flags(data.vflags().v & ~removeFlags),
 			MTP_int(newId),
-			MTP_int(message.vfrom_id().value_or_empty()),
-			message.vto_id(),
-			fwdFrom ? *fwdFrom : MTPMessageFwdHeader(),
-			MTP_int(message.vvia_bot_id().value_or_empty()),
-			MTP_int(0), // reply_to_msg_id
+			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
+			data.vpeer_id(),
+			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
+			MTP_int(data.vvia_bot_id().value_or_empty()),
+			MTPMessageReplyHeader(),
 			MTP_int(newDate),
-			message.vmessage(),
-			media ? *media : MTPMessageMedia(),
-			markup ? *markup : MTPReplyMarkup(),
-			entities ? *entities : MTPVector<MTPMessageEntity>(),
-			MTP_int(message.vviews().value_or_empty()),
-			MTP_int(0), // edit_date
+			data.vmessage(),
+			data.vmedia() ? *data.vmedia() : MTPMessageMedia(),
+			data.vreply_markup() ? *data.vreply_markup() : MTPReplyMarkup(),
+			(data.ventities()
+				? *data.ventities()
+				: MTPVector<MTPMessageEntity>()),
+			MTP_int(data.vviews().value_or_empty()),
+			MTP_int(data.vforwards().value_or_empty()),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(),
 			MTP_long(0), // grouped_id
 			//MTPMessageReactions(),

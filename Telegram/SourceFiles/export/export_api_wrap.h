@@ -209,6 +209,7 @@ private:
 
 	MTP::ConcurrentSender _mtp;
 	std::optional<uint64> _takeoutId;
+	std::optional<int32> _selfId;
 	Output::Stats *_stats = nullptr;
 
 	std::unique_ptr<Settings> _settings;

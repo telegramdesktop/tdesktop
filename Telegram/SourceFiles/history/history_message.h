@@ -9,16 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 
+namespace Api {
+struct SendAction;
+} // namespace Api
+
 namespace HistoryView {
 class Message;
 } // namespace HistoryView
 
 struct HistoryMessageEdited;
+struct HistoryMessageReply;
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 MTPDmessage_ClientFlags NewMessageClientFlags();
+MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action);
 QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
@@ -46,7 +52,7 @@ public:
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<HistoryMessage*> original); // local forwarded
 	HistoryMessage(
@@ -57,7 +63,7 @@ public:
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		const TextWithEntities &textWithEntities); // local message
 	HistoryMessage(
@@ -68,7 +74,7 @@ public:
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
@@ -81,7 +87,7 @@ public:
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
@@ -94,7 +100,7 @@ public:
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup); // local game
@@ -125,8 +131,12 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void setViewsCount(int32 count) override;
+	void setViewsCount(int count) override;
+	void setForwardsCount(int count) override;
+	void setRepliesCount(int count, int pts) override;
+	void setReplyToTop(MsgId replyToTop) override;
 	void setRealId(MsgId newId) override;
+	void incrementReplyToTopCounter() override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -144,7 +154,7 @@ public:
 	void contributeToSlowmode(TimeId realDate = 0) override;
 
 	void addToUnreadMentions(UnreadMentionType type) override;
-	void eraseFromUnreadMentions() override;
+	void destroyHistoryEntry() override;
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
@@ -154,6 +164,7 @@ public:
 	[[nodiscard]] bool textHasLinks() const override;
 
 	[[nodiscard]] int viewsCount() const override;
+	[[nodiscard]] int repliesCount() const override;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
@@ -193,6 +204,8 @@ private:
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 	void setupForwardedComponent(const CreateConfig &config);
+	void incrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
+	void decrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
 
 	static void FillForwardedInfo(
 		CreateConfig &config,

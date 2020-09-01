@@ -54,6 +54,25 @@ ImageWithLocation FromPhotoSize(
 			.bytes = bytes,
 			.bytesCount = bytes.size(),
 		};
+	}, [&](const MTPDphotoSizeProgressive &data) {
+		// #TODO layer118
+		if (data.vsizes().v.isEmpty()) {
+			return ImageWithLocation();
+		}
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					photo.vdc_id().v,
+					session->userId(),
+					MTP_inputPhotoFileLocation(
+						photo.vid(),
+						photo.vaccess_hash(),
+						photo.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsizes().v.back().v
+		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();
 		//const auto bytes = ExpandInlineBytes(qba(data.vbytes()));
@@ -112,6 +131,25 @@ ImageWithLocation FromPhotoSize(
 				data.vh().v),
 			.bytes = bytes,
 			.bytesCount = bytes.size(),
+		};
+	}, [&](const MTPDphotoSizeProgressive &data) {
+		// #TODO layer118
+		if (data.vsizes().v.isEmpty()) {
+			return ImageWithLocation();
+		}
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					document.vdc_id().v,
+					session->userId(),
+					MTP_inputDocumentFileLocation(
+						document.vid(),
+						document.vaccess_hash(),
+						document.vfile_reference(),
+						data.vtype())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsizes().v.back().v
 		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();
@@ -174,6 +212,25 @@ ImageWithLocation FromPhotoSize(
 				data.vh().v),
 			.bytes = bytes,
 			.bytesCount = bytes.size(),
+		};
+	}, [&](const MTPDphotoSizeProgressive &data) {
+		// #TODO layer118
+		if (data.vsizes().v.isEmpty()) {
+			return ImageWithLocation();
+		}
+		const auto &location = data.vlocation().c_fileLocationToBeDeprecated();
+		return ImageWithLocation{
+			.location = ImageLocation(
+				DownloadLocation{ StorageFileLocation(
+					set.vthumb_dc_id()->v,
+					session->userId(),
+					MTP_inputStickerSetThumb(
+						MTP_inputStickerSetID(set.vid(), set.vaccess_hash()),
+						location.vvolume_id(),
+						location.vlocal_id())) },
+				data.vw().v,
+				data.vh().v),
+			.bytesCount = data.vsizes().v.back().v
 		};
 	}, [&](const MTPDphotoStrippedSize &data) {
 		return ImageWithLocation();

@@ -322,7 +322,7 @@ private:
 
 	void viewsIncrementDone(
 		QVector<MTPint> ids,
-		const MTPVector<MTPint> &result,
+		const MTPmessages_MessageViews &result,
 		mtpRequestId requestId);
 	void viewsIncrementFail(const RPCError &error, mtpRequestId requestId);
 

@@ -2282,15 +2282,14 @@ void Account::readSelf(
 		int32 streamVersion) {
 	QDataStream stream(serialized);
 	const auto user = session->user();
-	const auto wasLoadedStatus = std::exchange(
-		user->loadedStatus,
-		PeerData::NotLoaded);
+	const auto wasLoadedStatus = user->loadedStatus();
+	user->setLoadedStatus(PeerData::LoadedStatus::Not);
 	const auto self = Serialize::readPeer(
 		session,
 		streamVersion,
 		stream);
 	if (!self || !self->isSelf() || self != user) {
-		user->loadedStatus = wasLoadedStatus;
+		user->setLoadedStatus(wasLoadedStatus);
 		return;
 	}
 

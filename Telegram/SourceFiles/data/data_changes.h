@@ -58,12 +58,12 @@ struct PeerUpdate {
 		Migration         = (1 << 5),
 		UnavailableReason = (1 << 6),
 		PinnedMessage     = (1 << 7),
+		IsBlocked         = (1 << 8),
 
 		// For users
-		CanShareContact   = (1 << 8),
-		IsContact         = (1 << 9),
-		PhoneNumber       = (1 << 10),
-		IsBlocked         = (1 << 11),
+		CanShareContact   = (1 << 9),
+		IsContact         = (1 << 10),
+		PhoneNumber       = (1 << 11),
 		OnlineStatus      = (1 << 12),
 		BotCommands       = (1 << 13),
 		BotCanBeInvited   = (1 << 14),

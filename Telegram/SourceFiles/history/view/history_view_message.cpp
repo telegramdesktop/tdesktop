@@ -1354,9 +1354,9 @@ void Message::drawInfo(
 		}();
 		if (item->id > 0) {
 			icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);
-			p.drawText(infoRight - infoW + st::historyViewsWidth, infoBottom - st::msgDateFont->descent, views->_viewsText);
+			p.drawText(infoRight - infoW + st::historyViewsWidth, infoBottom - st::msgDateFont->descent, views->text);
 		} else if (!outbg) { // sending outbg icon will be painted below
-			auto iconSkip = st::historyViewsSpace + views->_viewsWidth;
+			auto iconSkip = st::historyViewsSpace + views->textWidth;
 			icon->paint(p, infoRight - infoW + iconSkip, infoBottom + st::historyViewsTop, width);
 		}
 	} else if (item->id < 0 && item->history()->peer->isSelf() && !outbg) {
@@ -1413,7 +1413,7 @@ int Message::infoWidth() const {
 	auto result = item->_timeWidth;
 	if (auto views = item->Get<HistoryMessageViews>()) {
 		result += st::historyViewsSpace
-			+ views->_viewsWidth
+			+ views->textWidth
 			+ st::historyViewsWidth;
 	} else if (item->id < 0 && item->history()->peer->isSelf()) {
 		if (!hasOutLayout()) {
@@ -1453,7 +1453,7 @@ int Message::timeLeft() const {
 	const auto item = message();
 	auto result = 0;
 	if (auto views = item->Get<HistoryMessageViews>()) {
-		result += st::historyViewsSpace + views->_viewsWidth + st::historyViewsWidth;
+		result += st::historyViewsSpace + views->textWidth + st::historyViewsWidth;
 	} else if (item->id < 0 && item->history()->peer->isSelf()) {
 		if (!hasOutLayout()) {
 			result += st::historySendStateSpace;
@@ -1989,12 +1989,16 @@ void Message::initTime() {
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
 	if (const auto views = item->Get<HistoryMessageViews>()) {
-		views->_viewsText = (views->_views > 0)
-			? Lang::FormatCountToShort(views->_views).string
+		views->text = (views->views > 0)
+			? Lang::FormatCountToShort(views->views).string
+			: (views->views < 0)
+			? (views->replies > 0
+				? Lang::FormatCountToShort(views->replies).string
+				: QString())
 			: QString("1");
-		views->_viewsWidth = views->_viewsText.isEmpty()
+		views->textWidth = views->text.isEmpty()
 			? 0
-			: st::msgDateFont->width(views->_viewsText);
+			: st::msgDateFont->width(views->text);
 	}
 	if (item->_text.hasSkipBlock()) {
 		if (item->_text.updateSkipBlock(skipBlockWidth(), skipBlockHeight())) {

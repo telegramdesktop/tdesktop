@@ -65,7 +65,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
-		UserId from) {
+		PeerId from) {
 	const auto siteLink = qsl("https://desktop.telegram.org");
 	auto text = TextWithEntities{
 		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
@@ -174,10 +174,10 @@ HistoryItem::HistoryItem(
 	MTPDmessage::Flags flags,
 	MTPDmessage_ClientFlags clientFlags,
 	TimeId date,
-	UserId from)
+	PeerId from)
 : id(id)
 , _history(history)
-, _from(from ? history->owner().user(from) : history->peer)
+, _from(from ? history->owner().peer(from) : history->peer)
 , _flags(flags)
 , _clientFlags(clientFlags)
 , _date(date) {
@@ -440,15 +440,13 @@ void HistoryItem::addToUnreadMentions(UnreadMentionType type) {
 }
 
 void HistoryItem::applyEditionToHistoryCleared() {
-	const auto fromId = 0;
-	const auto replyToId = 0;
 	applyEdition(
 		MTP_messageService(
 			MTP_flags(0),
 			MTP_int(id),
-			MTP_int(fromId),
+			peerToMTP(PeerId(0)), // from_id
 			peerToMTP(history()->peer->id),
-			MTP_int(replyToId),
+			MTPMessageReplyHeader(),
 			MTP_int(date()),
 			MTP_messageActionHistoryClear()
 		).c_messageService());
@@ -456,9 +454,7 @@ void HistoryItem::applyEditionToHistoryCleared() {
 
 void HistoryItem::indexAsNewItem() {
 	if (IsServerMsgId(id)) {
-		CrashReports::SetAnnotation("addToUnreadMentions", QString::number(id));
 		addToUnreadMentions(UnreadMentionType::New);
-		CrashReports::ClearAnnotation("addToUnreadMentions");
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				history()->peer->id,
@@ -653,6 +649,13 @@ Data::MessagePosition HistoryItem::position() const {
 MsgId HistoryItem::replyToId() const {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		return reply->replyToId();
+	}
+	return 0;
+}
+
+MsgId HistoryItem::replyToTop() const {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		return reply->replyToTop();
 	}
 	return 0;
 }
@@ -955,12 +958,12 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vid().v,
 				data.vflags().v,
 				clientFlags,
-				data.vreply_to_msg_id().value_or_empty(),
+				0, // #TODO replies data.vreply_to()
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
-				data.vfrom_id().value_or_empty());
+				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));
 		} else if (checked == MediaCheckResult::Empty) {
-			const auto text = HistoryService::PreparedText {
+			const auto text = HistoryService::PreparedText{
 				tr::lng_message_empty(tr::now)
 			};
 			return history->makeServiceMessage(
@@ -969,7 +972,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vdate().v,
 				text,
 				data.vflags().v,
-				data.vfrom_id().value_or_empty());
+				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
 			return history->makeServiceMessage(data, clientFlags);
 		}

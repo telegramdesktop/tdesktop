@@ -127,7 +127,7 @@ public:
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<HistoryMessage*> forwardOriginal);
 	not_null<HistoryItem*> addNewLocalMessage(
@@ -137,7 +137,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
@@ -149,7 +149,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
@@ -161,7 +161,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup);

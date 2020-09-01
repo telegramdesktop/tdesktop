@@ -31,15 +31,15 @@ public:
 	void rowActionClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
-	static void BlockNewUser(not_null<Window::SessionController*> window);
+	static void BlockNewPeer(not_null<Window::SessionController*> window);
 
 private:
-	void receivedUsers(const QVector<MTPContactBlocked> &result);
-	void handleBlockedEvent(not_null<UserData*> user);
+	void receivedPeers(const QVector<MTPPeerBlocked> &result);
+	void handleBlockedEvent(not_null<PeerData*> peer);
 
-	bool appendRow(not_null<UserData*> user);
-	bool prependRow(not_null<UserData*> user);
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
+	bool appendRow(not_null<PeerData*> peer);
+	bool prependRow(not_null<PeerData*> peer);
+	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer) const;
 
 	const not_null<Window::SessionController*> _window;
 	MTP::Sender _api;

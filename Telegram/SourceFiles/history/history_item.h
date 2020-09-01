@@ -192,6 +192,9 @@ public:
 	[[nodiscard]] virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
 	}
+	[[nodiscard]] virtual int repliesCount() const {
+		return 0;
+	}
 
 	[[nodiscard]] virtual bool needCheck() const;
 
@@ -215,7 +218,7 @@ public:
 	}
 
 	virtual void addToUnreadMentions(UnreadMentionType type);
-	virtual void eraseFromUnreadMentions() {
+	virtual void destroyHistoryEntry() {
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
 
@@ -245,9 +248,17 @@ public:
 		return TextForMimeData();
 	}
 
-	virtual void setViewsCount(int32 count) {
+	virtual void setViewsCount(int count) {
+	}
+	virtual void setForwardsCount(int count) {
+	}
+	virtual void setRepliesCount(int count, int pts) {
+	}
+	virtual void setReplyToTop(MsgId replyToTop) {
 	}
 	virtual void setRealId(MsgId newId);
+	virtual void incrementReplyToTopCounter() {
+	}
 
 	void drawInDialog(
 		Painter &p,
@@ -301,6 +312,7 @@ public:
 		return nullptr;
 	}
 	[[nodiscard]] MsgId replyToId() const;
+	[[nodiscard]] MsgId replyToTop() const;
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 
@@ -348,7 +360,7 @@ protected:
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
-		UserId from);
+		PeerId from);
 
 	virtual void markMediaAsReadHook() {
 	}

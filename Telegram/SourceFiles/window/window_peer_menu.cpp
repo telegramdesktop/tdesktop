@@ -433,7 +433,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		if (user->isBlocked()) {
 			PeerMenuUnblockUserWithBotRestart(user);
 		} else if (user->isBot()) {
-			user->session().api().blockUser(user);
+			user->session().api().blockPeer(user);
 		} else {
 			window->show(Box(PeerMenuBlockUserBox, window, user, false));
 		}
@@ -889,7 +889,7 @@ void PeerMenuBlockUserBox(
 
 		box->closeBox();
 
-		user->session().api().blockUser(user);
+		user->session().api().blockPeer(user);
 		if (reportChecked) {
 			user->session().api().request(MTPmessages_ReportSpam(
 				user->input
@@ -912,7 +912,7 @@ void PeerMenuBlockUserBox(
 }
 
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
-	user->session().api().unblockUser(user, [=] {
+	user->session().api().unblockPeer(user, [=] {
 		if (user->isBot() && !user->isSupport()) {
 			user->session().api().sendBotStart(user);
 		}

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
+#include "history/history_message.h"
 #include "data/data_channel.h"
 #include "app.h"
 
@@ -33,7 +34,7 @@ void SendDataCommon::addToHistory(
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
-		UserId fromId,
+		PeerId fromId,
 		MTPint mtpDate,
 		UserId viaBotId,
 		MsgId replyToId,
@@ -43,22 +44,32 @@ void SendDataCommon::addToHistory(
 	if (!fields.entities.v.isEmpty()) {
 		flags |= MTPDmessage::Flag::f_entities;
 	}
+	auto action = Api::SendAction(history);
+	action.replyTo = replyToId;
+	const auto replyHeader = NewMessageReplyHeader(action);
+	if (replyToId) {
+		flags |= MTPDmessage::Flag::f_reply_to;
+	}
+	const auto views = 1;
+	const auto forwards = 0;
 	history->addNewMessage(
 		MTP_message(
 			MTP_flags(flags),
 			MTP_int(msgId),
-			MTP_int(fromId),
+			peerToMTP(fromId),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
 			MTP_int(viaBotId),
-			MTP_int(replyToId),
+			replyHeader,
 			mtpDate,
 			fields.text,
 			fields.media,
 			markup,
 			fields.entities,
-			MTP_int(1),
-			MTPint(),
+			MTP_int(views),
+			MTP_int(forwards),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(postAuthor),
 			MTPlong(),
 			//MTPMessageReactions(),
@@ -129,7 +140,7 @@ void SendPhoto::addToHistory(
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
-		UserId fromId,
+		PeerId fromId,
 		MTPint mtpDate,
 		UserId viaBotId,
 		MsgId replyToId,
@@ -164,7 +175,7 @@ void SendFile::addToHistory(
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
-		UserId fromId,
+		PeerId fromId,
 		MTPint mtpDate,
 		UserId viaBotId,
 		MsgId replyToId,
@@ -213,7 +224,7 @@ void SendGame::addToHistory(
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
-		UserId fromId,
+		PeerId fromId,
 		MTPint mtpDate,
 		UserId viaBotId,
 		MsgId replyToId,

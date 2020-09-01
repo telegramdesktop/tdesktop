@@ -815,6 +815,28 @@ bool PeerData::canSendPolls() const {
 	return false;
 }
 
+void PeerData::setIsBlocked(bool is) {
+	const auto status = is
+		? BlockStatus::Blocked
+		: BlockStatus::NotBlocked;
+	if (_blockStatus != status) {
+		_blockStatus = status;
+		if (const auto user = asUser()) {
+			const auto flags = user->fullFlags();
+			if (is) {
+				user->setFullFlags(flags | MTPDuserFull::Flag::f_blocked);
+			} else {
+				user->setFullFlags(flags & ~MTPDuserFull::Flag::f_blocked);
+			}
+		}
+		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
+	}
+}
+
+void PeerData::setLoadedStatus(LoadedStatus status) {
+	_loadedStatus = status;
+}
+
 namespace Data {
 
 std::vector<ChatRestrictions> ListOfRestrictions() {

@@ -660,18 +660,37 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 			? Flag::f_message_channels
 			: Flag(0));
 
-	_mtp.request(MTPaccount_InitTakeoutSession(
-		MTP_flags(flags),
-		MTP_int(sizeLimit)
+	_mtp.request(MTPusers_GetUsers(
+		MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())
 	)).done([=, done = std::move(done)](
-			const MTPaccount_Takeout &result) mutable {
-		_takeoutId = result.match([](const MTPDaccount_takeout &data) {
-			return data.vid().v;
-		});
-		done();
+			const MTPVector<MTPUser> &result) mutable {
+		for (const auto &user : result.v) {
+			user.match([&](const MTPDuser &data) {
+				if (data.is_self()) {
+					_selfId = data.vid().v;
+				}
+			}, [&](const MTPDuserEmpty&) {
+			});
+		}
+		if (!_selfId) {
+			error("Could not retrieve selfId.");
+			return;
+		}
+		_mtp.request(MTPaccount_InitTakeoutSession(
+			MTP_flags(flags),
+			MTP_int(sizeLimit)
+		)).done([=, done = std::move(done)](
+				const MTPaccount_Takeout &result) mutable {
+			_takeoutId = result.match([](const MTPDaccount_takeout &data) {
+				return data.vid().v;
+			});
+			done();
+		}).fail([=](RPCError &&result) {
+			error(std::move(result));
+		}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)).send();
 	}).fail([=](RPCError &&result) {
 		error(std::move(result));
-	}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)).send();
+	}).send();
 }
 
 void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
@@ -943,8 +962,10 @@ void ApiWrap::requestMessages(
 		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done) {
 	Expects(_chatProcess == nullptr);
+	Expects(_selfId.has_value());
 
 	_chatProcess = std::make_unique<ChatProcess>();
+	_chatProcess->context.selfPeerId = Data::UserPeerId(*_selfId);
 	_chatProcess->info = info;
 	_chatProcess->start = std::move(start);
 	_chatProcess->fileProgress = std::move(progress);
@@ -1409,6 +1430,7 @@ void ApiWrap::requestChatMessages(
 			realPeerInput,
 			MTP_string(), // query
 			_user,
+			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
@@ -1878,7 +1900,10 @@ void ApiWrap::filePartExtractReference(
 	result.match([&](const MTPDmessages_messagesNotModified &data) {
 		error("Unexpected messagesNotModified received.");
 	}, [&](const auto &data) {
+		Expects(_selfId.has_value());
+
 		auto context = Data::ParseMediaContext();
+		context.selfPeerId = Data::UserPeerId(*_selfId);
 		const auto messages = Data::ParseMessagesSlice(
 			context,
 			data.vmessages(),

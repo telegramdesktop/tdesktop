@@ -104,10 +104,10 @@ rpl::producer<QString> PrivacyString(
 	});
 }
 
-rpl::producer<int> BlockedUsersCount(not_null<::Main::Session*> session) {
-	session->api().reloadBlockedUsers();
-	return session->api().blockedUsersSlice(
-	) | rpl::map([=](const ApiWrap::BlockedUsersSlice &data) {
+rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
+	session->api().reloadBlockedPeers();
+	return session->api().blockedPeersSlice(
+	) | rpl::map([=](const ApiWrap::BlockedPeersSlice &data) {
 		return data.total;
 	});
 }
@@ -120,7 +120,7 @@ void SetupPrivacy(
 
 	const auto session = &controller->session();
 	auto count = rpl::combine(
-		BlockedUsersCount(session),
+		BlockedPeersCount(session),
 		tr::lng_settings_no_blocked_users()
 	) | rpl::map([](int count, const QString &none) {
 		return count ? QString::number(count) : none;
@@ -136,7 +136,7 @@ void SetupPrivacy(
 				box->closeBox();
 			});
 			box->addLeftButton(tr::lng_blocked_list_add(), [=] {
-				BlockedBoxController::BlockNewUser(controller);
+				BlockedBoxController::BlockNewPeer(controller);
 			});
 		};
 		Ui::show(Box<PeerListBox>(

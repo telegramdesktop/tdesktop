@@ -62,7 +62,7 @@ public:
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
-		UserId fromId,
+		PeerId fromId,
 		MTPint mtpDate,
 		UserId viaBotId,
 		MsgId replyToId,

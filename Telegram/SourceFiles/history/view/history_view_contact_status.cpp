@@ -406,7 +406,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 			_controller->showBackFromStack();
 		});
 		if (const auto user = peer->asUser()) {
-			peer->session().api().blockUser(user);
+			peer->session().api().blockPeer(user);
 		}
 		const auto text = ((peer->isChat() || peer->isMegagroup())
 			? tr::lng_report_spam_sure_group

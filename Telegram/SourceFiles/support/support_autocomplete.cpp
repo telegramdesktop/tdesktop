@@ -296,16 +296,14 @@ AdminLog::OwnedItem GenerateContactItem(
 	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2) + 1;
 	const auto flags = Flag::f_from_id | Flag::f_media | Flag::f_out;
-	const auto replyTo = 0;
-	const auto viaBotId = 0;
 	const auto message = MTP_message(
 		MTP_flags(flags),
 		MTP_int(id),
-		MTP_int(history->session().userId()),
+		peerToMTP(history->session().userPeerId()),
 		peerToMTP(history->peer->id),
 		MTPMessageFwdHeader(),
-		MTP_int(viaBotId),
-		MTP_int(replyTo),
+		MTPint(), // via_bot_id
+		MTPMessageReplyHeader(),
 		MTP_int(base::unixtime::now()),
 		MTP_string(),
 		MTP_messageMediaContact(
@@ -316,8 +314,10 @@ AdminLog::OwnedItem GenerateContactItem(
 			MTP_int(0)),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
-		MTP_int(0),
-		MTP_int(0),
+		MTPint(), // views
+		MTPint(), // forwards
+		MTPMessageReplies(),
+		MTPint(), // edit_date
 		MTP_string(),
 		MTP_long(0),
 		//MTPMessageReactions(),

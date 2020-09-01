@@ -1504,6 +1504,7 @@ void ParticipantsBoxController::editAdminDone(
 		_additional.applyParticipant(MTP_channelParticipantCreator(
 			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
 			MTP_int(user->bareId()),
+			MTP_chatAdminRights(MTP_flags(0)), // #TODO anonymous
 			MTP_string(rank)));
 	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
