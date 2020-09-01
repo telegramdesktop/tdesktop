@@ -1614,6 +1614,17 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 	trySwitchToWordSelection();
+	if (!ClickHandler::getActive()
+		&& !ClickHandler::getPressed()
+		&& (_mouseCursorState == CursorState::None
+			|| _mouseCursorState == CursorState::Date)
+		&& _selected.empty()
+		&& (_mouseAction != MouseAction::Selecting)
+		&& _overElement
+		&& IsServerMsgId(_overElement->data()->id)) {
+		mouseActionCancel();
+		replyToMessageRequestNotify(_overElement->data()->fullId());
+	}
 }
 
 void ListWidget::trySwitchToWordSelection() {
