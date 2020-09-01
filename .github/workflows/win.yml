@@ -64,11 +64,6 @@ jobs:
     name: "Windows: dependencies"
     runs-on: windows-latest
 
-    strategy:
-      matrix:
-        defines:
-          - ""
-
     steps:
       - name: Get repository name.
         shell: bash

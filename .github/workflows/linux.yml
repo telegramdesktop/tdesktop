@@ -62,11 +62,6 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:trusty
 
-    strategy:
-      matrix:
-        defines:
-          - ""
-
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}

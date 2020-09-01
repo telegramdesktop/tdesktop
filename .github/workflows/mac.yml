@@ -63,11 +63,6 @@ jobs:
     name: "MacOS: dependencies"
     runs-on: macos-latest
 
-    strategy:
-      matrix:
-        defines:
-          - ""
-
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
