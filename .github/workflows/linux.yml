@@ -356,6 +356,21 @@ jobs:
           cd $LibrariesPath
           sudo cp -R openssl-cache/. /
 
+      - name: Libwayland.
+        run: |
+          cd $LibrariesPath
+
+          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
+          cd wayland
+          ./autogen.sh \
+          --enable-static \
+          --disable-documentation \
+          --disable-dtd-validation
+          make -j$(nproc)
+          sudo make install
+          cd ..
+          rm -rf wayland
+
       - name: Libxkbcommon.
         run: |
           cd $LibrariesPath
@@ -371,21 +386,6 @@ jobs:
           sudo make install
           cd ..
           rm -rf libxkbcommon
-
-      - name: Libwayland.
-        run: |
-          cd $LibrariesPath
-
-          git clone -b 1.18.0 https://gitlab.freedesktop.org/wayland/wayland
-          cd wayland
-          ./autogen.sh \
-          --enable-static \
-          --disable-documentation \
-          --disable-dtd-validation
-          make -j$(nproc)
-          sudo make install
-          cd ..
-          rm -rf wayland
 
       - name: Qt 5.12.8 cache.
         id: cache-qt
