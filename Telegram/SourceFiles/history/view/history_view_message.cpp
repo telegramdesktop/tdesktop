@@ -1344,7 +1344,7 @@ void Message::drawInfo(
 	}
 
 	if (auto views = item->Get<HistoryMessageViews>()) {
-		const auto showReplies = (views->views < 0) && (views->replies > 0);
+		const auto showReplies = /*(views->views < 0) && */(views->replies > 0);
 		auto icon = [&] {
 			if (item->id > 0) {
 				if (outbg) {

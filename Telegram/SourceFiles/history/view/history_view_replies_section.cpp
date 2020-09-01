@@ -393,7 +393,7 @@ bool RepliesWidget::confirmSendingFiles(
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		Api::SendType::Normal,
 		SendMenu::Type::Disabled); // #TODO replies schedule
-	//_field->setTextWithTags({});
+	_composeControls->setText({});
 
 	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -418,19 +418,22 @@ bool RepliesWidget::confirmSendingFiles(
 			replyTo,
 			options,
 			album);
+		if (_composeControls->replyingToMessage().msg == replyTo) {
+			_composeControls->cancelReplyMessage();
+		}
 	}));
-	//box->setCancelledCallback(crl::guard(this, [=] {
-	//	_field->setTextWithTags(text);
-	//	auto cursor = _field->textCursor();
-	//	cursor.setPosition(anchor);
-	//	if (position != anchor) {
-	//		cursor.setPosition(position, QTextCursor::KeepAnchor);
-	//	}
-	//	_field->setTextCursor(cursor);
-	//	if (!insertTextOnCancel.isEmpty()) {
-	//		_field->textCursor().insertText(insertTextOnCancel);
-	//	}
-	//}));
+	box->setCancelledCallback(crl::guard(this, [=] {
+		_composeControls->setText(text);
+		//auto cursor = _field->textCursor();
+		//cursor.setPosition(anchor);
+		//if (position != anchor) {
+		//	cursor.setPosition(position, QTextCursor::KeepAnchor);
+		//}
+		//_field->setTextCursor(cursor);
+		//if (!insertTextOnCancel.isEmpty()) {
+		//	_field->textCursor().insertText(insertTextOnCancel);
+		//}
+	}));
 
 	//ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));

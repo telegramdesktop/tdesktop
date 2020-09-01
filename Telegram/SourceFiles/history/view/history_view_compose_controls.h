@@ -119,6 +119,7 @@ public:
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] WebPageId webPageId() const;
+	void setText(const TextWithTags &text);
 	void clear();
 	void hidePanelsAnimated();
 
@@ -138,7 +139,6 @@ private:
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
-	void setText(const TextWithTags &text);
 
 	void setTextFromEditingMessage(not_null<HistoryItem*> item);
 
