@@ -438,20 +438,6 @@ jobs:
           cd Patches
           eval $checkoutCommit
 
-      - name: Find any version of Python 2.
-        shell: cmd
-        run: |
-          echo Find any version of Python 2.
-          for /D %%a in (C:\hostedtoolcache\windows\Python\2.*) do (
-            SET PY2=%%a\x64
-          )
-          if [%PY2%] == [] (
-            echo Python 2 is not found.
-            exit 1
-          )
-          echo Found %PY2%.
-          echo ::set-env name=PY2::%PY2%
-
       - name: LZMA.
         shell: cmd
         run: |
