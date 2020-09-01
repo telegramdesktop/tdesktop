@@ -75,7 +75,7 @@ MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 	return session->data().scheduledMessages().lookupId(item);
 }
 
-bool HasEditScheduledMessageAction(const ContextMenuRequest &request) {
+bool HasEditMessageAction(const ContextMenuRequest &request) {
 	const auto item = request.item;
 	if (!item
 		|| item->isSending()
@@ -415,7 +415,8 @@ bool AddSendNowMessageAction(
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request) {
-	if (!HasEditScheduledMessageAction(request)) {
+	if (!HasEditMessageAction(request)
+		|| !request.item->isScheduled()) {
 		return false;
 	}
 	const auto item = request.item;
@@ -458,11 +459,33 @@ bool AddRescheduleMessageAction(
 	return true;
 }
 
+bool AddReplyToMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!item
+		|| !IsServerMsgId(item->id)
+		|| !item->history()->peer->canWrite()) {
+		return false;
+	}
+	const auto owner = &item->history()->owner();
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
+		const auto item = owner->message(itemId);
+		if (!item) {
+			return;
+		}
+		list->replyToMessageRequestNotify(item->fullId());
+	});
+	return true;
+}
+
 bool AddEditMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	if (!HasEditScheduledMessageAction(request)) {
+	if (!HasEditMessageAction(request)) {
 		return false;
 	}
 	const auto item = request.item;
@@ -630,11 +653,18 @@ void AddSelectionAction(
 	}
 }
 
+void AddTopMessageActions(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	AddReplyToMessageAction(menu, request, list);
+	AddEditMessageAction(menu, request, list);
+}
+
 void AddMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	AddEditMessageAction(menu, request, list);
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
@@ -695,6 +725,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		});
 	}
 
+	AddTopMessageActions(result, request, list);
 	if (linkPhoto) {
 		AddPhotoActions(result, photo);
 	} else if (linkDocument) {

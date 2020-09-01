@@ -188,6 +188,8 @@ public:
 
 	rpl::producer<FullMsgId> editMessageRequested() const;
 	void editMessageRequestNotify(FullMsgId item);
+	rpl::producer<FullMsgId> replyToMessageRequested() const;
+	void replyToMessageRequestNotify(FullMsgId item);
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -523,6 +525,7 @@ private:
 	base::Timer _highlightTimer;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
+	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
 
 	rpl::lifetime _viewerLifetime;
 

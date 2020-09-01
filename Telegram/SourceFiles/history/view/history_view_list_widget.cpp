@@ -2585,6 +2585,14 @@ void ListWidget::editMessageRequestNotify(FullMsgId item) {
 	_requestedToEditMessage.fire(std::move(item));
 }
 
+rpl::producer<FullMsgId> ListWidget::replyToMessageRequested() const {
+	return _requestedToReplyToMessage.events();
+}
+
+void ListWidget::replyToMessageRequestNotify(FullMsgId item) {
+	_requestedToReplyToMessage.fire(std::move(item));
+}
+
 ListWidget::~ListWidget() = default;
 
 } // namespace HistoryView

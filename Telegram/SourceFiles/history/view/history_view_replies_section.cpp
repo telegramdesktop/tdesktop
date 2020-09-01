@@ -158,6 +158,11 @@ RepliesWidget::RepliesWidget(
 		}
 	}, _inner->lifetime());
 
+	_inner->replyToMessageRequested(
+	) | rpl::start_with_next([=](auto fullId) {
+		_composeControls->replyToMessage(fullId);
+	}, _inner->lifetime());
+
 	_history->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
 	) | rpl::filter([=](const Data::MessageUpdate &update) {
@@ -390,6 +395,7 @@ bool RepliesWidget::confirmSendingFiles(
 		SendMenu::Type::Disabled); // #TODO replies schedule
 	//_field->setTextWithTags({});
 
+	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Storage::PreparedList &&list,
 			SendFilesWay way,
@@ -409,7 +415,7 @@ bool RepliesWidget::confirmSendingFiles(
 			std::move(list),
 			type,
 			std::move(caption),
-			MsgId(_rootId),//replyToId(), // #TODO replies reply
+			replyTo,
 			options,
 			album);
 	}));
@@ -470,7 +476,7 @@ void RepliesWidget::uploadFilesAfterConfirmation(
 		return;
 	}
 	auto action = Api::SendAction(_history);
-	action.replyTo = _rootId;// replyTo;// #TODO replies reply
+	action.replyTo = replyTo ? replyTo : _rootId;
 	action.options = options;
 	session().api().sendFiles(
 		std::move(list),
@@ -536,7 +542,7 @@ void RepliesWidget::uploadFile(
 		SendMediaType type) {
 	// #TODO replies schedule
 	auto action = Api::SendAction(_history);
-	action.replyTo = _rootId;// #TODO replies reply
+	action.replyTo = replyToId();
 	session().api().sendFile(fileContent, type, action);
 }
 
@@ -595,7 +601,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	message.action.options = options;
-	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
+	message.action.replyTo = replyToId();
 	message.webPageId = webPageId;
 
 	//const auto error = GetErrorTextForSending(
@@ -717,7 +723,7 @@ bool RepliesWidget::sendExistingDocument(
 	}
 
 	auto message = Api::MessageToSend(_history);
-	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
+	message.action.replyTo = replyToId();
 	message.action.options = options;
 	Api::SendExistingDocument(std::move(message), document);
 
@@ -729,6 +735,7 @@ bool RepliesWidget::sendExistingDocument(
 	//	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
 	//}
 
+	_composeControls->cancelReplyMessage();
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 	return true;
@@ -757,10 +764,11 @@ bool RepliesWidget::sendExistingPhoto(
 	}
 
 	auto message = Api::MessageToSend(_history);
-	message.action.replyTo = _rootId;// replyToId();// #TODO replies reply
+	message.action.replyTo = replyToId();
 	message.action.options = options;
 	Api::SendExistingPhoto(std::move(message), photo);
 
+	_composeControls->cancelReplyMessage();
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 	return true;
@@ -788,7 +796,7 @@ void RepliesWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options) {
 	auto action = Api::SendAction(_history);
-	action.replyTo = _rootId;// replyToId();// #TODO replies reply
+	action.replyTo = replyToId();
 	action.options = options;
 	action.generateLocal = true;
 	session().api().sendInlineResult(bot, result, action);
@@ -821,6 +829,11 @@ SendMenu::Type RepliesWidget::sendMenuType() const {
 		: HistoryView::CanScheduleUntilOnline(_history->peer)
 		? SendMenu::Type::ScheduledToUser
 		: SendMenu::Type::Scheduled;
+}
+
+MsgId RepliesWidget::replyToId() const {
+	const auto custom = _composeControls->replyingToMessage().msg;
+	return custom ? custom : _rootId;
 }
 
 void RepliesWidget::setupScrollDownButton() {
@@ -1188,6 +1201,9 @@ void RepliesWidget::listCancelRequest() {
 	if (_composeControls->isEditingMessage()) {
 		_composeControls->cancelEditMessage();
 		return;
+	} else if (_composeControls->replyingToMessage()) {
+		_composeControls->cancelReplyMessage();
+		return;
 	}
 	controller()->showBackFromStack();
 }
@@ -1225,8 +1241,8 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 		if (item.canDelete) {
 			++state.canDeleteCount;
 		}
-		if (item.canSendNow) {
-			++state.canSendNowCount;
+		if (item.canForward) {
+			++state.canForwardCount;
 		}
 	}
 	_topBar->showSelected(state);

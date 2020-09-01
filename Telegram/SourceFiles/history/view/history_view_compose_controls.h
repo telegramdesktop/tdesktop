@@ -104,14 +104,18 @@ public:
 		const Window::SectionShow &params);
 	bool returnTabbedSelector();
 
-	bool isEditingMessage() const;
+	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] FullMsgId replyingToMessage() const;
 
 	void showForGrab();
 	void showStarted();
 	void showFinished();
 
-	void editMessage(FullMsgId edit);
+	void editMessage(FullMsgId id);
 	void cancelEditMessage();
+
+	void replyToMessage(FullMsgId id);
+	void cancelReplyMessage();
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] WebPageId webPageId() const;

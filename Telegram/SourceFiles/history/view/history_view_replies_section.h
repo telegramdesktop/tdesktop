@@ -166,6 +166,7 @@ private:
 		mtpRequestId *const saveEditMsgRequestId);
 	void chooseAttach();
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] MsgId replyToId() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void computeCurrentReplyReturn();

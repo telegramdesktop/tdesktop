@@ -67,35 +67,37 @@ WebPageText ProcessWebPageData(WebPageData *page) {
 
 } // namespace
 
-class FieldHeader : public Ui::RpWidget {
+class FieldHeader final : public Ui::RpWidget {
 public:
 	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
 
 	void init();
 
-	void editMessage(FullMsgId edit);
+	void editMessage(FullMsgId id);
+	void replyToMessage(FullMsgId id);
 	void previewRequested(
 		rpl::producer<QString> title,
 		rpl::producer<QString> description,
 		rpl::producer<WebPageData*> page);
 
-	bool isDisplayed() const;
-	bool isEditingMessage() const;
-	rpl::producer<FullMsgId> editMsgId() const;
-	rpl::producer<FullMsgId> scrollToItemRequests() const;
-	MessageToEdit queryToEdit();
-	WebPageId webPageId() const;
+	[[nodiscard]] bool isDisplayed() const;
+	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] FullMsgId replyingToMessage() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMsgId() const;
+	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
+	[[nodiscard]] MessageToEdit queryToEdit();
+	[[nodiscard]] WebPageId webPageId() const;
 
-	rpl::producer<bool> visibleChanged();
-
-protected:
+	[[nodiscard]] rpl::producer<bool> visibleChanged();
 
 private:
 	void updateControlsGeometry(QSize size);
 	void updateVisible();
+	void setShownMessage(HistoryItem *message);
+	void updateShownMessageText();
 
 	void paintWebPage(Painter &p);
-	void paintEditMessage(Painter &p);
+	void paintEditOrReplyToMessage(Painter &p);
 
 	struct Preview {
 		WebPageData *data = nullptr;
@@ -110,8 +112,13 @@ private:
 
 	bool hasPreview() const;
 
-	Ui::Text::String _editMsgText;
 	rpl::variable<FullMsgId> _editMsgId;
+	rpl::variable<FullMsgId> _replyToId;
+
+	HistoryItem *_shownMessage = nullptr;
+	Ui::Text::String _shownMessageName;
+	Ui::Text::String _shownMessageText;
+	int _shownMessageNameVersion = -1;
 
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
@@ -141,37 +148,46 @@ void FieldHeader::init() {
 		Painter p(this);
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
+		const auto position = st::historyReplyIconPosition;
 		if (isEditingMessage()) {
-			const auto position = st::historyReplyIconPosition;
 			st::historyEditIcon.paint(p, position, width());
+		} else if (replyingToMessage()) {
+			st::historyReplyIcon.paint(p, position, width());
 		}
 
 		(!ShowWebPagePreview(_preview.data) || *leftIconPressed)
-			? paintEditMessage(p)
+			? paintEditOrReplyToMessage(p)
 			: paintWebPage(p);
 	}, lifetime());
 
-	const auto checkPreview = [=](not_null<const HistoryItem*> item) {
-		_preview = {};
-		if (const auto media = item->media()) {
-			if (const auto page = media->webpage()) {
-				const auto preview = ProcessWebPageData(page);
-				_title = preview.title;
-				_description = preview.description;
-				_preview.data = page;
-			}
-		}
-	};
-
 	_editMsgId.value(
-	) | rpl::start_with_next([=] {
-		updateVisible();
-		if (const auto item = _data->message(_editMsgId.current())) {
-			_editMsgText.setText(
-				st::messageTextStyle,
-				item->inReplyText(),
-				Ui::DialogTextOptions());
-			checkPreview(item);
+	) | rpl::start_with_next([=](FullMsgId value) {
+		const auto shown = value ? value : _replyToId.current();
+		setShownMessage(_data->message(shown));
+	}, lifetime());
+
+	_replyToId.value(
+	) | rpl::start_with_next([=](FullMsgId value) {
+		if (!_editMsgId.current()) {
+			setShownMessage(_data->message(value));
+		}
+	}, lifetime());
+
+	_data->session().changes().messageUpdates(
+		Data::MessageUpdate::Flag::Edited
+		| Data::MessageUpdate::Flag::Destroyed
+	) | rpl::filter([=](const Data::MessageUpdate &update) {
+		return (update.item == _shownMessage);
+	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
+			if (_editMsgId.current() == update.item->fullId()) {
+				editMessage({});
+			}
+			if (_replyToId.current() == update.item->fullId()) {
+				replyToMessage({});
+			}
+		} else {
+			updateShownMessageText();
 		}
 	}, lifetime());
 
@@ -179,8 +195,10 @@ void FieldHeader::init() {
 		if (hasPreview()) {
 			_preview = {};
 			update();
-		} else {
-			_editMsgId = {};
+		} else if (_editMsgId.current()) {
+			editMessage({});
+		} else if (_replyToId.current()) {
+			replyToMessage({});
 		}
 		updateVisible();
 	});
@@ -244,6 +262,46 @@ void FieldHeader::init() {
 			}
 		}
 	}, lifetime());
+}
+
+void FieldHeader::updateShownMessageText() {
+	Expects(_shownMessage != nullptr);
+
+	_shownMessageText.setText(
+		st::messageTextStyle,
+		_shownMessage->inReplyText(),
+		Ui::DialogTextOptions());
+}
+
+void FieldHeader::setShownMessage(HistoryItem *item) {
+	_shownMessage = item;
+	if (item) {
+		updateShownMessageText();
+		if (item->fullId() == _editMsgId.current()) {
+			_preview = {};
+			if (const auto media = item->media()) {
+				if (const auto page = media->webpage()) {
+					const auto preview = ProcessWebPageData(page);
+					_title = preview.title;
+					_description = preview.description;
+					_preview.data = page;
+				}
+			}
+		}
+	} else {
+		_shownMessageText.clear();
+	}
+	if (isEditingMessage()) {
+		_shownMessageName.setText(
+			st::msgNameStyle,
+			tr::lng_edit_message(tr::now),
+			Ui::NameTextOptions());
+	} else {
+		_shownMessageName.clear();
+		_shownMessageNameVersion = -1;
+	}
+	updateVisible();
+	update();
 }
 
 void FieldHeader::previewRequested(
@@ -315,23 +373,43 @@ void FieldHeader::paintWebPage(Painter &p) {
 		elidedWidth);
 }
 
-void FieldHeader::paintEditMessage(Painter &p) {
+void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
+	Expects(_shownMessage != nullptr);
+
 	const auto replySkip = st::historyReplySkip;
+	const auto availableWidth = width()
+		- replySkip
+		- _cancel->width()
+		- st::msgReplyPadding.right();
+
+	if (!isEditingMessage()) {
+		const auto user = _shownMessage->displayFrom()
+			? _shownMessage->displayFrom()
+			: _shownMessage->author().get();
+		if (user->nameVersion > _shownMessageNameVersion) {
+			_shownMessageName.setText(
+				st::msgNameStyle,
+				user->name,
+				Ui::NameTextOptions());
+			_shownMessageNameVersion = user->nameVersion;
+		}
+	}
+
 	p.setPen(st::historyReplyNameFg);
 	p.setFont(st::msgServiceNameFont);
-	p.drawTextLeft(
+	_shownMessageName.drawElided(
+		p,
 		replySkip,
 		st::msgReplyPadding.top(),
-		width(),
-		tr::lng_edit_message(tr::now));
+		availableWidth);
 
 	p.setPen(st::historyComposeAreaFg);
 	p.setTextPalette(st::historyComposeAreaPalette);
-	_editMsgText.drawElided(
+	_shownMessageText.drawElided(
 		p,
 		replySkip,
 		st::msgReplyPadding.top() + st::msgServiceNameFont->height,
-		width() - replySkip - _cancel->width() - st::msgReplyPadding.right());
+		availableWidth);
 	p.restoreTextPalette();
 }
 
@@ -345,11 +423,15 @@ rpl::producer<bool> FieldHeader::visibleChanged() {
 }
 
 bool FieldHeader::isDisplayed() const {
-	return isEditingMessage() || hasPreview();
+	return isEditingMessage() || replyingToMessage() || hasPreview();
 }
 
 bool FieldHeader::isEditingMessage() const {
 	return !!_editMsgId.current();
+}
+
+FullMsgId FieldHeader::replyingToMessage() const {
+	return _replyToId.current();
 }
 
 bool FieldHeader::hasPreview() const {
@@ -366,6 +448,10 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 
 void FieldHeader::editMessage(FullMsgId id) {
 	_editMsgId = id;
+}
+
+void FieldHeader::replyToMessage(FullMsgId id) {
+	_replyToId = id;
 }
 
 rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
@@ -550,6 +636,7 @@ TextWithTags ComposeControls::getTextWithAppliedMarkdown() const {
 
 void ComposeControls::clear() {
 	setText(TextWithTags());
+	cancelReplyMessage();
 }
 
 void ComposeControls::setText(const TextWithTags &textWithTags) {
@@ -863,13 +950,22 @@ void ComposeControls::updateHeight() {
 	}
 }
 
-void ComposeControls::editMessage(FullMsgId edit) {
+void ComposeControls::editMessage(FullMsgId id) {
 	cancelEditMessage();
-	_header->editMessage(std::move(edit));
+	_header->editMessage(id);
 }
 
 void ComposeControls::cancelEditMessage() {
 	_header->editMessage({});
+}
+
+void ComposeControls::replyToMessage(FullMsgId id) {
+	cancelReplyMessage();
+	_header->replyToMessage(id);
+}
+
+void ComposeControls::cancelReplyMessage() {
+	_header->replyToMessage({});
 }
 
 void ComposeControls::initWebpageProcess() {
@@ -1058,6 +1154,10 @@ rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
 
 bool ComposeControls::isEditingMessage() const {
 	return _header->isEditingMessage();
+}
+
+FullMsgId ComposeControls::replyingToMessage() const {
+	return _header->replyingToMessage();
 }
 
 } // namespace HistoryView
