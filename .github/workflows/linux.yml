@@ -61,6 +61,8 @@ jobs:
     name: "Ubuntu 14.04: dependencies"
     runs-on: ubuntu-latest
     container: ubuntu:trusty
+    outputs:
+      cache_key: ${{ steps.step_cache_key.outputs.cache_key }}
 
     steps:
       - name: Get repository name.
@@ -111,6 +113,7 @@ jobs:
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
+        id: step_cache_key
         shell: bash
         run: |
           gcc --version
@@ -123,6 +126,7 @@ jobs:
           fi
           md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
           echo ::set-env name=CACHE_KEY::$md5cache
+          echo ::set-output name=cache_key::$md5cache
 
           mkdir -p Libraries
           cd Libraries
@@ -520,6 +524,9 @@ jobs:
           - "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
           - "TDESKTOP_DISABLE_GTK_INTEGRATION"
 
+    env:
+      CACHE_KEY: ${{ needs.dependencies.outputs.cache_key }}
+
     steps:
       - name: Get repository name.
         run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
@@ -572,15 +579,6 @@ jobs:
         shell: bash
         run: |
           gcc --version
-
-          gcc --version > CACHE_KEY.txt
-          echo $MANUAL_CACHING >> CACHE_KEY.txt
-          if [ "$AUTO_CACHING" == "1" ]; then
-            thisFile=$REPO_NAME/.github/workflows/linux.yml
-            echo `md5sum $thisFile | cut -c -32` >> CACHE_KEY.txt
-          fi
-          md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=CACHE_KEY::$md5cache
 
           mkdir -p Libraries
           cd Libraries
