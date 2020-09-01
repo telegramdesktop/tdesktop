@@ -102,8 +102,8 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	const auto i = around
 		? ranges::lower_bound(_list, around, std::greater<>())
 		: end(_list);
-	const auto availableBefore = (end(_list) - i);
-	const auto availableAfter = (i - begin(_list));
+	const auto availableBefore = int(end(_list) - i);
+	const auto availableAfter = int(i - begin(_list));
 	const auto useBefore = std::min(availableBefore, viewer->limitBefore + 1);
 	const auto useAfter = std::min(availableAfter, viewer->limitAfter);
 	const auto slice = &viewer->slice;

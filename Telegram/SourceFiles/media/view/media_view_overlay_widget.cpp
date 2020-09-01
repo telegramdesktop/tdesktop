@@ -1624,7 +1624,7 @@ Data::FileOrigin OverlayWidget::fileOrigin(const Entity &entity) const {
 	} else if (!v::is<not_null<PhotoData*>>(entity.data)) {
 		return Data::FileOrigin();
 	}
-	const auto photo = std::get<not_null<PhotoData*>>(entity.data);
+	const auto photo = v::get<not_null<PhotoData*>>(entity.data);
 	if (_user) {
 		return Data::FileOriginUserPhoto(_user->bareId(), photo->id);
 	} else if (_peer && _peer->userpicPhotoId() == photo->id) {

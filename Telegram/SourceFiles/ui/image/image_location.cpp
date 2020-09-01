@@ -682,7 +682,7 @@ std::optional<StorageImageLocation> StorageImageLocation::FromSerialized(
 
 QByteArray DownloadLocation::serialize() const {
 	if (!valid() || v::is<StorageFileLocation>(data)) {
-		return std::get<StorageFileLocation>(data).serialize();
+		return v::get<StorageFileLocation>(data).serialize();
 	}
 	auto result = QByteArray();
 	auto buffer = QBuffer(&result);
@@ -719,7 +719,7 @@ QByteArray DownloadLocation::serialize() const {
 
 int DownloadLocation::serializeSize() const {
 	if (!valid() || v::is<StorageFileLocation>(data)) {
-		return std::get<StorageFileLocation>(data).serializeSize();
+		return v::get<StorageFileLocation>(data).serializeSize();
 	}
 	auto result = sizeof(quint16) + sizeof(quint8) + sizeof(quint8);
 	v::match(data, [&](const StorageFileLocation &data) {
@@ -812,7 +812,7 @@ DownloadLocation DownloadLocation::convertToModern(
 	if (!v::is<StorageFileLocation>(data)) {
 		return *this;
 	}
-	auto &file = std::get<StorageFileLocation>(data);
+	auto &file = v::get<StorageFileLocation>(data);
 	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
 }
 
@@ -838,7 +838,7 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 
 Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
 	return v::is<StorageFileLocation>(data)
-		? std::get<StorageFileLocation>(data).bigFileBaseCacheKey()
+		? v::get<StorageFileLocation>(data).bigFileBaseCacheKey()
 		: Storage::Cache::Key();
 }
 
@@ -858,7 +858,7 @@ bool DownloadLocation::valid() const {
 
 bool DownloadLocation::isLegacy() const {
 	return v::is<StorageFileLocation>(data)
-		? std::get<StorageFileLocation>(data).isLegacy()
+		? v::get<StorageFileLocation>(data).isLegacy()
 		: false;
 }
 
@@ -866,14 +866,14 @@ QByteArray DownloadLocation::fileReference() const {
 	if (!v::is<StorageFileLocation>(data)) {
 		return QByteArray();
 	}
-	return std::get<StorageFileLocation>(data).fileReference();
+	return v::get<StorageFileLocation>(data).fileReference();
 }
 
 bool DownloadLocation::refreshFileReference(const QByteArray &data) {
 	if (!v::is<StorageFileLocation>(this->data)) {
 		return false;
 	}
-	auto &file = std::get<StorageFileLocation>(this->data);
+	auto &file = v::get<StorageFileLocation>(this->data);
 	return file.refreshFileReference(data);
 }
 
@@ -882,7 +882,7 @@ bool DownloadLocation::refreshFileReference(
 	if (!v::is<StorageFileLocation>(data)) {
 		return false;
 	}
-	auto &file = std::get<StorageFileLocation>(data);
+	auto &file = v::get<StorageFileLocation>(data);
 	return file.refreshFileReference(updates);
 }
 

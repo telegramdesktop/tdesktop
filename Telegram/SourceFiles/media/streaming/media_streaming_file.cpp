@@ -326,7 +326,7 @@ void File::Context::readNextPacket() {
 	} else {
 		// Still trying to read by drain.
 		Assert(v::is<FFmpeg::AvErrorWrap>(result));
-		Assert(std::get<FFmpeg::AvErrorWrap>(result).code() == AVERROR_EOF);
+		Assert(v::get<FFmpeg::AvErrorWrap>(result).code() == AVERROR_EOF);
 		processQueuedPackets(SleepPolicy::Allowed);
 		if (!finished()) {
 			handleEndOfFile();

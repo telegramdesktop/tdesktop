@@ -31,7 +31,7 @@ LoaderMtproto::LoaderMtproto(
 }
 
 Storage::Cache::Key LoaderMtproto::baseCacheKey() const {
-	return std::get<StorageFileLocation>(
+	return v::get<StorageFileLocation>(
 		location().data
 	).bigFileBaseCacheKey();
 }

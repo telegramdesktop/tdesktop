@@ -121,29 +121,44 @@ private:
 		int section = 0;
 		int index = 0;
 		bool overDelete = false;
+
+		inline bool operator==(OverSticker other) const {
+			return (section == other.section)
+				&& (index == other.index)
+				&& (overDelete == other.overDelete);
+		}
+		inline bool operator!=(OverSticker other) const {
+			return !(*this == other);
+		}
 	};
 	struct OverSet {
 		int section = 0;
+
+		inline bool operator==(OverSet other) const {
+			return (section == other.section);
+		}
+		inline bool operator!=(OverSet other) const {
+			return !(*this == other);
+		}
 	};
 	struct OverButton {
 		int section = 0;
+
+		inline bool operator==(OverButton other) const {
+			return (section == other.section);
+		}
+		inline bool operator!=(OverButton other) const {
+			return !(*this == other);
+		}
 	};
 	struct OverGroupAdd {
+		inline bool operator==(OverGroupAdd other) const {
+			return true;
+		}
+		inline bool operator!=(OverGroupAdd other) const {
+			return !(*this == other);
+		}
 	};
-	friend inline bool operator==(OverSticker a, OverSticker b) {
-		return (a.section == b.section)
-			&& (a.index == b.index)
-			&& (a.overDelete == b.overDelete);
-	}
-	friend inline bool operator==(OverSet a, OverSet b) {
-		return (a.section == b.section);
-	}
-	friend inline bool operator==(OverButton a, OverButton b) {
-		return (a.section == b.section);
-	}
-	friend inline bool operator==(OverGroupAdd a, OverGroupAdd b) {
-		return true;
-	}
 	using OverState = std::variant<
 		v::null_t,
 		OverSticker,

@@ -177,7 +177,7 @@ void UpdateCloudFile(
 	auto cacheBytes = !data.bytes.isEmpty()
 		? data.bytes
 		: v::is<InMemoryLocation>(file.location.file().data)
-		? std::get<InMemoryLocation>(file.location.file().data).bytes
+		? v::get<InMemoryLocation>(file.location.file().data).bytes
 		: QByteArray();
 	if (!cacheBytes.isEmpty()) {
 		if (const auto cacheKey = data.location.file().cacheKey()) {

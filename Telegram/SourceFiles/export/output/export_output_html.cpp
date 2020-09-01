@@ -1095,7 +1095,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	if (!serviceText.isEmpty()) {
 		const auto &content = message.action.content;
 		const auto photo = v::is<ActionChatEditPhoto>(content)
-			? &std::get<ActionChatEditPhoto>(content).photo
+			? &v::get<ActionChatEditPhoto>(content).photo
 			: nullptr;
 		return { info, pushServiceMessage(
 			message.id,

@@ -202,7 +202,7 @@ CloudPasswordAlgo ValidateNewCloudPasswordAlgo(CloudPasswordAlgo &&parsed) {
 	if (!v::is<CloudPasswordAlgoModPow>(parsed)) {
 		return v::null;
 	}
-	auto &value = std::get<CloudPasswordAlgoModPow>(parsed);
+	auto &value = v::get<CloudPasswordAlgoModPow>(parsed);
 	const auto already = value.salt1.size();
 	value.salt1.resize(already + kAdditionalSalt);
 	bytes::set_random(bytes::make_span(value.salt1).subspan(already));
@@ -273,7 +273,7 @@ SecureSecretAlgo ValidateNewSecureSecretAlgo(SecureSecretAlgo &&parsed) {
 	if (!v::is<SecureSecretAlgoPBKDF2>(parsed)) {
 		return v::null;
 	}
-	auto &value = std::get<SecureSecretAlgoPBKDF2>(parsed);
+	auto &value = v::get<SecureSecretAlgoPBKDF2>(parsed);
 	const auto already = value.salt.size();
 	value.salt.resize(already + kAdditionalSalt);
 	bytes::set_random(bytes::make_span(value.salt).subspan(already));

@@ -120,7 +120,7 @@ public:
 			key.peerId,
 			key.migratedPeerId,
 			v::is<MessageId>(key.universalId)
-				? std::get<MessageId>(key.universalId)
+				? v::get<MessageId>(key.universalId)
 				: ServerMaxMsgId - 1
 		};
 	}
@@ -165,7 +165,7 @@ private:
 				? ComputeId(key.peerId, *messageId)
 				: ComputeId(key.migratedPeerId, ServerMaxMsgId + *messageId);
 		}
-		return std::get<not_null<PhotoData*>>(key.universalId);
+		return v::get<not_null<PhotoData*>>(key.universalId);
 	}
 
 	bool isolatedInSlice() const {
