@@ -927,6 +927,20 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		setViewsCount(config.viewsCount);
 		if (config.mtpReplies) {
 			setReplies(*config.mtpReplies);
+		} else if (isSending()) {
+			if (const auto broadcast = history()->peer->asBroadcast()) {
+				if (const auto linked = broadcast->linkedChat()) {
+					setReplies(MTP_messageReplies(
+						MTP_flags(MTPDmessageReplies::Flag::f_comments
+							| MTPDmessageReplies::Flag::f_comments),
+						MTP_int(0),
+						MTP_int(0),
+						MTPVector<MTPPeer>(), // recent_repliers
+						MTP_int(linked->bareId()),
+						MTP_int(0), // max_id
+						MTP_int(0))); // read_max_id
+				}
+			}
 		}
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
@@ -1471,11 +1485,11 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 			views = Get<HistoryMessageViews>();
 		}
 		const auto repliers = [&] {
-			auto result = std::vector<UserId>();
+			auto result = std::vector<PeerId>();
 			if (const auto list = data.vrecent_repliers()) {
 				result.reserve(list->v.size());
 				for (const auto &id : list->v) {
-					result.push_back(id.v);
+					result.push_back(peerFromMTP(id));
 				}
 			}
 			return result;
@@ -1525,7 +1539,7 @@ void HistoryMessage::refreshRepliesText(
 	}
 }
 
-void HistoryMessage::changeRepliesCount(int delta, UserId replier) {
+void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
 	const auto views = Get<HistoryMessageViews>();
 	const auto limit = HistoryMessageViews::kMaxRecentRepliers;
 	if (!views || views->replies.count < 0) {
@@ -1596,12 +1610,10 @@ void HistoryMessage::changeReplyToTopCounter(
 	}
 	const auto changeFor = [&](not_null<HistoryItem*> item) {
 		if (const auto from = displayFrom()) {
-			if (const auto user = from->asUser()) {
-				item->changeRepliesCount(delta, user->bareId());
-				return;
-			}
+			item->changeRepliesCount(delta, from->id);
+			return;
 		}
-		item->changeRepliesCount(delta, UserId());
+		item->changeRepliesCount(delta, PeerId());
 	};
 	if (const auto views = top->Get<HistoryMessageViews>()) {
 		if (views->commentsChannelId) {

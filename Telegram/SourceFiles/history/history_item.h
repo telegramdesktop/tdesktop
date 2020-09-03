@@ -262,7 +262,7 @@ public:
 	}
 	virtual void setReplies(const MTPMessageReplies &data) {
 	}
-	virtual void changeRepliesCount(int delta, UserId replier) {
+	virtual void changeRepliesCount(int delta, PeerId replier) {
 	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}

@@ -135,7 +135,7 @@ public:
 	void setViewsCount(int count) override;
 	void setForwardsCount(int count) override;
 	void setReplies(const MTPMessageReplies &data) override;
-	void changeRepliesCount(int delta, UserId replier) override;
+	void changeRepliesCount(int delta, PeerId replier) override;
 	void setReplyToTop(MsgId replyToTop) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;

@@ -1540,24 +1540,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_widget->replyToMessage(itemId);
 			});
 		}
-		const auto withComments = item->repliesAreComments();
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = IsServerMsgId(item->id)
 			&& (repliesCount > 0 || item->replyToTop());
-		const auto noBubbleButton = !withComments
-			|| (item->mainView() && !item->mainView()->drawBubble());
-		if (withReplies && noBubbleButton) {
+		if (withReplies && item->history()->peer->isMegagroup()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
-			const auto phrase = (item->repliesCount() > 0)
-				? (withComments
-					? tr::lng_comments_view
-					: tr::lng_replies_view)(
-						tr::now,
-						lt_count,
-						item->repliesCount())
-				: (withComments
-					? tr::lng_comments_view_thread
-					: tr::lng_replies_view_thread)(tr::now);
+			const auto phrase = (repliesCount > 0)
+				? tr::lng_replies_view(
+					tr::now,
+					lt_count,
+					repliesCount)
+				: tr::lng_replies_view_thread(tr::now);
 			_menu->addAction(phrase, [=] {
 				controller->showRepliesForMessage(_history, rootId);
 			});

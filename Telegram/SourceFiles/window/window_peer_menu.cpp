@@ -547,13 +547,21 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//	}
 	//}
 	if (_source != PeerMenuSource::ChatsList) {
+		if (channel->isBroadcast()) {
+			if (const auto chat = channel->linkedChat()) {
+				_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
+					navigation->showPeerHistory(
+						chat,
+						Window::SectionShow::Way::Forward);
+				});
+			}
+		}
 		if (EditPeerInfoBox::Available(channel)) {
-			const auto controller = _controller;
 			const auto text = isGroup
 				? tr::lng_manage_group_title(tr::now)
 				: tr::lng_manage_channel_title(tr::now);
 			_addAction(text, [=] {
-				controller->showEditPeerBox(channel);
+				navigation->showEditPeerBox(channel);
 			});
 		}
 		if (channel->canAddMembers()) {

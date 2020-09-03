@@ -41,7 +41,7 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 		int textWidth = 0;
 		int count = -1;
 	};
-	std::vector<UserId> recentRepliers;
+	std::vector<PeerId> recentRepliers;
 	Part views;
 	Part replies;
 	ChannelId commentsChannelId = 0;

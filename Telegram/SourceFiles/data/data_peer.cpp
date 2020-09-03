@@ -613,6 +613,16 @@ const ChannelData *PeerData::asMegagroup() const {
 		: nullptr;
 }
 
+ChannelData *PeerData::asBroadcast() {
+	return isBroadcast() ? static_cast<ChannelData*>(this) : nullptr;
+}
+
+const ChannelData *PeerData::asBroadcast() const {
+	return isBroadcast()
+		? static_cast<const ChannelData*>(this)
+		: nullptr;
+}
+
 ChatData *PeerData::asChatNotMigrated() {
 	if (const auto chat = asChat()) {
 		return chat->migrateTo() ? nullptr : chat;
@@ -727,6 +737,10 @@ bool PeerData::isScam() const {
 
 bool PeerData::isMegagroup() const {
 	return isChannel() ? asChannel()->isMegagroup() : false;
+}
+
+bool PeerData::isBroadcast() const {
+	return isChannel() ? asChannel()->isBroadcast() : false;
 }
 
 bool PeerData::canWrite() const {

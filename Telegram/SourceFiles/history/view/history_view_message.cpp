@@ -192,7 +192,7 @@ style::color FromNameFg(PeerId peerId, bool selected) {
 
 struct Message::CommentsButton {
 	struct Userpic {
-		not_null<UserData*> user;
+		not_null<PeerData*> peer;
 		std::shared_ptr<Data::CloudImageView> view;
 		InMemoryKey uniqueKey;
 	};
@@ -636,11 +636,11 @@ void Message::paintCommentsButton(
 			}
 			for (auto i = 0; i != count; ++i) {
 				auto &entry = list[i];
-				const auto user = entry.user;
+				const auto peer = entry.peer;
 				auto &view = entry.view;
 				const auto wasView = view.get();
-				if (views->recentRepliers[i] != user->bareId()
-					|| user->userpicUniqueKey(view) != entry.uniqueKey
+				if (views->recentRepliers[i] != peer->id
+					|| peer->userpicUniqueKey(view) != entry.uniqueKey
 					|| view.get() != wasView) {
 					return true;
 				}
@@ -649,13 +649,13 @@ void Message::paintCommentsButton(
 		}();
 		if (regenerate) {
 			for (auto i = 0; i != count; ++i) {
-				const auto userId = views->recentRepliers[i];
+				const auto peerId = views->recentRepliers[i];
 				if (i == list.size()) {
 					list.push_back(CommentsButton::Userpic{
-						history()->owner().user(userId)
+						history()->owner().peer(peerId)
 					});
-				} else if (list[i].user->bareId() != userId) {
-					list[i].user = history()->owner().user(userId);
+				} else if (list[i].peer->id != peerId) {
+					list[i].peer = history()->owner().peer(peerId);
 				}
 			}
 			while (list.size() > count) {
@@ -678,8 +678,8 @@ void Message::paintCommentsButton(
 			for (auto i = count; i != 0;) {
 				auto &entry = list[--i];
 				q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-				entry.user->paintUserpic(q, entry.view, x, 0, single);
-				entry.uniqueKey = entry.user->userpicUniqueKey(entry.view);
+				entry.peer->paintUserpic(q, entry.view, x, 0, single);
+				entry.uniqueKey = entry.peer->userpicUniqueKey(entry.view);
 				q.setCompositionMode(QPainter::CompositionMode_Source);
 				q.drawEllipse(x, 0, single, single);
 				x -= single - shift;
@@ -1183,23 +1183,29 @@ bool Message::getStateCommentsButton(
 		return false;
 	}
 	g.setHeight(g.height() - st::historyCommentsButtonHeight);
-	if (QRect(g.left(), g.top() + g.height(), g.width(), st::historyCommentsButtonHeight).contains(point)) {
-		if (!_comments->link) {
-			const auto fullId = data()->fullId();
-			_comments->link = std::make_shared<LambdaClickHandler>([=] {
-				if (const auto window = App::wnd()) {
-					if (const auto controller = window->sessionController()) {
-						if (const auto item = controller->session().data().message(fullId)) {
-							controller->showRepliesForMessage(item->history(), item->id);
-						}
+	if (data()->isSending()
+		|| !QRect(
+			g.left(),
+			g.top() + g.height(),
+			g.width(),
+			st::historyCommentsButtonHeight).contains(point)) {
+		return false;
+	}
+	if (!_comments->link) {
+		const auto fullId = data()->fullId();
+		_comments->link = std::make_shared<LambdaClickHandler>([=] {
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->sessionController()) {
+					if (const auto item = controller->session().data().message(fullId)) {
+						controller->showRepliesForMessage(item->history(), item->id);
 					}
 				}
-			});
-		}
-		outResult->link = _comments->link;
-		_comments->lastPoint = point - QPoint(g.left(), g.top() + g.height());
+			}
+		});
 	}
-	return false;
+	outResult->link = _comments->link;
+	_comments->lastPoint = point - QPoint(g.left(), g.top() + g.height());
+	return true;
 }
 
 bool Message::getStateFromName(
@@ -1759,6 +1765,9 @@ void Message::refreshDataIdHook() {
 	}
 	if (base::take(_fastReplyLink)) {
 		_fastReplyLink = fastReplyLink();
+	}
+	if (_comments) {
+		_comments->link = nullptr;
 	}
 }
 

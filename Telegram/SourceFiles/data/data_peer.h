@@ -158,6 +158,7 @@ public:
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isMegagroup() const;
+	[[nodiscard]] bool isBroadcast() const;
 
 	[[nodiscard]] bool isNotificationsUser() const {
 		return (id == peerFromUser(333000))
@@ -204,6 +205,8 @@ public:
 	[[nodiscard]] const ChannelData *asChannel() const;
 	[[nodiscard]] ChannelData *asMegagroup();
 	[[nodiscard]] const ChannelData *asMegagroup() const;
+	[[nodiscard]] ChannelData *asBroadcast();
+	[[nodiscard]] const ChannelData *asBroadcast() const;
 	[[nodiscard]] ChatData *asChatNotMigrated();
 	[[nodiscard]] const ChatData *asChatNotMigrated() const;
 	[[nodiscard]] ChannelData *asChannelOrMigrated();
