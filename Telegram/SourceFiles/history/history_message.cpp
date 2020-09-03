@@ -1253,7 +1253,7 @@ void HistoryMessage::destroyHistoryEntry() {
 		history()->eraseFromUnreadMentions(id);
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		decrementReplyToTopCounter(reply);
+		changeReplyToTopCounter(reply, -1);
 	}
 }
 
@@ -1556,7 +1556,7 @@ void HistoryMessage::setReplyToTop(MsgId replyToTop) {
 		return;
 	}
 	reply->replyToMsgTop = replyToTop;
-	incrementReplyToTopCounter(reply);
+	changeReplyToTopCounter(reply, 1);
 }
 
 void HistoryMessage::setRealId(MsgId newId) {
@@ -1568,54 +1568,56 @@ void HistoryMessage::setRealId(MsgId newId) {
 		if (reply->replyToLink()) {
 			reply->setReplyToLinkFrom(this);
 		}
-		incrementReplyToTopCounter(reply);
+		changeReplyToTopCounter(reply, 1);
 	}
 }
 
 void HistoryMessage::incrementReplyToTopCounter() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		incrementReplyToTopCounter(reply);
+		changeReplyToTopCounter(reply, 1);
 	}
 }
 
-void HistoryMessage::incrementReplyToTopCounter(
-		not_null<HistoryMessageReply*> reply) {
+void HistoryMessage::changeReplyToTopCounter(
+		not_null<HistoryMessageReply*> reply,
+		int delta) {
 	if (!IsServerMsgId(id) || !reply->replyToTop()) {
 		return;
 	}
-	if (const auto channelId = history()->channelId()) {
-		const auto top = history()->owner().message(
-			channelId,
-			reply->replyToTop());
-		if (top) {
-			if (const auto from = displayFrom()) {
-				if (const auto user = from->asUser()) {
-					top->changeRepliesCount(1, user->bareId());
-					return;
-				}
+	const auto channelId = history()->channelId();
+	if (!channelId) {
+		return;
+	}
+	const auto top = history()->owner().message(
+		channelId,
+		reply->replyToTop());
+	if (!top) {
+		return;
+	}
+	const auto changeFor = [&](not_null<HistoryItem*> item) {
+		if (const auto from = displayFrom()) {
+			if (const auto user = from->asUser()) {
+				item->changeRepliesCount(delta, user->bareId());
+				return;
 			}
-			top->changeRepliesCount(1, UserId());
+		}
+		item->changeRepliesCount(delta, UserId());
+	};
+	if (const auto views = top->Get<HistoryMessageViews>()) {
+		if (views->commentsChannelId) {
+			// This is a post in channel, we don't track its replies.
+			return;
 		}
 	}
-}
-
-void HistoryMessage::decrementReplyToTopCounter(
-		not_null<HistoryMessageReply*> reply) {
-	if (!IsServerMsgId(id) || !reply->replyToTop()) {
-		return;
-	}
-	if (const auto channelId = history()->channelId()) {
-		const auto top = history()->owner().message(
-			channelId,
-			reply->replyToTop());
-		if (top) {
-			if (const auto from = displayFrom()) {
-				if (const auto user = from->asUser()) {
-					top->changeRepliesCount(-1, user->bareId());
-					return;
-				}
+	changeFor(top);
+	if (const auto sender = top->discussionPostOriginalSender()) {
+		if (const auto forwarded = top->Get<HistoryMessageForwarded>()) {
+			const auto id = FullMsgId(
+				sender->bareId(),
+				forwarded->savedFromMsgId);
+			if (const auto original = history()->owner().message(id)) {
+				changeFor(original);
 			}
-			top->changeRepliesCount(-1, UserId());
 		}
 	}
 }

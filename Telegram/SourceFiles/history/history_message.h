@@ -209,8 +209,9 @@ private:
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 	void setupForwardedComponent(const CreateConfig &config);
-	void incrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
-	void decrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
+	void changeReplyToTopCounter(
+		not_null<HistoryMessageReply*> reply,
+		int delta);
 	void refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize = false);
