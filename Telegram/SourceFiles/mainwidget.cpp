@@ -1306,13 +1306,7 @@ void MainWidget::viewsIncrementDone(
 								item->setForwardsCount(forwards->v);
 							}
 							if (const auto replies = data.vreplies()) {
-								item->setRepliesCount(
-									replies->match([&](const MTPDmessageReplies &data) {
-										return data.vreplies().v;
-									}),
-									replies->match([&](const MTPDmessageReplies &data) {
-										return data.vreplies_pts().v;
-									}));
+								item->setReplies(*replies);
 							}
 						});
 					}

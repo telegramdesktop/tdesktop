@@ -146,6 +146,8 @@ private:
 
 	void setupComposeControls();
 
+	void setupRoot();
+	void refreshRootView();
 	void setupDragArea();
 
 	void setupScrollDownButton();
@@ -167,6 +169,8 @@ private:
 	void chooseAttach();
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] MsgId replyToId() const;
+	[[nodiscard]] HistoryItem *lookupRoot() const;
+	[[nodiscard]] bool computeAreComments() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void computeCurrentReplyReturn();
@@ -215,7 +219,9 @@ private:
 
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
+	HistoryItem *_root = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
+	rpl::variable<bool> _areComments = false;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;

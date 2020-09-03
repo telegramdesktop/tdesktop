@@ -1351,6 +1351,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_header#other" = "{count} replies";
 "lng_replies_header_none" = "No replies";
 "lng_replies_send_placeholder" = "Reply";
+"lng_comments_view#one" = "View {count} Comment";
+"lng_comments_view#other" = "View {count} Comments";
+"lng_comments_view_thread" = "Leave a Comment";
+"lng_comments_header#one" = "{count} comment";
+"lng_comments_header#other" = "{count} comments";
+"lng_comments_header_none" = "No comments";
+"lng_comments_open_count#one" = "{count} comment";
+"lng_comments_open_count#other" = "{count} comments";
+"lng_comments_open_none" = "Leave a comment";
+"lng_comments_send_placeholder" = "Comment";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";

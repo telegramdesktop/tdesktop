@@ -145,6 +145,9 @@ const ChannelLocation *ChannelData::getLocation() const {
 void ChannelData::setLinkedChat(ChannelData *linked) {
 	if (_linkedChat != linked) {
 		_linkedChat = linked;
+		if (const auto history = owner().historyLoaded(this)) {
+			history->forceFullResize();
+		}
 		session().changes().peerUpdated(this, UpdateFlag::ChannelLinkedChat);
 	}
 }

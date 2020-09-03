@@ -250,7 +250,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 		auto inWebPage = (_parent->media() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
+			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = [&] {
 			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
 				return large->pixSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
@@ -801,7 +801,8 @@ bool Photo::needsBubble() const {
 	}
 	const auto item = _parent->data();
 	if (item->toHistoryMessage()) {
-		return item->viaBot()
+		return item->repliesAreComments()
+			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName();

@@ -624,8 +624,12 @@ auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
 	};
 }
 
+bool Element::hasHeavyPart() const {
+	return false;
+}
+
 void Element::checkHeavyPart() {
-	if (!_media || !_media->hasHeavyPart()) {
+	if (!hasHeavyPart() && (!_media || !_media->hasHeavyPart())) {
 		history()->owner().unregisterHeavyViewPart(this);
 	}
 }

@@ -409,7 +409,6 @@ struct HistoryMessage::CreateConfig {
 	MsgId replyToTop = 0;
 	UserId viaBotId = 0;
 	int viewsCount = -1;
-	int repliesCount = 0;
 	QString author;
 	PeerId senderOriginal = 0;
 	QString senderNameOriginal;
@@ -422,6 +421,7 @@ struct HistoryMessage::CreateConfig {
 	TimeId editDate = 0;
 
 	// For messages created from MTP structs.
+	const MTPMessageReplies *mtpReplies = nullptr;
 	const MTPReplyMarkup *mtpMarkup = nullptr;
 
 	// For messages created from existing messages (forwarded).
@@ -474,11 +474,7 @@ HistoryMessage::HistoryMessage(
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);
-	if (const auto replies = data.vreplies()) {
-		replies->match([&](const MTPDmessageReplies &data) {
-			config.repliesCount = data.vreplies().v;
-		});
-	}
+	config.mtpReplies = data.vreplies();
 	config.mtpMarkup = data.vreply_markup();
 	config.editDate = data.vedit_date().value_or_empty();
 	config.author = qs(data.vpost_author().value_or_empty());
@@ -744,16 +740,43 @@ void HistoryMessage::createComponentsHelper(
 
 int HistoryMessage::viewsCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return views->views;
+		return std::max(views->views.count, 0);
 	}
 	return HistoryItem::viewsCount();
 }
 
 int HistoryMessage::repliesCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return views->replies;
+		if (views->repliesChannelId) {
+			if (const auto channel = history()->peer->asChannel()) {
+				const auto linked = channel->linkedChat();
+				if (!linked || linked->bareId() != views->repliesChannelId) {
+					return 0;
+				}
+			} else {
+				return 0;
+			}
+		}
+		return std::max(views->replies.count, 0);
 	}
 	return HistoryItem::repliesCount();
+}
+
+bool HistoryMessage::repliesAreComments() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (!views->repliesChannelId) {
+			return false;
+		} else if (const auto channel = history()->peer->asChannel()) {
+			const auto linked = channel->linkedChat();
+			if (!linked || linked->bareId() != views->repliesChannelId) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+		return true;
+	}
+	return HistoryItem::repliesAreComments();
 }
 
 bool HistoryMessage::updateDependencyItem() {
@@ -848,7 +871,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (config.viaBotId) {
 		mask |= HistoryMessageVia::Bit();
 	}
-	if (config.viewsCount >= 0 || config.repliesCount > 0) {
+	if (config.viewsCount >= 0 || config.mtpReplies) {
 		mask |= HistoryMessageViews::Bit();
 	}
 	if (!config.author.isEmpty()) {
@@ -886,8 +909,10 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		via->create(&history()->owner(), config.viaBotId);
 	}
 	if (const auto views = Get<HistoryMessageViews>()) {
-		views->views = config.viewsCount;
-		views->replies = config.repliesCount;
+		setViewsCount(config.viewsCount);
+		if (config.mtpReplies) {
+			setReplies(*config.mtpReplies);
+		}
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
 		edited->date = config.editDate;
@@ -1400,20 +1425,20 @@ bool HistoryMessage::textHasLinks() const {
 void HistoryMessage::setViewsCount(int count) {
 	const auto views = Get<HistoryMessageViews>();
 	if (!views
-		|| views->views == count
-		|| (count >= 0 && views->views > count)) {
+		|| views->views.count == count
+		|| (count >= 0 && views->views.count > count)) {
 		return;
 	}
 
-	views->views = count;
-	views->text = (views->views > 0)
-		? Lang::FormatCountToShort(views->views).string
-		: QString("1");
-	const auto was = views->textWidth;
-	views->textWidth = views->text.isEmpty()
+	views->views.count = count;
+	views->views.text = Lang::FormatCountToShort(
+		std::max(views->views.count, 1)
+	).string;
+	const auto was = views->views.textWidth;
+	views->views.textWidth = views->views.text.isEmpty()
 		? 0
-		: st::msgDateFont->width(views->text);
-	if (was == views->textWidth) {
+		: st::msgDateFont->width(views->views.text);
+	if (was == views->views.textWidth) {
 		history()->owner().requestItemRepaint(this);
 	} else {
 		history()->owner().requestItemResize(this);
@@ -1423,39 +1448,88 @@ void HistoryMessage::setViewsCount(int count) {
 void HistoryMessage::setForwardsCount(int count) {
 }
 
-void HistoryMessage::setRepliesCount(int count, int pts) {
-	auto views = Get<HistoryMessageViews>();
-	if (!views) {
-		if (!count) {
+void HistoryMessage::setReplies(const MTPMessageReplies &data) {
+	data.match([&](const MTPDmessageReplies &data) {
+		auto views = Get<HistoryMessageViews>();
+		if (!views) {
+			AddComponents(HistoryMessageViews::Bit());
+			views = Get<HistoryMessageViews>();
+		}
+		const auto repliers = [&] {
+			auto result = std::vector<UserId>();
+			if (const auto list = data.vrecent_repliers()) {
+				result.reserve(list->v.size());
+				for (const auto &id : list->v) {
+					result.push_back(id.v);
+				}
+			}
+			return result;
+		}();
+		const auto count = data.vreplies().v;
+		const auto channelId = data.vchannel_id().value_or_empty();
+		const auto countChanged = (views->replies.count != count);
+		const auto channelChanged = (views->repliesChannelId != channelId);
+		const auto recentChanged = (views->recentRepliers != repliers);
+		if (!countChanged && !channelChanged && !recentChanged) {
 			return;
 		}
-		AddComponents(HistoryMessageViews::Bit());
-		views = Get<HistoryMessageViews>();
-	}
-	if (views->replies == count) {
-		return;
-	}
-	views->replies = count;
-	if (views->views >= 0) {
-		return;
-	} else if (!views->replies) {
-		RemoveComponents(HistoryMessageViews::Bit());
-		history()->owner().requestItemResize(this);
-		return;
-	}
+		views->replies.count = count;
+		if (recentChanged) {
+			views->recentRepliers = repliers;
+		}
+		views->repliesChannelId = channelId;
+		refreshRepliesText(views, channelChanged);
+	});
+}
 
-	views->text = (views->replies > 0)
-		? Lang::FormatCountToShort(views->replies).string
-		: QString();
-	const auto was = views->textWidth;
-	views->textWidth = views->text.isEmpty()
-		? 0
-		: st::msgDateFont->width(views->text);
-	if (was == views->textWidth) {
-		history()->owner().requestItemRepaint(this);
+void HistoryMessage::refreshRepliesText(
+		not_null<HistoryMessageViews*> views,
+		bool forceResize) {
+	const auto was = views->replies.textWidth;
+	if (views->repliesChannelId) {
+		views->replies.text = (views->replies.count > 0)
+			? tr::lng_comments_open_count(
+				tr::now,
+				lt_count_short,
+				views->replies.count)
+			: tr::lng_comments_open_none(tr::now);
+		views->replies.textWidth = st::semiboldFont->width(
+			views->replies.text);
 	} else {
-		history()->owner().requestItemResize(this);
+		views->replies.text = (views->replies.count > 0)
+			? Lang::FormatCountToShort(views->replies.count).string
+			: QString();
+		views->replies.textWidth = views->replies.text.isEmpty()
+			? 0
+			: st::msgDateFont->width(views->replies.text);
 	}
+	if (forceResize || views->replies.textWidth != was) {
+		history()->owner().requestItemResize(this);
+	} else {
+		history()->owner().requestItemRepaint(this);
+	}
+}
+
+void HistoryMessage::changeRepliesCount(int delta, UserId replier) {
+	const auto views = Get<HistoryMessageViews>();
+	const auto limit = HistoryMessageViews::kMaxRecentRepliers;
+	if (!views || views->replies.count < 0) {
+		return;
+	}
+	views->replies.count = std::max(views->replies.count + delta, 0);
+	if (replier && views->repliesChannelId) {
+		if (delta < 0) {
+			views->recentRepliers.erase(
+				ranges::remove(views->recentRepliers, replier),
+				end(views->recentRepliers));
+		} else if (!ranges::contains(views->recentRepliers, replier)) {
+			views->recentRepliers.insert(views->recentRepliers.begin(), replier);
+			while (views->recentRepliers.size() > limit) {
+				views->recentRepliers.pop_back();
+			}
+		}
+	}
+	refreshRepliesText(views);
 }
 
 void HistoryMessage::setReplyToTop(MsgId replyToTop) {
@@ -1499,7 +1573,13 @@ void HistoryMessage::incrementReplyToTopCounter(
 			channelId,
 			reply->replyToTop());
 		if (top) {
-			top->setRepliesCount(top->repliesCount() + 1, 0);
+			if (const auto from = displayFrom()) {
+				if (const auto user = from->asUser()) {
+					top->changeRepliesCount(1, user->bareId());
+					return;
+				}
+			}
+			top->changeRepliesCount(1, UserId());
 		}
 	}
 }
@@ -1513,8 +1593,14 @@ void HistoryMessage::decrementReplyToTopCounter(
 		const auto top = history()->owner().message(
 			channelId,
 			reply->replyToTop());
-		if (const auto replies = (top ? top->repliesCount() : 0)) {
-			top->setRepliesCount(replies - 1, 0);
+		if (top) {
+			if (const auto from = displayFrom()) {
+				if (const auto user = from->asUser()) {
+					top->changeRepliesCount(-1, user->bareId());
+					return;
+				}
+			}
+			top->changeRepliesCount(-1, UserId());
 		}
 	}
 }

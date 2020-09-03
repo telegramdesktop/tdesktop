@@ -19,6 +19,7 @@ class Message;
 
 struct HistoryMessageEdited;
 struct HistoryMessageReply;
+struct HistoryMessageViews;
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
@@ -133,7 +134,8 @@ public:
 
 	void setViewsCount(int count) override;
 	void setForwardsCount(int count) override;
-	void setRepliesCount(int count, int pts) override;
+	void setReplies(const MTPMessageReplies &data) override;
+	void changeRepliesCount(int delta, UserId replier) override;
 	void setReplyToTop(MsgId replyToTop) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;
@@ -165,6 +167,7 @@ public:
 
 	[[nodiscard]] int viewsCount() const override;
 	[[nodiscard]] int repliesCount() const override;
+	[[nodiscard]] bool repliesAreComments() const override;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
@@ -206,6 +209,9 @@ private:
 	void setupForwardedComponent(const CreateConfig &config);
 	void incrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
 	void decrementReplyToTopCounter(not_null<HistoryMessageReply*> reply);
+	void refreshRepliesText(
+		not_null<HistoryMessageViews*> views,
+		bool forceResize = false);
 
 	static void FillForwardedInfo(
 		CreateConfig &config,

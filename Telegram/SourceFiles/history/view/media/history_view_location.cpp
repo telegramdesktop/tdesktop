@@ -184,7 +184,7 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 
 	auto roundRadius = ImageRoundRadius::Large;
 	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-		| (isBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
+		| (isRoundedInBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
 	auto rthumb = QRect(paintx, painty, paintw, painth);
 	ensureMediaCreated();
 	if (const auto thumbnail = _media->image()) {
@@ -319,11 +319,11 @@ bool Location::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	return item->viaBot()
+	return item->repliesAreComments()
+		|| item->viaBot()
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();
-	return false;
 }
 
 int Location::fullWidth() const {

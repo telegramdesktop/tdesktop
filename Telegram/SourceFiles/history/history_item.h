@@ -195,6 +195,9 @@ public:
 	[[nodiscard]] virtual int repliesCount() const {
 		return 0;
 	}
+	[[nodiscard]] virtual bool repliesAreComments() const {
+		return false;
+	}
 
 	[[nodiscard]] virtual bool needCheck() const;
 
@@ -252,7 +255,9 @@ public:
 	}
 	virtual void setForwardsCount(int count) {
 	}
-	virtual void setRepliesCount(int count, int pts) {
+	virtual void setReplies(const MTPMessageReplies &data) {
+	}
+	virtual void changeRepliesCount(int delta, UserId replier) {
 	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}

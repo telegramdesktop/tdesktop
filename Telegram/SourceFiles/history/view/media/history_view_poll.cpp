@@ -1518,7 +1518,7 @@ void Poll::toggleLinkRipple(bool pressed) {
 					radius);
 				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
 			};
-			auto mask = isBubbleBottom()
+			auto mask = isRoundedInBubbleBottom()
 				? Ui::RippleAnimation::maskByDrawer(
 					QSize(linkWidth, linkHeight),
 					false,

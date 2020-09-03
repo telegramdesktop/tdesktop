@@ -170,7 +170,7 @@ RectParts GroupedMedia::cornersFromSides(RectParts sides) const {
 	if (!isBubbleTop()) {
 		result &= ~(RectPart::TopLeft | RectPart::TopRight);
 	}
-	if (!isBubbleBottom() || !_caption.isEmpty()) {
+	if (!isRoundedInBubbleBottom() || !_caption.isEmpty()) {
 		result &= ~(RectPart::BottomLeft | RectPart::BottomRight);
 	}
 	return result;
@@ -453,7 +453,8 @@ bool GroupedMedia::computeNeedBubble() const {
 		return true;
 	}
 	if (const auto item = _parent->data()) {
-		if (item->viaBot()
+		if (item->repliesAreComments()
+			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()

@@ -278,8 +278,9 @@ public:
 	};
 	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
 
+	virtual bool hasHeavyPart() const;
+	virtual void unloadHeavyPart();
 	void checkHeavyPart();
-	void unloadHeavyPart();
 
 	// Legacy blocks structure.
 	HistoryBlock *block();

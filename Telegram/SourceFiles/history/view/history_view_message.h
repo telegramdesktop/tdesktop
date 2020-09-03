@@ -43,6 +43,11 @@ public:
 		not_null<ElementDelegate*> delegate,
 		not_null<HistoryMessage*> data,
 		Element *replacing);
+	~Message();
+
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) override;
 
 	int marginTop() const override;
 	int marginBottom() const override;
@@ -72,6 +77,9 @@ public:
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
+
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
 
 	// hasFromPhoto() returns true even if we don't display the photo
 	// but we need to skip a place at the left side for this photo
@@ -103,6 +111,8 @@ protected:
 	void refreshDataIdHook() override;
 
 private:
+	struct CommentsButton;
+
 	not_null<HistoryMessage*> message() const;
 
 	void initLogEntryOriginal();
@@ -115,6 +125,9 @@ private:
 	[[nodiscard]] TextSelection unskipTextSelection(
 		TextSelection selection) const;
 
+	void toggleCommentsButtonRipple(bool pressed);
+
+	void paintCommentsButton(Painter &p, QRect &g, bool selected) const;
 	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintReplyInfo(Painter &p, QRect &trect, bool selected) const;
@@ -122,6 +135,10 @@ private:
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintText(Painter &p, QRect &trect, TextSelection selection) const;
 
+	bool getStateCommentsButton(
+		QPoint point,
+		QRect &g,
+		not_null<TextState*> outResult) const;
 	bool getStateFromName(
 		QPoint point,
 		QRect &trect,
@@ -170,6 +187,7 @@ private:
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
+	mutable std::unique_ptr<CommentsButton> _comments;
 	int _bubbleWidthLimit = 0;
 
 };

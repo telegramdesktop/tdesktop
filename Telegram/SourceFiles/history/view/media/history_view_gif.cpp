@@ -362,7 +362,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 
 	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 	auto roundCorners = (isRound || inWebPage) ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
+		| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	if (streamed) {
 		auto paused = autoPaused;
 		if (isRound) {
@@ -1136,7 +1136,8 @@ bool Gif::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	return item->viaBot()
+	return item->repliesAreComments()
+		|| item->viaBot()
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();

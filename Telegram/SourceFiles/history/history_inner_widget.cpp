@@ -1542,12 +1542,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 		if (IsServerMsgId(item->id) && item->repliesCount() > 0) {
-			_menu->addAction(tr::lng_replies_view(tr::now, lt_count, item->repliesCount()), [=] {
+			const auto &phrase = item->repliesAreComments()
+				? tr::lng_comments_view
+				: tr::lng_replies_view;
+			_menu->addAction(phrase(tr::now, lt_count, item->repliesCount()), [=] {
 				controller->showSection(
 					HistoryView::RepliesMemento(_history, itemId.msg));
 			});
 		} else if (const auto replyToTop = item->replyToTop()) {
-			_menu->addAction(tr::lng_replies_view_thread(tr::now), [=] {
+			const auto &phrase = item->repliesAreComments()
+				? tr::lng_comments_view_thread
+				: tr::lng_replies_view_thread;
+			_menu->addAction(phrase(tr::now), [=] {
 				controller->showSection(
 					HistoryView::RepliesMemento(_history, replyToTop));
 			});

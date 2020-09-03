@@ -99,7 +99,7 @@ public:
 	QString additionalInfoString() const override;
 
 	bool skipBubbleTail() const override {
-		return isBubbleBottom() && _caption.isEmpty();
+		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}
 	bool isReadyForOpen() const override;
 

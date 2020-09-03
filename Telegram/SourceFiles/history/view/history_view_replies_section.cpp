@@ -105,6 +105,8 @@ RepliesWidget::RepliesWidget(
 : Window::SectionWidget(parent, controller)
 , _history(history)
 , _rootId(rootId)
+, _root(lookupRoot())
+, _areComments(computeAreComments())
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
 , _topBarShadow(this)
@@ -113,6 +115,8 @@ RepliesWidget::RepliesWidget(
 	controller,
 	ComposeControls::Mode::Normal))
 , _scrollDown(_scroll, st::historyToDown) {
+	setupRoot();
+
 	_topBar->setActiveChat(_history, TopBarWidget::Section::Replies);
 
 	_topBar->move(0, 0);
@@ -178,6 +182,33 @@ RepliesWidget::RepliesWidget(
 }
 
 RepliesWidget::~RepliesWidget() = default;
+
+void RepliesWidget::setupRoot() {
+	if (_root) {
+		refreshRootView();
+	} else {
+		const auto channel = _history->peer->asChannel();
+		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
+			_root = lookupRoot();
+			if (_root) {
+				refreshRootView();
+				_areComments = computeAreComments();
+			}
+		});
+		_history->session().api().requestMessageData(channel, _rootId, done);
+	}
+}
+
+void RepliesWidget::refreshRootView() {
+}
+
+HistoryItem *RepliesWidget::lookupRoot() const {
+	return _history->owner().message(_history->channelId(), _rootId);
+}
+
+bool RepliesWidget::computeAreComments() const {
+	return _root && _root->isDiscussionPost();
+}
 
 void RepliesWidget::setupComposeControls() {
 	_composeControls->setHistory(_history);
@@ -246,7 +277,7 @@ void RepliesWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		if (e->key() == Qt::Key_Up) {
 			if (!_composeControls->isEditingMessage()) {
-				// #TODO replies
+				// #TODO replies edit last sent message
 				//auto &messages = session().data().scheduledMessages();
 				//if (const auto item = messages.lastSentMessage(_history)) {
 				//	_inner->editMessageRequestNotify(item->fullId());
@@ -1064,13 +1095,19 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 
 		rpl::single(
 			tr::lng_contacts_loading()
-		) | rpl::then(_replies->fullCount(
-		) | rpl::map([=](int count) {
+		) | rpl::then(rpl::combine(
+			_replies->fullCount(),
+			_areComments.value()
+		) | rpl::map([=](int count, bool areComments) {
 			return count
-				? tr::lng_replies_header(
-					lt_count,
-					rpl::single(count) | tr::to_count())
-				: tr::lng_replies_header_none();
+				? (areComments
+					? tr::lng_comments_header
+					: tr::lng_replies_header)(
+						lt_count,
+						rpl::single(count) | tr::to_count())
+				: (areComments
+					? tr::lng_comments_header_none
+					: tr::lng_replies_header_none)();
 		})) | rpl::flatten_latest(
 		) | rpl::start_with_next([=](const QString &text) {
 			_topBar->setCustomTitle(text);

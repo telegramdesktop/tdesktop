@@ -217,6 +217,7 @@ public:
 		return (_inBubbleState == MediaInBubbleState::Bottom)
 			|| (_inBubbleState == MediaInBubbleState::None);
 	}
+	[[nodiscard]] bool isRoundedInBubbleBottom() const;
 	[[nodiscard]] virtual bool skipBubbleTail() const {
 		return false;
 	}

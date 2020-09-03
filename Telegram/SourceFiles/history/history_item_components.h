@@ -34,10 +34,16 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryIte
 };
 
 struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
-	QString text;
-	int textWidth = 0;
-	int views = -1;
-	int replies = 0;
+	struct Part {
+		QString text;
+		int textWidth = 0;
+		int count = -1;
+	};
+	std::vector<UserId> recentRepliers;
+	Part views;
+	Part replies;
+	ChannelId repliesChannelId = 0;
+	static constexpr auto kMaxRecentRepliers = 3;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
