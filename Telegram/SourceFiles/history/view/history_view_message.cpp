@@ -1964,7 +1964,11 @@ void Message::refreshEditedBadge() {
 	const auto item = message();
 	const auto edited = displayedEditBadge();
 	const auto editDate = displayedEditDate();
-	QString msgId = " (" + QString::number(item->fullId().msg) + ")";
+	QString msgId;
+	if (item->fullId().msg < 0)
+		msgId = " (" + QString::number(item->fullId().msg) + ")";
+	else
+		msgId = "";
 	const auto dateText = dateTime().toString(cTimeFormat()) + (cShowMessagesID() ? msgId : "");
 	if (edited) {
 		edited->refresh(dateText, editDate != 0);
@@ -1985,7 +1989,11 @@ void Message::initTime() {
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
-		QString msgId = " (" + QString::number(item->fullId().msg) + ")";
+		QString msgId;
+		if (item->fullId().msg < 0)
+			msgId = " (" + QString::number(item->fullId().msg) + ")";
+		else
+			msgId = "";
 		item->_timeText = dateTime().toString(cTimeFormat()) + (cShowMessagesID() ? msgId : "");
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
