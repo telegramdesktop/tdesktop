@@ -198,6 +198,11 @@ public:
 	[[nodiscard]] virtual bool repliesAreComments() const {
 		return false;
 	}
+	[[nodiscard]] virtual FullMsgId commentsItemId() const {
+		return FullMsgId();
+	}
+	virtual void setCommentsItemId(FullMsgId id) {
+	}
 
 	[[nodiscard]] virtual bool needCheck() const;
 

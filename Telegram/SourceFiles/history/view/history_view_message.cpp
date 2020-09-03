@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/view/history_view_replies_section.h"
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"
 #include "core/application.h"
@@ -1191,8 +1190,7 @@ bool Message::getStateCommentsButton(
 				if (const auto window = App::wnd()) {
 					if (const auto controller = window->sessionController()) {
 						if (const auto item = controller->session().data().message(fullId)) {
-							controller->showSection(
-								HistoryView::RepliesMemento(item->history(), item->id));
+							controller->showRepliesForMessage(item->history(), item->id);
 						}
 					}
 				}
@@ -1608,7 +1606,7 @@ void Message::drawInfo(
 		auto left = infoRight - infoW;
 		const auto iconTop = infoBottom + st::historyViewsTop;
 		const auto textTop = infoBottom - st::msgDateFont->descent;
-		if (views->replies.count > 0 && !views->repliesChannelId) {
+		if (views->replies.count > 0 && !views->commentsChannelId) {
 			auto icon = [&] {
 				if (item->id > 0) {
 					if (outbg) {
@@ -1725,7 +1723,7 @@ int Message::infoWidth() const {
 				+ views->views.textWidth
 				+ st::historyViewsWidth;
 		}
-		if (views->replies.count > 0 && !views->repliesChannelId) {
+		if (views->replies.count > 0 && !views->commentsChannelId) {
 			result += st::historyViewsSpace
 				+ views->replies.textWidth
 				+ st::historyViewsWidth;
@@ -1771,7 +1769,7 @@ int Message::timeLeft() const {
 		if (views->views.count >= 0) {
 			result += st::historyViewsSpace + views->views.textWidth + st::historyViewsWidth;
 		}
-		if (views->replies.count > 0 && !views->repliesChannelId) {
+		if (views->replies.count > 0 && !views->commentsChannelId) {
 			result += st::historyViewsSpace + views->replies.textWidth + st::historyViewsWidth;
 		}
 	} else if (item->id < 0 && item->history()->peer->isSelf()) {

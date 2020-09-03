@@ -34,6 +34,8 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryIte
 };
 
 struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
+	static constexpr auto kMaxRecentRepliers = 3;
+
 	struct Part {
 		QString text;
 		int textWidth = 0;
@@ -42,8 +44,8 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	std::vector<UserId> recentRepliers;
 	Part views;
 	Part replies;
-	ChannelId repliesChannelId = 0;
-	static constexpr auto kMaxRecentRepliers = 3;
+	ChannelId commentsChannelId = 0;
+	MsgId commentsRootId = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {

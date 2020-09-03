@@ -127,6 +127,7 @@ class SessionController;
 class SessionNavigation : public base::has_weak_ptr {
 public:
 	explicit SessionNavigation(not_null<Main::Session*> session);
+	virtual ~SessionNavigation();
 
 	Main::Session &session() const;
 
@@ -136,6 +137,11 @@ public:
 	virtual void showBackFromStack(
 		const SectionShow &params = SectionShow()) = 0;
 	virtual not_null<SessionController*> parentController() = 0;
+
+	void showRepliesForMessage(
+		not_null<History*> history,
+		MsgId rootId,
+		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(
 		PeerId peerId,
@@ -157,10 +163,14 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
-	virtual ~SessionNavigation() = default;
 
 private:
 	const not_null<Main::Session*> _session;
+
+	History *_showingRepliesHistory = nullptr;
+	MsgId _showingRepliesRootId = 0;
+	mtpRequestId _showingRepliesRequestId = 0;
+
 
 };
 

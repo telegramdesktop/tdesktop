@@ -747,10 +747,10 @@ int HistoryMessage::viewsCount() const {
 
 int HistoryMessage::repliesCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->repliesChannelId) {
+		if (views->commentsChannelId) {
 			if (const auto channel = history()->peer->asChannel()) {
 				const auto linked = channel->linkedChat();
-				if (!linked || linked->bareId() != views->repliesChannelId) {
+				if (!linked || linked->bareId() != views->commentsChannelId) {
 					return 0;
 				}
 			} else {
@@ -764,11 +764,11 @@ int HistoryMessage::repliesCount() const {
 
 bool HistoryMessage::repliesAreComments() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		if (!views->repliesChannelId) {
+		if (!views->commentsChannelId) {
 			return false;
 		} else if (const auto channel = history()->peer->asChannel()) {
 			const auto linked = channel->linkedChat();
-			if (!linked || linked->bareId() != views->repliesChannelId) {
+			if (!linked || linked->bareId() != views->commentsChannelId) {
 				return false;
 			}
 		} else {
@@ -777,6 +777,21 @@ bool HistoryMessage::repliesAreComments() const {
 		return true;
 	}
 	return HistoryItem::repliesAreComments();
+}
+
+FullMsgId HistoryMessage::commentsItemId() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return FullMsgId(views->commentsChannelId, views->commentsRootId);
+	}
+	return FullMsgId();
+}
+
+void HistoryMessage::setCommentsItemId(FullMsgId id) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->commentsChannelId == id.channel) {
+			views->commentsRootId = id.msg;
+		}
+	}
 }
 
 bool HistoryMessage::updateDependencyItem() {
@@ -1468,7 +1483,7 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 		const auto count = data.vreplies().v;
 		const auto channelId = data.vchannel_id().value_or_empty();
 		const auto countChanged = (views->replies.count != count);
-		const auto channelChanged = (views->repliesChannelId != channelId);
+		const auto channelChanged = (views->commentsChannelId != channelId);
 		const auto recentChanged = (views->recentRepliers != repliers);
 		if (!countChanged && !channelChanged && !recentChanged) {
 			return;
@@ -1477,7 +1492,7 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 		if (recentChanged) {
 			views->recentRepliers = repliers;
 		}
-		views->repliesChannelId = channelId;
+		views->commentsChannelId = channelId;
 		refreshRepliesText(views, channelChanged);
 	});
 }
@@ -1486,7 +1501,7 @@ void HistoryMessage::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {
 	const auto was = views->replies.textWidth;
-	if (views->repliesChannelId) {
+	if (views->commentsChannelId) {
 		views->replies.text = (views->replies.count > 0)
 			? tr::lng_comments_open_count(
 				tr::now,
@@ -1517,7 +1532,7 @@ void HistoryMessage::changeRepliesCount(int delta, UserId replier) {
 		return;
 	}
 	views->replies.count = std::max(views->replies.count + delta, 0);
-	if (replier && views->repliesChannelId) {
+	if (replier && views->commentsChannelId) {
 		if (delta < 0) {
 			views->recentRepliers.erase(
 				ranges::remove(views->recentRepliers, replier),

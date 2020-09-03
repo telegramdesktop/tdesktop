@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_replies_section.h"
 //#include "history/feed/history_feed_section.h" // #feed
 #include "media/player/media_player_instance.h"
 #include "data/data_media_types.h"
@@ -82,8 +83,80 @@ SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
 : _session(session) {
 }
 
+SessionNavigation::~SessionNavigation() {
+	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
+}
+
 Main::Session &SessionNavigation::session() const {
 	return *_session;
+}
+
+void SessionNavigation::showRepliesForMessage(
+		not_null<History*> history,
+		MsgId rootId,
+		const SectionShow &params) {
+	if (_showingRepliesRequestId
+		&& _showingRepliesHistory == history.get()
+		&& _showingRepliesRootId == rootId) {
+		return;
+	}
+	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
+
+	const auto channelId = history->channelId();
+	const auto item = _session->data().message(channelId, rootId);
+	if (!item || !item->repliesAreComments()) {
+		if (item->repliesCount() > 0) {
+			showSection(HistoryView::RepliesMemento(history, rootId));
+		}
+		return;
+	} else if (const auto id = item->commentsItemId()) {
+		if (const auto item = _session->data().message(id)) {
+			showSection(
+				HistoryView::RepliesMemento(item->history(), item->id));
+			return;
+		}
+	}
+	_showingRepliesHistory = history;
+	_showingRepliesRootId = rootId;
+	_showingRepliesRequestId = _session->api().request(
+		MTPmessages_GetDiscussionMessage(
+			history->peer->input,
+			MTP_int(rootId))
+	).done([=](const MTPmessages_DiscussionMessage &result) {
+		_showingRepliesRequestId = 0;
+		result.match([&](const MTPDmessages_discussionMessage &data) {
+			_session->data().processUsers(data.vusers());
+			_session->data().processChats(data.vchats());
+			_session->data().processMessages(
+				data.vmessages(),
+				NewMessageType::Existing);
+			const auto list = data.vmessages().v;
+			if (list.isEmpty()) {
+				return;
+			}
+			const auto id = IdFromMessage(list.front());
+			const auto peer = PeerFromMessage(list.front());
+			if (!peer || !id) {
+				return;
+			}
+			auto item = _session->data().message(
+				peerToChannel(peer),
+				id);
+			if (const auto group = _session->data().groups().find(item)) {
+				item = group->items.front();
+			}
+			if (item) {
+				const auto post = _session->data().message(channelId, rootId);
+				if (post) {
+					post->setCommentsItemId(item->fullId());
+				}
+				showSection(
+					HistoryView::RepliesMemento(item->history(), item->id));
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		_showingRepliesRequestId = 0;
+	}).send();
 }
 
 void SessionNavigation::showPeerInfo(

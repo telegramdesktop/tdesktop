@@ -139,7 +139,8 @@ bool RepliesList::applyUpdate(
 		not_null<Viewer*> viewer,
 		const MessageUpdate &update) {
 	if (update.item->history() != _history
-		|| update.item->replyToTop() != _rootId) {
+		|| update.item->replyToTop() != _rootId
+		|| !IsServerMsgId(update.item->id)) {
 		return false;
 	}
 	const auto id = update.item->id;
