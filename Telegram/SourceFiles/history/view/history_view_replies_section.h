@@ -217,6 +217,8 @@ private:
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
+	void paintRoot(Painter &p);
+
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
 	HistoryItem *_root = nullptr;
@@ -228,6 +230,11 @@ private:
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
+
+	Ui::Text::String _rootTitle;
+	Ui::Text::String _rootMessage;
+	object_ptr<Ui::PlainShadow> _rootShadow;
+	int _rootHeight = 0;
 
 	std::vector<MsgId> _replyReturns;
 	HistoryItem *_replyReturn = nullptr;

@@ -38,8 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_replies_list.h"
-#include "data/data_user.h"
 #include "data/data_changes.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
@@ -114,9 +114,13 @@ RepliesWidget::RepliesWidget(
 	this,
 	controller,
 	ComposeControls::Mode::Normal))
+, _rootShadow(this)
 , _scrollDown(_scroll, st::historyToDown) {
 	setupRoot();
 
+	_rootHeight = st::msgReplyPadding.top()
+		+ st::msgReplyBarSize.height()
+		+ st::msgReplyPadding.bottom();
 	_topBar->setActiveChat(_history, TopBarWidget::Section::Replies);
 
 	_topBar->move(0, 0);
@@ -137,6 +141,7 @@ RepliesWidget::RepliesWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
+	_rootShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
 
@@ -144,7 +149,7 @@ RepliesWidget::RepliesWidget(
 		this,
 		controller,
 		static_cast<ListDelegate*>(this)));
-	_scroll->move(0, _topBar->height());
+	_scroll->move(0, _topBar->height() + _rootHeight);
 	_scroll->show();
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
@@ -191,15 +196,40 @@ void RepliesWidget::setupRoot() {
 		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
 			_root = lookupRoot();
 			if (_root) {
-				refreshRootView();
 				_areComments = computeAreComments();
 			}
+			refreshRootView();
 		});
 		_history->session().api().requestMessageData(channel, _rootId, done);
 	}
 }
 
 void RepliesWidget::refreshRootView() {
+	const auto sender = (_root && _root->discussionPostOriginalSender())
+		? _root->discussionPostOriginalSender()
+		: _history->peer.get();
+	_rootTitle.setText(
+		st::fwdTextStyle,
+		sender->name,
+		Ui::NameTextOptions());
+	if (_rootTitle.isEmpty()) {
+		_rootTitle.setText(
+			st::fwdTextStyle,
+			"Message",
+			Ui::NameTextOptions());
+	}
+	if (_root) {
+		_rootMessage.setText(
+			st::messageTextStyle,
+			_root->inReplyText(),
+			Ui::DialogTextOptions());
+	} else {
+		_rootMessage.setText(
+			st::messageTextStyle,
+			textcmdLink(1, tr::lng_deleted_message(tr::now)),
+			Ui::DialogTextOptions());
+	}
+	update();
 }
 
 HistoryItem *RepliesWidget::lookupRoot() const {
@@ -988,6 +1018,9 @@ void RepliesWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
 		Adaptive::OneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
+	_rootShadow->moveToLeft(
+		Adaptive::OneColumn() ? 0 : st::lineWidth,
+		_topBar->height() + _rootHeight);
 }
 
 not_null<History*> RepliesWidget::history() const {
@@ -1138,10 +1171,11 @@ void RepliesWidget::updateControlsGeometry() {
 		: base::make_optional(_scroll->scrollTop() + topDelta());
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
+	_rootShadow->resize(contentWidth, st::lineWidth);
 
 	const auto bottom = height();
 	const auto controlsHeight = _composeControls->heightCurrent();
-	const auto scrollHeight = bottom - _topBar->height() - controlsHeight;
+	const auto scrollHeight = bottom - _topBar->height() - _rootHeight - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -1164,18 +1198,56 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	if (animating()) {
 		SectionWidget::paintEvent(e);
 		return;
-	}
-	if (Ui::skipPaintEvent(this, e)) {
+	} else if (Ui::skipPaintEvent(this, e)) {
 		return;
 	}
-	//if (hasPendingResizedItems()) {
-	//	updateListSize();
-	//}
 
-	//auto ms = crl::now();
-	//_historyDownShown.step(ms);
+	const auto aboveHeight = _topBar->height() + _rootHeight;
+	const auto bg = e->rect().intersected(
+		QRect(0, aboveHeight, width(), height() - aboveHeight));
+	SectionWidget::PaintBackground(controller(), this, bg);
 
-	SectionWidget::PaintBackground(controller(), this, e->rect());
+	auto p = Painter(this);
+	paintRoot(p);
+}
+
+void RepliesWidget::paintRoot(Painter &p) {
+	auto top = _topBar->bottomNoMargins();
+	p.fillRect(myrtlrect(0, top, width(), st::historyReplyHeight), st::historyPinnedBg);
+
+	top += st::msgReplyPadding.top();
+	QRect rbar(myrtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height()));
+	p.fillRect(rbar, st::msgInReplyBarColor);
+
+	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
+	if (!_rootTitle.isEmpty()) {
+		const auto media = _root ? _root->media() : nullptr;
+		if (media && media->hasReplyPreview()) {
+			if (const auto image = media->replyPreview()) {
+				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+				p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+			}
+			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
+		}
+		p.setPen(st::historyReplyNameFg);
+		p.setFont(st::msgServiceNameFont);
+		const auto poll = media ? media->poll() : nullptr;
+		const auto pinnedHeader = !poll
+			? tr::lng_pinned_message(tr::now)
+			: poll->quiz()
+			? tr::lng_pinned_quiz(tr::now)
+			: tr::lng_pinned_poll(tr::now);
+		_rootTitle.drawElided(p, left, top, width() - left - st::msgReplyPadding.right());
+
+		p.setPen(st::historyComposeAreaFg);
+		p.setTextPalette(st::historyComposeAreaPalette);
+		_rootMessage.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - st::msgReplyPadding.right());
+		p.restoreTextPalette();
+	} else {
+		p.setFont(st::msgDateFont);
+		p.setPen(st::historyComposeAreaFgService);
+		p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - st::msgReplyPadding.right()));
+	}
 }
 
 void RepliesWidget::onScroll() {

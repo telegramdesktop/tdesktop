@@ -105,9 +105,7 @@ void SessionNavigation::showRepliesForMessage(
 	const auto channelId = history->channelId();
 	const auto item = _session->data().message(channelId, rootId);
 	if (!item || !item->repliesAreComments()) {
-		if (item->repliesCount() > 0) {
-			showSection(HistoryView::RepliesMemento(history, rootId));
-		}
+		showSection(HistoryView::RepliesMemento(history, rootId));
 		return;
 	} else if (const auto id = item->commentsItemId()) {
 		if (const auto item = _session->data().message(id)) {
