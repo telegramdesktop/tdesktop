@@ -1,0 +1,90 @@
+name: User-agent updater.
+
+on:
+  repository_dispatch:
+    types: ["Restart user_agent_updater workflow."]
+  schedule:
+    # At 00:00 on day-of-month 1.
+    - cron: '0 0 1 * *'
+
+jobs:
+  User-agent:
+    runs-on: ubuntu-latest
+
+    env:
+      code_file: "Telegram/SourceFiles/mtproto/details/mtproto_domain_resolver.cpp"
+      skip: "0"
+
+    steps:
+      - name: Clone.
+        if: env.skip == '0'
+        uses: actions/checkout@v2
+
+      - name: Write a new version of Google Chrome to the user-agent for DNS.
+        if: env.skip == '0'
+        shell: python
+        run: |
+          import subprocess, os, re;
+
+          regExpVersion = "[0-9]+.[0-9]+.[0-9]+.[0-9]+";
+          chrome = "Chrome/";
+
+          def newVersion():
+            output = subprocess.check_output(["google-chrome", "--version"]);
+            version = re.search(regExpVersion, output);
+            if not version:
+              print("Can't find a Chrome version.");
+              exit();
+            return version.group(0);
+
+          newChromeVersion = newVersion();
+          print(newChromeVersion);
+
+          def writeUserAgent():
+            p = os.environ['code_file'];
+            w = open(p, "r");
+            content = w.read();
+            w.close();
+
+            regExpChrome = chrome + regExpVersion;
+
+            version = re.search(regExpChrome, content);
+            if not version:
+              print("Can't find an user-agent in the code.");
+              exit();
+            content = re.sub(regExpChrome, chrome + newChromeVersion, content);
+
+            w = open(p, "w");
+            w.write(content);
+
+            print("::set-env name=ChromeVersion::" + newChromeVersion);
+
+          writeUserAgent();
+
+      - name: Push to the current branch.
+        if: env.skip == '0' && env.ChromeVersion != ''
+        run: |
+          token=${{ secrets.TOKEN_FOR_MASTER_UPDATER }}
+          if [ -z "${token}" ]; then
+              echo "Token is unset. Nothing to do."
+              exit 0
+          fi
+
+          url=https://x-access-token:$token@github.com/$GITHUB_REPOSITORY
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          git diff > git_diff.txt
+          if [[ ! -s git_diff.txt ]]; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+
+          git add $code_file
+          git commit -m "Update User-Agent for DNS to Chrome $ChromeVersion."
+
+          git remote set-url origin $url
+
+          git push origin HEAD:$GITHUB_REF
+          echo "Done!"
