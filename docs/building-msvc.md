@@ -85,7 +85,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     move ossl_static.pdb out32.dbg\ossl_static
     nmake clean
     move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
-    perl Configure no-shared VC-WIN32
+    perl Configure no-shared no-tests VC-WIN32
     nmake
     mkdir out32
     move libcrypto.lib out32
