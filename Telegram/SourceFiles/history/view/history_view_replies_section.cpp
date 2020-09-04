@@ -135,6 +135,10 @@ RepliesWidget::RepliesWidget(
 	) | rpl::start_with_next([=] {
 		confirmDeleteSelected();
 	}, _topBar->lifetime());
+	_topBar->forwardSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmForwardSelected();
+	}, _topBar->lifetime());
 	_topBar->clearSelectionRequest(
 	) | rpl::start_with_next([=] {
 		clearSelected();
@@ -1380,6 +1384,11 @@ bool RepliesWidget::listElementHideReply(not_null<const Element*> view) {
 	return (view->data()->replyToId() == _rootId);
 }
 
+bool RepliesWidget::listIsGoodForAroundPosition(
+		not_null<const Element*> view) {
+	return IsServerMsgId(view->data()->id);
+}
+
 void RepliesWidget::confirmSendNowSelected() {
 	auto items = _inner->getSelectedItems();
 	if (items.empty()) {
@@ -1403,6 +1412,19 @@ void RepliesWidget::confirmDeleteSelected() {
 		&_history->session(),
 		std::move(items)));
 	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
+}
+
+void RepliesWidget::confirmForwardSelected() {
+	auto items = _inner->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto weak = Ui::MakeWeak(this);
+	Window::ShowForwardMessagesBox(controller(), std::move(items), [=] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
 		}

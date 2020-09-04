@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kMessagesPerPage = 16;
+constexpr auto kMessagesPerPage = 50;
 
 } // namespace
 
@@ -42,6 +42,21 @@ RepliesList::~RepliesList() {
 }
 
 rpl::producer<MessagesSlice> RepliesList::source(
+		MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter) {
+	return rpl::combine(
+		sourceFromServer(aroundId, limitBefore, limitAfter),
+		_history->session().changes().historyFlagsValue(
+			_history,
+			Data::HistoryUpdate::Flag::LocalMessages)
+	) | rpl::map([=](MessagesSlice &&server, const auto &) {
+		appendLocalMessages(server);
+		return std::move(server);
+	});
+}
+
+rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 		MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter) {
@@ -76,6 +91,65 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		push();
 		return lifetime;
 	};
+}
+
+void RepliesList::appendLocalMessages(MessagesSlice &slice) {
+	const auto &local = _history->localMessages();
+	if (local.empty()) {
+		return;
+	} else if (slice.ids.empty()) {
+		if (slice.skippedBefore != 0 || slice.skippedAfter != 0) {
+			return;
+		}
+		slice.ids.reserve(local.size());
+		for (const auto item : local) {
+			if (item->replyToTop() != _rootId) {
+				continue;
+			}
+			slice.ids.push_back(item->fullId());
+		}
+		ranges::sort(slice.ids);
+		return;
+	}
+	auto &owner = _history->owner();
+	auto dates = std::vector<TimeId>();
+	dates.reserve(slice.ids.size());
+	for (const auto &id : slice.ids) {
+		const auto message = owner.message(id);
+		Assert(message != nullptr);
+
+		dates.push_back(message->date());
+	}
+	for (const auto item : local) {
+		if (item->replyToTop() != _rootId) {
+			continue;
+		}
+		const auto date = item->date();
+		if (date < dates.front()) {
+			if (slice.skippedBefore != 0) {
+				if (slice.skippedBefore) {
+					++*slice.skippedBefore;
+				}
+				continue;
+			}
+			dates.insert(dates.begin(), date);
+			slice.ids.insert(slice.ids.begin(), item->fullId());
+		} else {
+			auto to = dates.size();
+			for (; to != 0; --to) {
+				const auto checkId = slice.ids[to - 1].msg;
+				if (dates[to - 1] > date) {
+					continue;
+				} else if (dates[to - 1] < date
+					|| IsServerMsgId(checkId)
+					|| checkId < item->id) {
+					break;
+				}
+			}
+			dates.insert(dates.begin() + to, date);
+			slice.ids.insert(slice.ids.begin() + to, item->fullId());
+		}
+	}
 }
 
 rpl::producer<int> RepliesList::fullCount() const {

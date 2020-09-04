@@ -75,6 +75,8 @@ public:
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
 	virtual bool listElementHideReply(not_null<const Element*> view) = 0;
+	virtual bool listIsGoodForAroundPosition(
+		not_null<const Element*> view) = 0;
 
 };
 
@@ -322,11 +324,12 @@ private:
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
-	not_null<Element*> findItemByY(int y) const;
-	Element *strictFindItemByY(int y) const;
-	int findNearestItem(Data::MessagePosition position) const;
+	[[nodiscard]] int findItemIndexByY(int y) const;
+	[[nodiscard]] not_null<Element*> findItemByY(int y) const;
+	[[nodiscard]] Element *strictFindItemByY(int y) const;
+	[[nodiscard]] int findNearestItem(Data::MessagePosition position) const;
 	void viewReplaced(not_null<const Element*> was, Element *now);
-	HistoryItemsList collectVisibleItems() const;
+	[[nodiscard]] HistoryItemsList collectVisibleItems() const;
 
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();

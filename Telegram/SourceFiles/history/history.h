@@ -77,6 +77,7 @@ public:
 	void checkLocalMessages();
 	void removeJoinedMessage();
 
+
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
 	Element *findFirstNonEmpty() const;
@@ -181,6 +182,8 @@ public:
 
 	void registerLocalMessage(not_null<HistoryItem*> item);
 	void unregisterLocalMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] auto localMessages()
+		-> const base::flat_set<not_null<HistoryItem*>> &;
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
 	[[nodiscard]] bool readInboxTillNeedsRequest(MsgId tillId);

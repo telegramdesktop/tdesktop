@@ -1338,6 +1338,10 @@ void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
 	session().changes().historyUpdated(this, UpdateFlag::LocalMessages);
 }
 
+const base::flat_set<not_null<HistoryItem*>> &History::localMessages() {
+	return _localMessages;
+}
+
 HistoryItem *History::latestSendingMessage() const {
 	auto sending = ranges::view::all(
 		_localMessages

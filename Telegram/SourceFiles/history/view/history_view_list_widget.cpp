@@ -552,13 +552,36 @@ not_null<Element*> ListWidget::enforceViewForItem(
 }
 
 void ListWidget::updateAroundPositionFromRows() {
-	_aroundIndex = findNearestItem(_aroundPosition);
-	if (_aroundIndex >= 0) {
-		const auto newPosition = _items[_aroundIndex]->data()->position();
-		if (_aroundPosition != newPosition) {
-			_aroundPosition = newPosition;
-			crl::on_main(this, [=] { refreshViewer(); });
+	const auto nearestIndex = findNearestItem(_aroundPosition);
+	if (nearestIndex < 0) {
+		_aroundIndex = -1;
+		return;
+	}
+	const auto isGoodIndex = [&](int index) {
+		Expects(index >= 0 && index < _items.size());
+
+		return _delegate->listIsGoodForAroundPosition(_items[index]);
+	};
+	_aroundIndex = [&] {
+		for (auto index = nearestIndex; index < _items.size(); ++index) {
+			if (isGoodIndex(index)) {
+				return index;
+			}
 		}
+		for (auto index = nearestIndex; index != 0;) {
+			if (isGoodIndex(--index)) {
+				return index;
+			}
+		}
+		return -1;
+	}();
+	if (_aroundIndex < 0) {
+		return;
+	}
+	const auto newPosition = _items[_aroundIndex]->data()->position();
+	if (_aroundPosition != newPosition) {
+		_aroundPosition = newPosition;
+		crl::on_main(this, [=] { refreshViewer(); });
 	}
 }
 
@@ -1055,8 +1078,8 @@ void ListWidget::checkMoveToOtherViewer() {
 		return;
 	}
 
-	auto topItem = findItemByY(_visibleTop);
-	auto bottomItem = findItemByY(_visibleBottom);
+	auto topItemIndex = findItemIndexByY(_visibleTop);
+	auto bottomItemIndex = findItemIndexByY(_visibleBottom);
 	auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
 	auto preloadedCount = preloadedHeight / _itemAverageHeight;
 	auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
@@ -1075,32 +1098,64 @@ void ListWidget::checkMoveToOtherViewer() {
 		- kPreloadIfLessThanScreens;
 	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
 		/ _itemAverageHeight;
-	auto preloadAroundMessage = [&](not_null<Element*> view) {
+	const auto preloadAroundMessage = [&](int index) {
+		Expects(index >= 0 && index < _items.size());
+
 		auto preloadRequired = false;
-		auto itemPosition = view->data()->position();
-		auto itemIndex = ranges::find(_items, view) - begin(_items);
-		Assert(itemIndex < _items.size());
+		auto itemPosition = _items[index]->data()->position();
 
 		if (!preloadRequired) {
 			preloadRequired = (_idsLimit < preloadIdsLimitMin);
 		}
 		if (!preloadRequired) {
 			Assert(_aroundIndex >= 0);
-			auto delta = std::abs(itemIndex - _aroundIndex);
+			auto delta = std::abs(index - _aroundIndex);
 			preloadRequired = (delta >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;
 			_aroundPosition = itemPosition;
-			_aroundIndex = itemIndex;
+			_aroundIndex = index;
 			refreshViewer();
 		}
 	};
 
+	const auto findGoodAbove = [&](int index) {
+		Expects(index >= 0 && index < _items.size());
+
+		for (; index != _items.size(); ++index) {
+			if (_delegate->listIsGoodForAroundPosition(_items[index])) {
+				return index;
+			}
+		}
+		return -1;
+	};
+	const auto findGoodBelow = [&](int index) {
+		Expects(index >= 0 && index < _items.size());
+
+		for (++index; index != 0;) {
+			if (_delegate->listIsGoodForAroundPosition(_items[--index])) {
+				return index;
+			}
+		}
+		return -1;
+	};
 	if (preloadTop && !topLoaded) {
-		preloadAroundMessage(topItem);
+		const auto goodAboveIndex = findGoodAbove(topItemIndex);
+		const auto goodIndex = (goodAboveIndex >= 0)
+			? goodAboveIndex
+			: findGoodBelow(topItemIndex);
+		if (goodIndex >= 0) {
+			preloadAroundMessage(goodIndex);
+		}
 	} else if (preloadBottom && !bottomLoaded) {
-		preloadAroundMessage(bottomItem);
+		const auto goodBelowIndex = findGoodBelow(bottomItemIndex);
+		const auto goodIndex = (goodBelowIndex >= 0)
+			? goodBelowIndex
+			: findGoodAbove(bottomItemIndex);
+		if (goodIndex >= 0) {
+			preloadAroundMessage(goodIndex);
+		}
 	}
 }
 
@@ -1553,20 +1608,24 @@ MessageIdsList ListWidget::getSelectedItems() const {
 	return collectSelectedIds();
 }
 
-not_null<Element*> ListWidget::findItemByY(int y) const {
+int ListWidget::findItemIndexByY(int y) const {
 	Expects(!_items.empty());
 
 	if (y < _itemsTop) {
-		return _items.front();
+		return 0;
 	}
 	auto i = std::lower_bound(
 		begin(_items),
 		end(_items),
 		y,
 		[this](auto &elem, int top) {
-			return this->itemTop(elem) + elem->height() <= top;
-		});
-	return (i != end(_items)) ? i->get() : _items.back().get();
+		return this->itemTop(elem) + elem->height() <= top;
+	});
+	return std::min(int(i - begin(_items)), int(_items.size() - 1));
+}
+
+not_null<Element*> ListWidget::findItemByY(int y) const {
+	return _items[findItemIndexByY(y)];
 }
 
 Element *ListWidget::strictFindItemByY(int y) const {

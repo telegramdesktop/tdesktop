@@ -120,6 +120,7 @@ public:
 	void listContentRefreshed() override;
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
 	bool listElementHideReply(not_null<const Element*> view) override;
+	bool listIsGoodForAroundPosition(not_null<const Element*> view) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -158,6 +159,7 @@ private:
 
 	void confirmSendNowSelected();
 	void confirmDeleteSelected();
+	void confirmForwardSelected();
 	void clearSelected();
 
 	void send();

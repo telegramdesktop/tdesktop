@@ -35,6 +35,12 @@ private:
 
 	[[nodiscard]] Histories &histories();
 
+	[[nodiscard]] rpl::producer<MessagesSlice> sourceFromServer(
+		MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter);
+	void appendLocalMessages(MessagesSlice &slice);
+
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyUpdate(
 		not_null<Viewer*> viewer,

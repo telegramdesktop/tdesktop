@@ -709,8 +709,9 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 		auto &data = session().data();
 		if (const auto item = data.message(itemId)) {
 			if (!item->isEditingMedia()) {
+				const auto history = item->history();
 				item->destroy();
-				item->history()->requestChatListMessage();
+				history->requestChatListMessage();
 			} else {
 				item->returnSavedMedia();
 				session().uploader().cancel(item->fullId());

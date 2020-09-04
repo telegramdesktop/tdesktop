@@ -1150,6 +1150,11 @@ bool ScheduledWidget::listElementHideReply(not_null<const Element*> view) {
 	return false;
 }
 
+bool ScheduledWidget::listIsGoodForAroundPosition(
+		not_null<const Element*> view) {
+	return true;
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	auto items = _inner->getSelectedItems();
 	if (items.empty()) {
