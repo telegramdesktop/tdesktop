@@ -55,6 +55,7 @@ private:
 
 	void got(const MTPaccount_Authorizations &result);
 
+	void terminate(Fn<void()> terminateRequest, QString message);
 	void terminateOne(uint64 hash);
 	void terminateAll();
 

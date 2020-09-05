@@ -286,13 +286,28 @@ void SessionsBox::shortPollSessions() {
 	update();
 }
 
-void SessionsBox::terminateOne(uint64 hash) {
-	if (_terminateBox) _terminateBox->deleteLater();
+void SessionsBox::terminate(Fn<void()> terminateRequest, QString message) {
+	if (_terminateBox) {
+		_terminateBox->deleteLater();
+	}
 	const auto callback = crl::guard(this, [=] {
 		if (_terminateBox) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
+		terminateRequest();
+	});
+	_terminateBox = Ui::show(
+		Box<ConfirmBox>(
+			message,
+			tr::lng_settings_reset_button(tr::now),
+			st::attentionBoxButton,
+			callback),
+		Ui::LayerOption::KeepOther);
+}
+
+void SessionsBox::terminateOne(uint64 hash) {
+	auto callback = [=] {
 		_api.request(MTPaccount_ResetAuthorization(
 			MTP_long(hash)
 		)).done([=](const MTPBool &result) {
@@ -312,23 +327,12 @@ void SessionsBox::terminateOne(uint64 hash) {
 			_inner->terminatingOne(hash, false);
 		}).send();
 		_inner->terminatingOne(hash, true);
-	});
-	_terminateBox = Ui::show(
-		Box<ConfirmBox>(
-			tr::lng_settings_reset_one_sure(tr::now),
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+	};
+	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
 
 void SessionsBox::terminateAll() {
-	if (_terminateBox) _terminateBox->deleteLater();
-	const auto callback = crl::guard(this, [=] {
-		if (_terminateBox) {
-			_terminateBox->closeBox();
-			_terminateBox = nullptr;
-		}
+	auto callback = [=] {
 		_api.request(MTPauth_ResetAuthorizations(
 		)).done([=](const MTPBool &result) {
 			_api.request(base::take(_shortPollRequest)).cancel();
@@ -338,14 +342,8 @@ void SessionsBox::terminateAll() {
 			shortPollSessions();
 		}).send();
 		_loading = true;
-	});
-	_terminateBox = Ui::show(
-		Box<ConfirmBox>(
-			tr::lng_settings_reset_sure(tr::now),
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+	};
+	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));
 }
 
 SessionsBox::Inner::Inner(QWidget *parent)
