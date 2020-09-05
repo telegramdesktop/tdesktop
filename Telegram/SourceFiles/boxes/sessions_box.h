@@ -51,7 +51,6 @@ private:
 
 	static Entry ParseEntry(const MTPDauthorization &data);
 	static void ResizeEntry(Entry &entry);
-	void setLoading(bool loading);
 	void shortPollSessions();
 
 	void got(const MTPaccount_Authorizations &result);
@@ -62,7 +61,7 @@ private:
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
-	bool _loading = false;
+	rpl::variable<bool> _loading = false;
 	Full _data;
 
 	QPointer<Inner> _inner;

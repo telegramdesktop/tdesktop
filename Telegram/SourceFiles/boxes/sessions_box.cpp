@@ -106,15 +106,13 @@ void SessionsBox::prepare() {
 		shortPollSessions();
 	}, lifetime());
 
-	setLoading(true);
-	shortPollSessions();
-}
+	_loading.changes(
+	) | rpl::start_with_next([=](bool value) {
+		setInnerVisible(!value);
+	}, lifetime());
 
-void SessionsBox::setLoading(bool loading) {
-	if (_loading != loading) {
-		_loading = loading;
-		setInnerVisible(!_loading);
-	}
+	_loading = true;
+	shortPollSessions();
 }
 
 void SessionsBox::resizeEvent(QResizeEvent *e) {
@@ -128,7 +126,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	if (_loading) {
+	if (_loading.current()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(
@@ -140,7 +138,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 
 void SessionsBox::got(const MTPaccount_Authorizations &result) {
 	_shortPollRequest = 0;
-	setLoading(false);
+	_loading = false;
 	_data = Full();
 
 	result.match([&](const MTPDaccount_authorizations &data) {
@@ -339,7 +337,7 @@ void SessionsBox::terminateAll() {
 			_api.request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).send();
-		setLoading(true);
+		_loading = true;
 	});
 	_terminateBox = Ui::show(
 		Box<ConfirmBox>(
