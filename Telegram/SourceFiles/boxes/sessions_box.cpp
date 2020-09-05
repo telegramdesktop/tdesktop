@@ -8,24 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sessions_box.h"
 
 #include "base/timer.h"
-#include "lang/lang_keys.h"
-#include "storage/localstorage.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-#include "main/main_session.h"
-#include "data/data_session.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
-#include "settings/settings_common.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/labels.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
-#include "styles/style_layers.h"
+#include "data/data_session.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "window/window_session_controller.h"
 
 namespace {
 
@@ -613,3 +610,23 @@ void SessionsBox::prepare() {
 
 	setDimensions(w, st::sessionsHeight);
 }
+
+namespace Settings {
+
+Sessions::Sessions(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
+	setupContent(controller);
+}
+
+void Sessions::setupContent(not_null<Window::SessionController*> controller) {
+	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto content = container->add(
+		object_ptr<SessionsContent>(container, &controller->session()));
+	content->setupContent();
+
+	Ui::ResizeFitChild(this, container);
+}
+
+} // namespace Settings

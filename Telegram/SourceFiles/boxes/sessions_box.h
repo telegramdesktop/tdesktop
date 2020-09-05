@@ -8,10 +8,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "settings/settings_common.h"
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Settings {
+
+class Sessions : public Section {
+public:
+	Sessions(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+
+private:
+	void setupContent(not_null<Window::SessionController*> controller);
+
+};
+
+} // namespace Settings
 
 class SessionsBox : public Ui::BoxContent {
 public:
