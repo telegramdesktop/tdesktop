@@ -52,6 +52,7 @@ struct CloudPasswordState;
 namespace Api {
 
 class Updates;
+class Authorizations;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
@@ -453,6 +454,7 @@ public:
 	void reloadBlockedPeers();
 	rpl::producer<BlockedPeersSlice> blockedPeersSlice();
 
+	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
@@ -815,6 +817,7 @@ private:
 	std::optional<BlockedPeersSlice> _blockedPeersSlice;
 	rpl::event_stream<BlockedPeersSlice> _blockedPeersChanges;
 
+	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;

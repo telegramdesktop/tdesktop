@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/sessions_box.h"
 
+#include "apiwrap.h"
+#include "api/api_authorizations.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
@@ -42,6 +44,17 @@ protected:
 
 private:
 	struct Entry {
+		Entry() = default;
+		Entry(const Api::Authorizations::Entry &entry)
+		: hash(entry.hash)
+		, incomplete(entry.incomplete)
+		, activeTime(entry.activeTime)
+		, name(entry.name)
+		, active(entry.active)
+		, info(entry.info)
+		, ip(entry.ip) {
+		};
+
 		uint64 hash = 0;
 
 		bool incomplete = false;
@@ -57,18 +70,15 @@ private:
 	class Inner;
 	class List;
 
-	static Entry ParseEntry(const MTPDauthorization &data);
 	static void ResizeEntry(Entry &entry);
 	void shortPollSessions();
-
-	void got(const MTPaccount_Authorizations &result);
 
 	void terminate(Fn<void()> terminateRequest, QString message);
 	void terminateOne(uint64 hash);
 	void terminateAll();
 
 	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
+	const not_null<Api::Authorizations*> _authorizations;
 
 	rpl::variable<bool> _loading = false;
 	Full _data;
@@ -77,7 +87,6 @@ private:
 	QPointer<ConfirmBox> _terminateBox;
 
 	base::Timer _shortPollTimer;
-	mtpRequestId _shortPollRequest = 0;
 
 };
 
@@ -126,7 +135,7 @@ private:
 
 SessionsContent::SessionsContent(QWidget*, not_null<Main::Session*> session)
 : _session(session)
-, _api(&_session->mtp())
+, _authorizations(&_session->api().authorizations())
 , _inner(this)
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
@@ -160,6 +169,31 @@ void SessionsContent::setupContent() {
 		_inner->setVisible(!value);
 	}, lifetime());
 
+	_authorizations->listChanges(
+	) | rpl::start_with_next([=](const Api::Authorizations::List &list) {
+		_data = Full();
+		for (const auto auth : list) {
+			auto entry = Entry(auth);
+			ResizeEntry(entry);
+			if (!entry.hash) {
+				_data.current = std::move(entry);
+			} else if (entry.incomplete) {
+				_data.incomplete.push_back(std::move(entry));
+			} else {
+				_data.list.push_back(std::move(entry));
+			}
+		}
+
+		_loading = false;
+
+		ranges::sort(_data.list, std::greater<>(), &Entry::activeTime);
+		ranges::sort(_data.incomplete, std::greater<>(), &Entry::activeTime);
+
+		_inner->showData(_data);
+
+		_shortPollTimer.callOnce(kSessionsShortPollTimeout);
+	}, lifetime());
+
 	_loading = true;
 	shortPollSessions();
 }
@@ -185,120 +219,9 @@ void SessionsContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void SessionsContent::got(const MTPaccount_Authorizations &result) {
-	_shortPollRequest = 0;
-	_loading = false;
-	_data = Full();
-
-	result.match([&](const MTPDaccount_authorizations &data) {
-		const auto &list = data.vauthorizations().v;
-		for (const auto &auth : list) {
-			auth.match([&](const MTPDauthorization &data) {
-				auto entry = ParseEntry(data);
-				if (!entry.hash) {
-					_data.current = std::move(entry);
-				} else if (entry.incomplete) {
-					_data.incomplete.push_back(std::move(entry));
-				} else {
-					_data.list.push_back(std::move(entry));
-				}
-			});
-		}
-	});
-
-	const auto getActiveTime = [](const Entry &entry) {
-		return entry.activeTime;
-	};
-	ranges::sort(_data.list, std::greater<>(), getActiveTime);
-	ranges::sort(_data.incomplete, std::greater<>(), getActiveTime);
-
-	_inner->showData(_data);
-
-	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
-}
-
-SessionsContent::Entry SessionsContent::ParseEntry(const MTPDauthorization &data) {
-	auto result = Entry();
-
-	result.hash = data.is_current() ? 0 : data.vhash().v;
-	result.incomplete = data.is_password_pending();
-
-	auto appName = QString();
-	auto appVer = qs(data.vapp_version());
-	const auto systemVer = qs(data.vsystem_version());
-	const auto deviceModel = qs(data.vdevice_model());
-	const auto apiId = data.vapi_id().v;
-	if (apiId == 2040 || apiId == 17349) {
-		appName = (apiId == 2040)
-			? qstr("Telegram Desktop")
-			: qstr("Telegram Desktop (GitHub)");
-		//if (systemVer == qstr("windows")) {
-		//	deviceModel = qsl("Windows");
-		//} else if (systemVer == qstr("os x")) {
-		//	deviceModel = qsl("OS X");
-		//} else if (systemVer == qstr("linux")) {
-		//	deviceModel = qsl("Linux");
-		//}
-		if (appVer == QString::number(appVer.toInt())) {
-			const auto ver = appVer.toInt();
-			appVer = QString("%1.%2"
-			).arg(ver / 1000000
-			).arg((ver % 1000000) / 1000)
-				+ ((ver % 1000)
-					? ('.' + QString::number(ver % 1000))
-					: QString());
-		//} else {
-		//	appVer = QString();
-		}
-	} else {
-		appName = qs(data.vapp_name());// +qsl(" for ") + qs(d.vplatform());
-		if (appVer.indexOf('(') >= 0) {
-			appVer = appVer.mid(appVer.indexOf('('));
-		}
-	}
-	result.name = appName;
-	if (!appVer.isEmpty()) {
-		result.name += ' ' + appVer;
-	}
-
-	const auto country = qs(data.vcountry());
-	const auto platform = qs(data.vplatform());
-	//const auto &countries = countriesByISO2();
-	//const auto j = countries.constFind(country);
-	//if (j != countries.cend()) {
-	//	country = QString::fromUtf8(j.value()->name);
-	//}
-
-	result.activeTime = data.vdate_active().v
-		? data.vdate_active().v
-		: data.vdate_created().v;
-	result.info = qs(data.vdevice_model()) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version());
-	result.ip = qs(data.vip()) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
-	if (!result.hash) {
-		result.active = tr::lng_status_online(tr::now);
-		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));
-	} else {
-		const auto now = QDateTime::currentDateTime();
-		const auto lastTime = base::unixtime::parse(result.activeTime);
-		const auto nowDate = now.date();
-		const auto lastDate = lastTime.date();
-		if (lastDate == nowDate) {
-			result.active = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year()
-			&& lastDate.weekNumber() == nowDate.weekNumber()) {
-			result.active = langDayOfWeek(lastDate);
-		} else {
-			result.active = lastDate.toString(qsl("d.MM.yy"));
-		}
-		result.activeWidth = st::sessionWhenFont->width(result.active);
-	}
-
-	ResizeEntry(result);
-
-	return result;
-}
-
 void SessionsContent::ResizeEntry(Entry &entry) {
+	entry.activeWidth = st::sessionWhenFont->width(entry.active);
+
 	const auto available = st::boxWideWidth
 		- st::sessionPadding.left()
 		- st::sessionTerminateSkip;
@@ -325,13 +248,7 @@ void SessionsContent::ResizeEntry(Entry &entry) {
 }
 
 void SessionsContent::shortPollSessions() {
-	if (_shortPollRequest) {
-		return;
-	}
-	_shortPollRequest = _api.request(MTPaccount_GetAuthorizations(
-	)).done([=](const MTPaccount_Authorizations &result) {
-		got(result);
-	}).send();
+	_authorizations->reload();
 	update();
 }
 
@@ -356,10 +273,9 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
+	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
-		_api.request(MTPaccount_ResetAuthorization(
-			MTP_long(hash)
-		)).done([=](const MTPBool &result) {
+		auto done = crl::guard(weak, [=](const MTPBool &result) {
 			_inner->terminatingOne(hash, false);
 			const auto getHash = [](const Entry &entry) {
 				return entry.hash;
@@ -372,24 +288,29 @@ void SessionsContent::terminateOne(uint64 hash) {
 			removeByHash(_data.incomplete);
 			removeByHash(_data.list);
 			_inner->showData(_data);
-		}).fail([=](const RPCError &error) {
+		});
+		auto fail = crl::guard(weak, [=](const RPCError &error) {
 			_inner->terminatingOne(hash, false);
-		}).send();
+		});
+		_authorizations->requestTerminate(
+			std::move(done),
+			std::move(fail),
+			hash);
 		_inner->terminatingOne(hash, true);
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
 
 void SessionsContent::terminateAll() {
+	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
-		_api.request(MTPauth_ResetAuthorizations(
-		)).done([=](const MTPBool &result) {
-			_api.request(base::take(_shortPollRequest)).cancel();
+		const auto reset = crl::guard(weak, [=] {
+			_authorizations->cancelCurrentRequest();
 			shortPollSessions();
-		}).fail([=](const RPCError &result) {
-			_api.request(base::take(_shortPollRequest)).cancel();
-			shortPollSessions();
-		}).send();
+		});
+		_authorizations->requestTerminate(
+			[=](const MTPBool &result) { reset(); },
+			[=](const RPCError &result) { reset(); });
 		_loading = true;
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));

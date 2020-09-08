@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_hash.h"
 #include "api/api_media.h"
 #include "api/api_sending.h"
@@ -186,6 +187,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 //, _feedReadTimer([=] { readFeeds(); }) // #feed
 , _topPromotionTimer([=] { refreshTopPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
+, _authorizations(std::make_unique<Api::Authorizations>(this))
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
 , _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this)) {
@@ -5219,6 +5221,10 @@ auto ApiWrap::blockedPeersSlice() -> rpl::producer<BlockedPeersSlice> {
 	return _blockedPeersSlice
 		? _blockedPeersChanges.events_starting_with_copy(*_blockedPeersSlice)
 		: (_blockedPeersChanges.events() | rpl::type_erased());
+}
+
+Api::Authorizations &ApiWrap::authorizations() {
+	return *_authorizations;
 }
 
 Api::SelfDestruct &ApiWrap::selfDestruct() {

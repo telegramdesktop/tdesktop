@@ -98,20 +98,6 @@ std::map<int, const char*> BetaLogs() {
 	};
 };
 
-QString FormatVersionDisplay(int version) {
-	return QString::number(version / 1000000)
-		+ '.' + QString::number((version % 1000000) / 1000)
-		+ ((version % 1000)
-			? ('.' + QString::number(version % 1000))
-			: QString());
-}
-
-QString FormatVersionPrecise(int version) {
-	return QString::number(version / 1000000)
-		+ '.' + QString::number((version % 1000000) / 1000)
-		+ '.' + QString::number(version % 1000);
-}
-
 } // namespace
 
 Changelogs::Changelogs(not_null<Main::Session*> session, int oldVersion)
@@ -214,6 +200,20 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 	const auto version = FormatVersionDisplay(changeVersion);
 	const auto log = qsl("New in version %1:\n\n").arg(version) + text;
 	addLocalLog(log);
+}
+
+QString FormatVersionDisplay(int version) {
+	return QString::number(version / 1000000)
+		+ '.' + QString::number((version % 1000000) / 1000)
+		+ ((version % 1000)
+			? ('.' + QString::number(version % 1000))
+			: QString());
+}
+
+QString FormatVersionPrecise(int version) {
+	return QString::number(version / 1000000)
+		+ '.' + QString::number((version % 1000000) / 1000)
+		+ '.' + QString::number(version % 1000);
 }
 
 } // namespace Core
