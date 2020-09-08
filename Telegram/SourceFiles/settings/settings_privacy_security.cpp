@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_security.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
@@ -553,9 +554,17 @@ void SetupSessionsList(
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_sessions_title());
 
-	AddButton(
+	auto &authorizations = controller->session().api().authorizations();
+	authorizations.reload();
+	auto count = authorizations.totalChanges(
+	) | rpl::map([](int count) {
+		return count ? QString::number(count) : QString();
+	});
+
+	AddButtonWithLabel(
 		container,
 		tr::lng_settings_show_sessions(),
+		std::move(count),
 		st::settingsButton
 	)->addClickHandler([=] {
 		Ui::show(Box<SessionsBox>(&controller->session()));
