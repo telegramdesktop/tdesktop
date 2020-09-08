@@ -188,10 +188,11 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
-	rpl::producer<FullMsgId> editMessageRequested() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMessageRequested() const;
 	void editMessageRequestNotify(FullMsgId item);
-	rpl::producer<FullMsgId> replyToMessageRequested() const;
+	[[nodiscard]] rpl::producer<FullMsgId> replyToMessageRequested() const;
 	void replyToMessageRequestNotify(FullMsgId item);
+	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -529,6 +530,7 @@ private:
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
+	rpl::event_stream<FullMsgId> _requestedToReadMessage;
 
 	rpl::lifetime _viewerLifetime;
 

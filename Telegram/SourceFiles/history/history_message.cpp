@@ -1561,6 +1561,22 @@ void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
 	refreshRepliesText(views);
 }
 
+void HistoryMessage::setRepliesReadTill(MsgId readTillId) {
+	auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		AddComponents(HistoryMessageViews::Bit());
+		views = Get<HistoryMessageViews>();
+	}
+	views->repliesReadTillId = std::max(readTillId, 1);
+}
+
+MsgId HistoryMessage::repliesReadTill() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return views->repliesReadTillId;
+	}
+	return 0;
+}
+
 void HistoryMessage::setReplyToTop(MsgId replyToTop) {
 	const auto reply = Get<HistoryMessageReply>();
 	if (!reply

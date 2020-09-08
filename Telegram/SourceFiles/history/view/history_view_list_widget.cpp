@@ -1265,8 +1265,8 @@ void ListWidget::restoreState(not_null<ListMemento*> memento) {
 	_aroundIndex = -1;
 	if (const auto limit = memento->idsLimit()) {
 		_idsLimit = limit;
-		_scrollTopState = memento->scrollTopState();
 	}
+	_scrollTopState = memento->scrollTopState();
 	refreshViewer();
 }
 
@@ -2661,6 +2661,10 @@ rpl::producer<FullMsgId> ListWidget::replyToMessageRequested() const {
 
 void ListWidget::replyToMessageRequestNotify(FullMsgId item) {
 	_requestedToReplyToMessage.fire(std::move(item));
+}
+
+rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
+	return _requestedToReadMessage.events();
 }
 
 ListWidget::~ListWidget() = default;

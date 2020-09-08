@@ -46,6 +46,7 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	Part replies;
 	ChannelId commentsChannelId = 0;
 	MsgId commentsRootId = 0;
+	MsgId repliesReadTillId = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {

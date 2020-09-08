@@ -264,6 +264,11 @@ public:
 	}
 	virtual void changeRepliesCount(int delta, PeerId replier) {
 	}
+	virtual void setRepliesReadTill(MsgId readTillId) {
+	}
+	[[nodiscard]] virtual MsgId repliesReadTill() const {
+		return MsgId(0);
+	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}
 	virtual void setRealId(MsgId newId);

@@ -33,6 +33,7 @@ public:
 private:
 	struct Viewer;
 
+	HistoryItem *lookupRoot();
 	[[nodiscard]] Histories &histories();
 
 	[[nodiscard]] rpl::producer<MessagesSlice> sourceFromServer(

@@ -165,7 +165,14 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			= 0;
 		return true;
 	}
-	const auto around = viewer->around;
+	const auto around = [&] {
+		if (viewer->around != ShowAtUnreadMsgId) {
+			return viewer->around;
+		} else if (const auto item = lookupRoot()) {
+			return item->repliesReadTill();
+		}
+		return viewer->around;
+	}();
 	if (_list.empty()
 		|| (!around && _skippedAfter != 0)
 		|| (around > _list.front() && _skippedAfter != 0)
@@ -249,6 +256,10 @@ bool RepliesList::applyUpdate(
 
 Histories &RepliesList::histories() {
 	return _history->owner().histories();
+}
+
+HistoryItem *RepliesList::lookupRoot() {
+	return _history->owner().message(_history->channelId(), _rootId);
 }
 
 void RepliesList::loadAround(MsgId id) {

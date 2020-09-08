@@ -59,6 +59,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
+
 void ShowErrorToast(const QString &text) {
 	Ui::Toast::Show(Ui::Toast::Config{
 		.text = { text },
@@ -79,6 +81,16 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 }
 
 } // namespace
+
+RepliesMemento::RepliesMemento(not_null<HistoryItem*> commentsItem)
+: RepliesMemento(commentsItem->history(), commentsItem->id) {
+	if (commentsItem->repliesReadTill() == MsgId(1)) {
+		_list.setAroundPosition(Data::MinMessagePosition);
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			Data::MinMessagePosition
+		});
+	}
+}
 
 object_ptr<Window::SectionWidget> RepliesMemento::createWidget(
 		QWidget *parent,
@@ -106,6 +118,7 @@ RepliesWidget::RepliesWidget(
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
+, _commentsRoot(lookupCommentsRoot())
 , _areComments(computeAreComments())
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
@@ -115,7 +128,8 @@ RepliesWidget::RepliesWidget(
 	controller,
 	ComposeControls::Mode::Normal))
 , _rootShadow(this)
-, _scrollDown(_scroll, st::historyToDown) {
+, _scrollDown(_scroll, st::historyToDown)
+, _readRequestTimer([=] { sendReadTillRequest(); }) {
 	setupRoot();
 
 	_rootHeight = st::msgReplyPadding.top()
@@ -178,9 +192,13 @@ RepliesWidget::RepliesWidget(
 
 	_history->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
-	) | rpl::filter([=](const Data::MessageUpdate &update) {
-		return (update.item == _replyReturn);
-	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		if (update.item == _root) {
+			_root = nullptr;
+		}
+		if (update.item == _commentsRoot) {
+			_commentsRoot = nullptr;
+		}
 		while (update.item == _replyReturn) {
 			calculateNextReplyReturn();
 		}
@@ -190,10 +208,33 @@ RepliesWidget::RepliesWidget(
 	setupComposeControls();
 }
 
-RepliesWidget::~RepliesWidget() = default;
+RepliesWidget::~RepliesWidget() {
+	if (_readRequestTimer.isActive()) {
+		sendReadTillRequest();
+	}
+}
+
+void RepliesWidget::sendReadTillRequest() {
+	if (!_commentsRoot || !_root) {
+		return;
+	}
+	if (_readRequestTimer.isActive()) {
+		_readRequestTimer.cancel();
+	}
+	const auto api = &_history->session().api();
+	api->request(base::take(_readRequestId)).cancel();
+	_readRequestId = api->request(MTPmessages_ReadDiscussion(
+		_commentsRoot->history()->peer->input,
+		MTP_int(_commentsRoot->id),
+		MTP_int(_root->repliesReadTill())
+	)).done([=](const MTPBool &) {
+
+	}).send();
+}
 
 void RepliesWidget::setupRoot() {
 	if (_root) {
+		setupCommentsRoot();
 		refreshRootView();
 	} else {
 		const auto channel = _history->peer->asChannel();
@@ -201,10 +242,35 @@ void RepliesWidget::setupRoot() {
 			_root = lookupRoot();
 			if (_root) {
 				_areComments = computeAreComments();
+				setupCommentsRoot();
 			}
 			refreshRootView();
 		});
 		_history->session().api().requestMessageData(channel, _rootId, done);
+	}
+}
+
+void RepliesWidget::setupCommentsRoot() {
+	Expects(_root != nullptr);
+
+	const auto postChannel = _root->discussionPostOriginalSender();
+	if (!postChannel) {
+		return;
+	} else if (_commentsRoot) {
+		sendReadTillRequest();
+	} else {
+		const auto forwarded = _root->Get<HistoryMessageForwarded>();
+		const auto messageId = forwarded->savedFromMsgId;
+		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
+			_commentsRoot = lookupCommentsRoot();
+			if (_commentsRoot) {
+				sendReadTillRequest();
+			}
+		});
+		_history->session().api().requestMessageData(
+			postChannel,
+			messageId,
+			done);
 	}
 }
 
@@ -238,6 +304,17 @@ void RepliesWidget::refreshRootView() {
 
 HistoryItem *RepliesWidget::lookupRoot() const {
 	return _history->owner().message(_history->channelId(), _rootId);
+}
+
+HistoryItem *RepliesWidget::lookupCommentsRoot() const {
+	if (!computeAreComments()) {
+		return nullptr;
+	}
+	const auto forwarded = _root->Get<HistoryMessageForwarded>();
+	Assert(forwarded != nullptr);
+	return _history->owner().message(
+		forwarded->savedFromPeer->asChannel(),
+		forwarded->savedFromMsgId);
 }
 
 bool RepliesWidget::computeAreComments() const {
@@ -1364,11 +1441,49 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
+void RepliesWidget::readTill(MsgId tillId) {
+	if (!_root) {
+		return;
+	}
+	const auto now = _root->repliesReadTill();
+	if (now < tillId) {
+		_root->setRepliesReadTill(tillId);
+		if (!_readRequestTimer.isActive()) {
+			_readRequestTimer.callOnce(kReadRequestTimeout);
+		}
+	}
+}
+
 void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
+	const auto reversed = ranges::view::reverse(items);
+	const auto good = ranges::find_if(reversed, [](auto item) {
+		return IsServerMsgId(item->id);
+	});
+	if (good != end(reversed)) {
+		readTill((*good)->id);
+	}
 }
 
 std::optional<int> RepliesWidget::listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) {
+	if (!_root) {
+		return std::nullopt;
+	}
+	const auto till = _root->repliesReadTill();
+	if (till < 2) {
+		return std::nullopt;
+	}
+	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
+		const auto item = elements[i]->data();
+		if (item->id > till) {
+			if (item->out()) {
+				_root->setRepliesReadTill(item->id);
+				_readRequestTimer.callOnce(kReadRequestTimeout);
+			} else {
+				return i;
+			}
+		}
+	}
 	return std::nullopt;
 }
 

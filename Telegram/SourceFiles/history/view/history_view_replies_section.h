@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "history/view/history_view_list_widget.h"
 #include "data/data_messages.h"
+#include "base/timer.h"
 
 class History;
 enum class CompressConfirm;
@@ -148,8 +149,11 @@ private:
 	void setupComposeControls();
 
 	void setupRoot();
+	void setupCommentsRoot();
 	void refreshRootView();
 	void setupDragArea();
+	void sendReadTillRequest();
+	void readTill(MsgId id);
 
 	void setupScrollDownButton();
 	void scrollDownClicked();
@@ -172,6 +176,7 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
+	[[nodiscard]] HistoryItem *lookupCommentsRoot() const;
 	[[nodiscard]] bool computeAreComments() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -224,6 +229,7 @@ private:
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
 	HistoryItem *_root = nullptr;
+	HistoryItem *_commentsRoot = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;
 	object_ptr<Ui::ScrollArea> _scroll;
@@ -248,7 +254,11 @@ private:
 	Data::MessagesSlice _lastSlice;
 	bool _choosingAttach = false;
 
+	base::Timer _readRequestTimer;
+	mtpRequestId _readRequestId = 0;
+
 };
+
 
 class RepliesMemento : public Window::SectionMemento {
 public:
@@ -256,6 +266,7 @@ public:
 	: _history(history)
 	, _rootId(rootId) {
 	}
+	explicit RepliesMemento(not_null<HistoryItem*> commentsItem);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,

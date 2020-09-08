@@ -110,7 +110,7 @@ void SessionNavigation::showRepliesForMessage(
 	} else if (const auto id = item->commentsItemId()) {
 		if (const auto item = _session->data().message(id)) {
 			showSection(
-				HistoryView::RepliesMemento(item->history(), item->id));
+				HistoryView::RepliesMemento(item));
 			return;
 		}
 	}
@@ -148,8 +148,11 @@ void SessionNavigation::showRepliesForMessage(
 				if (post) {
 					post->setCommentsItemId(item->fullId());
 				}
+				if (const auto readTill = data.vread_max_id()) {
+					item->setRepliesReadTill(readTill->v);
+				}
 				showSection(
-					HistoryView::RepliesMemento(item->history(), item->id));
+					HistoryView::RepliesMemento(item));
 			}
 		});
 	}).fail([=](const RPCError &error) {
