@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_updates.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -1772,7 +1773,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 		} else {
 			session().data().serviceNotification(text, d.vmedia());
-			session().data().checkNewAuthorization();
+			session().api().authorizations().reload();
 		}
 	} break;
 

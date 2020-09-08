@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
-#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "styles/style_boxes.h"
@@ -77,7 +76,6 @@ private:
 	void terminateOne(uint64 hash);
 	void terminateAll();
 
-	const not_null<Main::Session*> _session;
 	const not_null<Api::Authorizations*> _authorizations;
 
 	rpl::variable<bool> _loading = false;
@@ -134,8 +132,7 @@ private:
 };
 
 SessionsContent::SessionsContent(QWidget*, not_null<Main::Session*> session)
-: _session(session)
-, _authorizations(&_session->api().authorizations())
+: _authorizations(&session->api().authorizations())
 , _inner(this)
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
@@ -157,11 +154,6 @@ void SessionsContent::setupContent() {
 	_inner->terminateAll(
 	) | rpl::start_with_next([=] {
 		terminateAll();
-	}, lifetime());
-
-	_session->data().newAuthorizationChecks(
-	) | rpl::start_with_next([=] {
-		shortPollSessions();
 	}, lifetime());
 
 	_loading.changes(
