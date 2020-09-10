@@ -312,6 +312,7 @@ public:
 
 	void setLinkedChat(ChannelData *linked);
 	[[nodiscard]] ChannelData *linkedChat() const;
+	[[nodiscard]] bool linkedChatKnown() const;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -436,7 +437,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
-	ChannelData *_linkedChat = nullptr;
+	std::optional<ChannelData*> _linkedChat;
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;

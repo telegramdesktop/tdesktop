@@ -198,6 +198,8 @@ private:
 		return _flags & MTPDmessage::Flag::f_legacy;
 	}
 
+	[[nodiscard]] bool checkCommentsLinkedChat(ChannelId id) const;
+
 	void clearIsolatedEmoji();
 	void checkIsolatedEmoji();
 

@@ -745,17 +745,26 @@ int HistoryMessage::viewsCount() const {
 	return HistoryItem::viewsCount();
 }
 
+bool HistoryMessage::checkCommentsLinkedChat(ChannelId id) const {
+	if (!id) {
+		return true;
+	} else if (const auto channel = history()->peer->asChannel()) {
+		if (channel->linkedChatKnown()
+			|| !(channel->flags() & MTPDchannel::Flag::f_has_link)) {
+			const auto linked = channel->linkedChat();
+			if (!linked || linked->bareId() != id) {
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 int HistoryMessage::repliesCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsChannelId) {
-			if (const auto channel = history()->peer->asChannel()) {
-				const auto linked = channel->linkedChat();
-				if (!linked || linked->bareId() != views->commentsChannelId) {
-					return 0;
-				}
-			} else {
-				return 0;
-			}
+		if (!checkCommentsLinkedChat(views->commentsChannelId)) {
+			return 0;
 		}
 		return std::max(views->replies.count, 0);
 	}
@@ -764,17 +773,8 @@ int HistoryMessage::repliesCount() const {
 
 bool HistoryMessage::repliesAreComments() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		if (!views->commentsChannelId) {
-			return false;
-		} else if (const auto channel = history()->peer->asChannel()) {
-			const auto linked = channel->linkedChat();
-			if (!linked || linked->bareId() != views->commentsChannelId) {
-				return false;
-			}
-		} else {
-			return false;
-		}
-		return true;
+		return (views->commentsChannelId != 0)
+			&& checkCommentsLinkedChat(views->commentsChannelId);
 	}
 	return HistoryItem::repliesAreComments();
 }

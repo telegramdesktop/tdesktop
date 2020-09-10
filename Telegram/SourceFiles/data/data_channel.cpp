@@ -153,7 +153,11 @@ void ChannelData::setLinkedChat(ChannelData *linked) {
 }
 
 ChannelData *ChannelData::linkedChat() const {
-	return _linkedChat;
+	return _linkedChat.value_or(nullptr);
+}
+
+bool ChannelData::linkedChatKnown() const {
+	return _linkedChat.has_value();
 }
 
 void ChannelData::setMembersCount(int newMembersCount) {
