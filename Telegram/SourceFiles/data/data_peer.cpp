@@ -790,6 +790,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 	return Result::Allowed();
 }
 
+bool PeerData::amAnonymous() const {
+	return isBroadcast()
+		|| (isChannel()
+			&& (asChannel()->adminRights() & ChatAdminRight::f_anonymous));
+}
+
 bool PeerData::canRevokeFullHistory() const {
 	return isUser()
 		&& !isSelf()

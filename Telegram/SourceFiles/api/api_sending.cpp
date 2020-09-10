@@ -39,9 +39,11 @@ void InnerFillMessagePostFlags(
 		const Api::SendOptions &options,
 		not_null<PeerData*> peer,
 		MTPDmessage::Flags &flags) {
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	if (!channelPost) {
+	const auto anonymousPost = peer->amAnonymous();
+	if (!anonymousPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+		return;
+	} else if (peer->asMegagroup()) {
 		return;
 	}
 	flags |= MTPDmessage::Flag::f_post;
@@ -82,15 +84,15 @@ void SendExistingMedia(
 		flags |= MTPDmessage::Flag::f_reply_to;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = message.action.options.silent
-		|| (channelPost && session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && session->data().notifySilentPosts(peer));
 	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = channelPost ? session->user()->name : QString();
+	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
@@ -253,15 +255,15 @@ bool SendDice(Api::MessageToSend &message) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	const auto replyHeader = NewMessageReplyHeader(message.action);
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = message.action.options.silent
-		|| (channelPost && session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && session->data().notifySilentPosts(peer));
 	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : session->userPeerId();
-	auto messagePostAuthor = channelPost ? session->user()->name : QString();
+	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
 	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
@@ -395,7 +397,7 @@ void SendConfirmedFile(
 		flags |= MTPDmessage::Flag::f_reply_to;
 	}
 	const auto replyHeader = NewMessageReplyHeader(action);
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = file->to.options.silent;
 	Api::FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
@@ -412,8 +414,8 @@ void SendConfirmedFile(
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}
 
-	const auto messageFromId = channelPost ? 0 : session->userPeerId();
-	const auto messagePostAuthor = channelPost
+	const auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name
 		: QString();
 

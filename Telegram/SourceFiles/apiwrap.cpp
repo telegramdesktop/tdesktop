@@ -1495,9 +1495,13 @@ void ApiWrap::applyLastParticipantsList(
 		});
 		const auto adminCanEdit = (p.type() == mtpc_channelParticipantAdmin)
 			? p.c_channelParticipantAdmin().is_can_edit()
+			: (p.type() == mtpc_channelParticipantCreator)
+			? channel->amCreator()
 			: false;
 		const auto adminRights = (p.type() == mtpc_channelParticipantAdmin)
 			? p.c_channelParticipantAdmin().vadmin_rights()
+			: (p.type() == mtpc_channelParticipantCreator)
+			? p.c_channelParticipantCreator().vadmin_rights()
 			: emptyAdminRights;
 		const auto restrictedRights = (p.type() == mtpc_channelParticipantBanned)
 			? p.c_channelParticipantBanned().vbanned_rights()
@@ -3898,9 +3902,9 @@ void ApiWrap::forwardMessages(
 
 	histories.readInbox(history);
 
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = action.options.silent
-		|| (channelPost && _session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
 
 	auto flags = MTPDmessage::Flags(0);
 	auto clientFlags = MTPDmessage_ClientFlags();
@@ -3970,10 +3974,10 @@ void ApiWrap::forwardMessages(
 					peerToChannel(peer->id),
 					_session->data().nextLocalMessageId());
 				const auto self = _session->user();
-				const auto messageFromId = channelPost
+				const auto messageFromId = anonymousPost
 					? PeerId(0)
 					: self->id;
-				const auto messagePostAuthor = channelPost
+				const auto messagePostAuthor = peer->isBroadcast()
 					? self->name
 					: QString();
 				history->addNewLocalMessage(
@@ -4043,7 +4047,7 @@ void ApiWrap::sendSharedContact(
 	const auto newId = FullMsgId(
 		history->channelId(),
 		_session->data().nextLocalMessageId());
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
 	auto clientFlags = NewMessageClientFlags();
@@ -4057,8 +4061,8 @@ void ApiWrap::sendSharedContact(
 	} else {
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}
-	const auto messageFromId = channelPost ? 0 : _session->userPeerId();
-	const auto messagePostAuthor = channelPost
+	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name
 		: QString();
 	const auto vcard = QString();
@@ -4100,7 +4104,9 @@ void ApiWrap::sendSharedContact(
 		MTP_string(lastName),
 		MTP_string(vcard));
 	auto options = action.options;
-	options.silent = _session->data().notifySilentPosts(peer);
+	if (_session->data().notifySilentPosts(peer)) {
+		options.silent = true;
+	}
 	sendMedia(item, media, options);
 
 	_session->data().sendHistoryChangeNotifications();
@@ -4323,9 +4329,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
-		const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+		const auto anonymousPost = peer->amAnonymous();
 		const auto silentPost = action.options.silent
-			|| (channelPost && _session->data().notifySilentPosts(peer));
+			|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
 		FillMessagePostFlags(action, peer, flags);
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
@@ -4345,8 +4351,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			history->clearCloudDraft();
 			history->setSentDraftText(QString());
 		}
-		auto messageFromId = channelPost ? 0 : _session->userPeerId();
-		auto messagePostAuthor = channelPost
+		auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
+		auto messagePostAuthor = peer->isBroadcast()
 			? _session->user()->name
 			: QString();
 		if (action.options.scheduled) {
@@ -4465,9 +4471,9 @@ void ApiWrap::sendInlineResult(
 		flags |= MTPDmessage::Flag::f_reply_to;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = action.options.silent
-		|| (channelPost && _session->data().notifySilentPosts(peer));
+	const auto anonymousPost = peer->amAnonymous();
+	const auto silentPost = action.options.silent
+		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
@@ -4482,8 +4488,8 @@ void ApiWrap::sendInlineResult(
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}
 
-	const auto messageFromId = channelPost ? 0 : _session->userPeerId();
-	const auto messagePostAuthor = channelPost
+	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name
 		: QString();
 
@@ -5203,9 +5209,8 @@ void ApiWrap::createPoll(
 		history->clearLocalDraft();
 		history->clearCloudDraft();
 	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = action.options.silent
-		|| (channelPost && _session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}

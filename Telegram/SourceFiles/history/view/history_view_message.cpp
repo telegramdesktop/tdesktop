@@ -732,7 +732,10 @@ void Message::paintFromName(
 		p.setFont(st::msgNameFont);
 		const auto nameText = [&]() -> const Ui::Text::String * {
 			const auto from = item->displayFrom();
-			if (item->isPost()) {
+			if (hasOutLayout()) {
+				p.setPen(selected ? st::msgOutServiceFgSelected : st::msgOutServiceFg);
+				return &from->nameText();
+			} else if (item->isPost()) {
 				p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 				return &from->nameText();
 			} else if (from) {
@@ -1839,7 +1842,7 @@ bool Message::hasFromName() const {
 		return true;
 	case Context::History: {
 		const auto item = message();
-		return !hasOutLayout()
+		return (!hasOutLayout() || item->from()->isMegagroup())
 			&& (!item->history()->peer->isUser()
 				|| item->history()->peer->isSelf());
 	} break;

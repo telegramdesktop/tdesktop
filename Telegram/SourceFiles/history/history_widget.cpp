@@ -578,6 +578,7 @@ HistoryWidget::HistoryWidget(
 		if (flags & UpdateFlag::Rights) {
 			checkPreview();
 			updateStickersByEmoji();
+			updateFieldPlaceholder();
 		}
 		if (flags & UpdateFlag::Migration) {
 			handlePeerMigration();
@@ -4031,23 +4032,32 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 }
 
 void HistoryWidget::updateFieldPlaceholder() {
-	if (_editMsgId) {
-		_field->setPlaceholder(tr::lng_edit_message_text());
-	} else {
-		if (_inlineBot && !_inlineLookingUpBot) {
-			_field->setPlaceholder(
-				rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-				_inlineBot->username.size() + 2);
-		} else {
-			const auto peer = _history ? _history->peer.get() : nullptr;
-			_field->setPlaceholder(
-				((peer && peer->isChannel() && !peer->isMegagroup())
-					? (session().data().notifySilentPosts(peer)
-						? tr::lng_broadcast_silent_ph()
-						: tr::lng_broadcast_ph())
-					: tr::lng_message_ph()));
-		}
+	if (!_editMsgId && _inlineBot && !_inlineLookingUpBot) {
+		_field->setPlaceholder(
+			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
+			_inlineBot->username.size() + 2);
+		return;
 	}
+
+	_field->setPlaceholder([&] {
+		if (_editMsgId) {
+			return tr::lng_edit_message_text();
+		} else if (!_history) {
+			return tr::lng_message_ph();
+		} else if (const auto channel = _history->peer->asChannel()) {
+			if (channel->isBroadcast()) {
+				return session().data().notifySilentPosts(channel)
+					? tr::lng_broadcast_silent_ph()
+					: tr::lng_broadcast_ph();
+			} else if (channel->adminRights() & ChatAdminRight::f_anonymous) {
+				return tr::lng_send_anonymous_ph();
+			} else {
+				return tr::lng_message_ph();
+			}
+		} else {
+			return tr::lng_message_ph();
+		}
+	}());
 	updateSendButtonType();
 }
 

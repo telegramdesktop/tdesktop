@@ -192,6 +192,7 @@ public:
 	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
+	[[nodiscard]] bool amAnonymous() const;
 	[[nodiscard]] bool canRevokeFullHistory() const;
 	[[nodiscard]] bool slowmodeApplied() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;

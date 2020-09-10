@@ -254,7 +254,7 @@ void EditAdminBox::prepare() {
 
 	const auto disabledMessages = [&] {
 		auto result = std::map<Flags, QString>();
-		if (!canSave() || (amCreator() && user()->isSelf())) {
+		if (!canSave()) {
 			result.emplace(
 				~Flags(0),
 				tr::lng_rights_about_admin_cant_edit(tr::now));
@@ -263,7 +263,11 @@ void EditAdminBox::prepare() {
 				disabledByDefaults,
 				tr::lng_rights_permission_for_all(tr::now));
 			if (const auto channel = peer()->asChannel()) {
-				if (!channel->amCreator()) {
+				if (amCreator() && user()->isSelf()) {
+					result.emplace(
+						~Flag::f_anonymous,
+						tr::lng_rights_permission_cant_edit(tr::now));
+				} else if (!channel->amCreator()) {
 					result.emplace(
 						~channel->adminRights(),
 						tr::lng_rights_permission_cant_edit(tr::now));
@@ -570,7 +574,9 @@ void EditAdminBox::sendTransferRequestFrom(
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
 	_aboutAddAdmins->setText([&] {
-		if (!canSave() || (amCreator() && user()->isSelf())) {
+		if (amCreator() && user()->isSelf()) {
+			return QString();
+		} else if (!canSave()) {
 			return tr::lng_rights_about_admin_cant_edit(tr::now);
 		} else if (canAddAdmins) {
 			return tr::lng_rights_about_add_admins_yes(tr::now);

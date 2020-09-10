@@ -1320,6 +1320,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
+"lng_send_anonymous_ph" = "Send anonymously...";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
@@ -1834,6 +1835,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_group_invite" = "Add users";
 "lng_rights_group_pin" = "Pin messages";
 "lng_rights_group_delete" = "Delete messages";
+"lng_rights_group_anonymous" = "Remain Anonymous";
 "lng_rights_add_admins" = "Add new admins";
 "lng_rights_chat_read" = "Read messages";
 "lng_rights_chat_send_text" = "Send messages";
