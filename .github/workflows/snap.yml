@@ -41,8 +41,8 @@ on:
 jobs:
 
   linux:
-    name: Ubuntu 20.04
-    runs-on: ubuntu-20.04
+    name: Ubuntu
+    runs-on: ubuntu-latest
 
     env:
       UPLOAD_ARTIFACT: "false"
@@ -55,7 +55,10 @@ jobs:
 
       - name: First set up.
         run: |
+          sudo apt-get purge --autoremove lxd
+
           sudo snap install --classic snapcraft
+          sudo snap install lxd
 
           # Workaround for snapcraft
           # See https://forum.snapcraft.io/t/13258
