@@ -207,6 +207,7 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 	const auto mask = 0
 		| MTPDchannel::Flag::f_left
+		| MTPDchannel::Flag::f_has_link
 		| MTPDchannel_ClientFlag::f_forbidden
 		| MTPDchannel::Flag::f_creator
 		| MTPDchannel::Flag::f_broadcast;
@@ -229,8 +230,9 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 			const auto notAmInFlags = 0
 				| MTPDchannel::Flag::f_left
 				| MTPDchannel_ClientFlag::f_forbidden;
-			return !(flags & notAmInFlags)
-				&& (postMessagesRight
+			const auto allowed = !(flags & notAmInFlags)
+				|| (flags & MTPDchannel::Flag::f_has_link);
+			return allowed && (postMessagesRight
 					|| (flags & MTPDchannel::Flag::f_creator)
 					|| (!(flags & MTPDchannel::Flag::f_broadcast)
 						&& !sendMessagesRestriction

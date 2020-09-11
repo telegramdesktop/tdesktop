@@ -434,8 +434,8 @@ bool ChannelData::canPublish() const {
 
 bool ChannelData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	return amIn()
-		&& (canPublish()
+	const auto allowed = amIn() || (flags() & MTPDchannel::Flag::f_has_link);
+	return allowed && (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::f_send_messages)));
 }
