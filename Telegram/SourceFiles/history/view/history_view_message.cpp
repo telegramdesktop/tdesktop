@@ -255,10 +255,11 @@ QSize Message::performCountOptimalSize() {
 	}
 
 	if (drawBubble()) {
-		auto forwarded = item->Get<HistoryMessageForwarded>();
-		auto reply = displayedReply();
-		auto via = item->Get<HistoryMessageVia>();
-		auto entry = logEntryOriginal();
+		const auto forwarded = item->Get<HistoryMessageForwarded>();
+		const auto reply = displayedReply();
+		const auto via = item->Get<HistoryMessageVia>();
+		const auto entry = logEntryOriginal();
+		const auto views = item->Get<HistoryMessageViews>();
 		if (forwarded) {
 			forwarded->create(via);
 		}
@@ -361,6 +362,28 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, entry->maxWidth());
 				minHeight += entry->minHeight();
 			}
+		}
+		if (item->repliesAreComments() && !views->replies.text.isEmpty()) {
+			const auto limit = HistoryMessageViews::kMaxRecentRepliers;
+			const auto single = st::historyCommentsUserpicSize;
+			const auto shift = st::historyCommentsUserpicOverlap;
+			const auto added = single
+				+ (limit - 1) * (single - shift)
+				+ st::historyCommentsSkipLeft
+				+ st::historyCommentsSkipRight
+				+ st::historyCommentsSkipText
+				+ st::historyCommentsOpenOutSelected.width()
+				+ st::historyCommentsSkipRight;
+			accumulate_max(maxWidth, added + views->replies.textWidth);
+		} else if (item->externalReply()) {
+			const auto added = st::historyCommentsIn.width()
+				+ st::historyCommentsSkipLeft
+				+ st::historyCommentsSkipRight
+				+ st::historyCommentsSkipText
+				+ st::historyCommentsOpenOutSelected.width()
+				+ st::historyCommentsSkipRight;
+			accumulate_max(maxWidth, added + st::semiboldFont->width(
+				tr::lng_replies_view_original(tr::now)));
 		}
 	} else if (media) {
 		media->initDimensions();

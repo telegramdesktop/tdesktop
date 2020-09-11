@@ -751,7 +751,14 @@ bool PeerData::isBroadcast() const {
 }
 
 bool PeerData::isRepliesChat() const {
-	return (id == peerFromUser(708513));
+	constexpr auto kProductionId = peerFromUser(1271266957);
+	constexpr auto kTestId = peerFromUser(708513);
+	if (id != kTestId && id != kProductionId) {
+		return false;
+	}
+	return ((session().mtp().environment() == MTP::Environment::Production)
+		? kProductionId
+		: kTestId) == id;
 }
 
 bool PeerData::canWrite() const {
