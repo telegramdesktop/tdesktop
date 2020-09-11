@@ -198,6 +198,9 @@ public:
 	[[nodiscard]] virtual bool repliesAreComments() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool externalReply() const {
+		return false;
+	}
 	[[nodiscard]] virtual FullMsgId commentsItemId() const {
 		return FullMsgId();
 	}

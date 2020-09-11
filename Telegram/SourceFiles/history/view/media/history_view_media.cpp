@@ -187,7 +187,9 @@ TextState Media::getStateGrouped(
 }
 
 bool Media::isRoundedInBubbleBottom() const {
-	return isBubbleBottom() && !_parent->data()->repliesAreComments();
+	return isBubbleBottom()
+		&& !_parent->data()->repliesAreComments()
+		&& !_parent->data()->externalReply();
 }
 
 } // namespace HistoryView

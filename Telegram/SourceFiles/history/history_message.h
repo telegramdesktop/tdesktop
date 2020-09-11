@@ -170,6 +170,7 @@ public:
 	[[nodiscard]] int viewsCount() const override;
 	[[nodiscard]] int repliesCount() const override;
 	[[nodiscard]] bool repliesAreComments() const override;
+	[[nodiscard]] bool externalReply() const override;
 	[[nodiscard]] FullMsgId commentsItemId() const override;
 	void setCommentsItemId(FullMsgId id) override;
 	bool updateDependencyItem() override;

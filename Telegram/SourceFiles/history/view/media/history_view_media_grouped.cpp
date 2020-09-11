@@ -454,6 +454,7 @@ bool GroupedMedia::computeNeedBubble() const {
 	}
 	if (const auto item = _parent->data()) {
 		if (item->repliesAreComments()
+			|| item->externalReply()
 			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()

@@ -577,7 +577,7 @@ void Message::paintCommentsButton(
 		Painter &p,
 		QRect &g,
 		bool selected) const {
-	if (!data()->repliesAreComments()) {
+	if (!data()->repliesAreComments() && !data()->externalReply()) {
 		return;
 	}
 	if (!_comments) {
@@ -586,7 +586,6 @@ void Message::paintCommentsButton(
 	}
 	const auto outbg = hasOutLayout();
 	const auto views = data()->Get<HistoryMessageViews>();
-	Assert(views != nullptr);
 
 	g.setHeight(g.height() - st::historyCommentsButtonHeight);
 	const auto top = g.top() + g.height();
@@ -614,7 +613,7 @@ void Message::paintCommentsButton(
 		top + (st::historyCommentsButtonHeight - open.height()) / 2,
 		width);
 
-	if (views->recentRepliers.empty()) {
+	if (!views || views->recentRepliers.empty()) {
 		const auto &icon = outbg
 			? (selected ? st::historyCommentsOutSelected : st::historyCommentsOut)
 			: (selected ? st::historyCommentsInSelected : st::historyCommentsIn);
@@ -700,8 +699,8 @@ void Message::paintCommentsButton(
 		left,
 		top + (st::historyCommentsButtonHeight - st::semiboldFont->height) / 2,
 		width,
-		views->replies.text,
-		views->replies.textWidth);
+		views ? views->replies.text : tr::lng_replies_view_original(tr::now),
+		views ? views->replies.textWidth : -1);
 }
 
 void Message::paintFromName(
@@ -919,7 +918,7 @@ PointState Message::pointState(QPoint point) const {
 			auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 			auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-			if (item->repliesAreComments()) {
+			if (item->repliesAreComments() || item->externalReply()) {
 				g.setHeight(g.height() - st::historyCommentsButtonHeight);
 			}
 
@@ -1199,7 +1198,7 @@ bool Message::getStateCommentsButton(
 			st::historyCommentsButtonHeight).contains(point)) {
 		return false;
 	}
-	if (!_comments->link) {
+	if (!_comments->link && data()->repliesAreComments()) {
 		const auto fullId = data()->fullId();
 		_comments->link = std::make_shared<LambdaClickHandler>([=] {
 			if (const auto window = App::wnd()) {
@@ -1210,6 +1209,8 @@ bool Message::getStateCommentsButton(
 				}
 			}
 		});
+	} else if (!_comments->link && data()->externalReply()) {
+		_comments->link = rightActionLink();
 	}
 	outResult->link = _comments->link;
 	_comments->lastPoint = point - QPoint(g.left(), g.top() + g.height());
@@ -1958,7 +1959,9 @@ bool Message::displayFastShare() const {
 bool Message::displayGoToOriginal() const {
 	const auto item = message();
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		return forwarded->savedFromPeer && forwarded->savedFromMsgId;
+		return forwarded->savedFromPeer
+			&& forwarded->savedFromMsgId
+			&& (!item->externalReply() || !hasBubble());
 	}
 	return false;
 }
@@ -2276,7 +2279,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
 
-		if (item->repliesAreComments()) {
+		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
 		}
 	} else if (mediaDisplayed) {

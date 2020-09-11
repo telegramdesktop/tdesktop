@@ -1357,6 +1357,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_comments_open_count#one" = "{count} comment";
 "lng_comments_open_count#other" = "{count} comments";
 "lng_comments_open_none" = "Leave a comment";
+"lng_replies_view_original" = "View reply";
 "lng_replies_messages" = "Replies";
 
 "lng_archived_name" = "Archived chats";

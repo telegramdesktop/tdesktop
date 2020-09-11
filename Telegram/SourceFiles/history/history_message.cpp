@@ -790,6 +790,15 @@ bool HistoryMessage::repliesAreComments() const {
 	return HistoryItem::repliesAreComments();
 }
 
+bool HistoryMessage::externalReply() const {
+	if (!history()->peer->isRepliesChat()) {
+		return false;
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->savedFromPeer && forwarded->savedFromMsgId;
+	}
+	return false;
+}
+
 FullMsgId HistoryMessage::commentsItemId() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
 		return FullMsgId(views->commentsChannelId, views->commentsRootId);

@@ -1137,6 +1137,7 @@ bool Gif::needsBubble() const {
 	}
 	const auto item = _parent->data();
 	return item->repliesAreComments()
+		|| item->externalReply()
 		|| item->viaBot()
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()

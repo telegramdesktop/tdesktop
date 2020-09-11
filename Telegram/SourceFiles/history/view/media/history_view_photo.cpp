@@ -802,6 +802,7 @@ bool Photo::needsBubble() const {
 	const auto item = _parent->data();
 	if (item->toHistoryMessage()) {
 		return item->repliesAreComments()
+			|| item->externalReply()
 			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
