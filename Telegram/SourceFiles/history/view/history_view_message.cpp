@@ -1018,6 +1018,11 @@ void Message::unloadHeavyPart() {
 	_comments = nullptr;
 }
 
+bool Message::showForwardsFromSender() const {
+	const auto peer = message()->history()->peer;
+	return peer->isSelf() || peer->isRepliesChat();
+}
+
 bool Message::hasFromPhoto() const {
 	if (isHidden()) {
 		return false;
@@ -1032,7 +1037,7 @@ bool Message::hasFromPhoto() const {
 			return false;
 		} else if (Core::App().settings().chatWide()) {
 			return true;
-		} else if (item->history()->peer->isSelf()) {
+		} else if (showForwardsFromSender()) {
 			return item->Has<HistoryMessageForwarded>();
 		}
 		return !item->out() && !item->history()->peer->isUser();
@@ -1844,7 +1849,7 @@ bool Message::hasFromName() const {
 		const auto item = message();
 		return (!hasOutLayout() || item->from()->isMegagroup())
 			&& (!item->history()->peer->isUser()
-				|| item->history()->peer->isSelf());
+				|| showForwardsFromSender());
 	} break;
 	case Context::ContactPreview:
 		return false;
@@ -1861,7 +1866,7 @@ bool Message::displayFromName() const {
 
 bool Message::displayForwardedFrom() const {
 	const auto item = message();
-	if (item->history()->peer->isSelf()) {
+	if (showForwardsFromSender()) {
 		return false;
 	}
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
@@ -1885,6 +1890,8 @@ bool Message::hasOutLayout() const {
 	const auto item = message();
 	if (item->history()->peer->isSelf()) {
 		return !item->Has<HistoryMessageForwarded>();
+	} else if (showForwardsFromSender()) {
+		return false;
 	}
 	return item->out() && !item->isPost();
 }
@@ -1934,7 +1941,7 @@ bool Message::displayFastShare() const {
 		return !peer->isMegagroup();
 	} else if (const auto user = peer->asUser()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			return !peer->isSelf()
+			return !showForwardsFromSender()
 				&& !item->out()
 				&& forwarded->originalSender
 				&& forwarded->originalSender->isChannel()

@@ -675,6 +675,13 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			photoPosition.y(),
 			width(),
 			_st.photoSize);
+	} else if (showRepliesMessages()) {
+		Ui::EmptyUserpic::PaintRepliesMessages(
+			p,
+			photoPosition.x(),
+			photoPosition.y(),
+			width(),
+			_st.photoSize);
 	} else {
 		if (_a_appearance.animating()) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
@@ -1030,6 +1037,10 @@ void UserpicButton::showSavedMessagesOnSelf(bool enabled) {
 
 bool UserpicButton::showSavedMessages() const {
 	return _showSavedMessagesOnSelf && _peer && _peer->isSelf();
+}
+
+bool UserpicButton::showRepliesMessages() const {
+	return _showSavedMessagesOnSelf && _peer && _peer->isRepliesChat();
 }
 
 void UserpicButton::startChangeOverlayAnimation() {

@@ -429,7 +429,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			&& mayBeAttached(item)
 			&& mayBeAttached(prev);
 		if (possible) {
-			if (item->history()->peer->isSelf()) {
+			if (item->history()->peer->isSelf()
+				|| item->history()->peer->isRepliesChat()) {
 				return IsAttachedToPreviousInSavedMessages(prev, item);
 			} else {
 				return prev->from() == item->from();

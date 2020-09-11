@@ -329,7 +329,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto history = _activeChat.history();
 	const auto folder = _activeChat.folder();
 	if (folder
-		|| history->peer->isSelf()
+		|| history->peer->sharedMediaInfo()
 		|| (_section == Section::Scheduled)
 		|| !_customTitleText.isEmpty()) {
 		// #TODO feed name emoji.
@@ -341,7 +341,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				: tr::lng_scheduled_messages(tr::now))
 			: folder
 			? folder->chatListName()
-			: tr::lng_saved_messages(tr::now);
+			: history->peer->isSelf()
+			? tr::lng_saved_messages(tr::now)
+			: tr::lng_replies_messages(tr::now);
 		const auto textWidth = st::historySavedFont->width(text);
 		if (availableWidth < textWidth) {
 			text = st::historySavedFont->elided(text, availableWidth);
@@ -464,6 +466,10 @@ void TopBarWidget::infoClicked() {
 	//		feed,
 	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (_activeChat.peer()->isSelf()) {
+		_controller->showSection(Info::Memento(
+			_activeChat.peer(),
+			Info::Section(Storage::SharedMediaType::Photo)));
+	} else if (_activeChat.peer()->isRepliesChat()) {
 		_controller->showSection(Info::Memento(
 			_activeChat.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));

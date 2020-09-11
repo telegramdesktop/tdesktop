@@ -86,7 +86,7 @@ void PrivacyExceptionsBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(not_null<History*> history) {
-	if (history->peer->isSelf()) {
+	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
 		return nullptr;
 	} else if (!history->peer->isUser()
 		&& !history->peer->isChat()

@@ -91,6 +91,15 @@ void PaintSavedMessagesInner(
 	}
 }
 
+void PaintRepliesMessagesInner(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+}
+
 template <typename Callback>
 [[nodiscard]] QPixmap Generate(int size, Callback callback) {
 	auto result = QImage(
@@ -227,6 +236,76 @@ QPixmap EmptyUserpic::GenerateSavedMessages(int size) {
 QPixmap EmptyUserpic::GenerateSavedMessagesRounded(int size) {
 	return Generate(size, [&](Painter &p) {
 		PaintSavedMessagesRounded(p, 0, 0, size, size);
+	});
+}
+
+void EmptyUserpic::PaintRepliesMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	const auto &bg = st::historyPeerSavedMessagesBg;
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintRepliesMessages(p, x, y, outerWidth, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	const auto &bg = st::historyPeerSavedMessagesBg;
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintRepliesMessagesRounded(p, x, y, outerWidth, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+	x = rtl() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(x, y, size, size);
+
+	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+	x = rtl() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(x, y, size, size, st::buttonRadius, st::buttonRadius);
+
+	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+}
+
+QPixmap EmptyUserpic::GenerateRepliesMessages(int size) {
+	return Generate(size, [&](Painter &p) {
+		PaintRepliesMessages(p, 0, 0, size, size);
+	});
+}
+
+QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
+	return Generate(size, [&](Painter &p) {
+		PaintRepliesMessagesRounded(p, 0, 0, size, size);
 	});
 }
 

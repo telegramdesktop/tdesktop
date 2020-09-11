@@ -541,6 +541,13 @@ void PeerData::fillNames() {
 			if (localized != english) {
 				appendToIndex(localized);
 			}
+		} else if (isRepliesChat()) {
+			const auto english = qsl("Replies");
+			const auto localized = tr::lng_replies_messages(tr::now);
+			appendToIndex(english);
+			if (localized != english) {
+				appendToIndex(localized);
+			}
 		}
 	} else if (const auto channel = asChannel()) {
 		appendToIndex(channel->username);
@@ -741,6 +748,10 @@ bool PeerData::isMegagroup() const {
 
 bool PeerData::isBroadcast() const {
 	return isChannel() ? asChannel()->isBroadcast() : false;
+}
+
+bool PeerData::isRepliesChat() const {
+	return (id == peerFromUser(708513));
 }
 
 bool PeerData::canWrite() const {

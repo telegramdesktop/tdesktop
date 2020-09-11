@@ -575,7 +575,7 @@ rpl::producer<QString> TitleValue(
 		Unexpected("Bad peer type in Info::TitleValue()");
 
 	case Section::Type::Media:
-		if (peer->isSelf() && isStackBottom) {
+		if (peer->sharedMediaInfo() && isStackBottom) {
 			return tr::lng_profile_shared_media();
 		}
 		switch (section.mediaType()) {

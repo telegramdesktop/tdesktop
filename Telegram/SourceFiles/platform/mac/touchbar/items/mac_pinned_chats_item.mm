@@ -53,6 +53,10 @@ inline bool IsSelfPeer(PeerData *peer) {
 	return peer && peer->isSelf();
 }
 
+inline bool IsRepliesPeer(PeerData *peer) {
+	return peer && peer->isRepliesChat();
+}
+
 QImage PrepareImage() {
 	const auto s = kCircleDiameter * cIntRetinaFactor();
 	auto result = QImage(QSize(s, s), QImage::Format_ARGB32_Premultiplied);
@@ -66,6 +70,15 @@ QImage SavedMessagesUserpic() {
 
 	const auto s = result.width();
 	Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+	return result;
+}
+
+QImage RepliesMessagesUserpic() {
+	auto result = PrepareImage();
+	Painter paint(&result);
+
+	const auto s = result.width();
+	Ui::EmptyUserpic::PaintRepliesMessages(paint, 0, 0, s, s);
 	return result;
 }
 
@@ -125,7 +138,7 @@ NSRect PeerRectByIndex(int index) {
 }
 
 TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
-	if (peer->isSelf()) {
+	if (peer->isSelf() || peer->isRepliesChat()) {
 		return 0;
 	}
 	if (const auto user = peer->asUser()) {
@@ -172,10 +185,12 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 	std::vector<std::unique_ptr<Pin>> _pins;
 	QImage _savedMessages;
+	QImage _repliesMessages;
 	QImage _archive;
 
 	bool _hasArchive;
 	bool _selfUnpinned;
+	bool _repliesUnpinned;
 
 	rpl::event_stream<not_null<NSEvent*>> _touches;
 	rpl::event_stream<not_null<NSPressGestureRecognizer*>> _gestures;
@@ -458,6 +473,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	_session = session;
 	_hasArchive = _selfUnpinned = false;
 	_savedMessages = SavedMessagesUserpic();
+	_repliesMessages = RepliesMessagesUserpic();
 
 	auto *gesture = [[[NSPressGestureRecognizer alloc]
 		initWithTarget:self
@@ -503,6 +519,9 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	const auto singleUserpic = [=](const auto &pin) {
 		if (IsSelfPeer(pin->peer)) {
 			pin->userpic = _savedMessages;
+			return;
+		} else if (IsRepliesPeer(pin->peer)) {
+			pin->userpic = _repliesMessages;
 			return;
 		}
 		auto userpic = PrepareImage();
@@ -629,6 +648,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			return std::make_unique<Pin>(std::move(pin));
 		}) | ranges::to_vector;
 		_selfUnpinned = ranges::none_of(peers, &PeerData::isSelf);
+		_repliesUnpinned = ranges::none_of(peers, &PeerData::isRepliesChat);
 
 		peerChangedLifetime->destroy();
 		for (const auto &pin : _pins) {
@@ -705,6 +725,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				_archive = ArchiveUserpic(f);
 			}
 			_savedMessages = SavedMessagesUserpic();
+			_repliesMessages = RepliesMessagesUserpic();
 			updateUserpics();
 		});
 	}, _lifetime);
@@ -771,6 +792,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			return _archive;
 		} else if (_selfUnpinned) {
 			return _savedMessages;
+		} else if (_repliesUnpinned) {
+			return _repliesMessages;
 		}
 	}
 	return _pins[i]->userpic;

@@ -56,6 +56,7 @@ struct ProcessingState {
 	enum class EntityType {
 		Chat,
 		SavedMessages,
+		RepliesMessages,
 		Other,
 	};
 

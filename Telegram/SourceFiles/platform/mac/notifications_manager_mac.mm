@@ -264,6 +264,8 @@ void Manager::Private::showNotification(
 	if (!hideNameAndPhoto && [notification respondsToSelector:@selector(setContentImage:)]) {
 		auto userpic = peer->isSelf()
 			? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
+			: peer->isRepliesChat()
+			? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
 			: peer->genUserpic(userpicView, st::notifyMacPhotoSize);
 		NSImage *img = [qt_mac_create_nsimage(userpic) autorelease];
 		[notification setContentImage:img];

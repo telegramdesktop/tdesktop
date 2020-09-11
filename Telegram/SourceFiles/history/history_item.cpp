@@ -259,7 +259,8 @@ bool HistoryItem::isDiscussionPost() const {
 PeerData *HistoryItem::displayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
-	} else if (history()->peer->isSelf()) {
+	} else if (history()->peer->isSelf()
+		|| history()->peer->isRepliesChat()) {
 		return senderOriginal();
 	}
 	return author().get();

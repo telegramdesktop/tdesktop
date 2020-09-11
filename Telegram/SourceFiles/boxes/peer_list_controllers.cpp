@@ -584,8 +584,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 auto ChooseRecipientBoxController::createRow(
 		not_null<History*> history) -> std::unique_ptr<Row> {
 	const auto peer = history->peer;
-	const auto skip = peer->isChannel()
-		&& !peer->isMegagroup()
-		&& !peer->canWrite();
+	const auto skip = (peer->isBroadcast() && !peer->canWrite())
+		|| peer->isRepliesChat();
 	return skip ? nullptr : std::make_unique<Row>(history);
 }

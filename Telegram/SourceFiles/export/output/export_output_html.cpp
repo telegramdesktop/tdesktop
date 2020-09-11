@@ -2466,6 +2466,7 @@ Result HtmlWriter::writeDialogEnd() {
 		switch (type) {
 		case Type::Unknown: return "unknown";
 		case Type::Self:
+		case Type::Replies:
 		case Type::Personal: return "private";
 		case Type::Bot: return "bot";
 		case Type::PrivateGroup:
@@ -2480,6 +2481,7 @@ Result HtmlWriter::writeDialogEnd() {
 		switch (type) {
 		case Type::Unknown:
 		case Type::Self:
+		case Type::Replies:
 		case Type::Personal:
 		case Type::Bot: return "Deleted Account";
 		case Type::PrivateGroup:
@@ -2494,6 +2496,8 @@ Result HtmlWriter::writeDialogEnd() {
 			const Data::DialogInfo &dialog) -> QByteArray {
 		if (dialog.type == Type::Self) {
 			return "Saved messages";
+		} else if (dialog.type == Type::Replies) {
+			return "Replies";
 		}
 		return dialog.name;
 	};
@@ -2514,7 +2518,7 @@ Result HtmlWriter::writeDialogEnd() {
 			+ (outgoing ? " outgoing messages" : " messages");
 	};
 	auto userpic = UserpicData{
-		(_dialog.type == Type::Self
+		((_dialog.type == Type::Self || _dialog.type == Type::Replies)
 			? kSavedMessagesColorIndex
 			: Data::PeerColorIndex(Data::BarePeerId(_dialog.peerId))),
 		kEntryUserpicSize

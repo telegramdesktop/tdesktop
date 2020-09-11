@@ -883,6 +883,7 @@ Result TextWriter::writeDialogEnd() {
 		switch (type) {
 		case Type::Unknown: return "(unknown)";
 		case Type::Self:
+		case Type::Replies:
 		case Type::Personal: return "Personal chat";
 		case Type::Bot: return "Bot chat";
 		case Type::PrivateGroup: return "Private group";
@@ -898,6 +899,8 @@ Result TextWriter::writeDialogEnd() {
 			Type type) -> QByteArray {
 		if (dialog.type == Type::Self) {
 			return "Saved messages";
+		} else if (dialog.type == Type::Replies) {
+			return "Replies";
 		}
 		const auto name = dialog.name;
 		if (!name.isEmpty()) {

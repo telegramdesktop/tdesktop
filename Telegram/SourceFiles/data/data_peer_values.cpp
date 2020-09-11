@@ -170,6 +170,10 @@ rpl::producer<bool> PeerFlagValue(
 
 rpl::producer<bool> CanWriteValue(UserData *user) {
 	using namespace rpl::mappers;
+
+	if (user->isRepliesChat()) {
+		return rpl::single(false);
+	}
 	return PeerFlagValue(user, MTPDuser::Flag::f_deleted)
 		| rpl::map(!_1);
 }

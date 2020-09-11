@@ -159,6 +159,10 @@ public:
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isMegagroup() const;
 	[[nodiscard]] bool isBroadcast() const;
+	[[nodiscard]] bool isRepliesChat() const;
+	[[nodiscard]] bool sharedMediaInfo() const {
+		return isSelf() || isRepliesChat();
+	}
 
 	[[nodiscard]] bool isNotificationsUser() const {
 		return (id == peerFromUser(333000))

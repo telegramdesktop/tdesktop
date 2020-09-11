@@ -140,7 +140,7 @@ public:
 	}
 	bool canWrite() const {
 		// Duplicated in Data::CanWriteValue().
-		return !isInaccessible();
+		return !isInaccessible() && !isRepliesChat();
 	}
 
 	bool canShareThisContact() const;

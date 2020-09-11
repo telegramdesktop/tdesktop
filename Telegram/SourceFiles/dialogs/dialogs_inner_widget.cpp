@@ -819,6 +819,8 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 	if (const auto peer = _searchInChat.peer()) {
 		if (peer->isSelf()) {
 			paintSearchInSaved(p, top, _searchInChatText);
+		} else if (peer->isRepliesChat()) {
+			paintSearchInReplies(p, top, _searchInChatText);
 		} else {
 			paintSearchInPeer(p, peer, _searchInChatUserpic, top, _searchInChatText);
 		}
@@ -892,6 +894,16 @@ void InnerWidget::paintSearchInSaved(
 		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, width(), size);
+	};
+	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
+}
+
+void InnerWidget::paintSearchInReplies(
+		Painter &p,
+		int top,
+		const Ui::Text::String &text) const {
+	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+		Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, width(), size);
 	};
 	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
 }
@@ -2359,6 +2371,8 @@ void InnerWidget::refreshSearchInChatLabel() {
 		if (const auto peer = _searchInChat.peer()) {
 			if (peer->isSelf()) {
 				return tr::lng_saved_messages(tr::now);
+			} else if (peer->isRepliesChat()) {
+				return tr::lng_replies_messages(tr::now);
 			}
 			return peer->name;
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed

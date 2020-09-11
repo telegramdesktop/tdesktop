@@ -1011,6 +1011,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		switch (type) {
 		case Type::Unknown: return "";
 		case Type::Self: return "saved_messages";
+		case Type::Replies: return "replies";
 		case Type::Personal: return "personal_chat";
 		case Type::Bot: return "bot_chat";
 		case Type::PrivateGroup: return "private_group";
@@ -1026,7 +1027,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		? QByteArray()
 		: prepareArrayItemStart();
 	block.append(pushNesting(Context::kObject));
-	if (data.type != Type::Self) {
+	if (data.type != Type::Self && data.type != Type::Replies) {
 		block.append(prepareObjectItemStart("name")
 			+ StringAllowNull(data.name));
 	}

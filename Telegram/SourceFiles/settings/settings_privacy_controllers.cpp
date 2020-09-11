@@ -116,7 +116,8 @@ auto BlockPeerBoxController::createRow(not_null<History*> history)
 -> std::unique_ptr<BlockPeerBoxController::Row> {
 	if (!history->peer->isUser()
 		|| history->peer->isServiceUser()
-		|| history->peer->isSelf()) {
+		|| history->peer->isSelf()
+		|| history->peer->isRepliesChat()) {
 		return nullptr;
 	}
 	auto row = std::make_unique<Row>(history);

@@ -120,6 +120,7 @@ private:
 	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
+	[[nodiscard]] bool showForwardsFromSender() const;
 	[[nodiscard]] TextSelection skipTextSelection(
 		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipTextSelection(

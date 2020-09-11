@@ -287,6 +287,10 @@ private:
 		Painter &p,
 		int top,
 		const Ui::Text::String &text) const;
+	void paintSearchInReplies(
+		Painter &p,
+		int top,
+		const Ui::Text::String &text) const;
 	//void paintSearchInFeed( // #feed
 	//	Painter &p,
 	//	not_null<Data::Feed*> feed,

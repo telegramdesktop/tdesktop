@@ -1466,6 +1466,8 @@ DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
 DialogInfo::Type DialogTypeFromUser(const User &user) {
 	return user.isSelf
 		? DialogInfo::Type::Self
+		: user.isReplies
+		? DialogInfo::Type::Replies
 		: user.isBot
 		? DialogInfo::Type::Bot
 		: DialogInfo::Type::Personal;

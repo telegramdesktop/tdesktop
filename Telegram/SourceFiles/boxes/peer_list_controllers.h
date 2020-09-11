@@ -203,8 +203,7 @@ public:
 
 protected:
 	void prepareViewHook() override;
-	std::unique_ptr<Row> createRow(
-		not_null<History*> history) override;
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
 	const not_null<Window::SessionNavigation*> _navigation;

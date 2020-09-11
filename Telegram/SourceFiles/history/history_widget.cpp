@@ -1935,7 +1935,9 @@ void HistoryWidget::updateFieldSubmitSettings() {
 }
 
 void HistoryWidget::updateNotifyControls() {
-	if (!_peer || !_peer->isChannel()) return;
+	if (!_peer || (!_peer->isChannel() && !_peer->isRepliesChat())) {
+		return;
+	}
 
 	_muteUnmute->setText((_history->mute()
 		? tr::lng_channel_unmute(tr::now)
@@ -3647,7 +3649,10 @@ bool HistoryWidget::isJoinChannel() const {
 }
 
 bool HistoryWidget::isMuteUnmute() const {
-	return _peer && _peer->isChannel() && _peer->asChannel()->isBroadcast() && !_peer->asChannel()->canPublish();
+	return _peer
+		&& ((_peer->isBroadcast()
+			&& !_peer->asChannel()->canPublish())
+			|| _peer->isRepliesChat());
 }
 
 bool HistoryWidget::showRecordButton() const {

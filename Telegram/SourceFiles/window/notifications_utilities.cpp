@@ -66,6 +66,11 @@ QString CachedUserpics::get(
 					? Ui::EmptyUserpic::GenerateSavedMessagesRounded
 					: Ui::EmptyUserpic::GenerateSavedMessages;
 				method(st::notifyMacPhotoSize).save(v.path, "PNG");
+			} else if (peer->isRepliesChat()) {
+				const auto method = (_type == Type::Rounded)
+					? Ui::EmptyUserpic::GenerateRepliesMessagesRounded
+					: Ui::EmptyUserpic::GenerateRepliesMessages;
+				method(st::notifyMacPhotoSize).save(v.path, "PNG");
 			} else if (_type == Type::Rounded) {
 				peer->saveUserpicRounded(view, v.path, st::notifyMacPhotoSize);
 			} else {

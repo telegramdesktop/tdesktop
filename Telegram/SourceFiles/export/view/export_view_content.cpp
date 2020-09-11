@@ -101,7 +101,9 @@ Content ContentFromState(
 				? tr::lng_deleted(tr::now)
 				: (state.entityType == ProcessingState::EntityType::Chat)
 				? state.entityName
-				: tr::lng_saved_messages(tr::now)),
+				: (state.entityType == ProcessingState::EntityType::SavedMessages)
+				? tr::lng_saved_messages(tr::now)
+				: tr::lng_replies_messages(tr::now)),
 			(state.itemCount > 0
 				? (QString::number(state.itemIndex)
 					+ " / "

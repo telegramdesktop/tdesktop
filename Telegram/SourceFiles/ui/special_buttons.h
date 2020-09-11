@@ -222,6 +222,7 @@ private:
 	void updateCursor();
 	void updateVideo();
 	bool showSavedMessages() const;
+	bool showRepliesMessages() const;
 	void checkStreamedIsStarted();
 	bool createStreamingObjects(not_null<PhotoData*> photo);
 	void clearStreaming();

@@ -86,7 +86,7 @@ std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 }
 
 Section Memento::DefaultSection(not_null<PeerData*> peer) {
-	if (peer->isSelf()) {
+	if (peer->sharedMediaInfo()) {
 		return Section(Section::MediaType::Photo);
 	}
 	return Section(Section::Type::Profile);
@@ -94,7 +94,7 @@ Section Memento::DefaultSection(not_null<PeerData*> peer) {
 // // #feed
 //Section Memento::DefaultSection(Dialogs::Key key) {
 //	if (const auto peer = key.peer()) {
-//		if (peer->isSelf()) {
+//		if (peer->sharedMediaInfo()) {
 //			return Section(Section::MediaType::Photo);
 //		}
 //	}

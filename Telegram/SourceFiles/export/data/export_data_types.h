@@ -209,6 +209,7 @@ struct User {
 	int32 id;
 	bool isBot = false;
 	bool isSelf = false;
+	bool isReplies = false;
 
 	MTPInputUser input = MTP_inputUserEmpty();
 
@@ -554,6 +555,7 @@ struct DialogInfo {
 	enum class Type {
 		Unknown,
 		Self,
+		Replies,
 		Personal,
 		Bot,
 		PrivateGroup,
