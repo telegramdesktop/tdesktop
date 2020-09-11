@@ -765,10 +765,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 	//_saveDraftStart = crl::now();
 	//onDraftSave();
 
-	_composeControls->hidePanelsAnimated();
-
-	//if (_previewData && _previewData->pendingTill) previewCancel();
-	_composeControls->focus();
+	finishSending();
 }
 
 void RepliesWidget::edit(
@@ -881,8 +878,7 @@ bool RepliesWidget::sendExistingDocument(
 	//}
 
 	_composeControls->cancelReplyMessage();
-	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	finishSending();
 	return true;
 }
 
@@ -914,8 +910,7 @@ bool RepliesWidget::sendExistingPhoto(
 	Api::SendExistingPhoto(std::move(message), photo);
 
 	_composeControls->cancelReplyMessage();
-	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	finishSending();
 	return true;
 }
 
@@ -962,9 +957,7 @@ void RepliesWidget::sendInlineResult(
 		bots.push_front(bot);
 		bot->session().local().writeRecentHashtagsAndBots();
 	}
-
-	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	finishSending();
 }
 
 SendMenu::Type RepliesWidget::sendMenuType() const {
@@ -998,12 +991,23 @@ void RepliesWidget::setupScrollDownButton() {
 
 void RepliesWidget::scrollDownClicked() {
 	if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
-		showAtPosition(Data::MaxMessagePosition);
+		showAtEnd();
 	} else if (_replyReturn) {
 		showAtPosition(_replyReturn->position());
 	} else {
-		showAtPosition(Data::MaxMessagePosition);
+		showAtEnd();
 	}
+}
+
+void RepliesWidget::showAtEnd() {
+	showAtPosition(Data::MaxMessagePosition);
+}
+
+void RepliesWidget::finishSending() {
+	_composeControls->hidePanelsAnimated();
+	//if (_previewData && _previewData->pendingTill) previewCancel();
+	_composeControls->focus();
+	showAtEnd();
 }
 
 void RepliesWidget::showAtPosition(

@@ -139,12 +139,14 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
+	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
 		HistoryItem *originItem = nullptr);
 	bool showAtPositionNow(
 		Data::MessagePosition position,
 		HistoryItem *originItem);
+	void finishSending();
 
 	void setupComposeControls();
 
