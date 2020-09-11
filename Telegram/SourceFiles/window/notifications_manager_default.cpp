@@ -737,6 +737,9 @@ void Notification::updateNotifyDisplay() {
 			if (_fromScheduled && _history->peer->isSelf()) {
 				Ui::EmptyUserpic::PaintSavedMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 				_userpicLoaded = true;
+			} else if (_history->peer->isRepliesChat()) {
+				Ui::EmptyUserpic::PaintRepliesMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+				_userpicLoaded = true;
 			} else {
 				_userpicView = _history->peer->createUserpicView();
 				_history->peer->loadUserpic();

@@ -1794,6 +1794,8 @@ void HistoryWidget::showHistory(
 			updateNotifyControls();
 			session().data().requestNotifySettings(_peer);
 			refreshSilentToggle();
+		} else if (_peer->isRepliesChat()) {
+			updateNotifyControls();
 		}
 		refreshScheduledToggle();
 

@@ -1192,8 +1192,12 @@ auto HtmlWriter::Wrap::pushMessage(
 	}
 	if (message.replyToMsgId) {
 		block.append(pushDiv("reply_to details"));
-		block.append("In reply to ");
-		block.append(wrapReplyToLink("this message"));
+		if (message.replyToPeerId) {
+			block.append("In reply to a message in another chat");
+		} else {
+			block.append("In reply to ");
+			block.append(wrapReplyToLink("this message"));
+		}
 		block.append(popTag());
 	}
 

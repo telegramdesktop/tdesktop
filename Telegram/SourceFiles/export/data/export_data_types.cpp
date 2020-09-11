@@ -1153,6 +1153,9 @@ Message ParseMessage(
 					result.replyToPeerId = data.vreply_to_peer_id()
 						? ParsePeerId(*data.vreply_to_peer_id())
 						: 0;
+					if (result.replyToPeerId == result.peerId) {
+						result.replyToPeerId = 0;
+					}
 				});
 			}
 		}
@@ -1712,7 +1715,7 @@ MessagesSlice ParseMessagesSlice(
 MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice) {
 	for (auto &message : slice.list) {
 		message.id += kMigratedMessagesIdShift;
-		if (message.replyToMsgId) {
+		if (message.replyToMsgId && !message.replyToPeerId) {
 			message.replyToMsgId += kMigratedMessagesIdShift;
 		}
 	}

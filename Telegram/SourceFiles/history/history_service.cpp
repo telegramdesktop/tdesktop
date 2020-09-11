@@ -681,17 +681,22 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		Get<HistoryServicePayment>()->amount = HistoryView::FillAmountAndCurrency(amount, currency);
 	}
 	if (const auto replyTo = message.vreply_to()) {
-		if (message.vaction().type() == mtpc_messageActionPinMessage) {
-			UpdateComponents(HistoryServicePinned::Bit());
-		}
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
-			if (const auto dependent = GetDependentData()) {
-				dependent->msgId = data.vreply_to_msg_id().v;
-				if (!updateDependent()) {
-					history()->session().api().requestMessageData(
-						history()->peer->asChannel(),
-						dependent->msgId,
-						HistoryDependentItemCallback(this));
+			const auto peer = data.vreply_to_peer_id()
+				? peerFromMTP(*data.vreply_to_peer_id())
+				: history()->peer->id;
+			if (!peer || peer == history()->peer->id) {
+				if (message.vaction().type() == mtpc_messageActionPinMessage) {
+					UpdateComponents(HistoryServicePinned::Bit());
+				}
+				if (const auto dependent = GetDependentData()) {
+					dependent->msgId = data.vreply_to_msg_id().v;
+					if (!updateDependent()) {
+						history()->session().api().requestMessageData(
+							history()->peer->asChannel(),
+							dependent->msgId,
+							HistoryDependentItemCallback(this));
+					}
 				}
 			}
 		});

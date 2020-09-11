@@ -105,6 +105,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
 	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
+		replyToPeerId = other.replyToPeerId;
 		replyToMsgId = other.replyToMsgId;
 		replyToMsgTop = other.replyToMsgTop;
 		replyToDocumentId = other.replyToDocumentId;
@@ -147,6 +148,9 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		int w,
 		PaintFlags flags) const;
 
+	[[nodiscard]] PeerId replyToPeer() const {
+		return replyToPeerId;
+	}
 	[[nodiscard]] MsgId replyToId() const {
 		return replyToMsgId;
 	}
@@ -164,6 +168,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 
 	void refreshReplyToDocument();
 
+	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
 	HistoryItem *replyToMsg = nullptr;

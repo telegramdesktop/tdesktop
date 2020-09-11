@@ -303,6 +303,9 @@ QByteArray SerializeMessage(
 			const QByteArray &label = "reply_to_message_id") {
 		if (message.replyToMsgId) {
 			push(label, message.replyToMsgId);
+			if (message.replyToPeerId) {
+				push("reply_to_peer_id", message.replyToPeerId);
+			}
 		}
 	};
 	const auto pushUserNames = [&](

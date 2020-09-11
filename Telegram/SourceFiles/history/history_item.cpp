@@ -957,7 +957,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vid().v,
 				data.vflags().v,
 				clientFlags,
-				0, // #TODO replies data.vreply_to()
+				MsgId(0), // No need to pass reply_to data here.
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
 				data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0));

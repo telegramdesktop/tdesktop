@@ -204,7 +204,9 @@ bool HistoryMessageReply::updateData(
 	}
 	if (!replyToMsg) {
 		replyToMsg = holder->history()->owner().message(
-			holder->channelId(),
+			(replyToPeerId
+				? peerToChannel(replyToPeerId)
+				: holder->channelId()),
 			replyToMsgId);
 		if (replyToMsg) {
 			if (replyToMsg->isEmpty()) {

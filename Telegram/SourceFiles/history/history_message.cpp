@@ -405,6 +405,7 @@ QString GetErrorTextForSending(
 }
 
 struct HistoryMessage::CreateConfig {
+	PeerId replyToPeer = 0;
 	MsgId replyTo = 0;
 	MsgId replyToTop = 0;
 	UserId viaBotId = 0;
@@ -466,7 +467,12 @@ HistoryMessage::HistoryMessage(
 	}
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			// #TODO replies reply_to_peer_id.
+			if (const auto peer = data.vreply_to_peer_id()) {
+				config.replyToPeer = peerFromMTP(*peer);
+				if (config.replyToPeer == history->peer->id) {
+					config.replyToPeer = 0;
+				}
+			}
 			config.replyTo = data.vreply_to_msg_id().v;
 			config.replyToTop = data.vreply_to_top_id().value_or(
 				config.replyTo);
@@ -514,9 +520,14 @@ HistoryMessage::HistoryMessage(
 
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			config.replyTo = data.vreply_to_msg_id().v;
-			config.replyToTop = data.vreply_to_top_id().value_or(
-				config.replyTo);
+			const auto peer = data.vreply_to_peer_id()
+				? peerFromMTP(*data.vreply_to_peer_id())
+				: history->peer->id;
+			if (!peer || peer == history->peer->id) {
+				config.replyTo = data.vreply_to_msg_id().v;
+				config.replyToTop = data.vreply_to_top_id().value_or(
+					config.replyTo);
+			}
 		});
 	}
 
@@ -911,11 +922,15 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	UpdateComponents(mask);
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
+		reply->replyToPeerId = config.replyToPeer;
 		reply->replyToMsgId = config.replyTo;
 		reply->replyToMsgTop = isScheduled() ? 0 : config.replyToTop;
 		if (!reply->updateData(this)) {
 			history()->session().api().requestMessageData(
-				history()->peer->asChannel(),
+				(peerIsChannel(reply->replyToPeerId)
+					? history()->owner().channel(
+						peerToChannel(reply->replyToPeerId)).get()
+					: history()->peer->asChannel()),
 				reply->replyToMsgId,
 				HistoryDependentItemCallback(this));
 		}
