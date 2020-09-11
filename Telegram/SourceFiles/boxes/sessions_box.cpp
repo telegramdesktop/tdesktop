@@ -48,18 +48,17 @@ private:
 		: hash(entry.hash)
 		, incomplete(entry.incomplete)
 		, activeTime(entry.activeTime)
-		, name(entry.name)
-		, active(entry.active)
-		, info(entry.info)
-		, ip(entry.ip) {
+		, name(st::sessionNameStyle, entry.name)
+		, active(st::sessionWhenStyle, entry.active)
+		, info(st::sessionInfoStyle, entry.info)
+		, ip(st::sessionInfoStyle, entry.ip) {
 		};
 
 		uint64 hash = 0;
 
 		bool incomplete = false;
 		TimeId activeTime = 0;
-		int nameWidth, activeWidth, infoWidth, ipWidth;
-		QString name, active, info, ip;
+		Ui::Text::String name, active, info, ip;
 	};
 	struct Full {
 		Entry current;
@@ -69,7 +68,6 @@ private:
 	class Inner;
 	class List;
 
-	static void ResizeEntry(Entry &entry);
 	void shortPollSessions();
 
 	void terminate(Fn<void()> terminateRequest, QString message);
@@ -99,11 +97,20 @@ public:
 	void terminating(uint64 hash, bool terminating);
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	struct RowWidth {
+		int available = 0;
+		int info = 0;
+	};
+	RowWidth _rowWidth;
+
+	void computeRowWidth();
+
 	std::vector<Entry> _items;
 	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
 	rpl::event_stream<uint64> _terminate;
@@ -166,7 +173,6 @@ void SessionsContent::setupContent() {
 		_data = Full();
 		for (const auto auth : list) {
 			auto entry = Entry(auth);
-			ResizeEntry(entry);
 			if (!entry.hash) {
 				_data.current = std::move(entry);
 			} else if (entry.incomplete) {
@@ -209,34 +215,6 @@ void SessionsContent::paintEvent(QPaintEvent *e) {
 			tr::lng_contacts_loading(tr::now),
 			style::al_center);
 	}
-}
-
-void SessionsContent::ResizeEntry(Entry &entry) {
-	entry.activeWidth = st::sessionWhenFont->width(entry.active);
-
-	const auto available = st::boxWideWidth
-		- st::sessionPadding.left()
-		- st::sessionTerminateSkip;
-	const auto availableInList = available
-		- st::sessionTerminate.iconPosition.x();
-	const auto availableListInfo = available - st::sessionTerminate.width;
-
-	const auto resize = [](
-			const style::font &font,
-			QString &string,
-			int &stringWidth,
-			int available) {
-		stringWidth = font->width(string);
-		if (stringWidth > available) {
-			string = font->elided(string, available);
-			stringWidth = font->width(string);
-		}
-	};
-	const auto forName = entry.hash ? availableInList : available;
-	const auto forInfo = entry.hash ? availableListInfo : available;
-	resize(st::sessionNameFont, entry.name, entry.nameWidth, forName);
-	resize(st::sessionInfoFont, entry.info, entry.infoWidth, forInfo);
-	resize(st::sessionInfoFont, entry.ip, entry.ipWidth, available);
 }
 
 void SessionsContent::shortPollSessions() {
@@ -401,7 +379,15 @@ SessionsContent::List::List(QWidget *parent) : RpWidget(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
+void SessionsContent::List::resizeEvent(QResizeEvent *e) {
+	RpWidget::resizeEvent(e);
+
+	computeRowWidth();
+}
+
 void SessionsContent::List::showData(gsl::span<const Entry> items) {
+	computeRowWidth();
+
 	auto buttons = base::take(_terminateButtons);
 	_items.clear();
 	_items.insert(begin(_items), items.begin(), items.end());
@@ -460,6 +446,16 @@ int SessionsContent::List::resizeGetHeight(int newWidth) {
 	return _items.size() * st::sessionHeight;
 }
 
+void SessionsContent::List::computeRowWidth() {
+	const auto available = width()
+		- st::sessionPadding.left()
+		- st::sessionTerminateSkip;
+	_rowWidth = {
+		.available = available,
+		.info = available - st::sessionTerminate.width,
+	};
+}
+
 void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
@@ -474,6 +470,7 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 		0,
 		count);
 
+	const auto available = _rowWidth.available;
 	const auto x = st::sessionPadding.left();
 	const auto y = st::sessionPadding.top();
 	const auto w = width();
@@ -483,22 +480,25 @@ void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	for (auto i = from; i != till; ++i) {
 		const auto &entry = _items[i];
 
-		p.setFont(st::sessionNameFont);
+		const auto activeW = entry.active.maxWidth();
+		const auto nameW = available
+			- activeW
+			- st::sessionNamePadding.right();
+		const auto nameH = entry.name.style()->font->height;
+		const auto infoW = entry.hash ? _rowWidth.info : available;
+		const auto infoH = entry.info.style()->font->height;
+
+		p.setPen(entry.hash ? st::sessionWhenFg : st::contactsStatusFgOnline);
+		entry.active.drawRight(p, xact, y, activeW, w);
+
 		p.setPen(st::sessionNameFg);
-		p.drawTextLeft(x, y, w, entry.name, entry.nameWidth);
+		entry.name.drawLeftElided(p, x, y, nameW, w);
 
-		p.setFont(st::sessionWhenFont);
-		p.setPen(st::sessionWhenFg);
-		p.drawTextRight(xact, y, w, entry.active, entry.activeWidth);
-
-		const auto name = st::sessionNameFont->height;
-		p.setFont(st::sessionInfoFont);
 		p.setPen(st::boxTextFg);
-		p.drawTextLeft(x, y + name, w, entry.info, entry.infoWidth);
+		entry.info.drawLeftElided(p, x, y + nameH, infoW, w);
 
-		const auto info = st::sessionInfoFont->height;
 		p.setPen(st::sessionInfoFg);
-		p.drawTextLeft(x, y + name + info, w, entry.ip, entry.ipWidth);
+		entry.ip.drawLeftElided(p, x, y + nameH + infoH, available, w);
 
 		p.translate(0, st::sessionHeight);
 	}
