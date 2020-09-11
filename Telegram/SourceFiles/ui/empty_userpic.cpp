@@ -98,6 +98,67 @@ void PaintRepliesMessagesInner(
 		int size,
 		const style::color &bg,
 		const style::color &fg) {
+	// |<---width--->|
+	//
+	//     X            ---
+	//    XX             |
+	//   X X             |
+	//  X  XXXXXXX       |
+	// X          XX   height
+	//  X  XXXXX    X    |
+	//   X X    XXX  X   |
+	//    XX       XXX   |
+	//     X         X  ---
+
+	const auto thinkness = std::round(size * 0.055);
+	const auto increment = int(thinkness) % 2 + (size % 2);
+	const auto width = std::round(size * 0.2) * 2 + increment;
+	const auto arrow = std::round(width * 27. / 57.);
+	const auto height = 2 * arrow;
+	const auto tail = std::round(height / 5.);
+	const auto add = std::round(size * 0.064);
+
+	const auto left = x + (size - width) / 2;
+	const auto top = y + (size - height) / 2;
+	const auto right = left + width;
+	const auto bottom = top + height;
+	const auto middle = (left + arrow);
+	const auto half = (top + bottom) / 2;
+	const auto tailtop = half - tail;
+	const auto tailbottom = half + tail;
+	const auto starttop = (top + tailtop) / 2;
+
+	const auto bottomcsize = (bottom - tailbottom);
+	const auto bottomc1x = middle + bottomcsize;
+	const auto bottomc1y = tailbottom;
+	const auto bottomc2x = right - bottomcsize / 1.42;
+	const auto bottomc2y = bottom - bottomcsize / 1.42;
+
+	const auto topcsize = (bottom - tailbottom) * 1.5;
+	const auto topc1x = middle + topcsize;
+	const auto topc1y = tailtop;
+	const auto topc2x = right;
+	const auto topc2y = bottom - topcsize;
+
+	p.setBrush(Qt::NoBrush);
+	auto pen = fg->p;
+	pen.setWidthF(thinkness);
+	pen.setCapStyle(Qt::FlatCap);
+
+	{
+		pen.setJoinStyle(Qt::MiterJoin);
+		p.setPen(pen);
+		QPainterPath path;
+		path.moveTo(middle, starttop);
+		path.lineTo(middle, top);
+		path.lineTo(left, half);
+		path.lineTo(middle, bottom);
+		path.lineTo(middle, tailbottom);
+		path.cubicTo(bottomc1x, bottomc1y, bottomc2x, bottomc2y, right, bottom);
+		path.cubicTo(topc2x, topc2y, topc1x, topc1y, middle, tailtop);
+		path.lineTo(middle, starttop);
+		p.drawPath(path);
+	}
 }
 
 template <typename Callback>
