@@ -156,6 +156,18 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
+void RepliesList::injectRootMessage(not_null<MessagesSlice*> slice) {
+	if (slice->skippedBefore != 0) {
+		return;
+	}
+	if (const auto root = lookupRoot()) {
+		slice->ids.push_back(root->fullId());
+		if (slice->fullCount) {
+			++*slice->fullCount;
+		}
+	}
+}
+
 bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	if (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0) {
 		viewer->slice.ids.clear();
@@ -163,6 +175,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			= viewer->slice.skippedBefore
 			= viewer->slice.skippedAfter
 			= 0;
+		injectRootMessage(&viewer->slice);
 		return true;
 	}
 	const auto around = [&] {
@@ -205,14 +218,12 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	for (auto j = i - useAfter, e = i + useBefore; j != e; ++j) {
 		slice->ids.emplace_back(channelId, *j);
 	}
-	if (slice->skippedBefore == 0) {
-		if (const auto root = lookupRoot()) {
-			slice->ids.push_back(root->fullId());
-		}
-	}
+	slice->fullCount = _fullCount.current();
+
+	injectRootMessage(slice);
+
 	ranges::reverse(slice->ids);
 
-	slice->fullCount = _fullCount.current();
 	if (_skippedBefore != 0 && useBefore < viewer->limitBefore + 1) {
 		loadBefore();
 	}

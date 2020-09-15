@@ -46,6 +46,7 @@ private:
 	[[nodiscard]] bool applyUpdate(
 		not_null<Viewer*> viewer,
 		const MessageUpdate &update);
+	void injectRootMessage(not_null<MessagesSlice*> slice);
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
 	void loadAround(MsgId id);
 	void loadBefore();
