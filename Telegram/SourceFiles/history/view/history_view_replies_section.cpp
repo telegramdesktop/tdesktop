@@ -134,9 +134,7 @@ RepliesWidget::RepliesWidget(
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	setupRoot();
 
-	_rootHeight = st::msgReplyPadding.top()
-		+ st::msgReplyBarSize.height()
-		+ st::msgReplyPadding.bottom();
+	_rootHeight = st::historyReplyHeight;
 	_topBar->setActiveChat(_history, TopBarWidget::Section::Replies);
 
 	_topBar->move(0, 0);
