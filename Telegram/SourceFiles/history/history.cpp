@@ -3283,7 +3283,7 @@ void History::clearUpTill(MsgId availableMinId) {
 void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
-			message->data()->applyGroupAdminChanges(changes);
+			message->applyGroupAdminChanges(changes);
 		}
 	}
 }

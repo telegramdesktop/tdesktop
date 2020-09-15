@@ -501,8 +501,6 @@ HistoryMessage::HistoryMessage(
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
-
-	refreshMessageBadge();
 }
 
 HistoryMessage::HistoryMessage(
@@ -877,48 +875,6 @@ bool HistoryMessage::updateDependencyItem() {
 		return result;
 	}
 	return true;
-}
-
-void HistoryMessage::refreshMessageBadge() {
-	const auto text = [&] {
-		if (isDiscussionPost()) {
-			return tr::lng_channel_badge(tr::now);
-		}
-		const auto channel = history()->peer->asMegagroup();
-		const auto user = author()->asUser();
-		if (!channel || !user) {
-			return QString();
-		}
-		const auto info = channel->mgInfo.get();
-		const auto i = channel->mgInfo->admins.find(peerToUser(user->id));
-		const auto custom = (i != channel->mgInfo->admins.end())
-			? i->second
-			: (info->creator == user)
-			? info->creatorRank
-			: QString();
-		return !custom.isEmpty()
-			? custom
-			: (info->creator == user)
-			? tr::lng_owner_badge(tr::now)
-			: (i != channel->mgInfo->admins.end())
-			? tr::lng_admin_badge(tr::now)
-			: QString();
-	}();
-	if (text.isEmpty()) {
-		_messageBadge.clear();
-	} else {
-		_messageBadge.setText(
-			st::defaultTextStyle,
-			TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text)));
-	}
-}
-
-void HistoryMessage::applyGroupAdminChanges(
-		const base::flat_set<UserId> &changes) {
-	if (!out() && changes.contains(peerToUser(author()->id))) {
-		refreshMessageBadge();
-		history()->owner().requestItemResize(this);
-	}
 }
 
 bool HistoryMessage::allowsForward() const {

@@ -32,6 +32,7 @@ class Media;
 
 enum class Context : char {
 	History,
+	Replies,
 	//Feed, // #feed
 	AdminLog,
 	ContactPreview
@@ -271,6 +272,9 @@ public:
 	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
 	virtual HistoryMessageReply *displayedReply() const;
+	virtual void applyGroupAdminChanges(
+		const base::flat_set<UserId> &changes) {
+	}
 
 	struct VerticalRepaintRange {
 		int top = 0;

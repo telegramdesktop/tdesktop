@@ -80,9 +80,6 @@ public:
 		return true;
 	}
 	[[nodiscard]] PeerData *specialNotificationPeer() const;
-	virtual void applyGroupAdminChanges(
-		const base::flat_set<UserId> &changes) {
-	}
 
 	[[nodiscard]] UserData *viaBot() const;
 	[[nodiscard]] UserData *getMessageBot() const;

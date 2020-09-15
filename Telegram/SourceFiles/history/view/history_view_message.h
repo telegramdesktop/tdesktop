@@ -107,6 +107,9 @@ public:
 
 	VerticalRepaintRange verticalRepaintRange() const override;
 
+	void applyGroupAdminChanges(
+		const base::flat_set<UserId> &changes) override;
+
 protected:
 	void refreshDataIdHook() override;
 
@@ -186,9 +189,13 @@ private:
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
 	void psaTooltipToggled(bool shown) const;
 
+	void refreshRightBadge();
+
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<CommentsButton> _comments;
+
+	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
 
 };

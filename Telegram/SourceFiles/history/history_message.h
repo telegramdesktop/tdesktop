@@ -119,18 +119,9 @@ public:
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
-	[[nodiscard]] const Ui::Text::String &messageBadge() const {
-		return _messageBadge;
-	}
-	[[nodiscard]] bool hasMessageBadge() const {
-		return !_messageBadge.isEmpty();
-	}
 	[[nodiscard]] bool hideEditedBadge() const {
 		return (_flags & MTPDmessage::Flag::f_edit_hide);
 	}
-
-	void applyGroupAdminChanges(
-		const base::flat_set<UserId> &changes) override;
 
 	void setViewsCount(int count) override;
 	void setForwardsCount(int count) override;
@@ -228,13 +219,10 @@ private:
 		CreateConfig &config,
 		const MTPDmessageFwdHeader &data);
 
-	void refreshMessageBadge();
 	[[nodiscard]] bool generateLocalEntitiesByReply() const;
 	[[nodiscard]] TextWithEntities withLocalEntities(
 		const TextWithEntities &textWithEntities) const;
 	void reapplyText();
-
-	Ui::Text::String _messageBadge;
 
 	QString _timeText;
 	int _timeWidth = 0;

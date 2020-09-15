@@ -1381,7 +1381,7 @@ QRect RepliesWidget::floatPlayerAvailableRect() {
 }
 
 Context RepliesWidget::listContext() {
-	return Context::History;
+	return Context::Replies;
 }
 
 void RepliesWidget::listScrollTo(int top) {

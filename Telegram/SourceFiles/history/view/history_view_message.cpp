@@ -236,6 +236,51 @@ not_null<HistoryMessage*> Message::message() const {
 	return static_cast<HistoryMessage*>(data().get());
 }
 
+void Message::refreshRightBadge() {
+	const auto text = [&] {
+		if (data()->isDiscussionPost()) {
+			return (delegate()->elementContext() == Context::Replies)
+				? QString()
+				: tr::lng_channel_badge(tr::now);
+		}
+		const auto channel = data()->history()->peer->asMegagroup();
+		const auto user = data()->author()->asUser();
+		if (!channel || !user) {
+			return QString();
+		}
+		const auto info = channel->mgInfo.get();
+		const auto i = channel->mgInfo->admins.find(peerToUser(user->id));
+		const auto custom = (i != channel->mgInfo->admins.end())
+			? i->second
+			: (info->creator == user)
+			? info->creatorRank
+			: QString();
+		return !custom.isEmpty()
+			? custom
+			: (info->creator == user)
+			? tr::lng_owner_badge(tr::now)
+			: (i != channel->mgInfo->admins.end())
+			? tr::lng_admin_badge(tr::now)
+			: QString();
+	}();
+	if (text.isEmpty()) {
+		_rightBadge.clear();
+	} else {
+		_rightBadge.setText(
+			st::defaultTextStyle,
+			TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text)));
+	}
+}
+
+void Message::applyGroupAdminChanges(
+		const base::flat_set<UserId> &changes) {
+	if (!data()->out()
+		&& changes.contains(peerToUser(data()->author()->id))) {
+		refreshRightBadge();
+		history()->owner().requestViewResize(this);
+	}
+}
+
 QSize Message::performCountOptimalSize() {
 	const auto item = message();
 	const auto media = this->media();
@@ -330,8 +375,8 @@ QSize Message::performCountOptimalSize() {
 				const auto replyWidth = hasFastReply()
 					? st::msgFont->width(FastReplyText())
 					: 0;
-				if (item->hasMessageBadge()) {
-					const auto badgeWidth = item->messageBadge().maxWidth();
+				if (!_rightBadge.isEmpty()) {
+					const auto badgeWidth = _rightBadge.maxWidth();
 					namew += st::msgPadding.right()
 						+ std::max(badgeWidth, replyWidth);
 				} else if (replyWidth) {
@@ -745,12 +790,7 @@ void Message::paintFromName(
 		bool selected) const {
 	const auto item = message();
 	if (displayFromName()) {
-		const auto badgeWidth = [&] {
-			if (item->hasMessageBadge()) {
-				return item->messageBadge().maxWidth();
-			}
-			return 0;
-		}();
+		const auto badgeWidth = _rightBadge.isEmpty() ? 0 : _rightBadge.maxWidth();
 		const auto replyWidth = [&] {
 			if (isUnderCursor() && displayFastReply()) {
 				return st::msgFont->width(FastReplyText());
@@ -808,7 +848,7 @@ void Message::paintFromName(
 					trect.top() + st::msgFont->ascent,
 					FastReplyText());
 			} else {
-				item->messageBadge().draw(
+				_rightBadge.draw(
 					p,
 					trect.left() + trect.width() - rightWidth,
 					trect.top(),
@@ -1066,7 +1106,8 @@ bool Message::hasFromPhoto() const {
 	case Context::AdminLog:
 	//case Context::Feed: // #feed
 		return true;
-	case Context::History: {
+	case Context::History:
+	case Context::Replies: {
 		const auto item = message();
 		if (item->isPost() || item->isEmpty()) {
 			return false;
@@ -1657,7 +1698,9 @@ void Message::drawInfo(
 		auto left = infoRight - infoW;
 		const auto iconTop = infoBottom + st::historyViewsTop;
 		const auto textTop = infoBottom - st::msgDateFont->descent;
-		if (views->replies.count > 0 && !views->commentsChannelId) {
+		if (views->replies.count > 0
+			&& !views->commentsChannelId
+			&& context() != Context::Replies) {
 			auto icon = [&] {
 				if (item->id > 0) {
 					if (outbg) {
@@ -1774,7 +1817,9 @@ int Message::infoWidth() const {
 				+ views->views.textWidth
 				+ st::historyViewsWidth;
 		}
-		if (views->replies.count > 0 && !views->commentsChannelId) {
+		if (views->replies.count > 0
+			&& !views->commentsChannelId
+			&& context() != Context::Replies) {
 			result += st::historyViewsSpace
 				+ views->replies.textWidth
 				+ st::historyViewsWidth;
@@ -1823,7 +1868,9 @@ int Message::timeLeft() const {
 		if (views->views.count >= 0) {
 			result += st::historyViewsSpace + views->views.textWidth + st::historyViewsWidth;
 		}
-		if (views->replies.count > 0 && !views->commentsChannelId) {
+		if (views->replies.count > 0
+			&& !views->commentsChannelId
+			&& context() != Context::Replies) {
 			result += st::historyViewsSpace + views->replies.textWidth + st::historyViewsWidth;
 		}
 	} else if (item->id < 0 && item->history()->peer->isSelf()) {
@@ -1882,7 +1929,8 @@ bool Message::hasFromName() const {
 	case Context::AdminLog:
 	//case Context::Feed: // #feed
 		return true;
-	case Context::History: {
+	case Context::History:
+	case Context::Replies: {
 		const auto item = message();
 		return (!hasOutLayout() || item->from()->isMegagroup())
 			&& (!item->history()->peer->isUser()
@@ -1951,7 +1999,11 @@ bool Message::hasBubble() const {
 }
 
 bool Message::hasFastReply() const {
-	if (context() != Context::History) {
+	if (context() == Context::Replies) {
+		if (data()->isDiscussionPost()) {
+			return false;
+		}
+	} else if (context() != Context::History) {
 		return false;
 	}
 	const auto peer = data()->history()->peer;
@@ -1997,7 +2049,8 @@ bool Message::displayGoToOriginal() const {
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		return forwarded->savedFromPeer
 			&& forwarded->savedFromMsgId
-			&& (!item->externalReply() || !hasBubble());
+			&& (!item->externalReply() || !hasBubble())
+			&& !(context() == Context::Replies);
 	}
 	return false;
 }
@@ -2123,8 +2176,8 @@ void Message::fromNameUpdated(int width) const {
 	const auto replyWidth = hasFastReply()
 		? st::msgFont->width(FastReplyText())
 		: 0;
-	if (item->hasMessageBadge()) {
-		const auto badgeWidth = item->messageBadge().maxWidth();
+	if (!_rightBadge.isEmpty()) {
+		const auto badgeWidth = _rightBadge.maxWidth();
 		width -= st::msgPadding.right() + std::max(badgeWidth, replyWidth);
 	} else if (replyWidth) {
 		width -= st::msgPadding.right() + replyWidth;
