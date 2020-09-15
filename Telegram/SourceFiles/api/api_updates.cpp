@@ -1919,6 +1919,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateReadDiscussion: {
+		const auto &d = update.c_updateReadDiscussion();
+		const auto peer = peerFromMTP(d.vpeer());
+		if (const auto item = session().data().message(peerToChannel(peer), d.vmsg_id().v)) {
+			item->setCommentsReadTill(d.vread_max_id().v);
+		}
+	} break;
+
 	case mtpc_updateChannelAvailableMessages: {
 		auto &d = update.c_updateChannelAvailableMessages();
 		if (const auto channel = session().data().channelLoaded(d.vchannel_id().v)) {
