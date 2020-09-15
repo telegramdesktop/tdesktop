@@ -205,6 +205,11 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	for (auto j = i - useAfter, e = i + useBefore; j != e; ++j) {
 		slice->ids.emplace_back(channelId, *j);
 	}
+	if (slice->skippedBefore == 0) {
+		if (const auto root = lookupRoot()) {
+			slice->ids.push_back(root->fullId());
+		}
+	}
 	ranges::reverse(slice->ids);
 
 	slice->fullCount = _fullCount.current();
