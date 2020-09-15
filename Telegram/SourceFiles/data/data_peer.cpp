@@ -818,10 +818,13 @@ bool PeerData::amAnonymous() const {
 }
 
 bool PeerData::canRevokeFullHistory() const {
-	return isUser()
-		&& !isSelf()
-		&& session().serverConfig().revokePrivateInbox
-		&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	if (const auto user = asUser()) {
+		return !isSelf()
+			&& (!user->isBot() || user->isSupport())
+			&& session().serverConfig().revokePrivateInbox
+			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	}
+	return false;
 }
 
 bool PeerData::slowmodeApplied() const {
