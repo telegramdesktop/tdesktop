@@ -29,6 +29,7 @@ struct RepliesList::Viewer {
 	MsgId around = 0;
 	int limitBefore = 0;
 	int limitAfter = 0;
+	base::has_weak_ptr guard;
 };
 
 RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
@@ -80,12 +81,12 @@ rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 		) | rpl::filter([=](const MessageUpdate &update) {
 			return applyUpdate(viewer, update);
 		}) | rpl::start_with_next([=] {
-			crl::on_main(this, push);
+			crl::on_main(&viewer->guard, push);
 		}, lifetime);
 
 		_partLoaded.events(
 		) | rpl::start_with_next([=] {
-			crl::on_main(this, push);
+			crl::on_main(&viewer->guard, push);
 		}, lifetime);
 
 		push();

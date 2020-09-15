@@ -606,6 +606,13 @@ void ListWidget::updateAroundPositionFromRows() {
 	}
 }
 
+Element *ListWidget::viewByPosition(Data::MessagePosition position) const {
+	const auto index = findNearestItem(position);
+	return (index < 0 || _items[index]->data()->position() != position)
+		? nullptr
+		: _items[index].get();
+}
+
 int ListWidget::findNearestItem(Data::MessagePosition position) const {
 	if (_items.empty()) {
 		return -1;

@@ -35,6 +35,8 @@ class ScrollArea;
 class PlainShadow;
 class FlatButton;
 class HistoryDownButton;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Profile {
@@ -151,6 +153,7 @@ private:
 	void setupComposeControls();
 
 	void setupRoot();
+	void setupRootView();
 	void setupCommentsRoot();
 	void refreshRootView();
 	void setupDragArea();
@@ -162,11 +165,13 @@ private:
 	void scrollDownAnimationFinish();
 	void updateScrollDownVisibility();
 	void updateScrollDownPosition();
+	void updatePinnedVisibility();
 
 	void confirmSendNowSelected();
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
 	void clearSelected();
+	void setPinnedVisibility(bool shown);
 
 	void send();
 	void send(Api::SendOptions options);
@@ -226,8 +231,6 @@ private:
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
-	void paintRoot(Painter &p);
-
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
 	HistoryItem *_root = nullptr;
@@ -243,8 +246,8 @@ private:
 
 	Ui::Text::String _rootTitle;
 	Ui::Text::String _rootMessage;
+	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
 	object_ptr<Ui::PlainShadow> _rootShadow;
-	int _rootHeight = 0;
 
 	std::vector<MsgId> _replyReturns;
 	HistoryItem *_replyReturn = nullptr;
@@ -259,6 +262,8 @@ private:
 	base::Timer _readRequestTimer;
 	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
+
+	bool _loaded = false;
 
 };
 

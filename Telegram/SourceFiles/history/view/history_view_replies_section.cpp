@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/send_context_menu.h" // SendMenu::Type.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text_options.h"
 #include "ui/toast/toast.h"
@@ -129,17 +130,20 @@ RepliesWidget::RepliesWidget(
 	this,
 	controller,
 	ComposeControls::Mode::Normal))
+, _rootView(this, object_ptr<Ui::RpWidget>(this))
 , _rootShadow(this)
 , _scrollDown(_scroll, st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	setupRoot();
+	setupRootView();
 
-	_rootHeight = st::historyReplyHeight;
 	_topBar->setActiveChat(_history, TopBarWidget::Section::Replies);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+
+	_rootView->move(0, _topBar->height());
 
 	_topBar->sendNowSelectionRequest(
 	) | rpl::start_with_next([=] {
@@ -167,7 +171,7 @@ RepliesWidget::RepliesWidget(
 		this,
 		controller,
 		static_cast<ListDelegate*>(this)));
-	_scroll->move(0, _topBar->height() + _rootHeight);
+	_scroll->move(0, _topBar->height());
 	_scroll->show();
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
@@ -195,6 +199,7 @@ RepliesWidget::RepliesWidget(
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		if (update.item == _root) {
 			_root = nullptr;
+			updatePinnedVisibility();
 		}
 		if (update.item == _commentsRoot) {
 			_commentsRoot = nullptr;
@@ -245,10 +250,66 @@ void RepliesWidget::setupRoot() {
 				_areComments = computeAreComments();
 				setupCommentsRoot();
 			}
+			updatePinnedVisibility();
 			refreshRootView();
 		});
 		_history->session().api().requestMessageData(channel, _rootId, done);
 	}
+}
+
+void RepliesWidget::setupRootView() {
+	const auto raw = _rootView->entity();
+	raw->resize(raw->width(), st::historyReplyHeight);
+	raw->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = Painter(_rootView->entity());
+		p.fillRect(clip, st::historyPinnedBg);
+
+		auto top = st::msgReplyPadding.top();
+		QRect rbar(myrtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height()));
+		p.fillRect(rbar, st::msgInReplyBarColor);
+
+		int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
+		if (!_rootTitle.isEmpty()) {
+			const auto media = _root ? _root->media() : nullptr;
+			if (media && media->hasReplyPreview()) {
+				if (const auto image = media->replyPreview()) {
+					QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+					p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+				}
+				left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
+			}
+			p.setPen(st::historyReplyNameFg);
+			p.setFont(st::msgServiceNameFont);
+			const auto poll = media ? media->poll() : nullptr;
+			const auto pinnedHeader = !poll
+				? tr::lng_pinned_message(tr::now)
+				: poll->quiz()
+				? tr::lng_pinned_quiz(tr::now)
+				: tr::lng_pinned_poll(tr::now);
+			_rootTitle.drawElided(p, left, top, width() - left - st::msgReplyPadding.right());
+
+			p.setPen(st::historyComposeAreaFg);
+			p.setTextPalette(st::historyComposeAreaPalette);
+			_rootMessage.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - st::msgReplyPadding.right());
+			p.restoreTextPalette();
+		} else {
+			p.setFont(st::msgDateFont);
+			p.setPen(st::historyComposeAreaFgService);
+			p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - st::msgReplyPadding.right()));
+		}
+	}, raw->lifetime());
+
+	_rootView->geometryValue(
+	) | rpl::start_with_next([=](QRect rect) {
+		_rootShadow->moveToLeft(
+			_rootShadow->x(),
+			rect.y() + rect.height());
+	}, _rootView->lifetime());
+
+	_rootShadow->showOn(_rootView->shownValue());
+
+	_rootView->hide(anim::type::instant);
 }
 
 void RepliesWidget::setupCommentsRoot() {
@@ -1105,7 +1166,7 @@ void RepliesWidget::updateAdaptiveLayout() {
 		_topBar->height());
 	_rootShadow->moveToLeft(
 		Adaptive::OneColumn() ? 0 : st::lineWidth,
-		_topBar->height() + _rootHeight);
+		_rootShadow->y());
 }
 
 not_null<History*> RepliesWidget::history() const {
@@ -1210,6 +1271,12 @@ void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	const auto setReplies = [&](std::shared_ptr<Data::RepliesList> replies) {
 		_replies = std::move(replies);
+		_replies->fullCount(
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			_loaded = true;
+			updatePinnedVisibility();
+		}, lifetime());
+
 		_topBar->setCustomTitle(tr::lng_manage_discussion_group(tr::now));
 	};
 	if (auto replies = memento->getReplies()) {
@@ -1238,10 +1305,11 @@ void RepliesWidget::updateControlsGeometry() {
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 	_rootShadow->resize(contentWidth, st::lineWidth);
+	_rootView->resizeToWidth(contentWidth);
 
 	const auto bottom = height();
 	const auto controlsHeight = _composeControls->heightCurrent();
-	const auto scrollHeight = bottom - _topBar->height() - _rootHeight - controlsHeight;
+	const auto scrollHeight = bottom - _topBar->height() - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -1268,52 +1336,10 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	const auto aboveHeight = _topBar->height() + _rootHeight;
+	const auto aboveHeight = _topBar->height();
 	const auto bg = e->rect().intersected(
 		QRect(0, aboveHeight, width(), height() - aboveHeight));
 	SectionWidget::PaintBackground(controller(), this, bg);
-
-	auto p = Painter(this);
-	paintRoot(p);
-}
-
-void RepliesWidget::paintRoot(Painter &p) {
-	auto top = _topBar->bottomNoMargins();
-	p.fillRect(myrtlrect(0, top, width(), st::historyReplyHeight), st::historyPinnedBg);
-
-	top += st::msgReplyPadding.top();
-	QRect rbar(myrtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height()));
-	p.fillRect(rbar, st::msgInReplyBarColor);
-
-	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
-	if (!_rootTitle.isEmpty()) {
-		const auto media = _root ? _root->media() : nullptr;
-		if (media && media->hasReplyPreview()) {
-			if (const auto image = media->replyPreview()) {
-				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
-			}
-			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
-		}
-		p.setPen(st::historyReplyNameFg);
-		p.setFont(st::msgServiceNameFont);
-		const auto poll = media ? media->poll() : nullptr;
-		const auto pinnedHeader = !poll
-			? tr::lng_pinned_message(tr::now)
-			: poll->quiz()
-			? tr::lng_pinned_quiz(tr::now)
-			: tr::lng_pinned_poll(tr::now);
-		_rootTitle.drawElided(p, left, top, width() - left - st::msgReplyPadding.right());
-
-		p.setPen(st::historyComposeAreaFg);
-		p.setTextPalette(st::historyComposeAreaPalette);
-		_rootMessage.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - st::msgReplyPadding.right());
-		p.restoreTextPalette();
-	} else {
-		p.setFont(st::msgDateFont);
-		p.setPen(st::historyComposeAreaFgService);
-		p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - st::msgReplyPadding.right()));
-	}
 }
 
 void RepliesWidget::onScroll() {
@@ -1329,7 +1355,26 @@ void RepliesWidget::updateInnerVisibleArea() {
 	}
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	updatePinnedVisibility();
 	updateScrollDownVisibility();
+}
+
+void RepliesWidget::updatePinnedVisibility() {
+	if (!_loaded) {
+		return;
+	} else if (!_root) {
+		setPinnedVisibility(true);
+		return;
+	}
+	const auto view = _inner->viewByPosition(_root->position());
+	setPinnedVisibility(!view
+		|| (view->y() + view->height() <= _scroll->scrollTop()));
+}
+
+void RepliesWidget::setPinnedVisibility(bool shown) {
+	if (!animating()) {
+		_rootView->toggle(shown, anim::type::normal);
+	}
 }
 
 void RepliesWidget::showAnimatedHook(
@@ -1349,6 +1394,7 @@ void RepliesWidget::showFinishedHook() {
 	// the section animation is finished,
 	// because after that the method showChildren() is called.
 	setupDragArea();
+	updatePinnedVisibility();
 }
 
 bool RepliesWidget::floatPlayerHandleWheelEvent(QEvent *e) {
