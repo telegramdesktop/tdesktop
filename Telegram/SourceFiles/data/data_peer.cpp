@@ -475,6 +475,9 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 }
 
 bool PeerData::canExportChatHistory() const {
+	if (isRepliesChat()) {
+		return false;
+	}
 	if (const auto channel = asChannel()) {
 		if (!channel->amIn() && channel->invitePeekExpires()) {
 			return false;
@@ -844,7 +847,9 @@ int PeerData::slowmodeSecondsLeft() const {
 
 bool PeerData::canSendPolls() const {
 	if (const auto user = asUser()) {
-		return user->isBot() && !user->isSupport();
+		return user->isBot()
+			&& !user->isRepliesChat()
+			&& !user->isSupport();
 	} else if (const auto chat = asChat()) {
 		return chat->canSendPolls();
 	} else if (const auto channel = asChannel()) {

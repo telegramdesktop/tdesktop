@@ -253,7 +253,9 @@ Filler::Filler(
 }
 
 bool Filler::showInfo() {
-	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
+	if (_source == PeerMenuSource::Profile
+		|| _peer->isSelf()
+		|| _peer->isRepliesChat()) {
 		return false;
 	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
@@ -479,7 +481,9 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				tr::lng_info_delete_contact(tr::now),
 				[=] { PeerMenuDeleteContact(user); });
 		}
-		if (user->isBot() && !user->botInfo->cantJoinGroups) {
+		if (user->isBot()
+			&& !user->isRepliesChat()
+			&& !user->botInfo->cantJoinGroups) {
 			using AddBotToGroup = AddBotToGroupBoxController;
 			_addAction(
 				tr::lng_profile_invite_to_group(tr::now),
@@ -500,6 +504,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		ClearHistoryHandler(user));
 	if (!user->isInaccessible()
 		&& user != user->session().user()
+		&& !user->isRepliesChat()
 		&& _source != PeerMenuSource::ChatsList) {
 		addBlockUser(user);
 	}
