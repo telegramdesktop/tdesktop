@@ -218,11 +218,13 @@ RepliesWidget::~RepliesWidget() {
 
 void RepliesWidget::sendReadTillRequest() {
 	if (!_commentsRoot) {
+		_readRequestPending = true;
 		return;
 	}
 	if (_readRequestTimer.isActive()) {
 		_readRequestTimer.cancel();
 	}
+	_readRequestPending = false;
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
@@ -258,14 +260,18 @@ void RepliesWidget::setupCommentsRoot() {
 	if (!postChannel) {
 		return;
 	} else if (_commentsRoot) {
-		sendReadTillRequest();
+		if (_readRequestTimer.isActive() || _readRequestPending) {
+			sendReadTillRequest();
+		}
 	} else {
 		const auto forwarded = _root->Get<HistoryMessageForwarded>();
 		const auto messageId = forwarded->savedFromMsgId;
 		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
 			_commentsRoot = lookupCommentsRoot();
 			if (_commentsRoot) {
-				sendReadTillRequest();
+				if (_readRequestTimer.isActive() || _readRequestPending) {
+					sendReadTillRequest();
+				}
 			}
 		});
 		_history->session().api().requestMessageData(

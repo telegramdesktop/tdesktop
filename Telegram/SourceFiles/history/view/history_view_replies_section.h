@@ -257,6 +257,7 @@ private:
 	bool _choosingAttach = false;
 
 	base::Timer _readRequestTimer;
+	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
 
 };
