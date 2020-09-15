@@ -206,11 +206,12 @@ jobs:
           cd openal-soft
           git checkout fix_capture
           cd build
-          cmake ^
+          cmake .. ^
           -G "Visual Studio 16 2019" ^
           -A Win32 ^
           -D LIBTYPE:STRING=STATIC ^
-          -D FORCE_STATIC_VCRT:STRING=ON ..
+          -D FORCE_STATIC_VCRT=ON ^
+          -D ALSOFT_BACKEND_WASAPI=OFF
 
           msbuild -m OpenAL.vcxproj /property:Configuration=Debug
 
