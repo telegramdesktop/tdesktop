@@ -1212,26 +1212,7 @@ void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	const auto setReplies = [&](std::shared_ptr<Data::RepliesList> replies) {
 		_replies = std::move(replies);
-
-		rpl::single(
-			tr::lng_contacts_loading()
-		) | rpl::then(rpl::combine(
-			_replies->fullCount(),
-			_areComments.value()
-		) | rpl::map([=](int count, bool areComments) {
-			return count
-				? (areComments
-					? tr::lng_comments_header
-					: tr::lng_replies_header)(
-						lt_count,
-						rpl::single(count) | tr::to_count())
-				: (areComments
-					? tr::lng_comments_header_none
-					: tr::lng_replies_header_none)();
-		})) | rpl::flatten_latest(
-		) | rpl::start_with_next([=](const QString &text) {
-			_topBar->setCustomTitle(text);
-		}, lifetime());
+		_topBar->setCustomTitle(tr::lng_manage_discussion_group(tr::now));
 	};
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));
@@ -1447,15 +1428,19 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-void RepliesWidget::readTill(MsgId tillId) {
+void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	if (!_commentsRoot) {
 		return;
 	}
-	const auto now = _commentsRoot->commentsReadTill();
-	if (now < tillId) {
-		_commentsRoot->setCommentsReadTill(tillId);
+	const auto was = _commentsRoot->commentsReadTill();
+	const auto now = item->id;
+	const auto fast = item->out();
+	if (was < now) {
+		_commentsRoot->setCommentsReadTill(now);
 		if (!_readRequestTimer.isActive()) {
-			_readRequestTimer.callOnce(kReadRequestTimeout);
+			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
+		} else if (fast && _readRequestTimer.remainingTime() > 0) {
+			_readRequestTimer.callOnce(0);
 		}
 	}
 }
@@ -1466,31 +1451,66 @@ void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 		return IsServerMsgId(item->id);
 	});
 	if (good != end(reversed)) {
-		readTill((*good)->id);
+		readTill(*good);
 	}
 }
 
-std::optional<int> RepliesWidget::listUnreadBarView(
+MessagesBarData RepliesWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	if (!_commentsRoot) {
-		return std::nullopt;
+	if (!_commentsRoot || elements.empty()) {
+		return MessagesBarData();
 	}
+	const auto rootBar = [&] {
+		const auto fromRoot = (elements.front()->data().get() == _root);
+		if (elements.size() < 2 || !fromRoot) {
+			return MessagesBarData();
+		}
+		auto text = rpl::combine(
+			_replies->fullCount(),
+			_areComments.value()
+		) | rpl::map([=](int count, bool areComments) {
+			return count
+				? (areComments
+					? tr::lng_comments_header
+					: tr::lng_replies_header)(
+						lt_count,
+						rpl::single(count) | tr::to_count())
+				: (areComments
+					? tr::lng_comments_header_none
+					: tr::lng_replies_header_none)();
+		}) | rpl::flatten_latest();
+
+		return MessagesBarData{
+			// Designated initializers here crash MSVC 16.7.3.
+			MessagesBar{
+				.element = elements[1],
+				.focus = false,
+			},
+			std::move(text),
+		};
+	};
 	const auto till = _commentsRoot->commentsReadTill();
 	if (till < 2) {
-		return std::nullopt;
+		return rootBar();
 	}
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
-		if (item->id > till) {
+		if (IsServerMsgId(item->id) && item->id > till) {
 			if (item->out()) {
-				_commentsRoot->setCommentsReadTill(item->id);
-				_readRequestTimer.callOnce(kReadRequestTimeout);
+				readTill(item);
 			} else {
-				return i;
+				return MessagesBarData{
+					// Designated initializers here crash MSVC 16.7.3.
+					MessagesBar{
+						.element = elements[i],
+						.focus = true,
+					},
+					tr::lng_unread_bar_some(),
+				};
 			}
 		}
 	}
-	return std::nullopt;
+	return rootBar();
 }
 
 void RepliesWidget::listContentRefreshed() {

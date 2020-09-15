@@ -118,7 +118,7 @@ TextSelection ShiftItemSelection(
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
 struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
-	void init();
+	void init(const QString &string);
 
 	static int height();
 	static int marginTop();
@@ -127,6 +127,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 	QString text;
 	int width = 0;
+	rpl::lifetime lifetime;
 
 };
 
@@ -206,7 +207,7 @@ public:
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 
-	void createUnreadBar();
+	void createUnreadBar(rpl::producer<QString> text);
 	void destroyUnreadBar();
 
 	int displayedDateHeight() const;

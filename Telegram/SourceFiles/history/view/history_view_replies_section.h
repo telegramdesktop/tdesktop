@@ -116,7 +116,7 @@ public:
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
 	void listVisibleItemsChanged(HistoryItemsList &&items) override;
-	std::optional<int> listUnreadBarView(
+	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
@@ -155,7 +155,7 @@ private:
 	void refreshRootView();
 	void setupDragArea();
 	void sendReadTillRequest();
-	void readTill(MsgId id);
+	void readTill(not_null<HistoryItem*> item);
 
 	void setupScrollDownButton();
 	void scrollDownClicked();

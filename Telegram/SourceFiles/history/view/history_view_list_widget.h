@@ -48,7 +48,16 @@ struct SelectedItem {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canSendNow = false;
+};
 
+struct MessagesBar {
+	Element *element = nullptr;
+	bool focus = false;
+};
+
+struct MessagesBarData {
+	MessagesBar bar;
+	rpl::producer<QString> text;
 };
 
 using SelectedItems = std::vector<SelectedItem>;
@@ -70,7 +79,7 @@ public:
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
 	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
-	virtual std::optional<int> listUnreadBarView(
+	virtual MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
@@ -493,7 +502,8 @@ private:
 	ClickHandlerPtr _scrollDateLink;
 	SingleQueuedInvokation _applyUpdatedScrollState;
 
-	Element *_unreadBarElement = nullptr;
+	MessagesBar _bar;
+	rpl::variable<QString> _barText;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

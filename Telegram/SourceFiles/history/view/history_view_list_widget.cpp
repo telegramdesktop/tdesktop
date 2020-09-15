@@ -394,13 +394,23 @@ void ListWidget::animatedScrollTo(
 		_delegate->listScrollTo(scrollTop);
 		return;
 	}
+	const auto transition = (type == AnimatedScroll::Full)
+		? anim::sineInOut
+		: anim::easeOutCubic;
+	if (delta > 0 && scrollTop == height() - (_visibleBottom - _visibleTop)) {
+		// Animated scroll to bottom.
+		_scrollToAnimation.start(
+			[=] { scrollToAnimationCallback(FullMsgId(), 0); },
+			-delta,
+			0,
+			st::slideDuration,
+			transition);
+		return;
+	}
 	const auto index = findNearestItem(attachPosition);
 	Assert(index >= 0 && index < int(_items.size()));
 	const auto attachTo = _items[index];
 	const auto attachToId = attachTo->data()->fullId();
-	const auto transition = (type == AnimatedScroll::Full)
-		? anim::sineInOut
-		: anim::easeOutCubic;
 	const auto initial = scrollTop - delta;
 	_delegate->listScrollTo(initial);
 
@@ -422,6 +432,14 @@ bool ListWidget::animatedScrolling() const {
 void ListWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
+	if (!attachToId) {
+		// Animated scroll to bottom.
+		const auto current = int(std::round(_scrollToAnimation.value(0)));
+		_delegate->listScrollTo(height()
+			- (_visibleBottom - _visibleTop)
+			+ current);
+		return;
+	}
 	const auto attachTo = session().data().message(attachToId);
 	const auto attachToView = viewForItem(attachTo);
 	if (!attachToView) {
@@ -483,11 +501,14 @@ void ListWidget::updateHighlightedMessage() {
 }
 
 void ListWidget::checkUnreadBarCreation() {
-	if (!_unreadBarElement) {
-		if (const auto index = _delegate->listUnreadBarView(_items)) {
-			_unreadBarElement = _items[*index].get();
-			_unreadBarElement->createUnreadBar();
-			refreshAttachmentsAtIndex(*index);
+	if (!_bar.element) {
+		if (auto data = _delegate->listMessagesBar(_items); data.bar.element) {
+			_bar = std::move(data.bar);
+			_barText = std::move(data.text);
+			_bar.element->createUnreadBar(_barText.value());
+			const auto i = ranges::find(_items, not_null{ _bar.element });
+			Assert(i != end(_items));
+			refreshAttachmentsAtIndex(i - begin(_items));
 		}
 	}
 }
@@ -507,10 +528,10 @@ void ListWidget::restoreScrollState() {
 		return;
 	}
 	if (!_scrollTopState.item) {
-		if (!_unreadBarElement) {
+		if (!_bar.element || !_bar.focus) {
 			return;
 		}
-		_scrollTopState.item = _unreadBarElement->data()->position();
+		_scrollTopState.item = _bar.element->data()->position();
 		_scrollTopState.shift = st::lineWidth + st::historyUnreadBarMargin;
 	}
 	const auto index = findNearestItem(_scrollTopState.item);
@@ -2605,11 +2626,11 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_visibleTopItem == was) _visibleTopItem = now;
 	if (_scrollDateLastItem == was) _scrollDateLastItem = now;
 	if (_overElement == was) _overElement = now;
-	if (_unreadBarElement == was) {
-		const auto bar = _unreadBarElement->Get<UnreadBar>();
-		_unreadBarElement = now;
+	if (_bar.element == was.get()) {
+		const auto bar = _bar.element->Get<UnreadBar>();
+		_bar.element = now;
 		if (now && bar) {
-			_unreadBarElement->createUnreadBar();
+			_bar.element->createUnreadBar(_barText.value());
 		}
 	}
 }

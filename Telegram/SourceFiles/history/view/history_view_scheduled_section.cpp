@@ -1134,9 +1134,9 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 void ScheduledWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 }
 
-std::optional<int> ScheduledWidget::listUnreadBarView(
+MessagesBarData ScheduledWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	return std::nullopt;
+	return MessagesBarData();
 }
 
 void ScheduledWidget::listContentRefreshed() {

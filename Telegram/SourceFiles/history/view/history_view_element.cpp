@@ -144,8 +144,8 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
-void UnreadBar::init() {
-	text = tr::lng_unread_bar_some(tr::now);
+void UnreadBar::init(const QString &string) {
+	text = string;
 	width = st::semiboldFont->width(text);
 }
 
@@ -440,12 +440,18 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	return false;
 }
 
-void Element::createUnreadBar() {
+void Element::createUnreadBar(rpl::producer<QString> text) {
 	if (!AddComponents(UnreadBar::Bit())) {
 		return;
 	}
 	const auto bar = Get<UnreadBar>();
-	bar->init();
+	std::move(
+		text
+	) | rpl::start_with_next([=](const QString &text) {
+		if (const auto bar = Get<UnreadBar>()) {
+			bar->init(text);
+		}
+	}, bar->lifetime);
 	if (data()->mainView() == this) {
 		recountAttachToPreviousInBlocks();
 	}

@@ -2104,7 +2104,7 @@ void History::addUnreadBar() {
 	}
 	if (const auto count = chatListUnreadCount()) {
 		_unreadBarView = _firstUnreadView;
-		_unreadBarView->createUnreadBar();
+		_unreadBarView->createUnreadBar(tr::lng_unread_bar_some());
 	}
 }
 
