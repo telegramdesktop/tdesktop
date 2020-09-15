@@ -147,9 +147,12 @@ void SessionNavigation::showRepliesForMessage(
 				const auto post = _session->data().message(channelId, rootId);
 				if (post) {
 					post->setCommentsItemId(item->fullId());
-				}
-				if (const auto readTill = data.vread_max_id()) {
-					item->setRepliesReadTill(readTill->v);
+					if (const auto maxId = data.vmax_id()) {
+						post->setCommentsMaxId(maxId->v);
+					}
+					if (const auto readTill = data.vread_max_id()) {
+						post->setCommentsReadTill(readTill->v);
+					}
 				}
 				showSection(
 					HistoryView::RepliesMemento(item));

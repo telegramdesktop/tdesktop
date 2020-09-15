@@ -136,8 +136,6 @@ public:
 	void setForwardsCount(int count) override;
 	void setReplies(const MTPMessageReplies &data) override;
 	void changeRepliesCount(int delta, PeerId replier) override;
-	void setRepliesReadTill(MsgId readTillId) override;
-	MsgId repliesReadTill() const override;
 	void setReplyToTop(MsgId replyToTop) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;
@@ -173,6 +171,11 @@ public:
 	[[nodiscard]] bool externalReply() const override;
 	[[nodiscard]] FullMsgId commentsItemId() const override;
 	void setCommentsItemId(FullMsgId id) override;
+	[[nodiscard]] MsgId commentsReadTill() const override;
+	void setCommentsReadTill(MsgId readTillId) override;
+	void setCommentsMaxId(MsgId maxId) override;
+	void setCommentsPossibleMaxId(MsgId possibleMaxId) override;
+	[[nodiscard]] bool areCommentsUnread() const override;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();

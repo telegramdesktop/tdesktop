@@ -814,6 +814,58 @@ void HistoryMessage::setCommentsItemId(FullMsgId id) {
 	}
 }
 
+MsgId HistoryMessage::commentsReadTill() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return views->commentsReadTillId;
+	}
+	return 0;
+}
+
+void HistoryMessage::setCommentsReadTill(MsgId readTillId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		const auto newReadTillId = std::max(readTillId, 1);
+		if (newReadTillId > views->commentsReadTillId) {
+			const auto wasUnread = areCommentsUnread();
+			views->commentsReadTillId = newReadTillId;
+			if (wasUnread && !areCommentsUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+void HistoryMessage::setCommentsMaxId(MsgId maxId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->commentsMaxId != maxId) {
+			const auto wasUnread = areCommentsUnread();
+			views->commentsMaxId = maxId;
+			if (wasUnread != areCommentsUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+void HistoryMessage::setCommentsPossibleMaxId(MsgId possibleMaxId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->commentsMaxId < possibleMaxId) {
+			const auto wasUnread = areCommentsUnread();
+			views->commentsMaxId = possibleMaxId;
+			if (!wasUnread && areCommentsUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+bool HistoryMessage::areCommentsUnread() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return (views->commentsReadTillId > 1)
+			&& (views->commentsMaxId > views->commentsReadTillId);
+	}
+	return false;
+}
+
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto documentId = reply->replyToDocumentId;
@@ -1531,6 +1583,17 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 			views->recentRepliers = repliers;
 		}
 		views->commentsChannelId = channelId;
+		const auto wasUnread = areCommentsUnread();
+		if (const auto till = data.vread_max_id()) {
+			views->commentsReadTillId = std::max(
+				{ views->commentsReadTillId, till->v, 1 });
+		}
+		if (const auto maxId = data.vmax_id()) {
+			views->commentsMaxId = maxId->v;
+		}
+		if (wasUnread != areCommentsUnread()) {
+			history()->owner().requestItemRepaint(this);
+		}
 		refreshRepliesText(views, channelChanged);
 	});
 }
@@ -1583,22 +1646,6 @@ void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
 		}
 	}
 	refreshRepliesText(views);
-}
-
-void HistoryMessage::setRepliesReadTill(MsgId readTillId) {
-	auto views = Get<HistoryMessageViews>();
-	if (!views) {
-		AddComponents(HistoryMessageViews::Bit());
-		views = Get<HistoryMessageViews>();
-	}
-	views->repliesReadTillId = std::max(readTillId, 1);
-}
-
-MsgId HistoryMessage::repliesReadTill() const {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		return views->repliesReadTillId;
-	}
-	return 0;
 }
 
 void HistoryMessage::setReplyToTop(MsgId replyToTop) {
@@ -1662,15 +1709,8 @@ void HistoryMessage::changeReplyToTopCounter(
 		}
 	}
 	changeFor(top);
-	if (const auto sender = top->discussionPostOriginalSender()) {
-		if (const auto forwarded = top->Get<HistoryMessageForwarded>()) {
-			const auto id = FullMsgId(
-				sender->bareId(),
-				forwarded->savedFromMsgId);
-			if (const auto original = history()->owner().message(id)) {
-				changeFor(original);
-			}
-		}
+	if (const auto original = top->lookupDiscussionPostOriginal()) {
+		changeFor(original);
 	}
 }
 

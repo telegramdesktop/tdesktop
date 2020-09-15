@@ -206,6 +206,18 @@ public:
 	}
 	virtual void setCommentsItemId(FullMsgId id) {
 	}
+	[[nodiscard]] virtual MsgId commentsReadTill() const {
+		return MsgId(0);
+	}
+	virtual void setCommentsReadTill(MsgId readTillId) {
+	}
+	virtual void setCommentsMaxId(MsgId maxId) {
+	}
+	virtual void setCommentsPossibleMaxId(MsgId possibleMaxId) {
+	}
+	[[nodiscard]] virtual bool areCommentsUnread() const {
+		return false;
+	}
 
 	[[nodiscard]] virtual bool needCheck() const;
 
@@ -266,11 +278,6 @@ public:
 	virtual void setReplies(const MTPMessageReplies &data) {
 	}
 	virtual void changeRepliesCount(int delta, PeerId replier) {
-	}
-	virtual void setRepliesReadTill(MsgId readTillId) {
-	}
-	[[nodiscard]] virtual MsgId repliesReadTill() const {
-		return MsgId(0);
 	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}
@@ -356,6 +363,7 @@ public:
 
 	[[nodiscard]] ChannelData *discussionPostOriginalSender() const;
 	[[nodiscard]] bool isDiscussionPost() const;
+	[[nodiscard]] HistoryItem *lookupDiscussionPostOriginal() const;
 	[[nodiscard]] PeerData *displayFrom() const;
 
 	[[nodiscard]] virtual std::unique_ptr<HistoryView::Element> createView(

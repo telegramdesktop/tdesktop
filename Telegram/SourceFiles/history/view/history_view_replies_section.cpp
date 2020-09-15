@@ -84,11 +84,13 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 
 RepliesMemento::RepliesMemento(not_null<HistoryItem*> commentsItem)
 : RepliesMemento(commentsItem->history(), commentsItem->id) {
-	if (commentsItem->repliesReadTill() == MsgId(1)) {
-		_list.setAroundPosition(Data::MinMessagePosition);
-		_list.setScrollTopState(ListMemento::ScrollTopState{
-			Data::MinMessagePosition
-		});
+	if (const auto original = commentsItem->lookupDiscussionPostOriginal()) {
+		if (original->commentsReadTill() == MsgId(1)) {
+			_list.setAroundPosition(Data::MinMessagePosition);
+			_list.setScrollTopState(ListMemento::ScrollTopState{
+				Data::MinMessagePosition
+			});
+		}
 	}
 }
 
@@ -215,7 +217,7 @@ RepliesWidget::~RepliesWidget() {
 }
 
 void RepliesWidget::sendReadTillRequest() {
-	if (!_commentsRoot || !_root) {
+	if (!_commentsRoot) {
 		return;
 	}
 	if (_readRequestTimer.isActive()) {
@@ -226,9 +228,8 @@ void RepliesWidget::sendReadTillRequest() {
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_commentsRoot->history()->peer->input,
 		MTP_int(_commentsRoot->id),
-		MTP_int(_root->repliesReadTill())
+		MTP_int(_commentsRoot->commentsReadTill())
 	)).done([=](const MTPBool &) {
-
 	}).send();
 }
 
@@ -307,14 +308,9 @@ HistoryItem *RepliesWidget::lookupRoot() const {
 }
 
 HistoryItem *RepliesWidget::lookupCommentsRoot() const {
-	if (!computeAreComments()) {
-		return nullptr;
-	}
-	const auto forwarded = _root->Get<HistoryMessageForwarded>();
-	Assert(forwarded != nullptr);
-	return _history->owner().message(
-		forwarded->savedFromPeer->asChannel(),
-		forwarded->savedFromMsgId);
+	return _root
+		? _root->lookupDiscussionPostOriginal()
+		: nullptr;
 }
 
 bool RepliesWidget::computeAreComments() const {
@@ -1446,12 +1442,12 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void RepliesWidget::readTill(MsgId tillId) {
-	if (!_root) {
+	if (!_commentsRoot) {
 		return;
 	}
-	const auto now = _root->repliesReadTill();
+	const auto now = _commentsRoot->commentsReadTill();
 	if (now < tillId) {
-		_root->setRepliesReadTill(tillId);
+		_commentsRoot->setCommentsReadTill(tillId);
 		if (!_readRequestTimer.isActive()) {
 			_readRequestTimer.callOnce(kReadRequestTimeout);
 		}
@@ -1470,10 +1466,10 @@ void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 
 std::optional<int> RepliesWidget::listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) {
-	if (!_root) {
+	if (!_commentsRoot) {
 		return std::nullopt;
 	}
-	const auto till = _root->repliesReadTill();
+	const auto till = _commentsRoot->commentsReadTill();
 	if (till < 2) {
 		return std::nullopt;
 	}
@@ -1481,7 +1477,7 @@ std::optional<int> RepliesWidget::listUnreadBarView(
 		const auto item = elements[i]->data();
 		if (item->id > till) {
 			if (item->out()) {
-				_root->setRepliesReadTill(item->id);
+				_commentsRoot->setCommentsReadTill(item->id);
 				_readRequestTimer.callOnce(kReadRequestTimeout);
 			} else {
 				return i;

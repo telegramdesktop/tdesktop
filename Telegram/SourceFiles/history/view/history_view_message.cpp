@@ -373,7 +373,9 @@ QSize Message::performCountOptimalSize() {
 				+ st::historyCommentsSkipRight
 				+ st::historyCommentsSkipText
 				+ st::historyCommentsOpenOutSelected.width()
-				+ st::historyCommentsSkipRight;
+				+ st::historyCommentsSkipRight
+				+ st::mediaUnreadSkip
+				+ st::mediaUnreadSize;
 			accumulate_max(maxWidth, added + views->replies.textWidth);
 		} else if (item->externalReply()) {
 			const auto added = st::historyCommentsIn.width()
@@ -718,12 +720,23 @@ void Message::paintCommentsButton(
 	p.setPen(outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg));
 	p.setFont(st::semiboldFont);
 
+	const auto textTop = top + (st::historyCommentsButtonHeight - st::semiboldFont->height) / 2;
 	p.drawTextLeft(
 		left,
-		top + (st::historyCommentsButtonHeight - st::semiboldFont->height) / 2,
+		textTop,
 		width,
 		views ? views->replies.text : tr::lng_replies_view_original(tr::now),
 		views ? views->replies.textWidth : -1);
+
+	if (views && data()->areCommentsUnread()) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
+
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(style::rtlrect(left + views->replies.textWidth + st::mediaUnreadSkip, textTop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, width));
+		}
+	}
 }
 
 void Message::paintFromName(

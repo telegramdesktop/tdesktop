@@ -256,6 +256,21 @@ bool HistoryItem::isDiscussionPost() const {
 	return (discussionPostOriginalSender() != nullptr);
 }
 
+HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
+	if (!history()->peer->isMegagroup()) {
+		return nullptr;
+	}
+	const auto forwarded = Get<HistoryMessageForwarded>();
+	if (!forwarded
+		|| !forwarded->savedFromPeer
+		|| !forwarded->savedFromMsgId) {
+		return nullptr;
+	}
+	return _history->owner().message(
+		forwarded->savedFromPeer->asChannel(),
+		forwarded->savedFromMsgId);
+}
+
 PeerData *HistoryItem::displayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;

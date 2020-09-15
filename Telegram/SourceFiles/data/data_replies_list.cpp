@@ -169,7 +169,9 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		if (viewer->around != ShowAtUnreadMsgId) {
 			return viewer->around;
 		} else if (const auto item = lookupRoot()) {
-			return item->repliesReadTill();
+			if (const auto original = item->lookupDiscussionPostOriginal()) {
+				return original->commentsReadTill();
+			}
 		}
 		return viewer->around;
 	}();
@@ -439,9 +441,9 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		return true;
 	}
 
-	const auto id = IdFromMessage(list.front());
+	const auto maxId = IdFromMessage(list.front());
 	const auto wasSize = int(_list.size());
-	const auto toFront = (wasSize > 0) && (id > _list.front());
+	const auto toFront = (wasSize > 0) && (maxId > _list.front());
 	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto type = NewMessageType::Existing;
 	auto refreshed = std::vector<MsgId>();
@@ -488,6 +490,17 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		_skippedBefore = checkedCount - *_skippedAfter - nowSize;
 	}
 	_fullCount = checkedCount;
+
+	if (const auto item = lookupRoot()) {
+		if (const auto original = item->lookupDiscussionPostOriginal()) {
+			if (_skippedAfter == 0) {
+				original->setCommentsMaxId(_list.front());
+			} else {
+				original->setCommentsPossibleMaxId(maxId);
+			}
+		}
+	}
+
 	return false;
 }
 
