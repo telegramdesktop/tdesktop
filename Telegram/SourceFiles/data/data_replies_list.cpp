@@ -162,9 +162,18 @@ void RepliesList::injectRootMessage(not_null<MessagesSlice*> slice) {
 		return;
 	}
 	if (const auto root = lookupRoot()) {
-		slice->ids.push_back(root->fullId());
-		if (slice->fullCount) {
-			++*slice->fullCount;
+		if (const auto group = _history->owner().groups().find(root)) {
+			for (const auto item : group->items) {
+				slice->ids.push_back(item->fullId());
+			}
+			if (slice->fullCount) {
+				*slice->fullCount += group->items.size();
+			}
+		} else {
+			slice->ids.push_back(root->fullId());
+			if (slice->fullCount) {
+				++*slice->fullCount;
+			}
 		}
 	}
 }
