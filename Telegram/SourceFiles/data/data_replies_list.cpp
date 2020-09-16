@@ -9,18 +9,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_service.h"
 #include "main/main_session.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_messages.h"
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
 
 namespace Data {
 namespace {
 
 constexpr auto kMessagesPerPage = 50;
+
+[[nodiscard]] HistoryService *GenerateDivider(
+		not_null<History*> history,
+		TimeId date,
+		const QString &text) {
+	return history->makeServiceMessage(
+		history->session().data().nextNonHistoryEntryId(),
+		MTPDmessage_ClientFlag::f_fake_history_item,
+		date,
+		HistoryService::PreparedText{ text });
+}
 
 } // namespace
 
@@ -40,6 +53,9 @@ RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 RepliesList::~RepliesList() {
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
+	if (_divider) {
+		_divider->destroy();
+	}
 }
 
 rpl::producer<MessagesSlice> RepliesList::source(
@@ -157,13 +173,21 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
+void RepliesList::injectRootMessageAndReverse(
+		not_null<MessagesSlice*> slice) {
+	injectRootMessage(slice);
+	ranges::reverse(slice->ids);
+}
+
 void RepliesList::injectRootMessage(not_null<MessagesSlice*> slice) {
 	if (slice->skippedBefore != 0) {
 		return;
 	}
 	if (const auto root = lookupRoot()) {
+		injectRootDivider(root, slice);
+
 		if (const auto group = _history->owner().groups().find(root)) {
-			for (const auto item : group->items) {
+			for (const auto item : ranges::view::reverse(group->items)) {
 				slice->ids.push_back(item->fullId());
 			}
 			if (slice->fullCount) {
@@ -178,6 +202,28 @@ void RepliesList::injectRootMessage(not_null<MessagesSlice*> slice) {
 	}
 }
 
+void RepliesList::injectRootDivider(
+		not_null<HistoryItem*> root,
+		not_null<MessagesSlice*> slice) {
+	const auto withComments = !slice->ids.empty();
+	const auto text = [&] {
+		return withComments
+			? tr::lng_replies_discussion_started(tr::now)
+			: tr::lng_replies_no_comments(tr::now);
+	};
+	if (!_divider) {
+		_dividerWithComments = withComments;
+		_divider = GenerateDivider(
+			_history,
+			root->date(),
+			text());
+	} else if (_dividerWithComments != withComments) {
+		_dividerWithComments = withComments;
+		_divider->setServiceText(HistoryService::PreparedText{ text() });
+	}
+	slice->ids.push_back(_divider->fullId());
+}
+
 bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	if (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0) {
 		viewer->slice.ids.clear();
@@ -185,7 +231,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			= viewer->slice.skippedBefore
 			= viewer->slice.skippedAfter
 			= 0;
-		injectRootMessage(&viewer->slice);
+		injectRootMessageAndReverse(&viewer->slice);
 		return true;
 	}
 	const auto around = [&] {
@@ -230,9 +276,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	}
 	slice->fullCount = _fullCount.current();
 
-	injectRootMessage(slice);
-
-	ranges::reverse(slice->ids);
+	injectRootMessageAndReverse(slice);
 
 	if (_skippedBefore != 0 && useBefore < viewer->limitBefore + 1) {
 		loadBefore();

@@ -237,7 +237,6 @@ private:
 	HistoryItem *_commentsRoot = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;
-	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
@@ -248,6 +247,8 @@ private:
 	Ui::Text::String _rootMessage;
 	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
 	object_ptr<Ui::PlainShadow> _rootShadow;
+
+	std::unique_ptr<Ui::ScrollArea> _scroll;
 
 	std::vector<MsgId> _replyReturns;
 	HistoryItem *_replyReturn = nullptr;

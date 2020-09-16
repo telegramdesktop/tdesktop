@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 class History;
+class HistoryService;
 
 namespace Data {
 
@@ -46,7 +47,11 @@ private:
 	[[nodiscard]] bool applyUpdate(
 		not_null<Viewer*> viewer,
 		const MessageUpdate &update);
+	void injectRootMessageAndReverse(not_null<MessagesSlice*> slice);
 	void injectRootMessage(not_null<MessagesSlice*> slice);
+	void injectRootDivider(
+		not_null<HistoryItem*> root,
+		not_null<MessagesSlice*> slice);
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
 	void loadAround(MsgId id);
 	void loadBefore();
@@ -60,6 +65,8 @@ private:
 	rpl::variable<std::optional<int>> _fullCount;
 	rpl::event_stream<> _partLoaded;
 	std::optional<MsgId> _loadingAround;
+	HistoryService *_divider = nullptr;
+	bool _dividerWithComments = false;
 	int _beforeId = 0;
 	int _afterId = 0;
 

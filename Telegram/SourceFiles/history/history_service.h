@@ -108,14 +108,14 @@ public:
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing = nullptr) override;
 
+	void setServiceText(const PreparedText &prepared);
+
 	~HistoryService();
 
 protected:
 	friend class HistoryView::ServiceMessagePainter;
 
 	void markMediaAsReadHook() override;
-
-	void setServiceText(const PreparedText &prepared);
 
 	QString fromLinkText() const;
 	ClickHandlerPtr fromLink() const;

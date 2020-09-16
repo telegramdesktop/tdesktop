@@ -123,7 +123,6 @@ RepliesWidget::RepliesWidget(
 , _root(lookupRoot())
 , _commentsRoot(lookupCommentsRoot())
 , _areComments(computeAreComments())
-, _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
@@ -132,7 +131,8 @@ RepliesWidget::RepliesWidget(
 	ComposeControls::Mode::Normal))
 , _rootView(this, object_ptr<Ui::RpWidget>(this))
 , _rootShadow(this)
-, _scrollDown(_scroll, st::historyToDown)
+, _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
+, _scrollDown(_scroll.get(), st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	setupRoot();
 	setupRootView();
@@ -162,8 +162,9 @@ RepliesWidget::RepliesWidget(
 		clearSelected();
 	}, _topBar->lifetime());
 
-	_topBarShadow->raise();
+	_rootView->raise();
 	_rootShadow->raise();
+	_topBarShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
 
@@ -173,7 +174,7 @@ RepliesWidget::RepliesWidget(
 		static_cast<ListDelegate*>(this)));
 	_scroll->move(0, _topBar->height());
 	_scroll->show();
-	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
+	connect(_scroll.get(), &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
 	_inner->editMessageRequested(
 	) | rpl::start_with_next([=](auto fullId) {
@@ -1366,7 +1367,13 @@ void RepliesWidget::updatePinnedVisibility() {
 		setPinnedVisibility(true);
 		return;
 	}
-	const auto view = _inner->viewByPosition(_root->position());
+	const auto item = [&] {
+		if (const auto group = _history->owner().groups().find(_root)) {
+			return group->items.front().get();
+		}
+		return _root;
+	}();
+	const auto view = _inner->viewByPosition(item->position());
 	setPinnedVisibility(!view
 		|| (view->y() + view->height() <= _scroll->scrollTop()));
 }
@@ -1502,40 +1509,11 @@ void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 MessagesBarData RepliesWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
 	if (!_commentsRoot || elements.empty()) {
-		return MessagesBarData();
+		return {};
 	}
-	const auto rootBar = [&] {
-		const auto fromRoot = (elements.front()->data().get() == _root);
-		if (elements.size() < 2 || !fromRoot) {
-			return MessagesBarData();
-		}
-		auto text = rpl::combine(
-			_replies->fullCount(),
-			_areComments.value()
-		) | rpl::map([=](int count, bool areComments) {
-			return count
-				? (areComments
-					? tr::lng_comments_header
-					: tr::lng_replies_header)(
-						lt_count,
-						rpl::single(count) | tr::to_count())
-				: (areComments
-					? tr::lng_comments_header_none
-					: tr::lng_replies_header_none)();
-		}) | rpl::flatten_latest();
-
-		return MessagesBarData{
-			// Designated initializers here crash MSVC 16.7.3.
-			MessagesBar{
-				.element = elements[1],
-				.focus = false,
-			},
-			std::move(text),
-		};
-	};
 	const auto till = _commentsRoot->commentsReadTill();
 	if (till < 2) {
-		return rootBar();
+		return {};
 	}
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
@@ -1554,7 +1532,7 @@ MessagesBarData RepliesWidget::listMessagesBar(
 			}
 		}
 	}
-	return rootBar();
+	return {};
 }
 
 void RepliesWidget::listContentRefreshed() {

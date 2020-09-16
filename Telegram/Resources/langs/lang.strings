@@ -1359,6 +1359,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_comments_open_none" = "Leave a comment";
 "lng_replies_view_original" = "View in chat";
 "lng_replies_messages" = "Replies";
+"lng_replies_discussion_started" = "Discussion started";
+"lng_replies_no_comments" = "No comments here yet...";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
