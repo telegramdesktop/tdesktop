@@ -199,7 +199,7 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 	_history->owner().requestItemViewRefresh(this);
 	invalidateChatListEntry();
 	if (const auto group = _history->owner().groups().find(this)) {
-		const auto leader = group->items.back();
+		const auto leader = group->items.front();
 		if (leader != this) {
 			_history->owner().requestItemViewRefresh(leader);
 			leader->invalidateChatListEntry();

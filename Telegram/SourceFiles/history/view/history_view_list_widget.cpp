@@ -371,7 +371,7 @@ std::optional<int> ListWidget::scrollTopForView(
 		not_null<Element*> view) const {
 	if (view->isHiddenByGroup()) {
 		if (const auto group = session().data().groups().find(view->data())) {
-			if (const auto leader = viewForItem(group->items.back())) {
+			if (const auto leader = viewForItem(group->items.front())) {
 				if (!leader->isHiddenByGroup()) {
 					return scrollTopForView(leader);
 				}
@@ -1371,7 +1371,7 @@ TextSelection ListWidget::computeRenderSelection(
 	};
 	const auto item = view->data();
 	if (const auto group = session().data().groups().find(item)) {
-		if (group->items.back() != item) {
+		if (group->items.front() != item) {
 			return TextSelection();
 		}
 		auto result = TextSelection();

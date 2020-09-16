@@ -930,7 +930,7 @@ void HistoryWidget::scrollToAnimationCallback(
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view) {
 	if (const auto group = session().data().groups().find(view->data())) {
-		if (const auto leader = group->items.back()->mainView()) {
+		if (const auto leader = group->items.front()->mainView()) {
 			view = leader;
 		}
 	}
@@ -1020,7 +1020,7 @@ void HistoryWidget::clearHighlightMessages() {
 int HistoryWidget::itemTopForHighlight(
 		not_null<HistoryView::Element*> view) const {
 	if (const auto group = session().data().groups().find(view->data())) {
-		if (const auto leader = group->items.back()->mainView()) {
+		if (const auto leader = group->items.front()->mainView()) {
 			view = leader;
 		}
 	}

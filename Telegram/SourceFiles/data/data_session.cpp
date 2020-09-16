@@ -1234,7 +1234,7 @@ void Session::notifyItemIdChange(IdChange event) {
 	};
 	enumerateItemViews(item, refreshViewDataId);
 	if (const auto group = groups().find(item)) {
-		const auto leader = group->items.back();
+		const auto leader = group->items.front();
 		if (leader != item) {
 			enumerateItemViews(leader, refreshViewDataId);
 		}

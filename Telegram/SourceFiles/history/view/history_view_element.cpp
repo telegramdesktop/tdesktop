@@ -358,7 +358,7 @@ void Element::refreshMedia(Element *replacing) {
 	const auto media = item->media();
 	if (media && media->canBeGrouped()) {
 		if (const auto group = history()->owner().groups().find(item)) {
-			if (group->items.back() != item) {
+			if (group->items.front() != item) {
 				_media = nullptr;
 				_flags |= Flag::HiddenByGroup;
 			} else {
