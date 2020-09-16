@@ -3166,6 +3166,18 @@ void InnerWidget::setupShortcuts() {
 			return nearFolder(false);
 		});
 
+		request->check(Command::ReadChat) && request->handle([=] {
+			const auto history = _selected ? _selected->history() : nullptr;
+			if (history) {
+				if ((history->chatListUnreadCount() > 0)
+					|| history->chatListUnreadMark()) {
+					session().data().histories().readInbox(history);
+				}
+				return true;
+			}
+			return (history != nullptr);
+		});
+
 		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent
