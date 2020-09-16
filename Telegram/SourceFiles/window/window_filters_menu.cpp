@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/window_main_menu.h"
+#include "window/window_peer_menu.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -307,12 +308,27 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 		return;
 	}
 	_popupMenu = base::make_unique_q<Ui::PopupMenu>(i->second.get());
-	_popupMenu->addAction(
+	const auto addAction = [&](const QString &text, Fn<void()> callback) {
+		return _popupMenu->addAction(
+			text,
+			crl::guard(&_outer, std::move(callback)));
+	};
+
+	addAction(
 		tr::lng_filters_context_edit(tr::now),
-		crl::guard(&_outer, [=] { showEditBox(id); }));
-	_popupMenu->addAction(
+		[=] { showEditBox(id); });
+
+	auto filteredChats = [=] {
+		return _session->session().data().chatsFilters().chatsList(id);
+	};
+	Window::MenuAddMarkAsReadChatListAction(
+		&_session->session().data(),
+		std::move(filteredChats),
+		addAction);
+
+	addAction(
 		tr::lng_filters_context_remove(tr::now),
-		crl::guard(&_outer, [=] { showRemoveBox(id); }));
+		[=] { showRemoveBox(id); });
 	_popupMenu->popup(position);
 }
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 
 #include "window/themes/window_theme.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -599,20 +600,21 @@ MainMenu::MainMenu(
 }
 
 void MainMenu::setupArchiveButton() {
+	const auto controller = _controller;
+	const auto folder = [=] {
+		return controller->session().data().folderLoaded(Data::Folder::kId);
+	};
 	const auto showArchive = [=] {
-		const auto folder = _controller->session().data().folderLoaded(
-			Data::Folder::kId);
-		if (folder) {
-			_controller->openFolder(folder);
+		if (const auto f = folder()) {
+			controller->openFolder(f);
 			Ui::hideSettingsAndLayer();
 		}
 	};
 	const auto checkArchive = [=] {
-		const auto folder = _controller->session().data().folderLoaded(
-			Data::Folder::kId);
-		return folder
-			&& !folder->chatsList()->empty()
-			&& _controller->session().settings().archiveInMainMenu();
+		const auto f = folder();
+		return f
+			&& !f->chatsList()->empty()
+			&& controller->session().settings().archiveInMainMenu();
 	};
 	_archiveButton->setVisible(checkArchive());
 	_archiveButton->setAcceptBoth(true);
@@ -625,16 +627,26 @@ void MainMenu::setupArchiveButton() {
 			return;
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
-		_contextMenu->addAction(
-			tr::lng_context_archive_to_list(tr::now), [=] {
-			_controller->session().settings().setArchiveInMainMenu(false);
-			_controller->session().saveSettingsDelayed();
+		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+			return _contextMenu->addAction(text, std::move(callback));
+		};
+
+		const auto hide = [=] {
+			controller->session().settings().setArchiveInMainMenu(false);
+			controller->session().saveSettingsDelayed();
 			Ui::hideSettingsAndLayer();
-		});
+		};
+		addAction(tr::lng_context_archive_to_list(tr::now), std::move(hide));
+
+		MenuAddMarkAsReadChatListAction(
+			&controller->session().data(),
+			[f = folder()] { return f->chatsList(); },
+			addAction);
+
 		_contextMenu->popup(QCursor::pos());
 	}, _archiveButton->lifetime());
 
-	_controller->session().data().chatsListChanges(
+	controller->session().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
 	}) | rpl::start_with_next([=](Data::Folder *folder) {

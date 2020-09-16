@@ -19,7 +19,12 @@ class GenericBox;
 
 namespace Data {
 class Folder;
+class Session;
 } // namespace Data
+
+namespace Dialogs {
+class MainList;
+} // namespace Dialogs
 
 namespace Window {
 
@@ -52,6 +57,11 @@ void FillFolderMenu(
 
 void PeerMenuAddMuteAction(
 	not_null<PeerData*> peer,
+	const PeerMenuCallback &addAction);
+
+void MenuAddMarkAsReadChatListAction(
+	not_null<Data::Session*> data,
+	Fn<not_null<Dialogs::MainList*>()> list,
 	const PeerMenuCallback &addAction);
 
 void PeerMenuExportChat(not_null<PeerData*> peer);
