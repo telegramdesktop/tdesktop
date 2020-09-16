@@ -485,8 +485,14 @@ bool Element::isInOneDayWithPrevious() const {
 }
 
 void Element::recountAttachToPreviousInBlocks() {
+	if (isHidden() || data()->isEmpty()) {
+		if (const auto next = nextDisplayedInBlocks()) {
+			next->recountAttachToPreviousInBlocks();
+		}
+		return;
+	}
 	auto attachToPrevious = false;
-	if (const auto previous = previousInBlocks()) {
+	if (const auto previous = previousDisplayedInBlocks()) {
 		attachToPrevious = computeIsAttachToPrevious(previous);
 		previous->setAttachToNext(attachToPrevious);
 	}
@@ -496,11 +502,11 @@ void Element::recountAttachToPreviousInBlocks() {
 void Element::recountDisplayDateInBlocks() {
 	setDisplayDate([&] {
 		const auto item = data();
-		if (item->isEmpty()) {
+		if (isHidden() || item->isEmpty()) {
 			return false;
 		}
 
-		if (const auto previous = previousInBlocks()) {
+		if (const auto previous = previousDisplayedInBlocks()) {
 			const auto prev = previous->data();
 			return prev->isEmpty()
 				|| (previous->dateTime().date() != dateTime().date());
@@ -707,6 +713,14 @@ Element *Element::previousInBlocks() const {
 	return nullptr;
 }
 
+Element *Element::previousDisplayedInBlocks() const {
+	auto result = previousInBlocks();
+	while (result && (result->data()->isEmpty() || result->isHidden())) {
+		result = result->previousInBlocks();
+	}
+	return result;
+}
+
 Element *Element::nextInBlocks() const {
 	if (_block && _indexInBlock >= 0) {
 		if (_indexInBlock + 1 < _block->messages.size()) {
@@ -718,6 +732,14 @@ Element *Element::nextInBlocks() const {
 		}
 	}
 	return nullptr;
+}
+
+Element *Element::nextDisplayedInBlocks() const {
+	auto result = nextInBlocks();
+	while (result && (result->data()->isEmpty() || result->isHidden())) {
+		result = result->nextInBlocks();
+	}
+	return result;
 }
 
 void Element::drawInfo(

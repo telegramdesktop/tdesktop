@@ -296,7 +296,9 @@ public:
 	void setIndexInBlock(int index);
 	int indexInBlock() const;
 	Element *previousInBlocks() const;
+	Element *previousDisplayedInBlocks() const;
 	Element *nextInBlocks() const;
+	Element *nextDisplayedInBlocks() const;
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 

@@ -2432,14 +2432,14 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 auto HistoryInner::prevItem(Element *view) -> Element* {
 	if (!view) {
 		return nullptr;
-	} else if (const auto result = view->previousInBlocks()) {
+	} else if (const auto result = view->previousDisplayedInBlocks()) {
 		return result;
 	} else if (view->data()->history() == _history
 		&& _migrated
 		&& _history->loadedAtTop()
 		&& !_migrated->isEmpty()
 		&& _migrated->loadedAtBottom()) {
-		return _migrated->blocks.back()->messages.back().get();
+		return _migrated->findLastDisplayed();
 	}
 	return nullptr;
 }
@@ -2447,13 +2447,13 @@ auto HistoryInner::prevItem(Element *view) -> Element* {
 auto HistoryInner::nextItem(Element *view) -> Element* {
 	if (!view) {
 		return nullptr;
-	} else if (const auto result = view->nextInBlocks()) {
+	} else if (const auto result = view->nextDisplayedInBlocks()) {
 		return result;
 	} else if (view->data()->history() == _migrated
 		&& _migrated->loadedAtBottom()
 		&& _history->loadedAtTop()
 		&& !_history->isEmpty()) {
-		return _history->blocks.front()->messages.front().get();
+		return _history->findFirstDisplayed();
 	}
 	return nullptr;
 }

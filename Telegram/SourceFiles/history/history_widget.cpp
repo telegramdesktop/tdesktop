@@ -5044,14 +5044,15 @@ bool HistoryWidget::replyToPreviousMessage() {
 		_replyToId);
 	if (const auto item = session().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
-			if (const auto previousView = view->previousInBlocks()) {
+			if (const auto previousView = view->previousDisplayedInBlocks()) {
 				const auto previous = previousView->data();
 				Ui::showPeerHistoryAtItem(previous);
 				replyToMessage(previous);
 				return true;
 			}
 		}
-	} else if (const auto previous = _history->lastMessage()) {
+	} else if (const auto previousView = _history->findLastDisplayed()) {
+		const auto previous = previousView->data();
 		Ui::showPeerHistoryAtItem(previous);
 		replyToMessage(previous);
 		return true;
@@ -5068,7 +5069,7 @@ bool HistoryWidget::replyToNextMessage() {
 		_replyToId);
 	if (const auto item = session().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
-			if (const auto nextView = view->nextInBlocks()) {
+			if (const auto nextView = view->nextDisplayedInBlocks()) {
 				const auto next = nextView->data();
 				Ui::showPeerHistoryAtItem(next);
 				replyToMessage(next);

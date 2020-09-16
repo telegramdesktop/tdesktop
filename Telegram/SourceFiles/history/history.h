@@ -81,7 +81,9 @@ public:
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
 	Element *findFirstNonEmpty() const;
+	Element *findFirstDisplayed() const;
 	Element *findLastNonEmpty() const;
+	Element *findLastDisplayed() const;
 	bool hasOrphanMediaGroupPart() const;
 	bool removeOrphanMediaGroupPart();
 	QVector<MsgId> collectMessagesFromUserToDelete(

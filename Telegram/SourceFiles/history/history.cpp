@@ -3135,10 +3135,32 @@ auto History::findFirstNonEmpty() const -> Element* {
 	return nullptr;
 }
 
+auto History::findFirstDisplayed() const -> Element* {
+	for (const auto &block : blocks) {
+		for (const auto &element : block->messages) {
+			if (!element->data()->isEmpty() && !element->isHidden()) {
+				return element.get();
+			}
+		}
+	}
+	return nullptr;
+}
+
 auto History::findLastNonEmpty() const -> Element* {
 	for (const auto &block : ranges::view::reverse(blocks)) {
 		for (const auto &element : ranges::view::reverse(block->messages)) {
 			if (!element->data()->isEmpty()) {
+				return element.get();
+			}
+		}
+	}
+	return nullptr;
+}
+
+auto History::findLastDisplayed() const -> Element* {
+	for (const auto &block : ranges::view::reverse(blocks)) {
+		for (const auto &element : ranges::view::reverse(block->messages)) {
+			if (!element->data()->isEmpty() && !element->isHidden()) {
 				return element.get();
 			}
 		}
