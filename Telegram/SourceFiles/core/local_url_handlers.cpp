@@ -267,21 +267,31 @@ bool ResolveUsername(
 	auto post = (start == qsl("startgroup"))
 		? ShowAtProfileMsgId
 		: ShowAtUnreadMsgId;
-	auto postParam = params.value(qsl("post"));
-	if (auto postId = postParam.toInt()) {
+	const auto postParam = params.value(qsl("post"));
+	if (const auto postId = postParam.toInt()) {
 		post = postId;
 	}
+	const auto commentParam = params.value(qsl("comment"));
+	const auto commentId = commentParam.toInt();
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && valid(gameParam)) {
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	controller->content()->openPeerByName(
-		domain,
-		post,
-		startToken,
-		clickFromMessageId);
+	if (commentId) {
+		controller->content()->openCommentByName(
+			domain,
+			post,
+			commentId,
+			clickFromMessageId);
+	} else {
+		controller->content()->openPeerByName(
+			domain,
+			post,
+			startToken,
+			clickFromMessageId);
+	}
 	return true;
 }
 
@@ -300,7 +310,14 @@ bool ResolvePrivatePost(
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}
+	const auto clickFromMessageId = context.value<FullMsgId>();
 	const auto done = crl::guard(controller, [=](not_null<PeerData*> peer) {
+		auto params = Window::SectionShow{
+			Window::SectionShow::Way::Forward
+		};
+		params.origin = Window::SectionShow::OriginMessage{
+			clickFromMessageId
+		};
 		controller->showPeerHistory(
 			peer->id,
 			Window::SectionShow::Way::Forward,
@@ -545,8 +562,9 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
 			return qsl("tg://bg?slug=") + bgMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
-		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(#|$)"), query, matchOptions)) {
-			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2));
+		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(/?\\?|/?$)"), query, matchOptions)) {
+			auto params = query.mid(postMatch->captured(0).size()).toString();
+			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();

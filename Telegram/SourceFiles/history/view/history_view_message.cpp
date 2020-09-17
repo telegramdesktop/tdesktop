@@ -2029,7 +2029,7 @@ bool Message::displayRightActionComments() const {
 	return data()->repliesAreComments()
 		&& media()
 		&& media()->isDisplayed()
-		&& media()->customInfoLayout();
+		&& !hasBubble();
 }
 
 std::optional<QSize> Message::rightActionSize() const {

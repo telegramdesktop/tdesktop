@@ -127,6 +127,11 @@ public:
 		MsgId msgId = ShowAtUnreadMsgId,
 		const QString &startToken = QString(),
 		FullMsgId clickFromMessageId = FullMsgId());
+	void openCommentByName(
+		const QString &name,
+		MsgId msgId,
+		MsgId commentId,
+		FullMsgId clickFromMessageId = FullMsgId());
 
 	void activate();
 
@@ -289,13 +294,14 @@ private:
 
 	void saveSectionInStack();
 
-	void usernameResolveDone(
-		const MTPcontacts_ResolvedPeer &result,
+	void resolveUsername(
+		const QString &username,
+		Fn<void(not_null<PeerData*>)> done);
+	void openPeerResolved(
+		not_null<PeerData*> peer,
 		MsgId msgId,
-		const QString &startToken);
-	void usernameResolveFail(
-		const RPCError &error,
-		const QString &username);
+		const QString &startToken,
+		FullMsgId clickFromMessageId);
 
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
@@ -400,6 +406,7 @@ private:
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _viewsIncrementRequests;
 	base::flat_map<mtpRequestId, not_null<PeerData*>> _viewsIncrementByRequest;
 	base::Timer _viewsIncrementTimer;
+	mtpRequestId _resolveRequestId = 0;
 
 	struct SettingBackground;
 	std::unique_ptr<SettingBackground> _background;

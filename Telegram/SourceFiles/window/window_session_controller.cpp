@@ -94,6 +94,7 @@ Main::Session &SessionNavigation::session() const {
 void SessionNavigation::showRepliesForMessage(
 		not_null<History*> history,
 		MsgId rootId,
+		MsgId commentId,
 		const SectionShow &params) {
 	if (_showingRepliesRequestId
 		&& _showingRepliesHistory == history.get()
@@ -104,13 +105,13 @@ void SessionNavigation::showRepliesForMessage(
 
 	const auto channelId = history->channelId();
 	const auto item = _session->data().message(channelId, rootId);
-	if (!item || !item->repliesAreComments()) {
+	if (!commentId && (!item || !item->repliesAreComments())) {
 		showSection(HistoryView::RepliesMemento(history, rootId));
 		return;
-	} else if (const auto id = item->commentsItemId()) {
-		if (const auto item = _session->data().message(id)) {
+	} else if (const auto id = item ? item->commentsItemId() : FullMsgId()) {
+		if (const auto commentsItem = _session->data().message(id)) {
 			showSection(
-				HistoryView::RepliesMemento(item));
+				HistoryView::RepliesMemento(commentsItem));
 			return;
 		}
 	}
@@ -155,7 +156,7 @@ void SessionNavigation::showRepliesForMessage(
 					}
 				}
 				showSection(
-					HistoryView::RepliesMemento(item));
+					HistoryView::RepliesMemento(item, commentId));
 			}
 		});
 	}).fail([=](const RPCError &error) {

@@ -271,11 +271,17 @@ private:
 
 class RepliesMemento : public Window::SectionMemento {
 public:
-	RepliesMemento(not_null<History*> history, MsgId rootId)
+	RepliesMemento(
+		not_null<History*> history,
+		MsgId rootId,
+		MsgId highlightId = 0)
 	: _history(history)
-	, _rootId(rootId) {
+	, _rootId(rootId)
+	, _highlightId(highlightId) {
 	}
-	explicit RepliesMemento(not_null<HistoryItem*> commentsItem);
+	explicit RepliesMemento(
+		not_null<HistoryItem*> commentsItem,
+		MsgId commentId = 0);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -307,10 +313,14 @@ public:
 	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
 	}
+	[[nodiscard]] MsgId getHighlightId() const {
+		return _highlightId;
+	}
 
 private:
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
+	const MsgId _highlightId = 0;
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
 	std::vector<MsgId> _replyReturns;

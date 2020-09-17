@@ -141,6 +141,7 @@ public:
 	void showRepliesForMessage(
 		not_null<History*> history,
 		MsgId rootId,
+		MsgId commentId = 0,
 		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(

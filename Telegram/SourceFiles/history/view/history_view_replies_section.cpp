@@ -83,9 +83,16 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 
 } // namespace
 
-RepliesMemento::RepliesMemento(not_null<HistoryItem*> commentsItem)
-: RepliesMemento(commentsItem->history(), commentsItem->id) {
-	if (const auto original = commentsItem->lookupDiscussionPostOriginal()) {
+RepliesMemento::RepliesMemento(
+	not_null<HistoryItem*> commentsItem,
+	MsgId commentId)
+: RepliesMemento(commentsItem->history(), commentsItem->id, commentId) {
+	if (commentId) {
+		_list.setAroundPosition({
+			TimeId(0),
+			FullMsgId(commentsItem->history()->channelId(), commentId)
+		});
+	} else if (const auto original = commentsItem->lookupDiscussionPostOriginal()) {
 		if (original->commentsReadTill() == MsgId(1)) {
 			_list.setAroundPosition(Data::MinMessagePosition);
 			_list.setScrollTopState(ListMemento::ScrollTopState{
@@ -1085,8 +1092,12 @@ void RepliesWidget::showAtPosition(
 bool RepliesWidget::showAtPositionNow(
 		Data::MessagePosition position,
 		HistoryItem *originItem) {
-	if (const auto scrollTop = _inner->scrollTopForPosition(position)) {
-		while (_replyReturn && position.fullId.msg == _replyReturn->id) {
+	const auto item = position.fullId
+		? _history->owner().message(position.fullId)
+		: nullptr;
+	const auto use = item ? item->position() : position;
+	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
+		while (_replyReturn && use.fullId.msg == _replyReturn->id) {
 			calculateNextReplyReturn();
 		}
 		const auto currentScrollTop = _scroll->scrollTop();
@@ -1096,14 +1107,14 @@ bool RepliesWidget::showAtPositionNow(
 		const auto scrollDelta = snap(fullDelta, -limit, limit);
 		_inner->animatedScrollTo(
 			wanted,
-			position,
+			use,
 			scrollDelta,
 			(std::abs(fullDelta) > limit
 				? HistoryView::ListWidget::AnimatedScroll::Part
 				: HistoryView::ListWidget::AnimatedScroll::Full));
-		if (position != Data::MaxMessagePosition
-			&& position != Data::UnreadMessagePosition) {
-			_inner->highlightMessage(position.fullId);
+		if (use != Data::MaxMessagePosition
+			&& use != Data::UnreadMessagePosition) {
+			_inner->highlightMessage(use.fullId);
 		}
 		if (originItem) {
 			pushReplyReturn(originItem);
@@ -1303,6 +1314,15 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	}
 	restoreReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
+	if (const auto highlight = memento->getHighlightId()) {
+		const auto position = Data::MessagePosition{
+			TimeId(0),
+			FullMsgId(_history->channelId(), highlight)
+		};
+		_inner->showAroundPosition(position, [=] {
+			return showAtPositionNow(position, nullptr);
+		});
+	}
 }
 
 void RepliesWidget::resizeEvent(QResizeEvent *e) {

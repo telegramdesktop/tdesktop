@@ -2597,101 +2597,25 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 	}
 }
 
-void MainWidget::openPeerByName(
-		const QString &username,
+void MainWidget::openPeerResolved(
+		not_null<PeerData*> peer,
 		MsgId msgId,
 		const QString &startToken,
 		FullMsgId clickFromMessageId) {
-	Core::App().hideMediaView();
-
-	if (const auto peer = session().data().peerByUsername(username)) {
-		if (msgId == ShowAtGameShareMsgId) {
-			if (peer->isUser() && peer->asUser()->isBot() && !startToken.isEmpty()) {
-				peer->asUser()->botInfo->shareGameShortName = startToken;
-				AddBotToGroupBoxController::Start(
-					_controller,
-					peer->asUser());
-			} else {
-				InvokeQueued(this, [this, peer] {
-					_controller->showPeerHistory(
-						peer->id,
-						SectionShow::Way::Forward);
-				});
-			}
-		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
-			if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
-				peer->asUser()->botInfo->startGroupToken = startToken;
-				AddBotToGroupBoxController::Start(
-					_controller,
-					peer->asUser());
-			} else if (peer->isUser() && peer->asUser()->isBot()) {
-				// Always open bot chats, even from mention links.
-				InvokeQueued(this, [this, peer] {
-					_controller->showPeerHistory(
-						peer->id,
-						SectionShow::Way::Forward);
-				});
-			} else {
-				_controller->showPeerInfo(peer);
-			}
+	if (msgId == ShowAtGameShareMsgId) {
+		if (peer->isUser() && peer->asUser()->isBot() && !startToken.isEmpty()) {
+			peer->asUser()->botInfo->shareGameShortName = startToken;
+			AddBotToGroupBoxController::Start(
+				_controller,
+				peer->asUser());
 		} else {
-			if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
-				msgId = ShowAtUnreadMsgId;
-			}
-			if (peer->isUser() && peer->asUser()->isBot()) {
-				peer->asUser()->botInfo->startToken = startToken;
-				if (peer == _history->peer()) {
-					_history->updateControlsVisibility();
-					_history->updateControlsGeometry();
-				}
-			}
-			const auto returnToId = clickFromMessageId;
-			InvokeQueued(this, [=] {
-				auto params = SectionShow{
-					SectionShow::Way::Forward
-				};
-				params.origin = SectionShow::OriginMessage{
-					returnToId
-				};
-				_controller->showPeerHistory(peer->id, params, msgId);
+			InvokeQueued(this, [this, peer] {
+				_controller->showPeerHistory(
+					peer->id,
+					SectionShow::Way::Forward);
 			});
 		}
-	} else {
-		_api.request(MTPcontacts_ResolveUsername(
-			MTP_string(username)
-		)).done([=](const MTPcontacts_ResolvedPeer &result) {
-			usernameResolveDone(result, msgId, startToken);
-		}).fail([=](const RPCError &error) {
-			usernameResolveFail(error, username);
-		}).send();
-	}
-}
-
-bool MainWidget::contentOverlapped(const QRect &globalRect) {
-	return (_history->contentOverlapped(globalRect)
-			|| _playerPlaylist->overlaps(globalRect)
-			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
-}
-
-void MainWidget::usernameResolveDone(
-		const MTPcontacts_ResolvedPeer &result,
-		MsgId msgId,
-		const QString &startToken) {
-	Ui::hideLayer();
-	if (result.type() != mtpc_contacts_resolvedPeer) {
-		return;
-	}
-
-	const auto &d(result.c_contacts_resolvedPeer());
-	session().data().processUsers(d.vusers());
-	session().data().processChats(d.vchats());
-	const auto peerId = peerFromMTP(d.vpeer());
-	if (!peerId) {
-		return;
-	}
-
-	const auto peer = session().data().peer(peerId);
-	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
+	} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 		if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
 			AddBotToGroupBoxController::Start(
@@ -2708,8 +2632,7 @@ void MainWidget::usernameResolveDone(
 			_controller->showPeerInfo(peer);
 		}
 	} else {
-		// show specific posts only in channels / supergroups
-		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) {
+		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
 			msgId = ShowAtUnreadMsgId;
 		}
 		if (peer->isUser() && peer->asUser()->isBot()) {
@@ -2720,19 +2643,88 @@ void MainWidget::usernameResolveDone(
 			}
 		}
 		InvokeQueued(this, [=] {
-			_controller->showPeerHistory(
-				peer->id,
-				SectionShow::Way::Forward,
-				msgId);
+			auto params = SectionShow{
+				SectionShow::Way::Forward
+			};
+			params.origin = SectionShow::OriginMessage{
+				clickFromMessageId
+			};
+			_controller->showPeerHistory(peer->id, params, msgId);
 		});
 	}
 }
 
-void MainWidget::usernameResolveFail(const RPCError &error, const QString &username) {
-	if (error.code() == 400) {
-		Ui::show(Box<InformBox>(
-			tr::lng_username_not_found(tr::now, lt_user, username)));
+void MainWidget::openPeerByName(
+		const QString &username,
+		MsgId msgId,
+		const QString &startToken,
+		FullMsgId clickFromMessageId) {
+	Core::App().hideMediaView();
+	resolveUsername(username, [=](not_null<PeerData*> peer) {
+		openPeerResolved(peer, msgId, startToken, clickFromMessageId);
+	});
+}
+
+void MainWidget::openCommentByName(
+		const QString &username,
+		MsgId msgId,
+		MsgId commentId,
+		FullMsgId clickFromMessageId) {
+	Core::App().hideMediaView();
+	resolveUsername(username, [=](not_null<PeerData*> peer) {
+		InvokeQueued(this, [=] {
+			auto params = SectionShow{
+				SectionShow::Way::Forward
+			};
+			params.origin = SectionShow::OriginMessage{
+				clickFromMessageId
+			};
+			_controller->showRepliesForMessage(
+				session().data().history(peer),
+				msgId,
+				commentId,
+				params);
+		});
+	});
+	Core::App().hideMediaView();
+}
+
+bool MainWidget::contentOverlapped(const QRect &globalRect) {
+	return (_history->contentOverlapped(globalRect)
+			|| _playerPlaylist->overlaps(globalRect)
+			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
+}
+
+void MainWidget::resolveUsername(
+		const QString &username,
+		Fn<void(not_null<PeerData*>)> done) {
+	if (const auto peer = session().data().peerByUsername(username)) {
+		done(peer);
+		return;
 	}
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(MTPcontacts_ResolveUsername(
+		MTP_string(username)
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		_resolveRequestId = 0;
+		Ui::hideLayer();
+		if (result.type() != mtpc_contacts_resolvedPeer) {
+			return;
+		}
+
+		const auto &d(result.c_contacts_resolvedPeer());
+		session().data().processUsers(d.vusers());
+		session().data().processChats(d.vchats());
+		if (const auto peerId = peerFromMTP(d.vpeer())) {
+			done(session().data().peer(peerId));
+		}
+	}).fail([=](const RPCError &error) {
+		_resolveRequestId = 0;
+		if (error.code() == 400) {
+			Ui::show(Box<InformBox>(
+				tr::lng_username_not_found(tr::now, lt_user, username)));
+		}
+	}).send();
 }
 
 void MainWidget::activate() {
