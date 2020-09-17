@@ -90,6 +90,10 @@ constexpr auto kMinDiffIntensity = 0.25;
 		|| Data::IsLegacy1DefaultWallPaper(background->paper());
 }
 
+[[nodiscard]] bool IsAltShift(Qt::KeyboardModifiers modifiers) {
+	return (modifiers & Qt::ShiftModifier) && (modifiers & Qt::AltModifier);
+}
+
 } // namespace
 
 namespace Window {
@@ -273,6 +277,17 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 }
 
 void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
+	if (!_menu && IsAltShift(e->modifiers())) {
+		_menu = base::make_unique_q<Ui::PopupMenu>(this);
+		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+			return _menu->addAction(
+				text,
+				crl::guard(this, std::move(callback)));
+		};
+		MenuAddMarkAsReadAllChatsAction(&_session->data(), addAction);
+		_menu->popup(QCursor::pos());
+		return;
+	}
 	if (&_session->account() == &Core::App().activeAccount() || _menu) {
 		return;
 	}
@@ -639,7 +654,6 @@ void MainMenu::setupArchiveButton() {
 		addAction(tr::lng_context_archive_to_list(tr::now), std::move(hide));
 
 		MenuAddMarkAsReadChatListAction(
-			&controller->session().data(),
 			[f = folder()] { return f->chatsList(); },
 			addAction);
 
@@ -807,8 +821,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 			add(MTP::Environment::Production);
 			return;
 		} else if (which != Qt::RightButton
-			|| !(button->clickModifiers() & Qt::ShiftModifier)
-			|| !(button->clickModifiers() & Qt::AltModifier)) {
+			|| !IsAltShift(button->clickModifiers())) {
 			return;
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);

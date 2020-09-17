@@ -59,9 +59,12 @@ void PeerMenuAddMuteAction(
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction);
 
-void MenuAddMarkAsReadChatListAction(
+void MenuAddMarkAsReadAllChatsAction(
 	not_null<Data::Session*> data,
-	Fn<not_null<Dialogs::MainList*>()> list,
+	const PeerMenuCallback &addAction);
+
+void MenuAddMarkAsReadChatListAction(
+	Fn<not_null<Dialogs::MainList*>()> &&list,
 	const PeerMenuCallback &addAction);
 
 void PeerMenuExportChat(not_null<PeerData*> peer);

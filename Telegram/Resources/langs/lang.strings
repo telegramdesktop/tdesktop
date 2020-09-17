@@ -1458,6 +1458,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_mark_unread" = "Mark as unread";
 "lng_context_mark_read" = "Mark as read";
 "lng_context_mark_read_sure" = "Are you sure you want to mark all chats from this folder as read?";
+"lng_context_mark_read_all" = "Mark all chats as read";
+"lng_context_mark_read_all_sure" = "Are you sure you want to mark all chats as read?";
 "lng_context_archive_expand" = "Expand";
 "lng_context_archive_collapse" = "Collapse";
 "lng_context_archive_to_menu" = "Move to main menu";

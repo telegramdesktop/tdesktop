@@ -67,6 +67,31 @@ namespace {
 constexpr auto kArchivedToastDuration = crl::time(5000);
 constexpr auto kMaxUnreadWithoutConfirmation = 10000;
 
+[[nodiscard]] bool IsUnreadHistory(not_null<History*> history) {
+	return (history->chatListUnreadCount() > 0)
+		|| (history->chatListUnreadMark());
+}
+
+void MarkAsReadHistory(not_null<History*> history) {
+	const auto read = [&](not_null<History*> history) {
+		if (IsUnreadHistory(history)) {
+			history->peer->owner().histories().readInbox(history);
+		}
+	};
+	read(history);
+	if (const auto migrated = history->migrateSibling()) {
+		read(migrated);
+	}
+}
+
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
+	for (const auto &row : list->indexed()->all()) {
+		if (const auto history = row->history()) {
+			MarkAsReadHistory(history);
+		}
+	}
+}
+
 class Filler {
 public:
 	Filler(
@@ -359,31 +384,19 @@ void Filler::addInfo() {
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
 	const auto history = peer->owner().history(peer);
-	const auto isUnread = [=] {
-		return (history->chatListUnreadCount() > 0)
-			|| (history->chatListUnreadMark());
-	};
 	const auto label = [=] {
-		return isUnread()
+		return IsUnreadHistory(history)
 			? tr::lng_context_mark_read(tr::now)
 			: tr::lng_context_mark_unread(tr::now);
 	};
 	auto action = _addAction(label(), [=] {
-		const auto markAsRead = isUnread();
-		const auto handle = [&](not_null<History*> history) {
-			if (markAsRead) {
-				peer->owner().histories().readInbox(history);
-			} else {
-				peer->owner().histories().changeDialogUnreadMark(
-					history,
-					!markAsRead);
-			}
-		};
-		handle(history);
+		const auto markAsRead = IsUnreadHistory(history);
 		if (markAsRead) {
-			if (const auto migrated = history->migrateSibling()) {
-				handle(migrated);
-			}
+			MarkAsReadHistory(history);
+		} else {
+			peer->owner().histories().changeDialogUnreadMark(
+				history,
+				!markAsRead);
 		}
 	});
 
@@ -713,7 +726,6 @@ void FolderFiller::addTogglesForArchive() {
 	});
 
 	MenuAddMarkAsReadChatListAction(
-		&controller->session().data(),
 		[folder = _folder] { return folder->chatsList(); },
 		_addAction);
 }
@@ -1137,44 +1149,46 @@ void PeerMenuAddMuteAction(
 	}, *lifetime);
 }
 
-void MenuAddMarkAsReadChatListAction(
+void MenuAddMarkAsReadAllChatsAction(
 		not_null<Data::Session*> data,
-		Fn<not_null<Dialogs::MainList*>()> list,
 		const PeerMenuCallback &addAction) {
-	const auto owner = data;
+	auto callback = [owner = data] {
+		auto boxCallback = [=](Fn<void()> &&close) {
+			close();
+
+			MarkAsReadChatList(owner->chatsList());
+			if (const auto folder = owner->folderLoaded(Data::Folder::kId)) {
+				MarkAsReadChatList(folder->chatsList());
+			}
+		};
+		Ui::show(Box<ConfirmBox>(
+			tr::lng_context_mark_read_all_sure(tr::now),
+			std::move(boxCallback)));
+	};
+	addAction(
+		tr::lng_context_mark_read_all(tr::now),
+		std::move(callback));
+}
+
+void MenuAddMarkAsReadChatListAction(
+		Fn<not_null<Dialogs::MainList*>()> &&list,
+		const PeerMenuCallback &addAction) {
 	const auto unreadState = list()->unreadState();
 	if (unreadState.empty()) {
 		return;
 	}
 
-	const auto read = [=](not_null<History*> history) {
-		if ((history->chatListUnreadCount() > 0)
-			|| history->chatListUnreadMark()) {
-			owner->histories().readInbox(history);
-		}
-	};
-	const auto markAsRead = [=] {
-		for (const auto row : list()->indexed()->all()) {
-			if (const auto history = row->history()) {
-				read(history);
-				if (const auto migrated = history->migrateSibling()) {
-					read(migrated);
-				}
-			}
-		}
-	};
-
 	auto callback = [=] {
 		if (unreadState.messages > kMaxUnreadWithoutConfirmation) {
 			auto boxCallback = [=](Fn<void()> &&close) {
-				markAsRead();
+				MarkAsReadChatList(list());
 				close();
 			};
 			Ui::show(Box<ConfirmBox>(
 				tr::lng_context_mark_read_sure(tr::now),
 				std::move(boxCallback)));
 		} else {
-			markAsRead();
+			MarkAsReadChatList(list());
 		}
 	};
 	addAction(
