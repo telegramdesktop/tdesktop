@@ -437,7 +437,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		} else if (user->isBot()) {
 			user->session().api().blockPeer(user);
 		} else {
-			window->show(Box(PeerMenuBlockUserBox, window, user, false));
+			window->show(Box(PeerMenuBlockUserBox, window, user, v::null, v::null));
 		}
 	});
 
@@ -851,24 +851,29 @@ void PeerMenuCreatePoll(
 void PeerMenuBlockUserBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
-		not_null<UserData*> user,
-		bool suggestClearChat) {
+		not_null<PeerData*> peer,
+		std::variant<v::null_t, bool> suggestReport,
+		std::variant<v::null_t, ClearChat, MessageIdsList> suggestClear) {
 	using Flag = MTPDpeerSettings::Flag;
-	const auto settings = user->settings().value_or(Flag(0));
+	const auto settings = peer->settings().value_or(Flag(0));
+	const auto reportNeeded = v::is_null(suggestReport)
+		? ((settings & Flag::f_report_spam) != 0)
+		: v::get<bool>(suggestReport);
 
-	const auto name = user->shortName();
+	const auto user = peer->asUser();
+	const auto name = user ? user->shortName() : peer->name;
+	if (user) {
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_blocked_list_confirm_text(
+				lt_name,
+				rpl::single(Ui::Text::Bold(name)),
+				Ui::Text::WithEntities),
+			st::blockUserConfirmation));
 
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_blocked_list_confirm_text(
-			lt_name,
-			rpl::single(Ui::Text::Bold(name)),
-			Ui::Text::WithEntities),
-		st::blockUserConfirmation));
-
-	box->addSkip(st::boxMediumSkip);
-
-	const auto report = (settings & Flag::f_report_spam)
+		box->addSkip(st::boxMediumSkip);
+	}
+	const auto report = reportNeeded
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_report_spam(tr::now),
@@ -880,10 +885,16 @@ void PeerMenuBlockUserBox(
 		box->addSkip(st::boxMediumSkip);
 	}
 
-	const auto clear = suggestClearChat
+	const auto clear = v::is<ClearChat>(suggestClear)
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_blocked_list_confirm_clear(tr::now),
+			true,
+			st::defaultBoxCheckbox))
+		: v::is<MessageIdsList>(suggestClear)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_context_delete_msg(tr::now),
 			true,
 			st::defaultBoxCheckbox))
 		: nullptr;
@@ -902,21 +913,25 @@ void PeerMenuBlockUserBox(
 
 		box->closeBox();
 
-		user->session().api().blockPeer(user);
+		peer->session().api().blockPeer(peer);
 		if (reportChecked) {
-			user->session().api().request(MTPmessages_ReportSpam(
-				user->input
+			peer->session().api().request(MTPmessages_ReportSpam(
+				peer->input
 			)).send();
 		}
 		if (clearChecked) {
-			crl::on_main(&user->session(), [=] {
-				user->session().api().deleteConversation(user, false);
-			});
-			window->sessionController()->showBackFromStack();
+			if (const auto ids = std::get_if<MessageIdsList>(&suggestClear)) {
+				peer->owner().histories().deleteMessages(*ids, false);
+			} else if (v::is<ClearChat>(suggestClear)) {
+				crl::on_main(&peer->session(), [=] {
+					peer->session().api().deleteConversation(peer, false);
+				});
+				window->sessionController()->showBackFromStack();
+			}
 		}
 
 		Ui::Toast::Show(
-			tr::lng_new_contact_block_done(tr::now, lt_user, user->shortName()));
+			tr::lng_new_contact_block_done(tr::now, lt_user, name));
 	}, st::attentionBoxButton);
 
 	box->addButton(tr::lng_cancel(), [=] {

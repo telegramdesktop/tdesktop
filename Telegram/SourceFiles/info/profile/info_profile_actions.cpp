@@ -631,7 +631,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 			user->session().api().blockPeer(user);
 		} else {
 			window->show(
-				Box(Window::PeerMenuBlockUserBox, window, user, false));
+				Box(Window::PeerMenuBlockUserBox, window, user, v::null, v::null));
 		}
 	};
 	AddActionButton(

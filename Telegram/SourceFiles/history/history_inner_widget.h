@@ -306,6 +306,8 @@ private:
 	void deleteAsGroup(FullMsgId itemId);
 	void reportItem(FullMsgId itemId);
 	void reportAsGroup(FullMsgId itemId);
+	void blockSenderItem(FullMsgId itemId);
+	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
 
 	// Does any of the shown histories has this flag set.

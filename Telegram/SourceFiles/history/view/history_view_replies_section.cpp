@@ -1278,7 +1278,23 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 			updatePinnedVisibility();
 		}, lifetime());
 
-		_topBar->setCustomTitle(tr::lng_manage_discussion_group(tr::now));
+		rpl::combine(
+			rpl::single(0) | rpl::then(_replies->fullCount()),
+			_areComments.value()
+		) | rpl::map([=](int count, bool areComments) {
+			return count
+				? (areComments
+					? tr::lng_comments_header
+					: tr::lng_replies_header)(
+						lt_count,
+						rpl::single(count) | tr::to_count())
+				: (areComments
+					? tr::lng_comments_header_none
+					: tr::lng_replies_header_none)();
+		}) | rpl::flatten_latest(
+		) | rpl::start_with_next([=](const QString &text) {
+			_topBar->setCustomTitle(text);
+		}, lifetime());
 	};
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));

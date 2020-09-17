@@ -1666,6 +1666,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		} else if (item) {
 			const auto itemId = item->fullId();
+			const auto blockSender = item->history()->peer->isRepliesChat();
 			if (isUponSelected != -2) {
 				if (item->allowsForward()) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
@@ -1677,7 +1678,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						deleteItem(itemId);
 					});
 				}
-				if (item->suggestReport()) {
+				if (!blockSender && item->suggestReport()) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
 						reportItem(itemId);
 					});
@@ -1692,6 +1693,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_widget->updateTopBarSelection();
 						}
 					}
+				});
+			}
+			if (isUponSelected != -2 && blockSender) {
+				_menu->addAction(tr::lng_profile_block_user(tr::now), [=] {
+					blockSenderItem(itemId);
 				});
 			}
 		}
@@ -1715,6 +1721,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			&& (item->id > 0 || !item->serviceMsg());
 		const auto canForward = item && item->allowsForward();
 		const auto canReport = item && item->suggestReport();
+		const auto canBlockSender = item && item->history()->peer->isRepliesChat();
 		const auto view = item ? item->mainView() : nullptr;
 
 		const auto msg = dynamic_cast<HistoryMessage*>(item);
@@ -1814,7 +1821,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						deleteAsGroup(itemId);
 					});
 				}
-				if (canReport) {
+				if (!canBlockSender && canReport) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
 						reportAsGroup(itemId);
 					});
@@ -1829,6 +1836,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_widget->updateTopBarSelection();
 						}
 					}
+				});
+			}
+			if (isUponSelected != -2 && canBlockSender) {
+				_menu->addAction(tr::lng_profile_block_user(tr::now), [=] {
+					blockSenderAsGroup(itemId);
 				});
 			}
 		} else {
@@ -3156,6 +3168,28 @@ void HistoryInner::reportAsGroup(FullMsgId itemId) {
 		}
 		Ui::show(Box<ReportBox>(
 			_peer,
+			session().data().itemsToIds(group->items)));
+	}
+}
+
+void HistoryInner::blockSenderItem(FullMsgId itemId) {
+	if (const auto item = session().data().message(itemId)) {
+		Ui::show(Box(
+			BlockSenderFromRepliesBox,
+			_controller,
+			MessageIdsList(1, itemId)));
+	}
+}
+
+void HistoryInner::blockSenderAsGroup(FullMsgId itemId) {
+	if (const auto item = session().data().message(itemId)) {
+		const auto group = session().data().groups().find(item);
+		if (!group) {
+			return blockSenderItem(itemId);
+		}
+		Ui::show(Box(
+			BlockSenderFromRepliesBox,
+			_controller,
 			session().data().itemsToIds(group->items)));
 	}
 }

@@ -70,6 +70,8 @@ public:
 		bool justClear,
 		bool revoke);
 
+	void deleteMessages(const MessageIdsList &ids, bool revoke);
+
 	int sendRequest(
 		not_null<History*> history,
 		RequestType type,

@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
+#include "history/history_item.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -18,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/core_settings.h"
 #include "core/application.h"
+#include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
@@ -206,4 +210,21 @@ void ReportBox::updateMaxHeight() {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}
 	setDimensions(st::boxWidth, newHeight);
+}
+
+void BlockSenderFromRepliesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		MessageIdsList ids) {
+	Expects(!ids.empty());
+
+	const auto item = controller->session().data().message(ids.front());
+	Assert(item != nullptr);
+
+	PeerMenuBlockUserBox(
+		box,
+		&controller->window(),
+		item->senderOriginal(),
+		true,
+		std::move(ids));
 }

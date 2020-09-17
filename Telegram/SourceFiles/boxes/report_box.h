@@ -8,7 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "ui/layers/generic_box.h"
 #include "mtproto/sender.h"
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace Ui {
 template <typename Enum>
@@ -60,3 +65,8 @@ private:
 	mtpRequestId _requestId = 0;
 
 };
+
+void BlockSenderFromRepliesBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	MessageIdsList ids);

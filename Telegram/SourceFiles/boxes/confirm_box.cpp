@@ -808,53 +808,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		_deleteConfirmedCallback();
 	}
 
-	auto remove = std::vector<not_null<HistoryItem*>>();
-	remove.reserve(_ids.size());
-	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
-	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
-	for (const auto itemId : _ids) {
-		if (const auto item = _session->data().message(itemId)) {
-			const auto history = item->history();
-			if (item->isScheduled()) {
-				const auto wasOnServer = !item->isSending()
-					&& !item->hasFailed();
-				if (wasOnServer) {
-					scheduledIdsByPeer[history->peer].push_back(MTP_int(
-						_session->data().scheduledMessages().lookupId(item)));
-				} else {
-					_session->data().scheduledMessages().removeSending(item);
-				}
-				continue;
-			}
-			remove.push_back(item);
-			if (IsServerMsgId(item->id)) {
-				idsByPeer[history].push_back(MTP_int(itemId.msg));
-			}
-		}
-	}
-
-	for (const auto &[history, ids] : idsByPeer) {
-		history->owner().histories().deleteMessages(history, ids, revoke);
-	}
-	for (const auto &[peer, ids] : scheduledIdsByPeer) {
-		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
-			peer->input,
-			MTP_vector<MTPint>(ids)
-		)).done([peer=peer](const MTPUpdates &result) {
-			peer->session().api().applyUpdates(result);
-		}).send();
-	}
-
-	for (const auto item : remove) {
-		const auto history = item->history();
-		const auto wasLast = (history->lastMessage() == item);
-		const auto wasInChats = (history->chatListMessage() == item);
-		item->destroy();
-
-		if (wasLast || wasInChats) {
-			history->requestChatListMessage();
-		}
-	}
+	_session->data().histories().deleteMessages(_ids, revoke);
 
 	const auto session = _session;
 	Ui::hideLayer();
