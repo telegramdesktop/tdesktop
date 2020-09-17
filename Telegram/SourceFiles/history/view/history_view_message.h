@@ -93,7 +93,8 @@ public:
 	bool hasBubble() const override;
 	bool hasFastReply() const override;
 	bool displayFastReply() const override;
-	bool displayRightAction() const override;
+	bool displayRightActionComments() const;
+	std::optional<QSize> rightActionSize() const override;
 	void drawRightAction(
 		Painter &p,
 		int left,
@@ -186,6 +187,7 @@ private:
 
 	WebPage *logEntryOriginal() const;
 
+	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;
 	void psaTooltipToggled(bool shown) const;
 

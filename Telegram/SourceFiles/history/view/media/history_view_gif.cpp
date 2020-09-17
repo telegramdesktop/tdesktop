@@ -632,11 +632,11 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		if (isRound || needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, isRound ? InfoDisplayType::Background : InfoDisplayType::Image);
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (fastShareLeft + st::historyFastShareSize > maxRight) {
-				fastShareLeft = (fullRight - st::historyFastShareSize - st::msgDateImgDelta);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (fastShareLeft + size->width() > maxRight) {
+				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
 				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
 			}
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
@@ -860,14 +860,14 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 				result.cursor = CursorState::Date;
 			}
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (fastShareLeft + st::historyFastShareSize > maxRight) {
-				fastShareLeft = (fullRight - st::historyFastShareSize - st::msgDateImgDelta);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (fastShareLeft + size->width() > maxRight) {
+				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
 				fastShareTop -= st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y();
 			}
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
 			}
 		}

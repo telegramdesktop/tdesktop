@@ -262,7 +262,7 @@ public:
 	virtual bool hasBubble() const;
 	virtual bool hasFastReply() const;
 	virtual bool displayFastReply() const;
-	virtual bool displayRightAction() const;
+	virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
 		int left,

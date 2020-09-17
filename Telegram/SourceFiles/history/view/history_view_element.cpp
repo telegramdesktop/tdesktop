@@ -599,8 +599,8 @@ bool Element::displayFastReply() const {
 	return false;
 }
 
-bool Element::displayRightAction() const {
-	return false;
+std::optional<QSize> Element::rightActionSize() const {
+	return std::nullopt;
 }
 
 void Element::drawRightAction(

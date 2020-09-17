@@ -201,6 +201,10 @@ struct Message::CommentsButton {
 	QImage cachedUserpics;
 	ClickHandlerPtr link;
 	QPoint lastPoint;
+
+	QString rightActionCountString;
+	int rightActionCount = 0;
+	int rightActionCountWidth = 0;
 };
 
 LogEntryOriginal::LogEntryOriginal() = default;
@@ -611,13 +615,13 @@ void Message::draw(
 				p.setOpacity(o);
 			}
 		}
-		if (displayRightAction()) {
+		if (const auto size = rightActionSize()) {
 			const auto fastShareSkip = std::clamp(
-				(gBubble.height() - st::historyFastShareSize) / 2,
+				(gBubble.height() - size->height()) / 2,
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - st::historyFastShareSize;
+			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - size->height();
 			drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
 
@@ -1227,18 +1231,18 @@ TextState Message::textState(
 			}
 		}
 		checkForPointInTime();
-		if (displayRightAction()) {
+		if (const auto size = rightActionSize()) {
 			const auto fastShareSkip = snap(
-				(gBubble.height() - st::historyFastShareSize) / 2,
+				(gBubble.height() - size->height()) / 2,
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - st::historyFastShareSize;
+			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - size->height();
 			if (QRect(
 				fastShareLeft,
 				fastShareTop,
-				st::historyFastShareSize,
-				st::historyFastShareSize
+				size->width(),
+				size->height()
 			).contains(point)) {
 				result.link = rightActionLink();
 			}
@@ -1276,22 +1280,26 @@ bool Message::getStateCommentsButton(
 		return false;
 	}
 	if (!_comments->link && data()->repliesAreComments()) {
-		const auto fullId = data()->fullId();
-		_comments->link = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto window = App::wnd()) {
-				if (const auto controller = window->sessionController()) {
-					if (const auto item = controller->session().data().message(fullId)) {
-						controller->showRepliesForMessage(item->history(), item->id);
-					}
-				}
-			}
-		});
+		_comments->link = createGoToCommentsLink();
 	} else if (!_comments->link && data()->externalReply()) {
 		_comments->link = rightActionLink();
 	}
 	outResult->link = _comments->link;
 	_comments->lastPoint = point - QPoint(g.left(), g.top() + g.height());
 	return true;
+}
+
+ClickHandlerPtr Message::createGoToCommentsLink() const {
+	const auto fullId = data()->fullId();
+	return std::make_shared<LambdaClickHandler>([=] {
+		if (const auto window = App::wnd()) {
+			if (const auto controller = window->sessionController()) {
+				if (const auto item = controller->session().data().message(fullId)) {
+					controller->showRepliesForMessage(item->history(), item->id);
+				}
+			}
+		}
+	});
 }
 
 bool Message::getStateFromName(
@@ -2017,8 +2025,28 @@ bool Message::displayFastReply() const {
 		&& !delegate()->elementInSelectionMode();
 }
 
-bool Message::displayRightAction() const {
-	return displayFastShare() || displayGoToOriginal();
+bool Message::displayRightActionComments() const {
+	return data()->repliesAreComments()
+		&& media()
+		&& media()->isDisplayed()
+		&& media()->customInfoLayout();
+}
+
+std::optional<QSize> Message::rightActionSize() const {
+	if (displayRightActionComments()) {
+		const auto views = data()->Get<HistoryMessageViews>();
+		Assert(views != nullptr);
+		return (views->repliesSmall.textWidth > 0)
+			? QSize(
+				std::max(
+					st::historyFastShareSize,
+					2 * st::historyFastShareBottom + views->repliesSmall.textWidth),
+				st::historyFastShareSize + st::historyFastShareBottom + st::semiboldFont->height)
+			: QSize(st::historyFastShareSize, st::historyFastShareSize);
+	}
+	return (displayFastShare() || displayGoToOriginal())
+		? QSize(st::historyFastShareSize, st::historyFastShareSize)
+		: std::optional<QSize>();
 }
 
 bool Message::displayFastShare() const {
@@ -2060,18 +2088,44 @@ void Message::drawRightAction(
 		int left,
 		int top,
 		int outerWidth) const {
+	const auto size = rightActionSize();
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::msgServiceBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(style::rtlrect(
+		const auto rect = style::rtlrect(
 			left,
 			top,
-			st::historyFastShareSize,
-			st::historyFastShareSize,
-			outerWidth));
+			size->width(),
+			size->height(),
+			outerWidth);
+		const auto usual = st::historyFastShareSize;
+		if (size->width() == size->height() && size->width() == usual) {
+			p.drawEllipse(rect);
+		} else {
+			p.drawRoundedRect(rect, usual / 2, usual / 2);
+		}
 	}
-	if (displayFastShare()) {
+	if (displayRightActionComments()) {
+		const auto &icon = st::historyFastCommentsIcon;
+		icon.paint(
+			p,
+			left + (size->width() - icon.width()) / 2,
+			top + (st::historyFastShareSize - icon.height()) / 2,
+			outerWidth);
+		const auto views = data()->Get<HistoryMessageViews>();
+		Assert(views != nullptr);
+		if (views->repliesSmall.textWidth > 0) {
+			p.setPen(st::msgServiceFg);
+			p.setFont(st::semiboldFont);
+			p.drawTextLeft(
+				left + (size->width() - views->repliesSmall.textWidth) / 2,
+				top + st::historyFastShareSize,
+				outerWidth,
+				views->repliesSmall.text,
+				views->repliesSmall.textWidth);
+		}
+	} else if (displayFastShare()) {
 		st::historyFastShareIcon.paint(p, left, top, outerWidth);
 	} else {
 		st::historyGoToOriginalIcon.paint(p, left, top, outerWidth);
@@ -2080,6 +2134,10 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink() const {
 	if (!_rightActionLink) {
+		if (displayRightActionComments()) {
+			_rightActionLink = createGoToCommentsLink();
+			return _rightActionLink;
+		}
 		const auto owner = &data()->history()->owner();
 		const auto itemId = data()->fullId();
 		const auto forwarded = data()->Get<HistoryMessageForwarded>();
@@ -2231,8 +2289,8 @@ QRect Message::countGeometry() const {
 	auto contentWidth = availableWidth;
 	if (hasFromPhoto()) {
 		contentLeft += st::msgPhotoSkip;
-		if (displayRightAction()) {
-			contentWidth -= st::msgPhotoSkip;
+		if (const auto size = rightActionSize()) {
+			contentWidth -= size->width() + (st::msgPhotoSkip - st::historyFastShareSize);
 		}
 	//} else if (!Adaptive::Wide() && !out() && !fromChannel() && st::msgPhotoSkip - (hmaxwidth - hwidth) > 0) {
 	//	contentLeft += st::msgPhotoSkip - (hmaxwidth - hwidth);
@@ -2276,8 +2334,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 	// This code duplicates countGeometry() but also resizes media.
 	auto contentWidth = newWidth - (st::msgMargin.left() + st::msgMargin.right());
-	if (hasFromPhoto() && displayRightAction()) {
-		contentWidth -= st::msgPhotoSkip;
+	if (hasFromPhoto()) {
+		if (const auto size = rightActionSize()) {
+			contentWidth -= size->width() + (st::msgPhotoSkip - st::historyFastShareSize);
+		}
 	}
 	accumulate_min(contentWidth, maxWidth());
 	_bubbleWidthLimit = std::max(st::msgMaxWidth, monospaceMaxWidth());

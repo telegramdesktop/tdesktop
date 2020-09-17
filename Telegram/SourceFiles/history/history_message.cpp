@@ -1018,9 +1018,15 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 }
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
+	const auto was = (_media != nullptr);
 	_media = nullptr;
 	if (media) {
 		setMedia(*media);
+	}
+	if (was || _media) {
+		if (const auto views = Get<HistoryMessageViews>()) {
+			refreshRepliesText(views);
+		}
 	}
 }
 
@@ -1567,6 +1573,11 @@ void HistoryMessage::refreshRepliesText(
 			: tr::lng_comments_open_none(tr::now);
 		views->replies.textWidth = st::semiboldFont->width(
 			views->replies.text);
+		views->repliesSmall.text = (views->replies.count > 0)
+			? Lang::FormatCountToShort(views->replies.count).string
+			: QString();
+		views->repliesSmall.textWidth = st::semiboldFont->width(
+			views->repliesSmall.text);
 	} else {
 		views->replies.text = (views->replies.count > 0)
 			? Lang::FormatCountToShort(views->replies.count).string
