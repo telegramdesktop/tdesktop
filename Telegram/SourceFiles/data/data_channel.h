@@ -396,7 +396,7 @@ public:
 	// Still public data members.
 	uint64 access = 0;
 
-	MTPinputChannel inputChannel;
+	MTPinputChannel inputChannel = MTP_inputChannelEmpty();
 
 	QString username;
 

@@ -283,7 +283,6 @@ PeerData *readPeer(
 			chat->setInviteLink(inviteLink);
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
-			chat->inputChat = MTP_int(peerToChat(chat->id));
 		}
 	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;

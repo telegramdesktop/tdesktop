@@ -388,7 +388,7 @@ public:
 
 	const PeerId id;
 	QString name;
-	MTPinputPeer input;
+	MTPinputPeer input = MTP_inputPeerEmpty();
 
 	int nameVersion = 1;
 

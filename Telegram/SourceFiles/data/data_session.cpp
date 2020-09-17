@@ -398,6 +398,16 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				//| MTPDuser_ClientFlag::f_inaccessible
 				| MTPDuser::Flag::f_deleted;
 			result->setFlags((result->flags() & ~mask) | (data.vflags().v & mask));
+			if (result->input.type() == mtpc_inputPeerEmpty) {
+				result->input = MTP_inputPeerUser(
+					data.vid(),
+					MTP_long(data.vaccess_hash().value_or_empty()));
+			}
+			if (result->inputUser.type() == mtpc_inputUserEmpty) {
+				result->inputUser = MTP_inputUser(
+					data.vid(),
+					MTP_long(data.vaccess_hash().value_or_empty()));
+			}
 		} else {
 			result->setFlags(data.vflags().v);
 			if (data.is_self()) {
@@ -643,6 +653,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				| MTPDchannel::Flag::f_megagroup
 				| MTPDchannel_ClientFlag::f_forbidden;
 			channel->setFlags((channel->flags() & ~mask) | (data.vflags().v & mask));
+			if (channel->input.type() == mtpc_inputPeerEmpty
+				|| channel->inputChannel.type() == mtpc_inputChannelEmpty) {
+				channel->setAccessHash(data.vaccess_hash().value_or_empty());
+			}
 		} else {
 			if (const auto rights = data.vadmin_rights()) {
 				channel->setAdminRights(*rights);

@@ -155,7 +155,7 @@ public:
 		return !_phone.isEmpty();
 	}
 
-	MTPInputUser inputUser;
+	MTPInputUser inputUser = MTP_inputUserEmpty();
 
 	QString firstName;
 	QString lastName;

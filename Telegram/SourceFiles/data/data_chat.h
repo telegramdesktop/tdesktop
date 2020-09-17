@@ -163,7 +163,7 @@ public:
 	void setMigrateToChannel(ChannelData *channel);
 
 	// Still public data members.
-	MTPint inputChat;
+	const MTPint inputChat;
 
 	int count = 0;
 	TimeId date = 0;
