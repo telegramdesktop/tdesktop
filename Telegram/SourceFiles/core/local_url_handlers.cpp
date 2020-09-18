@@ -64,7 +64,7 @@ bool ShowStickerSet(
 	}
 	Core::App().hideMediaView();
 	Ui::show(Box<StickerSetBox>(
-		App::wnd()->sessionController(),
+		controller,
 		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
 	return true;
 }
@@ -115,7 +115,7 @@ bool ShareUrl(
 	auto url = params.value(qsl("url"));
 	if (url.isEmpty()) {
 		return false;
-	} else if (const auto controller = App::wnd()->sessionController()) {
+	} else {
 		controller->content()->shareUrlLayer(url, params.value("text"));
 		return true;
 	}
@@ -181,7 +181,12 @@ bool ApplyMtprotoProxy(
 	return true;
 }
 
-bool ShowPassportForm(const QMap<QString, QString> &params) {
+bool ShowPassportForm(
+		Window::SessionController *controller,
+		const QMap<QString, QString> &params) {
+	if (!controller) {
+		return false;
+	}
 	const auto botId = params.value("bot_id", QString()).toInt();
 	const auto scope = params.value("scope", QString());
 	const auto callback = params.value("callback_url", QString());
@@ -190,28 +195,25 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 		Passport::NonceNameByScope(scope),
 		QString());
 	const auto errors = params.value("errors", QString());
-	if (const auto window = App::wnd()) {
-		if (const auto controller = window->sessionController()) {
-			controller->showPassportForm(Passport::FormRequest(
-				botId,
-				scope,
-				callback,
-				publicKey,
-				nonce,
-				errors));
-			return true;
-		}
-	}
-	return false;
+	controller->showPassportForm(Passport::FormRequest(
+		botId,
+		scope,
+		callback,
+		publicKey,
+		nonce,
+		errors));
+	return true;
 }
 
 bool ShowPassport(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	return ShowPassportForm(url_parse_params(
-		match->captured(1),
-		qthelp::UrlParamNameTransform::ToLower));
+	return ShowPassportForm(
+		controller,
+		url_parse_params(
+			match->captured(1),
+			qthelp::UrlParamNameTransform::ToLower));
 }
 
 bool ShowWallPaper(
@@ -225,7 +227,7 @@ bool ShowWallPaper(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
-		App::wnd()->sessionController(),
+		controller,
 		params.value(qsl("slug")),
 		params);
 }
@@ -249,7 +251,7 @@ bool ResolveUsername(
 		).valid();
 	};
 	if (domain == qsl("telegrampassport")) {
-		return ShowPassportForm(params);
+		return ShowPassportForm(controller, params);
 	} else if (!valid(domain)) {
 		return false;
 	}
@@ -335,13 +337,13 @@ bool ResolveSettings(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	const auto section = match->captured(1).mid(1).toLower();
 	if (!controller) {
-		if (section.isEmpty()) {
-			controller->window().showSettings();
-			return true;
-		}
 		return false;
+	}
+	const auto section = match->captured(1).mid(1).toLower();
+	if (section.isEmpty()) {
+		controller->window().showSettings();
+		return true;
 	}
 	if (section == qstr("devices")) {
 		Ui::show(Box<SessionsBox>(&controller->session()));
@@ -353,7 +355,7 @@ bool ResolveSettings(
 	const auto type = (section == qstr("folders"))
 		? ::Settings::Type::Folders
 		: ::Settings::Type::Main;
-	App::wnd()->sessionController()->showSettings(type);
+	controller->showSettings(type);
 	return true;
 }
 
