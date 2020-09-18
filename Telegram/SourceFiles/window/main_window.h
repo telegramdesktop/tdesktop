@@ -124,6 +124,7 @@ protected:
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
 	void handleActiveChanged();
+	void handleVisibleChanged(bool visible);
 
 	virtual void initHook() {
 	}
@@ -132,6 +133,9 @@ protected:
 	}
 
 	virtual void handleActiveChangedHook() {
+	}
+
+	virtual void handleVisibleChangedHook(bool visible) {
 	}
 
 	virtual void clearWidgetsHook() {
@@ -209,6 +213,8 @@ private:
 
 	base::Observable<void> _dragFinished;
 	rpl::event_stream<> _leaveEvents;
+
+	bool _maximizedBeforeHide = false;
 
 };
 

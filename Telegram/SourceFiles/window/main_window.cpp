@@ -236,6 +236,11 @@ void MainWindow::init() {
 		&QWindow::windowStateChanged,
 		this,
 		[=](Qt::WindowState state) { handleStateChanged(state); });
+	connect(
+		windowHandle(),
+		&QWindow::visibleChanged,
+		this,
+		[=](bool visible) { handleVisibleChanged(visible); });
 
 	updatePalette();
 
@@ -276,6 +281,19 @@ void MainWindow::handleActiveChanged() {
 		updateTrayMenu();
 		handleActiveChangedHook();
 	});
+}
+
+void MainWindow::handleVisibleChanged(bool visible) {
+	if (visible) {
+		if (_maximizedBeforeHide) {
+			DEBUG_LOG(("Window Pos: Window was maximized before hidding, setting maximized."));
+			setWindowState(Qt::WindowMaximized);
+		}
+	} else {
+		_maximizedBeforeHide = cWindowPos().maximized;
+	}
+
+	handleVisibleChangedHook(visible);
 }
 
 void MainWindow::updatePalette() {
@@ -521,8 +539,15 @@ void MainWindow::updateUnreadCounter() {
 }
 
 void MainWindow::savePosition(Qt::WindowState state) {
-	if (state == Qt::WindowActive) state = windowHandle()->windowState();
-	if (state == Qt::WindowMinimized || !positionInited()) return;
+	if (state == Qt::WindowActive) {
+		state = windowHandle()->windowState();
+	}
+
+	if (state == Qt::WindowMinimized
+		|| !isVisible()
+		|| !positionInited()) {
+		return;
+	}
 
 	auto savedPosition = cWindowPos();
 	auto realPosition = savedPosition;

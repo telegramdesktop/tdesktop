@@ -461,12 +461,6 @@ void MainWindow::initHook() {
 			handleAppMenuOwnerChanged(service, oldOwner, newOwner);
 		});
 
-	connect(
-		windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		[=](bool visible) { handleVisibleChanged(visible); });
-
 	if (AppMenuSupported) {
 		LOG(("Using D-Bus global menu."));
 	} else {
@@ -775,6 +769,9 @@ void MainWindow::createGlobalMenu() {
 void MainWindow::updateGlobalMenuHook() {
 }
 
+void MainWindow::handleVisibleChangedHook(bool visible) {
+}
+
 #else // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 void MainWindow::createGlobalMenu() {
@@ -1076,7 +1073,7 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psClearFormat, !markdownEnabled);
 }
 
-void MainWindow::handleVisibleChanged(bool visible) {
+void MainWindow::handleVisibleChangedHook(bool visible) {
 	if (AppMenuSupported && !_mainMenuPath.path().isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);

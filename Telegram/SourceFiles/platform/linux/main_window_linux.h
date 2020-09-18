@@ -41,6 +41,7 @@ protected:
 	void initHook() override;
 	void unreadCounterChangedHook() override;
 	void updateGlobalMenuHook() override;
+	void handleVisibleChangedHook(bool visible) override;
 
 	void initTrayMenuHook() override;
 	bool hasTrayIcon() const override;
@@ -67,7 +68,6 @@ private:
 
 	void updateIconCounters();
 	void updateWaylandDecorationColors();
-	void handleVisibleChanged(bool visible);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
