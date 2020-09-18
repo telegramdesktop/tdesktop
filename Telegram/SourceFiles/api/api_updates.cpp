@@ -1541,18 +1541,25 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChatUserTyping: {
 		auto &d = update.c_updateChatUserTyping();
-		const auto history = [&]() -> History* {
-			if (const auto chat = session().data().chatLoaded(d.vchat_id().v)) {
-				return session().data().historyLoaded(chat->id);
-			} else if (const auto channel = session().data().channelLoaded(d.vchat_id().v)) {
-				return session().data().historyLoaded(channel->id);
-			}
-			return nullptr;
-		}();
+		const auto history = session().data().historyLoaded(
+			peerFromChat(d.vchat_id()));
 		const auto user = (d.vuser_id().v == session().userId())
 			? nullptr
 			: session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
+			const auto when = requestingDifference() ? 0 : base::unixtime::now();
+			session().data().registerSendAction(history, user, d.vaction(), when);
+		}
+	} break;
+
+	case mtpc_updateChannelUserTyping: {
+		const auto &d = update.c_updateChannelUserTyping();
+		const auto history = session().data().historyLoaded(
+			peerFromChannel(d.vchannel_id()));
+		const auto user = (d.vuser_id().v == session().userId())
+			? nullptr
+			: session().data().userLoaded(d.vuser_id().v);
+		if (history && user && !d.vtop_msg_id().value_or_empty()) {
 			const auto when = requestingDifference() ? 0 : base::unixtime::now();
 			session().data().registerSendAction(history, user, d.vaction(), when);
 		}
