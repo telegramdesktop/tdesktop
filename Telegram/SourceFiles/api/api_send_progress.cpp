@@ -81,7 +81,9 @@ void SendProgressManager::send(
 		}
 	}();
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
+		MTP_flags(0),
 		history->peer->input,
+		MTP_int(0), // top_msg_id
 		action
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {
 		done(result, requestId);

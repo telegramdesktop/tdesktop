@@ -151,7 +151,7 @@ void SessionNavigation::showRepliesForMessage(
 					if (const auto maxId = data.vmax_id()) {
 						post->setCommentsMaxId(maxId->v);
 					}
-					if (const auto readTill = data.vread_max_id()) {
+					if (const auto readTill = data.vread_inbox_max_id()) {
 						post->setCommentsReadTill(readTill->v);
 					}
 				}
