@@ -239,7 +239,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			return viewer->around;
 		} else if (const auto item = lookupRoot()) {
 			if (const auto original = item->lookupDiscussionPostOriginal()) {
-				return original->commentsReadTill();
+				return original->computeCommentsReadTillFull();
 			}
 		}
 		return viewer->around;

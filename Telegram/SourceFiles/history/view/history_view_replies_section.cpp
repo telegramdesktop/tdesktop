@@ -93,7 +93,7 @@ RepliesMemento::RepliesMemento(
 			FullMsgId(commentsItem->history()->channelId(), commentId)
 		});
 	} else if (const auto original = commentsItem->lookupDiscussionPostOriginal()) {
-		if (original->commentsReadTill() == MsgId(1)) {
+		if (original->computeCommentsReadTillFull() == MsgId(1)) {
 			_list.setAroundPosition(Data::MinMessagePosition);
 			_list.setScrollTopState(ListMemento::ScrollTopState{
 				Data::MinMessagePosition
@@ -241,7 +241,7 @@ void RepliesWidget::sendReadTillRequest() {
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_commentsRoot->history()->peer->input,
 		MTP_int(_commentsRoot->id),
-		MTP_int(_commentsRoot->commentsReadTill())
+		MTP_int(_commentsRoot->computeCommentsReadTillFull())
 	)).done([=](const MTPBool &) {
 	}).send();
 }
@@ -1519,7 +1519,7 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	if (!_commentsRoot) {
 		return;
 	}
-	const auto was = _commentsRoot->commentsReadTill();
+	const auto was = _commentsRoot->computeCommentsReadTillFull();
 	const auto now = item->id;
 	const auto fast = item->out();
 	if (was < now) {
@@ -1547,7 +1547,7 @@ MessagesBarData RepliesWidget::listMessagesBar(
 	if (!_commentsRoot || elements.empty()) {
 		return {};
 	}
-	const auto till = _commentsRoot->commentsReadTill();
+	const auto till = _commentsRoot->computeCommentsReadTillFull();
 	if (till < 2) {
 		return {};
 	}

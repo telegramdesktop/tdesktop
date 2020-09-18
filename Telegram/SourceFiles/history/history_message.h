@@ -37,7 +37,7 @@ QString GetErrorTextForSending(
 	bool ignoreSlowmodeCountdown = false);
 void FastShareMessage(not_null<HistoryItem*> item);
 
-class HistoryMessage : public HistoryItem {
+class HistoryMessage final : public HistoryItem {
 public:
 	HistoryMessage(
 		not_null<History*> history,
@@ -166,6 +166,7 @@ public:
 	void setCommentsReadTill(MsgId readTillId) override;
 	void setCommentsMaxId(MsgId maxId) override;
 	void setCommentsPossibleMaxId(MsgId possibleMaxId) override;
+	[[nodiscard]] MsgId computeCommentsReadTillFull() const override;
 	[[nodiscard]] bool areCommentsUnread() const override;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {

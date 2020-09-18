@@ -212,6 +212,9 @@ public:
 	}
 	virtual void setCommentsPossibleMaxId(MsgId possibleMaxId) {
 	}
+	[[nodiscard]] virtual MsgId computeCommentsReadTillFull() const {
+		return MsgId(0);
+	}
 	[[nodiscard]] virtual bool areCommentsUnread() const {
 		return false;
 	}

@@ -1767,6 +1767,14 @@ MsgId History::loadAroundId() const {
 	return MsgId(0);
 }
 
+MsgId History::inboxReadTillId() const {
+	return _inboxReadBefore.value_or(1) - 1;
+}
+
+MsgId History::outboxReadTillId() const {
+	return _outboxReadBefore.value_or(1) - 1;
+}
+
 HistoryItem *History::lastAvailableMessage() const {
 	return isEmpty() ? nullptr : blocks.back()->messages.back()->data().get();
 }

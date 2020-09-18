@@ -201,6 +201,8 @@ public:
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] MsgId loadAroundId() const;
+	[[nodiscard]] MsgId inboxReadTillId() const;
+	[[nodiscard]] MsgId outboxReadTillId() const;
 
 	[[nodiscard]] bool trackUnreadMessages() const;
 	[[nodiscard]] int unreadCount() const;

@@ -856,10 +856,31 @@ void HistoryMessage::setCommentsPossibleMaxId(MsgId possibleMaxId) {
 	}
 }
 
+MsgId HistoryMessage::computeCommentsReadTillFull() const {
+	const auto local = commentsReadTill();
+	const auto views = Get<HistoryMessageViews>();
+	if (!views || !views->commentsChannelId) {
+		return local;
+	}
+	const auto group = history()->owner().historyLoaded(
+		peerFromChannel(views->commentsChannelId));
+	if (!group) {
+		return local;
+	}
+	return std::max(local, group->inboxReadTillId());
+}
+
 bool HistoryMessage::areCommentsUnread() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return (views->commentsReadTillId > 1)
-			&& (views->commentsMaxId > views->commentsReadTillId);
+		if (views->commentsReadTillId < 2
+			|| views->commentsMaxId <= views->commentsReadTillId) {
+			return false;
+		} else if (!views->commentsChannelId) {
+			return true;
+		}
+		const auto group = history()->owner().historyLoaded(
+			peerFromChannel(views->commentsChannelId));
+		return !group || (views->commentsMaxId > group->inboxReadTillId());
 	}
 	return false;
 }
