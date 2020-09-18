@@ -103,6 +103,7 @@ void Authorizations::reload() {
 	_requestId = _api.request(MTPaccount_GetAuthorizations(
 	)).done([=](const MTPaccount_Authorizations &result) {
 		_requestId = 0;
+		_lastReceived = crl::now();
 		result.match([&](const MTPDaccount_authorizations &auths) {
 			_list = (
 				auths.vauthorizations().v
@@ -156,6 +157,10 @@ int Authorizations::total() const {
 	return ranges::count_if(
 		_list,
 		ranges::not_fn(&Entry::incomplete));
+}
+
+crl::time Authorizations::lastReceivedTime() {
+	return _lastReceived;
 }
 
 } // namespace Api

@@ -33,6 +33,8 @@ public:
 		Fn<void(const RPCError &error)> &&fail,
 		std::optional<uint64> hash = std::nullopt);
 
+	[[nodiscard]] crl::time lastReceivedTime();
+
 	[[nodiscard]] List list() const;
 	[[nodiscard]] rpl::producer<List> listChanges() const;
 	[[nodiscard]] int total() const;
@@ -44,6 +46,8 @@ private:
 
 	List _list;
 	rpl::event_stream<> _listChanges;
+
+	crl::time _lastReceived = 0;
 
 };
 

@@ -69,6 +69,7 @@ private:
 	class List;
 
 	void shortPollSessions();
+	void parse(const Api::Authorizations::List &list);
 
 	void terminate(Fn<void()> terminateRequest, QString message);
 	void terminateOne(uint64 hash);
@@ -170,30 +171,34 @@ void SessionsContent::setupContent() {
 
 	_authorizations->listChanges(
 	) | rpl::start_with_next([=](const Api::Authorizations::List &list) {
-		_data = Full();
-		for (const auto auth : list) {
-			auto entry = Entry(auth);
-			if (!entry.hash) {
-				_data.current = std::move(entry);
-			} else if (entry.incomplete) {
-				_data.incomplete.push_back(std::move(entry));
-			} else {
-				_data.list.push_back(std::move(entry));
-			}
-		}
-
-		_loading = false;
-
-		ranges::sort(_data.list, std::greater<>(), &Entry::activeTime);
-		ranges::sort(_data.incomplete, std::greater<>(), &Entry::activeTime);
-
-		_inner->showData(_data);
-
-		_shortPollTimer.callOnce(kSessionsShortPollTimeout);
+		parse(list);
 	}, lifetime());
 
 	_loading = true;
 	shortPollSessions();
+}
+
+void SessionsContent::parse(const Api::Authorizations::List &list) {
+	_data = Full();
+	for (const auto &auth : list) {
+		auto entry = Entry(auth);
+		if (!entry.hash) {
+			_data.current = std::move(entry);
+		} else if (entry.incomplete) {
+			_data.incomplete.push_back(std::move(entry));
+		} else {
+			_data.list.push_back(std::move(entry));
+		}
+	}
+
+	_loading = false;
+
+	ranges::sort(_data.list, std::greater<>(), &Entry::activeTime);
+	ranges::sort(_data.incomplete, std::greater<>(), &Entry::activeTime);
+
+	_inner->showData(_data);
+
+	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
 }
 
 void SessionsContent::resizeEvent(QResizeEvent *e) {
@@ -218,7 +223,15 @@ void SessionsContent::paintEvent(QPaintEvent *e) {
 }
 
 void SessionsContent::shortPollSessions() {
-	_authorizations->reload();
+	const auto left = kSessionsShortPollTimeout
+		- (crl::now() - _authorizations->lastReceivedTime());
+	if (left > 0) {
+		parse(_authorizations->list());
+		_shortPollTimer.cancel();
+		_shortPollTimer.callOnce(left);
+	} else {
+		_authorizations->reload();
+	}
 	update();
 }
 
