@@ -276,7 +276,6 @@ public:
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
 
-	bool mySendActionUpdated(Api::SendProgressType type, bool doing);
 	bool paintSendAction(
 		Painter &p,
 		int x,
@@ -587,7 +586,6 @@ private:
 	QString _sendActionString;
 	Ui::Text::String _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
-	base::flat_map<Api::SendProgressType, crl::time> _mySendActions;
 
 	std::deque<not_null<HistoryItem*>> _notifications;
 

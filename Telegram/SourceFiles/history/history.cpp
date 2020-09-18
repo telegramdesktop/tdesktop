@@ -62,7 +62,6 @@ constexpr auto kStatusShowClientsideUploadFile = 6000;
 constexpr auto kStatusShowClientsideChooseLocation = 6000;
 constexpr auto kStatusShowClientsideChooseContact = 6000;
 constexpr auto kStatusShowClientsidePlayGame = 10000;
-constexpr auto kSetMyActionForMs = 10000;
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(3);
 
@@ -419,29 +418,6 @@ bool History::updateSendActionNeedsAnimating(
 		Unexpected("CancelAction here.");
 	});
 	return updateSendActionNeedsAnimating(now, true);
-}
-
-bool History::mySendActionUpdated(Api::SendProgressType type, bool doing) {
-	const auto now = crl::now();
-	const auto i = _mySendActions.find(type);
-	if (doing) {
-		if (i == end(_mySendActions)) {
-			_mySendActions.emplace(type, now + kSetMyActionForMs);
-		} else if (i->second > now + (kSetMyActionForMs / 2)) {
-			return false;
-		} else {
-			i->second = now + kSetMyActionForMs;
-		}
-	} else {
-		if (i == end(_mySendActions)) {
-			return false;
-		} else if (i->second <= now) {
-			return false;
-		} else {
-			_mySendActions.erase(i);
-		}
-	}
-	return true;
 }
 
 bool History::paintSendAction(

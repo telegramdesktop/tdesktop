@@ -16,6 +16,7 @@ namespace Api {
 namespace {
 
 constexpr auto kCancelTypingActionTimeout = crl::time(5000);
+constexpr auto kSetMyActionForMs = 10 * crl::time(1000);
 
 } // namespace
 
@@ -27,7 +28,14 @@ SendProgressManager::SendProgressManager(not_null<Main::Session*> session)
 void SendProgressManager::cancel(
 		not_null<History*> history,
 		SendProgressType type) {
-	const auto i = _requests.find({ history, type });
+	cancel(history, 0, type);
+}
+
+void SendProgressManager::cancel(
+		not_null<History*> history,
+		MsgId topMsgId,
+		SendProgressType type) {
+	const auto i = _requests.find(Key{ history, topMsgId, type });
 	if (i != _requests.end()) {
 		_session->api().request(i->second).cancel();
 		_requests.erase(i);
@@ -42,29 +50,58 @@ void SendProgressManager::cancelTyping(not_null<History*> history) {
 void SendProgressManager::update(
 		not_null<History*> history,
 		SendProgressType type,
-		int32 progress) {
+		int progress) {
+	update(history, 0, type, progress);
+}
+
+void SendProgressManager::update(
+		not_null<History*> history,
+		MsgId topMsgId,
+		SendProgressType type,
+		int progress) {
 	const auto peer = history->peer;
 	if (peer->isSelf() || (peer->isChannel() && !peer->isMegagroup())) {
 		return;
 	}
 
 	const auto doing = (progress >= 0);
-	if (history->mySendActionUpdated(type, doing)) {
-		cancel(history, type);
+	const auto key = Key{ history, topMsgId, type };
+	if (updated(key, doing)) {
+		cancel(history, topMsgId, type);
 		if (doing) {
-			send(history, type, progress);
+			send(key, progress);
 		}
 	}
 }
 
-void SendProgressManager::send(
-		not_null<History*> history,
-		SendProgressType type,
-		int32 progress) {
+bool SendProgressManager::updated(const Key &key, bool doing) {
+	const auto now = crl::now();
+	const auto i = _updated.find(key);
+	if (doing) {
+		if (i == end(_updated)) {
+			_updated.emplace(key, now + kSetMyActionForMs);
+		} else if (i->second > now + (kSetMyActionForMs / 2)) {
+			return false;
+		} else {
+			i->second = now + kSetMyActionForMs;
+		}
+	} else {
+		if (i == end(_updated)) {
+			return false;
+		} else if (i->second <= now) {
+			return false;
+		} else {
+			_updated.erase(i);
+		}
+	}
+	return true;
+}
+
+void SendProgressManager::send(const Key &key, int progress) {
 	using Type = SendProgressType;
 	const auto action = [&]() -> MTPsendMessageAction {
 		const auto p = MTP_int(progress);
-		switch (type) {
+		switch (key.type) {
 		case Type::Typing: return MTP_sendMessageTypingAction();
 		case Type::RecordVideo: return MTP_sendMessageRecordVideoAction();
 		case Type::UploadVideo: return MTP_sendMessageUploadVideoAction(p);
@@ -81,17 +118,19 @@ void SendProgressManager::send(
 		}
 	}();
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
-		MTP_flags(0),
-		history->peer->input,
-		MTP_int(0), // top_msg_id
+		MTP_flags(key.topMsgId
+			? MTPmessages_SetTyping::Flag::f_top_msg_id
+			: MTPmessages_SetTyping::Flag(0)),
+		key.history->peer->input,
+		MTP_int(key.topMsgId),
 		action
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {
 		done(result, requestId);
 	}).send();
-	_requests.emplace(Key{ history, type }, requestId);
+	_requests.emplace(key, requestId);
 
-	if (type == Type::Typing) {
-		_stopTypingHistory = history;
+	if (key.type == Type::Typing) {
+		_stopTypingHistory = key.history;
 		_stopTypingTimer.callOnce(kCancelTypingActionTimeout);
 	}
 }
