@@ -1287,7 +1287,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	} else if (item->out()) {
 		destroyUnreadBar();
-	} else {
+	} else if (!item->unread()) {
 		inboxRead(item);
 	}
 	if (item->out() && !item->unread()) {
