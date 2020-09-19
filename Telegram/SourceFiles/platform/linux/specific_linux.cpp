@@ -1555,6 +1555,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
+	DEBUG_LOG(("Icon theme: %1").arg(QIcon::themeName()));
+	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
 	Libs::start();
 	MainWindow::LibsLoaded();
 }
