@@ -149,10 +149,16 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 bool IconThemeShouldBeSet() {
 	// change the icon theme only if it isn't already set by a platformtheme plugin
 	// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
-	static const auto Result = ((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
-		&& QIcon::fallbackThemeName() == qstr("hicolor"))
-		|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
-		&& QIcon::fallbackThemeName() == qstr("gnome")))
+	static const auto Result =
+		// QGenericUnixTheme
+		(QIcon::themeName() == qstr("hicolor")
+			&& QIcon::fallbackThemeName() == qstr("hicolor"))
+		// QGnomeTheme
+		|| (QIcon::themeName() == qstr("Adwaita")
+			&& QIcon::fallbackThemeName() == qstr("gnome"))
+		// qt5ct
+		|| (QIcon::themeName().isEmpty()
+			&& QIcon::fallbackThemeName().isEmpty())
 		|| IsGtkIntegrationForced();
 
 	return Result;
