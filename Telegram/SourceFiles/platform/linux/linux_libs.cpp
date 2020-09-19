@@ -163,13 +163,18 @@ void SetIconTheme() {
 		if (GtkSettingSupported()
 			&& GtkLoaded()
 			&& IconThemeShouldBeSet()) {
-			DEBUG_LOG(("Set GTK icon theme"));
+			DEBUG_LOG(("Setting GTK icon theme"));
 			QIcon::setThemeName(GtkSetting("gtk-icon-theme-name"));
 			QIcon::setFallbackThemeName(GtkSetting("gtk-fallback-icon-theme"));
+
+			DEBUG_LOG(("New icon theme: %1").arg(QIcon::themeName()));
+			DEBUG_LOG(("New fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
 			Platform::SetApplicationIcon(Window::CreateIcon());
 			if (App::wnd()) {
 				App::wnd()->setWindowIcon(Window::CreateIcon());
 			}
+
 			Core::App().domain().notifyUnreadBadgeChanged();
 		}
 	});
