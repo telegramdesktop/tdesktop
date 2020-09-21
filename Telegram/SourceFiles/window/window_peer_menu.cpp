@@ -437,7 +437,12 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		} else if (user->isBot()) {
 			user->session().api().blockPeer(user);
 		} else {
-			window->show(Box(PeerMenuBlockUserBox, window, user, v::null, v::null));
+			window->show(Box(
+				PeerMenuBlockUserBox,
+				window,
+				user,
+				v::null,
+				v::null));
 		}
 	});
 
@@ -915,9 +920,33 @@ void PeerMenuBlockUserBox(
 
 		peer->session().api().blockPeer(peer);
 		if (reportChecked) {
-			peer->session().api().request(MTPmessages_ReportSpam(
-				peer->input
-			)).send();
+			if (const auto ids = std::get_if<MessageIdsList>(&suggestClear)) {
+				Assert(!ids->empty());
+				const auto itemsPeer = [&]() -> PeerData* {
+					for (const auto &itemId : *ids) {
+						if (const auto item = peer->owner().message(itemId)) {
+							return item->history()->peer;
+						}
+					}
+					return nullptr;
+				}();
+				if (itemsPeer) {
+					auto items = QVector<MTPint>();
+					items.reserve(ids->size());
+					for (const auto &itemId : *ids) {
+						items.push_back(MTP_int(itemId.msg));
+					}
+					peer->session().api().request(MTPmessages_Report(
+						itemsPeer->input,
+						MTP_vector<MTPint>(items),
+						MTP_inputReportReasonSpam()
+					)).send();
+				}
+			} else {
+				peer->session().api().request(MTPmessages_ReportSpam(
+					peer->input
+				)).send();
+			}
 		}
 		if (clearChecked) {
 			if (const auto ids = std::get_if<MessageIdsList>(&suggestClear)) {
