@@ -270,7 +270,7 @@ void RepliesWidget::setupRootView() {
 	raw->resize(raw->width(), st::historyReplyHeight);
 	raw->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		auto p = Painter(_rootView->entity());
+		auto p = Painter(raw);
 		p.fillRect(clip, st::historyPinnedBg);
 
 		auto top = st::msgReplyPadding.top();
@@ -305,6 +305,25 @@ void RepliesWidget::setupRootView() {
 			p.setFont(st::msgDateFont);
 			p.setPen(st::historyComposeAreaFgService);
 			p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - st::msgReplyPadding.right()));
+		}
+	}, raw->lifetime());
+
+	raw->setCursor(style::cur_pointer);
+	const auto pressed = raw->lifetime().make_state<bool>();
+	raw->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto mouse = static_cast<QMouseEvent*>(e.get());
+		if (e->type() == QEvent::MouseButtonPress) {
+			if (mouse->button() == Qt::LeftButton) {
+				*pressed = true;
+			}
+		} else if (e->type() == QEvent::MouseButtonRelease) {
+			if (mouse->button() == Qt::LeftButton) {
+				if (base::take(*pressed)
+					&& raw->rect().contains(mouse->pos())) {
+					showAtStart();
+				}
+			}
 		}
 	}, raw->lifetime());
 
@@ -1066,6 +1085,10 @@ void RepliesWidget::scrollDownClicked() {
 	} else {
 		showAtEnd();
 	}
+}
+
+void RepliesWidget::showAtStart() {
+	showAtPosition(Data::MinMessagePosition);
 }
 
 void RepliesWidget::showAtEnd() {

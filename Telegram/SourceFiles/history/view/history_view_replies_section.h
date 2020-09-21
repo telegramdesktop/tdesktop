@@ -141,6 +141,7 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
+	void showAtStart();
 	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
