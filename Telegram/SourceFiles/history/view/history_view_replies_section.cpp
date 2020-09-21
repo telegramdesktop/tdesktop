@@ -337,6 +337,15 @@ void RepliesWidget::setupRootView() {
 	_rootShadow->showOn(_rootView->shownValue());
 
 	_rootView->hide(anim::type::instant);
+	_rootViewHeight = 0;
+
+	_rootView->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		if (const auto delta = height - _rootViewHeight) {
+			_rootViewHeight = height;
+			setGeometryWithTopMoved(geometry(), delta);
+		}
+	}, _rootView->lifetime());
 }
 
 void RepliesWidget::setupCommentsRoot() {
@@ -1369,7 +1378,8 @@ void RepliesWidget::updateControlsGeometry() {
 
 	const auto bottom = height();
 	const auto controlsHeight = _composeControls->heightCurrent();
-	const auto scrollHeight = bottom - _topBar->height() - controlsHeight;
+	const auto scrollY = _topBar->height() + _rootView->height();
+	const auto scrollHeight = bottom - scrollY - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -1377,6 +1387,7 @@ void RepliesWidget::updateControlsGeometry() {
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 		_skipScrollEvent = false;
 	}
+	_scroll->move(0, scrollY);
 	if (!_scroll->isHidden()) {
 		if (newScrollTop) {
 			_scroll->scrollToY(*newScrollTop);

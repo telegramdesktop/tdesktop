@@ -247,6 +247,7 @@ private:
 	Ui::Text::String _rootTitle;
 	Ui::Text::String _rootMessage;
 	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
+	int _rootViewHeight = 0;
 	object_ptr<Ui::PlainShadow> _rootShadow;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
