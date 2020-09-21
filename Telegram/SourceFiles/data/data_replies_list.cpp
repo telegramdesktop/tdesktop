@@ -345,12 +345,13 @@ void RepliesList::loadAround(MsgId id) {
 		return _history->session().api().request(MTPmessages_GetReplies(
 			_history->peer->input,
 			MTP_int(_rootId),
-			MTP_int(id),
-			MTP_int(id ? (-kMessagesPerPage / 2) : 0),
-			MTP_int(kMessagesPerPage),
-			MTP_int(0),
-			MTP_int(0),
-			MTP_int(0)
+			MTP_int(id), // offset_id
+			MTP_int(0), // offset_date
+			MTP_int(id ? (-kMessagesPerPage / 2) : 0), // add_offset
+			MTP_int(kMessagesPerPage), // limit
+			MTP_int(0), // max_id
+			MTP_int(0), // min_id
+			MTP_int(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_beforeId = 0;
 			_loadingAround = std::nullopt;
@@ -400,12 +401,13 @@ void RepliesList::loadBefore() {
 		return _history->session().api().request(MTPmessages_GetReplies(
 			_history->peer->input,
 			MTP_int(_rootId),
-			MTP_int(last),
-			MTP_int(0),
-			MTP_int(kMessagesPerPage),
-			MTP_int(0),
-			MTP_int(0),
-			MTP_int(0)
+			MTP_int(last), // offset_id
+			MTP_int(0), // offset_date
+			MTP_int(0), // add_offset
+			MTP_int(kMessagesPerPage), // limit
+			MTP_int(0), // min_id
+			MTP_int(0), // max_id
+			MTP_int(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_beforeId = 0;
 			finish();
@@ -443,12 +445,13 @@ void RepliesList::loadAfter() {
 		return _history->session().api().request(MTPmessages_GetReplies(
 			_history->peer->input,
 			MTP_int(_rootId),
-			MTP_int(first + 1),
-			MTP_int(-kMessagesPerPage),
-			MTP_int(kMessagesPerPage),
-			MTP_int(0),
-			MTP_int(0),
-			MTP_int(0)
+			MTP_int(first + 1), // offset_id
+			MTP_int(0), // offset_date
+			MTP_int(-kMessagesPerPage), // add_offset
+			MTP_int(kMessagesPerPage), // limit
+			MTP_int(0), // min_id
+			MTP_int(0), // max_id
+			MTP_int(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
 			_afterId = 0;
 			finish();
