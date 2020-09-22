@@ -122,17 +122,6 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void openPeerByName(
-		const QString &name,
-		MsgId msgId = ShowAtUnreadMsgId,
-		const QString &startToken = QString(),
-		FullMsgId clickFromMessageId = FullMsgId());
-	void openCommentByName(
-		const QString &name,
-		MsgId msgId,
-		MsgId commentId,
-		FullMsgId clickFromMessageId = FullMsgId());
-
 	void activate();
 
 	void windowShown();
@@ -294,15 +283,6 @@ private:
 
 	void saveSectionInStack();
 
-	void resolveUsername(
-		const QString &username,
-		Fn<void(not_null<PeerData*>)> done);
-	void openPeerResolved(
-		not_null<PeerData*> peer,
-		MsgId msgId,
-		const QString &startToken,
-		FullMsgId clickFromMessageId);
-
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
 
@@ -406,7 +386,6 @@ private:
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _viewsIncrementRequests;
 	base::flat_map<mtpRequestId, not_null<PeerData*>> _viewsIncrementByRequest;
 	base::Timer _viewsIncrementTimer;
-	mtpRequestId _resolveRequestId = 0;
 
 	struct SettingBackground;
 	std::unique_ptr<SettingBackground> _background;

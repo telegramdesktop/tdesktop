@@ -1210,7 +1210,8 @@ bool RepliesWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<RepliesMemento*>(memento.get())) {
-		if (logMemento->getHistory() == history()) {
+		if (logMemento->getHistory() == history()
+			&& logMemento->getRootId() == _rootId) {
 			restoreState(logMemento);
 			return true;
 		}

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "window/window_session_controller.h"
 #include "facades.h"
 #include "app.h"
 
@@ -112,7 +113,11 @@ void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		if (const auto m = App::main()) { // multi good
-			m->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+			using Info = Window::SessionNavigation::PeerByLinkInfo;
+			m->controller()->showPeerByLink(Info{
+				.usernameOrId = _tag.mid(1),
+				.messageId = ShowAtProfileMsgId
+			});
 		}
 	}
 }

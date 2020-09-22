@@ -570,6 +570,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::ChannelAmIn
 		| UpdateFlag::ChannelLinkedChat
 		| UpdateFlag::Slowmode
+		| UpdateFlag::BotStartToken
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == _peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -593,6 +594,10 @@ HistoryWidget::HistoryWidget(
 				Ui::show(Box<InformBox>(unavailable));
 				return;
 			}
+		}
+		if (flags & UpdateFlag::BotStartToken) {
+			updateControlsVisibility();
+			updateControlsGeometry();
 		}
 		if (flags & UpdateFlag::PinnedMessage) {
 			if (pinnedMsgVisibilityUpdated()) {

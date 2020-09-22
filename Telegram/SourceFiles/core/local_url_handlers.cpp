@@ -273,25 +273,30 @@ bool ResolveUsername(
 	}
 	const auto commentParam = params.value(qsl("comment"));
 	const auto commentId = commentParam.toInt();
+	const auto threadParam = params.value(qsl("thread"));
+	const auto threadId = threadParam.toInt();
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && valid(gameParam)) {
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	if (commentId) {
-		controller->content()->openCommentByName(
-			domain,
-			post,
-			commentId,
-			clickFromMessageId);
-	} else {
-		controller->content()->openPeerByName(
-			domain,
-			post,
-			startToken,
-			clickFromMessageId);
-	}
+	using Navigation = Window::SessionNavigation;
+	controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		.usernameOrId = domain,
+		.messageId = post,
+		.repliesInfo = commentId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::CommentId{ commentId }
+			}
+			: threadId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::ThreadId{ threadId }
+			}
+			: Navigation::RepliesByLinkInfo{ v::null },
+		.startToken = startToken,
+		.clickFromMessageId = clickFromMessageId,
+	});
 	return true;
 }
 
@@ -307,46 +312,29 @@ bool ResolvePrivatePost(
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto channelId = params.value(qsl("channel")).toInt();
 	const auto msgId = params.value(qsl("post")).toInt();
+	const auto commentParam = params.value(qsl("comment"));
+	const auto commentId = commentParam.toInt();
+	const auto threadParam = params.value(qsl("thread"));
+	const auto threadId = threadParam.toInt();
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	const auto done = crl::guard(controller, [=](not_null<PeerData*> peer) {
-		auto params = Window::SectionShow{
-			Window::SectionShow::Way::Forward
-		};
-		params.origin = Window::SectionShow::OriginMessage{
-			clickFromMessageId
-		};
-		controller->showPeerHistory(
-			peer->id,
-			Window::SectionShow::Way::Forward,
-			msgId);
-	});
-	const auto fail = [=] {
-		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
-	};
-	const auto session = &controller->session();
-	if (const auto channel = session->data().channelLoaded(channelId)) {
-		done(channel);
-		return true;
-	}
-	session->api().request(MTPchannels_GetChannels(
-		MTP_vector<MTPInputChannel>(
-			1,
-			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
-	)).done([=](const MTPmessages_Chats &result) {
-		result.match([&](const auto &data) {
-			const auto peer = session->data().processChats(data.vchats());
-			if (peer && peer->id == peerFromChannel(channelId)) {
-				done(peer);
-			} else {
-				fail();
+	using Navigation = Window::SessionNavigation;
+	controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		.usernameOrId = channelId,
+		.messageId = msgId,
+		.repliesInfo = commentId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::CommentId{ commentId }
 			}
-		});
-	}).fail([=](const RPCError &error) {
-		fail();
-	}).send();
+			: threadId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::ThreadId{ threadId }
+			}
+			: Navigation::RepliesByLinkInfo{ v::null },
+		.clickFromMessageId = clickFromMessageId,
+	});
 	return true;
 }
 

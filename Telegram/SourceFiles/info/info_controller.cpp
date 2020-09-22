@@ -133,6 +133,13 @@ void AbstractController::showBackFromStack(
 	return parentController()->showBackFromStack(params);
 }
 
+void AbstractController::showPeerHistory(
+		PeerId peerId,
+		const Window::SectionShow &params,
+		MsgId msgId) {
+	return parentController()->showPeerHistory(peerId, params, msgId);
+}
+
 Controller::Controller(
 	not_null<WrapWidget*> widget,
 	not_null<Window::SessionController*> window,
