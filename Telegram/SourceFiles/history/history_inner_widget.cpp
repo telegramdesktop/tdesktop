@@ -1647,7 +1647,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
-				HistoryView::CopyPostLink(session, itemId);
+				HistoryView::CopyPostLink(session, itemId, HistoryView::Context::History);
 			});
 		}
 		if (isUponSelected > 1) {
@@ -1792,7 +1792,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				});
 		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
-				HistoryView::CopyPostLink(session, itemId);
+				HistoryView::CopyPostLink(session, itemId, HistoryView::Context::History);
 			});
 		}
 		if (isUponSelected > 1) {

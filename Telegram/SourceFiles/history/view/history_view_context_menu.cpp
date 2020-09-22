@@ -254,11 +254,14 @@ void AddPostLinkAction(
 	}
 	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
+	const auto context = request.view
+		? request.view->context()
+		: Context::History;
 	menu->addAction(
 		(item->history()->peer->isMegagroup()
 			? tr::lng_context_copy_link
 			: tr::lng_context_copy_post_link)(tr::now),
-		[=] { CopyPostLink(session, itemId); });
+		[=] { CopyPostLink(session, itemId, context); });
 }
 
 MessageIdsList ExtractIdsList(const SelectedItems &items) {
@@ -774,18 +777,38 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	return result;
 }
 
-void CopyPostLink(not_null<Main::Session*> session, FullMsgId itemId) {
+void CopyPostLink(
+		not_null<Main::Session*> session,
+		FullMsgId itemId,
+		Context context) {
 	const auto item = session->data().message(itemId);
 	if (!item || !item->hasDirectLink()) {
 		return;
 	}
+	const auto inRepliesContext = (context == Context::Replies);
 	QGuiApplication::clipboard()->setText(
-		item->history()->session().api().exportDirectMessageLink(item));
+		item->history()->session().api().exportDirectMessageLink(
+			item,
+			inRepliesContext));
 
-	const auto channel = item->history()->peer->asChannel();
-	Assert(channel != nullptr);
+	const auto isPublicLink = [&] {
+		const auto channel = item->history()->peer->asChannel();
+		Assert(channel != nullptr);
+		if (const auto rootId = item->replyToTop()) {
+			const auto root = item->history()->owner().message(
+				channel->bareId(),
+				rootId);
+			const auto sender = root
+				? root->discussionPostOriginalSender()
+				: nullptr;
+			if (sender && sender->hasUsername()) {
+				return true;
+			}
+		}
+		return channel->hasUsername();
+	}();
 
-	Ui::Toast::Show(channel->hasUsername()
+	Ui::Toast::Show(isPublicLink
 		? tr::lng_channel_public_link_copied(tr::now)
 		: tr::lng_context_about_private_link(tr::now));
 }

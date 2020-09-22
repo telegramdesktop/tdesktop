@@ -218,7 +218,10 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyCallback = [=]() {
 		if (const auto item = owner->message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
-				HistoryView::CopyPostLink(session, item->fullId());
+				HistoryView::CopyPostLink(
+					session,
+					item->fullId(),
+					HistoryView::Context::History);
 			} else if (const auto bot = item->getMessageBot()) {
 				if (const auto media = item->media()) {
 					if (const auto game = media->game()) {

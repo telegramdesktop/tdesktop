@@ -172,7 +172,9 @@ public:
 		ChannelData *channel,
 		MsgId msgId,
 		RequestMessageDataCallback callback);
-	QString exportDirectMessageLink(not_null<HistoryItem*> item);
+	QString exportDirectMessageLink(
+		not_null<HistoryItem*> item,
+		bool inRepliesContext);
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);

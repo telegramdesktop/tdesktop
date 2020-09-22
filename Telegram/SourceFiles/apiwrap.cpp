@@ -683,17 +683,57 @@ void ApiWrap::finalizeMessageDataRequest(
 	}
 }
 
-QString ApiWrap::exportDirectMessageLink(not_null<HistoryItem*> item) {
+QString ApiWrap::exportDirectMessageLink(
+		not_null<HistoryItem*> item,
+		bool inRepliesContext) {
 	Expects(item->history()->peer->isChannel());
 
 	const auto itemId = item->fullId();
 	const auto channel = item->history()->peer->asChannel();
 	const auto fallback = [&] {
-		const auto base = channel->hasUsername()
-			? channel->username
-			: "c/" + QString::number(channel->bareId());
-		const auto query = base + '/' + QString::number(item->id);
-		if (channel->hasUsername() && !channel->isMegagroup()) {
+		auto linkChannel = channel;
+		auto linkItemId = item->id;
+		auto linkCommentId = 0;
+		auto linkThreadId = 0;
+		if (inRepliesContext) {
+			if (const auto rootId = item->replyToTop()) {
+				const auto root = item->history()->owner().message(
+					channel->bareId(),
+					rootId);
+				const auto sender = root
+					? root->discussionPostOriginalSender()
+					: nullptr;
+				if (sender && sender->hasUsername()) {
+					// Comment to a public channel.
+					const auto forwarded = root->Get<HistoryMessageForwarded>();
+					linkItemId = forwarded->savedFromMsgId;
+					if (linkItemId) {
+						linkChannel = sender;
+						linkCommentId = item->id;
+					} else {
+						linkItemId = item->id;
+					}
+				} else {
+					// Reply in a thread, maybe comment in a private channel.
+					linkThreadId = rootId;
+				}
+			}
+		}
+		const auto base = linkChannel->hasUsername()
+			? linkChannel->username
+			: "c/" + QString::number(linkChannel->bareId());
+		const auto query = base
+			+ '/'
+			+ QString::number(linkItemId)
+			+ (linkCommentId
+				? "?comment=" + QString::number(linkCommentId)
+				: linkThreadId
+				? "?thread=" + QString::number(linkThreadId)
+				: "");
+		if (linkChannel->hasUsername()
+			&& !linkChannel->isMegagroup()
+			&& !linkCommentId
+			&& !linkThreadId) {
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					if (document->isVideoMessage()) {
@@ -709,7 +749,9 @@ QString ApiWrap::exportDirectMessageLink(not_null<HistoryItem*> item) {
 		? i->second
 		: fallback();
 	request(MTPchannels_ExportMessageLink(
-		MTP_flags(0),
+		MTP_flags(inRepliesContext
+			? MTPchannels_ExportMessageLink::Flag::f_thread
+			: MTPchannels_ExportMessageLink::Flag(0)),
 		channel->inputChannel,
 		MTP_int(item->id)
 	)).done([=](const MTPExportedMessageLink &result) {
