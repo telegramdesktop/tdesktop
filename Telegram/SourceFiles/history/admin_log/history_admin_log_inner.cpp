@@ -595,6 +595,10 @@ bool InnerWidget::elementHideReply(not_null<const Element*> view) {
 	return true;
 }
 
+bool InnerWidget::elementShownUnread(not_null<const Element*> view) {
+	return view->data()->unread();
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

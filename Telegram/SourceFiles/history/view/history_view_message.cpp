@@ -1774,7 +1774,7 @@ void Message::drawInfo(
 	if (outbg) {
 		auto icon = [&] {
 			if (item->id > 0) {
-				if (item->unread()) {
+				if (delegate()->elementShownUnread(this)) {
 					return &(invertedsprites ? st::historySentInvertedIcon : (selected ? st::historySentSelectedIcon : st::historySentIcon));
 				}
 				return &(invertedsprites ? st::historyReceivedInvertedIcon : (selected ? st::historyReceivedSelectedIcon : st::historyReceivedIcon));

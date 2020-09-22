@@ -1150,6 +1150,10 @@ bool ScheduledWidget::listElementHideReply(not_null<const Element*> view) {
 	return false;
 }
 
+bool ScheduledWidget::listElementShownUnread(not_null<const Element*> view) {
+	return true;
+}
+
 bool ScheduledWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
 	return true;

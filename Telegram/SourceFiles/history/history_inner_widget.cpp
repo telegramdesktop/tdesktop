@@ -3411,6 +3411,9 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		bool elementHideReply(not_null<const Element*> view) override {
 			return false;
 		}
+		bool elementShownUnread(not_null<const Element*> view) override {
+			return view->data()->unread();
+		}
 	};
 
 	static Result result;

@@ -211,6 +211,13 @@ RepliesWidget::RepliesWidget(
 		}
 	}, lifetime());
 
+	_history->session().changes().historyUpdates(
+		_history,
+		Data::HistoryUpdate::Flag::OutboxRead
+	) | rpl::start_with_next([=] {
+		_inner->update();
+	}, lifetime());
+
 	setupScrollDownButton();
 	setupComposeControls();
 }
@@ -252,6 +259,7 @@ void RepliesWidget::setupRoot() {
 				if (_readRequestPending) {
 					sendReadTillRequest();
 				}
+				_inner->update();
 			}
 			updatePinnedVisibility();
 			refreshRootView();
@@ -1578,6 +1586,17 @@ ClickHandlerPtr RepliesWidget::listDateLink(not_null<Element*> view) {
 
 bool RepliesWidget::listElementHideReply(not_null<const Element*> view) {
 	return (view->data()->replyToId() == _rootId);
+}
+
+bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
+	if (!_root) {
+		return false;
+	}
+	const auto item = view->data();
+	const auto till = item->out()
+		? _root->computeRepliesOutboxReadTillFull()
+		: _root->computeRepliesInboxReadTillFull();
+	return (item->id > till);
 }
 
 bool RepliesWidget::listIsGoodForAroundPosition(

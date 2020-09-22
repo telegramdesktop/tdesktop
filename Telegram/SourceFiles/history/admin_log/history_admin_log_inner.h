@@ -114,6 +114,8 @@ public:
 	bool elementIsGifPaused() override;
 	bool elementHideReply(
 		not_null<const HistoryView::Element*> view) override;
+	bool elementShownUnread(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 

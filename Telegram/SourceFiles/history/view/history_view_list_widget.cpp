@@ -1279,6 +1279,10 @@ bool ListWidget::elementHideReply(not_null<const Element*> view) {
 	return _delegate->listElementHideReply(view);
 }
 
+bool ListWidget::elementShownUnread(not_null<const Element*> view) {
+	return _delegate->listElementShownUnread(view);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

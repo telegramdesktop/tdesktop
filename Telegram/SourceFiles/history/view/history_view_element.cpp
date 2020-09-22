@@ -116,6 +116,11 @@ bool SimpleElementDelegate::elementHideReply(not_null<const Element*> view) {
 	return false;
 }
 
+bool SimpleElementDelegate::elementShownUnread(
+		not_null<const Element*> view) {
+	return view->data()->unread();
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

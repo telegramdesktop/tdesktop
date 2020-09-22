@@ -84,6 +84,7 @@ public:
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
 	virtual bool listElementHideReply(not_null<const Element*> view) = 0;
+	virtual bool listElementShownUnread(not_null<const Element*> view) = 0;
 	virtual bool listIsGoodForAroundPosition(
 		not_null<const Element*> view) = 0;
 
@@ -229,6 +230,7 @@ public:
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
+	bool elementShownUnread(not_null<const Element*> view) override;
 
 	~ListWidget();
 

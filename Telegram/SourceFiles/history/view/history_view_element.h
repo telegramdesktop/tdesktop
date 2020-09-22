@@ -65,6 +65,7 @@ public:
 		Fn<void()> hiddenCallback) = 0;
 	virtual bool elementIsGifPaused() = 0;
 	virtual bool elementHideReply(not_null<const Element*> view) = 0;
+	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
 
 };
 
@@ -96,6 +97,7 @@ public:
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
+	bool elementShownUnread(not_null<const Element*> view) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
