@@ -340,6 +340,9 @@ QSize Message::performCountOptimalSize() {
 		}
 
 		maxWidth = plainMaxWidth();
+		if (context() == Context::Replies && item->isDiscussionPost()) {
+			maxWidth = st::msgMaxWidth;
+		}
 		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
 		if (!mediaOnBottom) {
 			minHeight += st::msgPadding.bottom();
@@ -551,7 +554,8 @@ void Message::draw(
 
 		auto skipTail = isAttachedToNext()
 			|| (media && media->skipBubbleTail())
-			|| (keyboard != nullptr);
+			|| (keyboard != nullptr)
+			|| (context() == Context::Replies && data()->isDiscussionPost());
 		auto displayTail = skipTail ? RectPart::None : (outbg && !Core::App().settings().chatWide()) ? RectPart::Right : RectPart::Left;
 		PaintBubble(p, g, width(), selected, outbg, displayTail);
 
@@ -1113,7 +1117,9 @@ bool Message::hasFromPhoto() const {
 	case Context::History:
 	case Context::Replies: {
 		const auto item = message();
-		if (item->isPost() || item->isEmpty()) {
+		if (item->isPost()
+			|| item->isEmpty()
+			|| (context() == Context::Replies && data()->isDiscussionPost())) {
 			return false;
 		} else if (Core::App().settings().chatWide()) {
 			return true;
@@ -2274,6 +2280,8 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 }
 
 QRect Message::countGeometry() const {
+	const auto commentsRoot = (context() == Context::Replies)
+		&& data()->isDiscussionPost();
 	const auto item = message();
 	const auto media = this->media();
 	const auto mediaWidth = (media && media->isDisplayed())
@@ -2282,7 +2290,7 @@ QRect Message::countGeometry() const {
 	const auto outbg = hasOutLayout();
 	const auto availableWidth = width()
 		- st::msgMargin.left()
-		- st::msgMargin.right();
+		- (commentsRoot ? st::msgMargin.left() : st::msgMargin.right());
 	auto contentLeft = (outbg && !Core::App().settings().chatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
@@ -2306,8 +2314,14 @@ QRect Message::countGeometry() const {
 			contentWidth = mediaWidth;
 		}
 	}
-	if (contentWidth < availableWidth && outbg && !Core::App().settings().chatWide()) {
-		contentLeft += availableWidth - contentWidth;
+	if (contentWidth < availableWidth && !Core::App().settings().chatWide()) {
+		if (outbg) {
+			contentLeft += availableWidth - contentWidth;
+		} else if (commentsRoot) {
+			contentLeft += (availableWidth - contentWidth) / 2;
+		}
+	} else if (contentWidth < availableWidth && commentsRoot) {
+		contentLeft += ((st::msgMaxWidth + 2 * st::msgPhotoSkip) - contentWidth) / 2;
 	}
 
 	const auto contentTop = marginTop();

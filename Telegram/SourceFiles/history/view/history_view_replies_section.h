@@ -191,6 +191,7 @@ private:
 	void calculateNextReplyReturn();
 	void restoreReplyReturns(const std::vector<MsgId> &list);
 	void checkReplyReturns();
+	void recountChatWidth();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(

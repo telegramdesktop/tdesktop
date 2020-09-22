@@ -1332,7 +1332,18 @@ void RepliesWidget::resizeEvent(QResizeEvent *e) {
 		return;
 	}
 	_composeControls->resizeToWidth(width());
+	recountChatWidth();
 	updateControlsGeometry();
+}
+
+void RepliesWidget::recountChatWidth() {
+	auto layout = (width() < st::adaptiveChatWideWidth)
+		? Adaptive::ChatLayout::Normal
+		: Adaptive::ChatLayout::Wide;
+	if (layout != Global::AdaptiveChatLayout()) {
+		Global::SetAdaptiveChatLayout(layout);
+		Adaptive::Changed().notify(true);
+	}
 }
 
 void RepliesWidget::updateControlsGeometry() {
