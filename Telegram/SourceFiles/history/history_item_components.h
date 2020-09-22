@@ -45,10 +45,11 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	Part views;
 	Part replies;
 	Part repliesSmall;
-	ChannelId commentsChannelId = 0;
+	MsgId repliesInboxReadTillId = 0;
+	MsgId repliesOutboxReadTillId = 0;
+	MsgId repliesMaxId = 0;
+	ChannelId commentsMegagroupId = 0;
 	MsgId commentsRootId = 0;
-	MsgId commentsReadTillId = 0;
-	MsgId commentsMaxId = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {

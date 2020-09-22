@@ -145,14 +145,26 @@ void SessionNavigation::showRepliesForMessage(
 				item = group->items.front();
 			}
 			if (item) {
+				if (const auto maxId = data.vmax_id()) {
+					item->setRepliesMaxId(maxId->v);
+				}
+				if (const auto readTill = data.vread_inbox_max_id()) {
+					item->setRepliesInboxReadTill(readTill->v);
+				}
+				if (const auto readTill = data.vread_outbox_max_id()) {
+					item->setRepliesOutboxReadTill(readTill->v);
+				}
 				const auto post = _session->data().message(channelId, rootId);
 				if (post) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
-						post->setCommentsMaxId(maxId->v);
+						post->setRepliesMaxId(maxId->v);
 					}
 					if (const auto readTill = data.vread_inbox_max_id()) {
-						post->setCommentsReadTill(readTill->v);
+						post->setRepliesInboxReadTill(readTill->v);
+					}
+					if (const auto readTill = data.vread_outbox_max_id()) {
+						post->setRepliesOutboxReadTill(readTill->v);
 					}
 				}
 				showSection(

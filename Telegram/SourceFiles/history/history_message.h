@@ -160,14 +160,19 @@ public:
 	[[nodiscard]] int repliesCount() const override;
 	[[nodiscard]] bool repliesAreComments() const override;
 	[[nodiscard]] bool externalReply() const override;
+
+	[[nodiscard]] MsgId repliesInboxReadTill() const override;
+	void setRepliesInboxReadTill(MsgId readTillId) override;
+	[[nodiscard]] MsgId computeRepliesInboxReadTillFull() const override;
+	[[nodiscard]] MsgId repliesOutboxReadTill() const override;
+	void setRepliesOutboxReadTill(MsgId readTillId) override;
+	[[nodiscard]] MsgId computeRepliesOutboxReadTillFull() const override;
+	void setRepliesMaxId(MsgId maxId) override;
+	void setRepliesPossibleMaxId(MsgId possibleMaxId) override;
+	[[nodiscard]] bool areRepliesUnread() const override;
+
 	[[nodiscard]] FullMsgId commentsItemId() const override;
 	void setCommentsItemId(FullMsgId id) override;
-	[[nodiscard]] MsgId commentsReadTill() const override;
-	void setCommentsReadTill(MsgId readTillId) override;
-	void setCommentsMaxId(MsgId maxId) override;
-	void setCommentsPossibleMaxId(MsgId possibleMaxId) override;
-	[[nodiscard]] MsgId computeCommentsReadTillFull() const override;
-	[[nodiscard]] bool areCommentsUnread() const override;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();

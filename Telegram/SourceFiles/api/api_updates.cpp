@@ -1929,8 +1929,35 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateReadChannelDiscussionInbox: {
 		const auto &d = update.c_updateReadChannelDiscussionInbox();
 		const auto channelId = d.vchannel_id().v;
-		if (const auto item = session().data().message(channelId, d.vtop_msg_id().v)) {
-			item->setCommentsReadTill(d.vread_max_id().v);
+		const auto msgId = d.vtop_msg_id().v;
+		const auto readTillId = d.vread_max_id().v;
+		const auto item = session().data().message(channelId, msgId);
+		if (item) {
+			item->setRepliesInboxReadTill(readTillId);
+			if (const auto post = item->lookupDiscussionPostOriginal()) {
+				post->setRepliesInboxReadTill(readTillId);
+			}
+		}
+		if (const auto broadcastId = d.vbroadcast_id()) {
+			if (const auto post = session().data().message(
+					broadcastId->v,
+					d.vbroadcast_post()->v)) {
+				post->setRepliesInboxReadTill(readTillId);
+			}
+		}
+	} break;
+
+	case mtpc_updateReadChannelDiscussionOutbox: {
+		const auto &d = update.c_updateReadChannelDiscussionOutbox();
+		const auto channelId = d.vchannel_id().v;
+		const auto msgId = d.vtop_msg_id().v;
+		const auto readTillId = d.vread_max_id().v;
+		const auto item = session().data().message(channelId, msgId);
+		if (item) {
+			item->setRepliesOutboxReadTill(readTillId);
+			if (const auto post = item->lookupDiscussionPostOriginal()) {
+				post->setRepliesOutboxReadTill(readTillId);
+			}
 		}
 	} break;
 

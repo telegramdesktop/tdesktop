@@ -198,25 +198,35 @@ public:
 	[[nodiscard]] virtual bool externalReply() const {
 		return false;
 	}
+
+	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
+		return MsgId(0);
+	}
+	virtual void setRepliesInboxReadTill(MsgId readTillId) {
+	}
+	[[nodiscard]] virtual MsgId computeRepliesInboxReadTillFull() const {
+		return MsgId(0);
+	}
+	[[nodiscard]] virtual MsgId repliesOutboxReadTill() const {
+		return MsgId(0);
+	}
+	virtual void setRepliesOutboxReadTill(MsgId readTillId) {
+	}
+	[[nodiscard]] virtual MsgId computeRepliesOutboxReadTillFull() const {
+		return MsgId(0);
+	}
+	virtual void setRepliesMaxId(MsgId maxId) {
+	}
+	virtual void setRepliesPossibleMaxId(MsgId possibleMaxId) {
+	}
+	[[nodiscard]] virtual bool areRepliesUnread() const {
+		return false;
+	}
+
 	[[nodiscard]] virtual FullMsgId commentsItemId() const {
 		return FullMsgId();
 	}
 	virtual void setCommentsItemId(FullMsgId id) {
-	}
-	[[nodiscard]] virtual MsgId commentsReadTill() const {
-		return MsgId(0);
-	}
-	virtual void setCommentsReadTill(MsgId readTillId) {
-	}
-	virtual void setCommentsMaxId(MsgId maxId) {
-	}
-	virtual void setCommentsPossibleMaxId(MsgId possibleMaxId) {
-	}
-	[[nodiscard]] virtual MsgId computeCommentsReadTillFull() const {
-		return MsgId(0);
-	}
-	[[nodiscard]] virtual bool areCommentsUnread() const {
-		return false;
 	}
 
 	[[nodiscard]] virtual bool needCheck() const;

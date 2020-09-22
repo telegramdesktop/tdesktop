@@ -777,7 +777,7 @@ void Message::paintCommentsButton(
 		views ? views->replies.text : tr::lng_replies_view_original(tr::now),
 		views ? views->replies.textWidth : -1);
 
-	if (views && data()->areCommentsUnread()) {
+	if (views && data()->areRepliesUnread()) {
 		p.setPen(Qt::NoPen);
 		p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
 
@@ -1707,7 +1707,7 @@ void Message::drawInfo(
 		const auto iconTop = infoBottom + st::historyViewsTop;
 		const auto textTop = infoBottom - st::msgDateFont->descent;
 		if (views->replies.count > 0
-			&& !views->commentsChannelId
+			&& !views->commentsMegagroupId
 			&& context() != Context::Replies) {
 			auto icon = [&] {
 				if (item->id > 0) {
@@ -1826,7 +1826,7 @@ int Message::infoWidth() const {
 				+ st::historyViewsWidth;
 		}
 		if (views->replies.count > 0
-			&& !views->commentsChannelId
+			&& !views->commentsMegagroupId
 			&& context() != Context::Replies) {
 			result += st::historyViewsSpace
 				+ views->replies.textWidth
@@ -1877,7 +1877,7 @@ int Message::timeLeft() const {
 			result += st::historyViewsSpace + views->views.textWidth + st::historyViewsWidth;
 		}
 		if (views->replies.count > 0
-			&& !views->commentsChannelId
+			&& !views->commentsMegagroupId
 			&& context() != Context::Replies) {
 			result += st::historyViewsSpace + views->replies.textWidth + st::historyViewsWidth;
 		}

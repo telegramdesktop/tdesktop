@@ -155,7 +155,6 @@ private:
 
 	void setupRoot();
 	void setupRootView();
-	void setupCommentsRoot();
 	void refreshRootView();
 	void setupDragArea();
 	void sendReadTillRequest();
@@ -184,7 +183,6 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
-	[[nodiscard]] HistoryItem *lookupCommentsRoot() const;
 	[[nodiscard]] bool computeAreComments() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -235,7 +233,6 @@ private:
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
 	HistoryItem *_root = nullptr;
-	HistoryItem *_commentsRoot = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;
 	QPointer<ListWidget> _inner;

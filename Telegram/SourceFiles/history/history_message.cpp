@@ -772,7 +772,7 @@ bool HistoryMessage::checkCommentsLinkedChat(ChannelId id) const {
 
 int HistoryMessage::repliesCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		if (!checkCommentsLinkedChat(views->commentsChannelId)) {
+		if (!checkCommentsLinkedChat(views->commentsMegagroupId)) {
 			return 0;
 		}
 		return std::max(views->replies.count, 0);
@@ -782,8 +782,8 @@ int HistoryMessage::repliesCount() const {
 
 bool HistoryMessage::repliesAreComments() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return (views->commentsChannelId != 0)
-			&& checkCommentsLinkedChat(views->commentsChannelId);
+		return (views->commentsMegagroupId != 0)
+			&& checkCommentsLinkedChat(views->commentsMegagroupId);
 	}
 	return HistoryItem::repliesAreComments();
 }
@@ -797,92 +797,137 @@ bool HistoryMessage::externalReply() const {
 	return false;
 }
 
+MsgId HistoryMessage::repliesInboxReadTill() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return views->repliesInboxReadTillId;
+	}
+	return 0;
+}
+
+void HistoryMessage::setRepliesInboxReadTill(MsgId readTillId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		const auto newReadTillId = std::max(readTillId, 1);
+		if (newReadTillId > views->repliesInboxReadTillId) {
+			const auto wasUnread = repliesAreComments() && areRepliesUnread();
+			views->repliesInboxReadTillId = newReadTillId;
+			if (wasUnread && !areRepliesUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+MsgId HistoryMessage::computeRepliesInboxReadTillFull() const {
+	const auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		return 0;
+	}
+	const auto local = views->repliesInboxReadTillId;
+	const auto group = views->commentsMegagroupId
+		? history()->owner().historyLoaded(
+			peerFromChannel(views->commentsMegagroupId))
+		: history().get();
+	return group ? std::max(local, group->inboxReadTillId()) : local;
+}
+
+MsgId HistoryMessage::repliesOutboxReadTill() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return views->repliesOutboxReadTillId;
+	}
+	return 0;
+}
+
+void HistoryMessage::setRepliesOutboxReadTill(MsgId readTillId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		const auto newReadTillId = std::max(readTillId, 1);
+		if (newReadTillId > views->repliesOutboxReadTillId) {
+			views->repliesOutboxReadTillId = newReadTillId;
+			if (!repliesAreComments()) {
+				history()->session().changes().historyUpdated(
+					history(),
+					Data::HistoryUpdate::Flag::OutboxRead);
+			}
+		}
+	}
+}
+
+MsgId HistoryMessage::computeRepliesOutboxReadTillFull() const {
+	const auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		return 0;
+	}
+	const auto local = views->repliesOutboxReadTillId;
+	const auto group = views->commentsMegagroupId
+		? history()->owner().historyLoaded(
+			peerFromChannel(views->commentsMegagroupId))
+		: history().get();
+	return group ? std::max(local, group->outboxReadTillId()) : local;
+}
+
+void HistoryMessage::setRepliesMaxId(MsgId maxId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->repliesMaxId != maxId) {
+			const auto comments = repliesAreComments();
+			const auto wasUnread = comments && areRepliesUnread();
+			views->repliesMaxId = maxId;
+			if (comments && wasUnread != areRepliesUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+void HistoryMessage::setRepliesPossibleMaxId(MsgId possibleMaxId) {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->repliesMaxId < possibleMaxId) {
+			const auto comments = repliesAreComments();
+			const auto wasUnread = comments && areRepliesUnread();
+			views->repliesMaxId = possibleMaxId;
+			if (comments && !wasUnread && areRepliesUnread()) {
+				history()->owner().requestItemRepaint(this);
+			}
+		}
+	}
+}
+
+bool HistoryMessage::areRepliesUnread() const {
+	const auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		return false;
+	}
+	const auto local = views->repliesInboxReadTillId;
+	if (views->repliesInboxReadTillId < 2 || views->repliesMaxId <= local) {
+		return false;
+	}
+	const auto group = views->commentsMegagroupId
+		? history()->owner().historyLoaded(
+			peerFromChannel(views->commentsMegagroupId))
+		: history().get();
+	return !group || (views->repliesMaxId > group->inboxReadTillId());
+}
+
 FullMsgId HistoryMessage::commentsItemId() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
-		return FullMsgId(views->commentsChannelId, views->commentsRootId);
+		return FullMsgId(views->commentsMegagroupId, views->commentsRootId);
 	}
 	return FullMsgId();
 }
 
 void HistoryMessage::setCommentsItemId(FullMsgId id) {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsChannelId == id.channel) {
-			views->commentsRootId = id.msg;
-		}
-	}
-}
-
-MsgId HistoryMessage::commentsReadTill() const {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		return views->commentsReadTillId;
-	}
-	return 0;
-}
-
-void HistoryMessage::setCommentsReadTill(MsgId readTillId) {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		const auto newReadTillId = std::max(readTillId, 1);
-		if (newReadTillId > views->commentsReadTillId) {
-			const auto wasUnread = areCommentsUnread();
-			views->commentsReadTillId = newReadTillId;
-			if (wasUnread && !areCommentsUnread()) {
-				history()->owner().requestItemRepaint(this);
+	if (id.channel == _history->channelId()) {
+		if (id.msg != this->id) {
+			if (const auto reply = Get<HistoryMessageReply>()) {
+				reply->replyToMsgTop = id.msg;
 			}
 		}
-	}
-}
-
-void HistoryMessage::setCommentsMaxId(MsgId maxId) {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsMaxId != maxId) {
-			const auto wasUnread = areCommentsUnread();
-			views->commentsMaxId = maxId;
-			if (wasUnread != areCommentsUnread()) {
-				history()->owner().requestItemRepaint(this);
-			}
+		return;
+	} else if (const auto views = Get<HistoryMessageViews>()) {
+		if (views->commentsMegagroupId != id.channel) {
+			views->commentsMegagroupId = id.channel;
+			history()->owner().requestItemResize(this);
 		}
+		views->commentsRootId = id.msg;
 	}
-}
-
-void HistoryMessage::setCommentsPossibleMaxId(MsgId possibleMaxId) {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsMaxId < possibleMaxId) {
-			const auto wasUnread = areCommentsUnread();
-			views->commentsMaxId = possibleMaxId;
-			if (!wasUnread && areCommentsUnread()) {
-				history()->owner().requestItemRepaint(this);
-			}
-		}
-	}
-}
-
-MsgId HistoryMessage::computeCommentsReadTillFull() const {
-	const auto local = commentsReadTill();
-	const auto views = Get<HistoryMessageViews>();
-	if (!views || !views->commentsChannelId) {
-		return local;
-	}
-	const auto group = history()->owner().historyLoaded(
-		peerFromChannel(views->commentsChannelId));
-	if (!group) {
-		return local;
-	}
-	return std::max(local, group->inboxReadTillId());
-}
-
-bool HistoryMessage::areCommentsUnread() const {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		if (views->commentsReadTillId < 2
-			|| views->commentsMaxId <= views->commentsReadTillId) {
-			return false;
-		} else if (!views->commentsChannelId) {
-			return true;
-		}
-		const auto group = history()->owner().historyLoaded(
-			peerFromChannel(views->commentsChannelId));
-		return !group || (views->commentsMaxId > group->inboxReadTillId());
-	}
-	return false;
 }
 
 bool HistoryMessage::updateDependencyItem() {
@@ -1555,29 +1600,31 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 		}();
 		const auto count = data.vreplies().v;
 		const auto channelId = data.vchannel_id().value_or_empty();
-		const auto countChanged = (views->replies.count != count);
-		const auto channelChanged = (views->commentsChannelId != channelId);
+		const auto readTillId = data.vread_max_id()
+			? std::max(
+				{ views->repliesInboxReadTillId,  data.vread_max_id()->v, 1 })
+			: views->repliesInboxReadTillId;
+		const auto maxId = data.vmax_id().value_or(views->repliesMaxId);
+		const auto countsChanged = (views->replies.count != count)
+			|| (views->repliesInboxReadTillId != readTillId)
+			|| (views->repliesMaxId != maxId);
+		const auto megagroupChanged = (views->commentsMegagroupId != channelId);
 		const auto recentChanged = (views->recentRepliers != repliers);
-		if (!countChanged && !channelChanged && !recentChanged) {
+		if (!countsChanged && !megagroupChanged && !recentChanged) {
 			return;
 		}
 		views->replies.count = count;
 		if (recentChanged) {
 			views->recentRepliers = repliers;
 		}
-		views->commentsChannelId = channelId;
-		const auto wasUnread = areCommentsUnread();
-		if (const auto till = data.vread_max_id()) {
-			views->commentsReadTillId = std::max(
-				{ views->commentsReadTillId, till->v, 1 });
-		}
-		if (const auto maxId = data.vmax_id()) {
-			views->commentsMaxId = maxId->v;
-		}
-		if (wasUnread != areCommentsUnread()) {
+		views->commentsMegagroupId = channelId;
+		const auto wasUnread = channelId && areRepliesUnread();
+		views->repliesInboxReadTillId = readTillId;
+		views->repliesMaxId = maxId;
+		if (channelId && wasUnread != areRepliesUnread()) {
 			history()->owner().requestItemRepaint(this);
 		}
-		refreshRepliesText(views, channelChanged);
+		refreshRepliesText(views, megagroupChanged);
 	});
 }
 
@@ -1585,7 +1632,7 @@ void HistoryMessage::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {
 	const auto was = views->replies.textWidth;
-	if (views->commentsChannelId) {
+	if (views->commentsMegagroupId) {
 		views->replies.text = (views->replies.count > 0)
 			? tr::lng_comments_open_count(
 				tr::now,
@@ -1621,7 +1668,7 @@ void HistoryMessage::changeRepliesCount(int delta, PeerId replier) {
 		return;
 	}
 	views->replies.count = std::max(views->replies.count + delta, 0);
-	if (replier && views->commentsChannelId) {
+	if (replier && views->commentsMegagroupId) {
 		if (delta < 0) {
 			views->recentRepliers.erase(
 				ranges::remove(views->recentRepliers, replier),
@@ -1691,7 +1738,7 @@ void HistoryMessage::changeReplyToTopCounter(
 		item->changeRepliesCount(delta, PeerId());
 	};
 	if (const auto views = top->Get<HistoryMessageViews>()) {
-		if (views->commentsChannelId) {
+		if (views->commentsMegagroupId) {
 			// This is a post in channel, we don't track its replies.
 			return;
 		}

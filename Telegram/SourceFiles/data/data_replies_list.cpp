@@ -238,9 +238,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		if (viewer->around != ShowAtUnreadMsgId) {
 			return viewer->around;
 		} else if (const auto item = lookupRoot()) {
-			if (const auto original = item->lookupDiscussionPostOriginal()) {
-				return original->computeCommentsReadTillFull();
-			}
+			return item->computeRepliesInboxReadTillFull();
 		}
 		return viewer->around;
 	}();
@@ -565,11 +563,16 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	_fullCount = checkedCount;
 
 	if (const auto item = lookupRoot()) {
+		if (_skippedAfter == 0) {
+			item->setRepliesMaxId(_list.front());
+		} else {
+			item->setRepliesPossibleMaxId(maxId);
+		}
 		if (const auto original = item->lookupDiscussionPostOriginal()) {
 			if (_skippedAfter == 0) {
-				original->setCommentsMaxId(_list.front());
+				original->setRepliesMaxId(_list.front());
 			} else {
-				original->setCommentsPossibleMaxId(maxId);
+				original->setRepliesPossibleMaxId(maxId);
 			}
 		}
 	}

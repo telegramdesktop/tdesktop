@@ -92,13 +92,11 @@ RepliesMemento::RepliesMemento(
 			TimeId(0),
 			FullMsgId(commentsItem->history()->channelId(), commentId)
 		});
-	} else if (const auto original = commentsItem->lookupDiscussionPostOriginal()) {
-		if (original->computeCommentsReadTillFull() == MsgId(1)) {
-			_list.setAroundPosition(Data::MinMessagePosition);
-			_list.setScrollTopState(ListMemento::ScrollTopState{
-				Data::MinMessagePosition
-			});
-		}
+	} else if (commentsItem->computeRepliesInboxReadTillFull() == MsgId(1)) {
+		_list.setAroundPosition(Data::MinMessagePosition);
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			Data::MinMessagePosition
+		});
 	}
 }
 
@@ -128,7 +126,6 @@ RepliesWidget::RepliesWidget(
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
-, _commentsRoot(lookupCommentsRoot())
 , _areComments(computeAreComments())
 , _topBar(this, controller)
 , _topBarShadow(this)
@@ -209,9 +206,6 @@ RepliesWidget::RepliesWidget(
 			_root = nullptr;
 			updatePinnedVisibility();
 		}
-		if (update.item == _commentsRoot) {
-			_commentsRoot = nullptr;
-		}
 		while (update.item == _replyReturn) {
 			calculateNextReplyReturn();
 		}
@@ -228,7 +222,7 @@ RepliesWidget::~RepliesWidget() {
 }
 
 void RepliesWidget::sendReadTillRequest() {
-	if (!_commentsRoot) {
+	if (!_root) {
 		_readRequestPending = true;
 		return;
 	}
@@ -239,16 +233,15 @@ void RepliesWidget::sendReadTillRequest() {
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
-		_commentsRoot->history()->peer->input,
-		MTP_int(_commentsRoot->id),
-		MTP_int(_commentsRoot->computeCommentsReadTillFull())
+		_root->history()->peer->input,
+		MTP_int(_root->id),
+		MTP_int(_root->computeRepliesInboxReadTillFull())
 	)).done([=](const MTPBool &) {
 	}).send();
 }
 
 void RepliesWidget::setupRoot() {
 	if (_root) {
-		setupCommentsRoot();
 		refreshRootView();
 	} else {
 		const auto channel = _history->peer->asChannel();
@@ -256,7 +249,9 @@ void RepliesWidget::setupRoot() {
 			_root = lookupRoot();
 			if (_root) {
 				_areComments = computeAreComments();
-				setupCommentsRoot();
+				if (_readRequestPending) {
+					sendReadTillRequest();
+				}
 			}
 			updatePinnedVisibility();
 			refreshRootView();
@@ -348,34 +343,6 @@ void RepliesWidget::setupRootView() {
 	}, _rootView->lifetime());
 }
 
-void RepliesWidget::setupCommentsRoot() {
-	Expects(_root != nullptr);
-
-	const auto postChannel = _root->discussionPostOriginalSender();
-	if (!postChannel) {
-		return;
-	} else if (_commentsRoot) {
-		if (_readRequestTimer.isActive() || _readRequestPending) {
-			sendReadTillRequest();
-		}
-	} else {
-		const auto forwarded = _root->Get<HistoryMessageForwarded>();
-		const auto messageId = forwarded->savedFromMsgId;
-		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
-			_commentsRoot = lookupCommentsRoot();
-			if (_commentsRoot) {
-				if (_readRequestTimer.isActive() || _readRequestPending) {
-					sendReadTillRequest();
-				}
-			}
-		});
-		_history->session().api().requestMessageData(
-			postChannel,
-			messageId,
-			done);
-	}
-}
-
 void RepliesWidget::refreshRootView() {
 	const auto sender = (_root && _root->discussionPostOriginalSender())
 		? _root->discussionPostOriginalSender()
@@ -406,12 +373,6 @@ void RepliesWidget::refreshRootView() {
 
 HistoryItem *RepliesWidget::lookupRoot() const {
 	return _history->owner().message(_history->channelId(), _rootId);
-}
-
-HistoryItem *RepliesWidget::lookupCommentsRoot() const {
-	return _root
-		? _root->lookupDiscussionPostOriginal()
-		: nullptr;
 }
 
 bool RepliesWidget::computeAreComments() const {
@@ -1550,14 +1511,17 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void RepliesWidget::readTill(not_null<HistoryItem*> item) {
-	if (!_commentsRoot) {
+	if (!_root) {
 		return;
 	}
-	const auto was = _commentsRoot->computeCommentsReadTillFull();
+	const auto was = _root->computeRepliesInboxReadTillFull();
 	const auto now = item->id;
 	const auto fast = item->out();
 	if (was < now) {
-		_commentsRoot->setCommentsReadTill(now);
+		_root->setRepliesInboxReadTill(now);
+		if (const auto post = _root->lookupDiscussionPostOriginal()) {
+			post->setRepliesInboxReadTill(now);
+		}
 		if (!_readRequestTimer.isActive()) {
 			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
 		} else if (fast && _readRequestTimer.remainingTime() > 0) {
@@ -1578,10 +1542,10 @@ void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 
 MessagesBarData RepliesWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	if (!_commentsRoot || elements.empty()) {
+	if (!_root || elements.empty()) {
 		return {};
 	}
-	const auto till = _commentsRoot->computeCommentsReadTillFull();
+	const auto till = _root->computeRepliesInboxReadTillFull();
 	if (till < 2) {
 		return {};
 	}
@@ -1606,7 +1570,6 @@ MessagesBarData RepliesWidget::listMessagesBar(
 }
 
 void RepliesWidget::listContentRefreshed() {
-
 }
 
 ClickHandlerPtr RepliesWidget::listDateLink(not_null<Element*> view) {
