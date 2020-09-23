@@ -28,12 +28,51 @@ class EmptyUserpic;
 class InformBox;
 class ConfirmBox : public Ui::BoxContent, public ClickHandlerHost {
 public:
-	ConfirmBox(QWidget*, const QString &text, FnMut<void()> confirmedCallback = FnMut<void()>(), FnMut<void()> cancelledCallback = FnMut<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, FnMut<void()> confirmedCallback = FnMut<void()>(), FnMut<void()> cancelledCallback = FnMut<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, FnMut<void()> confirmedCallback = FnMut<void()>(), FnMut<void()> cancelledCallback = FnMut<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, FnMut<void()> confirmedCallback = FnMut<void()>(), FnMut<void()> cancelledCallback = FnMut<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, FnMut<void()> confirmedCallback = FnMut<void()>(), FnMut<void()> cancelledCallback = FnMut<void()>());
-	ConfirmBox(QWidget*, const TextWithEntities &text, const QString &confirmText, FnMut<void()> confirmedCallback = nullptr, FnMut<void()> cancelledCallback = nullptr);
+
+	using ConfirmedCallback = std::variant<
+		v::null_t,
+		FnMut<void()>,
+		FnMut<void(Fn<void()>)>>;
+
+	ConfirmBox(
+		QWidget*,
+		const QString &text,
+		ConfirmedCallback confirmedCallback = FnMut<void()>(),
+		FnMut<void()> cancelledCallback = FnMut<void()>());
+	ConfirmBox(
+		QWidget*,
+		const QString &text,
+		const QString &confirmText,
+		ConfirmedCallback confirmedCallback = FnMut<void()>(),
+		FnMut<void()> cancelledCallback = FnMut<void()>());
+	ConfirmBox(
+		QWidget*,
+		const QString &text,
+		const QString &confirmText,
+		const style::RoundButton &confirmStyle,
+		ConfirmedCallback confirmedCallback = FnMut<void()>(),
+		FnMut<void()> cancelledCallback = FnMut<void()>());
+	ConfirmBox(
+		QWidget*,
+		const QString &text,
+		const QString &confirmText,
+		const QString &cancelText,
+		ConfirmedCallback confirmedCallback = FnMut<void()>(),
+		FnMut<void()> cancelledCallback = FnMut<void()>());
+	ConfirmBox(
+		QWidget*,
+		const QString &text,
+		const QString &confirmText,
+		const style::RoundButton &confirmStyle,
+		const QString &cancelText,
+		ConfirmedCallback confirmedCallback = FnMut<void()>(),
+		FnMut<void()> cancelledCallback = FnMut<void()>());
+	ConfirmBox(
+		QWidget*,
+		const TextWithEntities &text,
+		const QString &confirmText,
+		ConfirmedCallback confirmedCallback = v::null,
+		FnMut<void()> cancelledCallback = nullptr);
 
 	void updateLink();
 
@@ -87,7 +126,7 @@ private:
 	bool _confirmed = false;
 	bool _cancelled = false;
 	bool _strictCancel = false;
-	FnMut<void()> _confirmedCallback;
+	ConfirmBox::ConfirmedCallback _confirmedCallback;
 	FnMut<void()> _cancelledCallback;
 
 };

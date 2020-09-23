@@ -74,7 +74,7 @@ TextParseOptions kMarkedTextBoxOptions = {
 ConfirmBox::ConfirmBox(
 	QWidget*,
 	const QString &text,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(tr::lng_box_ok(tr::now))
 , _cancelText(tr::lng_cancel(tr::now))
@@ -89,7 +89,7 @@ ConfirmBox::ConfirmBox(
 	QWidget*,
 	const QString &text,
 	const QString &confirmText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -104,7 +104,7 @@ ConfirmBox::ConfirmBox(
 	QWidget*,
 	const TextWithEntities &text,
 	const QString &confirmText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -120,7 +120,7 @@ ConfirmBox::ConfirmBox(
 	const QString &text,
 	const QString &confirmText,
 	const style::RoundButton &confirmStyle,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -136,7 +136,7 @@ ConfirmBox::ConfirmBox(
 	const QString &text,
 	const QString &confirmText,
 	const QString &cancelText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
@@ -153,7 +153,7 @@ ConfirmBox::ConfirmBox(
 	const QString &confirmText,
 	const style::RoundButton &confirmStyle,
 	const QString &cancelText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
@@ -256,8 +256,16 @@ void ConfirmBox::textUpdated() {
 void ConfirmBox::confirmed() {
 	if (!_confirmed) {
 		_confirmed = true;
-		if (auto callback = std::move(_confirmedCallback)) {
-			callback();
+
+		const auto confirmed = &_confirmedCallback;
+		if (const auto callbackPtr = std::get_if<1>(confirmed)) {
+			if (auto callback = base::take(*callbackPtr)) {
+				callback();
+			}
+		} else if (const auto callbackPtr = std::get_if<2>(confirmed)) {
+			if (auto callback = base::take(*callbackPtr)) {
+				callback([=] { closeBox(); });
+			}
 		}
 	}
 }
