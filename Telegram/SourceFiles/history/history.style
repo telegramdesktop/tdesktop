@@ -528,9 +528,9 @@ historyAdminLogSearchSlideDuration: 150;
 historyFastShareSize: 31px;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
-historyFastShareIcon: icon {{ "fast_share", msgServiceFg, point(4px, 3px)}};
-historyGoToOriginalIcon: icon {{ "title_back-flip_horizontal", msgServiceFg, point(8px, 7px) }};
-historyFastCommentsIcon: icon {{ "history_comments", msgServiceFg }};
+historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
+historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg }};
+historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 
 historySavedFont: font(semibold 14px);
 

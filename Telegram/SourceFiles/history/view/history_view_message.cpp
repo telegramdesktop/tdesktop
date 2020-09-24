@@ -2132,9 +2132,9 @@ void Message::drawRightAction(
 				views->repliesSmall.textWidth);
 		}
 	} else if (displayFastShare()) {
-		st::historyFastShareIcon.paint(p, left, top, outerWidth);
+		st::historyFastShareIcon.paintInCenter(p, { left, top, size->width(), size->height() });
 	} else {
-		st::historyGoToOriginalIcon.paint(p, left, top, outerWidth);
+		st::historyGoToOriginalIcon.paintInCenter(p, { left, top, size->width(), size->height() });
 	}
 }
 
