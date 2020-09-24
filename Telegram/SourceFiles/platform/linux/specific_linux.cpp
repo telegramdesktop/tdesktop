@@ -273,8 +273,11 @@ bool GenerateDesktopFile(
 		target.write(fileText.toUtf8());
 		target.close();
 
-		DEBUG_LOG(("App Info: removing old .desktop file"));
-		QFile(qsl("%1telegram.desktop").arg(targetPath)).remove();
+		if (IsStaticBinary()) {
+			DEBUG_LOG(("App Info: removing old .desktop files"));
+			QFile(qsl("%1telegram.desktop").arg(targetPath)).remove();
+			QFile(qsl("%1telegramdesktop.desktop").arg(targetPath)).remove();
+		}
 
 		return true;
 	} else {
@@ -957,7 +960,7 @@ QString GetLauncherBasename() {
 				.arg(cExeName());
 		}
 
-		if (InAppImage() && !cExeName().isEmpty()) {
+		if ((IsStaticBinary() || InAppImage()) && !cExeName().isEmpty()) {
 			const auto appimagePath = qsl("file://%1%2")
 				.arg(cExeDir())
 				.arg(cExeName())
@@ -974,20 +977,7 @@ QString GetLauncherBasename() {
 				.arg(AppName.utf16().replace(' ', '_'));
 		}
 
-		const auto possibleBasenames = std::vector<QString>{
-			qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)),
-			qsl("Telegram")
-		};
-
-		for (const auto &it : possibleBasenames) {
-			if (!QStandardPaths::locate(
-				QStandardPaths::ApplicationsLocation,
-				it + qsl(".desktop")).isEmpty()) {
-				return it;
-			}
-		}
-
-		return possibleBasenames[0];
+		return qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
 	}();
 
 	return Result;
