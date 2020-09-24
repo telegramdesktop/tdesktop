@@ -892,15 +892,12 @@ void Editor::closeWithConfirmation() {
 		closeEditor();
 		return;
 	}
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto close = crl::guard(this, [=] {
+	const auto close = crl::guard(this, [=](Fn<void()> &&close) {
 		Background()->clearEditingTheme(ClearEditing::RevertChanges);
 		closeEditor();
-		if (*box) {
-			(*box)->closeBox();
-		}
+		close();
 	});
-	*box = _window->show(Box<ConfirmBox>(
+	_window->show(Box<ConfirmBox>(
 		tr::lng_theme_editor_sure_close(tr::now),
 		tr::lng_close(tr::now),
 		close));

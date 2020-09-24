@@ -281,14 +281,11 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	}));
 	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
 		const auto session = _session;
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		const auto callback = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
+		const auto callback = [=](Fn<void()> &&close) {
+			close();
 			Core::App().logout(&session->account());
 		};
-		*box = Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<ConfirmBox>(
 			tr::lng_sure_logout(tr::now),
 			tr::lng_settings_logout(tr::now),
 			st::attentionBoxButton,

@@ -546,17 +546,14 @@ void Controller::revokeInviteLink() {
 }
 
 void Controller::exportInviteLink(const QString &confirmation) {
-	const auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
-	const auto callback = crl::guard(this, [=] {
-		if (const auto strong = *boxPointer) {
-			strong->closeBox();
-		}
+	const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
+		close();
 		_peer->session().api().exportInviteLink(_peer->migrateToOrMe());
 	});
 	auto box = Box<ConfirmBox>(
 		confirmation,
 		std::move(callback));
-	*boxPointer = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 bool Controller::canEditInviteLink() const {

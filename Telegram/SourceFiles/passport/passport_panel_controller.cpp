@@ -713,11 +713,10 @@ void PanelController::setupPassword() {
 }
 
 void PanelController::cancelPasswordSubmit() {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	*box = show(Box<ConfirmBox>(
+	show(Box<ConfirmBox>(
 		tr::lng_passport_stop_password_sure(tr::now),
 		tr::lng_passport_stop(tr::now),
-		[=] { if (*box) (*box)->closeBox(); _form->cancelPassword(); }));
+		[=](Fn<void()> &&close) { close(); _form->cancelPassword(); }));
 }
 
 void PanelController::validateRecoveryEmail() {

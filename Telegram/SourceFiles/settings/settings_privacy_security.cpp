@@ -640,17 +640,14 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 }
 
 object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
-	auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto callback = [=] {
+	const auto callback = [=](Fn<void()> &&close) {
 		Core::UpdateApplication();
-		if (*box) (*box)->closeBox();
+		close();
 	};
-	auto result = Box<ConfirmBox>(
+	return Box<ConfirmBox>(
 		tr::lng_passport_app_out_of_date(tr::now),
 		tr::lng_menu_update(tr::now),
 		callback);
-	*box = result.data();
-	return result;
 }
 
 void AddPrivacyButton(

@@ -514,11 +514,11 @@ void LastSeenPrivacyController::confirmSave(
 		FnMut<void()> saveCallback) {
 	if (someAreDisallowed && !Core::App().settings().lastSeenWarningSeen()) {
 		const auto session = _session;
-		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
-		auto callback = [=, saveCallback = std::move(saveCallback)]() mutable {
-			if (auto box = *weakBox) {
-				box->closeBox();
-			}
+		auto callback = [
+			=,
+			saveCallback = std::move(saveCallback)
+		](Fn<void()> &&close) mutable {
+			close();
 			saveCallback();
 			Core::App().settings().setLastSeenWarningSeen(true);
 			Core::App().saveSettingsDelayed();
@@ -528,7 +528,7 @@ void LastSeenPrivacyController::confirmSave(
 			tr::lng_continue(tr::now),
 			tr::lng_cancel(tr::now),
 			std::move(callback));
-		*weakBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
 		saveCallback();
 	}

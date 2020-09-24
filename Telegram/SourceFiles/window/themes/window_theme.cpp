@@ -1321,16 +1321,13 @@ void ToggleNightModeWithConfirmation(
 	if (Background()->nightModeChangeAllowed()) {
 		toggle();
 	} else {
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		const auto disableAndToggle = [=] {
+		const auto disableAndToggle = [=](Fn<void()> &&close) {
 			Core::App().settings().setSystemDarkModeEnabled(false);
 			Core::App().saveSettingsDelayed();
 			toggle();
-			if (*box) {
-				(*box)->closeBox();
-			}
+			close();
 		};
-		*box = window->show(Box<ConfirmBox>(
+		window->show(Box<ConfirmBox>(
 			tr::lng_settings_auto_night_warning(tr::now),
 			tr::lng_settings_auto_night_disable(tr::now),
 			disableAndToggle));

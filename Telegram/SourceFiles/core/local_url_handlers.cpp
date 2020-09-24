@@ -380,12 +380,11 @@ bool HandleUnknown(
 				result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
-			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-			const auto callback = [=] {
+			const auto callback = [=](Fn<void()> &&close) {
 				Core::UpdateApplication();
-				if (*box) (*box)->closeBox();
+				close();
 			};
-			*box = Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<ConfirmBox>(
 				text,
 				tr::lng_menu_update(tr::now),
 				callback));

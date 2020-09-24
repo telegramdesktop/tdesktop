@@ -321,11 +321,10 @@ void FiltersMenu::showEditBox(FilterId id) {
 }
 
 void FiltersMenu::showRemoveBox(FilterId id) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	*box = _session->window().show(Box<ConfirmBox>(
+	_session->window().show(Box<ConfirmBox>(
 		tr::lng_filters_remove_sure(tr::now),
 		tr::lng_filters_remove_yes(tr::now),
-		[=] { (*box)->closeBox(); remove(id); }));
+		[=](Fn<void()> &&close) { close(); remove(id); }));
 }
 
 void FiltersMenu::remove(FilterId id) {

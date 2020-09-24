@@ -163,12 +163,9 @@ void BackgroundBox::prepare() {
 }
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto session = &_controller->session();
-	const auto remove = [=, weak = Ui::MakeWeak(this)]{
-		if (*box) {
-			(*box)->closeBox();
-		}
+	const auto remove = [=, weak = Ui::MakeWeak(this)](Fn<void()> &&close) {
+		close();
 		if (weak) {
 			weak->_inner->removePaper(paper);
 		}
@@ -179,7 +176,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			paper.mtpSettings()
 		)).send();
 	};
-	*box = Ui::show(
+	Ui::show(
 		Box<ConfirmBox>(
 			tr::lng_background_sure_delete(tr::now),
 			tr::lng_selected_delete(tr::now),

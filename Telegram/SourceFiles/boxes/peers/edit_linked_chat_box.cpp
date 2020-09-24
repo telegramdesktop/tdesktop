@@ -146,15 +146,12 @@ void Controller::choose(not_null<ChannelData*> chat) {
 				Ui::Text::RichLangValue));
 		}
 	}
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto sure = [=] {
-		if (*box) {
-			(*box)->closeBox();
-		}
+	const auto sure = [=](Fn<void()> &&close) {
+		close();
 		const auto onstack = _callback;
 		onstack(chat);
 	};
-	*box = Ui::show(
+	Ui::show(
 		Box<ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
@@ -178,18 +175,15 @@ void Controller::choose(not_null<ChatData*> chat) {
 	text.append(tr::lng_manage_discussion_group_warning(
 		tr::now,
 		Ui::Text::RichLangValue));
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto sure = [=] {
-		if (*box) {
-			(*box)->closeBox();
-		}
+	const auto sure = [=](Fn<void()> &&close) {
+		close();
 		const auto done = [=](not_null<ChannelData*> chat) {
 			const auto onstack = _callback;
 			onstack(chat);
 		};
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
-	*box = Ui::show(
+	Ui::show(
 		Box<ConfirmBox>(
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),

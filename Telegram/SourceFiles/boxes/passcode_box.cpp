@@ -602,14 +602,11 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 	if (_cloudFields.turningOff && _cloudFields.notEmptyPassport) {
 		Assert(!_cloudFields.customCheckCallback);
 
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto confirmed = [=] {
+		const auto confirmed = [=](Fn<void()> &&close) {
 			send();
-			if (*box) {
-				(*box)->closeBox();
-			}
+			close();
 		};
-		*box = getDelegate()->show(Box<ConfirmBox>(
+		getDelegate()->show(Box<ConfirmBox>(
 			tr::lng_cloud_password_passport_losing(tr::now),
 			tr::lng_continue(tr::now),
 			confirmed));
@@ -809,20 +806,16 @@ void PasscodeBox::changeCloudPassword(
 }
 
 void PasscodeBox::suggestSecretReset(const QString &newPassword) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-	const auto resetSecretAndSave = [=] {
-		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
-			resetSecret(check, newPassword, [=] {
-				if (*box) {
-					(*box)->closeBox();
-				}
-			});
+	auto resetSecretAndSave = [=](Fn<void()> &&close) {
+		checkPasswordHash([=, close = std::move(close)](
+				const Core::CloudPasswordResult &check) {
+			resetSecret(check, newPassword, std::move(close));
 		});
 	};
-	*box = getDelegate()->show(Box<ConfirmBox>(
+	getDelegate()->show(Box<ConfirmBox>(
 		Lang::Hard::PassportCorruptedChange(),
 		Lang::Hard::PassportCorruptedReset(),
-		[=] { resetSecretAndSave(); }));
+		std::move(resetSecretAndSave)));
 }
 
 void PasscodeBox::resetSecret(
@@ -1067,14 +1060,11 @@ void RecoverBox::submit() {
 		}).handleFloodErrors().send();
 	});
 	if (_notEmptyPassport) {
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto confirmed = [=] {
+		const auto confirmed = [=](Fn<void()> &&close) {
 			send();
-			if (*box) {
-				(*box)->closeBox();
-			}
+			close();
 		};
-		*box = getDelegate()->show(Box<ConfirmBox>(
+		getDelegate()->show(Box<ConfirmBox>(
 			tr::lng_cloud_password_passport_losing(tr::now),
 			tr::lng_continue(tr::now),
 			confirmed));

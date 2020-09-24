@@ -394,12 +394,11 @@ void QrWidget::sendCheckPasswordRequest() {
 				goReplace<QrWidget>(Animate::Forward);
 				return;
 			} else if (!getData()->pwdRequest) {
-				const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-				const auto callback = [=] {
+				const auto callback = [=](Fn<void()> &&close) {
 					Core::UpdateApplication();
-					if (*box) (*box)->closeBox();
+					close();
 				};
-				*box = Ui::show(Box<ConfirmBox>(
+				Ui::show(Box<ConfirmBox>(
 					tr::lng_passport_app_out_of_date(tr::now),
 					tr::lng_menu_update(tr::now),
 					callback));

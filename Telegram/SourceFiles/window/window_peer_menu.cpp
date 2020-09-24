@@ -1039,15 +1039,12 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		});
 		return { nullptr };
 	}
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto done = [
 		=,
 		list = std::move(items),
 		callback = std::move(successCallback)
-	]() mutable {
-		if (*box) {
-			(*box)->closeBox();
-		}
+	](Fn<void()> &&close) mutable {
+		close();
 		auto ids = QVector<MTPint>();
 		for (const auto item : session->data().idsToItems(list)) {
 			if (item->allowsSendNow()) {
@@ -1067,10 +1064,9 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 			callback();
 		}
 	};
-	*box = Ui::show(
+	return Ui::show(
 		Box<ConfirmBox>(text, tr::lng_send_button(tr::now), std::move(done)),
-		Ui::LayerOption::KeepOther);
-	return box->data();
+		Ui::LayerOption::KeepOther).data();
 }
 
 void PeerMenuAddChannelMembers(

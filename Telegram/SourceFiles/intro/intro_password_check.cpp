@@ -346,14 +346,11 @@ void PasswordCheckWidget::submit() {
 		});
 
 		if (_notEmptyPassport) {
-			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-			const auto confirmed = [=] {
+			const auto confirmed = [=](Fn<void()> &&close) {
 				send();
-				if (*box) {
-					(*box)->closeBox();
-				}
+				close();
 			};
-			*box = Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<ConfirmBox>(
 				tr::lng_cloud_password_passport_losing(tr::now),
 				tr::lng_continue(tr::now),
 				confirmed));

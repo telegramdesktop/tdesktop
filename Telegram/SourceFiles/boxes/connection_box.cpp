@@ -1085,7 +1085,6 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		proxy.password = fields.value(qsl("secret"));
 	}
 	if (proxy) {
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
 		const auto text = tr::lng_sure_enable_socks(
 			tr::now,
 			lt_server,
@@ -1095,7 +1094,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			+ (proxy.type == Type::Mtproto
 				? "\n\n" + tr::lng_proxy_sponsor_warning(tr::now)
 				: QString());
-		*box = Ui::show(Box<ConfirmBox>(text, tr::lng_sure_enable(tr::now), [=] {
+		auto callback = [=](Fn<void()> &&close) {
 			auto &proxies = Global::RefProxiesList();
 			if (!ranges::contains(proxies, proxy)) {
 				proxies.push_back(proxy);
@@ -1104,10 +1103,14 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				proxy,
 				ProxyData::Settings::Enabled);
 			Local::writeSettings();
-			if (const auto strong = box->data()) {
-				strong->closeBox();
-			}
-		}), Ui::LayerOption::KeepOther);
+			close();
+		};
+		Ui::show(
+			Box<ConfirmBox>(
+				text,
+				tr::lng_sure_enable(tr::now),
+				std::move(callback)),
+			Ui::LayerOption::KeepOther);
 	} else {
 		Ui::show(Box<InformBox>(
 			(proxy.status() == ProxyData::Status::Unsupported
