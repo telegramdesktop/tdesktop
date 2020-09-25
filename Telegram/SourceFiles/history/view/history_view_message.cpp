@@ -341,7 +341,7 @@ QSize Message::performCountOptimalSize() {
 
 		maxWidth = plainMaxWidth();
 		if (context() == Context::Replies && item->isDiscussionPost()) {
-			maxWidth = st::msgMaxWidth;
+			maxWidth = std::max(maxWidth, st::msgMaxWidth);
 		}
 		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
 		if (!mediaOnBottom) {
