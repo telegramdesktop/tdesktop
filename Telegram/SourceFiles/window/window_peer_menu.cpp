@@ -85,11 +85,13 @@ void MarkAsReadHistory(not_null<History*> history) {
 }
 
 void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
+	auto mark = std::vector<not_null<History*>>();
 	for (const auto &row : list->indexed()->all()) {
 		if (const auto history = row->history()) {
-			MarkAsReadHistory(history);
+			mark.push_back(history);
 		}
 	}
+	ranges::for_each(mark, MarkAsReadHistory);
 }
 
 class Filler {
