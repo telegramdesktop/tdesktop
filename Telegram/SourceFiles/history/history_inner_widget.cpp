@@ -3177,21 +3177,12 @@ void HistoryInner::blockSenderItem(FullMsgId itemId) {
 		Ui::show(Box(
 			BlockSenderFromRepliesBox,
 			_controller,
-			MessageIdsList(1, itemId)));
+			itemId));
 	}
 }
 
 void HistoryInner::blockSenderAsGroup(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
-		const auto group = session().data().groups().find(item);
-		if (!group) {
-			return blockSenderItem(itemId);
-		}
-		Ui::show(Box(
-			BlockSenderFromRepliesBox,
-			_controller,
-			session().data().itemsToIds(group->items)));
-	}
+	blockSenderItem(itemId);
 }
 
 void HistoryInner::addSelectionRange(

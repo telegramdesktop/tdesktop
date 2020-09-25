@@ -69,4 +69,4 @@ private:
 void BlockSenderFromRepliesBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
-	MessageIdsList ids);
+	FullMsgId id);

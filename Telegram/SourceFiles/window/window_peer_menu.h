@@ -72,12 +72,15 @@ void PeerMenuCreatePoll(
 
 struct ClearChat {
 };
+struct ClearReply {
+	FullMsgId replyId;
+};
 void PeerMenuBlockUserBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<PeerData*> peer,
 	std::variant<v::null_t, bool> suggestReport,
-	std::variant<v::null_t, ClearChat, MessageIdsList> suggestClear);
+	std::variant<v::null_t, ClearChat, ClearReply> suggestClear);
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);

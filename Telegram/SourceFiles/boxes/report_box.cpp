@@ -215,10 +215,8 @@ void ReportBox::updateMaxHeight() {
 void BlockSenderFromRepliesBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
-		MessageIdsList ids) {
-	Expects(!ids.empty());
-
-	const auto item = controller->session().data().message(ids.front());
+		FullMsgId id) {
+	const auto item = controller->session().data().message(id);
 	Assert(item != nullptr);
 
 	PeerMenuBlockUserBox(
@@ -226,5 +224,5 @@ void BlockSenderFromRepliesBox(
 		&controller->window(),
 		item->senderOriginal(),
 		true,
-		std::move(ids));
+		Window::ClearReply{ id });
 }

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "api/api_chat_filters.h"
+#include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -858,7 +859,7 @@ void PeerMenuBlockUserBox(
 		not_null<Window::Controller*> window,
 		not_null<PeerData*> peer,
 		std::variant<v::null_t, bool> suggestReport,
-		std::variant<v::null_t, ClearChat, MessageIdsList> suggestClear) {
+		std::variant<v::null_t, ClearChat, ClearReply> suggestClear) {
 	using Flag = MTPDpeerSettings::Flag;
 	const auto settings = peer->settings().value_or(Flag(0));
 	const auto reportNeeded = v::is_null(suggestReport)
@@ -896,15 +897,25 @@ void PeerMenuBlockUserBox(
 			tr::lng_blocked_list_confirm_clear(tr::now),
 			true,
 			st::defaultBoxCheckbox))
-		: v::is<MessageIdsList>(suggestClear)
+		: v::is<ClearReply>(suggestClear)
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_context_delete_msg(tr::now),
 			true,
 			st::defaultBoxCheckbox))
 		: nullptr;
+	if (clear) {
+		box->addSkip(st::boxMediumSkip);
+	}
+	const auto allFromUser = v::is<ClearReply>(suggestClear)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_delete_all_from(tr::now),
+			true,
+			st::defaultBoxCheckbox))
+		: nullptr;
 
-	if (report || clear) {
+	if (allFromUser) {
 		box->addSkip(st::boxLittleSkip);
 	}
 
@@ -915,43 +926,28 @@ void PeerMenuBlockUserBox(
 	box->addButton(tr::lng_blocked_list_confirm_ok(), [=] {
 		const auto reportChecked = report && report->checked();
 		const auto clearChecked = clear && clear->checked();
+		const auto fromUserChecked = allFromUser && allFromUser->checked();
 
 		box->closeBox();
 
-		peer->session().api().blockPeer(peer);
-		if (reportChecked) {
-			if (const auto ids = std::get_if<MessageIdsList>(&suggestClear)) {
-				Assert(!ids->empty());
-				const auto itemsPeer = [&]() -> PeerData* {
-					for (const auto &itemId : *ids) {
-						if (const auto item = peer->owner().message(itemId)) {
-							return item->history()->peer;
-						}
-					}
-					return nullptr;
-				}();
-				if (itemsPeer) {
-					auto items = QVector<MTPint>();
-					items.reserve(ids->size());
-					for (const auto &itemId : *ids) {
-						items.push_back(MTP_int(itemId.msg));
-					}
-					peer->session().api().request(MTPmessages_Report(
-						itemsPeer->input,
-						MTP_vector<MTPint>(items),
-						MTP_inputReportReasonSpam()
-					)).send();
-				}
-			} else {
+		if (const auto clearReply = std::get_if<ClearReply>(&suggestClear)) {
+			using Flag = MTPcontacts_BlockFromReplies::Flag;
+			peer->session().api().request(MTPcontacts_BlockFromReplies(
+				MTP_flags((clearChecked ? Flag::f_delete_message : Flag(0))
+					| (fromUserChecked ? Flag::f_delete_history : Flag(0))
+					| (reportChecked ? Flag::f_report_spam : Flag(0))),
+				MTP_int(clearReply->replyId.msg)
+			)).done([=](const MTPUpdates &result) {
+				peer->session().updates().applyUpdates(result);
+			}).send();
+		} else {
+			peer->session().api().blockPeer(peer);
+			if (reportChecked) {
 				peer->session().api().request(MTPmessages_ReportSpam(
 					peer->input
 				)).send();
 			}
-		}
-		if (clearChecked) {
-			if (const auto ids = std::get_if<MessageIdsList>(&suggestClear)) {
-				peer->owner().histories().deleteMessages(*ids, false);
-			} else if (v::is<ClearChat>(suggestClear)) {
+			if (clearChecked) {
 				crl::on_main(&peer->session(), [=] {
 					peer->session().api().deleteConversation(peer, false);
 				});
