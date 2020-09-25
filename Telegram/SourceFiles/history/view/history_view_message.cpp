@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "apiwrap.h"
 #include "layout.h"
 #include "facades.h"
 #include "app.h"
@@ -2149,9 +2150,40 @@ ClickHandlerPtr Message::rightActionLink() const {
 		const auto forwarded = data()->Get<HistoryMessageForwarded>();
 		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
 		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
+		const auto showByThread = std::make_shared<FnMut<void()>>();
+		const auto showByThreadWeak = std::weak_ptr<FnMut<void()>>(showByThread);
+		if (data()->externalReply()) {
+			*showByThread = [=, requested = 0]() mutable {
+				const auto original = savedFromPeer->owner().message(savedFromPeer->asChannel(), savedFromMsgId);
+				if (original && original->replyToTop()) {
+					App::wnd()->sessionController()->showRepliesForMessage(
+						original->history(),
+						original->replyToTop(),
+						original->id,
+						Window::SectionShow::Way::Forward);
+				} else if (!requested) {
+					const auto channel = savedFromPeer->asChannel();
+					const auto prequested = &requested;
+					requested = 1;
+					channel->session().api().requestMessageData(channel, savedFromMsgId, [=](ChannelData *gotChannel, MsgId gotId) {
+						if (const auto strong = showByThreadWeak.lock()) {
+							*prequested = 2;
+							(*strong)();
+						}
+					});
+				} else if (requested == 2) {
+					App::wnd()->sessionController()->showPeerHistory(
+						savedFromPeer,
+						Window::SectionShow::Way::Forward,
+						savedFromMsgId);
+				}
+			};
+		};
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
 			if (const auto item = owner->message(itemId)) {
-				if (savedFromPeer && savedFromMsgId) {
+				if (*showByThread) {
+					(*showByThread)();
+				} else if (savedFromPeer && savedFromMsgId) {
 					App::wnd()->sessionController()->showPeerHistory(
 						savedFromPeer,
 						Window::SectionShow::Way::Forward,
