@@ -79,6 +79,7 @@ bool HasEditMessageAction(const ContextMenuRequest &request) {
 	const auto item = request.item;
 	if (!item
 		|| item->isSending()
+		|| item->hasFailed()
 		|| item->isEditingMedia()
 		|| !request.selectedItems.empty()) {
 		return false;
@@ -627,9 +628,10 @@ bool AddSelectMessageAction(
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
 	} else if (!item
-			|| item->isSending()
-			|| !IsServerMsgId(ItemIdAcrossData(item))
-			|| item->serviceMsg()) {
+		|| item->isSending()
+		|| item->hasFailed()
+		|| !IsServerMsgId(ItemIdAcrossData(item))
+		|| item->serviceMsg()) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
