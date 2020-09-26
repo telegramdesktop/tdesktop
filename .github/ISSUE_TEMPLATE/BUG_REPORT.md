@@ -23,7 +23,7 @@ Tell us what happens instead
 ### Configuration
 **Operating system:**
 
-**Version of Telegram Desktop:**
+**Version of Telegram Desktop:** <!-- Check if it matches your version or edit !--> 2.3.1
 
 **Installation source (Linux Only)** - the official website / GitHub releases / flatpak / snap / distribution package:
 
