@@ -534,7 +534,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	};
 	const auto updateUserpics = [=] {
 		ranges::for_each(_pins, singleUserpic);
-		*lastDialogsCount = [self shift] + std::ssize(_pins);
+		*lastDialogsCount = [self shift] + int(std::size(_pins));
 	};
 	const auto updateBadge = [=](const auto &pin) {
 		const auto peer = pin->peer;
@@ -759,7 +759,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 - (void)performAction:(int)xPosition {
 	const auto index = [self indexFromX:xPosition];
-	const auto peer = (index < 0 || index >= std::ssize(_pins))
+	const auto peer = (index < 0 || index >= int(std::size(_pins)))
 		? nullptr
 		: _pins[index]->peer;
 	if (!peer && !_hasArchive && !_selfUnpinned) {
@@ -786,7 +786,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 }
 
 - (QImage)imageToDraw:(int)i {
-	Expects(i < std::ssize(_pins));
+	Expects(i < int(std::size(_pins)));
 	if (i < 0) {
 		if (_hasArchive && (i == -[self shift])) {
 			return _archive;
@@ -872,7 +872,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			[self drawSinglePin:indexToTop rect:dirtyRect];
 		}
 	});
-	for (auto i = -shift; i < std::ssize(_pins); i++) {
+	for (auto i = -shift; i < int(std::size(_pins)); i++) {
 		if (i >= 0 && _pins[i]->onTop && (indexToTop < 0)) {
 			indexToTop = i;
 			continue;
