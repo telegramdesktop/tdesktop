@@ -180,6 +180,11 @@ void ScheduledWidget::setupComposeControls() {
 		send();
 	}, lifetime());
 
+	_composeControls->sendVoiceRequests(
+	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
+		sendVoice(data.bytes, data.waveform, data.duration);
+	}, lifetime());
+
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
 	_composeControls->editRequests(
 	) | rpl::start_with_next([=](auto data) {
@@ -557,6 +562,28 @@ void ScheduledWidget::send(Api::SendOptions options) {
 
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	_composeControls->focus();
+}
+
+void ScheduledWidget::sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration) {
+	const auto callback = [=](Api::SendOptions options) {
+		sendVoice(bytes, waveform, duration, options);
+	};
+	Ui::show(
+		PrepareScheduleBox(this, sendMenuType(), callback),
+		Ui::LayerOption::KeepOther);
+}
+
+void ScheduledWidget::sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration,
+		Api::SendOptions options) {
+	auto action = Api::SendAction(_history);
+	action.options = options;
+	session().api().sendVoiceMessage(bytes, waveform, duration, action);
 }
 
 void ScheduledWidget::edit(

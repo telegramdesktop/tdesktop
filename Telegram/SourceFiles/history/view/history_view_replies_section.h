@@ -177,6 +177,7 @@ private:
 
 	void send();
 	void send(Api::SendOptions options);
+	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,

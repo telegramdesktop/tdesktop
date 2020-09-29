@@ -204,11 +204,12 @@ RepliesWidget::RepliesWidget(
 	}, _inner->lifetime());
 
 	_composeControls->sendActionUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](ComposeControls::SendActionUpdate &&data) {
 		session().sendProgressManager().update(
 			_history,
 			_rootId,
-			Api::SendProgressType::Typing);
+			data.type,
+			data.progress);
 	}, lifetime());
 
 	_history->session().changes().messageUpdates(
@@ -421,6 +422,11 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->sendRequests(
 	) | rpl::start_with_next([=] {
 		send();
+	}, lifetime());
+
+	_composeControls->sendVoiceRequests(
+	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
+		sendVoice(data.bytes, data.waveform, data.duration);
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -816,6 +822,15 @@ void RepliesWidget::send() {
 	//	Ui::LayerOption::KeepOther);
 }
 
+void RepliesWidget::sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration) {
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyToId();
+	session().api().sendVoiceMessage(bytes, waveform, duration, action);
+}
+
 void RepliesWidget::send(Api::SendOptions options) {
 	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
 		? CancelledWebPageId
@@ -875,7 +890,7 @@ void RepliesWidget::edit(
 		if (item) {
 			Ui::show(Box<DeleteMessagesBox>(item, false));
 		} else {
-			_composeControls->focus();
+			doSetInnerFocus();
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
@@ -908,7 +923,7 @@ void RepliesWidget::edit(
 		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (err == u"MESSAGE_EMPTY"_q) {
-			_composeControls->focus();
+			doSetInnerFocus();
 		} else {
 			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		}
@@ -924,7 +939,7 @@ void RepliesWidget::edit(
 		crl::guard(this, fail));
 
 	_composeControls->hidePanelsAnimated();
-	_composeControls->focus();
+	doSetInnerFocus();
 }
 
 void RepliesWidget::sendExistingDocument(
@@ -1096,7 +1111,7 @@ void RepliesWidget::showAtEnd() {
 void RepliesWidget::finishSending() {
 	_composeControls->hidePanelsAnimated();
 	//if (_previewData && _previewData->pendingTill) previewCancel();
-	_composeControls->focus();
+	doSetInnerFocus();
 	showAtEnd();
 }
 
@@ -1223,7 +1238,11 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 }
 
 void RepliesWidget::doSetInnerFocus() {
-	_composeControls->focus();
+	if (!_inner->getSelectedText().rich.text.isEmpty()
+		|| !_inner->getSelectedItems().empty()
+		|| !_composeControls->focus()) {
+		_inner->setFocus();
+	}
 }
 
 bool RepliesWidget::showInternal(

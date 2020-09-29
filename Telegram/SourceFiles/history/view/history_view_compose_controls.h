@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
-#include "api/api_send_progress.h"
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -49,6 +48,10 @@ class SessionController;
 struct SectionShow;
 } // namespace Window
 
+namespace Api {
+enum class SendProgressType;
+} // namespace Api
+
 namespace HistoryView {
 
 class FieldHeader;
@@ -67,6 +70,15 @@ public:
 		Api::SendOptions options;
 		TextWithTags textWithTags;
 	};
+	struct VoiceToSend {
+		QByteArray bytes;
+		VoiceWaveform waveform;
+		int duration = 0;
+	};
+	struct SendActionUpdate {
+		Api::SendProgressType type = Api::SendProgressType();
+		int progress = 0;
+	};
 
 	ComposeControls(
 		not_null<QWidget*> parent,
@@ -83,9 +95,10 @@ public:
 	[[nodiscard]] rpl::producer<int> height() const;
 	[[nodiscard]] int heightCurrent() const;
 
-	void focus();
+	bool focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> sendRequests() const;
+	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<> attachRequests() const;
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
@@ -94,7 +107,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
-	[[nodiscard]] rpl::producer<Api::SendProgress> sendActionUpdates() const;
+	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -140,6 +153,7 @@ private:
 	void initWebpageProcess();
 	void updateSendButtonType();
 	void updateHeight();
+	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
@@ -151,6 +165,21 @@ private:
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 
 	void setTextFromEditingMessage(not_null<HistoryItem*> item);
+
+	void recordError();
+	void recordUpdated(quint16 level, int samples);
+	void recordDone(QByteArray result, VoiceWaveform waveform, int samples);
+
+	bool recordingAnimationCallback(crl::time now);
+	void stopRecording(bool send);
+
+	void recordStartCallback();
+	void recordStopCallback(bool active);
+	void recordUpdateCallback(QPoint globalPos);
+
+	bool showRecordButton() const;
+	void drawRecording(Painter &p, float64 recordActive);
+	void updateOverStates(QPoint pos);
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
@@ -173,17 +202,18 @@ private:
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
-	rpl::event_stream<Api::SendProgress> _sendActionUpdates;
+	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
+	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
 
 	TextWithTags _localSavedText;
 	TextUpdateEvents _textUpdateEvents;
 
-	//bool _recording = false;
-	//bool _inField = false;
+	bool _recording = false;
+	bool _inField = false;
 	//bool _inReplyEditForward = false;
 	//bool _inClickable = false;
-	//int _recordingSamples = 0;
-	//int _recordCancelWidth;
+	int _recordingSamples = 0;
+	int _recordCancelWidth;
 
 	rpl::lifetime _uploaderSubscriptions;
 

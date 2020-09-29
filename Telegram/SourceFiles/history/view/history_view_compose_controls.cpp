@@ -22,32 +22,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "facades.h"
+#include "boxes/confirm_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/inline_results_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "media/audio/media_audio_capture.h"
+#include "media/audio/media_audio.h"
 #include "styles/style_history.h"
 #include "ui/special_buttons.h"
 #include "ui/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
 #include "window/window_session_controller.h"
+#include "mainwindow.h"
 
 namespace HistoryView {
-
 namespace {
 
-using FileChosen = ComposeControls::FileChosen;
-using PhotoChosen = ComposeControls::PhotoChosen;
-using MessageToEdit = ComposeControls::MessageToEdit;
-
-constexpr auto kMouseEvent = {
+constexpr auto kRecordingUpdateDelta = crl::time(100);
+constexpr auto kMouseEvents = {
 	QEvent::MouseMove,
 	QEvent::MouseButtonPress,
 	QEvent::MouseButtonRelease
 };
+
+using FileChosen = ComposeControls::FileChosen;
+using PhotoChosen = ComposeControls::PhotoChosen;
+using MessageToEdit = ComposeControls::MessageToEdit;
+using VoiceToSend = ComposeControls::VoiceToSend;
+using SendActionUpdate = ComposeControls::SendActionUpdate;
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
 	return page && (page->pendingTill >= 0);
@@ -223,7 +229,7 @@ void FieldHeader::init() {
 	const auto inClickable = lifetime().make_state<bool>(false);
 	events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return ranges::contains(kMouseEvent, event->type())
+		return ranges::contains(kMouseEvents, event->type())
 			&& isEditingMessage();
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
@@ -502,11 +508,18 @@ ComposeControls::ComposeControls(
 , _header(std::make_unique<FieldHeader>(
 		_wrap.get(),
 		&_window->session().data()))
-, _textUpdateEvents(TextUpdateEvent::SendTyping) {
+, _textUpdateEvents(TextUpdateEvent::SendTyping)
+, _recordCancelWidth(st::historyRecordFont->width(tr::lng_record_cancel(tr::now)))
+, _recordingAnimation([=](crl::time now) {
+	return recordingAnimationCallback(now);
+}) {
 	init();
 }
 
 ComposeControls::~ComposeControls() {
+	if (_recording) {
+		stopRecording(false);
+	}
 	setTabbedPanel(nullptr);
 }
 
@@ -541,8 +554,89 @@ int ComposeControls::heightCurrent() const {
 	return _wrap->height();
 }
 
-void ComposeControls::focus() {
+bool ComposeControls::focus() {
+	if (_recording) {
+		return false;
+	}
 	_field->setFocus();
+	return true;
+}
+
+void ComposeControls::updateControlsVisibility() {
+	if (_recording) {
+		_field->hide();
+		_tabbedSelectorToggle->hide();
+		//_botKeyboardShow->hide();
+		//_botKeyboardHide->hide();
+		//_botCommandStart->hide();
+		_attachToggle->hide();
+		//if (_silent) {
+		//	_silent->hide();
+		//}
+		//if (_scheduled) {
+		//	_scheduled->hide();
+		//}
+		//if (_kbShown) {
+		//	_kbScroll->show();
+		//} else {
+		//	_kbScroll->hide();
+		//}
+	} else {
+		_field->show();
+		//if (_kbShown) {
+		//	_kbScroll->show();
+		//	_tabbedSelectorToggle->hide();
+		//	_botKeyboardHide->show();
+		//	_botKeyboardShow->hide();
+		//	_botCommandStart->hide();
+		//} else if (_kbReplyTo) {
+		//	_kbScroll->hide();
+		//	_tabbedSelectorToggle->show();
+		//	_botKeyboardHide->hide();
+		//	_botKeyboardShow->hide();
+		//	_botCommandStart->hide();
+		//} else {
+		//	_kbScroll->hide();
+		//	_tabbedSelectorToggle->show();
+		//	_botKeyboardHide->hide();
+		//	if (_keyboard->hasMarkup()) {
+		//		_botKeyboardShow->show();
+		//		_botCommandStart->hide();
+		//	} else {
+		//		_botKeyboardShow->hide();
+		//		if (_cmdStartShown) {
+		//			_botCommandStart->show();
+		//		} else {
+		//			_botCommandStart->hide();
+		//		}
+		//	}
+		//}
+		_attachToggle->show();
+		//if (_silent) {
+		//	_silent->show();
+		//}
+		//if (_scheduled) {
+		//	_scheduled->show();
+		//}
+		//updateFieldPlaceholder();
+	}
+
+}
+
+bool ComposeControls::recordingAnimationCallback(crl::time now) {
+	const auto dt = anim::Disabled()
+		? 1.
+		: ((now - _recordingAnimation.started())
+			/ float64(kRecordingUpdateDelta));
+	if (dt >= 1.) {
+		_recordingLevel.finish();
+	} else {
+		_recordingLevel.update(dt, anim::linear);
+	}
+	if (!anim::Disabled()) {
+		_wrap->update(_attachToggle->geometry());
+	}
+	return (dt < 1.);
 }
 
 rpl::producer<> ComposeControls::cancelRequests() const {
@@ -571,6 +665,10 @@ rpl::producer<> ComposeControls::sendRequests() const {
 	return rpl::merge(
 		_send->clicks() | filter | rpl::to_empty,
 		std::move(submits) | filter | rpl::to_empty);
+}
+
+rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
+	return _sendVoiceRequests.events();
 }
 
 rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
@@ -668,6 +766,25 @@ void ComposeControls::init() {
 	initTabbedSelector();
 	initSendButton();
 
+	QObject::connect(
+		::Media::Capture::instance(),
+		&::Media::Capture::Instance::error,
+		_wrap.get(),
+		[=] { recordError(); });
+	QObject::connect(
+		::Media::Capture::instance(),
+		&::Media::Capture::Instance::updated,
+		_wrap.get(),
+		[=](quint16 level, int samples) { recordUpdated(level, samples); });
+	qRegisterMetaType<VoiceWaveform>();
+	QObject::connect(
+		::Media::Capture::instance(),
+		&::Media::Capture::Instance::done,
+		_wrap.get(),
+		[=](QByteArray result, VoiceWaveform waveform, int samples) {
+			recordDone(result, waveform, samples);
+		});
+
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry(size);
@@ -686,7 +803,7 @@ void ComposeControls::init() {
 	_header->editMsgId(
 	) | rpl::start_with_next([=](const auto &id) {
 		if (_header->isEditingMessage()) {
-			setTextFromEditingMessage(_window->session().data().message(id));
+			setTextFromEditingMessage(session().data().message(id));
 		} else {
 			setText(_localSavedText);
 			_localSavedText = {};
@@ -709,13 +826,127 @@ void ComposeControls::init() {
 			*lastMsgId = id;
 		}, _wrap->lifetime());
 
-		_window->session().data().itemRemoved(
+		session().data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return item->id && ((*lastMsgId) == item->fullId());
 		}) | rpl::start_with_next([=] {
 			cancelEditMessage();
 		}, _wrap->lifetime());
 	}
+}
+
+void ComposeControls::recordError() {
+	stopRecording(false);
+}
+
+void ComposeControls::recordDone(
+		QByteArray result,
+		VoiceWaveform waveform,
+		int samples) {
+	if (result.isEmpty()) {
+		return;
+	}
+
+	Window::ActivateWindow(_window);
+	const auto duration = samples / ::Media::Player::kDefaultFrequency;
+	_sendVoiceRequests.fire({ result, waveform, duration });
+}
+
+void ComposeControls::recordUpdated(quint16 level, int samples) {
+	if (!_recording) {
+		return;
+	}
+
+	_recordingLevel.start(level);
+	_recordingAnimation.start();
+	_recordingSamples = samples;
+	if (samples < 0 || samples >= ::Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
+		stopRecording(samples > 0 && _inField);
+	}
+	Core::App().updateNonIdle();
+	_wrap->update();
+	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
+}
+
+void ComposeControls::recordStartCallback() {
+	//const auto error = _peer // #TODO restrictions
+	//	? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
+	//	: std::nullopt;
+	const auto error = std::optional<QString>();
+	if (error) {
+		Ui::show(Box<InformBox>(*error));
+		return;
+	//} else if (showSlowmodeError()) { // #TODO slowmode
+	//	return;
+	} else if (!::Media::Capture::instance()->available()) {
+		return;
+	}
+
+	emit ::Media::Capture::instance()->start();
+
+	_recording = _inField = true;
+	updateControlsVisibility();
+	_window->widget()->setInnerFocus();
+
+	_wrap->update();
+
+	_send->setRecordActive(true);
+}
+
+void ComposeControls::recordStopCallback(bool active) {
+	stopRecording(active);
+}
+
+void ComposeControls::recordUpdateCallback(QPoint globalPos) {
+	updateOverStates(_wrap->mapFromGlobal(globalPos));
+}
+
+void ComposeControls::stopRecording(bool send) {
+	emit ::Media::Capture::instance()->stop(send);
+
+	_recordingLevel = anim::value();
+	_recordingAnimation.stop();
+
+	_recording = false;
+	_recordingSamples = 0;
+	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+
+	updateControlsVisibility();
+	_window->widget()->setInnerFocus();
+
+	_wrap->update();
+	_send->setRecordActive(false);
+}
+
+bool ComposeControls::showRecordButton() const {
+	return ::Media::Capture::instance()->available()
+		&& !HasSendText(_field)
+		//&& !readyToForward()
+		&& !isEditingMessage();
+}
+
+void ComposeControls::drawRecording(Painter &p, float64 recordActive) {
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::historyRecordSignalColor);
+
+	auto delta = qMin(_recordingLevel.current() / 0x4000, 1.);
+	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
+	}
+
+	auto duration = formatDurationText(_recordingSamples / ::Media::Player::kDefaultFrequency);
+	p.setFont(st::historyRecordFont);
+
+	p.setPen(st::historyRecordDurationFg);
+	p.drawText(_attachToggle->x() + _tabbedSelectorToggle->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
+
+	int32 left = _attachToggle->x() + _tabbedSelectorToggle->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
+	int32 right = _wrap->width() - _send->width();
+
+	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, 1. - recordActive));
+	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, tr::lng_record_cancel(tr::now));
 }
 
 void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
@@ -752,14 +983,15 @@ void ComposeControls::fieldChanged() {
 	if (/*!_inlineBot
 		&& */!_header->isEditingMessage()
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
-		_sendActionUpdates.fire(Api::SendProgress{
-			Api::SendProgressType::Typing,
-			crl::now() + 5 * crl::time(1000),
-		});
+		_sendActionUpdates.fire({ Api::SendProgressType::Typing });
+	}
+	updateSendButtonType();
+	if (showRecordButton()) {
+		//_previewCancelled = false;
 	}
 }
 
-rpl::producer<Api::SendProgress> ComposeControls::sendActionUpdates() const {
+rpl::producer<SendActionUpdate> ComposeControls::sendActionUpdates() const {
 	return _sendActionUpdates.events();
 }
 
@@ -811,8 +1043,8 @@ void ComposeControls::updateSendButtonType() {
 			return Type::Save;
 		//} else if (_isInlineBot) {
 		//	return Type::Cancel;
-		//} else if (showRecordButton()) {
-		//	return Type::Record;
+		} else if (showRecordButton()) {
+			return Type::Record;
 		}
 		return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
 	}();
@@ -835,6 +1067,11 @@ void ComposeControls::updateSendButtonType() {
 	//		this,
 	//		[=] { updateSendButtonType(); });
 	//}
+
+	_send->setRecordStartCallback([=] { recordStartCallback(); });
+	_send->setRecordStopCallback([=](bool active) { recordStopCallback(active); });
+	_send->setRecordUpdateCallback([=](QPoint globalPos) { recordUpdateCallback(globalPos); });
+	_send->setRecordAnimationCallback([=] { _wrap->update(); });
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {
@@ -879,10 +1116,26 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	}
 }
 
+void ComposeControls::updateOverStates(QPoint pos) {
+	const auto inField = _wrap->rect().contains(pos);
+	if (inField != _inField && _recording) {
+		_inField = inField;
+		_send->setRecordActive(_inField);
+	}
+}
+
 void ComposeControls::paintBackground(QRect clip) {
 	Painter p(_wrap.get());
 
 	p.fillRect(clip, st::historyComposeAreaBg);
+	if (!_field->isHidden() || _recording) {
+		//drawField(p, clip);
+		if (!_send->isHidden() && _recording) {
+			drawRecording(p, _send->recordActiveRatio());
+		}
+	//} else if (const auto error = writeRestriction()) {
+	//	drawRestrictedWrite(p, *error);
+	}
 }
 
 void ComposeControls::escape() {
