@@ -35,6 +35,35 @@ bool IsCompositionEnabled() {
 	return success && result;
 }
 
+bool IsTaskbarAutoHidden(PUINT pEdge = nullptr) {
+	HWND hTaskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+	if (!hTaskbar) {
+		if (pEdge) {
+			*pEdge = (UINT)-1;
+		}
+		return false;
+	}
+
+	APPBARDATA state = {sizeof(state), hTaskbar};
+	APPBARDATA pos = {sizeof(pos), hTaskbar};
+
+	LRESULT lState = SHAppBarMessage(ABM_GETSTATE, &state);
+	bool bAutoHidden = (lState & ABS_AUTOHIDE);
+
+	if (SHAppBarMessage(ABM_GETTASKBARPOS, &pos)) {
+		if (pEdge) {
+			*pEdge = pos.uEdge;
+		}
+	} else {
+		Unexpected("Failed to get taskbar pos");
+		if (pEdge) {
+			*pEdge = ABE_BOTTOM;
+		}
+	}
+
+	return bAutoHidden;
+}
+
 } // namespace
 
 EventFilter *EventFilter::CreateInstance(not_null<MainWindow*> window) {
@@ -104,6 +133,15 @@ bool EventFilter::customWindowFrameEvent(
 				mi.cbSize = sizeof(mi);
 				if (GetMonitorInfo(hMonitor, &mi)) {
 					*r = mi.rcWork;
+					UINT uEdge = (UINT)-1;
+					if (IsTaskbarAutoHidden(&uEdge)) {
+						switch (uEdge) {
+						case ABE_LEFT: r->left += 1; break;
+						case ABE_RIGHT: r->right -= 1; break;
+						case ABE_TOP: r->top += 1; break;
+						case ABE_BOTTOM: r->bottom -= 1; break;
+						}
+					}
 				}
 			}
 		}
