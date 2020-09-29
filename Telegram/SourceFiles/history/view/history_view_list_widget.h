@@ -496,6 +496,7 @@ private:
 	Ui::Animations::Simple _scrollToAnimation;
 	Fn<bool()> _overrideInitialScroll;
 
+	bool _scrollInited = false;
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;

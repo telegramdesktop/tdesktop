@@ -528,9 +528,10 @@ void ListWidget::restoreScrollState() {
 		return;
 	}
 	if (!_scrollTopState.item) {
-		if (!_bar.element || !_bar.focus) {
+		if (!_bar.element || !_bar.focus || _scrollInited) {
 			return;
 		}
+		_scrollInited = true;
 		_scrollTopState.item = _bar.element->data()->position();
 		_scrollTopState.shift = st::lineWidth + st::historyUnreadBarMargin;
 	}
