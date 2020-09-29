@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_send_action.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/storage_account.h"
 #include "storage/storage_encrypted_file.h"
@@ -868,25 +869,97 @@ void Session::cancelForwarding(not_null<History*> history) {
 		Data::HistoryUpdate::Flag::ForwardDraft);
 }
 
+HistoryView::SendActionPainter *Session::lookupSendActionPainter(
+		not_null<History*> history,
+		MsgId rootId) {
+	if (!rootId) {
+		return history->sendActionPainter();
+	}
+	const auto i = _sendActionPainters.find(history);
+	if (i == end(_sendActionPainters)) {
+		return nullptr;
+	}
+	const auto j = i->second.find(rootId);
+	return (j == end(i->second)) ? nullptr : j->second.lock().get();
+}
+
 void Session::registerSendAction(
 		not_null<History*> history,
+		MsgId rootId,
 		not_null<UserData*> user,
 		const MTPSendMessageAction &action,
 		TimeId when) {
-	if (history->updateSendActionNeedsAnimating(user, action)) {
+	if (history->peer->isSelf()) {
+		return;
+	}
+	const auto sendAction = lookupSendActionPainter(history, rootId);
+	if (!sendAction) {
+		return;
+	}
+	if (sendAction->updateNeedsAnimating(user, action)) {
 		user->madeAction(when);
 
-		const auto i = _sendActions.find(history);
-		if (!_sendActions.contains(history)) {
-			_sendActions.emplace(history, crl::now());
+		const auto i = _sendActions.find(std::pair{ history, rootId });
+		if (!_sendActions.contains(std::pair{ history, rootId })) {
+			_sendActions.emplace(std::pair{ history, rootId }, crl::now());
 			_sendActionsAnimation.start();
 		}
 	}
 }
 
+auto Session::repliesSendActionPainter(
+	not_null<History*> history,
+	MsgId rootId)
+-> std::shared_ptr<SendActionPainter> {
+	auto &weak = _sendActionPainters[history][rootId];
+	if (auto strong = weak.lock()) {
+		return strong;
+	}
+	auto result = std::make_shared<SendActionPainter>(history);
+	weak = result;
+	return result;
+}
+
+void Session::repliesSendActionPainterRemoved(
+		not_null<History*> history,
+		MsgId rootId) {
+	const auto i = _sendActionPainters.find(history);
+	if (i == end(_sendActionPainters)) {
+		return;
+	}
+	const auto j = i->second.find(rootId);
+	if (j == end(i->second) || j->second.lock()) {
+		return;
+	}
+	i->second.erase(j);
+	if (i->second.empty()) {
+		_sendActionPainters.erase(i);
+	}
+}
+
+void Session::repliesSendActionPaintersClear(
+		not_null<History*> history,
+		not_null<UserData*> user) {
+	auto &map = _sendActionPainters[history];
+	for (auto i = map.begin(); i != map.end();) {
+		if (auto strong = i->second.lock()) {
+			strong->clear(user);
+			++i;
+		} else {
+			i = map.erase(i);
+		}
+	}
+	if (map.empty()) {
+		_sendActionPainters.erase(history);
+	}
+}
+
 bool Session::sendActionsAnimationCallback(crl::time now) {
 	for (auto i = begin(_sendActions); i != end(_sendActions);) {
-		if (i->first->updateSendActionNeedsAnimating(now)) {
+		const auto sendAction = lookupSendActionPainter(
+			i->first.first,
+			i->first.second);
+		if (sendAction->updateNeedsAnimating(now)) {
 			++i;
 		} else {
 			i = _sendActions.erase(i);

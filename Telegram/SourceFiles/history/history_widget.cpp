@@ -1792,7 +1792,8 @@ void HistoryWidget::showHistory(
 
 		_topBar->setActiveChat(
 			_history,
-			HistoryView::TopBarWidget::Section::History);
+			HistoryView::TopBarWidget::Section::History,
+			_history->sendActionPainter());
 		updateTopBarSelection();
 
 		if (_channel) {
@@ -1881,7 +1882,8 @@ void HistoryWidget::showHistory(
 	} else {
 		_topBar->setActiveChat(
 			Dialogs::Key(),
-			HistoryView::TopBarWidget::Section::History);
+			HistoryView::TopBarWidget::Section::History,
+			nullptr);
 		updateTopBarSelection();
 
 		clearFieldText();

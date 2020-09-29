@@ -1535,7 +1535,12 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto user = session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : base::unixtime::now();
-			session().data().registerSendAction(history, user, d.vaction(), when);
+			session().data().registerSendAction(
+				history,
+				MsgId(),
+				user,
+				d.vaction(),
+				when);
 		}
 	} break;
 
@@ -1548,7 +1553,12 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			: session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : base::unixtime::now();
-			session().data().registerSendAction(history, user, d.vaction(), when);
+			session().data().registerSendAction(
+				history,
+				MsgId(),
+				user,
+				d.vaction(),
+				when);
 		}
 	} break;
 
@@ -1559,9 +1569,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto user = (d.vuser_id().v == session().userId())
 			? nullptr
 			: session().data().userLoaded(d.vuser_id().v);
-		if (history && user && !d.vtop_msg_id().value_or_empty()) {
-			const auto when = requestingDifference() ? 0 : base::unixtime::now();
-			session().data().registerSendAction(history, user, d.vaction(), when);
+		if (history && user) {
+			const auto when = requestingDifference()
+				? 0
+				: base::unixtime::now();
+			const auto rootId = d.vtop_msg_id().value_or_empty();
+			session().data().registerSendAction(
+				history,
+				rootId,
+				user,
+				d.vaction(),
+				when);
 		}
 	} break;
 

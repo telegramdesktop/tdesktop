@@ -524,7 +524,8 @@ void Widget::refreshFolderTopBar() {
 		}
 		_folderTopBar->setActiveChat(
 			_openedFolder,
-			HistoryView::TopBarWidget::Section::History);
+			HistoryView::TopBarWidget::Section::History,
+			nullptr);
 	} else {
 		_folderTopBar.destroy();
 	}

@@ -57,6 +57,7 @@ class Element;
 class TopBarWidget;
 class RepliesMemento;
 class ComposeControls;
+class SendActionPainter;
 
 class RepliesWidget final
 	: public Window::SectionWidget
@@ -237,6 +238,7 @@ private:
 	HistoryItem *_root = nullptr;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;
+	std::shared_ptr<SendActionPainter> _sendAction;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;

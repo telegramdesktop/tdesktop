@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "api/api_send_progress.h"
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -93,6 +94,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] auto inlineResultChosen() const
 		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
+	[[nodiscard]] rpl::producer<Api::SendProgress> sendActionUpdates() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -124,6 +126,13 @@ public:
 	void hidePanelsAnimated();
 
 private:
+	enum class TextUpdateEvent {
+		//SaveDraft = (1 << 0),
+		SendTyping = (1 << 1),
+	};
+	using TextUpdateEvents = base::flags<TextUpdateEvent>;
+	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
+
 	void init();
 	void initField();
 	void initTabbedSelector();
@@ -136,6 +145,7 @@ private:
 	void paintBackground(QRect clip);
 
 	void escape();
+	void fieldChanged();
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
@@ -163,8 +173,10 @@ private:
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
+	rpl::event_stream<Api::SendProgress> _sendActionUpdates;
 
 	TextWithTags _localSavedText;
+	TextUpdateEvents _textUpdateEvents;
 
 	//bool _recording = false;
 	//bool _inField = false;

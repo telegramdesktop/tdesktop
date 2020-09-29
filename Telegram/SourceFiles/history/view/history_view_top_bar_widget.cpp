@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>
 #include "history/history.h"
+#include "history/view/history_view_send_action.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "info/info_memento.h"
@@ -330,12 +331,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto folder = _activeChat.folder();
 	if (folder
 		|| history->peer->sharedMediaInfo()
-		|| (_section == Section::Scheduled)
-		|| !_customTitleText.isEmpty()) {
+		|| (_section == Section::Scheduled)) {
 		// #TODO feed name emoji.
-		auto text = !_customTitleText.isEmpty()
-			? _customTitleText
-			: (_section == Section::Scheduled)
+		auto text = (_section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
@@ -355,6 +353,28 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			(height() - st::historySavedFont->height) / 2,
 			width(),
 			text);
+	} else if (_section == Section::Replies) {
+		p.setPen(st::dialogsNameFg);
+		p.setFont(st::semiboldFont);
+		p.drawTextLeft(
+			nameleft,
+			nametop,
+			width(),
+			tr::lng_manage_discussion_group(tr::now));
+
+		p.setFont(st::dialogsTextFont);
+		if (!paintConnectingState(p, nameleft, statustop, width())
+			&& !_sendAction->paint(
+				p,
+				nameleft,
+				statustop,
+				availableWidth,
+				width(),
+				st::historyStatusFgTyping,
+				crl::now())) {
+			p.setPen(st::historyStatusFg);
+			p.drawTextLeft(nameleft, statustop, width(), _customTitleText);
+		}
 	} else if (const auto history = _activeChat.history()) {
 		const auto peer = history->peer;
 		const auto &text = peer->topBarNameText();
@@ -382,18 +402,15 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			namewidth);
 
 		p.setFont(st::dialogsTextFont);
-		if (paintConnectingState(p, nameleft, statustop, width())) {
-			return;
-		} else if (history->paintSendAction(
+		if (!paintConnectingState(p, nameleft, statustop, width())
+			&& !_sendAction->paint(
 				p,
 				nameleft,
 				statustop,
-			availableWidth,
+				availableWidth,
 				width(),
 				st::historyStatusFgTyping,
 				crl::now())) {
-			return;
-		} else {
 			paintStatus(p, nameleft, statustop, availableWidth, width());
 		}
 	}
@@ -486,12 +503,16 @@ void TopBarWidget::backClicked() {
 	}
 }
 
-void TopBarWidget::setActiveChat(Dialogs::Key chat, Section section) {
+void TopBarWidget::setActiveChat(
+		Dialogs::Key chat,
+		Section section,
+		SendActionPainter *sendAction) {
 	if (_activeChat == chat && _section == section) {
 		return;
 	}
 	_activeChat = chat;
 	_section = section;
+	_sendAction = sendAction;
 	_back->clearState();
 	update();
 

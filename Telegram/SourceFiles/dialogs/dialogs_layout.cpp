@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
 #include "main/main_session.h"
+#include "history/view/history_view_send_action.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -362,7 +363,7 @@ void paintRow(
 
 		p.setFont(st::dialogsTextFont);
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
@@ -389,7 +390,7 @@ void paintRow(
 
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
@@ -741,7 +742,7 @@ void RowPainter::paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		const auto actionWasPainted = history ? history->paintSendAction(
+		const auto actionWasPainted = history ? history->sendActionPainter()->paint(
 			p,
 			itemRect.x(),
 			itemRect.y(),

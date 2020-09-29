@@ -501,7 +501,8 @@ ComposeControls::ComposeControls(
 		tr::lng_message_ph()))
 , _header(std::make_unique<FieldHeader>(
 		_wrap.get(),
-		&_window->session().data())) {
+		&_window->session().data()))
+, _textUpdateEvents(TextUpdateEvent::SendTyping) {
 	init();
 }
 
@@ -640,13 +641,13 @@ void ComposeControls::clear() {
 }
 
 void ComposeControls::setText(const TextWithTags &textWithTags) {
-	//_textUpdateEvents = events;
+	_textUpdateEvents = TextUpdateEvents();
 	_field->setTextWithTags(textWithTags, Ui::InputField::HistoryAction::Clear/*fieldHistoryAction*/);
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
-	//_textUpdateEvents = TextUpdateEvent::SaveDraft
-	//	| TextUpdateEvent::SendTyping;
+	_textUpdateEvents = /*TextUpdateEvent::SaveDraft
+		| */TextUpdateEvent::SendTyping;
 
 	//previewCancel();
 	//_previewCancelled = false;
@@ -738,13 +739,28 @@ void ComposeControls::initField() {
 	//Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
 	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
 	//Ui::Connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
-	//Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
+	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
 	InitMessageField(_window, _field);
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
 		_field,
 		&_window->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
+}
+
+void ComposeControls::fieldChanged() {
+	if (/*!_inlineBot
+		&& */!_header->isEditingMessage()
+		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
+		_sendActionUpdates.fire(Api::SendProgress{
+			Api::SendProgressType::Typing,
+			crl::now() + 5 * crl::time(1000),
+		});
+	}
+}
+
+rpl::producer<Api::SendProgress> ComposeControls::sendActionUpdates() const {
+	return _sendActionUpdates.events();
 }
 
 void ComposeControls::initTabbedSelector() {

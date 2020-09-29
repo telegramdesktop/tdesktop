@@ -16,6 +16,10 @@ class ApiWrap;
 struct FileLoadResult;
 struct SendMediaReady;
 
+namespace Api {
+enum class SendProgressType;
+} // namespace Api
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -128,7 +132,12 @@ private:
 
 	void currentFailed();
 
-	not_null<ApiWrap*> _api;
+	void sendProgressUpdate(
+		not_null<HistoryItem*> item,
+		Api::SendProgressType type,
+		int progress = 0);
+
+	const not_null<ApiWrap*> _api;
 	base::flat_map<mtpRequestId, QByteArray> requestsSent;
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;

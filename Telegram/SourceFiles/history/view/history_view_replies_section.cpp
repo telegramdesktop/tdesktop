@@ -127,6 +127,7 @@ RepliesWidget::RepliesWidget(
 , _rootId(rootId)
 , _root(lookupRoot())
 , _areComments(computeAreComments())
+, _sendAction(history->owner().repliesSendActionPainter(history, rootId))
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _composeControls(std::make_unique<ComposeControls>(
@@ -141,7 +142,10 @@ RepliesWidget::RepliesWidget(
 	setupRoot();
 	setupRootView();
 
-	_topBar->setActiveChat(_history, TopBarWidget::Section::Replies);
+	_topBar->setActiveChat(
+		_history,
+		TopBarWidget::Section::Replies,
+		_sendAction.get());
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -199,6 +203,14 @@ RepliesWidget::RepliesWidget(
 		_composeControls->replyToMessage(fullId);
 	}, _inner->lifetime());
 
+	_composeControls->sendActionUpdates(
+	) | rpl::start_with_next([=] {
+		session().sendProgressManager().update(
+			_history,
+			_rootId,
+			Api::SendProgressType::Typing);
+	}, lifetime());
+
 	_history->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
@@ -226,6 +238,8 @@ RepliesWidget::~RepliesWidget() {
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
+	base::take(_sendAction);
+	_history->owner().repliesSendActionPainterRemoved(_history, _rootId);
 }
 
 void RepliesWidget::sendReadTillRequest() {
@@ -827,6 +841,12 @@ void RepliesWidget::send(Api::SendOptions options) {
 	session().api().sendMessage(std::move(message));
 
 	_composeControls->clear();
+	session().sendProgressManager().update(
+		_history,
+		_rootId,
+		Api::SendProgressType::Typing,
+		-1);
+
 	//_saveDraftText = true;
 	//_saveDraftStart = crl::now();
 	//onDraftSave();

@@ -596,6 +596,8 @@ PRIVATE
     history/view/history_view_schedule_box.h
     history/view/history_view_scheduled_section.cpp
     history/view/history_view_scheduled_section.h
+    history/view/history_view_send_action.cpp
+    history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
     history/view/history_view_top_bar_widget.cpp

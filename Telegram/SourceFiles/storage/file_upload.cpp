@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "ui/image/image_location_factory.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -235,11 +236,7 @@ void Uploader::processPhotoProgress(const FullMsgId &newId) {
 		const auto photo = item->media()
 			? item->media()->photo()
 			: nullptr;
-		session->sendProgressManager().update(
-			item->history(),
-			Api::SendProgressType::UploadPhoto,
-			0);
-		session->data().requestItemRepaint(item);
+		sendProgressUpdate(item, Api::SendProgressType::UploadPhoto);
 	}
 }
 
@@ -254,23 +251,14 @@ void Uploader::processDocumentProgress(const FullMsgId &newId) {
 		const auto progress = (document && document->uploading())
 			? document->uploadingData->offset
 			: 0;
-
-		session->sendProgressManager().update(
-			item->history(),
-			sendAction,
-			progress);
-		session->data().requestItemRepaint(item);
+		sendProgressUpdate(item, sendAction, progress);
 	}
 }
 
 void Uploader::processPhotoFailed(const FullMsgId &newId) {
 	const auto session = &_api->session();
 	if (const auto item = session->data().message(newId)) {
-		session->sendProgressManager().update(
-			item->history(),
-			Api::SendProgressType::UploadPhoto,
-			-1);
-		session->data().requestItemRepaint(item);
+		sendProgressUpdate(item, Api::SendProgressType::UploadPhoto, -1);
 	}
 }
 
@@ -282,12 +270,23 @@ void Uploader::processDocumentFailed(const FullMsgId &newId) {
 		const auto sendAction = (document && document->isVoiceMessage())
 			? Api::SendProgressType::UploadVoice
 			: Api::SendProgressType::UploadFile;
-		session->sendProgressManager().update(
-			item->history(),
-			sendAction,
-			-1);
-		session->data().requestItemRepaint(item);
+		sendProgressUpdate(item, sendAction, -1);
 	}
+}
+
+void Uploader::sendProgressUpdate(
+		not_null<HistoryItem*> item,
+		Api::SendProgressType type,
+		int progress) {
+	const auto history = item->history();
+	auto &manager = _api->session().sendProgressManager();
+	manager.update(history, type, progress);
+	if (const auto replyTo = item->replyToTop()) {
+		if (history->peer->isMegagroup()) {
+			manager.update(history, replyTo, type, progress);
+		}
+	}
+	_api->session().data().requestItemRepaint(item);
 }
 
 Uploader::~Uploader() {
