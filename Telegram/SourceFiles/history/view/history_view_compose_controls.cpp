@@ -611,6 +611,7 @@ void ComposeControls::updateControlsVisibility() {
 		//		}
 		//	}
 		//}
+		_tabbedSelectorToggle->show();
 		_attachToggle->show();
 		//if (_silent) {
 		//	_silent->show();
