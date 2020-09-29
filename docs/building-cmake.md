@@ -262,6 +262,7 @@ Go to ***BuildPath*** and run
     -qt-pcre \
     -qt-xcb \
     -no-gtk \
+    -no-icu \
     -static \
     -dbus-runtime \
     -openssl-linked \
