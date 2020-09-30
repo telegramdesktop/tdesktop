@@ -551,7 +551,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		*correct = std::max(
 			checkedCount - *decrementFrom - nowSize,
 			0);
-		*decrementFrom = *_fullCount.current() - *correct - nowSize;
+		*decrementFrom = checkedCount - *correct - nowSize;
 		Assert(*decrementFrom >= 0);
 	} else if (_skippedBefore) {
 		*_skippedBefore = std::min(*_skippedBefore, checkedCount - nowSize);
