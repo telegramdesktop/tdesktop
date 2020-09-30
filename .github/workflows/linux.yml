@@ -443,6 +443,7 @@ jobs:
           -qt-harfbuzz \
           -qt-pcre \
           -qt-xcb \
+          -no-icu \
           -no-gtk \
           -static \
           -dbus-runtime \
