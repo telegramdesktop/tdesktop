@@ -235,6 +235,7 @@ private:
 		Api::SendOptions options);
 
 	[[nodiscard]] bool showSlowmodeError();
+	[[nodiscard]] std::optional<QString> writeRestriction() const;
 
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;

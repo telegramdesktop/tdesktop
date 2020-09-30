@@ -493,6 +493,7 @@ ComposeControls::ComposeControls(
 , _window(window)
 , _mode(mode)
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
+, _writeRestricted(std::make_unique<Ui::RpWidget>(parent))
 , _send(Ui::CreateChild<Ui::SendButton>(_wrap.get()))
 , _attachToggle(Ui::CreateChild<Ui::IconButton>(
 	_wrap.get(),
@@ -534,6 +535,8 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		| rpl::then(std::move(args.slowmodeSecondsLeft));
 	_sendDisabledBySlowmode = rpl::single(false)
 		| rpl::then(std::move(args.sendDisabledBySlowmode));
+	_writeRestriction = rpl::single(std::optional<QString>())
+		| rpl::then(std::move(args.writeRestriction));
 	const auto history = *args.history;
 	if (_history == history) {
 		return;
@@ -546,19 +549,27 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 
 void ComposeControls::move(int x, int y) {
 	_wrap->move(x, y);
+	_writeRestricted->move(x, y);
 }
 
 void ComposeControls::resizeToWidth(int width) {
 	_wrap->resizeToWidth(width);
+	_writeRestricted->resizeToWidth(width);
 	updateHeight();
 }
 
 rpl::producer<int> ComposeControls::height() const {
-	return _wrap->heightValue();
+	using namespace rpl::mappers;
+	return rpl::conditional(
+		_writeRestriction.value() | rpl::map(!_1),
+		_wrap->heightValue(),
+		_writeRestricted->heightValue());
 }
 
 int ComposeControls::heightCurrent() const {
-	return _wrap->height();
+	return _writeRestriction.current()
+		? _writeRestricted->height()
+		: _wrap->height();
 }
 
 bool ComposeControls::focus() {
@@ -773,6 +784,7 @@ void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
 	initSendButton();
+	initWriteRestriction();
 
 	QObject::connect(
 		::Media::Capture::instance(),
@@ -957,6 +969,18 @@ void ComposeControls::drawRecording(Painter &p, float64 recordActive) {
 	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, tr::lng_record_cancel(tr::now));
 }
 
+void ComposeControls::drawRestrictedWrite(Painter &p, const QString &error) {
+	p.fillRect(_writeRestricted->rect(), st::historyReplyBg);
+
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(
+		_writeRestricted->rect().marginsRemoved(
+			QMargins(st::historySendPadding, 0, st::historySendPadding, 0)),
+		error,
+		style::al_center);
+}
+
 void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
 	if (!_header->isEditingMessage()) {
 		return;
@@ -1048,6 +1072,25 @@ void ComposeControls::initSendButton() {
 	}, _send->lifetime());
 
 	_send->finishAnimating();
+}
+
+void ComposeControls::initWriteRestriction() {
+	_writeRestricted->resize(
+		_writeRestricted->width(),
+		st::historyUnblock.height);
+	_writeRestricted->paintRequest(
+	) | rpl::start_with_next([=] {
+		if (const auto error = _writeRestriction.current()) {
+			auto p = Painter(_writeRestricted.get());
+			drawRestrictedWrite(p, *error);
+		}
+	}, _wrap->lifetime());
+
+	_writeRestriction.value(
+	) | rpl::start_with_next([=](const std::optional<QString> &error) {
+		_writeRestricted->setVisible(error.has_value());
+		_wrap->setVisible(!error.has_value());
+	}, _wrap->lifetime());
 }
 
 void ComposeControls::updateSendButtonType() {
@@ -1143,8 +1186,6 @@ void ComposeControls::paintBackground(QRect clip) {
 		if (!_send->isHidden() && _recording) {
 			drawRecording(p, _send->recordActiveRatio());
 		}
-	//} else if (const auto error = writeRestriction()) {
-	//	drawRestrictedWrite(p, *error);
 	}
 }
 
@@ -1414,7 +1455,6 @@ void ComposeControls::initWebpageProcess() {
 		title->events(),
 		description->events(),
 		pageData->events());
-
 }
 
 WebPageId ComposeControls::webPageId() const {

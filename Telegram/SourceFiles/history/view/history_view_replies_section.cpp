@@ -440,11 +440,21 @@ void RepliesWidget::setupComposeControls() {
 			std::move(hasSendingMessage),
 			_1 && _2);
 
+	auto writeRestriction = session().changes().peerFlagsValue(
+		_history->peer,
+		Data::PeerUpdate::Flag::Rights
+	) | rpl::map([=] {
+		return Data::RestrictionError(
+			_history->peer,
+			ChatRestriction::f_send_messages);
+	});
+
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.slowmodeSecondsLeft = std::move(slowmodeSecondsLeft),
 		.sendDisabledBySlowmode = std::move(sendDisabledBySlowmode),
+		.writeRestriction = std::move(writeRestriction),
 	});
 
 	_composeControls->height(
@@ -759,6 +769,12 @@ bool RepliesWidget::showSlowmodeError() {
 		.text = { text },
 	});
 	return true;
+}
+
+std::optional<QString> RepliesWidget::writeRestriction() const {
+	return Data::RestrictionError(
+		_history->peer,
+		ChatRestriction::f_send_messages);
 }
 
 void RepliesWidget::uploadFilesAfterConfirmation(

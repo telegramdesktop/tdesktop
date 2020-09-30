@@ -94,6 +94,7 @@ public:
 		Fn<bool()> showSlowmodeError;
 		rpl::producer<int> slowmodeSecondsLeft;
 		rpl::producer<bool> sendDisabledBySlowmode;
+		rpl::producer<std::optional<QString>> writeRestriction;
 	};
 	void setHistory(SetHistoryArgs &&args);
 	void finishAnimating();
@@ -159,6 +160,7 @@ private:
 	void initTabbedSelector();
 	void initSendButton();
 	void initWebpageProcess();
+	void initWriteRestriction();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateControlsVisibility();
@@ -187,6 +189,7 @@ private:
 
 	bool showRecordButton() const;
 	void drawRecording(Painter &p, float64 recordActive);
+	void drawRestrictedWrite(Painter &p, const QString &error);
 	void updateOverStates(QPoint pos);
 
 	const not_null<QWidget*> _parent;
@@ -195,9 +198,11 @@ private:
 	Fn<bool()> _showSlowmodeError;
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
+	rpl::variable<std::optional<QString>> _writeRestriction;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
+	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
 
 	const not_null<Ui::SendButton*> _send;
 	const not_null<Ui::IconButton*> _attachToggle;
