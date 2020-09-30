@@ -1090,6 +1090,9 @@ void ComposeControls::initWriteRestriction() {
 	) | rpl::start_with_next([=](const std::optional<QString> &error) {
 		_writeRestricted->setVisible(error.has_value());
 		_wrap->setVisible(!error.has_value());
+		if (!error.has_value()) {
+			_wrap->raise();
+		}
 	}, _wrap->lifetime());
 }
 
