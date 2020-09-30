@@ -22,9 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text_options.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
+#include "base/timer_rpl.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -62,6 +64,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
+constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
@@ -134,6 +137,8 @@ RepliesWidget::RepliesWidget(
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	setupRoot();
 	setupRootView();
+
+	session().api().requestFullPeer(_history->peer);
 
 	_topBar->setActiveChat(
 		_history,
@@ -396,7 +401,51 @@ bool RepliesWidget::computeAreComments() const {
 }
 
 void RepliesWidget::setupComposeControls() {
-	_composeControls->setHistory(_history);
+	auto slowmodeSecondsLeft = session().changes().peerFlagsValue(
+		_history->peer,
+		Data::PeerUpdate::Flag::Slowmode
+	) | rpl::map([=] {
+		return _history->peer->slowmodeSecondsLeft();
+	}) | rpl::map([=](int delay) -> rpl::producer<int> {
+		auto start = rpl::single(delay);
+		if (!delay) {
+			return start;
+		}
+		return std::move(
+			start
+		) | rpl::then(base::timer_each(
+			kRefreshSlowmodeLabelTimeout
+		) | rpl::map([=] {
+			return _history->peer->slowmodeSecondsLeft();
+		}) | rpl::take_while([=](int delay) {
+			return delay > 0;
+		})) | rpl::then(rpl::single(0));
+	}) | rpl::flatten_latest();
+
+	const auto channel = _history->peer->asChannel();
+	Assert(channel != nullptr);
+
+	auto hasSendingMessage = session().changes().historyFlagsValue(
+		_history,
+		Data::HistoryUpdate::Flag::LocalMessages
+	) | rpl::map([=] {
+		return _history->latestSendingMessage() != nullptr;
+	}) | rpl::distinct_until_changed();
+
+	using namespace rpl::mappers;
+	auto sendDisabledBySlowmode = (!channel || channel->amCreator())
+		? (rpl::single(false) | rpl::type_erased())
+		: rpl::combine(
+			channel->slowmodeAppliedValue(),
+			std::move(hasSendingMessage),
+			_1 && _2);
+
+	_composeControls->setHistory({
+		.history = _history.get(),
+		.showSlowmodeError = [=] { return showSlowmodeError(); },
+		.slowmodeSecondsLeft = std::move(slowmodeSecondsLeft),
+		.sendDisabledBySlowmode = std::move(sendDisabledBySlowmode),
+	});
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
@@ -497,6 +546,8 @@ void RepliesWidget::setupComposeControls() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
+
+	_composeControls->finishAnimating();
 }
 
 void RepliesWidget::chooseAttach() {
@@ -506,6 +557,8 @@ void RepliesWidget::chooseAttach() {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
+		return;
+	} else if (showSlowmodeError()) {
 		return;
 	}
 
@@ -684,6 +737,30 @@ bool RepliesWidget::confirmSendingFiles(
 		insertTextOnCancel);
 }
 
+bool RepliesWidget::showSlowmodeError() {
+	const auto text = [&] {
+		if (const auto left = _history->peer->slowmodeSecondsLeft()) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				Ui::FormatDurationWords(left));
+		} else if (_history->peer->slowmodeApplied()) {
+			if (const auto item = _history->latestSendingMessage()) {
+				showAtPositionNow(item->position(), nullptr);
+				return tr::lng_slowmode_no_many(tr::now);
+			}
+		}
+		return QString();
+	}();
+	if (text.isEmpty()) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.text = { text },
+	});
+	return true;
+}
+
 void RepliesWidget::uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,
 		SendMediaType type,
@@ -783,6 +860,16 @@ bool RepliesWidget::showSendingFilesError(
 		if (error) {
 			return *error;
 		}
+		if (list.files.size() > 1
+			&& _history->peer->slowmodeApplied()
+			&& !list.albumIsPossible) {
+			return tr::lng_slowmode_no_many(tr::now);
+		} else if (const auto left = _history->peer->slowmodeSecondsLeft()) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				Ui::FormatDurationWords(left));
+		}
 		using Error = Storage::PreparedList::Error;
 		switch (list.error) {
 		case Error::None: return QString();
@@ -831,6 +918,10 @@ void RepliesWidget::sendVoice(
 }
 
 void RepliesWidget::send(Api::SendOptions options) {
+	if (!options.scheduled && showSlowmodeError()) {
+		return;
+	}
+
 	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
@@ -964,6 +1055,8 @@ bool RepliesWidget::sendExistingDocument(
 	if (error) {
 		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
 		return false;
+	} else if (showSlowmodeError()) {
+		return false;
 	}
 
 	auto message = Api::MessageToSend(_history);
@@ -1003,6 +1096,8 @@ bool RepliesWidget::sendExistingPhoto(
 		ChatRestriction::f_send_media);
 	if (error) {
 		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		return false;
+	} else if (showSlowmodeError()) {
 		return false;
 	}
 

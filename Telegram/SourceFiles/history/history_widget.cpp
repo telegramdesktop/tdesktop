@@ -3675,15 +3675,18 @@ void HistoryWidget::updateSendButtonType() {
 	const auto type = computeSendButtonType();
 	_send->setType(type);
 
+	// This logic is duplicated in RepliesWidget.
+	const auto disabledBySlowmode = _peer
+		&& _peer->slowmodeApplied()
+		&& (_history->latestSendingMessage() != nullptr);
+
 	const auto delay = [&] {
 		return (type != Type::Cancel && type != Type::Save && _peer)
 			? _peer->slowmodeSecondsLeft()
 			: 0;
 	}();
 	_send->setSlowmodeDelay(delay);
-	_send->setDisabled(_peer
-		&& _peer->slowmodeApplied()
-		&& (_history->latestSendingMessage() != nullptr)
+	_send->setDisabled(disabledBySlowmode
 		&& (type == Type::Send || type == Type::Record));
 
 	if (delay != 0) {

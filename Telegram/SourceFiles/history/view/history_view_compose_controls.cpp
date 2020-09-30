@@ -528,7 +528,13 @@ Main::Session &ComposeControls::session() const {
 	return _window->session();
 }
 
-void ComposeControls::setHistory(History *history) {
+void ComposeControls::setHistory(SetHistoryArgs &&args) {
+	_showSlowmodeError = std::move(args.showSlowmodeError);
+	_slowmodeSecondsLeft = rpl::single(0)
+		| rpl::then(std::move(args.slowmodeSecondsLeft));
+	_sendDisabledBySlowmode = rpl::single(false)
+		| rpl::then(std::move(args.sendDisabledBySlowmode));
+	const auto history = *args.history;
 	if (_history == history) {
 		return;
 	}
@@ -878,8 +884,8 @@ void ComposeControls::recordStartCallback() {
 	if (error) {
 		Ui::show(Box<InformBox>(*error));
 		return;
-	//} else if (showSlowmodeError()) { // #TODO slowmode
-	//	return;
+	} else if (_showSlowmodeError && _showSlowmodeError()) {
+		return;
 	} else if (!::Media::Capture::instance()->available()) {
 		return;
 	}
@@ -1034,7 +1040,13 @@ void ComposeControls::initTabbedSelector() {
 }
 
 void ComposeControls::initSendButton() {
-	updateSendButtonType();
+	rpl::combine(
+		_slowmodeSecondsLeft.value(),
+		_sendDisabledBySlowmode.value()
+	) | rpl::start_with_next([=] {
+		updateSendButtonType();
+	}, _send->lifetime());
+
 	_send->finishAnimating();
 }
 
@@ -1053,27 +1065,23 @@ void ComposeControls::updateSendButtonType() {
 	_send->setType(type);
 
 	const auto delay = [&] {
-		return /*(type != Type::Cancel && type != Type::Save && _peer)
-			? _peer->slowmodeSecondsLeft()
-			: */0;
+		return (type != Type::Cancel && type != Type::Save)
+			? _slowmodeSecondsLeft.current()
+			: 0;
 	}();
 	_send->setSlowmodeDelay(delay);
-	//_send->setDisabled(_peer
-	//	&& _peer->slowmodeApplied()
-	//	&& (_history->latestSendingMessage() != nullptr)
-	//	&& (type == Type::Send || type == Type::Record));
-
-	//if (delay != 0) {
-	//	base::call_delayed(
-	//		kRefreshSlowmodeLabelTimeout,
-	//		this,
-	//		[=] { updateSendButtonType(); });
-	//}
+	_send->setDisabled(_sendDisabledBySlowmode.current()
+		&& (type == Type::Send || type == Type::Record));
 
 	_send->setRecordStartCallback([=] { recordStartCallback(); });
 	_send->setRecordStopCallback([=](bool active) { recordStopCallback(active); });
 	_send->setRecordUpdateCallback([=](QPoint globalPos) { recordUpdateCallback(globalPos); });
 	_send->setRecordAnimationCallback([=] { _wrap->update(); });
+}
+
+void ComposeControls::finishAnimating() {
+	_send->finishAnimating();
+	_recordingAnimation.stop();
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {

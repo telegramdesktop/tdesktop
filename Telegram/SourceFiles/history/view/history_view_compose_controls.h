@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/required.h"
 #include "api/api_common.h"
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
@@ -88,7 +89,14 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
-	void setHistory(History *history);
+	struct SetHistoryArgs {
+		required<History*> history;
+		Fn<bool()> showSlowmodeError;
+		rpl::producer<int> slowmodeSecondsLeft;
+		rpl::producer<bool> sendDisabledBySlowmode;
+	};
+	void setHistory(SetHistoryArgs &&args);
+	void finishAnimating();
 
 	void move(int x, int y);
 	void resizeToWidth(int width);
@@ -184,6 +192,9 @@ private:
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;
+	Fn<bool()> _showSlowmodeError;
+	rpl::variable<int> _slowmodeSecondsLeft;
+	rpl::variable<bool> _sendDisabledBySlowmode;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

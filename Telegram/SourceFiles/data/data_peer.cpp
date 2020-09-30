@@ -836,6 +836,31 @@ bool PeerData::slowmodeApplied() const {
 	return false;
 }
 
+rpl::producer<bool> PeerData::slowmodeAppliedValue() const {
+	using namespace rpl::mappers;
+	const auto channel = asChannel();
+	if (!channel) {
+		return rpl::single(false);
+	}
+
+	auto hasAdminRights = channel->adminRightsValue(
+	) | rpl::map([=] {
+		return channel->hasAdminRights();
+	}) | rpl::distinct_until_changed();
+
+	auto slowmodeEnabled = channel->flagsValue(
+	) | rpl::filter([=](const ChannelData::Flags::Change &change) {
+		return (change.diff & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+	}) | rpl::map([=](const ChannelData::Flags::Change &change) {
+		return (change.value & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+	}) | rpl::distinct_until_changed();
+
+	return rpl::combine(
+		std::move(hasAdminRights),
+		std::move(slowmodeEnabled),
+		!_1 && _2);
+}
+
 int PeerData::slowmodeSecondsLeft() const {
 	if (const auto channel = asChannel()) {
 		if (const auto seconds = channel->slowmodeSeconds()) {

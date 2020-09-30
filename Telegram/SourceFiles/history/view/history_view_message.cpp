@@ -746,6 +746,8 @@ void Message::paintCommentsButton(
 					QImage::Format_ARGB32_Premultiplied);
 			}
 			_comments->cachedUserpics.fill(Qt::transparent);
+			_comments->cachedUserpics.setDevicePixelRatio(cRetinaFactor());
+
 			auto q = Painter(&_comments->cachedUserpics);
 			auto hq = PainterHighQualityEnabler(q);
 			auto pen = QPen(Qt::transparent);

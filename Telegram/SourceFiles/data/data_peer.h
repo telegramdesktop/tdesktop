@@ -199,6 +199,7 @@ public:
 	[[nodiscard]] bool amAnonymous() const;
 	[[nodiscard]] bool canRevokeFullHistory() const;
 	[[nodiscard]] bool slowmodeApplied() const;
+	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canSendPolls() const;
 

@@ -234,7 +234,6 @@ void SessionNavigation::showPeerByLinkResolved(
 			showPeerHistory(peer->id, params, msgId);
 		});
 	}
-
 }
 
 void SessionNavigation::showRepliesForMessage(
@@ -245,6 +244,9 @@ void SessionNavigation::showRepliesForMessage(
 	if (_showingRepliesRequestId
 		&& _showingRepliesHistory == history.get()
 		&& _showingRepliesRootId == rootId) {
+		return;
+	} else if (!history->peer->asChannel()) {
+		// HistoryView::RepliesWidget right now handles only channels.
 		return;
 	}
 	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
