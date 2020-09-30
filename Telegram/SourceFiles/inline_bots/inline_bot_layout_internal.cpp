@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "app.h"
@@ -673,7 +674,7 @@ Video::Video(not_null<Context*> context, not_null<Result*> result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (int duration = content_duration()) {
-		_duration = formatDurationText(duration);
+		_duration = Ui::FormatDurationText(duration);
 		_durationWidth = st::normalFont->width(_duration);
 	}
 }
@@ -904,7 +905,9 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	p.setPen(st::inlineDescriptionFg);
 	bool drawStatusSize = true;
-	if (_statusSize == FileStatusSizeReady || _statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeFailed) {
+	if (_statusSize == Ui::FileStatusSizeReady
+		|| _statusSize == Ui::FileStatusSizeLoaded
+		|| _statusSize == Ui::FileStatusSizeFailed) {
 		if (!_description.isEmpty()) {
 			_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
 			drawStatusSize = false;
@@ -1000,15 +1003,15 @@ bool File::updateStatusText() const {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_document->status == FileDownloadFailed || _document->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_document->uploading()) {
 		statusSize = _document->uploadingData->offset;
 	} else if (_document->loading()) {
 		statusSize = _document->loadOffset();
 	} else if (_documentMedia->loaded()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 
 	if (_document->isVoiceMessage() || _document->isAudioFile()) {
@@ -1037,16 +1040,16 @@ bool File::updateStatusText() const {
 
 void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
 	_statusSize = newSize;
-	if (_statusSize == FileStatusSizeReady) {
-		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeFailed) {
+	if (_statusSize == Ui::FileStatusSizeReady) {
+		_statusText = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
+	} else if (_statusSize == Ui::FileStatusSizeLoaded) {
+		_statusText = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? qsl("GIF") : Ui::FormatSizeText(fullSize));
+	} else if (_statusSize == Ui::FileStatusSizeFailed) {
 		_statusText = tr::lng_attach_failed(tr::now);
 	} else if (_statusSize >= 0) {
-		_statusText = formatDownloadText(_statusSize, fullSize);
+		_statusText = Ui::FormatDownloadText(_statusSize, fullSize);
 	} else {
-		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
+		_statusText = Ui::FormatPlayedText(-_statusSize - 1, realDuration);
 	}
 }
 

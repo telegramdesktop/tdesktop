@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/text_options.h"
+#include "ui/text/format_values.h"
 #include "data/data_media_types.h"
 #include "app.h"
 #include "styles/style_history.h"
@@ -51,7 +52,7 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 		return tr::lng_payments_invoice_label(tr::now);
 	};
 	auto statusText = TextWithEntities {
-		FillAmountAndCurrency(invoice->amount, invoice->currency),
+		Ui::FillAmountAndCurrency(invoice->amount, invoice->currency),
 		EntitiesInText()
 	};
 	statusText.entities.push_back({
@@ -383,61 +384,6 @@ int Invoice::bottomInfoPadding() const {
 
 	auto result = st::msgDateFont->height;
 	return result;
-}
-
-QString FillAmountAndCurrency(uint64 amount, const QString &currency) {
-	static const auto ShortCurrencyNames = QMap<QString, QString> {
-		{ qsl("USD"), QString::fromUtf8("\x24") },
-		{ qsl("GBP"), QString::fromUtf8("\xC2\xA3") },
-		{ qsl("EUR"), QString::fromUtf8("\xE2\x82\xAC") },
-		{ qsl("JPY"), QString::fromUtf8("\xC2\xA5") },
-	};
-	static const auto Denominators = QMap<QString, int> {
-		{ qsl("CLF"), 10000 },
-		{ qsl("BHD"), 1000 },
-		{ qsl("IQD"), 1000 },
-		{ qsl("JOD"), 1000 },
-		{ qsl("KWD"), 1000 },
-		{ qsl("LYD"), 1000 },
-		{ qsl("OMR"), 1000 },
-		{ qsl("TND"), 1000 },
-		{ qsl("BIF"), 1 },
-		{ qsl("BYR"), 1 },
-		{ qsl("CLP"), 1 },
-		{ qsl("CVE"), 1 },
-		{ qsl("DJF"), 1 },
-		{ qsl("GNF"), 1 },
-		{ qsl("ISK"), 1 },
-		{ qsl("JPY"), 1 },
-		{ qsl("KMF"), 1 },
-		{ qsl("KRW"), 1 },
-		{ qsl("MGA"), 1 },
-		{ qsl("PYG"), 1 },
-		{ qsl("RWF"), 1 },
-		{ qsl("UGX"), 1 },
-		{ qsl("UYI"), 1 },
-		{ qsl("VND"), 1 },
-		{ qsl("VUV"), 1 },
-		{ qsl("XAF"), 1 },
-		{ qsl("XOF"), 1 },
-		{ qsl("XPF"), 1 },
-		{ qsl("MRO"), 10 },
-	};
-	const auto currencyText = ShortCurrencyNames.value(currency, currency);
-	const auto denominator = Denominators.value(currency, 100);
-	const auto currencyValue = amount / float64(denominator);
-	const auto digits = [&] {
-		auto result = 0;
-		for (auto test = 1; test < denominator; test *= 10) {
-			++result;
-		}
-		return result;
-	}();
-	return QLocale::system().toCurrencyString(currencyValue, currencyText);
-	//auto amountBucks = amount / 100;
-	//auto amountCents = amount % 100;
-	//auto amountText = qsl("%1,%2").arg(amountBucks).arg(amountCents, 2, 10, QChar('0'));
-	//return currencyText + amountText;
 }
 
 } // namespace HistoryView

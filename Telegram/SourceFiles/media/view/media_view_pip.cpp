@@ -26,8 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
+#include "ui/text/format_values.h"
 #include "window/window_controller.h"
-#include "layout.h" // formatDurationText
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "styles/style_calls.h" // st::callShadow
@@ -1378,9 +1378,9 @@ void Pip::updatePlaybackTexts(
 		int64 frequency) {
 	const auto playAlready = position / frequency;
 	const auto playLeft = (length / frequency) - playAlready;
-	const auto already = formatDurationText(playAlready);
+	const auto already = Ui::FormatDurationText(playAlready);
 	const auto minus = QChar(8722);
-	const auto left = minus + formatDurationText(playLeft);
+	const auto left = minus + Ui::FormatDurationText(playLeft);
 	if (_timeAlready == already && _timeLeft == left) {
 		return;
 	}

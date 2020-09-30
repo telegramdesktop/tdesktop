@@ -29,6 +29,8 @@ PRIVATE
     ${style_files}
     
     ui/ui_pch.h
+    ui/text/format_values.cpp
+    ui/text/format_values.h
     ui/toasts/common_toasts.cpp
     ui/toasts/common_toasts.h
 )

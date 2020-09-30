@@ -21,9 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
+#include "ui/text/format_values.h"
 #include "core/update_checker.h"
 #include "data/data_countries.h"
-#include "layout.h"
 #include "app.h"
 #include "styles/style_layers.h"
 
@@ -44,7 +44,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 			if (file.fields.downloadOffset < 0) {
 				return tr::lng_attach_failed(tr::now);
 			} else if (file.fields.downloadOffset < file.fields.size) {
-				return formatDownloadText(
+				return Ui::FormatDownloadText(
 					file.fields.downloadOffset,
 					file.fields.size);
 			} else {
@@ -58,7 +58,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 			if (file.uploadData->offset < 0) {
 				return tr::lng_attach_failed(tr::now);
 			} else if (file.uploadData->fullId) {
-				return formatDownloadText(
+				return Ui::FormatDownloadText(
 					file.uploadData->offset,
 					file.uploadData->bytes.size());
 			} else {
@@ -69,7 +69,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 						base::unixtime::parse(file.fields.date)));
 			}
 		} else {
-			return formatDownloadText(0, file.fields.size);
+			return Ui::FormatDownloadText(0, file.fields.size);
 		}
 	}();
 	return {

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/export_settings.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
+#include "ui/text/format_values.h"
 
 namespace Export {
 namespace View {
@@ -61,7 +61,7 @@ Content ContentFromState(
 			return;
 		}
 		const auto progress = state.bytesLoaded / float64(state.bytesCount);
-		const auto info = formatDownloadText(
+		const auto info = Ui::FormatDownloadText(
 			state.bytesLoaded,
 			state.bytesCount);
 		push(id, label, info, progress);
@@ -148,7 +148,7 @@ Content ContentFromState(const FinishedState &state) {
 		tr::lng_export_total_size(
 			tr::now,
 			lt_size,
-			formatSizeText(state.bytesCount)),
+			Ui::FormatSizeText(state.bytesCount)),
 		QString(),
 		1. });
 	return result;

@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/text_options.h"
 #include "app.h"
 
@@ -275,16 +276,16 @@ RadialProgressItem::~RadialProgressItem() = default;
 
 void StatusText::update(int newSize, int fullSize, int duration, crl::time realDuration) {
 	setSize(newSize);
-	if (_size == FileStatusSizeReady) {
-		_text = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_size == FileStatusSizeLoaded) {
-		_text = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_size == FileStatusSizeFailed) {
+	if (_size == Ui::FileStatusSizeReady) {
+		_text = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
+	} else if (_size == Ui::FileStatusSizeLoaded) {
+		_text = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? qsl("GIF") : Ui::FormatSizeText(fullSize));
+	} else if (_size == Ui::FileStatusSizeFailed) {
 		_text = tr::lng_attach_failed(tr::now);
 	} else if (_size >= 0) {
-		_text = formatDownloadText(_size, fullSize);
+		_text = Ui::FormatDownloadText(_size, fullSize);
 	} else {
-		_text = formatPlayedText(-_size - 1, realDuration);
+		_text = Ui::FormatPlayedText(-_size - 1, realDuration);
 	}
 }
 
@@ -416,7 +417,7 @@ Video::Video(
 	not_null<DocumentData*> video)
 : RadialProgressItem(delegate, parent)
 , _data(video)
-, _duration(formatDurationText(_data->getDuration())) {
+, _duration(Ui::FormatDurationText(_data->getDuration())) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
 }
@@ -593,19 +594,19 @@ void Video::updateStatusText() {
 	bool showPause = false;
 	int statusSize = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (dataLoaded()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
 		int status = statusSize, size = _data->size;
 		if (statusSize >= 0 && statusSize < 0x7F000000) {
 			size = status;
-			status = FileStatusSizeReady;
+			status = Ui::FileStatusSizeReady;
 		}
 		_status.update(status, size, -1, 0);
 		_status.setSize(statusSize);
@@ -639,7 +640,7 @@ Voice::Voice(
 			lt_date,
 			dateText,
 			lt_duration,
-			formatDurationText(duration())),
+			Ui::FormatDurationText(duration())),
 		opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
@@ -750,7 +751,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setFont(st::normalFont);
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
 		int32 unreadx = nameleft;
-		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
+		if (_status.size() == Ui::FileStatusSizeLoaded || _status.size() == Ui::FileStatusSizeReady) {
 			p.setTextPalette(selected ? st::mediaInPaletteSelected : st::mediaInPalette);
 			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
 			p.restoreTextPalette();
@@ -815,7 +816,7 @@ TextState Voice::getState(
 		st::normalFont->height,
 		_width);
 	if (statusrect.contains(point)) {
-		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
+		if (_status.size() == Ui::FileStatusSizeLoaded || _status.size() == Ui::FileStatusSizeReady) {
 			auto textState = _details.getStateLeft(point - QPoint(nameleft, statustop), _width, _width);
 			result.link = textState.link;
 			result.cursor = textState.uponSymbol
@@ -895,11 +896,11 @@ bool Voice::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (dataLoaded()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 
 	const auto state = Media::Player::instance()->getState(AudioMsgId::Type::Voice);
@@ -935,7 +936,7 @@ Document::Document(
 
 	setDocumentLinks(_data);
 
-	_status.update(FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
+	_status.update(Ui::FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
 		_data->loadThumbnail(parent->fullId());
@@ -1356,15 +1357,15 @@ bool Document::updateStatusText() {
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed
 		|| _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (dataLoaded()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 
 	if (_data->isSong()) {

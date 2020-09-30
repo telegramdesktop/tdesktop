@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_theme_document.h"
 
-#include "layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -17,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "base/qthelp_url.h"
+#include "ui/text/format_values.h"
 #include "window/themes/window_theme.h"
+#include "layout.h" // FullSelection
 #include "app.h"
 #include "styles/style_history.h"
 
@@ -37,7 +38,7 @@ ThemeDocument::ThemeDocument(
 
 	_data->loadThumbnail(_parent->data()->fullId());
 	setDocumentLinks(_data, parent->data());
-	setStatusSize(FileStatusSizeReady, _data->size, -1, 0);
+	setStatusSize(Ui::FileStatusSizeReady, _data->size, -1, 0);
 }
 
 ThemeDocument::~ThemeDocument() {

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
@@ -41,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "layout.h"
 #include "facades.h" // App::LambdaDelayed.
 #include "app.h"
 #include "styles/style_history.h"
@@ -352,7 +352,7 @@ AlbumThumb::AlbumThumb(
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		_name = fileinfo.fileName();
-		_status = formatSizeText(fileinfo.size());
+		_status = Ui::FormatSizeText(fileinfo.size());
 	}
 	_nameWidth = st::semiboldFont->width(_name);
 	if (_nameWidth > availableFileWidth) {
@@ -1050,7 +1050,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 			st::semiboldTextStyle,
 			nameString,
 			Ui::NameTextOptions());
-		_statusText = formatSizeText(fileinfo.size());
+		_statusText = Ui::FormatSizeText(fileinfo.size());
 		_statusWidth = qMax(
 			_nameText.maxWidth(),
 			st::normalFont->width(_statusText));

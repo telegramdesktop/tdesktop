@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -28,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "app.h"
+#include "layout.h" // FullSelection
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -45,8 +46,8 @@ constexpr auto kUseNonBlurredThreshold = 240;
 constexpr auto kMaxInlineArea = 1920 * 1080;
 
 int gifMaxStatusWidth(DocumentData *document) {
-	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
-	accumulate_max(result, st::normalFont->width(formatGifAndSizeText(document->size)));
+	auto result = st::normalFont->width(Ui::FormatDownloadText(document->size, document->size));
+	accumulate_max(result, st::normalFont->width(Ui::FormatGifAndSizeText(document->size)));
 	return result;
 }
 
@@ -75,10 +76,10 @@ Gif::Gif(
 : File(parent, realParent)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
-, _downloadSize(formatSizeText(_data->size)) {
+, _downloadSize(Ui::FormatSizeText(_data->size)) {
 	setDocumentLinks(_data, realParent);
 
-	setStatusSize(FileStatusSizeReady);
+	setStatusSize(Ui::FileStatusSizeReady);
 
 	refreshCaption();
 	if ((_dataMedia = _data->activeMediaView())) {
@@ -1225,10 +1226,10 @@ void Gif::validateGroupedCache(
 void Gif::setStatusSize(int newSize) const {
 	if (newSize < 0) {
 		_statusSize = newSize;
-		_statusText = formatDurationText(-newSize - 1);
+		_statusText = Ui::FormatDurationText(-newSize - 1);
 	} else if (_data->isVideoMessage()) {
 		_statusSize = newSize;
-		_statusText = formatDurationText(_data->getDuration());
+		_statusText = Ui::FormatDurationText(_data->getDuration());
 	} else {
 		File::setStatusSize(
 			newSize,
@@ -1244,15 +1245,15 @@ void Gif::updateStatusText() const {
 	auto statusSize = 0;
 	auto realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (dataLoaded() || _dataMedia->canBePlayed()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 	const auto round = activeRoundStreamed();
 	const auto own = activeOwnStreamed();

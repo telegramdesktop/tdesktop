@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
@@ -39,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "storage/file_upload.h"
 #include "app.h"
 
@@ -882,7 +882,7 @@ QString MediaCall::notificationText() const {
 			lt_type,
 			result,
 			lt_duration,
-			formatDurationWords(_call.duration));
+			Ui::FormatDurationWords(_call.duration));
 	}
 	return result;
 }

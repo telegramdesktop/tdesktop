@@ -26,10 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/text/format_values.h"
 #include "ui/text_options.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
-#include "layout.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
@@ -187,7 +187,7 @@ QString GetErrorTextForSending(
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				formatDurationWords(left));
+				Ui::FormatDurationWords(left));
 		}
 	}
 

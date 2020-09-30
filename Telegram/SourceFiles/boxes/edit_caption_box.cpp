@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
@@ -47,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/text/format_values.h"
 #include "ui/special_buttons.h"
 #include "ui/text_options.h"
 #include "window/window_session_controller.h"
@@ -1030,7 +1030,7 @@ void EditCaptionBox::setName(QString nameString, qint64 size) {
 		st::semiboldTextStyle,
 		nameString,
 		Ui::NameTextOptions());
-	_status = formatSizeText(size);
+	_status = Ui::FormatSizeText(size);
 }
 
 void EditCaptionBox::keyPressEvent(QKeyEvent *e) {

@@ -102,6 +102,4 @@ private:
 
 };
 
-QString FillAmountAndCurrency(uint64 amount, const QString &currency);
-
 } // namespace HistoryView

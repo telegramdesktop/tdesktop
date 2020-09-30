@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media_common.h"
 
-#include "layout.h"
+#include "ui/text/format_values.h"
 #include "data/data_document.h"
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media_grouped.h"
@@ -21,18 +21,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 
 int documentMaxStatusWidth(DocumentData *document) {
-	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
+	auto result = st::normalFont->width(Ui::FormatDownloadText(document->size, document->size));
 	const auto duration = document->getDuration();
 	if (const auto song = document->song()) {
-		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatPlayedText(duration, duration)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
 	} else if (const auto voice = document->voice()) {
-		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatPlayedText(duration, duration)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
 	} else if (document->isVideoFile()) {
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
 	} else {
-		accumulate_max(result, st::normalFont->width(formatSizeText(document->size)));
+		accumulate_max(result, st::normalFont->width(Ui::FormatSizeText(document->size)));
 	}
 	return result;
 }

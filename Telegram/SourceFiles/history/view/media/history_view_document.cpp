@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "storage/localstorage.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -18,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
+#include "layout.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -77,7 +78,7 @@ Document::Document(
 
 	setDocumentLinks(_data, item);
 
-	setStatusSize(FileStatusSizeReady);
+	setStatusSize(Ui::FileStatusSizeReady);
 
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		captioned->_caption = std::move(caption);
@@ -417,7 +418,7 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 			return 0.;
 		})();
 		if (voice->seeking()) {
-			voiceStatusOverride = formatPlayedText(qRound(progress * voice->_lastDurationMs) / 1000, voice->_lastDurationMs / 1000);
+			voiceStatusOverride = Ui::FormatPlayedText(qRound(progress * voice->_lastDurationMs) / 1000, voice->_lastDurationMs / 1000);
 		}
 
 		// rescale waveform by going in waveform.size * bar_count 1D grid
@@ -739,11 +740,11 @@ void Document::setStatusSize(int newSize, qint64 realDuration) const {
 			: -1);
 	File::setStatusSize(newSize, _data->size, duration, realDuration);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
-		if (_statusSize == FileStatusSizeReady) {
+		if (_statusSize == Ui::FileStatusSizeReady) {
 			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
-		} else if (_statusSize == FileStatusSizeLoaded) {
+		} else if (_statusSize == Ui::FileStatusSizeLoaded) {
 			thumbed->_link = tr::lng_media_open_with(tr::now).toUpper();
-		} else if (_statusSize == FileStatusSizeFailed) {
+		} else if (_statusSize == Ui::FileStatusSizeFailed) {
 			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
 		} else if (_statusSize >= 0) {
 			thumbed->_link = tr::lng_media_cancel(tr::now).toUpper();
@@ -759,15 +760,15 @@ bool Document::updateStatusText() const {
 	auto statusSize = 0;
 	auto realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (dataLoaded()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 
 	if (_data->isVoiceMessage()) {

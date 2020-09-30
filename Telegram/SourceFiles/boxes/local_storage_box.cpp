@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/text/format_values.h"
 #include "ui/emoji_config.h"
 #include "storage/storage_account.h"
 #include "storage/cache/storage_cache_database.h"
@@ -21,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "layout.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -260,7 +260,7 @@ QString LocalStorageBox::Row::titleText(const Database::TaggedSummary &data) con
 
 QString LocalStorageBox::Row::sizeText(const Database::TaggedSummary &data) const {
 	return data.totalSize
-		? formatSizeText(data.totalSize)
+		? Ui::FormatSizeText(data.totalSize)
 		: tr::lng_local_storage_empty(tr::now);
 }
 

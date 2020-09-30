@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h"
 #include "ui/text_options.h"
 #include "ui/ui_utility.h"
 #include "boxes/confirm_box.h"
@@ -591,7 +592,7 @@ void OverlayWidget::updateDocSize() {
 		}
 		_docSize = tr::lng_media_save_progress(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 	} else {
-		_docSize = formatSizeText(_document->size);
+		_docSize = Ui::FormatSizeText(_document->size);
 	}
 	_docSizeWidth = st::mediaviewFont->width(_docSize);
 	int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;

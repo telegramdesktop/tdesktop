@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/format_values.h"
 #include "ui/image/image.h"
 #include "ui/special_buttons.h"
 #include "inline_bots/inline_bot_result.h"
@@ -4092,7 +4093,7 @@ bool HistoryWidget::showSendingFilesError(
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				formatDurationWords(left));
+				Ui::FormatDurationWords(left));
 		}
 		using Error = Storage::PreparedList::Error;
 		switch (list.error) {
@@ -5096,7 +5097,7 @@ bool HistoryWidget::showSlowmodeError() {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				formatDurationWords(left));
+				Ui::FormatDurationWords(left));
 		} else if (_peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
 				if (const auto view = item->mainView()) {
@@ -6337,7 +6338,7 @@ void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
 	}
 
-	auto duration = formatDurationText(_recordingSamples / Media::Player::kDefaultFrequency);
+	auto duration = Ui::FormatDurationText(_recordingSamples / Media::Player::kDefaultFrequency);
 	p.setFont(st::historyRecordFont);
 
 	p.setPen(st::historyRecordDurationFg);

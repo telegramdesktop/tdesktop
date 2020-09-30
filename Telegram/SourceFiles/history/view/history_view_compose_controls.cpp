@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 
@@ -937,7 +938,7 @@ void ComposeControls::drawRecording(Painter &p, float64 recordActive) {
 		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
 	}
 
-	auto duration = formatDurationText(_recordingSamples / ::Media::Player::kDefaultFrequency);
+	auto duration = Ui::FormatDurationText(_recordingSamples / ::Media::Player::kDefaultFrequency);
 	p.setFont(st::historyRecordFont);
 
 	p.setPen(st::historyRecordDurationFg);

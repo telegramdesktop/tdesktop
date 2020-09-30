@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "calls/calls_call.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
-#include "layout.h"
 #include "app.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
@@ -162,7 +162,7 @@ void TopBar::updateDurationText() {
 	auto durationMs = _call->getDurationMs();
 	auto durationSeconds = durationMs / 1000;
 	startDurationUpdateTimer(durationMs);
-	_durationLabel->setText(formatDurationText(durationSeconds));
+	_durationLabel->setText(Ui::FormatDurationText(durationSeconds));
 	if (_durationLabel->width() != wasWidth) {
 		updateControlsGeometry();
 	}

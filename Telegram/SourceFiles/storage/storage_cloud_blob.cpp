@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/zlib_help.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
+#include "ui/text/format_values.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 
@@ -73,7 +73,7 @@ QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
 		return tr::lng_emoji_set_download(
 			tr::now,
 			lt_size,
-			formatSizeText(data.size));
+			Ui::FormatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
 		return tr::lng_emoji_set_ready(tr::now);
 	}, [&](const Active &data) -> QString {
@@ -87,7 +87,7 @@ QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
 			lt_percent,
 			QString::number(int(std::round(percent))) + '%',
 			lt_progress,
-			formatDownloadText(data.already, data.size));
+			Ui::FormatDownloadText(data.already, data.size));
 	}, [](const Failed &data) {
 		return tr::lng_attach_failed(tr::now);
 	});

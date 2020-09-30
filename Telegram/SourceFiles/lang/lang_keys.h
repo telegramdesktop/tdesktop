@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_text_entity.h"
 
+#include <QDateTime>
+
 [[nodiscard]] QString langDayOfMonth(const QDate &date);
 [[nodiscard]] QString langDayOfMonthFull(const QDate &date);
 [[nodiscard]] QString langMonthOfYear(int month, int year);
