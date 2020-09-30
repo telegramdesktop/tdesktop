@@ -2201,7 +2201,7 @@ void MainWidget::updateControlsGeometry() {
 		accumulate_min(dialogsWidth, width() - st::columnMinimalWidthMain);
 		auto mainSectionWidth = width() - dialogsWidth - thirdSectionWidth;
 
-		_dialogs->setGeometryWithTopMoved({ 0, 0, dialogsWidth, height() }, _contentScrollAddToY);
+		_dialogs->setGeometryToLeft(0, 0, dialogsWidth, height());
 		const auto shadowTop = _controller->window().verticalShadowTop();
 		const auto shadowHeight = height() - shadowTop;
 		_sideShadow->setGeometryToLeft(
