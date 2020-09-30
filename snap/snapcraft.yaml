@@ -16,7 +16,7 @@ apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegramdesktop.desktop
+    desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
       # Use GTK3 cursor theme, icon theme and open/save file dialogs.
       QT_QPA_PLATFORMTHEME: gtk3
@@ -65,7 +65,7 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegramdesktop.appdata.xml]
+    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
     build-environment:
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib
       - tg_owt_DIR: $SNAPCRAFT_STAGE/tg_owt
@@ -105,6 +105,7 @@ parts:
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DDESKTOP_APP_QTWAYLANDCLIENT_PRIVATE_HEADERS=$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.8
+      - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       snapcraftctl pull
 
