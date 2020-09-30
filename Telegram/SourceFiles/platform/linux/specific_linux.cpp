@@ -949,17 +949,6 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 QString GetLauncherBasename() {
 	static const auto Result = [&] {
-		if (InSnap() && !cExeName().isEmpty()) {
-			const auto snapNameKey =
-				qEnvironmentVariableIsSet("SNAP_INSTANCE_NAME")
-					? "SNAP_INSTANCE_NAME"
-					: "SNAP_NAME";
-
-			return qsl("%1_%2")
-				.arg(QString::fromLatin1(qgetenv(snapNameKey)))
-				.arg(cExeName());
-		}
-
 		if ((IsStaticBinary() || InAppImage()) && !cExeName().isEmpty()) {
 			const auto appimagePath = qsl("file://%1%2")
 				.arg(cExeDir())
