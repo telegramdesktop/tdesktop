@@ -9,6 +9,8 @@ option(TDESKTOP_API_TEST "Use test API credentials." OFF)
 set(TDESKTOP_API_ID "0" CACHE STRING "Provide 'api_id' for the Telegram API access.")
 set(TDESKTOP_API_HASH "" CACHE STRING "Provide 'api_hash' for the Telegram API access.")
 set(TDESKTOP_LAUNCHER_BASENAME "" CACHE STRING "Desktop file base name (Linux only).")
+set(TDESKTOP_RESOURCES "Bundled" CACHE STRING "Determines how to import resource files.")
+set_property(CACHE TDESKTOP_RESOURCES PROPERTY STRINGS "Bundled;Packed")
 
 if (TDESKTOP_API_TEST)
     set(TDESKTOP_API_ID 17349)

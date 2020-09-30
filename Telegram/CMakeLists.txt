@@ -34,7 +34,21 @@ include(cmake/td_lang.cmake)
 include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 
-set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
+set_target_properties(Telegram PROPERTIES AUTOMOC ON)
+if (TDESKTOP_RESOURCES STREQUAL "Bundled")
+    set_target_properties(Telegram PROPERTIES AUTORCC ON)
+elseif (TDESKTOP_RESOURCES STREQUAL "Packed")
+    set(rcc_flags --binary "$<TARGET_PROPERTY:Telegram,AUTORCC_OPTIONS>")
+    set(qrc_files "$<FILTER:$<TARGET_PROPERTY:Telegram,SOURCES>,INCLUDE,\\.qrc$>")
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_PACKED_RESOURCES)
+    target_sources(Telegram PRIVATE "${CMAKE_BINARY_DIR}/tresources.rcc")
+    add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/tresources.rcc"
+        DEPENDS ${qrc_files}  # FIXME: incomplete dependencies list, missing qrc content
+        COMMAND Qt5::rcc ${rcc_flags} -o "${CMAKE_BINARY_DIR}/tresources.rcc" ${qrc_files}
+        COMMAND_EXPAND_LISTS VERBATIM
+    )
+    set_target_properties(Telegram PROPERTIES RESOURCE "${CMAKE_BINARY_DIR}/tresources.rcc")
+endif()
 
 target_link_libraries(Telegram
 PRIVATE
@@ -1285,7 +1299,11 @@ endif()
 if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     include(GNUInstallDirs)
     configure_file("../lib/xdg/telegramdesktop.appdata.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.appdata.xml" @ONLY)
-    install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(TARGETS Telegram
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        RESOURCE DESTINATION "${CMAKE_INSTALL_DATADIR}/TelegramDesktop"
+    )
     install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "telegram.png")

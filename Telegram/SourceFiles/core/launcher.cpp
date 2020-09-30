@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "core/file_utilities.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
 
@@ -300,6 +301,7 @@ void Launcher::init() {
 	});
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
+	Resources::LoadAllData();  // should be called after setting an application name
 
 #ifndef OS_MAC_OLD
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
