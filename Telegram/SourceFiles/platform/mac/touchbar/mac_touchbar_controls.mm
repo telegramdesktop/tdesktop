@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/mac/base_utilities_mac.h" // Q2NSString()
 #include "core/sandbox.h" // Sandbox::customEnterFromEventLoop()
-#include "layout.h" // formatDurationText()
+#include "ui/text/format_values.h" // Ui::FormatDurationText()
 #include "media/audio/media_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 
@@ -42,7 +42,7 @@ inline NSDictionary *Attributes() {
 }
 
 inline NSString *FormatTime(TimeId time) {
-	return Platform::Q2NSString(formatDurationText(time));
+	return Platform::Q2NSString(Ui::FormatDurationText(time));
 }
 
 } // namespace

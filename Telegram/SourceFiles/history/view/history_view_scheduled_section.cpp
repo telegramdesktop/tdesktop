@@ -152,7 +152,7 @@ ScheduledWidget::ScheduledWidget(
 ScheduledWidget::~ScheduledWidget() = default;
 
 void ScheduledWidget::setupComposeControls() {
-	_composeControls->setHistory({ .history = _history });
+	_composeControls->setHistory({ .history = _history.get() });
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
