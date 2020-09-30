@@ -664,7 +664,11 @@ void MainMenu::setupArchiveButton() {
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
-		_archiveButton->setVisible(checkArchive());
+		const auto isArchiveVisible = checkArchive();
+		_archiveButton->setVisible(isArchiveVisible);
+		if (!isArchiveVisible) {
+			_contextMenu = nullptr;
+		}
 		update();
 	}, lifetime());
 }
