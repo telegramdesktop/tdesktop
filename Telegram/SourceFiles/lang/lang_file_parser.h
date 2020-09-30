@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 
+#include <set>
+#include <QtCore/QMap>
+
 namespace Lang {
 
 class FileParser {

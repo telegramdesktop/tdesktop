@@ -1438,8 +1438,7 @@ ClickHandlerPtr Message::psaTooltipLink() const {
 	const auto handler = [=] {
 		const auto custom = type.isEmpty()
 			? QString()
-			: Lang::Current().getNonDefaultValue(
-				kPsaTooltipPrefix + type.toUtf8());
+			: Lang::GetNonDefaultValue(kPsaTooltipPrefix + type.toUtf8());
 		auto text = Ui::Text::RichLangValue(
 			(custom.isEmpty()
 				? tr::lng_tooltip_psa_default(tr::now)

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 #include "lang/lang_file_parser.h"
+#include "ui/integration.h"
 
 namespace {
 
@@ -18,7 +19,7 @@ inline QString langDateMaybeWithYear(
 		WithoutYear withoutYear) {
 	const auto month = date.month();
 	if (month <= 0 || month > 12) {
-		return qsl("MONTH_ERR");
+		return u"MONTH_ERR"_q;
 	};
 	const auto year = date.year();
 	const auto current = QDate::currentDate();
@@ -177,7 +178,7 @@ QString langMonthOfYear(int month, int year) {
 			MonthSmall(month)(tr::now),
 			lt_year,
 			QString::number(year))
-		: qsl("MONTH_ERR");
+		: u"MONTH_ERR"_q;
 }
 
 QString langMonth(const QDate &date) {
@@ -196,7 +197,7 @@ QString langMonthOfYearFull(int month, int year) {
 			Month(month)(tr::now),
 			lt_year,
 			QString::number(year))
-		: qsl("MONTH_ERR");
+		: u"MONTH_ERR"_q;
 }
 
 QString langMonthFull(const QDate &date) {
@@ -208,5 +209,23 @@ QString langMonthFull(const QDate &date) {
 }
 
 QString langDayOfWeek(int index) {
-	return (index > 0 && index <= 7) ? Weekday(index)(tr::now) : qsl("DAY_ERR");
+	return (index > 0 && index <= 7) ? Weekday(index)(tr::now) : u"DAY_ERR"_q;
+}
+
+QString langDateTime(const QDateTime &date) {
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		langDayOfMonth(date.date()),
+		lt_time,
+		date.time().toString(Ui::Integration::Instance().timeFormat()));
+}
+
+QString langDateTimeFull(const QDateTime &date) {
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		langDayOfMonthFull(date.date()),
+		lt_time,
+		date.time().toString(Ui::Integration::Instance().timeFormat()));
 }

@@ -39,6 +39,7 @@ public:
 
 	void startFontsBegin() override;
 	void startFontsEnd() override;
+	QString timeFormat() override;
 
 	std::shared_ptr<ClickHandler> createLinkHandler(
 		const EntityLinkData &data,

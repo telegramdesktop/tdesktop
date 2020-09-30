@@ -2233,8 +2233,7 @@ void HistoryWidget::showAboutTopPromotion() {
 	const auto type = _history->topPromotionType();
 	const auto custom = type.isEmpty()
 		? QString()
-		: Lang::Current().getNonDefaultValue(
-			kPsaAboutPrefix + type.toUtf8());
+		: Lang::GetNonDefaultValue(kPsaAboutPrefix + type.toUtf8());
 	const auto text = type.isEmpty()
 		? tr::lng_proxy_sponsor_about(tr::now, Ui::Text::RichLangValue)
 		: custom.isEmpty()

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_tag.h"
 
 #include "lang/lang_keys.h"
+#include "ui/text/text.h"
 
 namespace Lang {
 namespace {
@@ -952,8 +953,8 @@ PluralResult Plural(
 
 	// Simplified.
 	const auto n = std::abs(shortened.number ? float64(shortened.number) : value);
-	const auto i = qFloor(n);
-	const auto integer = (qCeil(n) == i);
+	const auto i = int(std::floor(n));
+	const auto integer = (int(std::ceil(n)) == i);
 	const auto formatted = integer ? QString() : FormatDouble(n);
 	const auto dot = formatted.indexOf('.');
 	const auto fraction = (dot >= 0) ? formatted.mid(dot + 1) : QString();
@@ -963,7 +964,7 @@ PluralResult Plural(
 	const auto t = f;
 
 	const auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
-		&& Lang::Current().isNonDefaultPlural(keyBase);
+		&& Lang::details::IsNonDefaultPlural(keyBase);
 	const auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
 		(integer ? i : -1),
 		i,

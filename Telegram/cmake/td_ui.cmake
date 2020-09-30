@@ -40,5 +40,6 @@ PUBLIC
 
 target_link_libraries(td_ui
 PUBLIC
+    tdesktop::td_lang
     desktop-app::lib_ui
 )

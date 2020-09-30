@@ -22,16 +22,22 @@ inline constexpr ushort TagValue();
 template <typename P>
 using S = std::decay_t<decltype(std::declval<P>()(QString()))>;
 
-QString Current(ushort key);
-rpl::producer<QString> Viewer(ushort key);
+[[nodiscard]] QString Current(ushort key);
+[[nodiscard]] rpl::producer<QString> Value(ushort key);
+[[nodiscard]] bool IsNonDefaultPlural(ushort keyBase);
 
 template <int Index, typename Type, typename Tuple>
-Type ReplaceUnwrapTuple(Type accumulated, const Tuple &tuple) {
+[[nodiscard]] Type ReplaceUnwrapTuple(Type accumulated, const Tuple &tuple) {
 	return accumulated;
 }
 
-template <int Index, typename Type, typename Tuple, typename Tag, typename ...Tags>
-Type ReplaceUnwrapTuple(
+template <
+	int Index,
+	typename Type,
+	typename Tuple,
+	typename Tag,
+	typename ...Tags>
+[[nodiscard]] Type ReplaceUnwrapTuple(
 		Type accumulated,
 		const Tuple &tuple,
 		Tag tag,
@@ -51,7 +57,7 @@ struct ReplaceUnwrap;
 template <>
 struct ReplaceUnwrap<> {
 	template <typename Type>
-	static Type Call(Type accumulated) {
+	[[nodiscard]] static Type Call(Type accumulated) {
 		return accumulated;
 	}
 };
@@ -59,7 +65,7 @@ struct ReplaceUnwrap<> {
 template <typename Tag, typename ...Tags>
 struct ReplaceUnwrap<Tag, Tags...> {
 	template <typename Type, typename Value, typename ...Values>
-	static Type Call(
+	[[nodiscard]] static Type Call(
 			Type accumulated,
 			const Value &value,
 			const Values &...values) {
@@ -75,9 +81,9 @@ struct ReplaceUnwrap<Tag, Tags...> {
 template <typename ...Tags>
 struct Producer {
 	template <typename P, typename ...Values>
-	static rpl::producer<S<P>> Combine(ushort base, P p, Values &...values) {
+	[[nodiscard]] static rpl::producer<S<P>> Combine(ushort base, P p, Values &...values) {
 		return rpl::combine(
-			Viewer(base),
+			Value(base),
 			std::move(values)...
 		) | rpl::map([p = std::move(p)](auto tuple) {
 			return ReplaceUnwrapTuple<1>(p(std::get<0>(tuple)), tuple, TagValue<Tags>()...);
@@ -85,7 +91,7 @@ struct Producer {
 	}
 
 	template <typename P, typename ...Values>
-	static S<P> Current(ushort base, P p, const Values &...values) {
+	[[nodiscard]] static S<P> Current(ushort base, P p, const Values &...values) {
 		return ReplaceUnwrap<Tags...>::template Call(
 			p(Lang::details::Current(base)),
 			values...);
@@ -95,12 +101,12 @@ struct Producer {
 template <>
 struct Producer<> {
 	template <typename P>
-	static rpl::producer<S<P>> Combine(ushort base, P p) {
-		return Viewer(base) | rpl::map(std::move(p));
+	[[nodiscard]] static rpl::producer<S<P>> Combine(ushort base, P p) {
+		return Value(base) | rpl::map(std::move(p));
 	}
 
 	template <typename P>
-	static S<P> Current(ushort base, P p) {
+	[[nodiscard]] static S<P> Current(ushort base, P p) {
 		return p(Lang::details::Current(base));
 	}
 };
@@ -108,19 +114,19 @@ struct Producer<> {
 template <typename ...Tags>
 struct Producer<lngtag_count, Tags...> {
 	template <typename P, typename ...Values>
-	static rpl::producer<S<P>> Combine(
+	[[nodiscard]] static rpl::producer<S<P>> Combine(
 			ushort base,
 			P p,
 			lngtag_count type,
 			rpl::producer<float64> &count,
 			Values &...values) {
 		return rpl::combine(
-			Viewer(base),
-			Viewer(base + 1),
-			Viewer(base + 2),
-			Viewer(base + 3),
-			Viewer(base + 4),
-			Viewer(base + 5),
+			Value(base),
+			Value(base + 1),
+			Value(base + 2),
+			Value(base + 3),
+			Value(base + 4),
+			Value(base + 5),
 			std::move(count),
 			std::move(values)...
 		) | rpl::map([base, type, p = std::move(p)](auto tuple) {
@@ -148,7 +154,7 @@ struct Producer<lngtag_count, Tags...> {
 	}
 
 	template <typename P, typename ...Values>
-	static S<P> Current(
+	[[nodiscard]] static S<P> Current(
 			ushort base,
 			P p,
 			lngtag_count type,

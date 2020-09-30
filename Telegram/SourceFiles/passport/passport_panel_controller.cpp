@@ -302,7 +302,7 @@ EditDocumentScheme GetDocumentScheme(
 				if (i == end(config.languagesByCountryCode)) {
 					return QString();
 				}
-				return Lang::Current().getNonDefaultValue(
+				return Lang::GetNonDefaultValue(
 					kLanguageNamePrefix + i->second.toUtf8());
 			};
 			result.additionalHeader = [=](const QString &countryCode) {

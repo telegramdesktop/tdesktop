@@ -125,7 +125,7 @@ QString telegramFaqLink() {
 	const auto langpacked = [&](const char *language) {
 		return result + '/' + language;
 	};
-	const auto current = Lang::Current().id();
+	const auto current = Lang::Id();
 	for (const auto language : { "de", "es", "it", "ko" }) {
 		if (current.startsWith(QLatin1String(language))) {
 			return langpacked(language);

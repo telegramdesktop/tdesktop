@@ -40,7 +40,10 @@ PasswordCheckWidget::PasswordCheckWidget(
 , _toPassword(this, tr::lng_signin_try_password(tr::now)) {
 	Expects(!!_request);
 
-	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	_toRecover->addClickHandler([=] { toRecover(); });
 	_toPassword->addClickHandler([=] { toPassword(); });

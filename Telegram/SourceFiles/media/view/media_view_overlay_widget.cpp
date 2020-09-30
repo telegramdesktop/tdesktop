@@ -321,7 +321,10 @@ OverlayWidget::OverlayWidget()
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
 , _dropdown(this, st::mediaviewDropdownMenu)
 , _dropdownShowTimer(this) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	_lastPositiveVolume = (Core::App().settings().videoVolume() > 0.)
 		? Core::App().settings().videoVolume()

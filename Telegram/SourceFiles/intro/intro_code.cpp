@@ -89,7 +89,10 @@ CodeWidget::CodeWidget(
 , _callTimeout(getData()->callTimeout)
 , _callLabel(this, st::introDescription)
 , _checkRequestTimer([=] { checkRequest(); }) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	connect(_code, &CodeInput::changed, [=] { codeChanged(); });
 	_noTelegramCode->addClickHandler([=] { noTelegramCode(); });

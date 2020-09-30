@@ -11,59 +11,59 @@ namespace Lang {
 namespace Hard {
 
 inline QString FavedSetTitle() {
-	return qsl("Favorite stickers");
+	return u"Favorite stickers"_q;
 }
 
 inline QString CallErrorIncompatible() {
-	return qsl("{user}'s app is using an incompatible protocol. They need to update their app before you can call them.");
+	return u"{user}'s app is using an incompatible protocol. They need to update their app before you can call them."_q;
 }
 
 inline QString ServerError() {
-	return qsl("Internal server error.");
+	return u"Internal server error."_q;
 }
 
 inline QString ClearPathFailed() {
-	return qsl("Clear failed :(");
+	return u"Clear failed :("_q;
 }
 
 inline QString ProxyConfigError() {
-	return qsl("The proxy you are using is not configured correctly and will be disabled. Please find another one.");
+	return u"The proxy you are using is not configured correctly and will be disabled. Please find another one."_q;
 }
 
 inline QString NoAuthorizationBot() {
-	return qsl("Could not get authorization bot.");
+	return u"Could not get authorization bot."_q;
 }
 
 inline QString SecureSaveError() {
-	return qsl("Error saving value.");
+	return u"Error saving value."_q;
 }
 
 inline QString SecureAcceptError() {
-	return qsl("Error acception form.");
+	return u"Error accepting form."_q;
 }
 
 inline QString PassportCorrupted() {
-	return qsl("It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and restart this authorization.");
+	return u"It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and restart this authorization."_q;
 }
 
 inline QString PassportCorruptedChange() {
-	return qsl("It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and change your cloud password.");
+	return u"It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and change your cloud password."_q;
 }
 
 inline QString PassportCorruptedReset() {
-	return qsl("Reset");
+	return u"Reset"_q;
 }
 
 inline QString PassportCorruptedResetSure() {
-	return qsl("Are you sure you want to reset your Telegram Passport data?");
+	return u"Are you sure you want to reset your Telegram Passport data?"_q;
 }
 
 inline QString UnknownSecureScanError() {
-	return qsl("Unknown scan read error.");
+	return u"Unknown scan read error."_q;
 }
 
 inline QString EmailConfirmationExpired() {
-	return qsl("This email confirmation has expired. Please setup two-step verification once again.");
+	return u"This email confirmation has expired. Please setup two-step verification once again."_q;
 }
 
 } // namespace Hard

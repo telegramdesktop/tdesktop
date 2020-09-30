@@ -196,7 +196,7 @@ std::pair<Languages, Languages> PrepareLists() {
 	const auto projId = [](const Language &language) {
 		return language.id;
 	};
-	const auto current = Lang::LanguageIdOrDefault(Lang::Current().id());
+	const auto current = Lang::LanguageIdOrDefault(Lang::Id());
 	auto official = Lang::CurrentCloudManager().languageList();
 	auto recent = Local::readRecentLanguages();
 	ranges::stable_partition(recent, [&](const Language &language) {
@@ -207,13 +207,13 @@ std::pair<Languages, Languages> PrepareLists() {
 			const auto generate = [&] {
 				const auto name = (current == "#custom")
 					? "Custom lang pack"
-					: Lang::Current().name();
+					: Lang::GetInstance().name();
 				return Language{
 					current,
 					QString(),
 					QString(),
 					name,
-					Lang::Current().nativeName()
+					Lang::GetInstance().nativeName()
 				};
 			};
 			const auto i = ranges::find(official, current, projId);
@@ -867,7 +867,7 @@ void Content::setupContent(
 		const Languages &official) {
 	using namespace rpl::mappers;
 
-	const auto current = Lang::LanguageIdOrDefault(Lang::Current().id());
+	const auto current = Lang::LanguageIdOrDefault(Lang::Id());
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto add = [&](const Languages &list, bool areOfficial) {
 		if (list.empty()) {
@@ -1101,7 +1101,7 @@ void LanguageBox::prepare() {
 		// "#custom" is applied each time it's passed to switchToLanguage().
 		// So we check that the language really has changed.
 		const auto currentId = [] {
-			return Lang::LanguageIdOrDefault(Lang::Current().id());
+			return Lang::LanguageIdOrDefault(Lang::Id());
 		};
 		if (language.id != currentId()) {
 			Lang::CurrentCloudManager().switchToLanguage(language);

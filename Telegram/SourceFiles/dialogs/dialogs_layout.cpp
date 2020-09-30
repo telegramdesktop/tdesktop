@@ -314,8 +314,7 @@ void paintRow(
 		const auto type = history->topPromotionType();
 		const auto custom = type.isEmpty()
 			? QString()
-			: Lang::Current().getNonDefaultValue(
-				kPsaBadgePrefix + type.toUtf8());
+			: Lang::GetNonDefaultValue(kPsaBadgePrefix + type.toUtf8());
 		const auto text = type.isEmpty()
 			? tr::lng_proxy_sponsor(tr::now)
 			: custom.isEmpty()

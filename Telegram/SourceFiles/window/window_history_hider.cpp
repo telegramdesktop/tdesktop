@@ -25,7 +25,11 @@ HistoryHider::HistoryHider(
 : RpWidget(parent)
 , _text(text)
 , _confirm(std::move(confirm)) {
-	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
+
 	subscribe(Global::RefPeerChooseCancel(), [=] { startHide(); });
 
 	_chooseWidth = st::historyForwardChooseFont->width(_text);

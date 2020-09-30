@@ -63,7 +63,6 @@ using OverlayParent = Ui::RpWidget;
 
 class OverlayWidget final
 	: public OverlayParent
-	, private base::Subscriber
 	, public ClickHandlerHost
 	, private PlaybackControls::Delegate {
 	Q_OBJECT

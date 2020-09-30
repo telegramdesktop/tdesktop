@@ -366,7 +366,7 @@ std::vector<int> DefaultLanguages() {
 		append(method->locale());
 	}
 	append(QLocale(Platform::SystemLanguage()));
-	append(QLocale(Lang::LanguageIdOrDefault(Lang::Current().id())));
+	append(QLocale(Lang::LanguageIdOrDefault(Lang::Id())));
 
 	return langs;
 }

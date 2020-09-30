@@ -23,7 +23,6 @@ add_subdirectory(codegen)
 
 include(CheckCXXSourceCompiles)
 include(lib_ui/cmake/generate_styles.cmake)
-include(cmake/generate_lang.cmake)
 include(cmake/generate_numbers.cmake)
 
 get_filename_component(src_loc SourceFiles REALPATH)
@@ -35,6 +34,7 @@ include(cmake/lib_tgvoip.cmake)
 include(cmake/lib_tgcalls.cmake)
 include(cmake/td_export.cmake)
 include(cmake/td_mtproto.cmake)
+include(cmake/td_lang.cmake)
 include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 
@@ -66,7 +66,6 @@ set(dependent_style_files
 )
 
 generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
-generate_lang(Telegram ${res_loc}/langs/lang.strings)
 generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
@@ -78,6 +77,7 @@ PRIVATE
     tdesktop::lib_tgvoip
     tdesktop::td_export
     tdesktop::td_mtproto
+    tdesktop::td_lang
     tdesktop::td_scheme
     tdesktop::td_ui
     desktop-app::lib_webrtc
@@ -720,23 +720,12 @@ PRIVATE
     intro/intro_widget.h
     lang/lang_cloud_manager.cpp
     lang/lang_cloud_manager.h
-    lang/lang_file_parser.cpp
-    lang/lang_file_parser.h
-    lang/lang_hardcoded.h
     lang/lang_instance.cpp
     lang/lang_instance.h
-    lang/lang_keys.cpp
-    lang/lang_keys.h
     lang/lang_numbers_animation.cpp
     lang/lang_numbers_animation.h
-    lang/lang_tag.cpp
-    lang/lang_tag.h
-    lang/lang_text_entity.cpp
-    lang/lang_text_entity.h
     lang/lang_translator.cpp
     lang/lang_translator.h
-    lang/lang_values.cpp
-    lang/lang_values.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp

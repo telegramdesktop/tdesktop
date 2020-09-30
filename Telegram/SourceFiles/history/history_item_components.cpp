@@ -155,7 +155,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		if (fromChannel || !psaType.isEmpty()) {
 			auto custom = psaType.isEmpty()
 				? QString()
-				: Lang::Current().getNonDefaultValue(
+				: Lang::GetNonDefaultValue(
 					kPsaForwardedPrefix + psaType.toUtf8());
 			phrase = !custom.isEmpty()
 				? custom.replace("{channel}", textcmdLink(1, phrase))
