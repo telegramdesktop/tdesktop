@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Api {
 enum class SendProgressType;
 struct SendProgress;
@@ -42,6 +46,7 @@ public:
 
 private:
 	const not_null<History*> _history;
+	const base::weak_ptr<Main::Session> _weak;
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;
 	QString _sendActionString;

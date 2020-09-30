@@ -880,7 +880,20 @@ HistoryView::SendActionPainter *Session::lookupSendActionPainter(
 		return nullptr;
 	}
 	const auto j = i->second.find(rootId);
-	return (j == end(i->second)) ? nullptr : j->second.lock().get();
+	if (j == end(i->second)) {
+		return nullptr;
+	}
+	const auto result = j->second.lock();
+	if (!result) {
+		i->second.erase(j);
+		if (i->second.empty()) {
+			_sendActionPainters.erase(i);
+		}
+		return nullptr;
+	}
+	crl::on_main([copy = result] {
+	});
+	return result.get();
 }
 
 void Session::registerSendAction(
@@ -959,7 +972,7 @@ bool Session::sendActionsAnimationCallback(crl::time now) {
 		const auto sendAction = lookupSendActionPainter(
 			i->first.first,
 			i->first.second);
-		if (sendAction->updateNeedsAnimating(now)) {
+		if (sendAction && sendAction->updateNeedsAnimating(now)) {
 			++i;
 		} else {
 			i = _sendActions.erase(i);

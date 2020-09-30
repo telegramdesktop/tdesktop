@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "main/main_session.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/animations.h"
@@ -35,6 +36,7 @@ constexpr auto kStatusShowClientsidePlayGame = 10000;
 
 SendActionPainter::SendActionPainter(not_null<History*> history)
 : _history(history)
+, _weak(&_history->session())
 , _sendActionText(st::dialogsTextWidthMin) {
 }
 
@@ -131,6 +133,9 @@ bool SendActionPainter::paint(
 }
 
 bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
+	if (!_weak) {
+		return false;
+	}
 	auto changed = force;
 	for (auto i = begin(_typing); i != end(_typing);) {
 		if (now >= i->second) {
