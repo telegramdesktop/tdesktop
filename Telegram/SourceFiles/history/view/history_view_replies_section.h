@@ -234,6 +234,8 @@ private:
 		not_null<UserData*> bot,
 		Api::SendOptions options);
 
+	[[nodiscard]] bool showSlowmodeError();
+
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
 	HistoryItem *_root = nullptr;

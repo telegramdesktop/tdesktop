@@ -5,6 +5,16 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_pch.h"
+#pragma once
 
-// Precompiled header helper.
+#include "ui/text/text_entity.h"
+
+namespace Ui {
+
+struct MultilineToastArgs {
+	TextWithEntities text;
+};
+
+void ShowMultilineToast(MultilineToastArgs &&args);
+
+} // namespace Ui

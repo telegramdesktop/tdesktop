@@ -4,17 +4,18 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_library(lib_export OBJECT)
-init_target(lib_export)
-add_library(tdesktop::lib_export ALIAS lib_export)
+add_library(td_export OBJECT)
+init_target(td_export)
+add_library(tdesktop::td_export ALIAS td_export)
 
-target_precompile_headers(lib_export PRIVATE ${src_loc}/export/export_pch.h)
-nice_target_sources(lib_export ${src_loc}
+target_precompile_headers(td_export PRIVATE ${src_loc}/export/export_pch.h)
+nice_target_sources(td_export ${src_loc}
 PRIVATE
     export/export_api_wrap.cpp
     export/export_api_wrap.h
     export/export_controller.cpp
     export/export_controller.h
+    export/export_pch.h
     export/export_settings.cpp
     export/export_settings.h
     export/data/export_data_types.cpp
@@ -34,13 +35,13 @@ PRIVATE
     export/output/export_output_text.h
 )
 
-target_include_directories(lib_export
+target_include_directories(td_export
 PUBLIC
     ${src_loc}
 )
 
-target_link_libraries(lib_export
+target_link_libraries(td_export
 PUBLIC
     desktop-app::lib_base
-    tdesktop::lib_scheme
+    tdesktop::td_scheme
 )

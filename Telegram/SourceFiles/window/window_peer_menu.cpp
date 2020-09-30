@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -57,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
-#include "styles/style_history.h" // st::historyErrorToast
 
 #include <QtWidgets/QAction>
 
@@ -1052,10 +1052,8 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		session->data().idsToItems(items),
 		TextWithTags());
 	if (!error.isEmpty()) {
-		Ui::Toast::Show(Ui::Toast::Config{
+		Ui::ShowMultilineToast({
 			.text = { error },
-			.st = &st::historyErrorToast,
-			.multiline = true,
 		});
 		return { nullptr };
 	}

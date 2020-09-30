@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_caption_box.h"
 #include "core/file_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "ui/emoji_config.h"
 #include "ui/widgets/buttons.h"
@@ -138,14 +139,6 @@ constexpr auto kCommonModifiers = 0
 	| Qt::MetaModifier
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
-
-void ShowErrorToast(const QString &text) {
-	Ui::Toast::Show(Ui::Toast::Config{
-		.text = { text },
-		.st = &st::historyErrorToast,
-		.multiline = true,
-	});
-}
 
 [[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
 	return std::clamp(
@@ -3029,7 +3022,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 			message.textWithTags,
 			options.scheduled);
 		if (!error.isEmpty()) {
-			ShowErrorToast(error);
+			Ui::ShowMultilineToast({
+				.text = { error },
+			});
 			return;
 		}
 	}
@@ -3275,7 +3270,9 @@ void HistoryWidget::chooseAttach() {
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
 			ChatRestriction::f_send_media)) {
-		ShowErrorToast(*error);
+		Ui::ShowMultilineToast({
+			.text = { *error },
+		});
 		return;
 	} else if (showSlowmodeError()) {
 		return;
@@ -4118,7 +4115,9 @@ bool HistoryWidget::showSendingFilesError(
 		return false;
 	}
 
-	ShowErrorToast(text);
+	Ui::ShowMultilineToast({
+		.text = { text },
+	});
 	return true;
 }
 
@@ -4308,7 +4307,9 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
 				&& !list.canAddCaption(isAlbum, compressImages)))) {
-		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_slowmode_no_many(tr::now) },
+		});
 		return;
 	}
 
@@ -5111,7 +5112,9 @@ bool HistoryWidget::showSlowmodeError() {
 	if (text.isEmpty()) {
 		return false;
 	}
-	ShowErrorToast(text);
+	Ui::ShowMultilineToast({
+		.text = { text },
+	});
 	return true;
 }
 

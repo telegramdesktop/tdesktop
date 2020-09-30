@@ -30,12 +30,13 @@ get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/telegram_options.cmake)
-include(cmake/lib_export.cmake)
 include(cmake/lib_ffmpeg.cmake)
-include(cmake/lib_mtproto.cmake)
-include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
 include(cmake/lib_tgcalls.cmake)
+include(cmake/td_export.cmake)
+include(cmake/td_mtproto.cmake)
+include(cmake/td_scheme.cmake)
+include(cmake/td_ui.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -61,6 +62,7 @@ set(dependent_style_files
     ${submodules_loc}/lib_ui/ui/basic.style
     ${submodules_loc}/lib_ui/ui/layers/layers.style
     ${submodules_loc}/lib_ui/ui/widgets/widgets.style
+    ${src_loc}/ui/td_common.style
 )
 
 generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
@@ -74,9 +76,10 @@ PRIVATE
     tdesktop::lib_tgcalls_legacy
     tdesktop::lib_tgcalls
     tdesktop::lib_tgvoip
-    tdesktop::lib_mtproto
-    tdesktop::lib_scheme
-    tdesktop::lib_export
+    tdesktop::td_export
+    tdesktop::td_mtproto
+    tdesktop::td_scheme
+    tdesktop::td_ui
     desktop-app::lib_webrtc
     desktop-app::lib_base
     desktop-app::lib_crl
@@ -1147,6 +1150,7 @@ PRIVATE
     qt_static_plugins.cpp
     settings.cpp
     settings.h
+    stdafx.h
 )
 
 if (NOT LINUX)

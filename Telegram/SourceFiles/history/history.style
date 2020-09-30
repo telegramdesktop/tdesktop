@@ -389,9 +389,6 @@ historyDiceToast: Toast(defaultToast) {
 	maxWidth: 640px;
 	durationFadeOut: 200;
 }
-historyErrorToast: Toast(defaultToast) {
-	minWidth: msgMinWidth;
-}
 historyInfoToast: Toast(defaultToast) {
 	minWidth: msgMinWidth;
 	maxWidth: 380px;

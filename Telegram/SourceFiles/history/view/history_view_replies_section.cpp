@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
+#include "ui/toasts/common_toasts.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -61,14 +62,6 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
-
-void ShowErrorToast(const QString &text) {
-	Ui::Toast::Show(Ui::Toast::Config{
-		.text = { text },
-		.st = &st::historyErrorToast,
-		.multiline = true,
-	});
-}
 
 bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
@@ -510,7 +503,9 @@ void RepliesWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
 			ChatRestriction::f_send_media)) {
-		ShowErrorToast(*error);
+		Ui::ShowMultilineToast({
+			.text = { *error },
+		});
 		return;
 	}
 
@@ -703,7 +698,9 @@ void RepliesWidget::uploadFilesAfterConfirmation(
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
 				&& !list.canAddCaption(isAlbum, compressImages)))) {
-		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_slowmode_no_many(tr::now) }
+		});
 		return;
 	}
 	auto action = Api::SendAction(_history);
@@ -806,7 +803,9 @@ bool RepliesWidget::showSendingFilesError(
 		return false;
 	}
 
-	ShowErrorToast(text);
+	Ui::ShowMultilineToast({
+		.text = { text },
+	});
 	return true;
 }
 
@@ -849,7 +848,9 @@ void RepliesWidget::send(Api::SendOptions options) {
 	//	_toForward,
 	//	message.textWithTags);
 	//if (!error.isEmpty()) {
-	//	ShowErrorToast(error);
+	//	Ui::ShowMultilineToast({
+	//		.text = { error },
+	//	});
 	//	return;
 	//}
 
