@@ -67,6 +67,15 @@ namespace {
 constexpr auto kArchivedToastDuration = crl::time(5000);
 constexpr auto kMaxUnreadWithoutConfirmation = 10000;
 
+void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action.get());
+	std::move(
+		text
+	) | rpl::start_with_next([=](const QString &actionText) {
+		action->setText(actionText);
+	}, *lifetime);
+}
+
 [[nodiscard]] bool IsUnreadHistory(not_null<History*> history) {
 	return (history->chatListUnreadCount() > 0)
 		|| (history->chatListUnreadMark());
@@ -353,13 +362,11 @@ void Filler::addTogglePin() {
 	};
 	const auto pinAction = _addAction(pinText(), pinToggle);
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(pinAction);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::IsPinned
-	) | rpl::start_with_next([=] {
-		pinAction->setText(pinText());
-	}, *lifetime);
+	) | rpl::map(pinText);
+	SetActionText(pinAction, std::move(actionText));
 }
 
 void Filler::addInfo() {
@@ -402,13 +409,11 @@ void Filler::addToggleUnreadMark() {
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::UnreadView
-	) | rpl::start_with_next([=] {
-		action->setText(label());
-	}, *lifetime);
+	) | rpl::map(label);
+	SetActionText(action, std::move(actionText));
 }
 
 void Filler::addToggleArchive() {
@@ -417,24 +422,21 @@ void Filler::addToggleArchive() {
 	const auto isArchived = [=] {
 		return (history->folder() != nullptr);
 	};
+	const auto label = [=] {
+		return isArchived()
+			? tr::lng_archived_remove(tr::now)
+			: tr::lng_archived_add(tr::now);
+	};
 	const auto toggle = [=] {
 		ToggleHistoryArchived(history, !isArchived());
 	};
-	const auto archiveAction = _addAction(
-		(isArchived()
-			? tr::lng_archived_remove(tr::now)
-			: tr::lng_archived_add(tr::now)),
-		toggle);
+	const auto archiveAction = _addAction(label(), toggle);
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(archiveAction);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::Folder
-	) | rpl::start_with_next([=] {
-		archiveAction->setText(isArchived()
-			? tr::lng_archived_remove(tr::now)
-			: tr::lng_archived_add(tr::now));
-	}, *lifetime);
+	) | rpl::map(label);
+	SetActionText(archiveAction, std::move(actionText));
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
@@ -463,13 +465,11 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(blockAction);
-	_peer->session().changes().peerUpdates(
+	auto actionText = _peer->session().changes().peerUpdates(
 		_peer,
 		Data::PeerUpdate::Flag::IsBlocked
-	) | rpl::start_with_next([=] {
-		blockAction->setText(blockText(user));
-	}, *lifetime);
+	) | rpl::map([=] { return blockText(user); });
+	SetActionText(blockAction, std::move(actionText));
 
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 		user->session().api().requestFullPeer(user);
@@ -1128,10 +1128,10 @@ void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
 	peer->owner().requestNotifySettings(peer);
-	const auto muteText = [](bool isMuted) {
-		return isMuted
-			? tr::lng_enable_notifications_from_tray(tr::now)
-			: tr::lng_disable_notifications_from_tray(tr::now);
+	const auto muteText = [](bool isUnmuted) {
+		return isUnmuted
+			? tr::lng_disable_notifications_from_tray(tr::now)
+			: tr::lng_enable_notifications_from_tray(tr::now);
 	};
 	const auto muteAction = addAction(QString("-"), [=] {
 		if (!peer->owner().notifyIsMuted(peer)) {
@@ -1141,12 +1141,10 @@ void PeerMenuAddMuteAction(
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(muteAction);
-	Info::Profile::NotificationsEnabledValue(
+	auto actionText = Info::Profile::NotificationsEnabledValue(
 		peer
-	) | rpl::start_with_next([=](bool enabled) {
-		muteAction->setText(muteText(!enabled));
-	}, *lifetime);
+	) | rpl::map(muteText);
+	SetActionText(muteAction, std::move(actionText));
 }
 
 void MenuAddMarkAsReadAllChatsAction(
