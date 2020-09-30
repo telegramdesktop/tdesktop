@@ -534,8 +534,9 @@ bool MainWidget::shareUrl(
 }
 
 void MainWidget::replyToItem(not_null<HistoryItem*> item) {
-	if (_history->peer() == item->history()->peer
-		|| _history->peer() == item->history()->peer->migrateTo()) {
+	if ((!_mainSection || !_mainSection->replyToMessage(item))
+		&& (_history->peer() == item->history()->peer
+			|| _history->peer() == item->history()->peer->migrateTo())) {
 		_history->replyToMessage(item);
 	}
 }

@@ -125,6 +125,10 @@ public:
 		return false;
 	}
 
+	virtual bool replyToMessage(not_null<HistoryItem*> item) {
+		return false;
+	}
+
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
 	virtual std::unique_ptr<SectionMemento> createMemento();

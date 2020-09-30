@@ -1427,6 +1427,14 @@ bool RepliesWidget::showMessage(
 	return true;
 }
 
+bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
+	if (item->history() != _history || item->replyToTop() != _rootId) {
+		return false;
+	}
+	_composeControls->replyToMessage(item->fullId());
+	return true;
+}
+
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	memento->setReplies(_replies);
 	memento->setReplyReturns(_replyReturns);
