@@ -55,7 +55,7 @@ bool IsTaskbarAutoHidden(PUINT pEdge = nullptr) {
 			*pEdge = pos.uEdge;
 		}
 	} else {
-		Unexpected("Failed to get taskbar pos");
+		LOG(("Failed to get taskbar pos"));
 		if (pEdge) {
 			*pEdge = ABE_BOTTOM;
 		}
