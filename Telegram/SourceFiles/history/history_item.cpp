@@ -599,9 +599,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 			return false;
 		}
 	}
-	if (!peer->isUser() && !toHistoryMessage()) {
-		return false;
-	} else if (const auto media = this->media()) {
+	if (const auto media = this->media()) {
 		if (!media->allowsRevoke(now)) {
 			return false;
 		}
