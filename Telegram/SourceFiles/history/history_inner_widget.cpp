@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_document.h"
+#include "data/data_channel.h"
 #include "data/data_poll.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -1550,7 +1551,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = IsServerMsgId(item->id)
 			&& (repliesCount > 0 || item->replyToTop());
-		if (withReplies && item->history()->peer->isMegagroup()) {
+		if (withReplies
+			&& item->history()->peer->isMegagroup()
+			&& item->history()->peer->asMegagroup()->linkedChat()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
 			const auto phrase = (repliesCount > 0)
 				? tr::lng_replies_view(
