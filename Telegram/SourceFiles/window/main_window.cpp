@@ -705,6 +705,17 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 
 MainWindow::~MainWindow() {
 	_title.destroy();
+
+	// Otherwise:
+	// ~QWidget
+	// QWidgetPrivate::close_helper
+	// QWidgetPrivate::setVisible
+	// QWidgetPrivate::hide_helper
+	// QWidgetPrivate::hide_sys
+	// QWindowPrivate::setVisible
+	// QMetaObject::activate
+	// Window::MainWindow::handleVisibleChanged on a destroyed MainWindow.
+	hide();
 }
 
 } // namespace Window
