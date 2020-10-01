@@ -1309,7 +1309,15 @@ ClickHandlerPtr Message::createGoToCommentsLink() const {
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->sessionController()) {
 				if (const auto item = controller->session().data().message(fullId)) {
-					controller->showRepliesForMessage(item->history(), item->id);
+					const auto history = item->history();
+					if (const auto channel = history->peer->asChannel()) {
+						if (channel->invitePeekExpires()) {
+							Ui::Toast::Show(
+								tr::lng_channel_invite_private(tr::now));
+							return;
+						}
+					}
+					controller->showRepliesForMessage(history, item->id);
 				}
 			}
 		}
