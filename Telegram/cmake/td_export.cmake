@@ -31,8 +31,6 @@ PRIVATE
     export/output/export_output_result.h
     export/output/export_output_stats.cpp
     export/output/export_output_stats.h
-    export/output/export_output_text.cpp
-    export/output/export_output_text.h
 )
 
 target_include_directories(td_export

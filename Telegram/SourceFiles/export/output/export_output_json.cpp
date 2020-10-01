@@ -295,8 +295,8 @@ QByteArray SerializeMessage(
 	};
 	const auto pushFrom = [&](const QByteArray &label = "from") {
 		if (message.fromId) {
-			pushBare(label, wrapUserName(message.fromId));
-			pushBare(label+"_id", Data::NumberToString(message.fromId));
+			pushBare(label, wrapPeerName(message.fromId));
+			push(label+"_id", message.fromId);
 		}
 	};
 	const auto pushReplyToMsgId = [&](

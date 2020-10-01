@@ -1187,6 +1187,8 @@ Message ParseMessage(
 			});
 			result.forwarded = result.forwardedFromId
 				|| !result.forwardedFromName.isEmpty();
+			result.showForwardedAsOriginal = result.forwarded
+				&& result.savedFromChatId;
 		}
 		if (const auto postAuthor = data.vpost_author()) {
 			result.signature = ParseString(*postAuthor);

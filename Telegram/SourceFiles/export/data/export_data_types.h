@@ -520,6 +520,7 @@ struct Message {
 	Utf8String forwardedFromName;
 	TimeId forwardedDate = 0;
 	bool forwarded = false;
+	bool showForwardedAsOriginal = false;
 	PeerId savedFromChatId = 0;
 	Utf8String signature;
 	int32 viaBotId = 0;
