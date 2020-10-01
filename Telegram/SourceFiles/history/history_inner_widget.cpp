@@ -3309,7 +3309,7 @@ QString HistoryInner::tooltipText() const {
 				}
 			}
 			if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
-				if (msgsigned->isElided) {
+				if (msgsigned->isElided && !msgsigned->isAnonymousRank) {
 					dateText += '\n' + tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 				}
 			}

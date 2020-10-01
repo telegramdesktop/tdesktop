@@ -200,7 +200,8 @@ QSize Document::countOptimalSize() {
 	} else {
 		minHeight = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
-	if (!captioned && (item->Has<HistoryMessageSigned>()
+	const auto msgsigned = item->Get<HistoryMessageSigned>();
+	if (!captioned && ((msgsigned && !msgsigned->isAnonymousRank)
 		|| item->Has<HistoryMessageViews>()
 		|| _parent->displayEditedBadge())) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();

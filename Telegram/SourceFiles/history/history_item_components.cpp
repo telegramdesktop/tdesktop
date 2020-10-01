@@ -73,6 +73,8 @@ void HistoryMessageVia::resize(int32 availw) const {
 }
 
 void HistoryMessageSigned::refresh(const QString &date) {
+	Expects(!isAnonymousRank);
+
 	auto name = author;
 	const auto time = qsl(", ") + date;
 	const auto timew = st::msgDateFont->width(time);

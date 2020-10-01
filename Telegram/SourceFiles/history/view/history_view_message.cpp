@@ -247,6 +247,11 @@ void Message::refreshRightBadge() {
 			return (delegate()->elementContext() == Context::Replies)
 				? QString()
 				: tr::lng_channel_badge(tr::now);
+		} else if (data()->author()->isMegagroup()) {
+			if (const auto msgsigned = data()->Get<HistoryMessageSigned>()) {
+				Assert(msgsigned->isAnonymousRank);
+				return msgsigned->author;
+			}
 		}
 		const auto channel = data()->history()->peer->asMegagroup();
 		const auto user = data()->author()->asUser();
@@ -1702,7 +1707,8 @@ void Message::drawInfo(
 	}
 	dateX += timeLeft();
 
-	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
+	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
+		; msgsigned && !msgsigned->isAnonymousRank) {
 		msgsigned->signature.drawElided(p, dateX, dateY, item->_timeWidth);
 	} else if (const auto edited = displayedEditBadge()) {
 		edited->text.drawElided(p, dateX, dateY, item->_timeWidth);
@@ -2517,17 +2523,20 @@ void Message::refreshEditedBadge() {
 		edited->refresh(dateText, editDate != 0);
 	}
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-		const auto text = (!edited || !editDate)
-			? dateText
-			: edited->text.toString();
-		msgsigned->refresh(text);
+		if (!msgsigned->isAnonymousRank) {
+			const auto text = (!edited || !editDate)
+				? dateText
+				: edited->text.toString();
+			msgsigned->refresh(text);
+		}
 	}
 	initTime();
 }
 
 void Message::initTime() {
 	const auto item = message();
-	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
+	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
+		; msgsigned && !msgsigned->isAnonymousRank) {
 		item->_timeWidth = msgsigned->maxWidth();
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();

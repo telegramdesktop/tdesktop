@@ -717,7 +717,9 @@ QString HistoryItem::authorOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalAuthor;
 	} else if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		return msgsigned->author;
+		if (!msgsigned->isAnonymousRank) {
+			return msgsigned->author;
+		}
 	}
 	return QString();
 }

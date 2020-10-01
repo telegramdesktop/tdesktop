@@ -56,9 +56,10 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, Hist
 	void refresh(const QString &date);
 	int maxWidth() const;
 
-	bool isElided = false;
 	QString author;
 	Ui::Text::String signature;
+	bool isElided = false;
+	bool isAnonymousRank = false;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {

@@ -1049,6 +1049,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->author = config.author;
+		msgsigned->isAnonymousRank = author()->isMegagroup();
 	}
 	setupForwardedComponent(config);
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
