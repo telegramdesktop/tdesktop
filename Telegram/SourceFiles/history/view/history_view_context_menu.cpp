@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/send_context_menu.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/report_box.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
@@ -607,6 +608,34 @@ void AddDeleteAction(
 	}
 }
 
+void AddReportAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return;
+	} else if (!item || !item->suggestReport()) {
+		return;
+	}
+	const auto owner = &item->history()->owner();
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	const auto controller = list->controller();
+	const auto itemId = item->fullId();
+	const auto callback = crl::guard(controller, [=] {
+		if (const auto item = owner->message(itemId)) {
+			const auto peer = item->history()->peer;
+			const auto group = owner->groups().find(item);
+			Ui::show(Box<ReportBox>(
+				peer,
+				(group
+					? owner->itemsToIds(group->items)
+					: MessageIdsList(1, itemId))));
+		}
+	});
+	menu->addAction(tr::lng_context_report_msg(tr::now), callback);
+}
+
 bool AddClearSelectionAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -674,6 +703,7 @@ void AddMessageActions(
 	AddForwardAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
+	AddReportAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
 	AddRescheduleMessageAction(menu, request);
 }
