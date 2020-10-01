@@ -421,30 +421,7 @@ QSize Message::performCountOptimalSize() {
 				minHeight += entry->minHeight();
 			}
 		}
-		if (item->repliesAreComments() && !views->replies.text.isEmpty()) {
-			const auto limit = HistoryMessageViews::kMaxRecentRepliers;
-			const auto single = st::historyCommentsUserpicSize;
-			const auto shift = st::historyCommentsUserpicOverlap;
-			const auto added = single
-				+ (limit - 1) * (single - shift)
-				+ st::historyCommentsSkipLeft
-				+ st::historyCommentsSkipRight
-				+ st::historyCommentsSkipText
-				+ st::historyCommentsOpenOutSelected.width()
-				+ st::historyCommentsSkipRight
-				+ st::mediaUnreadSkip
-				+ st::mediaUnreadSize;
-			accumulate_max(maxWidth, added + views->replies.textWidth);
-		} else if (item->externalReply()) {
-			const auto added = st::historyCommentsIn.width()
-				+ st::historyCommentsSkipLeft
-				+ st::historyCommentsSkipRight
-				+ st::historyCommentsSkipText
-				+ st::historyCommentsOpenOutSelected.width()
-				+ st::historyCommentsSkipRight;
-			accumulate_max(maxWidth, added + st::semiboldFont->width(
-				tr::lng_replies_view_original(tr::now)));
-		}
+		accumulate_max(maxWidth, minWidthForMedia());
 	} else if (media) {
 		media->initDimensions();
 		maxWidth = media->maxWidth();
@@ -2026,6 +2003,36 @@ bool Message::drawBubble() const {
 
 bool Message::hasBubble() const {
 	return drawBubble();
+}
+
+int Message::minWidthForMedia() const {
+	auto result = infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x());
+	const auto views = data()->Get<HistoryMessageViews>();
+	if (data()->repliesAreComments() && !views->replies.text.isEmpty()) {
+		const auto limit = HistoryMessageViews::kMaxRecentRepliers;
+		const auto single = st::historyCommentsUserpicSize;
+		const auto shift = st::historyCommentsUserpicOverlap;
+		const auto added = single
+			+ (limit - 1) * (single - shift)
+			+ st::historyCommentsSkipLeft
+			+ st::historyCommentsSkipRight
+			+ st::historyCommentsSkipText
+			+ st::historyCommentsOpenOutSelected.width()
+			+ st::historyCommentsSkipRight
+			+ st::mediaUnreadSkip
+			+ st::mediaUnreadSize;
+		accumulate_max(result, added + views->replies.textWidth);
+	} else if (data()->externalReply()) {
+		const auto added = st::historyCommentsIn.width()
+			+ st::historyCommentsSkipLeft
+			+ st::historyCommentsSkipRight
+			+ st::historyCommentsSkipText
+			+ st::historyCommentsOpenOutSelected.width()
+			+ st::historyCommentsSkipRight;
+		accumulate_max(result, added + st::semiboldFont->width(
+			tr::lng_replies_view_original(tr::now)));
+	}
+	return result;
 }
 
 bool Message::hasFastReply() const {

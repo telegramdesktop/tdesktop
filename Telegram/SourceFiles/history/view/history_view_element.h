@@ -262,6 +262,9 @@ public:
 	virtual bool hasOutLayout() const;
 	virtual bool drawBubble() const;
 	virtual bool hasBubble() const;
+	virtual int minWidthForMedia() const {
+		return 0;
+	}
 	virtual bool hasFastReply() const;
 	virtual bool displayFastReply() const;
 	virtual std::optional<QSize> rightActionSize() const;
