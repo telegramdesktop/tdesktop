@@ -252,14 +252,6 @@ void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
-	// I tried to listen only QEvent::Move and QEvent::Resize
-	// but that doesn't work on Wayland
-	if (obj->isWidgetType()
-		&& window() == static_cast<QWidget*>(obj)
-		&& Platform::IsWayland()) {
-		updateWindowExtents();
-	}
-
 	if (e->type() == QEvent::MouseMove
 		|| e->type() == QEvent::MouseButtonPress) {
 		if (window()->isAncestorOf(static_cast<QWidget*>(obj))) {
