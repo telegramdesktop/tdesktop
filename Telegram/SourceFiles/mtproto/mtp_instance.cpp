@@ -1661,15 +1661,15 @@ DcId Instance::mainDcId() const {
 }
 
 QString Instance::systemLangCode() const {
-	return Lang::Current().systemLangCode();
+	return Lang::GetInstance().systemLangCode();
 }
 
 QString Instance::cloudLangCode() const {
-	return Lang::Current().cloudLangCode(Lang::Pack::Current);
+	return Lang::GetInstance().cloudLangCode(Lang::Pack::Current);
 }
 
 QString Instance::langPackName() const {
-	return Lang::Current().langPackName();
+	return Lang::GetInstance().langPackName();
 }
 
 rpl::producer<> Instance::writeKeysRequests() const {

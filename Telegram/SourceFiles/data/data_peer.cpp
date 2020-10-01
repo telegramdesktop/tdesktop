@@ -475,6 +475,9 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 }
 
 bool PeerData::canExportChatHistory() const {
+	if (isRepliesChat()) {
+		return false;
+	}
 	if (const auto channel = asChannel()) {
 		if (!channel->amIn() && channel->invitePeekExpires()) {
 			return false;
@@ -537,6 +540,13 @@ void PeerData::fillNames() {
 		if (isSelf()) {
 			const auto english = qsl("Saved messages");
 			const auto localized = tr::lng_saved_messages(tr::now);
+			appendToIndex(english);
+			if (localized != english) {
+				appendToIndex(localized);
+			}
+		} else if (isRepliesChat()) {
+			const auto english = qsl("Replies");
+			const auto localized = tr::lng_replies_messages(tr::now);
 			appendToIndex(english);
 			if (localized != english) {
 				appendToIndex(localized);
@@ -609,6 +619,16 @@ ChannelData *PeerData::asMegagroup() {
 
 const ChannelData *PeerData::asMegagroup() const {
 	return isMegagroup()
+		? static_cast<const ChannelData*>(this)
+		: nullptr;
+}
+
+ChannelData *PeerData::asBroadcast() {
+	return isBroadcast() ? static_cast<ChannelData*>(this) : nullptr;
+}
+
+const ChannelData *PeerData::asBroadcast() const {
+	return isBroadcast()
 		? static_cast<const ChannelData*>(this)
 		: nullptr;
 }
@@ -729,6 +749,21 @@ bool PeerData::isMegagroup() const {
 	return isChannel() ? asChannel()->isMegagroup() : false;
 }
 
+bool PeerData::isBroadcast() const {
+	return isChannel() ? asChannel()->isBroadcast() : false;
+}
+
+bool PeerData::isRepliesChat() const {
+	constexpr auto kProductionId = peerFromUser(1271266957);
+	constexpr auto kTestId = peerFromUser(708513);
+	if (id != kTestId && id != kProductionId) {
+		return false;
+	}
+	return ((session().mtp().environment() == MTP::Environment::Production)
+		? kProductionId
+		: kTestId) == id;
+}
+
 bool PeerData::canWrite() const {
 	if (const auto user = asUser()) {
 		return user->canWrite();
@@ -776,11 +811,20 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 	return Result::Allowed();
 }
 
+bool PeerData::amAnonymous() const {
+	return isBroadcast()
+		|| (isChannel()
+			&& (asChannel()->adminRights() & ChatAdminRight::f_anonymous));
+}
+
 bool PeerData::canRevokeFullHistory() const {
-	return isUser()
-		&& !isSelf()
-		&& session().serverConfig().revokePrivateInbox
-		&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	if (const auto user = asUser()) {
+		return !isSelf()
+			&& (!user->isBot() || user->isSupport())
+			&& session().serverConfig().revokePrivateInbox
+			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	}
+	return false;
 }
 
 bool PeerData::slowmodeApplied() const {
@@ -790,6 +834,31 @@ bool PeerData::slowmodeApplied() const {
 			&& (channel->flags() & MTPDchannel::Flag::f_slowmode_enabled);
 	}
 	return false;
+}
+
+rpl::producer<bool> PeerData::slowmodeAppliedValue() const {
+	using namespace rpl::mappers;
+	const auto channel = asChannel();
+	if (!channel) {
+		return rpl::single(false);
+	}
+
+	auto hasAdminRights = channel->adminRightsValue(
+	) | rpl::map([=] {
+		return channel->hasAdminRights();
+	}) | rpl::distinct_until_changed();
+
+	auto slowmodeEnabled = channel->flagsValue(
+	) | rpl::filter([=](const ChannelData::Flags::Change &change) {
+		return (change.diff & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+	}) | rpl::map([=](const ChannelData::Flags::Change &change) {
+		return (change.value & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+	}) | rpl::distinct_until_changed();
+
+	return rpl::combine(
+		std::move(hasAdminRights),
+		std::move(slowmodeEnabled),
+		!_1 && _2);
 }
 
 int PeerData::slowmodeSecondsLeft() const {
@@ -806,13 +875,37 @@ int PeerData::slowmodeSecondsLeft() const {
 
 bool PeerData::canSendPolls() const {
 	if (const auto user = asUser()) {
-		return user->isBot() && !user->isSupport();
+		return user->isBot()
+			&& !user->isRepliesChat()
+			&& !user->isSupport();
 	} else if (const auto chat = asChat()) {
 		return chat->canSendPolls();
 	} else if (const auto channel = asChannel()) {
 		return channel->canSendPolls();
 	}
 	return false;
+}
+
+void PeerData::setIsBlocked(bool is) {
+	const auto status = is
+		? BlockStatus::Blocked
+		: BlockStatus::NotBlocked;
+	if (_blockStatus != status) {
+		_blockStatus = status;
+		if (const auto user = asUser()) {
+			const auto flags = user->fullFlags();
+			if (is) {
+				user->setFullFlags(flags | MTPDuserFull::Flag::f_blocked);
+			} else {
+				user->setFullFlags(flags & ~MTPDuserFull::Flag::f_blocked);
+			}
+		}
+		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
+	}
+}
+
+void PeerData::setLoadedStatus(LoadedStatus status) {
+	_loadedStatus = status;
 }
 
 namespace Data {

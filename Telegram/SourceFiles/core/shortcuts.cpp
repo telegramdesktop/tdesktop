@@ -89,6 +89,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 
 	{ qsl("show_archive")      , Command::ShowArchive },
 
+	{ qsl("read_chat")         , Command::ReadChat },
+
 	// Shortcuts that have no default values.
 	{ qsl("message")           , Command::JustSendMessage },
 	{ qsl("message_silently")  , Command::SendSilentMessage },
@@ -130,6 +132,8 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	{ Command::ShowFolderLast , qsl("last_folder") },
 
 	{ Command::ShowArchive    , qsl("show_archive") },
+
+	{ Command::ReadChat       , qsl("read_chat") },
 };
 
 class Manager {
@@ -379,6 +383,8 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+0"), Command::ChatSelf);
 
 	set(qsl("ctrl+9"), Command::ShowArchive);
+
+	set(qsl("ctrl+r"), Command::ReadChat);
 }
 
 void Manager::writeDefaultFile() {

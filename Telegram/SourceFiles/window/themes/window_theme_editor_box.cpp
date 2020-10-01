@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/image/image_prepare.h"
 #include "ui/toast/toast.h"
+#include "ui/text/format_values.h"
 #include "ui/special_fields.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -36,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
-#include "layout.h"
 #include "apiwrap.h"
 #include "app.h"
 #include "styles/style_widgets.h"
@@ -119,7 +119,7 @@ BackgroundSelector::BackgroundSelector(
 	_imageText = tr::lng_theme_editor_saved_to_jpg(
 		tr::now,
 		lt_size,
-		formatSizeText(_parsed.background.size()));
+		Ui::FormatSizeText(_parsed.background.size()));
 	_chooseFromFile->setClickedCallback([=] { chooseBackgroundFromFile(); });
 
 	_thumbnailSize = st::boxTextFont->height
@@ -199,7 +199,7 @@ void BackgroundSelector::chooseBackgroundFromFile() {
 				_imageText = phrase(
 					tr::now,
 					lt_size,
-					formatSizeText(_parsed.background.size()));
+					Ui::FormatSizeText(_parsed.background.size()));
 				_tileBackground->setChecked(false);
 				updateThumbnail();
 			}
@@ -426,15 +426,21 @@ SendMediaReady PrepareThemeMedia(
 		thumbnail.save(&buffer, "JPG", 87);
 	}
 
-	const auto push = [&](const char *type, QImage &&image) {
+	const auto push = [&](
+			const char *type,
+			QImage &&image,
+			QByteArray bytes = QByteArray()) {
 		sizes.push_back(MTP_photoSize(
 			MTP_string(type),
 			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		thumbnails.emplace(type[0], std::move(image));
+		thumbnails.emplace(type[0], PreparedPhotoThumb{
+			.image = std::move(image),
+			.bytes = std::move(bytes)
+		});
 	};
-	push("s", std::move(thumbnail));
+	push("s", std::move(thumbnail), thumbnailBytes);
 
 	const auto filename = base::FileNameFromUserString(name)
 		+ qsl(".tdesktop-theme");

@@ -63,7 +63,6 @@ using OverlayParent = Ui::RpWidget;
 
 class OverlayWidget final
 	: public OverlayParent
-	, private base::Subscriber
 	, public ClickHandlerHost
 	, private PlaybackControls::Delegate {
 	Q_OBJECT
@@ -153,7 +152,8 @@ private:
 		OverVideo,
 	};
 	struct Entity {
-		base::optional_variant<
+		std::variant<
+			v::null_t,
 			not_null<PhotoData*>,
 			not_null<DocumentData*>> data;
 		HistoryItem *item;
@@ -212,7 +212,8 @@ private:
 	Entity entityByIndex(int index) const;
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
-	void setContext(base::optional_variant<
+	void setContext(std::variant<
+		v::null_t,
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context);
 

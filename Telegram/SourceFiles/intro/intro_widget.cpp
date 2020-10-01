@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_signup.h"
 #include "intro/intro_password_check.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "storage/localstorage.h"
 #include "main/main_account.h"
@@ -126,7 +127,10 @@ Widget::Widget(
 		_changeLanguage->finishAnimating();
 	}
 
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	show();
 	showControls();
@@ -241,7 +245,7 @@ void Widget::createLanguageLink() {
 		updateControlsGeometry();
 	};
 
-	const auto currentId = Lang::LanguageIdOrDefault(Lang::Current().id());
+	const auto currentId = Lang::LanguageIdOrDefault(Lang::Id());
 	const auto defaultId = Lang::DefaultLanguageId();
 	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
 	if (currentId != defaultId) {

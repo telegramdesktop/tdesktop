@@ -150,13 +150,26 @@ void EditLinkBox::prepare() {
 		session);
 	InitSpellchecker(_controller, text);
 
-	const auto url = content->add(
-		object_ptr<Ui::InputField>(
+	const auto placeholder = content->add(
+		object_ptr<Ui::RpWidget>(content),
+		st::markdownLinkFieldPadding);
+	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto url = Ui::AttachParentChild(
+		content,
+		object_ptr<Ui::MaskedInputField>(
 			content,
 			st::defaultInputField,
 			tr::lng_formatting_link_url(),
-			_startLink.trimmed()),
-		st::markdownLinkFieldPadding);
+			_startLink.trimmed()));
+	url->heightValue(
+	) | rpl::start_with_next([placeholder](int height) {
+		placeholder->resize(placeholder->width(), height);
+	}, placeholder->lifetime());
+	placeholder->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		url->resize(width, url->height());
+	}, placeholder->lifetime());
+	url->move(placeholder->pos());
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
@@ -178,7 +191,7 @@ void EditLinkBox::prepare() {
 	connect(text, &Ui::InputField::submitted, [=] {
 		url->setFocusFast();
 	});
-	connect(url, &Ui::InputField::submitted, [=] {
+	connect(url, &Ui::MaskedInputField::submitted, [=] {
 		if (text->getLastText().isEmpty()) {
 			text->setFocusFast();
 		} else {
@@ -198,7 +211,11 @@ void EditLinkBox::prepare() {
 	setDimensions(st::boxWidth, content->height());
 
 	_setInnerFocus = [=] {
-		(_startText.isEmpty() ? text : url)->setFocusFast();
+		if (_startText.isEmpty()) {
+			text->setFocusFast();
+		} else {
+			url->setFocusFast();
+		}
 	};
 }
 

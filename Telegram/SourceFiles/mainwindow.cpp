@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "settings/settings_intro.h"
+#include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "base/call_delayed.h"
@@ -110,7 +111,12 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);
-	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	if (Platform::WindowsNeedShadow()) {
+		setAttribute(Qt::WA_TranslucentBackground);
+	} else {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+	}
 }
 
 void MainWindow::initHook() {
@@ -283,12 +289,13 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 void MainWindow::setupMain() {
 	Expects(account().sessionExists());
 
-	const auto animated = (_intro || _passcodeLock);
+	const auto animated = _intro
+		|| (_passcodeLock && !Core::App().passcodeLocked());
 	const auto bg = animated ? grabInner() : QPixmap();
-	const auto weak = (_main && _layer)
+	const auto weakAnimatedLayer = (_main && _layer && !_passcodeLock)
 		? Ui::MakeWeak(_layer.get())
 		: nullptr;
-	if (weak) {
+	if (weakAnimatedLayer) {
 		Assert(!animated);
 		_layer->hideAllAnimatedPrepare();
 	} else {
@@ -310,7 +317,7 @@ void MainWindow::setupMain() {
 		Core::App().checkStartUrl();
 	}
 	fixOrder();
-	if (const auto strong = weak.data()) {
+	if (const auto strong = weakAnimatedLayer.data()) {
 		strong->hideAllAnimatedRun();
 	}
 }
@@ -767,7 +774,9 @@ void MainWindow::handleTrayIconActication(
 	}
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
-		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
+		base::call_delayed(1, this, [=] {
+			psShowTrayMenu();
+		});
 	} else if (!skipTrayClick()) {
 		if (Platform::IsWayland() ? isVisible() : isActive()) {
 			minimizeToTray();

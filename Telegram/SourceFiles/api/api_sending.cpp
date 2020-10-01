@@ -39,9 +39,11 @@ void InnerFillMessagePostFlags(
 		const Api::SendOptions &options,
 		not_null<PeerData*> peer,
 		MTPDmessage::Flags &flags) {
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	if (!channelPost) {
+	const auto anonymousPost = peer->amAnonymous();
+	if (!anonymousPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+		return;
+	} else if (peer->asMegagroup()) {
 		return;
 	}
 	flags |= MTPDmessage::Flag::f_post;
@@ -79,18 +81,18 @@ void SendExistingMedia(
 	auto clientFlags = NewMessageClientFlags();
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (message.action.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+		flags |= MTPDmessage::Flag::f_reply_to;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = message.action.options.silent
-		|| (channelPost && session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && session->data().notifySilentPosts(peer));
 	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : session->userId();
-	auto messagePostAuthor = channelPost ? session->user()->name : QString();
+	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
@@ -249,18 +251,19 @@ bool SendDice(Api::MessageToSend &message) {
 	auto clientFlags = NewMessageClientFlags();
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (message.action.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+		flags |= MTPDmessage::Flag::f_reply_to;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto replyHeader = NewMessageReplyHeader(message.action);
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = message.action.options.silent
-		|| (channelPost && session->data().notifySilentPosts(peer));
+		|| (peer->isBroadcast() && session->data().notifySilentPosts(peer));
 	InnerFillMessagePostFlags(message.action.options, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : session->userId();
-	auto messagePostAuthor = channelPost ? session->user()->name : QString();
+	auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	auto messagePostAuthor = peer->isBroadcast() ? session->user()->name : QString();
 	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
@@ -272,23 +275,27 @@ bool SendDice(Api::MessageToSend &message) {
 
 	session->data().registerMessageRandomId(randomId, newId);
 
+	const auto views = 1;
+	const auto forwards = 0;
 	history->addNewMessage(
 		MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId.msg),
-			MTP_int(messageFromId),
+			peerToMTP(messageFromId),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
-			MTP_int(0),
-			MTP_int(replyTo),
+			MTPint(), // via_bot_id
+			replyHeader,
 			MTP_int(HistoryItem::NewMessageDate(
 				message.action.options.scheduled)),
 			MTP_string(),
 			MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
 			MTPReplyMarkup(),
 			MTP_vector<MTPMessageEntity>(),
-			MTP_int(1),
-			MTPint(),
+			MTP_int(views),
+			MTP_int(forwards),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(messagePostAuthor),
 			MTPlong(),
 			//MTPMessageReactions(),
@@ -387,9 +394,10 @@ void SendConfirmedFile(
 		| MTPDmessage::Flag::f_media;
 	auto clientFlags = NewMessageClientFlags();
 	if (file->to.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
+		flags |= MTPDmessage::Flag::f_reply_to;
 	}
-	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto replyHeader = NewMessageReplyHeader(action);
+	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = file->to.options.silent;
 	Api::FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
@@ -406,11 +414,13 @@ void SendConfirmedFile(
 		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
 	}
 
-	const auto messageFromId = channelPost ? 0 : session->userId();
-	const auto messagePostAuthor = channelPost
+	const auto messageFromId = anonymousPost ? 0 : session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name
 		: QString();
 
+	const auto views = 1;
+	const auto forwards = 0;
 	if (file->type == SendMediaType::Photo) {
 		const auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		const auto photo = MTP_messageMediaPhoto(
@@ -421,18 +431,20 @@ void SendConfirmedFile(
 		const auto mtpMessage = MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId.msg),
-			MTP_int(messageFromId),
+			peerToMTP(messageFromId),
 			peerToMTP(file->to.peer),
 			MTPMessageFwdHeader(),
 			MTPint(),
-			MTP_int(file->to.replyTo),
+			replyHeader,
 			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
 			MTP_string(caption.text),
 			photo,
 			MTPReplyMarkup(),
 			localEntities,
-			MTP_int(1),
-			MTPint(),
+			MTP_int(views),
+			MTP_int(forwards),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(messagePostAuthor),
 			MTP_long(groupId),
 			//MTPMessageReactions(),
@@ -457,18 +469,20 @@ void SendConfirmedFile(
 		const auto mtpMessage = MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId.msg),
-			MTP_int(messageFromId),
+			peerToMTP(messageFromId),
 			peerToMTP(file->to.peer),
 			MTPMessageFwdHeader(),
 			MTPint(),
-			MTP_int(file->to.replyTo),
+			replyHeader,
 			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
 			MTP_string(caption.text),
 			document,
 			MTPReplyMarkup(),
 			localEntities,
-			MTP_int(1),
-			MTPint(),
+			MTP_int(views),
+			MTP_int(forwards),
+			MTPMessageReplies(),
+			MTPint(), // edit_date
 			MTP_string(messagePostAuthor),
 			MTP_long(groupId),
 			//MTPMessageReactions(),
@@ -496,19 +510,21 @@ void SendConfirmedFile(
 			MTP_message(
 				MTP_flags(flags),
 				MTP_int(newId.msg),
-				MTP_int(messageFromId),
+				peerToMTP(messageFromId),
 				peerToMTP(file->to.peer),
 				MTPMessageFwdHeader(),
 				MTPint(),
-				MTP_int(file->to.replyTo),
+				replyHeader,
 				MTP_int(
 					HistoryItem::NewMessageDate(file->to.options.scheduled)),
 				MTP_string(caption.text),
 				document,
 				MTPReplyMarkup(),
 				localEntities,
-				MTP_int(1),
-				MTPint(),
+				MTP_int(views),
+				MTP_int(forwards),
+				MTPMessageReplies(),
+				MTPint(), // edit_date
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId),
 				//MTPMessageReactions(),

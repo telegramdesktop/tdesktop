@@ -258,7 +258,7 @@ void Instance::switchToId(const Language &data) {
 			value = PrepareTestValue(value, _id[5]);
 		}
 		if (!_derived) {
-			_updated.notify();
+			_updated.fire({});
 		}
 	}
 	updatePluralRules();
@@ -278,7 +278,7 @@ void Instance::setBaseId(const QString &baseId, const QString &pluralId) {
 void Instance::switchToCustomFile(const QString &filePath) {
 	if (loadFromCustomFile(filePath)) {
 		Local::writeLangPack();
-		_updated.notify();
+		_updated.fire({});
 	}
 }
 
@@ -667,9 +667,9 @@ void Instance::applyDifferenceToMe(
 		});
 	}
 	if (!_derived) {
-		_updated.notify();
+		_updated.fire({});
 	} else {
-		_derived->_updated.notify();
+		_derived->_updated.fire({});
 	}
 }
 
@@ -742,24 +742,38 @@ void Instance::resetValue(const QByteArray &key) {
 	}
 }
 
-Instance &Current() {
+Instance &GetInstance() {
 	return Core::App().langpack();
+}
+
+QString Id() {
+	return GetInstance().id();
+}
+
+rpl::producer<> Updated() {
+	return GetInstance().updated();
+}
+
+QString GetNonDefaultValue(const QByteArray &key) {
+	return GetInstance().getNonDefaultValue(key);
 }
 
 namespace details {
 
 QString Current(ushort key) {
-	return Lang::Current().getValue(key);
+	return GetInstance().getValue(key);
 }
 
-rpl::producer<QString> Viewer(ushort key) {
+rpl::producer<QString> Value(ushort key) {
 	return rpl::single(
-		Lang::Current().getValue(key)
-	) | then(base::ObservableViewer(
-		Lang::Current().updated()
-	) | rpl::map([=] {
-		return Lang::Current().getValue(key);
-	}));
+		Current(key)
+	) | then(
+		Updated() | rpl::map([=] { return Current(key); })
+	);
+}
+
+bool IsNonDefaultPlural(ushort keyBase) {
+	return GetInstance().isNonDefaultPlural(keyBase);
 }
 
 } // namespace details

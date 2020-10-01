@@ -41,7 +41,7 @@ private:
 	void updateTitleAndButtons();
 	void updateButtons();
 	void addStickers();
-	void shareStickers();
+	void copyStickersLink();
 
 	const not_null<Window::SessionController*> _controller;
 	MTPInputStickerSet _set;

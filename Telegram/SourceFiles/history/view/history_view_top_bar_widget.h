@@ -32,6 +32,8 @@ class SessionController;
 
 namespace HistoryView {
 
+class SendActionPainter;
+
 class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
 public:
 	struct SelectedState {
@@ -44,6 +46,7 @@ public:
 	enum class Section {
 		History,
 		Scheduled,
+		Replies,
 	};
 
 	TopBarWidget(
@@ -61,7 +64,11 @@ public:
 	}
 	void setAnimatingMode(bool enabled);
 
-	void setActiveChat(Dialogs::Key chat, Section section);
+	void setActiveChat(
+		Dialogs::Key chat,
+		Section section,
+		SendActionPainter *sendAction);
+	void setCustomTitle(const QString &title);
 
 	rpl::producer<> oldForwardSelectionRequest() const {
 		return _oldForwardSelection.events();
@@ -134,6 +141,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	Dialogs::Key _activeChat;
 	Section _section = Section::History;
+	QString _customTitleText;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;
@@ -166,6 +174,8 @@ private:
 	int _rightTaken = 0;
 	bool _animatingMode = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
+
+	SendActionPainter *_sendAction = nullptr;
 
 	base::Timer _onlineUpdater;
 

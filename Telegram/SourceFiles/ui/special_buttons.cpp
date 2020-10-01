@@ -675,6 +675,13 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			photoPosition.y(),
 			width(),
 			_st.photoSize);
+	} else if (showRepliesMessages()) {
+		Ui::EmptyUserpic::PaintRepliesMessages(
+			p,
+			photoPosition.x(),
+			photoPosition.y(),
+			width(),
+			_st.photoSize);
 	} else {
 		if (_a_appearance.animating()) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
@@ -865,7 +872,7 @@ void UserpicButton::clearStreaming() {
 void UserpicButton::handleStreamingUpdate(Media::Streaming::Update &&update) {
 	using namespace Media::Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {
@@ -1030,6 +1037,10 @@ void UserpicButton::showSavedMessagesOnSelf(bool enabled) {
 
 bool UserpicButton::showSavedMessages() const {
 	return _showSavedMessagesOnSelf && _peer && _peer->isSelf();
+}
+
+bool UserpicButton::showRepliesMessages() const {
+	return _showSavedMessagesOnSelf && _peer && _peer->isRepliesChat();
 }
 
 void UserpicButton::startChangeOverlayAnimation() {

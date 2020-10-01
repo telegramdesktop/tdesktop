@@ -812,6 +812,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
 "lng_profile_view_channel" = "View Channel";
+"lng_profile_view_discussion" = "View discussion";
 "lng_profile_join_channel" = "Join Channel";
 "lng_profile_join_group" = "Join Group";
 "lng_profile_delete_and_exit" = "Leave";
@@ -1319,6 +1320,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
+"lng_send_anonymous_ph" = "Send anonymously...";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
@@ -1330,7 +1332,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restart_button" = "Restart";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
-"lng_channel_discuss" = "Discuss";
 "lng_saved_messages" = "Saved Messages";
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
@@ -1343,6 +1344,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scheduled_send_now" = "Send message now?";
 "lng_scheduled_send_now_many#one" = "Send {count} message now?";
 "lng_scheduled_send_now_many#other" = "Send {count} messages now?";
+
+"lng_replies_view#one" = "View {count} Reply";
+"lng_replies_view#other" = "View {count} Replies";
+"lng_replies_view_thread" = "View Thread";
+"lng_replies_header#one" = "{count} reply";
+"lng_replies_header#other" = "{count} replies";
+"lng_replies_header_none" = "Replies";
+"lng_comments_header#one" = "{count} comment";
+"lng_comments_header#other" = "{count} comments";
+"lng_comments_header_none" = "Comments";
+"lng_comments_open_count#one" = "{count} comment";
+"lng_comments_open_count#other" = "{count} comments";
+"lng_comments_open_none" = "Leave a comment";
+"lng_replies_view_original" = "View in chat";
+"lng_replies_messages" = "Replies";
+"lng_replies_discussion_started" = "Discussion started";
+"lng_replies_no_comments" = "No comments here yet...";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
@@ -1439,6 +1457,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_unpin_from_top" = "Unpin from top";
 "lng_context_mark_unread" = "Mark as unread";
 "lng_context_mark_read" = "Mark as read";
+"lng_context_mark_read_sure" = "Are you sure you want to mark all chats from this folder as read?";
+"lng_context_mark_read_all" = "Mark all chats as read";
+"lng_context_mark_read_all_sure" = "Are you sure you want to mark all chats as read?";
 "lng_context_archive_expand" = "Expand";
 "lng_context_archive_collapse" = "Collapse";
 "lng_context_archive_to_menu" = "Move to main menu";
@@ -1823,6 +1844,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_group_invite" = "Add users";
 "lng_rights_group_pin" = "Pin messages";
 "lng_rights_group_delete" = "Delete messages";
+"lng_rights_group_anonymous" = "Remain Anonymous";
 "lng_rights_add_admins" = "Add new admins";
 "lng_rights_chat_read" = "Read messages";
 "lng_rights_chat_send_text" = "Send messages";
@@ -1854,6 +1876,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_transfer_password_description" = "Please enter your password to complete the transfer.";
 "lng_rights_transfer_done_group" = "{user} is now the owner of the group.";
 "lng_rights_transfer_done_channel" = "{user} is now the owner of the channel.";
+
+"lng_bots_password_confirm_check_about" = "You can finish this action only if you have:";
+"lng_bots_password_confirm_title" = "Two-step verification";
+"lng_bots_password_confirm_description" = "Please enter your password to confirm the action.";
 
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
 "lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";

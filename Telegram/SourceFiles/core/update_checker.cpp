@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
+#include "core/changelogs.h"
 #include "core/click_handler_types.h"
 #include "mainwindow.h"
 #include "main/main_account.h"
@@ -448,7 +449,7 @@ bool UnpackUpdate(const QString &filepath) {
 
 		// create tdata/version file
 		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
-		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
+		std::wstring versionString = FormatVersionDisplay(version).toStdWString();
 
 		const auto versionNum = VersionInt(version);
 		const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));

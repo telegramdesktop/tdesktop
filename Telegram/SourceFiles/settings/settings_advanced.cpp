@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/format_values.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "layout.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_settings.h"
@@ -43,20 +43,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-bool HasConnectionType() {
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	return true;
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
-	return false;
-}
-
 void SetupConnectionType(
 		not_null<Main::Account*> account,
 		not_null<Ui::VerticalLayout*> container) {
-	if (!HasConnectionType()) {
-		return;
-	}
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [=] {
 		const auto transport = account->mtp().dctransport();
 		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
@@ -81,7 +70,6 @@ void SetupConnectionType(
 	button->addClickHandler([=] {
 		Ui::show(ProxiesBoxController::CreateOwningBox(account));
 	});
-#endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
 
 bool HasUpdate() {
@@ -148,7 +136,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		texts->fire(tr::lng_settings_downloading_update(
 			tr::now,
 			lt_progress,
-			formatDownloadText(ready, total)));
+			Ui::FormatDownloadText(ready, total)));
 		downloading->fire(true);
 	};
 	const auto setDefaultStatus = [=](const Core::UpdateChecker &checker) {
@@ -571,13 +559,11 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (!cAutoUpdate()) {
 		addUpdate();
 	}
-	if (HasConnectionType()) {
-		addDivider();
-		AddSkip(content);
-		AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-		SetupConnectionType(&controller->session().account(), content);
-		AddSkip(content);
-	}
+	addDivider();
+	AddSkip(content);
+	AddSubsectionTitle(content, tr::lng_settings_network_proxy());
+	SetupConnectionType(&controller->session().account(), content);
+	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
 	SetupSystemIntegration(content, [=](Type type) {

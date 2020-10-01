@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
+#include "lang/lang_instance.h"
 #include "facades.h"
 
 #include <QtCore/QDirIterator>
@@ -1097,7 +1098,7 @@ void readLangPack() {
 	auto data = QByteArray();
 	langpack.stream >> data;
 	if (langpack.stream.status() == QDataStream::Ok) {
-		Lang::Current().fillFromSerialized(data, langpack.version);
+		Lang::GetInstance().fillFromSerialized(data, langpack.version);
 	}
 	QString langPackBaseId = Lang::Current().baseId();
 	QString langPackId = Lang::Current().id();
@@ -1106,7 +1107,7 @@ void readLangPack() {
 }
 
 void writeLangPack() {
-	auto langpack = Lang::Current().serialize();
+	auto langpack = Lang::GetInstance().serialize();
 	if (!_langPackKey) {
 		_langPackKey = GenerateKey(_basePath);
 		writeSettings();

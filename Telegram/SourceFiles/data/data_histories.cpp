@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_folder.h"
+#include "data/data_scheduled_messages.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
@@ -624,6 +625,56 @@ void Histories::deleteAllMessages(
 	});
 }
 
+void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
+	auto remove = std::vector<not_null<HistoryItem*>>();
+	remove.reserve(ids.size());
+	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
+	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
+	for (const auto itemId : ids) {
+		if (const auto item = _owner->message(itemId)) {
+			const auto history = item->history();
+			if (item->isScheduled()) {
+				const auto wasOnServer = !item->isSending()
+					&& !item->hasFailed();
+				if (wasOnServer) {
+					scheduledIdsByPeer[history->peer].push_back(MTP_int(
+						_owner->scheduledMessages().lookupId(item)));
+				} else {
+					_owner->scheduledMessages().removeSending(item);
+				}
+				continue;
+			}
+			remove.push_back(item);
+			if (IsServerMsgId(item->id)) {
+				idsByPeer[history].push_back(MTP_int(itemId.msg));
+			}
+		}
+	}
+
+	for (const auto &[history, ids] : idsByPeer) {
+		history->owner().histories().deleteMessages(history, ids, revoke);
+	}
+	for (const auto &[peer, ids] : scheduledIdsByPeer) {
+		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
+			peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([peer = peer](const MTPUpdates &result) {
+			peer->session().api().applyUpdates(result);
+		}).send();
+	}
+
+	for (const auto item : remove) {
+		const auto history = item->history();
+		const auto wasLast = (history->lastMessage() == item);
+		const auto wasInChats = (history->chatListMessage() == item);
+		item->destroy();
+
+		if (wasLast || wasInChats) {
+			history->requestChatListMessage();
+		}
+	}
+}
+
 int Histories::sendRequest(
 		not_null<History*> history,
 		RequestType type,
@@ -676,6 +727,9 @@ void Histories::checkPostponed(not_null<History*> history, int id) {
 }
 
 void Histories::cancelRequest(int id) {
+	if (!id) {
+		return;
+	}
 	const auto history = _historyByRequest.take(id);
 	if (!history) {
 		return;

@@ -42,6 +42,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 	session,
 	toFile,
 	size,
+	size,
 	locationType,
 	toCache,
 	fromCloud,
@@ -107,7 +108,7 @@ void StreamedFileDownloader::requestPart() {
 }
 
 QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
-	Expects(offset >= 0 && offset < _size);
+	Expects(offset >= 0 && offset < _fullSize);
 	Expects(!(offset % kPartSize));
 
 	const auto index = (offset / kPartSize);

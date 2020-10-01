@@ -19,7 +19,12 @@ class GenericBox;
 
 namespace Data {
 class Folder;
+class Session;
 } // namespace Data
+
+namespace Dialogs {
+class MainList;
+} // namespace Dialogs
 
 namespace Window {
 
@@ -54,6 +59,14 @@ void PeerMenuAddMuteAction(
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction);
 
+void MenuAddMarkAsReadAllChatsAction(
+	not_null<Data::Session*> data,
+	const PeerMenuCallback &addAction);
+
+void MenuAddMarkAsReadChatListAction(
+	Fn<not_null<Dialogs::MainList*>()> &&list,
+	const PeerMenuCallback &addAction);
+
 void PeerMenuExportChat(not_null<PeerData*> peer);
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(
@@ -69,11 +82,18 @@ void PeerMenuCreatePoll(
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal);
+
+struct ClearChat {
+};
+struct ClearReply {
+	FullMsgId replyId;
+};
 void PeerMenuBlockUserBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
-	not_null<UserData*> user,
-	bool suggestClearChat);
+	not_null<PeerData*> peer,
+	std::variant<v::null_t, bool> suggestReport,
+	std::variant<v::null_t, ClearChat, ClearReply> suggestClear);
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);

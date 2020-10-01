@@ -170,6 +170,8 @@ ExceptionRow::ExceptionRow(not_null<History*> history) : Row(history) {
 QString ExceptionRow::generateName() {
 	return peer()->isSelf()
 		? tr::lng_saved_messages(tr::now)
+		: peer()->isRepliesChat()
+		? tr::lng_replies_messages(tr::now)
 		: Row::generateName();
 }
 
@@ -180,10 +182,13 @@ QString ExceptionRow::generateShortName() {
 PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
+	const auto replies = peer->isRepliesChat();
 	auto userpic = saved ? nullptr : ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		} else if (replies) {
+			Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
 		} else {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}

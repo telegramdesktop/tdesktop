@@ -34,18 +34,32 @@ struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryIte
 };
 
 struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
-	QString _viewsText;
-	int _views = 0;
-	int _viewsWidth = 0;
+	static constexpr auto kMaxRecentRepliers = 3;
+
+	struct Part {
+		QString text;
+		int textWidth = 0;
+		int count = -1;
+	};
+	std::vector<PeerId> recentRepliers;
+	Part views;
+	Part replies;
+	Part repliesSmall;
+	MsgId repliesInboxReadTillId = 0;
+	MsgId repliesOutboxReadTillId = 0;
+	MsgId repliesMaxId = 0;
+	ChannelId commentsMegagroupId = 0;
+	MsgId commentsRootId = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
 	void refresh(const QString &date);
 	int maxWidth() const;
 
-	bool isElided = false;
 	QString author;
 	Ui::Text::String signature;
+	bool isElided = false;
+	bool isAnonymousRank = false;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
@@ -95,7 +109,9 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
 	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
+		replyToPeerId = other.replyToPeerId;
 		replyToMsgId = other.replyToMsgId;
+		replyToMsgTop = other.replyToMsgTop;
 		replyToDocumentId = other.replyToDocumentId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
@@ -136,8 +152,14 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		int w,
 		PaintFlags flags) const;
 
+	[[nodiscard]] PeerId replyToPeer() const {
+		return replyToPeerId;
+	}
 	[[nodiscard]] MsgId replyToId() const {
 		return replyToMsgId;
+	}
+	[[nodiscard]] MsgId replyToTop() const {
+		return replyToMsgTop;
 	}
 	[[nodiscard]] int replyToWidth() const {
 		return maxReplyWidth;
@@ -150,7 +172,9 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 
 	void refreshReplyToDocument();
 
+	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
+	MsgId replyToMsgTop = 0;
 	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
 	ClickHandlerPtr replyToLnk;
@@ -167,6 +191,7 @@ struct HistoryMessageMarkupButton {
 		Default,
 		Url,
 		Callback,
+		CallbackWithPassword,
 		RequestPhone,
 		RequestLocation,
 		RequestPoll,

@@ -115,6 +115,22 @@ auto GenerateCodes() {
 			}
 		});
 	});
+	codes.emplace(qsl("testmode"), [](SessionController *window) {
+		auto &domain = Core::App().domain();
+		if (domain.started()
+			&& (domain.accounts().size() == 1)
+			&& !domain.active().sessionExists()) {
+			const auto environment = domain.active().mtp().environment();
+			domain.addActivated([&] {
+				return (environment == MTP::Environment::Production)
+					? MTP::Environment::Test
+					: MTP::Environment::Production;
+			}());
+			Ui::Toast::Show((environment == MTP::Environment::Production)
+				? "Switched to the test environment."
+				: "Switched to the production environment.");
+		}
+	});
 	codes.emplace(qsl("folders"), [](SessionController *window) {
 		if (window) {
 			window->showSettings(Settings::Type::Folders);
@@ -128,13 +144,10 @@ auto GenerateCodes() {
 			Ui::hideLayer();
 		}));
 	});
-
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	codes.emplace(qsl("registertg"), [](SessionController *window) {
 		Platform::RegisterCustomScheme(true);
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
-#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 
 #if defined Q_OS_WIN || defined Q_OS_MAC
 	codes.emplace(qsl("freetype"), [](SessionController *window) {

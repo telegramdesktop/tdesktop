@@ -55,7 +55,16 @@ public:
 	void update(
 		not_null<History*> history,
 		SendProgressType type,
-		int32 progress = 0);
+		int progress = 0);
+	void update(
+		not_null<History*> history,
+		MsgId topMsgId,
+		SendProgressType type,
+		int progress = 0);
+	void cancel(
+		not_null<History*> history,
+		MsgId topMsgId,
+		SendProgressType type);
 	void cancel(
 		not_null<History*> history,
 		SendProgressType type);
@@ -64,22 +73,26 @@ public:
 private:
 	struct Key {
 		not_null<History*> history;
+		MsgId topMsgId = 0;
 		SendProgressType type = SendProgressType();
 
 		inline bool operator<(const Key &other) const {
 			return (history < other.history)
-				|| (history == other.history && type < other.type);
+				|| (history == other.history && topMsgId < other.topMsgId)
+				|| (history == other.history
+					&& topMsgId == other.topMsgId
+					&& type < other.type);
 		}
 	};
 
-	void send(
-		not_null<History*> history,
-		SendProgressType type,
-		int32 progress);
+	bool updated(const Key &key, bool doing);
+
+	void send(const Key &key, int progress);
 	void done(const MTPBool &result, mtpRequestId requestId);
 
 	const not_null<Main::Session*> _session;
 	base::flat_map<Key, mtpRequestId> _requests;
+	base::flat_map<Key, crl::time> _updated;
 	base::Timer _stopTypingTimer;
 	History *_stopTypingHistory = nullptr;
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
 #include "main/main_session.h"
+#include "history/view/history_view_send_action.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -39,7 +40,7 @@ constexpr int kRecentlyInSeconds = 20 * 3600;
 const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 bool ShowUserBotIcon(not_null<UserData*> user) {
-	return user->isBot() && !user->isSupport();
+	return user->isBot() && !user->isSupport() && !user->isRepliesChat();
 }
 
 void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
@@ -209,7 +210,8 @@ enum class Flag {
 	Selected         = 0x02,
 	SearchResult     = 0x04,
 	SavedMessages    = 0x08,
-	AllowUserOnline  = 0x10,
+	RepliesMessages  = 0x10,
+	AllowUserOnline  = 0x20,
 	//FeedSearchResult = 0x10, // #feed
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
@@ -252,6 +254,13 @@ void paintRow(
 
 	if (flags & Flag::SavedMessages) {
 		Ui::EmptyUserpic::PaintSavedMessages(
+			p,
+			st::dialogsPadding.x(),
+			st::dialogsPadding.y(),
+			fullWidth,
+			st::dialogsPhotoSize);
+	} else if (flags & Flag::RepliesMessages) {
+		Ui::EmptyUserpic::PaintRepliesMessages(
 			p,
 			st::dialogsPadding.x(),
 			st::dialogsPadding.y(),
@@ -305,8 +314,7 @@ void paintRow(
 		const auto type = history->topPromotionType();
 		const auto custom = type.isEmpty()
 			? QString()
-			: Lang::Current().getNonDefaultValue(
-				kPsaBadgePrefix + type.toUtf8());
+			: Lang::GetNonDefaultValue(kPsaBadgePrefix + type.toUtf8());
 		const auto text = type.isEmpty()
 			? tr::lng_proxy_sponsor(tr::now)
 			: custom.isEmpty()
@@ -354,7 +362,7 @@ void paintRow(
 
 		p.setFont(st::dialogsTextFont);
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
@@ -381,7 +389,7 @@ void paintRow(
 
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
@@ -433,8 +441,10 @@ void paintRow(
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}
 
-	if (flags & Flag::SavedMessages) {
-		auto text = tr::lng_saved_messages(tr::now);
+	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
+		auto text = (flags & Flag::SavedMessages)
+			? tr::lng_saved_messages(tr::now)
+			: tr::lng_replies_messages(tr::now);
 		const auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());
@@ -701,7 +711,8 @@ void RowPainter::paint(
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
 		| (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
-		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0));
+		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
+		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = st::dialogsPadding.y()
 			+ st::msgNameFont->height
@@ -730,7 +741,7 @@ void RowPainter::paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		const auto actionWasPainted = history ? history->paintSendAction(
+		const auto actionWasPainted = history ? history->sendActionPainter()->paint(
 			p,
 			itemRect.x(),
 			itemRect.y(),
@@ -881,10 +892,13 @@ void RowPainter::paint(
 	};
 	const auto showSavedMessages = history->peer->isSelf()
 		&& !row->searchInChat();
+	const auto showRepliesMessages = history->peer->isRepliesChat()
+		&& !row->searchInChat();
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
 		| Flag::SearchResult
-		| (showSavedMessages ? Flag::SavedMessages : Flag(0))/* // #feed
+		| (showSavedMessages ? Flag::SavedMessages : Flag(0))
+		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0))/* // #feed
 		| (row->searchInChat().feed() ? Flag::FeedSearchResult : Flag(0))*/;
 	paintRow(
 		p,

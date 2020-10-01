@@ -130,11 +130,12 @@ private:
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 
-	inline int calculateFullRight(const QRect &inner) const;
-	inline QPoint calculateFastActionPosition(
+	int calculateFullRight(const QRect &inner) const;
+	QPoint calculateFastActionPosition(
 		int fullBottom,
 		int replyRight,
-		int fullRight) const;
+		int fullRight,
+		QSize size) const;
 
 	const HistoryMessageForwarded *getDisplayedForwardedInfo() const;
 

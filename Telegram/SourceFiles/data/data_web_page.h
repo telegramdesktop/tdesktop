@@ -29,7 +29,7 @@ enum class WebPageType {
 WebPageType ParseWebPageType(const MTPDwebPage &type);
 
 struct WebPageCollage {
-	using Item = base::variant<PhotoData*, DocumentData*>;
+	using Item = std::variant<PhotoData*, DocumentData*>;
 
 	WebPageCollage() = default;
 	explicit WebPageCollage(

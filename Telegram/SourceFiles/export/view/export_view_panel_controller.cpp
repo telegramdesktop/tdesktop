@@ -306,7 +306,7 @@ void PanelController::showProgress() {
 
 	progress->doneClicks(
 	) | rpl::start_with_next([=] {
-		if (const auto finished = base::get_if<FinishedState>(&_state)) {
+		if (const auto finished = std::get_if<FinishedState>(&_state)) {
 			File::ShowInFolder(finished->path);
 			LOG(("Export Info: Panel Hide By Done: %1."
 				).arg(finished->path));
@@ -319,7 +319,7 @@ void PanelController::showProgress() {
 }
 
 void PanelController::stopWithConfirmation(FnMut<void()> callback) {
-	if (!_state.is<ProcessingState>()) {
+	if (!v::is<ProcessingState>(_state)) {
 		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();
 		if (callback) {
@@ -367,7 +367,7 @@ rpl::producer<> PanelController::stopRequests() const {
 	return _panelCloseEvents.events(
 	) | rpl::flatten_latest(
 	) | rpl::filter([=] {
-		return !_state.is<ProcessingState>() || _stopRequested;
+		return !v::is<ProcessingState>(_state) || _stopRequested;
 	});
 }
 
@@ -376,21 +376,21 @@ void PanelController::fillParams(const PasswordCheckState &state) {
 }
 
 void PanelController::updateState(State &&state) {
-	if (const auto start = base::get_if<PasswordCheckState>(&state)) {
+	if (const auto start = std::get_if<PasswordCheckState>(&state)) {
 		fillParams(*start);
 	}
 	if (!_panel) {
 		createPanel();
 	}
 	_state = std::move(state);
-	if (const auto apiError = base::get_if<ApiErrorState>(&_state)) {
+	if (const auto apiError = std::get_if<ApiErrorState>(&_state)) {
 		showError(*apiError);
-	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
+	} else if (const auto error = std::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
-	} else if (_state.is<FinishedState>()) {
+	} else if (v::is<FinishedState>(_state)) {
 		_panel->setTitle(tr::lng_export_title());
 		_panel->setHideOnDeactivate(false);
-	} else if (_state.is<CancelledState>()) {
+	} else if (v::is<CancelledState>(_state)) {
 		LOG(("Export Info: Stop Panel After Cancel."));
 		stopExport();
 	}

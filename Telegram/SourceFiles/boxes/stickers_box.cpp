@@ -179,7 +179,7 @@ private:
 			return false;
 		}
 	};
-	using SelectedRow = base::optional_variant<MegagroupSet, int>;
+	using SelectedRow = std::variant<v::null_t, MegagroupSet, int>;
 	class AddressField : public Ui::UsernameInput {
 	public:
 		using UsernameInput::UsernameInput;
@@ -1101,7 +1101,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 
 	if (_megagroupSet) {
 		auto selectedIndex = [&] {
-			if (auto index = base::get_if<int>(&_selected)) {
+			if (auto index = std::get_if<int>(&_selected)) {
 				return *index;
 			}
 			return -1;
@@ -1341,7 +1341,7 @@ void StickersBox::Inner::mousePressEvent(QMouseEvent *e) {
 	if (_actionSel >= 0) {
 		setActionDown(_actionSel);
 		update(0, _itemsTop + _actionSel * _rowHeight, width(), _rowHeight);
-	} else if (auto selectedIndex = base::get_if<int>(&_selected)) {
+	} else if (auto selectedIndex = std::get_if<int>(&_selected)) {
 		if (_section == Section::Installed && !_rows[*selectedIndex]->isRecentSet() && _inDragArea) {
 			_above = _dragging = _started = *selectedIndex;
 			_dragStart = mapFromGlobal(_mouse);
@@ -1394,7 +1394,7 @@ void StickersBox::Inner::setSelected(SelectedRow selected) {
 		return;
 	}
 	auto countSelectedIndex = [&] {
-		if (auto index = base::get_if<int>(&_selected)) {
+		if (auto index = std::get_if<int>(&_selected)) {
 			return *index;
 		}
 		return -1;
@@ -1416,7 +1416,7 @@ void StickersBox::Inner::setPressed(SelectedRow pressed) {
 		return;
 	}
 	auto countPressedIndex = [&] {
-		if (auto index = base::get_if<int>(&_pressed)) {
+		if (auto index = std::get_if<int>(&_pressed)) {
 			return *index;
 		}
 		return -1;
@@ -1544,7 +1544,7 @@ void StickersBox::Inner::updateCursor() {
 		? ((_actionSel >= 0 && (_actionDown < 0 || _actionDown == _actionSel))
 			? style::cur_pointer
 			: style::cur_default)
-		: (_selected.has_value() || _pressed.has_value())
+		: (!v::is_null(_selected) || !v::is_null(_pressed))
 		? style::cur_pointer
 		: style::cur_default);
 }
@@ -1582,7 +1582,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		_dragging = _started = -1;
 	} else if (pressed == _selected && _actionSel < 0 && _actionDown < 0) {
 		const auto selectedIndex = [&] {
-			if (auto index = base::get_if<int>(&_selected)) {
+			if (auto index = std::get_if<int>(&_selected)) {
 				return *index;
 			}
 			return -1;
@@ -1602,7 +1602,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					showSetByRow(*row);
 				}
 			}
-		} else if (_megagroupSelectedSet && _selected.is<MegagroupSet>()) {
+		} else if (_megagroupSelectedSet && v::is<MegagroupSet>(_selected)) {
 			showSetByRow(*_megagroupSelectedSet);
 		}
 	}

@@ -599,11 +599,8 @@ void CloudList::showMenu(Element &element) {
 	}
 	const auto id = cloud.id;
 	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto remove = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
+		const auto remove = [=](Fn<void()> &&close) {
+			close();
 			if (Background()->themeObject().cloud.id == id
 				|| id == kFakeCloudThemeId) {
 				if (Background()->editingTheme().has_value()) {
@@ -618,7 +615,7 @@ void CloudList::showMenu(Element &element) {
 				_window->session().data().cloudThemes().remove(id);
 			}
 		};
-		*box = _window->window().show(Box<ConfirmBox>(
+		_window->window().show(Box<ConfirmBox>(
 			tr::lng_theme_delete_sure(tr::now),
 			tr::lng_theme_delete(tr::now),
 			remove));

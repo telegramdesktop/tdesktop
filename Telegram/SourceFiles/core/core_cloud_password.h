@@ -31,7 +31,7 @@ inline bool operator==(
 		&& (a.p == b.p);
 }
 
-using CloudPasswordAlgo = base::optional_variant<CloudPasswordAlgoModPow>;
+using CloudPasswordAlgo = std::variant<v::null_t, CloudPasswordAlgoModPow>;
 
 CloudPasswordAlgo ParseCloudPasswordAlgo(const MTPPasswordKdfAlgo &data);
 CloudPasswordAlgo ValidateNewCloudPasswordAlgo(CloudPasswordAlgo &&parsed);
@@ -43,7 +43,7 @@ struct CloudPasswordCheckRequest {
 	CloudPasswordAlgo algo;
 
 	explicit operator bool() const {
-		return !!algo;
+		return !v::is_null(algo);
 	}
 };
 
@@ -106,7 +106,8 @@ inline bool operator==(
 	return (a.salt == b.salt);
 }
 
-using SecureSecretAlgo = base::optional_variant<
+using SecureSecretAlgo = std::variant<
+	v::null_t,
 	SecureSecretAlgoSHA512,
 	SecureSecretAlgoPBKDF2>;
 

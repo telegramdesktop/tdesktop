@@ -82,17 +82,39 @@ int PhotoData::validSizeIndex(PhotoSize size) const {
 	return PhotoSizeIndex(PhotoSize::Large);
 }
 
+int PhotoData::existingSizeIndex(PhotoSize size) const {
+	const auto index = PhotoSizeIndex(size);
+	for (auto i = index; i != kPhotoSizeCount; ++i) {
+		if (_images[i].location.valid() || _images[i].progressivePartSize) {
+			return i;
+		}
+	}
+	return PhotoSizeIndex(PhotoSize::Large);
+}
+
 bool PhotoData::hasExact(PhotoSize size) const {
 	return _images[PhotoSizeIndex(size)].location.valid();
 }
 
 bool PhotoData::loading(PhotoSize size) const {
-	return (_images[validSizeIndex(size)].loader != nullptr);
+	const auto valid = validSizeIndex(size);
+	const auto existing = existingSizeIndex(size);
+	if (!_images[valid].loader) {
+		return false;
+	} else if (valid == existing) {
+		return true;
+	}
+	return (_images[valid].loader->loadSize()
+		>= _images[existing].progressivePartSize);
 }
 
 bool PhotoData::failed(PhotoSize size) const {
 	const auto flags = _images[validSizeIndex(size)].flags;
 	return (flags & Data::CloudFile::Flag::Failed);
+}
+
+void PhotoData::clearFailed(PhotoSize size) {
+	_images[validSizeIndex(size)].flags &= ~Data::CloudFile::Flag::Failed;
 }
 
 const ImageLocation &PhotoData::location(PhotoSize size) const {
@@ -117,15 +139,20 @@ std::optional<QSize> PhotoData::size(PhotoSize size) const {
 }
 
 int PhotoData::imageByteSize(PhotoSize size) const {
+	const auto existing = existingSizeIndex(size);
+	if (const auto result = _images[existing].progressivePartSize) {
+		return result;
+	}
 	return _images[validSizeIndex(size)].byteSize;
 }
 
 bool PhotoData::displayLoading() const {
 	const auto index = PhotoSizeIndex(PhotoSize::Large);
-	return _images[index].loader
-		? (!_images[index].loader->loadingLocal()
-			|| !_images[index].loader->autoLoading())
-		: (uploading() && !waitingForAlbum());
+	if (const auto loader = _images[index].loader.get()) {
+		return !loader->finished()
+			&& (!loader->loadingLocal() || !loader->autoLoading());
+	}
+	return (uploading() && !waitingForAlbum());
 }
 
 void PhotoData::cancel() {
@@ -235,10 +262,11 @@ void PhotoData::load(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	const auto index = validSizeIndex(size);
+	const auto valid = validSizeIndex(size);
+	const auto existing = existingSizeIndex(size);
 
 	// Could've changed, if the requested size didn't have a location.
-	const auto loadingSize = static_cast<PhotoSize>(index);
+	const auto validSize = static_cast<PhotoSize>(valid);
 	const auto finalCheck = [=] {
 		if (const auto active = activeMediaView()) {
 			return !active->image(size);
@@ -246,26 +274,41 @@ void PhotoData::load(
 		return true;
 	};
 	const auto done = [=](QImage result) {
-		if (const auto active = activeMediaView()) {
-			active->set(loadingSize, std::move(result));
+		Expects(_images[valid].loader != nullptr);
+
+		// Find out what progressive photo size have we loaded exactly.
+		auto goodFor = validSize;
+		const auto loadSize = _images[valid].loader->loadSize();
+		if (valid > 0 && _images[valid].byteSize > loadSize) {
+			for (auto i = valid; i != 0;) {
+				--i;
+				const auto required = _images[i].progressivePartSize;
+				if (required > 0 && required <= loadSize) {
+					goodFor = static_cast<PhotoSize>(i);
+					break;
+				}
+			}
 		}
-		if (loadingSize == PhotoSize::Large) {
+		if (const auto active = activeMediaView()) {
+			active->set(validSize, goodFor, std::move(result));
+		}
+		if (validSize == PhotoSize::Large && goodFor == validSize) {
 			_owner->photoLoadDone(this);
 		}
 	};
 	const auto fail = [=](bool started) {
-		if (loadingSize == PhotoSize::Large) {
+		if (validSize == PhotoSize::Large) {
 			_owner->photoLoadFail(this, started);
 		}
 	};
 	const auto progress = [=] {
-		if (loadingSize == PhotoSize::Large) {
+		if (validSize == PhotoSize::Large) {
 			_owner->photoLoadProgress(this);
 		}
 	};
 	Data::LoadCloudFile(
 		&session(),
-		_images[index],
+		_images[valid],
 		origin,
 		fromCloud,
 		autoLoading,
@@ -273,7 +316,8 @@ void PhotoData::load(
 		finalCheck,
 		done,
 		fail,
-		progress);
+		progress,
+		_images[existing].progressivePartSize);
 
 	if (size == PhotoSize::Large) {
 		_owner->notifyPhotoLayoutChanged(this);
@@ -313,7 +357,7 @@ void PhotoData::updateImages(
 			[=](Data::FileOrigin origin) { load(size, origin); },
 			[=](QImage preloaded) {
 				if (const auto media = activeMediaView()) {
-					media->set(size, data.preloaded);
+					media->set(size, size, data.preloaded);
 				}
 			});
 	};
@@ -401,10 +445,10 @@ auto PhotoData::createStreamingLoader(
 			return Media::Streaming::MakeBytesLoader(media->videoContent());
 		}
 	}
-	return videoLocation().file().data.is<StorageFileLocation>()
+	return v::is<StorageFileLocation>(videoLocation().file().data)
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().downloader(),
-			videoLocation().file().data.get_unchecked<StorageFileLocation>(),
+			v::get<StorageFileLocation>(videoLocation().file().data),
 			videoByteSize(),
 			origin)
 		: nullptr;
@@ -428,6 +472,7 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	if (!data->date) {
 		return;
 	} else {
+		data->clearFailed(PhotoSize::Large);
 		data->load(context());
 	}
 }

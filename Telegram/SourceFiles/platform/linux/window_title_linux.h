@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_window_title.h"
+#include "platform/linux/linux_desktop_environment.h"
+#include "base/platform/base_platform_info.h"
 #include "base/object_ptr.h"
 
 namespace Window {
@@ -22,7 +24,8 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 namespace Platform {
 
 inline bool AllowNativeWindowFrameToggle() {
-	return true;
+	// https://gitlab.gnome.org/GNOME/mutter/-/issues/217
+	return !(DesktopEnvironment::IsGnome() && IsWayland());
 }
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {

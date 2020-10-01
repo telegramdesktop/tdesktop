@@ -148,11 +148,11 @@ public:
 	void setIsSearchResult(bool isSearchResult) {
 		_isSearchResult = isSearchResult;
 	}
-	bool isSavedMessagesChat() const {
-		return _isSavedMessagesChat;
-	}
 	void setIsSavedMessagesChat(bool isSavedMessagesChat) {
 		_isSavedMessagesChat = isSavedMessagesChat;
+	}
+	void setIsRepliesMessagesChat(bool isRepliesMessagesChat) {
+		_isRepliesMessagesChat = isRepliesMessagesChat;
 	}
 
 	template <typename UpdateCallback>
@@ -236,6 +236,7 @@ private:
 	bool _initialized : 1;
 	bool _isSearchResult : 1;
 	bool _isSavedMessagesChat : 1;
+	bool _isRepliesMessagesChat : 1;
 
 };
 

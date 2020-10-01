@@ -85,7 +85,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     move ossl_static.pdb out32.dbg\ossl_static
     nmake clean
     move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
-    perl Configure no-shared VC-WIN32
+    perl Configure no-shared no-tests VC-WIN32
     nmake
     mkdir out32
     move libcrypto.lib out32
@@ -104,7 +104,12 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd openal-soft
     git checkout fix_capture
     cd build
-    cmake -G "Visual Studio 16 2019" -A Win32 -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+    cmake .. ^
+    -G "Visual Studio 16 2019" ^
+    -A Win32 ^
+    -D LIBTYPE:STRING=STATIC ^
+    -D FORCE_STATIC_VCRT=ON ^
+    -D ALSOFT_BACKEND_WASAPI=OFF
     msbuild OpenAL.vcxproj /property:Configuration=Debug
     msbuild OpenAL.vcxproj /property:Configuration=Release
     cd ..\..

@@ -159,6 +159,11 @@ historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};
 historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
 historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
 historyViewsInvertedIcon: icon {{ "history_views", historySendingInvertedIconFg }};
+historyRepliesInIcon: icon {{ "history_replies", msgInDateFg }};
+historyRepliesInSelectedIcon: icon {{ "history_replies", msgInDateFgSelected }};
+historyRepliesOutIcon: icon {{ "history_replies", historyOutIconFg }};
+historyRepliesOutSelectedIcon: icon {{ "history_replies", historyOutIconFgSelected }};
+historyRepliesInvertedIcon: icon {{ "history_replies", historySendingInvertedIconFg }};
 
 historyComposeField: InputField(defaultInputField) {
 	font: msgFont;
@@ -384,9 +389,6 @@ historyDiceToast: Toast(defaultToast) {
 	maxWidth: 640px;
 	durationFadeOut: 200;
 }
-historyErrorToast: Toast(defaultToast) {
-	minWidth: msgMinWidth;
-}
 historyInfoToast: Toast(defaultToast) {
 	minWidth: msgMinWidth;
 	maxWidth: 380px;
@@ -523,8 +525,9 @@ historyAdminLogSearchSlideDuration: 150;
 historyFastShareSize: 31px;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
-historyFastShareIcon: icon {{ "fast_share", msgServiceFg, point(4px, 3px)}};
-historyGoToOriginalIcon: icon {{ "title_back-flip_horizontal", msgServiceFg, point(8px, 7px) }};
+historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
+historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg }};
+historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 
 historySavedFont: font(semibold 14px);
 
@@ -610,6 +613,14 @@ historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgS
 historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
+historyCommentsButtonHeight: 40px;
+historyCommentsSkipLeft: 9px;
+historyCommentsSkipText: 10px;
+historyCommentsUserpicSize: 25px;
+historyCommentsUserpicStroke: 2px;
+historyCommentsUserpicOverlap: 6px;
+historyCommentsSkipRight: 8px;
+
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;
 	height: 30px;
@@ -652,6 +663,15 @@ historyQuizTimerIn: icon {{ "quiz_timer", msgFileThumbLinkInFg }};
 historyQuizTimerInSelected: icon {{ "quiz_timer", msgFileThumbLinkInFgSelected }};
 historyQuizTimerOut: icon {{ "quiz_timer", msgFileThumbLinkOutFg }};
 historyQuizTimerOutSelected: icon {{ "quiz_timer", msgFileThumbLinkOutFgSelected }};
+
+historyCommentsIn: icon {{ "history_comments", msgFileThumbLinkInFg }};
+historyCommentsInSelected: icon {{ "history_comments", msgFileThumbLinkInFgSelected }};
+historyCommentsOut: icon {{ "history_comments", msgFileThumbLinkOutFg }};
+historyCommentsOutSelected: icon {{ "history_comments", msgFileThumbLinkOutFgSelected }};
+historyCommentsOpenIn: icon {{ "history_comments_open", msgFileThumbLinkInFg }};
+historyCommentsOpenInSelected: icon {{ "history_comments_open", msgFileThumbLinkInFgSelected }};
+historyCommentsOpenOut: icon {{ "history_comments_open", msgFileThumbLinkOutFg }};
+historyCommentsOpenOutSelected: icon {{ "history_comments_open", msgFileThumbLinkOutFgSelected }};
 
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
 

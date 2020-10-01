@@ -269,8 +269,11 @@ void BoxController::prepare() {
 	}, lifetime());
 
 	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::CallAdded
-	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		Data::MessageUpdate::Flag::NewAdded
+	) | rpl::filter([=](const Data::MessageUpdate &update) {
+		const auto media = update.item->media();
+		return (media != nullptr) && (media->call() != nullptr);
+	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		insertRow(update.item, InsertWay::Prepend);
 	}, lifetime());
 
@@ -291,6 +294,7 @@ void BoxController::loadMoreRows() {
 		MTP_inputPeerEmpty(),
 		MTP_string(),
 		MTP_inputUserEmpty(),
+		MTPint(), // top_msg_id
 		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
 		MTP_int(0),
 		MTP_int(0),

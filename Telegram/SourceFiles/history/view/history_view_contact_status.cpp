@@ -324,16 +324,19 @@ void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_bar.entity()->blockClicks(
 	) | rpl::start_with_next([=] {
-		_controller->window().show(
-			Box(Window::PeerMenuBlockUserBox, &_controller->window(), user, true));
+		_controller->window().show(Box(
+			Window::PeerMenuBlockUserBox,
+			&_controller->window(),
+			user,
+			v::null,
+			Window::ClearChat{}));
 	}, _bar.lifetime());
 }
 
 void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_bar.entity()->shareClicks(
 	) | rpl::start_with_next([=] {
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto share = [=] {
+		const auto share = [=](Fn<void()> &&close) {
 			user->setSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
@@ -345,11 +348,9 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 					lt_user,
 					user->shortName()));
 			}).send();
-			if (*box) {
-				(*box)->closeBox();
-			}
+			close();
 		};
-		*box = _controller->window().show(Box<ConfirmBox>(
+		_controller->window().show(Box<ConfirmBox>(
 			tr::lng_new_contact_share_sure(
 				tr::now,
 				lt_phone,
@@ -383,11 +384,8 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 	) | rpl::start_with_next([=] {
 		Expects(!peer->isUser());
 
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto callback = crl::guard(&_bar, [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
+		const auto callback = crl::guard(&_bar, [=](Fn<void()> &&close) {
+			close();
 
 			peer->session().api().request(MTPmessages_ReportSpam(
 				peer->input
@@ -406,7 +404,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 			_controller->showBackFromStack();
 		});
 		if (const auto user = peer->asUser()) {
-			peer->session().api().blockUser(user);
+			peer->session().api().blockPeer(user);
 		}
 		const auto text = ((peer->isChat() || peer->isMegagroup())
 			? tr::lng_report_spam_sure_group

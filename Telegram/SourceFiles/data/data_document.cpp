@@ -1013,6 +1013,7 @@ void DocumentData::save(
 				&session(),
 				_urlLocation,
 				size,
+				size,
 				fromCloud,
 				autoLoading,
 				cacheTag());
@@ -1038,6 +1039,7 @@ void DocumentData::save(
 				origin,
 				locationType(),
 				toFile,
+				size,
 				size,
 				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
 				fromCloud,

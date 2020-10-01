@@ -516,11 +516,13 @@ struct HtmlWriter::MessageInfo {
 	};
 	int32 id = 0;
 	Type type = Type::Service;
-	int32 fromId = 0;
+	Data::PeerId fromId = 0;
+	int32 viaBotId = 0;
 	TimeId date = 0;
 	Data::PeerId forwardedFromId = 0;
 	QString forwardedFromName;
 	bool forwarded = false;
+	bool showForwardedAsOriginal = false;
 	TimeId forwardedDate = 0;
 };
 
@@ -968,12 +970,14 @@ auto HtmlWriter::Wrap::pushMessage(
 	auto info = MessageInfo();
 	info.id = message.id;
 	info.fromId = message.fromId;
+	info.viaBotId = message.viaBotId;
 	info.date = message.date;
 	info.forwardedFromId = message.forwardedFromId;
 	info.forwardedFromName = message.forwardedFromName;
 	info.forwardedDate = message.forwardedDate;
 	info.forwarded = message.forwarded;
-	if (message.media.content.is<UnsupportedMedia>()) {
+	info.showForwardedAsOriginal = message.showForwardedAsOriginal;
+	if (v::is<UnsupportedMedia>(message.media.content)) {
 		return { info, pushServiceMessage(
 			message.id,
 			dialog,
@@ -989,9 +993,9 @@ auto HtmlWriter::Wrap::pushMessage(
 	using DialogType = Data::DialogInfo::Type;
 	const auto isChannel = (dialog.type == DialogType::PrivateChannel)
 		|| (dialog.type == DialogType::PublicChannel);
-	const auto serviceFrom = peers.wrapUserName(message.fromId);
-	const auto serviceText = message.action.content.match(
-	[&](const ActionChatCreate &data) {
+	const auto serviceFrom = peers.wrapPeerName(message.fromId);
+	const auto serviceText = v::match(message.action.content, [&](
+			const ActionChatCreate &data) {
 		return serviceFrom
 			+ " created group &laquo;" + data.title + "&raquo;"
 			+ (data.userIds.empty()
@@ -1090,12 +1094,12 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " joined Telegram";
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
-	}, [](std::nullopt_t) { return QByteArray(); });
+	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
 		const auto &content = message.action.content;
-		const auto photo = content.is<ActionChatEditPhoto>()
-			? &content.get_unchecked<ActionChatEditPhoto>().photo
+		const auto photo = v::is<ActionChatEditPhoto>(content)
+			? &v::get<ActionChatEditPhoto>(content).photo
 			: nullptr;
 		return { info, pushServiceMessage(
 			message.id,
@@ -1107,13 +1111,31 @@ auto HtmlWriter::Wrap::pushMessage(
 	info.type = MessageInfo::Type::Default;
 
 	const auto wrap = messageNeedsWrap(message, previous);
-	const auto fromPeerId = message.fromId
-		? UserPeerId(message.fromId)
-		: ChatPeerId(message.chatId);
+	const auto fromPeerId = message.fromId;
+	const auto showForwardedInfo = message.forwarded
+		&& !message.showForwardedAsOriginal;
+	auto forwardedUserpic = UserpicData();
+	if (message.forwarded) {
+		forwardedUserpic.colorIndex = message.forwardedFromId
+			? PeerColorIndex(BarePeerId(message.forwardedFromId))
+			: PeerColorIndex(message.id);
+		forwardedUserpic.pixelSize = kHistoryUserpicSize;
+		if (message.forwardedFromId) {
+			FillUserpicNames(
+				forwardedUserpic,
+				peers.peer(message.forwardedFromId));
+		} else {
+			FillUserpicNames(forwardedUserpic, message.forwardedFromName);
+		}
+	}
 	auto userpic = UserpicData();
-	userpic.colorIndex = PeerColorIndex(BarePeerId(fromPeerId));
-	userpic.pixelSize = kHistoryUserpicSize;
-	FillUserpicNames(userpic, peers.peer(fromPeerId));
+	if (message.showForwardedAsOriginal) {
+		userpic = forwardedUserpic;
+	} else {
+		userpic.colorIndex = PeerColorIndex(BarePeerId(fromPeerId));
+		userpic.pixelSize = kHistoryUserpicSize;
+		FillUserpicNames(userpic, peers.peer(fromPeerId));
+	}
 
 	const auto via = [&] {
 		if (message.viaBotId) {
@@ -1148,25 +1170,13 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(pushDiv("from_name"));
 		block.append(SerializeString(
 			ComposeName(userpic, "Deleted Account")));
-		if (!via.isEmpty() && !message.forwarded) {
+		if (!via.isEmpty()
+			&& (!message.forwarded || message.showForwardedAsOriginal)) {
 			block.append(" via @" + via);
 		}
 		block.append(popTag());
 	}
-	if (message.forwarded) {
-		auto forwardedUserpic = UserpicData();
-		forwardedUserpic.colorIndex = message.forwardedFromId
-			? PeerColorIndex(BarePeerId(message.forwardedFromId))
-			: PeerColorIndex(message.id);
-		forwardedUserpic.pixelSize = kHistoryUserpicSize;
-		if (message.forwardedFromId) {
-			FillUserpicNames(
-				forwardedUserpic,
-				peers.peer(message.forwardedFromId));
-		} else {
-			FillUserpicNames(forwardedUserpic, message.forwardedFromName);
-		}
-
+	if (showForwardedInfo) {
 		const auto forwardedWrap = forwardedNeedsWrap(message, previous);
 		if (forwardedWrap) {
 			block.append(pushDiv("pull_left forwarded userpic_wrap"));
@@ -1192,8 +1202,12 @@ auto HtmlWriter::Wrap::pushMessage(
 	}
 	if (message.replyToMsgId) {
 		block.append(pushDiv("reply_to details"));
-		block.append("In reply to ");
-		block.append(wrapReplyToLink("this message"));
+		if (message.replyToPeerId) {
+			block.append("In reply to a message in another chat");
+		} else {
+			block.append("In reply to ");
+			block.append(wrapReplyToLink("this message"));
+		}
 		block.append(popTag());
 	}
 
@@ -1210,7 +1224,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		block.append(SerializeString(message.signature));
 		block.append(popTag());
 	}
-	if (message.forwarded) {
+	if (showForwardedInfo) {
 		block.append(popTag());
 	}
 	block.append(popTag());
@@ -1228,10 +1242,15 @@ bool HtmlWriter::Wrap::messageNeedsWrap(
 		return true;
 	} else if (!message.fromId || previous->fromId != message.fromId) {
 		return true;
+	} else if (message.viaBotId != previous->viaBotId) {
+		return true;
 	} else if (QDateTime::fromTime_t(previous->date).date()
 		!= QDateTime::fromTime_t(message.date).date()) {
 		return true;
-	} else if (message.forwarded != previous->forwarded) {
+	} else if (message.forwarded != previous->forwarded
+		|| message.showForwardedAsOriginal != previous->showForwardedAsOriginal
+		|| message.forwardedFromId != previous->forwardedFromId
+		|| message.forwardedFromName != previous->forwardedFromName) {
 		return true;
 	} else if (std::abs(message.date - previous->date)
 		> ((message.forwardedFromId || !message.forwardedFromName.isEmpty())
@@ -1256,7 +1275,7 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 		return pushGenericMedia(data);
 	}
 	const auto &content = message.media.content;
-	if (const auto document = base::get_if<Data::Document>(&content)) {
+	if (const auto document = std::get_if<Data::Document>(&content)) {
 		Assert(!message.media.ttl);
 		if (document->isSticker) {
 			return pushStickerMedia(*document, basePath);
@@ -1266,13 +1285,13 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 			return pushVideoFileMedia(*document, basePath);
 		}
 		Unexpected("Non generic document in HtmlWriter::Wrap::pushMedia.");
-	} else if (const auto photo = base::get_if<Data::Photo>(&content)) {
+	} else if (const auto photo = std::get_if<Data::Photo>(&content)) {
 		Assert(!message.media.ttl);
 		return pushPhotoMedia(*photo, basePath);
-	} else if (const auto poll = base::get_if<Data::Poll>(&content)) {
+	} else if (const auto poll = std::get_if<Data::Poll>(&content)) {
 		return pushPoll(*poll);
 	}
-	Assert(!content.has_value());
+	Assert(v::is_null(content));
 	return QByteArray();
 }
 
@@ -1602,9 +1621,11 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 
 	auto result = MediaData();
 	const auto &action = message.action;
-	if (const auto call = base::get_if<ActionPhoneCall>(&action.content)) {
+	if (const auto call = std::get_if<ActionPhoneCall>(&action.content)) {
 		result.classes = "media_call";
-		result.title = peers.peer(message.toId).name();
+		result.title = peers.peer(message.out
+				? message.peerId
+				: message.selfId).name();
 		result.status = [&] {
 			using Reason = ActionPhoneCall::DiscardReason;
 			const auto reason = call->discardReason;
@@ -1626,7 +1647,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		return result;
 	}
 
-	message.media.content.match([&](const Photo &data) {
+	v::match(message.media.content, [&](const Photo &data) {
 		if (message.media.ttl) {
 			result.title = "Self-destructing photo";
 			result.status = data.id
@@ -1751,7 +1772,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 	}, [](const Poll &data) {
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 	return result;
 }
 
@@ -2464,6 +2485,7 @@ Result HtmlWriter::writeDialogEnd() {
 		switch (type) {
 		case Type::Unknown: return "unknown";
 		case Type::Self:
+		case Type::Replies:
 		case Type::Personal: return "private";
 		case Type::Bot: return "bot";
 		case Type::PrivateGroup:
@@ -2478,6 +2500,7 @@ Result HtmlWriter::writeDialogEnd() {
 		switch (type) {
 		case Type::Unknown:
 		case Type::Self:
+		case Type::Replies:
 		case Type::Personal:
 		case Type::Bot: return "Deleted Account";
 		case Type::PrivateGroup:
@@ -2492,6 +2515,8 @@ Result HtmlWriter::writeDialogEnd() {
 			const Data::DialogInfo &dialog) -> QByteArray {
 		if (dialog.type == Type::Self) {
 			return "Saved messages";
+		} else if (dialog.type == Type::Replies) {
+			return "Replies";
 		}
 		return dialog.name;
 	};
@@ -2512,7 +2537,7 @@ Result HtmlWriter::writeDialogEnd() {
 			+ (outgoing ? " outgoing messages" : " messages");
 	};
 	auto userpic = UserpicData{
-		(_dialog.type == Type::Self
+		((_dialog.type == Type::Self || _dialog.type == Type::Replies)
 			? kSavedMessagesColorIndex
 			: Data::PeerColorIndex(Data::BarePeerId(_dialog.peerId))),
 		kEntryUserpicSize

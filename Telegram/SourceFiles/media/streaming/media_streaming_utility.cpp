@@ -158,7 +158,7 @@ QImage ConvertFrame(
 		uint8_t *data[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
 		int linesize[AV_NUM_DATA_POINTERS] = { storage.bytesPerLine(), 0 };
 
-		const auto lines = sws_scale(
+		sws_scale(
 			stream.swscale.get(),
 			frame->data,
 			frame->linesize,
@@ -166,13 +166,6 @@ QImage ConvertFrame(
 			frame->height,
 			data,
 			linesize);
-		if (lines != resize.height()) {
-			LOG(("Streaming Error: "
-				"Unable to sws_scale to good size %1, got %2."
-				).arg(resize.height()
-				).arg(lines));
-			return QImage();
-		}
 	}
 
 	FFmpeg::ClearFrameMemory(frame);

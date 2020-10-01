@@ -46,7 +46,7 @@ private:
 		not_null<PollData*> poll;
 		FullMsgId contextId;
 	};
-	base::variant<
+	std::variant<
 		not_null<PeerData*>,
 		//not_null<Data::Feed*>, // #feed
 		Settings::Tag,
@@ -140,6 +140,12 @@ public:
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
+
+	void showPeerHistory(
+		PeerId peerId,
+		const Window::SectionShow &params = Window::SectionShow::Way::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId) override;
+
 	not_null<Window::SessionController*> parentController() override {
 		return _parent;
 	}

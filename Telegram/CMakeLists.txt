@@ -21,21 +21,21 @@ add_subdirectory(lib_qr)
 add_subdirectory(lib_webrtc)
 add_subdirectory(codegen)
 
-include(CheckCXXSourceCompiles)
 include(lib_ui/cmake/generate_styles.cmake)
-include(cmake/generate_lang.cmake)
 include(cmake/generate_numbers.cmake)
 
 get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/telegram_options.cmake)
-include(cmake/lib_export.cmake)
 include(cmake/lib_ffmpeg.cmake)
-include(cmake/lib_mtproto.cmake)
-include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
 include(cmake/lib_tgcalls.cmake)
+include(cmake/td_export.cmake)
+include(cmake/td_mtproto.cmake)
+include(cmake/td_lang.cmake)
+include(cmake/td_scheme.cmake)
+include(cmake/td_ui.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -61,10 +61,10 @@ set(dependent_style_files
     ${submodules_loc}/lib_ui/ui/basic.style
     ${submodules_loc}/lib_ui/ui/layers/layers.style
     ${submodules_loc}/lib_ui/ui/widgets/widgets.style
+    ${src_loc}/ui/td_common.style
 )
 
 generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
-generate_lang(Telegram ${res_loc}/langs/lang.strings)
 generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
@@ -74,9 +74,11 @@ PRIVATE
     tdesktop::lib_tgcalls_legacy
     tdesktop::lib_tgcalls
     tdesktop::lib_tgvoip
-    tdesktop::lib_mtproto
-    tdesktop::lib_scheme
-    tdesktop::lib_export
+    tdesktop::td_export
+    tdesktop::td_mtproto
+    tdesktop::td_lang
+    tdesktop::td_scheme
+    tdesktop::td_ui
     desktop-app::lib_webrtc
     desktop-app::lib_base
     desktop-app::lib_crl
@@ -163,7 +165,6 @@ if (LINUX)
     )
 
     target_compile_definitions(Telegram PRIVATE G_LOG_DOMAIN="Telegram")
-    target_compile_options(Telegram PRIVATE -Wno-register)
 
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
@@ -190,6 +191,8 @@ nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
 
+    api/api_authorizations.cpp
+    api/api_authorizations.h
     api/api_bot.cpp
     api/api_bot.h
     api/api_chat_filters.cpp
@@ -472,6 +475,8 @@ PRIVATE
     data/data_poll.h
     data/data_pts_waiter.cpp
     data/data_pts_waiter.h
+    data/data_replies_list.cpp
+    data/data_replies_list.h
     data/data_reply_preview.cpp
     data/data_reply_preview.h
     data/data_search_controller.cpp
@@ -593,10 +598,14 @@ PRIVATE
     history/view/history_view_message.cpp
     history/view/history_view_message.h
     history/view/history_view_object.h
+    history/view/history_view_replies_section.cpp
+    history/view/history_view_replies_section.h
     history/view/history_view_schedule_box.cpp
     history/view/history_view_schedule_box.h
     history/view/history_view_scheduled_section.cpp
     history/view/history_view_scheduled_section.h
+    history/view/history_view_send_action.cpp
+    history/view/history_view_send_action.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
     history/view/history_view_top_bar_widget.cpp
@@ -716,23 +725,12 @@ PRIVATE
     intro/intro_widget.h
     lang/lang_cloud_manager.cpp
     lang/lang_cloud_manager.h
-    lang/lang_file_parser.cpp
-    lang/lang_file_parser.h
-    lang/lang_hardcoded.h
     lang/lang_instance.cpp
     lang/lang_instance.h
-    lang/lang_keys.cpp
-    lang/lang_keys.h
     lang/lang_numbers_animation.cpp
     lang/lang_numbers_animation.h
-    lang/lang_tag.cpp
-    lang/lang_tag.h
-    lang/lang_text_entity.cpp
-    lang/lang_text_entity.h
     lang/lang_translator.cpp
     lang/lang_translator.h
-    lang/lang_values.cpp
-    lang/lang_values.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp
@@ -1148,6 +1146,7 @@ PRIVATE
     qt_static_plugins.cpp
     settings.cpp
     settings.h
+    stdafx.h
 )
 
 if (NOT LINUX)

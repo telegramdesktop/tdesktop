@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
+#include "ui/toasts/common_toasts.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -55,14 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
-
-void ShowErrorToast(const QString &text) {
-	Ui::Toast::Show(Ui::Toast::Config{
-		.text = { text },
-		.st = &st::historyErrorToast,
-		.multiline = true,
-	});
-}
 
 bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
@@ -104,7 +97,10 @@ ScheduledWidget::ScheduledWidget(
 	controller,
 	ComposeControls::Mode::Scheduled))
 , _scrollDown(_scroll, st::historyToDown) {
-	_topBar->setActiveChat(_history, TopBarWidget::Section::Scheduled);
+	_topBar->setActiveChat(
+		_history,
+		TopBarWidget::Section::Scheduled,
+		nullptr);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -156,7 +152,7 @@ ScheduledWidget::ScheduledWidget(
 ScheduledWidget::~ScheduledWidget() = default;
 
 void ScheduledWidget::setupComposeControls() {
-	_composeControls->setHistory(_history);
+	_composeControls->setHistory({ .history = _history.get() });
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
@@ -175,6 +171,11 @@ void ScheduledWidget::setupComposeControls() {
 	_composeControls->sendRequests(
 	) | rpl::start_with_next([=] {
 		send();
+	}, lifetime());
+
+	_composeControls->sendVoiceRequests(
+	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
+		sendVoice(data.bytes, data.waveform, data.duration);
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -257,9 +258,11 @@ void ScheduledWidget::setupComposeControls() {
 
 void ScheduledWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
-		_history->peer,
-		ChatRestriction::f_send_media)) {
-		ShowErrorToast(*error);
+			_history->peer,
+			ChatRestriction::f_send_media)) {
+		Ui::ShowMultilineToast({
+			.text = { *error },
+		});
 		return;
 	}
 
@@ -450,7 +453,9 @@ void ScheduledWidget::uploadFilesAfterConfirmation(
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
 				&& !list.canAddCaption(isAlbum, compressImages)))) {
-		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_slowmode_no_many(tr::now) },
+		});
 		return;
 	}
 	auto action = Api::SendAction(_history);
@@ -507,7 +512,9 @@ bool ScheduledWidget::showSendingFilesError(
 		return false;
 	}
 
-	ShowErrorToast(text);
+	Ui::ShowMultilineToast({
+		.text = { text },
+	});
 	return true;
 }
 
@@ -539,7 +546,9 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	//	_toForward,
 	//	message.textWithTags);
 	//if (!error.isEmpty()) {
-	//	ShowErrorToast(error);
+	//	Ui::ShowMultilineToast({
+	//		.text = { error },
+	//	});
 	//	return;
 	//}
 
@@ -554,6 +563,28 @@ void ScheduledWidget::send(Api::SendOptions options) {
 
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	_composeControls->focus();
+}
+
+void ScheduledWidget::sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration) {
+	const auto callback = [=](Api::SendOptions options) {
+		sendVoice(bytes, waveform, duration, options);
+	};
+	Ui::show(
+		PrepareScheduleBox(this, sendMenuType(), callback),
+		Ui::LayerOption::KeepOther);
+}
+
+void ScheduledWidget::sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration,
+		Api::SendOptions options) {
+	auto action = Api::SendAction(_history);
+	action.options = options;
+	session().api().sendVoiceMessage(bytes, waveform, duration, action);
 }
 
 void ScheduledWidget::edit(
@@ -1134,9 +1165,9 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 void ScheduledWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 }
 
-std::optional<int> ScheduledWidget::listUnreadBarView(
+MessagesBarData ScheduledWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	return std::nullopt;
+	return MessagesBarData();
 }
 
 void ScheduledWidget::listContentRefreshed() {
@@ -1144,6 +1175,19 @@ void ScheduledWidget::listContentRefreshed() {
 
 ClickHandlerPtr ScheduledWidget::listDateLink(not_null<Element*> view) {
 	return nullptr;
+}
+
+bool ScheduledWidget::listElementHideReply(not_null<const Element*> view) {
+	return false;
+}
+
+bool ScheduledWidget::listElementShownUnread(not_null<const Element*> view) {
+	return true;
+}
+
+bool ScheduledWidget::listIsGoodForAroundPosition(
+		not_null<const Element*> view) {
+	return true;
 }
 
 void ScheduledWidget::confirmSendNowSelected() {

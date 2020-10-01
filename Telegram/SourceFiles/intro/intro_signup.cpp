@@ -35,7 +35,11 @@ SignupWidget::SignupWidget(
 , _first(this, st::introName, tr::lng_signup_firstname())
 , _last(this, st::introName, tr::lng_signup_lastname())
 , _invertOrder(langFirstNameGoesSecond()) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
+
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	} else {

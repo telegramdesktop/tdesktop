@@ -89,7 +89,10 @@ CodeWidget::CodeWidget(
 , _callTimeout(getData()->callTimeout)
 , _callLabel(this, st::introDescription)
 , _checkRequestTimer([=] { checkRequest(); }) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	connect(_code, &CodeInput::changed, [=] { codeChanged(); });
 	_noTelegramCode->addClickHandler([=] { noTelegramCode(); });
@@ -344,12 +347,11 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 		_code->setFocus();
 		return;
 	} else if (!getData()->pwdRequest) {
-		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-		const auto callback = [=] {
+		const auto callback = [=](Fn<void()> &&close) {
 			Core::UpdateApplication();
-			if (*box) (*box)->closeBox();
+			close();
 		};
-		*box = Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<ConfirmBox>(
 			tr::lng_passport_app_out_of_date(tr::now),
 			tr::lng_menu_update(tr::now),
 			callback));

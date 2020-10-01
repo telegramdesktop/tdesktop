@@ -157,7 +157,7 @@ CloudPasswordResult ComputeCheck(
 }
 
 bytes::vector ComputeHash(
-		std::nullopt_t,
+		v::null_t,
 		bytes::const_span password) {
 	Unexpected("Bad secure secret algorithm.");
 }
@@ -199,10 +199,10 @@ CloudPasswordCheckRequest ParseCloudPasswordCheckRequest(
 }
 
 CloudPasswordAlgo ValidateNewCloudPasswordAlgo(CloudPasswordAlgo &&parsed) {
-	if (!parsed.is<CloudPasswordAlgoModPow>()) {
-		return std::nullopt;
+	if (!v::is<CloudPasswordAlgoModPow>(parsed)) {
+		return v::null;
 	}
-	auto &value = parsed.get_unchecked<CloudPasswordAlgoModPow>();
+	auto &value = v::get<CloudPasswordAlgoModPow>(parsed);
 	const auto already = value.salt1.size();
 	value.salt1.resize(already + kAdditionalSalt);
 	bytes::set_random(bytes::make_span(value.salt1).subspan(already));
@@ -210,13 +210,13 @@ CloudPasswordAlgo ValidateNewCloudPasswordAlgo(CloudPasswordAlgo &&parsed) {
 }
 
 MTPPasswordKdfAlgo PrepareCloudPasswordAlgo(const CloudPasswordAlgo &data) {
-	return data.match([](const CloudPasswordAlgoModPow &data) {
+	return v::match(data, [](const CloudPasswordAlgoModPow &data) {
 		return MTP_passwordKdfAlgoModPow(
 			MTP_bytes(data.salt1),
 			MTP_bytes(data.salt2),
 			MTP_int(data.g),
 			MTP_bytes(data.p));
-	}, [](std::nullopt_t) {
+	}, [](v::null_t) {
 		return MTP_passwordKdfAlgoUnknown();
 	});
 }
@@ -228,9 +228,9 @@ CloudPasswordResult::operator bool() const {
 bytes::vector ComputeCloudPasswordHash(
 		const CloudPasswordAlgo &algo,
 		bytes::const_span password) {
-	return algo.match([&](const CloudPasswordAlgoModPow &data) {
+	return v::match(algo, [&](const CloudPasswordAlgoModPow &data) {
 		return ComputeHash(data, password);
-	}, [](std::nullopt_t) -> bytes::vector {
+	}, [](v::null_t) -> bytes::vector {
 		Unexpected("Bad cloud password algorithm.");
 	});
 }
@@ -238,9 +238,9 @@ bytes::vector ComputeCloudPasswordHash(
 CloudPasswordDigest ComputeCloudPasswordDigest(
 		const CloudPasswordAlgo &algo,
 		bytes::const_span password) {
-	return algo.match([&](const CloudPasswordAlgoModPow &data) {
+	return v::match(algo, [&](const CloudPasswordAlgoModPow &data) {
 		return ComputeDigest(data, password);
-	}, [](std::nullopt_t) -> CloudPasswordDigest {
+	}, [](v::null_t) -> CloudPasswordDigest {
 		Unexpected("Bad cloud password algorithm.");
 	});
 }
@@ -248,9 +248,9 @@ CloudPasswordDigest ComputeCloudPasswordDigest(
 CloudPasswordResult ComputeCloudPasswordCheck(
 		const CloudPasswordCheckRequest &request,
 		bytes::const_span hash) {
-	return request.algo.match([&](const CloudPasswordAlgoModPow &data) {
+	return v::match(request.algo, [&](const CloudPasswordAlgoModPow &data) {
 		return ComputeCheck(request, data, hash);
-	}, [](std::nullopt_t) -> CloudPasswordResult {
+	}, [](v::null_t) -> CloudPasswordResult {
 		Unexpected("Bad cloud password algorithm.");
 	});
 }
@@ -270,10 +270,10 @@ SecureSecretAlgo ParseSecureSecretAlgo(
 }
 
 SecureSecretAlgo ValidateNewSecureSecretAlgo(SecureSecretAlgo &&parsed) {
-	if (!parsed.is<SecureSecretAlgoPBKDF2>()) {
-		return std::nullopt;
+	if (!v::is<SecureSecretAlgoPBKDF2>(parsed)) {
+		return v::null;
 	}
-	auto &value = parsed.get_unchecked<SecureSecretAlgoPBKDF2>();
+	auto &value = v::get<SecureSecretAlgoPBKDF2>(parsed);
 	const auto already = value.salt.size();
 	value.salt.resize(already + kAdditionalSalt);
 	bytes::set_random(bytes::make_span(value.salt).subspan(already));
@@ -282,12 +282,12 @@ SecureSecretAlgo ValidateNewSecureSecretAlgo(SecureSecretAlgo &&parsed) {
 
 MTPSecurePasswordKdfAlgo PrepareSecureSecretAlgo(
 		const SecureSecretAlgo &data) {
-	return data.match([](const SecureSecretAlgoPBKDF2 &data) {
+	return v::match(data, [](const SecureSecretAlgoPBKDF2 &data) {
 		return MTP_securePasswordKdfAlgoPBKDF2HMACSHA512iter100000(
 			MTP_bytes(data.salt));
 	}, [](const SecureSecretAlgoSHA512 &data) {
 		return MTP_securePasswordKdfAlgoSHA512(MTP_bytes(data.salt));
-	}, [](std::nullopt_t) {
+	}, [](v::null_t) {
 		return MTP_securePasswordKdfAlgoUnknown();
 	});
 }
@@ -295,7 +295,7 @@ MTPSecurePasswordKdfAlgo PrepareSecureSecretAlgo(
 bytes::vector ComputeSecureSecretHash(
 		const SecureSecretAlgo &algo,
 		bytes::const_span password) {
-	return algo.match([&](const auto &data) {
+	return v::match(algo, [&](const auto &data) {
 		return ComputeHash(data, password);
 	});
 }

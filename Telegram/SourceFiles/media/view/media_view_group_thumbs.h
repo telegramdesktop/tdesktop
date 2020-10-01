@@ -37,7 +37,7 @@ public:
 
 		int size() const;
 	};
-	using Key = base::variant<PhotoId, FullMsgId, CollageKey>;
+	using Key = std::variant<PhotoId, FullMsgId, CollageKey>;
 
 	static void Refresh(
 		not_null<Main::Session*> session,
@@ -80,7 +80,8 @@ public:
 		return _lifetime;
 	}
 
-	using Context = base::optional_variant<
+	using Context = std::variant<
+		v::null_t,
 		PeerId,
 		MessageGroupId,
 		FullMsgId>;

@@ -263,8 +263,8 @@ void Row::paintRadio(Painter &p) {
 	const auto loading = _loading
 		? _loading->computeState()
 		: Ui::RadialState{ 0., 0, FullArcLength };
-	const auto isToggledSet = _state.current().is<Active>();
-	const auto isActiveSet = isToggledSet || _state.current().is<Loading>();
+	const auto isToggledSet = v::is<Active>(_state.current());
+	const auto isActiveSet = isToggledSet || v::is<Loading>(_state.current());
 	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
 	const auto active = _active.value(isActiveSet ? 1. : 0.);
 	const auto _st = &st::defaultRadio;
@@ -345,7 +345,7 @@ void Row::onStateChanged(State was, StateChangeSource source) {
 }
 
 void Row::updateStatusColorOverride() {
-	const auto isToggledSet = _state.current().is<Active>();
+	const auto isToggledSet = v::is<Active>(_state.current());
 	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
 	const auto over = showOver();
 	if (toggled == 0. && !over) {
@@ -373,7 +373,8 @@ void Row::setupContent(const Set &set) {
 			});
 	}) | rpl::flatten_latest(
 	) | rpl::filter([=](const SetState &state) {
-		return !_state.current().is<Failed>() || !state.is<Available>();
+		return !v::is<Failed>(_state.current())
+			|| !v::is<Available>(state);
 	});
 
 	setupLabels(set);
@@ -390,9 +391,10 @@ void Row::setupHandler() {
 	clicks(
 	) | rpl::filter([=] {
 		const auto &state = _state.current();
-		return !_switching && (state.is<Ready>() || state.is<Available>());
+		return !_switching && (v::is<Ready>(state)
+			|| v::is<Available>(state));
 	}) | rpl::start_with_next([=] {
-		if (_state.current().is<Available>()) {
+		if (v::is<Available>(_state.current())) {
 			load();
 			return;
 		}
@@ -409,7 +411,7 @@ void Row::setupHandler() {
 
 	_state.value(
 	) | rpl::map([=](const SetState &state) {
-		return state.is<Ready>() || state.is<Available>();
+		return v::is<Ready>(state) || v::is<Available>(state);
 	}) | rpl::start_with_next([=](bool active) {
 		setDisabled(!active);
 		setPointerCursor(active);
@@ -463,7 +465,7 @@ void Row::setupPreview(const Set &set) {
 
 void Row::updateLoadingToFinished() {
 	_loading->update(
-		_state.current().is<Failed>() ? 0. : 1.,
+		v::is<Failed>(_state.current()) ? 0. : 1.,
 		true,
 		crl::now());
 }
@@ -471,7 +473,7 @@ void Row::updateLoadingToFinished() {
 void Row::radialAnimationCallback(crl::time now) {
 	const auto updated = [&] {
 		const auto state = _state.current();
-		if (const auto loading = base::get_if<Loading>(&state)) {
+		if (const auto loading = std::get_if<Loading>(&state)) {
 			return _loading->update(CountProgress(loading), false, now);
 		} else {
 			updateLoadingToFinished();
@@ -493,7 +495,7 @@ void Row::setupAnimation() {
 
 	_state.value(
 	) | rpl::map(
-		_1 == Active()
+		_1 == SetState{ Active() }
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool toggled) {
 		_toggled.start(
@@ -505,7 +507,7 @@ void Row::setupAnimation() {
 
 	_state.value(
 	) | rpl::map([](const SetState &state) {
-		return state.is<Loading>() || state.is<Active>();
+		return v::is<Loading>(state) || v::is<Active>(state);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
 		_active.start(
@@ -517,7 +519,7 @@ void Row::setupAnimation() {
 
 	_state.value(
 	) | rpl::map([](const SetState &state) {
-		return base::get_if<Loading>(&state);
+		return std::get_if<Loading>(&state);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](const Loading *loading) {
 		if (loading && !_loading) {

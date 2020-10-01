@@ -37,7 +37,7 @@ constexpr auto kJpegQuality = 89;
 
 static_assert(kMaxSize <= Storage::kUseBigFilesFrom);
 
-base::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
+std::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
 	auto image = App::readImage(base::take(bytes));
 	if (image.isNull()) {
 		return ReadScanError::CantReadImage;
@@ -901,10 +901,10 @@ void EditScans::ChooseScan(
 			remainingFiles = std::move(remainingFiles)
 		]() mutable {
 			auto result = ProcessImage(std::move(bytes));
-			if (const auto error = base::get_if<ReadScanError>(&result)) {
+			if (const auto error = std::get_if<ReadScanError>(&result)) {
 				onMainError(*error);
 			} else {
-				auto content = base::get_if<QByteArray>(&result);
+				auto content = std::get_if<QByteArray>(&result);
 				Assert(content != nullptr);
 				crl::on_main([
 					=,

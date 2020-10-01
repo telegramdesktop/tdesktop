@@ -83,7 +83,7 @@ bool PrepareAlbumMediaIsWaiting(
 
 		using Image = FileMediaInformation::Image;
 		using Video = FileMediaInformation::Video;
-		if (const auto image = base::get_if<Image>(
+		if (const auto image = std::get_if<Image>(
 				&file.information->media)) {
 			if (ValidPhotoForAlbum(*image, file.mime)) {
 				file.shownDimensions = PrepareShownDimensions(image->data);
@@ -95,7 +95,7 @@ bool PrepareAlbumMediaIsWaiting(
 				file.preview.setDevicePixelRatio(cRetinaFactor());
 				file.type = PreparedFile::AlbumType::Photo;
 			}
-		} else if (const auto video = base::get_if<Video>(
+		} else if (const auto video = std::get_if<Video>(
 				&file.information->media)) {
 			if (ValidVideoForAlbum(*video)) {
 				auto blurred = Images::prepareBlur(Images::prepareOpaque(video->thumbnail));
@@ -349,7 +349,7 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 			using Info = FileMediaInformation;
 
 			const auto media = &file.information->media;
-			const auto valid = media->match([](const Info::Image &data) {
+			const auto valid = v::match(*media, [](const Info::Image &data) {
 				return Storage::ValidateThumbDimensions(
 					data.data.width(),
 					data.data.height())

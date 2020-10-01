@@ -73,7 +73,7 @@ public:
 		TimeId date,
 		const PreparedText &message,
 		MTPDmessage::Flags flags = 0,
-		UserId from = 0,
+		PeerId from = 0,
 		PhotoData *photo = nullptr);
 
 	bool updateDependencyItem() override;
@@ -108,14 +108,14 @@ public:
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing = nullptr) override;
 
+	void setServiceText(const PreparedText &prepared);
+
 	~HistoryService();
 
 protected:
 	friend class HistoryView::ServiceMessagePainter;
 
 	void markMediaAsReadHook() override;
-
-	void setServiceText(const PreparedText &prepared);
 
 	QString fromLinkText() const;
 	ClickHandlerPtr fromLink() const;

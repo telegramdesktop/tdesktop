@@ -145,9 +145,7 @@ bool PollData::applyResults(const MTPPollResults &results) {
 					recent->v
 				) | ranges::view::transform([&](MTPint userId) {
 					const auto user = _owner->user(userId.v);
-					return (user->loadedStatus != PeerData::NotLoaded)
-						? user.get()
-						: nullptr;
+					return user->isMinimalLoaded() ? user.get() : nullptr;
 				}) | ranges::view::filter([](UserData *user) {
 					return user != nullptr;
 				}) | ranges::view::transform([](UserData *user) {

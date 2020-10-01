@@ -91,7 +91,8 @@ private:
 	public:
 		using PrepareFrame = not_null<Frame*>;
 		using PrepareNextCheck = crl::time;
-		using PrepareState = base::optional_variant<
+		using PrepareState = std::variant<
+			v::null_t,
 			PrepareFrame,
 			PrepareNextCheck>;
 		struct PresentFrame {

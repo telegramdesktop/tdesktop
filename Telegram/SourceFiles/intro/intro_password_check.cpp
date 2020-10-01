@@ -40,7 +40,10 @@ PasswordCheckWidget::PasswordCheckWidget(
 , _toPassword(this, tr::lng_signin_try_password(tr::now)) {
 	Expects(!!_request);
 
-	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
+	Lang::Updated(
+	) | rpl::start_with_next([=] {
+		refreshLang();
+	}, lifetime());
 
 	_toRecover->addClickHandler([=] { toRecover(); });
 	_toPassword->addClickHandler([=] { toPassword(); });
@@ -346,14 +349,11 @@ void PasswordCheckWidget::submit() {
 		});
 
 		if (_notEmptyPassport) {
-			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-			const auto confirmed = [=] {
+			const auto confirmed = [=](Fn<void()> &&close) {
 				send();
-				if (*box) {
-					(*box)->closeBox();
-				}
+				close();
 			};
-			*box = Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<ConfirmBox>(
 				tr::lng_cloud_password_passport_losing(tr::now),
 				tr::lng_continue(tr::now),
 				confirmed));

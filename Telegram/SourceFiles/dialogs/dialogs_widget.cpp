@@ -524,7 +524,8 @@ void Widget::refreshFolderTopBar() {
 		}
 		_folderTopBar->setActiveChat(
 			_openedFolder,
-			HistoryView::TopBarWidget::Section::History);
+			HistoryView::TopBarWidget::Section::History,
+			nullptr);
 	} else {
 		_folderTopBar.destroy();
 	}
@@ -837,6 +838,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 					(_searchQueryFrom
 						? _searchQueryFrom->inputUser
 						: MTP_inputUserEmpty()),
+					MTPint(), // top_msg_id
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0),
 					MTP_int(0),
@@ -883,6 +885,9 @@ bool Widget::onSearchMessages(bool searchCache) {
 				MTP_flags(flags),
 				MTP_int(folderId),
 				MTP_string(_searchQuery),
+				MTP_inputMessagesFilterEmpty(),
+				MTP_int(0), // min_date
+				MTP_int(0), // max_date
 				MTP_int(0),
 				MTP_inputPeerEmpty(),
 				MTP_int(0),
@@ -1013,6 +1018,7 @@ void Widget::onSearchMore() {
 					(_searchQueryFrom
 						? _searchQueryFrom->inputUser
 						: MTP_inputUserEmpty()),
+					MTPint(), // top_msg_id
 					MTP_inputMessagesFilterEmpty(),
 					MTP_int(0),
 					MTP_int(0),
@@ -1069,6 +1075,9 @@ void Widget::onSearchMore() {
 				MTP_flags(flags),
 				MTP_int(folderId),
 				MTP_string(_searchQuery),
+				MTP_inputMessagesFilterEmpty(),
+				MTP_int(0), // min_date
+				MTP_int(0), // max_date
 				MTP_int(_searchNextRate),
 				offsetPeer
 					? offsetPeer->input
@@ -1103,6 +1112,7 @@ void Widget::onSearchMore() {
 				(_searchQueryFrom
 					? _searchQueryFrom->inputUser
 					: MTP_inputUserEmpty()),
+				MTPint(), // top_msg_id
 				MTP_inputMessagesFilterEmpty(),
 				MTP_int(0),
 				MTP_int(0),

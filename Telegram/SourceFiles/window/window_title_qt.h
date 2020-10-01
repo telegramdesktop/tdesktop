@@ -39,6 +39,8 @@ protected:
 
 private:
 	void windowStateChanged(Qt::WindowState state = Qt::WindowNoState);
+	void visibleChanged(bool visible);
+	void updateWindowExtents();
 	void updateButtonsState();
 	void updateControlsPosition();
 	void updateControlsPositionBySide(
@@ -46,6 +48,8 @@ private:
 		bool right);
 
 	void toggleFramelessWindow(bool enabled);
+	bool hasShadow() const;
+	int getResizeArea(Qt::Edge edge) const;
 	Qt::Edges edgesFromPos(const QPoint &pos);
 	void updateCursor(Qt::Edges edges);
 	void restoreCursor();
@@ -62,6 +66,7 @@ private:
 	bool _activeState = false;
 	bool _windowWasFrameless = false;
 	bool _cursorOverriden = false;
+	bool _extentsSet = false;
 
 };
 

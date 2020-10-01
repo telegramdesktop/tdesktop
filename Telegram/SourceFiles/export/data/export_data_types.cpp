@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "export/output/export_output_file.h"
 #include "base/base_file_utilities.h"
+#include "ui/text/format_values.h"
 #include "core/mime_type.h"
 #include "core/utils.h"
 #include <QtCore/QDateTime>
@@ -23,11 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace App { // Hackish..
 QString formatPhone(QString phone);
 } // namespace App
-namespace HistoryView {
-QString FillAmountAndCurrency(uint64 amount, const QString &currency);
-} // namespace HistoryView
-QString formatSizeText(qint64 size);
-QString formatDurationText(qint64 duration);
 
 namespace Export {
 namespace Data {
@@ -264,6 +260,12 @@ Image ParseMaxImage(
 				if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 					result.file.content = data.vbytes().v;
 					result.file.size = result.file.content.size();
+				} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+					if (data.vsizes().v.isEmpty()) {
+						return;
+					}
+					result.file.content = QByteArray();
+					result.file.size = data.vsizes().v.back().v;
 				} else {
 					result.file.content = QByteArray();
 					result.file.size = data.vsize().v;
@@ -422,6 +424,12 @@ Image ParseDocumentThumb(
 		if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 			result.file.content = data.vbytes().v;
 			result.file.size = result.file.content.size();
+		} else if constexpr (MTPDphotoSizeProgressive::Is<decltype(data)>()) {
+			if (data.vsizes().v.isEmpty()) {
+				return Image();
+			}
+			result.file.content = QByteArray();
+			result.file.size = data.vsizes().v.back().v;
 		} else {
 			result.file.content = QByteArray();
 			result.file.size = data.vsize().v;
@@ -774,10 +782,10 @@ Utf8String User::name() const {
 }
 
 const User *Peer::user() const {
-	return base::get_if<User>(&data);
+	return std::get_if<User>(&data);
 }
 const Chat *Peer::chat() const {
-	return base::get_if<Chat>(&data);
+	return std::get_if<Chat>(&data);
 }
 
 PeerId Peer::id() const {
@@ -846,7 +854,7 @@ Peer EmptyPeer(PeerId peerId) {
 }
 
 File &Media::file() {
-	return content.match([](Photo &data) -> File& {
+	return v::match(content, [](Photo &data) -> File& {
 		return data.image.file;
 	}, [](Document &data) -> File& {
 		return data.file;
@@ -859,7 +867,7 @@ File &Media::file() {
 }
 
 const File &Media::file() const {
-	return content.match([](const Photo &data) -> const File& {
+	return v::match(content, [](const Photo &data) -> const File& {
 		return data.image.file;
 	}, [](const Document &data) -> const File& {
 		return data.file;
@@ -872,7 +880,7 @@ const File &Media::file() const {
 }
 
 Image &Media::thumb() {
-	return content.match([](Document &data) -> Image& {
+	return v::match(content, [](Document &data) -> Image& {
 		return data.thumb;
 	}, [](auto&) -> Image& {
 		static Image result;
@@ -881,7 +889,7 @@ Image &Media::thumb() {
 }
 
 const Image &Media::thumb() const {
-	return content.match([](const Document &data) -> const Image& {
+	return v::match(content, [](const Document &data) -> const Image& {
 		return data.thumb;
 	}, [](const auto &) -> const Image& {
 		static const Image result;
@@ -1092,7 +1100,7 @@ ServiceAction ParseServiceAction(
 
 File &Message::file() {
 	const auto service = &action.content;
-	if (const auto photo = base::get_if<ActionChatEditPhoto>(service)) {
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
 		return photo->photo.image.file;
 	}
 	return media.file();
@@ -1100,7 +1108,7 @@ File &Message::file() {
 
 const File &Message::file() const {
 	const auto service = &action.content;
-	if (const auto photo = base::get_if<ActionChatEditPhoto>(service)) {
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
 		return photo->photo.image.file;
 	}
 	return media.file();
@@ -1122,24 +1130,30 @@ Message ParseMessage(
 	data.match([&](const auto &data) {
 		result.id = data.vid().v;
 		if constexpr (!MTPDmessageEmpty::Is<decltype(data)>()) {
-			result.toId = ParsePeerId(data.vto_id());
-			const auto fromId = data.vfrom_id();
-			const auto peerId = (!data.is_out()
-				&& fromId
-				&& data.vto_id().type() == mtpc_peerUser)
-				? UserPeerId(fromId->v)
-				: result.toId;
-			if (IsChatPeerId(peerId)) {
-				result.chatId = BarePeerId(peerId);
-			}
-			if (fromId) {
-				result.fromId = fromId->v;
-			}
-			if (const auto replyToMsgId = data.vreply_to_msg_id()) {
-				result.replyToMsgId = replyToMsgId->v;
-			}
 			result.date = data.vdate().v;
 			result.out = data.is_out();
+			result.selfId = context.selfPeerId;
+			result.peerId = ParsePeerId(data.vpeer_id());
+			const auto fromId = data.vfrom_id();
+			if (IsChatPeerId(result.peerId)) {
+				result.chatId = BarePeerId(result.peerId);
+			}
+			if (fromId) {
+				result.fromId = ParsePeerId(*fromId);
+			} else {
+				result.fromId = result.peerId;
+			}
+			if (const auto replyTo = data.vreply_to()) {
+				replyTo->match([&](const MTPDmessageReplyHeader &data) {
+					result.replyToMsgId = data.vreply_to_msg_id().v;
+					result.replyToPeerId = data.vreply_to_peer_id()
+						? ParsePeerId(*data.vreply_to_peer_id())
+						: 0;
+					if (result.replyToPeerId == result.peerId) {
+						result.replyToPeerId = 0;
+					}
+				});
+			}
 		}
 	});
 	data.match([&](const MTPDmessage &data) {
@@ -1149,12 +1163,9 @@ Message ParseMessage(
 		if (const auto fwdFrom = data.vfwd_from()) {
 			result.forwardedFromId = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				if (const auto channelId = data.vchannel_id()) {
-					return ChatPeerId(channelId->v);
-				} else if (const auto fromId = data.vfrom_id()) {
-					return UserPeerId(fromId->v);
-				}
-				return PeerId(0);
+				return data.vfrom_id()
+					? ParsePeerId(*data.vfrom_id())
+					: PeerId(0);
 			});
 			result.forwardedFromName = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
@@ -1176,12 +1187,19 @@ Message ParseMessage(
 			});
 			result.forwarded = result.forwardedFromId
 				|| !result.forwardedFromName.isEmpty();
+			result.showForwardedAsOriginal = result.forwarded
+				&& result.savedFromChatId;
 		}
 		if (const auto postAuthor = data.vpost_author()) {
 			result.signature = ParseString(*postAuthor);
 		}
-		if (const auto replyToMsgId = data.vreply_to_msg_id()) {
-			result.replyToMsgId = replyToMsgId->v;
+		if (const auto replyTo = data.vreply_to()) {
+			replyTo->match([&](const MTPDmessageReplyHeader &data) {
+				result.replyToMsgId = data.vreply_to_msg_id().v;
+				result.replyToPeerId = data.vreply_to_peer_id()
+					? ParsePeerId(*data.vreply_to_peer_id())
+					: PeerId(0);
+			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {
 			result.viaBotId = viaBotId->v;
@@ -1219,9 +1237,10 @@ Message ParseMessage(
 }
 
 std::map<uint64, Message> ParseMessagesList(
+		PeerId selfId,
 		const MTPVector<MTPMessage> &data,
 		const QString &mediaFolder) {
-	auto context = ParseMediaContext();
+	auto context = ParseMediaContext{ .selfPeerId = selfId };
 	auto result = std::map<uint64, Message>();
 	for (const auto &message : data.v) {
 		auto parsed = ParseMessage(context, message, mediaFolder);
@@ -1448,6 +1467,8 @@ DialogInfo::Type DialogTypeFromChat(const Chat &chat) {
 DialogInfo::Type DialogTypeFromUser(const User &user) {
 	return user.isSelf
 		? DialogInfo::Type::Self
+		: user.isReplies
+		? DialogInfo::Type::Replies
 		: user.isBot
 		? DialogInfo::Type::Bot
 		: DialogInfo::Type::Personal;
@@ -1460,7 +1481,10 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 		Unexpected("dialogsNotModified in ParseDialogsInfo.");
 	}, [&](const auto &data) { // MTPDmessages_dialogs &data) {
 		const auto peers = ParsePeersLists(data.vusers(), data.vchats());
-		const auto messages = ParseMessagesList(data.vmessages(), folder);
+		const auto messages = ParseMessagesList(
+			PeerId(0), // selfId, not used, we want only messages dates here.
+			data.vmessages(),
+			folder);
 		result.chats.reserve(result.chats.size() + data.vdialogs().v.size());
 		for (const auto &dialog : data.vdialogs().v) {
 			if (dialog.type() != mtpc_dialog) {
@@ -1689,7 +1713,7 @@ MessagesSlice ParseMessagesSlice(
 MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice) {
 	for (auto &message : slice.list) {
 		message.id += kMigratedMessagesIdShift;
-		if (message.replyToMsgId) {
+		if (message.replyToMsgId && !message.replyToPeerId) {
 			message.replyToMsgId += kMigratedMessagesIdShift;
 		}
 	}
@@ -1761,17 +1785,17 @@ Utf8String FormatDateTime(
 }
 
 Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency) {
-	return HistoryView::FillAmountAndCurrency(
+	return Ui::FillAmountAndCurrency(
 		amount,
 		QString::fromUtf8(currency)).toUtf8();
 }
 
 Utf8String FormatFileSize(int64 size) {
-	return formatSizeText(size).toUtf8();
+	return Ui::FormatSizeText(size).toUtf8();
 }
 
 Utf8String FormatDuration(int64 seconds) {
-	return formatDurationText(seconds).toUtf8();
+	return Ui::FormatDurationText(seconds).toUtf8();
 }
 
 } // namespace Data

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_peer.h"
 #include "dialogs/dialogs_entry.h"
-#include "ui/effects/send_action_animations.h"
+#include "history/view/history_view_send_action.h"
 #include "base/observer.h"
 #include "base/timer.h"
 #include "base/variant.h"
@@ -22,11 +22,6 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
-
-namespace Api {
-enum class SendProgressType;
-struct SendProgress;
-} // namespace Api
 
 namespace Main {
 class Session;
@@ -77,10 +72,13 @@ public:
 	void checkLocalMessages();
 	void removeJoinedMessage();
 
+
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
 	Element *findFirstNonEmpty() const;
+	Element *findFirstDisplayed() const;
 	Element *findLastNonEmpty() const;
+	Element *findLastDisplayed() const;
 	bool hasOrphanMediaGroupPart() const;
 	bool removeOrphanMediaGroupPart();
 	QVector<MsgId> collectMessagesFromUserToDelete(
@@ -127,7 +125,7 @@ public:
 		MTPDmessage::Flags flags,
 		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<HistoryMessage*> forwardOriginal);
 	not_null<HistoryItem*> addNewLocalMessage(
@@ -137,7 +135,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
@@ -149,7 +147,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
@@ -161,7 +159,7 @@ public:
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
-		UserId from,
+		PeerId from,
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup);
@@ -181,6 +179,8 @@ public:
 
 	void registerLocalMessage(not_null<HistoryItem*> item);
 	void unregisterLocalMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] auto localMessages()
+		-> const base::flat_set<not_null<HistoryItem*>> &;
 	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
 	[[nodiscard]] bool readInboxTillNeedsRequest(MsgId tillId);
@@ -196,6 +196,8 @@ public:
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] MsgId loadAroundId() const;
+	[[nodiscard]] MsgId inboxReadTillId() const;
+	[[nodiscard]] MsgId outboxReadTillId() const;
 
 	[[nodiscard]] bool trackUnreadMessages() const;
 	[[nodiscard]] int unreadCount() const;
@@ -271,23 +273,10 @@ public:
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
 
-	bool mySendActionUpdated(Api::SendProgressType type, bool doing);
-	bool paintSendAction(
-		Painter &p,
-		int x,
-		int y,
-		int availableWidth,
-		int outerWidth,
-		style::color color,
-		crl::time now);
-
-	// Interface for Histories
-	bool updateSendActionNeedsAnimating(
-		crl::time now,
-		bool force = false);
-	bool updateSendActionNeedsAnimating(
-		not_null<UserData*> user,
-		const MTPSendMessageAction &action);
+	[[nodiscard]] auto sendActionPainter()
+	-> not_null<HistoryView::SendActionPainter*> {
+		return &_sendActionPainter;
+	}
 
 	void clearLastKeyboard();
 
@@ -508,7 +497,6 @@ private:
 	void addEdgesToSharedMedia();
 
 	void addItemsToLists(const std::vector<not_null<HistoryItem*>> &items);
-	void clearSendAction(not_null<UserData*> from);
 	bool clearUnreadOnClientSide() const;
 	bool skipUnreadUpdate() const;
 
@@ -577,12 +565,7 @@ private:
 	QString _topPromotedMessage;
 	QString _topPromotedType;
 
-	base::flat_map<not_null<UserData*>, crl::time> _typing;
-	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;
-	QString _sendActionString;
-	Ui::Text::String _sendActionText;
-	Ui::SendActionAnimation _sendActionAnimation;
-	base::flat_map<Api::SendProgressType, crl::time> _mySendActions;
+	HistoryView::SendActionPainter _sendActionPainter;
 
 	std::deque<not_null<HistoryItem*>> _notifications;
 

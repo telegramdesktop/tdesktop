@@ -64,7 +64,7 @@ struct ScopeError {
 	// FileKey - file_hash error (bad scan / selfie / translation)
 	// General - general value error (or scan / translation missing)
 	// QString - data_hash with such key error (bad value)
-	base::variant<FileKey, General, QString> key;
+	std::variant<FileKey, General, QString> key;
 	QString text;
 };
 

@@ -462,7 +462,9 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		thumbnails.emplace(type[0], std::move(image));
+		thumbnails.emplace(
+			type[0],
+			PreparedPhotoThumb{ .image = std::move(image) });
 	};
 	push("s", scaled(320));
 
@@ -1319,16 +1321,13 @@ void ToggleNightModeWithConfirmation(
 	if (Background()->nightModeChangeAllowed()) {
 		toggle();
 	} else {
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		const auto disableAndToggle = [=] {
+		const auto disableAndToggle = [=](Fn<void()> &&close) {
 			Core::App().settings().setSystemDarkModeEnabled(false);
 			Core::App().saveSettingsDelayed();
 			toggle();
-			if (*box) {
-				(*box)->closeBox();
-			}
+			close();
 		};
-		*box = window->show(Box<ConfirmBox>(
+		window->show(Box<ConfirmBox>(
 			tr::lng_settings_auto_night_warning(tr::now),
 			tr::lng_settings_auto_night_disable(tr::now),
 			disableAndToggle));

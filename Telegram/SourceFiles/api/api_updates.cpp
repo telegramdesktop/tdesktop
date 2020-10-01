@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_updates.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -97,20 +98,9 @@ bool ForwardedInfoDataLoaded(
 		not_null<Main::Session*> session,
 		const MTPMessageFwdHeader &header) {
 	return header.match([&](const MTPDmessageFwdHeader &data) {
-		if (const auto channelId = data.vchannel_id()) {
-			if (!session->data().channelLoaded(channelId->v)) {
-				return false;
-			}
-			if (const auto fromId = data.vfrom_id()) {
-				const auto from = session->data().user(fromId->v);
-				// Minimal loaded is fine in this case.
-				if (from->loadedStatus == PeerData::NotLoaded) {
-					return false;
-				}
-			}
-		} else if (const auto fromId = data.vfrom_id()) {
+		if (const auto fromId = data.vfrom_id()) {
 			// Fully loaded is required in this case.
-			if (!session->data().userLoaded(fromId->v)) {
+			if (!session->data().peerLoaded(peerFromMTP(*fromId))) {
 				return false;
 			}
 		}
@@ -145,7 +135,7 @@ DataIsLoadedResult AllDataLoadedForMessage(
 	return message.match([&](const MTPDmessage &message) {
 		if (const auto fromId = message.vfrom_id()) {
 			if (!message.is_post()
-				&& !session->data().userLoaded(fromId->v)) {
+				&& !session->data().peerLoaded(peerFromMTP(*fromId))) {
 				return DataIsLoadedResult::FromNotLoaded;
 			}
 		}
@@ -168,7 +158,7 @@ DataIsLoadedResult AllDataLoadedForMessage(
 	}, [&](const MTPDmessageService &message) {
 		if (const auto fromId = message.vfrom_id()) {
 			if (!message.is_post()
-				&& !session->data().userLoaded(fromId->v)) {
+				&& !session->data().peerLoaded(peerFromMTP(*fromId))) {
 				return DataIsLoadedResult::FromNotLoaded;
 			}
 		}
@@ -890,23 +880,26 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 		const auto peerUserId = d.is_out()
 			? d.vuser_id()
 			: MTP_int(_session->userId());
-		const auto fwd = d.vfwd_from();
 		_session->data().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
 				d.vid(),
-				d.is_out() ? MTP_int(_session->userId()) : d.vuser_id(),
-				MTP_peerUser(peerUserId),
-				fwd ? (*fwd) : MTPMessageFwdHeader(),
+				(d.is_out()
+					? peerToMTP(_session->userPeerId())
+					: MTP_peerUser(d.vuser_id())),
+				MTP_peerUser(d.vuser_id()),
+				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_int(d.vvia_bot_id().value_or_empty()),
-				MTP_int(d.vreply_to_msg_id().value_or_empty()),
+				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
 				d.vdate(),
 				d.vmessage(),
 				MTP_messageMediaEmpty(),
 				MTPReplyMarkup(),
 				MTP_vector<MTPMessageEntity>(d.ventities().value_or_empty()),
-				MTPint(),
-				MTPint(),
+				MTPint(), // views
+				MTPint(), // forwards
+				MTPMessageReplies(),
+				MTPint(), // edit_date
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
@@ -917,24 +910,26 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 
 	case mtpc_updateShortChatMessage: {
 		const auto &d = updates.c_updateShortChatMessage();
-		const auto flags = mtpCastFlags(d.vflags().v) | MTPDmessage::Flag::f_from_id;
-		const auto fwd = d.vfwd_from();
+		const auto flags = mtpCastFlags(d.vflags().v)
+			| MTPDmessage::Flag::f_from_id;
 		_session->data().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
 				d.vid(),
-				d.vfrom_id(),
+				MTP_peerUser(d.vfrom_id()),
 				MTP_peerChat(d.vchat_id()),
-				fwd ? (*fwd) : MTPMessageFwdHeader(),
+				d.vfwd_from() ? *d.vfwd_from() : MTPMessageFwdHeader(),
 				MTP_int(d.vvia_bot_id().value_or_empty()),
-				MTP_int(d.vreply_to_msg_id().value_or_empty()),
+				d.vreply_to() ? *d.vreply_to() : MTPMessageReplyHeader(),
 				d.vdate(),
 				d.vmessage(),
 				MTP_messageMediaEmpty(),
 				MTPReplyMarkup(),
 				MTP_vector<MTPMessageEntity>(d.ventities().value_or_empty()),
-				MTPint(),
-				MTPint(),
+				MTPint(), // views
+				MTPint(), // forwards
+				MTPMessageReplies(),
+				MTPint(), // edit_date
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
@@ -1541,26 +1536,51 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto user = session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : base::unixtime::now();
-			session().data().registerSendAction(history, user, d.vaction(), when);
+			session().data().registerSendAction(
+				history,
+				MsgId(),
+				user,
+				d.vaction(),
+				when);
 		}
 	} break;
 
 	case mtpc_updateChatUserTyping: {
 		auto &d = update.c_updateChatUserTyping();
-		const auto history = [&]() -> History* {
-			if (const auto chat = session().data().chatLoaded(d.vchat_id().v)) {
-				return session().data().historyLoaded(chat->id);
-			} else if (const auto channel = session().data().channelLoaded(d.vchat_id().v)) {
-				return session().data().historyLoaded(channel->id);
-			}
-			return nullptr;
-		}();
+		const auto history = session().data().historyLoaded(
+			peerFromChat(d.vchat_id()));
 		const auto user = (d.vuser_id().v == session().userId())
 			? nullptr
 			: session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : base::unixtime::now();
-			session().data().registerSendAction(history, user, d.vaction(), when);
+			session().data().registerSendAction(
+				history,
+				MsgId(),
+				user,
+				d.vaction(),
+				when);
+		}
+	} break;
+
+	case mtpc_updateChannelUserTyping: {
+		const auto &d = update.c_updateChannelUserTyping();
+		const auto history = session().data().historyLoaded(
+			peerFromChannel(d.vchannel_id()));
+		const auto user = (d.vuser_id().v == session().userId())
+			? nullptr
+			: session().data().userLoaded(d.vuser_id().v);
+		if (history && user) {
+			const auto when = requestingDifference()
+				? 0
+				: base::unixtime::now();
+			const auto rootId = d.vtop_msg_id().value_or_empty();
+			session().data().registerSendAction(
+				history,
+				rootId,
+				user,
+				d.vaction(),
+				when);
 		}
 	} break;
 
@@ -1731,10 +1751,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		Core::App().calls().handleUpdate(&session(), update);
 	} break;
 
-	case mtpc_updateUserBlocked: {
-		const auto &d = update.c_updateUserBlocked();
-		if (const auto user = session().data().userLoaded(d.vuser_id().v)) {
-			user->setIsBlocked(mtpIsTrue(d.vblocked()));
+	case mtpc_updatePeerBlocked: {
+		const auto &d = update.c_updatePeerBlocked();
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer_id()))) {
+			peer->setIsBlocked(mtpIsTrue(d.vblocked()));
 		}
 	} break;
 
@@ -1753,7 +1773,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 		} else {
 			session().data().serviceNotification(text, d.vmedia());
-			session().data().checkNewAuthorization();
+			session().api().authorizations().reload();
 		}
 	} break;
 
@@ -1912,9 +1932,51 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChannelMessageViews: {
-		auto &d = update.c_updateChannelMessageViews();
-		if (auto item = session().data().message(d.vchannel_id().v, d.vid().v)) {
+		const auto &d = update.c_updateChannelMessageViews();
+		if (const auto item = session().data().message(d.vchannel_id().v, d.vid().v)) {
 			item->setViewsCount(d.vviews().v);
+		}
+	} break;
+
+	case mtpc_updateChannelMessageForwards: {
+		const auto &d = update.c_updateChannelMessageForwards();
+		if (const auto item = session().data().message(d.vchannel_id().v, d.vid().v)) {
+			item->setForwardsCount(d.vforwards().v);
+		}
+	} break;
+
+	case mtpc_updateReadChannelDiscussionInbox: {
+		const auto &d = update.c_updateReadChannelDiscussionInbox();
+		const auto channelId = d.vchannel_id().v;
+		const auto msgId = d.vtop_msg_id().v;
+		const auto readTillId = d.vread_max_id().v;
+		const auto item = session().data().message(channelId, msgId);
+		if (item) {
+			item->setRepliesInboxReadTill(readTillId);
+			if (const auto post = item->lookupDiscussionPostOriginal()) {
+				post->setRepliesInboxReadTill(readTillId);
+			}
+		}
+		if (const auto broadcastId = d.vbroadcast_id()) {
+			if (const auto post = session().data().message(
+					broadcastId->v,
+					d.vbroadcast_post()->v)) {
+				post->setRepliesInboxReadTill(readTillId);
+			}
+		}
+	} break;
+
+	case mtpc_updateReadChannelDiscussionOutbox: {
+		const auto &d = update.c_updateReadChannelDiscussionOutbox();
+		const auto channelId = d.vchannel_id().v;
+		const auto msgId = d.vtop_msg_id().v;
+		const auto readTillId = d.vread_max_id().v;
+		const auto item = session().data().message(channelId, msgId);
+		if (item) {
+			item->setRepliesOutboxReadTill(readTillId);
+			if (const auto post = item->lookupDiscussionPostOriginal()) {
+				post->setRepliesOutboxReadTill(readTillId);
+			}
 		}
 	} break;
 

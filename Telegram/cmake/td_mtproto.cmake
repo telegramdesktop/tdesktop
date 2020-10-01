@@ -4,12 +4,12 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_library(lib_mtproto OBJECT)
-init_target(lib_mtproto)
-add_library(tdesktop::lib_mtproto ALIAS lib_mtproto)
+add_library(td_mtproto OBJECT)
+init_target(td_mtproto)
+add_library(tdesktop::td_mtproto ALIAS td_mtproto)
 
-target_precompile_headers(lib_mtproto PRIVATE ${src_loc}/mtproto/mtproto_pch.h)
-nice_target_sources(lib_mtproto ${src_loc}
+target_precompile_headers(td_mtproto PRIVATE ${src_loc}/mtproto/mtproto_pch.h)
+nice_target_sources(td_mtproto ${src_loc}
 PRIVATE
     mtproto/details/mtproto_abstract_socket.cpp
     mtproto/details/mtproto_abstract_socket.h
@@ -45,20 +45,21 @@ PRIVATE
     mtproto/mtproto_dc_options.h
     mtproto/mtproto_dh_utils.cpp
     mtproto/mtproto_dh_utils.h
+    mtproto/mtproto_pch.h
     mtproto/mtproto_proxy_data.cpp
     mtproto/mtproto_proxy_data.h
     mtproto/mtproto_rpc_sender.cpp
     mtproto/mtproto_rpc_sender.h
 )
 
-target_include_directories(lib_mtproto
+target_include_directories(td_mtproto
 PUBLIC
     ${src_loc}
 )
 
-target_link_libraries(lib_mtproto
+target_link_libraries(td_mtproto
 PUBLIC
-    tdesktop::lib_scheme
+    tdesktop::td_scheme
 PRIVATE
     desktop-app::external_zlib
 )

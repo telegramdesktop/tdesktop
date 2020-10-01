@@ -244,7 +244,6 @@ private:
 
 	Fn<void()> _revokeCallback;
 	mtpRequestId _revokeRequestId = 0;
-	QPointer<ConfirmBox> _weakRevokeConfirmBox;
 
 };
 
@@ -1417,21 +1416,21 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			lt_group,
 			pressed->name);
 		auto confirmText = tr::lng_channels_too_much_public_revoke(tr::now);
-		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
+		auto callback = crl::guard(this, [=](Fn<void()> &&close) {
 			if (_revokeRequestId) return;
 			_revokeRequestId = _api.request(MTPchannels_UpdateUsername(
 				pressed->asChannel()->inputChannel,
 				MTP_string()
-			)).done([=](const MTPBool &result) {
-				const auto callback = _revokeCallback;
-				if (_weakRevokeConfirmBox) {
-					_weakRevokeConfirmBox->closeBox();
-				}
-				if (callback) {
+			)).done([=, close = std::move(close)](const MTPBool &result) {
+				close();
+				if (const auto callback = _revokeCallback) {
 					callback();
 				}
 			}).send();
-		})), Ui::LayerOption::KeepOther);
+		});
+		Ui::show(
+			Box<ConfirmBox>(text, confirmText, std::move(callback)),
+			Ui::LayerOption::KeepOther);
 	}
 }
 

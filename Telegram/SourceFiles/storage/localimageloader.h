@@ -219,6 +219,7 @@ struct FileLoadResult {
 	uint64 thumbId = 0; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	QString thumbname;
 	UploadFileParts thumbparts;
+	QByteArray thumbbytes;
 	QByteArray thumbmd5;
 	QImage thumb;
 
@@ -257,7 +258,7 @@ struct FileMediaInformation {
 	};
 
 	QString filemime;
-	base::optional_variant<Image, Song, Video> media;
+	std::variant<v::null_t, Image, Song, Video> media;
 };
 
 class FileLoadTask final : public Task {

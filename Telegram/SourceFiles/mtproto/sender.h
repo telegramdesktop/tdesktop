@@ -162,12 +162,18 @@ class Sender {
 			return std::move(_done);
 		}
 		RPCFailHandlerPtr takeOnFail() {
-			if (auto handler = base::get_if<FailPlainHandler>(&_fail)) {
-				return std::make_shared<FailHandler<FailPlainPolicy>>(_sender, std::move(*handler), _failSkipPolicy);
-			} else if (auto handler = base::get_if<FailRequestIdHandler>(&_fail)) {
-				return std::make_shared<FailHandler<FailRequestIdPolicy>>(_sender, std::move(*handler), _failSkipPolicy);
-			}
-			return RPCFailHandlerPtr();
+			return v::match(_fail, [&](FailPlainHandler &value)
+			-> RPCFailHandlerPtr {
+				return std::make_shared<FailHandler<FailPlainPolicy>>(
+					_sender,
+					std::move(value),
+					_failSkipPolicy);
+			}, [&](FailRequestIdHandler &value) -> RPCFailHandlerPtr {
+				return std::make_shared<FailHandler<FailRequestIdPolicy>>(
+					_sender,
+					std::move(value),
+					_failSkipPolicy);
+			});
 		}
 		mtpRequestId takeAfter() const noexcept {
 			return _afterRequestId;
@@ -185,7 +191,7 @@ class Sender {
 		ShiftedDcId _dcId = 0;
 		crl::time _canWait = 0;
 		RPCDoneHandlerPtr _done;
-		base::variant<FailPlainHandler, FailRequestIdHandler> _fail;
+		std::variant<FailPlainHandler, FailRequestIdHandler> _fail;
 		FailSkipPolicy _failSkipPolicy = FailSkipPolicy::Simple;
 		mtpRequestId _afterRequestId = 0;
 

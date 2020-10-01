@@ -36,7 +36,7 @@ QString CustomLanguageId();
 Language DefaultLanguage();
 
 class Instance;
-Instance &Current();
+Instance &GetInstance();
 
 enum class Pack {
 	None,
@@ -80,8 +80,9 @@ public:
 	void updatePluralRules();
 	static std::map<ushort, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
-	base::Observable<void> &updated() {
-		return _updated;
+
+	[[nodiscard]] rpl::producer<> updated() const {
+		return _updated.events();
 	}
 
 	QString getValue(ushort key) const {
@@ -128,7 +129,7 @@ private:
 	QString _customFilePathRelative;
 	QByteArray _customFileContent;
 	int _version = 0;
-	base::Observable<void> _updated;
+	rpl::event_stream<> _updated;
 
 	mutable QString _systemLanguage;
 
@@ -143,7 +144,7 @@ private:
 namespace details {
 
 QString Current(ushort key);
-rpl::producer<QString> Viewer(ushort key);
+rpl::producer<QString> Value(ushort key);
 
 } // namespace details
 } // namespace Lang

@@ -31,6 +31,7 @@ namespace HistoryView {
 struct Group;
 class Element;
 class ElementDelegate;
+class SendActionPainter;
 } // namespace HistoryView
 
 namespace Main {
@@ -170,6 +171,7 @@ public:
 
 	void registerSendAction(
 		not_null<History*> history,
+		MsgId rootId,
 		not_null<UserData*> user,
 		const MTPSendMessageAction &action,
 		TimeId when);
@@ -376,6 +378,17 @@ public:
 	[[nodiscard]] auto sendActionAnimationUpdated() const
 		-> rpl::producer<SendActionAnimationUpdate>;
 	void updateSendActionAnimation(SendActionAnimationUpdate &&update);
+
+	using SendActionPainter = HistoryView::SendActionPainter;
+	[[nodiscard]] std::shared_ptr<SendActionPainter> repliesSendActionPainter(
+		not_null<History*> history,
+		MsgId rootId);
+	void repliesSendActionPainterRemoved(
+		not_null<History*> history,
+		MsgId rootId);
+	void repliesSendActionPaintersClear(
+		not_null<History*> history,
+		not_null<UserData*> user);
 
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
@@ -613,8 +626,6 @@ public:
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty());
-	void checkNewAuthorization();
-	rpl::producer<> newAuthorizationChecks() const;
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -759,6 +770,9 @@ private:
 		TimeId date);
 
 	bool sendActionsAnimationCallback(crl::time now);
+	[[nodiscard]] SendActionPainter *lookupSendActionPainter(
+		not_null<History*> history,
+		MsgId rootId);
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
 
@@ -819,7 +833,9 @@ private:
 	std::vector<FullMsgId> _selfDestructItems;
 
 	// When typing in this history started.
-	base::flat_map<not_null<History*>, crl::time> _sendActions;
+	base::flat_map<
+		std::pair<not_null<History*>, MsgId>,
+		crl::time> _sendActions;
 	Ui::Animations::Basic _sendActionsAnimation;
 
 	std::unordered_map<
@@ -906,8 +922,6 @@ private:
 		int>;
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
 
-	rpl::event_stream<> _newAuthorizationChecks;
-
 	rpl::event_stream<SendActionAnimationUpdate> _sendActionAnimationUpdate;
 
 	std::vector<WallPaper> _wallpapers;
@@ -920,6 +934,11 @@ private:
 	std::unique_ptr<Streaming> _streaming;
 	std::unique_ptr<MediaRotation> _mediaRotation;
 	std::unique_ptr<Histories> _histories;
+	base::flat_map<
+		not_null<History*>,
+		base::flat_map<
+			MsgId,
+			std::weak_ptr<SendActionPainter>>> _sendActionPainters;
 	std::unique_ptr<Stickers> _stickers;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 

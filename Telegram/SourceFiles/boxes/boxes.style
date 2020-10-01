@@ -348,6 +348,7 @@ sessionInfoFont: msgFont;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 28px;
 sessionTerminateSkip: 22px;
+sessionNamePadding: margins(0px, 0px, 5px, 0px);
 sessionTerminate: IconButton {
 	width: 20px;
 	height: 20px;
@@ -365,6 +366,15 @@ sessionTerminate: IconButton {
 sessionTerminateAllButton: LinkButton(boxLinkButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFg;
+}
+sessionNameStyle: TextStyle(defaultTextStyle) {
+	font: sessionNameFont;
+}
+sessionWhenStyle: TextStyle(defaultTextStyle) {
+	font: sessionWhenFont;
+}
+sessionInfoStyle: TextStyle(defaultTextStyle) {
+	font: sessionInfoFont;
 }
 
 passcodeHeaderFont: font(19px);

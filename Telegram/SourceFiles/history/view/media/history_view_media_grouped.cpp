@@ -170,7 +170,7 @@ RectParts GroupedMedia::cornersFromSides(RectParts sides) const {
 	if (!isBubbleTop()) {
 		result &= ~(RectPart::TopLeft | RectPart::TopRight);
 	}
-	if (!isBubbleBottom() || !_caption.isEmpty()) {
+	if (!isRoundedInBubbleBottom() || !_caption.isEmpty()) {
 		result &= ~(RectPart::BottomLeft | RectPart::BottomRight);
 	}
 	return result;
@@ -216,9 +216,9 @@ void GroupedMedia::draw(
 		if (needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, width(), selected, InfoDisplayType::Image);
 		}
-		if (!_parent->hasBubble() && _parent->displayRightAction()) {
+		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
 	}
@@ -272,10 +272,10 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
 			result.cursor = CursorState::Date;
 		}
-		if (!_parent->hasBubble() && _parent->displayRightAction()) {
+		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
 			}
 		}
@@ -453,8 +453,10 @@ bool GroupedMedia::computeNeedBubble() const {
 		return true;
 	}
 	if (const auto item = _parent->data()) {
-		if (item->viaBot()
-			|| item->Has<HistoryMessageReply>()
+		if (item->repliesAreComments()
+			|| item->externalReply()
+			|| item->viaBot()
+			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
 			) {

@@ -41,6 +41,48 @@ constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
 using ProxyData = MTP::ProxyData;
 
+class HostInput : public Ui::MaskedInputField {
+public:
+	HostInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
+		const QString &val);
+
+protected:
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
+};
+
+HostInput::HostInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
+}
+
+void HostInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	QString newText;
+	int newCursor = nowCursor;
+	newText.reserve(now.size());
+	for (auto i = 0, l = now.size(); i < l; ++i) {
+		if (now[i] == ',') {
+			newText.append('.');
+		} else {
+			newText.append(now[i]);
+		}
+	}
+	setCorrectedText(now, nowCursor, newText, newCursor);
+}
+
 class Base64UrlInput : public Ui::MaskedInputField {
 public:
 	Base64UrlInput(
@@ -209,7 +251,7 @@ private:
 	std::shared_ptr<Ui::RadioenumGroup<Type>> _type;
 
 	QPointer<Ui::SlideWrap<>> _aboutSponsored;
-	QPointer<Ui::InputField> _host;
+	QPointer<HostInput> _host;
 	QPointer<Ui::PortInput> _port;
 	QPointer<Ui::InputField> _user;
 	QPointer<Ui::PasswordInput> _password;
@@ -767,12 +809,12 @@ ProxyBox::ProxyBox(
 void ProxyBox::prepare() {
 	setTitle(tr::lng_proxy_edit());
 
-	connect(_host.data(), &Ui::InputField::changed, [=] {
+	connect(_host.data(), &HostInput::changed, [=] {
 		Ui::PostponeCall(_host, [=] {
 			const auto host = _host->getLastText().trimmed();
 			static const auto mask = u"^\\d+\\.\\d+\\.\\d+\\.\\d+:(\\d*)$"_q;
 			const auto match = QRegularExpression(mask).match(host);
-			if (_host->textCursor().position() == host.size()
+			if (_host->cursorPosition() == host.size()
 				&& match.hasMatch()) {
 				const auto port = match.captured(1);
 				_port->setText(port);
@@ -881,7 +923,7 @@ void ProxyBox::setupSocketAddress(const ProxyData &data) {
 			_content,
 			st::connectionHostInputField.heightMin),
 		st::proxyEditInputPadding);
-	_host = Ui::CreateChild<Ui::InputField>(
+	_host = Ui::CreateChild<HostInput>(
 		address,
 		st::connectionHostInputField,
 		tr::lng_connection_host_ph(),
@@ -1043,7 +1085,6 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		proxy.password = fields.value(qsl("secret"));
 	}
 	if (proxy) {
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
 		const auto text = tr::lng_sure_enable_socks(
 			tr::now,
 			lt_server,
@@ -1053,7 +1094,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			+ (proxy.type == Type::Mtproto
 				? "\n\n" + tr::lng_proxy_sponsor_warning(tr::now)
 				: QString());
-		*box = Ui::show(Box<ConfirmBox>(text, tr::lng_sure_enable(tr::now), [=] {
+		auto callback = [=](Fn<void()> &&close) {
 			auto &proxies = Global::RefProxiesList();
 			if (!ranges::contains(proxies, proxy)) {
 				proxies.push_back(proxy);
@@ -1062,10 +1103,14 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				proxy,
 				ProxyData::Settings::Enabled);
 			Local::writeSettings();
-			if (const auto strong = box->data()) {
-				strong->closeBox();
-			}
-		}), Ui::LayerOption::KeepOther);
+			close();
+		};
+		Ui::show(
+			Box<ConfirmBox>(
+				text,
+				tr::lng_sure_enable(tr::now),
+				std::move(callback)),
+			Ui::LayerOption::KeepOther);
 	} else {
 		Ui::show(Box<InformBox>(
 			(proxy.status() == ProxyData::Status::Unsupported

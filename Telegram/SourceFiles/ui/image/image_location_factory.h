@@ -19,6 +19,10 @@ namespace Images {
 	not_null<Main::Session*> session,
 	const MTPDphoto &photo,
 	const MTPPhotoSize &size);
+[[nodiscard]] ImageWithLocation FromProgressiveSize(
+	not_null<Main::Session*> session,
+	const MTPPhotoSize &size,
+	int index);
 [[nodiscard]] ImageWithLocation FromPhotoSize(
 	not_null<Main::Session*> session,
 	const MTPDdocument &document,
@@ -37,7 +41,8 @@ namespace Images {
 	const MTPVideoSize &size);
 [[nodiscard]] ImageWithLocation FromImageInMemory(
 	const QImage &image,
-	const char *format);
+	const char *format,
+	QByteArray bytes = QByteArray());
 [[nodiscard]] ImageLocation FromWebDocument(const MTPWebDocument &document);
 
 } // namespace Images

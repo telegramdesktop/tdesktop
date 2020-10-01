@@ -158,42 +158,6 @@ using f_DwmSetWindowAttribute = HRESULT(FAR STDAPICALLTYPE*)(
 	DWORD cbAttribute);
 extern f_DwmSetWindowAttribute DwmSetWindowAttribute;
 
-// RSTRTMGR.DLL
-
-using f_RmStartSession = DWORD(FAR STDAPICALLTYPE*)(
-	_Out_ DWORD *pSessionHandle,
-	_Reserved_ DWORD dwSessionFlags,
-	_Out_writes_(CCH_RM_SESSION_KEY + 1) WCHAR strSessionKey[]);
-extern f_RmStartSession RmStartSession;
-
-using f_RmRegisterResources = DWORD(FAR STDAPICALLTYPE*)(
-	_In_ DWORD dwSessionHandle,
-	_In_ UINT nFiles,
-	_In_reads_opt_(nFiles) LPCWSTR rgsFileNames[],
-	_In_ UINT nApplications,
-	_In_reads_opt_(nApplications) RM_UNIQUE_PROCESS rgApplications[],
-	_In_ UINT nServices,
-	_In_reads_opt_(nServices) LPCWSTR rgsServiceNames[]);
-extern f_RmRegisterResources RmRegisterResources;
-
-using f_RmGetList = DWORD(FAR STDAPICALLTYPE*)(
-	_In_ DWORD dwSessionHandle,
-	_Out_ UINT *pnProcInfoNeeded,
-	_Inout_ UINT *pnProcInfo,
-	_Inout_updates_opt_(*pnProcInfo) RM_PROCESS_INFO rgAffectedApps[],
-	_Out_ LPDWORD lpdwRebootReasons);
-extern f_RmGetList RmGetList;
-
-using f_RmShutdown = DWORD(FAR STDAPICALLTYPE*)(
-	_In_ DWORD dwSessionHandle,
-	_In_ ULONG lActionFlags,
-	_In_opt_ RM_WRITE_STATUS_CALLBACK fnStatus);
-extern f_RmShutdown RmShutdown;
-
-using f_RmEndSession = DWORD(FAR STDAPICALLTYPE*)(
-	_In_ DWORD dwSessionHandle);
-extern f_RmEndSession RmEndSession;
-
 // PSAPI.DLL
 
 using f_GetProcessMemoryInfo = BOOL(FAR STDAPICALLTYPE*)(

@@ -138,7 +138,7 @@ Ui::RadialState Document::waitingState() const {
 }
 
 void Document::handleUpdate(Update &&update) {
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		ready(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 		_info.video.state.receivedTill = update.till;

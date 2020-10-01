@@ -55,7 +55,7 @@ enum class MediaInBubbleState {
 
 class Media : public Object {
 public:
-	Media(not_null<Element*> parent) : _parent(parent) {
+	explicit Media(not_null<Element*> parent) : _parent(parent) {
 	}
 
 	[[nodiscard]] not_null<History*> history() const;
@@ -217,6 +217,7 @@ public:
 		return (_inBubbleState == MediaInBubbleState::Bottom)
 			|| (_inBubbleState == MediaInBubbleState::None);
 	}
+	[[nodiscard]] bool isRoundedInBubbleBottom() const;
 	[[nodiscard]] virtual bool skipBubbleTail() const {
 		return false;
 	}
@@ -284,7 +285,7 @@ protected:
 	virtual void playAnimation(bool autoplay) {
 	}
 
-	not_null<Element*> _parent;
+	const not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
 
 };

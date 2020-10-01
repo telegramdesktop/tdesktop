@@ -65,9 +65,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	AddDivider(result);
 	AddSkip(result);
 	SetupLanguageButton(result, false);
-	if (HasConnectionType()) {
-		SetupConnectionType(&window->account(), result);
-	}
+	SetupConnectionType(&window->account(), result);
 	AddSkip(result);
 	if (HasUpdate()) {
 		AddDivider(result);
@@ -352,7 +350,9 @@ void IntroWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroWidget::keyPressEvent(QKeyEvent *e) {
-	CodesFeedString(nullptr, e->text());
+	crl::on_main(this, [text = e->text()]{
+		CodesFeedString(nullptr, text);
+	});
 	return RpWidget::keyPressEvent(e);
 }
 

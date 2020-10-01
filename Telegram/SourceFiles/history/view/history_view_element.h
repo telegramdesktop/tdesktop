@@ -16,6 +16,7 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
+struct HistoryMessageReply;
 
 namespace Window {
 class SessionController;
@@ -31,6 +32,7 @@ class Media;
 
 enum class Context : char {
 	History,
+	Replies,
 	//Feed, // #feed
 	AdminLog,
 	ContactPreview
@@ -62,6 +64,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
 	virtual bool elementIsGifPaused() = 0;
+	virtual bool elementHideReply(not_null<const Element*> view) = 0;
+	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
 
 };
 
@@ -92,6 +96,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
+	bool elementHideReply(not_null<const Element*> view) override;
+	bool elementShownUnread(not_null<const Element*> view) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
@@ -114,7 +120,7 @@ TextSelection ShiftItemSelection(
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
 struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
-	void init();
+	void init(const QString &string);
 
 	static int height();
 	static int marginTop();
@@ -123,6 +129,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 
 	QString text;
 	int width = 0;
+	rpl::lifetime lifetime;
 
 };
 
@@ -202,7 +209,7 @@ public:
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 
-	void createUnreadBar();
+	void createUnreadBar(rpl::producer<QString> text);
 	void destroyUnreadBar();
 
 	int displayedDateHeight() const;
@@ -255,9 +262,12 @@ public:
 	virtual bool hasOutLayout() const;
 	virtual bool drawBubble() const;
 	virtual bool hasBubble() const;
+	virtual int minWidthForMedia() const {
+		return 0;
+	}
 	virtual bool hasFastReply() const;
 	virtual bool displayFastReply() const;
-	virtual bool displayRightAction() const;
+	virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
 		int left,
@@ -267,6 +277,10 @@ public:
 	virtual bool displayEditedBadge() const;
 	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
+	virtual HistoryMessageReply *displayedReply() const;
+	virtual void applyGroupAdminChanges(
+		const base::flat_set<UserId> &changes) {
+	}
 
 	struct VerticalRepaintRange {
 		int top = 0;
@@ -274,8 +288,9 @@ public:
 	};
 	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
 
+	virtual bool hasHeavyPart() const;
+	virtual void unloadHeavyPart();
 	void checkHeavyPart();
-	void unloadHeavyPart();
 
 	// Legacy blocks structure.
 	HistoryBlock *block();
@@ -286,7 +301,9 @@ public:
 	void setIndexInBlock(int index);
 	int indexInBlock() const;
 	Element *previousInBlocks() const;
+	Element *previousDisplayedInBlocks() const;
 	Element *nextInBlocks() const;
+	Element *nextDisplayedInBlocks() const;
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 

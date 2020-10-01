@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_progress.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
 #include "storage/storage_account.h"
-#include "layout.h"
 #include "main/main_session.h"
 #include "facades.h"
 
@@ -496,7 +496,7 @@ void Widget::updateTimeText(const TrackState &state) {
 		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;
-		_time = formatDurationText(display);
+		_time = Ui::FormatDurationText(display);
 		_playbackSlider->setDisabled(false);
 	}
 	if (_seekPositionMs < 0) {
@@ -508,7 +508,7 @@ void Widget::updateTimeLabel() {
 	auto timeLabelWidth = _timeLabel->width();
 	if (_seekPositionMs >= 0) {
 		auto playAlready = _seekPositionMs / 1000LL;
-		_timeLabel->setText(formatDurationText(playAlready));
+		_timeLabel->setText(Ui::FormatDurationText(playAlready));
 	} else {
 		_timeLabel->setText(_time);
 	}

@@ -221,7 +221,7 @@ QByteArray SerializeMessage(
 		const QString &internalLinksDomain) {
 	using namespace Data;
 
-	if (message.media.content.is<UnsupportedMedia>()) {
+	if (v::is<UnsupportedMedia>(message.media.content)) {
 		return SerializeObject(context, {
 			{ "id", Data::NumberToString(message.id) },
 			{ "type", SerializeString("unsupported") }
@@ -254,7 +254,9 @@ QByteArray SerializeMessage(
 	{ "id", NumberToString(message.id) },
 	{
 		"type",
-		SerializeString(message.action.content ? "service" : "message")
+		SerializeString(!v::is_null(message.action.content)
+			? "service"
+			: "message")
 	},
 	{ "date", SerializeDate(message.date) },
 	};
@@ -293,14 +295,17 @@ QByteArray SerializeMessage(
 	};
 	const auto pushFrom = [&](const QByteArray &label = "from") {
 		if (message.fromId) {
-			pushBare(label, wrapUserName(message.fromId));
-			pushBare(label+"_id", Data::NumberToString(message.fromId));
+			pushBare(label, wrapPeerName(message.fromId));
+			push(label+"_id", message.fromId);
 		}
 	};
 	const auto pushReplyToMsgId = [&](
 			const QByteArray &label = "reply_to_message_id") {
 		if (message.replyToMsgId) {
 			push(label, message.replyToMsgId);
+			if (message.replyToPeerId) {
+				push("reply_to_peer_id", message.replyToPeerId);
+			}
 		}
 	};
 	const auto pushUserNames = [&](
@@ -357,7 +362,7 @@ QByteArray SerializeMessage(
 		}
 	};
 
-	message.action.content.match([&](const ActionChatCreate &data) {
+	v::match(message.action.content, [&](const ActionChatCreate &data) {
 		pushActor();
 		pushAction("create_group");
 		push("title", data.title);
@@ -471,9 +476,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("requested_phone_number");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
-	if (!message.action.content) {
+	if (v::is_null(message.action.content)) {
 		pushFrom();
 		push("author", message.signature);
 		if (message.forwardedFromId) {
@@ -498,7 +503,7 @@ QByteArray SerializeMessage(
 		}
 	}
 
-	message.media.content.match([&](const Photo &photo) {
+	v::match(message.media.content, [&](const Photo &photo) {
 		pushPhoto(photo.image);
 		pushTTL();
 	}, [&](const Document &data) {
@@ -612,7 +617,7 @@ QByteArray SerializeMessage(
 		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](std::nullopt_t) {});
+	}, [](v::null_t) {});
 
 	pushBare("text", SerializeText(context, message.text));
 
@@ -1009,6 +1014,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		switch (type) {
 		case Type::Unknown: return "";
 		case Type::Self: return "saved_messages";
+		case Type::Replies: return "replies";
 		case Type::Personal: return "personal_chat";
 		case Type::Bot: return "bot_chat";
 		case Type::PrivateGroup: return "private_group";
@@ -1024,7 +1030,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		? QByteArray()
 		: prepareArrayItemStart();
 	block.append(pushNesting(Context::kObject));
-	if (data.type != Type::Self) {
+	if (data.type != Type::Self && data.type != Type::Replies) {
 		block.append(prepareObjectItemStart("name")
 			+ StringAllowNull(data.name));
 	}

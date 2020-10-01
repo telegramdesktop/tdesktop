@@ -146,12 +146,19 @@ const ChannelLocation *ChannelData::getLocation() const {
 void ChannelData::setLinkedChat(ChannelData *linked) {
 	if (_linkedChat != linked) {
 		_linkedChat = linked;
+		if (const auto history = owner().historyLoaded(this)) {
+			history->forceFullResize();
+		}
 		session().changes().peerUpdated(this, UpdateFlag::ChannelLinkedChat);
 	}
 }
 
 ChannelData *ChannelData::linkedChat() const {
-	return _linkedChat;
+	return _linkedChat.value_or(nullptr);
+}
+
+bool ChannelData::linkedChatKnown() const {
+	return _linkedChat.has_value();
 }
 
 void ChannelData::setMembersCount(int newMembersCount) {
@@ -449,8 +456,8 @@ bool ChannelData::canPublish() const {
 
 bool ChannelData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	return amIn()
-		&& (canPublish()
+	const auto allowed = amIn() || (flags() & MTPDchannel::Flag::f_has_link);
+	return allowed && (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::f_send_messages)));
 }

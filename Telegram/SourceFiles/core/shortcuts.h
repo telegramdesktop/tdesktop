@@ -53,6 +53,8 @@ enum class Command {
 	SendSilentMessage,
 	ScheduleMessage,
 
+	ReadChat,
+
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,

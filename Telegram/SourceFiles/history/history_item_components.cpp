@@ -73,6 +73,8 @@ void HistoryMessageVia::resize(int32 availw) const {
 }
 
 void HistoryMessageSigned::refresh(const QString &date) {
+	Expects(!isAnonymousRank);
+
 	auto name = author;
 	const auto time = qsl(", ") + date;
 	const auto timew = st::msgDateFont->width(time);
@@ -155,7 +157,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		if (fromChannel || !psaType.isEmpty()) {
 			auto custom = psaType.isEmpty()
 				? QString()
-				: Lang::Current().getNonDefaultValue(
+				: Lang::GetNonDefaultValue(
 					kPsaForwardedPrefix + psaType.toUtf8());
 			phrase = !custom.isEmpty()
 				? custom.replace("{channel}", textcmdLink(1, phrase))
@@ -204,7 +206,9 @@ bool HistoryMessageReply::updateData(
 	}
 	if (!replyToMsg) {
 		replyToMsg = holder->history()->owner().message(
-			holder->channelId(),
+			(replyToPeerId
+				? peerToChannel(replyToPeerId)
+				: holder->channelId()),
 			replyToMsgId);
 		if (replyToMsg) {
 			if (replyToMsg->isEmpty()) {
@@ -768,7 +772,8 @@ void ReplyKeyboard::Style::paintButton(
 		}
 	}
 	paintButtonIcon(p, rect, outerWidth, button.type);
-	if (button.type == HistoryMessageMarkupButton::Type::Callback
+	if (button.type == HistoryMessageMarkupButton::Type::CallbackWithPassword
+		|| button.type == HistoryMessageMarkupButton::Type::Callback
 		|| button.type == HistoryMessageMarkupButton::Type::Game) {
 		if (auto data = button.link->getButton()) {
 			if (data->requestId) {
@@ -837,7 +842,9 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 					row.emplace_back(Type::Default, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonCallback &data) {
 					row.emplace_back(
-						Type::Callback,
+						(data.is_requires_password()
+							? Type::CallbackWithPassword
+							: Type::Callback),
 						qs(data.vtext()),
 						qba(data.vdata()));
 				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {

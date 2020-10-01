@@ -8,19 +8,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "mtproto/sender.h"
-#include "base/timer.h"
-
-class ConfirmBox;
-
-namespace Ui {
-class IconButton;
-class LinkButton;
-} // namespace Ui
+#include "settings/settings_common.h"
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Settings {
+
+class Sessions : public Section {
+public:
+	Sessions(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+
+private:
+	void setupContent(not_null<Window::SessionController*> controller);
+
+};
+
+} // namespace Settings
 
 class SessionsBox : public Ui::BoxContent {
 public:
@@ -29,46 +36,7 @@ public:
 protected:
 	void prepare() override;
 
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
 private:
-	struct Entry {
-		uint64 hash = 0;
-
-		bool incomplete = false;
-		TimeId activeTime = 0;
-		int nameWidth, activeWidth, infoWidth, ipWidth;
-		QString name, active, info, ip;
-	};
-	struct Full {
-		Entry current;
-		std::vector<Entry> incomplete;
-		std::vector<Entry> list;
-	};
-	class Inner;
-	class List;
-
-	static Entry ParseEntry(const MTPDauthorization &data);
-	static void ResizeEntry(Entry &entry);
-	void setLoading(bool loading);
-	void shortPollSessions();
-
-	void got(const MTPaccount_Authorizations &result);
-
-	void terminateOne(uint64 hash);
-	void terminateAll();
-
 	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
-
-	bool _loading = false;
-	Full _data;
-
-	QPointer<Inner> _inner;
-	QPointer<ConfirmBox> _terminateBox;
-
-	base::Timer _shortPollTimer;
-	mtpRequestId _shortPollRequest = 0;
 
 };

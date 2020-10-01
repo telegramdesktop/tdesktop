@@ -94,6 +94,9 @@ void ComputeDebugMode() {
 	if (file.exists() && file.open(QIODevice::ReadOnly)) {
 		Logs::SetDebugEnabled(file.read(1) != "0");
 	}
+	if (cDebugMode()) {
+		Logs::SetDebugEnabled(true);
+	}
 }
 
 void ComputeExternalUpdater() {
@@ -482,7 +485,7 @@ void Launcher::processArguments() {
 		SetUpdaterDisabledAtStartup();
 	}
 	gUseFreeType = parseResult.contains("-freetype");
-	Logs::SetDebugEnabled(parseResult.contains("-debug"));
+	gDebugMode = parseResult.contains("-debug");
 	gManyInstance = parseResult.contains("-many");
 	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
 	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "app.h"
 #include "styles/style_history.h"
+#include "styles/style_dialogs.h"
 
 namespace Ui {
 namespace {
@@ -88,6 +89,34 @@ void PaintSavedMessagesInner(
 		path.lineTo(right, bottom);
 		path.lineTo(right, half);
 		p.drawPath(path);
+	}
+}
+
+void PaintRepliesMessagesInner(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+	if (size == st::dialogsPhotoSize) {
+		const auto rect = QRect{ x, y, size, size };
+		st::dialogsRepliesUserpic.paintInCenter(
+			p,
+			rect,
+			fg->c);
+	} else {
+		p.save();
+		const auto ratio = size / float64(st::dialogsPhotoSize);
+		p.translate(x + size / 2., y + size / 2.);
+		p.scale(ratio, ratio);
+		const auto skip = st::dialogsPhotoSize;
+		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
+		st::dialogsRepliesUserpic.paintInCenter(
+			p,
+			rect,
+			fg->c);
+		p.restore();
 	}
 }
 
@@ -227,6 +256,76 @@ QPixmap EmptyUserpic::GenerateSavedMessages(int size) {
 QPixmap EmptyUserpic::GenerateSavedMessagesRounded(int size) {
 	return Generate(size, [&](Painter &p) {
 		PaintSavedMessagesRounded(p, 0, 0, size, size);
+	});
+}
+
+void EmptyUserpic::PaintRepliesMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	const auto &bg = st::historyPeerSavedMessagesBg;
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintRepliesMessages(p, x, y, outerWidth, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	const auto &bg = st::historyPeerSavedMessagesBg;
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintRepliesMessagesRounded(p, x, y, outerWidth, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+	x = rtl() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(x, y, size, size);
+
+	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+}
+
+void EmptyUserpic::PaintRepliesMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
+	x = rtl() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(x, y, size, size, st::buttonRadius, st::buttonRadius);
+
+	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+}
+
+QPixmap EmptyUserpic::GenerateRepliesMessages(int size) {
+	return Generate(size, [&](Painter &p) {
+		PaintRepliesMessages(p, 0, 0, size, size);
+	});
+}
+
+QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
+	return Generate(size, [&](Painter &p) {
+		PaintRepliesMessagesRounded(p, 0, 0, size, size);
 	});
 }
 

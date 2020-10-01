@@ -82,7 +82,7 @@ private:
 
 		// TODO base::expected.
 		[[nodiscard]] auto readPacket()
-		-> base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap>;
+		-> std::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap>;
 		void processQueuedPackets(SleepPolicy policy);
 
 		void handleEndOfFile();

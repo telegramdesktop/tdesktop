@@ -177,7 +177,6 @@ void Controller::showTermsDecline() {
 }
 
 void Controller::showTermsDelete() {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto deleteByTerms = [=] {
 		if (const auto session = account().maybeSession()) {
 			session->termsDeleteNow();
@@ -185,13 +184,12 @@ void Controller::showTermsDelete() {
 			Ui::hideLayer();
 		}
 	};
-	*box = Ui::show(
+	Ui::show(
 		Box<ConfirmBox>(
 			tr::lng_terms_delete_warning(tr::now),
 			tr::lng_terms_delete_now(tr::now),
 			st::attentionBoxButton,
-			deleteByTerms,
-			[=] { if (*box) (*box)->closeBox(); }),
+			deleteByTerms),
 		Ui::LayerOption::KeepOther);
 }
 

@@ -84,6 +84,12 @@ struct SectionShow {
 		Backward,
 		ClearStack,
 	};
+
+	struct OriginMessage {
+		FullMsgId id;
+	};
+	using Origin = std::variant<v::null_t, OriginMessage>;
+
 	SectionShow(
 		Way way = Way::Forward,
 		anim::type animated = anim::type::normal,
@@ -112,6 +118,7 @@ struct SectionShow {
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
+	Origin origin;
 
 };
 
@@ -120,6 +127,7 @@ class SessionController;
 class SessionNavigation : public base::has_weak_ptr {
 public:
 	explicit SessionNavigation(not_null<Main::Session*> session);
+	virtual ~SessionNavigation();
 
 	Main::Session &session() const;
 
@@ -129,6 +137,28 @@ public:
 	virtual void showBackFromStack(
 		const SectionShow &params = SectionShow()) = 0;
 	virtual not_null<SessionController*> parentController() = 0;
+
+	struct CommentId {
+		MsgId id = 0;
+	};
+	struct ThreadId {
+		MsgId id = 0;
+	};
+	using RepliesByLinkInfo = std::variant<v::null_t, CommentId, ThreadId>;
+	struct PeerByLinkInfo {
+		std::variant<QString, ChannelId> usernameOrId;
+		MsgId messageId = ShowAtUnreadMsgId;
+		RepliesByLinkInfo repliesInfo;
+		QString startToken;
+		FullMsgId clickFromMessageId;
+	};
+	void showPeerByLink(const PeerByLinkInfo &info);
+
+	void showRepliesForMessage(
+		not_null<History*> history,
+		MsgId rootId,
+		MsgId commentId = 0,
+		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(
 		PeerId peerId,
@@ -140,6 +170,27 @@ public:
 		not_null<History*> history,
 		const SectionShow &params = SectionShow());
 
+	virtual void showPeerHistory(
+		PeerId peerId,
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId) = 0;
+	void showPeerHistory(
+		not_null<PeerData*> peer,
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showPeerHistory(
+		not_null<History*> history,
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+
+	void clearSectionStack(
+			const SectionShow &params = SectionShow::Way::ClearStack) {
+		showPeerHistory(
+			PeerId(0),
+			params,
+			ShowAtUnreadMsgId);
+	}
+
 	void showSettings(
 		Settings::Type type,
 		const SectionShow &params = SectionShow());
@@ -150,10 +201,27 @@ public:
 		FullMsgId contextId,
 		const SectionShow &params = SectionShow());
 
-	virtual ~SessionNavigation() = default;
 
 private:
+	void resolveUsername(
+		const QString &username,
+		Fn<void(not_null<PeerData*>)> done);
+	void resolveChannelById(
+		ChannelId channelId,
+		Fn<void(not_null<ChannelData*>)> done);
+
+	void showPeerByLinkResolved(
+		not_null<PeerData*> peer,
+		const PeerByLinkInfo &info);
+
 	const not_null<Main::Session*> _session;
+
+	mtpRequestId _resolveRequestId = 0;
+
+	History *_showingRepliesHistory = nullptr;
+	MsgId _showingRepliesRootId = 0;
+	mtpRequestId _showingRepliesRequestId = 0;
+
 
 };
 
@@ -233,26 +301,11 @@ public:
 	void showBackFromStack(
 		const SectionShow &params = SectionShow()) override;
 
+	using SessionNavigation::showPeerHistory;
 	void showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params = SectionShow::Way::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
-	void showPeerHistory(
-		not_null<PeerData*> peer,
-		const SectionShow &params = SectionShow::Way::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
-	void showPeerHistory(
-		not_null<History*> history,
-		const SectionShow &params = SectionShow::Way::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
-
-	void clearSectionStack(
-			const SectionShow &params = SectionShow::Way::ClearStack) {
-		showPeerHistory(
-			PeerId(0),
-			params,
-			ShowAtUnreadMsgId);
-	}
+		MsgId msgId = ShowAtUnreadMsgId) override;
 
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,

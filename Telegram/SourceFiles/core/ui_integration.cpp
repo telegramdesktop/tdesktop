@@ -58,6 +58,10 @@ void UiIntegration::startFontsBegin() {
 void UiIntegration::startFontsEnd() {
 }
 
+QString UiIntegration::timeFormat() {
+	return cTimeFormat();
+}
+
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		const EntityLinkData &data,
 		const std::any &context) {

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_web_page.h"
 
-#include "layout.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
@@ -19,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "ui/text/format_values.h"
+#include "layout.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
@@ -53,11 +54,11 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 	auto result = std::vector<std::unique_ptr<Data::Media>>();
 	result.reserve(data.items.size());
 	for (const auto item : data.items) {
-		if (const auto document = base::get_if<DocumentData*>(&item)) {
+		if (const auto document = std::get_if<DocumentData*>(&item)) {
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,
 				*document));
-		} else if (const auto photo = base::get_if<PhotoData*>(&item)) {
+		} else if (const auto photo = std::get_if<PhotoData*>(&item)) {
 			result.push_back(std::make_unique<Data::MediaPhoto>(
 				parent,
 				*photo));
@@ -286,7 +287,7 @@ QSize WebPage::countOptimalSize() {
 		}
 	}
 	if (_data->type == WebPageType::Video && _data->duration) {
-		_duration = formatDurationText(_data->duration);
+		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
 	maxWidth += st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
@@ -41,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "layout.h"
 #include "facades.h" // App::LambdaDelayed.
 #include "app.h"
 #include "styles/style_history.h"
@@ -352,7 +352,7 @@ AlbumThumb::AlbumThumb(
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		_name = fileinfo.fileName();
-		_status = formatSizeText(fileinfo.size());
+		_status = Ui::FormatSizeText(fileinfo.size());
 	}
 	_nameWidth = st::semiboldFont->width(_name);
 	if (_nameWidth > availableFileWidth) {
@@ -766,11 +766,11 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	auto preview = QImage();
 	bool animated = false;
 	bool animationPreview = false;
-	if (const auto image = base::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<FileMediaInformation::Image>(
 			&file.information->media)) {
 		preview = image->data;
 		animated = animationPreview = image->animated;
-	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
 			&file.information->media)) {
 		preview = video->thumbnail;
 		animated = true;
@@ -1004,10 +1004,10 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 
 void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 	auto preview = QImage();
-	if (const auto image = base::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<FileMediaInformation::Image>(
 		&file.information->media)) {
 		preview = image->data;
-	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
 		&file.information->media)) {
 		preview = video->thumbnail;
 	}
@@ -1034,7 +1034,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 		auto songTitle = QString();
 		auto songPerformer = QString();
 		if (file.information) {
-			if (const auto song = base::get_if<FileMediaInformation::Song>(
+			if (const auto song = std::get_if<FileMediaInformation::Song>(
 					&file.information->media)) {
 				songTitle = song->title;
 				songPerformer = song->performer;
@@ -1050,7 +1050,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 			st::semiboldTextStyle,
 			nameString,
 			Ui::NameTextOptions());
-		_statusText = formatSizeText(fileinfo.size());
+		_statusText = Ui::FormatSizeText(fileinfo.size());
 		_statusWidth = qMax(
 			_nameText.maxWidth(),
 			st::normalFont->width(_statusText));

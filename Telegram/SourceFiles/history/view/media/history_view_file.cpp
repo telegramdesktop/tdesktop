@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_file.h"
 
 #include "lang/lang_keys.h"
-#include "layout.h"
+#include "ui/text/format_values.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "data/data_document.h"
@@ -56,16 +56,16 @@ void File::refreshParentId(not_null<HistoryItem*> realParent) {
 
 void File::setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const {
 	_statusSize = newSize;
-	if (_statusSize == FileStatusSizeReady) {
-		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeFailed) {
+	if (_statusSize == Ui::FileStatusSizeReady) {
+		_statusText = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
+	} else if (_statusSize == Ui::FileStatusSizeLoaded) {
+		_statusText = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? qsl("GIF") : Ui::FormatSizeText(fullSize));
+	} else if (_statusSize == Ui::FileStatusSizeFailed) {
 		_statusText = tr::lng_attach_failed(tr::now);
 	} else if (_statusSize >= 0) {
-		_statusText = formatDownloadText(_statusSize, fullSize);
+		_statusText = Ui::FormatDownloadText(_statusSize, fullSize);
 	} else {
-		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
+		_statusText = Ui::FormatPlayedText(-_statusSize - 1, realDuration);
 	}
 }
 

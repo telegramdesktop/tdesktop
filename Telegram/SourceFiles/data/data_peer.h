@@ -158,6 +158,11 @@ public:
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isMegagroup() const;
+	[[nodiscard]] bool isBroadcast() const;
+	[[nodiscard]] bool isRepliesChat() const;
+	[[nodiscard]] bool sharedMediaInfo() const {
+		return isSelf() || isRepliesChat();
+	}
 
 	[[nodiscard]] bool isNotificationsUser() const {
 		return (id == peerFromUser(333000))
@@ -191,8 +196,10 @@ public:
 	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
+	[[nodiscard]] bool amAnonymous() const;
 	[[nodiscard]] bool canRevokeFullHistory() const;
 	[[nodiscard]] bool slowmodeApplied() const;
+	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canSendPolls() const;
 
@@ -204,6 +211,8 @@ public:
 	[[nodiscard]] const ChannelData *asChannel() const;
 	[[nodiscard]] ChannelData *asMegagroup();
 	[[nodiscard]] const ChannelData *asMegagroup() const;
+	[[nodiscard]] ChannelData *asBroadcast();
+	[[nodiscard]] const ChannelData *asBroadcast() const;
 	[[nodiscard]] ChatData *asChatNotMigrated();
 	[[nodiscard]] const ChatData *asChatNotMigrated() const;
 	[[nodiscard]] ChannelData *asChannelOrMigrated();
@@ -349,16 +358,38 @@ public:
 			: (_settings.value() | rpl::type_erased());
 	}
 
-	enum LoadedStatus {
-		NotLoaded = 0x00,
-		MinimalLoaded = 0x01,
-		FullLoaded = 0x02,
+	enum class BlockStatus : char {
+		Unknown,
+		Blocked,
+		NotBlocked,
 	};
+	[[nodiscard]] BlockStatus blockStatus() const {
+		return _blockStatus;
+	}
+	[[nodiscard]] bool isBlocked() const {
+		return (blockStatus() == BlockStatus::Blocked);
+	}
+	void setIsBlocked(bool is);
+
+	enum class LoadedStatus : char {
+		Not,
+		Minimal,
+		Full,
+	};
+	[[nodiscard]] LoadedStatus loadedStatus() const {
+		return _loadedStatus;
+	}
+	[[nodiscard]] bool isMinimalLoaded() const {
+		return (loadedStatus() != LoadedStatus::Not);
+	}
+	[[nodiscard]] bool isFullLoaded() const {
+		return (loadedStatus() == LoadedStatus::Full);
+	}
+	void setLoadedStatus(LoadedStatus status);
 
 	const PeerId id;
 	QString name;
-	LoadedStatus loadedStatus = NotLoaded;
-	MTPinputPeer input;
+	MTPinputPeer input = MTP_inputPeerEmpty();
 
 	int nameVersion = 1;
 
@@ -400,6 +431,8 @@ private:
 	MsgId _pinnedMessageId = 0;
 
 	Settings _settings = { kSettingsUnknown };
+	BlockStatus _blockStatus = BlockStatus::Unknown;
+	LoadedStatus _loadedStatus = LoadedStatus::Not;
 
 	QString _about;
 

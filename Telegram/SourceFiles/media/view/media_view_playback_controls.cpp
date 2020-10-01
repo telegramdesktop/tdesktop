@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "app.h"
 #include "styles/style_media_view.h"
 
@@ -333,9 +333,9 @@ void PlaybackControls::updateTimeTexts(const Player::TrackState &state) {
 
 	_lastDurationMs = (state.length * crl::time(1000)) / playFrequency;
 
-	_timeAlready = formatDurationText(playAlready);
+	_timeAlready = Ui::FormatDurationText(playAlready);
 	auto minus = QChar(8722);
-	_timeLeft = minus + formatDurationText(playLeft);
+	_timeLeft = minus + Ui::FormatDurationText(playLeft);
 
 	if (_seekPositionMs < 0) {
 		refreshTimeTexts();
@@ -350,9 +350,9 @@ void PlaybackControls::refreshTimeTexts() {
 		auto playAlready = _seekPositionMs / crl::time(1000);
 		auto playLeft = (_lastDurationMs / crl::time(1000)) - playAlready;
 
-		timeAlready = formatDurationText(playAlready);
+		timeAlready = Ui::FormatDurationText(playAlready);
 		auto minus = QChar(8722);
-		timeLeft = minus + formatDurationText(playLeft);
+		timeLeft = minus + Ui::FormatDurationText(playLeft);
 	}
 
 	_playedAlready->setText(timeAlready, &alreadyChanged);

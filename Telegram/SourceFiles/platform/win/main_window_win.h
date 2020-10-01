@@ -21,8 +21,6 @@ class PopupMenu;
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
-	Q_OBJECT
-
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
@@ -58,10 +56,9 @@ public:
 		return _deltaTop;
 	}
 
-	~MainWindow();
-
-public slots:
 	void psShowTrayMenu();
+
+	~MainWindow();
 
 protected:
 	void initHook() override;

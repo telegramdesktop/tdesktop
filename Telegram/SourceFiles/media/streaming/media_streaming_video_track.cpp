@@ -62,7 +62,8 @@ private:
 		Looped,
 		Finished,
 	};
-	using ReadEnoughState = base::optional_variant<
+	using ReadEnoughState = std::variant<
+		v::null_t,
 		FrameResult,
 		Shared::PrepareNextCheck>;
 
@@ -225,7 +226,7 @@ void VideoTrackObject::readFrames() {
 	auto time = trackTime().trackTime;
 	while (true) {
 		const auto result = readEnoughFrames(time);
-		result.match([&](FrameResult result) {
+		v::match(result, [&](FrameResult result) {
 			if (result == FrameResult::Done
 				|| result == FrameResult::Finished) {
 				presentFrameIfNeeded();
@@ -239,9 +240,9 @@ void VideoTrackObject::readFrames() {
 			if (delay != kTimeUnknown) {
 				queueReadFrames(delay);
 			}
-		}, [](std::nullopt_t) {
+		}, [](v::null_t) {
 		});
-		if (result.has_value()) {
+		if (!v::is_null(result)) {
 			break;
 		}
 	}
@@ -251,19 +252,19 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 -> ReadEnoughState {
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
-	return state.match([&](Shared::PrepareFrame frame) -> ReadEnoughState {
+	return v::match(state, [&](Shared::PrepareFrame frame) -> ReadEnoughState {
 		while (true) {
 			const auto result = readFrame(frame);
 			if (result != FrameResult::Done) {
 				return result;
 			} else if (!dropStaleFrames
 				|| !VideoTrack::IsStale(frame, trackTime)) {
-				return std::nullopt;
+				return v::null;
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
 		return delay;
-	}, [&](std::nullopt_t) -> ReadEnoughState {
+	}, [&](v::null_t) -> ReadEnoughState {
 		return FrameResult::Done;
 	});
 }
@@ -670,7 +671,7 @@ auto VideoTrack::Shared::prepareState(
 		// If player already awaits next frame - we ignore if it's stale.
 		dropStaleFrames = false;
 		const auto result = prepareNext(index);
-		return result.is<PrepareNextCheck>() ? PrepareState() : result;
+		return v::is<PrepareNextCheck>(result) ? PrepareState() : result;
 	};
 
 	switch (counter()) {

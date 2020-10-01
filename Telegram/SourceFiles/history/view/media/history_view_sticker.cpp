@@ -80,11 +80,13 @@ Sticker::Sticker(
 
 Sticker::~Sticker() {
 	if (_lottie || _dataMedia) {
-		unloadLottie();
+		if (_lottie) {
+			unloadLottie();
+		}
 		if (_dataMedia) {
 			_data->owner().keepAlive(base::take(_dataMedia));
+			_parent->checkHeavyPart();
 		}
-		_parent->checkHeavyPart();
 	}
 }
 
@@ -311,7 +313,7 @@ void Sticker::lottieCreated() {
 
 	_lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
-		update.data.match([&](const Lottie::Information &information) {
+		v::match(update.data, [&](const Lottie::Information &information) {
 			_parent->history()->owner().requestViewResize(_parent);
 		}, [&](const Lottie::DisplayFrameRequest &request) {
 			_parent->history()->owner().requestViewRepaint(_parent);

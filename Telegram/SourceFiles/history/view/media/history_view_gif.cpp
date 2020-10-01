@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 
 #include "lang/lang_keys.h"
-#include "layout.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -28,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "ui/image/image.h"
+#include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "app.h"
+#include "layout.h" // FullSelection
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -45,8 +46,8 @@ constexpr auto kUseNonBlurredThreshold = 240;
 constexpr auto kMaxInlineArea = 1920 * 1080;
 
 int gifMaxStatusWidth(DocumentData *document) {
-	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
-	accumulate_max(result, st::normalFont->width(formatGifAndSizeText(document->size)));
+	auto result = st::normalFont->width(Ui::FormatDownloadText(document->size, document->size));
+	accumulate_max(result, st::normalFont->width(Ui::FormatGifAndSizeText(document->size)));
 	return result;
 }
 
@@ -75,10 +76,10 @@ Gif::Gif(
 : File(parent, realParent)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
-, _downloadSize(formatSizeText(_data->size)) {
+, _downloadSize(Ui::FormatSizeText(_data->size)) {
 	setDocumentLinks(_data, realParent);
 
-	setStatusSize(FileStatusSizeReady);
+	setStatusSize(Ui::FileStatusSizeReady);
 
 	refreshCaption();
 	if ((_dataMedia = _data->activeMediaView())) {
@@ -154,7 +155,7 @@ QSize Gif::countOptimalSize() {
 	_thumbh = th;
 	auto maxWidth = qMax(tw, st::minPhotoSize);
 	auto minHeight = qMax(th, st::minPhotoSize);
-	accumulate_max(maxWidth, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	accumulate_max(maxWidth, _parent->minWidthForMedia());
 	if (!activeCurrentStreamed()) {
 		accumulate_max(maxWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
@@ -169,7 +170,7 @@ QSize Gif::countOptimalSize() {
 	} else if (isSeparateRoundVideo()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = _parent->displayedReply();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (forwarded) {
 			forwarded->create(via);
@@ -211,7 +212,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 
 	newWidth = qMax(tw, st::minPhotoSize);
 	auto newHeight = qMax(th, st::minPhotoSize);
-	accumulate_max(newWidth, _parent->infoWidth() + 2 * st::msgDateImgDelta + st::msgDateImgPadding.x());
+	accumulate_max(newWidth, _parent->minWidthForMedia());
 	if (!activeCurrentStreamed()) {
 		accumulate_max(newWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
@@ -226,7 +227,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 	} else if (isSeparateRoundVideo()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = item->Get<HistoryMessageReply>();
+		auto reply = _parent->displayedReply();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (via || reply || forwarded) {
 			auto additional = additionalWidth(via, reply, forwarded);
@@ -348,7 +349,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	auto usex = 0, usew = paintw;
 	auto separateRoundVideo = isSeparateRoundVideo();
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
-	auto reply = separateRoundVideo ? item->Get<HistoryMessageReply>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
@@ -362,7 +363,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 
 	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 	auto roundCorners = (isRound || inWebPage) ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
+		| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	if (streamed) {
 		auto paused = autoPaused;
 		if (isRound) {
@@ -632,11 +633,11 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		if (isRound || needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, isRound ? InfoDisplayType::Background : InfoDisplayType::Image);
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (fastShareLeft + st::historyFastShareSize > maxRight) {
-				fastShareLeft = (fullRight - st::historyFastShareSize - st::msgDateImgDelta);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (fastShareLeft + size->width() > maxRight) {
+				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
 				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
 			}
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
@@ -752,7 +753,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	auto separateRoundVideo = isSeparateRoundVideo();
 	const auto item = _parent->data();
 	auto via = separateRoundVideo ? item->Get<HistoryMessageVia>() : nullptr;
-	auto reply = separateRoundVideo ? item->Get<HistoryMessageReply>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->displayedReply() : nullptr;
 	auto forwarded = separateRoundVideo ? item->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = maxWidth() - additionalWidth(via, reply, forwarded);
@@ -860,14 +861,14 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 				result.cursor = CursorState::Date;
 			}
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (fastShareLeft + st::historyFastShareSize > maxRight) {
-				fastShareLeft = (fullRight - st::historyFastShareSize - st::msgDateImgDelta);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (fastShareLeft + size->width() > maxRight) {
+				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
 				fastShareTop -= st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y();
 			}
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
 			}
 		}
@@ -1136,8 +1137,10 @@ bool Gif::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	return item->viaBot()
-		|| item->Has<HistoryMessageReply>()
+	return item->repliesAreComments()
+		|| item->externalReply()
+		|| item->viaBot()
+		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName();
 	return false;
@@ -1223,10 +1226,10 @@ void Gif::validateGroupedCache(
 void Gif::setStatusSize(int newSize) const {
 	if (newSize < 0) {
 		_statusSize = newSize;
-		_statusText = formatDurationText(-newSize - 1);
+		_statusText = Ui::FormatDurationText(-newSize - 1);
 	} else if (_data->isVideoMessage()) {
 		_statusSize = newSize;
-		_statusText = formatDurationText(_data->getDuration());
+		_statusText = Ui::FormatDurationText(_data->getDuration());
 	} else {
 		File::setStatusSize(
 			newSize,
@@ -1242,15 +1245,15 @@ void Gif::updateStatusText() const {
 	auto statusSize = 0;
 	auto realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
-		statusSize = FileStatusSizeFailed;
+		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
 	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (dataLoaded() || _dataMedia->canBePlayed()) {
-		statusSize = FileStatusSizeLoaded;
+		statusSize = Ui::FileStatusSizeLoaded;
 	} else {
-		statusSize = FileStatusSizeReady;
+		statusSize = Ui::FileStatusSizeReady;
 	}
 	const auto round = activeRoundStreamed();
 	const auto own = activeOwnStreamed();
@@ -1444,7 +1447,7 @@ void Gif::setStreamed(std::unique_ptr<Streamed> value) {
 void Gif::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 	using namespace ::Media::Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {

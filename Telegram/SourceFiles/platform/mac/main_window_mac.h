@@ -35,11 +35,11 @@ public:
 
 	void updateWindowIcon() override;
 
+	void psShowTrayMenu();
+
 	class Private;
 
 public slots:
-	void psShowTrayMenu();
-
 	void psMacUndo();
 	void psMacRedo();
 	void psMacCut();

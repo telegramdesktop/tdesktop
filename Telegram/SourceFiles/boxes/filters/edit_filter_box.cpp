@@ -241,19 +241,31 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 	}
 	for (auto &[history, userpic, button] : _removePeer) {
 		const auto savedMessages = history->peer->isSelf();
-		if (savedMessages) {
-			Ui::EmptyUserpic::PaintSavedMessages(
-				p,
-				iconLeft,
-				top + iconTop,
-				width(),
-				st.photoSize);
+		const auto repliesMessages = history->peer->isRepliesChat();
+		if (savedMessages || repliesMessages) {
+			if (savedMessages) {
+				Ui::EmptyUserpic::PaintSavedMessages(
+					p,
+					iconLeft,
+					top + iconTop,
+					width(),
+					st.photoSize);
+			} else {
+				Ui::EmptyUserpic::PaintRepliesMessages(
+					p,
+					iconLeft,
+					top + iconTop,
+					width(),
+					st.photoSize);
+			}
 			p.setPen(st::contactsNameFg);
 			p.drawTextLeft(
 				nameLeft,
 				top + nameTop,
 				width(),
-				tr::lng_saved_messages(tr::now));
+				(savedMessages
+					? tr::lng_saved_messages(tr::now)
+					: tr::lng_replies_messages(tr::now)));
 		} else {
 			history->peer->paintUserpicLeft(
 				p,

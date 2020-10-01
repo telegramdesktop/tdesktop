@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 
 #include "window/themes/window_theme.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -87,6 +88,10 @@ constexpr auto kMinDiffIntensity = 0.25;
 		|| background->isMonoColorImage()
 		|| background->paper().isPattern()
 		|| Data::IsLegacy1DefaultWallPaper(background->paper());
+}
+
+[[nodiscard]] bool IsAltShift(Qt::KeyboardModifiers modifiers) {
+	return (modifiers & Qt::ShiftModifier) && (modifiers & Qt::AltModifier);
 }
 
 } // namespace
@@ -272,6 +277,17 @@ void MainMenu::AccountButton::paintEvent(QPaintEvent *e) {
 }
 
 void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
+	if (!_menu && IsAltShift(e->modifiers())) {
+		_menu = base::make_unique_q<Ui::PopupMenu>(this);
+		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+			return _menu->addAction(
+				text,
+				crl::guard(this, std::move(callback)));
+		};
+		MenuAddMarkAsReadAllChatsAction(&_session->data(), addAction);
+		_menu->popup(QCursor::pos());
+		return;
+	}
 	if (&_session->account() == &Core::App().activeAccount() || _menu) {
 		return;
 	}
@@ -281,14 +297,11 @@ void MainMenu::AccountButton::contextMenuEvent(QContextMenuEvent *e) {
 	}));
 	_menu->addAction(tr::lng_settings_logout(tr::now), crl::guard(this, [=] {
 		const auto session = _session;
-		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		const auto callback = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
+		const auto callback = [=](Fn<void()> &&close) {
+			close();
 			Core::App().logout(&session->account());
 		};
-		*box = Ui::show(Box<ConfirmBox>(
+		Ui::show(Box<ConfirmBox>(
 			tr::lng_sure_logout(tr::now),
 			tr::lng_settings_logout(tr::now),
 			st::attentionBoxButton,
@@ -602,20 +615,21 @@ MainMenu::MainMenu(
 }
 
 void MainMenu::setupArchiveButton() {
+	const auto controller = _controller;
+	const auto folder = [=] {
+		return controller->session().data().folderLoaded(Data::Folder::kId);
+	};
 	const auto showArchive = [=] {
-		const auto folder = _controller->session().data().folderLoaded(
-			Data::Folder::kId);
-		if (folder) {
-			_controller->openFolder(folder);
+		if (const auto f = folder()) {
+			controller->openFolder(f);
 			Ui::hideSettingsAndLayer();
 		}
 	};
 	const auto checkArchive = [=] {
-		const auto folder = _controller->session().data().folderLoaded(
-			Data::Folder::kId);
-		return folder
-			&& !folder->chatsList()->empty()
-			&& _controller->session().settings().archiveInMainMenu();
+		const auto f = folder();
+		return f
+			&& !f->chatsList()->empty()
+			&& controller->session().settings().archiveInMainMenu();
 	};
 	_archiveButton->setVisible(checkArchive());
 	_archiveButton->setAcceptBoth(true);
@@ -628,20 +642,33 @@ void MainMenu::setupArchiveButton() {
 			return;
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
-		_contextMenu->addAction(
-			tr::lng_context_archive_to_list(tr::now), [=] {
-			_controller->session().settings().setArchiveInMainMenu(false);
-			_controller->session().saveSettingsDelayed();
+		const auto addAction = [&](const QString &text, Fn<void()> callback) {
+			return _contextMenu->addAction(text, std::move(callback));
+		};
+
+		const auto hide = [=] {
+			controller->session().settings().setArchiveInMainMenu(false);
+			controller->session().saveSettingsDelayed();
 			Ui::hideSettingsAndLayer();
-		});
+		};
+		addAction(tr::lng_context_archive_to_list(tr::now), std::move(hide));
+
+		MenuAddMarkAsReadChatListAction(
+			[f = folder()] { return f->chatsList(); },
+			addAction);
+
 		_contextMenu->popup(QCursor::pos());
 	}, _archiveButton->lifetime());
 
-	_controller->session().data().chatsListChanges(
+	controller->session().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
-		_archiveButton->setVisible(checkArchive());
+		const auto isArchiveVisible = checkArchive();
+		_archiveButton->setVisible(isArchiveVisible);
+		if (!isArchiveVisible) {
+			_contextMenu = nullptr;
+		}
 		update();
 	}, lifetime());
 }
@@ -798,8 +825,7 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 			add(MTP::Environment::Production);
 			return;
 		} else if (which != Qt::RightButton
-			|| !(button->clickModifiers() & Qt::ShiftModifier)
-			|| !(button->clickModifiers() & Qt::AltModifier)) {
+			|| !IsAltShift(button->clickModifiers())) {
 			return;
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);

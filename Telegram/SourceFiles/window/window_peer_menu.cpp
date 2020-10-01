@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "api/api_chat_filters.h"
 #include "api/api_sending.h"
+#include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -61,7 +63,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
-#include "styles/style_history.h" // st::historyErrorToast
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -71,6 +72,43 @@ namespace Window {
 namespace {
 
 constexpr auto kArchivedToastDuration = crl::time(5000);
+constexpr auto kMaxUnreadWithoutConfirmation = 10000;
+
+void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action.get());
+	std::move(
+		text
+	) | rpl::start_with_next([=](const QString &actionText) {
+		action->setText(actionText);
+	}, *lifetime);
+}
+
+[[nodiscard]] bool IsUnreadHistory(not_null<History*> history) {
+	return (history->chatListUnreadCount() > 0)
+		|| (history->chatListUnreadMark());
+}
+
+void MarkAsReadHistory(not_null<History*> history) {
+	const auto read = [&](not_null<History*> history) {
+		if (IsUnreadHistory(history)) {
+			history->peer->owner().histories().readInbox(history);
+		}
+	};
+	read(history);
+	if (const auto migrated = history->migrateSibling()) {
+		read(migrated);
+	}
+}
+
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
+	auto mark = std::vector<not_null<History*>>();
+	for (const auto &row : list->indexed()->all()) {
+		if (const auto history = row->history()) {
+			mark.push_back(history);
+		}
+	}
+	ranges::for_each(mark, MarkAsReadHistory);
+}
 
 class Filler {
 public:
@@ -260,7 +298,9 @@ Filler::Filler(
 }
 
 bool Filler::showInfo() {
-	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
+	if (_source == PeerMenuSource::Profile
+		|| _peer->isSelf()
+		|| _peer->isRepliesChat()) {
 		return false;
 	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
@@ -329,13 +369,11 @@ void Filler::addTogglePin() {
 	};
 	const auto pinAction = _addAction(pinText(), pinToggle);
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(pinAction);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::IsPinned
-	) | rpl::start_with_next([=] {
-		pinAction->setText(pinText());
-	}, *lifetime);
+	) | rpl::map(pinText);
+	SetActionText(pinAction, std::move(actionText));
 }
 
 void Filler::addInfo() {
@@ -362,41 +400,27 @@ void Filler::addInfo() {
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
 	const auto history = peer->owner().history(peer);
-	const auto isUnread = [=] {
-		return (history->chatListUnreadCount() > 0)
-			|| (history->chatListUnreadMark());
-	};
 	const auto label = [=] {
-		return isUnread()
+		return IsUnreadHistory(history)
 			? tr::lng_context_mark_read(tr::now)
 			: tr::lng_context_mark_unread(tr::now);
 	};
 	auto action = _addAction(label(), [=] {
-		const auto markAsRead = isUnread();
-		const auto handle = [&](not_null<History*> history) {
-			if (markAsRead) {
-				peer->owner().histories().readInbox(history);
-			} else {
-				peer->owner().histories().changeDialogUnreadMark(
-					history,
-					!markAsRead);
-			}
-		};
-		handle(history);
+		const auto markAsRead = IsUnreadHistory(history);
 		if (markAsRead) {
-			if (const auto migrated = history->migrateSibling()) {
-				handle(migrated);
-			}
+			MarkAsReadHistory(history);
+		} else {
+			peer->owner().histories().changeDialogUnreadMark(
+				history,
+				!markAsRead);
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::UnreadView
-	) | rpl::start_with_next([=] {
-		action->setText(label());
-	}, *lifetime);
+	) | rpl::map(label);
+	SetActionText(action, std::move(actionText));
 }
 
 void Filler::addToggleArchive() {
@@ -405,24 +429,21 @@ void Filler::addToggleArchive() {
 	const auto isArchived = [=] {
 		return (history->folder() != nullptr);
 	};
+	const auto label = [=] {
+		return isArchived()
+			? tr::lng_archived_remove(tr::now)
+			: tr::lng_archived_add(tr::now);
+	};
 	const auto toggle = [=] {
 		ToggleHistoryArchived(history, !isArchived());
 	};
-	const auto archiveAction = _addAction(
-		(isArchived()
-			? tr::lng_archived_remove(tr::now)
-			: tr::lng_archived_add(tr::now)),
-		toggle);
+	const auto archiveAction = _addAction(label(), toggle);
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(archiveAction);
-	history->session().changes().historyUpdates(
+	auto actionText = history->session().changes().historyUpdates(
 		history,
 		Data::HistoryUpdate::Flag::Folder
-	) | rpl::start_with_next([=] {
-		archiveAction->setText(isArchived()
-			? tr::lng_archived_remove(tr::now)
-			: tr::lng_archived_add(tr::now));
-	}, *lifetime);
+	) | rpl::map(label);
+	SetActionText(archiveAction, std::move(actionText));
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
@@ -440,19 +461,22 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		if (user->isBlocked()) {
 			PeerMenuUnblockUserWithBotRestart(user);
 		} else if (user->isBot()) {
-			user->session().api().blockUser(user);
+			user->session().api().blockPeer(user);
 		} else {
-			window->show(Box(PeerMenuBlockUserBox, window, user, false));
+			window->show(Box(
+				PeerMenuBlockUserBox,
+				window,
+				user,
+				v::null,
+				v::null));
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(blockAction);
-	_peer->session().changes().peerUpdates(
+	auto actionText = _peer->session().changes().peerUpdates(
 		_peer,
 		Data::PeerUpdate::Flag::IsBlocked
-	) | rpl::start_with_next([=] {
-		blockAction->setText(blockText(user));
-	}, *lifetime);
+	) | rpl::map([=] { return blockText(user); });
+	SetActionText(blockAction, std::move(actionText));
 
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 		user->session().api().requestFullPeer(user);
@@ -486,7 +510,9 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				tr::lng_info_delete_contact(tr::now),
 				[=] { PeerMenuDeleteContact(user); });
 		}
-		if (user->isBot() && !user->botInfo->cantJoinGroups) {
+		if (user->isBot()
+			&& !user->isRepliesChat()
+			&& !user->botInfo->cantJoinGroups) {
 			using AddBotToGroup = AddBotToGroupBoxController;
 			_addAction(
 				tr::lng_profile_invite_to_group(tr::now),
@@ -507,6 +533,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		ClearHistoryHandler(user));
 	if (!user->isInaccessible()
 		&& user != user->session().user()
+		&& !user->isRepliesChat()
 		&& _source != PeerMenuSource::ChatsList) {
 		addBlockUser(user);
 	}
@@ -554,13 +581,21 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//	}
 	//}
 	if (_source != PeerMenuSource::ChatsList) {
+		if (channel->isBroadcast()) {
+			if (const auto chat = channel->linkedChat()) {
+				_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
+					navigation->showPeerHistory(
+						chat,
+						Window::SectionShow::Way::Forward);
+				});
+			}
+		}
 		if (EditPeerInfoBox::Available(channel)) {
-			const auto controller = _controller;
 			const auto text = isGroup
 				? tr::lng_manage_group_title(tr::now)
 				: tr::lng_manage_channel_title(tr::now);
 			_addAction(text, [=] {
-				controller->showEditPeerBox(channel);
+				navigation->showEditPeerBox(channel);
 			});
 		}
 		if (channel->canAddMembers()) {
@@ -698,6 +733,10 @@ void FolderFiller::addTogglesForArchive() {
 			!controller->session().settings().archiveInMainMenu());
 		controller->session().saveSettingsDelayed();
 	});
+
+	MenuAddMarkAsReadChatListAction(
+		[folder = _folder] { return folder->chatsList(); },
+		_addAction);
 }
 //
 //void FolderFiller::addInfo() {
@@ -845,24 +884,29 @@ void PeerMenuCreatePoll(
 void PeerMenuBlockUserBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
-		not_null<UserData*> user,
-		bool suggestClearChat) {
+		not_null<PeerData*> peer,
+		std::variant<v::null_t, bool> suggestReport,
+		std::variant<v::null_t, ClearChat, ClearReply> suggestClear) {
 	using Flag = MTPDpeerSettings::Flag;
-	const auto settings = user->settings().value_or(Flag(0));
+	const auto settings = peer->settings().value_or(Flag(0));
+	const auto reportNeeded = v::is_null(suggestReport)
+		? ((settings & Flag::f_report_spam) != 0)
+		: v::get<bool>(suggestReport);
 
-	const auto name = user->shortName();
+	const auto user = peer->asUser();
+	const auto name = user ? user->shortName() : peer->name;
+	if (user) {
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_blocked_list_confirm_text(
+				lt_name,
+				rpl::single(Ui::Text::Bold(name)),
+				Ui::Text::WithEntities),
+			st::blockUserConfirmation));
 
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		box,
-		tr::lng_blocked_list_confirm_text(
-			lt_name,
-			rpl::single(Ui::Text::Bold(name)),
-			Ui::Text::WithEntities),
-		st::blockUserConfirmation));
-
-	box->addSkip(st::boxMediumSkip);
-
-	const auto report = (settings & Flag::f_report_spam)
+		box->addSkip(st::boxMediumSkip);
+	}
+	const auto report = reportNeeded
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_report_spam(tr::now),
@@ -874,15 +918,31 @@ void PeerMenuBlockUserBox(
 		box->addSkip(st::boxMediumSkip);
 	}
 
-	const auto clear = suggestClearChat
+	const auto clear = v::is<ClearChat>(suggestClear)
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_blocked_list_confirm_clear(tr::now),
 			true,
 			st::defaultBoxCheckbox))
+		: v::is<ClearReply>(suggestClear)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_context_delete_msg(tr::now),
+			true,
+			st::defaultBoxCheckbox))
+		: nullptr;
+	if (clear) {
+		box->addSkip(st::boxMediumSkip);
+	}
+	const auto allFromUser = v::is<ClearReply>(suggestClear)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_delete_all_from(tr::now),
+			true,
+			st::defaultBoxCheckbox))
 		: nullptr;
 
-	if (report || clear) {
+	if (allFromUser) {
 		box->addSkip(st::boxLittleSkip);
 	}
 
@@ -893,24 +953,37 @@ void PeerMenuBlockUserBox(
 	box->addButton(tr::lng_blocked_list_confirm_ok(), [=] {
 		const auto reportChecked = report && report->checked();
 		const auto clearChecked = clear && clear->checked();
+		const auto fromUserChecked = allFromUser && allFromUser->checked();
 
 		box->closeBox();
 
-		user->session().api().blockUser(user);
-		if (reportChecked) {
-			user->session().api().request(MTPmessages_ReportSpam(
-				user->input
-			)).send();
-		}
-		if (clearChecked) {
-			crl::on_main(&user->session(), [=] {
-				user->session().api().deleteConversation(user, false);
-			});
-			window->sessionController()->showBackFromStack();
+		if (const auto clearReply = std::get_if<ClearReply>(&suggestClear)) {
+			using Flag = MTPcontacts_BlockFromReplies::Flag;
+			peer->session().api().request(MTPcontacts_BlockFromReplies(
+				MTP_flags((clearChecked ? Flag::f_delete_message : Flag(0))
+					| (fromUserChecked ? Flag::f_delete_history : Flag(0))
+					| (reportChecked ? Flag::f_report_spam : Flag(0))),
+				MTP_int(clearReply->replyId.msg)
+			)).done([=](const MTPUpdates &result) {
+				peer->session().updates().applyUpdates(result);
+			}).send();
+		} else {
+			peer->session().api().blockPeer(peer);
+			if (reportChecked) {
+				peer->session().api().request(MTPmessages_ReportSpam(
+					peer->input
+				)).send();
+			}
+			if (clearChecked) {
+				crl::on_main(&peer->session(), [=] {
+					peer->session().api().deleteConversation(peer, false);
+				});
+				window->sessionController()->showBackFromStack();
+			}
 		}
 
 		Ui::Toast::Show(
-			tr::lng_new_contact_block_done(tr::now, lt_user, user->shortName()));
+			tr::lng_new_contact_block_done(tr::now, lt_user, name));
 	}, st::attentionBoxButton);
 
 	box->addButton(tr::lng_cancel(), [=] {
@@ -919,7 +992,7 @@ void PeerMenuBlockUserBox(
 }
 
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
-	user->session().api().unblockUser(user, [=] {
+	user->session().api().unblockPeer(user, [=] {
 		if (user->isBot() && !user->isSupport()) {
 			user->session().api().sendBotStart(user);
 		}
@@ -1231,22 +1304,17 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		session->data().idsToItems(items),
 		TextWithTags());
 	if (!error.isEmpty()) {
-		Ui::Toast::Show(Ui::Toast::Config{
+		Ui::ShowMultilineToast({
 			.text = { error },
-			.st = &st::historyErrorToast,
-			.multiline = true,
 		});
 		return { nullptr };
 	}
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto done = [
 		=,
 		list = std::move(items),
 		callback = std::move(successCallback)
-	]() mutable {
-		if (*box) {
-			(*box)->closeBox();
-		}
+	](Fn<void()> &&close) mutable {
+		close();
 		auto ids = QVector<MTPint>();
 		for (const auto item : session->data().idsToItems(list)) {
 			if (item->allowsSendNow()) {
@@ -1266,10 +1334,9 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 			callback();
 		}
 	};
-	*box = Ui::show(
+	return Ui::show(
 		Box<ConfirmBox>(text, tr::lng_send_button(tr::now), std::move(done)),
-		Ui::LayerOption::KeepOther);
-	return box->data();
+		Ui::LayerOption::KeepOther).data();
 }
 
 void PeerMenuAddChannelMembers(
@@ -1313,10 +1380,10 @@ void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {
 	peer->owner().requestNotifySettings(peer);
-	const auto muteText = [](bool isMuted) {
-		return isMuted
-			? tr::lng_enable_notifications_from_tray(tr::now)
-			: tr::lng_disable_notifications_from_tray(tr::now);
+	const auto muteText = [](bool isUnmuted) {
+		return isUnmuted
+			? tr::lng_disable_notifications_from_tray(tr::now)
+			: tr::lng_enable_notifications_from_tray(tr::now);
 	};
 	const auto muteAction = addAction(QString("-"), [=] {
 		if (!peer->owner().notifyIsMuted(peer)) {
@@ -1326,12 +1393,57 @@ void PeerMenuAddMuteAction(
 		}
 	});
 
-	const auto lifetime = Ui::CreateChild<rpl::lifetime>(muteAction);
-	Info::Profile::NotificationsEnabledValue(
+	auto actionText = Info::Profile::NotificationsEnabledValue(
 		peer
-	) | rpl::start_with_next([=](bool enabled) {
-		muteAction->setText(muteText(!enabled));
-	}, *lifetime);
+	) | rpl::map(muteText);
+	SetActionText(muteAction, std::move(actionText));
+}
+
+void MenuAddMarkAsReadAllChatsAction(
+		not_null<Data::Session*> data,
+		const PeerMenuCallback &addAction) {
+	auto callback = [owner = data] {
+		auto boxCallback = [=](Fn<void()> &&close) {
+			close();
+
+			MarkAsReadChatList(owner->chatsList());
+			if (const auto folder = owner->folderLoaded(Data::Folder::kId)) {
+				MarkAsReadChatList(folder->chatsList());
+			}
+		};
+		Ui::show(Box<ConfirmBox>(
+			tr::lng_context_mark_read_all_sure(tr::now),
+			std::move(boxCallback)));
+	};
+	addAction(
+		tr::lng_context_mark_read_all(tr::now),
+		std::move(callback));
+}
+
+void MenuAddMarkAsReadChatListAction(
+		Fn<not_null<Dialogs::MainList*>()> &&list,
+		const PeerMenuCallback &addAction) {
+	const auto unreadState = list()->unreadState();
+	if (unreadState.empty()) {
+		return;
+	}
+
+	auto callback = [=] {
+		if (unreadState.messages > kMaxUnreadWithoutConfirmation) {
+			auto boxCallback = [=](Fn<void()> &&close) {
+				MarkAsReadChatList(list());
+				close();
+			};
+			Ui::show(Box<ConfirmBox>(
+				tr::lng_context_mark_read_sure(tr::now),
+				std::move(boxCallback)));
+		} else {
+			MarkAsReadChatList(list());
+		}
+	};
+	addAction(
+		tr::lng_context_mark_read(tr::now),
+		std::move(callback));
 }
 // #feed
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {

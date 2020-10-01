@@ -154,7 +154,9 @@ QSize Photo::countOptimalSize() {
 	if (_serviceWidth > 0) {
 		return { _serviceWidth, _serviceWidth };
 	}
-	const auto minWidth = qMax((_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize), _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	const auto minWidth = qMax(
+		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		_parent->minWidthForMedia());
 	const auto maxActualWidth = qMax(tw, minWidth);
 	maxWidth = qMax(maxActualWidth, th);
 	minHeight = qMax(th, st::minPhotoSize);
@@ -194,7 +196,9 @@ QSize Photo::countCurrentSize(int newWidth) {
 	if (_pixw < 1) _pixw = 1;
 	if (_pixh < 1) _pixh = 1;
 
-	auto minWidth = qMax((_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize), _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	auto minWidth = qMax(
+		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		_parent->minWidthForMedia());
 	newWidth = qMax(_pixw, minWidth);
 	auto newHeight = qMax(_pixh, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
@@ -250,7 +254,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 		auto inWebPage = (_parent->media() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
+			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = [&] {
 			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
 				return large->pixSingle(_pixw, _pixh, paintw, painth, roundRadius, roundCorners);
@@ -322,9 +326,9 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 		if (needInfoDisplay()) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * paintx + paintw, selected, InfoDisplayType::Image);
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
@@ -450,10 +454,10 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
 			result.cursor = CursorState::Date;
 		}
-		if (!bubble && _parent->displayRightAction()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
+			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
 			}
 		}
@@ -704,7 +708,7 @@ void Photo::setStreamed(std::unique_ptr<Streamed> value) {
 void Photo::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 	using namespace ::Media::Streaming;
 
-	update.data.match([&](Information &update) {
+	v::match(update.data, [&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 	}, [&](const UpdateVideo &update) {
@@ -801,8 +805,10 @@ bool Photo::needsBubble() const {
 	}
 	const auto item = _parent->data();
 	if (item->toHistoryMessage()) {
-		return item->viaBot()
-			|| item->Has<HistoryMessageReply>()
+		return item->repliesAreComments()
+			|| item->externalReply()
+			|| item->viaBot()
+			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName();
 	}

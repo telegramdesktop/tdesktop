@@ -7,24 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/sessions_box.h"
 
-#include "lang/lang_keys.h"
-#include "storage/localstorage.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-#include "main/main_session.h"
-#include "data/data_session.h"
+#include "apiwrap.h"
+#include "api/api_authorizations.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
-#include "settings/settings_common.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/labels.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
-#include "styles/style_layers.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "window/window_session_controller.h"
 
 namespace {
 
@@ -32,7 +31,63 @@ constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
 
 } // namespace
 
-class SessionsBox::List : public Ui::RpWidget {
+class SessionsContent : public Ui::RpWidget {
+public:
+	SessionsContent(QWidget*, not_null<Main::Session*> session);
+
+	void setupContent();
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	struct Entry {
+		Entry() = default;
+		Entry(const Api::Authorizations::Entry &entry)
+		: hash(entry.hash)
+		, incomplete(entry.incomplete)
+		, activeTime(entry.activeTime)
+		, name(st::sessionNameStyle, entry.name)
+		, active(st::sessionWhenStyle, entry.active)
+		, info(st::sessionInfoStyle, entry.info)
+		, ip(st::sessionInfoStyle, entry.ip) {
+		};
+
+		uint64 hash = 0;
+
+		bool incomplete = false;
+		TimeId activeTime = 0;
+		Ui::Text::String name, active, info, ip;
+	};
+	struct Full {
+		Entry current;
+		std::vector<Entry> incomplete;
+		std::vector<Entry> list;
+	};
+	class Inner;
+	class List;
+
+	void shortPollSessions();
+	void parse(const Api::Authorizations::List &list);
+
+	void terminate(Fn<void()> terminateRequest, QString message);
+	void terminateOne(uint64 hash);
+	void terminateAll();
+
+	const not_null<Api::Authorizations*> _authorizations;
+
+	rpl::variable<bool> _loading = false;
+	Full _data;
+
+	object_ptr<Inner> _inner;
+	QPointer<ConfirmBox> _terminateBox;
+
+	base::Timer _shortPollTimer;
+
+};
+
+class SessionsContent::List : public Ui::RpWidget {
 public:
 	List(QWidget *parent);
 
@@ -43,11 +98,20 @@ public:
 	void terminating(uint64 hash, bool terminating);
 
 protected:
+	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	struct RowWidth {
+		int available = 0;
+		int info = 0;
+	};
+	RowWidth _rowWidth;
+
+	void computeRowWidth();
+
 	std::vector<Entry> _items;
 	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
 	rpl::event_stream<uint64> _terminate;
@@ -55,7 +119,7 @@ private:
 
 };
 
-class SessionsBox::Inner : public Ui::RpWidget {
+class SessionsContent::Inner : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent);
 
@@ -75,21 +139,20 @@ private:
 
 };
 
-SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
-: _session(session)
-, _api(&_session->mtp())
+SessionsContent::SessionsContent(QWidget*, not_null<Main::Session*> session)
+: _authorizations(&session->api().authorizations())
+, _inner(this)
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
-void SessionsBox::prepare() {
-	setTitle(tr::lng_sessions_other_header());
-
-	addButton(tr::lng_close(), [=] { closeBox(); });
-
-	setDimensions(st::boxWideWidth, st::sessionsHeight);
-
-	_inner = setInnerWidget(object_ptr<Inner>(this), st::sessionsScroll);
+void SessionsContent::setupContent() {
 	_inner->resize(width(), st::noContactsHeight);
+
+	_inner->heightValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](int height) {
+		resize(width(), height);
+	}, _inner->lifetime());
 
 	_inner->terminateOne(
 	) | rpl::start_with_next([=](uint64 hash) {
@@ -101,34 +164,58 @@ void SessionsBox::prepare() {
 		terminateAll();
 	}, lifetime());
 
-	_session->data().newAuthorizationChecks(
-	) | rpl::start_with_next([=] {
-		shortPollSessions();
+	_loading.changes(
+	) | rpl::start_with_next([=](bool value) {
+		_inner->setVisible(!value);
 	}, lifetime());
 
-	setLoading(true);
+	_authorizations->listChanges(
+	) | rpl::start_with_next([=](const Api::Authorizations::List &list) {
+		parse(list);
+	}, lifetime());
+
+	_loading = true;
 	shortPollSessions();
 }
 
-void SessionsBox::setLoading(bool loading) {
-	if (_loading != loading) {
-		_loading = loading;
-		setInnerVisible(!_loading);
+void SessionsContent::parse(const Api::Authorizations::List &list) {
+	if (list.empty()) {
+		return;
 	}
+	_data = Full();
+	for (const auto &auth : list) {
+		auto entry = Entry(auth);
+		if (!entry.hash) {
+			_data.current = std::move(entry);
+		} else if (entry.incomplete) {
+			_data.incomplete.push_back(std::move(entry));
+		} else {
+			_data.list.push_back(std::move(entry));
+		}
+	}
+
+	_loading = false;
+
+	ranges::sort(_data.list, std::greater<>(), &Entry::activeTime);
+	ranges::sort(_data.incomplete, std::greater<>(), &Entry::activeTime);
+
+	_inner->showData(_data);
+
+	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
 }
 
-void SessionsBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
+void SessionsContent::resizeEvent(QResizeEvent *e) {
+	RpWidget::resizeEvent(e);
 
 	_inner->resize(width(), _inner->height());
 }
 
-void SessionsBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
+void SessionsContent::paintEvent(QPaintEvent *e) {
+	RpWidget::paintEvent(e);
 
 	Painter p(this);
 
-	if (_loading) {
+	if (_loading.current()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(
@@ -138,166 +225,43 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void SessionsBox::got(const MTPaccount_Authorizations &result) {
-	_shortPollRequest = 0;
-	setLoading(false);
-	_data = Full();
-
-	result.match([&](const MTPDaccount_authorizations &data) {
-		const auto &list = data.vauthorizations().v;
-		for (const auto &auth : list) {
-			auth.match([&](const MTPDauthorization &data) {
-				auto entry = ParseEntry(data);
-				if (!entry.hash) {
-					_data.current = std::move(entry);
-				} else if (entry.incomplete) {
-					_data.incomplete.push_back(std::move(entry));
-				} else {
-					_data.list.push_back(std::move(entry));
-				}
-			});
-		}
-	});
-
-	const auto getActiveTime = [](const Entry &entry) {
-		return entry.activeTime;
-	};
-	ranges::sort(_data.list, std::greater<>(), getActiveTime);
-	ranges::sort(_data.incomplete, std::greater<>(), getActiveTime);
-
-	_inner->showData(_data);
-
-	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
-}
-
-SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
-	auto result = Entry();
-
-	result.hash = data.is_current() ? 0 : data.vhash().v;
-	result.incomplete = data.is_password_pending();
-
-	auto appName = QString();
-	auto appVer = qs(data.vapp_version());
-	const auto systemVer = qs(data.vsystem_version());
-	const auto deviceModel = qs(data.vdevice_model());
-	const auto apiId = data.vapi_id().v;
-	if (apiId == 2040 || apiId == 17349) {
-		appName = (apiId == 2040)
-			? qstr("Telegram Desktop")
-			: qstr("Telegram Desktop (GitHub)");
-		//if (systemVer == qstr("windows")) {
-		//	deviceModel = qsl("Windows");
-		//} else if (systemVer == qstr("os x")) {
-		//	deviceModel = qsl("OS X");
-		//} else if (systemVer == qstr("linux")) {
-		//	deviceModel = qsl("Linux");
-		//}
-		if (appVer == QString::number(appVer.toInt())) {
-			const auto ver = appVer.toInt();
-			appVer = QString("%1.%2"
-			).arg(ver / 1000000
-			).arg((ver % 1000000) / 1000)
-				+ ((ver % 1000)
-					? ('.' + QString::number(ver % 1000))
-					: QString());
-		//} else {
-		//	appVer = QString();
-		}
+void SessionsContent::shortPollSessions() {
+	const auto left = kSessionsShortPollTimeout
+		- (crl::now() - _authorizations->lastReceivedTime());
+	if (left > 0) {
+		parse(_authorizations->list());
+		_shortPollTimer.cancel();
+		_shortPollTimer.callOnce(left);
 	} else {
-		appName = qs(data.vapp_name());// +qsl(" for ") + qs(d.vplatform());
-		if (appVer.indexOf('(') >= 0) {
-			appVer = appVer.mid(appVer.indexOf('('));
-		}
+		_authorizations->reload();
 	}
-	result.name = appName;
-	if (!appVer.isEmpty()) {
-		result.name += ' ' + appVer;
-	}
-
-	const auto country = qs(data.vcountry());
-	const auto platform = qs(data.vplatform());
-	//const auto &countries = countriesByISO2();
-	//const auto j = countries.constFind(country);
-	//if (j != countries.cend()) {
-	//	country = QString::fromUtf8(j.value()->name);
-	//}
-
-	result.activeTime = data.vdate_active().v
-		? data.vdate_active().v
-		: data.vdate_created().v;
-	result.info = qs(data.vdevice_model()) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version());
-	result.ip = qs(data.vip()) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
-	if (!result.hash) {
-		result.active = tr::lng_status_online(tr::now);
-		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));
-	} else {
-		const auto now = QDateTime::currentDateTime();
-		const auto lastTime = base::unixtime::parse(result.activeTime);
-		const auto nowDate = now.date();
-		const auto lastDate = lastTime.date();
-		if (lastDate == nowDate) {
-			result.active = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year()
-			&& lastDate.weekNumber() == nowDate.weekNumber()) {
-			result.active = langDayOfWeek(lastDate);
-		} else {
-			result.active = lastDate.toString(qsl("d.MM.yy"));
-		}
-		result.activeWidth = st::sessionWhenFont->width(result.active);
-	}
-
-	ResizeEntry(result);
-
-	return result;
-}
-
-void SessionsBox::ResizeEntry(Entry &entry) {
-	const auto available = st::boxWideWidth
-		- st::sessionPadding.left()
-		- st::sessionTerminateSkip;
-	const auto availableInList = available
-		- st::sessionTerminate.iconPosition.x();
-	const auto availableListInfo = available - st::sessionTerminate.width;
-
-	const auto resize = [](
-			const style::font &font,
-			QString &string,
-			int &stringWidth,
-			int available) {
-		stringWidth = font->width(string);
-		if (stringWidth > available) {
-			string = font->elided(string, available);
-			stringWidth = font->width(string);
-		}
-	};
-	const auto forName = entry.hash ? availableInList : available;
-	const auto forInfo = entry.hash ? availableListInfo : available;
-	resize(st::sessionNameFont, entry.name, entry.nameWidth, forName);
-	resize(st::sessionInfoFont, entry.info, entry.infoWidth, forInfo);
-	resize(st::sessionInfoFont, entry.ip, entry.ipWidth, available);
-}
-
-void SessionsBox::shortPollSessions() {
-	if (_shortPollRequest) {
-		return;
-	}
-	_shortPollRequest = _api.request(MTPaccount_GetAuthorizations(
-	)).done([=](const MTPaccount_Authorizations &result) {
-		got(result);
-	}).send();
 	update();
 }
 
-void SessionsBox::terminateOne(uint64 hash) {
-	if (_terminateBox) _terminateBox->deleteLater();
+void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
+	if (_terminateBox) {
+		_terminateBox->deleteLater();
+	}
 	const auto callback = crl::guard(this, [=] {
 		if (_terminateBox) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		_api.request(MTPaccount_ResetAuthorization(
-			MTP_long(hash)
-		)).done([=](const MTPBool &result) {
+		terminateRequest();
+	});
+	_terminateBox = Ui::show(
+		Box<ConfirmBox>(
+			message,
+			tr::lng_settings_reset_button(tr::now),
+			st::attentionBoxButton,
+			callback),
+		Ui::LayerOption::KeepOther);
+}
+
+void SessionsContent::terminateOne(uint64 hash) {
+	const auto weak = Ui::MakeWeak(this);
+	auto callback = [=] {
+		auto done = crl::guard(weak, [=](const MTPBool &result) {
 			_inner->terminatingOne(hash, false);
 			const auto getHash = [](const Entry &entry) {
 				return entry.hash;
@@ -310,52 +274,40 @@ void SessionsBox::terminateOne(uint64 hash) {
 			removeByHash(_data.incomplete);
 			removeByHash(_data.list);
 			_inner->showData(_data);
-		}).fail([=](const RPCError &error) {
+		});
+		auto fail = crl::guard(weak, [=](const RPCError &error) {
 			_inner->terminatingOne(hash, false);
-		}).send();
+		});
+		_authorizations->requestTerminate(
+			std::move(done),
+			std::move(fail),
+			hash);
 		_inner->terminatingOne(hash, true);
-	});
-	_terminateBox = Ui::show(
-		Box<ConfirmBox>(
-			tr::lng_settings_reset_one_sure(tr::now),
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+	};
+	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
 
-void SessionsBox::terminateAll() {
-	if (_terminateBox) _terminateBox->deleteLater();
-	const auto callback = crl::guard(this, [=] {
-		if (_terminateBox) {
-			_terminateBox->closeBox();
-			_terminateBox = nullptr;
-		}
-		_api.request(MTPauth_ResetAuthorizations(
-		)).done([=](const MTPBool &result) {
-			_api.request(base::take(_shortPollRequest)).cancel();
+void SessionsContent::terminateAll() {
+	const auto weak = Ui::MakeWeak(this);
+	auto callback = [=] {
+		const auto reset = crl::guard(weak, [=] {
+			_authorizations->cancelCurrentRequest();
 			shortPollSessions();
-		}).fail([=](const RPCError &result) {
-			_api.request(base::take(_shortPollRequest)).cancel();
-			shortPollSessions();
-		}).send();
-		setLoading(true);
-	});
-	_terminateBox = Ui::show(
-		Box<ConfirmBox>(
-			tr::lng_settings_reset_sure(tr::now),
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+		});
+		_authorizations->requestTerminate(
+			[=](const MTPBool &result) { reset(); },
+			[=](const RPCError &result) { reset(); });
+		_loading = true;
+	};
+	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));
 }
 
-SessionsBox::Inner::Inner(QWidget *parent)
+SessionsContent::Inner::Inner(QWidget *parent)
 : RpWidget(parent) {
 	setupContent();
 }
 
-void SessionsBox::Inner::setupContent() {
+void SessionsContent::Inner::setupContent() {
 	using namespace Settings;
 	using namespace rpl::mappers;
 
@@ -418,32 +370,40 @@ void SessionsBox::Inner::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-void SessionsBox::Inner::showData(const Full &data) {
+void SessionsContent::Inner::showData(const Full &data) {
 	_current->showData({ &data.current, &data.current + 1 });
 	_list->showData(data.list);
 	_incomplete->showData(data.incomplete);
 }
 
-rpl::producer<> SessionsBox::Inner::terminateAll() const {
+rpl::producer<> SessionsContent::Inner::terminateAll() const {
 	return _terminateAll->clicks() | rpl::to_empty;
 }
 
-rpl::producer<uint64> SessionsBox::Inner::terminateOne() const {
+rpl::producer<uint64> SessionsContent::Inner::terminateOne() const {
 	return rpl::merge(
 		_incomplete->terminate(),
 		_list->terminate());
 }
 
-void SessionsBox::Inner::terminatingOne(uint64 hash, bool terminating) {
+void SessionsContent::Inner::terminatingOne(uint64 hash, bool terminating) {
 	_incomplete->terminating(hash, terminating);
 	_list->terminating(hash, terminating);
 }
 
-SessionsBox::List::List(QWidget *parent) : RpWidget(parent) {
+SessionsContent::List::List(QWidget *parent) : RpWidget(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-void SessionsBox::List::showData(gsl::span<const Entry> items) {
+void SessionsContent::List::resizeEvent(QResizeEvent *e) {
+	RpWidget::resizeEvent(e);
+
+	computeRowWidth();
+}
+
+void SessionsContent::List::showData(gsl::span<const Entry> items) {
+	computeRowWidth();
+
 	auto buttons = base::take(_terminateButtons);
 	_items.clear();
 	_items.insert(begin(_items), items.begin(), items.end());
@@ -466,24 +426,27 @@ void SessionsBox::List::showData(gsl::span<const Entry> items) {
 			_terminate.fire_copy(hash);
 		});
 		button->show();
-		button->moveToRight(
-			st::sessionTerminateSkip,
-			((_terminateButtons.size() - 1) * st::sessionHeight
-				+ st::sessionTerminateTop));
+		const auto number = _terminateButtons.size() - 1;
+		widthValue(
+		) | rpl::start_with_next([=] {
+			button->moveToRight(
+				st::sessionTerminateSkip,
+				(number * st::sessionHeight + st::sessionTerminateTop));
+		}, lifetime());
 	}
 	resizeToWidth(width());
 	_itemsCount.fire(_items.size());
 }
 
-rpl::producer<int> SessionsBox::List::itemsCount() const {
+rpl::producer<int> SessionsContent::List::itemsCount() const {
 	return _itemsCount.events_starting_with(_items.size());
 }
 
-rpl::producer<uint64> SessionsBox::List::terminate() const {
+rpl::producer<uint64> SessionsContent::List::terminate() const {
 	return _terminate.events();
 }
 
-void SessionsBox::List::terminating(uint64 hash, bool terminating) {
+void SessionsContent::List::terminating(uint64 hash, bool terminating) {
 	const auto i = _terminateButtons.find(hash);
 	if (i != _terminateButtons.cend()) {
 		if (terminating) {
@@ -495,11 +458,21 @@ void SessionsBox::List::terminating(uint64 hash, bool terminating) {
 	}
 }
 
-int SessionsBox::List::resizeGetHeight(int newWidth) {
+int SessionsContent::List::resizeGetHeight(int newWidth) {
 	return _items.size() * st::sessionHeight;
 }
 
-void SessionsBox::List::paintEvent(QPaintEvent *e) {
+void SessionsContent::List::computeRowWidth() {
+	const auto available = width()
+		- st::sessionPadding.left()
+		- st::sessionTerminateSkip;
+	_rowWidth = {
+		.available = available,
+		.info = available - st::sessionTerminate.width,
+	};
+}
+
+void SessionsContent::List::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
@@ -513,6 +486,7 @@ void SessionsBox::List::paintEvent(QPaintEvent *e) {
 		0,
 		count);
 
+	const auto available = _rowWidth.available;
 	const auto x = st::sessionPadding.left();
 	const auto y = st::sessionPadding.top();
 	const auto w = width();
@@ -522,23 +496,66 @@ void SessionsBox::List::paintEvent(QPaintEvent *e) {
 	for (auto i = from; i != till; ++i) {
 		const auto &entry = _items[i];
 
-		p.setFont(st::sessionNameFont);
+		const auto activeW = entry.active.maxWidth();
+		const auto nameW = available
+			- activeW
+			- st::sessionNamePadding.right();
+		const auto nameH = entry.name.style()->font->height;
+		const auto infoW = entry.hash ? _rowWidth.info : available;
+		const auto infoH = entry.info.style()->font->height;
+
+		p.setPen(entry.hash ? st::sessionWhenFg : st::contactsStatusFgOnline);
+		entry.active.drawRight(p, xact, y, activeW, w);
+
 		p.setPen(st::sessionNameFg);
-		p.drawTextLeft(x, y, w, entry.name, entry.nameWidth);
+		entry.name.drawLeftElided(p, x, y, nameW, w);
 
-		p.setFont(st::sessionWhenFont);
-		p.setPen(st::sessionWhenFg);
-		p.drawTextRight(xact, y, w, entry.active, entry.activeWidth);
-
-		const auto name = st::sessionNameFont->height;
-		p.setFont(st::sessionInfoFont);
 		p.setPen(st::boxTextFg);
-		p.drawTextLeft(x, y + name, w, entry.info, entry.infoWidth);
+		entry.info.drawLeftElided(p, x, y + nameH, infoW, w);
 
-		const auto info = st::sessionInfoFont->height;
 		p.setPen(st::sessionInfoFg);
-		p.drawTextLeft(x, y + name + info, w, entry.ip, entry.ipWidth);
+		entry.ip.drawLeftElided(p, x, y + nameH + infoH, available, w);
 
 		p.translate(0, st::sessionHeight);
 	}
 }
+
+SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
+}
+
+void SessionsBox::prepare() {
+	setTitle(tr::lng_sessions_other_header());
+
+	addButton(tr::lng_close(), [=] { closeBox(); });
+
+	const auto w = st::boxWideWidth;
+
+	const auto content = setInnerWidget(
+		object_ptr<SessionsContent>(this, _session),
+		st::sessionsScroll);
+	content->resize(w, st::noContactsHeight);
+	content->setupContent();
+
+	setDimensions(w, st::sessionsHeight);
+}
+
+namespace Settings {
+
+Sessions::Sessions(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
+	setupContent(controller);
+}
+
+void Sessions::setupContent(not_null<Window::SessionController*> controller) {
+	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto content = container->add(
+		object_ptr<SessionsContent>(container, &controller->session()));
+	content->setupContent();
+
+	Ui::ResizeFitChild(this, container);
+}
+
+} // namespace Settings

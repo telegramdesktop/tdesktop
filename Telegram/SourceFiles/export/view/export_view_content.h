@@ -41,11 +41,11 @@ struct Content {
 	return std::move(
 		state
 	) | rpl::filter([](const State &state) {
-		return state.is<ProcessingState>() || state.is<FinishedState>();
+		return v::is<ProcessingState>(state) || v::is<FinishedState>(state);
 	}) | rpl::map([=](const State &state) {
-		if (const auto process = base::get_if<ProcessingState>(&state)) {
+		if (const auto process = std::get_if<ProcessingState>(&state)) {
 			return ContentFromState(settings, *process);
-		} else if (const auto done = base::get_if<FinishedState>(&state)) {
+		} else if (const auto done = std::get_if<FinishedState>(&state)) {
 			return ContentFromState(*done);
 		}
 		Unexpected("State type in ContentFromState.");

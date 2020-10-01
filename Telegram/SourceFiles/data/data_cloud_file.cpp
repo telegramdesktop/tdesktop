@@ -54,7 +54,7 @@ void CloudImage::set(
 		_file.flags = CloudFile::Flag();
 		_view = std::weak_ptr<CloudImageView>();
 	} else if (was != now
-		&& (!was.is<InMemoryLocation>() || now.is<InMemoryLocation>())) {
+		&& (!v::is<InMemoryLocation>(was) || v::is<InMemoryLocation>(now))) {
 		_file.location = ImageLocation();
 		_view = std::weak_ptr<CloudImageView>();
 	}
@@ -160,6 +160,9 @@ void UpdateCloudFile(
 		Fn<void(FileOrigin)> restartLoader,
 		Fn<void(QImage)> usePreloaded) {
 	if (!data.location.valid()) {
+		if (data.progressivePartSize && !file.location.valid()) {
+			file.progressivePartSize = data.progressivePartSize;
+		}
 		return;
 	}
 
@@ -173,8 +176,8 @@ void UpdateCloudFile(
 	}
 	auto cacheBytes = !data.bytes.isEmpty()
 		? data.bytes
-		: file.location.file().data.is<InMemoryLocation>()
-		? file.location.file().data.get_unchecked<InMemoryLocation>().bytes
+		: v::is<InMemoryLocation>(file.location.file().data)
+		? v::get<InMemoryLocation>(file.location.file().data).bytes
 		: QByteArray();
 	if (!cacheBytes.isEmpty()) {
 		if (const auto cacheKey = data.location.file().cacheKey()) {
@@ -208,10 +211,17 @@ void LoadCloudFile(
 		Fn<bool()> finalCheck,
 		Fn<void(CloudFile&)> done,
 		Fn<void(bool)> fail,
-		Fn<void()> progress) {
+		Fn<void()> progress,
+		int downloadFrontPartSize = 0) {
+	const auto loadSize = downloadFrontPartSize
+		? std::min(downloadFrontPartSize, file.byteSize)
+		: file.byteSize;
 	if (file.loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
 			file.loader->permitLoadFromCloud();
+		}
+		if (file.loader->loadSize() < loadSize) {
+			file.loader->increaseLoadSize(loadSize, autoLoading);
 		}
 		return;
 	} else if ((file.flags & CloudFile::Flag::Failed)
@@ -225,6 +235,7 @@ void LoadCloudFile(
 		file.location.file(),
 		origin,
 		QString(),
+		loadSize,
 		file.byteSize,
 		UnknownFileLocation,
 		LoadToCacheAsWell,
@@ -275,7 +286,8 @@ void LoadCloudFile(
 		Fn<bool()> finalCheck,
 		Fn<void(QImage)> done,
 		Fn<void(bool)> fail,
-		Fn<void()> progress) {
+		Fn<void()> progress,
+		int downloadFrontPartSize) {
 	const auto callback = [=](CloudFile &file) {
 		if (auto read = file.loader->imageData(); read.isNull()) {
 			file.flags |= CloudFile::Flag::Failed;
@@ -296,7 +308,8 @@ void LoadCloudFile(
 		finalCheck,
 		callback,
 		std::move(fail),
-		std::move(progress));
+		std::move(progress),
+		downloadFrontPartSize);
 }
 
 void LoadCloudFile(

@@ -52,18 +52,6 @@ inline bool IsGroupItemSelection(
 		: selection;
 }
 
-static const int32 FileStatusSizeReady = 0x7FFFFFF0;
-static const int32 FileStatusSizeLoaded = 0x7FFFFFF1;
-static const int32 FileStatusSizeFailed = 0x7FFFFFF2;
-
-QString formatSizeText(qint64 size);
-QString formatDownloadText(qint64 ready, qint64 total);
-QString formatDurationText(qint64 duration);
-QString formatDurationWords(qint64 duration);
-QString formatDurationAndSizeText(qint64 duration, qint64 size);
-QString formatGifAndSizeText(qint64 size);
-QString formatPlayedText(qint64 played, qint64 duration);
-
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int colorIndex);
 style::color documentDarkColor(int colorIndex);

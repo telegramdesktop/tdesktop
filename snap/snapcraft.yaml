@@ -16,7 +16,7 @@ apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegramdesktop.desktop
+    desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
       # Use GTK3 cursor theme, icon theme and open/save file dialogs.
       QT_QPA_PLATFORMTHEME: gtk3
@@ -65,9 +65,10 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegramdesktop.appdata.xml]
+    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
     build-environment:
       - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib
+      - tg_owt_DIR: $SNAPCRAFT_STAGE/tg_owt
     build-packages:
       - python
       - qtbase5-private-dev
@@ -104,7 +105,7 @@ parts:
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DDESKTOP_APP_QTWAYLANDCLIENT_PRIVATE_HEADERS=$SNAPCRAFT_STAGE/usr/include/$SNAPCRAFT_ARCH_TRIPLET/qt5/QtWaylandClient/5.12.8
-      - -DDESKTOP_APP_WEBRTC_LOCATION=$SNAPCRAFT_STAGE/webrtc/src
+      - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       snapcraftctl pull
 
@@ -127,29 +128,6 @@ parts:
       - openal
       - qtwayland
       - webrtc
-
-  patches:
-    source: https://github.com/desktop-app/patches.git
-    source-depth: 1
-    plugin: dump
-    organize:
-      "*": patches/
-    prime: [-./*]
-
-  telegram-patches:
-    source: Telegram/Patches
-    plugin: dump
-    organize:
-      "*": telegram_patches/
-    prime: [-./*]
-
-  depot-tools:
-    source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    source-depth: 1
-    plugin: dump
-    organize:
-      "*": depot_tools/
-    prime: [-./*]
 
   desktop-qt5:
     source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
@@ -187,151 +165,20 @@ parts:
     stage-packages:
       - ibus
 
-  dav1d:
-    source: https://github.com/videolan/dav1d.git
-    source-depth: 1
-    source-tag: 0.6.0
-    plugin: meson
-    build-packages:
-      - nasm
-    meson-parameters:
-      - --prefix=/usr
-      - --libdir=lib
-      - -Denable_tools=false
-      - -Denable_tests=false
-    prime:
-      - -./usr/include
-      - -./usr/lib/pkgconfig
-
   ffmpeg:
-    source: https://github.com/FFmpeg/FFmpeg.git
-    source-depth: 1
-    source-branch: release/4.2
-    plugin: autotools
+    plugin: nil
     build-packages:
-      - nasm
-      - libopus-dev
-      - libva-dev
-      - libvdpau-dev
+      - libavcodec-dev
+      - libavformat-dev
+      - libavutil-dev
+      - libswresample-dev
+      - libswscale-dev
     stage-packages:
-      - libopus0
-      - libva2
-      - libva-drm2
-      - libvdpau1
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --disable-static
-      - --disable-debug
-      - --disable-programs
-      - --disable-doc
-      - --disable-network
-      - --disable-autodetect
-      - --disable-everything
-      - --disable-neon
-      - --disable-alsa
-      - --disable-iconv
-      - --enable-shared
-      - --enable-libdav1d
-      - --enable-libopus
-      - --enable-vaapi
-      - --enable-vdpau
-      - --enable-protocol=file
-      - --enable-hwaccel=h264_vaapi
-      - --enable-hwaccel=h264_vdpau
-      - --enable-hwaccel=mpeg4_vaapi
-      - --enable-hwaccel=mpeg4_vdpau
-      - --enable-decoder=aac
-      - --enable-decoder=aac_fixed
-      - --enable-decoder=aac_latm
-      - --enable-decoder=aasc
-      - --enable-decoder=alac
-      - --enable-decoder=flac
-      - --enable-decoder=gif
-      - --enable-decoder=h264
-      - --enable-decoder=hevc
-      - --enable-decoder=libdav1d
-      - --enable-decoder=mp1
-      - --enable-decoder=mp1float
-      - --enable-decoder=mp2
-      - --enable-decoder=mp2float
-      - --enable-decoder=mp3
-      - --enable-decoder=mp3adu
-      - --enable-decoder=mp3adufloat
-      - --enable-decoder=mp3float
-      - --enable-decoder=mp3on4
-      - --enable-decoder=mp3on4float
-      - --enable-decoder=mpeg4
-      - --enable-decoder=msmpeg4v2
-      - --enable-decoder=msmpeg4v3
-      - --enable-decoder=opus
-      - --enable-decoder=pcm_alaw
-      - --enable-decoder=pcm_f32be
-      - --enable-decoder=pcm_f32le
-      - --enable-decoder=pcm_f64be
-      - --enable-decoder=pcm_f64le
-      - --enable-decoder=pcm_lxf
-      - --enable-decoder=pcm_mulaw
-      - --enable-decoder=pcm_s16be
-      - --enable-decoder=pcm_s16be_planar
-      - --enable-decoder=pcm_s16le
-      - --enable-decoder=pcm_s16le_planar
-      - --enable-decoder=pcm_s24be
-      - --enable-decoder=pcm_s24daud
-      - --enable-decoder=pcm_s24le
-      - --enable-decoder=pcm_s24le_planar
-      - --enable-decoder=pcm_s32be
-      - --enable-decoder=pcm_s32le
-      - --enable-decoder=pcm_s32le_planar
-      - --enable-decoder=pcm_s64be
-      - --enable-decoder=pcm_s64le
-      - --enable-decoder=pcm_s8
-      - --enable-decoder=pcm_s8_planar
-      - --enable-decoder=pcm_u16be
-      - --enable-decoder=pcm_u16le
-      - --enable-decoder=pcm_u24be
-      - --enable-decoder=pcm_u24le
-      - --enable-decoder=pcm_u32be
-      - --enable-decoder=pcm_u32le
-      - --enable-decoder=pcm_u8
-      - --enable-decoder=pcm_zork
-      - --enable-decoder=vorbis
-      - --enable-decoder=wavpack
-      - --enable-decoder=wmalossless
-      - --enable-decoder=wmapro
-      - --enable-decoder=wmav1
-      - --enable-decoder=wmav2
-      - --enable-decoder=wmavoice
-      - --enable-encoder=libopus
-      - --enable-parser=aac
-      - --enable-parser=aac_latm
-      - --enable-parser=flac
-      - --enable-parser=h264
-      - --enable-parser=hevc
-      - --enable-parser=mpeg4video
-      - --enable-parser=mpegaudio
-      - --enable-parser=opus
-      - --enable-parser=vorbis
-      - --enable-demuxer=aac
-      - --enable-demuxer=flac
-      - --enable-demuxer=gif
-      - --enable-demuxer=h264
-      - --enable-demuxer=hevc
-      - --enable-demuxer=m4v
-      - --enable-demuxer=mov
-      - --enable-demuxer=mp3
-      - --enable-demuxer=ogg
-      - --enable-demuxer=wav
-      - --enable-muxer=ogg
-      - --enable-muxer=opus
-    override-pull: |
-      snapcraftctl pull
-      patch -p1 < "$SNAPCRAFT_STAGE/telegram_patches/ffmpeg.diff"
-    prime:
-      - -./usr/include
-      - -./usr/lib/pkgconfig
-    after:
-      - telegram-patches
-      - dav1d
+      - libavcodec58
+      - libavformat58
+      - libavutil56
+      - libswresample3
+      - libswscale5
 
   openal:
     source: https://github.com/kcat/openal-soft.git
@@ -369,79 +216,30 @@ parts:
       qmake
       make -j$(nproc)
       make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
-    after:
-      - desktop-qt5
     stage: [-./usr/lib]
     prime: [-./*]
+    after:
+      - desktop-qt5
 
   webrtc:
-    plugin: nil
+    source: https://github.com/desktop-app/tg_owt.git
+    source-depth: 1
+    plugin: cmake
     build-packages:
-      - curl
-      - python2
+      - yasm
+      - libjpeg8-dev
       - libopus-dev
       - libssl-dev
     stage-packages:
+      - libjpeg8
       - libopus0
       - libssl1.1
-    override-pull: |
-      export PATH="$SNAPCRAFT_STAGE/depot_tools:$PATH"
-
-      mkdir webrtc
-      cd webrtc
-      cp "$SNAPCRAFT_STAGE/patches/webrtc/.gclient" .
-      git clone --depth=1 https://github.com/open-webrtc-toolkit/owt-deps-webrtc src
-      gclient sync --no-history
-
-      applyPatch() {
-        cd "$SNAPCRAFT_PART_SRC/webrtc/$1"
-        git apply "$SNAPCRAFT_STAGE/patches/webrtc/$(basename $1).diff"
-      }
-
-      applyPatch src
-      applyPatch src/build
-      applyPatch src/third_party
-      applyPatch src/third_party/libsrtp
     override-build: |
-      export PATH="$SNAPCRAFT_STAGE/depot_tools:$PATH"
-
-      cd webrtc/src
-
-      ArgumentsList=`echo \
-          target_os=\"linux\" \
-          treat_warnings_as_errors=false \
-          is_component_build=false \
-          is_debug=false \
-          is_clang=false \
-          proprietary_codecs=true \
-          use_custom_libcxx=false \
-          use_rtti=true \
-          use_gold=false \
-          use_sysroot=false \
-          linux_use_bundled_binutils=false \
-          enable_dsyms=true \
-          rtc_include_tests=false \
-          rtc_build_examples=false \
-          rtc_build_tools=false \
-          rtc_build_opus=false \
-          rtc_build_ssl=false \
-          rtc_ssl_root=\"/usr/include\" \
-          rtc_ssl_libs=[\"ssl\",\"crypto\"] \
-          rtc_builtin_ssl_root_certificates=true \
-          rtc_build_ffmpeg=false \
-          rtc_ffmpeg_root=\"$SNAPCRAFT_STAGE/usr/include\" \
-          rtc_ffmpeg_libs=[\"avcodec\",\"swscale\",\"swresample\",\"avutil\"] \
-          rtc_opus_root=\"/usr/include/opus\" \
-          rtc_enable_protobuf=false`
-
-      gn gen out/Release --args="$ArgumentsList"
-
-      ninja -C out/Release webrtc
-      cd ../..
-
-      cp -a webrtc "$SNAPCRAFT_PART_INSTALL"
-    after:
-      - depot-tools
-      - ffmpeg
-      - patches
+      cmake "$SNAPCRAFT_PART_SRC" -DCMAKE_BUILD_TYPE=Release
+      cmake --build . -- -j$(nproc)
+      cp -a . "$SNAPCRAFT_PART_INSTALL"
+    organize:
+      "*": tg_owt/
     prime: [-./*]
+    after:
+      - ffmpeg

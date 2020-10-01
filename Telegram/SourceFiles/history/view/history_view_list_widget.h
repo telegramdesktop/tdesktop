@@ -48,7 +48,16 @@ struct SelectedItem {
 	bool canDelete = false;
 	bool canForward = false;
 	bool canSendNow = false;
+};
 
+struct MessagesBar {
+	Element *element = nullptr;
+	bool focus = false;
+};
+
+struct MessagesBarData {
+	MessagesBar bar;
+	rpl::producer<QString> text;
 };
 
 using SelectedItems = std::vector<SelectedItem>;
@@ -70,10 +79,14 @@ public:
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
 	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
-	virtual std::optional<int> listUnreadBarView(
+	virtual MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
+	virtual bool listElementHideReply(not_null<const Element*> view) = 0;
+	virtual bool listElementShownUnread(not_null<const Element*> view) = 0;
+	virtual bool listIsGoodForAroundPosition(
+		not_null<const Element*> view) = 0;
 
 };
 
@@ -150,6 +163,7 @@ public:
 	void restoreState(not_null<ListMemento*> memento);
 	std::optional<int> scrollTopForPosition(
 		Data::MessagePosition position) const;
+	Element *viewByPosition(Data::MessagePosition position) const;
 	std::optional<int> scrollTopForView(not_null<Element*> view) const;
 	enum class AnimatedScroll {
 		Full,
@@ -160,9 +174,13 @@ public:
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type);
+	[[nodiscard]] bool animatedScrolling() const;
 	bool isAbovePosition(Data::MessagePosition position) const;
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(FullMsgId itemId);
+	void showAroundPosition(
+		Data::MessagePosition position,
+		Fn<bool()> overrideInitialScroll);
 
 	TextForMimeData getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
@@ -181,8 +199,11 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
-	rpl::producer<FullMsgId> editMessageRequested() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMessageRequested() const;
 	void editMessageRequestNotify(FullMsgId item);
+	[[nodiscard]] rpl::producer<FullMsgId> replyToMessageRequested() const;
+	void replyToMessageRequestNotify(FullMsgId item);
+	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -208,6 +229,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
 	bool elementIsGifPaused() override;
+	bool elementHideReply(not_null<const Element*> view) override;
+	bool elementShownUnread(not_null<const Element*> view) override;
 
 	~ListWidget();
 
@@ -314,11 +337,12 @@ private:
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
-	not_null<Element*> findItemByY(int y) const;
-	Element *strictFindItemByY(int y) const;
-	int findNearestItem(Data::MessagePosition position) const;
+	[[nodiscard]] int findItemIndexByY(int y) const;
+	[[nodiscard]] not_null<Element*> findItemByY(int y) const;
+	[[nodiscard]] Element *strictFindItemByY(int y) const;
+	[[nodiscard]] int findNearestItem(Data::MessagePosition position) const;
 	void viewReplaced(not_null<const Element*> was, Element *now);
-	HistoryItemsList collectVisibleItems() const;
+	[[nodiscard]] HistoryItemsList collectVisibleItems() const;
 
 	void checkMoveToOtherViewer();
 	void updateVisibleTopItem();
@@ -470,7 +494,9 @@ private:
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
 	Ui::Animations::Simple _scrollToAnimation;
+	Fn<bool()> _overrideInitialScroll;
 
+	bool _scrollInited = false;
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
@@ -480,7 +506,8 @@ private:
 	ClickHandlerPtr _scrollDateLink;
 	SingleQueuedInvokation _applyUpdatedScrollState;
 
-	Element *_unreadBarElement = nullptr;
+	MessagesBar _bar;
+	rpl::variable<QString> _barText;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -516,6 +543,8 @@ private:
 	base::Timer _highlightTimer;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
+	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
+	rpl::event_stream<FullMsgId> _requestedToReadMessage;
 
 	rpl::lifetime _viewerLifetime;
 

@@ -15,7 +15,6 @@ class Account;
 
 namespace Settings {
 
-bool HasConnectionType();
 void SetupConnectionType(
 	not_null<Main::Account*> account,
 	not_null<Ui::VerticalLayout*> container);

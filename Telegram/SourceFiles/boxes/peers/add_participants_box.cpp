@@ -576,11 +576,7 @@ void AddSpecialBoxController::showAdmin(
 	}
 
 	// Finally show the admin.
-	const auto currentRights = _additional.isCreator(user)
-		? MTPChatAdminRights(MTP_chatAdminRights(
-			MTP_flags(~MTPDchatAdminRights::Flag::f_add_admins
-				| MTPDchatAdminRights::Flag::f_add_admins)))
-		: adminRights
+	const auto currentRights = adminRights
 		? *adminRights
 		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 	auto box = Box<EditAdminBox>(
@@ -618,6 +614,7 @@ void AddSpecialBoxController::editAdminDone(
 		_additional.applyParticipant(MTP_channelParticipantCreator(
 			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
 			MTP_int(user->bareId()),
+			rights,
 			MTP_string(rank)));
 	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
@@ -665,7 +662,7 @@ void AddSpecialBoxController::showRestricted(
 	} else if (_additional.adminRights(user).has_value()
 		|| _additional.isCreator(user)) {
 		// The user is an admin or creator.
-		if (_additional.canEditAdmin(user)) {
+		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
@@ -755,7 +752,7 @@ void AddSpecialBoxController::kickUser(
 	if (_additional.adminRights(user).has_value()
 		|| _additional.isCreator(user)) {
 		// The user is an admin or creator.
-		if (_additional.canEditAdmin(user)) {
+		if (!_additional.isCreator(user) && _additional.canEditAdmin(user)) {
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(

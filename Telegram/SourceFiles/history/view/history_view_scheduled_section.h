@@ -106,10 +106,13 @@ public:
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
 	void listVisibleItemsChanged(HistoryItemsList &&items) override;
-	std::optional<int> listUnreadBarView(
+	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
+	bool listElementHideReply(not_null<const Element*> view) override;
+	bool listElementShownUnread(not_null<const Element*> view) override;
+	bool listIsGoodForAroundPosition(not_null<const Element *> view) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -146,6 +149,12 @@ private:
 
 	void send();
 	void send(Api::SendOptions options);
+	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
+	void sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		int duration,
+		Api::SendOptions options);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
@@ -240,4 +249,4 @@ private:
 
 };
 
-} // namespace HistoryScheduled
+} // namespace HistoryView

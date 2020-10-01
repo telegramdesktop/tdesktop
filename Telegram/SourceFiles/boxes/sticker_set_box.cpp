@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/popup_menu.h"
 #include "lottie/lottie_multi_player.h"
 #include "lottie/lottie_animation.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -36,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -189,11 +192,10 @@ void StickerSetBox::addStickers() {
 	_inner->install();
 }
 
-void StickerSetBox::shareStickers() {
+void StickerSetBox::copyStickersLink() {
 	const auto url = _controller->session().createInternalLinkFull(
 		qsl("addstickers/") + _inner->shortName());
 	QGuiApplication::clipboard()->setText(url);
-	Ui::show(Box<InformBox>(tr::lng_stickers_copied(tr::now)));
 }
 
 void StickerSetBox::updateTitleAndButtons() {
@@ -207,10 +209,33 @@ void StickerSetBox::updateButtons() {
 		if (_inner->notInstalled()) {
 			addButton(tr::lng_stickers_add_pack(), [=] { addStickers(); });
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+			if (!_inner->shortName().isEmpty()) {
+				const auto top = addTopButton(st::infoTopBarMenu);
+				const auto share = [=] {
+					copyStickersLink();
+					Ui::Toast::Show(tr::lng_stickers_copied(tr::now));
+					closeBox();
+				};
+				const auto menu =
+					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				top->setClickedCallback([=] {
+					*menu = base::make_unique_q<Ui::PopupMenu>(top);
+					(*menu)->addAction(
+						tr::lng_stickers_share_pack(tr::now),
+						share);
+					(*menu)->popup(QCursor::pos());
+					return true;
+				});
+			}
 		} else if (_inner->official()) {
 			addButton(tr::lng_about_done(), [=] { closeBox(); });
 		} else {
-			addButton(tr::lng_stickers_share_pack(), [=] { shareStickers(); });
+			auto share = [=] {
+				copyStickersLink();
+				Ui::Toast::Show(tr::lng_stickers_copied(tr::now));
+			};
+			addButton(tr::lng_stickers_share_pack(), std::move(share));
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
 		}
 	} else {

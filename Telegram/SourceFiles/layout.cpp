@@ -20,66 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "app.h"
 
-QString formatSizeText(qint64 size) {
-	if (size >= 1024 * 1024) { // more than 1 mb
-		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl(" MB");
-	}
-	if (size >= 1024) {
-		qint64 sizeTenthKb = (size * 10 / 1024);
-		return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
-	}
-	return QString::number(size) + qsl(" B");
-}
-
-QString formatDownloadText(qint64 ready, qint64 total) {
-	QString readyStr, totalStr, mb;
-	if (total >= 1024 * 1024) { // more than 1 mb
-		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-		mb = qsl("MB");
-	} else if (total >= 1024) {
-		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
-		readyStr = QString::number(readyKb);
-		totalStr = QString::number(totalKb);
-		mb = qsl("KB");
-	} else {
-		readyStr = QString::number(ready);
-		totalStr = QString::number(total);
-		mb = qsl("B");
-	}
-	return tr::lng_save_downloaded(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
-}
-
-QString formatDurationText(qint64 duration) {
-	qint64 hours = (duration / 3600), minutes = (duration % 3600) / 60, seconds = duration % 60;
-	return (hours ? QString::number(hours) + ':' : QString()) + (minutes >= 10 ? QString() : QString('0')) + QString::number(minutes) + ':' + (seconds >= 10 ? QString() : QString('0')) + QString::number(seconds);
-}
-
-QString formatDurationWords(qint64 duration) {
-	if (duration > 59) {
-		auto minutes = (duration / 60);
-		auto minutesCount = tr::lng_duration_minsec_minutes(tr::now, lt_count, minutes);
-		auto seconds = (duration % 60);
-		auto secondsCount = tr::lng_duration_minsec_seconds(tr::now, lt_count, seconds);
-		return tr::lng_duration_minutes_seconds(tr::now, lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
-	}
-	return tr::lng_duration_seconds(tr::now, lt_count, duration);
-}
-
-QString formatDurationAndSizeText(qint64 duration, qint64 size) {
-	return tr::lng_duration_and_size(tr::now, lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
-}
-
-QString formatGifAndSizeText(qint64 size) {
-	return tr::lng_duration_and_size(tr::now, lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
-}
-
-QString formatPlayedText(qint64 played, qint64 duration) {
-	return tr::lng_duration_played(tr::now, lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
-}
-
 int32 documentColorIndex(DocumentData *document, QString &ext) {
 	auto colorIndex = 0;
 

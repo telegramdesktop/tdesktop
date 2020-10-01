@@ -94,7 +94,6 @@ Go to ***BuildPath*** and run
     --disable-network \
     --disable-autodetect \
     --disable-everything \
-    --disable-neon \
     --disable-alsa \
     --disable-iconv \
     --enable-libopus \
@@ -263,6 +262,7 @@ Go to ***BuildPath*** and run
     -qt-pcre \
     -qt-xcb \
     -no-gtk \
+    -no-icu \
     -static \
     -dbus-runtime \
     -openssl-linked \

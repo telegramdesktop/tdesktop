@@ -228,21 +228,6 @@ void UserData::setAccessHash(uint64 accessHash) {
 	}
 }
 
-void UserData::setIsBlocked(bool is) {
-	const auto status = is
-		? BlockStatus::Blocked
-		: BlockStatus::NotBlocked;
-	if (_blockStatus != status) {
-		_blockStatus = status;
-		if (is) {
-			_fullFlags.add(MTPDuserFull::Flag::f_blocked);
-		} else {
-			_fullFlags.remove(MTPDuserFull::Flag::f_blocked);
-		}
-		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);
-	}
-}
-
 void UserData::setCallsStatus(CallsStatus callsStatus) {
 	if (callsStatus != _callsStatus) {
 		_callsStatus = callsStatus;

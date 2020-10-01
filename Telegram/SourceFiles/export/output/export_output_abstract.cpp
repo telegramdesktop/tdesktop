@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_abstract.h"
 
-#include "export/output/export_output_text.h"
 #include "export/output/export_output_html.h"
 #include "export/output/export_output_json.h"
 #include "export/output/export_output_stats.h"
@@ -50,7 +49,6 @@ QString NormalizePath(const Settings &settings) {
 std::unique_ptr<AbstractWriter> CreateWriter(Format format) {
 	switch (format) {
 	case Format::Html: return std::make_unique<HtmlWriter>();
-	case Format::Text: return std::make_unique<TextWriter>();
 	case Format::Json: return std::make_unique<JsonWriter>();
 	}
 	Unexpected("Format in Export::Output::CreateWriter.");

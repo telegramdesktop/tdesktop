@@ -74,7 +74,7 @@ TextParseOptions kMarkedTextBoxOptions = {
 ConfirmBox::ConfirmBox(
 	QWidget*,
 	const QString &text,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(tr::lng_box_ok(tr::now))
 , _cancelText(tr::lng_cancel(tr::now))
@@ -89,7 +89,7 @@ ConfirmBox::ConfirmBox(
 	QWidget*,
 	const QString &text,
 	const QString &confirmText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -104,7 +104,7 @@ ConfirmBox::ConfirmBox(
 	QWidget*,
 	const TextWithEntities &text,
 	const QString &confirmText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -120,7 +120,7 @@ ConfirmBox::ConfirmBox(
 	const QString &text,
 	const QString &confirmText,
 	const style::RoundButton &confirmStyle,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(tr::lng_cancel(tr::now))
@@ -136,7 +136,7 @@ ConfirmBox::ConfirmBox(
 	const QString &text,
 	const QString &confirmText,
 	const QString &cancelText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
@@ -153,7 +153,7 @@ ConfirmBox::ConfirmBox(
 	const QString &confirmText,
 	const style::RoundButton &confirmStyle,
 	const QString &cancelText,
-	FnMut<void()> confirmedCallback,
+	ConfirmBox::ConfirmedCallback confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
@@ -256,8 +256,16 @@ void ConfirmBox::textUpdated() {
 void ConfirmBox::confirmed() {
 	if (!_confirmed) {
 		_confirmed = true;
-		if (auto callback = std::move(_confirmedCallback)) {
-			callback();
+
+		const auto confirmed = &_confirmedCallback;
+		if (const auto callbackPtr = std::get_if<1>(confirmed)) {
+			if (auto callback = base::take(*callbackPtr)) {
+				callback();
+			}
+		} else if (const auto callbackPtr = std::get_if<2>(confirmed)) {
+			if (auto callback = base::take(*callbackPtr)) {
+				callback([=] { closeBox(); });
+			}
 		}
 	}
 }
@@ -808,53 +816,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		_deleteConfirmedCallback();
 	}
 
-	auto remove = std::vector<not_null<HistoryItem*>>();
-	remove.reserve(_ids.size());
-	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
-	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
-	for (const auto itemId : _ids) {
-		if (const auto item = _session->data().message(itemId)) {
-			const auto history = item->history();
-			if (item->isScheduled()) {
-				const auto wasOnServer = !item->isSending()
-					&& !item->hasFailed();
-				if (wasOnServer) {
-					scheduledIdsByPeer[history->peer].push_back(MTP_int(
-						_session->data().scheduledMessages().lookupId(item)));
-				} else {
-					_session->data().scheduledMessages().removeSending(item);
-				}
-				continue;
-			}
-			remove.push_back(item);
-			if (IsServerMsgId(item->id)) {
-				idsByPeer[history].push_back(MTP_int(itemId.msg));
-			}
-		}
-	}
-
-	for (const auto &[history, ids] : idsByPeer) {
-		history->owner().histories().deleteMessages(history, ids, revoke);
-	}
-	for (const auto &[peer, ids] : scheduledIdsByPeer) {
-		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
-			peer->input,
-			MTP_vector<MTPint>(ids)
-		)).done([peer=peer](const MTPUpdates &result) {
-			peer->session().api().applyUpdates(result);
-		}).send();
-	}
-
-	for (const auto item : remove) {
-		const auto history = item->history();
-		const auto wasLast = (history->lastMessage() == item);
-		const auto wasInChats = (history->chatListMessage() == item);
-		item->destroy();
-
-		if (wasLast || wasInChats) {
-			history->requestChatListMessage();
-		}
-	}
+	_session->data().histories().deleteMessages(_ids, revoke);
 
 	const auto session = _session;
 	Ui::hideLayer();

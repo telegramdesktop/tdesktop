@@ -186,4 +186,10 @@ TextState Media::getStateGrouped(
 	Unexpected("Grouping method call.");
 }
 
+bool Media::isRoundedInBubbleBottom() const {
+	return isBubbleBottom()
+		&& !_parent->data()->repliesAreComments()
+		&& !_parent->data()->externalReply();
+}
+
 } // namespace HistoryView

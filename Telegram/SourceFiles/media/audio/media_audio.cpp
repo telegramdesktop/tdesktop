@@ -155,12 +155,7 @@ bool CreatePlaybackDevice() {
 		return false;
 	}
 
-	ALCint attributes[] = {
-		ALC_STEREO_SOURCES, 128,
-		ALC_FREQUENCY, Media::Player::kDefaultFrequency,
-		0
-	};
-	AudioContext = alcCreateContext(AudioDevice, attributes);
+	AudioContext = alcCreateContext(AudioDevice, nullptr);
 	alcMakeContextCurrent(AudioContext);
 	if (ContextErrorHappened()) {
 		DestroyPlaybackDevice();

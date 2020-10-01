@@ -569,7 +569,7 @@ std::vector<QString> EmojiKeywords::languages() {
 	const auto yieldList = [&](const QStringList &list) {
 		result.insert(end(result), list.begin(), list.end());
 	};
-	yield(Lang::Current().id());
+	yield(Lang::Id());
 	yield(Lang::DefaultLanguageId());
 	yield(Lang::CurrentCloudManager().suggestedLanguage());
 	yield(Platform::SystemLanguage());

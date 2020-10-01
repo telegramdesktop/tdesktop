@@ -222,7 +222,6 @@ jobs:
           --disable-network \
           --disable-autodetect \
           --disable-everything \
-          --disable-neon \
           --disable-alsa \
           --disable-iconv \
           --enable-libopus \
@@ -444,6 +443,7 @@ jobs:
           -qt-harfbuzz \
           -qt-pcre \
           -qt-xcb \
+          -no-icu \
           -no-gtk \
           -static \
           -dbus-runtime \

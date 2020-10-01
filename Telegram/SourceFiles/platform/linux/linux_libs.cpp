@@ -149,10 +149,16 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 bool IconThemeShouldBeSet() {
 	// change the icon theme only if it isn't already set by a platformtheme plugin
 	// if QT_QPA_PLATFORMTHEME=(gtk2|gtk3), then force-apply the icon theme
-	static const auto Result = ((QIcon::themeName() == qstr("hicolor") // QGenericUnixTheme
-		&& QIcon::fallbackThemeName() == qstr("hicolor"))
-		|| (QIcon::themeName() == qstr("Adwaita") // QGnomeTheme
-		&& QIcon::fallbackThemeName() == qstr("gnome")))
+	static const auto Result =
+		// QGenericUnixTheme
+		(QIcon::themeName() == qstr("hicolor")
+			&& QIcon::fallbackThemeName() == qstr("hicolor"))
+		// QGnomeTheme
+		|| (QIcon::themeName() == qstr("Adwaita")
+			&& QIcon::fallbackThemeName() == qstr("gnome"))
+		// qt5ct
+		|| (QIcon::themeName().isEmpty()
+			&& QIcon::fallbackThemeName().isEmpty())
 		|| IsGtkIntegrationForced();
 
 	return Result;
@@ -163,13 +169,18 @@ void SetIconTheme() {
 		if (GtkSettingSupported()
 			&& GtkLoaded()
 			&& IconThemeShouldBeSet()) {
-			DEBUG_LOG(("Set GTK icon theme"));
+			DEBUG_LOG(("Setting GTK icon theme"));
 			QIcon::setThemeName(GtkSetting("gtk-icon-theme-name"));
 			QIcon::setFallbackThemeName(GtkSetting("gtk-fallback-icon-theme"));
+
+			DEBUG_LOG(("New icon theme: %1").arg(QIcon::themeName()));
+			DEBUG_LOG(("New fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
 			Platform::SetApplicationIcon(Window::CreateIcon());
 			if (App::wnd()) {
 				App::wnd()->setWindowIcon(Window::CreateIcon());
 			}
+
 			Core::App().domain().notifyUnreadBadgeChanged();
 		}
 	});

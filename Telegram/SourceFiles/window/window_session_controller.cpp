@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "boxes/peers/edit_peer_info_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
 #include "window/window_filters_menu.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_replies_section.h"
 //#include "history/feed/history_feed_section.h" // #feed
 #include "media/player/media_player_instance.h"
 #include "data/data_media_types.h"
@@ -23,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_user.h"
+#include "data/data_changes.h"
 #include "data/data_chat_filters.h"
 #include "data/data_photo.h" // requestAttachedStickerSets.
 #include "passport/passport_form_controller.h"
@@ -34,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
+#include "ui/toast/toast.h"
 #include "boxes/calendar_box.h"
 #include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
 #include "boxes/confirm_box.h" // requestAttachedStickerSets.
@@ -82,8 +87,246 @@ SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
 : _session(session) {
 }
 
+SessionNavigation::~SessionNavigation() {
+	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
+	_session->api().request(base::take(_resolveRequestId)).cancel();
+}
+
 Main::Session &SessionNavigation::session() const {
 	return *_session;
+}
+
+void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
+	Core::App().hideMediaView();
+	if (const auto username = std::get_if<QString>(&info.usernameOrId)) {
+		resolveUsername(*username, [=](not_null<PeerData*> peer) {
+			showPeerByLinkResolved(peer, info);
+		});
+	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
+		resolveChannelById(*id, [=](not_null<ChannelData*> channel) {
+			showPeerByLinkResolved(channel, info);
+		});
+	}
+}
+
+void SessionNavigation::resolveUsername(
+		const QString &username,
+		Fn<void(not_null<PeerData*>)> done) {
+	if (const auto peer = _session->data().peerByUsername(username)) {
+		done(peer);
+		return;
+	}
+	_session->api().request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _session->api().request(MTPcontacts_ResolveUsername(
+		MTP_string(username)
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		_resolveRequestId = 0;
+		Ui::hideLayer();
+		if (result.type() != mtpc_contacts_resolvedPeer) {
+			return;
+		}
+
+		const auto &d(result.c_contacts_resolvedPeer());
+		_session->data().processUsers(d.vusers());
+		_session->data().processChats(d.vchats());
+		if (const auto peerId = peerFromMTP(d.vpeer())) {
+			done(_session->data().peer(peerId));
+		}
+	}).fail([=](const RPCError &error) {
+		_resolveRequestId = 0;
+		if (error.code() == 400) {
+			Ui::show(Box<InformBox>(
+				tr::lng_username_not_found(tr::now, lt_user, username)));
+		}
+	}).send();
+}
+
+void SessionNavigation::resolveChannelById(
+		ChannelId channelId,
+		Fn<void(not_null<ChannelData*>)> done) {
+	if (const auto channel = _session->data().channelLoaded(channelId)) {
+		done(channel);
+		return;
+	}
+	const auto fail = [=] {
+		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
+	};
+	_session->api().request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
+		MTP_vector<MTPInputChannel>(
+			1,
+			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
+	)).done([=](const MTPmessages_Chats &result) {
+		result.match([&](const auto &data) {
+			const auto peer = _session->data().processChats(data.vchats());
+			if (peer && peer->id == peerFromChannel(channelId)) {
+				done(peer->asChannel());
+			} else {
+				fail();
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		fail();
+	}).send();
+}
+
+void SessionNavigation::showPeerByLinkResolved(
+		not_null<PeerData*> peer,
+		const PeerByLinkInfo &info) {
+	auto params = SectionShow{
+		SectionShow::Way::Forward
+	};
+	params.origin = SectionShow::OriginMessage{
+		info.clickFromMessageId
+	};
+	const auto &replies = info.repliesInfo;
+	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
+		showRepliesForMessage(
+			session().data().history(peer),
+			threadId->id,
+			info.messageId,
+			params);
+	} else if (const auto commentId = std::get_if<CommentId>(&replies)) {
+		showRepliesForMessage(
+			session().data().history(peer),
+			info.messageId,
+			commentId->id,
+			params);
+	} else if (info.messageId == ShowAtGameShareMsgId) {
+		const auto user = peer->asUser();
+		if (user && user->isBot() && !info.startToken.isEmpty()) {
+			user->botInfo->shareGameShortName = info.startToken;
+			AddBotToGroupBoxController::Start(this, user);
+		} else {
+			crl::on_main(this, [=] {
+				showPeerHistory(peer->id, params);
+			});
+		}
+	} else if (info.messageId == ShowAtProfileMsgId && !peer->isChannel()) {
+		const auto user = peer->asUser();
+		if (user
+			&& user->isBot()
+			&& !user->botInfo->cantJoinGroups
+			&& !info.startToken.isEmpty()) {
+			user->botInfo->startGroupToken = info.startToken;
+			AddBotToGroupBoxController::Start(this, user);
+		} else if (user && user->isBot()) {
+			// Always open bot chats, even from mention links.
+			crl::on_main(this, [=] {
+				showPeerHistory(peer->id, params);
+			});
+		} else {
+			showPeerInfo(peer, params);
+		}
+	} else {
+		const auto user = peer->asUser();
+		auto msgId = info.messageId;
+		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) {
+			// Show specific posts only in channels / supergroups.
+			msgId = ShowAtUnreadMsgId;
+		}
+		if (user && user->isBot()) {
+			user->botInfo->startToken = info.startToken;
+			user->session().changes().peerUpdated(
+				user,
+				Data::PeerUpdate::Flag::BotStartToken);
+		}
+		crl::on_main(this, [=] {
+			showPeerHistory(peer->id, params, msgId);
+		});
+	}
+}
+
+void SessionNavigation::showRepliesForMessage(
+		not_null<History*> history,
+		MsgId rootId,
+		MsgId commentId,
+		const SectionShow &params) {
+	if (_showingRepliesRequestId
+		&& _showingRepliesHistory == history.get()
+		&& _showingRepliesRootId == rootId) {
+		return;
+	} else if (!history->peer->asChannel()) {
+		// HistoryView::RepliesWidget right now handles only channels.
+		return;
+	}
+	_session->api().request(base::take(_showingRepliesRequestId)).cancel();
+
+	const auto channelId = history->channelId();
+	//const auto item = _session->data().message(channelId, rootId);
+	//if (!commentId && (!item || !item->repliesAreComments())) {
+	//	showSection(HistoryView::RepliesMemento(history, rootId));
+	//	return;
+	//} else if (const auto id = item ? item->commentsItemId() : FullMsgId()) {
+	//	if (const auto commentsItem = _session->data().message(id)) {
+	//		showSection(
+	//			HistoryView::RepliesMemento(commentsItem));
+	//		return;
+	//	}
+	//}
+	_showingRepliesHistory = history;
+	_showingRepliesRootId = rootId;
+	_showingRepliesRequestId = _session->api().request(
+		MTPmessages_GetDiscussionMessage(
+			history->peer->input,
+			MTP_int(rootId))
+	).done([=](const MTPmessages_DiscussionMessage &result) {
+		_showingRepliesRequestId = 0;
+		result.match([&](const MTPDmessages_discussionMessage &data) {
+			_session->data().processUsers(data.vusers());
+			_session->data().processChats(data.vchats());
+			_session->data().processMessages(
+				data.vmessages(),
+				NewMessageType::Existing);
+			const auto list = data.vmessages().v;
+			if (list.isEmpty()) {
+				return;
+			}
+			const auto id = IdFromMessage(list.front());
+			const auto peer = PeerFromMessage(list.front());
+			if (!peer || !id) {
+				return;
+			}
+			auto item = _session->data().message(
+				peerToChannel(peer),
+				id);
+			if (const auto group = _session->data().groups().find(item)) {
+				item = group->items.front();
+			}
+			if (item) {
+				if (const auto maxId = data.vmax_id()) {
+					item->setRepliesMaxId(maxId->v);
+				}
+				if (const auto readTill = data.vread_inbox_max_id()) {
+					item->setRepliesInboxReadTill(readTill->v);
+				}
+				if (const auto readTill = data.vread_outbox_max_id()) {
+					item->setRepliesOutboxReadTill(readTill->v);
+				}
+				const auto post = _session->data().message(channelId, rootId);
+				if (post && item->history()->channelId() != channelId) {
+					post->setCommentsItemId(item->fullId());
+					if (const auto maxId = data.vmax_id()) {
+						post->setRepliesMaxId(maxId->v);
+					}
+					if (const auto readTill = data.vread_inbox_max_id()) {
+						post->setRepliesInboxReadTill(readTill->v);
+					}
+					if (const auto readTill = data.vread_outbox_max_id()) {
+						post->setRepliesOutboxReadTill(readTill->v);
+					}
+				}
+				showSection(
+					HistoryView::RepliesMemento(item, commentId));
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		_showingRepliesRequestId = 0;
+		if (error.type() == u"CHANNEL_PRIVATE"_q
+			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
+			Ui::Toast::Show(tr::lng_group_not_accessible(tr::now));
+		}
+	}).send();
 }
 
 void SessionNavigation::showPeerInfo(
@@ -107,6 +350,26 @@ void SessionNavigation::showPeerInfo(
 		not_null<History*> history,
 		const SectionShow &params) {
 	showPeerInfo(history->peer->id, params);
+}
+
+void SessionNavigation::showPeerHistory(
+		not_null<PeerData*> peer,
+		const SectionShow &params,
+		MsgId msgId) {
+	showPeerHistory(
+		peer->id,
+		params,
+		msgId);
+}
+
+void SessionNavigation::showPeerHistory(
+		not_null<History*> history,
+		const SectionShow &params,
+		MsgId msgId) {
+	showPeerHistory(
+		history->peer->id,
+		params,
+		msgId);
 }
 
 void SessionNavigation::showSettings(
@@ -811,26 +1074,6 @@ void SessionController::showPeerHistory(
 		MsgId msgId) {
 	content()->ui_showPeerHistory(
 		peerId,
-		params,
-		msgId);
-}
-
-void SessionController::showPeerHistory(
-		not_null<PeerData*> peer,
-		const SectionShow &params,
-		MsgId msgId) {
-	showPeerHistory(
-		peer->id,
-		params,
-		msgId);
-}
-
-void SessionController::showPeerHistory(
-		not_null<History*> history,
-		const SectionShow &params,
-		MsgId msgId) {
-	showPeerHistory(
-		history->peer->id,
 		params,
 		msgId);
 }

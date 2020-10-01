@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "ui/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/format_values.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
@@ -26,8 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/unixtime.h"
 #include "base/timer.h"
-#include "layout.h"
 #include "main/main_session.h"
+#include "layout.h" // FullSelection
 #include "apiwrap.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
@@ -485,11 +486,27 @@ void Poll::updateRecentVoters() {
 		ranges::equal_to(),
 		&RecentVoter::user);
 	if (changed) {
-		_recentVoters = ranges::view::all(
+		auto updated = ranges::view::all(
 			sliced
 		) | ranges::views::transform([](not_null<UserData*> user) {
 			return RecentVoter{ user };
 		}) | ranges::to_vector;
+		const auto has = hasHeavyPart();
+		if (has) {
+			for (auto &voter : updated) {
+				const auto i = ranges::find(
+					_recentVoters,
+					voter.user,
+					&RecentVoter::user);
+				if (i != end(_recentVoters)) {
+					voter.userpic = std::move(i->userpic);
+				}
+			}
+		}
+		_recentVoters = std::move(updated);
+		if (has && !hasHeavyPart()) {
+			_parent->checkHeavyPart();
+		}
 	}
 }
 
@@ -915,7 +932,7 @@ void Poll::paintCloseByTimer(
 	} else {
 		_close->radial.stop();
 	}
-	const auto time = formatDurationText(int(std::ceil(left / 1000.)));
+	const auto time = Ui::FormatDurationText(int(std::ceil(left / 1000.)));
 	const auto outbg = _parent->hasOutLayout();
 	const auto selected = (selection == FullSelection);
 	const auto &icon = selected
@@ -1502,7 +1519,7 @@ void Poll::toggleLinkRipple(bool pressed) {
 					radius);
 				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
 			};
-			auto mask = isBubbleBottom()
+			auto mask = isRoundedInBubbleBottom()
 				? Ui::RippleAnimation::maskByDrawer(
 					QSize(linkWidth, linkHeight),
 					false,

@@ -97,7 +97,8 @@ struct FileOriginTheme {
 };
 
 struct FileOrigin {
-	using Variant = base::optional_variant<
+	using Variant = std::variant<
+		v::null_t,
 		FileOriginMessage,
 		FileOriginUserPhoto,
 		FileOriginPeerPhoto,
@@ -123,7 +124,7 @@ struct FileOrigin {
 	}
 
 	explicit operator bool() const {
-		return data.has_value();
+		return !v::is_null(data);
 	}
 	inline bool operator<(const FileOrigin &other) const {
 		return data < other.data;
@@ -148,7 +149,7 @@ inline bool operator<(PhotoFileLocationId a, PhotoFileLocationId b) {
 	return a.id < b.id;
 }
 
-using FileLocationId = base::variant<
+using FileLocationId = std::variant<
 	DocumentFileLocationId,
 	PhotoFileLocationId>;
 

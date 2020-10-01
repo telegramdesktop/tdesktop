@@ -55,7 +55,7 @@ public:
 	}
 
 	bool skipBubbleTail() const override {
-		return isBubbleBottom();
+		return isRoundedInBubbleBottom();
 	}
 
 	void unloadHeavyPart() override;

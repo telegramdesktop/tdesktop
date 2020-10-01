@@ -64,7 +64,7 @@ bool ShowStickerSet(
 	}
 	Core::App().hideMediaView();
 	Ui::show(Box<StickerSetBox>(
-		App::wnd()->sessionController(),
+		controller,
 		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
 	return true;
 }
@@ -115,7 +115,7 @@ bool ShareUrl(
 	auto url = params.value(qsl("url"));
 	if (url.isEmpty()) {
 		return false;
-	} else if (const auto controller = App::wnd()->sessionController()) {
+	} else {
 		controller->content()->shareUrlLayer(url, params.value("text"));
 		return true;
 	}
@@ -181,7 +181,12 @@ bool ApplyMtprotoProxy(
 	return true;
 }
 
-bool ShowPassportForm(const QMap<QString, QString> &params) {
+bool ShowPassportForm(
+		Window::SessionController *controller,
+		const QMap<QString, QString> &params) {
+	if (!controller) {
+		return false;
+	}
 	const auto botId = params.value("bot_id", QString()).toInt();
 	const auto scope = params.value("scope", QString());
 	const auto callback = params.value("callback_url", QString());
@@ -190,28 +195,25 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 		Passport::NonceNameByScope(scope),
 		QString());
 	const auto errors = params.value("errors", QString());
-	if (const auto window = App::wnd()) {
-		if (const auto controller = window->sessionController()) {
-			controller->showPassportForm(Passport::FormRequest(
-				botId,
-				scope,
-				callback,
-				publicKey,
-				nonce,
-				errors));
-			return true;
-		}
-	}
-	return false;
+	controller->showPassportForm(Passport::FormRequest(
+		botId,
+		scope,
+		callback,
+		publicKey,
+		nonce,
+		errors));
+	return true;
 }
 
 bool ShowPassport(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	return ShowPassportForm(url_parse_params(
-		match->captured(1),
-		qthelp::UrlParamNameTransform::ToLower));
+	return ShowPassportForm(
+		controller,
+		url_parse_params(
+			match->captured(1),
+			qthelp::UrlParamNameTransform::ToLower));
 }
 
 bool ShowWallPaper(
@@ -225,7 +227,7 @@ bool ShowWallPaper(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
-		App::wnd()->sessionController(),
+		controller,
 		params.value(qsl("slug")),
 		params);
 }
@@ -249,7 +251,7 @@ bool ResolveUsername(
 		).valid();
 	};
 	if (domain == qsl("telegrampassport")) {
-		return ShowPassportForm(params);
+		return ShowPassportForm(controller, params);
 	} else if (!valid(domain)) {
 		return false;
 	}
@@ -265,21 +267,36 @@ bool ResolveUsername(
 	auto post = (start == qsl("startgroup"))
 		? ShowAtProfileMsgId
 		: ShowAtUnreadMsgId;
-	auto postParam = params.value(qsl("post"));
-	if (auto postId = postParam.toInt()) {
+	const auto postParam = params.value(qsl("post"));
+	if (const auto postId = postParam.toInt()) {
 		post = postId;
 	}
+	const auto commentParam = params.value(qsl("comment"));
+	const auto commentId = commentParam.toInt();
+	const auto threadParam = params.value(qsl("thread"));
+	const auto threadId = threadParam.toInt();
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && valid(gameParam)) {
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
 	}
 	const auto clickFromMessageId = context.value<FullMsgId>();
-	controller->content()->openPeerByName(
-		domain,
-		post,
-		startToken,
-		clickFromMessageId);
+	using Navigation = Window::SessionNavigation;
+	controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		.usernameOrId = domain,
+		.messageId = post,
+		.repliesInfo = commentId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::CommentId{ commentId }
+			}
+			: threadId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::ThreadId{ threadId }
+			}
+			: Navigation::RepliesByLinkInfo{ v::null },
+		.startToken = startToken,
+		.clickFromMessageId = clickFromMessageId,
+	});
 	return true;
 }
 
@@ -295,39 +312,29 @@ bool ResolvePrivatePost(
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto channelId = params.value(qsl("channel")).toInt();
 	const auto msgId = params.value(qsl("post")).toInt();
+	const auto commentParam = params.value(qsl("comment"));
+	const auto commentId = commentParam.toInt();
+	const auto threadParam = params.value(qsl("thread"));
+	const auto threadId = threadParam.toInt();
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}
-	const auto done = crl::guard(controller, [=](not_null<PeerData*> peer) {
-		controller->showPeerHistory(
-			peer->id,
-			Window::SectionShow::Way::Forward,
-			msgId);
-	});
-	const auto fail = [=] {
-		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
-	};
-	const auto session = &controller->session();
-	if (const auto channel = session->data().channelLoaded(channelId)) {
-		done(channel);
-		return true;
-	}
-	session->api().request(MTPchannels_GetChannels(
-		MTP_vector<MTPInputChannel>(
-			1,
-			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
-	)).done([=](const MTPmessages_Chats &result) {
-		result.match([&](const auto &data) {
-			const auto peer = session->data().processChats(data.vchats());
-			if (peer && peer->id == peerFromChannel(channelId)) {
-				done(peer);
-			} else {
-				fail();
+	const auto clickFromMessageId = context.value<FullMsgId>();
+	using Navigation = Window::SessionNavigation;
+	controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		.usernameOrId = channelId,
+		.messageId = msgId,
+		.repliesInfo = commentId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::CommentId{ commentId }
 			}
-		});
-	}).fail([=](const RPCError &error) {
-		fail();
-	}).send();
+			: threadId
+			? Navigation::RepliesByLinkInfo{
+				Navigation::ThreadId{ threadId }
+			}
+			: Navigation::RepliesByLinkInfo{ v::null },
+		.clickFromMessageId = clickFromMessageId,
+	});
 	return true;
 }
 
@@ -335,13 +342,13 @@ bool ResolveSettings(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	const auto section = match->captured(1).mid(1).toLower();
 	if (!controller) {
-		if (section.isEmpty()) {
-			controller->window().showSettings();
-			return true;
-		}
 		return false;
+	}
+	const auto section = match->captured(1).mid(1).toLower();
+	if (section.isEmpty()) {
+		controller->window().showSettings();
+		return true;
 	}
 	if (section == qstr("devices")) {
 		Ui::show(Box<SessionsBox>(&controller->session()));
@@ -353,7 +360,7 @@ bool ResolveSettings(
 	const auto type = (section == qstr("folders"))
 		? ::Settings::Type::Folders
 		: ::Settings::Type::Main;
-	App::wnd()->sessionController()->showSettings(type);
+	controller->showSettings(type);
 	return true;
 }
 
@@ -373,12 +380,11 @@ bool HandleUnknown(
 				result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
-			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
-			const auto callback = [=] {
+			const auto callback = [=](Fn<void()> &&close) {
 				Core::UpdateApplication();
-				if (*box) (*box)->closeBox();
+				close();
 			};
-			*box = Ui::show(Box<ConfirmBox>(
+			Ui::show(Box<ConfirmBox>(
 				text,
 				tr::lng_menu_update(tr::now),
 				callback));
@@ -543,8 +549,9 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
 			return qsl("tg://bg?slug=") + bgMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
-		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(#|$)"), query, matchOptions)) {
-			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2));
+		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(/?\\?|/?$)"), query, matchOptions)) {
+			auto params = query.mid(postMatch->captured(0).size()).toString();
+			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();

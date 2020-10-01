@@ -122,12 +122,6 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void openPeerByName(
-		const QString &name,
-		MsgId msgId = ShowAtUnreadMsgId,
-		const QString &startToken = QString(),
-		FullMsgId clickFromMessageId = FullMsgId());
-
 	void activate();
 
 	void windowShown();
@@ -203,8 +197,6 @@ public:
 	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
 	Image *newBackgroundThumb();
-
-	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
@@ -291,14 +283,6 @@ private:
 
 	void saveSectionInStack();
 
-	void usernameResolveDone(
-		const MTPcontacts_ResolvedPeer &result,
-		MsgId msgId,
-		const QString &startToken);
-	void usernameResolveFail(
-		const RPCError &error,
-		const QString &username);
-
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
 
@@ -322,7 +306,7 @@ private:
 
 	void viewsIncrementDone(
 		QVector<MTPint> ids,
-		const MTPVector<MTPint> &result,
+		const MTPmessages_MessageViews &result,
 		mtpRequestId requestId);
 	void viewsIncrementFail(const RPCError &error, mtpRequestId requestId);
 
