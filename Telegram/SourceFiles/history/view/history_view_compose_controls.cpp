@@ -732,6 +732,7 @@ void ComposeControls::showStarted() {
 		_tabbedPanel->hideFast();
 	}
 	_wrap->hide();
+	_writeRestricted->hide();
 }
 
 void ComposeControls::showFinished() {
@@ -741,7 +742,7 @@ void ComposeControls::showFinished() {
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
-	_wrap->show();
+	updateWrappingVisibility();
 }
 
 void ComposeControls::showForGrab() {
@@ -1078,13 +1079,20 @@ void ComposeControls::initWriteRestriction() {
 	}, _wrap->lifetime());
 
 	_writeRestriction.value(
-	) | rpl::start_with_next([=](const std::optional<QString> &error) {
-		_writeRestricted->setVisible(error.has_value());
-		_wrap->setVisible(!error.has_value());
-		if (!error.has_value()) {
-			_wrap->raise();
-		}
+	) | rpl::filter([=] {
+		return _wrap->isHidden() || _writeRestricted->isHidden();
+	}) | rpl::start_with_next([=] {
+		updateWrappingVisibility();
 	}, _wrap->lifetime());
+}
+
+void ComposeControls::updateWrappingVisibility() {
+	const auto restricted = _writeRestriction.current().has_value();
+	_writeRestricted->setVisible(restricted);
+	_wrap->setVisible(!restricted);
+	if (!restricted) {
+		_wrap->raise();
+	}
 }
 
 void ComposeControls::updateSendButtonType() {
