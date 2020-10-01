@@ -220,7 +220,7 @@ void Instance::Inner::fail() {
 
 void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 	_updated = std::move(updated);
-	_error = std::move(_error);
+	_error = std::move(error);
 
 	// Start OpenAL Capture
 	d->device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
