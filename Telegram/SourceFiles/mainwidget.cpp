@@ -2153,7 +2153,11 @@ void MainWidget::updateControlsGeometry() {
 			const auto active = _controller->activeChatCurrent();
 			if (const auto peer = active.peer()) {
 				if (Core::App().settings().tabbedSelectorSectionEnabled()) {
-					_history->pushTabbedSelectorToThirdSection(peer, params);
+					if (_mainSection) {
+						_mainSection->pushTabbedSelectorToThirdSection(peer, params);
+					} else {
+						_history->pushTabbedSelectorToThirdSection(peer, params);
+					}
 				} else if (Core::App().settings().thirdSectionInfoEnabled()) {
 					_controller->showSection(
 						Info::Memento::Default(peer),
@@ -2412,7 +2416,9 @@ void MainWidget::updateThirdColumnToCurrentChat(
 	};
 	auto switchTabbedFast = [&](not_null<PeerData*> peer) {
 		saveOldThirdSection();
-		return _history->pushTabbedSelectorToThirdSection(peer, params);
+		return _mainSection
+			? _mainSection->pushTabbedSelectorToThirdSection(peer, params)
+			: _history->pushTabbedSelectorToThirdSection(peer, params);
 	};
 	if (Adaptive::ThreeColumn()
 		&& settings.tabbedSelectorSectionEnabled()
