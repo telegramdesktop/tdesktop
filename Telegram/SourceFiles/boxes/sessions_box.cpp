@@ -179,6 +179,9 @@ void SessionsContent::setupContent() {
 }
 
 void SessionsContent::parse(const Api::Authorizations::List &list) {
+	if (list.empty()) {
+		return;
+	}
 	_data = Full();
 	for (const auto &auth : list) {
 		auto entry = Entry(auth);
