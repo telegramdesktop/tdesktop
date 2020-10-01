@@ -274,7 +274,8 @@ void BoxController::prepare() {
 	session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::NewAdded
 	) | rpl::filter([=](const Data::MessageUpdate &update) {
-		return (update.item->media()->call() != nullptr);
+		const auto media = update.item->media();
+		return (media != nullptr) && (media->call() != nullptr);
 	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		insertRow(update.item, InsertWay::Prepend);
 	}, lifetime());
