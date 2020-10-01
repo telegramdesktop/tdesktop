@@ -628,6 +628,8 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 }
 
 bool StartWaylandMove(QWindow *window) {
+	// There are startSystemMove on Qt 5.15
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
 		window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
@@ -636,27 +638,29 @@ bool StartWaylandMove(QWindow *window) {
 			}
 		}
 	}
+#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 
 	return false;
 }
 
 bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
+	// There are startSystemResize on Qt 5.15
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
 	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
 		window->handle())) {
 		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
 			if (const auto shellSurface = waylandWindow->shellSurface()) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-				return shellSurface->resize(seat, edges);
-#elif QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
 				shellSurface->resize(seat, edges);
 				return true;
-#else // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
+#else // Qt >= 5.13
 				shellSurface->resize(seat, WlResizeFromEdges(edges));
 				return true;
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
+#endif // Qt < 5.13
 			}
 		}
 	}
+#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
 
 	return false;
 }
