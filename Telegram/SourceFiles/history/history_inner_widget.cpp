@@ -591,12 +591,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.setTextPalette(st::inTextPalette);
 			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
-			p.setFont(st::msgNameFont);
-			p.setPen(st::dialogsNameFg);
-			p.drawText(_botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->ascent, tr::lng_bot_description(tr::now));
+			auto top = _botAbout->rect.top() + st::msgPadding.top();
+			if (!_history->peer->isRepliesChat()) {
+				p.setFont(st::msgNameFont);
+				p.setPen(st::dialogsNameFg);
+				p.drawText(_botAbout->rect.left() + st::msgPadding.left(), top + st::msgNameFont->ascent, tr::lng_bot_description(tr::now));
+				top += +st::msgNameFont->height + st::botDescSkip;
+			}
 
 			p.setPen(st::historyTextInFg);
-			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip, _botAbout->width);
+			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), top, _botAbout->width);
 
 			p.restoreTextPalette();
 		}
@@ -2131,13 +2135,19 @@ void HistoryInner::recountHistoryGeometry() {
 		int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 		if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 		tw -= st::msgPadding.left() + st::msgPadding.right();
-		int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(tr::lng_bot_description(tr::now)));
+		const auto descriptionWidth = _history->peer->isRepliesChat()
+			? 0
+			: st::msgNameFont->width(tr::lng_bot_description(tr::now));
+		int32 mw = qMax(_botAbout->info->text.maxWidth(), descriptionWidth);
 		if (tw > mw) tw = mw;
 
 		_botAbout->width = tw;
 		_botAbout->height = _botAbout->info->text.countHeight(_botAbout->width);
 
-		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
+		const auto descriptionHeight = _history->peer->isRepliesChat()
+			? 0
+			: (st::msgNameFont->height + st::botDescSkip);
+		int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descMaxWidth = _scroll->width();
 		if (Core::App().settings().chatWide()) {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
@@ -2178,7 +2188,10 @@ void HistoryInner::updateBotInfo(bool recount) {
 				int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 				tw -= st::msgPadding.left() + st::msgPadding.right();
-				int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(tr::lng_bot_description(tr::now)));
+				const auto descriptionWidth = _history->peer->isRepliesChat()
+					? 0
+					: st::msgNameFont->width(tr::lng_bot_description(tr::now));
+				int32 mw = qMax(_botAbout->info->text.maxWidth(), descriptionWidth);
 				if (tw > mw) tw = mw;
 
 				_botAbout->width = tw;
@@ -2194,7 +2207,10 @@ void HistoryInner::updateBotInfo(bool recount) {
 			updateSize();
 		}
 		if (_botAbout->height > 0) {
-			int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
+			const auto descriptionHeight = _history->peer->isRepliesChat()
+				? 0
+				: (st::msgNameFont->height + st::botDescSkip);
+			int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 			int32 descAtX = (_scroll->width() - _botAbout->width) / 2 - st::msgPadding.left();
 			int32 descAtY = qMin(_historyPaddingTop - descH, (_scroll->height() - descH) / 2) + st::msgMargin.top();
 
@@ -2335,7 +2351,10 @@ void HistoryInner::updateSize() {
 	}
 
 	if (_botAbout && _botAbout->height > 0) {
-		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
+		const auto descriptionHeight = _history->peer->isRepliesChat()
+			? 0
+			: (st::msgNameFont->height + st::botDescSkip);
+		int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descMaxWidth = _scroll->width();
 		if (Core::App().settings().chatWide()) {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
