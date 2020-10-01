@@ -770,22 +770,6 @@ bool UnsetXCBFrameExtents(QWindow *window) {
 	return true;
 }
 
-bool SetWaylandWindowGeometry(QWindow *window, const QRect &geometry) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				shellSurface->setWindowGeometry(geometry);
-				return true;
-			}
-		}
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
 Window::Control GtkKeywordToWindowControl(const QString &keyword) {
 	if (keyword == qstr("minimize")) {
 		return Window::Control::Minimize;
@@ -1107,32 +1091,18 @@ bool ShowWindowMenu(QWindow *window) {
 }
 
 bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	if (IsWayland()) {
-		const auto geometry = QRect(QPoint(), window->size())
-			.marginsRemoved(extents);
-
-		return SetWaylandWindowGeometry(window, geometry);
-	} else {
+	if (!IsWayland()) {
 		return SetXCBFrameExtents(window, extents);
 	}
 }
 
 bool UnsetWindowExtents(QWindow *window) {
-	if (IsWayland()) {
-		const auto geometry = QRect(QPoint(), window->size());
-		return SetWaylandWindowGeometry(window, geometry);
-	} else {
+	if (!IsWayland()) {
 		return UnsetXCBFrameExtents(window);
 	}
 }
 
 bool WindowsNeedShadow() {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (IsWayland()) {
-		return true;
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
 	if (!IsWayland() && XCBFrameExtentsSupported()) {
 		return true;
 	}
