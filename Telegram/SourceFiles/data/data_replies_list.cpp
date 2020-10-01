@@ -566,13 +566,13 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	_fullCount = checkedCount;
 
 	if (const auto item = lookupRoot()) {
-		if (_skippedAfter == 0) {
+		if (_skippedAfter == 0 && !_list.empty()) {
 			item->setRepliesMaxId(_list.front());
 		} else {
 			item->setRepliesPossibleMaxId(maxId);
 		}
 		if (const auto original = item->lookupDiscussionPostOriginal()) {
-			if (_skippedAfter == 0) {
+			if (_skippedAfter == 0 && !_list.empty()) {
 				original->setRepliesMaxId(_list.front());
 			} else {
 				original->setRepliesPossibleMaxId(maxId);
