@@ -2401,7 +2401,11 @@ int Message::resizeContentGetHeight(int newWidth) {
 	const auto bubble = drawBubble();
 
 	// This code duplicates countGeometry() but also resizes media.
-	auto contentWidth = newWidth - (st::msgMargin.left() + st::msgMargin.right());
+	const auto commentsRoot = (context() == Context::Replies)
+		&& data()->isDiscussionPost();
+	auto contentWidth = newWidth
+		- st::msgMargin.left()
+		- (commentsRoot ? st::msgMargin.left() : st::msgMargin.right());
 	if (hasFromPhoto()) {
 		if (const auto size = rightActionSize()) {
 			contentWidth -= size->width() + (st::msgPhotoSkip - st::historyFastShareSize);
