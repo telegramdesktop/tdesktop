@@ -1098,12 +1098,16 @@ bool SetWindowExtents(QWindow *window, const QMargins &extents) {
 	if (!IsWayland()) {
 		return SetXCBFrameExtents(window, extents);
 	}
+
+	return false;
 }
 
 bool UnsetWindowExtents(QWindow *window) {
 	if (!IsWayland()) {
 		return UnsetXCBFrameExtents(window);
 	}
+
+	return false;
 }
 
 bool WindowsNeedShadow() {
