@@ -78,7 +78,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    perl Configure no-shared debug-VC-WIN64A
+    perl Configure no-shared no-tests debug-VC-WIN64A
     sed -i 's/\/W3 \/wd4090 \/nologo \/Od/\/W3 \/wd4090 \/nologo \/Od \/FS \/MP/g' makefile
     jom -j %NUMBER_OF_PROCESSORS%
     mkdir out64.dbg
@@ -87,7 +87,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     move ossl_static.pdb out64.dbg\ossl_static
     nmake clean
     move out64.dbg\ossl_static out64.dbg\ossl_static.pdb
-    perl Configure no-shared VC-WIN64A
+    perl Configure no-shared no-tests VC-WIN64A
     sed -i 's/\/W3 \/wd4090 \/nologo \/O2/\/W3 \/wd4090 \/nologo \/O2 \/FS \/MP/g' makefile
     jom -j %NUMBER_OF_PROCESSORS%
     mkdir out64
@@ -107,7 +107,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd openal-soft
     git checkout fix_capture
     cd build
-    cmake -G "Visual Studio 16 2019" -A x64 -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+    cmake -G "Visual Studio 16 2019" -A x64 -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON -D ALSOFT_BACKEND_WASAPI=OFF ..
     msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="x64"
     msbuild OpenAL.vcxproj /property:Configuration=Release /property:Platform="x64"
     cd ..\..
