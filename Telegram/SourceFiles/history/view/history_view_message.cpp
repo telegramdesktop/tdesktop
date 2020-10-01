@@ -752,8 +752,6 @@ void Message::paintCommentsButton(
 			auto hq = PainterHighQualityEnabler(q);
 			auto pen = QPen(Qt::transparent);
 			pen.setWidth(st::historyCommentsUserpicStroke);
-			q.setBrush(Qt::NoBrush);
-			q.setPen(pen);
 			auto x = (count - 1) * (single - shift);
 			for (auto i = count; i != 0;) {
 				auto &entry = list[--i];
@@ -761,6 +759,8 @@ void Message::paintCommentsButton(
 				entry.peer->paintUserpic(q, entry.view, x, 0, single);
 				entry.uniqueKey = entry.peer->userpicUniqueKey(entry.view);
 				q.setCompositionMode(QPainter::CompositionMode_Source);
+				q.setBrush(Qt::NoBrush);
+				q.setPen(pen);
 				q.drawEllipse(x, 0, single, single);
 				x -= single - shift;
 			}
