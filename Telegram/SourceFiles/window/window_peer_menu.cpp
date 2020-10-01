@@ -1062,7 +1062,6 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	const auto history = item->history();
 	const auto owner = &history->owner();
 	const auto session = &history->session();
-	const auto isGroup = (owner->groups().find(item) != nullptr);
 	const auto data = std::make_shared<ShareData>(history->peer, std::move(items));
 
 	auto submitCallback = [=](
@@ -1105,9 +1104,6 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 
 		const auto sendFlags = MTPmessages_ForwardMessages::Flag(0)
 			| MTPmessages_ForwardMessages::Flag::f_with_my_score
-			| (isGroup
-				? MTPmessages_ForwardMessages::Flag::f_grouped
-				: MTPmessages_ForwardMessages::Flag(0))
 			| (options.silent
 				? MTPmessages_ForwardMessages::Flag::f_silent
 				: MTPmessages_ForwardMessages::Flag(0))
