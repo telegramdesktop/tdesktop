@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
+#include "ui/toast/toast.h"
 #include "boxes/calendar_box.h"
 #include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
 #include "boxes/confirm_box.h" // requestAttachedStickerSets.
@@ -321,6 +322,10 @@ void SessionNavigation::showRepliesForMessage(
 		});
 	}).fail([=](const RPCError &error) {
 		_showingRepliesRequestId = 0;
+		if (error.type() == u"CHANNEL_PRIVATE"_q
+			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
+			Ui::Toast::Show(tr::lng_group_not_accessible(tr::now));
+		}
 	}).send();
 }
 
