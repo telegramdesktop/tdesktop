@@ -1631,6 +1631,21 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 	});
 }
 
+void HistoryMessage::clearReplies() {
+	auto views = Get<HistoryMessageViews>();
+	if (!views) {
+		return;
+	}
+	const auto viewsPart = views->views;
+	if (viewsPart.count < 0) {
+		RemoveComponents(HistoryMessageViews::Bit());
+	} else {
+		*views = HistoryMessageViews();
+		views->views = viewsPart;
+	}
+	history()->owner().requestItemResize(this);
+}
+
 void HistoryMessage::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {

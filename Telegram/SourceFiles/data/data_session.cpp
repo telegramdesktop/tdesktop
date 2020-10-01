@@ -1764,6 +1764,8 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 	existing->setViewsCount(data.vviews().value_or(-1));
 	if (const auto replies = data.vreplies()) {
 		existing->setReplies(*replies);
+	} else {
+		existing->clearReplies();
 	}
 	existing->setForwardsCount(data.vforwards().value_or(-1));
 	if (const auto reply = data.vreply_to()) {
