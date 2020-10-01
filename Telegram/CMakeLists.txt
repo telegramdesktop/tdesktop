@@ -21,7 +21,6 @@ add_subdirectory(lib_qr)
 add_subdirectory(lib_webrtc)
 add_subdirectory(codegen)
 
-include(CheckCXXSourceCompiles)
 include(lib_ui/cmake/generate_styles.cmake)
 include(cmake/generate_numbers.cmake)
 
