@@ -1028,7 +1028,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		setViewsCount(config.viewsCount);
 		if (config.mtpReplies) {
 			setReplies(*config.mtpReplies);
-		} else if (isSending()) {
+		} else if (isSending() && !config.mtpMarkup) {
 			if (const auto broadcast = history()->peer->asBroadcast()) {
 				if (const auto linked = broadcast->linkedChat()) {
 					setReplies(MTP_messageReplies(
