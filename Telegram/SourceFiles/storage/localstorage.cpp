@@ -1100,8 +1100,8 @@ void readLangPack() {
 	if (langpack.stream.status() == QDataStream::Ok) {
 		Lang::GetInstance().fillFromSerialized(data, langpack.version);
 	}
-	QString langPackBaseId = Lang::Current().baseId();
-	QString langPackId = Lang::Current().id();
+	QString langPackBaseId = Lang::GetInstance().baseId();
+	QString langPackId = Lang::GetInstance().id();
 	CustomLangPack::initInstance();
 	CustomLangPack::currentInstance()->fetchCustomLangPack(langPackId, langPackBaseId);
 }
@@ -1322,9 +1322,9 @@ void CustomLangPack::fetchFinished() {
 	if (error.error == QJsonParseError::NoError) {
 		QJsonObject json = str.object();
 		foreach(const QString& key, json.keys()) {
-			Lang::Current().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
+			Lang::GetInstance().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
 		}
-		Lang::Current().updatePluralRules();
+		Lang::GetInstance().updatePluralRules();
 	}
 	else {
 		LOG(("Incorrect JSON File. Fallback to default language: English..."));
@@ -1349,9 +1349,9 @@ void CustomLangPack::loadDefaultLangFile() {
 		QJsonDocument str = QJsonDocument::fromJson(file.readAll());
 		QJsonObject json = str.object();
 		foreach(const QString& key, json.keys()) {
-			Lang::Current().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
+			Lang::GetInstance().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
 		}
-		Lang::Current().updatePluralRules();
+		Lang::GetInstance().updatePluralRules();
 		file.close();
 	}
 }

@@ -141,6 +141,101 @@ constexpr auto kCommonModifiers = 0
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
+object_ptr<Ui::FlatButton> SetupDiscussButton(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller) {
+	auto result = object_ptr<Ui::FlatButton>(
+		parent,
+		QString(),
+		st::historyComposeButton);
+	const auto button = result.data();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		tr::lng_channel_discuss() | Ui::Text::ToUpper(),
+		st::historyComposeButtonLabel);
+	const auto badge = Ui::CreateChild<Ui::UnreadBadge>(button);
+	label->show();
+
+	controller->activeChatValue(
+	) | rpl::map([=](Dialogs::Key chat) {
+		return chat.history();
+	}) | rpl::map([=](History *history) {
+		return history ? history->peer->asChannel() : nullptr;
+	}) | rpl::map([=](ChannelData *channel) -> rpl::producer<ChannelData*> {
+		if (channel && channel->isBroadcast()) {
+			return channel->session().changes().peerFlagsValue(
+				channel,
+				Data::PeerUpdate::Flag::ChannelLinkedChat
+			) | rpl::map([=] {
+				return channel->linkedChat();
+			});
+		}
+		return rpl::single<ChannelData*>(nullptr);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::map([=](ChannelData *chat)
+	-> rpl::producer<std::tuple<int, bool>> {
+		if (chat) {
+			using UpdateFlag = Data::PeerUpdate::Flag;
+			return rpl::merge(
+				chat->session().changes().historyUpdates(
+					Data::HistoryUpdate::Flag::UnreadView
+				) | rpl::filter([=](const Data::HistoryUpdate &update) {
+					return (update.history->peer == chat);
+				}) | rpl::to_empty,
+
+				chat->session().changes().peerFlagsValue(
+					chat,
+					UpdateFlag::Notifications | UpdateFlag::ChannelAmIn
+				) | rpl::to_empty
+			) | rpl::map([=] {
+				const auto history = chat->amIn()
+					? chat->owner().historyLoaded(chat)
+					: nullptr;
+				return history
+					? std::make_tuple(
+						history->unreadCountForBadge(),
+						!history->mute())
+					: std::make_tuple(0, false);
+			});
+		} else {
+			return rpl::single(std::make_tuple(0, false));
+		}
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](int count, bool active) {
+		badge->setText(QString::number(count), active);
+		badge->setVisible(count > 0);
+	}, badge->lifetime());
+
+	rpl::combine(
+		badge->shownValue(),
+		badge->widthValue(),
+		label->widthValue(),
+		button->widthValue()
+	) | rpl::start_with_next([=](
+			bool badgeShown,
+			int badgeWidth,
+			int labelWidth,
+			int width) {
+		const auto textTop = st::historyComposeButton.textTop;
+		const auto badgeTop = textTop
+			+ st::historyComposeButton.font->height
+			- badge->textBaseline();
+		const auto add = badgeShown
+			? (textTop + badgeWidth)
+			: 0;
+		const auto total = labelWidth + add;
+		label->moveToLeft((width - total) / 2, textTop, width);
+		badge->moveToRight((width - total) / 2, textTop, width);
+	}, button->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	return result;
+}
+
 [[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
 	return std::clamp(
 		crl::time(1000) * text.text.size() / 14,
@@ -177,6 +272,7 @@ HistoryWidget::HistoryWidget(
 	this,
 	tr::lng_channel_mute(tr::now).toUpper(),
 	st::historyComposeButton)
+, _discuss(SetupDiscussButton(this, controller))
 , _attachToggle(this, st::historyAttach)
 , _tabbedSelectorToggle(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
@@ -216,6 +312,7 @@ HistoryWidget::HistoryWidget(
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
+	_discuss->addClickHandler([=] { goToDiscussionGroup(); });
 	connect(
 		_field,
 		&Ui::InputField::submitted,
@@ -341,6 +438,7 @@ HistoryWidget::HistoryWidget(
 	_botStart->hide();
 	_joinChannel->hide();
 	_muteUnmute->hide();
+	_discuss->hide();
 
 	_send->setRecordStartCallback([this] { recordStartCallback(); });
 	_send->setRecordStopCallback([this](bool active) { recordStopCallback(active); });
@@ -2054,6 +2152,7 @@ void HistoryWidget::updateControlsVisibility() {
 		if (isBlocked()) {
 			_joinChannel->hide();
 			_muteUnmute->hide();
+			_discuss->hide();
 			_botStart->hide();
 			if (_unblock->isHidden()) {
 				_unblock->clearState();
@@ -2062,6 +2161,7 @@ void HistoryWidget::updateControlsVisibility() {
 		} else if (isJoinChannel()) {
 			_unblock->hide();
 			_muteUnmute->hide();
+			_discuss->hide();
 			_botStart->hide();
 			if (_joinChannel->isHidden()) {
 				_joinChannel->clearState();
@@ -2088,10 +2188,19 @@ void HistoryWidget::updateControlsVisibility() {
 				_muteUnmute->clearState();
 				_muteUnmute->show();
 			}
+			if (hasDiscussionGroup()) {
+				if (_discuss->isHidden()) {
+					_discuss->clearState();
+					_discuss->show();
+				}
+			} else {
+				_discuss->hide();
+			}
 		} else if (isBotStart()) {
 			_unblock->hide();
 			_joinChannel->hide();
 			_muteUnmute->hide();
+			_discuss->hide();
 			if (_botStart->isHidden()) {
 				_botStart->clearState();
 				_botStart->show();
@@ -3157,6 +3266,22 @@ void HistoryWidget::toggleMuteUnmute() {
 	session().data().updateNotifySettings(_peer, muteForSeconds);
 }
 
+void HistoryWidget::goToDiscussionGroup() {
+	const auto channel = _peer ? _peer->asChannel() : nullptr;
+	const auto chat = channel ? channel->linkedChat() : nullptr;
+	if (!chat) {
+		return;
+	}
+	controller()->showPeerHistory(chat, Window::SectionShow::Way::Forward);
+}
+
+bool HistoryWidget::hasDiscussionGroup() const {
+	const auto channel = _peer ? _peer->asChannel() : nullptr;
+	return channel
+		&& channel->isBroadcast()
+		&& (channel->flags() & MTPDchannel::Flag::f_has_link);
+}
+
 void HistoryWidget::onBroadcastSilentChange() {
 	updateFieldPlaceholder();
 }
@@ -3960,7 +4085,7 @@ void HistoryWidget::moveFieldControls() {
 
 // _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
-// (_botStart|_unblock|_joinChannel|_muteUnmute)
+// (_botStart|_unblock|_joinChannel|{_muteUnmute&_discuss})
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = 0;
@@ -4004,8 +4129,21 @@ void HistoryWidget::moveFieldControls() {
 			fullWidthButtonRect.y(),
 			width() / 2,
 			fullWidthButtonRect.height()));
-	_muteUnmute->setGeometry(fullWidthButtonRect);
-		_joinChannel->setGeometry(fullWidthButtonRect);
+	_joinChannel->setGeometry(fullWidthButtonRect);
+	if (hasDiscussionGroup()) {
+		_muteUnmute->setGeometry(myrtlrect(
+			0,
+			fullWidthButtonRect.y(),
+			width() / 2,
+			fullWidthButtonRect.height()));
+		_discuss->setGeometry(myrtlrect(
+			width() / 2,
+			fullWidthButtonRect.y(),
+			width() - (width() / 2),
+			fullWidthButtonRect.height()));
+	} else {
+		_muteUnmute->setGeometry(fullWidthButtonRect);
+	}
 }
 
 void HistoryWidget::updateFieldSize() {
