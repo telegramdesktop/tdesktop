@@ -1,3 +1,9 @@
+2.4.1 (01.10.20)
+
+- Move by PageUp and PageDown in channel comments.
+- Several layout bugfixes.
+- Several crashfixes.
+
 2.4 (30.09.20)
 
 - Turn on "Remain Anonymous" in an admin's Permissions to let them post on behalf of the group and become invisible in the list of members.
