@@ -531,13 +531,19 @@ void RepliesWidget::setupComposeControls() {
 				//if (const auto item = messages.lastSentMessage(_history)) {
 				//	_inner->editMessageRequestNotify(item->fullId());
 				//} else {
-				//	_scroll->keyPressEvent(e);
+					_scroll->keyPressEvent(e);
 				//}
 			} else {
 				_scroll->keyPressEvent(e);
 			}
 			e->accept();
 		} else if (e->key() == Qt::Key_Down) {
+			_scroll->keyPressEvent(e);
+			e->accept();
+		} else if (e->key() == Qt::Key_PageDown) {
+			_scroll->keyPressEvent(e);
+			e->accept();
+		} else if (e->key() == Qt::Key_PageUp) {
 			_scroll->keyPressEvent(e);
 			e->accept();
 		}
