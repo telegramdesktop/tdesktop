@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 
 #include "media/audio/media_audio_ffmpeg_loader.h"
+#include "base/timer.h"
 
 #include <al.h>
 #include <alc.h>
@@ -37,6 +38,36 @@ bool ErrorHappened(ALCdevice *device) {
 
 } // namespace
 
+class Instance::Inner final : public QObject {
+public:
+	Inner(QThread *thread);
+	~Inner();
+
+	void start(Fn<void(Update)> updated, Fn<void()> error);
+	void stop(Fn<void(Result&&)> callback = nullptr);
+
+	void timeout();
+
+private:
+	void processFrame(int32 offset, int32 framesize);
+	void fail();
+
+	void writeFrame(AVFrame *frame);
+
+	// Writes the packets till EAGAIN is got from av_receive_packet()
+	// Returns number of packets written or -1 on error
+	int writePackets();
+
+	Fn<void(Update)> _updated;
+	Fn<void()> _error;
+
+	struct Private;
+	std::unique_ptr<Private> d;
+	base::Timer _timer;
+	QByteArray _captured;
+
+};
+
 void Start() {
 	Assert(CaptureInstance == nullptr);
 	CaptureInstance = new Instance();
@@ -47,16 +78,30 @@ void Finish() {
 	delete base::take(CaptureInstance);
 }
 
-Instance::Instance() : _inner(new Inner(&_thread)) {
+Instance::Instance() : _inner(std::make_unique<Inner>(&_thread)) {
 	CaptureInstance = this;
-	connect(this, SIGNAL(start()), _inner, SLOT(onStart()));
-	connect(this, SIGNAL(stop(bool)), _inner, SLOT(onStop(bool)));
-	connect(_inner, SIGNAL(done(QByteArray, VoiceWaveform, qint32)), this, SIGNAL(done(QByteArray, VoiceWaveform, qint32)));
-	connect(_inner, SIGNAL(updated(quint16, qint32)), this, SIGNAL(updated(quint16, qint32)));
-	connect(_inner, SIGNAL(error()), this, SIGNAL(error()));
-	connect(&_thread, SIGNAL(started()), _inner, SLOT(onInit()));
-	connect(&_thread, SIGNAL(finished()), _inner, SLOT(deleteLater()));
 	_thread.start();
+}
+
+void Instance::start() {
+	_updates.fire_done();
+	InvokeQueued(_inner.get(), [=] {
+		_inner->start([=](Update update) {
+			crl::on_main(this, [=] {
+				_updates.fire_copy(update);
+			});
+		}, [=] {
+			crl::on_main(this, [=] {
+				_updates.fire_error({});
+			});
+		});
+	});
+}
+
+void Instance::stop(Fn<void(Result&&)> callback) {
+	InvokeQueued(_inner.get(), [=] {
+		_inner->stop(callback);
+	});
 }
 
 void Instance::check() {
@@ -71,7 +116,8 @@ void Instance::check() {
 }
 
 Instance::~Instance() {
-	_inner = nullptr;
+	InvokeQueued(_inner.get(), [copy = base::take(_inner)] {
+	});
 	_thread.quit();
 	_thread.wait();
 }
@@ -155,34 +201,39 @@ struct Instance::Inner::Private {
 	}
 };
 
-Instance::Inner::Inner(QThread *thread) : d(new Private()) {
+Instance::Inner::Inner(QThread *thread)
+: d(std::make_unique<Private>())
+, _timer(thread, [=] { timeout(); }) {
 	moveToThread(thread);
-	_timer.moveToThread(thread);
-	connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
 }
 
 Instance::Inner::~Inner() {
-	onStop(false);
-	delete d;
+	stop();
 }
 
-void Instance::Inner::onInit() {
+void Instance::Inner::fail() {
+	Expects(_error != nullptr);
+
+	stop();
+	_error();
 }
 
-void Instance::Inner::onStart() {
+void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
+	_updated = std::move(updated);
+	_error = std::move(_error);
 
 	// Start OpenAL Capture
 	d->device = alcCaptureOpenDevice(nullptr, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
-		emit error();
+		fail();
 		return;
 	}
 	alcCaptureStart(d->device);
 	if (ErrorHappened(d->device)) {
 		alcCaptureCloseDevice(d->device);
 		d->device = nullptr;
-		emit error();
+		fail();
 		return;
 	}
 
@@ -190,7 +241,7 @@ void Instance::Inner::onStart() {
 
 	d->ioBuffer = (uchar*)av_malloc(AVBlockSize);
 
-	d->ioContext = avio_alloc_context(d->ioBuffer, AVBlockSize, 1, static_cast<void*>(d), &Private::_read_data, &Private::_write_data, &Private::_seek_data);
+	d->ioContext = avio_alloc_context(d->ioBuffer, AVBlockSize, 1, static_cast<void*>(d.get()), &Private::_read_data, &Private::_write_data, &Private::_seek_data);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 	AVOutputFormat *fmt = 0;
@@ -201,15 +252,13 @@ void Instance::Inner::onStart() {
 	}
 	if (!fmt) {
 		LOG(("Audio Error: Unable to find opus AVOutputFormat for capture"));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
 	if ((res = avformat_alloc_output_context2(&d->fmtContext, fmt, 0, 0)) < 0) {
 		LOG(("Audio Error: Unable to avformat_alloc_output_context2 for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	d->fmtContext->pb = d->ioContext;
@@ -220,23 +269,20 @@ void Instance::Inner::onStart() {
 	d->codec = avcodec_find_encoder(fmt->audio_codec);
 	if (!d->codec) {
 		LOG(("Audio Error: Unable to avcodec_find_encoder for capture"));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	d->stream = avformat_new_stream(d->fmtContext, d->codec);
 	if (!d->stream) {
 		LOG(("Audio Error: Unable to avformat_new_stream for capture"));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	d->stream->id = d->fmtContext->nb_streams - 1;
 	d->codecContext = avcodec_alloc_context3(d->codec);
 	if (!d->codecContext) {
 		LOG(("Audio Error: Unable to avcodec_alloc_context3 for capture"));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
@@ -255,8 +301,7 @@ void Instance::Inner::onStart() {
 	// Open audio stream
 	if ((res = avcodec_open2(d->codecContext, d->codec, nullptr)) < 0) {
 		LOG(("Audio Error: Unable to avcodec_open2 for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
@@ -287,48 +332,46 @@ void Instance::Inner::onStart() {
 
 	if ((res = swr_init(d->swrContext)) < 0) {
 		LOG(("Audio Error: Unable to swr_init for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
 	d->maxDstSamples = d->srcSamples;
 	if ((res = av_samples_alloc_array_and_samples(&d->dstSamplesData, 0, d->codecContext->channels, d->maxDstSamples, d->codecContext->sample_fmt, 0)) < 0) {
 		LOG(("Audio Error: Unable to av_samples_alloc_array_and_samples for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	d->dstSamplesSize = av_samples_get_buffer_size(0, d->codecContext->channels, d->maxDstSamples, d->codecContext->sample_fmt, 0);
 
 	if ((res = avcodec_parameters_from_context(d->stream->codecpar, d->codecContext)) < 0) {
 		LOG(("Audio Error: Unable to avcodec_parameters_from_context for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
 	// Write file header
 	if ((res = avformat_write_header(d->fmtContext, 0)) < 0) {
 		LOG(("Audio Error: Unable to avformat_write_header for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
-	_timer.start(50);
+	_timer.callEach(50);
 	_captured.clear();
 	_captured.reserve(kCaptureBufferSlice);
 	DEBUG_LOG(("Audio Capture: started!"));
 }
 
-void Instance::Inner::onStop(bool needResult) {
-	if (!_timer.isActive()) return; // in onStop() already
-	_timer.stop();
+void Instance::Inner::stop(Fn<void(Result&&)> callback) {
+	if (!_timer.isActive()) {
+		return; // in stop() already
+	}
+	_timer.cancel();
 
 	if (d->device) {
 		alcCaptureStop(d->device);
-		onTimeout(); // get last data
+		timeout(); // get last data
 	}
 
 	// Write what is left
@@ -370,7 +413,11 @@ void Instance::Inner::onStop(bool needResult) {
 			}
 		}
 	}
-	DEBUG_LOG(("Audio Capture: stopping (need result: %1), size: %2, samples: %3").arg(Logs::b(needResult)).arg(d->data.size()).arg(d->fullSamples));
+	DEBUG_LOG(("Audio Capture: "
+		"stopping (need result: %1), size: %2, samples: %3"
+		).arg(Logs::b(callback != nullptr)
+		).arg(d->data.size()
+		).arg(d->fullSamples));
 	_captured = QByteArray();
 
 	// Finish stream
@@ -465,19 +512,21 @@ void Instance::Inner::onStop(bool needResult) {
 		d->waveformPeak = 0;
 		d->waveform.clear();
 	}
-	if (needResult) emit done(result, waveform, samples);
+
+	if (callback) {
+		callback({ result, waveform, samples });
+	}
 }
 
-void Instance::Inner::onTimeout() {
+void Instance::Inner::timeout() {
 	if (!d->device) {
-		_timer.stop();
+		_timer.cancel();
 		return;
 	}
 	ALint samples;
 	alcGetIntegerv(d->device, ALC_CAPTURE_SAMPLES, sizeof(samples), &samples);
 	if (ErrorHappened(d->device)) {
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	if (samples > 0) {
@@ -490,8 +539,7 @@ void Instance::Inner::onTimeout() {
 		_captured.resize(news);
 		alcCaptureSamples(d->device, (ALCvoid *)(_captured.data() + s), samples);
 		if (ErrorHappened(d->device)) {
-			onStop(false);
-			emit error();
+			fail();
 			return;
 		}
 
@@ -512,7 +560,7 @@ void Instance::Inner::onTimeout() {
 		}
 		qint32 samplesFull = d->fullSamples + _captured.size() / sizeof(short), samplesSinceUpdate = samplesFull - d->lastUpdate;
 		if (samplesSinceUpdate > kCaptureUpdateDelta * kCaptureFrequency / 1000) {
-			emit updated(d->levelMax, samplesFull);
+			_updated(Update{ .samples = samplesFull, .level = d->levelMax });
 			d->lastUpdate = samplesFull;
 			d->levelMax = 0;
 		}
@@ -539,8 +587,7 @@ void Instance::Inner::processFrame(int32 offset, int32 framesize) {
 
 	if (framesize % sizeof(short)) { // in the middle of a sample
 		LOG(("Audio Error: Bad framesize in writeFrame() for capture, framesize %1, %2").arg(framesize));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 	auto samplesCnt = static_cast<int>(framesize / sizeof(short));
@@ -587,8 +634,7 @@ void Instance::Inner::processFrame(int32 offset, int32 framesize) {
 		av_freep(&d->dstSamplesData[0]);
 		if ((res = av_samples_alloc(d->dstSamplesData, 0, d->codecContext->channels, d->dstSamples, d->codecContext->sample_fmt, 1)) < 0) {
 			LOG(("Audio Error: Unable to av_samples_alloc for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			onStop(false);
-			emit error();
+			fail();
 			return;
 		}
 		d->dstSamplesSize = av_samples_get_buffer_size(0, d->codecContext->channels, d->maxDstSamples, d->codecContext->sample_fmt, 0);
@@ -596,8 +642,7 @@ void Instance::Inner::processFrame(int32 offset, int32 framesize) {
 
 	if ((res = swr_convert(d->swrContext, d->dstSamplesData, d->dstSamples, (const uint8_t **)srcSamplesData, d->srcSamples)) < 0) {
 		LOG(("Audio Error: Unable to swr_convert for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
@@ -627,30 +672,26 @@ void Instance::Inner::writeFrame(AVFrame *frame) {
 		if (packetsWritten < 0) {
 			if (frame && packetsWritten == AVERROR_EOF) {
 				LOG(("Audio Error: EOF in packets received when EAGAIN was got in avcodec_send_frame()"));
-				onStop(false);
-				emit error();
+				fail();
 			}
 			return;
 		} else if (!packetsWritten) {
 			LOG(("Audio Error: No packets received when EAGAIN was got in avcodec_send_frame()"));
-			onStop(false);
-			emit error();
+			fail();
 			return;
 		}
 		res = avcodec_send_frame(d->codecContext, frame);
 	}
 	if (res < 0) {
 		LOG(("Audio Error: Unable to avcodec_send_frame for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-		onStop(false);
-		emit error();
+		fail();
 		return;
 	}
 
 	if (!frame) { // drain
 		if ((res = writePackets()) != AVERROR_EOF) {
 			LOG(("Audio Error: not EOF in packets received when draining the codec, result %1").arg(res));
-			onStop(false);
-			emit error();
+			fail();
 		}
 	}
 }
@@ -672,8 +713,7 @@ int Instance::Inner::writePackets() {
 				return res;
 			}
 			LOG(("Audio Error: Unable to avcodec_receive_packet for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			onStop(false);
-			emit error();
+			fail();
 			return res;
 		}
 
@@ -681,8 +721,7 @@ int Instance::Inner::writePackets() {
 		pkt.stream_index = d->stream->index;
 		if ((res = av_interleaved_write_frame(d->fmtContext, &pkt)) < 0) {
 			LOG(("Audio Error: Unable to av_interleaved_write_frame for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			onStop(false);
-			emit error();
+			fail();
 			return -1;
 		}
 

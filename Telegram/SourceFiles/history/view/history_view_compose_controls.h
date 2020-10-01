@@ -230,6 +230,7 @@ private:
 	//bool _inClickable = false;
 	int _recordingSamples = 0;
 	int _recordCancelWidth;
+	rpl::lifetime _recordingLifetime;
 
 	rpl::lifetime _uploaderSubscriptions;
 

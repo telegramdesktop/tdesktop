@@ -14,76 +14,49 @@ struct AVFrame;
 namespace Media {
 namespace Capture {
 
+struct Update {
+	int samples = 0;
+	ushort level = 0;
+};
+
+struct Result {
+	QByteArray bytes;
+	VoiceWaveform waveform;
+	int samples = 0;
+};
+
 void Start();
 void Finish();
 
-class Instance : public QObject {
-	Q_OBJECT
-
+class Instance final : public QObject {
 public:
 	Instance();
+	~Instance();
 
 	void check();
-	bool available() const {
+	[[nodiscard]] bool available() const {
 		return _available;
 	}
 
-	~Instance();
+	[[nodiscard]] rpl::producer<Update, rpl::empty_error> updated() const {
+		return _updates.events();
+	}
 
-signals:
 	void start();
-	void stop(bool needResult);
-
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
-	void updated(quint16 level, qint32 samples);
-	void error();
+	void stop(Fn<void(Result&&)> callback = nullptr);
 
 private:
 	class Inner;
 	friend class Inner;
 
 	bool _available = false;
+	rpl::event_stream<Update, rpl::empty_error> _updates;
 	QThread _thread;
-	Inner *_inner;
+	std::unique_ptr<Inner> _inner;
 
 };
 
-Instance *instance();
-
-class Instance::Inner : public QObject {
-	Q_OBJECT
-
-public:
-	Inner(QThread *thread);
-	~Inner();
-
-signals:
-	void error();
-	void updated(quint16 level, qint32 samples);
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
-
-public slots:
-	void onInit();
-	void onStart();
-	void onStop(bool needResult);
-
-	void onTimeout();
-
-private:
-	void processFrame(int32 offset, int32 framesize);
-
-	void writeFrame(AVFrame *frame);
-
-	// Writes the packets till EAGAIN is got from av_receive_packet()
-	// Returns number of packets written or -1 on error
-	int writePackets();
-
-	struct Private;
-	Private *d;
-	QTimer _timer;
-	QByteArray _captured;
-
-};
+[[nodiscard]] Instance *instance();
 
 } // namespace Capture
 } // namespace Media

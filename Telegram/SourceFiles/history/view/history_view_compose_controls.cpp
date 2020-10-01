@@ -786,25 +786,6 @@ void ComposeControls::init() {
 	initSendButton();
 	initWriteRestriction();
 
-	QObject::connect(
-		::Media::Capture::instance(),
-		&::Media::Capture::Instance::error,
-		_wrap.get(),
-		[=] { recordError(); });
-	QObject::connect(
-		::Media::Capture::instance(),
-		&::Media::Capture::Instance::updated,
-		_wrap.get(),
-		[=](quint16 level, int samples) { recordUpdated(level, samples); });
-	qRegisterMetaType<VoiceWaveform>();
-	QObject::connect(
-		::Media::Capture::instance(),
-		&::Media::Capture::Instance::done,
-		_wrap.get(),
-		[=](QByteArray result, VoiceWaveform waveform, int samples) {
-			recordDone(result, waveform, samples);
-		});
-
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry(size);
@@ -855,10 +836,6 @@ void ComposeControls::init() {
 	}
 }
 
-void ComposeControls::recordError() {
-	stopRecording(false);
-}
-
 void ComposeControls::recordDone(
 		QByteArray result,
 		VoiceWaveform waveform,
@@ -889,20 +866,26 @@ void ComposeControls::recordUpdated(quint16 level, int samples) {
 }
 
 void ComposeControls::recordStartCallback() {
-	//const auto error = _peer // #TODO restrictions
-	//	? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
-	//	: std::nullopt;
-	const auto error = std::optional<QString>();
+	using namespace ::Media::Capture;
+	const auto error = _history
+		? Data::RestrictionError(_history->peer, ChatRestriction::f_send_media)
+		: std::nullopt;
 	if (error) {
 		Ui::show(Box<InformBox>(*error));
 		return;
 	} else if (_showSlowmodeError && _showSlowmodeError()) {
 		return;
-	} else if (!::Media::Capture::instance()->available()) {
+	} else if (!instance()->available()) {
 		return;
 	}
 
-	emit ::Media::Capture::instance()->start();
+	instance()->start();
+	instance()->updated(
+	) | rpl::start_with_next_error([=](const Update &update) {
+		recordUpdated(update.level, update.samples);
+	}, [=] {
+		stopRecording(false);
+	}, _recordingLifetime);
 
 	_recording = _inField = true;
 	updateControlsVisibility();
@@ -922,11 +905,19 @@ void ComposeControls::recordUpdateCallback(QPoint globalPos) {
 }
 
 void ComposeControls::stopRecording(bool send) {
-	emit ::Media::Capture::instance()->stop(send);
+	if (send) {
+		::Media::Capture::instance()->stop(crl::guard(_wrap.get(), [=](
+				const ::Media::Capture::Result &result) {
+			recordDone(result.bytes, result.waveform, result.samples);
+		}));
+	} else {
+		::Media::Capture::instance()->stop();
+	}
 
 	_recordingLevel = anim::value();
 	_recordingAnimation.stop();
 
+	_recordingLifetime.destroy();
 	_recording = false;
 	_recordingSamples = 0;
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });

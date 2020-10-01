@@ -232,10 +232,6 @@ HistoryWidget::HistoryWidget(
 
 	initTabbedSelector();
 
-	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
-	connect(Media::Capture::instance(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
-	connect(Media::Capture::instance(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
-
 	_attachToggle->addClickHandler(App::LambdaDelayed(
 		st::historyAttach.ripple.hideDuration,
 		this,
@@ -1367,15 +1363,13 @@ void HistoryWidget::setInnerFocus() {
 	}
 }
 
-void HistoryWidget::onRecordError() {
-	stopRecording(false);
-}
-
-void HistoryWidget::onRecordDone(
+void HistoryWidget::recordDone(
 		QByteArray result,
 		VoiceWaveform waveform,
-		qint32 samples) {
-	if (!canWriteMessage() || result.isEmpty()) return;
+		int samples) {
+	if (!canWriteMessage() || result.isEmpty()) {
+		return;
+	}
 
 	Window::ActivateWindow(controller());
 	const auto duration = samples / Media::Player::kDefaultFrequency;
@@ -1384,7 +1378,7 @@ void HistoryWidget::onRecordDone(
 	session().api().sendVoiceMessage(result, waveform, duration, action);
 }
 
-void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
+void HistoryWidget::recordUpdate(ushort level, int samples) {
 	if (!_recording) {
 		return;
 	}
@@ -3361,6 +3355,8 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 }
 
 void HistoryWidget::recordStartCallback() {
+	using namespace Media::Capture;
+
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 		: std::nullopt;
@@ -3369,11 +3365,17 @@ void HistoryWidget::recordStartCallback() {
 		return;
 	} else if (showSlowmodeError()) {
 		return;
-	} else if (!Media::Capture::instance()->available()) {
+	} else if (!instance()->available()) {
 		return;
 	}
 
-	emit Media::Capture::instance()->start();
+	instance()->start();
+	instance()->updated(
+	) | rpl::start_with_next_error([=](const Update &update) {
+		recordUpdate(update.level, update.samples);
+	}, [=] {
+		stopRecording(false);
+	}, _recordingLifetime);
 
 	_recording = _inField = true;
 	updateControlsVisibility();
@@ -3403,11 +3405,20 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::stopRecording(bool send) {
-	emit Media::Capture::instance()->stop(send);
+	if (send) {
+		const auto weak = Ui::MakeWeak(this);
+		Media::Capture::instance()->stop(crl::guard(this, [=](
+				const Media::Capture::Result &result) {
+			recordDone(result.bytes, result.waveform, result.samples);
+		}));
+	} else {
+		Media::Capture::instance()->stop();
+	}
 
 	_recordingLevel = anim::value();
 	_recordingAnimation.stop();
 
+	_recordingLifetime.destroy();
 	_recording = false;
 	_recordingSamples = 0;
 	if (_history) {
@@ -3662,7 +3673,10 @@ bool HistoryWidget::isMuteUnmute() const {
 }
 
 bool HistoryWidget::showRecordButton() const {
-	return Media::Capture::instance()->available() && !HasSendText(_field) && !readyToForward() && !_editMsgId;
+	return Media::Capture::instance()->available()
+		&& !HasSendText(_field)
+		&& !readyToForward()
+		&& !_editMsgId;
 }
 
 bool HistoryWidget::showInlineBotCancel() const {
