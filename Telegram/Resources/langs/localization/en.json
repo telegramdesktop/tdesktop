@@ -34,6 +34,10 @@
     "lng_context_forward_selected_no_quote": "Forward Selected(W/O quote)",
     "lng_selected_forward_no_quote": "Forward(w/o quote)",
     "lng_forward_to_saved_message": "Forward to Saved Messages",
+    "lng_context_forward_msg_old": "Forward Message(Classic)",
+    "lng_context_forward_msg_old_selected": "Forward Selected(Classic)",
+    "lng_selected_forward_emoji_classic": "📠(Classic)",
+    
     "lng_message_id": "Message ID: ",
     
     "lng_admin_log_banned_send_stickers2": "Send stickers",
