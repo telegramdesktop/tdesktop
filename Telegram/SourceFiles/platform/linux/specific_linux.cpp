@@ -1342,15 +1342,11 @@ void start() {
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
-	if(IsStaticBinary()
-		|| InAppImage()
-		|| InFlatpak()
-		|| InSnap()
-		|| IsQtPluginsBundled()) {
+	if (IsQtPluginsBundled()) {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if((IsStaticBinary()
+	if ((IsStaticBinary()
 		|| InAppImage()
 		|| IsQtPluginsBundled())
 		// it is handled by Qt for flatpak and snap
