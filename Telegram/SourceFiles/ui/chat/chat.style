@@ -339,6 +339,7 @@ historyRecordSignalMax: 12px;
 historyRecordCancel: windowSubTextFg;
 historyRecordCancelActive: windowActiveTextFg;
 historyRecordFont: font(13px);
+historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
 historyRecordTextTop: 14px;
 
