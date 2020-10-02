@@ -1544,15 +1544,15 @@ void OverlayWidget::onCopy() {
 
 void OverlayWidget::onAttachedStickers() {
 	const auto session = _session;
-	if (!session) {
+	if (!session || !_photo) {
 		return;
 	}
 	const auto &active = _session->windows();
 	if (active.empty()) {
 		return;
 	}
-	close();
 	active.front()->requestAttachedStickerSets(_photo);
+	close();
 }
 
 auto OverlayWidget::sharedMediaType() const
