@@ -305,7 +305,7 @@ private:
 	using CursorState = HistoryView::CursorState;
 
 	void refreshViewer();
-	void updateAroundPositionFromRows();
+	void updateAroundPositionFromNearest(int nearestIndex);
 	void refreshRows();
 	ScrollTopState countScrollState() const;
 	void saveScrollState();

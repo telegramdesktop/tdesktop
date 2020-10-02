@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
+#include "window/window_title_qt.h" // kShowAfterWindowFlagChangeDelay
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
@@ -363,6 +364,21 @@ void MainWindow::refreshTitleWidget() {
 		_title->init();
 		_titleShadow.destroy();
 	}
+
+#ifdef Q_OS_LINUX
+	// setWindowFlag calls setParent(parentWidget(), newFlags), which
+	// always calls hide() explicitly, we have to show() the window back.
+	const auto hidden = isHidden();
+	const auto withShadow = hasShadow();
+	setWindowFlag(Qt::NoDropShadowWindowHint, withShadow);
+	setAttribute(Qt::WA_OpaquePaintEvent, !withShadow);
+	if (!hidden) {
+		base::call_delayed(
+			kShowAfterWindowFlagChangeDelay,
+			this,
+			[=] { show(); });
+	}
+#endif // Q_OS_LINUX
 }
 
 void MainWindow::updateMinimumSize() {
@@ -377,12 +393,6 @@ void MainWindow::updateShadowSize() {
 }
 
 void MainWindow::recountGeometryConstraints() {
-#ifdef Q_OS_LINUX
-	const auto hasShadow = this->hasShadow();
-	setWindowFlag(Qt::NoDropShadowWindowHint, hasShadow);
-	setAttribute(Qt::WA_OpaquePaintEvent, !hasShadow);
-#endif // Q_OS_LINUX
-
 	updateShadowSize();
 	updateMinimumSize();
 	updateControlsGeometry();

@@ -479,9 +479,15 @@ void MessagesSliceBuilder::requestMessagesCount() {
 MessagesSlice MessagesSliceBuilder::snapshot() const {
 	auto result = MessagesSlice();
 	result.ids.reserve(_ids.size());
+	auto nearestToAround = std::optional<FullMsgId>();
 	for (const auto &position : _ids) {
 		result.ids.push_back(position.fullId);
+		if (!nearestToAround && position >= _key) {
+			nearestToAround = position.fullId;
+		}
 	}
+	result.nearestToAround = nearestToAround.value_or(
+		_ids.empty() ? FullMsgId() : _ids.back().fullId);
 	result.skippedBefore = _skippedBefore;
 	result.skippedAfter = _skippedAfter;
 	result.fullCount = _fullCount;

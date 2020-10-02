@@ -568,6 +568,13 @@ void MainWindow::handleSNIOwnerChanged(
 		const QString &service,
 		const QString &oldOwner,
 		const QString &newOwner) {
+	SNIAvailable = !newOwner.isEmpty();
+
+	const auto trayAvailable = SNIAvailable
+		|| QSystemTrayIcon::isSystemTrayAvailable();
+
+	Platform::SetTrayIconSupported(trayAvailable);
+
 	if (Global::WorkMode().value() == dbiwmWindowOnly) {
 		return;
 	}
@@ -585,13 +592,6 @@ void MainWindow::handleSNIOwnerChanged(
 		trayIcon->deleteLater();
 	}
 	trayIcon = nullptr;
-
-	SNIAvailable = !newOwner.isEmpty();
-
-	const auto trayAvailable = SNIAvailable
-		|| QSystemTrayIcon::isSystemTrayAvailable();
-
-	Platform::SetTrayIconSupported(trayAvailable);
 
 	if (trayAvailable) {
 		psSetupTrayIcon();

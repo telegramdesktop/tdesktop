@@ -228,6 +228,7 @@ Message::Message(
 : Element(delegate, data, replacing) {
 	initLogEntryOriginal();
 	initPsa();
+	refreshRightBadge();
 }
 
 Message::~Message() {

@@ -637,7 +637,7 @@ bool HistoryItem::suggestBanReport() const {
 	if (!channel || !fromUser || !channel->canRestrictUser(fromUser)) {
 		return false;
 	}
-	return !isPost() && !out() && toHistoryMessage();
+	return !isPost() && !out();
 }
 
 bool HistoryItem::suggestDeleteAllReport() const {
@@ -645,7 +645,7 @@ bool HistoryItem::suggestDeleteAllReport() const {
 	if (!channel || !channel->canDeleteMessages()) {
 		return false;
 	}
-	return !isPost() && !out() && from()->isUser() && toHistoryMessage();
+	return !isPost() && !out() && from()->isUser();
 }
 
 bool HistoryItem::hasDirectLink() const {

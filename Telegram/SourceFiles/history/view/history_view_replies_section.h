@@ -255,6 +255,7 @@ private:
 	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
 	int _rootViewHeight = 0;
 	object_ptr<Ui::PlainShadow> _rootShadow;
+	bool _rootViewInited = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 
