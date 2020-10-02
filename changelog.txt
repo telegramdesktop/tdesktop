@@ -1,3 +1,9 @@
+2.4.2 (02.10.20)
+
+- Allow block, report and delete all message from user from "user joined" service message context menu.
+- Fix admin badge display in groups.
+- Fix loading and opening of comments in channels.
+
 2.4.1 (01.10.20)
 
 - Move by PageUp and PageDown in channel comments.
