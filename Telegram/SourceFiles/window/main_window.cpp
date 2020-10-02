@@ -363,6 +363,21 @@ void MainWindow::refreshTitleWidget() {
 		_title->init();
 		_titleShadow.destroy();
 	}
+
+#ifdef Q_OS_LINUX
+	// setWindowFlag calls setParent(parentWidget(), newFlags), which
+	// always calls hide() explicitly, we have to show() the window back.
+	const auto hidden = isHidden();
+	const auto withShadow = hasShadow();
+	setWindowFlag(Qt::NoDropShadowWindowHint, withShadow);
+	setAttribute(Qt::WA_OpaquePaintEvent, !withShadow);
+	if (!hidden) {
+		base::call_delayed(
+			kShowAfterWindowFlagChangeDelay,
+			this,
+			[=] { show(); });
+	}
+#endif // Q_OS_LINUX
 }
 
 void MainWindow::updateMinimumSize() {
