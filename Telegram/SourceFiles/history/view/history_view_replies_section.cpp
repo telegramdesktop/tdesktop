@@ -1519,7 +1519,7 @@ void RepliesWidget::updateControlsGeometry() {
 
 	const auto bottom = height();
 	const auto controlsHeight = _composeControls->heightCurrent();
-	const auto scrollY = _topBar->height() + _rootView->height();
+	const auto scrollY = _topBar->height() + _rootViewHeight;
 	const auto scrollHeight = bottom - scrollY - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
@@ -1585,13 +1585,28 @@ void RepliesWidget::updatePinnedVisibility() {
 		return _root;
 	}();
 	const auto view = _inner->viewByPosition(item->position());
-	setPinnedVisibility(!view
-		|| (view->y() + view->height() <= _scroll->scrollTop()));
+	const auto visible = !view
+		|| (view->y() + view->height() <= _scroll->scrollTop());
+	setPinnedVisibility(visible);
 }
 
 void RepliesWidget::setPinnedVisibility(bool shown) {
 	if (!animating()) {
-		_rootView->toggle(shown, anim::type::normal);
+		if (!_rootViewInited) {
+			const auto height = shown ? st::historyReplyHeight : 0;
+			if (const auto delta = height - _rootViewHeight) {
+				_rootViewHeight = height;
+				if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
+					setGeometryWithTopMoved(geometry(), delta);
+				} else {
+					updateControlsGeometry();
+				}
+			}
+			_rootView->toggle(shown, anim::type::instant);
+			_rootViewInited = true;
+		} else {
+			_rootView->toggle(shown, anim::type::normal);
+		}
 	}
 }
 

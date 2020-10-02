@@ -336,12 +336,16 @@ void ListWidget::refreshRows() {
 
 	_items.clear();
 	_items.reserve(_slice.ids.size());
+	auto nearestIndex = -1;
 	for (const auto &fullId : _slice.ids) {
 		if (const auto item = session().data().message(fullId)) {
+			if (_slice.nearestToAround == fullId) {
+				nearestIndex = int(_items.size());
+			}
 			_items.push_back(enforceViewForItem(item));
 		}
 	}
-	updateAroundPositionFromRows();
+	updateAroundPositionFromNearest(nearestIndex);
 
 	updateItemsGeometry();
 	checkUnreadBarCreation();
@@ -573,8 +577,7 @@ not_null<Element*> ListWidget::enforceViewForItem(
 	return i->second.get();
 }
 
-void ListWidget::updateAroundPositionFromRows() {
-	const auto nearestIndex = findNearestItem(_aroundPosition);
+void ListWidget::updateAroundPositionFromNearest(int nearestIndex) {
 	if (nearestIndex < 0) {
 		_aroundIndex = -1;
 		return;

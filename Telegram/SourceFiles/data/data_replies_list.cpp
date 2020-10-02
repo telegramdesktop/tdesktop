@@ -227,6 +227,7 @@ void RepliesList::injectRootDivider(
 bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	if (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0) {
 		viewer->slice.ids.clear();
+		viewer->slice.nearestToAround = FullMsgId();
 		viewer->slice.fullCount
 			= viewer->slice.skippedBefore
 			= viewer->slice.skippedAfter
@@ -268,10 +269,20 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 
 	const auto channelId = _history->channelId();
 	slice->ids.clear();
+	auto nearestToAround = std::optional<MsgId>();
 	slice->ids.reserve(useAfter + useBefore);
 	for (auto j = i - useAfter, e = i + useBefore; j != e; ++j) {
+		if (!nearestToAround && *j < around) {
+			nearestToAround = (j == i - useAfter)
+				? *j
+				: *(j - 1);
+		}
 		slice->ids.emplace_back(channelId, *j);
 	}
+	slice->nearestToAround = FullMsgId(
+		channelId,
+		nearestToAround.value_or(
+			slice->ids.empty() ? 0 : slice->ids.back().msg));
 	slice->fullCount = _fullCount.current();
 
 	injectRootMessageAndReverse(slice);

@@ -93,10 +93,10 @@ constexpr auto UnreadMessagePosition = MessagePosition(
 
 struct MessagesSlice {
 	std::vector<FullMsgId> ids;
+	FullMsgId nearestToAround;
 	std::optional<int> skippedBefore;
 	std::optional<int> skippedAfter;
 	std::optional<int> fullCount;
-
 };
 
 struct MessagesQuery {
@@ -112,7 +112,6 @@ struct MessagesQuery {
 	MessagePosition aroundId;
 	int limitBefore = 0;
 	int limitAfter = 0;
-
 };
 
 struct MessagesResult {
