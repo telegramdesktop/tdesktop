@@ -76,7 +76,7 @@ Add **GYP** and **Ninja** to your PATH:
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and
  Create A File In The File Named **build.py**,
- The content of the file would be [Click for the content](content_) and then in The **Native Tools Command Prompt** run
+ The content of the file would be [Click for the content][content_] and then in The **Native Tools Command Prompt** run
 ```commandline
 python build.py
 ```
