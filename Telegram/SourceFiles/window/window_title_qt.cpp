@@ -97,7 +97,7 @@ void TitleWidgetQt::toggleFramelessWindow(bool enabled) {
 	top->setWindowFlag(Qt::FramelessWindowHint, enabled);
 	if (!hidden) {
 		base::call_delayed(
-			kShowAfterFramelessToggleDelay,
+			kShowAfterWindowFlagChangeDelay,
 			top,
 			[=] { top->show(); });
 	}

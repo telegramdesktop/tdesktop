@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
+#include "window/window_title_qt.h" // kShowAfterWindowFlagChangeDelay
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
