@@ -637,7 +637,7 @@ bool HistoryItem::suggestBanReport() const {
 	if (!channel || !fromUser || !channel->canRestrictUser(fromUser)) {
 		return false;
 	}
-	return !isPost() && !out() && toHistoryMessage();
+	return !isPost() && !out();
 }
 
 bool HistoryItem::suggestDeleteAllReport() const {
