@@ -130,6 +130,8 @@ private:
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
 
+	QRect _clickableRect;
+
 	rpl::event_stream<bool> _visibleChanged;
 	rpl::event_stream<FullMsgId> _scrollToItemRequests;
 
@@ -231,22 +233,16 @@ void FieldHeader::init() {
 	events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
 		return ranges::contains(kMouseEvents, event->type())
-			&& isEditingMessage();
+			&& (isEditingMessage() || replyingToMessage());
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 		const auto e = static_cast<QMouseEvent*>(event.get());
 		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
-		const auto inPreviewRect = QRect(
-			st::historyReplySkip,
-			0,
-			width() - st::historyReplySkip - _cancel->width(),
-			height()).contains(pos);
+		const auto inPreviewRect = _clickableRect.contains(pos);
 
 		if (type == QEvent::MouseMove) {
-			const auto inEdit = inPreviewRect;
-
-			if (inEdit != *inClickable) {
-				*inClickable = inEdit;
+			if (inPreviewRect != *inClickable) {
+				*inClickable = inPreviewRect;
 				setCursor(*inClickable
 					? style::cur_pointer
 					: style::cur_default);
@@ -260,7 +256,10 @@ void FieldHeader::init() {
 				*leftIconPressed = true;
 				update();
 			} else if (isLeftButton && inPreviewRect) {
-				_scrollToItemRequests.fire(_editMsgId.current());
+				auto id = isEditingMessage()
+					? _editMsgId.current()
+					: replyingToMessage();
+				_scrollToItemRequests.fire(std::move(id));
 			}
 		} else if (type == QEvent::MouseButtonRelease) {
 			if (isLeftButton && *leftIconPressed) {
@@ -451,6 +450,11 @@ WebPageId FieldHeader::webPageId() const {
 
 void FieldHeader::updateControlsGeometry(QSize size) {
 	_cancel->moveToRight(0, 0);
+	_clickableRect = QRect(
+		st::historyReplySkip,
+		0,
+		width() - st::historyReplySkip - _cancel->width(),
+		height());
 }
 
 void FieldHeader::editMessage(FullMsgId id) {
