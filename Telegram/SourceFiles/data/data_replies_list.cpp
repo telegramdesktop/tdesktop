@@ -580,7 +580,8 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		}
 	}
 
-	return (list.size() > skipped);
+	Ensures(list.size() >= skipped);
+	return (list.size() == skipped);
 }
 
 } // namespace Data
