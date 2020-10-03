@@ -29,9 +29,6 @@ enum {
 	LinksOverviewPerPage = 12,
 	MediaOverviewStartPerPage = 5,
 
-	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
-	AudioVoiceMsgChannels = 2, // stereo
-
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,

@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
 //#include "history/feed/history_feed_section.h" // #feed
+#include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
@@ -176,7 +177,7 @@ HistoryWidget::HistoryWidget(
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
 	: nullptr)
-, _send(this)
+, _send(std::make_shared<Ui::SendButton>(this))
 , _unblock(this, tr::lng_unblock_button(tr::now).toUpper(), st::historyUnblock)
 , _botStart(this, tr::lng_bot_start(tr::now).toUpper(), st::historyComposeButton)
 , _joinChannel(
@@ -192,15 +193,16 @@ HistoryWidget::HistoryWidget(
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
+, _voiceRecordBar(std::make_unique<HistoryWidget::VoiceRecordBar>(
+		this,
+		controller,
+		_send,
+		st::historySendSize.height()))
 , _field(
 	this,
 	st::historyComposeField,
 	Ui::InputField::Mode::MultiLine,
 	tr::lng_message_ph())
-, _recordCancelWidth(st::historyRecordFont->width(tr::lng_record_cancel(tr::now)))
-, _recordingAnimation([=](crl::time now) {
-	return recordingAnimationCallback(now);
-})
 , _kbScroll(this, st::botKbScroll)
 , _topShadow(this) {
 	setAcceptDrops(true);
@@ -217,7 +219,7 @@ HistoryWidget::HistoryWidget(
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
 	SendMenu::SetupMenuAndShortcuts(
-		_send,
+		_send.get(),
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
 		[=] { sendScheduled(); });
@@ -349,10 +351,7 @@ HistoryWidget::HistoryWidget(
 	_joinChannel->hide();
 	_muteUnmute->hide();
 
-	_send->setRecordStartCallback([this] { recordStartCallback(); });
-	_send->setRecordStopCallback([this](bool active) { recordStopCallback(active); });
-	_send->setRecordUpdateCallback([this](QPoint globalPos) { recordUpdateCallback(globalPos); });
-	_send->setRecordAnimationCallback([this] { updateField(); });
+	initVoiceRecordBar();
 
 	_attachToggle->hide();
 	_tabbedSelectorToggle->hide();
@@ -715,6 +714,48 @@ void HistoryWidget::refreshTabbedPanel() {
 	} else {
 		setTabbedPanel(nullptr);
 	}
+}
+
+void HistoryWidget::initVoiceRecordBar() {
+	_voiceRecordBar->startRecordingRequests(
+	) | rpl::start_with_next([=] {
+		const auto error = _peer
+			? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
+			: std::nullopt;
+		if (error) {
+			Ui::show(Box<InformBox>(*error));
+			return;
+		} else if (showSlowmodeError()) {
+			return;
+		}
+		_voiceRecordBar->startRecording();
+	}, lifetime());
+
+	_voiceRecordBar->sendActionUpdates(
+	) | rpl::start_with_next([=](const auto &data) {
+		if (!_history) {
+			return;
+		}
+		session().sendProgressManager().update(
+			_history,
+			data.type,
+			data.progress);
+	}, lifetime());
+
+	_voiceRecordBar->sendVoiceRequests(
+	) | rpl::start_with_next([=](const auto &data) {
+		if (!canWriteMessage() || data.bytes.isEmpty() || !_history) {
+			return;
+		}
+
+		auto action = Api::SendAction(_history);
+		action.replyTo = replyToId();
+		session().api().sendVoiceMessage(
+			data.bytes,
+			data.waveform,
+			data.duration,
+			action);
+	}, lifetime());
 }
 
 void HistoryWidget::initTabbedSelector() {
@@ -1145,6 +1186,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 }
 
 void HistoryWidget::orderWidgets() {
+	_send->raise();
 	if (_contactStatus) {
 		_contactStatus->raise();
 	}
@@ -1343,6 +1385,10 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 	}
 }
 
+bool HistoryWidget::isRecording() const {
+	return _voiceRecordBar->isRecording();
+}
+
 void HistoryWidget::activate() {
 	if (_history) {
 		if (!_historyInited) {
@@ -1360,7 +1406,7 @@ void HistoryWidget::setInnerFocus() {
 	} else if (_list) {
 		if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
-			|| _recording
+			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
 			|| !_canSendMessages) {
@@ -1368,41 +1414,6 @@ void HistoryWidget::setInnerFocus() {
 		} else {
 			_field->setFocus();
 		}
-	}
-}
-
-void HistoryWidget::recordDone(
-		QByteArray result,
-		VoiceWaveform waveform,
-		int samples) {
-	if (!canWriteMessage() || result.isEmpty()) {
-		return;
-	}
-
-	Window::ActivateWindow(controller());
-	const auto duration = samples / Media::Player::kDefaultFrequency;
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyToId();
-	session().api().sendVoiceMessage(result, waveform, duration, action);
-}
-
-void HistoryWidget::recordUpdate(ushort level, int samples) {
-	if (!_recording) {
-		return;
-	}
-
-	_recordingLevel.start(level);
-	_recordingAnimation.start();
-	_recordingSamples = samples;
-	if (samples < 0 || samples >= Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
-		stopRecording(_peer && samples > 0 && _inField);
-	}
-	Core::App().updateNonIdle();
-	updateField();
-	if (_history) {
-		session().sendProgressManager().update(
-			_history,
-			Api::SendProgressType::RecordVoice);
 	}
 }
 
@@ -2125,63 +2136,45 @@ void HistoryWidget::updateControlsVisibility() {
 		_muteUnmute->hide();
 		_send->show();
 		updateSendButtonType();
-		if (_recording) {
-			_field->hide();
+
+		_field->show();
+		if (_kbShown) {
+			_kbScroll->show();
 			_tabbedSelectorToggle->hide();
+			_botKeyboardHide->show();
 			_botKeyboardShow->hide();
-			_botKeyboardHide->hide();
 			_botCommandStart->hide();
-			_attachToggle->hide();
-			if (_silent) {
-				_silent->hide();
-			}
-			if (_scheduled) {
-				_scheduled->hide();
-			}
-			if (_kbShown) {
-				_kbScroll->show();
-			} else {
-				_kbScroll->hide();
-			}
+		} else if (_kbReplyTo) {
+			_kbScroll->hide();
+			_tabbedSelectorToggle->show();
+			_botKeyboardHide->hide();
+			_botKeyboardShow->hide();
+			_botCommandStart->hide();
 		} else {
-			_field->show();
-			if (_kbShown) {
-				_kbScroll->show();
-				_tabbedSelectorToggle->hide();
-				_botKeyboardHide->show();
-				_botKeyboardShow->hide();
-				_botCommandStart->hide();
-			} else if (_kbReplyTo) {
-				_kbScroll->hide();
-				_tabbedSelectorToggle->show();
-				_botKeyboardHide->hide();
-				_botKeyboardShow->hide();
+			_kbScroll->hide();
+			_tabbedSelectorToggle->show();
+			_botKeyboardHide->hide();
+			if (_keyboard->hasMarkup()) {
+				_botKeyboardShow->show();
 				_botCommandStart->hide();
 			} else {
-				_kbScroll->hide();
-				_tabbedSelectorToggle->show();
-				_botKeyboardHide->hide();
-				if (_keyboard->hasMarkup()) {
-					_botKeyboardShow->show();
-					_botCommandStart->hide();
+				_botKeyboardShow->hide();
+				if (_cmdStartShown) {
+					_botCommandStart->show();
 				} else {
-					_botKeyboardShow->hide();
-					if (_cmdStartShown) {
-						_botCommandStart->show();
-					} else {
-						_botCommandStart->hide();
-					}
+					_botCommandStart->hide();
 				}
 			}
-			_attachToggle->show();
-			if (_silent) {
-				_silent->show();
-			}
-			if (_scheduled) {
-				_scheduled->show();
-			}
-			updateFieldPlaceholder();
 		}
+		_attachToggle->show();
+		if (_silent) {
+			_silent->show();
+		}
+		if (_scheduled) {
+			_scheduled->show();
+		}
+		updateFieldPlaceholder();
+
 		if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
 			if (_fieldBarCancel->isHidden()) {
 				_fieldBarCancel->show();
@@ -3275,22 +3268,6 @@ void HistoryWidget::unreadMentionsAnimationFinish() {
 	updateUnreadMentionsPosition();
 }
 
-bool HistoryWidget::recordingAnimationCallback(crl::time now) {
-	const auto dt = anim::Disabled()
-		? 1.
-		: ((now - _recordingAnimation.started())
-			/ float64(kRecordingUpdateDelta));
-	if (dt >= 1.) {
-		_recordingLevel.finish();
-	} else {
-		_recordingLevel.update(dt, anim::linear);
-	}
-	if (!anim::Disabled()) {
-		update(_attachToggle->geometry());
-	}
-	return (dt < 1.);
-}
-
 void HistoryWidget::chooseAttach() {
 	if (_editMsgId) {
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
@@ -3362,13 +3339,8 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::updateOverStates(QPoint pos) {
-	auto inField = pos.y() >= (_scroll->y() + _scroll->height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
 	auto inReplyEditForward = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId() || readyToForward());
 	auto inClickable = inReplyEditForward;
-	if (inField != _inField && _recording) {
-		_inField = inField;
-		_send->setRecordActive(_inField);
-	}
 	_inReplyEditForward = inReplyEditForward;
 	if (inClickable != _inClickable) {
 		_inClickable = inClickable;
@@ -3382,85 +3354,11 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 	}
 }
 
-void HistoryWidget::recordStartCallback() {
-	using namespace Media::Capture;
-
-	const auto error = _peer
-		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
-		: std::nullopt;
-	if (error) {
-		Ui::show(Box<InformBox>(*error));
-		return;
-	} else if (showSlowmodeError()) {
-		return;
-	} else if (!instance()->available()) {
-		return;
-	}
-
-	instance()->start();
-	instance()->updated(
-	) | rpl::start_with_next_error([=](const Update &update) {
-		recordUpdate(update.level, update.samples);
-	}, [=] {
-		stopRecording(false);
-	}, _recordingLifetime);
-
-	_recording = _inField = true;
-	updateControlsVisibility();
-	activate();
-
-	updateField();
-
-	_send->setRecordActive(true);
-}
-
-void HistoryWidget::recordStopCallback(bool active) {
-	stopRecording(_peer && active);
-}
-
-void HistoryWidget::recordUpdateCallback(QPoint globalPos) {
-	updateOverStates(mapFromGlobal(globalPos));
-}
-
 void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
 	}
-	if (_recording) {
-		stopRecording(_peer && _inField);
-	}
-}
-
-void HistoryWidget::stopRecording(bool send) {
-	if (send) {
-		const auto weak = Ui::MakeWeak(this);
-		Media::Capture::instance()->stop(crl::guard(this, [=](
-				const Media::Capture::Result &result) {
-			recordDone(result.bytes, result.waveform, result.samples);
-		}));
-	} else {
-		Media::Capture::instance()->stop();
-	}
-
-	_recordingLevel = anim::value();
-	_recordingAnimation.stop();
-
-	_recordingLifetime.destroy();
-	_recording = false;
-	_recordingSamples = 0;
-	if (_history) {
-		session().sendProgressManager().update(
-			_history,
-			Api::SendProgressType::RecordVoice,
-			-1);
-	}
-
-	updateControlsVisibility();
-	activate();
-
-	updateField();
-	_send->setRecordActive(false);
 }
 
 void HistoryWidget::sendBotCommand(
@@ -3971,6 +3869,7 @@ void HistoryWidget::moveFieldControls() {
 	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
 	auto right = st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();
+	_voiceRecordBar->moveToLeft(0, bottom - _voiceRecordBar->height());
 	_tabbedSelectorToggle->moveToRight(right, buttonsBottom);
 	_botKeyboardHide->moveToRight(right, buttonsBottom); right += _botKeyboardHide->width();
 	_botKeyboardShow->moveToRight(right, buttonsBottom);
@@ -4445,6 +4344,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 void HistoryWidget::updateControlsGeometry() {
 	_topBar->resizeToWidth(width());
 	_topBar->moveToLeft(0, 0);
+	_voiceRecordBar->resizeToWidth(width());
 
 	moveFieldControls();
 
@@ -5571,7 +5471,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 		}
 	}
 
-	if (_recording) {
+	if (isRecording()) {
 		// Just fix some strange inconsistency.
 		_send->clearState();
 	}
@@ -6070,7 +5970,7 @@ void HistoryWidget::updateTopBarSelection() {
 	if (!Ui::isLayerShown() && !Core::App().passcodeLocked()) {
 		if (_nonEmptySelection
 			|| (_list && _list->wasSelectedText())
-			|| _recording
+			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
 			|| !_canSendMessages) {
@@ -6097,7 +5997,7 @@ void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
 		st::messageTextStyle,
 		item->inReplyText(),
 		Ui::DialogTextOptions());
-	if (!_field->isHidden() || _recording) {
+	if (!_field->isHidden() || isRecording()) {
 		_fieldBarCancel->show();
 		updateMouseTracking();
 	}
@@ -6400,29 +6300,6 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	}
 }
 
-void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::historyRecordSignalColor);
-
-	auto delta = qMin(_recordingLevel.current() / 0x4000, 1.);
-	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
-	}
-
-	auto duration = Ui::FormatDurationText(_recordingSamples / Media::Player::kDefaultFrequency);
-	p.setFont(st::historyRecordFont);
-
-	p.setPen(st::historyRecordDurationFg);
-	p.drawText(_attachToggle->x() + _tabbedSelectorToggle->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
-
-	int32 left = _attachToggle->x() + _tabbedSelectorToggle->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
-	int32 right = width() - _send->width();
-
-	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, 1. - recordActive));
-	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, tr::lng_record_cancel(tr::now));
-}
 //
 //void HistoryWidget::drawPinnedBar(Painter &p) {
 //	//if (_pinnedBar->msg) {
@@ -6478,11 +6355,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	const auto clip = e->rect();
 	if (_list) {
-		if (!_field->isHidden() || _recording) {
+		if (!_field->isHidden() || isRecording()) {
 			drawField(p, clip);
-			if (!_send->isHidden() && _recording) {
-				drawRecording(p, _send->recordActiveRatio());
-			}
 		} else if (const auto error = writeRestriction()) {
 			drawRestrictedWrite(p, *error);
 		}

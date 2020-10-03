@@ -26,8 +26,9 @@ using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
 using VoiceToSend = VoiceRecordBar::VoiceToSend;
 
 constexpr auto kRecordingUpdateDelta = crl::time(100);
+constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples =
-	::Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength;
+	::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;
 
 [[nodiscard]] auto Duration(int samples) {
 	return samples / ::Media::Player::kDefaultFrequency;

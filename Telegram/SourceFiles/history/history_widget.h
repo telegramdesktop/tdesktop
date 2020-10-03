@@ -94,6 +94,9 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+namespace Controls {
+class VoiceRecordBar;
+} // namespace Controls
 } // namespace HistoryView
 
 class DragArea;
@@ -108,6 +111,7 @@ class HistoryWidget final : public Window::AbstractSectionWidget {
 
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
+	using VoiceRecordBar = HistoryView::Controls::VoiceRecordBar;
 
 	HistoryWidget(
 		QWidget *parent,
@@ -200,9 +204,6 @@ public:
 
 	void updatePreview();
 	void previewCancel();
-
-	bool recordingAnimationCallback(crl::time now);
-	void stopRecording(bool send);
 
 	void escape();
 
@@ -345,6 +346,7 @@ private:
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void initTabbedSelector();
+	void initVoiceRecordBar();
 	void refreshTabbedPanel();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
@@ -395,11 +397,6 @@ private:
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
-	void recordDone(QByteArray result, VoiceWaveform waveform, int samples);
-	void recordUpdate(ushort level, int samples);
-	void recordStartCallback();
-	void recordStopCallback(bool active);
-	void recordUpdateCallback(QPoint globalPos);
 	void chooseAttach();
 	void historyDownAnimationFinish();
 	void unreadMentionsAnimationFinish();
@@ -495,7 +492,6 @@ private:
 		const QRect &rect,
 		int left,
 		int top) const;
-	void drawRecording(Painter &p, float64 recordActive);
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	bool paintShowAnimationFrame();
 
@@ -565,6 +561,8 @@ private:
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	void inlineBotResolveFail(const RPCError &error, const QString &username);
+
+	bool isRecording() const;
 
 	bool isBotStart() const;
 	bool isBlocked() const;
@@ -673,7 +671,7 @@ private:
 
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 
-	object_ptr<Ui::SendButton> _send;
+	const std::shared_ptr<Ui::SendButton> _send;
 	object_ptr<Ui::FlatButton> _unblock;
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
@@ -685,20 +683,11 @@ private:
 	object_ptr<Ui::IconButton> _botCommandStart;
 	object_ptr<Ui::SilentToggle> _silent = { nullptr };
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
+	const std::unique_ptr<VoiceRecordBar> _voiceRecordBar;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
-	bool _recording = false;
-	bool _inField = false;
 	bool _inReplyEditForward = false;
 	bool _inClickable = false;
-	int _recordingSamples = 0;
-	int _recordCancelWidth;
-	rpl::lifetime _recordingLifetime;
-
-	// This can animate for a very long time (like in music playing),
-	// so it should be a Basic, not a Simple animation.
-	Ui::Animations::Basic _recordingAnimation;
-	anim::value _recordingLevel;
 
 	bool kbWasHidden() const;
 
