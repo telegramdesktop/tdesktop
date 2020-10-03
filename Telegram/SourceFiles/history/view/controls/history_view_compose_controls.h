@@ -56,6 +56,10 @@ enum class SendProgressType;
 
 namespace HistoryView {
 
+namespace Controls {
+class VoiceRecordBar;
+} // namespace Controls
+
 class FieldHeader;
 
 class ComposeControls final {
@@ -145,6 +149,7 @@ private:
 	void initSendButton();
 	void initWebpageProcess();
 	void initWriteRestriction();
+	void initVoiceRecordBar();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateWrappingVisibility();
@@ -152,6 +157,8 @@ private:
 	void updateControlsGeometry(QSize size);
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
+
+	void orderControls();
 
 	void escape();
 	void fieldChanged();
@@ -161,18 +168,7 @@ private:
 
 	void setTextFromEditingMessage(not_null<HistoryItem*> item);
 
-	void recordUpdated(quint16 level, int samples);
-	void recordDone(QByteArray result, VoiceWaveform waveform, int samples);
-
-	bool recordingAnimationCallback(crl::time now);
-	void stopRecording(bool send);
-
-	void recordStartCallback();
-	void recordStopCallback(bool active);
-	void recordUpdateCallback(QPoint globalPos);
-
 	bool showRecordButton() const;
-	void drawRecording(Painter &p, float64 recordActive);
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	void updateOverStates(QPoint pos);
 
@@ -188,7 +184,7 @@ private:
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
 
-	const not_null<Ui::SendButton*> _send;
+	const std::shared_ptr<Ui::SendButton> _send;
 	const not_null<Ui::IconButton*> _attachToggle;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
@@ -197,31 +193,21 @@ private:
 
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;
+	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
-	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
 
 	TextWithTags _localSavedText;
 	TextUpdateEvents _textUpdateEvents;
 
-	bool _recording = false;
-	bool _inField = false;
 	//bool _inReplyEditForward = false;
 	//bool _inClickable = false;
-	int _recordingSamples = 0;
-	int _recordCancelWidth;
-	rpl::lifetime _recordingLifetime;
 
 	rpl::lifetime _uploaderSubscriptions;
-
-	// This can animate for a very long time (like in music playing),
-	// so it should be a Basic, not a Simple animation.
-	Ui::Animations::Basic _recordingAnimation;
-	anim::value _recordingLevel;
 
 	Fn<void()> _raiseEmojiSuggestions;
 

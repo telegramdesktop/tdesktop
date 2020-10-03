@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/inline_results_widget.h"
 #include "lang/lang_keys.h"
@@ -57,6 +58,7 @@ using MessageToEdit = ComposeControls::MessageToEdit;
 using VoiceToSend = ComposeControls::VoiceToSend;
 using SendActionUpdate = ComposeControls::SendActionUpdate;
 using SetHistoryArgs = ComposeControls::SetHistoryArgs;
+using VoiceRecordBar = HistoryView::Controls::VoiceRecordBar;
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
 	return page && (page->pendingTill >= 0);
@@ -500,7 +502,7 @@ ComposeControls::ComposeControls(
 , _mode(mode)
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
 , _writeRestricted(std::make_unique<Ui::RpWidget>(parent))
-, _send(Ui::CreateChild<Ui::SendButton>(_wrap.get()))
+, _send(std::make_shared<Ui::SendButton>(_wrap.get()))
 , _attachToggle(Ui::CreateChild<Ui::IconButton>(
 	_wrap.get(),
 	st::historyAttach))
@@ -516,18 +518,16 @@ ComposeControls::ComposeControls(
 , _header(std::make_unique<FieldHeader>(
 		_wrap.get(),
 		&_window->session().data()))
-, _textUpdateEvents(TextUpdateEvent::SendTyping)
-, _recordCancelWidth(st::historyRecordFont->width(tr::lng_record_cancel(tr::now)))
-, _recordingAnimation([=](crl::time now) {
-	return recordingAnimationCallback(now);
-}) {
+, _voiceRecordBar(std::make_unique<VoiceRecordBar>(
+		_wrap.get(),
+		window,
+		_send,
+		st::historySendSize.height()))
+, _textUpdateEvents(TextUpdateEvent::SendTyping) {
 	init();
 }
 
 ComposeControls::~ComposeControls() {
-	if (_recording) {
-		stopRecording(false);
-	}
 	setTabbedPanel(nullptr);
 }
 
@@ -579,89 +579,11 @@ int ComposeControls::heightCurrent() const {
 }
 
 bool ComposeControls::focus() {
-	if (_recording) {
+	if (_voiceRecordBar->isRecording()) {
 		return false;
 	}
 	_field->setFocus();
 	return true;
-}
-
-void ComposeControls::updateControlsVisibility() {
-	if (_recording) {
-		_field->hide();
-		_tabbedSelectorToggle->hide();
-		//_botKeyboardShow->hide();
-		//_botKeyboardHide->hide();
-		//_botCommandStart->hide();
-		_attachToggle->hide();
-		//if (_silent) {
-		//	_silent->hide();
-		//}
-		//if (_scheduled) {
-		//	_scheduled->hide();
-		//}
-		//if (_kbShown) {
-		//	_kbScroll->show();
-		//} else {
-		//	_kbScroll->hide();
-		//}
-	} else {
-		_field->show();
-		//if (_kbShown) {
-		//	_kbScroll->show();
-		//	_tabbedSelectorToggle->hide();
-		//	_botKeyboardHide->show();
-		//	_botKeyboardShow->hide();
-		//	_botCommandStart->hide();
-		//} else if (_kbReplyTo) {
-		//	_kbScroll->hide();
-		//	_tabbedSelectorToggle->show();
-		//	_botKeyboardHide->hide();
-		//	_botKeyboardShow->hide();
-		//	_botCommandStart->hide();
-		//} else {
-		//	_kbScroll->hide();
-		//	_tabbedSelectorToggle->show();
-		//	_botKeyboardHide->hide();
-		//	if (_keyboard->hasMarkup()) {
-		//		_botKeyboardShow->show();
-		//		_botCommandStart->hide();
-		//	} else {
-		//		_botKeyboardShow->hide();
-		//		if (_cmdStartShown) {
-		//			_botCommandStart->show();
-		//		} else {
-		//			_botCommandStart->hide();
-		//		}
-		//	}
-		//}
-		_tabbedSelectorToggle->show();
-		_attachToggle->show();
-		//if (_silent) {
-		//	_silent->show();
-		//}
-		//if (_scheduled) {
-		//	_scheduled->show();
-		//}
-		//updateFieldPlaceholder();
-	}
-
-}
-
-bool ComposeControls::recordingAnimationCallback(crl::time now) {
-	const auto dt = anim::Disabled()
-		? 1.
-		: ((now - _recordingAnimation.started())
-			/ float64(kRecordingUpdateDelta));
-	if (dt >= 1.) {
-		_recordingLevel.finish();
-	} else {
-		_recordingLevel.update(dt, anim::linear);
-	}
-	if (!anim::Disabled()) {
-		_wrap->update(_attachToggle->geometry());
-	}
-	return (dt < 1.);
 }
 
 rpl::producer<> ComposeControls::cancelRequests() const {
@@ -693,7 +615,7 @@ rpl::producer<> ComposeControls::sendRequests() const {
 }
 
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
-	return _sendVoiceRequests.events();
+	return _voiceRecordBar->sendVoiceRequests();
 }
 
 rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
@@ -792,6 +714,7 @@ void ComposeControls::init() {
 	initTabbedSelector();
 	initSendButton();
 	initWriteRestriction();
+	initVoiceRecordBar();
 
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -841,99 +764,12 @@ void ComposeControls::init() {
 			cancelEditMessage();
 		}, _wrap->lifetime());
 	}
+
+	orderControls();
 }
 
-void ComposeControls::recordDone(
-		QByteArray result,
-		VoiceWaveform waveform,
-		int samples) {
-	if (result.isEmpty()) {
-		return;
-	}
-
-	Window::ActivateWindow(_window);
-	const auto duration = samples / ::Media::Player::kDefaultFrequency;
-	_sendVoiceRequests.fire({ result, waveform, duration });
-}
-
-void ComposeControls::recordUpdated(quint16 level, int samples) {
-	if (!_recording) {
-		return;
-	}
-
-	_recordingLevel.start(level);
-	_recordingAnimation.start();
-	_recordingSamples = samples;
-	if (samples < 0 || samples >= ::Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
-		stopRecording(samples > 0 && _inField);
-	}
-	Core::App().updateNonIdle();
-	_wrap->update();
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
-}
-
-void ComposeControls::recordStartCallback() {
-	using namespace ::Media::Capture;
-	const auto error = _history
-		? Data::RestrictionError(_history->peer, ChatRestriction::f_send_media)
-		: std::nullopt;
-	if (error) {
-		Ui::show(Box<InformBox>(*error));
-		return;
-	} else if (_showSlowmodeError && _showSlowmodeError()) {
-		return;
-	} else if (!instance()->available()) {
-		return;
-	}
-
-	instance()->start();
-	instance()->updated(
-	) | rpl::start_with_next_error([=](const Update &update) {
-		recordUpdated(update.level, update.samples);
-	}, [=] {
-		stopRecording(false);
-	}, _recordingLifetime);
-
-	_recording = _inField = true;
-	updateControlsVisibility();
-	_window->widget()->setInnerFocus();
-
-	_wrap->update();
-
-	_send->setRecordActive(true);
-}
-
-void ComposeControls::recordStopCallback(bool active) {
-	stopRecording(active);
-}
-
-void ComposeControls::recordUpdateCallback(QPoint globalPos) {
-	updateOverStates(_wrap->mapFromGlobal(globalPos));
-}
-
-void ComposeControls::stopRecording(bool send) {
-	if (send) {
-		::Media::Capture::instance()->stop(crl::guard(_wrap.get(), [=](
-				const ::Media::Capture::Result &result) {
-			recordDone(result.bytes, result.waveform, result.samples);
-		}));
-	} else {
-		::Media::Capture::instance()->stop();
-	}
-
-	_recordingLevel = anim::value();
-	_recordingAnimation.stop();
-
-	_recordingLifetime.destroy();
-	_recording = false;
-	_recordingSamples = 0;
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-
-	updateControlsVisibility();
-	_window->widget()->setInnerFocus();
-
-	_wrap->update();
-	_send->setRecordActive(false);
+void ComposeControls::orderControls() {
+	_send->raise();
 }
 
 bool ComposeControls::showRecordButton() const {
@@ -941,30 +777,6 @@ bool ComposeControls::showRecordButton() const {
 		&& !HasSendText(_field)
 		//&& !readyToForward()
 		&& !isEditingMessage();
-}
-
-void ComposeControls::drawRecording(Painter &p, float64 recordActive) {
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::historyRecordSignalColor);
-
-	auto delta = qMin(_recordingLevel.current() / 0x4000, 1.);
-	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
-	}
-
-	auto duration = Ui::FormatDurationText(_recordingSamples / ::Media::Player::kDefaultFrequency);
-	p.setFont(st::historyRecordFont);
-
-	p.setPen(st::historyRecordDurationFg);
-	p.drawText(_attachToggle->x() + _tabbedSelectorToggle->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
-
-	int32 left = _attachToggle->x() + _tabbedSelectorToggle->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
-	int32 right = _wrap->width() - _send->width();
-
-	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, 1. - recordActive));
-	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, tr::lng_record_cancel(tr::now));
 }
 
 void ComposeControls::drawRestrictedWrite(Painter &p, const QString &error) {
@@ -1023,7 +835,9 @@ void ComposeControls::fieldChanged() {
 }
 
 rpl::producer<SendActionUpdate> ComposeControls::sendActionUpdates() const {
-	return _sendActionUpdates.events();
+	return rpl::merge(
+		_sendActionUpdates.events(),
+		_voiceRecordBar->sendActionUpdates());
 }
 
 void ComposeControls::initTabbedSelector() {
@@ -1093,6 +907,29 @@ void ComposeControls::initWriteRestriction() {
 	}, _wrap->lifetime());
 }
 
+void ComposeControls::initVoiceRecordBar() {
+	_voiceRecordBar->recordingStateChanges(
+	) | rpl::start_with_next([=](bool active) {
+		_field->setVisible(!active);
+	}, _wrap->lifetime());
+
+	_voiceRecordBar->startRecordingRequests(
+	) | rpl::start_with_next([=] {
+		const auto error = _history
+			? Data::RestrictionError(
+				_history->peer,
+				ChatRestriction::f_send_media)
+			: std::nullopt;
+		if (error) {
+			Ui::show(Box<InformBox>(*error));
+			return;
+		} else if (_showSlowmodeError && _showSlowmodeError()) {
+			return;
+		}
+		_voiceRecordBar->startRecording();
+	}, _wrap->lifetime());
+}
+
 void ComposeControls::updateWrappingVisibility() {
 	const auto restricted = _writeRestriction.current().has_value();
 	_writeRestricted->setVisible(restricted);
@@ -1124,16 +961,11 @@ void ComposeControls::updateSendButtonType() {
 	_send->setSlowmodeDelay(delay);
 	_send->setDisabled(_sendDisabledBySlowmode.current()
 		&& (type == Type::Send || type == Type::Record));
-
-	_send->setRecordStartCallback([=] { recordStartCallback(); });
-	_send->setRecordStopCallback([=](bool active) { recordStopCallback(active); });
-	_send->setRecordUpdateCallback([=](QPoint globalPos) { recordUpdateCallback(globalPos); });
-	_send->setRecordAnimationCallback([=] { _wrap->update(); });
 }
 
 void ComposeControls::finishAnimating() {
 	_send->finishAnimating();
-	_recordingAnimation.stop();
+	_voiceRecordBar->finishAnimating();
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {
@@ -1165,6 +997,11 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	_send->moveToRight(right, buttonsTop);
 	right += _send->width();
 	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
+
+	_voiceRecordBar->resizeToWidth(size.width());
+	_voiceRecordBar->moveToLeft(
+		0,
+		size.height() - _voiceRecordBar->height());
 }
 
 void ComposeControls::updateOuterGeometry(QRect rect) {
@@ -1178,24 +1015,10 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	}
 }
 
-void ComposeControls::updateOverStates(QPoint pos) {
-	const auto inField = _wrap->rect().contains(pos);
-	if (inField != _inField && _recording) {
-		_inField = inField;
-		_send->setRecordActive(_inField);
-	}
-}
-
 void ComposeControls::paintBackground(QRect clip) {
 	Painter p(_wrap.get());
 
 	p.fillRect(clip, st::historyComposeAreaBg);
-	if (!_field->isHidden() || _recording) {
-		//drawField(p, clip);
-		if (!_send->isHidden() && _recording) {
-			drawRecording(p, _send->recordActiveRatio());
-		}
-	}
 }
 
 void ComposeControls::escape() {
