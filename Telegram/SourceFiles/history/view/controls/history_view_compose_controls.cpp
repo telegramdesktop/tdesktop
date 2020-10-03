@@ -56,6 +56,7 @@ using PhotoChosen = ComposeControls::PhotoChosen;
 using MessageToEdit = ComposeControls::MessageToEdit;
 using VoiceToSend = ComposeControls::VoiceToSend;
 using SendActionUpdate = ComposeControls::SendActionUpdate;
+using SetHistoryArgs = ComposeControls::SetHistoryArgs;
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
 	return page && (page->pendingTill >= 0);

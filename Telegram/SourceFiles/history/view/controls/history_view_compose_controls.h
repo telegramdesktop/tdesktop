@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/required.h"
 #include "api/api_common.h"
 #include "base/unique_qptr.h"
+#include "history/view/controls/compose_controls_common.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/input_fields.h"
@@ -61,24 +62,15 @@ class ComposeControls final {
 public:
 	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
 	using PhotoChosen = ChatHelpers::TabbedSelector::PhotoChosen;
+
+	using MessageToEdit = Controls::MessageToEdit;
+	using VoiceToSend = Controls::VoiceToSend;
+	using SendActionUpdate = Controls::SendActionUpdate;
+	using SetHistoryArgs = Controls::SetHistoryArgs;
+
 	enum class Mode {
 		Normal,
 		Scheduled,
-	};
-
-	struct MessageToEdit {
-		FullMsgId fullId;
-		Api::SendOptions options;
-		TextWithTags textWithTags;
-	};
-	struct VoiceToSend {
-		QByteArray bytes;
-		VoiceWaveform waveform;
-		int duration = 0;
-	};
-	struct SendActionUpdate {
-		Api::SendProgressType type = Api::SendProgressType();
-		int progress = 0;
 	};
 
 	ComposeControls(
@@ -88,14 +80,6 @@ public:
 	~ComposeControls();
 
 	[[nodiscard]] Main::Session &session() const;
-
-	struct SetHistoryArgs {
-		required<History*> history;
-		Fn<bool()> showSlowmodeError;
-		rpl::producer<int> slowmodeSecondsLeft;
-		rpl::producer<bool> sendDisabledBySlowmode;
-		rpl::producer<std::optional<QString>> writeRestriction;
-	};
 	void setHistory(SetHistoryArgs &&args);
 	void finishAnimating();
 

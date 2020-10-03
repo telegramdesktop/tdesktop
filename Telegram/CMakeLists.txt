@@ -474,6 +474,7 @@ PRIVATE
     history/admin_log/history_admin_log_section.h
     # history/feed/history_feed_section.cpp
     # history/feed/history_feed_section.h
+    history/view/controls/compose_controls_common.h
     history/view/controls/history_view_compose_controls.cpp
     history/view/controls/history_view_compose_controls.h
     history/view/media/history_view_call.h
