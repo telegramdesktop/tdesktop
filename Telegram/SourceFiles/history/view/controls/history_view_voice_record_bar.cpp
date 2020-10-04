@@ -59,7 +59,6 @@ VoiceRecordBar::VoiceRecordBar(
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
 , _send(send)
 , _cancelFont(st::historyRecordFont)
-, _recordCancelWidth(_cancelFont->width(tr::lng_record_cancel(tr::now)))
 , _recordingAnimation([=](crl::time now) {
 	return recordingAnimationCallback(now);
 }) {
@@ -90,6 +89,18 @@ void VoiceRecordBar::updateControlsGeometry(QSize size) {
 			_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
 			_redCircleRect.height());
 	}
+	{
+		const auto left = _durationRect.x()
+			+ _durationRect.width()
+			+ ((_send->width() - st::historyRecordVoice.width()) / 2);
+		const auto right = width() - _send->width();
+		const auto width = _cancelFont->width(tr::lng_record_cancel(tr::now));
+		_messageRect = QRect(
+			left + (right - left - width) / 2,
+			st::historyRecordTextTop,
+			width + st::historyRecordDurationSkip,
+			_cancelFont->height);
+	}
 }
 
 void VoiceRecordBar::init() {
@@ -111,12 +122,23 @@ void VoiceRecordBar::init() {
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
-		p.setOpacity(_showAnimation.value(1.));
-		p.fillRect(rect(), st::historyComposeAreaBg);
+		if (_showAnimation.animating()) {
+			p.setOpacity(_showAnimation.value(1.));
+		}
+		p.fillRect(clip, st::historyComposeAreaBg);
 
-		drawRecording(p, activeAnimationRatio());
+		if (clip.intersects(_messageRect)) {
+			// The message should be painted first to avoid flickering.
+			drawMessage(p, activeAnimationRatio());
+		}
+		if (clip.intersects(_redCircleRect)) {
+			drawRecording(p);
+		}
+		if (clip.intersects(_durationRect)) {
+			drawDuration(p);
+		}
 	}, lifetime());
 
 	_inField.changes(
@@ -132,7 +154,7 @@ void VoiceRecordBar::activeAnimate(bool active) {
 		_activeAnimation.change(to, duration);
 	} else {
 		auto callback = [=] {
-			update();
+			update(_messageRect);
 			_send->requestPaintRecord(activeAnimationRatio());
 		};
 		const auto from = active ? 0. : 1.;
@@ -264,40 +286,36 @@ void VoiceRecordBar::stopRecording(bool send) {
 	}));
 }
 
-void VoiceRecordBar::drawRecording(Painter &p, float64 recordActive) {
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::historyRecordSignalColor);
-
-	{
-		PainterHighQualityEnabler hq(p);
-		const auto min = st::historyRecordSignalMin;
-		const auto max = st::historyRecordSignalMax;
-		const auto delta = std::min(_recordingLevel.current() / 0x4000, 1.);
-		const auto radii = qRound(min + (delta * (max - min)));
-		const auto center = _redCircleRect.center() + QPoint(1, 1);
-		p.drawEllipse(center, radii, radii);
-	}
-
+void VoiceRecordBar::drawDuration(Painter &p) {
 	const auto duration = FormatVoiceDuration(_recordingSamples);
 	p.setFont(_cancelFont);
 	p.setPen(st::historyRecordDurationFg);
 
-	p.fillRect(_durationRect, Qt::red);
 	p.drawText(_durationRect, style::al_left, duration);
+}
 
-	const auto leftCancel = _durationRect.x()
-		+ _durationRect.width()
-		+ ((_send->width() - st::historyRecordVoice.width()) / 2);
-	const auto rightCancel = width() - _send->width();
+void VoiceRecordBar::drawRecording(Painter &p) {
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::historyRecordSignalColor);
 
+	const auto min = st::historyRecordSignalMin;
+	const auto max = st::historyRecordSignalMax;
+	const auto delta = std::min(_recordingLevel.current() / 0x4000, 1.);
+	const auto radii = qRound(min + (delta * (max - min)));
+	const auto center = _redCircleRect.center() + QPoint(1, 1);
+	p.drawEllipse(center, radii, radii);
+}
+
+void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
 	p.setPen(
 		anim::pen(
 			st::historyRecordCancel,
 			st::historyRecordCancelActive,
 			1. - recordActive));
 	p.drawText(
-		leftCancel + (rightCancel - leftCancel - _recordCancelWidth) / 2,
-		st::historyRecordTextTop + _cancelFont->ascent,
+		_messageRect.x(),
+		_messageRect.y() + _cancelFont->ascent,
 		tr::lng_record_cancel(tr::now));
 }
 

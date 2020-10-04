@@ -62,7 +62,9 @@ private:
 	void recordUpdateCallback(QPoint globalPos);
 
 	bool showRecordButton() const;
-	void drawRecording(Painter &p, float64 recordActive);
+	void drawDuration(Painter &p);
+	void drawRecording(Painter &p);
+	void drawMessage(Painter &p, float64 recordActive);
 	void updateOverStates(QPoint pos);
 
 	bool isTypeRecord() const;
@@ -80,13 +82,13 @@ private:
 	int _centerY = 0;
 	QRect _redCircleRect;
 	QRect _durationRect;
+	QRect _messageRect;
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
 	int _recordingSamples = 0;
 
 	const style::font &_cancelFont;
-	int _recordCancelWidth;
 
 	rpl::lifetime _recordingLifetime;
 
