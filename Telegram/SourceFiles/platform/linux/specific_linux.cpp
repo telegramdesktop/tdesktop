@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_libs.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_xcb_utilities_linux.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -25,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QProcess>
 #include <QtCore/QVersionNumber>
 #include <QtGui/QWindow>
-#include <qpa/qplatformnativeinterface.h>
 
 #include <private/qwaylanddisplay_p.h>
 #include <private/qwaylandwindow_p.h>
@@ -301,128 +301,26 @@ bool GetImageFromClipboardSupported() {
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-std::optional<xcb_atom_t> GetXCBAtom(
-		xcb_connection_t *connection,
-		const QString &name) {
-	const auto cookie = xcb_intern_atom(
-		connection,
-		0,
-		name.size(),
-		name.toUtf8());
-
-	auto reply = xcb_intern_atom_reply(
-		connection,
-		cookie,
-		nullptr);
-
-	if (!reply) {
-		return std::nullopt;
-	}
-
-	const auto atom = reply->atom;
-	free(reply);
-
-	return atom;
-}
-
-bool IsXCBExtensionPresent(
-		xcb_connection_t *connection,
-		xcb_extension_t *ext) {
-	const auto reply = xcb_get_extension_data(
-		connection,
-		ext);
-
-	if (!reply) {
-		return false;
-	}
-
-	return reply->present;
-}
-
-std::vector<xcb_atom_t> GetXCBWMSupported(xcb_connection_t *connection) {
-	auto netWmAtoms = std::vector<xcb_atom_t>{};
-
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return netWmAtoms;
-	}
-
-	const auto root = static_cast<xcb_window_t>(reinterpret_cast<quintptr>(
-		native->nativeResourceForIntegration(QByteArray("rootwindow"))));
-
-	const auto supportedAtom = GetXCBAtom(connection, "_NET_SUPPORTED");
-	if (!supportedAtom.has_value()) {
-		return netWmAtoms;
-	}
-
-	auto offset = 0;
-	auto remaining = 0;
-
-	do {
-		const auto cookie = xcb_get_property(
-			connection,
-			false,
-			root,
-			*supportedAtom,
-			XCB_ATOM_ATOM,
-			offset,
-			1024);
-
-		auto reply = xcb_get_property_reply(
-			connection,
-			cookie,
-			nullptr);
-
-		if (!reply) {
-			break;
-		}
-
-		remaining = 0;
-
-		if (reply->type == XCB_ATOM_ATOM && reply->format == 32) {
-			const auto len = xcb_get_property_value_length(reply)
-				/ sizeof(xcb_atom_t);
-
-			const auto atoms = reinterpret_cast<xcb_atom_t*>(
-				xcb_get_property_value(reply));
-
-			const auto s = netWmAtoms.size();
-			netWmAtoms.resize(s + len);
-			memcpy(netWmAtoms.data() + s, atoms, len * sizeof(xcb_atom_t));
-
-			remaining = reply->bytes_after;
-			offset += len;
-		}
-
-		free(reply);
-	} while (remaining > 0);
-
-	return netWmAtoms;
-}
-
 std::optional<crl::time> XCBLastUserInputTime() {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return std::nullopt;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
 		return std::nullopt;
 	}
 
-	if (!IsXCBExtensionPresent(connection, &xcb_screensaver_id)) {
+	if (!base::Platform::XCB::IsExtensionPresent(
+			connection,
+			&xcb_screensaver_id)) {
 		return std::nullopt;
 	}
 
-	const auto root = static_cast<xcb_window_t>(reinterpret_cast<quintptr>(
-		native->nativeResourceForIntegration(QByteArray("rootwindow"))));
+	const auto root = base::Platform::XCB::GetRootWindowFromQt();
+	if (!root.has_value()) {
+		return std::nullopt;
+	}
 
 	const auto cookie = xcb_screensaver_query_info(
 		connection,
-		root);
+		*root);
 
 	auto reply = xcb_screensaver_query_info_reply(
 		connection,
@@ -573,27 +471,21 @@ enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 #endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 bool StartXCBMoveResize(QWindow *window, int edges) {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
 		return false;
 	}
 
-	const auto screen = xcb_setup_roots_iterator(
-		xcb_get_setup(connection)).data;
-
-	if (!screen) {
+	const auto root = base::Platform::XCB::GetRootWindowFromQt();
+	if (!root.has_value()) {
 		return false;
 	}
 
-	const auto moveResize = GetXCBAtom(connection, "_NET_WM_MOVERESIZE");
-	if (!moveResize.has_value()) {
+	const auto moveResizeAtom = base::Platform::XCB::GetAtom(
+		connection,
+		"_NET_WM_MOVERESIZE");
+
+	if (!moveResizeAtom.has_value()) {
 		return false;
 	}
 
@@ -601,7 +493,7 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 
 	xcb_client_message_event_t xev;
 	xev.response_type = XCB_CLIENT_MESSAGE;
-	xev.type = *moveResize;
+	xev.type = *moveResizeAtom;
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
@@ -617,7 +509,7 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 	xcb_send_event(
 		connection,
 		false,
-		screen->root,
+		*root,
 		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
 			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
 		reinterpret_cast<const char*>(&xev));
@@ -679,19 +571,12 @@ bool ShowWaylandWindowMenu(QWindow *window) {
 }
 
 bool XCBFrameExtentsSupported() {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
 		return false;
 	}
 
-	const auto frameExtentsAtom = GetXCBAtom(
+	const auto frameExtentsAtom = base::Platform::XCB::GetAtom(
 		connection,
 		kXCBFrameExtentsAtomName.utf16());
 
@@ -699,23 +584,18 @@ bool XCBFrameExtentsSupported() {
 		return false;
 	}
 
-	return ranges::contains(GetXCBWMSupported(connection), *frameExtentsAtom);
+	return ranges::contains(
+		base::Platform::XCB::GetWMSupported(connection),
+		*frameExtentsAtom);
 }
 
 bool SetXCBFrameExtents(QWindow *window, const QMargins &extents) {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
 		return false;
 	}
 
-	const auto frameExtentsAtom = GetXCBAtom(
+	const auto frameExtentsAtom = base::Platform::XCB::GetAtom(
 		connection,
 		kXCBFrameExtentsAtomName.utf16());
 
@@ -744,19 +624,12 @@ bool SetXCBFrameExtents(QWindow *window, const QMargins &extents) {
 }
 
 bool UnsetXCBFrameExtents(QWindow *window) {
-	const auto native = QGuiApplication::platformNativeInterface();
-	if (!native) {
-		return false;
-	}
-
-	const auto connection = reinterpret_cast<xcb_connection_t*>(
-		native->nativeResourceForIntegration(QByteArray("connection")));
-
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
 		return false;
 	}
 
-	const auto frameExtentsAtom = GetXCBAtom(
+	const auto frameExtentsAtom = base::Platform::XCB::GetAtom(
 		connection,
 		kXCBFrameExtentsAtomName.utf16());
 
