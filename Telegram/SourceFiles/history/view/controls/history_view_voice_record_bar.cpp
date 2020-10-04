@@ -92,8 +92,28 @@ void VoiceRecordBar::init() {
 		Painter p(this);
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
-		drawRecording(p, _send->recordActiveRatio());
+		drawRecording(p, activeAnimationRatio());
 	}, lifetime());
+
+	_inField.changes(
+	) | rpl::start_with_next([=](bool value) {
+		activeAnimate(value);
+	}, lifetime());
+}
+
+void VoiceRecordBar::activeAnimate(bool active) {
+	const auto to = active ? 1. : 0.;
+	const auto duration = st::historyRecordVoiceDuration;
+	if (_activeAnimation.animating()) {
+		_activeAnimation.change(to, duration);
+	} else {
+		auto callback = [=] {
+			update();
+			_send->requestPaintRecord(activeAnimationRatio());
+		};
+		const auto from = active ? 0. : 1.;
+		_activeAnimation.start(std::move(callback), from, to, duration);
+	}
 }
 
 void VoiceRecordBar::startRecording() {
@@ -116,7 +136,7 @@ void VoiceRecordBar::startRecording() {
 	_controller->widget()->setInnerFocus();
 
 	update();
-	_send->setRecordActive(true);
+	activeAnimate(true);
 
 	_send->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
@@ -127,14 +147,9 @@ void VoiceRecordBar::startRecording() {
 		const auto type = e->type();
 		if (type == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
-			const auto pos = mapFromGlobal(mouse->globalPos());
-			const auto inField = rect().contains(pos);
-			if (inField != _inField) {
-				_inField = inField;
-				_send->setRecordActive(_inField);
-			}
+			_inField = rect().contains(mapFromGlobal(mouse->globalPos()));
 		} else if (type == QEvent::MouseButtonRelease) {
-			stopRecording(_inField);
+			stopRecording(_inField.current());
 		}
 	}, _recordingLifetime);
 }
@@ -160,7 +175,7 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 	_recordingAnimation.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= kMaxSamples) {
-		stopRecording(samples > 0 && _inField);
+		stopRecording(samples > 0 && _inField.current());
 	}
 	Core::App().updateNonIdle();
 	update();
@@ -189,6 +204,8 @@ void VoiceRecordBar::stopRecording(bool send) {
 	_recordingLevel = anim::value();
 	_recordingAnimation.stop();
 
+	_inField = false;
+
 	_recordingLifetime.destroy();
 	_recordingSamples = 0;
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
@@ -196,7 +213,6 @@ void VoiceRecordBar::stopRecording(bool send) {
 	_controller->widget()->setInnerFocus();
 
 	update();
-	_send->setRecordActive(false);
 }
 
 void VoiceRecordBar::drawRecording(Painter &p, float64 recordActive) {
@@ -275,6 +291,10 @@ rpl::producer<> VoiceRecordBar::startRecordingRequests() const {
 
 bool VoiceRecordBar::isTypeRecord() const {
 	return (_send->type() == Ui::SendButton::Type::Record);
+}
+
+float64 VoiceRecordBar::activeAnimationRatio() const {
+	return _activeAnimation.value(_inField.current() ? 1. : 0.);
 }
 
 } // namespace HistoryView::Controls

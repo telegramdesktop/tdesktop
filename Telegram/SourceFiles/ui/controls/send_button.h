@@ -46,9 +46,7 @@ public:
 		_recordAnimationCallback = std::move(callback);
 	}
 
-	[[nodiscard]] float64 recordActiveRatio() {
-		return _a_recordActive.value(_recordActive ? 1. : 0.);
-	}
+	void requestPaintRecord(float64 progress);
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -76,7 +74,8 @@ private:
 	QPixmap _contentFrom, _contentTo;
 
 	Ui::Animations::Simple _a_typeChanged;
-	Ui::Animations::Simple _a_recordActive;
+
+	float64 _recordProgress = 0.;
 
 	bool _recording = false;
 	Fn<void()> _recordStartCallback;

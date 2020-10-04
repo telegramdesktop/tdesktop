@@ -64,6 +64,9 @@ private:
 
 	bool isTypeRecord() const;
 
+	void activeAnimate(bool active);
+	float64 activeAnimationRatio() const;
+
 	const not_null<Window::SessionController*> _controller;
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::shared_ptr<Ui::SendButton> _send;
@@ -75,7 +78,7 @@ private:
 	QRect _redCircleRect;
 
 	rpl::variable<bool> _recording = false;
-	bool _inField = false;
+	rpl::variable<bool> _inField = false;
 	int _recordingSamples = 0;
 
 	const style::font &_cancelFont;
@@ -86,6 +89,7 @@ private:
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.
 	Ui::Animations::Basic _recordingAnimation;
+	Ui::Animations::Simple _activeAnimation;
 	anim::value _recordingLevel;
 
 };

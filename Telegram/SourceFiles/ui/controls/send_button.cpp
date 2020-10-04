@@ -43,20 +43,7 @@ void SendButton::setType(Type type) {
 		update();
 	}
 	if (_type != Type::Record) {
-		_recordActive = false;
-		_a_recordActive.stop();
-	}
-}
-
-void SendButton::setRecordActive(bool recordActive) {
-	if (_recordActive != recordActive) {
-		_recordActive = recordActive;
-		_a_recordActive.start(
-			[=] { recordAnimationCallback(); },
-			_recordActive ? 0. : 1.,
-			_recordActive ? 1. : 0,
-			st::historyRecordVoiceDuration);
-		update();
+		_recordProgress = 0.;
 	}
 }
 
@@ -76,7 +63,6 @@ void SendButton::setSlowmodeDelay(int seconds) {
 
 void SendButton::finishAnimating() {
 	_a_typeChanged.stop();
-	_a_recordActive.stop();
 	update();
 }
 
@@ -86,6 +72,13 @@ void SendButton::mouseMoveEvent(QMouseEvent *e) {
 		if (_recordUpdateCallback) {
 			_recordUpdateCallback(e->globalPos());
 		}
+	}
+}
+
+void SendButton::requestPaintRecord(float64 progress) {
+	if (_type == Type::Record) {
+		_recordProgress = progress;
+		update();
 	}
 }
 
@@ -118,7 +111,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 }
 
 void SendButton::paintRecord(Painter &p, bool over) {
-	auto recordActive = recordActiveRatio();
+	const auto recordActive = _recordProgress;
 	if (!isDisabled()) {
 		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
 		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
