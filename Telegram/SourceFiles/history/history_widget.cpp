@@ -2242,6 +2242,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart->hide();
 		_joinChannel->hide();
 		_muteUnmute->hide();
+		_discuss->hide();
 		_send->show();
 		updateSendButtonType();
 		if (_recording) {
@@ -2320,6 +2321,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart->hide();
 		_joinChannel->hide();
 		_muteUnmute->hide();
+		_discuss->hide();
 		_attachToggle->hide();
 		if (_silent) {
 			_silent->hide();
@@ -4123,14 +4125,12 @@ void HistoryWidget::moveFieldControls() {
 		_botStart->height());
 	_botStart->setGeometry(fullWidthButtonRect);
 	_unblock->setGeometry(fullWidthButtonRect);
-
+	if (hasDiscussionGroup()) {
 		_joinChannel->setGeometry(myrtlrect(
 			0,
 			fullWidthButtonRect.y(),
 			width() / 2,
 			fullWidthButtonRect.height()));
-	_joinChannel->setGeometry(fullWidthButtonRect);
-	if (hasDiscussionGroup()) {
 		_muteUnmute->setGeometry(myrtlrect(
 			0,
 			fullWidthButtonRect.y(),
@@ -4143,6 +4143,7 @@ void HistoryWidget::moveFieldControls() {
 			fullWidthButtonRect.height()));
 	} else {
 		_muteUnmute->setGeometry(fullWidthButtonRect);
+		_joinChannel->setGeometry(fullWidthButtonRect);
 	}
 }
 
@@ -4528,6 +4529,7 @@ void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 			const auto botStart = isBotStart();
 			const auto joinChannel = isJoinChannel();
 			const auto muteUnmute = isMuteUnmute();
+			const auto discuss = muteUnmute && hasDiscussionGroup();
 			const auto update = false
 				|| (_unblock->isHidden() == unblock)
 				|| (!unblock && _botStart->isHidden() == botStart)
@@ -4537,7 +4539,8 @@ void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 				|| (!unblock
 					&& !botStart
 					&& !joinChannel
-					&& _muteUnmute->isHidden() == muteUnmute);
+					&& (_muteUnmute->isHidden() == muteUnmute 
+						|| _discuss->isHidden() == discuss));
 			if (update) {
 				updateControlsVisibility();
 				updateControlsGeometry();
@@ -6070,7 +6073,8 @@ void HistoryWidget::handlePeerUpdate() {
 	}
 	if (!_a_show.animating()) {
 		if (_unblock->isHidden() == isBlocked()
-			|| (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
+			|| (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())
+			|| (isMuteUnmute() && _discuss->isHidden() == hasDiscussionGroup())) {
 			resize = true;
 		}
 		bool newCanSendMessages = _peer->canWrite();
