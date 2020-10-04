@@ -42,7 +42,6 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-void SetTrayIconSupported(bool supported);
 void InstallMainDesktopFile();
 
 } // namespace Platform
