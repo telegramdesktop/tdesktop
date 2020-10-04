@@ -85,8 +85,6 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 
 QStringList PlatformThemes;
 
-bool IsTrayIconSupported = false;
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
 	if (cExeName().isEmpty()) {
@@ -1066,11 +1064,9 @@ bool AutostartSupported() {
 }
 
 bool TrayIconSupported() {
-	return IsTrayIconSupported;
-}
-
-void SetTrayIconSupported(bool supported) {
-	IsTrayIconSupported = supported;
+	return App::wnd()
+		? App::wnd()->trayAvailable()
+		: false;
 }
 
 bool StartSystemMove(QWindow *window) {
