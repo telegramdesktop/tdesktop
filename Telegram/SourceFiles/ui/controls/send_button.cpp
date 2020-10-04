@@ -66,15 +66,6 @@ void SendButton::finishAnimating() {
 	update();
 }
 
-void SendButton::mouseMoveEvent(QMouseEvent *e) {
-	AbstractButton::mouseMoveEvent(e);
-	if (_recording) {
-		if (_recordUpdateCallback) {
-			_recordUpdateCallback(e->globalPos());
-		}
-	}
-}
-
 void SendButton::requestPaintRecord(float64 progress) {
 	if (_type == Type::Record) {
 		_recordProgress = progress;
@@ -189,27 +180,6 @@ void SendButton::paintSlowmode(Painter &p) {
 		style::al_center);
 }
 
-void SendButton::onStateChanged(State was, StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
-
-	auto down = (state() & StateFlag::Down);
-	if ((was & StateFlag::Down) != down) {
-		if (down) {
-			if (_type == Type::Record) {
-				_recording = true;
-				if (_recordStartCallback) {
-					_recordStartCallback();
-				}
-			}
-		} else if (_recording) {
-			_recording = false;
-			if (_recordStopCallback) {
-				_recordStopCallback(_recordActive);
-			}
-		}
-	}
-}
-
 bool SendButton::isSlowmode() const {
 	return (_slowmodeDelay > 0);
 }
@@ -246,13 +216,6 @@ QPoint SendButton::prepareRippleStartPosition() const {
 		? st::historyAttachEmoji.rippleAreaPosition.y()
 		: (height() - st::historyReplyCancel.rippleAreaSize) / 2;
 	return real - QPoint((width() - size) / 2, y);
-}
-
-void SendButton::recordAnimationCallback() {
-	update();
-	if (_recordAnimationCallback) {
-		_recordAnimationCallback();
-	}
 }
 
 } // namespace Ui
