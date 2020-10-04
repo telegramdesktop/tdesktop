@@ -30,8 +30,21 @@ constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples =
 	::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;
 
+constexpr auto kPrecision = 10;
+
 [[nodiscard]] auto Duration(int samples) {
 	return samples / ::Media::Player::kDefaultFrequency;
+}
+
+[[nodiscard]] auto FormatVoiceDuration(int samples) {
+	const int duration = kPrecision
+		* (float64(samples) / ::Media::Player::kDefaultFrequency);
+	const auto durationString = Ui::FormatDurationText(duration / kPrecision);
+	const auto decimalPart = duration % kPrecision;
+	return QString("%1%2%3")
+		.arg(durationString)
+		.arg(QLocale::system().decimalPoint())
+		.arg(decimalPart);
 }
 
 } // namespace
@@ -66,6 +79,16 @@ void VoiceRecordBar::updateControlsGeometry(QSize size) {
 		const auto maxD = st::historyRecordSignalMax * 2;
 		const auto point = _centerY - st::historyRecordSignalMax;
 		_redCircleRect = { point, point, maxD, maxD };
+	}
+	{
+		const auto durationLeft = _redCircleRect.x()
+			+ _redCircleRect.width()
+			+ st::historyRecordDurationSkip;
+		_durationRect = QRect(
+			durationLeft,
+			_redCircleRect.y(),
+			_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
+			_redCircleRect.height());
 	}
 }
 
@@ -197,7 +220,7 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 		stop(samples > 0 && _inField.current());
 	}
 	Core::App().updateNonIdle();
-	update();
+	update(_durationRect);
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
 }
 
@@ -255,25 +278,15 @@ void VoiceRecordBar::drawRecording(Painter &p, float64 recordActive) {
 		p.drawEllipse(center, radii, radii);
 	}
 
-	const auto duration = Ui::FormatDurationText(Duration(_recordingSamples));
+	const auto duration = FormatVoiceDuration(_recordingSamples);
 	p.setFont(_cancelFont);
 	p.setPen(st::historyRecordDurationFg);
 
-	const auto durationLeft = _redCircleRect.x()
-		+ _redCircleRect.width()
-		+ st::historyRecordDurationSkip;
-	const auto durationWidth = _cancelFont->width(duration);
-	p.drawText(
-		QRect(
-			durationLeft,
-			_redCircleRect.y(),
-			durationWidth,
-			_redCircleRect.height()),
-		style::al_left,
-		duration);
+	p.fillRect(_durationRect, Qt::red);
+	p.drawText(_durationRect, style::al_left, duration);
 
-	const auto leftCancel = durationLeft
-		+ durationWidth
+	const auto leftCancel = _durationRect.x()
+		+ _durationRect.width()
 		+ ((_send->width() - st::historyRecordVoice.width()) / 2);
 	const auto rightCancel = width() - _send->width();
 

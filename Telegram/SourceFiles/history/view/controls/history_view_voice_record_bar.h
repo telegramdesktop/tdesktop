@@ -79,6 +79,7 @@ private:
 
 	int _centerY = 0;
 	QRect _redCircleRect;
+	QRect _durationRect;
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
