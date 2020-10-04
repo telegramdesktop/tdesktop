@@ -328,6 +328,7 @@ historyScheduledToggle: IconButton(historyAttach) {
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgActive: windowBgActive;
+historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};

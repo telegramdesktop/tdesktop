@@ -53,7 +53,10 @@ private:
 	void recordUpdated(quint16 level, int samples);
 
 	bool recordingAnimationCallback(crl::time now);
+
+	void stop(bool send);
 	void stopRecording(bool send);
+	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
 	void recordStopCallback(bool active);
 	void recordUpdateCallback(QPoint globalPos);
@@ -90,6 +93,7 @@ private:
 	// so it should be a Basic, not a Simple animation.
 	Ui::Animations::Basic _recordingAnimation;
 	Ui::Animations::Simple _activeAnimation;
+	Ui::Animations::Simple _showAnimation;
 	anim::value _recordingLevel;
 
 };

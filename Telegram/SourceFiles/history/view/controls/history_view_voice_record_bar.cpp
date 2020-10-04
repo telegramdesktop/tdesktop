@@ -90,6 +90,7 @@ void VoiceRecordBar::init() {
 	paintRequest(
 	) | rpl::start_with_next([=] {
 		Painter p(this);
+		p.setOpacity(_showAnimation.value(1.));
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
 		drawRecording(p, activeAnimationRatio());
@@ -116,27 +117,45 @@ void VoiceRecordBar::activeAnimate(bool active) {
 	}
 }
 
-void VoiceRecordBar::startRecording() {
-	using namespace ::Media::Capture;
-	if (!instance()->available()) {
-		return;
-	}
-	show();
-	_recording = true;
+void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
+	const auto to = show ? 1. : 0.;
+	const auto from = show ? 0. : 1.;
+	const auto duration = st::historyRecordVoiceShowDuration;
+	auto animationCallback = [=, callback = std::move(callback)](auto value) {
+		update();
+		if ((show && value == 1.) || (!show && value == 0.)) {
+			if (callback) {
+				callback();
+			}
+		}
+	};
+	_showAnimation.start(std::move(animationCallback), from, to, duration);
+}
 
-	instance()->start();
-	instance()->updated(
-	) | rpl::start_with_next_error([=](const Update &update) {
-		recordUpdated(update.level, update.samples);
-	}, [=] {
-		stopRecording(false);
-	}, _recordingLifetime);
+void VoiceRecordBar::startRecording() {
+	auto appearanceCallback = [=] {
+		Expects(!_showAnimation.animating());
+
+		using namespace ::Media::Capture;
+		if (!instance()->available()) {
+			stop(false);
+			return;
+		}
+
+		_recording = true;
+		instance()->start();
+		instance()->updated(
+		) | rpl::start_with_next_error([=](const Update &update) {
+			recordUpdated(update.level, update.samples);
+		}, [=] {
+			stop(false);
+		}, _recordingLifetime);
+	};
+	visibilityAnimate(true, std::move(appearanceCallback));
+	show();
 
 	_inField = true;
 	_controller->widget()->setInnerFocus();
-
-	update();
-	activeAnimate(true);
 
 	_send->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
@@ -149,7 +168,7 @@ void VoiceRecordBar::startRecording() {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
 			_inField = rect().contains(mapFromGlobal(mouse->globalPos()));
 		} else if (type == QEvent::MouseButtonRelease) {
-			stopRecording(_inField.current());
+			stop(_inField.current());
 		}
 	}, _recordingLifetime);
 }
@@ -175,44 +194,51 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 	_recordingAnimation.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= kMaxSamples) {
-		stopRecording(samples > 0 && _inField.current());
+		stop(samples > 0 && _inField.current());
 	}
 	Core::App().updateNonIdle();
 	update();
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice });
 }
 
+void VoiceRecordBar::stop(bool send) {
+	auto disappearanceCallback = [=] {
+		Expects(!_showAnimation.animating());
+
+		hide();
+		_recording = false;
+
+		stopRecording(send);
+
+		_recordingLevel = anim::value();
+		_recordingAnimation.stop();
+
+		_inField = false;
+
+		_recordingLifetime.destroy();
+		_recordingSamples = 0;
+		_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+
+		_controller->widget()->setInnerFocus();
+	};
+	visibilityAnimate(false, std::move(disappearanceCallback));
+}
+
 void VoiceRecordBar::stopRecording(bool send) {
-	hide();
-	_recording = false;
-
 	using namespace ::Media::Capture;
-	if (send) {
-		instance()->stop(crl::guard(this, [=](const Result &data) {
-			if (data.bytes.isEmpty()) {
-				return;
-			}
-
-			Window::ActivateWindow(_controller);
-			const auto duration = Duration(data.samples);
-			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
-		}));
-	} else {
+	if (!send) {
 		instance()->stop();
+		return;
 	}
+	instance()->stop(crl::guard(this, [=](const Result &data) {
+		if (data.bytes.isEmpty()) {
+			return;
+		}
 
-	_recordingLevel = anim::value();
-	_recordingAnimation.stop();
-
-	_inField = false;
-
-	_recordingLifetime.destroy();
-	_recordingSamples = 0;
-	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-
-	_controller->widget()->setInnerFocus();
-
-	update();
+		Window::ActivateWindow(_controller);
+		const auto duration = Duration(data.samples);
+		_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
+	}));
 }
 
 void VoiceRecordBar::drawRecording(Painter &p, float64 recordActive) {
@@ -276,6 +302,7 @@ bool VoiceRecordBar::isRecording() const {
 
 void VoiceRecordBar::finishAnimating() {
 	_recordingAnimation.stop();
+	_showAnimation.stop();
 }
 
 rpl::producer<bool> VoiceRecordBar::recordingStateChanges() const {
