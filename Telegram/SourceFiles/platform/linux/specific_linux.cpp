@@ -1013,7 +1013,10 @@ QImage GetImageFromClipboard() {
 
 std::optional<crl::time> LastUserInputTime() {
 	if (!IsWayland()) {
-		return XCBLastUserInputTime();
+		const auto xcbResult = XCBLastUserInputTime();
+		if (xcbResult.has_value()) {
+			return xcbResult;
+		}
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
