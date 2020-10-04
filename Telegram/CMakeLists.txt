@@ -106,6 +106,9 @@ if (LINUX)
         desktop-app::external_materialdecoration
         desktop-app::external_nimf_qt5
         desktop-app::external_qt5ct_support
+        desktop-app::external_xcb_screensaver
+        desktop-app::external_xcb
+        desktop-app::external_glib
     )
 
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
@@ -136,35 +139,6 @@ if (LINUX)
             ${WAYLAND_CLIENT_INCLUDE_DIRS}
         )
     endif()
-
-    if (DESKTOP_APP_USE_PACKAGED)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(XCB_SCREENSAVER REQUIRED IMPORTED_TARGET xcb-screensaver)
-        pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
-
-        target_link_libraries(Telegram
-        PRIVATE
-            PkgConfig::XCB_SCREENSAVER
-            PkgConfig::XCB
-        )
-    else()
-        target_link_static_libraries(Telegram PRIVATE xcb-screensaver)
-        target_link_libraries(Telegram PRIVATE xcb)
-    endif()
-
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GLIB2 REQUIRED IMPORTED_TARGET glib-2.0)
-    pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
-    pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
-
-    target_link_libraries(Telegram
-    PRIVATE
-        PkgConfig::GLIB2
-        PkgConfig::GOBJECT
-        PkgConfig::GIO
-    )
-
-    target_compile_definitions(Telegram PRIVATE G_LOG_DOMAIN="Telegram")
 
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
@@ -1290,6 +1264,7 @@ target_compile_definitions(Telegram
 PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
+    G_LOG_DOMAIN="Telegram"
 )
 
 if (APPLE OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL "" OR NOT "${output_name}" STREQUAL "Telegram")
