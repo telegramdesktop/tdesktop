@@ -2539,7 +2539,7 @@ void Message::refreshEditedBadge() {
 	const auto edited = displayedEditBadge();
 	const auto editDate = displayedEditDate();
 	QString msgId;
-	if (item->fullId().msg < 0)
+	if (item->fullId().msg > 0)
 		msgId = " (" + QString::number(item->fullId().msg) + ")";
 	else
 		msgId = "";
@@ -2567,7 +2567,7 @@ void Message::initTime() {
 		item->_timeWidth = edited->maxWidth();
 	} else {
 		QString msgId;
-		if (item->fullId().msg < 0)
+		if (item->fullId().msg > 0)
 			msgId = " (" + QString::number(item->fullId().msg) + ")";
 		else
 			msgId = "";
