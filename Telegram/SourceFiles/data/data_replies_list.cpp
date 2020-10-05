@@ -541,6 +541,8 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 				} else {
 					_list.push_back(item->id);
 				}
+			} else {
+				++skipped;
 			}
 		} else {
 			++skipped;
