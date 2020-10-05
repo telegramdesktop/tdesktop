@@ -543,14 +543,14 @@ void Message::draw(
 		auto displayTail = skipTail ? RectPart::None : (outbg && !Core::App().settings().chatWide()) ? RectPart::Right : RectPart::Left;
 		PaintBubble(p, g, width(), selected, outbg, displayTail);
 
-		const auto gBubble = g;
-		paintCommentsButton(p, g, selected);
+		auto inner = g;
+		paintCommentsButton(p, inner, selected);
 
 		// Entry page is always a bubble bottom.
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		auto trect = g.marginsRemoved(st::msgPadding);
+		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
@@ -568,7 +568,7 @@ void Message::draw(
 		paintText(p, trect, selection);
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
-			auto mediaLeft = g.left();
+			auto mediaLeft = inner.left();
 			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
 
 			p.translate(mediaLeft, mediaTop);
@@ -576,7 +576,7 @@ void Message::draw(
 			p.translate(-mediaLeft, -mediaTop);
 		}
 		if (entry) {
-			auto entryLeft = g.left();
+			auto entryLeft = inner.left();
 			auto entryTop = trect.y() + trect.height();
 			p.translate(entryLeft, entryTop);
 			auto entrySelection = skipTextSelection(selection);
@@ -592,29 +592,29 @@ void Message::draw(
 				? !media->customInfoLayout()
 				: true);
 		if (needDrawInfo) {
-			drawInfo(p, g.left() + g.width(), g.top() + g.height(), 2 * g.left() + g.width(), selected, InfoDisplayType::Default);
-			if (g != gBubble) {
+			drawInfo(p, inner.left() + inner.width(), inner.top() + inner.height(), 2 * inner.left() + inner.width(), selected, InfoDisplayType::Default);
+			if (g != inner) {
 				const auto o = p.opacity();
 				p.setOpacity(0.3);
 				const auto color = selected
 					? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
 					: (outbg ? st::msgOutDateFg : st::msgInDateFg);
-				p.fillRect(g.left(), g.top() + g.height() - st::lineWidth, g.width(), st::lineWidth, color);
+				p.fillRect(inner.left(), inner.top() + inner.height() - st::lineWidth, inner.width(), st::lineWidth, color);
 				p.setOpacity(o);
 			}
 		}
 		if (const auto size = rightActionSize()) {
 			const auto fastShareSkip = std::clamp(
-				(gBubble.height() - size->height()) / 2,
+				(g.height() - size->height()) / 2,
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - size->height();
+			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
 			drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
 
 		if (media) {
-			media->paintBubbleFireworks(p, gBubble, ms);
+			media->paintBubbleFireworks(p, g, ms);
 		}
 	} else if (media && media->isDisplayed()) {
 		p.translate(g.topLeft());
@@ -1149,12 +1149,12 @@ TextState Message::textState(
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-		const auto gBubble = g;
-		if (getStateCommentsButton(point, g, &result)) {
+		auto bubble = g;
+		if (getStateCommentsButton(point, bubble, &result)) {
 			return result;
 		}
 
-		auto trect = g.marginsRemoved(st::msgPadding);
+		auto trect = bubble.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
 			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
@@ -1177,7 +1177,7 @@ TextState Message::textState(
 		if (entry) {
 			auto entryHeight = entry->height();
 			trect.setHeight(trect.height() - entryHeight);
-			auto entryLeft = g.left();
+			auto entryLeft = bubble.left();
 			auto entryTop = trect.y() + trect.height();
 			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
 				result = entry->textState(
@@ -1192,8 +1192,8 @@ TextState Message::textState(
 				return;
 			}
 			const auto inDate = pointInTime(
-				g.left() + g.width(),
-				g.top() + g.height(),
+				bubble.left() + bubble.width(),
+				bubble.top() + bubble.height(),
 				point,
 				InfoDisplayType::Default);
 			if (inDate) {
@@ -1225,11 +1225,11 @@ TextState Message::textState(
 		checkForPointInTime();
 		if (const auto size = rightActionSize()) {
 			const auto fastShareSkip = snap(
-				(gBubble.height() - size->height()) / 2,
+				(g.height() - size->height()) / 2,
 				0,
 				st::historyFastShareBottom);
 			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			const auto fastShareTop = g.top() + gBubble.height() - fastShareSkip - size->height();
+			const auto fastShareTop = g.top() + g.height() - fastShareSkip - size->height();
 			if (QRect(
 				fastShareLeft,
 				fastShareTop,

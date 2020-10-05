@@ -1299,6 +1299,11 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	setViewsCount(message.vviews().value_or(-1));
 	setForwardsCount(message.vforwards().value_or(-1));
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
+	if (const auto replies = message.vreplies()) {
+		setReplies(*replies);
+	} else {
+		clearReplies();
+	}
 
 	finishEdition(keyboardTop);
 }
