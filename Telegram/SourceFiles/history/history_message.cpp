@@ -988,6 +988,14 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (!config.author.isEmpty()) {
 		mask |= HistoryMessageSigned::Bit();
+	} else if (_history->peer->isMegagroup() // Discussion posts signatures.
+		&& config.savedFromPeer
+		&& !config.authorOriginal.isEmpty()) {
+		const auto savedFrom = _history->owner().peerLoaded(
+			config.savedFromPeer);
+		if (savedFrom && savedFrom->isChannel()) {
+			mask |= HistoryMessageSigned::Bit();
+		}
 	}
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
@@ -1048,8 +1056,11 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		edited->date = config.editDate;
 	}
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->author = config.author;
-		msgsigned->isAnonymousRank = author()->isMegagroup();
+		msgsigned->author = config.author.isEmpty()
+			? config.authorOriginal
+			: config.author;
+		msgsigned->isAnonymousRank = !isDiscussionPost()
+			&& author()->isMegagroup();
 	}
 	setupForwardedComponent(config);
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
