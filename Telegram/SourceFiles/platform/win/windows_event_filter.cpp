@@ -35,8 +35,29 @@ bool IsCompositionEnabled() {
 	return success && result;
 }
 
-bool IsTaskbarAutoHidden(PUINT pEdge = nullptr) {
-	HWND hTaskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+HWND FindTaskbarWindow(LPRECT rcMon = nullptr) {
+	HWND hTaskbar = nullptr;
+	RECT rcTaskbar, rcMatch;
+
+	while ((hTaskbar = FindWindowEx(
+		nullptr,
+		hTaskbar,
+		L"Shell_TrayWnd",
+		nullptr)) != nullptr) {
+		if (!rcMon) {
+			break; // OK, return first found
+		}
+		if (GetWindowRect(hTaskbar, &rcTaskbar)
+			&& IntersectRect(&rcMatch, &rcTaskbar, rcMon)) {
+			break; // OK, taskbar match monitor
+		}
+	}
+
+	return hTaskbar;
+}
+
+bool IsTaskbarAutoHidden(LPRECT rcMon = nullptr, PUINT pEdge = nullptr) {
+	HWND hTaskbar = FindTaskbarWindow(rcMon);
 	if (!hTaskbar) {
 		if (pEdge) {
 			*pEdge = (UINT)-1;
@@ -134,7 +155,7 @@ bool EventFilter::customWindowFrameEvent(
 				if (GetMonitorInfo(hMonitor, &mi)) {
 					*r = mi.rcWork;
 					UINT uEdge = (UINT)-1;
-					if (IsTaskbarAutoHidden(&uEdge)) {
+					if (IsTaskbarAutoHidden(&mi.rcMonitor, &uEdge)) {
 						switch (uEdge) {
 						case ABE_LEFT: r->left += 1; break;
 						case ABE_RIGHT: r->right -= 1; break;
