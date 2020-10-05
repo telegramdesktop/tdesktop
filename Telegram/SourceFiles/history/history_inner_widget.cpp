@@ -1717,6 +1717,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								auto message = ApiWrap::MessageToSend(_history);
 								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+								message.action.replyTo = item->idOriginal();
 								api->sendMessage(std::move(message));
 							});
 						}
@@ -1904,6 +1905,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								auto message = ApiWrap::MessageToSend(_history);
 								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+								message.action.replyTo = item->idOriginal();
 								api->sendMessage(std::move(message));
 							});
 						}
