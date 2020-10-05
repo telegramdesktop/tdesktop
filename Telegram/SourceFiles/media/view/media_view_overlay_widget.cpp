@@ -1489,32 +1489,33 @@ void OverlayWidget::onForward() {
 }
 
 void OverlayWidget::onDelete() {
-	const auto session = _session;
-	if (!session) {
+	if (!_session) {
 		return;
 	}
 
-	close();
-	const auto deletingPeerPhoto = [this] {
+	const auto session = _session;
+	const auto photo = _photo;
+	const auto msgid = _msgid;
+	const auto deletingPeerPhoto = [&] {
 		if (!_msgid) {
 			return true;
-		}
-		if (_photo && _history) {
+		} else if (_photo && _history) {
 			if (_history->peer->userpicPhotoId() == _photo->id) {
 				return _firstOpenedPeerPhoto;
 			}
 		}
 		return false;
-	};
+	}();
+	close();
 
-	Core::App().domain().activate(&_session->account());
-	const auto &active = _session->windows();
+	Core::App().domain().activate(&session->account());
+	const auto &active = session->windows();
 	if (active.empty()) {
 		return;
 	}
-	if (deletingPeerPhoto()) {
-		active.front()->content()->deletePhotoLayer(_photo);
-	} else if (const auto item = session->data().message(_msgid)) {
+	if (deletingPeerPhoto) {
+		active.front()->content()->deletePhotoLayer(photo);
+	} else if (const auto item = session->data().message(msgid)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
