@@ -100,6 +100,10 @@ void Instance::start() {
 
 void Instance::stop(Fn<void(Result&&)> callback) {
 	InvokeQueued(_inner.get(), [=] {
+		if (!callback) {
+			_inner->stop();
+			return;
+		}
 		_inner->stop([=](Result &&result) {
 			crl::on_main([=, result = std::move(result)]() mutable {
 				callback(std::move(result));
