@@ -524,7 +524,7 @@ void Instance::Inner::timeout() {
 		return;
 	}
 	ALint samples;
-	alcGetIntegerv(d->device, ALC_CAPTURE_SAMPLES, sizeof(samples), &samples);
+	alcGetIntegerv(d->device, ALC_CAPTURE_SAMPLES, 1, &samples);
 	if (ErrorHappened(d->device)) {
 		fail();
 		return;
