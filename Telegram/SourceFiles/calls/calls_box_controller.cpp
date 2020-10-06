@@ -296,7 +296,7 @@ void BoxController::loadMoreRows() {
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
 		MTP_string(),
-		MTP_inputUserEmpty(),
+		MTP_inputPeerEmpty(),
 		MTPint(), // top_msg_id
 		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
 		MTP_int(0),

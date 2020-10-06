@@ -260,6 +260,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareSecureValuesSent(data);
 	}, [&](const MTPDmessageActionContactSignUp &data) {
 		return prepareContactSignUp();
+	}, [&](const MTPDmessageActionGeoProximityReached &data) {
+		return PreparedText{ tr::lng_message_empty(tr::now) }; // #TODO files
 	}, [](const MTPDmessageActionPaymentSentMe &) {
 		LOG(("API Error: messageActionPaymentSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };

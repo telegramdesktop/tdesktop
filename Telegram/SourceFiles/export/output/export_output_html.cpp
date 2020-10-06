@@ -1092,6 +1092,8 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ SerializeList(list);
 	}, [&](const ActionContactSignUp &data) {
 		return serviceFrom + " joined Telegram";
+	}, [&](const ActionGeoProximityReached &data) {
+		return serviceFrom + " reached"; // #TODO files distance from to
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
 	}, [](v::null_t) { return QByteArray(); });

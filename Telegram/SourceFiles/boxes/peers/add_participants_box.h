@@ -86,6 +86,9 @@ public:
 		AdminDoneCallback adminDoneCallback,
 		BannedDoneCallback bannedDoneCallback);
 
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
 	[[nodiscard]] Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;

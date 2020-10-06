@@ -87,7 +87,7 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 		MTP_flags(0),
 		peer->input,
 		MTP_string(query),
-		MTP_inputUserEmpty(),
+		MTP_inputPeerEmpty(),
 		MTPint(), // top_msg_id
 		filter,
 		MTP_int(0),

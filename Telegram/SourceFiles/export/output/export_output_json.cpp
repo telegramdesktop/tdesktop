@@ -473,6 +473,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionContactSignUp &data) {
 		pushActor();
 		pushAction("joined_telegram");
+	}, [&](const ActionGeoProximityReached &data) {
+		pushActor();
+		pushAction("proximity_reached"); // #TODO files distance from to
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("requested_phone_number");
