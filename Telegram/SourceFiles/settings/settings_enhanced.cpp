@@ -85,6 +85,38 @@ namespace Settings {
 		AddSkip(container);
 	}
 
+	void SetupEnhancedButton(not_null<Ui::VerticalLayout *> container) {
+		AddDivider(container);
+		AddSkip(container);
+		AddSubsectionTitle(container, tr::lng_settings_button());
+
+		const auto wrap = container->add(
+				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+						container,
+						object_ptr<Ui::VerticalLayout>(container)));
+		const auto inner = wrap->entity();
+
+		AddButton(
+				inner,
+				tr::lng_settings_show_emoji_button_as_text(),
+				st::settingsButton
+		)->toggleOn(
+				rpl::single(cShowEmojiButtonAsText())
+		)->toggledChanges(
+		) | rpl::filter([=](bool toggled) {
+			return (toggled != cShowEmojiButtonAsText());
+		}) | rpl::start_with_next([=](bool toggled) {
+			cSetShowEmojiButtonAsText(toggled);
+			EnhancedSettings::Write();
+			App::restart();
+		}, container->lifetime());
+
+		AddSkip(inner);
+		AddDividerText(inner, tr::lng_show_emoji_button_as_text_desc());
+
+		AddSkip(container);
+	}
+
 	Enhanced::Enhanced(
 			QWidget *parent,
 			not_null<Window::SessionController *> controller)
@@ -97,6 +129,7 @@ namespace Settings {
 
 		SetupEnhancedNetwork(content);
 		SetupEnhancedMessages(content);
+		SetupEnhancedButton(content);
 
 		Ui::ResizeFitChild(this, content);
 	}

@@ -59,12 +59,12 @@ TopBarWidget::TopBarWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
-, _forward(this, tr::lng_selected_forward_emoji(), st::defaultActiveButton)
+, _forward(this, cShowEmojiButtonAsText() ? tr::lng_selected_forward_text() : tr::lng_selected_forward_emoji(), st::defaultActiveButton)
 , _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
-, _delete(this, tr::lng_selected_delete_emoji(), st::defaultActiveButton)
-, _forwardNoQuote(this, tr::lng_selected_forward_no_quote_emoji(), st::defaultActiveButton)
-, _savedMessages(this, tr::lng_forward_to_saved_message_emoji(), st::defaultActiveButton)
-, _oldForward(this, tr::lng_selected_forward_emoji_classic(), st::defaultActiveButton)
+, _delete(this, cShowEmojiButtonAsText() ? tr::lng_selected_delete_text() : tr::lng_selected_delete_emoji(), st::defaultActiveButton)
+, _forwardNoQuote(this, cShowEmojiButtonAsText() ? tr::lng_selected_forward_no_quote_text() : tr::lng_selected_forward_no_quote_emoji(), st::defaultActiveButton)
+, _savedMessages(this, cShowEmojiButtonAsText() ? tr::lng_forward_to_saved_message_text() : tr::lng_forward_to_saved_message_emoji(), st::defaultActiveButton)
+, _oldForward(this, cShowEmojiButtonAsText() ? tr::lng_selected_forward_text_classic() : tr::lng_selected_forward_emoji_classic(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
@@ -78,7 +78,7 @@ TopBarWidget::TopBarWidget(
 
 	_oldForward->setClickedCallback([=] { _oldForwardSelection.fire({}); });
 	_oldForward->setWidthChangedCallback([=] { updateControlsGeometry(); });
-	
+
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -99,7 +99,7 @@ TopBarWidget::TopBarWidget(
 	_search->setClickedCallback([=] { onSearch(); });
 	_recentActions->setClickedCallback([=] {
 		const auto channel = _activeChat.peer()->asChannel();
-		_controller->showSection(AdminLog::SectionMemento(channel)); 
+		_controller->showSection(AdminLog::SectionMemento(channel));
 	});
 	_admins->setClickedCallback([=] {
 		ParticipantsBoxController::Start(

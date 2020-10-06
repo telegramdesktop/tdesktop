@@ -205,6 +205,10 @@ bool Manager::readCustomFile() {
 		cSetShowMessagesID(v);
 	});
 
+	ReadBoolOption(settings, "show_emoji_button_as_text", [&](auto v) {
+		cSetShowEmojiButtonAsText(v);
+	});
+
 	return true;
 }
 
@@ -223,6 +227,7 @@ void Manager::writeDefaultFile() {
 	auto settings = QJsonObject();
 	settings.insert(qsl("net_speed_boost"), 0);
 	settings.insert(qsl("show_messages_id"), false);
+	settings.insert(qsl("show_emoji_button_as_text"), false);
 
 	auto document = QJsonDocument();
 	document.setObject(settings);
@@ -247,6 +252,7 @@ void Manager::writeCurrentSettings() {
 	auto settings = QJsonObject();
 	settings.insert(qsl("net_speed_boost"), cNetSpeedBoost());
 	settings.insert(qsl("show_messages_id"), cShowMessagesID());
+	settings.insert(qsl("show_emoji_button_as_text"), cShowEmojiButtonAsText());
 
 	auto document = QJsonDocument();
 	document.setObject(settings);

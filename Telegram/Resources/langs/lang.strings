@@ -2451,6 +2451,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_network" = "Network";
 "lng_settings_net_speed_boost" = "Download/Upload Speed boost";
 "lng_settings_show_message_id" = "Show Messages ID";
+"lng_settings_button" = "Button";
+"lng_settings_show_emoji_button_as_text" = "Show Emoji Button As Text";
 
 "lng_net_speed_boost_title" = "Network speed boost";
 "lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.";
@@ -2462,6 +2464,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_net_boost_restart_desc" = "You'll need to restart app to change network boost.\n\nRestart now?";
 "lng_show_messages_id_desc" = "Warning: the changes will take effect immediately with restart.";
+"lng_show_emoji_button_as_text_desc" = "Note: If you can't see a emoji button, please turn on this option.\nThe changes will take effect immediately with restart.";
 
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";
@@ -2484,6 +2487,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_selected_forward_no_quote_emoji" = "🖨️";
 "lng_forward_to_saved_message_emoji" = "💾";
 "lng_selected_delete_emoji" = "🗑️";
+
+"lng_selected_forward_text_classic" = "F(Classic)";
+"lng_selected_forward_text" = "F";
+"lng_selected_forward_no_quote_text" = "C";
+"lng_forward_to_saved_message_text" = "S";
+"lng_selected_delete_text" = "D";
 
 "lng_admin_log_banned_send_stickers2" = "Send stickers";
 "lng_admin_log_banned_send_gifs" = "Send GIFs";
