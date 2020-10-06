@@ -29,7 +29,7 @@ apps:
       - desktop-legacy
       - home
       - network
-      - network-manager
+      - network-manager-observe
       - opengl
       - pulseaudio
       - removable-media
