@@ -1775,6 +1775,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 					data.vreply_to_msg_id().v));
 		});
 	}
+	existing->setPostAuthor(data.vpost_author().value_or_empty());
 	existing->indexAsNewItem();
 	existing->contributeToSlowmode(data.vdate().v);
 	requestItemTextRefresh(existing);

@@ -129,6 +129,7 @@ public:
 	void clearReplies() override;
 	void changeRepliesCount(int delta, PeerId replier) override;
 	void setReplyToTop(MsgId replyToTop) override;
+	void setPostAuthor(const QString &author) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;
 

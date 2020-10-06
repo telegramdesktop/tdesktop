@@ -228,7 +228,6 @@ Message::Message(
 : Element(delegate, data, replacing) {
 	initLogEntryOriginal();
 	initPsa();
-	refreshRightBadge();
 }
 
 Message::~Message() {
@@ -287,7 +286,6 @@ void Message::applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	if (!data()->out()
 		&& changes.contains(peerToUser(data()->author()->id))) {
-		refreshRightBadge();
 		history()->owner().requestViewResize(this);
 	}
 }
@@ -301,6 +299,7 @@ QSize Message::performCountOptimalSize() {
 
 	updateMediaInBubbleState();
 	refreshEditedBadge();
+	refreshRightBadge();
 
 	auto mediaOnBottom = (logEntryOriginal() != nullptr)
 		|| (media && media->isDisplayed() && media->isBubbleBottom());
@@ -783,74 +782,77 @@ void Message::paintFromName(
 		QRect &trect,
 		bool selected) const {
 	const auto item = message();
-	if (displayFromName()) {
-		const auto badgeWidth = _rightBadge.isEmpty() ? 0 : _rightBadge.maxWidth();
-		const auto replyWidth = [&] {
-			if (isUnderCursor() && displayFastReply()) {
-				return st::msgFont->width(FastReplyText());
-			}
-			return 0;
-		}();
-		const auto rightWidth = replyWidth ? replyWidth : badgeWidth;
-		auto availableLeft = trect.left();
-		auto availableWidth = trect.width();
-		if (rightWidth) {
-			availableWidth -= st::msgPadding.right() + rightWidth;
+	if (!displayFromName()) {
+		return;
+	}
+	const auto badgeWidth = _rightBadge.isEmpty() ? 0 : _rightBadge.maxWidth();
+	const auto replyWidth = [&] {
+		if (isUnderCursor() && displayFastReply()) {
+			return st::msgFont->width(FastReplyText());
 		}
+		return 0;
+	}();
+	const auto rightWidth = replyWidth ? replyWidth : badgeWidth;
+	auto availableLeft = trect.left();
+	auto availableWidth = trect.width();
+	if (rightWidth) {
+		availableWidth -= st::msgPadding.right() + rightWidth;
+	}
 
-		p.setFont(st::msgNameFont);
-		const auto nameText = [&]() -> const Ui::Text::String * {
-			const auto from = item->displayFrom();
-			if (hasOutLayout()) {
-				p.setPen(selected ? st::msgOutServiceFgSelected : st::msgOutServiceFg);
-				return &from->nameText();
-			} else if (item->isPost()) {
-				p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
-				return &from->nameText();
-			} else if (from) {
-				p.setPen(FromNameFg(from->id, selected));
-				return &from->nameText();
-			} else if (const auto info = item->hiddenForwardedInfo()) {
-				p.setPen(FromNameFg(info->colorPeerId, selected));
-				return &info->nameText;
-			} else {
-				Unexpected("Corrupt forwarded information in message.");
-			}
-		}();
-		nameText->drawElided(p, availableLeft, trect.top(), availableWidth);
-		const auto skipWidth = nameText->maxWidth() + st::msgServiceFont->spacew;
+	p.setFont(st::msgNameFont);
+	const auto outbg = hasOutLayout();
+	const auto nameText = [&]() -> const Ui::Text::String * {
+		const auto from = item->displayFrom();
+		if (outbg) {
+			p.setPen(selected ? st::msgOutServiceFgSelected : st::msgOutServiceFg);
+			return &from->nameText();
+		} else if (item->isPost()) {
+			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
+			return &from->nameText();
+		} else if (from) {
+			p.setPen(FromNameFg(from->id, selected));
+			return &from->nameText();
+		} else if (const auto info = item->hiddenForwardedInfo()) {
+			p.setPen(FromNameFg(info->colorPeerId, selected));
+			return &info->nameText;
+		} else {
+			Unexpected("Corrupt forwarded information in message.");
+		}
+	}();
+	nameText->drawElided(p, availableLeft, trect.top(), availableWidth);
+	const auto skipWidth = nameText->maxWidth() + st::msgServiceFont->spacew;
+	availableLeft += skipWidth;
+	availableWidth -= skipWidth;
+
+	auto via = item->Get<HistoryMessageVia>();
+	if (via && !displayForwardedFrom() && availableWidth > 0) {
+		p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
+		p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->text);
+		auto skipWidth = via->width + st::msgServiceFont->spacew;
 		availableLeft += skipWidth;
 		availableWidth -= skipWidth;
-
-		auto via = item->Get<HistoryMessageVia>();
-		if (via && !displayForwardedFrom() && availableWidth > 0) {
-			const auto outbg = hasOutLayout();
-			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
-			p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->text);
-			auto skipWidth = via->width + st::msgServiceFont->spacew;
-			availableLeft += skipWidth;
-			availableWidth -= skipWidth;
-		}
-		if (rightWidth) {
-			p.setPen(selected ? st::msgInDateFgSelected : st::msgInDateFg);
-			p.setFont(ClickHandler::showAsActive(_fastReplyLink)
-				? st::msgFont->underline()
-				: st::msgFont);
-			if (replyWidth) {
-				p.drawText(
-					trect.left() + trect.width() - rightWidth,
-					trect.top() + st::msgFont->ascent,
-					FastReplyText());
-			} else {
-				_rightBadge.draw(
-					p,
-					trect.left() + trect.width() - rightWidth,
-					trect.top(),
-					rightWidth);
-			}
-		}
-		trect.setY(trect.y() + st::msgNameFont->height);
 	}
+	if (rightWidth) {
+		p.setPen(outbg
+			? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg)
+			: (selected ? st::msgInDateFgSelected : st::msgInDateFg));
+		p.setFont(ClickHandler::showAsActive(_fastReplyLink)
+			? st::msgFont->underline()
+			: st::msgFont);
+		if (replyWidth) {
+			p.drawText(
+				trect.left() + trect.width() - rightWidth,
+				trect.top() + st::msgFont->ascent,
+				FastReplyText());
+		} else {
+			_rightBadge.draw(
+				p,
+				trect.left() + trect.width() - rightWidth,
+				trect.top(),
+				rightWidth);
+		}
+	}
+	trect.setY(trect.y() + st::msgNameFont->height);
 }
 
 void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const {

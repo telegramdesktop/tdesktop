@@ -1601,6 +1601,28 @@ void HistoryMessage::setViewsCount(int count) {
 void HistoryMessage::setForwardsCount(int count) {
 }
 
+void HistoryMessage::setPostAuthor(const QString &author) {
+	auto msgsigned = Get<HistoryMessageSigned>();
+	if (author.isEmpty()) {
+		if (!msgsigned) {
+			return;
+		}
+		RemoveComponents(HistoryMessageSigned::Bit());
+		history()->owner().requestItemResize(this);
+		return;
+	}
+	if (!msgsigned) {
+		AddComponents(HistoryMessageSigned::Bit());
+		msgsigned = Get<HistoryMessageSigned>();
+	} else if (msgsigned->author == author) {
+		return;
+	}
+	msgsigned->author = author;
+	msgsigned->isAnonymousRank = !isDiscussionPost()
+		&& this->author()->isMegagroup();
+	history()->owner().requestItemResize(this);
+}
+
 void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 	data.match([&](const MTPDmessageReplies &data) {
 		auto views = Get<HistoryMessageViews>();
