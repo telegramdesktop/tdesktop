@@ -60,6 +60,9 @@ public:
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
+	std::vector<BubbleSelectionInterval> getBubbleSelectionIntervals(
+		TextSelection selection) const override;
+
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) override;
@@ -76,12 +79,14 @@ public:
 	HistoryMessageEdited *displayedEditBadge() const override;
 
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom() && _caption.isEmpty();
+		return (_mode == Mode::Grid)
+			&& isRoundedInBubbleBottom()
+			&& _caption.isEmpty();
 	}
 	void updateNeedBubbleState() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty();
+		return _caption.isEmpty() && (_mode != Mode::Playlist);
 	}
 	bool allowsFastShare() const override {
 		return true;
@@ -95,6 +100,10 @@ public:
 	void parentTextUpdated() override;
 
 private:
+	enum class Mode : char {
+		Grid,
+		Playlist,
+	};
 	struct Part {
 		Part(
 			not_null<Element*> parent,
@@ -110,6 +119,8 @@ private:
 		mutable QPixmap cache;
 
 	};
+
+	[[nodiscard]] static Mode DetectMode(not_null<Data::Media*> media);
 
 	template <typename DataMediaRange>
 	bool applyGroup(const DataMediaRange &medias);
@@ -131,6 +142,7 @@ private:
 
 	Ui::Text::String _caption;
 	std::vector<Part> _parts;
+	Mode _mode = Mode::Grid;
 	bool _needBubble = false;
 
 };

@@ -45,6 +45,11 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
+struct BubbleSelectionInterval {
+	int top = 0;
+	int height = 0;
+};
+
 [[nodiscard]] QString DocumentTimestampLinkBase(
 	not_null<DocumentData*> document,
 	FullMsgId context);
@@ -115,6 +120,12 @@ public:
 		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipSelection(
 		TextSelection selection) const;
+
+	[[nodiscard]] virtual auto getBubbleSelectionIntervals(
+		TextSelection selection) const
+	-> std::vector<BubbleSelectionInterval> {
+		return {};
+	}
 
 	// if we press and drag this link should we drag the item
 	[[nodiscard]] virtual bool dragItemByHandler(

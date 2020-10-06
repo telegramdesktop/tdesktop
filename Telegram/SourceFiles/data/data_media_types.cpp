@@ -465,7 +465,7 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 }
 
 bool MediaFile::canBeGrouped() const {
-	return _document->isVideoFile();
+	return _document->isVideoFile() || _document->isSong();
 }
 
 bool MediaFile::hasReplyPreview() const {

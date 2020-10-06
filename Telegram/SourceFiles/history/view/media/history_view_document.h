@@ -61,6 +61,23 @@ public:
 	QMargins bubbleMargins() const override;
 	bool hideForwardedFrom() const override;
 
+	QSize sizeForGrouping() const override;
+	void drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		crl::time ms,
+		const QRect &geometry,
+		RectParts sides,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const override;
+	TextState getStateGrouped(
+		const QRect &geometry,
+		RectParts sides,
+		QPoint point,
+		StateRequest request) const override;
+
 	bool voiceProgressAnimationCallback(crl::time now);
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -82,7 +99,22 @@ private:
 		bool showPause = false;
 		int realDuration = 0;
 	};
+	enum class LayoutMode {
+		Full,
+		Grouped,
+	};
 
+	void draw(
+		Painter &p,
+		int width,
+		TextSelection selection,
+		crl::time ms,
+		LayoutMode mode) const;
+	[[nodiscard]] TextState textState(
+		QPoint point,
+		QSize layout,
+		StateRequest request,
+		LayoutMode mode) const;
 	void ensureDataMediaCreated() const;
 
 	[[nodiscard]] Ui::Text::String createCaption();

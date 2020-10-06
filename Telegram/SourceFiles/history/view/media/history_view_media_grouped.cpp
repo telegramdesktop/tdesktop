@@ -22,6 +22,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 
 namespace HistoryView {
+namespace {
+
+std::vector<Ui::GroupMediaLayout> LayoutPlaylist(
+		const std::vector<QSize> &sizes) {
+	Expects(!sizes.empty());
+
+	auto result = std::vector<Ui::GroupMediaLayout>();
+	result.reserve(sizes.size());
+	const auto width = ranges::max_element(
+		sizes,
+		std::less<>(),
+		&QSize::width)->width();
+	auto top = 0;
+	for (const auto &size : sizes) {
+		result.push_back({
+			.geometry = QRect(0, top, width, size.height()),
+			.sides = RectPart::Left | RectPart::Right
+		});
+		top += size.height();
+	}
+	result.front().sides |= RectPart::Top;
+	result.back().sides |= RectPart::Bottom;
+	return result;
+}
+
+} // namespace
 
 GroupedMedia::Part::Part(
 	not_null<Element*> parent,
@@ -39,7 +65,7 @@ GroupedMedia::GroupedMedia(
 	const auto truncated = ranges::view::all(
 		medias
 	) | ranges::view::transform([](const std::unique_ptr<Data::Media> &v) {
-		return not_null<Data::Media*>(v.get());
+		return v.get();
 	}) | ranges::view::take(kMaxSize);
 	const auto result = applyGroup(truncated);
 
@@ -66,6 +92,13 @@ GroupedMedia::~GroupedMedia() {
 	base::take(_parts);
 }
 
+GroupedMedia::Mode GroupedMedia::DetectMode(not_null<Data::Media*> media) {
+	const auto document = media->document();
+	return (document && document->isSong())
+		? Mode::Playlist
+		: Mode::Grid;
+}
+
 QSize GroupedMedia::countOptimalSize() {
 	if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
@@ -81,11 +114,13 @@ QSize GroupedMedia::countOptimalSize() {
 		sizes.push_back(media->sizeForGrouping());
 	}
 
-	const auto layout = Ui::LayoutMediaGroup(
-		sizes,
-		st::historyGroupWidthMax,
-		st::historyGroupWidthMin,
-		st::historyGroupSkip);
+	const auto layout = (_mode == Mode::Grid)
+		? Ui::LayoutMediaGroup(
+			sizes,
+			st::historyGroupWidthMax,
+			st::historyGroupWidthMin,
+			st::historyGroupSkip)
+		: LayoutPlaylist(sizes);
 	Assert(layout.size() == _parts.size());
 
 	auto maxWidth = 0;
@@ -313,6 +348,33 @@ TextForMimeData GroupedMedia::selectedText(
 	return _caption.toTextForMimeData(selection);
 }
 
+auto GroupedMedia::getBubbleSelectionIntervals(
+	TextSelection selection) const
+-> std::vector<BubbleSelectionInterval> {
+	auto result = std::vector<BubbleSelectionInterval>();
+	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
+		const auto &part = _parts[i];
+		if (!IsGroupItemSelection(selection, i)) {
+			continue;
+		}
+		const auto &geometry = part.geometry;
+		if (result.empty()
+			|| (result.back().top + result.back().height
+				< geometry.top())
+			|| (result.back().top > geometry.top() + geometry.height())) {
+			result.push_back({ geometry.top(), geometry.height() });
+		} else {
+			auto &last = result.back();
+			const auto newTop = std::min(last.top, geometry.top());
+			const auto newHeight = std::max(
+				last.top + last.height - newTop,
+				geometry.top() + geometry.height() - newTop);
+			last = BubbleSelectionInterval{ newTop, newHeight };
+		}
+	}
+	return result;
+}
+
 void GroupedMedia::clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) {
@@ -339,7 +401,15 @@ bool GroupedMedia::applyGroup(const DataMediaRange &medias) {
 		return true;
 	}
 
+	auto modeChosen = false;
 	for (const auto media : medias) {
+		const auto mediaMode = DetectMode(media);
+		if (!modeChosen) {
+			_mode = mediaMode;
+			modeChosen = true;
+		} else if (mediaMode != _mode) {
+			continue;
+		}
 		_parts.push_back(Part(_parent, media));
 	}
 	if (_parts.empty()) {
@@ -449,7 +519,7 @@ bool GroupedMedia::needsBubble() const {
 }
 
 bool GroupedMedia::computeNeedBubble() const {
-	if (!_caption.isEmpty()) {
+	if (!_caption.isEmpty() || _mode == Mode::Playlist) {
 		return true;
 	}
 	if (const auto item = _parent->data()) {
@@ -467,9 +537,10 @@ bool GroupedMedia::computeNeedBubble() const {
 }
 
 bool GroupedMedia::needInfoDisplay() const {
-	return (_parent->data()->id < 0
-		|| _parent->isUnderCursor()
-		|| _parent->isLastAndSelfMessage());
+	return (_mode != Mode::Playlist)
+		&& (_parent->data()->id < 0
+			|| _parent->isUnderCursor()
+			|| _parent->isLastAndSelfMessage());
 }
 
 } // namespace HistoryView

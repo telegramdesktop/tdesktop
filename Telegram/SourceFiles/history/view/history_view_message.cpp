@@ -138,27 +138,101 @@ QString FastReplyText() {
 	return tr::lng_fast_reply(tr::now);
 }
 
-void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide) {
+void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide, RectParts skip) {
 	auto &bg = selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg);
-	auto &sh = selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow);
+	auto sh = &(selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow));
 	auto cors = selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners);
-	auto parts = RectPart::FullTop | RectPart::NoTopBottom | RectPart::Bottom;
+	auto parts = RectPart::None | RectPart::NoTopBottom;
+	if (skip & RectPart::Top) {
+		if (skip & RectPart::Bottom) {
+			p.fillRect(rect, bg);
+			return;
+		}
+		rect.setTop(rect.y() - st::historyMessageRadius);
+	} else {
+		parts |= RectPart::FullTop;
+	}
+	if (skip & RectPart::Bottom) {
+		rect.setHeight(rect.height() + st::historyMessageRadius);
+		sh = nullptr;
+		tailSide = RectPart::None;
+	} else {
+		parts |= RectPart::Bottom;
+	}
 	if (tailSide == RectPart::Right) {
 		parts |= RectPart::BottomLeft;
 		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
 		auto &tail = selected ? st::historyBubbleTailOutRightSelected : st::historyBubbleTailOutRight;
 		tail.paint(p, rect.x() + rect.width(), rect.y() + rect.height() - tail.height(), outerWidth);
-		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
+		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, *sh);
 	} else if (tailSide == RectPart::Left) {
 		parts |= RectPart::BottomRight;
 		p.fillRect(rect.x(), rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
 		auto &tail = selected ? (outbg ? st::historyBubbleTailOutLeftSelected : st::historyBubbleTailInLeftSelected) : (outbg ? st::historyBubbleTailOutLeft : st::historyBubbleTailInLeft);
 		tail.paint(p, rect.x() - tail.width(), rect.y() + rect.height() - tail.height(), outerWidth);
-		p.fillRect(rect.x() - tail.width(), rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
-	} else {
+		p.fillRect(rect.x() - tail.width(), rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, *sh);
+	} else if (!(skip & RectPart::Bottom)) {
 		parts |= RectPart::FullBottom;
 	}
-	App::roundRect(p, rect, bg, cors, &sh, parts);
+	App::roundRect(p, rect, bg, cors, sh, parts);
+}
+
+void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, const std::vector<BubbleSelectionInterval> &selection, bool outbg, RectPart tailSide) {
+	if (selection.empty()) {
+		PaintBubble(
+			p,
+			rect,
+			outerWidth,
+			selected,
+			outbg,
+			tailSide,
+			RectPart::None);
+		return;
+	}
+	const auto left = rect.x();
+	const auto width = rect.width();
+	const auto top = rect.y();
+	const auto bottom = top + rect.height();
+	auto from = top;
+	for (const auto &selected : selection) {
+		if (selected.top > from) {
+			const auto skip = RectPart::Bottom
+				| (from > top ? RectPart::Top : RectPart::None);
+			PaintBubble(
+				p,
+				QRect(left, from, width, selected.top - from),
+				outerWidth,
+				false,
+				outbg,
+				tailSide,
+				skip);
+		}
+		const auto skip = ((selected.top > top)
+			? RectPart::Top
+			: RectPart::None)
+			| ((selected.top + selected.height < bottom)
+				? RectPart::Bottom
+				: RectPart::None);
+		PaintBubble(
+			p,
+			QRect(left, selected.top, width, selected.height),
+			outerWidth,
+			true,
+			outbg,
+			tailSide,
+			skip);
+		from = selected.top + selected.height;
+	}
+	if (from < bottom) {
+		PaintBubble(
+			p,
+			QRect(left, from, width, bottom - from),
+			outerWidth,
+			false,
+			outbg,
+			tailSide,
+			RectPart::Top);
+	}
 }
 
 style::color FromNameFg(PeerId peerId, bool selected) {
@@ -535,19 +609,51 @@ void Message::draw(
 		auto entry = logEntryOriginal();
 		auto mediaDisplayed = media && media->isDisplayed();
 
+		// Entry page is always a bubble bottom.
+		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+
+		auto mediaSelectionIntervals = (!selected && mediaDisplayed)
+			? media->getBubbleSelectionIntervals(selection)
+			: std::vector<BubbleSelectionInterval>();
+		if (!mediaSelectionIntervals.empty()) {
+			auto localMediaBottom = g.top() + g.height();
+			if (data()->repliesAreComments() || data()->externalReply()) {
+				localMediaBottom -= st::historyCommentsButtonHeight;
+			}
+			if (!mediaOnBottom) {
+				localMediaBottom -= st::msgPadding.bottom();
+			}
+			if (entry) {
+				localMediaBottom -= entry->height();
+			}
+			const auto localMediaTop = localMediaBottom - media->height();
+			for (auto &[top, height] : mediaSelectionIntervals) {
+				top += localMediaTop;
+			}
+		}
+
 		auto skipTail = isAttachedToNext()
 			|| (media && media->skipBubbleTail())
 			|| (keyboard != nullptr)
 			|| (context() == Context::Replies && data()->isDiscussionPost());
-		auto displayTail = skipTail ? RectPart::None : (outbg && !Core::App().settings().chatWide()) ? RectPart::Right : RectPart::Left;
-		PaintBubble(p, g, width(), selected, outbg, displayTail);
+		auto displayTail = skipTail
+			? RectPart::None
+			: (outbg && !Core::App().settings().chatWide())
+			? RectPart::Right
+			: RectPart::Left;
+		PaintBubble(
+			p,
+			g,
+			width(),
+			selected,
+			mediaSelectionIntervals,
+			outbg,
+			displayTail);
 
 		auto inner = g;
 		paintCommentsButton(p, inner, selected);
-
-		// Entry page is always a bubble bottom.
-		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
-		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
 		auto trect = inner.marginsRemoved(st::msgPadding);
 		if (mediaOnBottom) {
@@ -591,11 +697,16 @@ void Message::draw(
 				? !media->customInfoLayout()
 				: true);
 		if (needDrawInfo) {
-			drawInfo(p, inner.left() + inner.width(), inner.top() + inner.height(), 2 * inner.left() + inner.width(), selected, InfoDisplayType::Default);
+			const auto bottomSelected = selected
+				|| (!mediaSelectionIntervals.empty()
+					&& (mediaSelectionIntervals.back().top
+						+ mediaSelectionIntervals.back().height
+						>= inner.y() + inner.height()));
+			drawInfo(p, inner.left() + inner.width(), inner.top() + inner.height(), 2 * inner.left() + inner.width(), bottomSelected, InfoDisplayType::Default);
 			if (g != inner) {
 				const auto o = p.opacity();
 				p.setOpacity(0.3);
-				const auto color = selected
+				const auto color = bottomSelected
 					? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected)
 					: (outbg ? st::msgOutDateFg : st::msgInDateFg);
 				p.fillRect(inner.left(), inner.top() + inner.height() - st::lineWidth, inner.width(), st::lineWidth, color);
