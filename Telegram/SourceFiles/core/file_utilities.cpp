@@ -310,7 +310,7 @@ QString AllFilesFilter() {
 }
 
 QString AlbumFilesFilter() {
-	return qsl("Image and Video Files (*.png *.jpg *.mp4 *.jpeg)");
+	return qsl("Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov)");
 }
 
 namespace internal {
