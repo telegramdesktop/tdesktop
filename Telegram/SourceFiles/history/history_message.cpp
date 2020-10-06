@@ -374,18 +374,22 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 	return result;
 }
 
+MsgId LookupReplyToTop(not_null<History*> history, MsgId replyToId) {
+	const auto &owner = history->owner();
+	if (const auto item = owner.message(history->channelId(), replyToId)) {
+		return item->replyToTop();
+	}
+	return 0;
+}
+
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 	if (const auto id = action.replyTo) {
-		const auto history = action.history;
-		const auto &owner = history->owner();
-		if (const auto item = owner.message(history->channelId(), id)) {
-			if (item->replyToId()) {
-				return MTP_messageReplyHeader(
-					MTP_flags(MTPDmessageReplyHeader::Flag::f_reply_to_top_id),
-					MTP_int(id),
-					MTPPeer(),
-					MTP_int(item->replyToTop()));
-			}
+		if (const auto replyToTop = LookupReplyToTop(action.history, id)) {
+			return MTP_messageReplyHeader(
+				MTP_flags(MTPDmessageReplyHeader::Flag::f_reply_to_top_id),
+				MTP_int(id),
+				MTPPeer(),
+				MTP_int(replyToTop));
 		}
 		return MTP_messageReplyHeader(
 			MTP_flags(0),
@@ -741,7 +745,9 @@ void HistoryMessage::createComponentsHelper(
 
 	if (flags & MTPDmessage::Flag::f_via_bot_id) config.viaBotId = viaBotId;
 	if (flags & MTPDmessage::Flag::f_reply_to) {
-		config.replyToTop = config.replyTo = replyTo;
+		config.replyTo = replyTo;
+		const auto replyToTop = LookupReplyToTop(history(), replyTo);
+		config.replyToTop = replyToTop ? replyToTop : replyTo;
 	}
 	if (flags & MTPDmessage::Flag::f_reply_markup) config.mtpMarkup = &markup;
 	if (flags & MTPDmessage::Flag::f_post_author) config.author = postAuthor;

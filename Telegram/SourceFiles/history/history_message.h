@@ -21,16 +21,20 @@ struct HistoryMessageEdited;
 struct HistoryMessageReply;
 struct HistoryMessageViews;
 
-Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+[[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
-MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
-MTPDmessage_ClientFlags NewMessageClientFlags();
-MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action);
-QString GetErrorTextForSending(
+[[nodiscard]] MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
+[[nodiscard]] MTPDmessage_ClientFlags NewMessageClientFlags();
+[[nodiscard]] MsgId LookupReplyToTop(
+	not_null<History*> history,
+	MsgId replyToId);
+[[nodiscard]] MTPMessageReplyHeader NewMessageReplyHeader(
+	const Api::SendAction &action);
+[[nodiscard]] QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	bool ignoreSlowmodeCountdown = false);
-QString GetErrorTextForSending(
+[[nodiscard]] QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	const TextWithTags &comment,
