@@ -11,9 +11,12 @@
     "lng_settings_network": "Network",
     "lng_settings_net_speed_boost": "Download/Upload Speed boost",
     "lng_settings_show_message_id": "Show Messages ID",
+    "lng_settings_button": "Button",
+    "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text",
 
     "lng_net_speed_boost_title": "Network speed boost",
     "lng_net_speed_boost_desc": "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.",
+    "lng_show_emoji_button_as_text_desc": "Note: If you can't see a emoji button, please turn on this option.\nThe changes will take effect immediately with restart.",
 
     "lng_net_speed_boost_default": "Disabled",
     "lng_net_speed_boost_slight": "Slight",
