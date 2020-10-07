@@ -861,10 +861,7 @@ void MainMenu::refreshMenu() {
 			App::wnd()->onShowNewChannel();
 		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 		_menu->addAction(tr::lng_menu_contacts(tr::now), [=] {
-			Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(controller), [](not_null<PeerListBox*> box) {
-				box->addButton(tr::lng_close(), [box] { box->closeBox(); });
-				box->addLeftButton(tr::lng_profile_add_contact(), [] { App::wnd()->onShowAddContact(); });
-			}));
+			Ui::show(PrepareContactsBox(controller));
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 		if (_controller->session().serverConfig().phoneCallsEnabled.current()) {
 			_menu->addAction(tr::lng_menu_calls(tr::now), [=] {
