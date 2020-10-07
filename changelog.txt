@@ -1,3 +1,9 @@
+2.4.3 (07.10.20)
+
+- Fix sending voice messages in scheduled messages section.
+- Fix deleting profile / group / channel photos.
+- Several crash fixes.
+
 2.4.2 (02.10.20)
 
 - Allow block, report and delete all message from user from "user joined" service message context menu.
