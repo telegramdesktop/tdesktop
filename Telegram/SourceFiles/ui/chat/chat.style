@@ -344,6 +344,9 @@ historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
 historyRecordTextTop: 14px;
 
+historyRecordLockShowDuration: historyToDownDuration;
+historyRecordLockSize: size(50px, 150px);
+
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};

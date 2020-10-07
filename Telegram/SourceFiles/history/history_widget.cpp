@@ -717,6 +717,16 @@ void HistoryWidget::refreshTabbedPanel() {
 }
 
 void HistoryWidget::initVoiceRecordBar() {
+	{
+		auto scrollHeight = rpl::combine(
+			_scroll->topValue(),
+			_scroll->heightValue()
+		) | rpl::map([=](int top, int height) {
+			return top + height;
+		});
+		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
+	}
+
 	_voiceRecordBar->startRecordingRequests(
 	) | rpl::start_with_next([=] {
 		const auto error = _peer
@@ -755,6 +765,12 @@ void HistoryWidget::initVoiceRecordBar() {
 			data.waveform,
 			data.duration,
 			action);
+	}, lifetime());
+
+	_voiceRecordBar->lockShowStarts(
+	) | rpl::start_with_next([=] {
+		updateHistoryDownVisibility();
+		updateUnreadMentionsVisibility();
 	}, lifetime());
 }
 
@@ -4787,6 +4803,9 @@ void HistoryWidget::updateHistoryDownVisibility() {
 		if (!_list || _firstLoadRequest) {
 			return false;
 		}
+		if (_voiceRecordBar->isLockPresent()) {
+			return false;
+		}
 		if (!_history->loadedAtBottom() || _replyReturn) {
 			return true;
 		}
@@ -4828,6 +4847,9 @@ void HistoryWidget::updateUnreadMentionsVisibility() {
 	}
 	const auto unreadMentionsIsShown = [&] {
 		if (!showUnreadMentions || _firstLoadRequest) {
+			return false;
+		}
+		if (_voiceRecordBar->isLockPresent()) {
 			return false;
 		}
 		if (!_history->getUnreadMentionsLoadedCount()) {

@@ -95,6 +95,7 @@ class ContactStatus;
 class Element;
 class PinnedTracker;
 namespace Controls {
+class RecordLock;
 class VoiceRecordBar;
 } // namespace Controls
 } // namespace HistoryView
@@ -111,6 +112,7 @@ class HistoryWidget final : public Window::AbstractSectionWidget {
 
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
+	using RecordLock = HistoryView::Controls::RecordLock;
 	using VoiceRecordBar = HistoryView::Controls::VoiceRecordBar;
 
 	HistoryWidget(

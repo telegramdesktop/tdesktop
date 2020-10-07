@@ -1341,6 +1341,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_broadcast_silent_ph" = "Silent broadcast...";
 "lng_send_anonymous_ph" = "Send anonymously...";
 "lng_record_cancel" = "Release outside this field to cancel";
+"lng_record_lock_cancel" = "Click outside of microphone button to cancel";
+"lng_record_lock_cancel_sure" = "Are you sure you want to stop recording and discard your voice message?";
+"lng_record_lock_discard" = "Discard";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
 "lng_willbe_history" = "Please select a chat to start messaging";
