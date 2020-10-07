@@ -338,8 +338,13 @@ bool _readOldMtpData(bool remove, ReadSettingsContext &context) {
 
 } // namespace
 
+void sync() {
+	Storage::details::Sync();
+}
+
 void finish() {
 	delete base::take(_localLoader);
+	Storage::details::Finish();
 }
 
 void InitialLoadTheme();

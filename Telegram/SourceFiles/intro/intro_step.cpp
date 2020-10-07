@@ -157,6 +157,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 				_account->logOut();
 				crl::on_main(raw, [=] {
 					Core::App().domain().activate(raw);
+					Local::sync();
 				});
 				return;
 			}
@@ -203,6 +204,7 @@ void Step::createSession(
 	if (session.supportMode()) {
 		PrepareSupportMode(&session);
 	}
+	Local::sync();
 }
 
 void Step::paintEvent(QPaintEvent *e) {

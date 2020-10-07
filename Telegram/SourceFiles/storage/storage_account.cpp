@@ -577,6 +577,8 @@ void Account::reset() {
 		QDir(LegacyTempDirectory()).removeRecursively();
 		QDir(temp).removeRecursively();
 	});
+
+	Local::sync();
 }
 
 void Account::writeLocations() {
