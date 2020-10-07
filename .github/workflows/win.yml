@@ -186,6 +186,20 @@ jobs:
           cd contrib\vstudio\vc14
           msbuild -m zlibstat.vcxproj /property:Configuration=Debug
 
+      - name: MozJPEG.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone -b v4.0.1-rc2 %GIT%/mozilla/mozjpeg.git
+          cd mozjpeg
+          cmake . ^
+          -G "Visual Studio 16 2019" ^
+          -A Win32 ^
+          -DWITH_JPEG8=ON ^
+          -DPNG_SUPPORTED=OFF
+          cmake --build . --config Debug
+
       - name: OpenAL Soft cache.
         id: cache-openal
         uses: actions/cache@v2
@@ -326,7 +340,10 @@ jobs:
           -mp ^
           -nomake examples ^
           -nomake tests ^
-          -platform win32-msvc
+          -platform win32-msvc ^
+          -I "%LibrariesPath%\mozjpeg" ^
+          LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
+          LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
       - name: Qt 5.12.8 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
@@ -350,28 +367,13 @@ jobs:
         run: |
           %VC%
 
-          :: Qt libjpeg.
-          mkdir qt_%QT%
-          cd qt_%QT%
-          git clone -b %QT_VER% https://github.com/qt/qtbase
-
-          move qtbase\src\3rdparty\libjpeg ..
-          cd ..
-          dir
-          rmdir /S /Q qt_%QT%
-          mkdir qt_%QT%\qtbase\src\3rdparty\
-          move libjpeg qt_%QT%\qtbase\src\3rdparty\
-
-          :: WebRTC.
-          cd %LibrariesPath%
-
           git clone %GIT%/desktop-app/tg_owt.git
           mkdir tg_owt\out\Debug
           cd tg_owt\out\Debug
           cmake -G Ninja ^
           -DCMAKE_BUILD_TYPE=Debug ^
           -DTG_OWT_SPECIAL_TARGET=win ^
-          -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_%QT%/qtbase/src/3rdparty/libjpeg ^
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
           -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_%OPENSSL_VER%/include ^
           -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
           -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ^
@@ -385,9 +387,6 @@ jobs:
           rmdir /S /Q out
           mkdir out\Debug
           move tg_owt.lib out\Debug\tg_owt.lib
-
-          cd %LibrariesPath%
-          rmdir /S /Q qt_%QT%
 
       - name: Read defines.
         shell: bash

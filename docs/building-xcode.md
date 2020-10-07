@@ -75,6 +75,17 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
+    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    cd mozjpeg
+    cmake -B build . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local/macos \
+    -DWITH_JPEG8=ON \
+    -DPNG_SUPPORTED=OFF
+    cmake --build build $MAKE_THREADS_CNT
+    sudo cmake --install build
+    cd ..
+
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
@@ -262,7 +273,10 @@ Go to ***BuildPath*** and run
     -securetransport \
     -nomake examples \
     -nomake tests \
-    -platform macx-clang
+    -platform macx-clang \
+    -I "/usr/local/macos/include" \
+    LIBJPEG_LIBS="/usr/local/macos/lib/libjpeg.a" \
+    ZLIB_LIBS="/usr/local/macos/lib/libz.a"
 
     make $MAKE_THREADS_CNT
     sudo make install
@@ -277,7 +291,7 @@ Go to ***BuildPath*** and run
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
     -DTG_OWT_SPECIAL_TARGET=mac \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
     -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
     -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
     -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
@@ -288,7 +302,7 @@ Go to ***BuildPath*** and run
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DTG_OWT_SPECIAL_TARGET=mac \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
     -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
     -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
     -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..

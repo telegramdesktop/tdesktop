@@ -123,9 +123,12 @@ parts:
       snapcraftctl set-version "$version"
 
       sed -i 's|^Icon=.*|Icon=/usr/share/icons/hicolor/512x512/apps/telegram.png|g' lib/xdg/telegramdesktop.desktop
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - desktop-qt5
       - ffmpeg
+      - mozjpeg
       - openal
       - qtwayland
       - webrtc
@@ -154,17 +157,29 @@ parts:
       - locales-all
       - xdg-user-dirs
       - fcitx-frontend-qt5
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    after:
+      - mozjpeg
 
   qt5-xdgdesktopportal-platform:
     plugin: nil
     stage-packages:
       - qt5-xdgdesktopportal-platformtheme
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    after:
+      - mozjpeg
 
   # Qt checks that ibus-daemon binary is present, otherwise doesn't work
   ibus:
     plugin: nil
     stage-packages:
       - ibus
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    after:
+      - mozjpeg
 
   ffmpeg:
     plugin: nil
@@ -180,6 +195,27 @@ parts:
       - libavutil56
       - libswresample3
       - libswscale5
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+    after:
+      - mozjpeg
+
+  mozjpeg:
+    source: https://github.com/mozilla/mozjpeg.git
+    source-depth: 1
+    source-tag: v4.0.1-rc2
+    plugin: cmake
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DENABLE_STATIC=OFF
+      - -DWITH_JPEG8=ON
+      - -DPNG_SUPPORTED=OFF
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/pkgconfig
+      - -./usr/share
 
   openal:
     source: https://github.com/kcat/openal-soft.git
@@ -228,15 +264,17 @@ parts:
     plugin: cmake
     build-packages:
       - yasm
-      - libjpeg8-dev
       - libopus-dev
       - libssl-dev
     stage-packages:
-      - libjpeg8
       - libopus0
       - libssl1.1
     override-build: |
-      cmake "$SNAPCRAFT_PART_SRC" -DCMAKE_BUILD_TYPE=Release
+      cmake "$SNAPCRAFT_PART_SRC" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DJPEG_LIBRARY_RELEASE="$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so" \
+        -DJPEG_INCLUDE_DIR="$SNAPCRAFT_STAGE/usr/include"
+
       cmake --build . -- -j$(nproc)
       cp -a . "$SNAPCRAFT_PART_INSTALL"
     organize:
@@ -244,3 +282,4 @@ parts:
     prime: [-./*]
     after:
       - ffmpeg
+      - mozjpeg
