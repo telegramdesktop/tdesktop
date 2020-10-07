@@ -293,6 +293,8 @@ public:
 	}
 	virtual void setReplyToTop(MsgId replyToTop) {
 	}
+	virtual void setPostAuthor(const QString &author) {
+	}
 	virtual void setRealId(MsgId newId);
 	virtual void incrementReplyToTopCounter() {
 	}

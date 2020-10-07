@@ -100,7 +100,15 @@ void Instance::start() {
 
 void Instance::stop(Fn<void(Result&&)> callback) {
 	InvokeQueued(_inner.get(), [=] {
-		_inner->stop(callback);
+		if (!callback) {
+			_inner->stop();
+			return;
+		}
+		_inner->stop([=](Result &&result) {
+			crl::on_main([=, result = std::move(result)]() mutable {
+				callback(std::move(result));
+			});
+		});
 	});
 }
 
@@ -524,7 +532,7 @@ void Instance::Inner::timeout() {
 		return;
 	}
 	ALint samples;
-	alcGetIntegerv(d->device, ALC_CAPTURE_SAMPLES, sizeof(samples), &samples);
+	alcGetIntegerv(d->device, ALC_CAPTURE_SAMPLES, 1, &samples);
 	if (ErrorHappened(d->device)) {
 		fail();
 		return;

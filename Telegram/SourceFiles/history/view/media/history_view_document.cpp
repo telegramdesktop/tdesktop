@@ -384,9 +384,7 @@ void Document::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, fg);
 		}
 
-		if (!loaded) {
-			drawCornerDownload(p, selected);
-		}
+		drawCornerDownload(p, selected);
 	}
 	auto namewidth = width() - nameleft - nameright;
 	auto statuswidth = namewidth;
@@ -530,7 +528,9 @@ bool Document::downloadInCorner() const {
 }
 
 void Document::drawCornerDownload(Painter &p, bool selected) const {
-	if (!downloadInCorner()) {
+	if (dataLoaded()
+		|| _data->loadedInMediaCache()
+		|| !downloadInCorner()) {
 		return;
 	}
 	auto outbg = _parent->hasOutLayout();
@@ -570,7 +570,9 @@ TextState Document::cornerDownloadTextState(
 		QPoint point,
 		StateRequest request) const {
 	auto result = TextState(_parent);
-	if (!downloadInCorner()) {
+	if (dataLoaded()
+		|| _data->loadedInMediaCache()
+		|| !downloadInCorner()) {
 		return result;
 	}
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
@@ -627,10 +629,8 @@ TextState Document::textState(QPoint point, StateRequest request) const {
 		nametop = st::msgFileNameTop - topMinus;
 		bottom = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() - topMinus;
 
-		if (!loaded) {
-			if (const auto state = cornerDownloadTextState(point, request); state.link) {
-				return state;
-			}
+		if (const auto state = cornerDownloadTextState(point, request); state.link) {
+			return state;
 		}
 		QRect inner(style::rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, st::msgFileSize, st::msgFileSize, width()));
 		if ((_data->loading() || _data->uploading()) && inner.contains(point) && !downloadInCorner()) {

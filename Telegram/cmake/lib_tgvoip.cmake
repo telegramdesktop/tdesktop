@@ -827,7 +827,7 @@ if (NOT TGVOIP_FOUND)
 
     if (LINUX)
         find_package(PkgConfig REQUIRED)
-        pkg_check_modules(ALSA REQUIRED alsa)
+        find_package(ALSA REQUIRED)
         pkg_check_modules(PULSE REQUIRED libpulse)
 
         target_include_directories(lib_tgvoip_bundled

@@ -2052,6 +2052,7 @@ void HistoryWidget::updateNotifyControls() {
 	if (!session().data().notifySilentPostsUnknown(_peer)) {
 		if (_silent) {
 			_silent->setChecked(session().data().notifySilentPosts(_peer));
+			updateFieldPlaceholder();
 		} else if (hasSilentToggle()) {
 			refreshSilentToggle();
 			updateControlsVisibility();
@@ -3282,10 +3283,6 @@ bool HistoryWidget::hasDiscussionGroup() const {
 	return channel
 		&& channel->isBroadcast()
 		&& (channel->flags() & MTPDchannel::Flag::f_has_link);
-}
-
-void HistoryWidget::onBroadcastSilentChange() {
-	updateFieldPlaceholder();
 }
 
 History *HistoryWidget::history() const {

@@ -374,18 +374,22 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 	return result;
 }
 
+MsgId LookupReplyToTop(not_null<History*> history, MsgId replyToId) {
+	const auto &owner = history->owner();
+	if (const auto item = owner.message(history->channelId(), replyToId)) {
+		return item->replyToTop();
+	}
+	return 0;
+}
+
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 	if (const auto id = action.replyTo) {
-		const auto history = action.history;
-		const auto &owner = history->owner();
-		if (const auto item = owner.message(history->channelId(), id)) {
-			if (item->replyToId()) {
-				return MTP_messageReplyHeader(
-					MTP_flags(MTPDmessageReplyHeader::Flag::f_reply_to_top_id),
-					MTP_int(id),
-					MTPPeer(),
-					MTP_int(item->replyToTop()));
-			}
+		if (const auto replyToTop = LookupReplyToTop(action.history, id)) {
+			return MTP_messageReplyHeader(
+				MTP_flags(MTPDmessageReplyHeader::Flag::f_reply_to_top_id),
+				MTP_int(id),
+				MTPPeer(),
+				MTP_int(replyToTop));
 		}
 		return MTP_messageReplyHeader(
 			MTP_flags(0),
@@ -741,7 +745,9 @@ void HistoryMessage::createComponentsHelper(
 
 	if (flags & MTPDmessage::Flag::f_via_bot_id) config.viaBotId = viaBotId;
 	if (flags & MTPDmessage::Flag::f_reply_to) {
-		config.replyToTop = config.replyTo = replyTo;
+		config.replyTo = replyTo;
+		const auto replyToTop = LookupReplyToTop(history(), replyTo);
+		config.replyToTop = replyToTop ? replyToTop : replyTo;
 	}
 	if (flags & MTPDmessage::Flag::f_reply_markup) config.mtpMarkup = &markup;
 	if (flags & MTPDmessage::Flag::f_post_author) config.author = postAuthor;
@@ -988,6 +994,14 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (!config.author.isEmpty()) {
 		mask |= HistoryMessageSigned::Bit();
+	} else if (_history->peer->isMegagroup() // Discussion posts signatures.
+		&& config.savedFromPeer
+		&& !config.authorOriginal.isEmpty()) {
+		const auto savedFrom = _history->owner().peerLoaded(
+			config.savedFromPeer);
+		if (savedFrom && savedFrom->isChannel()) {
+			mask |= HistoryMessageSigned::Bit();
+		}
 	}
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
@@ -1048,8 +1062,11 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		edited->date = config.editDate;
 	}
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->author = config.author;
-		msgsigned->isAnonymousRank = author()->isMegagroup();
+		msgsigned->author = config.author.isEmpty()
+			? config.authorOriginal
+			: config.author;
+		msgsigned->isAnonymousRank = !isDiscussionPost()
+			&& author()->isMegagroup();
 	}
 	setupForwardedComponent(config);
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
@@ -1299,6 +1316,11 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	setViewsCount(message.vviews().value_or(-1));
 	setForwardsCount(message.vforwards().value_or(-1));
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
+	if (const auto replies = message.vreplies()) {
+		setReplies(*replies);
+	} else {
+		clearReplies();
+	}
 
 	finishEdition(keyboardTop);
 }
@@ -1583,6 +1605,28 @@ void HistoryMessage::setViewsCount(int count) {
 }
 
 void HistoryMessage::setForwardsCount(int count) {
+}
+
+void HistoryMessage::setPostAuthor(const QString &author) {
+	auto msgsigned = Get<HistoryMessageSigned>();
+	if (author.isEmpty()) {
+		if (!msgsigned) {
+			return;
+		}
+		RemoveComponents(HistoryMessageSigned::Bit());
+		history()->owner().requestItemResize(this);
+		return;
+	}
+	if (!msgsigned) {
+		AddComponents(HistoryMessageSigned::Bit());
+		msgsigned = Get<HistoryMessageSigned>();
+	} else if (msgsigned->author == author) {
+		return;
+	}
+	msgsigned->author = author;
+	msgsigned->isAnonymousRank = !isDiscussionPost()
+		&& this->author()->isMegagroup();
+	history()->owner().requestItemResize(this);
 }
 
 void HistoryMessage::setReplies(const MTPMessageReplies &data) {

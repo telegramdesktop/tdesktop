@@ -85,8 +85,6 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 
 QStringList PlatformThemes;
 
-bool IsTrayIconSupported = false;
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool autostart, bool silent = false) {
 	if (cExeName().isEmpty()) {
@@ -1013,7 +1011,10 @@ QImage GetImageFromClipboard() {
 
 std::optional<crl::time> LastUserInputTime() {
 	if (!IsWayland()) {
-		return XCBLastUserInputTime();
+		const auto xcbResult = XCBLastUserInputTime();
+		if (xcbResult.has_value()) {
+			return xcbResult;
+		}
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1063,11 +1064,9 @@ bool AutostartSupported() {
 }
 
 bool TrayIconSupported() {
-	return IsTrayIconSupported;
-}
-
-void SetTrayIconSupported(bool supported) {
-	IsTrayIconSupported = supported;
+	return App::wnd()
+		? App::wnd()->trayAvailable()
+		: false;
 }
 
 bool StartSystemMove(QWindow *window) {
@@ -1420,13 +1419,13 @@ void RegisterCustomScheme(bool force) {
 
 	GError *error = nullptr;
 
-	const auto actualCommandlineBuilder = qsl("%1 --")
+	const auto neededCommandlineBuilder = qsl("%1 --")
 		.arg((IsStaticBinary() || InAppImage())
 			? cExeDir() + cExeName()
 			: cExeName());
 
-	const auto actualCommandline = qsl("%1 %u")
-		.arg(actualCommandlineBuilder);
+	const auto neededCommandline = qsl("%1 %u")
+		.arg(neededCommandlineBuilder);
 
 	auto currentAppInfo = g_app_info_get_default_for_type(
 		kHandlerTypeName.utf8(),
@@ -1438,13 +1437,36 @@ void RegisterCustomScheme(bool force) {
 
 		g_object_unref(currentAppInfo);
 
-		if (currentCommandline == actualCommandline) {
+		if (currentCommandline == neededCommandline) {
 			return;
 		}
 	}
 
+	auto registeredAppInfoList = g_app_info_get_recommended_for_type(
+		kHandlerTypeName.utf8());
+
+	for (auto l = registeredAppInfoList; l != nullptr; l = l->next) {
+		const auto currentRegisteredAppInfo = reinterpret_cast<GAppInfo*>(
+			l->data);
+
+		const auto currentAppInfoId = QString(
+			g_app_info_get_id(currentRegisteredAppInfo));
+
+		const auto currentCommandline = QString(
+			g_app_info_get_commandline(currentRegisteredAppInfo));
+
+		if (currentCommandline == neededCommandline
+			&& currentAppInfoId.startsWith(qsl("userapp-"))) {
+			g_app_info_delete(currentRegisteredAppInfo);
+		}
+	}
+
+	if (registeredAppInfoList) {
+		g_list_free_full(registeredAppInfoList, g_object_unref);
+	}
+
 	auto newAppInfo = g_app_info_create_from_commandline(
-		actualCommandlineBuilder.toUtf8(),
+		neededCommandlineBuilder.toUtf8(),
 		AppName.utf8(),
 		G_APP_INFO_CREATE_SUPPORTS_URIS,
 		&error);

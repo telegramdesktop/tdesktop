@@ -2094,7 +2094,8 @@ void ListWidget::mouseActionStart(
 			if (isPressInSelectedText(dragState)) {
 				_mouseAction = MouseAction::PrepareDrag; // start text drag
 			} else if (!_pressWasInactive) {
-				if (requiredToStartDragging(pressElement)) {
+				if (requiredToStartDragging(pressElement)
+					&& _pressState.pointState != PointState::Outside) {
 					_mouseAction = MouseAction::PrepareDrag;
 				} else {
 					if (dragState.afterSymbol) ++_mouseTextSymbol;
