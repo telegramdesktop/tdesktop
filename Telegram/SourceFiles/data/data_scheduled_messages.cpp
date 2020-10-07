@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_scheduled_messages.h"
 
+#include "base/unixtime.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "api/api_hash.h"
@@ -24,6 +25,11 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 
 [[nodiscard]] bool TooEarlyForRequest(crl::time received) {
 	return (received > 0) && (received + kRequestTimeLimit > crl::now());
+}
+
+[[nodiscard]] bool HasScheduledDate(not_null<HistoryItem*> item) {
+	return (item->date() != ScheduledMessages::kScheduledUntilOnlineTimestamp)
+		&& (item->date() > base::unixtime::now());
 }
 
 MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
@@ -147,7 +153,11 @@ void ScheduledMessages::sendNowSimpleMessage(
 		not_null<HistoryItem*> local) {
 	Expects(local->isSending());
 	Expects(local->isScheduled());
-	Expects(local->date() == kScheduledUntilOnlineTimestamp);
+	if (HasScheduledDate(local)) {
+		LOG(("Error: trying to put to history a new local message, "
+			"that has scheduled date."));
+		return;
+	}
 
 	// When the user sends a text message scheduled until online
 	// while the recipient is already online, the server sends
@@ -243,16 +253,18 @@ void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 	}
 
 	const auto existing = j->second;
-	Assert(existing->date() == kScheduledUntilOnlineTimestamp);
-	existing->updateSentContent({
-		qs(data.vmessage()),
-		Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
-	}, data.vmedia());
-	existing->updateReplyMarkup(data.vreply_markup());
-	existing->updateForwardedInfo(data.vfwd_from());
-	_session->data().requestItemTextRefresh(existing);
+	if (!HasScheduledDate(existing)) {
+		// Destroy a local message, that should be in history.
+		existing->updateSentContent({
+			qs(data.vmessage()),
+			Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
+		}, data.vmedia());
+		existing->updateReplyMarkup(data.vreply_markup());
+		existing->updateForwardedInfo(data.vfwd_from());
+		_session->data().requestItemTextRefresh(existing);
 
-	existing->destroy();
+		existing->destroy();
+	}
 }
 
 void ScheduledMessages::apply(

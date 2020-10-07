@@ -191,8 +191,7 @@ TimeId HistoryItem::date() const {
 }
 
 TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
-	const auto now = base::unixtime::now();
-	return scheduled ? std::max(scheduled, now + 60) : now;
+	return scheduled ? scheduled : base::unixtime::now();
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
