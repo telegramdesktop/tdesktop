@@ -1676,7 +1676,7 @@ mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml msh2xml \
 mshxml msi msp mst ops osd paf pcd phar php php3 php4 php5 php7 phps php-s \
 pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 psd1 \
 psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr sct \
-search-ms settingcontent-ms shb shs slk sys t tmp u3p url vb vbe vbp vbs \
+search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp vbs \
 vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx \
 website ws wsc wsf wsh xbap xll xnk xs");
 #endif // !Q_OS_MAC && !Q_OS_UNIX
