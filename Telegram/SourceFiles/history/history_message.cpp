@@ -487,7 +487,7 @@ HistoryMessage::HistoryMessage(
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);
-	config.mtpReplies = data.vreplies();
+	config.mtpReplies = isScheduled() ? nullptr : data.vreplies();
 	config.mtpMarkup = data.vreply_markup();
 	config.editDate = data.vedit_date().value_or_empty();
 	config.author = qs(data.vpost_author().value_or_empty());
