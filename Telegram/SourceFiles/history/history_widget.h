@@ -294,8 +294,6 @@ signals:
 public slots:
 	void onScroll();
 
-	void onBroadcastSilentChange();
-
 	void activate();
 	void onTextChange();
 
