@@ -249,7 +249,17 @@ void Instance::playlistUpdated(not_null<Data*> data) {
 	} else {
 		data->playlistIndex = std::nullopt;
 	}
+	if (data->shuffleEnabled) {
+		buildShuffledPlayList(data);
+	}
 	data->playlistChanges.fire({});
+}
+
+void Instance::buildShuffledPlayList(not_null<Data*> data) {
+	if (data->playlistSlice) {
+		data->shuffledPlaylistSlice = std::move(data->playlistSlice);
+		data->shuffledPlaylistSlice->shuffle(data->playlistIndex);
+	}
 }
 
 bool Instance::validPlaylist(not_null<Data*> data) {
@@ -332,7 +342,7 @@ HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
 		return nullptr;
 	}
 	Assert(data->history != nullptr);
-	const auto fullId = (*data->playlistSlice)[index];
+	const auto fullId = *data->shuffleEnabled ? (*data->shuffledPlaylistSlice)[index] : (*data->playlistSlice)[index];
 	return data->history->owner().message(fullId);
 }
 

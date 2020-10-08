@@ -34,6 +34,7 @@ public:
 	MsgId operator[](int index) const;
 	std::optional<int> distance(MsgId a, MsgId b) const;
 	std::optional<MsgId> nearest(MsgId msgId) const;
+	void shuffle(std::optional<int> zeroIndex);
 
 private:
 	base::flat_set<MsgId> _ids;
@@ -86,6 +87,7 @@ public:
 	FullMsgId operator[](int index) const;
 	std::optional<int> distance(const Key &a, const Key &b) const;
 	std::optional<FullMsgId> nearest(UniversalMsgId id) const;
+	void shuffle(std::optional<int> zeroIndex);
 
 	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
 		PeerId peerId,

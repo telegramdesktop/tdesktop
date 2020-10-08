@@ -90,6 +90,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
+, _shuffleAll(this, st::mediaPlayerShuffleButton)
 , _playbackSpeed(this, st::mediaPlayerSpeedButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
@@ -145,6 +146,11 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
+	updateShuffleAllIcon();
+	_shuffleAll->setClickedCallback([=] {
+		instance()->toggleShuffle(AudioMsgId::Type::Song);
+	});
+
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
 		const auto doubled = !Core::App().settings().voiceMsgPlaybackDoubled();
@@ -157,6 +163,11 @@ Widget::Widget(QWidget *parent, not_null<Main::Session*> session)
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == _type) {
 			updateRepeatTrackIcon();
+		}
+	});
+	subscribe(instance()->shuffleChangedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == _type) {
+			updateShuffleAllIcon();
 		}
 	});
 	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
@@ -281,6 +292,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 		_playbackSpeed->moveToRight(right, st::mediaPlayerPlayTop); right += _playbackSpeed->width();
 	}
 	_repeatTrack->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatTrack->width();
+	_shuffleAll->moveToRight(right, st::mediaPlayerPlayTop); right += _shuffleAll->width();
 	_volumeToggle->moveToRight(right, st::mediaPlayerPlayTop); right += _volumeToggle->width();
 
 	updatePlayPrevNextPositions();
@@ -366,7 +378,7 @@ int Widget::getLabelsLeft() const {
 int Widget::getLabelsRight() const {
 	auto result = st::mediaPlayerCloseRight + _close->width();
 	if (_type == AudioMsgId::Type::Song) {
-		result += _repeatTrack->width() + _volumeToggle->width();
+		result += _repeatTrack->width() + _shuffleAll->width() + _volumeToggle->width();
 	} else if (hasPlaybackSpeedControl()) {
 		result += _playbackSpeed->width();
 	}
@@ -390,6 +402,12 @@ void Widget::updateRepeatTrackIcon() {
 	auto repeating = instance()->repeatEnabled(AudioMsgId::Type::Song);
 	_repeatTrack->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
+}
+
+void Widget::updateShuffleAllIcon() {
+	auto shuffling = instance()->shuffleEnabled(AudioMsgId::Type::Song);
+	_shuffleAll->setIconOverride(shuffling ? nullptr : &st::mediaPlayerShuffleDisabledIcon, shuffling ? nullptr : &st::mediaPlayerShuffleDisabledIconOver);
+	_shuffleAll->setRippleColorOverride(shuffling ? nullptr : &st::mediaPlayerShuffleDisabledRippleBg);
 }
 
 void Widget::updatePlaybackSpeedIcon() {
@@ -425,6 +443,7 @@ void Widget::setType(AudioMsgId::Type type) {
 	if (_type != type) {
 		_type = type;
 		_repeatTrack->setVisible(_type == AudioMsgId::Type::Song);
+		_shuffleAll->setVisible(_type == AudioMsgId::Type::Song);
 		_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
 		_playbackSpeed->setVisible(hasPlaybackSpeedControl());
 		if (!_shadow->isHidden()) {

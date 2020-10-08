@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/combine.h>
 #include "storage/storage_sparse_ids_list.h"
+#include <range/v3/algorithm/shuffle.hpp>
 
 SparseIdsSlice::SparseIdsSlice(
 	const base::flat_set<MsgId> &ids,
@@ -55,6 +56,18 @@ std::optional<MsgId> SparseIdsSlice::nearest(MsgId msgId) const {
 		return std::nullopt;
 	}
 	return _ids.back();
+}
+
+void SparseIdsSlice::shuffle(std::optional<int> zeroIndex) {
+	std::random_device rd;
+	if (zeroIndex && size() >= *zeroIndex) {
+		const auto &zeroElement = *(_ids.begin() + *zeroIndex);
+		_ids.erase(*zeroIndex);
+		_ids.insert(_ids.begin(), zeroElement);
+		ranges::shuffle(begin(_ids) + 1, end(_ids), std::mt19937(rd()));
+	} else {
+		ranges::shuffle(begin(_ids), end(_ids), std::mt19937(rd()));
+	}
 }
 
 SparseIdsMergedSlice::SparseIdsMergedSlice(Key key)
@@ -123,6 +136,13 @@ FullMsgId SparseIdsMergedSlice::operator[](int index) const {
 		index -= size;
 	}
 	return ComputeId(_key.peerId, _part[index]);
+}
+
+void SparseIdsMergedSlice::shuffle(std::optional<int> zeroIndex) {
+	if (_migrated) {
+		(*_migrated).shuffle(zeroIndex);
+	}
+	_part.shuffle(zeroIndex);
 }
 
 std::optional<int> SparseIdsMergedSlice::distance(

@@ -110,6 +110,22 @@ public:
 		}
 	}
 
+	[[nodiscard]] bool shuffleEnabled(AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return data->shuffleEnabled;
+		}
+		return false;
+	}
+	void toggleShuffle(AudioMsgId::Type type) {
+		if (const auto data = getData(type)) {
+			data->shuffleEnabled = !data->shuffleEnabled;
+			if (data->shuffleEnabled) {
+				buildShuffledPlayList(data);
+			}
+			_shuffleChangedNotifier.notify(type);
+		}
+	}
+
 	[[nodiscard]] bool isSeeking(AudioMsgId::Type type) const {
 		if (const auto data = getData(type)) {
 			return (data->seeking == data->current);
@@ -145,6 +161,9 @@ public:
 	base::Observable<AudioMsgId::Type> &repeatChangedNotifier() {
 		return _repeatChangedNotifier;
 	}
+	base::Observable<AudioMsgId::Type> &shuffleChangedNotifier() {
+		return _shuffleChangedNotifier;
+	}
 
 	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
 
@@ -174,6 +193,7 @@ private:
 		AudioMsgId current;
 		AudioMsgId seeking;
 		std::optional<SparseIdsMergedSlice> playlistSlice;
+		std::optional<SparseIdsMergedSlice> shuffledPlaylistSlice;
 		std::optional<SliceKey> playlistSliceKey;
 		std::optional<SliceKey> playlistRequestedKey;
 		std::optional<int> playlistIndex;
@@ -184,6 +204,7 @@ private:
 		History *migrated = nullptr;
 		Main::Session *session = nullptr;
 		bool repeatEnabled = false;
+		bool shuffleEnabled = false;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
@@ -215,7 +236,9 @@ private:
 	bool validPlaylist(not_null<Data*> data);
 	void validatePlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
+	void buildShuffledPlayList(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
+	bool playByIndex(not_null<Data*> data, int idx);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 
 	void handleStreamingUpdate(
@@ -264,6 +287,7 @@ private:
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
+	base::Observable<AudioMsgId::Type> _shuffleChangedNotifier;
 
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;

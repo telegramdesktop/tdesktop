@@ -72,6 +72,22 @@ mediaPlayerRepeatInactiveIcon: icon {
 	{ "player_repeat", mediaPlayerInactiveFg, point(9px, 11px)}
 };
 
+mediaPlayerShuffleButton: IconButton(mediaPlayerRepeatButton) {
+	icon: icon {
+		{ "player_shuffle", mediaPlayerActiveFg, point(9px, 11px) }
+	};
+}
+mediaPlayerShuffleDisabledIcon: icon {
+	{ "player_shuffle", menuIconFg, point(9px, 11px)}
+};
+mediaPlayerShuffleDisabledIconOver: icon {
+	{ "player_shuffle", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerShuffleDisabledRippleBg: windowBgOver;
+mediaPlayerShuffleInactiveIcon: icon {
+	{ "player_shuffle", mediaPlayerInactiveFg, point(9px, 11px)}
+};
+
 mediaPlayerSpeedButton: IconButton {
 	width: 31px;
 	height: 30px;
