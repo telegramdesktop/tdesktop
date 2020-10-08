@@ -244,7 +244,7 @@ public:
 	void notificationReplied(uint id, const QString &text);
 
 private:
-	GDBusProxy *_dbusProxy;
+	GDBusConnection *_dbusConnection = nullptr;
 	base::weak_ptr<Manager> _manager;
 
 	QString _title;
@@ -255,14 +255,19 @@ private:
 	QImage _image;
 
 	uint _notificationId = 0;
+	guint _actionInvokedSignalId = 0;
+	guint _notificationRepliedSignalId = 0;
+	guint _notificationClosedSignalId = 0;
 	NotificationId _id;
 
 	static void signalEmitted(
-		GDBusProxy *proxy,
-		gchar *sender_name,
-		gchar *signal_name,
+		GDBusConnection *connection,
+		const gchar *sender_name,
+		const gchar *object_path,
+		const gchar *interface_name,
+		const gchar *signal_name,
 		GVariant *parameters,
-		NotificationData *notificationData);
+		gpointer user_data);
 
 };
 
@@ -275,20 +280,24 @@ NotificationData::NotificationData(
 	const QString &msg,
 	NotificationId id,
 	bool hideReplyButton)
-: _dbusProxy(g_dbus_proxy_new_for_bus_sync(
-	G_BUS_TYPE_SESSION,
-	G_DBUS_PROXY_FLAGS_NONE,
-	nullptr,
-	kService.utf8(),
-	kObjectPath.utf8(),
-	kInterface.utf8(),
-	nullptr,
-	nullptr))
-, _manager(manager)
+: _manager(manager)
 , _title(title)
 , _imageKey(GetImageKey(ParseSpecificationVersion(
 	GetServerInformation())))
 , _id(id) {
+	GError *error = nullptr;
+
+	_dbusConnection = g_bus_get_sync(
+		G_BUS_TYPE_SESSION,
+		nullptr,
+		&error);
+
+	if (error) {
+		LOG(("Native notification error: %1").arg(error->message));
+		g_error_free(error);
+		return;
+	}
+
 	const auto capabilities = GetCapabilities();
 
 	if (capabilities.contains(qsl("body-markup"))) {
@@ -315,11 +324,35 @@ NotificationData::NotificationData(
 		if (capabilities.contains(qsl("inline-reply")) && !hideReplyButton) {
 			_actions.push_back(qsl("inline-reply"));
 			_actions.push_back(tr::lng_notification_reply(tr::now));
+
+			_notificationRepliedSignalId = g_dbus_connection_signal_subscribe(
+				_dbusConnection,
+				kService.utf8(),
+				kInterface.utf8(),
+				"NotificationReplied",
+				kObjectPath.utf8(),
+				nullptr,
+				G_DBUS_SIGNAL_FLAGS_NONE,
+				signalEmitted,
+				this,
+				nullptr);
 		} else {
 			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 			_actions.push_back(qsl("mail-reply-sender"));
 			_actions.push_back(tr::lng_notification_reply(tr::now));
 		}
+
+		_actionInvokedSignalId = g_dbus_connection_signal_subscribe(
+			_dbusConnection,
+			kService.utf8(),
+			kInterface.utf8(),
+			"ActionInvoked",
+			kObjectPath.utf8(),
+			nullptr,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			signalEmitted,
+			this,
+			nullptr);
 	}
 
 	if (capabilities.contains(qsl("action-icons"))) {
@@ -353,11 +386,35 @@ NotificationData::NotificationData(
 		qsl("desktop-entry"),
 		g_variant_new_string(GetLauncherBasename().toUtf8()));
 
-	g_signal_connect(_dbusProxy, "g-signal", G_CALLBACK(signalEmitted), this);
+	_notificationClosedSignalId = g_dbus_connection_signal_subscribe(
+		_dbusConnection,
+		kService.utf8(),
+		kInterface.utf8(),
+		"NotificationClosed",
+		kObjectPath.utf8(),
+		nullptr,
+		G_DBUS_SIGNAL_FLAGS_NONE,
+		signalEmitted,
+		this,
+		nullptr);
 }
 
 NotificationData::~NotificationData() {
-	g_object_unref(_dbusProxy);
+	if (_dbusConnection) {
+		if (_actionInvokedSignalId != 0) {
+			g_dbus_connection_signal_unsubscribe(_dbusConnection, _actionInvokedSignalId);
+		}
+
+		if (_notificationRepliedSignalId != 0) {
+			g_dbus_connection_signal_unsubscribe(_dbusConnection, _notificationRepliedSignalId);
+		}
+
+		if (_notificationClosedSignalId != 0) {
+			g_dbus_connection_signal_unsubscribe(_dbusConnection, _notificationClosedSignalId);
+		}
+
+		g_object_unref(_dbusConnection);
+	}
 
 	for (const auto &[key, value] : _hints) {
 		if (value) {
@@ -393,8 +450,11 @@ bool NotificationData::show() {
 		? GetIconName()
 		: QString();
 
-	auto reply = g_dbus_proxy_call_sync(
-		_dbusProxy,
+	auto reply = g_dbus_connection_call_sync(
+		_dbusConnection,
+		kService.utf8(),
+		kObjectPath.utf8(),
+		kInterface.utf8(),
 		"Notify",
 		g_variant_new(
 			kNotifyArgsType.utf8(),
@@ -406,6 +466,7 @@ bool NotificationData::show() {
 			&actionsBuilder,
 			&hintsBuilder,
 			-1),
+		nullptr,
 		G_DBUS_CALL_FLAGS_NONE,
 		kDBusTimeout,
 		nullptr,
@@ -425,10 +486,14 @@ bool NotificationData::show() {
 }
 
 void NotificationData::close() {
-	g_dbus_proxy_call(
-		_dbusProxy,
+	g_dbus_connection_call(
+		_dbusConnection,
+		kService.utf8(),
+		kObjectPath.utf8(),
+		kInterface.utf8(),
 		"CloseNotification",
 		g_variant_new("(u)", _notificationId),
+		nullptr,
 		G_DBUS_CALL_FLAGS_NONE,
 		-1,
 		nullptr,
@@ -465,11 +530,20 @@ void NotificationData::setImage(const QString &imagePath) {
 }
 
 void NotificationData::signalEmitted(
-		GDBusProxy *proxy,
-		gchar *sender_name,
-		gchar *signal_name,
+		GDBusConnection *connection,
+		const gchar *sender_name,
+		const gchar *object_path,
+		const gchar *interface_name,
+		const gchar *signal_name,
 		GVariant *parameters,
-		NotificationData *notificationData) {
+		gpointer user_data) {
+	const auto notificationData = reinterpret_cast<NotificationData*>(
+		user_data);
+
+	if (!notificationData) {
+		return;
+	}
+
 	if(signal_name == qstr("ActionInvoked")) {
 		guint32 id;
 		gchar *actionName;
