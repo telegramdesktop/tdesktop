@@ -33,7 +33,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    git checkout a77e4d5
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -63,7 +63,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    git checkout a77e4d5
     cd ..
 
     git clone https://github.com/desktop-app/lzma.git
@@ -125,7 +125,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/google/breakpad
     cd breakpad
     git checkout a1dbcdcb43
-    git apply ../../tdesktop/Telegram/Patches/breakpad.diff
+    git apply ../patches/breakpad.diff
     cd src
     git clone https://github.com/google/googletest testing
     cd client\windows
@@ -156,23 +156,23 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     set CHERE_INVOKING=enabled_from_arguments
     set MSYS2_PATH_TYPE=inherit
-    bash --login ../../tdesktop/Telegram/Patches/build_ffmpeg_win.sh
+    bash --login ../patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
     SET LibrariesPath=%cd%
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
-    cd qt_5_12_8
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_1
+    cd qt_5_15_1
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.8
+    git checkout v5.15.1
     git submodule update qtbase qtimageformats
     cd qtbase
-    for /r %i in (..\..\patches\qtbase_5_12_8\*) do git apply %i
+    for /r %i in (..\..\patches\qtbase_5_15_1\*) do git apply %i
     cd ..
 
     configure ^
-        -prefix "%LibrariesPath%\Qt-5.12.8" ^
+        -prefix "%LibrariesPath%\Qt-Qt-5.15.1" ^
         -debug-and-release ^
         -force-debug-info ^
         -opensource ^
@@ -181,7 +181,6 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -static-runtime ^
         -no-opengl ^
         -openssl-linked ^
-        -recheck ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
         OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
         OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
@@ -193,8 +192,8 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -nomake tests ^
         -platform win32-msvc
 
-    jom -j4
-    jom -j4 install
+    jom -j8
+    jom -j8 install
     cd ..
 
     git clone https://github.com/desktop-app/tg_owt.git
