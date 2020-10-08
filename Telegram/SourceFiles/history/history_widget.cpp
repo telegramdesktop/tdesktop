@@ -722,7 +722,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			_scroll->topValue(),
 			_scroll->heightValue()
 		) | rpl::map([=](int top, int height) {
-			return top + height;
+			return top + height - st::historyRecordLockPosition.y();
 		});
 		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
 	}

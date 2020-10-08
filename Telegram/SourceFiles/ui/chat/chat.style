@@ -345,7 +345,21 @@ historyRecordDurationFg: historyComposeAreaFg;
 historyRecordTextTop: 14px;
 
 historyRecordLockShowDuration: historyToDownDuration;
-historyRecordLockSize: size(50px, 150px);
+historyRecordLockSize: size(75px, 150px);
+
+historyRecordLockTopShadow: icon {{ "lock/record_lock_top_shadow", historyToDownShadow }};
+historyRecordLockTop: icon {{ "lock/record_lock_top", historyToDownBg }};
+historyRecordLockBottomShadow: icon {{ "lock/record_lock_bottom_shadow", historyToDownShadow }};
+historyRecordLockBottom: icon {{ "lock/record_lock_bottom", historyToDownBg }};
+historyRecordLockBodyShadow: icon {{ "lock/record_lock_body_shadow", historyToDownShadow }};
+historyRecordLockBody: icon {{ "lock/record_lock_body", historyToDownBg }};
+historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
+historyRecordLockArrow: icon {{ "history_down_arrow-flip_vertical", historyToDownFg }};
+
+historyRecordLockPosition: historyToDownPosition;
+
+historyRecordLockIcon: icon {{ "dialogs_unlock", historyToDownFg, point(1px, 0px) }};
+historyRecordUnlockIcon: icon {{ "dialogs_lock", historyToDownFg, point(0px, 0px) }};
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};

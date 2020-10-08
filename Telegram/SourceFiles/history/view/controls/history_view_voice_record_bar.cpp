@@ -66,13 +66,18 @@ public:
 private:
 	void init();
 
+	void drawProgress(Painter &p);
+
 	Ui::Animations::Simple _lockAnimation;
 
 	rpl::variable<float64> _progress = 0.;
 };
 
 RecordLock::RecordLock(not_null<Ui::RpWidget*> parent) : RpWidget(parent) {
-	resize(st::historyRecordLockSize);
+	resize(
+		st::historyRecordLockTopShadow.width(),
+		st::historyRecordLockSize.height());
+	// resize(st::historyRecordLockSize);
 	init();
 }
 
@@ -90,21 +95,99 @@ void RecordLock::init() {
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 		if (isLocked()) {
-			const auto color = anim::color(
-				Qt::red,
-				Qt::green,
+			const auto top = anim::interpolate(
+				0,
+				height() - st::historyRecordLockTopShadow.height() * 2,
 				_lockAnimation.value(1.));
-			p.fillRect(clip, color);
+			p.translate(0, top);
+			drawProgress(p);
 			return;
 		}
-		p.fillRect(clip, anim::color(Qt::blue, Qt::red, _progress.current()));
+		drawProgress(p);
 	}, lifetime());
 
 	locks(
 	) | rpl::start_with_next([=] {
-		const auto duration = st::historyRecordVoiceShowDuration * 3;
+		const auto duration = st::historyRecordVoiceShowDuration;
 		_lockAnimation.start([=] { update(); }, 0., 1., duration);
 	}, lifetime());
+}
+
+void RecordLock::drawProgress(Painter &p) {
+	const auto progress = _progress.current();
+
+	const auto &originTop = st::historyRecordLockTop;
+	const auto &originBottom = st::historyRecordLockBottom;
+	const auto &originBody = st::historyRecordLockBody;
+	const auto &shadowTop = st::historyRecordLockTopShadow;
+	const auto &shadowBottom = st::historyRecordLockBottomShadow;
+	const auto &shadowBody = st::historyRecordLockBodyShadow;
+	const auto &shadowMargins = st::historyRecordLockMargin;
+
+	const auto bottomMargin = anim::interpolate(
+		0,
+		rect().height() - shadowTop.height() - shadowBottom.height(),
+		progress);
+
+	const auto topMargin = anim::interpolate(
+		rect().height() / 4,
+		0,
+		progress);
+
+	const auto full = rect().marginsRemoved(
+		style::margins(0, topMargin, 0, bottomMargin));
+	const auto inner = full.marginsRemoved(shadowMargins);
+	const auto content = inner.marginsRemoved(style::margins(
+		0,
+		originTop.height(),
+		0,
+		originBottom.height()));
+	const auto contentShadow = full.marginsRemoved(style::margins(
+		0,
+		shadowTop.height(),
+		0,
+		shadowBottom.height()));
+
+	const auto w = full.width();
+	{
+		shadowTop.paint(p, full.topLeft(), w);
+		originTop.paint(p, inner.topLeft(), w);
+	}
+	{
+		const auto shadowPos = QPoint(
+			full.x(),
+			contentShadow.y() + contentShadow.height());
+		const auto originPos = QPoint(
+			inner.x(),
+			content.y() + content.height());
+		shadowBottom.paint(p, shadowPos, w);
+		originBottom.paint(p, originPos, w);
+	}
+	{
+		shadowBody.fill(p, contentShadow);
+		originBody.fill(p, content);
+	}
+	{
+		const auto &arrow = st::historyRecordLockArrow;
+		const auto arrowRect = QRect(
+			inner.x(),
+			content.y() + content.height() - arrow.height() / 2,
+			inner.width(),
+			arrow.height());
+		p.setOpacity(1. - progress);
+		arrow.paintInCenter(p, arrowRect);
+		p.setOpacity(1.);
+	}
+	{
+		const auto &icon = isLocked()
+			? st::historyRecordLockIcon
+			: st::historyRecordUnlockIcon;
+		icon.paint(
+			p,
+			inner.x() + (inner.width() - icon.width()) / 2,
+			inner.y() + (originTop.height() * 2 - icon.height()) / 2,
+			inner.width());
+	}
 }
 
 void RecordLock::requestPaintProgress(float64 progress) {
@@ -230,7 +313,7 @@ void VoiceRecordBar::init() {
 		auto callback = [=](auto value) {
 			const auto right = anim::interpolate(
 				-_lock->width(),
-				0,
+				st::historyRecordLockPosition.x(),
 				value);
 			_lock->moveToRight(right, _lock->y());
 			if (value == 0. && !show) {
