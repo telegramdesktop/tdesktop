@@ -113,6 +113,9 @@ public:
 	[[nodiscard]] bool out() const {
 		return _flags & MTPDmessage::Flag::f_out;
 	}
+	[[nodiscard]] bool isPinned() const {
+		return _flags & MTPDmessage::Flag::f_pinned;
+	}
 	[[nodiscard]] bool unread() const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
@@ -121,6 +124,7 @@ public:
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
 	void markMediaRead();
+	void setIsPinned(bool isPinned);
 
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
@@ -312,7 +316,6 @@ public:
 		return _text.isEmpty();
 	}
 
-	[[nodiscard]] bool isPinned() const;
 	[[nodiscard]] bool canPin() const;
 	[[nodiscard]] bool canStopPoll() const;
 	[[nodiscard]] virtual bool allowsSendNow() const;

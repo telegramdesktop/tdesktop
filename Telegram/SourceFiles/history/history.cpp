@@ -177,9 +177,7 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		&& unreadCount() > 0) {
 		setUnreadCount(unreadCount() - 1);
 	}
-	if (peer->pinnedMessageId() == item->id) {
-		peer->clearPinnedMessage();
-	}
+	peer->removePinnedMessage(item->id);
 }
 
 void History::setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
@@ -709,6 +707,9 @@ not_null<HistoryItem*> History::addNewToBack(
 				item->id,
 				{ from, till }));
 		}
+		if (item->isPinned()) {
+			item->history()->peer->addPinnedMessage(item->id);
+		}
 	}
 	if (item->from()->id) {
 		if (auto user = item->from()->asUser()) {
@@ -1005,8 +1006,8 @@ void History::applyServiceChanges(
 		if (const auto replyTo = data.vreply_to()) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
 				if (item) {
-					item->history()->peer->setPinnedMessageId(
-						data.vreply_to_msg_id().v);
+					//item->history()->peer->setTopPinnedMessageId( // #TODO pinned
+					//	data.vreply_to_msg_id().v);
 				}
 			});
 		}
@@ -1160,6 +1161,7 @@ void History::addEdgesToSharedMedia() {
 			{},
 			{ from, till }));
 	}
+	peer->addPinnedSlice({}, from, till);
 }
 
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
@@ -1323,6 +1325,7 @@ void History::checkAddAllToUnreadMentions() {
 
 void History::addToSharedMedia(
 		const std::vector<not_null<HistoryItem*>> &items) {
+	auto pinned = std::vector<MsgId>();
 	std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
 	for (const auto item : items) {
 		if (const auto types = item->sharedMediaTypes()) {
@@ -1335,6 +1338,12 @@ void History::addToSharedMedia(
 					medias[i].push_back(item->id);
 				}
 			}
+		}
+		if (item->isPinned()) {
+			if (pinned.empty()) {
+				pinned.reserve(items.size());
+			}
+			pinned.push_back(item->id);
 		}
 	}
 	const auto from = loadedAtTop() ? 0 : minMsgId();
@@ -1349,6 +1358,7 @@ void History::addToSharedMedia(
 				{ from, till }));
 		}
 	}
+	peer->addPinnedSlice(std::move(pinned), from, till);
 }
 
 void History::calculateFirstUnreadMessage() {
@@ -3017,7 +3027,7 @@ void History::clear(ClearType type) {
 		clearSharedMedia();
 		clearLastKeyboard();
 		if (const auto channel = peer->asChannel()) {
-			channel->clearPinnedMessage();
+			channel->clearPinnedMessages();
 			//if (const auto feed = channel->feed()) { // #feed
 			//	// Should be after resetting the _lastMessage.
 			//	feed->historyCleared(this);

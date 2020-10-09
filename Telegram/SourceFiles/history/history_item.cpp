@@ -347,6 +347,16 @@ void HistoryItem::markMediaRead() {
 	}
 }
 
+void HistoryItem::setIsPinned(bool pinned) {
+	if (pinned) {
+		_flags |= MTPDmessage::Flag::f_pinned;
+		history()->peer->addPinnedMessage(id);
+	} else {
+		_flags &= ~MTPDmessage::Flag::f_pinned;
+		history()->peer->removePinnedMessage(id);
+	}
+}
+
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
@@ -476,6 +486,9 @@ void HistoryItem::indexAsNewItem() {
 				types,
 				id));
 		}
+		if (isPinned()) {
+			_history->peer->setTopPinnedMessageId(id);
+		}
 		//if (const auto channel = history()->peer->asChannel()) { // #feed
 		//	if (const auto feed = channel->feed()) {
 		//		_history->session().storage().add(Storage::FeedMessagesAddNew(
@@ -507,10 +520,6 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 
 	_history->owner().requestItemRepaint(this);
-}
-
-bool HistoryItem::isPinned() const {
-	return (_history->peer->pinnedMessageId() == id);
 }
 
 bool HistoryItem::canPin() const {
@@ -656,7 +665,7 @@ ChannelId HistoryItem::channelId() const {
 }
 
 Data::MessagePosition HistoryItem::position() const {
-	return Data::MessagePosition(date(), fullId());
+	return { .fullId = fullId(), .date = date() };
 }
 
 MsgId HistoryItem::replyToId() const {

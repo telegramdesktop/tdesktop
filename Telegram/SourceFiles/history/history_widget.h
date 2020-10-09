@@ -530,7 +530,7 @@ private:
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	static void UnpinMessage(not_null<PeerData*> peer);
+	static void UnpinMessage(not_null<PeerData*> peer, MsgId msgId);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();

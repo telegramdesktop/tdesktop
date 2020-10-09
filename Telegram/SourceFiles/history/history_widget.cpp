@@ -5200,6 +5200,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 	if (!_pinnedBar) {
 		return;
 	}
+	const auto messageId = _pinnedBar->msgId;
 	if (!force) {
 		if (_pinnedBar->msg) {
 			return;
@@ -5208,7 +5209,9 @@ void HistoryWidget::updatePinnedBar(bool force) {
 
 	Assert(_history != nullptr);
 	if (!_pinnedBar->msg) {
-		_pinnedBar->msg = session().data().message(_history->channelId(), _pinnedBar->msgId);
+		_pinnedBar->msg = session().data().message(
+			_history->channelId(),
+			messageId);
 	}
 	if (_pinnedBar->msg) {
 		_pinnedBar->text.setText(
@@ -5217,17 +5220,15 @@ void HistoryWidget::updatePinnedBar(bool force) {
 			Ui::DialogTextOptions());
 		update();
 	} else if (force) {
-		if (auto channel = _peer ? _peer->asChannel() : nullptr) {
-			channel->clearPinnedMessage();
-		}
 		destroyPinnedBar();
+		_history->peer->removePinnedMessage(messageId);
 		updateControlsGeometry();
 	}
 }
 
 bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	auto result = false;
-	auto pinnedId = _peer->pinnedMessageId();
+	auto pinnedId = _peer->topPinnedMessageId();
 	if (pinnedId && !_peer->canPinMessages()) {
 		const auto hiddenId = session().settings().hiddenPinnedMessageId(
 			_peer->id);
@@ -5540,23 +5541,23 @@ void HistoryWidget::unpinMessage(FullMsgId itemId) {
 	if (!_peer) {
 		return;
 	}
-	UnpinMessage(_peer);
+	UnpinMessage(_peer, itemId.msg);
 }
 
-void HistoryWidget::UnpinMessage(not_null<PeerData*> peer) {
+void HistoryWidget::UnpinMessage(not_null<PeerData*> peer, MsgId msgId) {
 	if (!peer) {
 		return;
 	}
 
 	const auto session = &peer->session();
 	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
-		peer->clearPinnedMessage();
+		peer->removePinnedMessage(msgId);
 
 		Ui::hideLayer();
 		session->api().request(MTPmessages_UpdatePinnedMessage(
-			MTP_flags(0),
+			MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
 			peer->input,
-			MTP_int(0)
+			MTP_int(msgId)
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
 		}).send();
@@ -5564,7 +5565,7 @@ void HistoryWidget::UnpinMessage(not_null<PeerData*> peer) {
 }
 
 void HistoryWidget::hidePinnedMessage() {
-	const auto pinnedId = _peer ? _peer->pinnedMessageId() : MsgId(0);
+	const auto pinnedId = _peer ? _peer->topPinnedMessageId() : MsgId(0);
 	if (!pinnedId) {
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();

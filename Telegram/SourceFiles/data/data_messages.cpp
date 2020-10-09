@@ -117,6 +117,11 @@ void MessagesList::addRange(
 	_sliceUpdated.fire(std::move(update));
 }
 
+void MessagesList::addOne(MessagePosition messageId) {
+	auto range = { messageId };
+	addRange(range, { messageId, messageId }, std::nullopt, true);
+}
+
 void MessagesList::addNew(MessagePosition messageId) {
 	auto range = { messageId };
 	addRange(range, { messageId, MaxMessagePosition }, std::nullopt, true);
@@ -165,6 +170,31 @@ void MessagesList::removeAll(ChannelId channelId) {
 	}
 }
 
+void MessagesList::removeLessThan(MessagePosition messageId) {
+	auto removed = 0;
+	for (auto i = begin(_slices); i != end(_slices);) {
+		if (i->range.till <= messageId) {
+			removed += i->messages.size();
+			i = _slices.erase(i);
+			continue;
+		} else if (i->range.from <= messageId) {
+			_slices.modify(i, [&](Slice &slice) {
+				slice.range.from = MinMessagePosition;
+				auto from = begin(slice.messages);
+				auto till = ranges::lower_bound(slice.messages, messageId);
+				if (from != till) {
+					removed += till - from;
+					slice.messages.erase(from, till);
+				}
+			});
+			break;
+		}
+	}
+	if (removed && _count) {
+		*_count -= removed;
+	}
+}
+
 void MessagesList::invalidate() {
 	_slices.clear();
 	_count = std::nullopt;
@@ -184,19 +214,26 @@ void MessagesList::invalidateBottom() {
 	_count = std::nullopt;
 }
 
+MessagesResult MessagesList::queryCurrent(const MessagesQuery &query) const {
+	if (!query.aroundId) {
+		return MessagesResult();
+	}
+	const auto slice = ranges::lower_bound(
+		_slices,
+		query.aroundId,
+		std::less<>(),
+		[](const Slice &slice) { return slice.range.till; });
+	return (slice != _slices.end() && slice->range.from <= query.aroundId)
+		? queryFromSlice(query, *slice)
+		: MessagesResult();
+}
+
 rpl::producer<MessagesResult> MessagesList::query(
 		MessagesQuery &&query) const {
 	return [this, query = std::move(query)](auto consumer) {
-		auto slice = query.aroundId
-			? ranges::lower_bound(
-				_slices,
-				query.aroundId,
-				std::less<>(),
-				[](const Slice &slice) { return slice.range.till; })
-			: _slices.end();
-		if (slice != _slices.end()
-			&& slice->range.from <= query.aroundId) {
-			consumer.put_next(queryFromSlice(query, *slice));
+		auto current = queryCurrent(query);
+		if (current.count.has_value() || !current.messageIds.empty()) {
+			consumer.put_next(std::move(current));
 		}
 		consumer.put_done();
 		return rpl::lifetime();
@@ -205,6 +242,31 @@ rpl::producer<MessagesResult> MessagesList::query(
 
 rpl::producer<MessagesSliceUpdate> MessagesList::sliceUpdated() const {
 	return _sliceUpdated.events();
+}
+
+MessagesResult MessagesList::snapshot(MessagesQuery &&query) const {
+	return queryCurrent(query);
+}
+
+bool MessagesList::empty() const {
+	for (const auto &slice : _slices) {
+		if (!slice.messages.empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+rpl::producer<MessagesResult> MessagesList::viewer(
+		MessagesQuery &&query) const {
+	auto copy = query;
+	return rpl::single(
+		queryCurrent(query)
+	) | rpl::then(sliceUpdated() | rpl::map([=] {
+		return queryCurrent(query);
+	})) | rpl::filter([=](const MessagesResult &value) {
+		return value.count.has_value() || !value.messageIds.empty();
+	});
 }
 
 MessagesResult MessagesList::queryFromSlice(
@@ -372,7 +434,7 @@ void MessagesSliceBuilder::mergeSliceData(
 	if (count) {
 		_fullCount = count;
 	}
-	const auto impossible = MessagePosition(-1, FullMsgId());
+	const auto impossible = MessagePosition{ .fullId = {}, .date = -1 };
 	auto wasMinId = _ids.empty() ? impossible : _ids.front();
 	auto wasMaxId = _ids.empty() ? impossible : _ids.back();
 	_ids.merge(messageIds.begin(), messageIds.end());

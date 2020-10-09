@@ -85,8 +85,9 @@ RepliesMemento::RepliesMemento(
 : RepliesMemento(commentsItem->history(), commentsItem->id, commentId) {
 	if (commentId) {
 		_list.setAroundPosition({
-			TimeId(0),
-			FullMsgId(commentsItem->history()->channelId(), commentId)
+			.fullId = FullMsgId(commentsItem->history()->channelId(), commentId),
+			.date = TimeId(0),
+
 		});
 	} else if (commentsItem->computeRepliesInboxReadTillFull() == MsgId(1)) {
 		_list.setAroundPosition(Data::MinMessagePosition);
@@ -1430,7 +1431,9 @@ bool RepliesWidget::showMessage(
 		}
 		return nullptr;
 	}();
-	showAtPosition(Data::MessagePosition(message->date(), id), originItem);
+	showAtPosition(
+		Data::MessagePosition{ .fullId = id, .date = message->date() },
+		originItem);
 	return true;
 }
 
@@ -1479,8 +1482,8 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
 		const auto position = Data::MessagePosition{
-			TimeId(0),
-			FullMsgId(_history->channelId(), highlight)
+			.fullId = FullMsgId(_history->channelId(), highlight),
+			.date = TimeId(0),
 		};
 		_inner->showAroundPosition(position, [=] {
 			return showAtPositionNow(position, nullptr);

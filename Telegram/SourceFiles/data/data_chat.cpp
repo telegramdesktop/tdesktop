@@ -333,9 +333,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		return QString();
 	}));
 	if (const auto pinned = update.vpinned_msg_id()) {
-		chat->setPinnedMessageId(pinned->v);
+		chat->setTopPinnedMessageId(pinned->v);
 	} else {
-		chat->clearPinnedMessage();
+		chat->clearPinnedMessages();
 	}
 	chat->checkFolder(update.vfolder_id().value_or_empty());
 	chat->fullUpdated();

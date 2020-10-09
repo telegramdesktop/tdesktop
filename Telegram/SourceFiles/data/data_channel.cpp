@@ -383,9 +383,7 @@ void ChannelData::setUnavailableReasons(
 void ChannelData::setAvailableMinId(MsgId availableMinId) {
 	if (_availableMinId != availableMinId) {
 		_availableMinId = availableMinId;
-		if (pinnedMessageId() <= _availableMinId) {
-			clearPinnedMessage();
-		}
+		clearPinnedMessages(_availableMinId + 1);
 	}
 }
 
@@ -772,9 +770,9 @@ void ApplyChannelUpdate(
 		}
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		channel->setPinnedMessageId(pinned->v);
+		channel->setTopPinnedMessageId(pinned->v);
 	} else {
-		channel->clearPinnedMessage();
+		channel->clearPinnedMessages();
 	}
 	if (channel->isMegagroup()) {
 		const auto stickerSet = update.vstickerset();

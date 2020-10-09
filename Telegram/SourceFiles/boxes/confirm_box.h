@@ -183,7 +183,8 @@ private:
 
 	const not_null<PeerData*> _peer;
 	MTP::Sender _api;
-	MsgId _msgId;
+	MsgId _msgId = 0;
+	bool _pinningOld = false;
 
 	object_ptr<Ui::FlatLabel> _text;
 	object_ptr<Ui::Checkbox> _notify = { nullptr };

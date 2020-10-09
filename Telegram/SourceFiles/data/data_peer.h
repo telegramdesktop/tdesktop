@@ -29,6 +29,7 @@ class Session;
 namespace Data {
 
 class Session;
+class PinnedMessages;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -326,13 +327,12 @@ public:
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
-	[[nodiscard]] MsgId pinnedMessageId() const {
-		return _pinnedMessageId;
-	}
-	void setPinnedMessageId(MsgId messageId);
-	void clearPinnedMessage() {
-		setPinnedMessageId(0);
-	}
+	[[nodiscard]] MsgId topPinnedMessageId() const;
+	void setTopPinnedMessageId(MsgId messageId);
+	void clearPinnedMessages(MsgId lessThanId = ServerMaxMsgId);
+	void addPinnedMessage(MsgId messageId);
+	void addPinnedSlice(std::vector<MsgId> &&ids, MsgId from, MsgId till);
+	void removePinnedMessage(MsgId messageId);
 
 	[[nodiscard]] bool canExportChatHistory() const;
 
@@ -411,6 +411,10 @@ private:
 		-> const std::vector<Data::UnavailableReason> &;
 
 	void setUserpicChecked(PhotoId photoId, const ImageLocation &location);
+	void ensurePinnedMessagesCreated();
+	void removeEmptyPinnedMessages();
+
+	[[nodiscard]] bool messageIdTooSmall(MsgId messageId) const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
@@ -428,7 +432,7 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	crl::time _lastFullUpdate = 0;
-	MsgId _pinnedMessageId = 0;
+	std::unique_ptr<Data::PinnedMessages> _pinnedMessages;
 
 	Settings _settings = { kSettingsUnknown };
 	BlockStatus _blockStatus = BlockStatus::Unknown;
