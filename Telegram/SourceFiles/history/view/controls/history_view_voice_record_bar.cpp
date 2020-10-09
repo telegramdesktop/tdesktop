@@ -36,6 +36,12 @@ constexpr auto kMaxSamples =
 
 constexpr auto kPrecision = 10;
 
+enum class FilterType {
+	Continue,
+	ShowBox,
+	Cancel,
+};
+
 [[nodiscard]] auto Duration(int samples) {
 	return samples / ::Media::Player::kDefaultFrequency;
 }
@@ -627,7 +633,7 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 void VoiceRecordBar::installClickOutsideFilter() {
 	const auto box = _recordingLifetime.make_state<QPointer<ConfirmBox>>();
 	const auto showBox = [=] {
-		if (*box || _send->underMouse()) {
+		if (*box) {
 			return;
 		}
 		auto sure = [=](Fn<void()> &&close) {
@@ -642,40 +648,48 @@ void VoiceRecordBar::installClickOutsideFilter() {
 	};
 
 	const auto computeResult = [=](not_null<QEvent*> e) {
-		using Result = base::EventFilterResult;
+		using Type = FilterType;
 		if (!_lock->isLocked()) {
-			return Result::Continue;
+			return Type::Continue;
 		}
 		const auto type = e->type();
 		const auto noBox = !(*box);
 		if (type == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(e.get())->key();
 			const auto isEsc = (key == Qt::Key_Escape);
+			const auto isEnter = (key == Qt::Key_Enter
+				|| key == Qt::Key_Return);
 			if (noBox) {
-				if (isEsc && (_escFilter && _escFilter())) {
-					return Result::Continue;
+				if (isEnter) {
+					stop(true);
+					return Type::Cancel;
+				} else if (isEsc && (_escFilter && _escFilter())) {
+					return Type::Continue;
 				}
-				return Result::Cancel;
+				return Type::ShowBox;
 			}
-			const auto cancelOrConfirmBox = (isEsc
-				|| (key == Qt::Key_Enter || key == Qt::Key_Return));
-			return cancelOrConfirmBox ? Result::Continue : Result::Cancel;
+			return (isEsc || isEnter) ? Type::Continue : Type::ShowBox;
 		} else if (type == QEvent::ContextMenu || type == QEvent::Shortcut) {
-			return Result::Cancel;
+			return Type::ShowBox;
 		} else if (type == QEvent::MouseButtonPress) {
 			return (noBox && !_send->underMouse())
-				? Result::Cancel
-				: Result::Continue;
+				? Type::ShowBox
+				: Type::Continue;
 		}
-		return Result::Continue;
+		return Type::Continue;
 	};
 
 	auto filterCallback = [=](not_null<QEvent*> e) {
-		const auto result = computeResult(e);
-		if (result == base::EventFilterResult::Cancel) {
+		using Result = base::EventFilterResult;
+		switch(computeResult(e)) {
+		case FilterType::ShowBox: {
 			showBox();
+			return Result::Cancel;
 		}
-		return result;
+		case FilterType::Continue: return Result::Continue;
+		case FilterType::Cancel: return Result::Cancel;
+		default: return Result::Continue;
+		}
 	};
 
 	auto filter = base::install_event_filter(
