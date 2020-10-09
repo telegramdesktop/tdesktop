@@ -68,7 +68,6 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
     build-environment:
-      - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib
       - tg_owt_DIR: $SNAPCRAFT_STAGE/tg_owt
     build-packages:
       - python
@@ -214,7 +213,7 @@ parts:
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/share
 
   openal:
@@ -241,8 +240,8 @@ parts:
       - -DALSOFT_CONFIG=OFF
     prime:
       - -./usr/include
-      - -./usr/lib/cmake
-      - -./usr/lib/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
 
   qtwayland:
     source: https://github.com/qt/qtwayland.git
