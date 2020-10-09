@@ -8,21 +8,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_messages.h"
+#include "base/weak_ptr.h"
 
 namespace Data {
 
-class PinnedMessages final {
+struct PinnedAroundId {
+	std::vector<MsgId> ids;
+	std::optional<int> skippedBefore;
+	std::optional<int> skippedAfter;
+	std::optional<int> fullCount;
+};
+
+class PinnedMessages final : public base::has_weak_ptr {
 public:
 	explicit PinnedMessages(ChannelId channelId);
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] MsgId topId() const;
+	[[nodiscard]] rpl::producer<PinnedAroundId> viewer(
+		MsgId aroundId,
+		int limit) const;
 
 	void add(MsgId messageId);
 	void add(
 		std::vector<MsgId> &&ids,
-		MsgId from,
-		MsgId till,
+		MsgRange range,
 		std::optional<int> count);
 	void remove(MsgId messageId);
 

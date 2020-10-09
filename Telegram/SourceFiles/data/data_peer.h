@@ -30,6 +30,7 @@ namespace Data {
 
 class Session;
 class PinnedMessages;
+struct PinnedAroundId;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -331,8 +332,14 @@ public:
 	void setTopPinnedMessageId(MsgId messageId);
 	void clearPinnedMessages(MsgId lessThanId = ServerMaxMsgId);
 	void addPinnedMessage(MsgId messageId);
-	void addPinnedSlice(std::vector<MsgId> &&ids, MsgId from, MsgId till);
+	void addPinnedSlice(
+		std::vector<MsgId> &&ids,
+		MsgRange noSkipRange,
+		std::optional<int> count);
 	void removePinnedMessage(MsgId messageId);
+	Data::PinnedMessages *currentPinnedMessages() const {
+		return _pinnedMessages.get();
+	}
 
 	[[nodiscard]] bool canExportChatHistory() const;
 

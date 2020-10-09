@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
+#include "history/view/history_view_pinned_tracker.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
@@ -1697,7 +1698,8 @@ void HistoryWidget::showHistory(
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBarOnClose();
-		destroyPinnedBar();
+		showPinnedMessage(FullMsgId());
+		_pinnedTracker = nullptr;
 		_membersDropdown.destroy();
 		_scrollToAnimation.stop();
 
@@ -1811,6 +1813,7 @@ void HistoryWidget::showHistory(
 
 		_updateHistoryItems.stop();
 
+		setupPinnedTracker();
 		pinnedMsgVisibilityUpdated();
 		if (_history->scrollTopItem
 			|| (_migrated && _migrated->scrollTopItem)
@@ -2732,6 +2735,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 void HistoryWidget::onScroll() {
 	preloadHistoryIfNeeded();
 	visibleAreaUpdated();
+	updatePinnedViewer();
 	if (!_synteticScrollEvent) {
 		_lastUserScrolled = crl::now();
 	}
@@ -3211,6 +3215,7 @@ void HistoryWidget::doneShow() {
 		handlePendingHistoryUpdate();
 	}
 	preloadHistoryIfNeeded();
+	updatePinnedViewer();
 	checkHistoryActivation();
 	App::wnd()->setInnerFocus();
 }
@@ -5226,14 +5231,66 @@ void HistoryWidget::updatePinnedBar(bool force) {
 	}
 }
 
+void HistoryWidget::updatePinnedViewer() {
+	if (_firstLoadRequest
+		|| _delayedShowAtRequest
+		|| _scroll->isHidden()
+		|| !_history
+		|| !_historyInited) {
+		return;
+	}
+	const auto [item, offset] = [&] {
+		auto visibleTop = _scroll->scrollTop();
+		if (_migrated
+			&& _history->loadedAtBottom()
+			&& _migrated->loadedAtTop()) {
+			visibleTop -= _migrated->height();
+		}
+		auto [item, offset] = _history->findItemAndOffset(visibleTop);
+		while (item && !IsServerMsgId(item->data()->id)) {
+			offset -= item->height();
+			item = item->nextInBlocks();
+		}
+		return std::pair(item, offset);
+	}();
+	const auto last = _history->peer->topPinnedMessageId();
+	const auto lessThanId = item
+		? (item->data()->id + (offset > 0 ? 1 : 0))
+		: (last + 1);
+	_pinnedTracker->trackAround(lessThanId);
+}
+
+void HistoryWidget::setupPinnedTracker() {
+	Expects(_history != nullptr);
+
+	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_history);
+	_pinnedTracker->shownMessageId(
+	) | rpl::start_with_next([=](MsgId messageId) {
+		showPinnedMessage({ peerToChannel(_peer->id), messageId });
+	}, _list->lifetime());
+}
+
+void HistoryWidget::showPinnedMessage(FullMsgId id) {
+	if (_pinnedId == id) {
+		return;
+	}
+	_pinnedId = id;
+	if (pinnedMsgVisibilityUpdated()) {
+		updateHistoryGeometry();
+		updateControlsVisibility();
+		updateControlsGeometry();
+		this->update();
+	}
+}
+
 bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	auto result = false;
-	auto pinnedId = _peer->topPinnedMessageId();
+	auto pinnedId = _pinnedId;
 	if (pinnedId && !_peer->canPinMessages()) {
 		const auto hiddenId = session().settings().hiddenPinnedMessageId(
 			_peer->id);
-		if (hiddenId == pinnedId) {
-			pinnedId = 0;
+		if (hiddenId == pinnedId.msg) {
+			pinnedId = FullMsgId();
 		} else if (hiddenId) {
 			session().settings().setHiddenPinnedMessageId(_peer->id, 0);
 			session().saveSettings();
@@ -5241,7 +5298,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	}
 	if (pinnedId) {
 		if (!_pinnedBar) {
-			_pinnedBar = std::make_unique<PinnedBar>(pinnedId, this);
+			_pinnedBar = std::make_unique<PinnedBar>(pinnedId.msg, this);
 			if (_a_show.animating()) {
 				_pinnedBar->cancel->hide();
 				_pinnedBar->shadow->hide();
@@ -5261,8 +5318,8 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			if (!barTop || _scroll->scrollTop() != *barTop) {
 				synteticScrollToY(_scroll->scrollTop() + st::historyReplyHeight);
 			}
-		} else if (_pinnedBar->msgId != pinnedId) {
-			_pinnedBar->msgId = pinnedId;
+		} else if (_pinnedBar->msgId != pinnedId.msg) {
+			_pinnedBar->msgId = pinnedId.msg;
 			_pinnedBar->msg = nullptr;
 			_pinnedBar->text.clear();
 			updatePinnedBar();
@@ -5565,7 +5622,7 @@ void HistoryWidget::UnpinMessage(not_null<PeerData*> peer, MsgId msgId) {
 }
 
 void HistoryWidget::hidePinnedMessage() {
-	const auto pinnedId = _peer ? _peer->topPinnedMessageId() : MsgId(0);
+	const auto pinnedId = _pinnedId;
 	if (!pinnedId) {
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
@@ -5575,11 +5632,9 @@ void HistoryWidget::hidePinnedMessage() {
 	}
 
 	if (_peer->canPinMessages()) {
-		unpinMessage(FullMsgId(
-			_peer->isChannel() ? peerToChannel(_peer->id) : NoChannel,
-			pinnedId));
+		unpinMessage(pinnedId);
 	} else {
-		session().settings().setHiddenPinnedMessageId(_peer->id, pinnedId);
+		session().settings().setHiddenPinnedMessageId(_peer->id, pinnedId.msg);
 		session().saveSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
@@ -6389,7 +6444,9 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.setPen(st::historyReplyNameFg);
 		p.setFont(st::msgServiceNameFont);
 		const auto poll = media ? media->poll() : nullptr;
-		const auto pinnedHeader = !poll
+		const auto pinnedHeader = (_pinnedBar->msgId < _peer->topPinnedMessageId())
+			? tr::lng_pinned_previous(tr::now)
+			: !poll
 			? tr::lng_pinned_message(tr::now)
 			: poll->quiz()
 			? tr::lng_pinned_quiz(tr::now)

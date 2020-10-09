@@ -25,6 +25,25 @@ MsgId PinnedMessages::topId() const {
 	return slice.messageIds.empty() ? 0 : slice.messageIds.back().fullId.msg;
 }
 
+rpl::producer<PinnedAroundId> PinnedMessages::viewer(
+		MsgId aroundId,
+		int limit) const {
+	return _list.viewer(MessagesQuery{
+		.aroundId = position(aroundId),
+		.limitBefore = limit,
+		.limitAfter = limit
+	}) | rpl::map([](const MessagesResult &result) {
+		auto data = PinnedAroundId();
+		data.fullCount = result.count;
+		data.skippedBefore = result.skippedBefore;
+		data.skippedAfter = result.skippedAfter;
+		data.ids = result.messageIds | ranges::view::transform(
+			[](MessagePosition position) { return position.fullId.msg; }
+		) | ranges::to_vector;
+		return data;
+	});
+}
+
 MessagePosition PinnedMessages::position(MsgId id) const {
 	return MessagePosition{
 	   .fullId = FullMsgId(_channelId, id),
@@ -37,8 +56,7 @@ void PinnedMessages::add(MsgId messageId) {
 
 void PinnedMessages::add(
 		std::vector<MsgId> &&ids,
-		MsgId from,
-		MsgId till,
+		MsgRange range,
 		std::optional<int> count) {
 	auto positions = ids | ranges::view::transform([&](MsgId id) {
 		return position(id);
@@ -47,16 +65,14 @@ void PinnedMessages::add(
 	_list.addSlice(
 		std::move(positions),
 		MessagesRange{
-			.from = from ? position(from) : MinMessagePosition,
-			.till = position(till)
+			.from = range.from ? position(range.from) : MinMessagePosition,
+			.till = position(range.till)
 		},
 		count);
 }
 
 void PinnedMessages::remove(MsgId messageId) {
-	_list.removeOne(MessagePosition{
-		.fullId = FullMsgId(0, messageId),
-	});
+	_list.removeOne(position(messageId));
 }
 
 void PinnedMessages::setTopId(MsgId messageId) {
@@ -70,19 +86,15 @@ void PinnedMessages::setTopId(MsgId messageId) {
 			break;
 		}
 	}
-	const auto position = MessagePosition{
-		.fullId = FullMsgId(0, messageId),
-	};
+	const auto wrapped = position(messageId);
 	_list.addSlice(
-		{ position },
-		{ .from = position, .till = MaxMessagePosition },
+		{ wrapped },
+		{ .from = wrapped, .till = MaxMessagePosition },
 		std::nullopt);
 }
 
 void PinnedMessages::clearLessThanId(MsgId messageId) {
-	_list.removeLessThan(MessagePosition{
-		.fullId = FullMsgId(0, messageId),
-	});
+	_list.removeLessThan(position(messageId));
 }
 
 } // namespace Data

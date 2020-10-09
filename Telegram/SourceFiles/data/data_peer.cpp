@@ -469,12 +469,14 @@ void PeerData::ensurePinnedMessagesCreated() {
 	if (!_pinnedMessages) {
 		_pinnedMessages = std::make_unique<Data::PinnedMessages>(
 			peerToChannel(id));
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
 void PeerData::removeEmptyPinnedMessages() {
 	if (_pinnedMessages && _pinnedMessages->empty()) {
 		_pinnedMessages = nullptr;
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
@@ -511,8 +513,8 @@ void PeerData::addPinnedMessage(MsgId messageId) {
 
 void PeerData::addPinnedSlice(
 		std::vector<MsgId> &&ids,
-		MsgId from,
-		MsgId till) {
+		MsgRange noSkipRange,
+		std::optional<int> count) {
 	const auto min = [&] {
 		if (const auto channel = asChannel()) {
 			return channel->availableMinId();
@@ -522,14 +524,14 @@ void PeerData::addPinnedSlice(
 	ids.erase(
 		ranges::remove_if(ids, [&](MsgId id) { return id <= min; }),
 		end(ids));
-	if (from <= min) {
-		from = 0;
+	if (noSkipRange.from <= min) {
+		noSkipRange.from = 0;
 	}
 	if (ids.empty() && !_pinnedMessages) {
 		return;
 	}
 	ensurePinnedMessagesCreated();
-	_pinnedMessages->add(std::move(ids), from, till, std::nullopt);
+	_pinnedMessages->add(std::move(ids), noSkipRange, std::nullopt);
 }
 
 void PeerData::removePinnedMessage(MsgId messageId) {

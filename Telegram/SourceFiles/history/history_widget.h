@@ -93,6 +93,7 @@ namespace HistoryView {
 class TopBarWidget;
 class ContactStatus;
 class Element;
+class PinnedTracker;
 } // namespace HistoryView
 
 class DragArea;
@@ -491,9 +492,12 @@ private:
 	void updateReplyEditTexts(bool force = false);
 	void updateReplyEditText(not_null<HistoryItem*> item);
 
+	void showPinnedMessage(FullMsgId id);
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
+	void updatePinnedViewer();
+	void setupPinnedTracker();
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
@@ -610,7 +614,9 @@ private:
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 
+	FullMsgId _pinnedId;
 	std::unique_ptr<PinnedBar> _pinnedBar;
+	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
