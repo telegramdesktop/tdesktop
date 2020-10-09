@@ -391,6 +391,10 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	_showAnimation.start(std::move(animationCallback), from, to, duration);
 }
 
+void VoiceRecordBar::setEscFilter(Fn<bool()> &&callback) {
+	_escFilter = std::move(callback);
+}
+
 void VoiceRecordBar::setLockBottom(rpl::producer<int> &&bottom) {
 	std::move(
 		bottom
@@ -412,6 +416,7 @@ void VoiceRecordBar::startRecording() {
 		const auto shown = _recordingLifetime.make_state<bool>(false);
 
 		_recording = true;
+		_controller->widget()->setInnerFocus();
 		instance()->start();
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
@@ -429,7 +434,6 @@ void VoiceRecordBar::startRecording() {
 	show();
 
 	_inField = true;
-	_controller->widget()->setInnerFocus();
 
 	_send->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
@@ -645,11 +649,15 @@ void VoiceRecordBar::installClickOutsideFilter() {
 		const auto type = e->type();
 		const auto noBox = !(*box);
 		if (type == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			const auto isEsc = (key == Qt::Key_Escape);
 			if (noBox) {
+				if (isEsc && (_escFilter && _escFilter())) {
+					return Result::Continue;
+				}
 				return Result::Cancel;
 			}
-			const auto key = static_cast<QKeyEvent*>(e.get())->key();
-			const auto cancelOrConfirmBox = (key == Qt::Key_Escape
+			const auto cancelOrConfirmBox = (isEsc
 				|| (key == Qt::Key_Enter || key == Qt::Key_Return));
 			return cancelOrConfirmBox ? Result::Continue : Result::Cancel;
 		} else if (type == QEvent::ContextMenu || type == QEvent::Shortcut) {

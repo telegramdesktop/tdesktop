@@ -46,6 +46,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 
 	void setLockBottom(rpl::producer<int> &&bottom);
+	void setEscFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isLockPresent() const;
@@ -92,6 +93,8 @@ private:
 	QRect _redCircleRect;
 	QRect _durationRect;
 	QRect _messageRect;
+
+	Fn<bool()> _escFilter;
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;

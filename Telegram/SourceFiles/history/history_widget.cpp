@@ -726,6 +726,9 @@ void HistoryWidget::initVoiceRecordBar() {
 		});
 		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
 	}
+	_voiceRecordBar->setEscFilter([=]() -> bool {
+		return _replyToId || (_nonEmptySelection && _list);
+	});
 
 	_voiceRecordBar->startRecordingRequests(
 	) | rpl::start_with_next([=] {
