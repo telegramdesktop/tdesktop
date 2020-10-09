@@ -340,6 +340,24 @@ void VoiceRecordBar::init() {
 		}) | rpl::start_with_next([=] {
 			stop(true);
 		}, _recordingLifetime);
+
+		auto hover = _send->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::Enter
+				|| e->type() == QEvent::Leave;
+		}) | rpl::map([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::Enter);
+		});
+
+		_send->setLockRecord(true);
+		_send->setForceRippled(true);
+		rpl::single(
+			false
+		) | rpl::then(
+			std::move(hover)
+		) | rpl::start_with_next([=](bool enter) {
+			_inField = enter;
+		}, _recordingLifetime);
 	}, lifetime());
 }
 
@@ -481,6 +499,9 @@ void VoiceRecordBar::stop(bool send) {
 		_recordingLifetime.destroy();
 		_recordingSamples = 0;
 		_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+
+		_send->setForceRippled(false);
+		_send->clearRecordState();
 
 		_controller->widget()->setInnerFocus();
 	};

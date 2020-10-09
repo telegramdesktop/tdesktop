@@ -43,7 +43,7 @@ void SendButton::setType(Type type) {
 		update();
 	}
 	if (_type != Type::Record) {
-		_recordProgress = 0.;
+		clearRecordState();
 	}
 }
 
@@ -71,6 +71,19 @@ void SendButton::requestPaintRecord(float64 progress) {
 		_recordProgress = progress;
 		update();
 	}
+}
+
+void SendButton::setLockRecord(bool lock) {
+	if (_type == Type::Record) {
+		_recordLocked = lock;
+		update();
+	}
+}
+
+void SendButton::clearRecordState() {
+	_recordLocked = false;
+	_recordProgress = 0.;
+	update();
 }
 
 void SendButton::paintEvent(QPaintEvent *e) {
@@ -104,8 +117,17 @@ void SendButton::paintEvent(QPaintEvent *e) {
 void SendButton::paintRecord(Painter &p, bool over) {
 	const auto recordActive = _recordProgress;
 	if (!isDisabled()) {
-		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+		auto rippleColor = anim::color(
+			_recordLocked
+				? st::historyRecordVoiceRippleBgCancel
+				: st::historyAttachEmoji.ripple.color,
+			st::historyRecordVoiceRippleBgActive,
+			recordActive);
+		paintRipple(
+			p,
+			(width() - st::historyAttachEmoji.rippleAreaSize) / 2,
+			st::historyAttachEmoji.rippleAreaPosition.y(),
+			&rippleColor);
 	}
 
 	auto fastIcon = [&] {
@@ -113,6 +135,8 @@ void SendButton::paintRecord(Painter &p, bool over) {
 			return &st::historyRecordVoice;
 		} else if (recordActive == 1.) {
 			return &st::historyRecordVoiceActive;
+		} else if (_recordLocked) {
+			return &st::historyRecordVoiceCancel;
 		} else if (over) {
 			return &st::historyRecordVoiceOver;
 		}

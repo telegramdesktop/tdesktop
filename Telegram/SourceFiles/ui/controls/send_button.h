@@ -29,6 +29,8 @@ public:
 		return _type;
 	}
 	void setType(Type state);
+	void setLockRecord(bool lock);
+	void clearRecordState();
 	void setSlowmodeDelay(int seconds);
 	void finishAnimating();
 
@@ -57,6 +59,7 @@ private:
 
 	Ui::Animations::Simple _a_typeChanged;
 
+	bool _recordLocked = false;
 	float64 _recordProgress = 0.;
 
 	int _slowmodeDelay = 0;
