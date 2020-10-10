@@ -332,8 +332,8 @@ historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
-historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
-historyRecordVoiceCancel: icon {{ "send_control_record", attentionButtonFg }};
+historyRecordVoiceActive: icon {{ "send_control_record_active", recordActiveIcon }};
+historyRecordVoiceCancel: icon {{ "send_control_record_active", attentionButtonFg }};
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordVoiceRippleBgCancel: attentionButtonBgRipple;
 historyRecordSignalColor: attentionButtonFg;
@@ -344,6 +344,10 @@ historyRecordCancelActive: windowActiveTextFg;
 historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
+
+historyRecordLevelMainRadius: 37px;
+historyRecordLevelMinRadius: 38px;
+historyRecordLevelMaxRadius: 60px;
 
 historyRecordTextStyle: TextStyle(defaultTextStyle) {
 	font: historyRecordFont;

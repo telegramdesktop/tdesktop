@@ -22,6 +22,7 @@ class SessionController;
 
 namespace HistoryView::Controls {
 
+class RecordLevel;
 class RecordLock;
 
 class VoiceRecordBar final : public Ui::RpWidget {
@@ -56,6 +57,7 @@ private:
 
 	void updateMessageGeometry();
 	void updateLockGeometry();
+	void updateLevelGeometry();
 
 	void recordError();
 	void recordUpdated(quint16 level, int samples);
@@ -86,6 +88,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
+	const std::unique_ptr<RecordLevel> _level;
 
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
