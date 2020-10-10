@@ -253,18 +253,27 @@ void VoiceRecordBar::updateControlsGeometry(QSize size) {
 			_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
 			_redCircleRect.height());
 	}
-	{
-		const auto left = _durationRect.x()
-			+ _durationRect.width()
-			+ ((_send->width() - st::historyRecordVoice.width()) / 2);
-		const auto right = width() - _send->width();
-		const auto width = _cancelFont->width(cancelMessage());
-		_messageRect = QRect(
-			left + (right - left - width) / 2,
-			st::historyRecordTextTop,
-			width + st::historyRecordDurationSkip,
-			_cancelFont->height);
-	}
+	updateMessageGeometry();
+}
+
+void VoiceRecordBar::updateMessageGeometry() {
+	const auto left = _durationRect.x()
+		+ _durationRect.width()
+		+ st::historyRecordTextLeft;
+	const auto right = width()
+		- _send->width()
+		- st::historyRecordTextRight;
+	const auto textWidth = _message.maxWidth();
+	const auto width = ((right - left) < textWidth)
+		? st::historyRecordTextWidthForWrap
+		: textWidth;
+	const auto countLines = std::ceil((float)textWidth / width);
+	const auto textHeight = _message.minHeight() * countLines;
+	_messageRect = QRect(
+		left + (right - left - width) / 2,
+		(height() - textHeight) / 2,
+		width,
+		textHeight);
 }
 
 void VoiceRecordBar::init() {
@@ -334,10 +343,6 @@ void VoiceRecordBar::init() {
 	_lock->hide();
 	_lock->locks(
 	) | rpl::start_with_next([=] {
-
-		updateControlsGeometry(rect().size());
-		update(_messageRect);
-
 		installClickOutsideFilter();
 
 		_send->clicks(
@@ -364,6 +369,22 @@ void VoiceRecordBar::init() {
 		) | rpl::start_with_next([=](bool enter) {
 			_inField = enter;
 		}, _recordingLifetime);
+	}, lifetime());
+
+	rpl::merge(
+		_lock->locks(),
+		shownValue() | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		const auto direction = Qt::LayoutDirectionAuto;
+		_message.setText(
+			st::historyRecordTextStyle,
+			_lock->isLocked()
+				? tr::lng_record_lock_cancel(tr::now)
+				: tr::lng_record_cancel(tr::now),
+			TextParseOptions{ TextParseMultiline, 0, 0, direction });
+
+		updateMessageGeometry();
+		update(_messageRect);
 	}, lifetime());
 }
 
@@ -563,10 +584,13 @@ void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
 			st::historyRecordCancel,
 			st::historyRecordCancelActive,
 			1. - recordActive));
-	p.drawText(
+
+	_message.draw(
+		p,
 		_messageRect.x(),
-		_messageRect.y() + _cancelFont->ascent,
-		cancelMessage());
+		_messageRect.y(),
+		_messageRect.width(),
+		style::al_center);
 }
 
 rpl::producer<SendActionUpdate> VoiceRecordBar::sendActionUpdates() const {

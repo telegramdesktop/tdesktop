@@ -344,7 +344,14 @@ historyRecordCancelActive: windowActiveTextFg;
 historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
-historyRecordTextTop: 14px;
+
+historyRecordTextStyle: TextStyle(defaultTextStyle) {
+	font: historyRecordFont;
+}
+
+historyRecordTextWidthForWrap: 210px;
+historyRecordTextLeft: 15px;
+historyRecordTextRight: 25px;
 
 historyRecordLockShowDuration: historyToDownDuration;
 historyRecordLockSize: size(75px, 150px);

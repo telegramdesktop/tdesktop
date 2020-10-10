@@ -55,6 +55,7 @@ private:
 	void init();
 
 	void updateControlsGeometry(QSize size);
+	void updateMessageGeometry();
 
 	void recordError();
 	void recordUpdated(quint16 level, int samples);
@@ -93,6 +94,8 @@ private:
 	QRect _redCircleRect;
 	QRect _durationRect;
 	QRect _messageRect;
+
+	Ui::Text::String _message;
 
 	Fn<bool()> _escFilter;
 
