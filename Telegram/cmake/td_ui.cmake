@@ -12,6 +12,9 @@ include(lib_ui/cmake/generate_styles.cmake)
 
 set(style_files
     ui/td_common.style
+    ui/chat/chat.style
+    dialogs/dialogs.style
+    window/window.style
 )
 
 set(dependent_style_files
@@ -29,8 +32,12 @@ PRIVATE
     ${style_files}
     
     ui/ui_pch.h
+    ui/chat/message_bar.cpp
+    ui/chat/message_bar.h
     ui/text/format_values.cpp
     ui/text/format_values.h
+    ui/text/text_options.cpp
+    ui/text/text_options.h
     ui/toasts/common_toasts.cpp
     ui/toasts/common_toasts.h
 )

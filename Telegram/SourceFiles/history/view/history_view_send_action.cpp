@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/animations.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {

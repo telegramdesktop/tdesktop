@@ -31,3 +31,6 @@
 #include "base/basic_types.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
+
+#include "ui/text/text.h"
+#include "ui/effects/animations.h"

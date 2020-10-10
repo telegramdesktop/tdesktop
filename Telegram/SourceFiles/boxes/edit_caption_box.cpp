@@ -48,7 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/text/format_values.h"
 #include "ui/special_buttons.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
 #include "apiwrap.h"
@@ -57,7 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 #include <QtCore/QMimeData>
 

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "ui/text/text_entity.h" // TextWithEntities.
-#include "ui/text_options.h" // Ui::ItemTextOptions.
+#include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"

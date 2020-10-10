@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "styles/style_overview.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "core/file_utilities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "app.h"
 
 namespace Overview {

@@ -64,7 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/message_field.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
 #include "ui/emoji_config.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"

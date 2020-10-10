@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
 

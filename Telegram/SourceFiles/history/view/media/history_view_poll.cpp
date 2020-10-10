@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
 #include "ui/effects/animations.h"
@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "layout.h" // FullSelection
 #include "apiwrap.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 

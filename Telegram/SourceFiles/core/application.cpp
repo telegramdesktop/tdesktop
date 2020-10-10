@@ -57,7 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/image/image.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"

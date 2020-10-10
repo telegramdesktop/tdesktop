@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/special_buttons.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
@@ -44,7 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "facades.h" // App::LambdaDelayed.
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"

@@ -31,8 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_media.h"
-#include "styles/style_history.h"
 #include "data/data_session.h"
+#include "styles/style_chat.h"
 
 namespace {
 

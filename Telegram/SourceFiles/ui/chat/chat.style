@@ -9,6 +9,24 @@ using "ui/basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+MessageBar {
+	title: TextStyle;
+	titleFg: color;
+	text: TextStyle;
+	textFg: color;
+	textPalette: TextPalette;
+	duration: int;
+}
+
+defaultMessageBar: MessageBar {
+	title: semiboldTextStyle;
+	titleFg: windowActiveTextFg;
+	text: messageTextStyle;
+	textFg: historyComposeAreaFg;
+	textPalette: historyComposeAreaPalette;
+	duration: 160;
+}
+
 minPhotoSize: 100px;
 minVideoSize: 160px;
 maxMediaSize: 430px;

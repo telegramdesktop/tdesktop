@@ -18,14 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_media_types.h"
 #include "data/data_cloud_file.h"
 #include "main/main_session.h"
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {

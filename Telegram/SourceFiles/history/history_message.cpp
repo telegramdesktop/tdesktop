@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
 #include "window/notifications_manager.h"
@@ -44,7 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QGuiApplication>

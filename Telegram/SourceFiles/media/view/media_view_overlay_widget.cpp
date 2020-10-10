@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
 #include "ui/ui_utility.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
@@ -62,7 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_media_view.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"

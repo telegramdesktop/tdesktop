@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_emoji_image_loader.h"
 
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace Stickers {
 

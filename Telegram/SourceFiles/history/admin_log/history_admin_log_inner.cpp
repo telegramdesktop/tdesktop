@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/admin_log/history_admin_log_inner.h"
 
-#include "styles/style_history.h"
 #include "history/history.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
@@ -50,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>

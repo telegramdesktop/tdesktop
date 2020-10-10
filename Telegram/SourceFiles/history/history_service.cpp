@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 
 namespace {
 

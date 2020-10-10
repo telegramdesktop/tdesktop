@@ -41,9 +41,7 @@ set(style_files
     boxes/boxes.style
     calls/calls.style
     chat_helpers/chat_helpers.style
-    dialogs/dialogs.style
     export/view/export.style
-    history/history.style
     info/info.style
     intro/intro.style
     media/view/media_view.style
@@ -53,7 +51,6 @@ set(style_files
     profile/profile.style
     settings/settings.style
     ui/filter_icons.style
-    window/window.style
 )
 
 set(dependent_style_files
@@ -1026,6 +1023,8 @@ PRIVATE
     ui/filter_icon_panel.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/item_text_options.cpp
+    ui/item_text_options.h
     ui/resize_area.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
@@ -1033,8 +1032,6 @@ PRIVATE
     ui/special_buttons.h
     ui/special_fields.cpp
     ui/special_fields.h
-    ui/text_options.cpp
-    ui/text_options.h
     ui/unread_badge.cpp
     ui/unread_badge.h
     window/main_window.cpp

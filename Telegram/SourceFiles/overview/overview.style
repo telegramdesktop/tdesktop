@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
-using "history/history.style";
+using "ui/chat/chat.style";
 using "ui/widgets/widgets.style";
 using "media/view/media_view.style";
 using "boxes/boxes.style";

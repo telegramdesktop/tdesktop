@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text/text_entity.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "base/unixtime.h"

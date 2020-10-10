@@ -13,11 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_media_common.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
 #include "ui/text/format_values.h"
 #include "data/data_media_types.h"
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 

@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace Window {
 
