@@ -54,8 +54,8 @@ public:
 private:
 	void init();
 
-	void updateControlsGeometry(QSize size);
 	void updateMessageGeometry();
+	void updateLockGeometry();
 
 	void recordError();
 	void recordUpdated(quint16 level, int samples);

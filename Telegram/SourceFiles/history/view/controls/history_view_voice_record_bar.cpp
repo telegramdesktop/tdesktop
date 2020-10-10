@@ -236,26 +236,6 @@ VoiceRecordBar::~VoiceRecordBar() {
 	}
 }
 
-void VoiceRecordBar::updateControlsGeometry(QSize size) {
-	_centerY = size.height() / 2;
-	{
-		const auto maxD = st::historyRecordSignalMax * 2;
-		const auto point = _centerY - st::historyRecordSignalMax;
-		_redCircleRect = { point, point, maxD, maxD };
-	}
-	{
-		const auto durationLeft = _redCircleRect.x()
-			+ _redCircleRect.width()
-			+ st::historyRecordDurationSkip;
-		_durationRect = QRect(
-			durationLeft,
-			_redCircleRect.y(),
-			_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
-			_redCircleRect.height());
-	}
-	updateMessageGeometry();
-}
-
 void VoiceRecordBar::updateMessageGeometry() {
 	const auto left = _durationRect.x()
 		+ _durationRect.width()
@@ -276,6 +256,14 @@ void VoiceRecordBar::updateMessageGeometry() {
 		textHeight);
 }
 
+void VoiceRecordBar::updateLockGeometry() {
+	const auto right = anim::interpolate(
+		-_lock->width(),
+		st::historyRecordLockPosition.x(),
+		_showLockAnimation.value(_lockShowing.current() ? 1. : 0.));
+	_lock->moveToRight(right, _lock->y());
+}
+
 void VoiceRecordBar::init() {
 	hide();
 	// Keep VoiceRecordBar behind SendButton.
@@ -291,7 +279,25 @@ void VoiceRecordBar::init() {
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		updateControlsGeometry(size);
+		_centerY = size.height() / 2;
+		{
+			const auto maxD = st::historyRecordSignalMax * 2;
+			const auto point = _centerY - st::historyRecordSignalMax;
+			_redCircleRect = { point, point, maxD, maxD };
+		}
+		{
+			const auto durationLeft = _redCircleRect.x()
+				+ _redCircleRect.width()
+				+ st::historyRecordDurationSkip;
+			const auto &ascent = _cancelFont->ascent;
+			_durationRect = QRect(
+				durationLeft,
+				_redCircleRect.y() - (ascent - _redCircleRect.height()) / 2,
+				_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
+				ascent);
+		}
+		updateMessageGeometry();
+		updateLockGeometry();
 	}, lifetime());
 
 	paintRequest(
@@ -326,11 +332,7 @@ void VoiceRecordBar::init() {
 		const auto duration = st::historyRecordLockShowDuration;
 		_lock->show();
 		auto callback = [=](auto value) {
-			const auto right = anim::interpolate(
-				-_lock->width(),
-				st::historyRecordLockPosition.x(),
-				value);
-			_lock->moveToRight(right, _lock->y());
+			updateLockGeometry();
 			if (value == 0. && !show) {
 				_lock->hide();
 			} else if (value == 1. && show) {
