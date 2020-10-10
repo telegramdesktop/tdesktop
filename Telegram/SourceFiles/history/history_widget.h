@@ -66,6 +66,7 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
+class MessageBar;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -94,6 +95,7 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+class PinnedBar;
 } // namespace HistoryView
 
 class DragArea;
@@ -326,16 +328,6 @@ private slots:
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
-	struct PinnedBar {
-		PinnedBar(MsgId msgId, HistoryWidget *parent);
-		~PinnedBar();
-
-		MsgId msgId = 0;
-		HistoryItem *msg = nullptr;
-		Ui::Text::String text;
-		object_ptr<Ui::IconButton> cancel;
-		object_ptr<Ui::PlainShadow> shadow;
-	};
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -492,10 +484,6 @@ private:
 	void updateReplyEditTexts(bool force = false);
 	void updateReplyEditText(not_null<HistoryItem*> item);
 
-	void showPinnedMessage(FullMsgId id);
-	void updatePinnedBar(bool force = false);
-	bool pinnedMsgVisibilityUpdated();
-	void destroyPinnedBar();
 	void updatePinnedViewer();
 	void setupPinnedTracker();
 
@@ -511,7 +499,6 @@ private:
 		int left,
 		int top) const;
 	void drawRecording(Painter &p, float64 recordActive);
-	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	bool paintShowAnimationFrame();
 
@@ -614,9 +601,9 @@ private:
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 
-	FullMsgId _pinnedId;
-	std::unique_ptr<PinnedBar> _pinnedBar;
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
+	std::unique_ptr<HistoryView::PinnedBar> _pinnedBar;
+	int _pinnedBarHeight = 0;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
@@ -705,7 +692,6 @@ private:
 	bool _recording = false;
 	bool _inField = false;
 	bool _inReplyEditForward = false;
-	bool _inPinnedMsg = false;
 	bool _inClickable = false;
 	int _recordingSamples = 0;
 	int _recordCancelWidth;

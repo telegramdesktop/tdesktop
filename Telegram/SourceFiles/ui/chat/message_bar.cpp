@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/text_options.h"
 #include "styles/style_chat.h"
+#include "styles/palette.h"
 
 namespace Ui {
 
@@ -205,7 +206,7 @@ void MessageBar::paint(Painter &p) {
 	const auto imageShown = _animation
 		? _animation->imageShown.value(imageFinal)
 		: imageFinal;
-	if (progress == 1. && imageShown == 1. && _animation) {
+	if (progress == 1. && imageShown == imageFinal && _animation) {
 		_animation = nullptr;
 	}
 	const auto body = [&] {
@@ -237,6 +238,13 @@ void MessageBar::paint(Painter &p) {
 		? (shiftTo - shiftFull)
 		: (shiftTo + shiftFull);
 
+	const auto bar = QRect(
+		st::msgReplyBarSkip + st::msgReplyBarPos.x(),
+		st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
+		st::msgReplyBarSize.width(),
+		st::msgReplyBarSize.height());
+	p.fillRect(bar, st::msgInReplyBarColor);
+
 	if (!_animation) {
 		if (!_image.isNull()) {
 			p.drawPixmap(image, _image);
@@ -261,6 +269,7 @@ void MessageBar::paint(Painter &p) {
 				_animation->imageFrom);
 			p.setOpacity(progress);
 			p.drawPixmap(rect.translated(0, shiftTo), _animation->imageTo);
+			p.setOpacity(1.);
 		} else {
 			p.drawPixmap(rect, _image);
 		}
@@ -277,6 +286,7 @@ void MessageBar::paint(Painter &p) {
 			_animation->bodyOrTextFrom);
 		p.setOpacity(progress);
 		p.drawPixmap(body.x(), text.y() + shiftTo, _animation->bodyOrTextTo);
+		p.setOpacity(1.);
 	}
 	if (!_animation || _animation->bodyAnimation != BodyAnimation::Full) {
 		p.setPen(_st.titleFg);
@@ -289,6 +299,7 @@ void MessageBar::paint(Painter &p) {
 			_animation->bodyOrTextFrom);
 		p.setOpacity(progress);
 		p.drawPixmap(body.x(), body.y() + shiftTo, _animation->bodyOrTextTo);
+		p.setOpacity(1.);
 	}
 }
 
