@@ -540,8 +540,6 @@ void VoiceRecordBar::init() {
 			stop(true);
 		}, _recordingLifetime);
 
-		_send->setLockRecord(true);
-		_send->setForceRippled(true);
 		rpl::single(
 			false
 		) | rpl::then(
@@ -699,9 +697,6 @@ void VoiceRecordBar::stop(bool send) {
 		_recordingLifetime.destroy();
 		_recordingSamples = 0;
 		_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-
-		_send->setForceRippled(false);
-		_send->clearRecordState();
 
 		_controller->widget()->setInnerFocus();
 	};

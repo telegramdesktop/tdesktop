@@ -29,12 +29,8 @@ public:
 		return _type;
 	}
 	void setType(Type state);
-	void setLockRecord(bool lock);
-	void clearRecordState();
 	void setSlowmodeDelay(int seconds);
 	void finishAnimating();
-
-	void requestPaintRecord(float64 progress);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -58,9 +54,6 @@ private:
 	QPixmap _contentFrom, _contentTo;
 
 	Ui::Animations::Simple _a_typeChanged;
-
-	bool _recordLocked = false;
-	float64 _recordProgress = 0.;
 
 	int _slowmodeDelay = 0;
 	QString _slowmodeDelayText;
