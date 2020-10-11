@@ -32,6 +32,12 @@ public:
 
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::RpWidget*> sectionWidget,
+		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Ui::SendButton> send,
+		int recorderHeight);
+	VoiceRecordBar(
+		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Ui::SendButton> send,
 		int recorderHeight);
@@ -40,6 +46,8 @@ public:
 	void startRecording();
 	void finishAnimating();
 
+	void orderControls();
+
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
@@ -47,6 +55,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 
 	void setLockBottom(rpl::producer<int> &&bottom);
+	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
 	void setEscFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
@@ -57,7 +66,6 @@ private:
 
 	void updateMessageGeometry();
 	void updateLockGeometry();
-	void updateLevelGeometry();
 
 	void recordError();
 	void recordUpdated(quint16 level, int samples);
@@ -78,6 +86,7 @@ private:
 	void installClickOutsideFilter();
 
 	bool isTypeRecord() const;
+	bool hasDuration() const;
 
 	void activeAnimate(bool active);
 	float64 showAnimationRatio() const;
@@ -87,6 +96,7 @@ private:
 
 	QString cancelMessage() const;
 
+	const not_null<Ui::RpWidget*> _sectionWidget;
 	const not_null<Window::SessionController*> _controller;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;

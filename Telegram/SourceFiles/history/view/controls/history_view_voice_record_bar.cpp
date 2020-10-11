@@ -156,8 +156,15 @@ bool RecordLevel::recordingAnimationCallback(crl::time now) {
 }
 
 void RecordLevel::init() {
+	const auto hasProgress = [](auto value) { return value != 0.; };
+
+	// Do not allow the widget to be shown from the outside.
 	shownValue(
 	) | rpl::start_with_next([=](bool shown) {
+		const auto shouldShown = hasProgress(_showProgress.current());
+		if (shown != shouldShown) {
+			setVisible(shouldShown);
+		}
 	}, lifetime());
 
 	paintRequest(
@@ -170,9 +177,7 @@ void RecordLevel::init() {
 	}, lifetime());
 
 	_showProgress.changes(
-	) | rpl::map([](auto value) {
-		return value != 0.;
-	}) | rpl::distinct_until_changed(
+	) | rpl::map(hasProgress) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool show) {
 		setVisible(show);
 		setMouseTracking(show);
@@ -395,19 +400,29 @@ rpl::producer<> RecordLock::locks() const {
 
 VoiceRecordBar::VoiceRecordBar(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::RpWidget*> sectionWidget,
 	not_null<Window::SessionController*> controller,
 	std::shared_ptr<Ui::SendButton> send,
 	int recorderHeight)
 : RpWidget(parent)
+, _sectionWidget(sectionWidget)
 , _controller(controller)
 , _send(send)
-, _lock(std::make_unique<RecordLock>(parent))
+, _lock(std::make_unique<RecordLock>(sectionWidget))
 , _level(std::make_unique<RecordLevel>(
-	parent,
+	sectionWidget,
 	_controller->widget()->leaveEvents()))
 , _cancelFont(st::historyRecordFont) {
 	resize(QSize(parent->width(), recorderHeight));
 	init();
+}
+
+VoiceRecordBar::VoiceRecordBar(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::SessionController*> controller,
+	std::shared_ptr<Ui::SendButton> send,
+	int recorderHeight)
+: VoiceRecordBar(parent, parent, controller, send, recorderHeight) {
 }
 
 VoiceRecordBar::~VoiceRecordBar() {
@@ -444,11 +459,6 @@ void VoiceRecordBar::updateLockGeometry() {
 	_lock->moveToRight(right, _lock->y());
 }
 
-void VoiceRecordBar::updateLevelGeometry() {
-	const auto center = (_send->width() - _level->width()) / 2;
-	_level->moveToRight(st::historySendRight + center, y() + center);
-}
-
 void VoiceRecordBar::init() {
 	hide();
 	// Keep VoiceRecordBar behind SendButton.
@@ -459,8 +469,7 @@ void VoiceRecordBar::init() {
 			return e->type() == QEvent::ZOrderChange;
 		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
-		stackUnder(_send.get());
-		_level->raise();
+		orderControls();
 	}, lifetime());
 
 	sizeValue(
@@ -484,7 +493,6 @@ void VoiceRecordBar::init() {
 		}
 		updateMessageGeometry();
 		updateLockGeometry();
-		updateLevelGeometry();
 	}, lifetime());
 
 	paintRequest(
@@ -606,7 +614,16 @@ void VoiceRecordBar::setLockBottom(rpl::producer<int> &&bottom) {
 		bottom
 	) | rpl::start_with_next([=](int value) {
 		_lock->moveToLeft(_lock->x(), value - _lock->height());
-		updateLevelGeometry();
+	}, lifetime());
+}
+
+void VoiceRecordBar::setSendButtonGeometryValue(
+		rpl::producer<QRect> &&geometry) {
+	std::move(
+		geometry
+	) | rpl::start_with_next([=](QRect r) {
+		const auto center = (r.width() - _level->width()) / 2;
+		_level->moveToLeft(r.x() + center, r.y() + center);
 	}, lifetime());
 }
 
@@ -660,7 +677,7 @@ void VoiceRecordBar::startRecording() {
 				? inField
 				: _level->inCircle(_level->mapFromGlobal(globalPos));
 
-			if (_showLockAnimation.animating()) {
+			if (_showLockAnimation.animating() || !hasDuration()) {
 				return;
 			}
 			computeAndSetLockProgress(mouse->globalPos());
@@ -813,6 +830,10 @@ bool VoiceRecordBar::isTypeRecord() const {
 	return (_send->type() == Ui::SendButton::Type::Record);
 }
 
+bool VoiceRecordBar::hasDuration() const {
+	return _recordingSamples > 0;
+}
+
 float64 VoiceRecordBar::activeAnimationRatio() const {
 	return _activeAnimation.value(_inField.current() ? 1. : 0.);
 }
@@ -835,6 +856,12 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 	const auto higher = 0;
 	const auto progress = localPos.y() / (float64)(higher - lower);
 	_lock->requestPaintProgress(std::clamp(progress, 0., 1.));
+}
+
+void VoiceRecordBar::orderControls() {
+	stackUnder(_send.get());
+	_level->raise();
+	_lock->raise();
 }
 
 void VoiceRecordBar::installClickOutsideFilter() {

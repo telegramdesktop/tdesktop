@@ -253,6 +253,11 @@ void ScheduledWidget::setupComposeControls() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
+
+	_composeControls->lockShowStarts(
+	) | rpl::start_with_next([=] {
+		updateScrollDownVisibility();
+	}, lifetime());
 }
 
 void ScheduledWidget::chooseAttach() {
@@ -820,6 +825,9 @@ void ScheduledWidget::updateScrollDownVisibility() {
 	}
 
 	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
+		if (_composeControls->isLockPresent()) {
+			return false;
+		}
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
 		if (top < _scroll->scrollTopMax()) {
 			return true;

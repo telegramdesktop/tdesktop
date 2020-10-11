@@ -730,6 +730,8 @@ void HistoryWidget::initVoiceRecordBar() {
 		return _replyToId || (_nonEmptySelection && _list);
 	});
 
+	_voiceRecordBar->setSendButtonGeometryValue(_send->geometryValue());
+
 	_voiceRecordBar->startRecordingRequests(
 	) | rpl::start_with_next([=] {
 		const auto error = _peer

@@ -494,7 +494,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 }
 
 ComposeControls::ComposeControls(
-	not_null<QWidget*> parent,
+	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
 	Mode mode)
 : _parent(parent)
@@ -520,6 +520,7 @@ ComposeControls::ComposeControls(
 		&_window->session().data()))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 		_wrap.get(),
+		parent,
 		window,
 		_send,
 		st::historySendSize.height()))
@@ -671,6 +672,7 @@ void ComposeControls::showFinished() {
 		_tabbedPanel->hideFast();
 	}
 	updateWrappingVisibility();
+	_voiceRecordBar->orderControls();
 }
 
 void ComposeControls::showForGrab() {
@@ -928,6 +930,30 @@ void ComposeControls::initVoiceRecordBar() {
 		}
 		_voiceRecordBar->startRecording();
 	}, _wrap->lifetime());
+
+	{
+		auto geometry = rpl::merge(
+			_wrap->geometryValue(),
+			_send->geometryValue()
+		) | rpl::map([=](QRect geometry) {
+			auto r = _send->geometry();
+			r.setY(r.y() + _wrap->y());
+			return r;
+		});
+		_voiceRecordBar->setSendButtonGeometryValue(std::move(geometry));
+	}
+
+	{
+		auto bottom = _wrap->geometryValue(
+		) | rpl::map([=](QRect geometry) {
+			return geometry.y() - st::historyRecordLockPosition.y();
+		});
+		_voiceRecordBar->setLockBottom(std::move(bottom));
+	}
+
+	_voiceRecordBar->setEscFilter([=] {
+		return (isEditingMessage() || replyingToMessage());
+	});
 }
 
 void ComposeControls::updateWrappingVisibility() {
@@ -1309,6 +1335,14 @@ bool ComposeControls::isEditingMessage() const {
 
 FullMsgId ComposeControls::replyingToMessage() const {
 	return _header->replyingToMessage();
+}
+
+bool ComposeControls::isLockPresent() const {
+	return _voiceRecordBar->isLockPresent();
+}
+
+rpl::producer<bool> ComposeControls::lockShowStarts() const {
+	return _voiceRecordBar->lockShowStarts();
 }
 
 } // namespace HistoryView

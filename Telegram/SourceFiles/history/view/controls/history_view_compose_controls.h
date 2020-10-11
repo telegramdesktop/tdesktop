@@ -78,7 +78,7 @@ public:
 	};
 
 	ComposeControls(
-		not_null<QWidget*> parent,
+		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
 		Mode mode);
 	~ComposeControls();
@@ -134,6 +134,9 @@ public:
 	void setText(const TextWithTags &text);
 	void clear();
 	void hidePanelsAnimated();
+
+	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
+	[[nodiscard]] bool isLockPresent() const;
 
 private:
 	enum class TextUpdateEvent {
