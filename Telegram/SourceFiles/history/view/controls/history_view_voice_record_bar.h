@@ -70,15 +70,17 @@ private:
 
 	bool showRecordButton() const;
 	void drawDuration(Painter &p);
-	void drawRecording(Painter &p);
+	void drawRedCircle(Painter &p);
 	void drawMessage(Painter &p, float64 recordActive);
 	void updateOverStates(QPoint pos);
 
+	void startRedCircleAnimation();
 	void installClickOutsideFilter();
 
 	bool isTypeRecord() const;
 
 	void activeAnimate(bool active);
+	float64 showAnimationRatio() const;
 	float64 activeAnimationRatio() const;
 
 	void computeAndSetLockProgress(QPoint globalPos);
@@ -105,6 +107,7 @@ private:
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
 	int _recordingSamples = 0;
+	float64 _redCircleProgress = 0.;
 
 	const style::font &_cancelFont;
 
@@ -113,13 +116,8 @@ private:
 	rpl::variable<bool> _lockShowing = false;
 
 	Ui::Animations::Simple _showLockAnimation;
-
-	// This can animate for a very long time (like in music playing),
-	// so it should be a Basic, not a Simple animation.
-	Ui::Animations::Basic _recordingAnimation;
 	Ui::Animations::Simple _activeAnimation;
 	Ui::Animations::Simple _showAnimation;
-	anim::value _recordingLevel;
 
 };
 

@@ -405,10 +405,7 @@ VoiceRecordBar::VoiceRecordBar(
 , _level(std::make_unique<RecordLevel>(
 	parent,
 	_controller->widget()->leaveEvents()))
-, _cancelFont(st::historyRecordFont)
-, _recordingAnimation([=](crl::time now) {
-	return recordingAnimationCallback(now);
-}) {
+, _cancelFont(st::historyRecordFont) {
 	resize(QSize(parent->width(), recorderHeight));
 	init();
 }
@@ -470,8 +467,8 @@ void VoiceRecordBar::init() {
 	) | rpl::start_with_next([=](QSize size) {
 		_centerY = size.height() / 2;
 		{
-			const auto maxD = st::historyRecordSignalMax * 2;
-			const auto point = _centerY - st::historyRecordSignalMax;
+			const auto maxD = st::historyRecordSignalRadius * 2;
+			const auto point = _centerY - st::historyRecordSignalRadius;
 			_redCircleRect = { point, point, maxD, maxD };
 		}
 		{
@@ -494,7 +491,7 @@ void VoiceRecordBar::init() {
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 		if (_showAnimation.animating()) {
-			p.setOpacity(_showAnimation.value(1.));
+			p.setOpacity(showAnimationRatio());
 		}
 		p.fillRect(clip, st::historyComposeAreaBg);
 
@@ -502,11 +499,12 @@ void VoiceRecordBar::init() {
 			// The message should be painted first to avoid flickering.
 			drawMessage(p, activeAnimationRatio());
 		}
-		if (clip.intersects(_redCircleRect)) {
-			drawRecording(p);
-		}
 		if (clip.intersects(_durationRect)) {
 			drawDuration(p);
+		}
+		if (clip.intersects(_redCircleRect)) {
+			// Should be the last to be drawn.
+			drawRedCircle(p);
 		}
 	}, lifetime());
 
@@ -635,6 +633,7 @@ void VoiceRecordBar::startRecording() {
 				// Show the lock widget after the first successful update.
 				*shown = true;
 				_lockShowing = true;
+				startRedCircleAnimation();
 			}
 			recordUpdated(update.level, update.samples);
 		}, [=] {
@@ -673,26 +672,8 @@ void VoiceRecordBar::startRecording() {
 	}, _recordingLifetime);
 }
 
-bool VoiceRecordBar::recordingAnimationCallback(crl::time now) {
-	const auto dt = anim::Disabled()
-		? 1.
-		: ((now - _recordingAnimation.started())
-			/ float64(kRecordingUpdateDelta));
-	if (dt >= 1.) {
-		_recordingLevel.finish();
-	} else {
-		_recordingLevel.update(dt, anim::linear);
-	}
-	if (!anim::Disabled()) {
-		update(_redCircleRect);
-	}
-	return (dt < 1.);
-}
-
 void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 	_level->requestPaintLevel(level);
-	_recordingLevel.start(level);
-	_recordingAnimation.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= kMaxSamples) {
 		stop(samples > 0 && _inField.current());
@@ -711,8 +692,7 @@ void VoiceRecordBar::stop(bool send) {
 
 		stopRecording(send);
 
-		_recordingLevel = anim::value();
-		_recordingAnimation.stop();
+		_redCircleProgress = 0.;
 
 		_inField = false;
 
@@ -754,17 +734,31 @@ void VoiceRecordBar::drawDuration(Painter &p) {
 	p.drawText(_durationRect, style::al_left, duration);
 }
 
-void VoiceRecordBar::drawRecording(Painter &p) {
+void VoiceRecordBar::startRedCircleAnimation() {
+	if (anim::Disabled()) {
+		return;
+	}
+	const auto animation = _recordingLifetime
+		.make_state<Ui::Animations::Basic>();
+	animation->init([=](crl::time now) {
+		const auto diffTime = now - animation->started();
+		_redCircleProgress = std::abs(std::sin(diffTime / 400.));
+		update(_redCircleRect);
+		return true;
+	});
+	animation->start();
+}
+
+void VoiceRecordBar::drawRedCircle(Painter &p) {
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::historyRecordSignalColor);
 
-	const auto min = st::historyRecordSignalMin;
-	const auto max = st::historyRecordSignalMax;
-	const auto delta = std::min(_recordingLevel.current() / 0x4000, 1.);
-	const auto radii = qRound(min + (delta * (max - min)));
+	p.setOpacity(1. - _redCircleProgress);
+	const int radii = st::historyRecordSignalRadius * showAnimationRatio();
 	const auto center = _redCircleRect.center() + QPoint(1, 1);
 	p.drawEllipse(center, radii, radii);
+	p.setOpacity(1.);
 }
 
 void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
@@ -795,7 +789,6 @@ bool VoiceRecordBar::isRecording() const {
 }
 
 void VoiceRecordBar::finishAnimating() {
-	_recordingAnimation.stop();
 	_showAnimation.stop();
 }
 
@@ -827,6 +820,12 @@ bool VoiceRecordBar::isTypeRecord() const {
 
 float64 VoiceRecordBar::activeAnimationRatio() const {
 	return _activeAnimation.value(_inField.current() ? 1. : 0.);
+}
+
+float64 VoiceRecordBar::showAnimationRatio() const {
+	// There is no reason to set the final value to zero,
+	// because at zero this widget is hidden.
+	return _showAnimation.value(1.);
 }
 
 QString VoiceRecordBar::cancelMessage() const {

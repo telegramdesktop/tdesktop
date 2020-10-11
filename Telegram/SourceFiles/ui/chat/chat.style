@@ -337,8 +337,7 @@ historyRecordVoiceCancel: icon {{ "send_control_record_active", attentionButtonF
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordVoiceRippleBgCancel: attentionButtonBgRipple;
 historyRecordSignalColor: attentionButtonFg;
-historyRecordSignalMin: 5px;
-historyRecordSignalMax: 12px;
+historyRecordSignalRadius: 5px;
 historyRecordCancel: windowSubTextFg;
 historyRecordCancelActive: windowActiveTextFg;
 historyRecordFont: font(13px);
