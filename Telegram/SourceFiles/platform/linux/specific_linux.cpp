@@ -799,10 +799,15 @@ QString AppRuntimeDirectory() {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	if (InFlatpak() || InSnap()) {
+	const auto idealSocketPath = AppRuntimeDirectory()
+		+ hash
+		+ '-'
+		+ cGUIDStr();
+
+	if (idealSocketPath.size() > 108) {
 		return AppRuntimeDirectory() + hash;
 	} else {
-		return AppRuntimeDirectory() + hash + '-' + cGUIDStr();
+		return idealSocketPath;
 	}
 }
 
