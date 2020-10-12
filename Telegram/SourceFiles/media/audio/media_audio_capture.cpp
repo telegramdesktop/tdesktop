@@ -96,6 +96,9 @@ void Instance::start() {
 				_updates.fire_error({});
 			});
 		});
+		crl::on_main(this, [=] {
+			_started = true;
+		});
 	});
 }
 
@@ -103,11 +106,13 @@ void Instance::stop(Fn<void(Result&&)> callback) {
 	InvokeQueued(_inner.get(), [=] {
 		if (!callback) {
 			_inner->stop();
+			crl::on_main(this, [=] { _started = false; });
 			return;
 		}
 		_inner->stop([=](Result &&result) {
 			crl::on_main([=, result = std::move(result)]() mutable {
 				callback(std::move(result));
+				_started = false;
 			});
 		});
 	});

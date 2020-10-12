@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h" // MainWidget::closeBothPlayers
+#include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/touchbar/mac_touchbar_audio.h"
 #include "platform/mac/touchbar/mac_touchbar_common.h"
@@ -91,20 +92,24 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 		Media::Player::instance()->startsPlay(type) | rpl::map_to(true)
 	);
 
+	auto voiceRecording = ::Media::Capture::instance()->startedChanges();
+
 	rpl::combine(
 		std::move(sessionChanges),
 		rpl::single(false) | rpl::then(Core::App().passcodeLockChanges()),
-		rpl::single(false) | rpl::then(std::move(audioPlayer))
+		rpl::single(false) | rpl::then(std::move(audioPlayer)),
+		rpl::single(false) | rpl::then(std::move(voiceRecording))
 	) | rpl::start_with_next([=](
 			Main::Session *session,
 			bool lock,
-			bool audio) {
+			bool audio,
+			bool recording) {
 		TouchBar::CustomEnterToCocoaEventLoop([=] {
 			_touchBarSwitches.fire({});
 			if (!audio) {
 				self.defaultItemIdentifiers = @[];
 			}
-			self.defaultItemIdentifiers = lock
+			self.defaultItemIdentifiers = (lock || recording)
 				? @[]
 				: audio
 				? @[kAudioItemIdentifier]

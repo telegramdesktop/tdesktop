@@ -42,6 +42,10 @@ public:
 		return _updates.events();
 	}
 
+	[[nodiscard]] rpl::producer<bool> startedChanges() const {
+		return _started.changes();
+	}
+
 	void start();
 	void stop(Fn<void(Result&&)> callback = nullptr);
 
@@ -50,6 +54,7 @@ private:
 	friend class Inner;
 
 	bool _available = false;
+	rpl::variable<bool> _started = false;;
 	rpl::event_stream<Update, rpl::empty_error> _updates;
 	QThread _thread;
 	std::unique_ptr<Inner> _inner;
