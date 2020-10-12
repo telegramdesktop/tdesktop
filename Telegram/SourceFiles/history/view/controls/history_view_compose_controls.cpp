@@ -915,8 +915,7 @@ void ComposeControls::initVoiceRecordBar() {
 		_field->setVisible(!active);
 	}, _wrap->lifetime());
 
-	_voiceRecordBar->startRecordingRequests(
-	) | rpl::start_with_next([=] {
+	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = _history
 			? Data::RestrictionError(
 				_history->peer,
@@ -924,12 +923,12 @@ void ComposeControls::initVoiceRecordBar() {
 			: std::nullopt;
 		if (error) {
 			Ui::show(Box<InformBox>(*error));
-			return;
+			return true;
 		} else if (_showSlowmodeError && _showSlowmodeError()) {
-			return;
+			return true;
 		}
-		_voiceRecordBar->startRecording();
-	}, _wrap->lifetime());
+		return false;
+	});
 
 	{
 		auto geometry = rpl::merge(

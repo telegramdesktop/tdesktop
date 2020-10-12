@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/timer.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
@@ -51,12 +52,12 @@ public:
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
-	[[nodiscard]] rpl::producer<> startRecordingRequests() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 
 	void setLockBottom(rpl::producer<int> &&bottom);
 	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
 	void setEscFilter(Fn<bool()> &&callback);
+	void setStartRecordingFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isLockPresent() const;
@@ -102,6 +103,8 @@ private:
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<RecordLevel> _level;
 
+	base::Timer _startTimer;
+
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
 
@@ -113,6 +116,7 @@ private:
 	Ui::Text::String _message;
 
 	Fn<bool()> _escFilter;
+	Fn<bool()> _startRecordingFilter;
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;

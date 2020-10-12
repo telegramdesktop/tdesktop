@@ -732,19 +732,18 @@ void HistoryWidget::initVoiceRecordBar() {
 
 	_voiceRecordBar->setSendButtonGeometryValue(_send->geometryValue());
 
-	_voiceRecordBar->startRecordingRequests(
-	) | rpl::start_with_next([=] {
+	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = _peer
 			? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 			: std::nullopt;
 		if (error) {
 			Ui::show(Box<InformBox>(*error));
-			return;
+			return true;
 		} else if (showSlowmodeError()) {
-			return;
+			return true;
 		}
-		_voiceRecordBar->startRecording();
-	}, lifetime());
+		return false;
+	});
 
 	_voiceRecordBar->sendActionUpdates(
 	) | rpl::start_with_next([=](const auto &data) {

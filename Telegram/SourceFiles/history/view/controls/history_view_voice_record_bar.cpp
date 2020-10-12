@@ -429,6 +429,7 @@ VoiceRecordBar::VoiceRecordBar(
 , _level(std::make_unique<RecordLevel>(
 	sectionWidget,
 	_controller->widget()->leaveEvents()))
+, _startTimer([=] { startRecording(); })
 , _cancelFont(st::historyRecordFont) {
 	resize(QSize(parent->width(), recorderHeight));
 	init();
@@ -589,6 +590,25 @@ void VoiceRecordBar::init() {
 		updateMessageGeometry();
 		update(_messageRect);
 	}, lifetime());
+
+	_send->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return isTypeRecord()
+			&& !isRecording()
+			&& !_showAnimation.animating()
+			&& !_lock->isLocked()
+			&& (e->type() == QEvent::MouseButtonPress
+				|| e->type() == QEvent::MouseButtonRelease);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			if (_startRecordingFilter && _startRecordingFilter()) {
+				return;
+			}
+			_startTimer.callOnce(st::historyRecordVoiceShowDuration);
+		} else if (e->type() == QEvent::MouseButtonRelease) {
+			_startTimer.cancel();
+		}
+	}, lifetime());
 }
 
 void VoiceRecordBar::activeAnimate(bool active) {
@@ -626,6 +646,10 @@ void VoiceRecordBar::setEscFilter(Fn<bool()> &&callback) {
 	_escFilter = std::move(callback);
 }
 
+void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
+	_startRecordingFilter = std::move(callback);
+}
+
 void VoiceRecordBar::setLockBottom(rpl::producer<int> &&bottom) {
 	std::move(
 		bottom
@@ -645,8 +669,13 @@ void VoiceRecordBar::setSendButtonGeometryValue(
 }
 
 void VoiceRecordBar::startRecording() {
+	if (isRecording()) {
+		return;
+	}
 	auto appearanceCallback = [=] {
-		Expects(!_showAnimation.animating());
+		if(_showAnimation.animating()) {
+			return;
+		}
 
 		using namespace ::Media::Capture;
 		if (!instance()->available()) {
@@ -717,7 +746,7 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 
 void VoiceRecordBar::stop(bool send) {
 	auto disappearanceCallback = [=] {
-		Expects(!_showAnimation.animating());
+		_showAnimation.stop();
 
 		hide();
 		_recording = false;
@@ -831,16 +860,6 @@ rpl::producer<bool> VoiceRecordBar::lockShowStarts() const {
 
 bool VoiceRecordBar::isLockPresent() const {
 	return _lockShowing.current();
-}
-
-rpl::producer<> VoiceRecordBar::startRecordingRequests() const {
-	return _send->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return isTypeRecord()
-			&& !_showAnimation.animating()
-			&& !_lock->isLocked()
-			&& (e->type() == QEvent::MouseButtonPress);
-	}) | rpl::to_empty;
 }
 
 bool VoiceRecordBar::isTypeRecord() const {
