@@ -110,8 +110,11 @@ private:
 	void init();
 
 	void drawProgress(Painter &p);
+	void setProgress(float64 progress);
+	void startLockingAnimation(float64 to);
 
 	Ui::Animations::Simple _lockAnimation;
+	Ui::Animations::Simple _lockEnderAnimation;
 
 	rpl::variable<float64> _progress = 0.;
 };
@@ -381,10 +384,24 @@ void RecordLock::drawProgress(Painter &p) {
 	}
 }
 
+void RecordLock::startLockingAnimation(float64 to) {
+	auto callback = [=](auto value) { setProgress(value); };
+	const auto duration = st::historyRecordVoiceShowDuration;
+	_lockEnderAnimation.start(std::move(callback), 0., to, duration);
+}
+
 void RecordLock::requestPaintProgress(float64 progress) {
-	if (isHidden() || isLocked()) {
+	if (isHidden() || isLocked() || _lockEnderAnimation.animating()) {
 		return;
 	}
+	if (!_progress.current() && (progress > .3)) {
+		startLockingAnimation(progress);
+		return;
+	}
+	setProgress(progress);
+}
+
+void RecordLock::setProgress(float64 progress) {
 	_progress = progress;
 	update();
 }
