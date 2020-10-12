@@ -49,12 +49,13 @@ MessageBar::BodyAnimation MessageBar::DetectBodyAnimationType(
 	const auto now = currentAnimation
 		? currentAnimation->bodyAnimation
 		: BodyAnimation::None;
+	const auto somethingChanged = (currentContent.text != nextContent.text)
+		|| (currentContent.id != nextContent.id);
 	return (now == BodyAnimation::Full
-		|| currentContent.title != nextContent.title)
+		|| currentContent.title != nextContent.title
+		|| (currentContent.title.isEmpty() && somethingChanged))
 		? BodyAnimation::Full
-		: (now == BodyAnimation::Text
-			|| currentContent.text != nextContent.text
-			|| currentContent.id != nextContent.id)
+		: (now == BodyAnimation::Text || somethingChanged)
 		? BodyAnimation::Text
 		: BodyAnimation::None;
 }
@@ -275,9 +276,20 @@ void MessageBar::paint(Painter &p) {
 		}
 	}
 	if (!_animation || _animation->bodyAnimation == BodyAnimation::None) {
-		p.setPen(_st.textFg);
-		p.setTextPalette(_st.textPalette);
-		_text.drawLeftElided(p, body.x(), text.y(), body.width(), width);
+		if (_title.isEmpty()) {
+			// "Loading..." state.
+			p.setPen(st::historyComposeAreaFgService);
+			_text.drawLeftElided(
+				p,
+				body.x(),
+				body.y() + (body.height() - st::normalFont->height) / 2,
+				body.width(),
+				width);
+		} else {
+			p.setPen(_st.textFg);
+			p.setTextPalette(_st.textPalette);
+			_text.drawLeftElided(p, body.x(), text.y(), body.width(), width);
+		}
 	} else if (_animation->bodyAnimation == BodyAnimation::Text) {
 		p.setOpacity(1. - progress);
 		p.drawPixmap(

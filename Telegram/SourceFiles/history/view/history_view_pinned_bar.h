@@ -51,6 +51,7 @@ public:
 	[[nodiscard]] int height() const;
 	[[nodiscard]] rpl::producer<int> heightValue() const;
 	[[nodiscard]] rpl::producer<> closeClicks() const;
+	[[nodiscard]] rpl::producer<> barClicks() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _wrap.lifetime();
@@ -64,6 +65,7 @@ private:
 	std::unique_ptr<Ui::IconButton> _close;
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	rpl::event_stream<Ui::MessageBarContent> _content;
+	rpl::event_stream<> _barClicks;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 

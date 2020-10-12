@@ -35,7 +35,7 @@ namespace {
 		return Ui::MessageBarContent{
 			.id = item->id,
 			.title = ((type == PinnedIdType::First)
-				? "First message"
+				? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
 				: (type == PinnedIdType::Middle)
 				? tr::lng_pinned_previous(tr::now)
 				: !poll
@@ -148,6 +148,24 @@ void PinnedBar::createControls() {
 		_close->raise();
 	}
 
+	// Clicks.
+	_bar->widget()->setCursor(style::cur_pointer);
+	_bar->widget()->events(
+	) | rpl::filter([=](not_null<QEvent*> event) {
+		return (event->type() == QEvent::MouseButtonPress);
+	}) | rpl::map([=] {
+		return _bar->widget()->events(
+		) | rpl::filter([=](not_null<QEvent*> event) {
+			return (event->type() == QEvent::MouseButtonRelease);
+		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
+			return _bar->widget()->rect().contains(
+				static_cast<QMouseEvent*>(event.get())->pos());
+		});
+	}) | rpl::flatten_latest(
+	) | rpl::map([] {
+		return rpl::empty_value();
+	}) | rpl::start_to_stream(_barClicks, _bar->widget()->lifetime());
+
 	_bar->widget()->move(0, 0);
 	_bar->widget()->show();
 	_wrap.entity()->resize(_wrap.entity()->width(), _bar->widget()->height());
@@ -231,6 +249,10 @@ rpl::producer<> PinnedBar::closeClicks() const {
 	return !_close
 		? (rpl::never<>() | rpl::type_erased())
 		: (_close->clicks() | rpl::map([] { return rpl::empty_value(); }));
+}
+
+rpl::producer<> PinnedBar::barClicks() const {
+	return _barClicks.events();
 }
 
 } // namespace HistoryView

@@ -135,6 +135,7 @@ void MessagesList::addSlice(
 }
 
 void MessagesList::removeOne(MessagePosition messageId) {
+	auto update = MessagesSliceUpdate();
 	auto slice = ranges::lower_bound(
 		_slices,
 		messageId,
@@ -144,9 +145,15 @@ void MessagesList::removeOne(MessagePosition messageId) {
 		_slices.modify(slice, [&](Slice &slice) {
 			return slice.messages.remove(messageId);
 		});
+		update.messages = &slice->messages;
+		update.range = slice->range;
 	}
 	if (_count) {
 		--*_count;
+	}
+	update.count = _count;
+	if (update.messages) {
+		_sliceUpdated.fire(std::move(update));
 	}
 }
 
@@ -187,6 +194,8 @@ void MessagesList::removeLessThan(MessagePosition messageId) {
 					slice.messages.erase(from, till);
 				}
 			});
+			break;
+		} else {
 			break;
 		}
 	}

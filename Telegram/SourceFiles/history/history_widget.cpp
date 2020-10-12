@@ -4973,9 +4973,6 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		} else {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
-	//} else if (_inPinnedMsg) { // #TODO pinned
-	//	Assert(_pinnedBar != nullptr);
-	//	Ui::showPeerHistory(_peer, _pinnedBar->msgId);
 	}
 }
 
@@ -5264,6 +5261,14 @@ void HistoryWidget::checkPinnedBarState() {
 	_pinnedBar->closeClicks(
 	) | rpl::start_with_next([=] {
 		hidePinnedMessage();
+	}, _pinnedBar->lifetime());
+
+	_pinnedBar->barClicks(
+	) | rpl::start_with_next([=] {
+		const auto id = _pinnedTracker->currentMessageId();
+		if (id.message) {
+			Ui::showPeerHistory(_peer, id.message);
+		}
 	}, _pinnedBar->lifetime());
 
 	_pinnedBarHeight = 0;
@@ -6369,10 +6374,6 @@ void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 //	//		}
 //	//		left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 //	//	}
-//	//} else {
-//	//	p.setFont(st::msgDateFont);
-//	//	p.setPen(st::historyComposeAreaFgService);
-//	//	p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right()));
 //	//}
 //}
 
