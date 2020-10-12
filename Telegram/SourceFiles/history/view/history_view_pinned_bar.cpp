@@ -23,29 +23,84 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+[[nodiscard]] Ui::MessageBarContent ContentWithoutPreview(
+		not_null<HistoryItem*> item,
+		PinnedIdType type) {
+	const auto media = item->media();
+	const auto poll = media ? media->poll() : nullptr;
+	return Ui::MessageBarContent{
+		.id = item->id,
+		.title = ((type == PinnedIdType::First)
+			? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
+			: (type == PinnedIdType::Middle)
+			? tr::lng_pinned_previous(tr::now)
+			: !poll
+			? tr::lng_pinned_message(tr::now)
+			: poll->quiz()
+			? tr::lng_pinned_quiz(tr::now)
+			: tr::lng_pinned_poll(tr::now)),
+		.text = item->inReplyText(),
+	};
+}
+
+[[nodiscard]] Ui::MessageBarContent ContentWithPreview(
+		not_null<HistoryItem*> item,
+		PinnedIdType type,
+		Image *preview) {
+	auto result = ContentWithoutPreview(item, type);
+	if (!preview) {
+		static const auto kEmpty = [&] {
+			const auto size = st::historyReplyHeight * cIntRetinaFactor();
+			auto result = QImage(
+				QSize(size, size),
+				QImage::Format_ARGB32_Premultiplied);
+			result.fill(Qt::transparent);
+			result.setDevicePixelRatio(cRetinaFactor());
+			return result;
+		}();
+		result.preview = kEmpty;
+	} else {
+		result.preview = preview->original();
+	}
+	return result;
+}
+
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItem(
 		not_null<HistoryItem*> item,
 		PinnedIdType type) {
 	return item->history()->session().changes().messageFlagsValue(
 		item,
 		Data::MessageUpdate::Flag::Edited
-	) | rpl::map([=] {
+	) | rpl::map([=]() -> rpl::producer<Ui::MessageBarContent> {
 		const auto media = item->media();
-		const auto poll = media ? media->poll() : nullptr;
-		return Ui::MessageBarContent{
-			.id = item->id,
-			.title = ((type == PinnedIdType::First)
-				? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
-				: (type == PinnedIdType::Middle)
-				? tr::lng_pinned_previous(tr::now)
-				: !poll
-				? tr::lng_pinned_message(tr::now)
-				: poll->quiz()
-				? tr::lng_pinned_quiz(tr::now)
-				: tr::lng_pinned_poll(tr::now)),
-			.text = item->inReplyText(),
+		if (!media || !media->hasReplyPreview()) {
+			return rpl::single(ContentWithoutPreview(item, type));
+		}
+		constexpr auto kFullLoaded = 2;
+		constexpr auto kSomeLoaded = 1;
+		constexpr auto kNotLoaded = 0;
+		const auto loadedLevel = [=] {
+			const auto preview = media->replyPreview();
+			return media->replyPreviewLoaded()
+				? kFullLoaded
+				: preview
+				? kSomeLoaded
+				: kNotLoaded;
 		};
-	});
+		return rpl::single(
+			loadedLevel()
+		) | rpl::then(
+			item->history()->session().downloaderTaskFinished(
+			) | rpl::map(loadedLevel)
+		) | rpl::distinct_until_changed(
+		) | rpl::take_while([=](int loadLevel) {
+			return loadLevel < kFullLoaded;
+		}) | rpl::then(
+			rpl::single(kFullLoaded)
+		) | rpl::map([=] {
+			return ContentWithPreview(item, type, media->replyPreview());
+		});
+	}) | rpl::flatten_latest();
 }
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItemId(

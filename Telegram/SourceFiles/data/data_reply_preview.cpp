@@ -107,4 +107,8 @@ Image *ReplyPreview::image(Data::FileOrigin origin) {
 	return _image.get();
 }
 
+bool ReplyPreview::loaded() const {
+	return _checked;
+}
+
 } // namespace Data

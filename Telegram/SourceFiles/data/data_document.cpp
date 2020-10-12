@@ -1266,6 +1266,15 @@ Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
 	return _replyPreview->image(origin);
 }
 
+bool DocumentData::replyPreviewLoaded() const {
+	if (!hasThumbnail()) {
+		return true;
+	} else if (!_replyPreview) {
+		return false;
+	}
+	return _replyPreview->loaded();
+}
+
 StickerData *DocumentData::sticker() const {
 	return (type == StickerDocument)
 		? static_cast<StickerData*>(_additional.get())

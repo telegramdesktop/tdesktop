@@ -205,6 +205,13 @@ Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
 	return _replyPreview->image(origin);
 }
 
+bool PhotoData::replyPreviewLoaded() const {
+	if (!_replyPreview) {
+		return false;
+	}
+	return _replyPreview->loaded();
+}
+
 void PhotoData::setRemoteLocation(
 		int32 dc,
 		uint64 access,

@@ -126,6 +126,7 @@ public:
 	[[nodiscard]] bool saveToCache() const;
 
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] bool replyPreviewLoaded() const;
 
 	[[nodiscard]] StickerData *sticker() const;
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;

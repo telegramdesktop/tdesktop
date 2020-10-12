@@ -209,6 +209,10 @@ Image *Media::replyPreview() const {
 	return nullptr;
 }
 
+bool Media::replyPreviewLoaded() const {
+	return true;
+}
+
 bool Media::allowsForward() const {
 	return true;
 }
@@ -310,6 +314,10 @@ bool MediaPhoto::hasReplyPreview() const {
 
 Image *MediaPhoto::replyPreview() const {
 	return _photo->getReplyPreview(parent()->fullId());
+}
+
+bool MediaPhoto::replyPreviewLoaded() const {
+	return _photo->replyPreviewLoaded();
 }
 
 QString MediaPhoto::notificationText() const {
@@ -474,6 +482,10 @@ bool MediaFile::hasReplyPreview() const {
 
 Image *MediaFile::replyPreview() const {
 	return _document->getReplyPreview(parent()->fullId());
+}
+
+bool MediaFile::replyPreviewLoaded() const {
+	return _document->replyPreviewLoaded();
 }
 
 QString MediaFile::chatListText() const {
@@ -987,6 +999,15 @@ Image *MediaWebPage::replyPreview() const {
 	return nullptr;
 }
 
+bool MediaWebPage::replyPreviewLoaded() const {
+	if (const auto document = MediaWebPage::document()) {
+		return document->replyPreviewLoaded();
+	} else if (const auto photo = MediaWebPage::photo()) {
+		return photo->replyPreviewLoaded();
+	}
+	return true;
+}
+
 QString MediaWebPage::chatListText() const {
 	return notificationText();
 }
@@ -1049,6 +1070,15 @@ Image *MediaGame::replyPreview() const {
 		return photo->getReplyPreview(parent()->fullId());
 	}
 	return nullptr;
+}
+
+bool MediaGame::replyPreviewLoaded() const {
+	if (const auto document = _game->document) {
+		return document->replyPreviewLoaded();
+	} else if (const auto photo = _game->photo) {
+		return photo->replyPreviewLoaded();
+	}
+	return true;
 }
 
 QString MediaGame::notificationText() const {
@@ -1151,6 +1181,13 @@ Image *MediaInvoice::replyPreview() const {
 		return photo->getReplyPreview(parent()->fullId());
 	}
 	return nullptr;
+}
+
+bool MediaInvoice::replyPreviewLoaded() const {
+	if (const auto photo = _invoice.photo) {
+		return photo->replyPreviewLoaded();
+	}
+	return true;
 }
 
 QString MediaInvoice::notificationText() const {
