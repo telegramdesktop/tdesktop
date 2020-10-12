@@ -580,7 +580,7 @@ int ComposeControls::heightCurrent() const {
 }
 
 bool ComposeControls::focus() {
-	if (_voiceRecordBar->isRecording()) {
+	if (isRecording()) {
 		return false;
 	}
 	_field->setFocus();
@@ -1343,6 +1343,10 @@ bool ComposeControls::isLockPresent() const {
 
 rpl::producer<bool> ComposeControls::lockShowStarts() const {
 	return _voiceRecordBar->lockShowStarts();
+}
+
+bool ComposeControls::isRecording() const {
+	return _voiceRecordBar->isRecording();
 }
 
 } // namespace HistoryView

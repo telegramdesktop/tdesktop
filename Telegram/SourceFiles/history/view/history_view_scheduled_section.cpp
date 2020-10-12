@@ -1188,7 +1188,7 @@ void ScheduledWidget::clearSelected() {
 void ScheduledWidget::setupDragArea() {
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=](not_null<const QMimeData*> d) { return _history; },
+		[=](auto d) { return _history && !_composeControls->isRecording(); },
 		nullptr,
 		[=] { updateControlsGeometry(); });
 

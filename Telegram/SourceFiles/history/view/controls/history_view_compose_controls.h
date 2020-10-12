@@ -137,6 +137,7 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
+	[[nodiscard]] bool isRecording() const;
 
 private:
 	enum class TextUpdateEvent {
