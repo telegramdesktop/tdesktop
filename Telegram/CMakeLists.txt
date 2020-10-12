@@ -112,14 +112,6 @@ if (LINUX)
     )
 
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
-        # conflicts with Qt static link
-        if (DESKTOP_APP_USE_PACKAGED_LAZY_PLATFORMTHEMES)
-            target_link_libraries(Telegram
-            PRIVATE
-                desktop-app::external_lxqt_qtplugin
-            )
-        endif()
-
         target_link_libraries(Telegram
         PRIVATE
             desktop-app::external_statusnotifieritem
