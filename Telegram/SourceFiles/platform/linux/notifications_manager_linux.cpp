@@ -307,8 +307,10 @@ NotificationData::NotificationData(
 		_actions.push_back(qsl("default"));
 		_actions.push_back(QString());
 
-		_actions.push_back(qsl("mail-mark-read"));
-		_actions.push_back(tr::lng_context_mark_read(tr::now));
+		if (!hideReplyButton) {
+			_actions.push_back(qsl("mail-mark-read"));
+			_actions.push_back(tr::lng_context_mark_read(tr::now));
+		}
 
 		if (capabilities.contains(qsl("inline-reply")) && !hideReplyButton) {
 			_actions.push_back(qsl("inline-reply"));
