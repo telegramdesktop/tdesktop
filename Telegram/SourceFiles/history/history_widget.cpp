@@ -92,6 +92,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "base/qthelp_regex.h"
+#include "ui/chat/pinned_bar.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/item_text_options.h"
 #include "ui/unread_badge.h"
@@ -5252,10 +5253,9 @@ void HistoryWidget::checkPinnedBarState() {
 			messageId.type
 		};
 	});
-	_pinnedBar = std::make_unique<HistoryView::PinnedBar>(
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(
 		this,
-		&session(),
-		std::move(shown),
+		HistoryView::PinnedBarContent(&session(), std::move(shown)),
 		true);
 
 	_pinnedBar->closeClicks(

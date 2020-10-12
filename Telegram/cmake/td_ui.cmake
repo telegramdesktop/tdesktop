@@ -34,6 +34,8 @@ PRIVATE
     ui/ui_pch.h
     ui/chat/message_bar.cpp
     ui/chat/message_bar.h
+    ui/chat/pinned_bar.cpp
+    ui/chat/pinned_bar.h
     ui/text/format_values.cpp
     ui/text/format_values.h
     ui/text/text_options.cpp

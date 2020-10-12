@@ -12,42 +12,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_poll.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/buttons.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "apiwrap.h"
-#include "styles/style_chat.h"
+#include "styles/style_history.h"
 
 namespace HistoryView {
 namespace {
 
 [[nodiscard]] Ui::MessageBarContent ContentWithoutPreview(
-		not_null<HistoryItem*> item,
-		PinnedIdType type) {
+		not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	const auto poll = media ? media->poll() : nullptr;
 	return Ui::MessageBarContent{
 		.id = item->id,
-		.title = ((type == PinnedIdType::First)
-			? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
-			: (type == PinnedIdType::Middle)
-			? tr::lng_pinned_previous(tr::now)
-			: !poll
-			? tr::lng_pinned_message(tr::now)
-			: poll->quiz()
-			? tr::lng_pinned_quiz(tr::now)
-			: tr::lng_pinned_poll(tr::now)),
 		.text = item->inReplyText(),
 	};
 }
 
 [[nodiscard]] Ui::MessageBarContent ContentWithPreview(
 		not_null<HistoryItem*> item,
-		PinnedIdType type,
 		Image *preview) {
-	auto result = ContentWithoutPreview(item, type);
+	auto result = ContentWithoutPreview(item);
 	if (!preview) {
 		static const auto kEmpty = [&] {
 			const auto size = st::historyReplyHeight * cIntRetinaFactor();
@@ -66,15 +53,14 @@ namespace {
 }
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItem(
-		not_null<HistoryItem*> item,
-		PinnedIdType type) {
+		not_null<HistoryItem*> item) {
 	return item->history()->session().changes().messageFlagsValue(
 		item,
 		Data::MessageUpdate::Flag::Edited
 	) | rpl::map([=]() -> rpl::producer<Ui::MessageBarContent> {
 		const auto media = item->media();
 		if (!media || !media->hasReplyPreview()) {
-			return rpl::single(ContentWithoutPreview(item, type));
+			return rpl::single(ContentWithoutPreview(item));
 		}
 		constexpr auto kFullLoaded = 2;
 		constexpr auto kSomeLoaded = 1;
@@ -98,19 +84,19 @@ namespace {
 		}) | rpl::then(
 			rpl::single(kFullLoaded)
 		) | rpl::map([=] {
-			return ContentWithPreview(item, type, media->replyPreview());
+			return ContentWithPreview(item, media->replyPreview());
 		});
 	}) | rpl::flatten_latest();
 }
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItemId(
 		not_null<Main::Session*> session,
-		PinnedBarId id,
+		FullMsgId id,
 		bool alreadyLoaded = false) {
-	if (!id.message) {
+	if (!id) {
 		return rpl::single(Ui::MessageBarContent());
-	} else if (const auto item = session->data().message(id.message)) {
-		return ContentByItem(item, id.type);
+	} else if (const auto item = session->data().message(id)) {
+		return ContentByItem(item);
 	} else if (alreadyLoaded) {
 		return rpl::single(Ui::MessageBarContent()); // Deleted message?..
 	}
@@ -118,13 +104,13 @@ namespace {
 		consumer.put_next(Ui::MessageBarContent{
 			.text = tr::lng_contacts_loading(tr::now),
 		});
-		const auto channel = id.message.channel
-			? session->data().channel(id.message.channel).get()
+		const auto channel = id.channel
+			? session->data().channel(id.channel).get()
 			: nullptr;
 		const auto callback = [=](ChannelData *channel, MsgId id) {
 			consumer.put_done();
 		};
-		session->api().requestMessageData(channel, id.message.msg, callback);
+		session->api().requestMessageData(channel, id.msg, callback);
 		return rpl::lifetime();
 	});
 	return std::move(
@@ -134,180 +120,47 @@ namespace {
 	}));
 }
 
+auto WithPinnedTitle(not_null<Main::Session*> session, PinnedBarId id) {
+	return [=](Ui::MessageBarContent &&content) {
+		const auto item = session->data().message(id.message);
+		if (!item) {
+			return std::move(content);
+		}
+		const auto media = item->media();
+		const auto poll = media ? media->poll() : nullptr;
+		content.title = (id.type == PinnedIdType::First)
+			? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
+			: (id.type == PinnedIdType::Middle)
+			? tr::lng_pinned_previous(tr::now)
+			: !poll
+			? tr::lng_pinned_message(tr::now)
+			: poll->quiz()
+			? tr::lng_pinned_quiz(tr::now)
+			: tr::lng_pinned_poll(tr::now);
+		return std::move(content);
+	};
+}
+
 } // namespace
 
-PinnedBar::PinnedBar(
-	not_null<QWidget*> parent,
-	not_null<Main::Session*> session,
-	rpl::producer<PinnedBarId> itemId,
-	bool withClose)
-: _wrap(parent, object_ptr<Ui::RpWidget>(parent))
-, _close(withClose
-	? std::make_unique<Ui::IconButton>(
-		_wrap.entity(),
-		st::historyReplyCancel)
-	: nullptr)
-, _shadow(std::make_unique<Ui::PlainShadow>(_wrap.parentWidget())) {
-	_wrap.hide(anim::type::instant);
-	_shadow->hide();
+rpl::producer<Ui::MessageBarContent> MessageBarContentByItemId(
+		not_null<Main::Session*> session,
+		FullMsgId id) {
+	return ContentByItemId(session, id);
+}
 
-	_wrap.entity()->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
-	}, lifetime());
-	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
-
-	rpl::duplicate(
-		itemId
+rpl::producer<Ui::MessageBarContent> PinnedBarContent(
+		not_null<Main::Session*> session,
+		rpl::producer<PinnedBarId> id) {
+	return std::move(
+		id
 	) | rpl::distinct_until_changed(
 	) | rpl::map([=](PinnedBarId id) {
-		return ContentByItemId(session, id);
-	}) | rpl::flatten_latest(
-	) | rpl::filter([=](const Ui::MessageBarContent &content) {
-		return !content.title.isEmpty() || !content.text.text.isEmpty();
-	}) | rpl::start_with_next([=](Ui::MessageBarContent &&content) {
-		const auto creating = !_bar;
-		if (creating) {
-			createControls();
-		}
-		_bar->set(std::move(content));
-		if (creating) {
-			_bar->finishAnimating();
-		}
-	}, lifetime());
-
-	std::move(
-		itemId
-	) | rpl::map([=](PinnedBarId id) {
-		return !id.message;
-	}) | rpl::start_with_next_done([=](bool hidden) {
-		_shouldBeShown = !hidden;
-		if (!_forceHidden) {
-			_wrap.toggle(_shouldBeShown, anim::type::normal);
-		} else if (!_shouldBeShown) {
-			_bar = nullptr;
-		}
-	}, [=] {
-		_forceHidden = true;
-		_wrap.toggle(false, anim::type::normal);
-	}, lifetime());
-}
-
-void PinnedBar::createControls() {
-	Expects(!_bar);
-
-	_bar = std::make_unique<Ui::MessageBar>(
-		_wrap.entity(),
-		st::defaultMessageBar);
-	if (_close) {
-		_close->raise();
-	}
-
-	// Clicks.
-	_bar->widget()->setCursor(style::cur_pointer);
-	_bar->widget()->events(
-	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress);
-	}) | rpl::map([=] {
-		return _bar->widget()->events(
-		) | rpl::filter([=](not_null<QEvent*> event) {
-			return (event->type() == QEvent::MouseButtonRelease);
-		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
-			return _bar->widget()->rect().contains(
-				static_cast<QMouseEvent*>(event.get())->pos());
-		});
-	}) | rpl::flatten_latest(
-	) | rpl::map([] {
-		return rpl::empty_value();
-	}) | rpl::start_to_stream(_barClicks, _bar->widget()->lifetime());
-
-	_bar->widget()->move(0, 0);
-	_bar->widget()->show();
-	_wrap.entity()->resize(_wrap.entity()->width(), _bar->widget()->height());
-
-	_wrap.geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
-		_shadow->setGeometry(
-			rect.x(),
-			rect.y() + rect.height(),
-			rect.width(),
-			st::lineWidth);
-		_bar->widget()->resizeToWidth(
-			rect.width() - (_close ? _close->width() : 0));
-		const auto hidden = _wrap.isHidden() || !rect.height();
-		if (_shadow->isHidden() != hidden) {
-			_shadow->setVisible(!hidden);
-		}
-		if (_close) {
-			_close->moveToRight(0, 0);
-		}
-	}, _bar->widget()->lifetime());
-
-	_wrap.shownValue(
-	) | rpl::skip(
-		1
-	) | rpl::filter([=](bool shown) {
-		return !shown && !_forceHidden;
-	}) | rpl::start_with_next([=] {
-		_bar = nullptr;
-	}, _bar->widget()->lifetime());
-
-	Ensures(_bar != nullptr);
-}
-
-void PinnedBar::show() {
-	if (!_forceHidden) {
-		return;
-	}
-	_forceHidden = false;
-	if (_shouldBeShown) {
-		_wrap.show(anim::type::instant);
-		_shadow->show();
-	}
-}
-
-void PinnedBar::hide() {
-	if (_forceHidden) {
-		return;
-	}
-	_forceHidden = true;
-	_wrap.hide(anim::type::instant);
-	_shadow->hide();
-}
-
-void PinnedBar::raise() {
-	_wrap.raise();
-	_shadow->raise();
-}
-
-void PinnedBar::move(int x, int y) {
-	_wrap.move(x, y);
-}
-
-void PinnedBar::resizeToWidth(int width) {
-	_wrap.entity()->resizeToWidth(width);
-}
-
-int PinnedBar::height() const {
-	return !_forceHidden
-		? _wrap.height()
-		: _shouldBeShown
-		? st::historyReplyHeight
-		: 0;
-}
-
-rpl::producer<int> PinnedBar::heightValue() const {
-	return _wrap.heightValue();
-}
-
-rpl::producer<> PinnedBar::closeClicks() const {
-	return !_close
-		? (rpl::never<>() | rpl::type_erased())
-		: (_close->clicks() | rpl::map([] { return rpl::empty_value(); }));
-}
-
-rpl::producer<> PinnedBar::barClicks() const {
-	return _barClicks.events();
+		return ContentByItemId(
+			session,
+			id.message
+		) | rpl::map(WithPinnedTitle(session, id));
+	}) | rpl::flatten_latest();
 }
 
 } // namespace HistoryView

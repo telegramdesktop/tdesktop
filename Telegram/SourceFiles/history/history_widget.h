@@ -66,7 +66,7 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
-class MessageBar;
+class PinnedBar;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -95,7 +95,6 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
-class PinnedBar;
 } // namespace HistoryView
 
 class DragArea;
@@ -603,7 +602,7 @@ private:
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
-	std::unique_ptr<HistoryView::PinnedBar> _pinnedBar;
+	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
 
 	mtpRequestId _saveEditMsgRequestId = 0;

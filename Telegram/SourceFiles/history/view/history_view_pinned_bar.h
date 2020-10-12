@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/wrap/slide_wrap.h"
 #include "ui/chat/message_bar.h"
+
+#include <tuple>
 
 namespace Main {
 class Session;
@@ -17,9 +18,14 @@ class Session;
 namespace Ui {
 class IconButton;
 class PlainShadow;
+struct MessageBarContent;
 } // namespace Ui
 
 namespace HistoryView {
+
+[[nodiscard]] rpl::producer<Ui::MessageBarContent> MessageBarContentByItemId(
+	not_null<Main::Session*> session,
+	FullMsgId id);
 
 enum class PinnedIdType;
 struct PinnedBarId {
@@ -33,42 +39,8 @@ struct PinnedBarId {
 		return std::tie(message, type) == std::tie(other.message, other.type);
 	}
 };
-
-class PinnedBar final {
-public:
-	PinnedBar(
-		not_null<QWidget*> parent,
-		not_null<Main::Session*> session,
-		rpl::producer<PinnedBarId> itemId,
-		bool withClose = false);
-
-	void show();
-	void hide();
-	void raise();
-
-	void move(int x, int y);
-	void resizeToWidth(int width);
-	[[nodiscard]] int height() const;
-	[[nodiscard]] rpl::producer<int> heightValue() const;
-	[[nodiscard]] rpl::producer<> closeClicks() const;
-	[[nodiscard]] rpl::producer<> barClicks() const;
-
-	[[nodiscard]] rpl::lifetime &lifetime() {
-		return _wrap.lifetime();
-	}
-
-private:
-	void createControls();
-
-	Ui::SlideWrap<> _wrap;
-	std::unique_ptr<Ui::MessageBar> _bar;
-	std::unique_ptr<Ui::IconButton> _close;
-	std::unique_ptr<Ui::PlainShadow> _shadow;
-	rpl::event_stream<Ui::MessageBarContent> _content;
-	rpl::event_stream<> _barClicks;
-	bool _shouldBeShown = false;
-	bool _forceHidden = false;
-
-};
+[[nodiscard]] rpl::producer<Ui::MessageBarContent> PinnedBarContent(
+	not_null<Main::Session*> session,
+	rpl::producer<PinnedBarId> id);
 
 } // namespace HistoryView
