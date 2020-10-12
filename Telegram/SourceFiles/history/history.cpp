@@ -1005,9 +1005,12 @@ void History::applyServiceChanges(
 	case mtpc_messageActionPinMessage: {
 		if (const auto replyTo = data.vreply_to()) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
+				const auto id = data.vreply_to_msg_id().v;
 				if (item) {
-					//item->history()->peer->setTopPinnedMessageId( // #TODO pinned
-					//	data.vreply_to_msg_id().v);
+					item->history()->peer->addPinnedSlice(
+						{ id },
+						{ id, ServerMaxMsgId },
+						std::nullopt);
 				}
 			});
 		}

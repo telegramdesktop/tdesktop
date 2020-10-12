@@ -448,7 +448,7 @@ PinMessageBox::PinMessageBox(
 , _text(
 	this,
 	(_pinningOld
-		? "Do you want to pin an older message while leaving a more recent one pinned?" // #TODO pinned
+		? tr::lng_pinned_pin_old_sure(tr::now)
 		: tr::lng_pinned_pin_sure(tr::now)),
 	st::boxLabel) {
 }

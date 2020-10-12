@@ -21,12 +21,25 @@ class PlainShadow;
 
 namespace HistoryView {
 
+enum class PinnedIdType;
+struct PinnedBarId {
+	FullMsgId message;
+	PinnedIdType type = PinnedIdType();
+
+	bool operator<(const PinnedBarId &other) const {
+		return std::tie(message, type) < std::tie(other.message, other.type);
+	}
+	bool operator==(const PinnedBarId &other) const {
+		return std::tie(message, type) == std::tie(other.message, other.type);
+	}
+};
+
 class PinnedBar final {
 public:
 	PinnedBar(
 		not_null<QWidget*> parent,
 		not_null<Main::Session*> session,
-		rpl::producer<FullMsgId> itemId,
+		rpl::producer<PinnedBarId> itemId,
 		bool withClose = false);
 
 	void show();

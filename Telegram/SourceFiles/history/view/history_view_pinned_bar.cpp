@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "history/view/history_view_pinned_tracker.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "apiwrap.h"
@@ -23,7 +24,8 @@ namespace HistoryView {
 namespace {
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItem(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		PinnedIdType type) {
 	return item->history()->session().changes().messageFlagsValue(
 		item,
 		Data::MessageUpdate::Flag::Edited
@@ -32,7 +34,9 @@ namespace {
 		const auto poll = media ? media->poll() : nullptr;
 		return Ui::MessageBarContent{
 			.id = item->id,
-			.title = ((item->id < item->history()->peer->topPinnedMessageId())
+			.title = ((type == PinnedIdType::First)
+				? "First message"
+				: (type == PinnedIdType::Middle)
 				? tr::lng_pinned_previous(tr::now)
 				: !poll
 				? tr::lng_pinned_message(tr::now)
@@ -46,12 +50,12 @@ namespace {
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItemId(
 		not_null<Main::Session*> session,
-		FullMsgId id,
+		PinnedBarId id,
 		bool alreadyLoaded = false) {
-	if (!id) {
+	if (!id.message) {
 		return rpl::single(Ui::MessageBarContent());
-	} else if (const auto item = session->data().message(id)) {
-		return ContentByItem(item);
+	} else if (const auto item = session->data().message(id.message)) {
+		return ContentByItem(item, id.type);
 	} else if (alreadyLoaded) {
 		return rpl::single(Ui::MessageBarContent()); // Deleted message?..
 	}
@@ -59,13 +63,13 @@ namespace {
 		consumer.put_next(Ui::MessageBarContent{
 			.text = tr::lng_contacts_loading(tr::now),
 		});
-		const auto channel = id.channel
-			? session->data().channel(id.channel).get()
+		const auto channel = id.message.channel
+			? session->data().channel(id.message.channel).get()
 			: nullptr;
 		const auto callback = [=](ChannelData *channel, MsgId id) {
 			consumer.put_done();
 		};
-		session->api().requestMessageData(channel, id.msg, callback);
+		session->api().requestMessageData(channel, id.message.msg, callback);
 		return rpl::lifetime();
 	});
 	return std::move(
@@ -80,7 +84,7 @@ namespace {
 PinnedBar::PinnedBar(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
-	rpl::producer<FullMsgId> itemId,
+	rpl::producer<PinnedBarId> itemId,
 	bool withClose)
 : _wrap(parent, object_ptr<Ui::RpWidget>(parent))
 , _close(withClose
@@ -101,7 +105,7 @@ PinnedBar::PinnedBar(
 	rpl::duplicate(
 		itemId
 	) | rpl::distinct_until_changed(
-	) | rpl::map([=](FullMsgId id) {
+	) | rpl::map([=](PinnedBarId id) {
 		return ContentByItemId(session, id);
 	}) | rpl::flatten_latest(
 	) | rpl::filter([=](const Ui::MessageBarContent &content) {
@@ -119,15 +123,18 @@ PinnedBar::PinnedBar(
 
 	std::move(
 		itemId
-	) | rpl::map([=](FullMsgId id) {
-		return !id;
-	}) | rpl::start_with_next([=](bool hidden) {
+	) | rpl::map([=](PinnedBarId id) {
+		return !id.message;
+	}) | rpl::start_with_next_done([=](bool hidden) {
 		_shouldBeShown = !hidden;
 		if (!_forceHidden) {
 			_wrap.toggle(_shouldBeShown, anim::type::normal);
 		} else if (!_shouldBeShown) {
 			_bar = nullptr;
 		}
+	}, [=] {
+		_forceHidden = true;
+		_wrap.toggle(false, anim::type::normal);
 	}, lifetime());
 }
 

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_app_config.h"
@@ -469,14 +470,12 @@ void PeerData::ensurePinnedMessagesCreated() {
 	if (!_pinnedMessages) {
 		_pinnedMessages = std::make_unique<Data::PinnedMessages>(
 			peerToChannel(id));
-		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
 void PeerData::removeEmptyPinnedMessages() {
 	if (_pinnedMessages && _pinnedMessages->empty()) {
 		_pinnedMessages = nullptr;
-		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
@@ -489,18 +488,30 @@ bool PeerData::messageIdTooSmall(MsgId messageId) const {
 
 void PeerData::setTopPinnedMessageId(MsgId messageId) {
 	if (messageIdTooSmall(messageId)) {
+		clearPinnedMessages();
 		return;
+	}
+	if (session().settings().hiddenPinnedMessageId(id) != messageId) {
+		session().settings().setHiddenPinnedMessageId(id, 0);
+		session().saveSettingsDelayed();
 	}
 	ensurePinnedMessagesCreated();
 	_pinnedMessages->setTopId(messageId);
+	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 void PeerData::clearPinnedMessages(MsgId lessThanId) {
+	if (lessThanId == ServerMaxMsgId
+		&& session().settings().hiddenPinnedMessageId(id) != 0) {
+		session().settings().setHiddenPinnedMessageId(id, 0);
+		session().saveSettingsDelayed();
+	}
 	if (!_pinnedMessages) {
 		return;
 	}
 	_pinnedMessages->clearLessThanId(lessThanId);
 	removeEmptyPinnedMessages();
+	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 void PeerData::addPinnedMessage(MsgId messageId) {
@@ -509,6 +520,7 @@ void PeerData::addPinnedMessage(MsgId messageId) {
 	}
 	ensurePinnedMessagesCreated();
 	_pinnedMessages->add(messageId);
+	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 void PeerData::addPinnedSlice(
@@ -532,6 +544,7 @@ void PeerData::addPinnedSlice(
 	}
 	ensurePinnedMessagesCreated();
 	_pinnedMessages->add(std::move(ids), noSkipRange, std::nullopt);
+	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 void PeerData::removePinnedMessage(MsgId messageId) {
@@ -540,6 +553,7 @@ void PeerData::removePinnedMessage(MsgId messageId) {
 	}
 	_pinnedMessages->remove(messageId);
 	removeEmptyPinnedMessages();
+	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 bool PeerData::canExportChatHistory() const {

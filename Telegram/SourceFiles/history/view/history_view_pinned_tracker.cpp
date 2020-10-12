@@ -40,15 +40,23 @@ PinnedTracker::~PinnedTracker() {
 	_history->owner().histories().cancelRequest(_afterRequestId);
 }
 
-rpl::producer<MsgId> PinnedTracker::shownMessageId() const {
+rpl::producer<PinnedId> PinnedTracker::shownMessageId() const {
 	return _current.value();
+}
+
+void PinnedTracker::reset() {
+	_current.reset(currentMessageId());
+}
+
+PinnedId PinnedTracker::currentMessageId() const {
+	return _current.current();
 }
 
 void PinnedTracker::refreshData() {
 	const auto now = _history->peer->currentPinnedMessages();
 	if (!now) {
 		_dataLifetime.destroy();
-		_current = MsgId(0);
+		_current = PinnedId();
 	} else if (_data.get() != now) {
 		_dataLifetime.destroy();
 		_data = now;
@@ -65,7 +73,7 @@ void PinnedTracker::trackAround(MsgId messageId) {
 	_dataLifetime.destroy();
 	_aroundId = messageId;
 	if (!_aroundId) {
-		_current = MsgId(0);
+		_current = PinnedId();
 	} else if (const auto now = _data.get()) {
 		setupViewer(now);
 	}
@@ -90,10 +98,19 @@ void PinnedTracker::setupViewer(not_null<Data::PinnedMessages*> data) {
 				Data::LoadDirection::After,
 				empty ? _aroundId : snapshot.ids.back());
 		}
+		if (snapshot.ids.empty()) {
+			_current = PinnedId();
+			return;
+		}
+		const auto type = (!after && (snapshot.skippedAfter == 0))
+			? PinnedIdType::Last
+			: (before < 2 && (snapshot.skippedBefore == 0))
+			? PinnedIdType::First
+			: PinnedIdType::Middle;
 		if (i != begin(snapshot.ids)) {
-			_current = *(i - 1);
+			_current = PinnedId{ *(i - 1), type };
 		} else if (snapshot.skippedBefore == 0) {
-			_current = 0;
+			_current = PinnedId{ snapshot.ids.front(), type };
 		}
 	}, _dataLifetime);
 }

@@ -486,6 +486,7 @@ private:
 
 	void updatePinnedViewer();
 	void setupPinnedTracker();
+	void checkPinnedBarState();
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
