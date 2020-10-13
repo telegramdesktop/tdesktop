@@ -75,6 +75,22 @@ PinnedBar::PinnedBar(
 
 PinnedBar::~PinnedBar() = default;
 
+void PinnedBar::setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess) {
+	_shadowGeometryPostprocess = std::move(postprocess);
+	updateShadowGeometry(_wrap.geometry());
+}
+
+void PinnedBar::updateShadowGeometry(QRect wrapGeometry) {
+	const auto regular = QRect(
+		wrapGeometry.x(),
+		wrapGeometry.y() + wrapGeometry.height(),
+		wrapGeometry.width(),
+		st::lineWidth);
+	_shadow->setGeometry(_shadowGeometryPostprocess
+		? _shadowGeometryPostprocess(regular)
+		: regular);
+}
+
 void PinnedBar::createControls() {
 	Expects(!_bar);
 
@@ -109,11 +125,7 @@ void PinnedBar::createControls() {
 
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {
-		_shadow->setGeometry(
-			rect.x(),
-			rect.y() + rect.height(),
-			rect.width(),
-			st::lineWidth);
+		updateShadowGeometry(rect);
 		_bar->widget()->resizeToWidth(
 			rect.width() - (_close ? _close->width() : 0));
 		const auto hidden = _wrap.isHidden() || !rect.height();
@@ -160,6 +172,10 @@ void PinnedBar::hide() {
 void PinnedBar::raise() {
 	_wrap.raise();
 	_shadow->raise();
+}
+
+void PinnedBar::finishAnimating() {
+	_wrap.finishAnimating();
 }
 
 void PinnedBar::move(int x, int y) {

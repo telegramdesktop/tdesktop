@@ -26,6 +26,9 @@ public:
 	void show();
 	void hide();
 	void raise();
+	void finishAnimating();
+
+	void setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess);
 
 	void move(int x, int y);
 	void resizeToWidth(int width);
@@ -40,12 +43,14 @@ public:
 
 private:
 	void createControls();
+	void updateShadowGeometry(QRect wrapGeometry);
 
 	Ui::SlideWrap<> _wrap;
 	std::unique_ptr<Ui::MessageBar> _bar;
 	std::unique_ptr<Ui::IconButton> _close;
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
+	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 

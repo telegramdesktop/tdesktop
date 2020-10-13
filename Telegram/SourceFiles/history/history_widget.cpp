@@ -5258,6 +5258,21 @@ void HistoryWidget::checkPinnedBarState() {
 		HistoryView::PinnedBarContent(&session(), std::move(shown)),
 		true);
 
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		base::ObservableViewer(Adaptive::Changed())
+	) | rpl::map([] {
+		return Adaptive::OneColumn();
+	}) | rpl::start_with_next([=](bool one) {
+		_pinnedBar->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
+			}
+			return geometry;
+		});
+	}, _pinnedBar->lifetime());
+
 	_pinnedBar->closeClicks(
 	) | rpl::start_with_next([=] {
 		hidePinnedMessage();

@@ -35,8 +35,7 @@ class ScrollArea;
 class PlainShadow;
 class FlatButton;
 class HistoryDownButton;
-template <typename Widget>
-class SlideWrap;
+class PinnedBar;
 } // namespace Ui
 
 namespace Profile {
@@ -158,7 +157,6 @@ private:
 
 	void setupRoot();
 	void setupRootView();
-	void refreshRootView();
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
@@ -250,12 +248,10 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
 
-	Ui::Text::String _rootTitle;
-	Ui::Text::String _rootMessage;
-	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
+	std::unique_ptr<Ui::PinnedBar> _rootView;
 	int _rootViewHeight = 0;
-	object_ptr<Ui::PlainShadow> _rootShadow;
 	bool _rootViewInited = false;
+	rpl::variable<bool> _rootVisible = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 

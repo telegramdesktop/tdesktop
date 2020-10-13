@@ -11,11 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
+#include "history/view/history_view_pinned_bar.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "chat_helpers/send_context_menu.h" // SendMenu::Type.
+#include "ui/chat/pinned_bar.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
@@ -75,6 +78,27 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 		}
 	}
 	return false;
+}
+
+rpl::producer<Ui::MessageBarContent> RootViewContent(
+		not_null<History*> history,
+		MsgId rootId) {
+	return MessageBarContentByItemId(
+		&history->session(),
+		FullMsgId{ history->channelId(), rootId }
+	) | rpl::map([=](Ui::MessageBarContent &&content) {
+		const auto item = history->owner().message(
+			history->channelId(),
+			rootId);
+		if (!item) {
+			content.text = Ui::Text::Link(tr::lng_deleted_message(tr::now));
+		}
+		const auto sender = (item && item->discussionPostOriginalSender())
+			? item->discussionPostOriginalSender()
+			: history->peer.get();
+		content.title = sender->name.isEmpty() ? "Message" : sender->name;
+		return std::move(content);
+	});
 }
 
 } // namespace
@@ -131,8 +155,6 @@ RepliesWidget::RepliesWidget(
 	this,
 	controller,
 	ComposeControls::Mode::Normal))
-, _rootView(this, object_ptr<Ui::RpWidget>(this))
-, _rootShadow(this)
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
 , _scrollDown(_scroll.get(), st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
@@ -170,7 +192,6 @@ RepliesWidget::RepliesWidget(
 	}, _topBar->lifetime());
 
 	_rootView->raise();
-	_rootShadow->raise();
 	_topBarShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
@@ -263,9 +284,7 @@ void RepliesWidget::sendReadTillRequest() {
 }
 
 void RepliesWidget::setupRoot() {
-	if (_root) {
-		refreshRootView();
-	} else {
+	if (!_root) {
 		const auto channel = _history->peer->asChannel();
 		const auto done = crl::guard(this, [=](ChannelData*, MsgId) {
 			_root = lookupRoot();
@@ -277,86 +296,41 @@ void RepliesWidget::setupRoot() {
 				_inner->update();
 			}
 			updatePinnedVisibility();
-			refreshRootView();
 		});
 		_history->session().api().requestMessageData(channel, _rootId, done);
 	}
 }
 
 void RepliesWidget::setupRootView() {
-	const auto raw = _rootView->entity();
-	raw->resize(raw->width(), st::historyReplyHeight);
-	raw->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		auto p = Painter(raw);
-		p.fillRect(clip, st::historyPinnedBg);
+	auto content = rpl::combine(
+		RootViewContent(_history, _rootId),
+		_rootVisible.value()
+	) | rpl::map([=](Ui::MessageBarContent &&content, bool shown) {
+		return shown ? std::move(content) : Ui::MessageBarContent();
+	});
+	_rootView = std::make_unique<Ui::PinnedBar>(this, std::move(content));
 
-		auto top = st::msgReplyPadding.top();
-		QRect rbar(myrtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height()));
-		p.fillRect(rbar, st::msgInReplyBarColor);
-
-		int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
-		if (!_rootTitle.isEmpty()) {
-			const auto media = _root ? _root->media() : nullptr;
-			if (media && media->hasReplyPreview()) {
-				if (const auto image = media->replyPreview()) {
-					QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-					p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
-				}
-				left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		base::ObservableViewer(Adaptive::Changed())
+	) | rpl::map([] {
+		return Adaptive::OneColumn();
+	}) | rpl::start_with_next([=](bool one) {
+		_rootView->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
 			}
-			p.setPen(st::historyReplyNameFg);
-			p.setFont(st::msgServiceNameFont);
-			const auto poll = media ? media->poll() : nullptr;
-			const auto pinnedHeader = !poll
-				? tr::lng_pinned_message(tr::now)
-				: poll->quiz()
-				? tr::lng_pinned_quiz(tr::now)
-				: tr::lng_pinned_poll(tr::now);
-			_rootTitle.drawElided(p, left, top, width() - left - st::msgReplyPadding.right());
-
-			p.setPen(st::historyComposeAreaFg);
-			p.setTextPalette(st::historyComposeAreaPalette);
-			_rootMessage.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - st::msgReplyPadding.right());
-			p.restoreTextPalette();
-		} else {
-			p.setFont(st::msgDateFont);
-			p.setPen(st::historyComposeAreaFgService);
-			p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - left - st::msgReplyPadding.right()));
-		}
-	}, raw->lifetime());
-
-	raw->setCursor(style::cur_pointer);
-	const auto pressed = raw->lifetime().make_state<bool>();
-	raw->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		const auto mouse = static_cast<QMouseEvent*>(e.get());
-		if (e->type() == QEvent::MouseButtonPress) {
-			if (mouse->button() == Qt::LeftButton) {
-				*pressed = true;
-			}
-		} else if (e->type() == QEvent::MouseButtonRelease) {
-			if (mouse->button() == Qt::LeftButton) {
-				if (base::take(*pressed)
-					&& raw->rect().contains(mouse->pos())) {
-					showAtStart();
-				}
-			}
-		}
-	}, raw->lifetime());
-
-	_rootView->geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
-		_rootShadow->moveToLeft(
-			_rootShadow->x(),
-			rect.y() + rect.height());
+			return geometry;
+		});
 	}, _rootView->lifetime());
 
-	_rootShadow->showOn(_rootView->shownValue());
+	_rootView->barClicks(
+	) | rpl::start_with_next([=] {
+		showAtStart();
+	}, lifetime());
 
-	_rootView->hide(anim::type::instant);
 	_rootViewHeight = 0;
-
 	_rootView->heightValue(
 	) | rpl::start_with_next([=](int height) {
 		if (const auto delta = height - _rootViewHeight) {
@@ -364,34 +338,6 @@ void RepliesWidget::setupRootView() {
 			setGeometryWithTopMoved(geometry(), delta);
 		}
 	}, _rootView->lifetime());
-}
-
-void RepliesWidget::refreshRootView() {
-	const auto sender = (_root && _root->discussionPostOriginalSender())
-		? _root->discussionPostOriginalSender()
-		: _history->peer.get();
-	_rootTitle.setText(
-		st::fwdTextStyle,
-		sender->name,
-		Ui::NameTextOptions());
-	if (_rootTitle.isEmpty()) {
-		_rootTitle.setText(
-			st::fwdTextStyle,
-			"Message",
-			Ui::NameTextOptions());
-	}
-	if (_root) {
-		_rootMessage.setText(
-			st::messageTextStyle,
-			_root->inReplyText(),
-			Ui::DialogTextOptions());
-	} else {
-		_rootMessage.setText(
-			st::messageTextStyle,
-			textcmdLink(1, tr::lng_deleted_message(tr::now)),
-			Ui::DialogTextOptions());
-	}
-	update();
 }
 
 HistoryItem *RepliesWidget::lookupRoot() const {
@@ -1332,9 +1278,6 @@ void RepliesWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
 		Adaptive::OneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
-	_rootShadow->moveToLeft(
-		Adaptive::OneColumn() ? 0 : st::lineWidth,
-		_rootShadow->y());
 }
 
 not_null<History*> RepliesWidget::history() const {
@@ -1518,7 +1461,9 @@ void RepliesWidget::updateControlsGeometry() {
 		: base::make_optional(_scroll->scrollTop() + topDelta());
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
-	_rootShadow->resize(contentWidth, st::lineWidth);
+	if (_rootView) {
+		_rootView->resizeToWidth(contentWidth);
+	}
 	_rootView->resizeToWidth(contentWidth);
 
 	const auto bottom = height();
@@ -1606,10 +1551,16 @@ void RepliesWidget::setPinnedVisibility(bool shown) {
 					updateControlsGeometry();
 				}
 			}
-			_rootView->toggle(shown, anim::type::instant);
+			if (shown) {
+				_rootView->show();
+			} else {
+				_rootView->hide();
+			}
+			_rootVisible = shown;
+			_rootView->finishAnimating();
 			_rootViewInited = true;
 		} else {
-			_rootView->toggle(shown, anim::type::normal);
+			_rootVisible = shown;
 		}
 	}
 }
