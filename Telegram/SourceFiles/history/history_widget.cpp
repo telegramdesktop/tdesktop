@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "ui/emoji_config.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
@@ -4091,7 +4092,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 }
 
 bool HistoryWidget::showSendingFilesError(
-		const Storage::PreparedList &list) const {
+		const Ui::PreparedList &list) const {
 	const auto text = [&] {
 		const auto error = _peer
 			? Data::RestrictionError(
@@ -4113,7 +4114,7 @@ bool HistoryWidget::showSendingFilesError(
 				lt_left,
 				Ui::FormatDurationWords(left));
 		}
-		using Error = Storage::PreparedList::Error;
+		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
 		case Error::None: return QString();
 		case Error::EmptyFile:
@@ -4158,7 +4159,7 @@ bool HistoryWidget::confirmSendingFiles(
 }
 
 bool HistoryWidget::confirmSendingFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
 	if (showSendingFilesError(list)) {
@@ -4191,7 +4192,7 @@ bool HistoryWidget::confirmSendingFiles(
 		sendMenuType());
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
-			Storage::PreparedList &&list,
+			Ui::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
@@ -4279,8 +4280,8 @@ bool HistoryWidget::confirmSendingFiles(
 		auto list = Storage::PrepareMediaList(
 			urls,
 			st::sendMediaPreviewSize);
-		if (list.error != Storage::PreparedList::Error::NonLocalUrl) {
-			if (list.error == Storage::PreparedList::Error::None
+		if (list.error != Ui::PreparedList::Error::NonLocalUrl) {
+			if (list.error == Ui::PreparedList::Error::None
 				|| !hasImage) {
 				const auto emptyTextOnCancel = QString();
 				confirmSendingFiles(
@@ -4310,7 +4311,7 @@ bool HistoryWidget::confirmSendingFiles(
 }
 
 void HistoryWidget::uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,

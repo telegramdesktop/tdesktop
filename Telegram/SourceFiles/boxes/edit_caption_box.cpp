@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/controls/emoji_button.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
@@ -67,13 +68,13 @@ using namespace ::Media::Streaming;
 using Data::PhotoSize;
 
 auto ListFromMimeData(not_null<const QMimeData*> data) {
-	using Error = Storage::PreparedList::Error;
+	using Error = Ui::PreparedList::Error;
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			// When we edit media, we need only 1 file.
 			data->urls().mid(0, 1),
 			st::sendMediaPreviewSize)
-		: Storage::PreparedList(Error::EmptyFile, QString());
+		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		return result;
 	} else if (data->hasImage()) {
@@ -475,7 +476,7 @@ void EditCaptionBox::streamingReady(Information &&info) {
 }
 
 void EditCaptionBox::updateEditPreview() {
-	using Info = FileMediaInformation;
+	using Info = Ui::PreparedFileInformation;
 
 	const auto file = &_preparedList.files.front();
 	const auto fileMedia = &file->information->media;
@@ -590,7 +591,7 @@ void EditCaptionBox::createEditMediaButton() {
 			Ui::show(Box<InformBox>(t(tr::now)), Ui::LayerOption::KeepOther);
 		};
 
-		auto list = Storage::PreparedList::PreparedFileFromFilesDialog(
+		auto list = Storage::PreparedFileFromFilesDialog(
 			std::move(result),
 			_isAlbum,
 			std::move(showBoxErrorCallback),
@@ -677,8 +678,8 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	if (!_isAllowedEditMedia) {
 		return false;
 	}
-	using Error = Storage::PreparedList::Error;
-	using AlbumType = Storage::PreparedFile::AlbumType;
+	using Error = Ui::PreparedList::Error;
+	using AlbumType = Ui::PreparedFile::AlbumType;
 	auto list = ListFromMimeData(data);
 
 	if (list.error != Error::None || list.files.empty()) {
@@ -688,7 +689,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	const auto file = &list.files.front();
 	if (_isAlbum && (file->type == AlbumType::None)) {
 		const auto imageAsDoc = [&] {
-			using Info = FileMediaInformation;
+			using Info = Ui::PreparedFileInformation;
 			const auto fileMedia = &file->information->media;
 			if (const auto image = std::get_if<Info::Image>(fileMedia)) {
 				return !Storage::ValidateThumbDimensions(

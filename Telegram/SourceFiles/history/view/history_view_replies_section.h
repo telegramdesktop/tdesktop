@@ -27,7 +27,6 @@ struct SendOptions;
 } // namespace Api
 
 namespace Storage {
-struct PreparedList;
 } // namespace Storage
 
 namespace Ui {
@@ -36,6 +35,7 @@ class PlainShadow;
 class FlatButton;
 class HistoryDownButton;
 class PinnedBar;
+struct PreparedList;
 } // namespace Ui
 
 namespace Profile {
@@ -201,16 +201,16 @@ private:
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
-	bool showSendingFilesError(const Storage::PreparedList &list) const;
+	bool showSendingFilesError(const Ui::PreparedList &list) const;
 	void uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,

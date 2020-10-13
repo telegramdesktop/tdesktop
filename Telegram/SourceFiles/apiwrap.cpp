@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "ui/item_text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"
 #include "storage/download_manager_mtproto.h"
@@ -4183,7 +4184,7 @@ void ApiWrap::sendVoiceMessage(
 }
 
 void ApiWrap::editMedia(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		const SendAction &action,
@@ -4205,7 +4206,7 @@ void ApiWrap::editMedia(
 }
 
 void ApiWrap::sendFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
@@ -4231,10 +4232,10 @@ void ApiWrap::sendFiles(
 	for (auto &file : list.files) {
 		if (album) {
 			switch (file.type) {
-			case Storage::PreparedFile::AlbumType::Photo:
+			case Ui::PreparedFile::AlbumType::Photo:
 				type = SendMediaType::Photo;
 				break;
-			case Storage::PreparedFile::AlbumType::Video:
+			case Ui::PreparedFile::AlbumType::Video:
 				type = SendMediaType::File;
 				break;
 			default: Unexpected("AlbumType in uploadFilesAfterConfirmation");

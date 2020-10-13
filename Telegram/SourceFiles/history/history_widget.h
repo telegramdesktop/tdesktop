@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class RPCError;
 struct FileLoadResult;
-struct FileMediaInformation;
 struct SendingAlbum;
 enum class SendMediaType;
 enum class CompressConfirm;
@@ -67,6 +66,7 @@ class FlatButton;
 class LinkButton;
 class RoundButton;
 class PinnedBar;
+struct PreparedList;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -84,7 +84,6 @@ class TabbedSelector;
 
 namespace Storage {
 enum class MimeDataState;
-struct PreparedList;
 struct UploadedPhoto;
 struct UploadedDocument;
 struct UploadedThumbDocument;
@@ -424,15 +423,15 @@ private:
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
-	bool showSendingFilesError(const Storage::PreparedList &list) const;
+	bool showSendingFilesError(const Ui::PreparedList &list) const;
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 
 	void uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,

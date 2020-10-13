@@ -1630,8 +1630,8 @@ private:
 
 namespace Player {
 
-FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileMediaInformation::Song();
+Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = Ui::PreparedFileInformation::Song();
 	FFMpegAttributesReader reader(FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
 	if (reader.open(positionMs) && reader.samplesCount() > 0) {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 class Image;
 
@@ -130,7 +131,7 @@ private:
 	int _gifh = 0;
 	int _gifx = 0;
 
-	Storage::PreparedList _preparedList;
+	Ui::PreparedList _preparedList;
 
 	mtpRequestId _saveRequestId = 0;
 

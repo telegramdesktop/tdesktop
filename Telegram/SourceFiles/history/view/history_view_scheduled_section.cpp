@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/item_text_options.h"
 #include "ui/toast/toast.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
@@ -311,8 +312,8 @@ bool ScheduledWidget::confirmSendingFiles(
 		auto list = Storage::PrepareMediaList(
 			urls,
 			st::sendMediaPreviewSize);
-		if (list.error != Storage::PreparedList::Error::NonLocalUrl) {
-			if (list.error == Storage::PreparedList::Error::None
+		if (list.error != Ui::PreparedList::Error::NonLocalUrl) {
+			if (list.error == Ui::PreparedList::Error::None
 				|| !hasImage) {
 				const auto emptyTextOnCancel = QString();
 				confirmSendingFiles(
@@ -342,7 +343,7 @@ bool ScheduledWidget::confirmSendingFiles(
 }
 
 bool ScheduledWidget::confirmSendingFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
 	if (showSendingFilesError(list)) {
@@ -374,7 +375,7 @@ bool ScheduledWidget::confirmSendingFiles(
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
-			Storage::PreparedList &&list,
+			Ui::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
@@ -436,7 +437,7 @@ bool ScheduledWidget::confirmSendingFiles(
 }
 
 void ScheduledWidget::uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,
@@ -480,7 +481,7 @@ void ScheduledWidget::uploadFile(
 }
 
 bool ScheduledWidget::showSendingFilesError(
-		const Storage::PreparedList &list) const {
+		const Ui::PreparedList &list) const {
 	const auto text = [&] {
 		const auto error = Data::RestrictionError(
 			_history->peer,
@@ -488,7 +489,7 @@ bool ScheduledWidget::showSendingFilesError(
 		if (error) {
 			return *error;
 		}
-		using Error = Storage::PreparedList::Error;
+		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
 		case Error::None: return QString();
 		case Error::EmptyFile:

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/text/text_options.h"
@@ -67,13 +68,13 @@ inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
 }
 
-inline bool IsFirstAlbumItem(const Storage::PreparedList &list) {
-	using AlbumType = Storage::PreparedFile::AlbumType;
+inline bool IsFirstAlbumItem(const Ui::PreparedList &list) {
+	using AlbumType = Ui::PreparedFile::AlbumType;
 	return (list.files.size() > 0)
 		&& (list.files.front().type != AlbumType::None);
 }
 
-inline bool IsSingleItem(const Storage::PreparedList &list) {
+inline bool IsSingleItem(const Ui::PreparedList &list) {
 	return list.files.size() == 1;
 }
 
@@ -132,12 +133,12 @@ QRect PaintAlbumThumbButtons(
 void FileDialogCallback(
 	FileDialog::OpenResult &&result,
 	bool isAlbum,
-	Fn<void(Storage::PreparedList)> callback) {
+	Fn<void(Ui::PreparedList)> callback) {
 	auto showBoxErrorCallback = [](tr::phrase<> text) {
 		Ui::show(Box<InformBox>(text(tr::now)), Ui::LayerOption::KeepOther);
 	};
 
-	auto list = Storage::PreparedList::PreparedFileFromFilesDialog(
+	auto list = Storage::PreparedFileFromFilesDialog(
 		std::move(result),
 		isAlbum,
 		std::move(showBoxErrorCallback),
@@ -155,7 +156,7 @@ public:
 	static SingleMediaPreview *Create(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		const Storage::PreparedFile &file);
+		const Ui::PreparedFile &file);
 
 	SingleMediaPreview(
 		QWidget *parent,
@@ -198,7 +199,7 @@ class SingleFilePreview : public Ui::RpWidget {
 public:
 	SingleFilePreview(
 		QWidget *parent,
-		const Storage::PreparedFile &file);
+		const Ui::PreparedFile &file);
 
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -206,7 +207,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void preparePreview(const Storage::PreparedFile &file);
+	void preparePreview(const Ui::PreparedFile &file);
 	void prepareThumb(const QImage &preview);
 
 	QPixmap _fileThumb;
@@ -221,7 +222,7 @@ private:
 class AlbumThumb {
 public:
 	AlbumThumb(
-		const Storage::PreparedFile &file,
+		const Ui::PreparedFile &file,
 		const Ui::GroupMediaLayout &layout,
 		QWidget *parent,
 		Fn<void()> editCallback,
@@ -287,7 +288,7 @@ private:
 };
 
 AlbumThumb::AlbumThumb(
-	const Storage::PreparedFile &file,
+	const Ui::PreparedFile &file,
 	const Ui::GroupMediaLayout &layout,
 	QWidget *parent,
 	Fn<void()> editCallback,
@@ -295,7 +296,7 @@ AlbumThumb::AlbumThumb(
 : _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
-, _isVideo(file.type == Storage::PreparedFile::AlbumType::Video) {
+, _isVideo(file.type == Ui::PreparedFile::AlbumType::Video) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -762,15 +763,15 @@ void AlbumThumb::finishAnimations() {
 SingleMediaPreview *SingleMediaPreview::Create(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		const Storage::PreparedFile &file) {
+		const Ui::PreparedFile &file) {
 	auto preview = QImage();
 	bool animated = false;
 	bool animationPreview = false;
-	if (const auto image = std::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 			&file.information->media)) {
 		preview = image->data;
 		animated = animationPreview = image->animated;
-	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 			&file.information->media)) {
 		preview = video->thumbnail;
 		animated = true;
@@ -970,7 +971,7 @@ rpl::producer<int> SingleMediaPreview::desiredHeightValue() const {
 
 SingleFilePreview::SingleFilePreview(
 	QWidget *parent,
-	const Storage::PreparedFile &file)
+	const Ui::PreparedFile &file)
 : RpWidget(parent) {
 	preparePreview(file);
 }
@@ -1002,12 +1003,12 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 		st::msgFileThumbSize));
 }
 
-void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
+void SingleFilePreview::preparePreview(const Ui::PreparedFile &file) {
 	auto preview = QImage();
-	if (const auto image = std::get_if<FileMediaInformation::Image>(
+	if (const auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 		&file.information->media)) {
 		preview = image->data;
-	} else if (const auto video = std::get_if<FileMediaInformation::Video>(
+	} else if (const auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 		&file.information->media)) {
 		preview = video->thumbnail;
 	}
@@ -1034,7 +1035,7 @@ void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
 		auto songTitle = QString();
 		auto songPerformer = QString();
 		if (file.information) {
-			if (const auto song = std::get_if<FileMediaInformation::Song>(
+			if (const auto song = std::get_if<Ui::PreparedFileInformation::Song>(
 					&file.information->media)) {
 				songTitle = song->title;
 				songPerformer = song->performer;
@@ -1118,7 +1119,7 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 }
 
 rpl::producer<QString> FieldPlaceholder(
-		const Storage::PreparedList &list,
+		const Ui::PreparedList &list,
 		SendFilesWay way) {
 	const auto isAlbum = (way == SendFilesWay::Album);
 	const auto compressImages = (way != SendFilesWay::Files);
@@ -1133,7 +1134,7 @@ class SendFilesBox::AlbumPreview : public Ui::RpWidget {
 public:
 	AlbumPreview(
 		QWidget *parent,
-		const Storage::PreparedList &list,
+		const Ui::PreparedList &list,
 		SendFilesWay way);
 
 	void setSendWay(SendFilesWay way);
@@ -1185,7 +1186,7 @@ private:
 	void cancelDrag();
 	void finishDrag();
 
-	const Storage::PreparedList &_list;
+	const Ui::PreparedList &_list;
 	SendFilesWay _sendWay = SendFilesWay::Files;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
@@ -1210,7 +1211,7 @@ private:
 
 SendFilesBox::AlbumPreview::AlbumPreview(
 	QWidget *parent,
-	const Storage::PreparedList &list,
+	const Ui::PreparedList &list,
 	SendFilesWay way)
 : RpWidget(parent)
 , _list(list)
@@ -1662,7 +1663,7 @@ void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 SendFilesBox::SendFilesBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	Storage::PreparedList &&list,
+	Ui::PreparedList &&list,
 	const TextWithTags &caption,
 	CompressConfirm compressed,
 	SendLimit limit,
@@ -1899,7 +1900,7 @@ void SendFilesBox::setupDragArea() {
 
 void SendFilesBox::updateLeftButtonVisibility() {
 	const auto isAlbum = _list.albumIsPossible
-		&& (_list.files.size() < Storage::MaxAlbumItems());
+		&& (_list.files.size() < Ui::MaxAlbumItems());
 	if (isAlbum || (IsSingleItem(_list) && IsFirstAlbumItem(_list))) {
 		_addFileToAlbum->show();
 	} else {
@@ -1999,8 +2000,8 @@ void SendFilesBox::refreshAlbumMediaCount() {
 	_albumVideosCount = _list.albumIsPossible
 		? ranges::count(
 			_list.files,
-			Storage::PreparedFile::AlbumType::Video,
-			[](const Storage::PreparedFile &file) { return file.type; })
+			Ui::PreparedFile::AlbumType::Video,
+			[](const Ui::PreparedFile &file) { return file.type; })
 		: 0;
 	_albumPhotosCount = _list.albumIsPossible
 		? (_list.files.size() - _albumVideosCount)
@@ -2076,7 +2077,7 @@ void SendFilesBox::applyAlbumOrder() {
 		return;
 	}
 
-	_list = Storage::PreparedList::Reordered(std::move(_list), order);
+	_list = Ui::PreparedList::Reordered(std::move(_list), order);
 }
 
 void SendFilesBox::setupCaption() {
@@ -2189,7 +2190,7 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 		++filesCount;
 	}
 
-	if (_list.files.size() + filesCount > Storage::MaxAlbumItems()) {
+	if (_list.files.size() + filesCount > Ui::MaxAlbumItems()) {
 		return false;
 	} else if (_list.files.size() > 1 && !_albumPreview) {
 		return false;
@@ -2204,10 +2205,10 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
 		auto result = CanAddUrls(urls)
 			? Storage::PrepareMediaList(urls, st::sendMediaPreviewSize)
-			: Storage::PreparedList(
-				Storage::PreparedList::Error::EmptyFile,
+			: Ui::PreparedList(
+				Ui::PreparedList::Error::EmptyFile,
 				QString());
-		if (result.error == Storage::PreparedList::Error::None) {
+		if (result.error == Ui::PreparedList::Error::None) {
 			return result;
 		} else if (data->hasImage()) {
 			auto image = Platform::GetImageFromClipboard();
@@ -2226,10 +2227,10 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	return addFiles(std::move(list));
 }
 
-bool SendFilesBox::addFiles(Storage::PreparedList list) {
+bool SendFilesBox::addFiles(Ui::PreparedList list) {
 	const auto sumFiles = _list.files.size() + list.files.size();
-	const auto cutToAlbumSize = (sumFiles > Storage::MaxAlbumItems());
-	if (list.error != Storage::PreparedList::Error::None) {
+	const auto cutToAlbumSize = (sumFiles > Ui::MaxAlbumItems());
+	if (list.error != Ui::PreparedList::Error::None) {
 		return false;
 	} else if (!IsSingleItem(list) && !list.albumIsPossible) {
 		return false;

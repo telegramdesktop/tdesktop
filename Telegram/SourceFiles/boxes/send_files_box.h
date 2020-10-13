@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "boxes/abstract_box.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
@@ -59,7 +60,7 @@ public:
 	SendFilesBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		const TextWithTags &caption,
 		CompressConfirm compressed,
 		SendLimit limit,
@@ -68,7 +69,7 @@ public:
 
 	void setConfirmedCallback(
 		Fn<void(
-			Storage::PreparedList &&list,
+			Ui::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
@@ -127,7 +128,7 @@ private:
 
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
-	bool addFiles(Storage::PreparedList list);
+	bool addFiles(Ui::PreparedList list);
 
 	void openDialogToAddFileToAlbum();
 	void updateLeftButtonVisibility();
@@ -139,7 +140,7 @@ private:
 	QString _titleText;
 	int _titleHeight = 0;
 
-	Storage::PreparedList _list;
+	Ui::PreparedList _list;
 
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
@@ -147,7 +148,7 @@ private:
 	SendMenu::Type _sendMenuType = SendMenu::Type();
 
 	Fn<void(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
 		Api::SendOptions options,

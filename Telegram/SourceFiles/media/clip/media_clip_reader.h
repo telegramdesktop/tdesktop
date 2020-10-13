@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/localimageloader.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 
 #include <QtCore/QTimer>
@@ -294,7 +294,9 @@ private:
 
 };
 
-FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data);
+[[nodiscard]] Ui::PreparedFileInformation::Video PrepareForSending(
+	const QString &fname,
+	const QByteArray &data);
 
 void Finish();
 

@@ -36,7 +36,6 @@ class Result;
 
 namespace Storage {
 enum class SharedMediaType : signed char;
-struct PreparedList;
 class DownloadMtprotoTask;
 class Account;
 } // namespace Storage
@@ -48,6 +47,10 @@ class Key;
 namespace Core {
 struct CloudPasswordState;
 } // namespace Core
+
+namespace Ui {
+struct PreparedList;
+} // namespace Ui
 
 namespace Api {
 
@@ -393,7 +396,7 @@ public:
 		int duration,
 		const SendAction &action);
 	void sendFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
@@ -404,7 +407,7 @@ public:
 		const SendAction &action);
 
 	void editMedia(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		const SendAction &action,

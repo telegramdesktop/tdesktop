@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/image/image_prepare.h"
 #include "ui/chat/attach/attach_extensions.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "app.h"
 
 #include <QtCore/QSemaphore>
@@ -20,7 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace {
 
-constexpr auto kMaxAlbumCount = 10;
+using Ui::PreparedFileInformation;
+using Ui::PreparedFile;
+using Ui::PreparedList;
 
 bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 	for (const auto &extension : extensions) {
@@ -33,7 +36,7 @@ bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 }
 
 bool ValidPhotoForAlbum(
-		const FileMediaInformation::Image &image,
+		const PreparedFileInformation::Image &image,
 		const QString &mime) {
 	if (image.animated || Core::IsMimeSticker(mime)) {
 		return false;
@@ -43,7 +46,7 @@ bool ValidPhotoForAlbum(
 	return ValidateThumbDimensions(width, height);
 }
 
-bool ValidVideoForAlbum(const FileMediaInformation::Video &video) {
+bool ValidVideoForAlbum(const PreparedFileInformation::Video &video) {
 	const auto width = video.thumbnail.width();
 	const auto height = video.thumbnail.height();
 	return ValidateThumbDimensions(width, height);
@@ -82,8 +85,8 @@ bool PrepareAlbumMediaIsWaiting(
 			Assert(file.information != nullptr);
 		}
 
-		using Image = FileMediaInformation::Image;
-		using Video = FileMediaInformation::Video;
+		using Image = PreparedFileInformation::Image;
+		using Video = PreparedFileInformation::Video;
 		if (const auto image = std::get_if<Image>(
 				&file.information->media)) {
 			if (ValidPhotoForAlbum(*image, file.mime)) {
@@ -115,7 +118,7 @@ bool PrepareAlbumMediaIsWaiting(
 
 void PrepareAlbum(PreparedList &result, int previewWidth) {
 	const auto count = int(result.files.size());
-	if (count > kMaxAlbumCount) {
+	if (count > Ui::MaxAlbumItems()) {
 		return;
 	}
 
@@ -166,15 +169,6 @@ bool ValidateThumbDimensions(int width, int height) {
 		&& (width < 20 * height)
 		&& (height < 20 * width);
 }
-
-PreparedFile::PreparedFile(const QString &path) : path(path) {
-}
-
-PreparedFile::PreparedFile(PreparedFile &&other) = default;
-
-PreparedFile &PreparedFile::operator=(PreparedFile &&other) = default;
-
-PreparedFile::~PreparedFile() = default;
 
 MimeDataState ComputeMimeDataState(const QMimeData *data) {
 	if (!data || data->hasFormat(qsl("application/x-td-forward"))) {
@@ -284,7 +278,7 @@ PreparedList PrepareMediaFromImage(
 	auto file = PreparedFile(QString());
 	file.content = content;
 	if (file.content.isEmpty()) {
-		file.information = std::make_unique<FileMediaInformation>();
+		file.information = std::make_unique<PreparedFileInformation>();
 		const auto animated = false;
 		FileLoadTask::FillImageInformation(
 			std::move(image),
@@ -296,7 +290,7 @@ PreparedList PrepareMediaFromImage(
 	return result;
 }
 
-std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
+std::optional<PreparedList> PreparedFileFromFilesDialog(
 		FileDialog::OpenResult &&result,
 		bool isAlbum,
 		Fn<void(tr::phrase<>)> errorCallback,
@@ -347,7 +341,7 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 			if (!isAlbum) {
 				return true;
 			}
-			using Info = FileMediaInformation;
+			using Info = PreparedFileInformation;
 
 			const auto media = &file.information->media;
 			const auto valid = v::match(*media, [](const Info::Image &data) {
@@ -384,69 +378,6 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 		return list;
 	}
 	return std::nullopt;
-}
-
-PreparedList PreparedList::Reordered(
-		PreparedList &&list,
-		std::vector<int> order) {
-	Expects(list.error == PreparedList::Error::None);
-	Expects(list.files.size() == order.size());
-
-	auto result = PreparedList(list.error, list.errorData);
-	result.albumIsPossible = list.albumIsPossible;
-	result.allFilesForCompress = list.allFilesForCompress;
-	result.files.reserve(list.files.size());
-	for (auto index : order) {
-		result.files.push_back(std::move(list.files[index]));
-	}
-	return result;
-}
-
-void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
-	if (error != Error::None) {
-		return;
-	}
-	if (other.error != Error::None) {
-		error = other.error;
-		errorData = other.errorData;
-		return;
-	}
-	allFilesForCompress = allFilesForCompress && other.allFilesForCompress;
-	files.reserve(std::min(
-		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
-		files.size() + other.files.size()));
-	for (auto &file : other.files) {
-		if (cutToAlbumSize && files.size() == kMaxAlbumCount) {
-			break;
-		}
-		files.push_back(std::move(file));
-	}
-	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
-		const auto badIt = ranges::find(
-			files,
-			PreparedFile::AlbumType::None,
-			[](const PreparedFile &file) { return file.type; });
-		albumIsPossible = (badIt == files.end());
-	} else {
-		albumIsPossible = false;
-	}
-}
-
-bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
-	const auto isSticker = [&] {
-		if (files.empty()) {
-			return false;
-		}
-		return Core::IsMimeSticker(files.front().mime)
-			|| files.front().path.endsWith(
-				qstr(".tgs"),
-				Qt::CaseInsensitive);
-	};
-	return isAlbum || (files.size() == 1 && !isSticker());
-}
-
-int MaxAlbumItems() {
-	return kMaxAlbumCount;
 }
 
 } // namespace Storage

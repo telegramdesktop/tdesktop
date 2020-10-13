@@ -883,8 +883,8 @@ Manager::~Manager() {
 	clear();
 }
 
-FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileMediaInformation::Video();
+Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = Ui::PreparedFileInformation::Video();
 	auto localLocation = FileLocation(fname);
 	auto localData = QByteArray(data);
 

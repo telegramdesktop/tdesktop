@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QFileInfo>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QMimeType>
