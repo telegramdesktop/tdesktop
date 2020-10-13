@@ -1253,7 +1253,7 @@ void start() {
 void finish() {
 }
 
-void InstallMainDesktopFile() {
+void InstallLauncher() {
 	static const auto DisabledByEnv = qEnvironmentVariableIsSet(
 		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
 
@@ -1421,7 +1421,7 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
-	Platform::InstallMainDesktopFile();
+	Platform::InstallLauncher();
 	Platform::RegisterCustomScheme();
 }
 
