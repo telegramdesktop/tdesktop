@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "core/mime_type.h"
 #include "ui/image/image_prepare.h"
+#include "ui/chat/attach/attach_extensions.h"
 #include "app.h"
 
 #include <QtCore/QSemaphore>
@@ -194,7 +195,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::None;
 	}
 
-	const auto imageExtensions = cImgExtensions();
+	const auto imageExtensions = Ui::ImageExtensions();
 	auto files = QStringList();
 	auto allAreSmallImages = true;
 	for (const auto &url : urls) {
@@ -242,7 +243,7 @@ PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth) {
 PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
-	const auto extensionsToCompress = cExtensionsForCompress();
+	const auto extensionsToCompress = Ui::ExtensionsForCompression();
 	for (const auto &file : files) {
 		const auto fileinfo = QFileInfo(file);
 		const auto filesize = fileinfo.size();

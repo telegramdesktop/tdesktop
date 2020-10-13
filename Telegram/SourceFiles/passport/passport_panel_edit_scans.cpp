@@ -853,10 +853,7 @@ void EditScans::ChooseScan(
 		Fn<void(ReadScanError)> errorCallback) {
 	Expects(parent != nullptr);
 
-	const auto filter = FileDialog::AllFilesFilter()
-		+ qsl(";;Image files (*")
-		+ cImgExtensions().join(qsl(" *"))
-		+ qsl(")");
+	const auto filter = FileDialog::AllOrImagesFilter();
 	const auto guardedCallback = crl::guard(parent, doneCallback);
 	const auto guardedError = crl::guard(parent, errorCallback);
 	const auto onMainError = [=](ReadScanError error) {

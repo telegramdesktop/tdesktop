@@ -19,6 +19,7 @@
 #include <QtGui/QPainter>
 #include <QtGui/QImage>
 #include <QtGui/QPixmap>
+#include <QtGui/QtEvents>
 
 #include <QtWidgets/QWidget>
 
@@ -34,3 +35,4 @@
 
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
+#include "styles/palette.h"

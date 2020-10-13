@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/unixtime.h"
 #include "ui/delayed_activation.h"
+#include "ui/chat/attach/attach_extensions.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
 
@@ -316,8 +317,20 @@ QString AllFilesFilter() {
 #endif // Q_OS_WIN
 }
 
+QString ImagesFilter() {
+	return u"Image files (*"_q + Ui::ImageExtensions().join(u" *"_q) + u")"_q;
+}
+
+QString AllOrImagesFilter() {
+	return AllFilesFilter() + u";;"_q + ImagesFilter();
+}
+
+QString ImagesOrAllFilter() {
+	return ImagesFilter() + u";;"_q + AllFilesFilter();
+}
+
 QString AlbumFilesFilter() {
-	return qsl("Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov)");
+	return u"Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov)"_q;
 }
 
 namespace internal {

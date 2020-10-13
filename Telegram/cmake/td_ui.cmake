@@ -31,17 +31,24 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
     
-    ui/ui_pch.h
+    ui/chat/attach/attach_extensions.cpp
+    ui/chat/attach/attach_extensions.h
     ui/chat/message_bar.cpp
     ui/chat/message_bar.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
+    ui/controls/emoji_button.cpp
+    ui/controls/emoji_button.h
+    ui/controls/send_button.cpp
+    ui/controls/send_button.h
     ui/text/format_values.cpp
     ui/text/format_values.h
     ui/text/text_options.cpp
     ui/text/text_options.h
     ui/toasts/common_toasts.cpp
     ui/toasts/common_toasts.h
+
+    ui/ui_pch.h
 )
 
 target_include_directories(td_ui

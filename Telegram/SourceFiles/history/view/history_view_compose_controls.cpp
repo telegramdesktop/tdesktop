@@ -32,11 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
 #include "styles/style_chat.h"
-#include "ui/special_buttons.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text/format_values.h"
+#include "ui/controls/emoji_button.h"
+#include "ui/controls/send_button.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 

@@ -133,25 +133,3 @@ inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
 	return regexp;
 }
-
-inline const QStringList &cImgExtensions() {
-	static QStringList result;
-	if (result.isEmpty()) {
-		result.reserve(4);
-		result.push_back(qsl(".jpg"));
-		result.push_back(qsl(".jpeg"));
-		result.push_back(qsl(".png"));
-		result.push_back(qsl(".gif"));
-	}
-	return result;
-}
-
-inline const QStringList &cExtensionsForCompress() {
-	static QStringList result;
-	if (result.isEmpty()) {
-		result.push_back(qsl(".jpg"));
-		result.push_back(qsl(".jpeg"));
-		result.push_back(qsl(".png"));
-	}
-	return result;
-}

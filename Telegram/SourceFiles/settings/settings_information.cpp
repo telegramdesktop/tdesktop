@@ -63,11 +63,7 @@ void SetupPhoto(
 		st::settingsInfoPhotoSet);
 	upload->setFullRadius(true);
 	upload->addClickHandler([=] {
-		const auto imageExtensions = cImgExtensions();
-		const auto filter = qsl("Image files (*")
-			+ imageExtensions.join(qsl(" *"))
-			+ qsl(");;")
-			+ FileDialog::AllFilesFilter();
+		const auto filter = FileDialog::ImagesOrAllFilter();
 		const auto callback = [=](const FileDialog::OpenResult &result) {
 			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 				return;
