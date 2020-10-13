@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 
 class History;
+
+namespace Core {
 class FileLocation;
+} // namespace Core
 
 namespace Export {
 struct Settings;
@@ -86,8 +89,8 @@ public:
 	[[nodiscard]] bool hasDraftCursors(const PeerId &peer);
 	[[nodiscard]] bool hasDraft(const PeerId &peer);
 
-	void writeFileLocation(MediaKey location, const FileLocation &local);
-	[[nodiscard]] FileLocation readFileLocation(MediaKey location);
+	void writeFileLocation(MediaKey location, const Core::FileLocation &local);
+	[[nodiscard]] Core::FileLocation readFileLocation(MediaKey location);
 	void removeFileLocation(MediaKey location);
 
 	[[nodiscard]] EncryptionKey cacheKey() const;
@@ -219,8 +222,8 @@ private:
 	base::flat_map<PeerId, FileKey> _draftCursorsMap;
 	base::flat_map<PeerId, bool> _draftsNotReadMap;
 
-	QMultiMap<MediaKey, FileLocation> _fileLocations;
-	QMap<QString, QPair<MediaKey, FileLocation>> _fileLocationPairs;
+	QMultiMap<MediaKey, Core::FileLocation> _fileLocations;
+	QMap<QString, QPair<MediaKey, Core::FileLocation>> _fileLocationPairs;
 	QMap<MediaKey, MediaKey> _fileLocationAliases;
 
 	FileKey _locationsKey = 0;

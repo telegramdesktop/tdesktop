@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_ffmpeg.h"
 
-#include "media/audio/media_audio.h"
-#include "media/audio/media_child_ffmpeg_loader.h"
-#include "storage/file_download.h"
+#include "core/file_location.h"
+#include "logs.h"
 
 namespace Media {
 namespace Clip {
@@ -49,12 +48,10 @@ bool isAlignedImage(const QImage &image) {
 } // namespace
 
 FFMpegReaderImplementation::FFMpegReaderImplementation(
-	FileLocation *location,
-	QByteArray *data,
-	const AudioMsgId &audio)
+	Core::FileLocation *location,
+	QByteArray *data)
 : ReaderImplementation(location, data)
-, _frame(FFmpeg::MakeFramePointer())
-, _audioMsgId(audio) {
+, _frame(FFmpeg::MakeFramePointer()) {
 }
 
 ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
@@ -73,9 +70,6 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 
 		if (res == AVERROR_EOF) {
 			_packetQueue.clear();
-			if (_mode == Mode::Normal) {
-				return ReadResult::EndOfFile;
-			}
 			if (!_hadFrame) {
 				LOG(("Gif Error: Got EOF before a single frame was read!"));
 				return ReadResult::Error;
@@ -171,44 +165,18 @@ void FFMpegReaderImplementation::processReadFrame() {
 }
 
 ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(crl::time frameMs, crl::time systemMs) {
-	if (_audioStreamId < 0) { // just keep up
-		if (_frameRead && _frameTime > frameMs) {
-			return ReadResult::Success;
-		}
-		auto readResult = readNextFrame();
-		if (readResult != ReadResult::Success || _frameTime > frameMs) {
-			return readResult;
-		}
-		readResult = readNextFrame();
-		if (_frameTime <= frameMs) {
-			_frameTime = frameMs + 5; // keep up
-		}
+	if (_frameRead && _frameTime > frameMs) {
+		return ReadResult::Success;
+	}
+	auto readResult = readNextFrame();
+	if (readResult != ReadResult::Success || _frameTime > frameMs) {
 		return readResult;
 	}
-
-	// sync by audio stream
-	auto correctMs = (frameMs >= 0)
-		? Player::mixer()->getExternalCorrectedTime(
-			_audioMsgId,
-			frameMs,
-			systemMs)
-		: frameMs;
-	if (!_frameRead) {
-		auto readResult = readNextFrame();
-		if (readResult != ReadResult::Success) {
-			return readResult;
-		}
+	readResult = readNextFrame();
+	if (_frameTime <= frameMs) {
+		_frameTime = frameMs + 5; // keep up
 	}
-	while (_frameTime <= correctMs) {
-		auto readResult = readNextFrame();
-		if (readResult != ReadResult::Success) {
-			return readResult;
-		}
-	}
-	if (frameMs >= 0) {
-		_frameTimeCorrection = frameMs - correctMs;
-	}
-	return ReadResult::Success;
+	return readResult;
 }
 
 crl::time FFMpegReaderImplementation::frameRealTime() const {
@@ -273,17 +241,6 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 		to = to.transformed(rotationTransform);
 	}
 
-	// Read some future packets for audio stream.
-	if (_audioStreamId >= 0) {
-		while (_frameMs + 5000 > _lastReadAudioMs
-			&& _frameMs + 15000 > _lastReadVideoMs) {
-			auto packetResult = readAndProcessPacket();
-			if (packetResult != PacketResult::Ok) {
-				break;
-			}
-		}
-	}
-
 	FFmpeg::ClearFrameMemory(_frame.get());
 
 	return true;
@@ -306,8 +263,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		LOG(("Gif Error: Unable to open device %1").arg(logData()));
 		return false;
 	}
-	_ioBuffer = (uchar*)av_malloc(AVBlockSize);
-	_ioContext = avio_alloc_context(_ioBuffer, AVBlockSize, 0, static_cast<void*>(this), &FFMpegReaderImplementation::_read, nullptr, &FFMpegReaderImplementation::_seek);
+	_ioBuffer = (uchar*)av_malloc(FFmpeg::kAVBlockSize);
+	_ioContext = avio_alloc_context(_ioBuffer, FFmpeg::kAVBlockSize, 0, static_cast<void*>(this), &FFMpegReaderImplementation::_read, nullptr, &FFMpegReaderImplementation::_seek);
 	_fmtContext = avformat_alloc_context();
 	if (!_fmtContext) {
 		LOG(("Gif Error: Unable to avformat_alloc_context %1").arg(logData()));
@@ -360,12 +317,9 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 
 	const auto codec = avcodec_find_decoder(_codecContext->codec_id);
 
-	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 	if (_mode == Mode::Inspecting) {
-		_hasAudioStream = (_audioStreamId >= 0);
-		_audioStreamId = -1;
-	} else if (_mode == Mode::Silent || !_audioMsgId.externalPlayId()) {
-		_audioStreamId = -1;
+		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+		_hasAudioStream = (audioStreamId >= 0);
 	}
 
 	if ((res = avcodec_open2(_codecContext, codec, nullptr)) < 0) {
@@ -373,36 +327,6 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 
-	std::unique_ptr<ExternalSoundData> soundData;
-	if (_audioStreamId >= 0) {
-		auto audioContext = avcodec_alloc_context3(nullptr);
-		if (!audioContext) {
-			LOG(("Audio Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
-			return false;
-		}
-		if ((res = avcodec_parameters_to_context(audioContext, _fmtContext->streams[_audioStreamId]->codecpar)) < 0) {
-			LOG(("Audio Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			return false;
-		}
-		av_codec_set_pkt_timebase(audioContext, _fmtContext->streams[_audioStreamId]->time_base);
-		av_opt_set_int(audioContext, "refcounted_frames", 1, 0);
-
-		const auto audioCodec = avcodec_find_decoder(audioContext->codec_id);
-		if ((res = avcodec_open2(audioContext, audioCodec, 0)) < 0) {
-			avcodec_free_context(&audioContext);
-			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-			_audioStreamId = -1;
-		} else {
-			soundData = std::make_unique<ExternalSoundData>();
-			soundData->codec = FFmpeg::CodecPointer(audioContext);
-			soundData->frequency = _fmtContext->streams[_audioStreamId]->codecpar->sample_rate;
-			if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
-				soundData->length = (_fmtContext->duration * soundData->frequency) / AV_TIME_BASE;
-			} else {
-				soundData->length = (_fmtContext->streams[_audioStreamId]->duration * soundData->frequency * _fmtContext->streams[_audioStreamId]->time_base.num) / _fmtContext->streams[_audioStreamId]->time_base.den;
-			}
-		}
-	}
 	if (positionMs > 0) {
 		const auto timeBase = _fmtContext->streams[_streamId]->time_base;
 		const auto timeStamp = (positionMs * timeBase.den)
@@ -418,10 +342,6 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	auto readResult = readPacket(packet);
 	if (readResult == PacketResult::Ok && positionMs > 0) {
 		positionMs = countPacketMs(packet);
-	}
-
-	if (hasAudio()) {
-		Player::mixer()->play(_audioMsgId, std::move(soundData), positionMs);
 	}
 
 	if (readResult == PacketResult::Ok) {
@@ -462,7 +382,7 @@ bool FFMpegReaderImplementation::isGifv() const {
 	if (_hasAudioStream) {
 		return false;
 	}
-	if (dataSize() > Storage::kMaxAnimationInMemory) {
+	if (dataSize() > kMaxInMemory) {
 		return false;
 	}
 	if (_codecContext->codec_id != AV_CODEC_ID_H264) {
@@ -472,7 +392,7 @@ bool FFMpegReaderImplementation::isGifv() const {
 }
 
 QString FFMpegReaderImplementation::logData() const {
-	return qsl("for file '%1', data size '%2'").arg(_location ? _location->name() : QString()).arg(_data->size());
+	return u"for file '%1', data size '%2'"_q.arg(_location ? _location->name() : QString()).arg(_data->size());
 }
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
@@ -494,14 +414,6 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 	int res = 0;
 	if ((res = av_read_frame(_fmtContext, &packet.fields())) < 0) {
 		if (res == AVERROR_EOF) {
-			if (_audioStreamId >= 0) {
-				// queue terminating packet to audio player
-				auto empty = FFmpeg::Packet();
-				Player::mixer()->feedFromExternal({
-					_audioMsgId,
-					gsl::make_span(&empty, 1)
-				});
-			}
 			return PacketResult::EndOfFile;
 		}
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -514,21 +426,9 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 void FFMpegReaderImplementation::processPacket(FFmpeg::Packet &&packet) {
 	const auto &native = packet.fields();
 	auto videoPacket = (native.stream_index == _streamId);
-	auto audioPacket = (_audioStreamId >= 0 && native.stream_index == _audioStreamId);
-	if (audioPacket || videoPacket) {
-		if (videoPacket) {
-			_lastReadVideoMs = countPacketMs(packet);
-
-			_packetQueue.push_back(std::move(packet));
-		} else if (audioPacket) {
-			_lastReadAudioMs = countPacketMs(packet);
-
-			// queue packet to audio player
-			Player::mixer()->feedFromExternal({
-				_audioMsgId,
-				gsl::make_span(&packet, 1)
-			});
-		}
+	if (videoPacket) {
+		_lastReadVideoMs = countPacketMs(packet);
+		_packetQueue.push_back(std::move(packet));
 	}
 }
 

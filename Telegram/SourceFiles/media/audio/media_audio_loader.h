@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "core/file_location.h"
 #include "media/streaming/media_streaming_utility.h"
 
 namespace Media {
@@ -15,12 +16,12 @@ namespace Media {
 class AudioPlayerLoader {
 public:
 	AudioPlayerLoader(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data,
 		bytes::vector &&buffer);
 	virtual ~AudioPlayerLoader();
 
-	virtual bool check(const FileLocation &file, const QByteArray &data);
+	virtual bool check(const Core::FileLocation &file, const QByteArray &data);
 
 	virtual bool open(crl::time positionMs) = 0;
 	virtual int64 samplesCount() = 0;
@@ -56,7 +57,7 @@ public:
 	bool holdsSavedDecodedSamples() const;
 
 protected:
-	FileLocation _file;
+	Core::FileLocation _file;
 	bool _access = false;
 	QByteArray _data;
 	bytes::vector _bytes;

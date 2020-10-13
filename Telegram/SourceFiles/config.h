@@ -21,12 +21,7 @@ enum {
 	LocalEncryptSaltSize = 32, // 256 bit
 
 	AnimationTimerDelta = 7,
-	ClipThreadsCount = 8,
-	AverageGifSize = 320 * 240,
-	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 	RecentInlineBotsLimit = 10,
-
-	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,

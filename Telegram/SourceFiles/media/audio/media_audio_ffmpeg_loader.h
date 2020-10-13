@@ -20,12 +20,16 @@ extern "C" {
 
 #include <al.h>
 
+namespace Core {
+class FileLocation;
+} // namespace Core
+
 namespace Media {
 
 class AbstractFFMpegLoader : public AudioPlayerLoader {
 public:
 	AbstractFFMpegLoader(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data,
 		bytes::vector &&buffer)
 	: AudioPlayerLoader(file, data, std::move(buffer)) {
@@ -74,7 +78,7 @@ private:
 class AbstractAudioFFMpegLoader : public AbstractFFMpegLoader {
 public:
 	AbstractAudioFFMpegLoader(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data,
 		bytes::vector &&buffer);
 
@@ -149,7 +153,7 @@ private:
 class FFMpegLoader : public AbstractAudioFFMpegLoader {
 public:
 	FFMpegLoader(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data,
 		bytes::vector &&buffer);
 

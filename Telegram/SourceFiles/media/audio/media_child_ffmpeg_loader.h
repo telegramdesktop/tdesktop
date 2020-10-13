@@ -31,7 +31,7 @@ public:
 
 	bool open(crl::time positionMs) override;
 
-	bool check(const FileLocation &file, const QByteArray &data) override {
+	bool check(const Core::FileLocation &file, const QByteArray &data) override {
 		return true;
 	}
 

@@ -46,8 +46,23 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
     
+    core/file_location.cpp
+    core/file_location.h
     core/mime_type.cpp
     core/mime_type.h
+
+    media/clip/media_clip_check_streaming.cpp
+    media/clip/media_clip_check_streaming.h
+    media/clip/media_clip_ffmpeg.cpp
+    media/clip/media_clip_ffmpeg.h
+    media/clip/media_clip_implementation.cpp
+    media/clip/media_clip_implementation.h
+    media/clip/media_clip_reader.cpp
+    media/clip/media_clip_reader.h
+
+    platform/mac/file_bookmark_mac.h
+    platform/mac/file_bookmark_mac.mm
+    platform/platform_file_bookmark.h
 
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
@@ -91,4 +106,5 @@ target_link_libraries(td_ui
 PUBLIC
     tdesktop::td_lang
     desktop-app::lib_ui
+    desktop-app::lib_ffmpeg
 )

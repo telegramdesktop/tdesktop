@@ -25,25 +25,4 @@ double objc_appkitVersion();
 QString objc_documentsPath();
 QString objc_appDataPath();
 QByteArray objc_downloadPathBookmark(const QString &path);
-QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);
-
-class objc_FileBookmark {
-public:
-	objc_FileBookmark(const QByteArray &bookmark);
-	bool valid() const;
-	bool enable() const;
-	void disable() const;
-
-	const QString &name(const QString &original) const;
-	QByteArray bookmark() const;
-
-	~objc_FileBookmark();
-
-private:
-#ifdef OS_MAC_STORE
-	class objc_FileBookmarkData;
-	objc_FileBookmarkData *data = nullptr;
-#endif // OS_MAC_STORE
-
-};

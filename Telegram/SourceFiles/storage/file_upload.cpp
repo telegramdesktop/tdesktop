@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "core/file_location.h"
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -320,7 +321,7 @@ void Uploader::uploadMedia(
 			}
 		}
 		if (!media.file.isEmpty()) {
-			document->setLocation(FileLocation(media.file));
+			document->setLocation(Core::FileLocation(media.file));
 		}
 	}
 	queue.emplace(msgId, File(media));
@@ -368,7 +369,7 @@ void Uploader::upload(
 			document->setDataAndCache(file->content);
 		}
 		if (!file->filepath.isEmpty()) {
-			document->setLocation(FileLocation(file->filepath));
+			document->setLocation(Core::FileLocation(file->filepath));
 		}
 		if (file->type == SendMediaType::ThemeFile) {
 			document->checkWallPaperProperties();

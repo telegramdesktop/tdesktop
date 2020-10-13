@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animation_value.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "core/file_location.h"
 #include "base/bytes.h"
 
 #include <QtCore/QTimer>
@@ -221,7 +222,7 @@ private:
 
 		TrackState state;
 
-		FileLocation file;
+		Core::FileLocation file;
 		QByteArray data;
 		int64 bufferedPosition = 0;
 		int64 bufferedLength = 0;
@@ -368,7 +369,7 @@ bool audioCheckError();
 } // namespace Player
 } // namespace Media
 
-VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);
+VoiceWaveform audioCountWaveform(const Core::FileLocation &file, const QByteArray &data);
 
 namespace Media {
 namespace Audio {

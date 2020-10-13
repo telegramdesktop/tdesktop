@@ -375,8 +375,8 @@ void MediaPreviewWidget::validateGifAnimation() {
 	};
 	if (contentLoaded) {
 		_gif = Media::Clip::MakeReader(
-			_documentMedia.get(),
-			FullMsgId(),
+			_documentMedia->owner()->location(),
+			_documentMedia->bytes(),
 			std::move(callback));
 	} else {
 		_gifThumbnail = Media::Clip::MakeReader(

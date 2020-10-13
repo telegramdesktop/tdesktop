@@ -1373,9 +1373,10 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		bool loaded = _documentMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
-				that->clipCallback(notification);
-			});
+			that->_gif = Media::Clip::MakeReader(
+				_documentMedia->owner()->location(),
+				_documentMedia->bytes(),
+				[=](Media::Clip::Notification notification) { that->clipCallback(notification); });
 		}
 
 		bool animating = (_gif && _gif->started());

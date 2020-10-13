@@ -430,7 +430,7 @@ void Mixer::Track::clear() {
 	detach();
 
 	state = TrackState();
-	file = FileLocation();
+	file = Core::FileLocation();
 	data = QByteArray();
 	bufferedPosition = 0;
 	bufferedLength = 0;
@@ -1519,7 +1519,7 @@ void DetachFromDevice(not_null<Audio::Instance*> instance) {
 
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
 public:
-	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data)
+	FFMpegAttributesReader(const Core::FileLocation &file, const QByteArray &data)
 	: AbstractFFMpegLoader(file, data, bytes::vector()) {
 	}
 
@@ -1632,7 +1632,7 @@ namespace Player {
 
 Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
 	auto result = Ui::PreparedFileInformation::Song();
-	FFMpegAttributesReader reader(FileLocation(fname), data);
+	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
 	if (reader.open(positionMs) && reader.samplesCount() > 0) {
 		result.duration = reader.samplesCount() / reader.samplesFrequency();
@@ -1647,7 +1647,7 @@ Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const 
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
-	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
+	FFMpegWaveformCounter(const Core::FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
 	}
 
 	bool open(crl::time positionMs) override {
@@ -1732,7 +1732,7 @@ private:
 } // namespace Media
 
 VoiceWaveform audioCountWaveform(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data) {
 	Media::FFMpegWaveformCounter counter(file, data);
 	const auto positionMs = crl::time(0);

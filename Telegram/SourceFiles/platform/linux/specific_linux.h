@@ -73,32 +73,8 @@ void psNewVersion();
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }
-inline QByteArray psPathBookmark(const QString &path) {
-	return QByteArray();
-}
 inline void psDownloadPathEnableAccess() {
 }
-
-class PsFileBookmark {
-public:
-	PsFileBookmark(const QByteArray &bookmark) {
-	}
-	bool check() const {
-		return true;
-	}
-	bool enable() const {
-		return true;
-	}
-	void disable() const {
-	}
-	const QString &name(const QString &original) const {
-		return original;
-	}
-	QByteArray bookmark() const {
-		return QByteArray();
-	}
-
-};
 
 bool linuxMoveFile(const char *from, const char *to);
 

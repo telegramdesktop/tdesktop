@@ -253,10 +253,6 @@ QByteArray psDownloadPathBookmark(const QString &path) {
 	return objc_downloadPathBookmark(path);
 }
 
-QByteArray psPathBookmark(const QString &path) {
-	return objc_pathBookmark(path);
-}
-
 bool psLaunchMaps(const Data::LocationPoint &point) {
 	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(point.latAsString()).arg(point.lonAsString()));
 }

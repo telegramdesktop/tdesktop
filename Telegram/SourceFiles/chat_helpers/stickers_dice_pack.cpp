@@ -110,7 +110,7 @@ void DicePack::tryGenerateLocalZero() {
 	const auto document = _session->data().processDocument(
 		result->document,
 		Images::FromImageInMemory(result->thumb, "PNG"));
-	document->setLocation(FileLocation(path));
+	document->setLocation(Core::FileLocation(path));
 
 	_map.emplace(0, document);
 

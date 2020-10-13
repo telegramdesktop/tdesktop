@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "core/file_location.h"
 #include "storage/storage_account.h"
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
@@ -454,7 +455,7 @@ bool FileLoader::finalizeResult() {
 			if (!_filename.isEmpty()) {
 				_session->local().writeFileLocation(
 					*key,
-					FileLocation(_filename));
+					Core::FileLocation(_filename));
 			}
 		}
 		const auto key = cacheKey();

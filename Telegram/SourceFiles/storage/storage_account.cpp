@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "history/history.h"
 #include "core/application.h"
+#include "core/file_location.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -669,7 +670,7 @@ void Account::readLocations() {
 	while (!locations.stream.atEnd()) {
 		quint64 first, second;
 		QByteArray bookmark;
-		FileLocation loc;
+		Core::FileLocation loc;
 		quint32 legacyTypeField = 0;
 		locations.stream >> first >> second >> legacyTypeField >> loc.fname;
 		if (locations.version > 9013) {
@@ -1164,7 +1165,7 @@ bool Account::hasDraft(const PeerId &peer) {
 	return _draftsMap.contains(peer);
 }
 
-void Account::writeFileLocation(MediaKey location, const FileLocation &local) {
+void Account::writeFileLocation(MediaKey location, const Core::FileLocation &local) {
 	if (local.fname.isEmpty()) {
 		return;
 	}
@@ -1217,7 +1218,7 @@ void Account::removeFileLocation(MediaKey location) {
 	writeLocationsQueued();
 }
 
-FileLocation Account::readFileLocation(MediaKey location) {
+Core::FileLocation Account::readFileLocation(MediaKey location) {
 	const auto aliasIt = _fileLocationAliases.constFind(location);
 	if (aliasIt != _fileLocationAliases.cend()) {
 		location = aliasIt.value();
@@ -1232,7 +1233,7 @@ FileLocation Account::readFileLocation(MediaKey location) {
 		}
 		return i.value();
 	}
-	return FileLocation();
+	return Core::FileLocation();
 }
 
 EncryptionKey Account::cacheKey() const {

@@ -25,7 +25,6 @@ constexpr auto kPhotoBaseCacheTag = 0x0000000000020000ULL;
 constexpr auto kPhotoBaseCacheMask = 0x000000000000FF00ULL;
 constexpr auto kSerializeTypeShift = quint8(0x08);
 constexpr auto kNonStorageLocationToken = quint8(0x10);
-const auto kInMediaCacheLocation = QString("*media_cache*");
 
 enum class NonStorageLocationType : quint8 {
 	Web,
@@ -938,103 +937,4 @@ std::optional<ImageLocation> ImageLocation::FromSerialized(
 		}
 	}
 	return std::nullopt;
-}
-
-ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark)
-: _bookmark(bookmark)
-, _failed(_bookmark ? !_bookmark->enable() : false) {
-}
-
-ReadAccessEnabler::ReadAccessEnabler(
-	const std::shared_ptr<PsFileBookmark> &bookmark)
-: _bookmark(bookmark.get())
-, _failed(_bookmark ? !_bookmark->enable() : false) {
-}
-
-ReadAccessEnabler::~ReadAccessEnabler() {
-	if (_bookmark && !_failed) _bookmark->disable();
-}
-
-FileLocation::FileLocation(const QString &name) : fname(name) {
-	if (fname.isEmpty() || fname == kInMediaCacheLocation) {
-		size = 0;
-	} else {
-		setBookmark(psPathBookmark(name));
-
-		QFileInfo f(name);
-		if (f.exists()) {
-			qint64 s = f.size();
-			if (s > INT_MAX) {
-				fname = QString();
-				_bookmark = nullptr;
-				size = 0;
-			} else {
-				modified = f.lastModified();
-				size = qint32(s);
-			}
-		} else {
-			fname = QString();
-			_bookmark = nullptr;
-			size = 0;
-		}
-	}
-}
-
-FileLocation FileLocation::InMediaCacheLocation() {
-	return FileLocation(kInMediaCacheLocation);
-}
-
-bool FileLocation::check() const {
-	if (fname.isEmpty() || fname == kInMediaCacheLocation) {
-		return false;
-	}
-
-	ReadAccessEnabler enabler(_bookmark);
-	if (enabler.failed()) {
-		const_cast<FileLocation*>(this)->_bookmark = nullptr;
-	}
-
-	QFileInfo f(name());
-	if (!f.isReadable()) return false;
-
-	quint64 s = f.size();
-	if (s > INT_MAX) {
-		DEBUG_LOG(("File location check: Wrong size %1").arg(s));
-		return false;
-	}
-
-	if (qint32(s) != size) {
-		DEBUG_LOG(("File location check: Wrong size %1 when should be %2").arg(s).arg(size));
-		return false;
-	}
-	auto realModified = f.lastModified();
-	if (realModified != modified) {
-		DEBUG_LOG(("File location check: Wrong last modified time %1 when should be %2").arg(realModified.toMSecsSinceEpoch()).arg(modified.toMSecsSinceEpoch()));
-		return false;
-	}
-	return true;
-}
-
-const QString &FileLocation::name() const {
-	return _bookmark ? _bookmark->name(fname) : fname;
-}
-
-QByteArray FileLocation::bookmark() const {
-	return _bookmark ? _bookmark->bookmark() : QByteArray();
-}
-
-bool FileLocation::inMediaCache() const {
-	return (fname == kInMediaCacheLocation);
-}
-
-void FileLocation::setBookmark(const QByteArray &bm) {
-	_bookmark.reset(bm.isEmpty() ? nullptr : new PsFileBookmark(bm));
-}
-
-bool FileLocation::accessEnable() const {
-	return isEmpty() ? false : (_bookmark ? _bookmark->enable() : true);
-}
-
-void FileLocation::accessDisable() const {
-	return _bookmark ? _bookmark->disable() : (void)0;
 }

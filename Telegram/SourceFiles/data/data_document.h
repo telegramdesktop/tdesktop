@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/binary_guard.h"
 #include "data/data_types.h"
 #include "data/data_cloud_file.h"
+#include "core/file_location.h"
 #include "ui/image/image.h"
 
 class mtpFileLoader;
@@ -114,8 +115,8 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	[[nodiscard]] const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
+	[[nodiscard]] const Core::FileLocation &location(bool check = false) const;
+	void setLocation(const Core::FileLocation &loc);
 
 	bool saveFromData();
 	bool saveFromDataSilent();
@@ -315,7 +316,7 @@ private:
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;
 
-	FileLocation _location;
+	Core::FileLocation _location;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;

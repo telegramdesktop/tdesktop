@@ -849,7 +849,7 @@ void DocumentData::finishLoad() {
 		_flags |= Flag::DownloadCancelled;
 		return;
 	}
-	setLocation(FileLocation(_loader->fileName()));
+	setLocation(Core::FileLocation(_loader->fileName()));
 	setGoodThumbnailDataReady();
 	if (const auto media = activeMediaView()) {
 		media->setBytes(_loader->bytes());
@@ -917,7 +917,7 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 		if (loadedInMediaCache()) {
 			session().local().writeFileLocation(
 				mediaKey(),
-				FileLocation::InMediaCacheLocation());
+				Core::FileLocation::InMediaCacheLocation());
 		} else {
 			session().local().removeFileLocation(mediaKey());
 		}
@@ -926,7 +926,7 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 }
 
 void DocumentData::setLoadedInMediaCacheLocation() {
-	_location = FileLocation();
+	_location = Core::FileLocation();
 	_flags |= Flag::LoadedInMediaCache;
 }
 
@@ -954,10 +954,10 @@ void DocumentData::save(
 				f.write(media->bytes());
 				f.close();
 
-				setLocation(FileLocation(toFile));
+				setLocation(Core::FileLocation(toFile));
 				session().local().writeFileLocation(
 					mediaKey(),
-					FileLocation(toFile));
+					Core::FileLocation(toFile));
 			} else if (l.accessEnable()) {
 				const auto &alreadyName = l.name();
 				if (alreadyName != toFile) {
@@ -1151,7 +1151,7 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 	return result;
 }
 
-const FileLocation &DocumentData::location(bool check) const {
+const Core::FileLocation &DocumentData::location(bool check) const {
 	if (check && !_location.check()) {
 		const auto location = session().local().readFileLocation(mediaKey());
 		const auto that = const_cast<DocumentData*>(this);
@@ -1164,7 +1164,7 @@ const FileLocation &DocumentData::location(bool check) const {
 	return _location;
 }
 
-void DocumentData::setLocation(const FileLocation &loc) {
+void DocumentData::setLocation(const Core::FileLocation &loc) {
 	if (loc.inMediaCache()) {
 		setLoadedInMediaCacheLocation();
 	} else if (loc.check()) {
@@ -1207,7 +1207,7 @@ bool DocumentData::saveFromDataChecked() {
 		return false;
 	}
 	file.close();
-	_location = FileLocation(path);
+	_location = Core::FileLocation(path);
 	session().local().writeFileLocation(mediaKey(), _location);
 	return true;
 }
@@ -1585,7 +1585,7 @@ void DocumentData::setRemoteLocation(
 				} else if (_location.isEmpty() && loadedInMediaCache()) {
 					session().local().writeFileLocation(
 						mediaKey(),
-						FileLocation::InMediaCacheLocation());
+						Core::FileLocation::InMediaCacheLocation());
 				}
 			}
 		}

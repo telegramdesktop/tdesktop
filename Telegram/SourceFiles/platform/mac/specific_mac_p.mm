@@ -373,19 +373,6 @@ QByteArray objc_downloadPathBookmark(const QString &path) {
 #endif // OS_MAC_STORE
 }
 
-QByteArray objc_pathBookmark(const QString &path) {
-#ifndef OS_MAC_STORE
-	return QByteArray();
-#else // OS_MAC_STORE
-	NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.toUtf8().constData()]];
-	if (!url) return QByteArray();
-
-	NSError *error = nil;
-	NSData *data = [url bookmarkDataWithOptions:(NSURLBookmarkCreationWithSecurityScope | NSURLBookmarkCreationSecurityScopeAllowOnlyReadAccess) includingResourceValuesForKeys:nil relativeToURL:nil error:&error];
-	return data ? QByteArray::fromNSData(data) : QByteArray();
-#endif // OS_MAC_STORE
-}
-
 void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 #ifdef OS_MAC_STORE
 	if (bookmark.isEmpty()) return;
@@ -409,104 +396,6 @@ void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 				Local::writeSettings();
 			}
 		}
-	}
-#endif // OS_MAC_STORE
-}
-
-#ifdef OS_MAC_STORE
-namespace {
-	QMutex _bookmarksMutex;
-}
-
-class objc_FileBookmark::objc_FileBookmarkData {
-public:
-	~objc_FileBookmarkData() {
-		if (url) [url release];
-	}
-	NSURL *url = nil;
-	QString name;
-	QByteArray bookmark;
-	int counter = 0;
-};
-#endif // OS_MAC_STORE
-
-objc_FileBookmark::objc_FileBookmark(const QByteArray &bookmark) {
-#ifdef OS_MAC_STORE
-	if (bookmark.isEmpty()) return;
-
-	BOOL isStale = NO;
-	NSError *error = nil;
-	NSURL *url = [NSURL URLByResolvingBookmarkData:bookmark.toNSData() options:NSURLBookmarkResolutionWithSecurityScope relativeToURL:nil bookmarkDataIsStale:&isStale error:&error];
-	if (!url) return;
-
-	if ([url startAccessingSecurityScopedResource]) {
-		data = new objc_FileBookmarkData();
-		data->url = [url retain];
-		data->name = NS2QString([url path]);
-		data->bookmark = bookmark;
-		[url stopAccessingSecurityScopedResource];
-	}
-#endif // OS_MAC_STORE
-}
-
-bool objc_FileBookmark::valid() const {
-	if (enable()) {
-		disable();
-		return true;
-	}
-	return false;
-}
-
-bool objc_FileBookmark::enable() const {
-#ifndef OS_MAC_STORE
-	return true;
-#else // OS_MAC_STORE
-	if (!data) return false;
-
-	QMutexLocker lock(&_bookmarksMutex);
-	if (data->counter > 0 || [data->url startAccessingSecurityScopedResource] == YES) {
-		++data->counter;
-		return true;
-	}
-	return false;
-#endif // OS_MAC_STORE
-}
-
-void objc_FileBookmark::disable() const {
-#ifdef OS_MAC_STORE
-	if (!data) return;
-
-	QMutexLocker lock(&_bookmarksMutex);
-	if (data->counter > 0) {
-		--data->counter;
-		if (!data->counter) {
-			[data->url stopAccessingSecurityScopedResource];
-		}
-	}
-#endif // OS_MAC_STORE
-}
-
-const QString &objc_FileBookmark::name(const QString &original) const {
-#ifndef OS_MAC_STORE
-	return original;
-#else // OS_MAC_STORE
-	return (data && !data->name.isEmpty()) ? data->name : original;
-#endif // OS_MAC_STORE
-}
-
-QByteArray objc_FileBookmark::bookmark() const {
-#ifndef OS_MAC_STORE
-	return QByteArray();
-#else // OS_MAC_STORE
-	return data ? data->bookmark : QByteArray();
-#endif // OS_MAC_STORE
-}
-
-objc_FileBookmark::~objc_FileBookmark() {
-#ifdef OS_MAC_STORE
-	if (data && data->counter > 0) {
-		LOG(("Did not disable() bookmark, counter: %1").arg(data->counter));
-		[data->url stopAccessingSecurityScopedResource];
 	}
 #endif // OS_MAC_STORE
 }

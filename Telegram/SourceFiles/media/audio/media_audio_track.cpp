@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"
+#include "core/file_location.h"
 
 #include <al.h>
 #include <alc.h>
@@ -49,7 +50,7 @@ void Track::samplePeakEach(crl::time peakDuration) {
 }
 
 void Track::fillFromData(bytes::vector &&data) {
-	FFMpegLoader loader(FileLocation(), QByteArray(), std::move(data));
+	FFMpegLoader loader(Core::FileLocation(), QByteArray(), std::move(data));
 
 	auto position = qint64(0);
 	if (!loader.open(position)) {
@@ -110,7 +111,7 @@ void Track::fillFromData(bytes::vector &&data) {
 	_lengthMs = (loader.samplesCount() * crl::time(1000)) / _sampleRate;
 }
 
-void Track::fillFromFile(const FileLocation &location) {
+void Track::fillFromFile(const Core::FileLocation &location) {
 	if (location.accessEnable()) {
 		fillFromFile(location.name());
 		location.accessDisable();
