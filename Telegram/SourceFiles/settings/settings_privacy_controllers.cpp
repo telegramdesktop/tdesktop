@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/image/image_prepare.h"
+#include "ui/cached_round_corners.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
@@ -859,7 +860,7 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 	const auto arrowLeft = arrowLeft2;
 	const auto geometry = rect.translated(left, top);
 
-	App::roundRect(p, geometry, st::toastBg, ImageRoundRadius::Small);
+	Ui::FillRoundRect(p, geometry, st::toastBg, ImageRoundRadius::Small);
 
 	p.setFont(font);
 	p.setPen(st::toastFg);

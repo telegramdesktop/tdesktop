@@ -25,9 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
+#include "ui/cached_round_corners.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -460,7 +460,7 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	auto over = _a_over.value(_active ? 1. : 0.);
 	if (over > 0) {
 		p.setOpacity(over);
-		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+		Ui::FillRoundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, Ui::StickerHoverCorners);
 		p.setOpacity(1);
 	}
 
@@ -734,7 +734,7 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 		int durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
 		int durationW = _durationWidth + 2 * st::msgDateImgPadding.x(), durationH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		int durationX = (st::inlineThumbSize - durationW) / 2, durationY = st::inlineRowMargin + st::inlineThumbSize - durationH;
-		App::roundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, DateCorners);
+		Ui::FillRoundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, Ui::DateCorners);
 		p.setPen(st::msgDateImgFg);
 		p.setFont(st::normalFont);
 		p.drawText(durationX + st::msgDateImgPadding.x(), durationTop + st::normalFont->ascent, _duration);

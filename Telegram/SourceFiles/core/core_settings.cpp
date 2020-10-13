@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/chat/attach/attach_common.h"
 #include "storage/serialize_common.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -18,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 
 Settings::Settings()
-: _sendFilesWay(SendFilesWay::Album)
+: _sendFilesWay(Ui::SendFilesWay::Album)
 , _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
 , _floatPlayerCorner(RectPart::TopRight)
@@ -309,11 +310,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_callAudioDuckingEnabled = (callAudioDuckingEnabled == 1);
 	_lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 	_soundOverrides = std::move(soundOverrides);
-	auto uncheckedSendFilesWay = static_cast<SendFilesWay>(sendFilesWay);
+	auto uncheckedSendFilesWay = static_cast<Ui::SendFilesWay>(sendFilesWay);
 	switch (uncheckedSendFilesWay) {
-	case SendFilesWay::Album:
-	case SendFilesWay::Photos:
-	case SendFilesWay::Files: _sendFilesWay = uncheckedSendFilesWay; break;
+	case Ui::SendFilesWay::Album:
+	case Ui::SendFilesWay::Photos:
+	case Ui::SendFilesWay::Files: _sendFilesWay = uncheckedSendFilesWay; break;
 	}
 	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(sendSubmitWay);
 	switch (uncheckedSendSubmitWay) {
@@ -469,7 +470,7 @@ void Settings::resetOnLastLogout() {
 	//_themesAccentColors = Window::Theme::AccentColors();
 
 	_lastSeenWarningSeen = false;
-	_sendFilesWay = SendFilesWay::Album;
+	_sendFilesWay = Ui::SendFilesWay::Album;
 	//_sendSubmitWay = Ui::InputSubmitSettings::Enter;
 	_soundOverrides = {};
 

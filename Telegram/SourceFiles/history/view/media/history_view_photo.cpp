@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "ui/image/image.h"
 #include "ui/grouped_layout.h"
+#include "ui/cached_round_corners.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_auto_download.h"
 #include "core/application.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -249,7 +249,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 				rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 			}
 		} else {
-			App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+			Ui::FillRoundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? Ui::InSelectedShadowCorners : Ui::InShadowCorners);
 		}
 		auto inWebPage = (_parent->media() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
@@ -272,7 +272,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 		}();
 		p.drawPixmap(rthumb.topLeft(), pix);
 		if (selected) {
-			App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
+			Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 		}
 	}
 	if (radial || (!loaded && !_data->loading())) {
@@ -505,7 +505,7 @@ void Photo::drawGrouped(
 	p.drawPixmap(geometry.topLeft(), *cache);
 	if (selected) {
 		const auto roundRadius = ImageRoundRadius::Large;
-		App::complexOverlayRect(p, geometry, roundRadius, corners);
+		Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
 	}
 
 	const auto displayState = radial

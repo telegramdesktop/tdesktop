@@ -33,9 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
+#include "ui/cached_round_corners.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -1129,7 +1129,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 			Ui::Shadow::paint(p, rect, width(), st::boxRoundShadow);
 			p.setOpacity(1);
 
-			App::roundRect(p, rect, st::boxBg, BoxCorners);
+			Ui::FillRoundRect(p, rect, st::boxBg, Ui::BoxCorners);
 
 			p.setOpacity(1. - current);
 			paintFakeButton(p, row, index);
@@ -1318,7 +1318,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, not_null<Row*> row, int ind
 			auto textWidth = (_section == Section::Installed) ? _undoWidth : _addWidth;
 			auto &text = (_section == Section::Installed) ? _undoText : _addText;
 			auto &textBg = selected ? st.textBgOver : st.textBg;
-			App::roundRect(p, myrtlrect(rect), textBg, ImageRoundRadius::Small);
+			Ui::FillRoundRect(p, myrtlrect(rect), textBg, ImageRoundRadius::Small);
 			if (row->ripple) {
 				row->ripple->paint(p, rect.x(), rect.y(), width());
 				if (row->ripple->empty()) {

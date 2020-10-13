@@ -25,4 +25,9 @@ inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
 	uint64 amount,
 	const QString &currency);
 
+[[nodiscard]] QString ComposeNameString(
+	const QString &filename,
+	const QString &songTitle,
+	const QString &songPerformer);
+
 } // namespace Ui

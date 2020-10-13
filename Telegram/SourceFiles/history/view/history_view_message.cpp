@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
+#include "ui/cached_round_corners.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "layout.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -81,11 +81,11 @@ void KeyboardStyle::paintButtonBg(
 		Painter &p,
 		const QRect &rect,
 		float64 howMuchOver) const {
-	App::roundRect(p, rect, st::msgServiceBg, StickerCorners);
+	Ui::FillRoundRect(p, rect, st::msgServiceBg, Ui::StickerCorners);
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
-		App::roundRect(p, rect, st::msgBotKbOverBgAdd, BotKbOverCorners);
+		Ui::FillRoundRect(p, rect, st::msgBotKbOverBgAdd, Ui::BotKbOverCorners);
 		p.setOpacity(o);
 	}
 }
@@ -141,7 +141,7 @@ QString FastReplyText() {
 void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide, RectParts skip) {
 	auto &bg = selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg);
 	auto sh = &(selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow));
-	auto cors = selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners);
+	auto cors = selected ? (outbg ? Ui::MessageOutSelectedCorners : Ui::MessageInSelectedCorners) : (outbg ? Ui::MessageOutCorners : Ui::MessageInCorners);
 	auto parts = RectPart::None | RectPart::NoTopBottom;
 	if (skip & RectPart::Top) {
 		if (skip & RectPart::Bottom) {
@@ -174,7 +174,7 @@ void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool out
 	} else if (!(skip & RectPart::Bottom)) {
 		parts |= RectPart::FullBottom;
 	}
-	App::roundRect(p, rect, bg, cors, sh, parts);
+	Ui::FillRoundRect(p, rect, bg, cors, sh, parts);
 }
 
 void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, const std::vector<BubbleSelectionInterval> &selection, bool outbg, RectPart tailSide) {
@@ -1799,10 +1799,10 @@ void Message::drawInfo(
 	auto dateY = infoBottom - st::msgDateFont->height;
 	if (type == InfoDisplayType::Image) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
 	} else if (type == InfoDisplayType::Background) {
 		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? Ui::StickerSelectedCorners : Ui::StickerCorners);
 	}
 	dateX += timeLeft();
 

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
@@ -3014,7 +3015,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
 				if (_saveMsgOpacity.current() > 0) {
 					p.setOpacity(_saveMsgOpacity.current());
-					App::roundRect(p, _saveMsg, st::mediaviewSaveMsgBg, MediaviewSaveCorners);
+					Ui::FillRoundRect(p, _saveMsg, st::mediaviewSaveMsgBg, Ui::MediaviewSaveCorners);
 					st::mediaviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::mediaviewSaveMsgCheckPos, width());
 
 					p.setPen(st::mediaviewSaveMsgFg);

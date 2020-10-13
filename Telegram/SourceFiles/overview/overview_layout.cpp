@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/cached_round_corners.h"
 #include "app.h"
 
 namespace Overview {
@@ -501,7 +502,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			const auto statusW = icon.width() + padding.x() + st::normalFont->width(text) + 2 * padding.x();
 			const auto statusH = st::normalFont->height + 2 * padding.y();
 			p.setOpacity(1. - radialOpacity);
-			App::roundRect(p, statusX - padding.x(), statusY - padding.y(), statusW, statusH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? OverviewVideoSelectedCorners : OverviewVideoCorners);
+			Ui::FillRoundRect(p, statusX - padding.x(), statusY - padding.y(), statusW, statusH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::OverviewVideoSelectedCorners : Ui::OverviewVideoCorners);
 			p.setFont(st::normalFont);
 			p.setPen(st::msgDateImgFg);
 			icon.paint(p, statusX, statusY + (st::normalFont->height - icon.height()) / 2, _width);
@@ -1658,19 +1659,19 @@ void Link::validateThumbnail() {
 		const auto index = _letter.isEmpty()
 			? 0
 			: (_letter[0].unicode() % 4);
-		const auto fill = [&](style::color color, RoundCorners corners) {
+		const auto fill = [&](style::color color, Ui::CachedRoundCorners corners) {
 			auto pixRect = QRect(
 				0,
 				0,
 				st::linksPhotoSize,
 				st::linksPhotoSize);
-			App::roundRect(p, pixRect, color, corners);
+			Ui::FillRoundRect(p, pixRect, color, corners);
 		};
 		switch (index) {
-		case 0: fill(st::msgFile1Bg, Doc1Corners); break;
-		case 1: fill(st::msgFile2Bg, Doc2Corners); break;
-		case 2: fill(st::msgFile3Bg, Doc3Corners); break;
-		case 3: fill(st::msgFile4Bg, Doc4Corners); break;
+		case 0: fill(st::msgFile1Bg, Ui::Doc1Corners); break;
+		case 1: fill(st::msgFile2Bg, Ui::Doc2Corners); break;
+		case 2: fill(st::msgFile3Bg, Ui::Doc3Corners); break;
+		case 3: fill(st::msgFile4Bg, Ui::Doc4Corners); break;
 		}
 
 		if (!_letter.isEmpty()) {

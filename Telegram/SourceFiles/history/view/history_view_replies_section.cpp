@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/chat/attach/attach_common.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
@@ -635,17 +636,17 @@ bool RepliesWidget::confirmSendingFiles(
 	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
-			SendFilesWay way,
+			Ui::SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
 			bool ctrlShiftEnter) {
 		if (showSendingFilesError(list)) {
 			return;
 		}
-		const auto type = (way == SendFilesWay::Files)
+		const auto type = (way == Ui::SendFilesWay::Files)
 			? SendMediaType::File
 			: SendMediaType::Photo;
-		const auto album = (way == SendFilesWay::Album)
+		const auto album = (way == Ui::SendFilesWay::Album)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		uploadFilesAfterConfirmation(

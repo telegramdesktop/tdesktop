@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
+#include "ui/cached_round_corners.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -521,10 +522,10 @@ void TabbedSelector::paintSlideFrame(Painter &p) {
 	if (_roundRadius > 0) {
 		if (full()) {
 			auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
-			App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
+			Ui::FillRoundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
 		} else {
 			auto topPart = QRect(0, 0, width(), 3 * _roundRadius);
-			App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop);
+			Ui::FillRoundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop);
 		}
 	} else if (full()) {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
@@ -538,15 +539,15 @@ void TabbedSelector::paintContent(Painter &p) {
 	if (_roundRadius > 0) {
 		if (full()) {
 			auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
-			App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
+			Ui::FillRoundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
 		} else {
 			auto topPart = QRect(0, 0, width(), 3 * _roundRadius);
-			App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop);
+			Ui::FillRoundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop);
 		}
 
 		auto bottomPart = QRect(0, _footerTop - _roundRadius, width(), st::emojiFooterHeight + _roundRadius);
 		auto bottomParts = RectPart::NoTopBottom | RectPart::FullBottom;
-		App::roundRect(p, bottomPart, bottomBg, ImageRoundRadius::Small, bottomParts);
+		Ui::FillRoundRect(p, bottomPart, bottomBg, ImageRoundRadius::Small, bottomParts);
 	} else {
 		if (full()) {
 			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);

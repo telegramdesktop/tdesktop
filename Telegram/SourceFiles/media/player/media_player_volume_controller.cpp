@@ -12,13 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "base/object_ptr.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "app.h"
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 
@@ -146,7 +146,7 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 	auto shadowedSides = RectPart::Left | RectPart::Right | RectPart::Bottom;
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
 	auto parts = RectPart::NoTopBottom | RectPart::FullBottom;
-	App::roundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, MenuCorners, nullptr, parts);
+	Ui::FillRoundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, Ui::MenuCorners, nullptr, parts);
 }
 
 void VolumeWidget::enterEventHook(QEvent *e) {

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -591,7 +592,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
 			p.setTextPalette(st::inTextPalette);
-			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
+			Ui::FillRoundRect(p, _botAbout->rect, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
 			auto top = _botAbout->rect.top() + st::msgPadding.top();
 			if (!_history->peer->isRepliesChat()) {

@@ -78,8 +78,6 @@ struct VoiceData : public DocumentAdditionalData {
 	char wavemax = 0;
 };
 
-bool fileIsImage(const QString &name, const QString &mime);
-
 namespace Serialize {
 class Document;
 } // namespace Serialize;
@@ -228,10 +226,6 @@ public:
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] uint8 cacheTag() const;
 
-	[[nodiscard]] static QString ComposeNameString(
-		const QString &filename,
-		const QString &songTitle,
-		const QString &songPerformer);
 	[[nodiscard]] QString composeNameString() const;
 
 	[[nodiscard]] bool canBeStreamed() const;

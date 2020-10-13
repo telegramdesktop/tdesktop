@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/chat/attach/attach_common.h"
 #include "window/section_widget.h"
 #include "support/support_common.h"
 #include "storage/serialize_common.h"
@@ -367,11 +368,11 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		for (const auto &[key, value] : appSoundOverrides) {
 			app.setSoundOverride(key, value);
 		}
-		auto uncheckedSendFilesWay = static_cast<SendFilesWay>(appSendFilesWay);
+		auto uncheckedSendFilesWay = static_cast<Ui::SendFilesWay>(appSendFilesWay);
 		switch (uncheckedSendFilesWay) {
-		case SendFilesWay::Album:
-		case SendFilesWay::Photos:
-		case SendFilesWay::Files: app.setSendFilesWay(uncheckedSendFilesWay); break;
+		case Ui::SendFilesWay::Album:
+		case Ui::SendFilesWay::Photos:
+		case Ui::SendFilesWay::Files: app.setSendFilesWay(uncheckedSendFilesWay); break;
 		}
 		auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
 			appSendSubmitWay);

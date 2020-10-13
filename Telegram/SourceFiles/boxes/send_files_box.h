@@ -35,6 +35,8 @@ class RoundButton;
 class InputField;
 struct GroupMediaLayout;
 class EmojiButton;
+class AlbumPreview;
+enum class SendFilesWay;
 } // namespace Ui
 
 namespace Window {
@@ -44,12 +46,6 @@ class SessionController;
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
-
-enum class SendFilesWay {
-	Album,
-	Photos,
-	Files,
-};
 
 class SendFilesBox : public Ui::BoxContent {
 public:
@@ -70,7 +66,7 @@ public:
 	void setConfirmedCallback(
 		Fn<void(
 			Ui::PreparedList &&list,
-			SendFilesWay way,
+			Ui::SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
 			bool ctrlShiftEnter)> callback) {
@@ -91,8 +87,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	class AlbumPreview;
-
 	void initSendWay();
 	void initPreview(rpl::producer<int> desiredPreviewHeight);
 
@@ -101,7 +95,7 @@ private:
 	void setupCaption();
 	void setupShadows(
 		not_null<Ui::ScrollArea*> wrap,
-		not_null<AlbumPreview*> content);
+		not_null<Ui::AlbumPreview*> content);
 
 	void setupEmojiPanel();
 	void updateEmojiPanelGeometry();
@@ -149,7 +143,7 @@ private:
 
 	Fn<void(
 		Ui::PreparedList &&list,
-		SendFilesWay way,
+		Ui::SendFilesWay way,
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter)> _confirmedCallback;
@@ -161,16 +155,16 @@ private:
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };
-	std::shared_ptr<Ui::RadioenumGroup<SendFilesWay>> _sendWay;
+	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendAlbum = { nullptr };
+	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendPhotos = { nullptr };
+	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendFiles = { nullptr };
+	std::shared_ptr<Ui::RadioenumGroup<Ui::SendFilesWay>> _sendWay;
 
 	rpl::variable<int> _footerHeight = 0;
 	rpl::event_stream<> _albumChanged;
 
 	QWidget *_preview = nullptr;
-	AlbumPreview *_albumPreview = nullptr;
+	Ui::AlbumPreview *_albumPreview = nullptr;
 	int _albumVideosCount = 0;
 	int _albumPhotosCount = 0;
 

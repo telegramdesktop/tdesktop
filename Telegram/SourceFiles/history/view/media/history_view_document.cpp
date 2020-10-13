@@ -18,13 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
+#include "ui/cached_round_corners.h"
 #include "layout.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -306,8 +306,8 @@ void Document::draw(
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
-			auto overlayCorners = inWebPage ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-			App::roundRect(p, rthumb, p.textPalette().selectOverlay, overlayCorners);
+			auto overlayCorners = inWebPage ? Ui::SelectedOverlaySmallCorners : Ui::SelectedOverlayLargeCorners;
+			Ui::FillRoundRect(p, rthumb, p.textPalette().selectOverlay, overlayCorners);
 		}
 
 		if (radial || (!loaded && !_data->loading())) {

@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -62,7 +62,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	Ui::Shadow::paint(p, _inner, width(), st::boxRoundShadow);
-	App::roundRect(p, _inner, st::boxBg, BoxCorners);
+	Ui::FillRoundRect(p, _inner, st::boxBg, Ui::BoxCorners);
 
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::boxTitleFg);

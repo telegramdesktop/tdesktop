@@ -118,4 +118,23 @@ bool IsMimeAcceptedForAlbum(const QString &mime) {
 		|| (mime == u"video/quicktime"_q);
 }
 
+bool FileIsImage(const QString &name, const QString &mime) {
+	QString lowermime = mime.toLower(), namelower = name.toLower();
+	if (lowermime.startsWith(qstr("image/"))) {
+		return true;
+	} else if (namelower.endsWith(qstr(".bmp"))
+		|| namelower.endsWith(qstr(".jpg"))
+		|| namelower.endsWith(qstr(".jpeg"))
+		|| namelower.endsWith(qstr(".gif"))
+		|| namelower.endsWith(qstr(".webp"))
+		|| namelower.endsWith(qstr(".tga"))
+		|| namelower.endsWith(qstr(".tiff"))
+		|| namelower.endsWith(qstr(".tif"))
+		|| namelower.endsWith(qstr(".psd"))
+		|| namelower.endsWith(qstr(".png"))) {
+		return true;
+	}
+	return false;
+}
+
 } // namespace Core

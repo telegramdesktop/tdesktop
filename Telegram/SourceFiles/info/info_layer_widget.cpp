@@ -13,13 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/focus_persister.h"
 #include "ui/widgets/buttons.h"
+#include "ui/cached_round_corners.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
 #include "core/application.h"
-#include "app.h"
+#include "app.h" // App::quitting.
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "styles/style_layers.h"
@@ -269,11 +270,11 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (parts) {
-		App::roundRect(
+		Ui::FillRoundRect(
 			p,
 			rect(),
 			st::boxBg,
-			BoxCorners,
+			Ui::BoxCorners,
 			nullptr,
 			parts);
 	}

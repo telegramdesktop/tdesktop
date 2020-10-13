@@ -50,11 +50,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/cached_round_corners.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
 #include "apiwrap.h"
+#include "app.h" // App::pixmapFromImageInPlace.
 #include "facades.h" // App::LambdaDelayed.
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -484,7 +485,7 @@ void EditCaptionBox::updateEditPreview() {
 	const auto fileinfo = QFileInfo(file->path);
 	const auto filename = fileinfo.fileName();
 
-	_isImage = fileIsImage(filename, file->mime);
+	_isImage = Core::FileIsImage(filename, file->mime);
 	_isAudio = false;
 	_animated = false;
 	_photo = false;
@@ -516,7 +517,7 @@ void EditCaptionBox::updateEditPreview() {
 	if (shouldAsDoc) {
 		auto nameString = filename;
 		if (const auto song = std::get_if<Info::Song>(fileMedia)) {
-			nameString = DocumentData::ComposeNameString(
+			nameString = Ui::ComposeNameString(
 				filename,
 				song->title,
 				song->performer);
@@ -623,9 +624,10 @@ void EditCaptionBox::createEditMediaButton() {
 	_editMedia.create(this, st::editMediaButton);
 	updateEditMediaButton();
 	_editMedia->setClickedCallback(
-		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
-		buttonCallback();
-	}));
+		App::LambdaDelayed(
+			st::historyAttach.ripple.hideDuration,
+			this,
+			buttonCallback));
 }
 
 void EditCaptionBox::prepare() {
@@ -894,7 +896,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		const auto namewidth = w - nameleft - editButton;
 		const auto x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
-//		App::roundRect(p, x, y, w, h, st::msgInBg, MessageInCorners, &st::msgInShadow);
+//		Ui::FillRoundCorner(p, x, y, w, h, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
 		if (_thumbw) {
 			QRect rthumb(style::rtlrect(x + 0, y + 0, st::msgFileThumbSize, st::msgFileThumbSize, width()));

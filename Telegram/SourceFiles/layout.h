@@ -14,7 +14,9 @@ struct TextState;
 struct StateRequest;
 } // namespace HistoryView
 
-enum RoundCorners : int;
+namespace Ui {
+enum CachedRoundCorners : int;
+} // namespace Ui
 
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
@@ -57,7 +59,7 @@ style::color documentColor(int colorIndex);
 style::color documentDarkColor(int colorIndex);
 style::color documentOverColor(int colorIndex);
 style::color documentSelectedColor(int colorIndex);
-RoundCorners documentCorners(int colorIndex);
+Ui::CachedRoundCorners documentCorners(int colorIndex);
 
 class PaintContextBase {
 public:

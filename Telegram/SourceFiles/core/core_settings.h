@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "window/window_controls_layout.h"
 
-enum class SendFilesWay;
 enum class RectPart;
 
 namespace Ui {
 enum class InputSubmitSettings;
+enum class SendFilesWay;
 } // namespace Ui
 
 namespace Window {
@@ -229,10 +229,10 @@ public:
 	[[nodiscard]] bool lastSeenWarningSeen() const {
 		return _lastSeenWarningSeen;
 	}
-	void setSendFilesWay(SendFilesWay way) {
+	void setSendFilesWay(Ui::SendFilesWay way) {
 		_sendFilesWay = way;
 	}
-	[[nodiscard]] SendFilesWay sendFilesWay() const {
+	[[nodiscard]] Ui::SendFilesWay sendFilesWay() const {
 		return _sendFilesWay;
 	}
 	void setSendSubmitWay(Ui::InputSubmitSettings value) {
@@ -515,7 +515,7 @@ private:
 	bool _callAudioDuckingEnabled = true;
 	Window::Theme::AccentColors _themesAccentColors;
 	bool _lastSeenWarningSeen = false;
-	SendFilesWay _sendFilesWay;
+	Ui::SendFilesWay _sendFilesWay;
 	Ui::InputSubmitSettings _sendSubmitWay;
 	base::flat_map<QString, QString> _soundOverrides;
 	bool _exeLaunchWarning = true;

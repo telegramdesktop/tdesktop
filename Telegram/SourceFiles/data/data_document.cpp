@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/format_values.h"
 #include "base/base_file_utilities.h"
 #include "mainwindow.h"
 #include "core/application.h"
@@ -124,25 +125,6 @@ void LaunchWithWarning(
 }
 
 } // namespace
-
-bool fileIsImage(const QString &name, const QString &mime) {
-	QString lowermime = mime.toLower(), namelower = name.toLower();
-	if (lowermime.startsWith(qstr("image/"))) {
-		return true;
-	} else if (namelower.endsWith(qstr(".bmp"))
-		|| namelower.endsWith(qstr(".jpg"))
-		|| namelower.endsWith(qstr(".jpeg"))
-		|| namelower.endsWith(qstr(".gif"))
-		|| namelower.endsWith(qstr(".webp"))
-		|| namelower.endsWith(qstr(".tga"))
-		|| namelower.endsWith(qstr(".tiff"))
-		|| namelower.endsWith(qstr(".tif"))
-		|| namelower.endsWith(qstr(".psd"))
-		|| namelower.endsWith(qstr(".png"))) {
-		return true;
-	}
-	return false;
-}
 
 QString FileNameUnsafe(
 		not_null<Main::Session*> session,
@@ -1456,12 +1438,12 @@ uint8 DocumentData::cacheTag() const {
 
 QString DocumentData::composeNameString() const {
 	if (auto songData = song()) {
-		return ComposeNameString(
+		return Ui::ComposeNameString(
 			_filename,
 			songData->title,
 			songData->performer);
 	}
-	return ComposeNameString(_filename, QString(), QString());
+	return Ui::ComposeNameString(_filename, QString(), QString());
 }
 
 LocationType DocumentData::locationType() const {
@@ -1577,7 +1559,7 @@ void DocumentData::setMaybeSupportsStreaming(bool supports) {
 void DocumentData::recountIsImage() {
 	const auto isImage = !isAnimation()
 		&& !isVideoFile()
-		&& fileIsImage(filename(), mimeString());
+		&& Core::FileIsImage(filename(), mimeString());
 	if (isImage) {
 		_flags |= Flag::ImageType;
 	} else {
@@ -1633,22 +1615,6 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 		_location = local->_location;
 		session().local().writeFileLocation(mediaKey(), _location);
 	}
-}
-
-QString DocumentData::ComposeNameString(
-		const QString &filename,
-		const QString &songTitle,
-		const QString &songPerformer) {
-	if (songTitle.isEmpty() && songPerformer.isEmpty()) {
-		return filename.isEmpty() ? qsl("Unknown File") : filename;
-	}
-
-	if (songPerformer.isEmpty()) {
-		return songTitle;
-	}
-
-	auto trackTitle = (songTitle.isEmpty() ? qsl("Unknown Track") : songTitle);
-	return songPerformer + QString::fromUtf8(" \xe2\x80\x93 ") + trackTitle;
 }
 
 namespace Data {
