@@ -660,6 +660,9 @@ void ComposeControls::showStarted() {
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
+	if (_voiceRecordBar) {
+		_voiceRecordBar->hideFast();
+	}
 	_wrap->hide();
 	_writeRestricted->hide();
 }
@@ -670,6 +673,9 @@ void ComposeControls::showFinished() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
+	}
+	if (_voiceRecordBar) {
+		_voiceRecordBar->hideFast();
 	}
 	updateWrappingVisibility();
 	_voiceRecordBar->orderControls();

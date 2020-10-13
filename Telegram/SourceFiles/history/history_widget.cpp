@@ -776,6 +776,8 @@ void HistoryWidget::initVoiceRecordBar() {
 		updateHistoryDownVisibility();
 		updateUnreadMentionsVisibility();
 	}, lifetime());
+
+	_voiceRecordBar->hideFast();
 }
 
 void HistoryWidget::initTabbedSelector() {
@@ -2063,13 +2065,7 @@ void HistoryWidget::updateControlsVisibility() {
 	updateHistoryDownVisibility();
 	updateUnreadMentionsVisibility();
 	if (!_history || _a_show.animating()) {
-		if (_tabbedPanel) {
-			_tabbedPanel->hideFast();
-		}
-		if (_pinnedBar) {
-			_pinnedBar->hide();
-		}
-		hideChildren();
+		hideChildWidgets();
 		return;
 	}
 
@@ -2139,6 +2135,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botCommandStart->hide();
 		if (_tabbedPanel) {
 			_tabbedPanel->hide();
+		}
+		if (_voiceRecordBar) {
+			_voiceRecordBar->hideFast();
 		}
 		if (_inlineResults) {
 			_inlineResults->hide();
@@ -2230,6 +2229,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botCommandStart->hide();
 		if (_tabbedPanel) {
 			_tabbedPanel->hide();
+		}
+		if (_voiceRecordBar) {
+			_voiceRecordBar->hideFast();
 		}
 		if (_inlineResults) {
 			_inlineResults->hide();
@@ -3005,6 +3007,19 @@ void HistoryWidget::saveEditMsg() {
 		fail);
 }
 
+void HistoryWidget::hideChildWidgets() {
+	if (_tabbedPanel) {
+		_tabbedPanel->hideFast();
+	}
+	if (_pinnedBar) {
+		_pinnedBar->hide();
+	}
+	if (_voiceRecordBar) {
+		_voiceRecordBar->hideFast();
+	}
+	hideChildren();
+}
+
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
 	if (_supportAutocomplete) {
@@ -3212,13 +3227,7 @@ void HistoryWidget::showAnimated(
 
 	_cacheOver = controller()->content()->grabForShowAnimation(params);
 
-	if (_tabbedPanel) {
-		_tabbedPanel->hideFast();
-	}
-	if (_pinnedBar) {
-		_pinnedBar->hide();
-	}
-	hideChildren();
+	hideChildWidgets();
 	if (params.withTopBarShadow) _topShadow->show();
 
 	if (_showDirection == Window::SlideDirection::FromLeft) {

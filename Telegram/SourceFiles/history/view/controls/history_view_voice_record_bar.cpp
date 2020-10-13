@@ -68,7 +68,6 @@ public:
 	void requestPaintColor(float64 progress);
 	void requestPaintProgress(float64 progress);
 	void requestPaintLevel(quint16 level);
-	void reset();
 
 	[[nodiscard]] rpl::producer<bool> actives() const;
 
@@ -101,7 +100,6 @@ public:
 	RecordLock(not_null<Ui::RpWidget*> parent);
 
 	void requestPaintProgress(float64 progress);
-	void reset();
 
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
@@ -161,26 +159,19 @@ bool RecordLevel::recordingAnimationCallback(crl::time now) {
 void RecordLevel::init() {
 	const auto hasProgress = [](auto value) { return value != 0.; };
 
-	// Do not allow the widget to be shown from the outside.
-	shownValue(
-	) | rpl::start_with_next([=](bool shown) {
-		const auto shouldShown = hasProgress(_showProgress.current());
-		if (shown != shouldShown) {
-			setVisible(shouldShown);
-		}
-	}, lifetime());
-
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
 		drawProgress(p);
 
+		p.setOpacity(_showProgress.current());
 		st::historyRecordVoiceActive.paintInCenter(p, rect());
 	}, lifetime());
 
-	_showProgress.changes(
-	) | rpl::map(hasProgress) | rpl::distinct_until_changed(
+	rpl::merge(
+		shownValue(),
+		_showProgress.value() | rpl::map(hasProgress)
 	) | rpl::start_with_next([=](bool show) {
 		setVisible(show);
 		setMouseTracking(show);
@@ -188,6 +179,7 @@ void RecordLevel::init() {
 			_recordingLevel = anim::value();
 			_recordingAnimation.stop();
 			_showingLifetime.destroy();
+			_showProgress = 0.;
 		}
 	}, lifetime());
 
@@ -281,6 +273,7 @@ void RecordLock::init() {
 	) | rpl::start_with_next([=](bool shown) {
 		if (!shown) {
 			_lockAnimation.stop();
+			_lockEnderAnimation.stop();
 			_progress = 0.;
 		}
 	}, lifetime());
@@ -433,6 +426,7 @@ VoiceRecordBar::VoiceRecordBar(
 , _cancelFont(st::historyRecordFont) {
 	resize(QSize(parent->width(), recorderHeight));
 	init();
+	hideFast();
 }
 
 VoiceRecordBar::VoiceRecordBar(
@@ -478,7 +472,6 @@ void VoiceRecordBar::updateLockGeometry() {
 }
 
 void VoiceRecordBar::init() {
-	hide();
 	// Keep VoiceRecordBar behind SendButton.
 	rpl::single(
 	) | rpl::then(
@@ -488,6 +481,13 @@ void VoiceRecordBar::init() {
 		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		orderControls();
+	}, lifetime());
+
+	shownValue(
+	) | rpl::start_with_next([=](bool show) {
+		if (!show) {
+			finish();
+		}
 	}, lifetime());
 
 	sizeValue(
@@ -556,7 +556,6 @@ void VoiceRecordBar::init() {
 		_showLockAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
 
-	_lock->hide();
 	_lock->locks(
 	) | rpl::start_with_next([=] {
 		installClickOutsideFilter();
@@ -746,25 +745,33 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 
 void VoiceRecordBar::stop(bool send) {
 	auto disappearanceCallback = [=] {
-		_showAnimation.stop();
-
 		hide();
-		_recording = false;
 
 		stopRecording(send);
-
-		_redCircleProgress = 0.;
-
-		_inField = false;
-
-		_recordingLifetime.destroy();
-		_recordingSamples = 0;
-		_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-
-		_controller->widget()->setInnerFocus();
 	};
 	_lockShowing = false;
 	visibilityAnimate(false, std::move(disappearanceCallback));
+}
+
+void VoiceRecordBar::finish() {
+	_recordingLifetime.destroy();
+	_lockShowing = false;
+	_recording = false;
+	_inField = false;
+	_redCircleProgress = 0.;
+	_recordingSamples = 0;
+
+	_showAnimation.stop();
+
+	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
+	_controller->widget()->setInnerFocus();
+}
+
+void VoiceRecordBar::hideFast() {
+	hide();
+	_lock->hide();
+	_level->hide();
+	stopRecording(false);
 }
 
 void VoiceRecordBar::stopRecording(bool send) {
@@ -878,12 +885,6 @@ float64 VoiceRecordBar::showAnimationRatio() const {
 	// There is no reason to set the final value to zero,
 	// because at zero this widget is hidden.
 	return _showAnimation.value(1.);
-}
-
-QString VoiceRecordBar::cancelMessage() const {
-	return _lock->isLocked()
-		? tr::lng_record_lock_cancel(tr::now)
-		: tr::lng_record_cancel(tr::now);
 }
 
 void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {

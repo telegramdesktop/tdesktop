@@ -456,6 +456,7 @@ private:
 	bool replyToNextMessage();
 	[[nodiscard]] bool showSlowmodeError();
 
+	void hideChildWidgets();
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
 

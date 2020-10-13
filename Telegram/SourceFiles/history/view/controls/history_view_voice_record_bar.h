@@ -46,6 +46,7 @@ public:
 
 	void startRecording();
 	void finishAnimating();
+	void hideFast();
 
 	void orderControls();
 
@@ -68,7 +69,6 @@ private:
 	void updateMessageGeometry();
 	void updateLockGeometry();
 
-	void recordError();
 	void recordUpdated(quint16 level, int samples);
 
 	bool recordingAnimationCallback(crl::time now);
@@ -81,7 +81,6 @@ private:
 	void drawDuration(Painter &p);
 	void drawRedCircle(Painter &p);
 	void drawMessage(Painter &p, float64 recordActive);
-	void updateOverStates(QPoint pos);
 
 	void startRedCircleAnimation();
 	void installClickOutsideFilter();
@@ -89,13 +88,13 @@ private:
 	bool isTypeRecord() const;
 	bool hasDuration() const;
 
+	void finish();
+
 	void activeAnimate(bool active);
 	float64 showAnimationRatio() const;
 	float64 activeAnimationRatio() const;
 
 	void computeAndSetLockProgress(QPoint globalPos);
-
-	QString cancelMessage() const;
 
 	const not_null<Ui::RpWidget*> _sectionWidget;
 	const not_null<Window::SessionController*> _controller;
