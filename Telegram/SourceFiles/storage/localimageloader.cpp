@@ -40,7 +40,7 @@ constexpr auto kThumbnailQuality = 87;
 constexpr auto kThumbnailSize = 320;
 constexpr auto kPhotoUploadPartSize = 32 * 1024;
 
-using Storage::ValidateThumbDimensions;
+using Ui::ValidateThumbDimensions;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;

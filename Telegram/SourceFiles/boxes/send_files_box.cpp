@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_album_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
+#include "ui/chat/attach/attach_single_media_preview.h"
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/text/text_options.h"
@@ -55,8 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 
 namespace {
-
-constexpr auto kMinPreviewWidth = 20;
 
 using Ui::SendFilesWay;
 
@@ -93,259 +92,6 @@ void FileDialogCallback(
 	}
 
 	callback(std::move(*list));
-}
-
-class SingleMediaPreview : public Ui::RpWidget {
-public:
-	static SingleMediaPreview *Create(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		const Ui::PreparedFile &file);
-
-	SingleMediaPreview(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		QImage preview,
-		bool animated,
-		bool sticker,
-		const QString &animatedPreviewPath);
-
-	bool canSendAsPhoto() const {
-		return _canSendAsPhoto;
-	}
-
-	rpl::producer<int> desiredHeightValue() const override;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void preparePreview(
-		QImage preview,
-		const QString &animatedPreviewPath);
-	void prepareAnimatedPreview(const QString &animatedPreviewPath);
-	void clipCallback(Media::Clip::Notification notification);
-
-	not_null<Window::SessionController*> _controller;
-	bool _animated = false;
-	bool _sticker = false;
-	bool _canSendAsPhoto = false;
-	QPixmap _preview;
-	int _previewLeft = 0;
-	int _previewWidth = 0;
-	int _previewHeight = 0;
-	Media::Clip::ReaderPointer _gifPreview;
-	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
-
-};
-
-SingleMediaPreview *SingleMediaPreview::Create(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		const Ui::PreparedFile &file) {
-	auto preview = QImage();
-	bool animated = false;
-	bool animationPreview = false;
-	if (const auto image = std::get_if<Ui::PreparedFileInformation::Image>(
-			&file.information->media)) {
-		preview = image->data;
-		animated = animationPreview = image->animated;
-	} else if (const auto video = std::get_if<Ui::PreparedFileInformation::Video>(
-			&file.information->media)) {
-		preview = video->thumbnail;
-		animated = true;
-		animationPreview = video->isGifv;
-	}
-	if (preview.isNull()) {
-		return nullptr;
-	} else if (!animated && !Storage::ValidateThumbDimensions(
-			preview.width(),
-			preview.height())) {
-		return nullptr;
-	}
-	return Ui::CreateChild<SingleMediaPreview>(
-		parent,
-		controller,
-		preview,
-		animated,
-		Core::IsMimeSticker(file.information->filemime),
-		animationPreview ? file.path : QString());
-}
-
-SingleMediaPreview::SingleMediaPreview(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	QImage preview,
-	bool animated,
-	bool sticker,
-	const QString &animatedPreviewPath)
-: RpWidget(parent)
-, _controller(controller)
-, _animated(animated)
-, _sticker(sticker) {
-	Expects(!preview.isNull());
-
-	_canSendAsPhoto = !_animated
-		&& !_sticker
-		&& Storage::ValidateThumbDimensions(
-			preview.width(),
-			preview.height());
-
-	preparePreview(preview, animatedPreviewPath);
-}
-
-void SingleMediaPreview::preparePreview(
-		QImage preview,
-		const QString &animatedPreviewPath) {
-	auto maxW = 0;
-	auto maxH = 0;
-	if (_animated && !_sticker) {
-		auto limitW = st::sendMediaPreviewSize;
-		auto limitH = st::confirmMaxHeight;
-		maxW = qMax(preview.width(), 1);
-		maxH = qMax(preview.height(), 1);
-		if (maxW * limitH > maxH * limitW) {
-			if (maxW < limitW) {
-				maxH = maxH * limitW / maxW;
-				maxW = limitW;
-			}
-		} else {
-			if (maxH < limitH) {
-				maxW = maxW * limitH / maxH;
-				maxH = limitH;
-			}
-		}
-		preview = Images::prepare(
-			preview,
-			maxW * cIntRetinaFactor(),
-			maxH * cIntRetinaFactor(),
-			Images::Option::Smooth | Images::Option::Blurred,
-			maxW,
-			maxH);
-	}
-	auto originalWidth = preview.width();
-	auto originalHeight = preview.height();
-	if (!originalWidth || !originalHeight) {
-		originalWidth = originalHeight = 1;
-	}
-	_previewWidth = st::sendMediaPreviewSize;
-	if (preview.width() < _previewWidth) {
-		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
-	}
-	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
-	_previewHeight = qRound(originalHeight * float64(_previewWidth) / originalWidth);
-	if (_previewHeight > maxthumbh) {
-		_previewWidth = qRound(_previewWidth * float64(maxthumbh) / _previewHeight);
-		accumulate_max(_previewWidth, kMinPreviewWidth);
-		_previewHeight = maxthumbh;
-	}
-	_previewLeft = (st::boxWideWidth - _previewWidth) / 2;
-
-	preview = std::move(preview).scaled(
-		_previewWidth * cIntRetinaFactor(),
-		_previewHeight * cIntRetinaFactor(),
-		Qt::IgnoreAspectRatio,
-		Qt::SmoothTransformation);
-	preview = Images::prepareOpaque(std::move(preview));
-	_preview = App::pixmapFromImageInPlace(std::move(preview));
-	_preview.setDevicePixelRatio(cRetinaFactor());
-
-	prepareAnimatedPreview(animatedPreviewPath);
-}
-
-void SingleMediaPreview::prepareAnimatedPreview(
-		const QString &animatedPreviewPath) {
-	if (_sticker && _animated) {
-		const auto box = QSize(_previewWidth, _previewHeight)
-			* cIntRetinaFactor();
-		_lottiePreview = std::make_unique<Lottie::SinglePlayer>(
-			Lottie::ReadContent(QByteArray(), animatedPreviewPath),
-			Lottie::FrameRequest{ box });
-		_lottiePreview->updates(
-		) | rpl::start_with_next([=] {
-			update();
-		}, lifetime());
-	} else if (!animatedPreviewPath.isEmpty()) {
-		auto callback = [=](Media::Clip::Notification notification) {
-			clipCallback(notification);
-		};
-		_gifPreview = Media::Clip::MakeReader(
-			animatedPreviewPath,
-			std::move(callback));
-	}
-}
-
-void SingleMediaPreview::clipCallback(Media::Clip::Notification notification) {
-	using namespace Media::Clip;
-	switch (notification) {
-	case NotificationReinit: {
-		if (_gifPreview && _gifPreview->state() == State::Error) {
-			_gifPreview.setBad();
-		}
-
-		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
-			auto s = QSize(_previewWidth, _previewHeight);
-			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
-		}
-
-		update();
-	} break;
-
-	case NotificationRepaint: {
-		if (_gifPreview && !_gifPreview->currentDisplayed()) {
-			update();
-		}
-	} break;
-	}
-}
-
-void SingleMediaPreview::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	if (!_sticker) {
-		if (_previewLeft > st::boxPhotoPadding.left()) {
-			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
-		}
-		if (_previewLeft + _previewWidth < width() - st::boxPhotoPadding.right()) {
-			p.fillRect(_previewLeft + _previewWidth, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
-		}
-	}
-	if (_gifPreview && _gifPreview->started()) {
-		auto s = QSize(_previewWidth, _previewHeight);
-		auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
-		auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
-		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
-	} else if (_lottiePreview && _lottiePreview->ready()) {
-		const auto frame = _lottiePreview->frame();
-		const auto size = frame.size() / cIntRetinaFactor();
-		p.drawImage(
-			QRect(
-				_previewLeft + (_previewWidth - size.width()) / 2,
-				st::boxPhotoPadding.top() + (_previewHeight - size.height()) / 2,
-				size.width(),
-				size.height()),
-			frame);
-		_lottiePreview->markFrameShown();
-	} else {
-		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
-	}
-	if (_animated && !_gifPreview && !_lottiePreview) {
-		auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgDateImgBg);
-
-		{
-			PainterHighQualityEnabler hq(p);
-			p.drawEllipse(inner);
-		}
-
-		auto icon = &st::historyFileInPlay;
-		icon->paintInCenter(p, inner);
-	}
-}
-
-rpl::producer<int> SingleMediaPreview::desiredHeightValue() const {
-	return rpl::single(st::boxPhotoPadding.top() + _previewHeight);
 }
 
 rpl::producer<QString> FieldPlaceholder(
@@ -410,7 +156,11 @@ void SendFilesBox::prepareSingleFilePreview() {
 	Expects(IsSingleItem(_list));
 
 	const auto &file = _list.files[0];
-	const auto media = SingleMediaPreview::Create(this, _controller, file);
+	const auto controller = _controller;
+	const auto media = Ui::SingleMediaPreview::Create(this, [=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	}, file);
 	if (media) {
 		if (!media->canSendAsPhoto()) {
 			_compressConfirm = CompressConfirm::None;

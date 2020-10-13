@@ -88,4 +88,11 @@ int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }
 
+bool ValidateThumbDimensions(int width, int height) {
+	return (width > 0)
+		&& (height > 0)
+		&& (width < 20 * height)
+		&& (height < 20 * width);
+}
+
 } // namespace Ui

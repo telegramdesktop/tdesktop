@@ -43,13 +43,13 @@ bool ValidPhotoForAlbum(
 	}
 	const auto width = image.data.width();
 	const auto height = image.data.height();
-	return ValidateThumbDimensions(width, height);
+	return Ui::ValidateThumbDimensions(width, height);
 }
 
 bool ValidVideoForAlbum(const PreparedFileInformation::Video &video) {
 	const auto width = video.thumbnail.width();
 	const auto height = video.thumbnail.height();
-	return ValidateThumbDimensions(width, height);
+	return Ui::ValidateThumbDimensions(width, height);
 }
 
 QSize PrepareShownDimensions(const QImage &preview) {
@@ -163,13 +163,6 @@ bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum) {
 	return true;
 }
 
-bool ValidateThumbDimensions(int width, int height) {
-	return (width > 0)
-		&& (height > 0)
-		&& (width < 20 * height)
-		&& (height < 20 * width);
-}
-
 MimeDataState ComputeMimeDataState(const QMimeData *data) {
 	if (!data || data->hasFormat(qsl("application/x-td-forward"))) {
 		return MimeDataState::None;
@@ -272,7 +265,7 @@ PreparedList PrepareMediaFromImage(
 		QByteArray &&content,
 		int previewWidth) {
 	auto result = Storage::PreparedList();
-	result.allFilesForCompress = ValidateThumbDimensions(
+	result.allFilesForCompress = Ui::ValidateThumbDimensions(
 		image.width(),
 		image.height());
 	auto file = PreparedFile(QString());
@@ -345,7 +338,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 
 			const auto media = &file.information->media;
 			const auto valid = v::match(*media, [](const Info::Image &data) {
-				return Storage::ValidateThumbDimensions(
+				return Ui::ValidateThumbDimensions(
 					data.data.width(),
 					data.data.height())
 					&& !data.animated;

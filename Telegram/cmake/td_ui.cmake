@@ -75,6 +75,8 @@ PRIVATE
     ui/chat/attach/attach_prepare.h
     ui/chat/attach/attach_single_file_preview.cpp
     ui/chat/attach/attach_single_file_preview.h
+    ui/chat/attach/attach_single_media_preview.cpp
+    ui/chat/attach/attach_single_media_preview.h
     ui/chat/message_bar.cpp
     ui/chat/message_bar.h
     ui/chat/pinned_bar.cpp
@@ -107,4 +109,5 @@ PUBLIC
     tdesktop::td_lang
     desktop-app::lib_ui
     desktop-app::lib_ffmpeg
+    desktop-app::lib_lottie
 )

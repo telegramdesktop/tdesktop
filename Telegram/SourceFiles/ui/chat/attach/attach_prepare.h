@@ -81,5 +81,6 @@ struct PreparedList {
 };
 
 [[nodiscard]] int MaxAlbumItems();
+[[nodiscard]] bool ValidateThumbDimensions(int width, int height);
 
 } // namespace Ui

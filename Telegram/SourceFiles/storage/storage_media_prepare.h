@@ -32,7 +32,6 @@ std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
 	int previewWidth);
 MimeDataState ComputeMimeDataState(const QMimeData *data);
 bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum);
-bool ValidateThumbDimensions(int width, int height);
 Ui::PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
 Ui::PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
 Ui::PreparedList PrepareMediaFromImage(

@@ -498,7 +498,7 @@ void EditCaptionBox::updateEditPreview() {
 	auto shouldAsDoc = true;
 	auto docPhotoSize = QSize();
 	if (const auto image = std::get_if<Info::Image>(fileMedia)) {
-		shouldAsDoc = !Storage::ValidateThumbDimensions(
+		shouldAsDoc = !Ui::ValidateThumbDimensions(
 			image->data.width(),
 			image->data.height());
 		if (shouldAsDoc) {
@@ -694,7 +694,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 			using Info = Ui::PreparedFileInformation;
 			const auto fileMedia = &file->information->media;
 			if (const auto image = std::get_if<Info::Image>(fileMedia)) {
-				return !Storage::ValidateThumbDimensions(
+				return !Ui::ValidateThumbDimensions(
 					image->data.width(),
 					image->data.height());
 			}
