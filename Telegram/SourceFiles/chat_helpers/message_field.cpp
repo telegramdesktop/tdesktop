@@ -173,7 +173,7 @@ void EditLinkBox::prepare() {
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
-		const auto linkUrl = qthelp::validate_url(url->getLastText());
+		auto linkUrl = qthelp::validate_url(url->getLastText());
 		if (linkText.isEmpty()) {
 			text->showError();
 			return;
@@ -182,6 +182,18 @@ void EditLinkBox::prepare() {
 			return;
 		}
 		const auto weak = Ui::MakeWeak(this);
+		if (linkUrl.contains("tg://user?id=")) {
+			const auto uid = linkUrl.split("tg://user?id=")[1].toInt();
+			if (uid > 0) {
+				const auto user = session->data().userLoaded(uid);
+				if (user != nullptr) {
+					linkUrl = "mention://user." + TextUtilities::MentionNameDataFromFields({uid, user->accessHash()});
+				} else {
+					url->showError();
+					return;
+				}
+			}
+		}
 		_callback(linkText, linkUrl);
 		if (weak) {
 			closeBox();
