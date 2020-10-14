@@ -680,7 +680,7 @@ bool FileLoadTask::FillImageInformation(
 	return true;
 }
 
-void FileLoadTask::process() {
+void FileLoadTask::process(Args &&args) {
 	_result = std::make_shared<FileLoadResult>(
 		id(),
 		_id,
@@ -829,12 +829,13 @@ void FileLoadTask::process() {
 			}
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
-			goodThumbnail = video->thumbnail;
-			{
-				QBuffer buffer(&goodThumbnailBytes);
-				goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+			if (args.generateGoodThumbnail) {
+				goodThumbnail = video->thumbnail;
+				{
+					QBuffer buffer(&goodThumbnailBytes);
+					goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+				}
 			}
-
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
 		} else if (filemime == qstr("application/x-tdesktop-theme")
 			|| filemime == qstr("application/x-tgtheme-tdesktop")) {
@@ -863,7 +864,7 @@ void FileLoadTask::process() {
 					MTP_string(),
 					MTP_inputStickerSetEmpty(),
 					MTPMaskCoords()));
-				if (isAnimation) {
+				if (isAnimation && args.generateGoodThumbnail) {
 					goodThumbnail = fullimage;
 					{
 						QBuffer buffer(&goodThumbnailBytes);

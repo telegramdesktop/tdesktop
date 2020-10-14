@@ -225,6 +225,9 @@ bool SendDice(Api::MessageToSend &message) {
 		Stickers::DicePacks::kDiceString,
 		Stickers::DicePacks::kDartString,
 		Stickers::DicePacks::kSlotString,
+		Stickers::DicePacks::kFballString,
+		Stickers::DicePacks::kFballString + QChar(0xFE0F),
+		Stickers::DicePacks::kBballString,
 	};
 	const auto list = config.get<std::vector<QString>>(
 		"emojies_send_dice",

@@ -27,6 +27,7 @@ private:
 	void load();
 	void applySet(const MTPDmessages_stickerSet &data);
 	void tryGenerateLocalZero();
+	void generateLocal(int index, const QString &name);
 
 	const not_null<Main::Session*> _session;
 	QString _emoji;
@@ -42,6 +43,8 @@ public:
 	static const QString kDiceString;
 	static const QString kDartString;
 	static const QString kSlotString;
+	static const QString kFballString;
+	static const QString kBballString;
 
 	[[nodiscard]] static bool IsSlot(const QString &emoji) {
 		return (emoji == kSlotString);

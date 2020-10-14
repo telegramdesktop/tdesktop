@@ -72,9 +72,7 @@ SlotMachine::SlotMachine(
 	not_null<Data::MediaDice*> dice)
 : _parent(parent)
 , _dice(dice)
-, _link(_parent->data()->Has<HistoryMessageForwarded>()
-		? nullptr
-		: dice->makeHandler()) {
+, _link(dice->makeHandler()) {
 	resolveStarts();
 	_showLastFrame = _parent->data()->Has<HistoryMessageForwarded>();
 	if (_showLastFrame) {

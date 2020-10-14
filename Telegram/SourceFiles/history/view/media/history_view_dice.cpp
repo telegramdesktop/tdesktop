@@ -32,9 +32,7 @@ namespace {
 Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 : _parent(parent)
 , _dice(dice)
-, _link(_parent->data()->Has<HistoryMessageForwarded>()
-		? nullptr
-		: dice->makeHandler()) {
+, _link(dice->makeHandler()) {
 	if (const auto document = Lookup(parent, dice->emoji(), 0)) {
 		_start.emplace(parent, document);
 		_start->setDiceIndex(_dice->emoji(), 0);

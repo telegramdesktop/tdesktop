@@ -274,8 +274,15 @@ public:
 		return _id;
 	}
 
-	void process();
-	void finish();
+	struct Args {
+		bool generateGoodThumbnail = true;
+	};
+	void process(Args &&args);
+
+	void process() override {
+		process({});
+	}
+	void finish() override;
 
 	FileLoadResult *peekResult() const;
 
