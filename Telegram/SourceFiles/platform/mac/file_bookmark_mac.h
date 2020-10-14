@@ -16,7 +16,7 @@ public:
 
 	[[nodiscard]] bool check() const;
 	bool enable() const;
-	void disable();
+	void disable() const;
 	[[nodiscard]] const QString &name(const QString &original) const;
 	[[nodiscard]] QByteArray bookmark() const;
 

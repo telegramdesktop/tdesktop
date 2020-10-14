@@ -27,7 +27,7 @@ namespace {
 	const auto poll = media ? media->poll() : nullptr;
 	return Ui::MessageBarContent{
 		.id = item->id,
-		.text = item->inReplyText(),
+		.text = { item->inReplyText() },
 	};
 }
 
@@ -102,7 +102,7 @@ namespace {
 	}
 	auto load = rpl::make_producer<Ui::MessageBarContent>([=](auto consumer) {
 		consumer.put_next(Ui::MessageBarContent{
-			.text = tr::lng_contacts_loading(tr::now),
+			.text = { tr::lng_contacts_loading(tr::now) },
 		});
 		const auto channel = id.channel
 			? session->data().channel(id.channel).get()

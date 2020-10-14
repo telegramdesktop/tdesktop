@@ -38,6 +38,9 @@ struct PinnedBarId {
 	bool operator==(const PinnedBarId &other) const {
 		return std::tie(message, type) == std::tie(other.message, other.type);
 	}
+	bool operator!=(const PinnedBarId &other) const {
+		return !(*this == other);
+	}
 };
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 	not_null<Main::Session*> session,
