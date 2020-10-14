@@ -20,6 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stickers {
 
+const QString DicePacks::kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
+const QString DicePacks::kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
+const QString DicePacks::kSlotString = QString::fromUtf8("\xF0\x9F\x8E\xB0");
+
 DicePack::DicePack(not_null<Main::Session*> session, const QString &emoji)
 : _session(session)
 , _emoji(emoji) {
@@ -54,12 +58,20 @@ void DicePack::load() {
 void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	_map.clear();
 	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
+	const auto isSlotMachine = DicePacks::IsSlot(_emoji);
 	for (const auto &sticker : data.vdocuments().v) {
 		const auto document = _session->data().processDocument(
 			sticker);
 		if (document->sticker()) {
-			documents.emplace(document->id, document);
+			if (isSlotMachine) {
+				_map.emplace(_map.size(), document);
+			} else {
+				documents.emplace(document->id, document);
+			}
 		}
+	}
+	if (isSlotMachine) {
+		return;
 	}
 	for (const auto pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
@@ -86,11 +98,9 @@ void DicePack::tryGenerateLocalZero() {
 		return;
 	}
 
-	static const auto kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
-	static const auto kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
-	const auto path = (_emoji == kDiceString)
+	const auto path = (_emoji == DicePacks::kDiceString)
 		? qsl(":/gui/art/dice_idle.tgs")
-		: (_emoji == kDartString)
+		: (_emoji == DicePacks::kDartString)
 		? qsl(":/gui/art/dart_idle.tgs")
 		: QString();
 	if (path.isEmpty()) {

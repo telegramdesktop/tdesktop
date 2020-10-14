@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 
 class Image;
+class History;
 class HistoryItem;
 
 namespace base {
@@ -446,6 +447,11 @@ public:
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing = nullptr) override;
+
+	[[nodiscard]] ClickHandlerPtr makeHandler() const;
+	[[nodiscard]] static ClickHandlerPtr MakeHandler(
+		not_null<History*> history,
+		const QString &emoji);
 
 private:
 	QString _emoji;

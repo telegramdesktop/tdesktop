@@ -109,7 +109,9 @@ void Sticker::initSize() {
 }
 
 QSize Sticker::size() {
-	initSize();
+	if (_size.isEmpty()) {
+		initSize();
+	}
 	return _size;
 }
 
@@ -301,7 +303,7 @@ void Sticker::setupLottie() {
 		_dataMedia.get(),
 		_replacements,
 		ChatHelpers::StickerLottieSize::MessageHistory,
-		_size * cIntRetinaFactor(),
+		size() * cIntRetinaFactor(),
 		Lottie::Quality::High);
 	lottieCreated();
 }

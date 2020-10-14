@@ -508,6 +508,8 @@ PRIVATE
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_poll.h
     history/view/media/history_view_poll.cpp
+    history/view/media/history_view_slot_machine.h
+    history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_sticker.h
     history/view/media/history_view_sticker.cpp
     history/view/media/history_view_theme_document.h

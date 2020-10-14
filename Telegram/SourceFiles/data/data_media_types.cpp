@@ -23,13 +23,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
 #include "history/view/media/history_view_theme_document.h"
+#include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
+#include "api/api_sending.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
+#include "chat_helpers/stickers_dice_pack.h" // Stickers::DicePacks::IsSlot.
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -42,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
 #include "app.h"
+#include "styles/style_chat.h"
 
 namespace Data {
 namespace {
@@ -1339,9 +1345,60 @@ std::unique_ptr<HistoryView::Media> MediaDice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::UnwrappedMedia>(
-		message,
-		std::make_unique<HistoryView::Dice>(message, this));
+	return ::Stickers::DicePacks::IsSlot(_emoji)
+		? std::make_unique<HistoryView::UnwrappedMedia>(
+			message,
+			std::make_unique<HistoryView::SlotMachine>(message, this))
+		: std::make_unique<HistoryView::UnwrappedMedia>(
+			message,
+			std::make_unique<HistoryView::Dice>(message, this));
+}
+
+ClickHandlerPtr MediaDice::makeHandler() const {
+	return MakeHandler(parent()->history(), _emoji);
+}
+
+ClickHandlerPtr MediaDice::MakeHandler(
+		not_null<History*> history,
+		const QString &emoji) {
+	static auto ShownToast = base::weak_ptr<Ui::Toast::Instance>();
+	static const auto HideExisting = [] {
+		if (const auto toast = ShownToast.get()) {
+			toast->hideAnimated();
+			ShownToast = nullptr;
+		}
+	};
+	return std::make_shared<LambdaClickHandler>([=] {
+		auto config = Ui::Toast::Config{
+			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
+			.st = &st::historyDiceToast,
+			.durationMs = Ui::Toast::kDefaultDuration * 2,
+			.multiline = true,
+		};
+		if (history->peer->canWrite()) {
+			auto link = Ui::Text::Link(
+				tr::lng_about_random_send(tr::now).toUpper());
+			link.entities.push_back(
+				EntityInText(EntityType::Semibold, 0, link.text.size()));
+			config.text.append(' ').append(std::move(link));
+			config.filter = crl::guard(&history->session(), [=](
+					const ClickHandlerPtr &handler,
+					Qt::MouseButton button) {
+				if (button == Qt::LeftButton && !ShownToast.empty()) {
+					auto message = Api::MessageToSend(history);
+					message.action.clearDraft = false;
+					message.textWithTags.text = emoji;
+
+					Api::SendDice(message);
+					HideExisting();
+				}
+				return false;
+			});
+		}
+
+		HideExisting();
+		ShownToast = Ui::Toast::Show(config);
+	});
 }
 
 } // namespace Data
