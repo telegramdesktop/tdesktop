@@ -31,14 +31,8 @@ Go to ***BuildPath*** and run
     cd patches
     git checkout ddd4084
     cd ../
-    git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     export PATH="$PWD/depot_tools:$PATH"
-    cd gyp
-    git checkout 9f2a7bb1
-    git apply ../patches/gyp.diff
-    ./setup.py build
-    sudo ./setup.py install
     cd ../..
 
     mkdir -p Libraries/macos
