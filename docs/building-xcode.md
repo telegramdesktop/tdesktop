@@ -53,7 +53,7 @@ Go to ***BuildPath*** and run
     cd ../..
 
     xz_ver=5.2.4
-    wget https://tukaani.org/xz/xz-$xz_ver.tar.gz
+    wget --no-check-certificate https://tukaani.org/xz/xz-$xz_ver.tar.gz
     tar -xvzf xz-$xz_ver.tar.gz
     rm xz-$xz_ver.tar.gz
     cd xz-$xz_ver
