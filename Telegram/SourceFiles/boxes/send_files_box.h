@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/variable.h>
 #include "boxes/abstract_box.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
@@ -27,16 +28,12 @@ class TabbedPanel;
 } // namespace ChatHelpers
 
 namespace Ui {
-template <typename Enum>
-class Radioenum;
-template <typename Enum>
-class RadioenumGroup;
+class Checkbox;
 class RoundButton;
 class InputField;
 struct GroupMediaLayout;
 class EmojiButton;
 class AlbumPreview;
-enum class SendFilesWay;
 } // namespace Ui
 
 namespace Window {
@@ -58,7 +55,6 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		CompressConfirm compressed,
 		SendLimit limit,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
@@ -98,10 +94,10 @@ private:
 		not_null<Ui::AlbumPreview*> content);
 
 	void setupEmojiPanel();
+	void updateSendWayControlsVisibility();
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
-	void refreshAlbumMediaCount();
 	void preparePreview();
 	void prepareSingleFilePreview();
 	void prepareAlbumPreview();
@@ -125,7 +121,6 @@ private:
 	bool addFiles(Ui::PreparedList list);
 
 	void openDialogToAddFileToAlbum();
-	void updateLeftButtonVisibility();
 	void refreshAllAfterAlbumChanges();
 
 	const not_null<Window::SessionController*> _controller;
@@ -136,8 +131,6 @@ private:
 
 	Ui::PreparedList _list;
 
-	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
-	CompressConfirm _compressConfirm = CompressConfirm::None;
 	SendLimit _sendLimit = SendLimit::Many;
 	SendMenu::Type _sendMenuType = SendMenu::Type();
 
@@ -155,22 +148,21 @@ private:
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
-	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendAlbum = { nullptr };
-	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendPhotos = { nullptr };
-	object_ptr<Ui::Radioenum<Ui::SendFilesWay>> _sendFiles = { nullptr };
-	std::shared_ptr<Ui::RadioenumGroup<Ui::SendFilesWay>> _sendWay;
+	object_ptr<Ui::Checkbox> _groupMediaInAlbums = { nullptr };
+	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
+	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;
 	rpl::event_stream<> _albumChanged;
+	rpl::lifetime _dimensionsLifetime;
 
 	QWidget *_preview = nullptr;
 	Ui::AlbumPreview *_albumPreview = nullptr;
-	int _albumVideosCount = 0;
-	int _albumPhotosCount = 0;
 
 	int _lastScrollTop = 0;
 
 	QPointer<Ui::RoundButton> _send;
-	QPointer<Ui::RoundButton> _addFileToAlbum;
+	QPointer<Ui::RoundButton> _addFile;
 
 };

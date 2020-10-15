@@ -4213,8 +4213,7 @@ void ApiWrap::sendFiles(
 		const SendAction &action) {
 	const auto haveCaption = !caption.text.isEmpty();
 	const auto isAlbum = (album != nullptr);
-	const auto compressImages = (type == SendMediaType::Photo);
-	if (haveCaption && !list.canAddCaption(isAlbum, compressImages)) {
+	if (haveCaption && !list.canAddCaption(isAlbum)) {
 		auto message = MessageToSend(action.history);
 		message.textWithTags = std::move(caption);
 		message.action = action;

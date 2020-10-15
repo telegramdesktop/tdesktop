@@ -122,7 +122,7 @@ void PrepareAlbum(PreparedList &result, int previewWidth) {
 		return;
 	}
 
-	result.albumIsPossible = (count > 1);
+	//result.albumIsPossible = (count > 1);
 	auto waiting = 0;
 	QSemaphore semaphore;
 	for (auto &file : result.files) {
@@ -132,13 +132,13 @@ void PrepareAlbum(PreparedList &result, int previewWidth) {
 	}
 	if (waiting > 0) {
 		semaphore.acquire(waiting);
-		if (result.albumIsPossible) {
-			const auto badIt = ranges::find(
-				result.files,
-				PreparedFile::AlbumType::None,
-				[](const PreparedFile &file) { return file.type; });
-			result.albumIsPossible = (badIt == result.files.end());
-		}
+		//if (result.albumIsPossible) {
+		//	const auto badIt = ranges::find(
+		//		result.files,
+		//		PreparedFile::AlbumType::None,
+		//		[](const PreparedFile &file) { return file.type; });
+		//	result.albumIsPossible = (badIt == result.files.end());
+		//}
 	}
 }
 
@@ -252,7 +252,7 @@ PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 		}
 		const auto toCompress = HasExtensionFrom(file, extensionsToCompress);
 		if (filesize > App::kImageSizeLimit || !toCompress) {
-			result.allFilesForCompress = false;
+//			result.allFilesForCompress = false;
 		}
 		result.files.emplace_back(file);
 	}
@@ -265,9 +265,6 @@ PreparedList PrepareMediaFromImage(
 		QByteArray &&content,
 		int previewWidth) {
 	auto result = Storage::PreparedList();
-	result.allFilesForCompress = Ui::ValidateThumbDimensions(
-		image.width(),
-		image.height());
 	auto file = PreparedFile(QString());
 	file.content = content;
 	if (file.content.isEmpty()) {
@@ -364,8 +361,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		}
 
 		auto list = PreparedList(temp.error, temp.errorData);
-		list.albumIsPossible = isAlbum;
-		list.allFilesForCompress = temp.allFilesForCompress;
+		//list.albumIsPossible = isAlbum;
 		list.files = std::move(filteredFiles);
 
 		return list;

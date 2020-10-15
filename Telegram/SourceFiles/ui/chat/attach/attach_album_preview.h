@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
-#include "ui/chat/attach/attach_common.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 
 namespace Ui {
 
@@ -74,7 +74,7 @@ private:
 	void finishDrag();
 
 	const PreparedList &_list;
-	SendFilesWay _sendWay = SendFilesWay::Files;
+	SendFilesWay _sendWay;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
 	std::vector<std::unique_ptr<AlbumThumbnail>> _thumbs;

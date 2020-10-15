@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/chat/attach/attach_common.h"
 #include "storage/serialize_common.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
@@ -19,8 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 
 Settings::Settings()
-: _sendFilesWay(Ui::SendFilesWay::Album)
-, _sendSubmitWay(Ui::InputSubmitSettings::Enter)
+: _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
 , _floatPlayerCorner(RectPart::TopRight)
 , _dialogsWidthRatio(DefaultDialogsWidthRatio()) {
@@ -76,7 +74,7 @@ QByteArray Settings::serialize() const {
 			stream << key << value;
 		}
 		stream
-			<< qint32(_sendFilesWay)
+			<< qint32(_sendFilesWay.serialize())
 			<< qint32(_sendSubmitWay)
 			<< qint32(_includeMutedCounter ? 1 : 0)
 			<< qint32(_countUnreadMessages ? 1 : 0)
@@ -150,7 +148,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 lastSeenWarningSeen = _lastSeenWarningSeen ? 1 : 0;
 	qint32 soundOverridesCount = 0;
 	base::flat_map<QString, QString> soundOverrides;
-	qint32 sendFilesWay = static_cast<qint32>(_sendFilesWay);
+	qint32 sendFilesWay = _sendFilesWay.serialize();
 	qint32 sendSubmitWay = static_cast<qint32>(_sendSubmitWay);
 	qint32 includeMutedCounter = _includeMutedCounter ? 1 : 0;
 	qint32 countUnreadMessages = _countUnreadMessages ? 1 : 0;
@@ -310,12 +308,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_callAudioDuckingEnabled = (callAudioDuckingEnabled == 1);
 	_lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 	_soundOverrides = std::move(soundOverrides);
-	auto uncheckedSendFilesWay = static_cast<Ui::SendFilesWay>(sendFilesWay);
-	switch (uncheckedSendFilesWay) {
-	case Ui::SendFilesWay::Album:
-	case Ui::SendFilesWay::Photos:
-	case Ui::SendFilesWay::Files: _sendFilesWay = uncheckedSendFilesWay; break;
-	}
+	_sendFilesWay = Ui::SendFilesWay::FromSerialized(sendFilesWay).value_or(_sendFilesWay);
 	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(sendSubmitWay);
 	switch (uncheckedSendSubmitWay) {
 	case Ui::InputSubmitSettings::Enter:
@@ -470,7 +463,7 @@ void Settings::resetOnLastLogout() {
 	//_themesAccentColors = Window::Theme::AccentColors();
 
 	_lastSeenWarningSeen = false;
-	_sendFilesWay = Ui::SendFilesWay::Album;
+	_sendFilesWay = Ui::SendFilesWay();
 	//_sendSubmitWay = Ui::InputSubmitSettings::Enter;
 	_soundOverrides = {};
 

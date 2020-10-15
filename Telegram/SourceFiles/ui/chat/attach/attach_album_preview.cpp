@@ -47,7 +47,8 @@ void AlbumPreview::setSendWay(SendFilesWay way) {
 
 void AlbumPreview::updateFileRows() {
 	Expects(_order.size() == _thumbs.size());
-	const auto isFile = (_sendWay == SendFilesWay::Files);
+
+	const auto isFile = !_sendWay.sendImagesAsPhotos();
 	for (auto i = 0; i < _order.size(); i++) {
 		_thumbs[i]->updateFileRow(isFile ? _order[i] : -1);
 	}
@@ -122,14 +123,14 @@ AlbumThumbnail *AlbumPreview::findThumb(QPoint position) const {
 	position -= QPoint(contentLeft(), contentTop());
 
 	auto top = 0;
-	const auto isPhotosWay = (_sendWay == SendFilesWay::Photos);
+	const auto isPhotosWay = _sendWay.sendImagesAsPhotos();
 	const auto skip = isPhotosWay
 		? st::sendMediaPreviewPhotoSkip
 		: st::sendMediaFileThumbSkip;
 	auto find = [&](const auto &thumb) {
-		if (_sendWay == SendFilesWay::Album) {
+		if (_sendWay.groupMediaInAlbums()) {
 			return thumb->containsPoint(position);
-		} else if (isPhotosWay || _sendWay == SendFilesWay::Files) {
+		} else {
 			const auto bottom = top + (isPhotosWay
 				? thumb->photoHeight()
 				: st::sendMediaFileThumbSize);
@@ -248,14 +249,14 @@ void AlbumPreview::updateSizeAnimated(
 
 void AlbumPreview::updateSize() {
 	const auto newHeight = [&] {
-		switch (_sendWay) {
-		case SendFilesWay::Album:
+		if (_sendWay.groupMediaInAlbums()) {
 			return int(std::round(_thumbsHeightAnimation.value(
 				_thumbsHeight)));
-		case SendFilesWay::Photos: return _photosHeight;
-		case SendFilesWay::Files: return _filesHeight;
+		} else if (_sendWay.sendImagesAsPhotos()) {
+			return _photosHeight;
+		} else {
+			return _filesHeight;
 		}
-		Unexpected("Send way in AlbumPreview::updateSize");
 	}();
 	if (height() != newHeight) {
 		resize(st::boxWideWidth, newHeight);
@@ -265,10 +266,12 @@ void AlbumPreview::updateSize() {
 void AlbumPreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	switch (_sendWay) {
-	case SendFilesWay::Album: paintAlbum(p); break;
-	case SendFilesWay::Photos: paintPhotos(p, e->rect()); break;
-	case SendFilesWay::Files: paintFiles(p, e->rect()); break;
+	if (_sendWay.groupMediaInAlbums()) {
+		paintAlbum(p);
+	} else if (_sendWay.sendImagesAsPhotos()) {
+		paintPhotos(p, e->rect());
+	} else {
+		paintFiles(p, e->rect());
 	}
 }
 
@@ -393,11 +396,11 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
-	if (_sendWay == SendFilesWay::Files) {
+	if (!_sendWay.sendImagesAsPhotos()) {
 		applyCursor(style::cur_default);
 		return;
 	}
-	const auto isAlbum = (_sendWay == SendFilesWay::Album);
+	const auto isAlbum = _sendWay.groupMediaInAlbums();
 	if (isAlbum && _draggedThumb) {
 		const auto position = e->pos();
 		_draggedThumb->moveInAlbum(position - _draggedStartPosition);

@@ -9,12 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_themes_embedded.h"
 #include "window/window_controls_layout.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 
 enum class RectPart;
 
 namespace Ui {
 enum class InputSubmitSettings;
-enum class SendFilesWay;
 } // namespace Ui
 
 namespace Window {

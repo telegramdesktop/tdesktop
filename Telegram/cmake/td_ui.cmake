@@ -68,11 +68,12 @@ PRIVATE
     ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp
     ui/chat/attach/attach_album_preview.h
-    ui/chat/attach/attach_common.h
     ui/chat/attach/attach_extensions.cpp
     ui/chat/attach/attach_extensions.h
     ui/chat/attach/attach_prepare.cpp
     ui/chat/attach/attach_prepare.h
+    ui/chat/attach/attach_send_files_way.cpp
+    ui/chat/attach/attach_send_files_way.h
     ui/chat/attach/attach_single_file_preview.cpp
     ui/chat/attach/attach_single_file_preview.h
     ui/chat/attach/attach_single_media_preview.cpp

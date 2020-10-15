@@ -23,7 +23,6 @@ class RPCError;
 struct FileLoadResult;
 struct SendingAlbum;
 enum class SendMediaType;
-enum class CompressConfirm;
 class MessageLinksParser;
 
 namespace SendMenu {
@@ -411,20 +410,18 @@ private:
 	bool canSendFiles(not_null<const QMimeData*> data) const;
 	bool confirmSendingFiles(
 		const QStringList &files,
-		CompressConfirm compressed,
-		const QString &insertTextOnCancel = QString());
+		const QString &insertTextOnCancel);
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		Ui::PreparedList &&list,
-		CompressConfirm compressed,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
 

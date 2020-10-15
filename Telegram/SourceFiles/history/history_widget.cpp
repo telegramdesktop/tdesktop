@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/chat/message_bar.h"
-#include "ui/chat/attach/attach_common.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image.h"
 #include "ui/special_buttons.h"
 #include "ui/controls/emoji_button.h"
@@ -327,10 +327,7 @@ HistoryWidget::HistoryWidget(
 		if (action == Ui::InputField::MimeAction::Check) {
 			return canSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
-			return confirmSendingFiles(
-				data,
-				CompressConfirm::Auto,
-				data->text());
+			return confirmSendingFiles(data, std::nullopt, data->text());
 		}
 		Unexpected("action in MimeData hook.");
 	});
@@ -375,11 +372,11 @@ HistoryWidget::HistoryWidget(
 		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
 		crl::guard(this, [=] { updateControlsGeometry(); }));
 	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {
-		confirmSendingFiles(data, CompressConfirm::No);
+		confirmSendingFiles(data, false);
 		Window::ActivateWindow(controller);
 	});
 	_attachDragAreas.photo->setDroppedCallback([=](const QMimeData *data) {
-		confirmSendingFiles(data, CompressConfirm::Yes);
+		confirmSendingFiles(data, true);
 		Window::ActivateWindow(controller);
 	});
 
@@ -3298,8 +3295,7 @@ void HistoryWidget::chooseAttach() {
 			if (!image.isNull() && !animated) {
 				confirmSendingFiles(
 					std::move(image),
-					std::move(result.remoteContent),
-					CompressConfirm::Auto);
+					std::move(result.remoteContent));
 			} else {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
@@ -3307,11 +3303,7 @@ void HistoryWidget::chooseAttach() {
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
-			if (list.allFilesForCompress || list.albumIsPossible) {
-				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
-			} else if (!showSendingFilesError(list)) {
-				confirmSendingFiles(std::move(list), CompressConfirm::No);
-			}
+			confirmSendingFiles(std::move(list));
 		}
 	}), nullptr);
 }
@@ -4107,7 +4099,7 @@ bool HistoryWidget::showSendingFilesError(
 		}
 		if (list.files.size() > 1
 			&& _peer->slowmodeApplied()
-			&& !list.albumIsPossible) {
+			&& !list.singleAlbumIsPossible) {
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
 			return tr::lng_slowmode_enabled(
@@ -4142,26 +4134,23 @@ bool HistoryWidget::showSendingFilesError(
 }
 
 bool HistoryWidget::confirmSendingFiles(const QStringList &files) {
-	return confirmSendingFiles(files, CompressConfirm::Auto);
+	return confirmSendingFiles(files, QString());
 }
 
 bool HistoryWidget::confirmSendingFiles(not_null<const QMimeData*> data) {
-	return confirmSendingFiles(data, CompressConfirm::Auto);
+	return confirmSendingFiles(data, std::nullopt);
 }
 
 bool HistoryWidget::confirmSendingFiles(
 		const QStringList &files,
-		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
 	return confirmSendingFiles(
 		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
-		compressed,
 		insertTextOnCancel);
 }
 
 bool HistoryWidget::confirmSendingFiles(
 		Ui::PreparedList &&list,
-		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
 	if (showSendingFilesError(list)) {
 		return false;
@@ -4170,13 +4159,6 @@ bool HistoryWidget::confirmSendingFiles(
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 		return false;
 	}
-
-	const auto noCompressOption = (list.files.size() > 1)
-		&& !list.allFilesForCompress
-		&& !list.albumIsPossible;
-	const auto boxCompressConfirm = noCompressOption
-		? CompressConfirm::None
-		: compressed;
 
 	const auto cursor = _field->textCursor();
 	const auto position = cursor.position();
@@ -4187,7 +4169,6 @@ bool HistoryWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		text,
-		boxCompressConfirm,
 		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		Api::SendType::Normal,
 		sendMenuType());
@@ -4201,10 +4182,10 @@ bool HistoryWidget::confirmSendingFiles(
 		if (showSendingFilesError(list)) {
 			return;
 		}
-		const auto type = (way == Ui::SendFilesWay::Files)
-			? SendMediaType::File
-			: SendMediaType::Photo;
-		const auto album = (way == Ui::SendFilesWay::Album)
+		const auto type = way.sendImagesAsPhotos()
+			? SendMediaType::Photo
+			: SendMediaType::File;
+		const auto album = way.groupMediaInAlbums() // #TODO files
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		uploadFilesAfterConfirmation(
@@ -4238,7 +4219,7 @@ bool HistoryWidget::confirmSendingFiles(
 bool HistoryWidget::confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel) {
 	if (image.isNull()) {
 		return false;
@@ -4248,10 +4229,8 @@ bool HistoryWidget::confirmSendingFiles(
 		std::move(image),
 		std::move(content),
 		st::sendMediaPreviewSize);
-	return confirmSendingFiles(
-		std::move(list),
-		compressed,
-		insertTextOnCancel);
+	list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
+	return confirmSendingFiles(std::move(list), insertTextOnCancel);
 }
 
 bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
@@ -4269,7 +4248,7 @@ bool HistoryWidget::canSendFiles(not_null<const QMimeData*> data) const {
 
 bool HistoryWidget::confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel) {
 	if (!canWriteMessage()) {
 		return false;
@@ -4285,10 +4264,8 @@ bool HistoryWidget::confirmSendingFiles(
 			if (list.error == Ui::PreparedList::Error::None
 				|| !hasImage) {
 				const auto emptyTextOnCancel = QString();
-				confirmSendingFiles(
-					std::move(list),
-					compressed,
-					emptyTextOnCancel);
+				list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
+				confirmSendingFiles(std::move(list), emptyTextOnCancel);
 				return true;
 			}
 		}
@@ -4303,7 +4280,7 @@ bool HistoryWidget::confirmSendingFiles(
 			confirmSendingFiles(
 				std::move(image),
 				QByteArray(),
-				compressed,
+				overrideSendImagesAsPhotos,
 				insertTextOnCancel);
 			return true;
 		}
@@ -4321,12 +4298,11 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 	Assert(canWriteMessage());
 
 	const auto isAlbum = (album != nullptr);
-	const auto compressImages = (type == SendMediaType::Photo);
 	if (_peer->slowmodeApplied()
 		&& ((list.files.size() > 1 && !album)
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
-				&& !list.canAddCaption(isAlbum, compressImages)))) {
+				&& !list.canAddCaption(isAlbum)))) {
 		Ui::ShowMultilineToast({
 			.text = { tr::lng_slowmode_no_many(tr::now) },
 		});

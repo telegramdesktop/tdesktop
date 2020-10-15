@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <deque>
+
 namespace Ui {
 
 struct PreparedFileInformation {
@@ -71,13 +73,16 @@ struct PreparedList {
 		std::vector<int> order);
 	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
 
-	[[nodiscard]] bool canAddCaption(bool isAlbum, bool compressImages) const;
+	[[nodiscard]] bool canAddCaption(bool isAlbum) const;
 
 	Error error = Error::None;
 	QString errorData;
 	std::vector<PreparedFile> files;
-	bool allFilesForCompress = true;
-	bool albumIsPossible = false;
+	std::deque<PreparedFile> filesToProcess;
+	std::optional<bool> overrideSendImagesAsPhotos;
+	//bool someFilesForCompress = false;
+	//bool someAlbumIsPossible = false;
+	bool singleAlbumIsPossible = false;
 };
 
 [[nodiscard]] int MaxAlbumItems();

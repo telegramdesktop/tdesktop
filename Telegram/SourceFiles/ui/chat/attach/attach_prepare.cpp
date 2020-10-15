@@ -32,8 +32,7 @@ PreparedList PreparedList::Reordered(
 	Expects(list.files.size() == order.size());
 
 	auto result = PreparedList(list.error, list.errorData);
-	result.albumIsPossible = list.albumIsPossible;
-	result.allFilesForCompress = list.allFilesForCompress;
+	result.singleAlbumIsPossible = list.singleAlbumIsPossible;
 	result.files.reserve(list.files.size());
 	for (auto index : order) {
 		result.files.push_back(std::move(list.files[index]));
@@ -50,7 +49,6 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 		errorData = other.errorData;
 		return;
 	}
-	allFilesForCompress = allFilesForCompress && other.allFilesForCompress;
 	files.reserve(std::min(
 		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
 		files.size() + other.files.size()));
@@ -65,13 +63,13 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 			files,
 			PreparedFile::AlbumType::None,
 			[](const PreparedFile &file) { return file.type; });
-		albumIsPossible = (badIt == files.end());
+		singleAlbumIsPossible = (badIt == files.end());
 	} else {
-		albumIsPossible = false;
+		singleAlbumIsPossible = false;
 	}
 }
 
-bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
+bool PreparedList::canAddCaption(bool isAlbum) const {
 	const auto isSticker = [&] {
 		if (files.empty()) {
 			return false;

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/attach/attach_album_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
 #include "ui/chat/attach/attach_single_media_preview.h"
@@ -97,9 +98,9 @@ void FileDialogCallback(
 rpl::producer<QString> FieldPlaceholder(
 		const Ui::PreparedList &list,
 		SendFilesWay way) {
-	const auto isAlbum = (way == SendFilesWay::Album);
-	const auto compressImages = (way != SendFilesWay::Files);
-	return list.canAddCaption(isAlbum, compressImages)
+	const auto isAlbum = list.singleAlbumIsPossible
+		&& way.groupMediaInAlbums();
+	return list.canAddCaption(isAlbum)
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
 }
@@ -111,15 +112,12 @@ SendFilesBox::SendFilesBox(
 	not_null<Window::SessionController*> controller,
 	Ui::PreparedList &&list,
 	const TextWithTags &caption,
-	CompressConfirm compressed,
 	SendLimit limit,
 	Api::SendType sendType,
 	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _sendType(sendType)
 , _list(std::move(list))
-, _compressConfirmInitial(compressed)
-, _compressConfirm(compressed)
 , _sendLimit(limit)
 , _sendMenuType(sendMenuType)
 , _caption(
@@ -131,11 +129,13 @@ SendFilesBox::SendFilesBox(
 }
 
 void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
+	using namespace rpl::mappers;
+
 	setupControls();
 
 	updateBoxSize();
 
-	using namespace rpl::mappers;
+	_dimensionsLifetime.destroy();
 	rpl::combine(
 		std::move(desiredPreviewHeight),
 		_footerHeight.value(),
@@ -145,7 +145,7 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 			st::boxWideWidth,
 			std::min(st::sendMediaPreviewHeightMax, height),
 			true);
-	}, lifetime());
+	}, _dimensionsLifetime);
 
 	if (_preview) {
 		_preview->show();
@@ -162,29 +162,23 @@ void SendFilesBox::prepareSingleFilePreview() {
 			Window::GifPauseReason::Layer);
 	}, file);
 	if (media) {
-		if (!media->canSendAsPhoto()) {
-			_compressConfirm = CompressConfirm::None;
-		}
 		_preview = media;
 		initPreview(media->desiredHeightValue());
 	} else {
 		const auto preview = Ui::CreateChild<Ui::SingleFilePreview>(this, file);
-		_compressConfirm = CompressConfirm::None;
 		_preview = preview;
 		initPreview(preview->desiredHeightValue());
 	}
 }
 
 void SendFilesBox::prepareAlbumPreview() {
-	Expects(_sendWay != nullptr);
-
 	const auto wrap = Ui::CreateChild<Ui::ScrollArea>(
 		this,
 		st::boxScroll);
 	_albumPreview = wrap->setOwnedWidget(object_ptr<Ui::AlbumPreview>(
 		this,
 		_list,
-		_sendWay->value()));
+		_sendWay.current()));
 
 	addThumbButtonHandlers(wrap);
 
@@ -214,15 +208,10 @@ void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
 		_albumPreview = nullptr;
 
 		if (IsSingleItem(_list)) {
-			_list.albumIsPossible = false;
-			if (_sendWay->value() == SendFilesWay::Album) {
-				_sendWay->setValue(SendFilesWay::Photos);
-			}
+			_list.singleAlbumIsPossible = false;
 		}
 
-		_compressConfirm = _compressConfirmInitial;
 		refreshAllAfterAlbumChanges();
-
 	}, _albumPreview->lifetime());
 
 	_albumPreview->thumbChanged(
@@ -297,20 +286,20 @@ void SendFilesBox::prepare() {
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
+	setupSendWayControls();
 	preparePreview();
+
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
 			_cancelledCallback();
 		}
 	}, lifetime());
 
-	_addFileToAlbum = addLeftButton(
+	_addFile = addLeftButton(
 		tr::lng_stickers_featured_add(),
 		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
 			openDialogToAddFileToAlbum();
 		}));
-
-	updateLeftButtonVisibility();
 	setupDragArea();
 }
 
@@ -348,21 +337,9 @@ void SendFilesBox::setupDragArea() {
 	}, lifetime());
 }
 
-void SendFilesBox::updateLeftButtonVisibility() {
-	const auto isAlbum = _list.albumIsPossible
-		&& (_list.files.size() < Ui::MaxAlbumItems());
-	if (isAlbum || (IsSingleItem(_list) && IsFirstAlbumItem(_list))) {
-		_addFileToAlbum->show();
-	} else {
-		_addFileToAlbum->hide();
-	}
-}
-
 void SendFilesBox::refreshAllAfterAlbumChanges() {
-	refreshAlbumMediaCount();
 	preparePreview();
 	captionResized();
-	updateLeftButtonVisibility();
 	_albumChanged.fire({});
 }
 
@@ -384,36 +361,23 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 }
 
 void SendFilesBox::initSendWay() {
-	refreshAlbumMediaCount();
-	const auto value = [&] {
-		if (_sendLimit == SendLimit::One
-			&& _list.albumIsPossible
-			&& _list.files.size() > 1) {
-			return SendFilesWay::Album;
+	_sendWay = [&] {
+		auto result = Core::App().settings().sendFilesWay();
+		if (_sendLimit == SendLimit::One) {
+			result.setGroupMediaInAlbums(true);
+			result.setGroupFiles(true);
+			return result;
+		} else if (_list.overrideSendImagesAsPhotos == false) {
+			result.setSendImagesAsPhotos(false);
+			return result;
+		} else if (_list.overrideSendImagesAsPhotos == true) {
+			result.setSendImagesAsPhotos(true);
+			return result;
 		}
-		if (_compressConfirm == CompressConfirm::None) {
-			return SendFilesWay::Files;
-		} else if (_compressConfirm == CompressConfirm::No) {
-			return SendFilesWay::Files;
-		} else if (_compressConfirm == CompressConfirm::Yes) {
-			return _list.albumIsPossible
-				? SendFilesWay::Album
-				: SendFilesWay::Photos;
-		}
-		const auto way = Core::App().settings().sendFilesWay();
-		if (way == SendFilesWay::Files) {
-			return way;
-		} else if (way == SendFilesWay::Album) {
-			return _list.albumIsPossible
-				? SendFilesWay::Album
-				: SendFilesWay::Photos;
-		}
-		return (_list.albumIsPossible && !_albumPhotosCount)
-			? SendFilesWay::Album
-			: SendFilesWay::Photos;
+		return result;
 	}();
-	_sendWay = std::make_shared<Ui::RadioenumGroup<SendFilesWay>>(value);
-	_sendWay->setChangedCallback([=](SendFilesWay value) {
+	_sendWay.changes(
+	) | rpl::start_with_next([=](SendFilesWay value) {
 		updateCaptionPlaceholder();
 		applyAlbumOrder();
 		if (_albumPreview) {
@@ -421,18 +385,17 @@ void SendFilesBox::initSendWay() {
 		}
 		updateEmojiPanelGeometry();
 		setInnerFocus();
-	});
+	}, lifetime());
 }
 
 void SendFilesBox::updateCaptionPlaceholder() {
 	if (!_caption) {
 		return;
 	}
-	const auto sendWay = _sendWay->value();
-	const auto isAlbum = (sendWay == SendFilesWay::Album);
-	const auto compressImages = (sendWay != SendFilesWay::Files);
-	if (!_list.canAddCaption(isAlbum, compressImages)
-		&& _sendLimit == SendLimit::One) {
+	const auto sendWay = _sendWay.current();
+	const auto isAlbum = _list.singleAlbumIsPossible
+		&& sendWay.groupMediaInAlbums();
+	if (!_list.canAddCaption(isAlbum) && _sendLimit == SendLimit::One) {
 		_caption->hide();
 		if (_emojiToggle) {
 			_emojiToggle->hide();
@@ -446,67 +409,74 @@ void SendFilesBox::updateCaptionPlaceholder() {
 	}
 }
 
-void SendFilesBox::refreshAlbumMediaCount() {
-	_albumVideosCount = _list.albumIsPossible
-		? ranges::count(
-			_list.files,
-			Ui::PreparedFile::AlbumType::Video,
-			[](const Ui::PreparedFile &file) { return file.type; })
-		: 0;
-	_albumPhotosCount = _list.albumIsPossible
-		? (_list.files.size() - _albumVideosCount)
-		: 0;
-}
-
 void SendFilesBox::preparePreview() {
 	if (IsSingleItem(_list)) {
 		prepareSingleFilePreview();
 	} else {
-		if (_list.albumIsPossible) {
-			prepareAlbumPreview();
-		} else {
-			auto desiredPreviewHeight = rpl::single(0);
-			initPreview(std::move(desiredPreviewHeight));
-		}
+		prepareAlbumPreview(); // #TODO files many albums
 	}
 }
 
 void SendFilesBox::setupControls() {
 	setupTitleText();
-	setupSendWayControls();
+	updateSendWayControlsVisibility();
 }
 
 void SendFilesBox::setupSendWayControls() {
-	_sendAlbum.destroy();
-	_sendPhotos.destroy();
-	_sendFiles.destroy();
-	if (_compressConfirm == CompressConfirm::None
-		|| _sendLimit == SendLimit::One) {
+	// #TODO files
+	_groupMediaInAlbums.create(
+		this,
+		"Group media in albums",
+		_sendWay.current().groupMediaInAlbums(),
+		st::defaultBoxCheckbox);
+	_sendImagesAsPhotos.create(
+		this,
+		"Send images as photos",
+		_sendWay.current().sendImagesAsPhotos(),
+		st::defaultBoxCheckbox);
+	_groupFiles.create(
+		this,
+		"Group files",
+		_sendWay.current().groupFiles(),
+		st::defaultBoxCheckbox);
+
+	_sendWay.changes(
+	) | rpl::start_with_next([=](SendFilesWay value) {
+		_groupMediaInAlbums->setChecked(value.groupMediaInAlbums());
+		_sendImagesAsPhotos->setChecked(value.sendImagesAsPhotos());
+		_groupFiles->setChecked(value.groupFiles());
+	}, lifetime());
+
+	_groupMediaInAlbums->checkedChanges(
+	) | rpl::start_with_next([=] {
+		auto sendWay = _sendWay.current();
+		sendWay.setGroupMediaInAlbums(_groupMediaInAlbums->checked());
+		_sendWay = sendWay;
+	}, lifetime());
+
+	_sendImagesAsPhotos->checkedChanges(
+	) | rpl::start_with_next([=] {
+		auto sendWay = _sendWay.current();
+		sendWay.setSendImagesAsPhotos(_sendImagesAsPhotos->checked());
+		_sendWay = sendWay;
+	}, lifetime());
+
+	_groupFiles->checkedChanges(
+	) | rpl::start_with_next([=] {
+		auto sendWay = _sendWay.current();
+		sendWay.setGroupFiles(_groupFiles->checked());
+		_sendWay = sendWay;
+	}, lifetime());
+}
+
+void SendFilesBox::updateSendWayControlsVisibility() {
+	if (_sendLimit == SendLimit::One) {
 		return;
 	}
-	const auto addRadio = [&](
-			object_ptr<Ui::Radioenum<SendFilesWay>> &button,
-			SendFilesWay value,
-			const QString &text) {
-		const auto &style = st::defaultBoxCheckbox;
-		button.create(this, _sendWay, value, text, style);
-		button->show();
-	};
-	if (_list.albumIsPossible) {
-		addRadio(_sendAlbum, SendFilesWay::Album, tr::lng_send_album(tr::now));
-	}
-	if (!_list.albumIsPossible || _albumPhotosCount > 0) {
-		addRadio(_sendPhotos, SendFilesWay::Photos, IsSingleItem(_list)
-			? tr::lng_send_photo(tr::now)
-			: (_albumVideosCount > 0)
-			? tr::lng_send_separate_photos_videos(tr::now)
-			: (_list.albumIsPossible
-				? tr::lng_send_separate_photos(tr::now)
-				: tr::lng_send_photos(tr::now, lt_count, _list.files.size())));
-	}
-	addRadio(_sendFiles, SendFilesWay::Files, (IsSingleItem(_list))
-		? tr::lng_send_file(tr::now)
-		: tr::lng_send_files(tr::now, lt_count, _list.files.size()));
+	const auto onlyOne = (_sendLimit == SendLimit::One);
+	_groupMediaInAlbums->setVisible(!onlyOne);
+	_sendImagesAsPhotos->setVisible(/*_list.hasImagesForCompression()*/true); // #TODO files
+	_groupFiles->setVisible(!onlyOne);
 }
 
 void SendFilesBox::applyAlbumOrder() {
@@ -682,34 +652,29 @@ bool SendFilesBox::addFiles(Ui::PreparedList list) {
 	const auto cutToAlbumSize = (sumFiles > Ui::MaxAlbumItems());
 	if (list.error != Ui::PreparedList::Error::None) {
 		return false;
-	} else if (!IsSingleItem(list) && !list.albumIsPossible) {
-		return false;
-	} else if (!IsFirstAlbumItem(list)) {
-		return false;
-	} else if (_list.files.size() > 1 && !_albumPreview) {
-		return false;
-	} else if (!IsFirstAlbumItem(_list)) {
-		return false;
+	//} else if (!IsSingleItem(list) && !list.albumIsPossible) { // #TODO files
+	//	return false;
+	//} else if (!IsFirstAlbumItem(list)) {
+	//	return false;
+	//} else if (_list.files.size() > 1 && !_albumPreview) {
+	//	return false;
+	//} else if (!IsFirstAlbumItem(_list)) {
+	//	return false;
 	}
 	applyAlbumOrder();
 	delete base::take(_preview);
 	_albumPreview = nullptr;
 
-	if (IsSingleItem(_list)
-		&& _sendWay->value() == SendFilesWay::Photos) {
-		_sendWay->setValue(SendFilesWay::Album);
-	}
 	_list.mergeToEnd(std::move(list), cutToAlbumSize);
 
-	_compressConfirm = _compressConfirmInitial;
 	refreshAllAfterAlbumChanges();
 	return true;
 }
 
 void SendFilesBox::setupTitleText() {
 	if (_list.files.size() > 1) {
-		const auto onlyImages = (_compressConfirm != CompressConfirm::None)
-			&& (_albumVideosCount == 0);
+		const auto onlyImages = false;/* #TODO files (_compressConfirm != CompressConfirm::None)
+			&& (_albumVideosCount == 0);*/
 		_titleText = onlyImages
 			? tr::lng_send_images_selected(tr::now, lt_count, _list.files.size())
 			: tr::lng_send_files_selected(tr::now, lt_count, _list.files.size());
@@ -726,12 +691,12 @@ void SendFilesBox::updateBoxSize() {
 		footerHeight += st::boxPhotoCaptionSkip + _caption->height();
 	}
 	const auto pointers = {
-		_sendAlbum.data(),
-		_sendPhotos.data(),
-		_sendFiles.data()
+		_groupMediaInAlbums.data(),
+		_sendImagesAsPhotos.data(),
+		_groupFiles.data()
 	};
 	for (auto pointer : pointers) {
-		if (pointer) {
+		if (pointer && !pointer->isHidden()) {
 			footerHeight += st::boxPhotoCompressedSkip
 				+ pointer->heightNoMargins();
 		}
@@ -740,7 +705,7 @@ void SendFilesBox::updateBoxSize() {
 }
 
 void SendFilesBox::keyPressEvent(QKeyEvent *e) {
-	if (e->matches(QKeySequence::Open) && !_addFileToAlbum->isHidden()) {
+	if (e->matches(QKeySequence::Open)) {
 		openDialogToAddFileToAlbum();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		const auto modifiers = e->modifiers();
@@ -792,12 +757,12 @@ void SendFilesBox::updateControlsGeometry() {
 		}
 	}
 	const auto pointers = {
-		_sendAlbum.data(),
-		_sendPhotos.data(),
-		_sendFiles.data()
+		_groupMediaInAlbums.data(),
+		_sendImagesAsPhotos.data(),
+		_groupFiles.data()
 	};
 	for (const auto pointer : ranges::view::reverse(pointers)) {
-		if (pointer) {
+		if (pointer && !pointer->isHidden()) {
 			pointer->moveToLeft(
 				st::boxPhotoPadding.left(),
 				bottom - pointer->heightNoMargins());
@@ -827,22 +792,21 @@ void SendFilesBox::send(
 		return sendScheduled();
 	}
 
-	using Way = SendFilesWay;
-	const auto way = _sendWay ? _sendWay->value() : Way::Files;
-
-	if (_compressConfirm == CompressConfirm::Auto) {
-		const auto oldWay = Core::App().settings().sendFilesWay();
-		if (way != oldWay) {
-			// Check if the user _could_ use the old value, but didn't.
-			if ((oldWay == Way::Album && _sendAlbum)
-				|| (oldWay == Way::Photos && _sendPhotos)
-				|| (oldWay == Way::Files && _sendFiles)
-				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
-				// And in that case save it to settings.
-				Core::App().settings().setSendFilesWay(way);
-				Core::App().saveSettingsDelayed();
-			}
-		}
+	auto way = _sendWay.current();
+	auto oldWay = Core::App().settings().sendFilesWay();
+	if (_list.overrideSendImagesAsPhotos == way.sendImagesAsPhotos()
+		|| _sendImagesAsPhotos->isHidden()) {
+		way.setSendImagesAsPhotos(oldWay.sendImagesAsPhotos());
+	}
+	if (_groupMediaInAlbums->isHidden()) {
+		way.setGroupMediaInAlbums(oldWay.groupMediaInAlbums());
+	}
+	if (_groupFiles->isHidden()) {
+		way.setGroupFiles(oldWay.groupFiles());
+	}
+	if (way != oldWay) {
+		Core::App().settings().setSendFilesWay(way);
+		Core::App().saveSettingsDelayed();
 	}
 
 	applyAlbumOrder();

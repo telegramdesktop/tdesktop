@@ -107,9 +107,7 @@ AlbumThumbnail::AlbumThumbnail(
 	_editMedia->setClickedCallback([=] {
 		base::call_delayed(duration, parent, editCallback);
 	});
-	_deleteMedia->setClickedCallback([=] {
-		base::call_delayed(duration, parent, deleteCallback);
-	});
+	_deleteMedia->setClickedCallback(deleteCallback);
 
 	_editMedia->setIconOverride(&st::editMediaButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
