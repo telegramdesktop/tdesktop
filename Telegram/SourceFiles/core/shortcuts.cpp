@@ -96,6 +96,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ qsl("message_silently")  , Command::SendSilentMessage },
 	{ qsl("message_scheduled") , Command::ScheduleMessage },
 	//
+	{ qsl("fast_forward")      , Command::FastForward },
+	{ qsl("fast_copy")      , Command::FastCopy },
 };
 
 const auto CommandNames = base::flat_map<Command, QString>{
@@ -134,6 +136,9 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	{ Command::ShowArchive    , qsl("show_archive") },
 
 	{ Command::ReadChat       , qsl("read_chat") },
+
+	{ Command::FastForward    , qsl("fast_forward") },
+	{ Command::FastCopy       , qsl("fast_copy") },
 };
 
 class Manager {
@@ -385,6 +390,8 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+9"), Command::ShowArchive);
 
 	set(qsl("ctrl+r"), Command::ReadChat);
+	set(qsl("alt+f"), Command::FastForward);
+	set(qsl("alt+c"), Command::FastCopy);
 }
 
 void Manager::writeDefaultFile() {

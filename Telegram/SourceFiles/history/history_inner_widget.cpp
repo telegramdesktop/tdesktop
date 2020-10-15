@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/merge.h>
 #include "core/file_utilities.h"
 #include "core/crash_reports.h"
+#include <core/shortcuts.h>
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
@@ -205,6 +206,8 @@ HistoryInner::HistoryInner(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	setupShortcuts();
 }
 
 Main::Session &HistoryInner::session() const {
@@ -3555,4 +3558,23 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 
 	static Result result;
 	return &result;
+}
+
+void HistoryInner::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return Ui::AppInFocus()
+			   && Ui::InFocusChain(this)
+			   && !Ui::isLayerShown();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::FastForward, 1) && request->handle([=] {
+			_widget->forwardSelected();
+			return true;
+		});
+		request->check(Command::FastCopy, 1) && request->handle([=] {
+			_widget->forwardNoQuoteSelected();
+			return true;
+		});
+	}, lifetime());
 }

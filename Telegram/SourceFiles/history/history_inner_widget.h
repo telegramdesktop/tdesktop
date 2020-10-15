@@ -313,6 +313,7 @@ private:
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
 	void copySelectedText();
+	void setupShortcuts();
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;

@@ -60,6 +60,9 @@ enum class Command {
 	SupportScrollToCurrent,
 	SupportHistoryBack,
 	SupportHistoryForward,
+
+	FastForward,
+	FastCopy,
 };
 
 constexpr auto kShowFolder = {
