@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
+#include "history/view/controls/history_view_voice_record_button.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
@@ -59,42 +60,6 @@ enum class FilterType {
 
 } // namespace
 
-class RecordLevel final : public Ui::AbstractButton {
-public:
-	RecordLevel(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<> leaveWindowEventProducer);
-
-	void requestPaintColor(float64 progress);
-	void requestPaintProgress(float64 progress);
-	void requestPaintLevel(quint16 level);
-
-	[[nodiscard]] rpl::producer<bool> actives() const;
-
-	[[nodiscard]] bool inCircle(const QPoint &localPos) const;
-
-private:
-	void init();
-
-	void drawProgress(Painter &p);
-
-	const int _height;
-	const int _center;
-
-	rpl::variable<float64> _showProgress = 0.;
-	rpl::variable<float64> _colorProgress = 0.;
-	rpl::variable<bool> _inCircle = false;
-
-	bool recordingAnimationCallback(crl::time now);
-
-	// This can animate for a very long time (like in music playing),
-	// so it should be a Basic, not a Simple animation.
-	Ui::Animations::Basic _recordingAnimation;
-	anim::value _recordingLevel;
-
-	rpl::lifetime _showingLifetime;
-};
-
 class RecordLock final : public Ui::RpWidget {
 public:
 	RecordLock(not_null<Ui::RpWidget*> parent);
@@ -116,148 +81,6 @@ private:
 
 	rpl::variable<float64> _progress = 0.;
 };
-
-RecordLevel::RecordLevel(
-	not_null<Ui::RpWidget*> parent,
-	rpl::producer<> leaveWindowEventProducer)
-: AbstractButton(parent)
-, _height(st::historyRecordLevelMaxRadius * 2)
-, _center(_height / 2)
-, _recordingAnimation([=](crl::time now) {
-	return recordingAnimationCallback(now);
-}) {
-	resize(_height, _height);
-	std::move(
-		leaveWindowEventProducer
-	) | rpl::start_with_next([=] {
-		_inCircle = false;
-	}, lifetime());
-	init();
-}
-
-void RecordLevel::requestPaintLevel(quint16 level) {
-	_recordingLevel.start(level);
-	_recordingAnimation.start();
-}
-
-bool RecordLevel::recordingAnimationCallback(crl::time now) {
-	const auto dt = anim::Disabled()
-		? 1.
-		: ((now - _recordingAnimation.started())
-			/ float64(kRecordingUpdateDelta));
-	if (dt >= 1.) {
-		_recordingLevel.finish();
-	} else {
-		_recordingLevel.update(dt, anim::sineInOut);
-	}
-	if (!anim::Disabled()) {
-		update();
-	}
-	return (dt < 1.);
-}
-
-void RecordLevel::init() {
-	const auto hasProgress = [](auto value) { return value != 0.; };
-
-	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
-
-		drawProgress(p);
-
-		p.setOpacity(_showProgress.current());
-		st::historyRecordVoiceActive.paintInCenter(p, rect());
-	}, lifetime());
-
-	rpl::merge(
-		shownValue(),
-		_showProgress.value() | rpl::map(hasProgress)
-	) | rpl::start_with_next([=](bool show) {
-		setVisible(show);
-		setMouseTracking(show);
-		if (!show) {
-			_recordingLevel = anim::value();
-			_recordingAnimation.stop();
-			_showingLifetime.destroy();
-			_showProgress = 0.;
-		}
-	}, lifetime());
-
-	actives(
-	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool active) {
-		setPointerCursor(active);
-	}, lifetime());
-}
-
-rpl::producer<bool> RecordLevel::actives() const {
-	return events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseMove
-			|| e->type() == QEvent::Leave
-			|| e->type() == QEvent::Enter);
-	}) | rpl::map([=](not_null<QEvent*> e) {
-		switch(e->type()) {
-		case QEvent::MouseMove:
-			return inCircle((static_cast<QMouseEvent*>(e.get()))->pos());
-		case QEvent::Leave: return false;
-		case QEvent::Enter: return inCircle(mapFromGlobal(QCursor::pos()));
-		default: return false;
-		}
-	});
-}
-
-bool RecordLevel::inCircle(const QPoint &localPos) const {
-	const auto &radii = st::historyRecordLevelMaxRadius;
-	const auto dx = std::abs(localPos.x() - _center);
-	if (dx > radii) {
-		return false;
-	}
-	const auto dy = std::abs(localPos.y() - _center);
-	if (dy > radii) {
-		return false;
-	} else if (dx + dy <= radii) {
-		return true;
-	}
-	return ((dx * dx + dy * dy) <= (radii * radii));
-}
-
-void RecordLevel::drawProgress(Painter &p) {
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-	const auto color = anim::color(
-		st::historyRecordSignalColor,
-		st::historyRecordVoiceFgActive,
-		_colorProgress.current());
-	p.setBrush(color);
-
-	const auto progress = _showProgress.current();
-
-	const auto center = QPoint(_center, _center);
-	const int mainRadii = progress * st::historyRecordLevelMainRadius;
-
-	{
-		p.setOpacity(.5);
-		const auto min = progress * st::historyRecordLevelMinRadius;
-		const auto max = progress * st::historyRecordLevelMaxRadius;
-		const auto delta = std::min(_recordingLevel.current() / 0x4000, 1.);
-		const auto radii = qRound(min + (delta * (max - min)));
-		p.drawEllipse(center, radii, radii);
-		p.setOpacity(1.);
-	}
-
-	p.drawEllipse(center, mainRadii, mainRadii);
-}
-
-void RecordLevel::requestPaintProgress(float64 progress) {
-	_showProgress = progress;
-	update();
-}
-
-void RecordLevel::requestPaintColor(float64 progress) {
-	_colorProgress = progress;
-	update();
-}
 
 RecordLock::RecordLock(not_null<Ui::RpWidget*> parent) : RpWidget(parent) {
 	resize(
@@ -419,7 +242,7 @@ VoiceRecordBar::VoiceRecordBar(
 , _controller(controller)
 , _send(send)
 , _lock(std::make_unique<RecordLock>(sectionWidget))
-, _level(std::make_unique<RecordLevel>(
+, _level(std::make_unique<VoiceRecordButton>(
 	sectionWidget,
 	_controller->widget()->leaveEvents()))
 , _startTimer([=] { startRecording(); })

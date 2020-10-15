@@ -342,9 +342,15 @@ historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
 
-historyRecordLevelMainRadius: 37px;
+historyRecordLevelMainRadius: 23px;
+historyRecordLevelMainRadiusAmplitude: 14px;
+historyRecordMajorAmplitudeRadius: 14px;
+historyRecordMinorAmplitudeRadius: 7px;
+historyRecordRandomAddition: 8px;
+historyRecordRadiusDiff: 50px;
+historyRecordRadiusDiffMin: 10px;
 historyRecordLevelMinRadius: 38px;
-historyRecordLevelMaxRadius: 60px;
+historyRecordLevelMaxRadius: 70px;
 
 historyRecordTextStyle: TextStyle(defaultTextStyle) {
 	font: historyRecordFont;

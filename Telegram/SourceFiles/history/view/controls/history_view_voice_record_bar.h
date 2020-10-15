@@ -23,7 +23,7 @@ class SessionController;
 
 namespace HistoryView::Controls {
 
-class RecordLevel;
+class VoiceRecordButton;
 class RecordLock;
 
 class VoiceRecordBar final : public Ui::RpWidget {
@@ -100,7 +100,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
-	const std::unique_ptr<RecordLevel> _level;
+	const std::unique_ptr<VoiceRecordButton> _level;
 
 	base::Timer _startTimer;
 
