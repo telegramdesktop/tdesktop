@@ -43,6 +43,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 23. [Restore] upgraded to supergroup service message
 24. Create new supergroup
 25. [Restore] Discussion group button
+26. Mention user via Create Link with tg://user?id=123456
 
 ## Supported systems
 
