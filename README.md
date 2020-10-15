@@ -77,6 +77,7 @@ Then your language translation filename is `en.json` or something like that.
 ## Links
 
 * [Official Telegram Channel](https://t.me/tg_x64)
+* [Official discussion group](https://t.me/tg_x64_chat)
 
 [//]: # (LINKS)
 [license]: LICENSE
