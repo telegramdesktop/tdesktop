@@ -84,10 +84,32 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	struct Block {
-		base::unique_qptr<Ui::RpWidget> preview;
-		int fromIndex = 0;
-		int tillIndex = 0;
+	class Block final {
+	public:
+		Block(
+			not_null<QWidget*> parent,
+			not_null<std::vector<Ui::PreparedFile>*> items,
+			int from,
+			int till,
+			Fn<bool()> gifPaused,
+			Ui::SendFilesWay way);
+		Block(Block &&other) = default;
+		Block &operator=(Block &&other) = default;
+
+		[[nodiscard]] int fromIndex() const;
+		[[nodiscard]] int tillIndex() const;
+		[[nodiscard]] object_ptr<Ui::RpWidget> takeWidget();
+
+		void setSendWay(Ui::SendFilesWay way);
+		void applyAlbumOrder();
+
+	private:
+		base::unique_qptr<Ui::RpWidget> _preview;
+		not_null<std::vector<Ui::PreparedFile>*> _items;
+		int _from = 0;
+		int _till = 0;
+		bool _isAlbum = false;
+
 	};
 	void initSendWay();
 	void initPreview();
@@ -95,9 +117,7 @@ private:
 	void setupControls();
 	void setupSendWayControls();
 	void setupCaption();
-	void setupShadows(
-		not_null<Ui::ScrollArea*> wrap,
-		not_null<Ui::AlbumPreview*> content);
+	void setupShadows();
 
 	void setupEmojiPanel();
 	void updateSendWayControlsVisibility();
@@ -105,7 +125,7 @@ private:
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
 	void preparePreview();
-	void applyAlbumOrder(not_null<Ui::AlbumPreview*> preview, int from);
+	void generatePreviewFrom(int fromBlock);
 
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
 	void sendSilent();

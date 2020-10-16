@@ -46,6 +46,7 @@ struct PreparedFile {
 		File,
 		Photo,
 		Video,
+		None,
 	};
 
 	PreparedFile(const QString &path);

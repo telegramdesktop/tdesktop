@@ -689,7 +689,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	}
 
 	const auto file = &list.files.front();
-	if (_isAlbum && (file->type == AlbumType::File)) {
+	if (_isAlbum && (file->type == AlbumType::File || file->type == AlbumType::None)) {
 		const auto imageAsDoc = [&] {
 			using Info = Ui::PreparedFileInformation;
 			const auto fileMedia = &file->information->media;

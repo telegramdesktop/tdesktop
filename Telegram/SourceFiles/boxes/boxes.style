@@ -489,7 +489,7 @@ backgroundScroll: ScrollArea(boxScroll) {
 	deltab: 10px;
 }
 
-editMediaButtonSize: 29px;
+editMediaButtonSize: 28px;
 editMediaButtonSkip: 8px;
 editMediaButtonFileSkipRight: 1px;
 editMediaButtonFileSkipTop: 7px;
@@ -513,6 +513,10 @@ sendBoxAlbumGroupSkipRight: 6px;
 sendBoxAlbumGroupSkipTop: 6px;
 sendBoxAlbumGroupRadius: 12px;
 sendBoxAlbumGroupHeight: 25px;
+
+sendBoxFileGroupSkipTop: 2px;
+sendBoxFileGroupSkipRight: 0px;
+sendBoxFileGroupEditInternalSkip: 4px;
 
 sendBoxAlbumGroupEditButtonIcon: editMediaButtonIconPhoto;
 sendBoxAlbumGroupEditButtonIconPosition: point(4px, -1px);

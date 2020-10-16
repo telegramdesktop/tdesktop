@@ -22,13 +22,12 @@ constexpr auto kDragDuration = crl::time(200);
 
 AlbumPreview::AlbumPreview(
 	QWidget *parent,
-	gsl::span<PreparedFile> list,
+	gsl::span<Ui::PreparedFile> items,
 	SendFilesWay way)
 : RpWidget(parent)
-, _list(list)
 , _sendWay(way) {
 	setMouseTracking(true);
-	prepareThumbs();
+	prepareThumbs(items);
 	updateSize();
 	updateFileRows();
 }
@@ -55,25 +54,26 @@ void AlbumPreview::updateFileRows() {
 }
 
 std::vector<int> AlbumPreview::takeOrder() {
+	Expects(_thumbs.size() == _order.size());
+	Expects(_itemsShownDimensions.size() == _order.size());
+
 	auto reordered = std::vector<std::unique_ptr<AlbumThumbnail>>();
+	auto reorderedShownDimensions = std::vector<QSize>();
 	reordered.reserve(_thumbs.size());
+	reorderedShownDimensions.reserve(_itemsShownDimensions.size());
 	for (auto index : _order) {
 		reordered.push_back(std::move(_thumbs[index]));
+		reorderedShownDimensions.push_back(_itemsShownDimensions[index]);
 	}
 	_thumbs = std::move(reordered);
+	_itemsShownDimensions = std::move(reorderedShownDimensions);
 	return std::exchange(_order, defaultOrder());
 }
 
 auto AlbumPreview::generateOrderedLayout() const
 -> std::vector<GroupMediaLayout> {
-	auto sizes = ranges::view::all(
-		_order
-	) | ranges::view::transform([&](int index) {
-		return _list[index].shownDimensions;
-	}) | ranges::to_vector;
-
 	auto layout = LayoutMediaGroup(
-		sizes,
+		_itemsShownDimensions,
 		st::sendMediaPreviewSize,
 		st::historyGroupWidthMin / 2,
 		st::historyGroupSkip / 2);
@@ -81,20 +81,29 @@ auto AlbumPreview::generateOrderedLayout() const
 	return layout;
 }
 
-std::vector<int> AlbumPreview::defaultOrder() const {
-	const auto count = int(_list.size());
+std::vector<int> AlbumPreview::defaultOrder(int count) const {
+	Expects(count > 0 || !_order.empty());
+
+	if (count < 0) {
+		count = _order.size();
+	}
 	return ranges::view::ints(0, count) | ranges::to_vector;
 }
 
-void AlbumPreview::prepareThumbs() {
-	_order = defaultOrder();
+void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
+	_order = defaultOrder(items.size());
+	_itemsShownDimensions = ranges::view::all(
+		_order
+	) | ranges::view::transform([&](int index) {
+		return items[index].shownDimensions;
+	}) | ranges::to_vector;
 
-	const auto count = int(_list.size());
+	const auto count = int(_order.size());
 	const auto layout = generateOrderedLayout();
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
-			_list[i],
+			items[i],
 			layout[i],
 			this,
 			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },

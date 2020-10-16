@@ -68,6 +68,10 @@ bool PreparedList::canBeSentInSlowmode() const {
 		return false;
 	}
 
+	const auto hasNonGrouping = ranges::contains(
+		files,
+		PreparedFile::AlbumType::None,
+		&PreparedFile::type);
 	const auto hasFiles = ranges::contains(
 		files,
 		PreparedFile::AlbumType::File,
@@ -78,7 +82,7 @@ bool PreparedList::canBeSentInSlowmode() const {
 		&PreparedFile::type);
 
 	// File-s and Video-s never can be grouped.
-	return !hasFiles || !hasVideos;
+	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
 bool PreparedList::canAddCaption(bool groupMediaInAlbums) const {

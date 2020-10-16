@@ -20,7 +20,7 @@ class AlbumPreview final : public RpWidget {
 public:
 	AlbumPreview(
 		QWidget *parent,
-		gsl::span<PreparedFile> list,
+		gsl::span<Ui::PreparedFile> items,
 		SendFilesWay way);
 	~AlbumPreview();
 
@@ -45,8 +45,8 @@ private:
 	int countLayoutHeight(
 		const std::vector<GroupMediaLayout> &layout) const;
 	std::vector<GroupMediaLayout> generateOrderedLayout() const;
-	std::vector<int> defaultOrder() const;
-	void prepareThumbs();
+	std::vector<int> defaultOrder(int count = -1) const;
+	void prepareThumbs(gsl::span<Ui::PreparedFile> items);
 	void updateSizeAnimated(const std::vector<GroupMediaLayout> &layout);
 	void updateSize();
 	void updateFileRows();
@@ -73,10 +73,10 @@ private:
 	void cancelDrag();
 	void finishDrag();
 
-	gsl::span<PreparedFile> _list;
 	SendFilesWay _sendWay;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
+	std::vector<QSize> _itemsShownDimensions;
 	std::vector<std::unique_ptr<AlbumThumbnail>> _thumbs;
 	int _thumbsHeight = 0;
 	int _photosHeight = 0;

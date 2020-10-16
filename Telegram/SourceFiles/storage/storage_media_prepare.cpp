@@ -97,6 +97,8 @@ bool PrepareDetailsIsWaiting(
 				Assert(!file.preview.isNull());
 				file.preview.setDevicePixelRatio(cRetinaFactor());
 				file.type = PreparedFile::AlbumType::Photo;
+			} else if (Core::IsMimeSticker(file.mime)) {
+				file.type = PreparedFile::AlbumType::None;
 			}
 		} else if (const auto video = std::get_if<Video>(
 				&file.information->media)) {
@@ -257,7 +259,7 @@ PreparedList PrepareMediaFromImage(
 		QImage &&image,
 		QByteArray &&content,
 		int previewWidth) {
-	auto result = Storage::PreparedList();
+	auto result = PreparedList();
 	auto file = PreparedFile(QString());
 	file.content = content;
 	if (file.content.isEmpty()) {
@@ -283,7 +285,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 	}
 
 	if (!result.remoteContent.isEmpty()) {
-		auto list = Storage::PrepareMediaFromImage(
+		auto list = PrepareMediaFromImage(
 			QImage(),
 			std::move(result.remoteContent),
 			previewWidth);
@@ -297,7 +299,8 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		if (isAlbum) {
 			const auto file = &list.files.front();
 			if (!Core::IsMimeAcceptedForAlbum(mimeFile)
-				|| file->type == Storage::PreparedFile::AlbumType::File) {
+				|| file->type == PreparedFile::AlbumType::File
+				|| file->type == PreparedFile::AlbumType::File) {
 				errorCallback(tr::lng_edit_media_album_error);
 				return std::nullopt;
 			}
@@ -306,7 +309,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		return list;
 	} else if (!result.paths.isEmpty()) {
 		const auto isSingleFile = (result.paths.size() == 1);
-		auto temp = Storage::PrepareMediaList(result.paths, previewWidth);
+		auto temp = PrepareMediaList(result.paths, previewWidth);
 		if (temp.error != PreparedList::Error::None) {
 			errorCallback(tr::lng_send_media_invalid_files);
 			return std::nullopt;

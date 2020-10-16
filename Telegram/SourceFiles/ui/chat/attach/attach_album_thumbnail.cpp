@@ -127,12 +127,12 @@ void AlbumThumbnail::updateFileRow(int row) {
 	const auto fileHeight = st::sendMediaFileThumbSize
 		+ st::sendMediaFileThumbSkip;
 
-	const auto top = row * fileHeight + st::sendBoxAlbumGroupSkipTop;
+	const auto top = row * fileHeight + st::sendBoxFileGroupSkipTop;
 	const auto size = st::editMediaButtonSize;
 
-	auto right = st::sendBoxAlbumGroupSkipRight + size;
+	auto right = st::sendBoxFileGroupSkipRight + size;
 	_deleteMedia->moveToRight(right, top);
-	right += st::sendBoxAlbumGroupEditInternalSkip + size;
+	right += st::sendBoxFileGroupEditInternalSkip + size;
 	_editMedia->moveToRight(right, top);
 }
 

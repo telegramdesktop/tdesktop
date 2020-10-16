@@ -4235,6 +4235,7 @@ void ApiWrap::sendFiles(
 				type = SendMediaType::Photo;
 				break;
 			case Ui::PreparedFile::AlbumType::Video:
+			case Ui::PreparedFile::AlbumType::File:
 				type = SendMediaType::File;
 				break;
 			default: Unexpected("AlbumType in uploadFilesAfterConfirmation");
