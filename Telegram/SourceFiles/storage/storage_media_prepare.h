@@ -27,7 +27,7 @@ enum class MimeDataState {
 
 std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
 	FileDialog::OpenResult &&result,
-	bool isAlbum,
+	Fn<bool(const Ui::PreparedList&)> checkResult,
 	Fn<void(tr::phrase<>)> errorCallback,
 	int previewWidth);
 MimeDataState ComputeMimeDataState(const QMimeData *data);
@@ -38,5 +38,6 @@ Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
+void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
 
 } // namespace Storage

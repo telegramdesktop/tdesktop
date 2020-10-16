@@ -56,7 +56,6 @@ struct PreparedFile {
 
 	QString path;
 	QByteArray content;
-	QString mime;
 	int size = 0;
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
@@ -75,8 +74,8 @@ struct PreparedList {
 
 	PreparedList() = default;
 	PreparedList(Error error, QString errorData)
-		: error(error)
-		, errorData(errorData) {
+	: error(error)
+	, errorData(errorData) {
 	}
 	[[nodiscard]] static PreparedList Reordered(
 		PreparedList &&list,
@@ -85,6 +84,8 @@ struct PreparedList {
 
 	[[nodiscard]] bool canAddCaption(bool groupMediaInAlbums) const;
 	[[nodiscard]] bool canBeSentInSlowmode() const;
+	[[nodiscard]] bool canBeSentInSlowmodeWith(
+		const PreparedList &other) const;
 
 	Error error = Error::None;
 	QString errorData;

@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/text/text_options.h"
+#include "ui/toast/toast.h"
 #include "ui/controls/emoji_button.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
@@ -70,17 +71,17 @@ inline bool IsSingleItem(const Ui::PreparedList &list) {
 }
 
 void FileDialogCallback(
-	FileDialog::OpenResult &&result,
-	bool isAlbum,
-	Fn<void(Ui::PreparedList)> callback) {
-	auto showBoxErrorCallback = [](tr::phrase<> text) {
-		Ui::show(Box<InformBox>(text(tr::now)), Ui::LayerOption::KeepOther);
+		FileDialog::OpenResult &&result,
+		Fn<bool(const Ui::PreparedList&)> checkResult,
+		Fn<void(Ui::PreparedList)> callback) {
+	auto showError = [](tr::phrase<> text) {
+		Ui::Toast::Show(text(tr::now));
 	};
 
 	auto list = Storage::PreparedFileFromFilesDialog(
 		std::move(result),
-		isAlbum,
-		std::move(showBoxErrorCallback),
+		checkResult,
+		showError,
 		st::sendMediaPreviewSize);
 
 	if (!list) {
@@ -212,12 +213,13 @@ SendFilesBox::SendFilesBox(
 , _inner(
 	_scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(_scroll.data()))) {
+	enqueueNextPrepare();
 }
 
 void SendFilesBox::initPreview() {
 	using namespace rpl::mappers;
 
-	setupControls();
+	refreshControls();
 
 	updateBoxSize();
 
@@ -260,7 +262,6 @@ void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
 	//	const auto callback = [=](FileDialog::OpenResult &&result) {
 	//		FileDialogCallback(
 	//			std::move(result),
-	//			true,
 	//			[=] (auto list) {
 	//				_list.files[index] = std::move(list.files.front());
 	//				applyAlbumOrder();
@@ -277,10 +278,36 @@ void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
 	//	FileDialog::GetOpenPath(
 	//		this,
 	//		tr::lng_choose_file(tr::now),
-	//		FileDialog::AlbumFilesFilter(),
+	//		FileDialog::AllOrImagesFilter(),
 	//		crl::guard(this, callback));
 
 	//}, _albumPreview->lifetime());
+}
+
+void SendFilesBox::enqueueNextPrepare() {
+	if (_preparing) {
+		return;
+	}
+	while (!_list.filesToProcess.empty()
+		&& _list.filesToProcess.front().information) {
+		addFile(std::move(_list.filesToProcess.front()));
+		_list.filesToProcess.pop_front();
+	}
+	if (_list.filesToProcess.empty()) {
+		return;
+	}
+	auto file = std::move(_list.filesToProcess.front());
+	_list.filesToProcess.pop_front();
+	const auto weak = Ui::MakeWeak(this);
+	_preparing = true;
+	crl::async([weak, file = std::move(file)]() mutable {
+		Storage::PrepareDetails(file, st::sendMediaPreviewSize);
+		crl::on_main([weak, file = std::move(file)]() mutable {
+			if (weak) {
+				weak->addPreparedAsyncFile(std::move(file));
+			}
+		});
+	});
 }
 
 void SendFilesBox::setupShadows() {
@@ -369,33 +396,42 @@ void SendFilesBox::setupDragArea() {
 	};
 	areas.document->setDroppedCallback(droppedCallback(false));
 	areas.photo->setDroppedCallback(droppedCallback(true));
-	_albumChanged.events(
-	) | rpl::start_with_next([=] {
-		areas.document->raise();
-		areas.photo->raise();
-	}, lifetime());
 }
 
-void SendFilesBox::refreshAllAfterAlbumChanges() {
-	preparePreview();
+void SendFilesBox::refreshAllAfterChanges(int fromItem) {
+	auto fromBlock = 0;
+	for (auto count = int(_blocks.size()); fromBlock != count; ++fromBlock) {
+		if (_blocks[fromBlock].tillIndex() >= fromItem) {
+			break;
+		}
+	}
+	generatePreviewFrom(fromBlock);
+	_inner->resizeToWidth(st::boxWideWidth);
+	refreshControls();
 	captionResized();
-	_albumChanged.fire({});
 }
 
 void SendFilesBox::openDialogToAddFileToAlbum() {
+	const auto checkResult = [=](const Ui::PreparedList &list) {
+		if (_sendLimit != SendLimit::One) {
+			return true;
+		} else if (!_list.canBeSentInSlowmodeWith(list)) {
+			Ui::Toast::Show(tr::lng_slowmode_no_many(tr::now));
+			return false;
+		}
+		return true;
+	};
 	const auto callback = [=](FileDialog::OpenResult &&result) {
 		FileDialogCallback(
 			std::move(result),
-			true,
-			[=] (auto list) {
-				addFiles(std::move(list));
-			});
+			checkResult,
+			[=](Ui::PreparedList list) { addFiles(std::move(list)); });
 	};
 
 	FileDialog::GetOpenPaths(
 		this,
 		tr::lng_choose_file(tr::now),
-		FileDialog::AlbumFilesFilter(),
+		FileDialog::AllOrImagesFilter(),
 		crl::guard(this, callback));
 }
 
@@ -455,7 +491,11 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 
 	using Type = Ui::PreparedFile::AlbumType;
 
-	_blocks.erase(_blocks.begin() + fromBlock, _blocks.end());
+	const auto eraseFrom = _blocks.begin() + fromBlock;
+	for (auto i = eraseFrom; i != _blocks.end(); ++i) {
+		i->applyAlbumOrder();
+	}
+	_blocks.erase(eraseFrom, _blocks.end());
 
 	const auto fromItem = _blocks.empty() ? 0 : _blocks.back().tillIndex();
 	Assert(fromItem <= _list.files.size());
@@ -498,12 +538,10 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 	if (albumStart >= 0) {
 		pushBlock(albumStart, _list.files.size());
 	}
-
-	_scroll->scrollToY(0);
 }
 
-void SendFilesBox::setupControls() {
-	setupTitleText();
+void SendFilesBox::refreshControls() {
+	refreshTitleText();
 	updateSendWayControlsVisibility();
 }
 
@@ -669,20 +707,6 @@ void SendFilesBox::captionResized() {
 
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 	return (data->hasUrls() && CanAddUrls(data->urls())) || data->hasImage();
-	//const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
-	//auto filesCount = CanAddUrls(urls) ? urls.size() : 0;
-	//if (!filesCount && data->hasImage()) {
-	//	++filesCount;
-	//}
-
-	//if (_list.files.size() + filesCount > Ui::MaxAlbumItems()) { // #TODO files
-	//	return false;
-	//} else if (_list.files.size() > 1 && !_albumPreview) {
-	//	return false;
-	//} else if (!IsFirstAlbumItem(_list)) {
-	//	return false;
-	//}
-	//return true;
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
@@ -713,36 +737,54 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 }
 
 bool SendFilesBox::addFiles(Ui::PreparedList list) {
-	const auto sumFiles = _list.files.size() + list.files.size();
-	const auto cutToAlbumSize = (sumFiles > Ui::MaxAlbumItems());
 	if (list.error != Ui::PreparedList::Error::None) {
 		return false;
-	//} else if (!IsSingleItem(list) && !list.albumIsPossible) { // #TODO files
-	//	return false;
-	//} else if (!IsFirstAlbumItem(list)) {
-	//	return false;
-	//} else if (_list.files.size() > 1 && !_albumPreview) {
-	//	return false;
-	//} else if (!IsFirstAlbumItem(_list)) {
-	//	return false;
 	}
-	//applyAlbumOrder();
-	//delete base::take(_preview);
-	//_albumPreview = nullptr;
-	return false;
-	_list.mergeToEnd(std::move(list), cutToAlbumSize);
-
-	refreshAllAfterAlbumChanges();
+	const auto count = int(_list.files.size());
+	_list.filesToProcess.insert(
+		_list.filesToProcess.end(),
+		std::make_move_iterator(list.files.begin()),
+		std::make_move_iterator(list.files.end()));
+	_list.filesToProcess.insert(
+		_list.filesToProcess.end(),
+		std::make_move_iterator(list.filesToProcess.begin()),
+		std::make_move_iterator(list.filesToProcess.end()));
+	enqueueNextPrepare();
+	if (_list.files.size() > count) {
+		refreshAllAfterChanges(count);
+	}
 	return true;
 }
 
-void SendFilesBox::setupTitleText() {
-	if (_list.files.size() > 1) {
-		const auto onlyImages = false;/* #TODO files (_compressConfirm != CompressConfirm::None)
-			&& (_albumVideosCount == 0);*/
-		_titleText = onlyImages
-			? tr::lng_send_images_selected(tr::now, lt_count, _list.files.size())
-			: tr::lng_send_files_selected(tr::now, lt_count, _list.files.size());
+void SendFilesBox::addPreparedAsyncFile(Ui::PreparedFile &&file) {
+	Expects(file.information != nullptr);
+
+	_preparing = false;
+	const auto count = int(_list.files.size());
+	addFile(std::move(file));
+	enqueueNextPrepare();
+	if (_list.files.size() > count) {
+		refreshAllAfterChanges(count);
+	}
+}
+
+void SendFilesBox::addFile(Ui::PreparedFile &&file) {
+	_list.files.push_back(std::move(file));
+	if (_sendLimit == SendLimit::One && !_list.canBeSentInSlowmode()) {
+		_list.files.pop_back();
+	}
+}
+
+void SendFilesBox::refreshTitleText() {
+	const auto count = int(_list.files.size());
+	if (count > 1) {
+		const auto imagesCount = ranges::count(
+			_list.files,
+			Ui::PreparedFile::AlbumType::Photo,
+			&Ui::PreparedFile::type);
+		_titleText = (imagesCount == count)
+			? tr::lng_send_images_selected(tr::now, lt_count, count)
+			: tr::lng_send_files_selected(tr::now, lt_count, count);
 		_titleHeight = st::boxTitleHeight;
 	} else {
 		_titleText = QString();

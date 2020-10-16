@@ -60,24 +60,29 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 }
 
 bool PreparedList::canBeSentInSlowmode() const {
-	if (!filesToProcess.empty()) {
+	return canBeSentInSlowmodeWith(PreparedList());
+}
+
+bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
+	if (!filesToProcess.empty() || !other.filesToProcess.empty()) {
 		return false;
-	} else if (files.size() < 2) {
+	} else if (files.size() + other.files.size() < 2) {
 		return true;
-	} else if (files.size() > kMaxAlbumCount) {
+	} else if (files.size() + other.files.size() > kMaxAlbumCount) {
 		return false;
 	}
 
+	auto &&all = ranges::view::concat(files, other.files);
 	const auto hasNonGrouping = ranges::contains(
-		files,
+		all,
 		PreparedFile::AlbumType::None,
 		&PreparedFile::type);
 	const auto hasFiles = ranges::contains(
-		files,
+		all,
 		PreparedFile::AlbumType::File,
 		&PreparedFile::type);
 	const auto hasVideos = ranges::contains(
-		files,
+		all,
 		PreparedFile::AlbumType::Video,
 		&PreparedFile::type);
 
@@ -92,7 +97,9 @@ bool PreparedList::canAddCaption(bool groupMediaInAlbums) const {
 		return false;
 	}
 	if (files.size() == 1) {
-		const auto isSticker = Core::IsMimeSticker(files.front().mime)
+		Assert(files.front().information != nullptr);
+		const auto isSticker = Core::IsMimeSticker(
+			files.front().information->filemime)
 			|| files.front().path.endsWith(
 				qstr(".tgs"),
 				Qt::CaseInsensitive);

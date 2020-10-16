@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/toast/toast.h"
 #include "ui/cached_round_corners.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
@@ -485,7 +486,8 @@ void EditCaptionBox::updateEditPreview() {
 	const auto fileinfo = QFileInfo(file->path);
 	const auto filename = fileinfo.fileName();
 
-	_isImage = Core::FileIsImage(filename, file->mime);
+	const auto mime = file->information->filemime;
+	_isImage = Core::FileIsImage(filename, mime);
 	_isAudio = false;
 	_animated = false;
 	_photo = false;
@@ -525,7 +527,7 @@ void EditCaptionBox::updateEditPreview() {
 		}
 
 		const auto getExt = [&] {
-			auto patterns = Core::MimeTypeForName(file->mime).globPatterns();
+			auto patterns = Core::MimeTypeForName(mime).globPatterns();
 			if (!patterns.isEmpty()) {
 				return patterns.front().replace('*', QString());
 			}
@@ -588,14 +590,33 @@ void EditCaptionBox::updateEditMediaButton() {
 
 void EditCaptionBox::createEditMediaButton() {
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		auto showBoxErrorCallback = [](tr::phrase<> t) {
-			Ui::show(Box<InformBox>(t(tr::now)), Ui::LayerOption::KeepOther);
+		auto showError = [](tr::phrase<> t) {
+			Ui::Toast::Show(t(tr::now));
 		};
 
+		const auto checkResult = [=](const Ui::PreparedList &list) {
+			if (list.files.size() != 1) {
+				return false;
+			}
+			const auto &file = list.files.front();
+			const auto mime = file.information->filemime;
+			if (Core::IsMimeSticker(mime)) {
+				showError(tr::lng_edit_media_invalid_file);
+				return false;
+			} else if (_isAlbum) { // #TODO edit in file-albums
+				if (!Core::IsMimeAcceptedForAlbum(mime)
+					|| file.type == Ui::PreparedFile::AlbumType::File
+					|| file.type == Ui::PreparedFile::AlbumType::None) {
+					showError(tr::lng_edit_media_album_error);
+					return false;
+				}
+			}
+			return true;
+		};
 		auto list = Storage::PreparedFileFromFilesDialog(
 			std::move(result),
-			_isAlbum,
-			std::move(showBoxErrorCallback),
+			checkResult,
+			showError,
 			st::sendMediaPreviewSize);
 
 		if (list) {

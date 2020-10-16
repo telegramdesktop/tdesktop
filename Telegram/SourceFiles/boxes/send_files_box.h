@@ -114,7 +114,7 @@ private:
 	void initSendWay();
 	void initPreview();
 
-	void setupControls();
+	void refreshControls();
 	void setupSendWayControls();
 	void setupCaption();
 	void setupShadows();
@@ -133,7 +133,7 @@ private:
 	void captionResized();
 
 	void setupDragArea();
-	void setupTitleText();
+	void refreshTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
@@ -143,9 +143,13 @@ private:
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
 	bool addFiles(Ui::PreparedList list);
+	void addFile(Ui::PreparedFile &&file);
 
 	void openDialogToAddFileToAlbum();
-	void refreshAllAfterAlbumChanges();
+	void refreshAllAfterChanges(int fromItem);
+
+	void enqueueNextPrepare();
+	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
 	const not_null<Window::SessionController*> _controller;
 	const Api::SendType _sendType = Api::SendType();
@@ -178,12 +182,12 @@ private:
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;
-	rpl::event_stream<> _albumChanged;
 	rpl::lifetime _dimensionsLifetime;
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<Ui::VerticalLayout> _inner;
 	std::vector<Block> _blocks;
+	bool _preparing = false;
 
 	int _lastScrollTop = 0;
 

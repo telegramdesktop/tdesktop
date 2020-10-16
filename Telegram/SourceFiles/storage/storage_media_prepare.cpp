@@ -62,77 +62,20 @@ QSize PrepareShownDimensions(const QImage &preview) {
 		: result;
 }
 
-bool PrepareDetailsIsWaiting(
-		QSemaphore &semaphore,
-		PreparedFile &file,
-		int previewWidth) {
-	crl::async([=, &semaphore, &file] {
-		const auto guard = gsl::finally([&] { semaphore.release(); });
-		if (!file.path.isEmpty()) {
-			file.mime = Core::MimeTypeForFile(QFileInfo(file.path)).name();
-			file.information = FileLoadTask::ReadMediaInformation(
-				file.path,
-				QByteArray(),
-				file.mime);
-		} else if (!file.content.isEmpty()) {
-			file.mime = Core::MimeTypeForData(file.content).name();
-			file.information = FileLoadTask::ReadMediaInformation(
-				QString(),
-				file.content,
-				file.mime);
-		} else {
-			Assert(file.information != nullptr);
-		}
-
-		using Image = PreparedFileInformation::Image;
-		using Video = PreparedFileInformation::Video;
-		if (const auto image = std::get_if<Image>(
-				&file.information->media)) {
-			if (ValidPhotoForAlbum(*image, file.mime)) {
-				file.shownDimensions = PrepareShownDimensions(image->data);
-				file.preview = Images::prepareOpaque(image->data.scaledToWidth(
-					std::min(previewWidth, style::ConvertScale(image->data.width()))
-						* cIntRetinaFactor(),
-					Qt::SmoothTransformation));
-				Assert(!file.preview.isNull());
-				file.preview.setDevicePixelRatio(cRetinaFactor());
-				file.type = PreparedFile::AlbumType::Photo;
-			} else if (Core::IsMimeSticker(file.mime)) {
-				file.type = PreparedFile::AlbumType::None;
-			}
-		} else if (const auto video = std::get_if<Video>(
-				&file.information->media)) {
-			if (ValidVideoForAlbum(*video)) {
-				auto blurred = Images::prepareBlur(Images::prepareOpaque(video->thumbnail));
-				file.shownDimensions = PrepareShownDimensions(video->thumbnail);
-				file.preview = std::move(blurred).scaledToWidth(
-					previewWidth * cIntRetinaFactor(),
-					Qt::SmoothTransformation);
-				Assert(!file.preview.isNull());
-				file.preview.setDevicePixelRatio(cRetinaFactor());
-				file.type = PreparedFile::AlbumType::Video;
-			}
-		}
-	});
-	return true;
-}
-
 void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 	Expects(result.files.size() <= Ui::MaxAlbumItems());
 
-	auto waiting = 0;
+	if (result.files.empty()) {
+		return;
+	}
 	QSemaphore semaphore;
 	for (auto &file : result.files) {
-		if (PrepareDetailsIsWaiting(
-				semaphore,
-				file,
-				previewWidth)) {
-			++waiting;
-		}
+		crl::async([=, &semaphore, &file] {
+			PrepareDetails(file, previewWidth);
+			semaphore.release();
+		});
 	}
-	if (waiting > 0) {
-		semaphore.acquire(waiting);
-	}
+	semaphore.acquire(result.files.size());
 }
 
 } // namespace
@@ -277,91 +220,152 @@ PreparedList PrepareMediaFromImage(
 
 std::optional<PreparedList> PreparedFileFromFilesDialog(
 		FileDialog::OpenResult &&result,
-		bool isAlbum,
+		Fn<bool(const Ui::PreparedList&)> checkResult,
 		Fn<void(tr::phrase<>)> errorCallback,
 		int previewWidth) {
 	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 		return std::nullopt;
 	}
 
-	if (!result.remoteContent.isEmpty()) {
-		auto list = PrepareMediaFromImage(
+	auto list = result.remoteContent.isEmpty()
+		? PrepareMediaList(result.paths, previewWidth)
+		: PrepareMediaFromImage(
 			QImage(),
 			std::move(result.remoteContent),
 			previewWidth);
-
-		const auto mimeFile = list.files.front().mime;
-		if (Core::IsMimeSticker(mimeFile)) {
-			errorCallback(tr::lng_edit_media_invalid_file);
-			return std::nullopt;
-		}
-
-		if (isAlbum) {
-			const auto file = &list.files.front();
-			if (!Core::IsMimeAcceptedForAlbum(mimeFile)
-				|| file->type == PreparedFile::AlbumType::File
-				|| file->type == PreparedFile::AlbumType::File) {
-				errorCallback(tr::lng_edit_media_album_error);
-				return std::nullopt;
-			}
-		}
-		Expects(list.files.size() == 1);
-		return list;
-	} else if (!result.paths.isEmpty()) {
-		const auto isSingleFile = (result.paths.size() == 1);
-		auto temp = PrepareMediaList(result.paths, previewWidth);
-		if (temp.error != PreparedList::Error::None) {
-			errorCallback(tr::lng_send_media_invalid_files);
-			return std::nullopt;
-		}
-		auto filteredFiles = ranges::view::all(
-			temp.files
-		) | ranges::view::filter([&](const auto &file) {
-			const auto info = QFileInfo(file.path);
-			if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
-				if (isSingleFile) {
-					errorCallback(tr::lng_edit_media_invalid_file);
-				}
-				return false;
-			}
-			if (!isAlbum) {
-				return true;
-			}
-			using Info = PreparedFileInformation;
-
-			const auto media = &file.information->media;
-			const auto valid = v::match(*media, [](const Info::Image &data) {
-				return Ui::ValidateThumbDimensions(
-					data.data.width(),
-					data.data.height())
-					&& !data.animated;
-			}, [](Info::Video &data) {
-				data.isGifv = false;
-				return true;
-			}, [](auto &&other) {
-				return false;
-			});
-			if (!valid && isSingleFile) {
-				errorCallback(tr::lng_edit_media_album_error);
-			}
-			return valid;
-		}) | ranges::view::transform([](auto &file) {
-			return std::move(file);
-		}) | ranges::to_vector;
-
-		if (!filteredFiles.size()) {
-			if (!isSingleFile) {
-				errorCallback(tr::lng_send_media_invalid_files);
-			}
-			return std::nullopt;
-		}
-
-		auto list = PreparedList(temp.error, temp.errorData);
-		list.files = std::move(filteredFiles);
-
+	if (list.error != PreparedList::Error::None) {
+		errorCallback(tr::lng_send_media_invalid_files);
+		return std::nullopt;
+	} else if (!checkResult(list)) {
+		return std::nullopt;
+	} else {
 		return list;
 	}
-	return std::nullopt;
+	//if (!result.remoteContent.isEmpty()) {
+	//	auto list = PrepareMediaFromImage(
+	//		QImage(),
+	//		std::move(result.remoteContent),
+	//		previewWidth);
+
+	//	const auto mimeFile = list.files.front().information->filemime;
+	//	if (Core::IsMimeSticker(mimeFile)) {
+	//		errorCallback(tr::lng_edit_media_invalid_file);
+	//		return std::nullopt;
+	//	}
+
+	//	if (isAlbum) {
+	//		const auto file = &list.files.front();
+	//		if (!Core::IsMimeAcceptedForAlbum(mimeFile)
+	//			|| file->type == PreparedFile::AlbumType::File
+	//			|| file->type == PreparedFile::AlbumType::None) {
+	//			errorCallback(tr::lng_edit_media_album_error);
+	//			return std::nullopt;
+	//		}
+	//	}
+
+	//	Ensures(list.files.size() == 1);
+	//	return list;
+	//} else if (!result.paths.isEmpty()) {
+	//	auto temp = PrepareMediaList(result.paths, previewWidth);
+	//	const auto isSingleFile = (temp.files.size() == 1);
+	//	if (temp.error != PreparedList::Error::None) {
+	//		errorCallback(tr::lng_send_media_invalid_files);
+	//		return std::nullopt;
+	//	}
+	//	auto filteredFiles = ranges::view::all(
+	//		temp.files
+	//	) | ranges::view::filter([&](const auto &file) {
+	//		const auto info = QFileInfo(file.path);
+	//		if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
+	//			if (isSingleFile) {
+	//				errorCallback(tr::lng_edit_media_invalid_file);
+	//			}
+	//			return false;
+	//		}
+	//		if (!isAlbum) {
+	//			return true;
+	//		}
+	//		using Info = PreparedFileInformation;
+
+	//		const auto media = &file.information->media;
+	//		const auto valid = v::match(*media, [](const Info::Image &data) {
+	//			return Ui::ValidateThumbDimensions(
+	//				data.data.width(),
+	//				data.data.height())
+	//				&& !data.animated;
+	//		}, [](Info::Video &data) {
+	//			data.isGifv = false;
+	//			return true;
+	//		}, [](auto &&other) {
+	//			return false;
+	//		});
+	//		if (!valid && isSingleFile) {
+	//			errorCallback(tr::lng_edit_media_album_error);
+	//		}
+	//		return valid;
+	//	}) | ranges::view::transform([](auto &file) {
+	//		return std::move(file);
+	//	}) | ranges::to_vector;
+
+	//	if (!filteredFiles.size()) {
+	//		if (!isSingleFile) {
+	//			errorCallback(tr::lng_send_media_invalid_files);
+	//		}
+	//		return std::nullopt;
+	//	}
+
+	//	auto list = PreparedList(temp.error, temp.errorData);
+	//	list.files = std::move(filteredFiles);
+
+	//	return list;
+	//}
+	//return std::nullopt;
+}
+
+void PrepareDetails(PreparedFile &file, int previewWidth) {
+	if (!file.path.isEmpty()) {
+		file.information = FileLoadTask::ReadMediaInformation(
+			file.path,
+			QByteArray(),
+			Core::MimeTypeForFile(QFileInfo(file.path)).name());
+	} else if (!file.content.isEmpty()) {
+		file.information = FileLoadTask::ReadMediaInformation(
+			QString(),
+			file.content,
+			Core::MimeTypeForData(file.content).name());
+	} else {
+		Assert(file.information != nullptr);
+	}
+
+	using Image = PreparedFileInformation::Image;
+	using Video = PreparedFileInformation::Video;
+	if (const auto image = std::get_if<Image>(
+			&file.information->media)) {
+		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
+			file.shownDimensions = PrepareShownDimensions(image->data);
+			file.preview = Images::prepareOpaque(image->data.scaledToWidth(
+				std::min(previewWidth, style::ConvertScale(image->data.width()))
+					* cIntRetinaFactor(),
+				Qt::SmoothTransformation));
+			Assert(!file.preview.isNull());
+			file.preview.setDevicePixelRatio(cRetinaFactor());
+			file.type = PreparedFile::AlbumType::Photo;
+		} else if (Core::IsMimeSticker(file.information->filemime)) {
+			file.type = PreparedFile::AlbumType::None;
+		}
+	} else if (const auto video = std::get_if<Video>(
+			&file.information->media)) {
+		if (ValidVideoForAlbum(*video)) {
+			auto blurred = Images::prepareBlur(Images::prepareOpaque(video->thumbnail));
+			file.shownDimensions = PrepareShownDimensions(video->thumbnail);
+			file.preview = std::move(blurred).scaledToWidth(
+				previewWidth * cIntRetinaFactor(),
+				Qt::SmoothTransformation);
+			Assert(!file.preview.isNull());
+			file.preview.setDevicePixelRatio(cRetinaFactor());
+			file.type = PreparedFile::AlbumType::Video;
+		}
+	}
 }
 
 } // namespace Storage
