@@ -884,7 +884,11 @@ bool Gif::fullFeaturedGrouped(RectParts sides) const {
 	return (sides & RectPart::Left) && (sides & RectPart::Right);
 }
 
-QSize Gif::sizeForGrouping() const {
+QSize Gif::sizeForGroupingOptimal(int maxWidth, bool last) const {
+	return sizeForAspectRatio();
+}
+
+QSize Gif::sizeForGrouping(int width, bool last) const {
 	return sizeForAspectRatio();
 }
 
@@ -897,7 +901,8 @@ void Gif::drawGrouped(
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache) const {
+		not_null<QPixmap*> cache,
+		bool last) const {
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
 	const auto loaded = dataLoaded();
@@ -1085,7 +1090,8 @@ TextState Gif::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request) const {
+		StateRequest request,
+		bool last) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}

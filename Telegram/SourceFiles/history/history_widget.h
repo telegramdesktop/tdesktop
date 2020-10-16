@@ -66,6 +66,7 @@ class LinkButton;
 class RoundButton;
 class PinnedBar;
 struct PreparedList;
+class SendFilesWay;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -424,6 +425,13 @@ private:
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
+
+	void sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 

@@ -763,6 +763,9 @@ void SendFilesBox::addPreparedAsyncFile(Ui::PreparedFile &&file) {
 	if (_list.files.size() > count) {
 		refreshAllAfterChanges(count);
 	}
+	if (!_preparing && _whenReadySend) {
+		_whenReadySend();
+	}
 }
 
 void SendFilesBox::addFile(Ui::PreparedFile &&file) {
@@ -892,6 +895,12 @@ void SendFilesBox::send(
 		|| _sendType == Api::SendType::ScheduledToUser)
 		&& !options.scheduled) {
 		return sendScheduled();
+	}
+	if (_preparing) {
+		_whenReadySend = [=] {
+			send(options, ctrlShiftEnter);
+		};
+		return;
 	}
 
 	auto way = _sendWay.current();

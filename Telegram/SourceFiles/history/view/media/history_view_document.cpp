@@ -65,8 +65,9 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 
 Document::Document(
 	not_null<Element*> parent,
+	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document)
-: File(parent, parent->data())
+: File(parent, realParent)
 , _data(document) {
 	const auto item = parent->data();
 	auto caption = createCaption();
@@ -152,7 +153,7 @@ QSize Document::countOptimalSize() {
 	const auto item = _parent->data();
 
 	auto captioned = Get<HistoryDocumentCaptioned>();
-	if (_parent->media() != this) {
+	if (_parent->media() != this && !_realParent->groupId()) {
 		if (captioned) {
 			RemoveComponents(HistoryDocumentCaptioned::Bit());
 			captioned = nullptr;
@@ -508,7 +509,7 @@ void Document::draw(
 		}
 	}
 
-	if (mode == LayoutMode::Full) {
+	if (mode != LayoutMode::GroupedLast) {
 		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 			p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 			captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
@@ -682,7 +683,7 @@ TextState Document::textState(
 	}
 
 	auto painth = layout.height();
-	if (mode == LayoutMode::Full) {
+	if (mode != LayoutMode::GroupedLast) {
 		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 			if (point.y() >= bottom) {
 				result = TextState(_parent, captioned->_caption.getState(
@@ -859,10 +860,43 @@ bool Document::hideForwardedFrom() const {
 	return _data->isSong();
 }
 
-QSize Document::sizeForGrouping() const {
-	const auto height = st::msgFilePadding.top()
-		+ st::msgFileSize
-		+ st::msgFilePadding.bottom();
+QSize Document::sizeForGroupingOptimal(int maxWidth, bool last) const {
+	auto height = Has<HistoryDocumentThumbed>()
+		? (st::msgFileThumbPadding.top()
+			+ st::msgFileThumbSize
+			+ st::msgFileThumbPadding.bottom())
+		: (st::msgFilePadding.top()
+			+ st::msgFileSize
+			+ st::msgFilePadding.bottom());
+	if (!last) {
+		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+			auto captionw = maxWidth
+				- st::msgPadding.left()
+				- st::msgPadding.right();
+			height += captioned->_caption.countHeight(captionw);
+		}
+	}
+
+	return { maxWidth, height };
+}
+
+QSize Document::sizeForGrouping(int width, bool last) const {
+	auto height = Has<HistoryDocumentThumbed>()
+		? (st::msgFileThumbPadding.top()
+			+ st::msgFileThumbSize
+			+ st::msgFileThumbPadding.bottom())
+		: (st::msgFilePadding.top()
+			+ st::msgFileSize
+			+ st::msgFilePadding.bottom());
+	if (!last) {
+		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+			auto captionw = width
+				- st::msgPadding.left()
+				- st::msgPadding.right();
+			height += captioned->_caption.countHeight(captionw);
+		}
+	}
+
 	return { maxWidth(), height };
 }
 
@@ -875,9 +909,15 @@ void Document::drawGrouped(
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache) const {
+		not_null<QPixmap*> cache,
+		bool last) const {
 	p.translate(geometry.topLeft());
-	draw(p, geometry.width(), selection, ms, LayoutMode::Grouped);
+	draw(
+		p,
+		geometry.width(),
+		selection,
+		ms,
+		last ? LayoutMode::GroupedLast : LayoutMode::Grouped);
 	p.translate(-geometry.topLeft());
 }
 
@@ -885,9 +925,14 @@ TextState Document::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request) const {
+		StateRequest request,
+		bool last) const {
 	point -= geometry.topLeft();
-	return textState(point, geometry.size(), request, LayoutMode::Grouped);
+	return textState(
+		point,
+		geometry.size(),
+		request,
+		last ? LayoutMode::GroupedLast : LayoutMode::Grouped);
 }
 
 bool Document::voiceProgressAnimationCallback(crl::time now) {
@@ -952,7 +997,7 @@ void Document::refreshParentId(not_null<HistoryItem*> realParent) {
 }
 
 void Document::parentTextUpdated() {
-	auto caption = (_parent->media() == this)
+	auto caption = (_parent->media() == this || _realParent->groupId())
 		? createCaption()
 		: Ui::Text::String();
 	if (!caption.isEmpty()) {
@@ -980,7 +1025,7 @@ Ui::Text::String Document::createCaption() {
 		? DocumentTimestampLinkBase(_data, _realParent->fullId())
 		: QString();
 	return File::createCaption(
-		_parent->data(),
+		_realParent,
 		timestampLinksDuration,
 		timestampLinkBase);
 }

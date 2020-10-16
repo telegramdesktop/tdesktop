@@ -80,7 +80,7 @@ std::unique_ptr<Media> CreateAttach(
 				document,
 				webpageUrl);
 		}
-		return std::make_unique<Document>(parent, document);
+		return std::make_unique<Document>(parent, parent->data(), document);
 	} else if (photo) {
 		return std::make_unique<Photo>(
 			parent,

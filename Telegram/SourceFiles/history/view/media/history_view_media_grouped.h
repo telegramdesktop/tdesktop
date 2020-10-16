@@ -86,7 +86,7 @@ public:
 	void updateNeedBubbleState() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return _caption.isEmpty() && (_mode != Mode::Playlist);
+		return _caption.isEmpty() && (_mode != Mode::Column);
 	}
 	bool allowsFastShare() const override {
 		return true;
@@ -102,7 +102,7 @@ public:
 private:
 	enum class Mode : char {
 		Grid,
-		Playlist,
+		Column,
 	};
 	struct Part {
 		Part(

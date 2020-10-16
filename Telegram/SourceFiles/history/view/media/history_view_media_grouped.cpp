@@ -94,8 +94,8 @@ GroupedMedia::~GroupedMedia() {
 
 GroupedMedia::Mode GroupedMedia::DetectMode(not_null<Data::Media*> media) {
 	const auto document = media->document();
-	return (document && document->isSong())
-		? Mode::Playlist
+	return (document && !document->isVideoFile())
+		? Mode::Column
 		: Mode::Grid;
 }
 
@@ -107,11 +107,20 @@ QSize GroupedMedia::countOptimalSize() {
 	}
 
 	std::vector<QSize> sizes;
-	sizes.reserve(_parts.size());
+	const auto partsCount = _parts.size();
+	sizes.reserve(partsCount);
+	auto maxWidth = 0;
+	if (_mode == Mode::Column) {
+		for (const auto &part : _parts) {
+			const auto &media = part.content;
+			media->initDimensions();
+			accumulate_max(maxWidth, media->maxWidth());
+		}
+	}
+	auto index = 0;
 	for (const auto &part : _parts) {
-		const auto &media = part.content;
-		media->initDimensions();
-		sizes.push_back(media->sizeForGrouping());
+		const auto last = (++index == partsCount);
+		sizes.push_back(part.content->sizeForGroupingOptimal(maxWidth, last));
 	}
 
 	const auto layout = (_mode == Mode::Grid)
@@ -123,7 +132,6 @@ QSize GroupedMedia::countOptimalSize() {
 		: LayoutPlaylist(sizes);
 	Assert(layout.size() == _parts.size());
 
-	auto maxWidth = 0;
 	auto minHeight = 0;
 	for (auto i = 0, count = int(layout.size()); i != count; ++i) {
 		const auto &item = layout[i];
@@ -146,42 +154,51 @@ QSize GroupedMedia::countOptimalSize() {
 QSize GroupedMedia::countCurrentSize(int newWidth) {
 	accumulate_min(newWidth, maxWidth());
 	auto newHeight = 0;
-	if (newWidth < st::historyGroupWidthMin) {
+	if (_mode == Mode::Grid && newWidth < st::historyGroupWidthMin) {
 		return { newWidth, newHeight };
+	} else if (_mode == Mode::Column) {
+		auto index = 0;
+		auto top = 0;
+		for (auto &part : _parts) {
+			const auto last = (++index == _parts.size());
+			const auto size = part.content->sizeForGrouping(newWidth, last);
+			part.geometry = QRect(0, top, newWidth, size.height());
+			top += size.height();
+		}
+		newHeight = top;
+	} else {
+		const auto initialSpacing = st::historyGroupSkip;
+		const auto factor = newWidth / float64(maxWidth());
+		const auto scale = [&](int value) {
+			return int(std::round(value * factor));
+		};
+		const auto spacing = scale(initialSpacing);
+		for (auto &part : _parts) {
+			const auto sides = part.sides;
+			const auto initialGeometry = part.initialGeometry;
+			const auto needRightSkip = !(sides & RectPart::Right);
+			const auto needBottomSkip = !(sides & RectPart::Bottom);
+			const auto initialLeft = initialGeometry.x();
+			const auto initialTop = initialGeometry.y();
+			const auto initialRight = initialLeft
+				+ initialGeometry.width()
+				+ (needRightSkip ? initialSpacing : 0);
+			const auto initialBottom = initialTop
+				+ initialGeometry.height()
+				+ (needBottomSkip ? initialSpacing : 0);
+			const auto left = scale(initialLeft);
+			const auto top = scale(initialTop);
+			const auto width = scale(initialRight)
+				- left
+				- (needRightSkip ? spacing : 0);
+			const auto height = scale(initialBottom)
+				- top
+				- (needBottomSkip ? spacing : 0);
+			part.geometry = QRect(left, top, width, height);
+
+			accumulate_max(newHeight, top + height);
+		}
 	}
-
-	const auto initialSpacing = st::historyGroupSkip;
-	const auto factor = newWidth / float64(maxWidth());
-	const auto scale = [&](int value) {
-		return int(std::round(value * factor));
-	};
-	const auto spacing = scale(initialSpacing);
-	for (auto &part : _parts) {
-		const auto sides = part.sides;
-		const auto initialGeometry = part.initialGeometry;
-		const auto needRightSkip = !(sides & RectPart::Right);
-		const auto needBottomSkip = !(sides & RectPart::Bottom);
-		const auto initialLeft = initialGeometry.x();
-		const auto initialTop = initialGeometry.y();
-		const auto initialRight = initialLeft
-			+ initialGeometry.width()
-			+ (needRightSkip ? initialSpacing : 0);
-		const auto initialBottom = initialTop
-			+ initialGeometry.height()
-			+ (needBottomSkip ? initialSpacing : 0);
-		const auto left = scale(initialLeft);
-		const auto top = scale(initialTop);
-		const auto width = scale(initialRight)
-			- left
-			- (needRightSkip ? spacing : 0);
-		const auto height = scale(initialBottom)
-			- top
-			- (needBottomSkip ? spacing : 0);
-		part.geometry = QRect(left, top, width, height);
-
-		accumulate_max(newHeight, top + height);
-	}
-
 	if (!_caption.isEmpty()) {
 		const auto captionw = newWidth - st::msgPadding.left() - st::msgPadding.right();
 		newHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
@@ -223,6 +240,7 @@ void GroupedMedia::draw(
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection();
+		const auto last = (i + 1 == count);
 		part.content->drawGrouped(
 			p,
 			clip,
@@ -232,7 +250,8 @@ void GroupedMedia::draw(
 			part.sides,
 			cornersFromSides(part.sides),
 			&part.cacheKey,
-			&part.cache);
+			&part.cache,
+			last);
 	}
 
 	// date
@@ -262,13 +281,17 @@ void GroupedMedia::draw(
 TextState GroupedMedia::getPartState(
 		QPoint point,
 		StateRequest request) const {
+	auto index = 0;
 	for (const auto &part : _parts) {
+		++index;
 		if (part.geometry.contains(point)) {
+			const auto last = (index == _parts.size());
 			auto result = part.content->getStateGrouped(
 				part.geometry,
 				part.sides,
 				point,
-				request);
+				request,
+				last);
 			result.itemId = part.item->fullId();
 			return result;
 		}
@@ -372,6 +395,9 @@ auto GroupedMedia::getBubbleSelectionIntervals(
 			last = BubbleSelectionInterval{ newTop, newHeight };
 		}
 	}
+	if (IsGroupItemSelection(selection, _parts.size() - 1)) {
+		result.back().height = height() - result.back().top;
+	}
 	return result;
 }
 
@@ -465,6 +491,10 @@ HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
 
 void GroupedMedia::updateNeedBubbleState() {
 	const auto captionItem = [&]() -> HistoryItem* {
+		if (_mode == Mode::Column) {
+			const auto last = _parts.back().item.get();
+			return last->emptyText() ? nullptr : last;
+		}
 		auto result = (HistoryItem*)nullptr;
 		for (const auto &part : _parts) {
 			if (!part.item->emptyText()) {
@@ -519,7 +549,7 @@ bool GroupedMedia::needsBubble() const {
 }
 
 bool GroupedMedia::computeNeedBubble() const {
-	if (!_caption.isEmpty() || _mode == Mode::Playlist) {
+	if (!_caption.isEmpty() || _mode == Mode::Column) {
 		return true;
 	}
 	if (const auto item = _parent->data()) {
@@ -537,7 +567,7 @@ bool GroupedMedia::computeNeedBubble() const {
 }
 
 bool GroupedMedia::needInfoDisplay() const {
-	return (_mode != Mode::Playlist)
+	return (_mode != Mode::Column)
 		&& (_parent->data()->id < 0
 			|| _parent->isUnderCursor()
 			|| _parent->isLastAndSelfMessage());

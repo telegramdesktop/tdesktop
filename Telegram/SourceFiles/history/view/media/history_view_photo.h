@@ -24,7 +24,7 @@ struct Information;
 
 namespace HistoryView {
 
-class Photo : public File {
+class Photo final : public File {
 public:
 	Photo(
 		not_null<Element*> parent,
@@ -58,7 +58,8 @@ public:
 		return _data;
 	}
 
-	QSize sizeForGrouping() const override;
+	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
+	QSize sizeForGrouping(int width, bool last) const override;
 	void drawGrouped(
 		Painter &p,
 		const QRect &clip,
@@ -68,12 +69,14 @@ public:
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache) const override;
+		not_null<QPixmap*> cache,
+		bool last) const override;
 	TextState getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request) const override;
+		StateRequest request,
+		bool last) const override;
 
 	TextWithEntities getCaption() const override {
 		return _caption.toTextWithEntities();

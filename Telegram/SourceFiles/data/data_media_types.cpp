@@ -479,7 +479,14 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 }
 
 bool MediaFile::canBeGrouped() const {
-	return _document->isVideoFile() || _document->isSong();
+	if (_document->sticker() || _document->isAnimation()) {
+		return false;
+	} else if (_document->isVideoFile()) {
+		return true;
+	} else if (_document->isTheme() && _document->hasThumbnail()) {
+		return false;
+	}
+	return true;
 }
 
 bool MediaFile::hasReplyPreview() const {
@@ -704,7 +711,10 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 			message,
 			_document);
 	}
-	return std::make_unique<HistoryView::Document>(message, _document);
+	return std::make_unique<HistoryView::Document>(
+		message,
+		realParent,
+		_document);
 }
 
 MediaContact::MediaContact(

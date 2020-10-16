@@ -187,6 +187,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<Ui::VerticalLayout> _inner;
 	std::vector<Block> _blocks;
+	Fn<void()> _whenReadySend;
 	bool _preparing = false;
 
 	int _lastScrollTop = 0;

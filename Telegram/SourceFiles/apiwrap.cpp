@@ -4232,7 +4232,9 @@ void ApiWrap::sendFiles(
 		if (album) {
 			switch (file.type) {
 			case Ui::PreparedFile::AlbumType::Photo:
-				type = SendMediaType::Photo;
+				type = (type == SendMediaType::File)
+					? type
+					: SendMediaType::Photo;
 				break;
 			case Ui::PreparedFile::AlbumType::Video:
 			case Ui::PreparedFile::AlbumType::File:

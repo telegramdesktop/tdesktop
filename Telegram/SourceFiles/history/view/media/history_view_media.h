@@ -163,7 +163,12 @@ public:
 	virtual void checkAnimation() {
 	}
 
-	[[nodiscard]] virtual QSize sizeForGrouping() const {
+	[[nodiscard]] virtual QSize sizeForGroupingOptimal(
+			int maxWidth,
+			bool last) const {
+		Unexpected("Grouping method call.");
+	}
+	[[nodiscard]] virtual QSize sizeForGrouping(int width, bool last) const {
 		Unexpected("Grouping method call.");
 	}
 	virtual void drawGrouped(
@@ -175,14 +180,16 @@ public:
 			RectParts sides,
 			RectParts corners,
 			not_null<uint64*> cacheKey,
-			not_null<QPixmap*> cache) const {
+			not_null<QPixmap*> cache,
+			bool last) const {
 		Unexpected("Grouping method call.");
 	}
 	[[nodiscard]] virtual TextState getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request) const;
+		StateRequest request,
+		bool last) const;
 
 	[[nodiscard]] virtual bool animating() const {
 		return false;

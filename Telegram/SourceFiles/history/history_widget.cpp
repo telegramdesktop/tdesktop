@@ -4177,22 +4177,12 @@ bool HistoryWidget::confirmSendingFiles(
 			TextWithTags &&caption,
 			Api::SendOptions options,
 			bool ctrlShiftEnter) {
-		if (showSendingFilesError(list)) {
-			return;
-		}
-		const auto type = way.sendImagesAsPhotos()
-			? SendMediaType::Photo
-			: SendMediaType::File;
-		const auto album = way.groupMediaInAlbums() // #TODO files
-			? std::make_shared<SendingAlbum>()
-			: nullptr;
-		uploadFilesAfterConfirmation(
+		sendingFilesConfirmed(
 			std::move(list),
-			type,
+			way,
 			std::move(caption),
-			replyToId(),
 			options,
-			album);
+			ctrlShiftEnter);
 	}));
 	box->setCancelledCallback(crl::guard(this, [=] {
 		_field->setTextWithTags(text);
@@ -4212,6 +4202,73 @@ bool HistoryWidget::confirmSendingFiles(
 	shown->setCloseByOutsideClick(false);
 
 	return true;
+}
+
+void HistoryWidget::sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter) {
+	Expects(list.filesToProcess.empty());
+
+	if (showSendingFilesError(list)) {
+		return;
+	}
+	const auto slowmode = _peer->slowmodeApplied();
+	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
+	const auto sendType = sendImagesAsPhotos
+		? SendMediaType::Photo
+		: SendMediaType::File;
+	const auto groupMedia = way.groupMediaInAlbums() || slowmode;
+	const auto groupFiles = way.groupFiles() || slowmode;
+
+	auto group = Ui::PreparedList();
+
+	// For groupType Type::Video means media album,
+	// Type::File means file album,
+	// Type::None means no grouping.
+	using Type = Ui::PreparedFile::AlbumType;
+	auto groupType = Type::None;
+
+	const auto reply = replyToId();
+	auto sendGroup = [&] {
+		if (group.files.empty()) {
+			return;
+		}
+		const auto album = (groupType == Type::None)
+			? nullptr
+			: std::make_shared<SendingAlbum>();
+		uploadFilesAfterConfirmation(
+			base::take(group),
+			sendType,
+			base::take(caption),
+			reply,
+			options,
+			std::move(album));
+	};
+	for (auto i = 0; i != list.files.size(); ++i) {
+		auto &file = list.files[i];
+		const auto fileGroupType = (file.type == Type::Video)
+			? (groupMedia ? Type::Video : Type::None)
+			: (file.type == Type::Photo)
+			? ((groupMedia && sendImagesAsPhotos)
+				? Type::Video
+				: (groupFiles && !sendImagesAsPhotos)
+				? Type::File
+				: Type::None)
+			: (file.type == Type::File)
+			? (groupFiles ? Type::File : Type::None)
+			: Type::None;
+		if ((!group.files.empty() && groupType != fileGroupType)
+			|| ((groupType != Type::None)
+				&& (group.files.size() == Ui::MaxAlbumItems()))) {
+			sendGroup();
+		}
+		group.files.push_back(std::move(file));
+		groupType = fileGroupType;
+	}
+	sendGroup();
 }
 
 bool HistoryWidget::confirmSendingFiles(

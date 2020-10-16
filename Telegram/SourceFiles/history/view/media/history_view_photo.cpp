@@ -465,10 +465,14 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-QSize Photo::sizeForGrouping() const {
+QSize Photo::sizeForGroupingOptimal(int maxWidth, bool last) const {
 	const auto width = _data->width();
 	const auto height = _data->height();
 	return { std::max(width, 1), std::max(height, 1) };
+}
+
+QSize Photo::sizeForGrouping(int width, bool last) const {
+	return sizeForGroupingOptimal(width, last);
 }
 
 void Photo::drawGrouped(
@@ -480,7 +484,8 @@ void Photo::drawGrouped(
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache) const {
+		not_null<QPixmap*> cache,
+		bool last) const {
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 
@@ -580,7 +585,8 @@ TextState Photo::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request) const {
+		StateRequest request,
+		bool last) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}
