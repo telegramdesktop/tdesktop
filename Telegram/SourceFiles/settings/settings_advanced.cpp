@@ -352,7 +352,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 			return (workMode == dbiwmWindowOnly)
 				|| (workMode == dbiwmWindowAndTray);
 		};
-		const auto taskbar = Platform::IsWindows()
+		const auto taskbar = Platform::SkipTaskbarSupported()
 			? addCheckbox(
 				tr::lng_settings_workmode_window(),
 				taskbarEnabled())

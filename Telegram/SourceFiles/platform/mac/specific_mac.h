@@ -44,6 +44,10 @@ inline bool TrayIconSupported() {
 	return true;
 }
 
+inline bool SkipTaskbarSupported() {
+	return false;
+}
+
 inline bool SetWindowExtents(QWindow *window, const QMargins &extents) {
 	return false;
 }
