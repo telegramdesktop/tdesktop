@@ -376,9 +376,6 @@ void SendFilesBox::setupDragArea() {
 		const auto state = Storage::ComputeMimeDataState(data);
 		return (state == DragState::PhotoFiles)
 			? DragState::Image
-			: (state == DragState::Files
-				&& !Storage::ValidateDragData(data, true))
-			? DragState::None
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
