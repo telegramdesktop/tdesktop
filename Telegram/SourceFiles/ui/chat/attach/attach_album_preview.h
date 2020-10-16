@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-struct PreparedList;
+struct PreparedFile;
 struct GroupMediaLayout;
 class AlbumThumbnail;
 
@@ -20,18 +20,18 @@ class AlbumPreview final : public RpWidget {
 public:
 	AlbumPreview(
 		QWidget *parent,
-		const PreparedList &list,
+		gsl::span<PreparedFile> list,
 		SendFilesWay way);
 	~AlbumPreview();
 
 	void setSendWay(SendFilesWay way);
 	std::vector<int> takeOrder();
 
-	auto thumbDeleted() {
+	[[nodiscard]] rpl::producer<int> thumbDeleted() const {
 		return _thumbDeleted.events();
 	}
 
-	auto thumbChanged() {
+	[[nodiscard]] rpl::producer<int> thumbChanged() const {
 		return _thumbChanged.events();
 	}
 
@@ -73,7 +73,7 @@ private:
 	void cancelDrag();
 	void finishDrag();
 
-	const PreparedList &_list;
+	gsl::span<PreparedFile> _list;
 	SendFilesWay _sendWay;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;

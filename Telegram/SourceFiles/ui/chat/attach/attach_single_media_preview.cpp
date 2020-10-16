@@ -135,6 +135,8 @@ void SingleMediaPreview::preparePreview(
 	_preview.setDevicePixelRatio(style::DevicePixelRatio());
 
 	prepareAnimatedPreview(animatedPreviewPath);
+
+	resize(width(), st::boxPhotoPadding.top() + _previewHeight);
 }
 
 void SingleMediaPreview::prepareAnimatedPreview(
@@ -226,10 +228,6 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 		auto icon = &st::historyFileInPlay;
 		icon->paintInCenter(p, inner);
 	}
-}
-
-rpl::producer<int> SingleMediaPreview::desiredHeightValue() const {
-	return rpl::single(st::boxPhotoPadding.top() + _previewHeight);
 }
 
 } // namespace Ui

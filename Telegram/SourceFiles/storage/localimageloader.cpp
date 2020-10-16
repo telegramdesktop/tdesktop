@@ -530,10 +530,11 @@ FileLoadTask::FileLoadTask(
 
 FileLoadTask::~FileLoadTask() = default;
 
-std::unique_ptr<Ui::PreparedFileInformation> FileLoadTask::ReadMediaInformation(
-		const QString &filepath,
-		const QByteArray &content,
-		const QString &filemime) {
+auto FileLoadTask::ReadMediaInformation(
+	const QString &filepath,
+	const QByteArray &content,
+	const QString &filemime)
+-> std::unique_ptr<Ui::PreparedFileInformation> {
 	auto result = std::make_unique<Ui::PreparedFileInformation>();
 	result->filemime = filemime;
 

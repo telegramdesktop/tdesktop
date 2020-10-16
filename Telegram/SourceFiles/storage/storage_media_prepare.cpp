@@ -62,11 +62,10 @@ QSize PrepareShownDimensions(const QImage &preview) {
 		: result;
 }
 
-bool PrepareAlbumMediaIsWaiting(
+bool PrepareDetailsIsWaiting(
 		QSemaphore &semaphore,
 		PreparedFile &file,
 		int previewWidth) {
-	// TODO: Use some special thread queue, like a separate QThreadPool.
 	crl::async([=, &semaphore, &file] {
 		const auto guard = gsl::finally([&] { semaphore.release(); });
 		if (!file.path.isEmpty()) {
@@ -116,29 +115,21 @@ bool PrepareAlbumMediaIsWaiting(
 	return true;
 }
 
-void PrepareAlbum(PreparedList &result, int previewWidth) {
-	const auto count = int(result.files.size());
-	if (count > Ui::MaxAlbumItems()) {
-		return;
-	}
+void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
+	Expects(result.files.size() <= Ui::MaxAlbumItems());
 
-	//result.albumIsPossible = (count > 1);
 	auto waiting = 0;
 	QSemaphore semaphore;
 	for (auto &file : result.files) {
-		if (PrepareAlbumMediaIsWaiting(semaphore, file, previewWidth)) {
+		if (PrepareDetailsIsWaiting(
+				semaphore,
+				file,
+				previewWidth)) {
 			++waiting;
 		}
 	}
 	if (waiting > 0) {
 		semaphore.acquire(waiting);
-		//if (result.albumIsPossible) {
-		//	const auto badIt = ranges::find(
-		//		result.files,
-		//		PreparedFile::AlbumType::None,
-		//		[](const PreparedFile &file) { return file.type; });
-		//	result.albumIsPossible = (badIt == result.files.end());
-		//}
 	}
 }
 
@@ -250,13 +241,15 @@ PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 				file
 			};
 		}
-		const auto toCompress = HasExtensionFrom(file, extensionsToCompress);
-		if (filesize > App::kImageSizeLimit || !toCompress) {
-//			result.allFilesForCompress = false;
+		if (result.files.size() < Ui::MaxAlbumItems()) {
+			result.files.emplace_back(file);
+			result.files.back().size = filesize;
+		} else {
+			result.filesToProcess.emplace_back(file);
+			result.files.back().size = filesize;
 		}
-		result.files.emplace_back(file);
 	}
-	PrepareAlbum(result, previewWidth);
+	PrepareDetailsInParallel(result, previewWidth);
 	return result;
 }
 
@@ -276,7 +269,7 @@ PreparedList PrepareMediaFromImage(
 			file.information);
 	}
 	result.files.push_back(std::move(file));
-	PrepareAlbum(result, previewWidth);
+	PrepareDetailsInParallel(result, previewWidth);
 	return result;
 }
 
@@ -304,7 +297,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		if (isAlbum) {
 			const auto file = &list.files.front();
 			if (!Core::IsMimeAcceptedForAlbum(mimeFile)
-				|| file->type == Storage::PreparedFile::AlbumType::None) {
+				|| file->type == Storage::PreparedFile::AlbumType::File) {
 				errorCallback(tr::lng_edit_media_album_error);
 				return std::nullopt;
 			}
@@ -361,7 +354,6 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		}
 
 		auto list = PreparedList(temp.error, temp.errorData);
-		//list.albumIsPossible = isAlbum;
 		list.files = std::move(filteredFiles);
 
 		return list;

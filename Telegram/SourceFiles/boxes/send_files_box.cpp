@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/attach/attach_album_preview.h"
@@ -64,12 +65,6 @@ inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
 }
 
-inline bool IsFirstAlbumItem(const Ui::PreparedList &list) {
-	using AlbumType = Ui::PreparedFile::AlbumType;
-	return (list.files.size() > 0)
-		&& (list.files.front().type != AlbumType::None);
-}
-
 inline bool IsSingleItem(const Ui::PreparedList &list) {
 	return list.files.size() == 1;
 }
@@ -98,9 +93,7 @@ void FileDialogCallback(
 rpl::producer<QString> FieldPlaceholder(
 		const Ui::PreparedList &list,
 		SendFilesWay way) {
-	const auto isAlbum = list.singleAlbumIsPossible
-		&& way.groupMediaInAlbums();
-	return list.canAddCaption(isAlbum)
+	return list.canAddCaption(way.groupMediaInAlbums())
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
 }
@@ -125,10 +118,14 @@ SendFilesBox::SendFilesBox(
 	st::confirmCaptionArea,
 	Ui::InputField::Mode::MultiLine,
 	nullptr,
-	caption) {
+	caption)
+, _scroll(this, st::boxScroll)
+, _inner(
+	_scroll->setOwnedWidget(
+		object_ptr<Ui::VerticalLayout>(_scroll.data()))) {
 }
 
-void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
+void SendFilesBox::initPreview() {
 	using namespace rpl::mappers;
 
 	setupControls();
@@ -136,8 +133,10 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 	updateBoxSize();
 
 	_dimensionsLifetime.destroy();
+	_inner->resizeToWidth(st::boxWideWidth);
+
 	rpl::combine(
-		std::move(desiredPreviewHeight),
+		_inner->heightValue(),
 		_footerHeight.value(),
 		_titleHeight + _1 + _2
 	) | rpl::start_with_next([=](int height) {
@@ -146,102 +145,83 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 			std::min(st::sendMediaPreviewHeightMax, height),
 			true);
 	}, _dimensionsLifetime);
-
-	if (_preview) {
-		_preview->show();
-	}
 }
 
-void SendFilesBox::prepareSingleFilePreview() {
-	Expects(IsSingleItem(_list));
+//void SendFilesBox::prepareSingleFilePreview() {
+//	const auto &file = _list.files[0];
+//	const auto controller = _controller;
+//	const auto media = Ui::SingleMediaPreview::Create(this, [=] {
+//		return controller->isGifPausedAtLeastFor(
+//			Window::GifPauseReason::Layer);
+//	}, file);
+//	if (media) {
+//		_preview = media;
+//		initPreview(media->desiredHeightValue());
+//	} else {
+//		const auto preview = Ui::CreateChild<Ui::SingleFilePreview>(this, file);
+//		_preview = preview;
+//		initPreview(preview->desiredHeightValue());
+//	}
+//}
 
-	const auto &file = _list.files[0];
-	const auto controller = _controller;
-	const auto media = Ui::SingleMediaPreview::Create(this, [=] {
-		return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
-	}, file);
-	if (media) {
-		_preview = media;
-		initPreview(media->desiredHeightValue());
-	} else {
-		const auto preview = Ui::CreateChild<Ui::SingleFilePreview>(this, file);
-		_preview = preview;
-		initPreview(preview->desiredHeightValue());
-	}
-}
-
-void SendFilesBox::prepareAlbumPreview() {
-	const auto wrap = Ui::CreateChild<Ui::ScrollArea>(
-		this,
-		st::boxScroll);
-	_albumPreview = wrap->setOwnedWidget(object_ptr<Ui::AlbumPreview>(
-		this,
-		_list,
-		_sendWay.current()));
-
-	addThumbButtonHandlers(wrap);
-
-	_preview = wrap;
-	_albumPreview->show();
-	setupShadows(wrap, _albumPreview);
-
-	initPreview(_albumPreview->desiredHeightValue());
-
-	crl::on_main([=] {
-		wrap->scrollToY(_lastScrollTop);
-		_lastScrollTop = 0;
-	});
-}
+//void SendFilesBox::prepareAlbumPreview() {
+//	addThumbButtonHandlers(wrap); // #TODO files
+//
+//	setupShadows(wrap, _albumPreview);
+//
+//	initPreview(_albumPreview->desiredHeightValue());
+//
+//	crl::on_main([=] {
+//		wrap->scrollToY(_lastScrollTop);
+//		_lastScrollTop = 0;
+//	});
+//}
 
 void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
-	_albumPreview->thumbDeleted(
-	) | rpl::start_with_next([=](auto index) {
-		_lastScrollTop = wrap->scrollTop();
+	// #TODO files
+	//_albumPreview->thumbDeleted(
+	//) | rpl::start_with_next([=](auto index) {
+	//	_lastScrollTop = wrap->scrollTop();
 
-		_list.files.erase(_list.files.begin() + index);
-		applyAlbumOrder();
+	//	_list.files.erase(_list.files.begin() + index);
+	//	applyAlbumOrder();
 
-		if (_preview) {
-			_preview->deleteLater();
-		}
-		_albumPreview = nullptr;
+	//	if (_preview) {
+	//		_preview->deleteLater();
+	//	}
+	//	_albumPreview = nullptr;
 
-		if (IsSingleItem(_list)) {
-			_list.singleAlbumIsPossible = false;
-		}
+	//	refreshAllAfterAlbumChanges();
+	//}, _albumPreview->lifetime());
 
-		refreshAllAfterAlbumChanges();
-	}, _albumPreview->lifetime());
+	//_albumPreview->thumbChanged(
+	//) | rpl::start_with_next([=](auto index) {
+	//	_lastScrollTop = wrap->scrollTop();
 
-	_albumPreview->thumbChanged(
-	) | rpl::start_with_next([=](auto index) {
-		_lastScrollTop = wrap->scrollTop();
+	//	const auto callback = [=](FileDialog::OpenResult &&result) {
+	//		FileDialogCallback(
+	//			std::move(result),
+	//			true,
+	//			[=] (auto list) {
+	//				_list.files[index] = std::move(list.files.front());
+	//				applyAlbumOrder();
 
-		const auto callback = [=](FileDialog::OpenResult &&result) {
-			FileDialogCallback(
-				std::move(result),
-				true,
-				[=] (auto list) {
-					_list.files[index] = std::move(list.files.front());
-					applyAlbumOrder();
+	//				if (_preview) {
+	//					_preview->deleteLater();
+	//				}
+	//				_albumPreview = nullptr;
 
-					if (_preview) {
-						_preview->deleteLater();
-					}
-					_albumPreview = nullptr;
+	//				refreshAllAfterAlbumChanges();
+	//			});
+	//	};
 
-					refreshAllAfterAlbumChanges();
-				});
-		};
+	//	FileDialog::GetOpenPath(
+	//		this,
+	//		tr::lng_choose_file(tr::now),
+	//		FileDialog::AlbumFilesFilter(),
+	//		crl::guard(this, callback));
 
-		FileDialog::GetOpenPath(
-			this,
-			tr::lng_choose_file(tr::now),
-			FileDialog::AlbumFilesFilter(),
-			crl::guard(this, callback));
-
-	}, _albumPreview->lifetime());
+	//}, _albumPreview->lifetime());
 }
 
 void SendFilesBox::setupShadows(
@@ -288,6 +268,10 @@ void SendFilesBox::prepare() {
 	setupCaption();
 	setupSendWayControls();
 	preparePreview();
+	initPreview();
+
+	_scroll->show();
+	_inner->show();
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
@@ -379,10 +363,6 @@ void SendFilesBox::initSendWay() {
 	_sendWay.changes(
 	) | rpl::start_with_next([=](SendFilesWay value) {
 		updateCaptionPlaceholder();
-		applyAlbumOrder();
-		if (_albumPreview) {
-			_albumPreview->setSendWay(value);
-		}
 		updateEmojiPanelGeometry();
 		setInnerFocus();
 	}, lifetime());
@@ -393,9 +373,8 @@ void SendFilesBox::updateCaptionPlaceholder() {
 		return;
 	}
 	const auto sendWay = _sendWay.current();
-	const auto isAlbum = _list.singleAlbumIsPossible
-		&& sendWay.groupMediaInAlbums();
-	if (!_list.canAddCaption(isAlbum) && _sendLimit == SendLimit::One) {
+	if (!_list.canAddCaption(sendWay.groupMediaInAlbums())
+		&& _sendLimit == SendLimit::One) {
 		_caption->hide();
 		if (_emojiToggle) {
 			_emojiToggle->hide();
@@ -410,11 +389,73 @@ void SendFilesBox::updateCaptionPlaceholder() {
 }
 
 void SendFilesBox::preparePreview() {
-	if (IsSingleItem(_list)) {
-		prepareSingleFilePreview();
-	} else {
-		prepareAlbumPreview(); // #TODO files many albums
+	using Type = Ui::PreparedFile::AlbumType;
+
+	_blocks.clear();
+	auto albumStart = -1;
+	const auto finishAlbum = [&](int till) {
+		if (albumStart < 0) {
+			return;
+		}
+		const auto count = (till - albumStart);
+		const auto preview = _inner->add(object_ptr<Ui::AlbumPreview>(
+			this,
+			gsl::make_span(_list.files).subspan(albumStart, count),
+			_sendWay.current()));
+
+		auto &block = _blocks.emplace_back();
+		block.fromIndex = albumStart;
+		block.tillIndex = albumStart + count;
+		block.preview.reset(preview);
+		block.preview->show();
+
+		_sendWay.changes(
+		) | rpl::start_with_next([=](SendFilesWay value) {
+			applyAlbumOrder(preview, albumStart);
+			preview->setSendWay(value);
+		}, preview->lifetime());
+
+		albumStart = -1;
+	};
+	const auto finishSingle = [&](int index) {
+		const auto &file = _list.files[index];
+		const auto controller = _controller;
+		auto &block = _blocks.emplace_back();
+		block.fromIndex = index;
+		block.tillIndex = index + 1;
+		const auto media = Ui::SingleMediaPreview::Create(this, [=] {
+			return controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer);
+		}, file);
+		if (media) {
+			block.preview.reset(
+				_inner->add(object_ptr<Ui::SingleMediaPreview>::fromRaw(
+					media)));
+		} else {
+			block.preview.reset(
+				_inner->add(object_ptr<Ui::SingleFilePreview>(this, file)));
+		}
+		block.preview->show();
+	};
+	for (auto i = 0, count = int(_list.files.size()); i != count; ++i) {
+		const auto type = _list.files[i].type;
+		if (albumStart >= 0) {
+			const auto albumCount = (i - albumStart);
+			if (type == Type::File || (albumCount == Ui::MaxAlbumItems())) {
+				finishAlbum(i);
+			} else {
+				continue;
+			}
+		}
+		if (type != Type::File) {
+			if (albumStart < 0) {
+				albumStart = i;
+			}
+			continue;
+		}
+		finishSingle(i);
 	}
+	finishAlbum(_list.files.size());
 }
 
 void SendFilesBox::setupControls() {
@@ -479,12 +520,10 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 	_groupFiles->setVisible(!onlyOne);
 }
 
-void SendFilesBox::applyAlbumOrder() {
-	if (!_albumPreview) {
-		return;
-	}
-
-	const auto order = _albumPreview->takeOrder();
+void SendFilesBox::applyAlbumOrder(
+		not_null<Ui::AlbumPreview*> preview,
+		int from) {
+	const auto order = preview->takeOrder();
 	const auto isDefault = [&] {
 		for (auto i = 0, count = int(order.size()); i != count; ++i) {
 			if (order[i] != i) {
@@ -497,7 +536,14 @@ void SendFilesBox::applyAlbumOrder() {
 		return;
 	}
 
-	_list = Ui::PreparedList::Reordered(std::move(_list), order);
+	auto elements = std::vector<Ui::PreparedFile>();
+	elements.reserve(order.size());
+	for (const auto index : order) {
+		elements.push_back(std::move(_list.files[from + index]));
+	}
+	for (auto i = 0, count = int(order.size()); i != count; ++i) {
+		_list.files[from + i] = std::move(elements[i]);
+	}
 }
 
 void SendFilesBox::setupCaption() {
@@ -604,20 +650,21 @@ void SendFilesBox::captionResized() {
 }
 
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
-	auto filesCount = CanAddUrls(urls) ? urls.size() : 0;
-	if (!filesCount && data->hasImage()) {
-		++filesCount;
-	}
+	return (data->hasUrls() && CanAddUrls(data->urls())) || data->hasImage();
+	//const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
+	//auto filesCount = CanAddUrls(urls) ? urls.size() : 0;
+	//if (!filesCount && data->hasImage()) {
+	//	++filesCount;
+	//}
 
-	if (_list.files.size() + filesCount > Ui::MaxAlbumItems()) {
-		return false;
-	} else if (_list.files.size() > 1 && !_albumPreview) {
-		return false;
-	} else if (!IsFirstAlbumItem(_list)) {
-		return false;
-	}
-	return true;
+	//if (_list.files.size() + filesCount > Ui::MaxAlbumItems()) { // #TODO files
+	//	return false;
+	//} else if (_list.files.size() > 1 && !_albumPreview) {
+	//	return false;
+	//} else if (!IsFirstAlbumItem(_list)) {
+	//	return false;
+	//}
+	//return true;
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
@@ -661,10 +708,10 @@ bool SendFilesBox::addFiles(Ui::PreparedList list) {
 	//} else if (!IsFirstAlbumItem(_list)) {
 	//	return false;
 	}
-	applyAlbumOrder();
-	delete base::take(_preview);
-	_albumPreview = nullptr;
-
+	//applyAlbumOrder();
+	//delete base::take(_preview);
+	//_albumPreview = nullptr;
+	return false;
 	_list.mergeToEnd(std::move(list), cutToAlbumSize);
 
 	refreshAllAfterAlbumChanges();
@@ -769,10 +816,8 @@ void SendFilesBox::updateControlsGeometry() {
 			bottom -= st::boxPhotoCompressedSkip + pointer->heightNoMargins();
 		}
 	}
-	if (_preview) {
-		_preview->resize(width(), bottom - _titleHeight);
-		_preview->move(0, _titleHeight);
-	}
+	_scroll->resize(width(), bottom - _titleHeight);
+	_scroll->move(0, _titleHeight);
 }
 
 void SendFilesBox::setInnerFocus() {
@@ -809,7 +854,7 @@ void SendFilesBox::send(
 		Core::App().saveSettingsDelayed();
 	}
 
-	applyAlbumOrder();
+	//applyAlbumOrder(); // #TODO files
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = (_caption && !_caption->isHidden())

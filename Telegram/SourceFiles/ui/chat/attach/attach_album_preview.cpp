@@ -22,7 +22,7 @@ constexpr auto kDragDuration = crl::time(200);
 
 AlbumPreview::AlbumPreview(
 	QWidget *parent,
-	const PreparedList &list,
+	gsl::span<PreparedFile> list,
 	SendFilesWay way)
 : RpWidget(parent)
 , _list(list)
@@ -69,7 +69,7 @@ auto AlbumPreview::generateOrderedLayout() const
 	auto sizes = ranges::view::all(
 		_order
 	) | ranges::view::transform([&](int index) {
-		return _list.files[index].shownDimensions;
+		return _list[index].shownDimensions;
 	}) | ranges::to_vector;
 
 	auto layout = LayoutMediaGroup(
@@ -82,19 +82,19 @@ auto AlbumPreview::generateOrderedLayout() const
 }
 
 std::vector<int> AlbumPreview::defaultOrder() const {
-	const auto count = int(_list.files.size());
+	const auto count = int(_list.size());
 	return ranges::view::ints(0, count) | ranges::to_vector;
 }
 
 void AlbumPreview::prepareThumbs() {
 	_order = defaultOrder();
 
-	const auto count = int(_list.files.size());
+	const auto count = int(_list.size());
 	const auto layout = generateOrderedLayout();
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
-			_list.files[i],
+			_list[i],
 			layout[i],
 			this,
 			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },

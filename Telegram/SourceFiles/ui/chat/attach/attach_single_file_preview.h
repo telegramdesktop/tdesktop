@@ -19,8 +19,6 @@ public:
 		QWidget *parent,
 		const PreparedFile &file);
 
-	rpl::producer<int> desiredHeightValue() const override;
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

@@ -800,15 +800,14 @@ void RepliesWidget::uploadFile(
 bool RepliesWidget::showSendingFilesError(
 		const Ui::PreparedList &list) const {
 	const auto text = [&] {
+		const auto peer = _history->peer;
 		const auto error = Data::RestrictionError(
-			_history->peer,
+			peer,
 			ChatRestriction::f_send_media);
 		if (error) {
 			return *error;
 		}
-		if (list.files.size() > 1
-			&& _history->peer->slowmodeApplied()
-			&& !list.singleAlbumIsPossible) {
+		if (peer->slowmodeApplied() && !list.canBeSentInSlowmode()) {
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (const auto left = _history->peer->slowmodeSecondsLeft()) {
 			return tr::lng_slowmode_enabled(

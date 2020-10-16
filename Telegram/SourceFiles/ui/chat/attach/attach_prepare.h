@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QSemaphore>
 #include <deque>
 
 namespace Ui {
@@ -34,8 +35,15 @@ struct PreparedFileInformation {
 };
 
 struct PreparedFile {
+	// File-s can be grouped if 'groupFiles'.
+	// File-s + Photo-s can be grouped if 'groupFiles && !sendImagesAsPhotos'.
+	// Photo-s can be grouped if '(groupFiles && !sendImagesAsPhotos)
+	//   || (groupMediaInAlbums && sendImagesAsPhotos)'.
+	// Photo-s + Video-s can be grouped if 'groupMediaInAlbums
+	//   && sendImagesAsPhotos'.
+	// Video-s can be grouped if 'groupMediaInAlbums'.
 	enum class AlbumType {
-		None,
+		File,
 		Photo,
 		Video,
 	};
@@ -48,10 +56,11 @@ struct PreparedFile {
 	QString path;
 	QByteArray content;
 	QString mime;
+	int size = 0;
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
 	QSize shownDimensions;
-	AlbumType type = AlbumType::None;
+	AlbumType type = AlbumType::File;
 };
 
 struct PreparedList {
@@ -73,16 +82,14 @@ struct PreparedList {
 		std::vector<int> order);
 	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
 
-	[[nodiscard]] bool canAddCaption(bool isAlbum) const;
+	[[nodiscard]] bool canAddCaption(bool groupMediaInAlbums) const;
+	[[nodiscard]] bool canBeSentInSlowmode() const;
 
 	Error error = Error::None;
 	QString errorData;
 	std::vector<PreparedFile> files;
 	std::deque<PreparedFile> filesToProcess;
 	std::optional<bool> overrideSendImagesAsPhotos;
-	//bool someFilesForCompress = false;
-	//bool someAlbumIsPossible = false;
-	bool singleAlbumIsPossible = false;
 };
 
 [[nodiscard]] int MaxAlbumItems();

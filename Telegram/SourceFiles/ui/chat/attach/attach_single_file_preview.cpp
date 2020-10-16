@@ -25,6 +25,11 @@ SingleFilePreview::SingleFilePreview(
 	const PreparedFile &file)
 : RpWidget(parent) {
 	preparePreview(file);
+
+	auto h = _fileThumb.isNull()
+		? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom())
+		: (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
+	resize(width(), st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
 void SingleFilePreview::prepareThumb(const QImage &preview) {
@@ -161,13 +166,6 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	p.setFont(st::normalFont);
 	p.setPen(status);
 	p.drawTextLeft(x + nameleft, y + statustop, width(), _statusText);
-}
-
-rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
-	auto h = _fileThumb.isNull()
-		? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom())
-		: (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
-	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
 } // namespace Ui

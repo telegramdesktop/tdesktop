@@ -38,8 +38,6 @@ public:
 		return _canSendAsPhoto;
 	}
 
-	rpl::producer<int> desiredHeightValue() const override;
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

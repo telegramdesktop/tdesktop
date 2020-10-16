@@ -32,7 +32,6 @@ PreparedList PreparedList::Reordered(
 	Expects(list.files.size() == order.size());
 
 	auto result = PreparedList(list.error, list.errorData);
-	result.singleAlbumIsPossible = list.singleAlbumIsPossible;
 	result.files.reserve(list.files.size());
 	for (auto index : order) {
 		result.files.push_back(std::move(list.files[index]));
@@ -58,28 +57,50 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 		}
 		files.push_back(std::move(file));
 	}
-	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
-		const auto badIt = ranges::find(
-			files,
-			PreparedFile::AlbumType::None,
-			[](const PreparedFile &file) { return file.type; });
-		singleAlbumIsPossible = (badIt == files.end());
-	} else {
-		singleAlbumIsPossible = false;
-	}
 }
 
-bool PreparedList::canAddCaption(bool isAlbum) const {
-	const auto isSticker = [&] {
-		if (files.empty()) {
-			return false;
-		}
-		return Core::IsMimeSticker(files.front().mime)
+bool PreparedList::canBeSentInSlowmode() const {
+	if (!filesToProcess.empty()) {
+		return false;
+	} else if (files.size() < 2) {
+		return true;
+	} else if (files.size() > kMaxAlbumCount) {
+		return false;
+	}
+
+	const auto hasFiles = ranges::contains(
+		files,
+		PreparedFile::AlbumType::File,
+		&PreparedFile::type);
+	const auto hasVideos = ranges::contains(
+		files,
+		PreparedFile::AlbumType::Video,
+		&PreparedFile::type);
+
+	// File-s and Video-s never can be grouped.
+	return !hasFiles || !hasVideos;
+}
+
+bool PreparedList::canAddCaption(bool groupMediaInAlbums) const {
+	if (!filesToProcess.empty()
+		|| files.empty()
+		|| files.size() > kMaxAlbumCount) {
+		return false;
+	}
+	if (files.size() == 1) {
+		const auto isSticker = Core::IsMimeSticker(files.front().mime)
 			|| files.front().path.endsWith(
 				qstr(".tgs"),
 				Qt::CaseInsensitive);
-	};
-	return isAlbum || (files.size() == 1 && !isSticker());
+		return !isSticker;
+	} else if (!groupMediaInAlbums) {
+		return false;
+	}
+	const auto hasFiles = ranges::contains(
+		files,
+		PreparedFile::AlbumType::File,
+		&PreparedFile::type);
+	return !hasFiles;
 }
 
 int MaxAlbumItems() {

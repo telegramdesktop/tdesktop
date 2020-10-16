@@ -34,6 +34,7 @@ class InputField;
 struct GroupMediaLayout;
 class EmojiButton;
 class AlbumPreview;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
@@ -83,8 +84,13 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	struct Block {
+		base::unique_qptr<Ui::RpWidget> preview;
+		int fromIndex = 0;
+		int tillIndex = 0;
+	};
 	void initSendWay();
-	void initPreview(rpl::producer<int> desiredPreviewHeight);
+	void initPreview();
 
 	void setupControls();
 	void setupSendWayControls();
@@ -99,9 +105,7 @@ private:
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
 	void preparePreview();
-	void prepareSingleFilePreview();
-	void prepareAlbumPreview();
-	void applyAlbumOrder();
+	void applyAlbumOrder(not_null<Ui::AlbumPreview*> preview, int from);
 
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
 	void sendSilent();
@@ -157,8 +161,9 @@ private:
 	rpl::event_stream<> _albumChanged;
 	rpl::lifetime _dimensionsLifetime;
 
-	QWidget *_preview = nullptr;
-	Ui::AlbumPreview *_albumPreview = nullptr;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<Ui::VerticalLayout> _inner;
+	std::vector<Block> _blocks;
 
 	int _lastScrollTop = 0;
 
