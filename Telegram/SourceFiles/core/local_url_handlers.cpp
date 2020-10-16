@@ -404,8 +404,8 @@ bool HandleOpenMessage(
 		return false;
 	}
 	const auto params = url_parse_params(
-			match->captured(1),
-			qthelp::UrlParamNameTransform::ToLower);
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
 	const auto userId = params.value(qsl("user_id")).toInt();
 	if (!userId) {
 		return false;
@@ -415,6 +415,28 @@ bool HandleOpenMessage(
 		controller->showPeerHistory(
 				peer,
 				Window::SectionShow::Way::Forward);
+		return true;
+	}
+	return false;
+}
+
+bool HandleUser(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+				match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto userId = params.value(qsl("id")).toInt();
+	if (!userId) {
+		return false;
+	}
+	const auto peer = controller->session().data().peerLoaded(static_cast<PeerId>(userId));
+	if (peer != nullptr) {
+		controller->showPeerInfo(peer);
 		return true;
 	}
 	return false;
@@ -518,6 +540,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^openmessage\\?(.+)(#|$)"),
 			HandleOpenMessage
+		},
+		{
+			qsl("^user\\?(.+)(#|$)"),
+			HandleUser
 		},
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
