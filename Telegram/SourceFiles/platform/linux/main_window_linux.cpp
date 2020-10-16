@@ -23,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "base/call_delayed.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"
@@ -39,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
 #include <QtDBus/QDBusMetaType>
+
+#include <xcb/xcb.h>
 
 extern "C" {
 #undef signals
@@ -73,6 +78,64 @@ int32 TrayIconCount = 0;
 base::flat_map<int, QImage> TrayIconImageBack;
 QIcon TrayIcon;
 QString TrayIconThemeName, TrayIconName;
+
+bool XCBSkipTaskbar(QWindow *window, bool set) {
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
+	if (!connection) {
+		return false;
+	}
+
+	const auto root = base::Platform::XCB::GetRootWindowFromQt();
+	if (!root.has_value()) {
+		return false;
+	}
+
+	const auto stateAtom = base::Platform::XCB::GetAtom(
+		connection,
+		"_NET_WM_STATE");
+
+	if (!stateAtom.has_value()) {
+		return false;
+	}
+
+	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
+		connection,
+		"_NET_WM_STATE_SKIP_TASKBAR");
+
+	if (!skipTaskbarAtom.has_value()) {
+		return false;
+	}
+
+	xcb_client_message_event_t xev;
+	xev.response_type = XCB_CLIENT_MESSAGE;
+	xev.type = *stateAtom;
+	xev.sequence = 0;
+	xev.window = window->winId();
+	xev.format = 32;
+	xev.data.data32[0] = set ? 1 : 0;
+	xev.data.data32[1] = *skipTaskbarAtom;
+	xev.data.data32[2] = 0;
+	xev.data.data32[3] = 0;
+	xev.data.data32[4] = 0;
+
+	xcb_send_event(
+		connection,
+		false,
+		*root,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+		reinterpret_cast<const char*>(&xev));
+
+	return true;
+}
+
+bool SkipTaskbar(QWindow *window, bool set) {
+	if (!IsWayland()) {
+		return XCBSkipTaskbar(window, set);
+	}
+
+	return false;
+}
 
 QString GetPanelIconName(int counter, bool muted) {
 	return (counter > 0)
@@ -618,6 +681,10 @@ void MainWindow::handleSNIHostRegistered() {
 	trayIcon = nullptr;
 
 	psSetupTrayIcon();
+
+	SkipTaskbar(
+		windowHandle(),
+		Global::WorkMode().value() == dbiwmTrayOnly);
 }
 
 void MainWindow::handleSNIOwnerChanged(
@@ -649,6 +716,10 @@ void MainWindow::handleSNIOwnerChanged(
 	} else {
 		LOG(("System tray is not available."));
 	}
+
+	SkipTaskbar(
+		windowHandle(),
+		(Global::WorkMode().value() == dbiwmTrayOnly) && trayAvailable());
 }
 
 void MainWindow::handleAppMenuOwnerChanged(
@@ -724,6 +795,8 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	} else {
 		psSetupTrayIcon();
 	}
+
+	SkipTaskbar(windowHandle(), mode == dbiwmTrayOnly);
 }
 
 void MainWindow::unreadCounterChangedHook() {
@@ -818,9 +891,6 @@ void MainWindow::createGlobalMenu() {
 }
 
 void MainWindow::updateGlobalMenuHook() {
-}
-
-void MainWindow::handleVisibleChangedHook(bool visible) {
 }
 
 #else // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1113,7 +1183,19 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psClearFormat, !markdownEnabled);
 }
 
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 void MainWindow::handleVisibleChangedHook(bool visible) {
+	if (visible) {
+		base::call_delayed(1, this, [=] {
+			SkipTaskbar(
+				windowHandle(),
+				(Global::WorkMode().value() == dbiwmTrayOnly)
+					&& trayAvailable());
+		});
+	}
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (_appMenuSupported && !_mainMenuPath.path().isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);
@@ -1121,9 +1203,8 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 			UnregisterAppMenu(winId());
 		}
 	}
-}
-
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+}
 
 MainWindow::~MainWindow() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION

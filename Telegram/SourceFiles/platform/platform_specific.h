@@ -40,6 +40,7 @@ bool OpenSystemSettings(SystemSettingsType type);
 void IgnoreApplicationActivationRightNow();
 bool AutostartSupported();
 bool TrayIconSupported();
+bool SkipTaskbarSupported();
 QImage GetImageFromClipboard();
 bool StartSystemMove(QWindow *window);
 bool StartSystemResize(QWindow *window, Qt::Edges edges);

@@ -502,6 +502,25 @@ bool UnsetXCBFrameExtents(QWindow *window) {
 	return true;
 }
 
+bool XCBSkipTaskbarSupported() {
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
+	if (!connection) {
+		return false;
+	}
+
+	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
+		connection,
+		"_NET_WM_STATE_SKIP_TASKBAR");
+
+	if (!skipTaskbarAtom.has_value()) {
+		return false;
+	}
+
+	return ranges::contains(
+		base::Platform::XCB::GetWMSupported(connection),
+		*skipTaskbarAtom);
+}
+
 Window::Control GtkKeywordToWindowControl(const QString &keyword) {
 	if (keyword == qstr("minimize")) {
 		return Window::Control::Minimize;
@@ -767,6 +786,10 @@ bool TrayIconSupported() {
 	return App::wnd()
 		? App::wnd()->trayAvailable()
 		: false;
+}
+
+bool SkipTaskbarSupported() {
+	return !IsWayland() && XCBSkipTaskbarSupported();
 }
 
 bool StartSystemMove(QWindow *window) {
