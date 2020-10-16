@@ -374,6 +374,51 @@ bool StartXCBMoveResize(QWindow *window, int edges) {
 	return true;
 }
 
+bool ShowXCBWindowMenu(QWindow *window) {
+	const auto connection = base::Platform::XCB::GetConnectionFromQt();
+	if (!connection) {
+		return false;
+	}
+
+	const auto root = base::Platform::XCB::GetRootWindowFromQt();
+	if (!root.has_value()) {
+		return false;
+	}
+
+	const auto showWindowMenuAtom = base::Platform::XCB::GetAtom(
+		connection,
+		"_GTK_SHOW_WINDOW_MENU");
+
+	if (!showWindowMenuAtom.has_value()) {
+		return false;
+	}
+
+	const auto globalPos = QCursor::pos();
+
+	xcb_client_message_event_t xev;
+	xev.response_type = XCB_CLIENT_MESSAGE;
+	xev.type = *showWindowMenuAtom;
+	xev.sequence = 0;
+	xev.window = window->winId();
+	xev.format = 32;
+	xev.data.data32[0] = 0;
+	xev.data.data32[1] = globalPos.x();
+	xev.data.data32[2] = globalPos.y();
+	xev.data.data32[3] = 0;
+	xev.data.data32[4] = 0;
+
+	xcb_ungrab_pointer(connection, XCB_CURRENT_TIME);
+	xcb_send_event(
+		connection,
+		false,
+		*root,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+		reinterpret_cast<const char*>(&xev));
+
+	return true;
+}
+
 bool StartWaylandMove(QWindow *window) {
 	// There are startSystemMove on Qt 5.15
 #if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
@@ -811,9 +856,9 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 bool ShowWindowMenu(QWindow *window) {
 	if (IsWayland()) {
 		return ShowWaylandWindowMenu(window);
+	} else {
+		return ShowXCBWindowMenu(window);
 	}
-
-	return false;
 }
 
 bool SetWindowExtents(QWindow *window, const QMargins &extents) {
