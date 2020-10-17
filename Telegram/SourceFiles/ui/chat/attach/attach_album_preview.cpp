@@ -54,8 +54,8 @@ void AlbumPreview::updateFileRows() {
 }
 
 std::vector<int> AlbumPreview::takeOrder() {
-	Expects(_thumbs.size() == _order.size());
-	Expects(_itemsShownDimensions.size() == _order.size());
+	//Expects(_thumbs.size() == _order.size());
+	//Expects(_itemsShownDimensions.size() == _order.size());
 
 	auto reordered = std::vector<std::unique_ptr<AlbumThumbnail>>();
 	auto reorderedShownDimensions = std::vector<QSize>();
@@ -82,8 +82,6 @@ auto AlbumPreview::generateOrderedLayout() const
 }
 
 std::vector<int> AlbumPreview::defaultOrder(int count) const {
-	Expects(count > 0 || !_order.empty());
-
 	if (count < 0) {
 		count = _order.size();
 	}

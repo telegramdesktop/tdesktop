@@ -100,6 +100,9 @@ private:
 		[[nodiscard]] int tillIndex() const;
 		[[nodiscard]] object_ptr<Ui::RpWidget> takeWidget();
 
+		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
+		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
+
 		void setSendWay(Ui::SendFilesWay way);
 		void applyAlbumOrder();
 
@@ -138,12 +141,11 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
-	void addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap);
-
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
 	bool addFiles(Ui::PreparedList list);
 	void addFile(Ui::PreparedFile &&file);
+	void pushBlock(int from, int till);
 
 	void openDialogToAddFileToAlbum();
 	void refreshAllAfterChanges(int fromItem);
@@ -158,6 +160,7 @@ private:
 	int _titleHeight = 0;
 
 	Ui::PreparedList _list;
+	std::optional<int> _removingIndex;
 
 	SendLimit _sendLimit = SendLimit::Many;
 	SendMenu::Type _sendMenuType = SendMenu::Type();

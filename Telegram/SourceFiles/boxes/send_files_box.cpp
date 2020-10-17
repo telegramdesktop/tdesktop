@@ -153,6 +153,22 @@ object_ptr<Ui::RpWidget> SendFilesBox::Block::takeWidget() {
 	return object_ptr<Ui::RpWidget>::fromRaw(_preview.get());
 }
 
+rpl::producer<int> SendFilesBox::Block::itemDeleteRequest() const {
+	if (!_isAlbum) {
+		return rpl::never<int>();
+	}
+	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+	return album->thumbDeleted();
+}
+
+rpl::producer<int> SendFilesBox::Block::itemReplaceRequest() const {
+	if (!_isAlbum) {
+		return rpl::never<int>();
+	}
+	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+	return album->thumbChanged();
+}
+
 void SendFilesBox::Block::setSendWay(Ui::SendFilesWay way) {
 	if (!_isAlbum) {
 		return;
@@ -236,52 +252,6 @@ void SendFilesBox::initPreview() {
 			std::min(st::sendMediaPreviewHeightMax, height),
 			true);
 	}, _dimensionsLifetime);
-}
-
-void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
-	// #TODO files
-	//_albumPreview->thumbDeleted(
-	//) | rpl::start_with_next([=](auto index) {
-	//	_lastScrollTop = wrap->scrollTop();
-
-	//	_list.files.erase(_list.files.begin() + index);
-	//	applyAlbumOrder();
-
-	//	if (_preview) {
-	//		_preview->deleteLater();
-	//	}
-	//	_albumPreview = nullptr;
-
-	//	refreshAllAfterAlbumChanges();
-	//}, _albumPreview->lifetime());
-
-	//_albumPreview->thumbChanged(
-	//) | rpl::start_with_next([=](auto index) {
-	//	_lastScrollTop = wrap->scrollTop();
-
-	//	const auto callback = [=](FileDialog::OpenResult &&result) {
-	//		FileDialogCallback(
-	//			std::move(result),
-	//			[=] (auto list) {
-	//				_list.files[index] = std::move(list.files.front());
-	//				applyAlbumOrder();
-
-	//				if (_preview) {
-	//					_preview->deleteLater();
-	//				}
-	//				_albumPreview = nullptr;
-
-	//				refreshAllAfterAlbumChanges();
-	//			});
-	//	};
-
-	//	FileDialog::GetOpenPath(
-	//		this,
-	//		tr::lng_choose_file(tr::now),
-	//		FileDialog::AllOrImagesFilter(),
-	//		crl::guard(this, callback));
-
-	//}, _albumPreview->lifetime());
 }
 
 void SendFilesBox::enqueueNextPrepare() {
@@ -497,20 +467,6 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 	Assert(fromItem <= _list.files.size());
 
 	auto albumStart = -1;
-	const auto gifPaused = [controller = _controller] {
-		return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
-	};
-	const auto pushBlock = [&](int from, int till) {
-		_blocks.emplace_back(
-			_inner.data(),
-			&_list.files,
-			from,
-			till,
-			gifPaused,
-			_sendWay.current());
-		_inner->add(_blocks.back().takeWidget());
-	};
 	for (auto i = fromItem, till = int(_list.files.size()); i != till; ++i) {
 		const auto type = _list.files[i].type;
 		if (albumStart >= 0) {
@@ -534,6 +490,77 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 	if (albumStart >= 0) {
 		pushBlock(albumStart, _list.files.size());
 	}
+}
+
+void SendFilesBox::pushBlock(int from, int till) {
+	const auto gifPaused = [controller = _controller] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	};
+	const auto index = int(_blocks.size());
+	_blocks.emplace_back(
+		_inner.data(),
+		&_list.files,
+		from,
+		till,
+		gifPaused,
+		_sendWay.current());
+	auto &block = _blocks.back();
+	const auto widget = _inner->add(block.takeWidget());
+
+	block.itemDeleteRequest(
+	) | rpl::filter([=] {
+		return !_removingIndex;
+	}) | rpl::start_with_next([=](int index) {
+		_removingIndex = from + index;
+		crl::on_main(this, [=] {
+			const auto index = base::take(_removingIndex).value_or(-1);
+			if (index < 0 || index >= _list.files.size()) {
+				return;
+			}
+			_list.files.erase(_list.files.begin() + index);
+			refreshAllAfterChanges(from);
+		});
+	}, widget->lifetime());
+
+	block.itemReplaceRequest(
+	) | rpl::start_with_next([=](int index) {
+		const auto replace = [=](Ui::PreparedList list) {
+			if (list.files.empty()) {
+				return;
+			}
+			_list.files[from + index] = std::move(list.files.front());
+			refreshAllAfterChanges(from);
+		};
+		const auto checkResult = [=](const Ui::PreparedList &list) {
+			if (_sendLimit != SendLimit::One) {
+				return true;
+			}
+			auto removing = std::move(_list.files[from + index]);
+			std::swap(_list.files[from + index], _list.files.back());
+			_list.files.pop_back();
+			const auto result = _list.canBeSentInSlowmodeWith(list);
+			_list.files.push_back(std::move(removing));
+			std::swap(_list.files[from + index], _list.files.back());
+			if (!result) {
+				Ui::Toast::Show(tr::lng_slowmode_no_many(tr::now));
+				return false;
+			}
+			return true;
+		};
+		const auto callback = [=](FileDialog::OpenResult &&result) {
+			FileDialogCallback(
+				std::move(result),
+				checkResult,
+				replace);
+		};
+
+		FileDialog::GetOpenPath(
+			this,
+			tr::lng_choose_file(tr::now),
+			FileDialog::AllOrImagesFilter(),
+			crl::guard(this, callback));
+	}, widget->lifetime());
 }
 
 void SendFilesBox::refreshControls() {
