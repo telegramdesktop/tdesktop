@@ -4212,14 +4212,12 @@ void ApiWrap::sendFiles(
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action) {
 	const auto haveCaption = !caption.text.isEmpty();
-	const auto isAlbum = (album != nullptr);
-	if (haveCaption && !list.canAddCaption(isAlbum)) {
+	if (haveCaption && !list.canAddCaption(album != nullptr)) {
 		auto message = MessageToSend(action.history);
-		message.textWithTags = std::move(caption);
+		message.textWithTags = base::take(caption);
 		message.action = action;
 		message.action.clearDraft = false;
 		sendMessage(std::move(message));
-		caption = TextWithTags();
 	}
 
 	const auto to = fileLoadTaskOptions(action);
@@ -4240,7 +4238,7 @@ void ApiWrap::sendFiles(
 			case Ui::PreparedFile::AlbumType::File:
 				type = SendMediaType::File;
 				break;
-			default: Unexpected("AlbumType in uploadFilesAfterConfirmation");
+			default: Unexpected("AlbumType in ApiWrap::sendFiles.");
 			}
 		}
 		tasks.push_back(std::make_unique<FileLoadTask>(

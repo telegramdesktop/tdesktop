@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+class SendFilesWay;
+
 struct PreparedFileInformation {
 	struct Image {
 		QImage data;
@@ -37,11 +39,9 @@ struct PreparedFileInformation {
 struct PreparedFile {
 	// File-s can be grouped if 'groupFiles'.
 	// File-s + Photo-s can be grouped if 'groupFiles && !sendImagesAsPhotos'.
-	// Photo-s can be grouped if '(groupFiles && !sendImagesAsPhotos)
-	//   || (groupMediaInAlbums && sendImagesAsPhotos)'.
-	// Photo-s + Video-s can be grouped if 'groupMediaInAlbums
-	//   && sendImagesAsPhotos'.
-	// Video-s can be grouped if 'groupMediaInAlbums'.
+	// Photo-s can be grouped if 'groupFiles'.
+	// Photo-s + Video-s can be grouped if 'groupFiles && sendImagesAsPhotos'.
+	// Video-s can be grouped if 'groupFiles'.
 	enum class AlbumType {
 		File,
 		Photo,
@@ -77,12 +77,15 @@ struct PreparedList {
 	: error(error)
 	, errorData(errorData) {
 	}
+	PreparedList(PreparedList &&other) = default;
+	PreparedList &operator=(PreparedList &&other) = default;
+
 	[[nodiscard]] static PreparedList Reordered(
 		PreparedList &&list,
 		std::vector<int> order);
 	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
 
-	[[nodiscard]] bool canAddCaption(bool groupMediaInAlbums) const;
+	[[nodiscard]] bool canAddCaption(bool sendingAlbum) const;
 	[[nodiscard]] bool canBeSentInSlowmode() const;
 	[[nodiscard]] bool canBeSentInSlowmodeWith(
 		const PreparedList &other) const;
@@ -93,6 +96,16 @@ struct PreparedList {
 	std::deque<PreparedFile> filesToProcess;
 	std::optional<bool> overrideSendImagesAsPhotos;
 };
+
+struct PreparedGroup {
+	PreparedList list;
+	bool grouped = false;
+};
+
+[[nodiscard]] std::vector<PreparedGroup> DivideByGroups(
+	PreparedList &&list,
+	SendFilesWay way,
+	bool slowmode);
 
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);

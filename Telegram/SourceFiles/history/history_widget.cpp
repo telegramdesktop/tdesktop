@@ -4215,60 +4215,34 @@ void HistoryWidget::sendingFilesConfirmed(
 	if (showSendingFilesError(list)) {
 		return;
 	}
-	const auto slowmode = _peer->slowmodeApplied();
-	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
-	const auto sendType = sendImagesAsPhotos
+	auto groups = DivideByGroups(
+		std::move(list),
+		way,
+		_peer->slowmodeApplied());
+	const auto type = way.sendImagesAsPhotos()
 		? SendMediaType::Photo
 		: SendMediaType::File;
-	const auto groupMedia = way.groupMediaInAlbums() || slowmode;
-	const auto groupFiles = way.groupFiles() || slowmode;
-
-	auto group = Ui::PreparedList();
-
-	// For groupType Type::Video means media album,
-	// Type::File means file album,
-	// Type::None means no grouping.
-	using Type = Ui::PreparedFile::AlbumType;
-	auto groupType = Type::None;
-
-	const auto reply = replyToId();
-	auto sendGroup = [&] {
-		if (group.files.empty()) {
-			return;
-		}
-		const auto album = (groupType == Type::None)
-			? nullptr
-			: std::make_shared<SendingAlbum>();
-		uploadFilesAfterConfirmation(
-			base::take(group),
-			sendType,
-			base::take(caption),
-			reply,
-			options,
-			std::move(album));
-	};
-	for (auto i = 0; i != list.files.size(); ++i) {
-		auto &file = list.files[i];
-		const auto fileGroupType = (file.type == Type::Video)
-			? (groupMedia ? Type::Video : Type::None)
-			: (file.type == Type::Photo)
-			? ((groupMedia && sendImagesAsPhotos)
-				? Type::Video
-				: (groupFiles && !sendImagesAsPhotos)
-				? Type::File
-				: Type::None)
-			: (file.type == Type::File)
-			? (groupFiles ? Type::File : Type::None)
-			: Type::None;
-		if ((!group.files.empty() && groupType != fileGroupType)
-			|| ((groupType != Type::None)
-				&& (group.files.size() == Ui::MaxAlbumItems()))) {
-			sendGroup();
-		}
-		group.files.push_back(std::move(file));
-		groupType = fileGroupType;
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyToId();
+	action.options = options;
+	action.clearDraft = false;
+	if (groups.size() > 1 && !caption.text.isEmpty()) {
+		auto message = Api::MessageToSend(_history);
+		message.textWithTags = base::take(caption);
+		message.action = action;
+		session().api().sendMessage(std::move(message));
 	}
-	sendGroup();
+	for (auto &group : groups) {
+		const auto album = group.grouped
+			? std::make_shared<SendingAlbum>()
+			: nullptr;
+		session().api().sendFiles(
+			std::move(group.list),
+			type,
+			base::take(caption),
+			album,
+			action);
+	};
 }
 
 bool HistoryWidget::confirmSendingFiles(
@@ -4341,38 +4315,6 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 	}
 	return false;
-}
-
-void HistoryWidget::uploadFilesAfterConfirmation(
-		Ui::PreparedList &&list,
-		SendMediaType type,
-		TextWithTags &&caption,
-		MsgId replyTo,
-		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album) {
-	Assert(canWriteMessage());
-
-	const auto isAlbum = (album != nullptr);
-	if (_peer->slowmodeApplied()
-		&& ((list.files.size() > 1 && !album)
-			|| (!list.files.empty()
-				&& !caption.text.isEmpty()
-				&& !list.canAddCaption(isAlbum)))) {
-		Ui::ShowMultilineToast({
-			.text = { tr::lng_slowmode_no_many(tr::now) },
-		});
-		return;
-	}
-
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyTo;
-	action.options = options;
-	session().api().sendFiles(
-		std::move(list),
-		type,
-		std::move(caption),
-		album,
-		action);
 }
 
 void HistoryWidget::uploadFile(

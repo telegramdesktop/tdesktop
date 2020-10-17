@@ -434,15 +434,6 @@ private:
 		bool ctrlShiftEnter);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
-
-	void uploadFilesAfterConfirmation(
-		Ui::PreparedList &&list,
-		SendMediaType type,
-		TextWithTags &&caption,
-		MsgId replyTo,
-		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album = nullptr);
-
 	void itemRemoved(not_null<const HistoryItem*> item);
 
 	// Updates position of controls around the message field,

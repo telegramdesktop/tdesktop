@@ -176,9 +176,8 @@ private:
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
-	object_ptr<Ui::Checkbox> _groupMediaInAlbums = { nullptr };
-	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
 	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
+	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;
@@ -189,8 +188,6 @@ private:
 	std::vector<Block> _blocks;
 	Fn<void()> _whenReadySend;
 	bool _preparing = false;
-
-	int _lastScrollTop = 0;
 
 	QPointer<Ui::RoundButton> _send;
 	QPointer<Ui::RoundButton> _addFile;

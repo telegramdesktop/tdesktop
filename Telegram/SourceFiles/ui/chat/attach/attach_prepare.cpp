@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "core/mime_type.h"
 
 namespace Ui {
@@ -21,7 +22,7 @@ PreparedFile::PreparedFile(const QString &path) : path(path) {
 
 PreparedFile::PreparedFile(PreparedFile &&other) = default;
 
-PreparedFile &PreparedFile::operator=(PreparedFile && other) = default;
+PreparedFile &PreparedFile::operator=(PreparedFile &&other) = default;
 
 PreparedFile::~PreparedFile() = default;
 
@@ -90,7 +91,7 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
-bool PreparedList::canAddCaption(bool groupMediaInAlbums) const {
+bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	if (!filesToProcess.empty()
 		|| files.empty()
 		|| files.size() > kMaxAlbumCount) {
@@ -104,14 +105,18 @@ bool PreparedList::canAddCaption(bool groupMediaInAlbums) const {
 				qstr(".tgs"),
 				Qt::CaseInsensitive);
 		return !isSticker;
-	} else if (!groupMediaInAlbums) {
+	} else if (!sendingAlbum) {
 		return false;
 	}
 	const auto hasFiles = ranges::contains(
 		files,
 		PreparedFile::AlbumType::File,
 		&PreparedFile::type);
-	return !hasFiles;
+	const auto hasNotGrouped = ranges::contains(
+		files,
+		PreparedFile::AlbumType::None,
+		&PreparedFile::type);
+	return !hasFiles && !hasNotGrouped;
 }
 
 int MaxAlbumItems() {
@@ -123,6 +128,55 @@ bool ValidateThumbDimensions(int width, int height) {
 		&& (height > 0)
 		&& (width < 20 * height)
 		&& (height < 20 * width);
+}
+
+std::vector<PreparedGroup> DivideByGroups(
+		PreparedList &&list,
+		SendFilesWay way,
+		bool slowmode) {
+	const auto sendImagesAsPhotos = way.sendImagesAsPhotos();
+	const auto groupFiles = way.groupFiles() || slowmode;
+
+	auto group = Ui::PreparedList();
+
+	// For groupType Type::Video means media album,
+	// Type::File means file album,
+	// Type::None means no grouping.
+	using Type = Ui::PreparedFile::AlbumType;
+	auto groupType = Type::None;
+
+	auto result = std::vector<PreparedGroup>();
+	auto pushGroup = [&] {
+		result.push_back(PreparedGroup{
+			.list = base::take(group),
+			.grouped = (groupType != Type::None)
+		});
+	};
+	for (auto i = 0; i != list.files.size(); ++i) {
+		auto &file = list.files[i];
+		const auto fileGroupType = (file.type == Type::Video)
+			? (groupFiles ? Type::Video : Type::None)
+			: (file.type == Type::Photo)
+			? ((groupFiles && sendImagesAsPhotos)
+				? Type::Video
+				: (groupFiles && !sendImagesAsPhotos)
+				? Type::File
+				: Type::None)
+			: (file.type == Type::File)
+			? (groupFiles ? Type::File : Type::None)
+			: Type::None;
+		if ((!group.files.empty() && groupType != fileGroupType)
+			|| ((groupType != Type::None)
+				&& (group.files.size() == Ui::MaxAlbumItems()))) {
+			pushGroup();
+		}
+		group.files.push_back(std::move(file));
+		groupType = fileGroupType;
+	}
+	if (!group.files.empty()) {
+		pushGroup();
+	}
+	return result;
 }
 
 } // namespace Ui

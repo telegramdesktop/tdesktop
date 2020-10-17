@@ -137,7 +137,7 @@ AlbumThumbnail *AlbumPreview::findThumb(QPoint position) const {
 		? st::sendMediaPreviewPhotoSkip
 		: st::sendMediaFileThumbSkip;
 	auto find = [&](const auto &thumb) {
-		if (_sendWay.groupMediaInAlbums()) {
+		if (_sendWay.groupFiles() && _sendWay.sendImagesAsPhotos()) {
 			return thumb->containsPoint(position);
 		} else {
 			const auto bottom = top + (isPhotosWay
@@ -258,13 +258,13 @@ void AlbumPreview::updateSizeAnimated(
 
 void AlbumPreview::updateSize() {
 	const auto newHeight = [&] {
-		if (_sendWay.groupMediaInAlbums()) {
-			return int(std::round(_thumbsHeightAnimation.value(
-				_thumbsHeight)));
-		} else if (_sendWay.sendImagesAsPhotos()) {
+		if (!_sendWay.sendImagesAsPhotos()) {
+			return _filesHeight;
+		} else if (!_sendWay.groupFiles()) {
 			return _photosHeight;
 		} else {
-			return _filesHeight;
+			return int(std::round(_thumbsHeightAnimation.value(
+				_thumbsHeight)));
 		}
 	}();
 	if (height() != newHeight) {
@@ -275,12 +275,12 @@ void AlbumPreview::updateSize() {
 void AlbumPreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_sendWay.groupMediaInAlbums()) {
-		paintAlbum(p);
-	} else if (_sendWay.sendImagesAsPhotos()) {
+	if (!_sendWay.sendImagesAsPhotos()) {
+		paintFiles(p, e->rect());
+	} else if (!_sendWay.groupFiles()) {
 		paintPhotos(p, e->rect());
 	} else {
-		paintFiles(p, e->rect());
+		paintAlbum(p);
 	}
 }
 
@@ -409,7 +409,8 @@ void AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
 		applyCursor(style::cur_default);
 		return;
 	}
-	const auto isAlbum = _sendWay.groupMediaInAlbums();
+	const auto isAlbum = _sendWay.sendImagesAsPhotos()
+		&& _sendWay.groupFiles();
 	if (isAlbum && _draggedThumb) {
 		const auto position = e->pos();
 		_draggedThumb->moveInAlbum(position - _draggedStartPosition);

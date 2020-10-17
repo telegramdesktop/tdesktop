@@ -35,6 +35,7 @@ class FlatButton;
 class HistoryDownButton;
 class PinnedBar;
 struct PreparedList;
+class SendFilesWay;
 } // namespace Ui
 
 namespace Profile {
@@ -207,13 +208,12 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
-	void uploadFilesAfterConfirmation(
+	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
-		SendMediaType type,
+		Ui::SendFilesWay way,
 		TextWithTags &&caption,
-		MsgId replyTo,
 		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album);
+		bool ctrlShiftEnter);
 
 	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(

@@ -362,22 +362,12 @@ bool ScheduledWidget::confirmSendingFiles(
 			TextWithTags &&caption,
 			Api::SendOptions options,
 			bool ctrlShiftEnter) {
-		if (showSendingFilesError(list)) {
-			return;
-		}
-		const auto type = way.sendImagesAsPhotos()
-			? SendMediaType::Photo
-			: SendMediaType::File;
-		const auto album = way.groupMediaInAlbums() // #TODO files
-			? std::make_shared<SendingAlbum>()
-			: nullptr;
-		uploadFilesAfterConfirmation(
+		sendingFilesConfirmed(
 			std::move(list),
-			type,
+			way,
 			std::move(caption),
-			MsgId(0),//replyToId(),
 			options,
-			album);
+			ctrlShiftEnter);
 	}));
 	//box->setCancelledCallback(crl::guard(this, [=] {
 	//	_field->setTextWithTags(text);
@@ -399,6 +389,43 @@ bool ScheduledWidget::confirmSendingFiles(
 	return true;
 }
 
+void ScheduledWidget::sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter) {
+	Expects(list.filesToProcess.empty());
+
+	if (showSendingFilesError(list)) {
+		return;
+	}
+	auto groups = DivideByGroups(std::move(list), way, false);
+	const auto type = way.sendImagesAsPhotos()
+		? SendMediaType::Photo
+		: SendMediaType::File;
+	auto action = Api::SendAction(_history);
+	action.options = options;
+	action.clearDraft = false;
+	if (groups.size() > 1 && !caption.text.isEmpty()) {
+		auto message = Api::MessageToSend(_history);
+		message.textWithTags = base::take(caption);
+		message.action = action;
+		session().api().sendMessage(std::move(message));
+	}
+	for (auto &group : groups) {
+		const auto album = group.grouped
+			? std::make_shared<SendingAlbum>()
+			: nullptr;
+		session().api().sendFiles(
+			std::move(list),
+			type,
+			base::take(caption),
+			album,
+			action);
+	};
+}
+
 bool ScheduledWidget::confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
@@ -414,35 +441,6 @@ bool ScheduledWidget::confirmSendingFiles(
 		st::sendMediaPreviewSize);
 	list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
 	return confirmSendingFiles(std::move(list), insertTextOnCancel);
-}
-
-void ScheduledWidget::uploadFilesAfterConfirmation(
-		Ui::PreparedList &&list,
-		SendMediaType type,
-		TextWithTags &&caption,
-		MsgId replyTo,
-		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album) {
-	const auto isAlbum = (album != nullptr);
-	if (_history->peer->slowmodeApplied()
-		&& ((list.files.size() > 1 && !album)
-			|| (!list.files.empty()
-				&& !caption.text.isEmpty()
-				&& !list.canAddCaption(isAlbum)))) {
-		Ui::ShowMultilineToast({
-			.text = { tr::lng_slowmode_no_many(tr::now) },
-		});
-		return;
-	}
-	auto action = Api::SendAction(_history);
-	action.replyTo = replyTo;
-	action.options = options;
-	session().api().sendFiles(
-		std::move(list),
-		type,
-		std::move(caption),
-		album,
-		action);
 }
 
 void ScheduledWidget::uploadFile(

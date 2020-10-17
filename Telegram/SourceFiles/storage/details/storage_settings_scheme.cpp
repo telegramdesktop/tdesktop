@@ -919,7 +919,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		auto way = Ui::SendFilesWay();
-		way.setGroupMediaInAlbums(v == 1);
+		way.setGroupFiles(v == 1);
 		way.setSendImagesAsPhotos(v == 1);
 		Core::App().settings().setSendFilesWay(way);
 		context.legacyRead = true;

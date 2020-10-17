@@ -94,7 +94,7 @@ void FileDialogCallback(
 rpl::producer<QString> FieldPlaceholder(
 		const Ui::PreparedList &list,
 		SendFilesWay way) {
-	return list.canAddCaption(way.groupMediaInAlbums())
+	return list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
 }
@@ -436,7 +436,6 @@ void SendFilesBox::initSendWay() {
 	_sendWay = [&] {
 		auto result = Core::App().settings().sendFilesWay();
 		if (_sendLimit == SendLimit::One) {
-			result.setGroupMediaInAlbums(true);
 			result.setGroupFiles(true);
 			return result;
 		} else if (_list.overrideSendImagesAsPhotos == false) {
@@ -463,15 +462,15 @@ void SendFilesBox::updateCaptionPlaceholder() {
 	if (!_caption) {
 		return;
 	}
-	const auto sendWay = _sendWay.current();
-	if (!_list.canAddCaption(sendWay.groupMediaInAlbums())
+	const auto way = _sendWay.current();
+	if (!_list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
 		&& _sendLimit == SendLimit::One) {
 		_caption->hide();
 		if (_emojiToggle) {
 			_emojiToggle->hide();
 		}
 	} else {
-		_caption->setPlaceholder(FieldPlaceholder(_list, sendWay));
+		_caption->setPlaceholder(FieldPlaceholder(_list, way));
 		_caption->show();
 		if (_emojiToggle) {
 			_emojiToggle->show();
@@ -544,33 +543,27 @@ void SendFilesBox::refreshControls() {
 
 void SendFilesBox::setupSendWayControls() {
 	// #TODO files
-	_groupMediaInAlbums.create(
+	_groupFiles.create(
 		this,
-		"Group media in albums",
-		_sendWay.current().groupMediaInAlbums(),
+		"Group items",
+		_sendWay.current().groupFiles(),
 		st::defaultBoxCheckbox);
 	_sendImagesAsPhotos.create(
 		this,
-		"Send images as photos",
+		"Compress images",
 		_sendWay.current().sendImagesAsPhotos(),
-		st::defaultBoxCheckbox);
-	_groupFiles.create(
-		this,
-		"Group files",
-		_sendWay.current().groupFiles(),
 		st::defaultBoxCheckbox);
 
 	_sendWay.changes(
 	) | rpl::start_with_next([=](SendFilesWay value) {
-		_groupMediaInAlbums->setChecked(value.groupMediaInAlbums());
-		_sendImagesAsPhotos->setChecked(value.sendImagesAsPhotos());
 		_groupFiles->setChecked(value.groupFiles());
+		_sendImagesAsPhotos->setChecked(value.sendImagesAsPhotos());
 	}, lifetime());
 
-	_groupMediaInAlbums->checkedChanges(
+	_groupFiles->checkedChanges(
 	) | rpl::start_with_next([=] {
 		auto sendWay = _sendWay.current();
-		sendWay.setGroupMediaInAlbums(_groupMediaInAlbums->checked());
+		sendWay.setGroupFiles(_groupFiles->checked());
 		_sendWay = sendWay;
 	}, lifetime());
 
@@ -580,13 +573,6 @@ void SendFilesBox::setupSendWayControls() {
 		sendWay.setSendImagesAsPhotos(_sendImagesAsPhotos->checked());
 		_sendWay = sendWay;
 	}, lifetime());
-
-	_groupFiles->checkedChanges(
-	) | rpl::start_with_next([=] {
-		auto sendWay = _sendWay.current();
-		sendWay.setGroupFiles(_groupFiles->checked());
-		_sendWay = sendWay;
-	}, lifetime());
 }
 
 void SendFilesBox::updateSendWayControlsVisibility() {
@@ -594,9 +580,8 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 		return;
 	}
 	const auto onlyOne = (_sendLimit == SendLimit::One);
-	_groupMediaInAlbums->setVisible(!onlyOne);
-	_sendImagesAsPhotos->setVisible(/*_list.hasImagesForCompression()*/true); // #TODO files
 	_groupFiles->setVisible(!onlyOne);
+	_sendImagesAsPhotos->setVisible(/*_list.hasImagesForCompression()*/true); // #TODO files
 }
 
 void SendFilesBox::setupCaption() {
@@ -798,9 +783,8 @@ void SendFilesBox::updateBoxSize() {
 		footerHeight += st::boxPhotoCaptionSkip + _caption->height();
 	}
 	const auto pointers = {
-		_groupMediaInAlbums.data(),
+		_groupFiles.data(),
 		_sendImagesAsPhotos.data(),
-		_groupFiles.data()
 	};
 	for (auto pointer : pointers) {
 		if (pointer && !pointer->isHidden()) {
@@ -864,9 +848,8 @@ void SendFilesBox::updateControlsGeometry() {
 		}
 	}
 	const auto pointers = {
-		_groupMediaInAlbums.data(),
+		_groupFiles.data(),
 		_sendImagesAsPhotos.data(),
-		_groupFiles.data()
 	};
 	for (const auto pointer : ranges::view::reverse(pointers)) {
 		if (pointer && !pointer->isHidden()) {
@@ -905,15 +888,12 @@ void SendFilesBox::send(
 
 	auto way = _sendWay.current();
 	auto oldWay = Core::App().settings().sendFilesWay();
+	if (_groupFiles->isHidden()) {
+		way.setGroupFiles(oldWay.groupFiles());
+	}
 	if (_list.overrideSendImagesAsPhotos == way.sendImagesAsPhotos()
 		|| _sendImagesAsPhotos->isHidden()) {
 		way.setSendImagesAsPhotos(oldWay.sendImagesAsPhotos());
-	}
-	if (_groupMediaInAlbums->isHidden()) {
-		way.setGroupMediaInAlbums(oldWay.groupMediaInAlbums());
-	}
-	if (_groupFiles->isHidden()) {
-		way.setGroupFiles(oldWay.groupFiles());
 	}
 	if (way != oldWay) {
 		Core::App().settings().setSendFilesWay(way);

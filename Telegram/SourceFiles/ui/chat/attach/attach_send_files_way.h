@@ -19,18 +19,14 @@ enum class AttachButtonType {
 
 class SendFilesWay final {
 public:
-	[[nodiscard]] bool groupMediaInAlbums() const {
-		return (_flags & Flag::GroupMediaInAlbums) != 0;
+	[[nodiscard]] bool groupFiles() const {
+		return (_flags & Flag::GroupFiles) != 0;
 	}
 	[[nodiscard]] bool sendImagesAsPhotos() const {
 		return (_flags & Flag::SendImagesAsPhotos) != 0;
 	}
-	[[nodiscard]] bool groupFiles() const {
-		return (_flags & Flag::GroupFiles);
-	}
-	void setGroupMediaInAlbums(bool value);
-	void setSendImagesAsPhotos(bool value);
 	void setGroupFiles(bool value);
+	void setSendImagesAsPhotos(bool value);
 
 	[[nodiscard]] inline bool operator<(const SendFilesWay &other) const {
 		return _flags < other._flags;
@@ -57,11 +53,10 @@ public:
 
 private:
 	enum class Flag : uchar {
-		GroupMediaInAlbums = (1 << 0),
+		GroupFiles = (1 << 0),
 		SendImagesAsPhotos = (1 << 1),
-		GroupFiles = (1 << 2),
 
-		Default = GroupMediaInAlbums | SendImagesAsPhotos | GroupFiles,
+		Default = GroupFiles | SendImagesAsPhotos,
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 

@@ -9,19 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-void SendFilesWay::setGroupMediaInAlbums(bool value) {
-	if (value) {
-		_flags |= (Flag::GroupMediaInAlbums | Flag::SendImagesAsPhotos);
-	} else {
-		_flags &= ~Flag::GroupMediaInAlbums;
-	}
-}
-
 void SendFilesWay::setSendImagesAsPhotos(bool value) {
 	if (value) {
 		_flags |= Flag::SendImagesAsPhotos;
 	} else {
-		_flags &= ~(Flag::SendImagesAsPhotos | Flag::GroupMediaInAlbums);
+		_flags &= ~Flag::SendImagesAsPhotos;
 	}
 }
 
@@ -40,36 +32,23 @@ void SendFilesWay::setGroupFiles(bool value) {
 //};
 
 int32 SendFilesWay::serialize() const {
-	auto result = groupMediaInAlbums()
+	auto result = (sendImagesAsPhotos() && groupFiles())
 		? int32(0)
 		: sendImagesAsPhotos()
 		? int32(1)
+		: groupFiles()
+		? int32(3)
 		: int32(2);
-	if (!groupFiles()) {
-		result |= 0x04;
-	}
 	return result;
 }
 
 std::optional<SendFilesWay> SendFilesWay::FromSerialized(int32 value) {
-	auto result = SendFilesWay();
-	result.setGroupFiles(!(value & 0x04));
-	value &= ~0x04;
-	switch (value) {
-	case 0:
-		result.setGroupMediaInAlbums(true);
-		result.setSendImagesAsPhotos(true);
-		break;
-	case 1:
-		result.setGroupMediaInAlbums(false);
-		result.setSendImagesAsPhotos(true);
-		break;
-	case 2:
-		result.setGroupMediaInAlbums(false);
-		result.setSendImagesAsPhotos(false);
-		break;
-	default: return std::nullopt;
+	if (value < 0 || value > 3) {
+		return std::nullopt;
 	}
+	auto result = SendFilesWay();
+	result.setGroupFiles((value == 0) || (value == 3));
+	result.setSendImagesAsPhotos((value == 0) || (value == 1));
 	return result;
 }
 
