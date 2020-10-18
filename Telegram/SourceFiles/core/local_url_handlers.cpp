@@ -417,6 +417,8 @@ bool HandleOpenMessage(
 				Window::SectionShow::Way::Forward);
 		return true;
 	}
+	Core::App().hideMediaView();
+	Ui::show(Box<InformBox>(tr::lng_user_not_found(tr::now)));
 	return false;
 }
 
@@ -439,6 +441,8 @@ bool HandleUser(
 		controller->showPeerInfo(peer);
 		return true;
 	}
+	Core::App().hideMediaView();
+	Ui::show(Box<InformBox>(tr::lng_user_not_found(tr::now)));
 	return false;
 }
 
