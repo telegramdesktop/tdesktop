@@ -345,11 +345,13 @@ OverlayWidget::OverlayWidget()
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
-#else // Q_OS_UNIX && !Q_OS_MAC
-	setWindowFlags(Qt::FramelessWindowHint);
-#endif // Q_OS_UNIX && !Q_OS_MAC
+	if (Platform::IsLinux()) {
+		setWindowFlags(Qt::FramelessWindowHint
+			| Qt::WindowStaysOnTopHint
+			| Qt::MaximizeUsingFullscreenGeometryHint);
+	} else {
+		setWindowFlags(Qt::FramelessWindowHint);
+	}
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -2280,11 +2282,11 @@ void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		Ui::Platform::UpdateOverlayed(this);
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-		showFullScreen();
-#else // Q_OS_UNIX && !Q_OS_MAC
-		show();
-#endif // Q_OS_UNIX && !Q_OS_MAC
+		if (Platform::IsLinux()) {
+			showFullScreen();
+		} else {
+			show();
+		}
 		Ui::Platform::ShowOverAll(this);
 		activateWindow();
 		QApplication::setActiveWindow(this);
