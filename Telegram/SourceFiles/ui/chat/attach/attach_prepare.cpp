@@ -73,21 +73,28 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 		return false;
 	}
 
+	using Type = PreparedFile::AlbumType;
 	auto &&all = ranges::view::concat(files, other.files);
-	const auto hasNonGrouping = ranges::contains(
-		all,
-		PreparedFile::AlbumType::None,
-		&PreparedFile::type);
-	const auto hasFiles = ranges::contains(
-		all,
-		PreparedFile::AlbumType::File,
-		&PreparedFile::type);
-	const auto hasVideos = ranges::contains(
-		all,
-		PreparedFile::AlbumType::Video,
-		&PreparedFile::type);
+	const auto has = [&](Type type) {
+		return ranges::contains(all, type, &PreparedFile::type);
+	};
+	const auto hasNonGrouping = has(Type::None);
+	const auto hasPhotos = has(Type::Photo);
+	const auto hasFiles = has(Type::File);
+	const auto hasVideos = has(Type::Video);
+	const auto hasMusic = has(Type::Music);
 
 	// File-s and Video-s never can be grouped.
+	// Music-s can be grouped only with themselves.
+	if (hasNonGrouping) {
+		return false;
+	} else if (hasFiles) {
+		return !hasMusic && !hasVideos;
+	} else if (hasVideos) {
+		return !hasMusic && !hasFiles;
+	} else if (hasMusic) {
+		return !hasVideos && !hasFiles && !hasPhotos;
+	}
 	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
@@ -139,34 +146,42 @@ std::vector<PreparedGroup> DivideByGroups(
 
 	auto group = Ui::PreparedList();
 
+	enum class GroupType {
+		PhotoVideo,
+		File,
+		Music,
+		None,
+	};
 	// For groupType Type::Video means media album,
 	// Type::File means file album,
 	// Type::None means no grouping.
 	using Type = Ui::PreparedFile::AlbumType;
-	auto groupType = Type::None;
+	auto groupType = GroupType::None;
 
 	auto result = std::vector<PreparedGroup>();
 	auto pushGroup = [&] {
 		result.push_back(PreparedGroup{
 			.list = base::take(group),
-			.grouped = (groupType != Type::None)
+			.grouped = (groupType != GroupType::None)
 		});
 	};
 	for (auto i = 0; i != list.files.size(); ++i) {
 		auto &file = list.files[i];
-		const auto fileGroupType = (file.type == Type::Video)
-			? (groupFiles ? Type::Video : Type::None)
+		const auto fileGroupType = (file.type == Type::Music)
+			? (groupFiles ? GroupType::Music : GroupType::None)
+			: (file.type == Type::Video)
+			? (groupFiles ? GroupType::PhotoVideo : GroupType::None)
 			: (file.type == Type::Photo)
 			? ((groupFiles && sendImagesAsPhotos)
-				? Type::Video
+				? GroupType::PhotoVideo
 				: (groupFiles && !sendImagesAsPhotos)
-				? Type::File
-				: Type::None)
+				? GroupType::File
+				: GroupType::None)
 			: (file.type == Type::File)
-			? (groupFiles ? Type::File : Type::None)
-			: Type::None;
+			? (groupFiles ? GroupType::File : GroupType::None)
+			: GroupType::None;
 		if ((!group.files.empty() && groupType != fileGroupType)
-			|| ((groupType != Type::None)
+			|| ((groupType != GroupType::None)
 				&& (group.files.size() == Ui::MaxAlbumItems()))) {
 			pushGroup();
 		}

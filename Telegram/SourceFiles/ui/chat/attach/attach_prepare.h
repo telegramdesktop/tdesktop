@@ -42,10 +42,12 @@ struct PreparedFile {
 	// Photo-s can be grouped if 'groupFiles'.
 	// Photo-s + Video-s can be grouped if 'groupFiles && sendImagesAsPhotos'.
 	// Video-s can be grouped if 'groupFiles'.
+	// Music-s can be grouped if 'groupFiles'.
 	enum class AlbumType {
 		File,
 		Photo,
 		Video,
+		Music,
 		None,
 	};
 

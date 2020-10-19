@@ -4234,6 +4234,7 @@ void ApiWrap::sendFiles(
 					? type
 					: SendMediaType::Photo;
 				break;
+			case Ui::PreparedFile::AlbumType::Music:
 			case Ui::PreparedFile::AlbumType::Video:
 			case Ui::PreparedFile::AlbumType::File:
 				type = SendMediaType::File;

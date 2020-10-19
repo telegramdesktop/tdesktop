@@ -1508,10 +1508,7 @@ bool DocumentData::isAudioFile() const {
 }
 
 bool DocumentData::isSharedMediaMusic() const {
-	if (const auto songData = song()) {
-		return (songData->duration > 0);
-	}
-	return false;
+	return isSong();
 }
 
 bool DocumentData::isVideoFile() const {

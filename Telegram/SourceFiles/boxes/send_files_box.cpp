@@ -118,8 +118,7 @@ SendFilesBox::Block::Block(
 	const auto count = till - from;
 	const auto my = gsl::make_span(*items).subspan(from, count);
 	const auto &first = my.front();
-	_isAlbum = (my.size() > 1)
-		|| (first.type == Ui::PreparedFile::AlbumType::Photo);
+	_isAlbum = (my.size() > 1);
 	if (_isAlbum) {
 		const auto preview = Ui::CreateChild<Ui::AlbumPreview>(
 			parent.get(),
@@ -492,6 +491,7 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 			const auto albumCount = (i - albumStart);
 			if ((type == Type::File)
 				|| (type == Type::None)
+				|| (type == Type::Music)
 				|| (albumCount == Ui::MaxAlbumItems())) {
 				pushBlock(std::exchange(albumStart, -1), i);
 			} else {

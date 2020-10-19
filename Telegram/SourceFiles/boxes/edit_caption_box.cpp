@@ -603,9 +603,10 @@ void EditCaptionBox::createEditMediaButton() {
 			if (Core::IsMimeSticker(mime)) {
 				showError(tr::lng_edit_media_invalid_file);
 				return false;
-			} else if (_isAlbum) { // #TODO edit in file-albums
+			} else if (_isAlbum) { // #TODO files edit in file-albums
 				if (!Core::IsMimeAcceptedForAlbum(mime)
 					|| file.type == Ui::PreparedFile::AlbumType::File
+					|| file.type == Ui::PreparedFile::AlbumType::Music
 					|| file.type == Ui::PreparedFile::AlbumType::None) {
 					showError(tr::lng_edit_media_album_error);
 					return false;
@@ -710,7 +711,9 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	}
 
 	const auto file = &list.files.front();
-	if (_isAlbum && (file->type == AlbumType::File || file->type == AlbumType::None)) {
+	if (_isAlbum && (file->type == AlbumType::File
+		|| file->type == AlbumType::None
+		|| file->type == AlbumType::Music)) {
 		const auto imageAsDoc = [&] {
 			using Info = Ui::PreparedFileInformation;
 			const auto fileMedia = &file->information->media;

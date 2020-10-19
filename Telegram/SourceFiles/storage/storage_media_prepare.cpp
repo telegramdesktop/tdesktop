@@ -257,6 +257,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 	//		const auto file = &list.files.front();
 	//		if (!Core::IsMimeAcceptedForAlbum(mimeFile)
 	//			|| file->type == PreparedFile::AlbumType::File
+	//			|| file->type == PreparedFile::AlbumType::Music
 	//			|| file->type == PreparedFile::AlbumType::None) {
 	//			errorCallback(tr::lng_edit_media_album_error);
 	//			return std::nullopt;
@@ -339,6 +340,7 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 
 	using Image = PreparedFileInformation::Image;
 	using Video = PreparedFileInformation::Video;
+	using Song = PreparedFileInformation::Song;
 	if (const auto image = std::get_if<Image>(
 			&file.information->media)) {
 		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
@@ -365,6 +367,8 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 			file.preview.setDevicePixelRatio(cRetinaFactor());
 			file.type = PreparedFile::AlbumType::Video;
 		}
+	} else if (const auto song = std::get_if<Song>(&file.information->media)) {
+		file.type = PreparedFile::AlbumType::Music;
 	}
 }
 
