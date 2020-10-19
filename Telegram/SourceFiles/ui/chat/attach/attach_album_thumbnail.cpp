@@ -109,7 +109,7 @@ AlbumThumbnail::AlbumThumbnail(
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 
-	_editMedia->setIconOverride(&st::editMediaButtonIconFile);
+	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
 	updateFileRow(-1);
@@ -520,19 +520,16 @@ QRect AlbumThumbnail::paintButtons(
 	QRect groupRect(groupX, groupY, groupWidth, size);
 	_buttonsRect.paint(p, groupRect);
 
-	const auto editP = st::sendBoxAlbumGroupEditButtonIconPosition;
-	const auto deleteP = st::sendBoxAlbumGroupDeleteButtonIconPosition;
-
-	st::sendBoxAlbumGroupEditButtonIcon.paintInCenter(
+	st::sendBoxAlbumGroupButtonMediaEdit.paint(
 		p,
-		QRect(groupX + editP.x(), groupY + editP.y(), size, size));
-	st::sendBoxAlbumGroupDeleteButtonIcon.paintInCenter(
+		groupX,
+		groupY,
+		outerWidth);
+	st::sendBoxAlbumGroupButtonMediaDelete.paint(
 		p,
-		QRect(
-			groupX + deleteLeft + deleteP.x(),
-			groupY + deleteP.y(),
-			size,
-			size));
+		groupX + size + skipInternal,
+		groupY,
+		outerWidth);
 	p.setOpacity(1);
 
 	return groupRect;

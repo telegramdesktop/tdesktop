@@ -8,11 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_single_media_preview.h"
 
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/widgets/buttons.h"
 #include "core/mime_type.h"
 #include "lottie/lottie_single_player.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/palette.h"
 
 namespace Ui {
 namespace {
@@ -64,19 +66,26 @@ SingleMediaPreview::SingleMediaPreview(
 : RpWidget(parent)
 , _gifPaused(std::move(gifPaused))
 , _animated(animated)
-, _sticker(sticker) {
+, _sticker(sticker)
+, _editMedia(this, st::sendBoxAlbumGroupButtonMedia)
+, _deleteMedia(this, st::sendBoxAlbumGroupButtonMedia)
+, _buttonsRect(st::sendBoxAlbumGroupRadius, st::callFingerprintBg) {
 	Expects(!preview.isNull());
 
-	_canSendAsPhoto = !_animated
-		&& !_sticker
-		&& ValidateThumbDimensions(
-			preview.width(),
-			preview.height());
+	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupButtonMediaDelete);
 
 	preparePreview(preview, animatedPreviewPath);
 }
 
 SingleMediaPreview::~SingleMediaPreview() = default;
+
+rpl::producer<> SingleMediaPreview::deleteRequests() const {
+	return _deleteMedia->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> SingleMediaPreview::editRequests() const {
+	return _editMedia->clicks() | rpl::to_empty;
+}
 
 void SingleMediaPreview::preparePreview(
 		QImage preview,
@@ -136,7 +145,20 @@ void SingleMediaPreview::preparePreview(
 
 	prepareAnimatedPreview(animatedPreviewPath);
 
-	resize(width(), st::boxPhotoPadding.top() + _previewHeight);
+	resize(width(), _previewHeight);
+}
+
+void SingleMediaPreview::resizeEvent(QResizeEvent *e) {
+	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
+	const auto size = st::sendBoxAlbumGroupHeight;
+	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
+	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
+	const auto groupWidth = size * 2 + skipInternal;
+
+	const auto left = _previewLeft + _previewWidth - groupWidth - skipRight;
+	const auto top = skipTop;
+	_editMedia->move(left, top);
+	_deleteMedia->move(left + size + skipInternal, top);
 }
 
 void SingleMediaPreview::prepareAnimatedPreview(
@@ -190,33 +212,33 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 
 	if (!_sticker) {
 		if (_previewLeft > st::boxPhotoPadding.left()) {
-			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
+			p.fillRect(st::boxPhotoPadding.left(), 0, _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
 		}
 		if (_previewLeft + _previewWidth < width() - st::boxPhotoPadding.right()) {
-			p.fillRect(_previewLeft + _previewWidth, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
+			p.fillRect(_previewLeft + _previewWidth, 0, width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
 		}
 	}
 	if (_gifPreview && _gifPreview->started()) {
 		auto s = QSize(_previewWidth, _previewHeight);
 		auto paused = _gifPaused();
 		auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
-		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
+		p.drawPixmap(_previewLeft, 0, frame);
 	} else if (_lottiePreview && _lottiePreview->ready()) {
 		const auto frame = _lottiePreview->frame();
 		const auto size = frame.size() / style::DevicePixelRatio();
 		p.drawImage(
 			QRect(
 				_previewLeft + (_previewWidth - size.width()) / 2,
-				st::boxPhotoPadding.top() + (_previewHeight - size.height()) / 2,
+				(_previewHeight - size.height()) / 2,
 				size.width(),
 				size.height()),
 			frame);
 		_lottiePreview->markFrameShown();
 	} else {
-		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
+		p.drawPixmap(_previewLeft, 0, _preview);
 	}
 	if (_animated && !_gifPreview && !_lottiePreview) {
-		auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::msgDateImgBg);
 
@@ -228,6 +250,21 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 		auto icon = &st::historyFileInPlay;
 		icon->paintInCenter(p, inner);
 	}
+	paintButtonsBackground(p);
+}
+
+void SingleMediaPreview::paintButtonsBackground(QPainter &p) {
+	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
+	const auto size = st::sendBoxAlbumGroupHeight;
+	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
+	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
+	const auto groupWidth = size * 2 + skipInternal;
+
+	const auto left = _previewLeft + _previewWidth - groupWidth - skipRight;
+	const auto top = skipTop;
+
+	QRect groupRect(left, top, groupWidth, size);
+	_buttonsRect.paint(p, groupRect);
 }
 
 } // namespace Ui

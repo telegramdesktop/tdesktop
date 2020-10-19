@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/widgets/buttons.h"
 #include "ui/image/image_prepare.h"
-#include "ui/cached_round_corners.h"
+#include "base/timer_rpl.h"
 #include "core/mime_type.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
@@ -23,13 +24,30 @@ namespace Ui {
 SingleFilePreview::SingleFilePreview(
 	QWidget *parent,
 	const PreparedFile &file)
-: RpWidget(parent) {
+: RpWidget(parent)
+, _editMedia(this, st::sendBoxAlbumGroupButtonFile)
+, _deleteMedia(this, st::sendBoxAlbumGroupButtonFile) {
 	preparePreview(file);
+
+	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
+	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
 	auto h = _fileThumb.isNull()
 		? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom())
 		: (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
-	resize(width(), st::boxPhotoPadding.top() + h + st::msgShadow);
+	resize(width(), h);
+}
+
+SingleFilePreview::~SingleFilePreview() = default;
+
+rpl::producer<> SingleFilePreview::editRequests() const {
+	return _editMedia->clicks() | rpl::map([] {
+		return base::timer_once(st::historyAttach.ripple.hideDuration);
+	}) | rpl::flatten_latest();
+}
+
+rpl::producer<> SingleFilePreview::deleteRequests() const {
+	return _deleteMedia->clicks() | rpl::to_empty;
 }
 
 void SingleFilePreview::prepareThumb(const QImage &preview) {
@@ -134,9 +152,7 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 		linktop = st::msgFileThumbLinkTop;
 	}
 	auto namewidth = w - nameleft - (_fileThumb.isNull() ? st::msgFilePadding.left() : st::msgFileThumbPadding.left());
-	int32 x = (width() - w) / 2, y = st::boxPhotoPadding.top();
-
-	FillRoundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
+	int32 x = (width() - w) / 2, y = 0;
 
 	if (_fileThumb.isNull()) {
 		QRect inner(style::rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
@@ -166,6 +182,16 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	p.setFont(st::normalFont);
 	p.setPen(status);
 	p.drawTextLeft(x + nameleft, y + statustop, width(), _statusText);
+}
+
+void SingleFilePreview::resizeEvent(QResizeEvent *e) {
+	const auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+	const auto x = (width() - w) / 2;
+	const auto top = st::sendBoxFileGroupSkipTop;
+	auto right = st::sendBoxFileGroupSkipRight + x;
+	_deleteMedia->moveToRight(right, top);
+	right += st::sendBoxFileGroupEditInternalSkip + _deleteMedia->width();
+	_editMedia->moveToRight(right, top);
 }
 
 } // namespace Ui

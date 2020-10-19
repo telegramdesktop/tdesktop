@@ -132,6 +132,7 @@ SendFilesBox::Block::Block(
 			gifPaused,
 			first);
 		if (media) {
+			_isSingleMedia = true;
 			_preview.reset(media);
 		} else {
 			_preview.reset(
@@ -154,19 +155,35 @@ object_ptr<Ui::RpWidget> SendFilesBox::Block::takeWidget() {
 }
 
 rpl::producer<int> SendFilesBox::Block::itemDeleteRequest() const {
-	if (!_isAlbum) {
-		return rpl::never<int>();
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		return album->thumbDeleted() | rpl::map(_1 + _from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->deleteRequests() | rpl::map([=] { return _from; });
+	} else {
+		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
+		return single->deleteRequests() | rpl::map([=] { return _from; });
 	}
-	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
-	return album->thumbDeleted();
 }
 
 rpl::producer<int> SendFilesBox::Block::itemReplaceRequest() const {
-	if (!_isAlbum) {
-		return rpl::never<int>();
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbChanged() | rpl::map(_1 + _from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->editRequests() | rpl::map([=] { return _from; });
+	} else {
+		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
+		return single->editRequests() | rpl::map([=] { return _from; });
 	}
-	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
-	return album->thumbChanged();
 }
 
 void SendFilesBox::Block::setSendWay(Ui::SendFilesWay way) {
@@ -512,7 +529,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 	) | rpl::filter([=] {
 		return !_removingIndex;
 	}) | rpl::start_with_next([=](int index) {
-		_removingIndex = from + index;
+		_removingIndex = index;
 		crl::on_main(this, [=] {
 			const auto index = base::take(_removingIndex).value_or(-1);
 			if (index < 0 || index >= _list.files.size()) {
@@ -529,19 +546,19 @@ void SendFilesBox::pushBlock(int from, int till) {
 			if (list.files.empty()) {
 				return;
 			}
-			_list.files[from + index] = std::move(list.files.front());
+			_list.files[index] = std::move(list.files.front());
 			refreshAllAfterChanges(from);
 		};
 		const auto checkResult = [=](const Ui::PreparedList &list) {
 			if (_sendLimit != SendLimit::One) {
 				return true;
 			}
-			auto removing = std::move(_list.files[from + index]);
-			std::swap(_list.files[from + index], _list.files.back());
+			auto removing = std::move(_list.files[index]);
+			std::swap(_list.files[index], _list.files.back());
 			_list.files.pop_back();
 			const auto result = _list.canBeSentInSlowmodeWith(list);
 			_list.files.push_back(std::move(removing));
-			std::swap(_list.files[from + index], _list.files.back());
+			std::swap(_list.files[index], _list.files.back());
 			if (!result) {
 				Ui::Toast::Show(tr::lng_slowmode_no_many(tr::now));
 				return false;

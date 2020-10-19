@@ -8,21 +8,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 
 struct PreparedFile;
+class IconButton;
 
 class SingleFilePreview final : public RpWidget {
 public:
 	SingleFilePreview(
 		QWidget *parent,
 		const PreparedFile &file);
+	~SingleFilePreview();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+	[[nodiscard]] rpl::producer<> deleteRequests() const;
+	[[nodiscard]] rpl::producer<> editRequests() const;
 
 private:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
 	void preparePreview(const PreparedFile &file);
 	void prepareThumb(const QImage &preview);
 
@@ -32,6 +38,9 @@ private:
 	bool _fileIsImage = false;
 	QString _statusText;
 	int _statusWidth = 0;
+
+	object_ptr<IconButton> _editMedia = { nullptr };
+	object_ptr<IconButton> _deleteMedia = { nullptr };
 
 };
 

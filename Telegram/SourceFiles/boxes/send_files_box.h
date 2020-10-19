@@ -112,6 +112,7 @@ private:
 		int _from = 0;
 		int _till = 0;
 		bool _isAlbum = false;
+		bool _isSingleMedia = false;
 
 	};
 	void initSendWay();

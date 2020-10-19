@@ -89,8 +89,8 @@ private:
 
 	QRect _lastRectOfButtons;
 
-	object_ptr<IconButton> _editMedia = nullptr;
-	object_ptr<IconButton> _deleteMedia = nullptr;
+	object_ptr<IconButton> _editMedia = { nullptr };
+	object_ptr<IconButton> _deleteMedia = { nullptr };
 
 };
 
