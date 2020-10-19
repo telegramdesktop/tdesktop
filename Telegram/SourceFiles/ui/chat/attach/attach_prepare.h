@@ -92,6 +92,9 @@ struct PreparedList {
 	[[nodiscard]] bool canBeSentInSlowmodeWith(
 		const PreparedList &other) const;
 
+	[[nodiscard]] bool hasGroupOption(bool slowmode) const;
+	[[nodiscard]] bool hasSendImagesAsPhotosOption(bool slowmode) const;
+
 	Error error = Error::None;
 	QString errorData;
 	std::vector<PreparedFile> files;

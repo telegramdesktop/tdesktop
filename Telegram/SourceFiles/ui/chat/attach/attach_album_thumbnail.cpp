@@ -52,7 +52,8 @@ AlbumThumbnail::AlbumThumbnail(
 		imageWidth,
 		imageHeight));
 
-	const auto idealSize = st::sendMediaFileThumbSize * style::DevicePixelRatio();
+	const auto &st = st::attachPreviewThumbLayout;
+	const auto idealSize = st.thumbSize * style::DevicePixelRatio();
 	const auto fileThumbSize = (previewWidth > previewHeight)
 		? QSize(previewWidth * idealSize / previewHeight, idealSize)
 		: QSize(idealSize, previewHeight * idealSize / previewWidth);
@@ -61,13 +62,13 @@ AlbumThumbnail::AlbumThumbnail(
 		fileThumbSize.width(),
 		fileThumbSize.height(),
 		Option::RoundedSmall | Option::RoundedAll,
-		st::sendMediaFileThumbSize,
-		st::sendMediaFileThumbSize
+		st.thumbSize,
+		st.thumbSize
 	));
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
-		- st::sendMediaFileThumbSkip
-		- st::sendMediaFileThumbSize
+		- st.thumbSize
+		- st.padding.right()
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
@@ -124,8 +125,8 @@ void AlbumThumbnail::updateFileRow(int row) {
 	_editMedia->show();
 	_deleteMedia->show();
 
-	const auto fileHeight = st::sendMediaFileThumbSize
-		+ st::sendMediaFileThumbSkip;
+	const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
+		+ st::sendMediaRowSkip;
 
 	const auto top = row * fileHeight + st::sendBoxFileGroupSkipTop;
 	const auto size = st::editMediaButtonSize;
@@ -213,11 +214,12 @@ void AlbumThumbnail::paintInAlbum(
 		p.drawPixmap(x, y, _albumImage);
 	}
 	if (_isVideo) {
+		const auto innerSize = st::msgFileLayout.thumbSize;
 		const auto inner = QRect(
-			x + (geometry.width() - st::msgFileSize) / 2,
-			y + (geometry.height() - st::msgFileSize) / 2,
-			st::msgFileSize,
-			st::msgFileSize);
+			x + (geometry.width() - innerSize) / 2,
+			y + (geometry.height() - innerSize) / 2,
+			innerSize,
+			innerSize);
 		{
 			PainterHighQualityEnabler hq(p);
 			p.setPen(Qt::NoPen);
@@ -394,16 +396,15 @@ void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 }
 
 void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
-	const auto textLeft = left
-		+ st::sendMediaFileThumbSize
-		+ st::sendMediaFileThumbSkip;
+	const auto &st = st::attachPreviewThumbLayout;
+	const auto textLeft = left + st.thumbSize + st.padding.right();
 
 	p.drawPixmap(left, top, _fileThumb);
 	p.setFont(st::semiboldFont);
 	p.setPen(st::historyFileNameInFg);
 	p.drawTextLeft(
 		textLeft,
-		top + st::sendMediaFileNameTop,
+		top + st.nameTop,
 		outerWidth,
 		_name,
 		_nameWidth);
@@ -411,7 +412,7 @@ void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
 	p.setPen(st::mediaInFg);
 	p.drawTextLeft(
 		textLeft,
-		top + st::sendMediaFileStatusTop,
+		top + st.statusTop,
 		outerWidth,
 		_status,
 		_statusWidth);

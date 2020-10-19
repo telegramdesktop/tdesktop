@@ -134,10 +134,11 @@ private:
 	bool updateStatusText() const; // returns showPause
 
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerDownload(Painter &p, bool selected) const;
+	void drawCornerDownload(Painter &p, bool selected, LayoutMode mode) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
-		StateRequest request) const;
+		StateRequest request,
+		LayoutMode mode) const;
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;

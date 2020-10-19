@@ -126,6 +126,34 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	return !hasFiles && !hasNotGrouped;
 }
 
+bool PreparedList::hasGroupOption(bool slowmode) const {
+	if (slowmode || files.size() < 2) {
+		return false;
+	}
+	using Type = PreparedFile::AlbumType;
+	auto lastType = Type::None;
+	for (const auto &file : files) {
+		if ((file.type == lastType)
+			|| (file.type == Type::Video && lastType == Type::Photo)
+			|| (file.type == Type::Photo && lastType == Type::Video)
+			|| (file.type == Type::File && lastType == Type::Photo)
+			|| (file.type == Type::Photo && lastType == Type::File)) {
+			if (lastType != Type::None) {
+				return true;
+			}
+		}
+		lastType = file.type;
+	}
+	return false;
+}
+
+bool PreparedList::hasSendImagesAsPhotosOption(bool slowmode) const {
+	using Type = PreparedFile::AlbumType;
+	return slowmode
+		? ((files.size() == 1) && (files.front().type == Type::Photo))
+		: ranges::contains(files, Type::Photo, &PreparedFile::type);
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }

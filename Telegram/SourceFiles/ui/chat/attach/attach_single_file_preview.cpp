@@ -32,10 +32,10 @@ SingleFilePreview::SingleFilePreview(
 	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
-	const auto h = _fileThumb.isNull()
-		? st::msgFileSize
-		: st::sendMediaFileThumbSize;
-	resize(width(), h);
+	const auto &st = _fileThumb.isNull()
+		? st::attachPreviewLayout
+		: st::attachPreviewThumbLayout;
+	resize(width(), st.thumbSize);
 }
 
 SingleFilePreview::~SingleFilePreview() = default;
@@ -57,10 +57,10 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 
 	auto originalWidth = preview.width();
 	auto originalHeight = preview.height();
-	auto thumbWidth = st::sendMediaFileThumbSize;
+	const auto &st = st::attachPreviewThumbLayout;
+	auto thumbWidth = st.thumbSize;
 	if (originalWidth > originalHeight) {
-		thumbWidth = (originalWidth * st::sendMediaFileThumbSize)
-			/ originalHeight;
+		thumbWidth = (originalWidth * st.thumbSize) / originalHeight;
 	}
 	auto options = Images::Option::Smooth
 		| Images::Option::RoundedSmall
@@ -73,8 +73,8 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 		thumbWidth * style::DevicePixelRatio(),
 		0,
 		options,
-		st::sendMediaFileThumbSize,
-		st::sendMediaFileThumbSize));
+		st.thumbSize,
+		st.thumbSize));
 }
 
 void SingleFilePreview::preparePreview(const PreparedFile &file) {
@@ -117,9 +117,15 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 		_name = ComposeNameString(filename, songTitle, songPerformer);
 		_statusText = FormatSizeText(fileinfo.size());
 	}
+	const auto &st = _fileThumb.isNull()
+		? st::attachPreviewLayout
+		: st::attachPreviewThumbLayout;
+	const auto nameleft = st.thumbSize + st.padding.right();
+	const auto nametop = st.nameTop;
+	const auto statustop = st.statusTop;
 	const auto availableFileWidth = st::sendMediaPreviewSize
-		- st::sendMediaFileThumbSkip
-		- st::sendMediaFileThumbSize
+		- st.thumbSize
+		- st.padding.right()
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
@@ -139,21 +145,17 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-	auto h = _fileThumb.isNull() ? st::msgFileSize : st::sendMediaFileThumbSize;
-	auto nameleft = 0, nametop = 0, statustop = 0;
-	if (_fileThumb.isNull()) {
-		nameleft = st::msgFileSize + st::msgFilePadding.right();
-		nametop = st::msgFileNameTop - st::msgFilePadding.top();
-		statustop = st::msgFileStatusTop - st::msgFilePadding.top();
-	} else {
-		nameleft = st::sendMediaFileThumbSize + st::sendMediaFileThumbSkip;
-		nametop = st::sendMediaFileNameTop;
-		statustop = st::sendMediaFileStatusTop;
-	}
+	auto h = height();
+	const auto &st = _fileThumb.isNull()
+		? st::attachPreviewLayout
+		: st::attachPreviewThumbLayout;
+	const auto nameleft = st.thumbSize + st.padding.right();
+	const auto nametop = st.nameTop;
+	const auto statustop = st.statusTop;
 	const auto x = (width() - w) / 2, y = 0;
 
 	if (_fileThumb.isNull()) {
-		QRect inner(style::rtlrect(x, y, st::msgFileSize, st::msgFileSize, width()));
+		QRect inner(style::rtlrect(x, y, st.thumbSize, st.thumbSize, width()));
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::msgFileInBg);
 
@@ -169,7 +171,7 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 			: st::historyFileInDocument;
 		icon.paintInCenter(p, inner);
 	} else {
-		QRect rthumb(style::rtlrect(x, y, st::sendMediaFileThumbSize, st::sendMediaFileThumbSize, width()));
+		QRect rthumb(style::rtlrect(x, y, st.thumbSize, st.thumbSize, width()));
 		p.drawPixmap(rthumb.topLeft(), _fileThumb);
 	}
 	p.setFont(st::semiboldFont);

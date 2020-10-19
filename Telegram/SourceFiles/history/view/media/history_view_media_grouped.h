@@ -139,6 +139,7 @@ private:
 		StateRequest request) const;
 
 	[[nodiscard]] RectParts cornersFromSides(RectParts sides) const;
+	[[nodiscard]] QMargins groupedPadding() const;
 
 	Ui::Text::String _caption;
 	std::vector<Part> _parts;

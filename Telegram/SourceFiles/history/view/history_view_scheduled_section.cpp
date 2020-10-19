@@ -407,7 +407,7 @@ void ScheduledWidget::sendingFilesConfirmed(
 	auto action = Api::SendAction(_history);
 	action.options = options;
 	action.clearDraft = false;
-	if (groups.size() > 1 && !caption.text.isEmpty()) {
+	if ((groups.empty() || groups.size() > 1) && !caption.text.isEmpty()) {
 		auto message = Api::MessageToSend(_history);
 		message.textWithTags = base::take(caption);
 		message.action = action;

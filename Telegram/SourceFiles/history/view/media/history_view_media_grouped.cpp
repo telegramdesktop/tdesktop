@@ -148,6 +148,10 @@ QSize GroupedMedia::countOptimalSize() {
 			minHeight += st::msgPadding.bottom();
 		}
 	}
+
+	const auto groupPadding = groupedPadding();
+	minHeight += groupPadding.top() + groupPadding.bottom();
+
 	return { maxWidth, minHeight };
 }
 
@@ -207,6 +211,9 @@ QSize GroupedMedia::countCurrentSize(int newWidth) {
 		}
 	}
 
+	const auto groupPadding = groupedPadding();
+	newHeight += groupPadding.top() + groupPadding.bottom();
+
 	return { newWidth, newHeight };
 }
 
@@ -228,11 +235,26 @@ RectParts GroupedMedia::cornersFromSides(RectParts sides) const {
 	return result;
 }
 
+QMargins GroupedMedia::groupedPadding() const {
+	if (_mode != Mode::Column) {
+		return QMargins();
+	}
+	const auto normal = st::msgFileLayout.padding;
+	const auto grouped = st::msgFileLayoutGrouped.padding;
+	const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+	return QMargins(
+		0,
+		(normal.top() - grouped.top()) - topMinus,
+		0,
+		(normal.bottom() - grouped.bottom()));
+}
+
 void GroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
 		crl::time ms) const {
+	const auto groupPadding = groupedPadding();
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto partSelection = (selection == FullSelection)
@@ -246,7 +268,7 @@ void GroupedMedia::draw(
 			clip,
 			partSelection,
 			ms,
-			part.geometry,
+			part.geometry.translated(0, groupPadding.top()),
 			part.sides,
 			cornersFromSides(part.sides),
 			&part.cacheKey,
@@ -260,6 +282,7 @@ void GroupedMedia::draw(
 		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
 		const auto outbg = _parent->hasOutLayout();
 		const auto captiony = height()
+			- groupPadding.bottom()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
@@ -303,6 +326,8 @@ PointState GroupedMedia::pointState(QPoint point) const {
 	if (!QRect(0, 0, width(), height()).contains(point)) {
 		return PointState::Outside;
 	}
+	const auto groupPadding = groupedPadding();
+	point -=  QPoint(0, groupPadding.top());
 	for (const auto &part : _parts) {
 		if (part.geometry.contains(point)) {
 			return PointState::GroupPart;
@@ -312,10 +337,12 @@ PointState GroupedMedia::pointState(QPoint point) const {
 }
 
 TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
-	auto result = getPartState(point, request);
+	const auto groupPadding = groupedPadding();
+	auto result = getPartState(point - QPoint(0, groupPadding.top()), request);
 	if (!result.link && !_caption.isEmpty()) {
 		const auto captionw = width() - st::msgPadding.left() - st::msgPadding.right();
 		const auto captiony = height()
+			- groupPadding.bottom()
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
 			- _caption.countHeight(captionw);
 		if (QRect(st::msgPadding.left(), captiony, captionw, height() - captiony).contains(point)) {
@@ -394,6 +421,14 @@ auto GroupedMedia::getBubbleSelectionIntervals(
 				geometry.top() + geometry.height() - newTop);
 			last = BubbleSelectionInterval{ newTop, newHeight };
 		}
+	}
+	const auto groupPadding = groupedPadding();
+	for (auto &part : result) {
+		part.top += groupPadding.top();
+	}
+	if (IsGroupItemSelection(selection, 0)) {
+		result.front().top -= groupPadding.top();
+		result.front().height += groupPadding.top();
 	}
 	if (IsGroupItemSelection(selection, _parts.size() - 1)) {
 		result.back().height = height() - result.back().top;

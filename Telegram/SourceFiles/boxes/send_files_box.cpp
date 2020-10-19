@@ -527,7 +527,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 	auto &block = _blocks.back();
 	const auto widget = _inner->add(
 		block.takeWidget(),
-		QMargins(0, _inner->count() ? st::sendMediaFileThumbSkip : 0, 0, 0));
+		QMargins(0, _inner->count() ? st::sendMediaRowSkip : 0, 0, 0));
 
 	block.itemDeleteRequest(
 	) | rpl::filter([=] {
@@ -590,15 +590,14 @@ void SendFilesBox::refreshControls() {
 }
 
 void SendFilesBox::setupSendWayControls() {
-	// #TODO files
 	_groupFiles.create(
 		this,
-		"Group items",
+		tr::lng_send_grouped(tr::now),
 		_sendWay.current().groupFiles(),
 		st::defaultBoxCheckbox);
 	_sendImagesAsPhotos.create(
 		this,
-		"Compress images",
+		tr::lng_send_compressed(tr::now),
 		_sendWay.current().sendImagesAsPhotos(),
 		st::defaultBoxCheckbox);
 
@@ -628,8 +627,9 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 		return;
 	}
 	const auto onlyOne = (_sendLimit == SendLimit::One);
-	_groupFiles->setVisible(!onlyOne);
-	_sendImagesAsPhotos->setVisible(/*_list.hasImagesForCompression()*/true); // #TODO files
+	_groupFiles->setVisible(_list.hasGroupOption(onlyOne));
+	_sendImagesAsPhotos->setVisible(
+		_list.hasSendImagesAsPhotosOption(onlyOne));
 }
 
 void SendFilesBox::setupCaption() {
@@ -821,7 +821,7 @@ void SendFilesBox::refreshTitleText() {
 		_titleHeight = st::boxTitleHeight;
 	} else {
 		_titleText = QString();
-		_titleHeight = st::boxPhotoPadding.top();
+		_titleHeight = count ? st::boxPhotoPadding.top() : 0;
 	}
 }
 

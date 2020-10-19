@@ -713,11 +713,7 @@ groupStickersSubTitleHeight: 36px;
 
 sendMediaPreviewSize: 308px;
 sendMediaPreviewHeightMax: 1280;
-sendMediaPreviewPhotoSkip: 10px;
-sendMediaFileThumbSize: 64px;
-sendMediaFileThumbSkip: 10px;
-sendMediaFileNameTop: 7px;
-sendMediaFileStatusTop: 37px;
+sendMediaRowSkip: 10px;
 
 proxyUsePadding: margins(22px, 6px, 22px, 5px);
 proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);

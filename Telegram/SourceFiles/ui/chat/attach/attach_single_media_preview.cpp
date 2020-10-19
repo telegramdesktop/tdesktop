@@ -240,7 +240,8 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(_previewLeft, 0, _preview);
 	}
 	if (_animated && !_gifPreview && !_lottiePreview) {
-		auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		const auto innerSize = st::msgFileLayout.thumbSize;
+		auto inner = QRect(_previewLeft + (_previewWidth - innerSize) / 2, (_previewHeight - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::msgDateImgBg);
 

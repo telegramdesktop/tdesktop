@@ -112,10 +112,11 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		_thumbs
 	) | ranges::view::transform([](const auto &thumb) {
 		return thumb->photoHeight();
-	}), 0) + (count - 1) * st::sendMediaPreviewPhotoSkip;
+	}), 0) + (count - 1) * st::sendMediaRowSkip;
 
-	_filesHeight = count * st::sendMediaFileThumbSize
-		+ (count - 1) * st::sendMediaFileThumbSkip;
+	const auto &st = st::attachPreviewThumbLayout;
+	_filesHeight = count * st.thumbSize
+		+ (count - 1) * st::sendMediaRowSkip;
 }
 
 int AlbumPreview::contentLeft() const {
@@ -131,16 +132,14 @@ AlbumThumbnail *AlbumPreview::findThumb(QPoint position) const {
 
 	auto top = 0;
 	const auto isPhotosWay = _sendWay.sendImagesAsPhotos();
-	const auto skip = isPhotosWay
-		? st::sendMediaPreviewPhotoSkip
-		: st::sendMediaFileThumbSkip;
+	const auto skip = st::sendMediaRowSkip;
 	auto find = [&](const auto &thumb) {
 		if (_sendWay.groupFiles() && _sendWay.sendImagesAsPhotos()) {
 			return thumb->containsPoint(position);
 		} else {
 			const auto bottom = top + (isPhotosWay
 				? thumb->photoHeight()
-				: st::sendMediaFileThumbSize);
+				: st::attachPreviewThumbLayout.thumbSize);
 			const auto isUnderTop = (position.y() > top);
 			top = bottom + skip;
 			return isUnderTop && (position.y() < bottom);
@@ -304,7 +303,7 @@ void AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 	for (const auto &thumb : _thumbs) {
 		const auto bottom = top + thumb->photoHeight();
 		const auto guard = gsl::finally([&] {
-			top = bottom + st::sendMediaPreviewPhotoSkip;
+			top = bottom + st::sendMediaRowSkip;
 		});
 		if (top >= clip.y() + clip.height()) {
 			break;
@@ -316,8 +315,8 @@ void AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 }
 
 void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
-	const auto fileHeight = st::sendMediaFileThumbSize
-		+ st::sendMediaFileThumbSkip;
+	const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
+		+ st::sendMediaRowSkip;
 	const auto bottom = clip.y() + clip.height();
 	const auto from = std::clamp(clip.y() / fileHeight, 0, int(_thumbs.size()));
 	const auto till = std::clamp((bottom + fileHeight - 1) / fileHeight, 0, int(_thumbs.size()));

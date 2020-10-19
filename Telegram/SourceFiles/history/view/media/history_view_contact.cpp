@@ -120,30 +120,25 @@ QSize Contact::countOptimalSize() {
 	}
 	_linkw = _link.isEmpty() ? 0 : st::semiboldFont->width(_link);
 
-	auto tleft = 0;
-	auto tright = 0;
+	const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
+
+	const auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto tright = st.padding.left();
 	if (_userId) {
-		tleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		tright = st::msgFileThumbPadding.left();
 		accumulate_max(maxWidth, tleft + _phonew + tright);
 	} else {
-		tleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		tright = st::msgFileThumbPadding.left();
 		accumulate_max(maxWidth, tleft + _phonew + _parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
 	accumulate_max(maxWidth, tleft + _name.maxWidth() + tright);
 	accumulate_min(maxWidth, st::msgMaxWidth);
-	auto minHeight = 0;
+	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
 	if (_userId) {
-		minHeight = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
 		const auto msgsigned = item->Get<HistoryMessageSigned>();
 		if ((msgsigned && !msgsigned->isAnonymousRank)
 			|| item->Has<HistoryMessageViews>()) {
 			minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 		}
-	} else {
-		minHeight = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
 	if (!isBubbleTop()) {
 		minHeight -= st::msgFileTopMinus;
@@ -160,24 +155,23 @@ void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 
 	accumulate_min(paintw, maxWidth());
 
-	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
-	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+	const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
+	const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nametop = st.nameTop - topMinus;
+	const auto nameright = st.padding.left();
+	const auto statustop = st.statusTop - topMinus;
+	const auto linktop = st.linkTop - topMinus;
 	if (_userId) {
-		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::msgFileThumbNameTop - topMinus;
-		nameright = st::msgFileThumbPadding.left();
-		statustop = st::msgFileThumbStatusTop - topMinus;
-		linktop = st::msgFileThumbLinkTop - topMinus;
-
-		QRect rthumb(style::rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, paintw));
+		QRect rthumb(style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, paintw));
 		if (_contact) {
 			const auto was = (_userpic != nullptr);
-			_contact->paintUserpic(p, _userpic, rthumb.x(), rthumb.y(), st::msgFileThumbSize);
+			_contact->paintUserpic(p, _userpic, rthumb.x(), rthumb.y(), st.thumbSize);
 			if (!was && _userpic) {
 				history()->owner().registerHeavyViewPart(_parent);
 			}
 		} else {
-			_photoEmpty->paint(p, st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, paintw, st::msgFileThumbSize);
+			_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
 		}
 		if (selected) {
 			PainterHighQualityEnabler hq(p);
@@ -191,14 +185,9 @@ void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		p.setPen(outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg));
 		p.drawTextLeft(nameleft, linktop, paintw, _link, _linkw);
 	} else {
-		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		nametop = st::msgFileNameTop - topMinus;
-		nameright = st::msgFilePadding.left();
-		statustop = st::msgFileStatusTop - topMinus;
-
-		_photoEmpty->paint(p, st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, paintw, st::msgFileSize);
+		_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
 	}
-	auto namewidth = paintw - nameleft - nameright;
+	const auto namewidth = paintw - nameleft - nameright;
 
 	p.setFont(st::semiboldFont);
 	p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
@@ -213,11 +202,11 @@ void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 TextState Contact::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
-	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
-	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 	if (_userId) {
-		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		linktop = st::msgFileThumbLinkTop - topMinus;
+		const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
+		const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+		const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+		const auto linktop = st.linkTop - topMinus;
 		if (style::rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, width()).contains(point)) {
 			result.link = _linkl;
 			return result;

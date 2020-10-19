@@ -86,7 +86,7 @@ void Call::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 
 	nameleft = st::historyCallLeft;
 	nametop = st::historyCallTop - topMinus;
-	nameright = st::msgFilePadding.left();
+	nameright = st::msgFileLayout.padding.left();
 	statustop = st::historyCallStatusTop - topMinus;
 
 	auto namewidth = paintw - nameleft - nameright;

@@ -1525,9 +1525,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_files_selected#other" = "{count} files selected";
 "lng_send_files#one" = "Send {count} file";
 "lng_send_files#other" = "Send {count} files";
-"lng_send_album" = "Send as an album";
-"lng_send_photo" = "Send as a photo";
-"lng_send_file" = "Send as a file";
+"lng_send_grouped" = "Group items";
+"lng_send_compressed" = "Compress images";
 "lng_send_media_invalid_files" = "Sorry, no valid files found.";
 
 "lng_forward_choose" = "Choose recipient...";
