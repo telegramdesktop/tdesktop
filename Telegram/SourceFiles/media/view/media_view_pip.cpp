@@ -706,29 +706,35 @@ void PipPanel::mouseMoveEvent(QMouseEvent *e) {
 	if (!_dragState
 		&& (point - _pressPoint).manhattanLength() > distance
 		&& !_dragDisabled) {
-		if (Platform::IsWayland()) {
-			const auto stateEdges = RectPartToQtEdges(*_pressState);
-			if (stateEdges) {
-				if (!Platform::StartSystemResize(windowHandle(), stateEdges)) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-					windowHandle()->startSystemResize(stateEdges);
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-				}
-			} else {
-				if (!Platform::StartSystemMove(windowHandle())) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-					windowHandle()->startSystemMove();
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-				}
-			}
-			return;
-		}
 		_dragState = _pressState;
 		updateDecorations();
 		_dragStartGeometry = geometry().marginsRemoved(_padding);
 	}
 	if (_dragState) {
-		processDrag(point);
+		if (Platform::IsWayland()) {
+			startSystemDrag();
+		} else {
+			processDrag(point);
+		}
+	}
+}
+
+void PipPanel::startSystemDrag() {
+	Expects(_dragState.has_value());
+
+	const auto stateEdges = RectPartToQtEdges(*_dragState);
+	if (stateEdges) {
+		if (!Platform::StartSystemResize(windowHandle(), stateEdges)) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+			windowHandle()->startSystemResize(stateEdges);
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+		}
+	} else {
+		if (!Platform::StartSystemMove(windowHandle())) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
+			windowHandle()->startSystemMove();
+#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
+		}
 	}
 }
 
@@ -783,6 +789,9 @@ void PipPanel::finishDrag(QPoint point) {
 	const auto position = pos();
 	const auto clamped = [&] {
 		auto result = position;
+		if (Platform::IsWayland()) {
+			return result;
+		}
 		if (result.x() > screen.x() + screen.width() - inner.width()) {
 			result.setX(screen.x() + screen.width() - inner.width());
 		}
