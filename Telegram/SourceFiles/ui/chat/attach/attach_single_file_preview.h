@@ -33,11 +33,12 @@ private:
 	void prepareThumb(const QImage &preview);
 
 	QPixmap _fileThumb;
-	Text::String _nameText;
+	QString _name;
+	QString _statusText;
+	int _nameWidth = 0;
+	int _statusWidth = 0;
 	bool _fileIsAudio = false;
 	bool _fileIsImage = false;
-	QString _statusText;
-	int _statusWidth = 0;
 
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };

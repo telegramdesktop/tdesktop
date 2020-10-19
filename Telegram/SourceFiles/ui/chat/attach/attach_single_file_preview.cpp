@@ -32,9 +32,9 @@ SingleFilePreview::SingleFilePreview(
 	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
-	auto h = _fileThumb.isNull()
-		? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom())
-		: (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
+	const auto h = _fileThumb.isNull()
+		? st::msgFileSize
+		: st::sendMediaFileThumbSize;
 	resize(width(), h);
 }
 
@@ -57,9 +57,9 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 
 	auto originalWidth = preview.width();
 	auto originalHeight = preview.height();
-	auto thumbWidth = st::msgFileThumbSize;
+	auto thumbWidth = st::sendMediaFileThumbSize;
 	if (originalWidth > originalHeight) {
-		thumbWidth = (originalWidth * st::msgFileThumbSize)
+		thumbWidth = (originalWidth * st::sendMediaFileThumbSize)
 			/ originalHeight;
 	}
 	auto options = Images::Option::Smooth
@@ -73,8 +73,8 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 		thumbWidth * style::DevicePixelRatio(),
 		0,
 		options,
-		st::msgFileThumbSize,
-		st::msgFileThumbSize));
+		st::sendMediaFileThumbSize,
+		st::sendMediaFileThumbSize));
 }
 
 void SingleFilePreview::preparePreview(const PreparedFile &file) {
@@ -95,12 +95,8 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 		//	QString(),
 		//	true); // #TODO files
 		auto filename = "image.png";
-		_nameText.setText(
-			st::semiboldTextStyle,
-			filename,
-			NameTextOptions());
+		_name = filename;
 		_statusText = u"%1x%2"_q.arg(preview.width()).arg(preview.height());
-		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 		_fileIsImage = true;
 	} else {
 		auto fileinfo = QFileInfo(filepath);
@@ -118,46 +114,48 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 			}
 		}
 
-		const auto nameString = ComposeNameString(
-			filename,
-			songTitle,
-			songPerformer);
-		_nameText.setText(
-			st::semiboldTextStyle,
-			nameString,
-			NameTextOptions());
+		_name = ComposeNameString(filename, songTitle, songPerformer);
 		_statusText = FormatSizeText(fileinfo.size());
-		_statusWidth = qMax(
-			_nameText.maxWidth(),
-			st::normalFont->width(_statusText));
 	}
+	const auto availableFileWidth = st::sendMediaPreviewSize
+		- st::sendMediaFileThumbSkip
+		- st::sendMediaFileThumbSize
+		// Right buttons.
+		- st::sendBoxAlbumGroupButtonFile.width * 2
+		- st::sendBoxAlbumGroupEditInternalSkip * 2
+		- st::sendBoxAlbumGroupSkipRight;
+	_nameWidth = st::semiboldFont->width(_name);
+	if (_nameWidth > availableFileWidth) {
+		_name = st::semiboldFont->elided(
+			_name,
+			availableFileWidth,
+			Qt::ElideMiddle);
+		_nameWidth = st::semiboldFont->width(_name);
+	}
+	_statusWidth = st::normalFont->width(_statusText);
 }
 
 void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-	auto h = _fileThumb.isNull() ? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom()) : (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
-	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
+	auto h = _fileThumb.isNull() ? st::msgFileSize : st::sendMediaFileThumbSize;
+	auto nameleft = 0, nametop = 0, statustop = 0;
 	if (_fileThumb.isNull()) {
-		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		nametop = st::msgFileNameTop;
-		nameright = st::msgFilePadding.left();
-		statustop = st::msgFileStatusTop;
+		nameleft = st::msgFileSize + st::msgFilePadding.right();
+		nametop = st::msgFileNameTop - st::msgFilePadding.top();
+		statustop = st::msgFileStatusTop - st::msgFilePadding.top();
 	} else {
-		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
-		nametop = st::msgFileThumbNameTop;
-		nameright = st::msgFileThumbPadding.left();
-		statustop = st::msgFileThumbStatusTop;
-		linktop = st::msgFileThumbLinkTop;
+		nameleft = st::sendMediaFileThumbSize + st::sendMediaFileThumbSkip;
+		nametop = st::sendMediaFileNameTop;
+		statustop = st::sendMediaFileStatusTop;
 	}
-	auto namewidth = w - nameleft - (_fileThumb.isNull() ? st::msgFilePadding.left() : st::msgFileThumbPadding.left());
-	int32 x = (width() - w) / 2, y = 0;
+	const auto x = (width() - w) / 2, y = 0;
 
 	if (_fileThumb.isNull()) {
-		QRect inner(style::rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+		QRect inner(style::rtlrect(x, y, st::msgFileSize, st::msgFileSize, width()));
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgFileOutBg);
+		p.setBrush(st::msgFileInBg);
 
 		{
 			PainterHighQualityEnabler hq(p);
@@ -165,23 +163,22 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 		}
 
 		auto &icon = _fileIsAudio
-			? st::historyFileOutPlay
+			? st::historyFileInPlay
 			: _fileIsImage
-			? st::historyFileOutImage
-			: st::historyFileOutDocument;
+			? st::historyFileInImage
+			: st::historyFileInDocument;
 		icon.paintInCenter(p, inner);
 	} else {
-		QRect rthumb(style::rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
+		QRect rthumb(style::rtlrect(x, y, st::sendMediaFileThumbSize, st::sendMediaFileThumbSize, width()));
 		p.drawPixmap(rthumb.topLeft(), _fileThumb);
 	}
 	p.setFont(st::semiboldFont);
-	p.setPen(st::historyFileNameOutFg);
-	_nameText.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
+	p.setPen(st::historyFileNameInFg);
+	p.drawTextLeft(x + nameleft, y + nametop, width(), _name, _nameWidth);
 
-	auto &status = st::mediaOutFg;
 	p.setFont(st::normalFont);
-	p.setPen(status);
-	p.drawTextLeft(x + nameleft, y + statustop, width(), _statusText);
+	p.setPen(st::mediaInFg);
+	p.drawTextLeft(x + nameleft, y + statustop, width(), _statusText, _statusWidth);
 }
 
 void SingleFilePreview::resizeEvent(QResizeEvent *e) {

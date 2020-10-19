@@ -155,7 +155,9 @@ void SingleMediaPreview::resizeEvent(QResizeEvent *e) {
 	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
 	const auto groupWidth = size * 2 + skipInternal;
 
-	const auto left = _previewLeft + _previewWidth - groupWidth - skipRight;
+	const auto right = (st::boxWideWidth - st::sendMediaPreviewSize) / 2
+		+ st::sendMediaPreviewSize;
+	const auto left = right - groupWidth - skipRight;
 	const auto top = skipTop;
 	_editMedia->move(left, top);
 	_deleteMedia->move(left + size + skipInternal, top);
@@ -259,8 +261,9 @@ void SingleMediaPreview::paintButtonsBackground(QPainter &p) {
 	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
 	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
 	const auto groupWidth = size * 2 + skipInternal;
-
-	const auto left = _previewLeft + _previewWidth - groupWidth - skipRight;
+	const auto right = (st::boxWideWidth - st::sendMediaPreviewSize) / 2
+		+ st::sendMediaPreviewSize;
+	const auto left = right - groupWidth - skipRight;
 	const auto top = skipTop;
 
 	QRect groupRect(left, top, groupWidth, size);

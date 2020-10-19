@@ -233,6 +233,7 @@ SendFilesBox::SendFilesBox(
 	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _sendType(sendType)
+, _titleHeight(st::boxTitleHeight)
 , _list(std::move(list))
 , _sendLimit(limit)
 , _sendMenuType(sendMenuType)
@@ -262,7 +263,8 @@ void SendFilesBox::initPreview() {
 	rpl::combine(
 		_inner->heightValue(),
 		_footerHeight.value(),
-		_titleHeight + _1 + _2
+		_titleHeight.value(),
+		_1 + _2 + _3
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
@@ -523,7 +525,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 		gifPaused,
 		_sendWay.current());
 	auto &block = _blocks.back();
-	const auto widget = _inner->add(block.takeWidget());
+	const auto widget = _inner->add(
+		block.takeWidget(),
+		QMargins(0, _inner->count() ? st::sendMediaFileThumbSkip : 0, 0, 0));
 
 	block.itemDeleteRequest(
 	) | rpl::filter([=] {
@@ -817,7 +821,7 @@ void SendFilesBox::refreshTitleText() {
 		_titleHeight = st::boxTitleHeight;
 	} else {
 		_titleText = QString();
-		_titleHeight = 0;
+		_titleHeight = st::boxPhotoPadding.top();
 	}
 }
 
@@ -859,11 +863,11 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 	if (!_titleText.isEmpty()) {
 		Painter p(this);
 
-		p.setFont(st::boxPhotoTitleFont);
+		p.setFont(st::boxTitleFont);
 		p.setPen(st::boxTitleFg);
 		p.drawTextLeft(
 			st::boxPhotoTitlePosition.x(),
-			st::boxPhotoTitlePosition.y(),
+			st::boxTitlePosition.y(),
 			width(),
 			_titleText);
 	}
@@ -889,6 +893,7 @@ void SendFilesBox::updateControlsGeometry() {
 					+ st::sendMediaPreviewSize
 					- _emojiToggle->width()),
 				_caption->y() + st::boxAttachEmojiTop);
+			_emojiToggle->update();
 		}
 	}
 	const auto pointers = {
@@ -903,8 +908,8 @@ void SendFilesBox::updateControlsGeometry() {
 			bottom -= st::boxPhotoCompressedSkip + pointer->heightNoMargins();
 		}
 	}
-	_scroll->resize(width(), bottom - _titleHeight);
-	_scroll->move(0, _titleHeight);
+	_scroll->resize(width(), bottom - _titleHeight.current());
+	_scroll->move(0, _titleHeight.current());
 }
 
 void SendFilesBox::setInnerFocus() {

@@ -158,7 +158,7 @@ private:
 	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
-	int _titleHeight = 0;
+	rpl::variable<int> _titleHeight = 0;
 
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;

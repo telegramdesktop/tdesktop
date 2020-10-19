@@ -515,8 +515,8 @@ sendBoxAlbumGroupRadius: 13px;
 sendBoxAlbumGroupHeight: 26px;
 
 sendBoxFileGroupSkipTop: 2px;
-sendBoxFileGroupSkipRight: 0px;
-sendBoxFileGroupEditInternalSkip: 4px;
+sendBoxFileGroupSkipRight: 8px;
+sendBoxFileGroupEditInternalSkip: -1px;
 
 sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
