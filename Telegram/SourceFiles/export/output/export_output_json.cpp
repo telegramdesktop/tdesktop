@@ -296,7 +296,7 @@ QByteArray SerializeMessage(
 	const auto pushFrom = [&](const QByteArray &label = "from") {
 		if (message.fromId) {
 			pushBare(label, wrapPeerName(message.fromId));
-			push(label+"_id", message.fromId);
+			push(label + "_id", message.fromId);
 		}
 	};
 	const auto pushReplyToMsgId = [&](
@@ -474,8 +474,16 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("joined_telegram");
 	}, [&](const ActionGeoProximityReached &data) {
-		pushActor();
-		pushAction("proximity_reached"); // #TODO files distance from to
+		pushAction("proximity_reached");
+		if (data.fromId) {
+			pushBare("from", wrapPeerName(data.fromId));
+			push("from_id", data.fromId);
+		}
+		if (data.toId) {
+			pushBare("to", wrapPeerName(data.toId));
+			push("to_id", data.toId);
+		}
+		push("distance", data.distance);
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("requested_phone_number");

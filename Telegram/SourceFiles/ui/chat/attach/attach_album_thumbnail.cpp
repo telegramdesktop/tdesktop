@@ -75,11 +75,6 @@ AlbumThumbnail::AlbumThumbnail(
 		- st::sendBoxAlbumGroupSkipRight;
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
-		//_name = filedialogDefaultName( // #TODO files
-		//	u"image"_q,
-		//	u".png"_q,
-		//	QString(),
-		//	true);
 		_name = "image.png";
 		_status = u"%1x%2"_q.arg(
 			_fullPreview.width()

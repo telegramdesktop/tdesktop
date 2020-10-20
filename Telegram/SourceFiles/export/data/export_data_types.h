@@ -454,6 +454,8 @@ struct ActionGeoProximityReached {
 	PeerId fromId = 0;
 	PeerId toId = 0;
 	int distance = 0;
+	bool fromSelf = false;
+	bool toSelf = false;
 };
 
 struct ServiceAction {

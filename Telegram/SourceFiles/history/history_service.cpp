@@ -219,6 +219,61 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareProximityReached = [this](const MTPDmessageActionGeoProximityReached &action) {
+		auto result = PreparedText{};
+		const auto fromId = peerFromMTP(action.vfrom_id());
+		const auto fromPeer = history()->owner().peer(fromId);
+		const auto toId = peerFromMTP(action.vto_id());
+		const auto toPeer = history()->owner().peer(toId);
+		const auto selfId = _from->session().userPeerId();
+		const auto distanceMeters = action.vdistance().v;
+		const auto distance = [&] {
+			if (distanceMeters >= 1000) {
+				const auto km = (10 * (distanceMeters / 10)) / 1000.;
+				return tr::lng_action_proximity_distance_km(
+					tr::now,
+					lt_count,
+					km);
+			} else {
+				return tr::lng_action_proximity_distance_m(
+					tr::now,
+					lt_count,
+					distanceMeters);
+			}
+		}();
+		result.text = [&] {
+			if (fromId == selfId) {
+				result.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_you_proximity_reached(
+					tr::now,
+					lt_distance,
+					distance,
+					lt_user,
+					textcmdLink(1, toPeer->name));
+			} else if (toId == selfId) {
+				result.links.push_back(fromPeer->createOpenLink());
+				return tr::lng_action_proximity_reached_you(
+					tr::now,
+					lt_from,
+					textcmdLink(1, fromPeer->name),
+					lt_distance,
+					distance);
+			} else {
+				result.links.push_back(fromPeer->createOpenLink());
+				result.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_proximity_reached(
+					tr::now,
+					lt_from,
+					textcmdLink(1, fromPeer->name),
+					lt_distance,
+					distance,
+					lt_user,
+					textcmdLink(2, toPeer->name));
+			}
+		}();
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -261,7 +316,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	}, [&](const MTPDmessageActionContactSignUp &data) {
 		return prepareContactSignUp();
 	}, [&](const MTPDmessageActionGeoProximityReached &data) {
-		return PreparedText{ tr::lng_message_empty(tr::now) }; // #TODO files
+		return prepareProximityReached(data);
 	}, [](const MTPDmessageActionPaymentSentMe &) {
 		LOG(("API Error: messageActionPaymentSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };

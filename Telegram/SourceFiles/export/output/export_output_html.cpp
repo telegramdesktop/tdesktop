@@ -1093,7 +1093,25 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionContactSignUp &data) {
 		return serviceFrom + " joined Telegram";
 	}, [&](const ActionGeoProximityReached &data) {
-		return serviceFrom + " reached"; // #TODO files distance from to
+		const auto fromName = peers.wrapPeerName(data.fromId);
+		const auto toName = peers.wrapPeerName(data.toId);
+		const auto distance = [&]() -> QString {
+			if (data.distance >= 1000) {
+				const auto km = (10 * (data.distance / 10)) / 1000.;
+				return QString::number(km) + " km";
+			} else if (data.distance == 1) {
+				return "1 meter";
+			} else {
+				return QString::number(data.distance) + " meters";
+			}
+		}().toUtf8();
+		if (data.fromSelf) {
+			return "You are now within " + distance + " from " + toName;
+		} else if (data.toSelf) {
+			return fromName + " is now within " + distance + " from you";
+		} else {
+			return fromName + " is now within " + distance + " from " + toName;
+		}
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
 	}, [](v::null_t) { return QByteArray(); });

@@ -1105,6 +1105,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_secure_proof_of_address" = "proof of address";
 "lng_action_secure_phone" = "phone number";
 "lng_action_secure_email" = "email address";
+"lng_action_proximity_reached" = "{from} is now within {distance} from {user}";
+"lng_action_proximity_reached_you" = "{from} is now within {distance} from you";
+"lng_action_you_proximity_reached" = "You are now within {distance} from {user}";
+"lng_action_proximity_distance_m#one" = "{count} meter";
+"lng_action_proximity_distance_m#other" = "{count} metres";
+"lng_action_proximity_distance_km#one" = "{count} km";
+"lng_action_proximity_distance_km#other" = "{count} km";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";
