@@ -182,7 +182,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/01org/libva.git
+          git clone $GIT/intel/libva.git
           cd libva
           ./autogen.sh --enable-static
           make -j$(nproc)
