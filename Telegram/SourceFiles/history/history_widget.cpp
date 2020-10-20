@@ -5239,10 +5239,22 @@ void HistoryWidget::checkPinnedBarState() {
 			messageId.count
 		};
 	});
+	auto barContent = HistoryView::PinnedBarContent(
+		&session(),
+		std::move(shown));
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(
 		this,
-		HistoryView::PinnedBarContent(&session(), std::move(shown)),
-		true);
+		std::move(barContent));
+	Info::Profile::SharedMediaCountValue(
+		_peer,
+		nullptr,
+		Storage::SharedMediaType::Pinned
+	) | rpl::map([=](int count) {
+		return (count > 1);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool many) {
+		refreshPinnedBarButton(many);
+	}, _pinnedBar->lifetime());
 
 	rpl::single(
 		rpl::empty_value()
@@ -5259,18 +5271,11 @@ void HistoryWidget::checkPinnedBarState() {
 		});
 	}, _pinnedBar->lifetime());
 
-	_pinnedBar->closeClicks(
-	) | rpl::start_with_next([=] {
-		hidePinnedMessage();
-	}, _pinnedBar->lifetime());
-
 	_pinnedBar->barClicks(
 	) | rpl::start_with_next([=] {
 		const auto id = _pinnedTracker->currentMessageId();
 		if (id.message) {
-			controller()->showSection(
-				HistoryView::PinnedMemento(_history, id.message));
-			//Ui::showPeerHistory(_peer, id.message);
+			Ui::showPeerHistory(_peer, id.message);
 		}
 	}, _pinnedBar->lifetime());
 
@@ -5289,6 +5294,26 @@ void HistoryWidget::checkPinnedBarState() {
 	if (_a_show.animating()) {
 		_pinnedBar->hide();
 	}
+}
+
+void HistoryWidget::refreshPinnedBarButton(bool many) {
+	const auto close = !many;
+	auto button = object_ptr<Ui::IconButton>(
+		this,
+		close ? st::historyReplyCancel : st::historyPinnedShowAll);
+	button->clicks(
+	) | rpl::start_with_next([=] {
+		if (close) {
+			hidePinnedMessage();
+		} else {
+			const auto id = _pinnedTracker->currentMessageId();
+			if (id.message) {
+				controller()->showSection(
+					HistoryView::PinnedMemento(_history, id.message));
+			}
+		}
+	}, button->lifetime());
+	_pinnedBar->setRightButton(std::move(button));
 }
 
 void HistoryWidget::requestMessageData(MsgId msgId) {

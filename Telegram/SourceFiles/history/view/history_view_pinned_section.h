@@ -148,12 +148,9 @@ private:
 
 class PinnedMemento : public Window::SectionMemento {
 public:
-	PinnedMemento(
+	explicit PinnedMemento(
 		not_null<History*> history,
-		MsgId highlightId = 0)
-	: _history(history)
-	, _highlightId(highlightId) {
-	}
+		MsgId highlightId = 0);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,

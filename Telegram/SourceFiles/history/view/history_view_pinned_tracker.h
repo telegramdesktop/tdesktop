@@ -48,11 +48,6 @@ public:
 private:
 	void refreshData();
 	void setupViewer(not_null<Data::PinnedMessages*> data);
-	//void load(Data::LoadDirection direction, MsgId id);
-	//void apply(
-	//	Data::LoadDirection direction,
-	//	MsgId aroundId,
-	//	const MTPmessages_Messages &result);
 
 	const not_null<History*> _history;
 
@@ -61,10 +56,6 @@ private:
 	rpl::lifetime _dataLifetime;
 
 	MsgId _aroundId = 0;
-	MsgId _beforeId = 0;
-	MsgId _afterId = 0;
-	MsgId _beforeRequestId = 0;
-	MsgId _afterRequestId = 0;
 
 	rpl::lifetime _lifetime;
 

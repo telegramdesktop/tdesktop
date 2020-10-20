@@ -111,9 +111,10 @@ RepliesMemento::RepliesMemento(
 : RepliesMemento(commentsItem->history(), commentsItem->id, commentId) {
 	if (commentId) {
 		_list.setAroundPosition({
-			.fullId = FullMsgId(commentsItem->history()->channelId(), commentId),
+			.fullId = FullMsgId(
+				commentsItem->history()->channelId(),
+				commentId),
 			.date = TimeId(0),
-
 		});
 	} else if (commentsItem->computeRepliesInboxReadTillFull() == MsgId(1)) {
 		_list.setAroundPosition(Data::MinMessagePosition);

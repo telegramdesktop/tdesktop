@@ -56,6 +56,19 @@ namespace {
 
 } // namespace
 
+PinnedMemento::PinnedMemento(
+	not_null<History*> history,
+	MsgId highlightId)
+: _history(history)
+, _highlightId(highlightId) {
+	_list.setAroundPosition({
+		.fullId = FullMsgId(
+			history->channelId(),
+			highlightId),
+		.date = TimeId(0),
+	});
+}
+
 object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,

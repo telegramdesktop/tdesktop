@@ -361,6 +361,10 @@ historyReplyCancel: IconButton {
 		color: windowBgOver;
 	}
 }
+historyPinnedShowAll: IconButton(historyReplyCancel) {
+	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
+	iconOver: icon {{ "pinned_show_all", historyReplyCancelFgOver }};
+}
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
