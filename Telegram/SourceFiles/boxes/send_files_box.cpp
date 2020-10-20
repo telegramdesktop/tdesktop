@@ -157,15 +157,16 @@ rpl::producer<int> SendFilesBox::Block::itemDeleteRequest() const {
 	using namespace rpl::mappers;
 
 	const auto preview = _preview.get();
+	const auto from = _from;
 	if (_isAlbum) {
 		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
-		return album->thumbDeleted() | rpl::map(_1 + _from);
+		return album->thumbDeleted() | rpl::map(_1 + from);
 	} else if (_isSingleMedia) {
 		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
-		return media->deleteRequests() | rpl::map([=] { return _from; });
+		return media->deleteRequests() | rpl::map([from] { return from; });
 	} else {
 		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
-		return single->deleteRequests() | rpl::map([=] { return _from; });
+		return single->deleteRequests() | rpl::map([from] { return from; });
 	}
 }
 
@@ -173,15 +174,16 @@ rpl::producer<int> SendFilesBox::Block::itemReplaceRequest() const {
 	using namespace rpl::mappers;
 
 	const auto preview = _preview.get();
+	const auto from = _from;
 	if (_isAlbum) {
 		const auto album = static_cast<Ui::AlbumPreview*>(preview);
-		return album->thumbChanged() | rpl::map(_1 + _from);
+		return album->thumbChanged() | rpl::map(_1 + from);
 	} else if (_isSingleMedia) {
 		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
-		return media->editRequests() | rpl::map([=] { return _from; });
+		return media->editRequests() | rpl::map([from] { return from; });
 	} else {
 		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
-		return single->editRequests() | rpl::map([=] { return _from; });
+		return single->editRequests() | rpl::map([from] { return from; });
 	}
 }
 
