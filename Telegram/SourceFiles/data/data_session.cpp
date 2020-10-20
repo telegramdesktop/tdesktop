@@ -1428,6 +1428,14 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {
 	return _itemRemoved.events();
 }
 
+rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved(
+		FullMsgId itemId) const {
+	return itemRemoved(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return (itemId == item->fullId());
+	});
+}
+
 void Session::notifyViewRemoved(not_null<const ViewElement*> view) {
 	_viewRemoved.fire_copy(view);
 }

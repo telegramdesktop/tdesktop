@@ -453,13 +453,19 @@ bool AddRescheduleMessageAction(
 			? HistoryView::DefaultScheduleTime()
 			: item->date() + 600;
 
-		Ui::show(
+		const auto box = Ui::show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				sendMenuType,
 				callback,
 				date),
 			Ui::LayerOption::KeepOther);
+
+		owner->itemRemoved(
+			itemId
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
 	});
 	return true;
 }
