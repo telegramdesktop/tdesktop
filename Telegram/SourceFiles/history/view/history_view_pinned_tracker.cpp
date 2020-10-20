@@ -82,8 +82,8 @@ void PinnedTracker::setupViewer(not_null<Data::PinnedMessages*> data) {
 	) | rpl::start_with_next([=](const Data::PinnedAroundId &snapshot) {
 		const auto i = ranges::lower_bound(snapshot.ids, _aroundId);
 		const auto empty = snapshot.ids.empty();
-		const auto before = (i - begin(snapshot.ids));
-		const auto after = (end(snapshot.ids) - i);
+		const auto before = int(i - begin(snapshot.ids));
+		const auto after = int(end(snapshot.ids) - i);
 		if (snapshot.ids.empty()) {
 			_current = PinnedId();
 			return;
