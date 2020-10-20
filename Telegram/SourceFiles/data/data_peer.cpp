@@ -543,7 +543,7 @@ void PeerData::addPinnedSlice(
 		return;
 	}
 	ensurePinnedMessagesCreated();
-	_pinnedMessages->add(std::move(ids), noSkipRange, std::nullopt);
+	_pinnedMessages->add(std::move(ids), noSkipRange, count);
 	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 

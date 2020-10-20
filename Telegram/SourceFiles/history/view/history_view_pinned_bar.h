@@ -30,13 +30,16 @@ namespace HistoryView {
 enum class PinnedIdType;
 struct PinnedBarId {
 	FullMsgId message;
-	PinnedIdType type = PinnedIdType();
+	int index = 0;
+	int count = 1;
 
 	bool operator<(const PinnedBarId &other) const {
-		return std::tie(message, type) < std::tie(other.message, other.type);
+		return std::tie(message, index, count)
+			< std::tie(other.message, other.index, other.count);
 	}
 	bool operator==(const PinnedBarId &other) const {
-		return std::tie(message, type) == std::tie(other.message, other.type);
+		return std::tie(message, index, count)
+			== std::tie(other.message, other.index, other.count);
 	}
 	bool operator!=(const PinnedBarId &other) const {
 		return !(*this == other);

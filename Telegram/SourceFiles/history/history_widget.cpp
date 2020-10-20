@@ -5225,7 +5225,8 @@ void HistoryWidget::checkPinnedBarState() {
 	) | rpl::map([=](HistoryView::PinnedId messageId) {
 		return HistoryView::PinnedBarId{
 			FullMsgId{ peerToChannel(_peer->id), messageId.message },
-			messageId.type
+			messageId.index,
+			messageId.count
 		};
 	});
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(

@@ -19,7 +19,8 @@ struct MessageBar;
 namespace Ui {
 
 struct MessageBarContent {
-	int id = 0;
+	int index = 0;
+	int count = 1;
 	QString title;
 	TextWithEntities text;
 	QImage preview;
@@ -47,6 +48,8 @@ private:
 	struct Animation {
 		Ui::Animations::Simple bodyMoved;
 		Ui::Animations::Simple imageShown;
+		Ui::Animations::Simple barScroll;
+		Ui::Animations::Simple barTop;
 		QPixmap bodyOrTextFrom;
 		QPixmap bodyOrTextTo;
 		QPixmap imageFrom;
@@ -54,8 +57,15 @@ private:
 		BodyAnimation bodyAnimation = BodyAnimation::None;
 		RectPart movingTo = RectPart::None;
 	};
+	struct BarState {
+		float64 scroll = 0.;
+		float64 size = 0.;
+		float64 skip = 0.;
+		float64 offset = 0.;
+	};
 	void setup();
 	void paint(Painter &p);
+	void paintLeftBar(Painter &p);
 	void tweenTo(MessageBarContent &&content);
 	void updateFromContent(MessageBarContent &&content);
 	[[nodiscard]] QPixmap prepareImage(const QImage &preview);
@@ -71,6 +81,10 @@ private:
 	[[nodiscard]] QPixmap grabBodyPart();
 	[[nodiscard]] QPixmap grabTextPart();
 
+	[[nodiscard]] BarState countBarState(int index) const;
+	[[nodiscard]] BarState countBarState() const;
+	void ensureGradientsCreated(int size);
+
 	[[nodiscard]] static BodyAnimation DetectBodyAnimationType(
 		Animation *currentAnimation,
 		const MessageBarContent &currentContent,
@@ -81,7 +95,7 @@ private:
 	MessageBarContent _content;
 	rpl::lifetime _contentLifetime;
 	Ui::Text::String _title, _text;
-	QPixmap _image;
+	QPixmap _image, _topBarGradient, _bottomBarGradient;
 	std::unique_ptr<Animation> _animation;
 
 };

@@ -102,15 +102,18 @@ void PinnedTracker::setupViewer(not_null<Data::PinnedMessages*> data) {
 			_current = PinnedId();
 			return;
 		}
-		const auto type = (!after && (snapshot.skippedAfter == 0))
-			? PinnedIdType::Last
-			: (before < 2 && (snapshot.skippedBefore == 0))
-			? PinnedIdType::First
-			: PinnedIdType::Middle;
+		const auto count = std::max(
+			snapshot.fullCount.value_or(1),
+			int(snapshot.ids.size()));
+		const auto index = snapshot.skippedBefore.has_value()
+			? (*snapshot.skippedBefore + before)
+			: snapshot.skippedAfter.has_value()
+			? (count - *snapshot.skippedAfter - after)
+			: 1;
 		if (i != begin(snapshot.ids)) {
-			_current = PinnedId{ *(i - 1), type };
+			_current = PinnedId{ *(i - 1), index - 1, count };
 		} else if (snapshot.skippedBefore == 0) {
-			_current = PinnedId{ snapshot.ids.front(), type };
+			_current = PinnedId{ snapshot.ids.front(), 0, count };
 		}
 	}, _dataLifetime);
 }

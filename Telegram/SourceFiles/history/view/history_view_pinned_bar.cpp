@@ -23,10 +23,7 @@ namespace {
 
 [[nodiscard]] Ui::MessageBarContent ContentWithoutPreview(
 		not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	const auto poll = media ? media->poll() : nullptr;
 	return Ui::MessageBarContent{
-		.id = item->id,
 		.text = { item->inReplyText() },
 	};
 }
@@ -126,17 +123,13 @@ auto WithPinnedTitle(not_null<Main::Session*> session, PinnedBarId id) {
 		if (!item) {
 			return std::move(content);
 		}
-		const auto media = item->media();
-		const auto poll = media ? media->poll() : nullptr;
-		content.title = (id.type == PinnedIdType::First)
-			? tr::lng_pinned_previous(tr::now) // #TODO pinned first?
-			: (id.type == PinnedIdType::Middle)
-			? tr::lng_pinned_previous(tr::now)
-			: !poll
+		content.title = (id.index + 1 >= id.count)
 			? tr::lng_pinned_message(tr::now)
-			: poll->quiz()
-			? tr::lng_pinned_quiz(tr::now)
-			: tr::lng_pinned_poll(tr::now);
+			: (tr::lng_pinned_message(tr::now) // #TODO pinned
+				+ " #"
+				+ QString::number(id.count - id.index));
+		content.count = std::max(id.count, 1);
+		content.index = std::clamp(id.index, 0, content.count - 1);
 		return std::move(content);
 	};
 }

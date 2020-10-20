@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bar.h"
 
 #include "ui/text/text_options.h"
+#include "ui/image/image_prepare.h"
 #include "styles/style_chat.h"
 #include "styles/palette.h"
 
@@ -50,7 +51,8 @@ MessageBar::BodyAnimation MessageBar::DetectBodyAnimationType(
 		? currentAnimation->bodyAnimation
 		: BodyAnimation::None;
 	const auto somethingChanged = (currentContent.text != nextContent.text)
-		|| (currentContent.id != nextContent.id);
+		|| (currentContent.index != nextContent.index)
+		|| (currentContent.count != nextContent.count);
 	return (now == BodyAnimation::Full
 		|| currentContent.title != nextContent.title
 		|| (currentContent.title.isEmpty() && somethingChanged))
@@ -61,6 +63,9 @@ MessageBar::BodyAnimation MessageBar::DetectBodyAnimationType(
 }
 
 void MessageBar::tweenTo(MessageBarContent &&content) {
+	Expects(content.count > 0);
+	Expects(content.index >= 0 && content.index < content.count);
+
 	_widget.update();
 	if (!_st.duration || anim::Disabled() || _widget.size().isEmpty()) {
 		updateFromContent(std::move(content));
@@ -68,18 +73,22 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 	}
 	const auto hasImageChanged = (_content.preview.isNull()
 		!= content.preview.isNull());
-	const auto bodyChanged = (_content.id != content.id
+	const auto bodyChanged = (_content.index != content.index
+		|| _content.count != content.count
 		|| _content.title != content.title
 		|| _content.text != content.text
 		|| _content.preview.constBits() != content.preview.constBits());
+	const auto barCountChanged = (_content.count != content.count);
+	const auto barFrom = _content.index;
+	const auto barTo = content.index;
 	auto animation = Animation();
 	animation.bodyAnimation = DetectBodyAnimationType(
 		_animation.get(),
 		_content,
 		content);
-	animation.movingTo = (content.id > _content.id)
+	animation.movingTo = (content.index > _content.index)
 		? RectPart::Top
-		: (content.id < _content.id)
+		: (content.index < _content.index)
 		? RectPart::Bottom
 		: RectPart::None;
 	animation.imageFrom = grabImagePart();
@@ -92,6 +101,8 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 		_animation = std::move(was);
 		std::swap(*_animation, animation);
 		_animation->imageShown = std::move(animation.imageShown);
+		_animation->barScroll = std::move(animation.barScroll);
+		_animation->barTop = std::move(animation.barTop);
 	} else {
 		_animation = std::make_unique<Animation>(std::move(animation));
 	}
@@ -108,6 +119,23 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 			[=] { _widget.update(); },
 			0.,
 			1.,
+			_st.duration);
+	}
+	if (barCountChanged) {
+		_animation->barScroll.stop();
+		_animation->barTop.stop();
+	} else if (barFrom != barTo) {
+		const auto wasState = countBarState(barFrom);
+		const auto nowState = countBarState(barTo);
+		_animation->barScroll.start(
+			[=] { _widget.update(); },
+			wasState.scroll,
+			nowState.scroll,
+			_st.duration);
+		_animation->barTop.start(
+			[] {},
+			wasState.offset,
+			nowState.offset,
 			_st.duration);
 	}
 }
@@ -239,12 +267,7 @@ void MessageBar::paint(Painter &p) {
 		? (shiftTo - shiftFull)
 		: (shiftTo + shiftFull);
 
-	const auto bar = QRect(
-		st::msgReplyBarSkip + st::msgReplyBarPos.x(),
-		st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
-		st::msgReplyBarSize.width(),
-		st::msgReplyBarSize.height());
-	p.fillRect(bar, st::msgInReplyBarColor);
+	paintLeftBar(p);
 
 	if (!_animation) {
 		if (!_image.isNull()) {
@@ -312,6 +335,152 @@ void MessageBar::paint(Painter &p) {
 		p.setOpacity(progress);
 		p.drawPixmap(body.x(), body.y() + shiftTo, _animation->bodyOrTextTo);
 		p.setOpacity(1.);
+	}
+}
+
+auto MessageBar::countBarState(int index) const -> BarState {
+	Expects(index >= 0 && index < _content.count);
+
+	auto result = BarState();
+	const auto line = st::msgReplyBarSize.width();
+	const auto height = st::msgReplyBarSize.height();
+	const auto count = _content.count;
+	const auto shownCount = std::min(count, 4);
+	const auto dividers = (shownCount - 1) * line;
+	const auto size = float64(st::msgReplyBarSize.height() - dividers)
+		/ shownCount;
+	const auto fullHeight = count * size + (count - 1) * line;
+	const auto topByIndex = [&](int index) {
+		return index * (size + line);
+	};
+	result.scroll = (count < 5 || index < 2)
+		? 0
+		: (index >= count - 2)
+		? (fullHeight - height)
+		: (topByIndex(index) - (height - size) / 2);
+	result.size = size;
+	result.skip = line;
+	result.offset = topByIndex(index);
+	return result;
+}
+
+auto MessageBar::countBarState() const -> BarState {
+	return countBarState(_content.index);
+}
+
+void MessageBar::ensureGradientsCreated(int size) {
+	if (!_topBarGradient.isNull()) {
+		return;
+	}
+	const auto rows = size * style::DevicePixelRatio() - 2;
+	auto bottomMask = QImage(
+		QSize(1, size) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	const auto step = ((1ULL << 24) - 1) / rows;
+	const auto limit = step * rows;
+	auto bits = bottomMask.bits();
+	const auto perLine = bottomMask.bytesPerLine();
+	for (auto counter = uint32(0); counter != limit; counter += step) {
+		const auto value = (counter >> 16);
+		memset(bits, int(value), perLine);
+		bits += perLine;
+	}
+	memset(bits, 255, perLine * 2);
+	auto bottom = style::colorizeImage(bottomMask, st::historyPinnedBg);
+	bottom.setDevicePixelRatio(style::DevicePixelRatio());
+	auto top = bottom.mirrored();
+	_bottomBarGradient = Images::PixmapFast(std::move(bottom));
+	_topBarGradient = Images::PixmapFast(std::move(top));
+}
+
+void MessageBar::paintLeftBar(Painter &p) {
+	const auto state = countBarState();
+	const auto gradientSize = int(std::ceil(state.size * 2.5));
+	if (_content.count > 4) {
+		ensureGradientsCreated(gradientSize);
+	}
+
+	const auto scroll = _animation
+		? _animation->barScroll.value(state.scroll)
+		: state.scroll;
+	const auto offset = _animation
+		? _animation->barTop.value(state.offset)
+		: state.offset;
+	const auto line = st::msgReplyBarSize.width();
+	const auto height = st::msgReplyBarSize.height();
+	const auto activeFrom = offset - scroll;
+	const auto activeTill = activeFrom + state.size;
+	const auto single = state.size + state.skip;
+
+	const auto barSkip = st::msgReplyPadding.top() + st::msgReplyBarPos.y();
+	const auto fullHeight = barSkip + height + barSkip;
+	const auto bar = QRect(
+		st::msgReplyBarSkip + st::msgReplyBarPos.x(),
+		barSkip,
+		line,
+		state.size);
+	const auto paintFromScroll = std::max(scroll - barSkip, 0.);
+	const auto paintFrom = int(std::floor(paintFromScroll / single));
+	const auto paintTillScroll = (scroll + height + barSkip);
+	const auto paintTill = std::min(
+		int(std::floor(paintTillScroll / single)) + 1,
+		_content.count);
+
+	p.setPen(Qt::NoPen);
+	const auto activeBrush = QBrush(st::msgInReplyBarColor);
+	const auto inactiveBrush = QBrush(QColor(
+		st::msgInReplyBarColor->c.red(),
+		st::msgInReplyBarColor->c.green(),
+		st::msgInReplyBarColor->c.blue(),
+		st::msgInReplyBarColor->c.alpha() / 3));
+	const auto radius = line / 2.;
+	auto hq = PainterHighQualityEnabler(p);
+	for (auto i = paintFrom; i != paintTill; ++i) {
+		const auto top = i * single - scroll;
+		const auto bottom = top + state.size;
+		const auto active = (top == activeFrom);
+		p.setBrush(active ? activeBrush : inactiveBrush);
+		p.drawRoundedRect(bar.translated(0, top), radius, radius);
+		if (active
+			|| bottom - line <= activeFrom
+			|| top + line >= activeTill) {
+			continue;
+		}
+		const auto partFrom = std::max(top, activeFrom);
+		const auto partTill = std::min(bottom, activeTill);
+		p.setBrush(activeBrush);
+		p.drawRoundedRect(
+			QRect(bar.x(), bar.y() + partFrom, line, partTill - partFrom),
+			radius,
+			radius);
+	}
+	if (_content.count > 4) {
+		const auto firstScroll = countBarState(2).scroll;
+		const auto gradientTop = (scroll >= firstScroll)
+			? 0
+			: anim::interpolate(-gradientSize, 0, scroll / firstScroll);
+		const auto lastScroll = countBarState(_content.count - 3).scroll;
+		const auto largestScroll = countBarState(_content.count - 1).scroll;
+		const auto gradientBottom = (scroll <= lastScroll)
+			? fullHeight
+			: anim::interpolate(
+				fullHeight,
+				fullHeight + gradientSize,
+				(scroll - lastScroll) / (largestScroll - lastScroll));
+		if (gradientTop > -gradientSize) {
+			p.drawPixmap(
+				QRect(bar.x(), gradientTop, bar.width(), gradientSize),
+				_topBarGradient);
+		}
+		if (gradientBottom < fullHeight + gradientSize) {
+			p.drawPixmap(
+				QRect(
+					bar.x(),
+					gradientBottom - gradientSize,
+					bar.width(),
+					gradientSize),
+				_bottomBarGradient);
+		}
 	}
 }
 
