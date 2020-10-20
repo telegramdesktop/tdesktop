@@ -7,94 +7,76 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_pinned_messages.h"
 
-namespace Data {
+#include "data/data_peer.h"
+#include "main/main_session.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 
-PinnedMessages::PinnedMessages(ChannelId channelId) : _channelId(channelId) {
+namespace Data {
+namespace {
+
+constexpr auto PinnedType = Storage::SharedMediaType::Pinned;
+
+using Storage::SharedMediaQuery;
+using Storage::SharedMediaKey;
+using Storage::SharedMediaResult;
+
+} // namespace
+
+PinnedMessages::PinnedMessages(not_null<PeerData*> peer)
+: _peer(peer)
+, _storage(_peer->session().storage()) {
 }
 
 bool PinnedMessages::empty() const {
-	return _list.empty();
+	return _storage.empty(SharedMediaKey(_peer->id, PinnedType, 0));
 }
 
 MsgId PinnedMessages::topId() const {
-	const auto slice = _list.snapshot(MessagesQuery{
-		.aroundId = MaxMessagePosition,
-		.limitBefore = 1,
-		.limitAfter = 1
-	});
-	return slice.messageIds.empty() ? 0 : slice.messageIds.back().fullId.msg;
+	const auto slice = _storage.snapshot(
+		SharedMediaQuery(
+			SharedMediaKey(_peer->id, PinnedType, ServerMaxMsgId),
+			1,
+			1));
+	return slice.messageIds.empty() ? 0 : slice.messageIds.back();
 }
 
 rpl::producer<PinnedAroundId> PinnedMessages::viewer(
 		MsgId aroundId,
 		int limit) const {
-	return _list.viewer(MessagesQuery{
-		.aroundId = position(aroundId),
-		.limitBefore = limit,
-		.limitAfter = limit
-	}) | rpl::map([](const MessagesResult &result) {
+	return _storage.query(
+		SharedMediaQuery(
+			SharedMediaKey(_peer->id, PinnedType, aroundId),
+			limit,
+			limit)
+	) | rpl::map([](const SharedMediaResult &result) {
 		auto data = PinnedAroundId();
 		data.fullCount = result.count;
 		data.skippedBefore = result.skippedBefore;
 		data.skippedAfter = result.skippedAfter;
-		data.ids = result.messageIds | ranges::view::transform(
-			[](MessagePosition position) { return position.fullId.msg; }
-		) | ranges::to_vector;
+		data.ids = result.messageIds | ranges::to_vector;
 		return data;
 	});
-}
-
-MessagePosition PinnedMessages::position(MsgId id) const {
-	return MessagePosition{
-	   .fullId = FullMsgId(_channelId, id),
-	};
-}
-
-void PinnedMessages::add(MsgId messageId) {
-	_list.addOne(position(messageId));
-}
-
-void PinnedMessages::add(
-		std::vector<MsgId> &&ids,
-		MsgRange range,
-		std::optional<int> count) {
-	auto positions = ids | ranges::view::transform([&](MsgId id) {
-		return position(id);
-	}) | ranges::to_vector;
-
-	_list.addSlice(
-		std::move(positions),
-		MessagesRange{
-			.from = range.from ? position(range.from) : MinMessagePosition,
-			.till = position(range.till)
-		},
-		count);
-}
-
-void PinnedMessages::remove(MsgId messageId) {
-	_list.removeOne(position(messageId));
 }
 
 void PinnedMessages::setTopId(MsgId messageId) {
 	while (true) {
 		auto top = topId();
 		if (top > messageId) {
-			remove(top);
+			_storage.remove(Storage::SharedMediaRemoveOne(
+				_peer->id,
+				PinnedType,
+				top));
 		} else if (top == messageId) {
 			return;
 		} else {
 			break;
 		}
 	}
-	const auto wrapped = position(messageId);
-	_list.addSlice(
-		{ wrapped },
-		{ .from = wrapped, .till = MaxMessagePosition },
-		std::nullopt);
-}
-
-void PinnedMessages::clearLessThanId(MsgId messageId) {
-	_list.removeLessThan(position(messageId));
+	_storage.add(Storage::SharedMediaAddNew(
+		_peer->id,
+		PinnedType,
+		messageId));
 }
 
 } // namespace Data

@@ -41,14 +41,18 @@ public:
 	void trackAround(MsgId messageId);
 	void reset();
 
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 private:
 	void refreshData();
 	void setupViewer(not_null<Data::PinnedMessages*> data);
-	void load(Data::LoadDirection direction, MsgId id);
-	void apply(
-		Data::LoadDirection direction,
-		MsgId aroundId,
-		const MTPmessages_Messages &result);
+	//void load(Data::LoadDirection direction, MsgId id);
+	//void apply(
+	//	Data::LoadDirection direction,
+	//	MsgId aroundId,
+	//	const MTPmessages_Messages &result);
 
 	const not_null<History*> _history;
 

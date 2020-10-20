@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_pinned_tracker.h"
+#include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_pinned_bar.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
@@ -108,6 +109,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "inline_bots/inline_results_widget.h"
+#include "info/profile/info_profile_values.h" // SharedMediaCountValue.
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
 #include "core/shortcuts.h"
@@ -3219,6 +3221,9 @@ void HistoryWidget::doneShow() {
 	}
 	preloadHistoryIfNeeded();
 	updatePinnedViewer();
+	if (_pinnedBar) {
+		_pinnedBar->finishAnimating();
+	}
 	checkHistoryActivation();
 	App::wnd()->setInnerFocus();
 }
@@ -5177,10 +5182,9 @@ void HistoryWidget::updatePinnedViewer() {
 		}
 		return std::pair(item, offset);
 	}();
-	const auto last = _history->peer->topPinnedMessageId();
 	const auto lessThanId = item
 		? (item->data()->id + (offset > 0 ? 1 : 0))
-		: (last + 1);
+		: (_history->peer->topPinnedMessageId() + 1);
 	_pinnedTracker->trackAround(lessThanId);
 }
 
@@ -5189,7 +5193,13 @@ void HistoryWidget::setupPinnedTracker() {
 
 	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_history);
 	_pinnedBar = nullptr;
-	checkPinnedBarState();
+	Info::Profile::SharedMediaCountValue(
+		_history->peer,
+		_migrated ? _migrated->peer.get() : nullptr,
+		Storage::SharedMediaType::Pinned
+	) | rpl::start_with_next([=] {
+		checkPinnedBarState();
+	}, _pinnedTracker->lifetime());
 }
 
 void HistoryWidget::checkPinnedBarState() {
@@ -5258,7 +5268,9 @@ void HistoryWidget::checkPinnedBarState() {
 	) | rpl::start_with_next([=] {
 		const auto id = _pinnedTracker->currentMessageId();
 		if (id.message) {
-			Ui::showPeerHistory(_peer, id.message);
+			controller()->showSection(
+				HistoryView::PinnedMemento(_history, id.message));
+			//Ui::showPeerHistory(_peer, id.message);
 		}
 	}, _pinnedBar->lifetime());
 
@@ -5543,8 +5555,6 @@ void HistoryWidget::UnpinMessage(not_null<PeerData*> peer, MsgId msgId) {
 
 	const auto session = &peer->session();
 	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
-		peer->removePinnedMessage(msgId);
-
 		Ui::hideLayer();
 		session->api().request(MTPmessages_UpdatePinnedMessage(
 			MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),

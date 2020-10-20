@@ -55,6 +55,8 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 			return MTP_inputMessagesFilterUrl();
 		case Type::ChatPhoto:
 			return MTP_inputMessagesFilterChatPhotos();
+		case Type::Pinned:
+			return MTP_inputMessagesFilterPinned();
 		}
 		return MTP_inputMessagesFilterEmpty();
 	}();

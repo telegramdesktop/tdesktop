@@ -176,10 +176,6 @@ RepliesWidget::RepliesWidget(
 
 	_rootView->move(0, _topBar->height());
 
-	_topBar->sendNowSelectionRequest(
-	) | rpl::start_with_next([=] {
-		confirmSendNowSelected();
-	}, _topBar->lifetime());
 	_topBar->deleteSelectionRequest(
 	) | rpl::start_with_next([=] {
 		confirmDeleteSelected();
@@ -1734,19 +1730,6 @@ bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
 bool RepliesWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
 	return IsServerMsgId(view->data()->id);
-}
-
-void RepliesWidget::confirmSendNowSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto navigation = controller();
-	Window::ShowSendNowMessagesBox(
-		navigation,
-		_history,
-		std::move(items),
-		[=] { navigation->showBackFromStack(); });
 }
 
 void RepliesWidget::confirmDeleteSelected() {

@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "storage/file_download.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "facades.h" // Ui::showPeerProfile
 #include "app.h"
 
@@ -468,14 +470,15 @@ MsgId PeerData::topPinnedMessageId() const {
 
 void PeerData::ensurePinnedMessagesCreated() {
 	if (!_pinnedMessages) {
-		_pinnedMessages = std::make_unique<Data::PinnedMessages>(
-			peerToChannel(id));
+		_pinnedMessages = std::make_unique<Data::PinnedMessages>(this);
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
 void PeerData::removeEmptyPinnedMessages() {
 	if (_pinnedMessages && _pinnedMessages->empty()) {
 		_pinnedMessages = nullptr;
+		session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 	}
 }
 
@@ -491,69 +494,24 @@ void PeerData::setTopPinnedMessageId(MsgId messageId) {
 		clearPinnedMessages();
 		return;
 	}
-	if (session().settings().hiddenPinnedMessageId(id) != messageId) {
+	const auto hiddenId = session().settings().hiddenPinnedMessageId(id);
+	if (hiddenId != 0 && hiddenId != messageId) {
 		session().settings().setHiddenPinnedMessageId(id, 0);
 		session().saveSettingsDelayed();
 	}
 	ensurePinnedMessagesCreated();
 	_pinnedMessages->setTopId(messageId);
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
-void PeerData::clearPinnedMessages(MsgId lessThanId) {
-	if (lessThanId == ServerMaxMsgId
-		&& session().settings().hiddenPinnedMessageId(id) != 0) {
+void PeerData::clearPinnedMessages() {
+	if (session().settings().hiddenPinnedMessageId(id) != 0) {
 		session().settings().setHiddenPinnedMessageId(id, 0);
 		session().saveSettingsDelayed();
 	}
-	if (!_pinnedMessages) {
-		return;
-	}
-	_pinnedMessages->clearLessThanId(lessThanId);
+	session().storage().remove(Storage::SharedMediaRemoveAll(
+		id,
+		Storage::SharedMediaType::Pinned));
 	removeEmptyPinnedMessages();
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
-}
-
-void PeerData::addPinnedMessage(MsgId messageId) {
-	if (messageIdTooSmall(messageId)) {
-		return;
-	}
-	ensurePinnedMessagesCreated();
-	_pinnedMessages->add(messageId);
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
-}
-
-void PeerData::addPinnedSlice(
-		std::vector<MsgId> &&ids,
-		MsgRange noSkipRange,
-		std::optional<int> count) {
-	const auto min = [&] {
-		if (const auto channel = asChannel()) {
-			return channel->availableMinId();
-		}
-		return 0;
-	}();
-	ids.erase(
-		ranges::remove_if(ids, [&](MsgId id) { return id <= min; }),
-		end(ids));
-	if (noSkipRange.from <= min) {
-		noSkipRange.from = 0;
-	}
-	if (ids.empty() && !_pinnedMessages) {
-		return;
-	}
-	ensurePinnedMessagesCreated();
-	_pinnedMessages->add(std::move(ids), noSkipRange, count);
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
-}
-
-void PeerData::removePinnedMessage(MsgId messageId) {
-	if (!_pinnedMessages) {
-		return;
-	}
-	_pinnedMessages->remove(messageId);
-	removeEmptyPinnedMessages();
-	session().changes().peerUpdated(this, UpdateFlag::PinnedMessage);
 }
 
 bool PeerData::canExportChatHistory() const {

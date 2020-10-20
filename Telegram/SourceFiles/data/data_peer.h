@@ -330,13 +330,7 @@ public:
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
 	[[nodiscard]] MsgId topPinnedMessageId() const;
 	void setTopPinnedMessageId(MsgId messageId);
-	void clearPinnedMessages(MsgId lessThanId = ServerMaxMsgId);
-	void addPinnedMessage(MsgId messageId);
-	void addPinnedSlice(
-		std::vector<MsgId> &&ids,
-		MsgRange noSkipRange,
-		std::optional<int> count);
-	void removePinnedMessage(MsgId messageId);
+	void clearPinnedMessages();
 	Data::PinnedMessages *currentPinnedMessages() const {
 		return _pinnedMessages.get();
 	}

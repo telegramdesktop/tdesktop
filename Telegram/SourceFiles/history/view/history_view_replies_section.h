@@ -168,7 +168,6 @@ private:
 	void updateScrollDownPosition();
 	void updatePinnedVisibility();
 
-	void confirmSendNowSelected();
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
 	void clearSelected();

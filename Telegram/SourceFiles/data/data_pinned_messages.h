@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "base/weak_ptr.h"
 
+namespace Storage {
+class Facade;
+} // namespace Storage
+
 namespace Data {
 
 struct PinnedAroundId {
@@ -21,30 +25,18 @@ struct PinnedAroundId {
 
 class PinnedMessages final : public base::has_weak_ptr {
 public:
-	explicit PinnedMessages(ChannelId channelId);
+	explicit PinnedMessages(not_null<PeerData*> peer);
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] MsgId topId() const;
 	[[nodiscard]] rpl::producer<PinnedAroundId> viewer(
 		MsgId aroundId,
 		int limit) const;
-
-	void add(MsgId messageId);
-	void add(
-		std::vector<MsgId> &&ids,
-		MsgRange range,
-		std::optional<int> count);
-	void remove(MsgId messageId);
-
 	void setTopId(MsgId messageId);
 
-	void clearLessThanId(MsgId messageId);
-
 private:
-	[[nodiscard]] MessagePosition position(MsgId id) const;
-
-	MessagesList _list;
-	ChannelId _channelId = 0;
+	const not_null<PeerData*> _peer;
+	Storage::Facade &_storage;
 
 };
 

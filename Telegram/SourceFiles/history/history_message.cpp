@@ -1409,6 +1409,9 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 	if (hasTextLinks()) {
 		result.set(Storage::SharedMediaType::Link);
 	}
+	if (isPinned()) {
+		result.set(Storage::SharedMediaType::Pinned);
+	}
 	return result;
 }
 

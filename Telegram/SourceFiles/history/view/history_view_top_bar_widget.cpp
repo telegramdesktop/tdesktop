@@ -335,12 +335,15 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto folder = _activeChat.folder();
 	if (folder
 		|| history->peer->sharedMediaInfo()
-		|| (_section == Section::Scheduled)) {
+		|| (_section == Section::Scheduled)
+		|| (_section == Section::Pinned)) {
 		// #TODO feed name emoji.
 		auto text = (_section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
+			: (_section == Section::Pinned)
+			? "Pinned messages" // #TODO pinned
 			: folder
 			? folder->chatListName()
 			: history->peer->isSelf()

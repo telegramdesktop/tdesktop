@@ -383,7 +383,6 @@ void ChannelData::setUnavailableReasons(
 void ChannelData::setAvailableMinId(MsgId availableMinId) {
 	if (_availableMinId != availableMinId) {
 		_availableMinId = availableMinId;
-		clearPinnedMessages(_availableMinId + 1);
 	}
 }
 

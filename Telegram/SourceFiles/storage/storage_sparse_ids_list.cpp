@@ -200,6 +200,35 @@ rpl::producer<SparseIdsListResult> SparseIdsList::query(
 	};
 }
 
+SparseIdsListResult SparseIdsList::snapshot(
+		const SparseIdsListQuery &query) const {
+	auto slice = query.aroundId
+		? ranges::lower_bound(
+			_slices,
+			query.aroundId,
+			std::less<>(),
+			[](const Slice &slice) { return slice.range.till; })
+		: _slices.end();
+	if (slice != _slices.end()
+		&& slice->range.from <= query.aroundId) {
+		return queryFromSlice(query, *slice);
+	} else if (_count) {
+		auto result = SparseIdsListResult{};
+		result.count = _count;
+		return result;
+	}
+	return {};
+}
+
+bool SparseIdsList::empty() const {
+	for (const auto &slice : _slices) {
+		if (!slice.messages.empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 rpl::producer<SparseIdsSliceUpdate> SparseIdsList::sliceUpdated() const {
 	return _sliceUpdated.events();
 }

@@ -350,10 +350,17 @@ void HistoryItem::markMediaRead() {
 void HistoryItem::setIsPinned(bool pinned) {
 	if (pinned) {
 		_flags |= MTPDmessage::Flag::f_pinned;
-		history()->peer->addPinnedMessage(id);
+		history()->session().storage().add(Storage::SharedMediaAddExisting(
+			history()->peer->id,
+			Storage::SharedMediaType::Pinned,
+			id,
+			{ id, id }));
 	} else {
 		_flags &= ~MTPDmessage::Flag::f_pinned;
-		history()->peer->removePinnedMessage(id);
+		history()->session().storage().remove(Storage::SharedMediaRemoveOne(
+			history()->peer->id,
+			Storage::SharedMediaType::Pinned,
+			id));
 	}
 }
 
