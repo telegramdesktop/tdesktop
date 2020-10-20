@@ -277,6 +277,7 @@ inline QString GtkSetting(const gchar *propertyName) {
 	gchararray value = GtkSetting<gchararray>(propertyName);
 	QString str = QString::fromUtf8(value);
 	g_free(value);
+	DEBUG_LOG(("Getting GTK setting, %1: '%2'").arg(propertyName).arg(str));
 	return str;
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
