@@ -42,7 +42,7 @@ private:
 
 [[nodiscard]] bool IsMimeStickerAnimated(const QString &mime);
 [[nodiscard]] bool IsMimeSticker(const QString &mime);
-[[nodiscard]] bool IsMimeAcceptedForAlbum(const QString &mime);
+[[nodiscard]] bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime);
 
 [[nodiscard]] bool FileIsImage(const QString &name, const QString &mime);
 

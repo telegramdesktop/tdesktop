@@ -111,7 +111,7 @@ bool IsMimeSticker(const QString &mime) {
 		|| IsMimeStickerAnimated(mime);
 }
 
-bool IsMimeAcceptedForAlbum(const QString &mime) {
+bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 	return (mime == u"image/jpeg"_q)
 		|| (mime == u"image/png"_q)
 		|| (mime == u"video/mp4"_q)

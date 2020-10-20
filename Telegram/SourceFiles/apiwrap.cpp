@@ -4228,18 +4228,11 @@ void ApiWrap::sendFiles(
 	tasks.reserve(list.files.size());
 	for (auto &file : list.files) {
 		if (album) {
-			switch (file.type) {
-			case Ui::PreparedFile::AlbumType::Photo:
-				type = (type == SendMediaType::File)
-					? type
-					: SendMediaType::Photo;
-				break;
-			case Ui::PreparedFile::AlbumType::Music:
-			case Ui::PreparedFile::AlbumType::Video:
-			case Ui::PreparedFile::AlbumType::File:
+			if (file.type == Ui::PreparedFile::Type::Photo
+				&& type != SendMediaType::File) {
+				type = SendMediaType::Photo;
+			} else {
 				type = SendMediaType::File;
-				break;
-			default: Unexpected("AlbumType in ApiWrap::sendFiles.");
 			}
 		}
 		tasks.push_back(std::make_unique<FileLoadTask>(

@@ -93,7 +93,7 @@ void GetFolder(
 [[nodiscard]] QString ImagesFilter();
 [[nodiscard]] QString AllOrImagesFilter();
 [[nodiscard]] QString ImagesOrAllFilter();
-[[nodiscard]] QString AlbumFilesFilter();
+[[nodiscard]] QString PhotoVideoFilesFilter();
 
 namespace internal {
 

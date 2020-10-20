@@ -33,6 +33,7 @@ class InputField;
 class EmojiButton;
 class IconButton;
 class Checkbox;
+enum class AlbumType;
 } // namespace Ui
 
 namespace Window {
@@ -93,6 +94,7 @@ private:
 	int errorTopSkip() const;
 
 	void createEditMediaButton();
+	bool setPreparedList(Ui::PreparedList &&list);
 
 	inline QString getNewMediaPath() {
 		return _preparedList.files.empty()
@@ -138,8 +140,8 @@ private:
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
+	Ui::AlbumType _albumType = Ui::AlbumType();
 	bool _isAllowedEditMedia = false;
-	bool _isAlbum = false;
 	bool _asFile = false;
 	rpl::event_stream<> _editMediaClicks;
 

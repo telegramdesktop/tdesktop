@@ -473,7 +473,7 @@ void SendFilesBox::preparePreview() {
 void SendFilesBox::generatePreviewFrom(int fromBlock) {
 	Expects(fromBlock <= _blocks.size());
 
-	using Type = Ui::PreparedFile::AlbumType;
+	using Type = Ui::PreparedFile::Type;
 
 	const auto eraseFrom = _blocks.begin() + fromBlock;
 	for (auto i = eraseFrom; i != _blocks.end(); ++i) {
@@ -813,7 +813,7 @@ void SendFilesBox::refreshTitleText() {
 	if (count > 1) {
 		const auto imagesCount = ranges::count(
 			_list.files,
-			Ui::PreparedFile::AlbumType::Photo,
+			Ui::PreparedFile::Type::Photo,
 			&Ui::PreparedFile::type);
 		_titleText = (imagesCount == count)
 			? tr::lng_send_images_selected(tr::now, lt_count, count)

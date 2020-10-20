@@ -36,6 +36,13 @@ struct PreparedFileInformation {
 	std::variant<v::null_t, Image, Song, Video> media;
 };
 
+enum class AlbumType {
+	None,
+	PhotoVideo,
+	Music,
+	File,
+};
+
 struct PreparedFile {
 	// File-s can be grouped if 'groupFiles'.
 	// File-s + Photo-s can be grouped if 'groupFiles && !sendImagesAsPhotos'.
@@ -43,12 +50,12 @@ struct PreparedFile {
 	// Photo-s + Video-s can be grouped if 'groupFiles && sendImagesAsPhotos'.
 	// Video-s can be grouped if 'groupFiles'.
 	// Music-s can be grouped if 'groupFiles'.
-	enum class AlbumType {
-		File,
+	enum class Type {
+		None,
 		Photo,
 		Video,
 		Music,
-		None,
+		File,
 	};
 
 	PreparedFile(const QString &path);
@@ -56,14 +63,19 @@ struct PreparedFile {
 	PreparedFile &operator=(PreparedFile &&other);
 	~PreparedFile();
 
+	[[nodiscard]] bool canBeInAlbumType(AlbumType album) const;
+	[[nodiscard]] AlbumType albumType(bool sendImagesAsPhotos) const;
+
 	QString path;
 	QByteArray content;
 	int size = 0;
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
 	QSize shownDimensions;
-	AlbumType type = AlbumType::File;
+	Type type = Type::File;
 };
+
+[[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);
 
 struct PreparedList {
 	enum class Error {
@@ -104,7 +116,12 @@ struct PreparedList {
 
 struct PreparedGroup {
 	PreparedList list;
-	bool grouped = false;
+	AlbumType type = AlbumType::None;
+
+	[[nodiscard]] bool sentWithCaption() const {
+		return (list.files.size() == 1)
+			|| (type == AlbumType::PhotoVideo);
+	}
 };
 
 [[nodiscard]] std::vector<PreparedGroup> DivideByGroups(

@@ -26,6 +26,41 @@ PreparedFile &PreparedFile::operator=(PreparedFile &&other) = default;
 
 PreparedFile::~PreparedFile() = default;
 
+bool PreparedFile::canBeInAlbumType(AlbumType album) const {
+	return CanBeInAlbumType(type, album);
+}
+
+AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {
+	switch (type) {
+	case Type::Photo:
+		return sendImagesAsPhotos ? AlbumType::PhotoVideo : AlbumType::File;
+	case Type::Video:
+		return AlbumType::PhotoVideo;
+	case Type::Music:
+		return AlbumType::Music;
+	case Type::File:
+		return AlbumType::File;
+	case Type::None:
+		return AlbumType::None;
+	}
+	Unexpected("PreparedFile::type in PreparedFile::albumType().");
+}
+
+bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album) {
+	Expects(album != AlbumType::None);
+
+	using Type = PreparedFile::Type;
+	switch (album) {
+	case AlbumType::PhotoVideo:
+		return (type == Type::Photo) || (type == Type::Video);
+	case AlbumType::Music:
+		return (type == Type::Music);
+	case AlbumType::File:
+		return (type == Type::Photo) || (type == Type::File);
+	}
+	Unexpected("AlbumType in CanBeInAlbumType.");
+}
+
 PreparedList PreparedList::Reordered(
 		PreparedList &&list,
 		std::vector<int> order) {
@@ -73,7 +108,7 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 		return false;
 	}
 
-	using Type = PreparedFile::AlbumType;
+	using Type = PreparedFile::Type;
 	auto &&all = ranges::view::concat(files, other.files);
 	const auto has = [&](Type type) {
 		return ranges::contains(all, type, &PreparedFile::type);
@@ -117,11 +152,11 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	}
 	const auto hasFiles = ranges::contains(
 		files,
-		PreparedFile::AlbumType::File,
+		PreparedFile::Type::File,
 		&PreparedFile::type);
 	const auto hasNotGrouped = ranges::contains(
 		files,
-		PreparedFile::AlbumType::None,
+		PreparedFile::Type::None,
 		&PreparedFile::type);
 	return !hasFiles && !hasNotGrouped;
 }
@@ -130,7 +165,7 @@ bool PreparedList::hasGroupOption(bool slowmode) const {
 	if (slowmode || files.size() < 2) {
 		return false;
 	}
-	using Type = PreparedFile::AlbumType;
+	using Type = PreparedFile::Type;
 	auto lastType = Type::None;
 	for (const auto &file : files) {
 		if ((file.type == lastType)
@@ -148,7 +183,7 @@ bool PreparedList::hasGroupOption(bool slowmode) const {
 }
 
 bool PreparedList::hasSendImagesAsPhotosOption(bool slowmode) const {
-	using Type = PreparedFile::AlbumType;
+	using Type = PreparedFile::Type;
 	return slowmode
 		? ((files.size() == 1) && (files.front().type == Type::Photo))
 		: ranges::contains(files, Type::Photo, &PreparedFile::type);
@@ -174,42 +209,33 @@ std::vector<PreparedGroup> DivideByGroups(
 
 	auto group = Ui::PreparedList();
 
-	enum class GroupType {
-		PhotoVideo,
-		File,
-		Music,
-		None,
-	};
-	// For groupType Type::Video means media album,
-	// Type::File means file album,
-	// Type::None means no grouping.
-	using Type = Ui::PreparedFile::AlbumType;
-	auto groupType = GroupType::None;
+	using Type = Ui::PreparedFile::Type;
+	auto groupType = AlbumType::None;
 
 	auto result = std::vector<PreparedGroup>();
 	auto pushGroup = [&] {
 		result.push_back(PreparedGroup{
 			.list = base::take(group),
-			.grouped = (groupType != GroupType::None)
+			.type = groupType,
 		});
 	};
 	for (auto i = 0; i != list.files.size(); ++i) {
 		auto &file = list.files[i];
 		const auto fileGroupType = (file.type == Type::Music)
-			? (groupFiles ? GroupType::Music : GroupType::None)
+			? (groupFiles ? AlbumType::Music : AlbumType::None)
 			: (file.type == Type::Video)
-			? (groupFiles ? GroupType::PhotoVideo : GroupType::None)
+			? (groupFiles ? AlbumType::PhotoVideo : AlbumType::None)
 			: (file.type == Type::Photo)
 			? ((groupFiles && sendImagesAsPhotos)
-				? GroupType::PhotoVideo
+				? AlbumType::PhotoVideo
 				: (groupFiles && !sendImagesAsPhotos)
-				? GroupType::File
-				: GroupType::None)
+				? AlbumType::File
+				: AlbumType::None)
 			: (file.type == Type::File)
-			? (groupFiles ? GroupType::File : GroupType::None)
-			: GroupType::None;
+			? (groupFiles ? AlbumType::File : AlbumType::None)
+			: AlbumType::None;
 		if ((!group.files.empty() && groupType != fileGroupType)
-			|| ((groupType != GroupType::None)
+			|| ((groupType != AlbumType::None)
 				&& (group.files.size() == Ui::MaxAlbumItems()))) {
 			pushGroup();
 		}

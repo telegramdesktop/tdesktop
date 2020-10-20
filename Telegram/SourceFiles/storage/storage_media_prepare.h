@@ -14,6 +14,7 @@ namespace Ui {
 struct PreparedFileInformation;
 struct PreparedFile;
 struct PreparedList;
+enum class AlbumType;
 } // namespace Ui
 
 namespace Storage {
@@ -31,7 +32,9 @@ std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
 	Fn<void(tr::phrase<>)> errorCallback,
 	int previewWidth);
 MimeDataState ComputeMimeDataState(const QMimeData *data);
-bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum);
+bool ValidateEditMediaDragData(
+	not_null<const QMimeData*> data,
+	Ui::AlbumType albumType);
 Ui::PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
 Ui::PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
 Ui::PreparedList PrepareMediaFromImage(

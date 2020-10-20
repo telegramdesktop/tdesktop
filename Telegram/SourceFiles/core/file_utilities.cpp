@@ -329,8 +329,9 @@ QString ImagesOrAllFilter() {
 	return ImagesFilter() + u";;"_q + AllFilesFilter();
 }
 
-QString AlbumFilesFilter() {
-	return u"Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov)"_q;
+QString PhotoVideoFilesFilter() {
+	return u"Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov);;"_q
+		+ AllFilesFilter();
 }
 
 namespace internal {

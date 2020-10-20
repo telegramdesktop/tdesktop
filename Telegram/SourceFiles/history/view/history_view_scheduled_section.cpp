@@ -407,14 +407,15 @@ void ScheduledWidget::sendingFilesConfirmed(
 	auto action = Api::SendAction(_history);
 	action.options = options;
 	action.clearDraft = false;
-	if ((groups.empty() || groups.size() > 1) && !caption.text.isEmpty()) {
+	if ((groups.size() != 1 || !groups.front().sentWithCaption())
+		&& !caption.text.isEmpty()) {
 		auto message = Api::MessageToSend(_history);
 		message.textWithTags = base::take(caption);
 		message.action = action;
 		session().api().sendMessage(std::move(message));
 	}
 	for (auto &group : groups) {
-		const auto album = group.grouped
+		const auto album = (group.type != Ui::AlbumType::None)
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		session().api().sendFiles(

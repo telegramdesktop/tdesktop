@@ -106,10 +106,23 @@ EditCaptionBox::EditCaptionBox(
 	Expects(item->media()->allowsEditCaption());
 
 	_isAllowedEditMedia = item->media()->allowsEditMedia();
-	_isAlbum = !item->groupId().empty();
-
 	auto dimensions = QSize();
 	const auto media = item->media();
+
+	if (!item->groupId().empty()) {
+		if (media->photo()) {
+			_albumType = Ui::AlbumType::PhotoVideo;
+		} else if (const auto document = media->document()) {
+			if (document->isVideoFile()) {
+				_albumType = Ui::AlbumType::PhotoVideo;
+			} else if (document->isSong()) {
+				_albumType = Ui::AlbumType::Music;
+			} else {
+				_albumType = Ui::AlbumType::File;
+			}
+		}
+	}
+
 	if (const auto photo = media->photo()) {
 		_photoMedia = photo->createMediaView();
 		_photoMedia->wanted(PhotoSize::Large, _msgId);
@@ -503,7 +516,8 @@ void EditCaptionBox::updateEditPreview() {
 	if (const auto image = std::get_if<Info::Image>(fileMedia)) {
 		shouldAsDoc = !Ui::ValidateThumbDimensions(
 			image->data.width(),
-			image->data.height());
+			image->data.height()
+		) || (_albumType == Ui::AlbumType::File);
 		if (shouldAsDoc) {
 			docPhotoSize.setWidth(image->data.width());
 			docPhotoSize.setHeight(image->data.height());
@@ -554,7 +568,7 @@ void EditCaptionBox::updateEditPreview() {
 		_doc = true;
 	}
 
-	const auto showCheckbox = _photo && !_isAlbum;
+	const auto showCheckbox = _photo && (_albumType == Ui::AlbumType::None);
 	_wayWrap->toggle(showCheckbox, anim::type::instant);
 
 	if (!_doc) {
@@ -604,14 +618,10 @@ void EditCaptionBox::createEditMediaButton() {
 			if (Core::IsMimeSticker(mime)) {
 				showError(tr::lng_edit_media_invalid_file);
 				return false;
-			} else if (_isAlbum) { // #TODO files edit in file-albums
-				if (!Core::IsMimeAcceptedForAlbum(mime)
-					|| file.type == Ui::PreparedFile::AlbumType::File
-					|| file.type == Ui::PreparedFile::AlbumType::Music
-					|| file.type == Ui::PreparedFile::AlbumType::None) {
-					showError(tr::lng_edit_media_album_error);
-					return false;
-				}
+			} else if (_albumType != Ui::AlbumType::None
+				&& !file.canBeInAlbumType(_albumType)) {
+				showError(tr::lng_edit_media_album_error);
+				return false;
 			}
 			return true;
 		};
@@ -622,14 +632,13 @@ void EditCaptionBox::createEditMediaButton() {
 			st::sendMediaPreviewSize);
 
 		if (list) {
-			_preparedList = std::move(*list);
-			updateEditPreview();
+			setPreparedList(std::move(*list));
 		}
 	};
 
 	const auto buttonCallback = [=] {
-		const auto filters = _isAlbum
-			? FileDialog::AlbumFilesFilter()
+		const auto filters = (_albumType == Ui::AlbumType::PhotoVideo)
+			? FileDialog::PhotoVideoFilesFilter()
 			: FileDialog::AllFilesFilter();
 		FileDialog::GetOpenPath(
 			this,
@@ -676,7 +685,7 @@ void EditCaptionBox::prepare() {
 		if (action == Ui::InputField::MimeAction::Check) {
 			if (!data->hasText() && !_isAllowedEditMedia) {
 				return false;
-			} else if (Storage::ValidateDragData(data, _isAlbum)) {
+			} else if (Storage::ValidateEditMediaDragData(data, _albumType)) {
 				return true;
 			}
 			return data->hasText();
@@ -700,40 +709,32 @@ void EditCaptionBox::prepare() {
 }
 
 bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
+	return setPreparedList(ListFromMimeData(data));
+}
+
+bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 	if (!_isAllowedEditMedia) {
 		return false;
 	}
 	using Error = Ui::PreparedList::Error;
-	using AlbumType = Ui::PreparedFile::AlbumType;
-	auto list = ListFromMimeData(data);
-
+	using Type = Ui::PreparedFile::Type;
 	if (list.error != Error::None || list.files.empty()) {
 		return false;
 	}
-
-	const auto file = &list.files.front();
-	if (_isAlbum && (file->type == AlbumType::File
-		|| file->type == AlbumType::None
-		|| file->type == AlbumType::Music)) {
-		const auto imageAsDoc = [&] {
-			using Info = Ui::PreparedFileInformation;
-			const auto fileMedia = &file->information->media;
-			if (const auto image = std::get_if<Info::Image>(fileMedia)) {
-				return !Ui::ValidateThumbDimensions(
-					image->data.width(),
-					image->data.height());
-			}
-			return false;
-		}();
-
-		if (!data->hasText() || imageAsDoc) {
-			Ui::show(
-				Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-				Ui::LayerOption::KeepOther);
+	auto file = &list.files.front();
+	const auto invalidForAlbum = (_albumType != Ui::AlbumType::None)
+		&& !file->canBeInAlbumType(_albumType);
+	if (_albumType == Ui::AlbumType::PhotoVideo) {
+		using Video = Ui::PreparedFileInformation::Video;
+		if (const auto video = std::get_if<Video>(&file->information->media)) {
+			video->isGifv = false;
 		}
+	}
+	if (invalidForAlbum) {
+		Ui::Toast::Show(tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
-	_photo = _isImage = (file->type == AlbumType::Photo);
+	_photo = _isImage = (file->type == Type::Photo);
 	_preparedList = std::move(list);
 	updateEditPreview();
 	return true;
@@ -783,7 +784,7 @@ void EditCaptionBox::setupDragArea() {
 	auto enterFilter = [=](not_null<const QMimeData*> data) {
 		return !_isAllowedEditMedia
 			? false
-			: Storage::ValidateDragData(data, _isAlbum);
+			: Storage::ValidateEditMediaDragData(data, _albumType);
 	};
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {

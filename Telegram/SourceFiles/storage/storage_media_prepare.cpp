@@ -80,19 +80,21 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
-bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum) {
+bool ValidateEditMediaDragData(
+		not_null<const QMimeData*> data,
+		Ui::AlbumType albumType) {
 	if (data->urls().size() > 1) {
 		return false;
 	} else if (data->hasImage()) {
-		return true;
+		return (albumType != Ui::AlbumType::Music);
 	}
 
-	if (isAlbum && data->hasUrls()) {
+	if (albumType == Ui::AlbumType::PhotoVideo && data->hasUrls()) {
 		const auto url = data->urls().front();
 		if (url.isLocalFile()) {
 			using namespace Core;
 			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
-			return IsMimeAcceptedForAlbum(MimeTypeForFile(info).name());
+			return IsMimeAcceptedForPhotoVideoAlbum(MimeTypeForFile(info).name());
 		}
 	}
 
@@ -241,86 +243,6 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 	} else {
 		return list;
 	}
-	//if (!result.remoteContent.isEmpty()) {
-	//	auto list = PrepareMediaFromImage(
-	//		QImage(),
-	//		std::move(result.remoteContent),
-	//		previewWidth);
-
-	//	const auto mimeFile = list.files.front().information->filemime;
-	//	if (Core::IsMimeSticker(mimeFile)) {
-	//		errorCallback(tr::lng_edit_media_invalid_file);
-	//		return std::nullopt;
-	//	}
-
-	//	if (isAlbum) {
-	//		const auto file = &list.files.front();
-	//		if (!Core::IsMimeAcceptedForAlbum(mimeFile)
-	//			|| file->type == PreparedFile::AlbumType::File
-	//			|| file->type == PreparedFile::AlbumType::Music
-	//			|| file->type == PreparedFile::AlbumType::None) {
-	//			errorCallback(tr::lng_edit_media_album_error);
-	//			return std::nullopt;
-	//		}
-	//	}
-
-	//	Ensures(list.files.size() == 1);
-	//	return list;
-	//} else if (!result.paths.isEmpty()) {
-	//	auto temp = PrepareMediaList(result.paths, previewWidth);
-	//	const auto isSingleFile = (temp.files.size() == 1);
-	//	if (temp.error != PreparedList::Error::None) {
-	//		errorCallback(tr::lng_send_media_invalid_files);
-	//		return std::nullopt;
-	//	}
-	//	auto filteredFiles = ranges::view::all(
-	//		temp.files
-	//	) | ranges::view::filter([&](const auto &file) {
-	//		const auto info = QFileInfo(file.path);
-	//		if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
-	//			if (isSingleFile) {
-	//				errorCallback(tr::lng_edit_media_invalid_file);
-	//			}
-	//			return false;
-	//		}
-	//		if (!isAlbum) {
-	//			return true;
-	//		}
-	//		using Info = PreparedFileInformation;
-
-	//		const auto media = &file.information->media;
-	//		const auto valid = v::match(*media, [](const Info::Image &data) {
-	//			return Ui::ValidateThumbDimensions(
-	//				data.data.width(),
-	//				data.data.height())
-	//				&& !data.animated;
-	//		}, [](Info::Video &data) {
-	//			data.isGifv = false;
-	//			return true;
-	//		}, [](auto &&other) {
-	//			return false;
-	//		});
-	//		if (!valid && isSingleFile) {
-	//			errorCallback(tr::lng_edit_media_album_error);
-	//		}
-	//		return valid;
-	//	}) | ranges::view::transform([](auto &file) {
-	//		return std::move(file);
-	//	}) | ranges::to_vector;
-
-	//	if (!filteredFiles.size()) {
-	//		if (!isSingleFile) {
-	//			errorCallback(tr::lng_send_media_invalid_files);
-	//		}
-	//		return std::nullopt;
-	//	}
-
-	//	auto list = PreparedList(temp.error, temp.errorData);
-	//	list.files = std::move(filteredFiles);
-
-	//	return list;
-	//}
-	//return std::nullopt;
 }
 
 void PrepareDetails(PreparedFile &file, int previewWidth) {
@@ -351,9 +273,9 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 				Qt::SmoothTransformation));
 			Assert(!file.preview.isNull());
 			file.preview.setDevicePixelRatio(cRetinaFactor());
-			file.type = PreparedFile::AlbumType::Photo;
+			file.type = PreparedFile::Type::Photo;
 		} else if (Core::IsMimeSticker(file.information->filemime)) {
-			file.type = PreparedFile::AlbumType::None;
+			file.type = PreparedFile::Type::None;
 		}
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
@@ -365,10 +287,10 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 				Qt::SmoothTransformation);
 			Assert(!file.preview.isNull());
 			file.preview.setDevicePixelRatio(cRetinaFactor());
-			file.type = PreparedFile::AlbumType::Video;
+			file.type = PreparedFile::Type::Video;
 		}
 	} else if (const auto song = std::get_if<Song>(&file.information->media)) {
-		file.type = PreparedFile::AlbumType::Music;
+		file.type = PreparedFile::Type::Music;
 	}
 }
 
