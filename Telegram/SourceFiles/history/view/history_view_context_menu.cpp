@@ -420,23 +420,23 @@ bool AddSendNowMessageAction(
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request) {
-	if (!HasEditMessageAction(request)
-		|| !request.item->isScheduled()) {
+	if (!HasEditMessageAction(request) || !request.item->isScheduled()) {
 		return false;
 	}
-	const auto item = request.item;
-	const auto owner = &item->history()->owner();
-	const auto itemId = item->fullId();
+	const auto owner = &request.item->history()->owner();
+	const auto itemId = request.item->fullId();
 	menu->addAction(tr::lng_context_reschedule(tr::now), [=] {
 		const auto item = owner->message(itemId);
 		if (!item) {
 			return;
 		}
 		const auto callback = [=](Api::SendOptions options) {
-			if (!item->media() || !item->media()->webpage()) {
-				options.removeWebPageId = true;
+			if (const auto item = owner->message(itemId)) {
+				if (!item->media() || !item->media()->webpage()) {
+					options.removeWebPageId = true;
+				}
+				Api::RescheduleMessage(item, options);
 			}
-			Api::RescheduleMessage(item, options);
 		};
 
 		const auto peer = item->history()->peer;
