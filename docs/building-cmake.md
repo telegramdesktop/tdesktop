@@ -67,7 +67,7 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://github.com/01org/libva.git
+    git clone https://github.com/intel/libva.git
     cd libva
     CFLAGS=-fPIC CPPFLAGS=-fPIC LDFLAGS=-fPIC ./autogen.sh --enable-static
     make $MAKE_THREADS_CNT
