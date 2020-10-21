@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "data/data_shared_media.h"
+#include "data/data_sparse_ids.h"
 
 namespace Data {
 namespace {
@@ -44,17 +46,21 @@ MsgId PinnedMessages::topId() const {
 rpl::producer<PinnedAroundId> PinnedMessages::viewer(
 		MsgId aroundId,
 		int limit) const {
-	return _storage.query(
-		SharedMediaQuery(
-			SharedMediaKey(_peer->id, PinnedType, aroundId),
-			limit,
-			limit)
-	) | rpl::map([](const SharedMediaResult &result) {
+	return SharedMediaViewer(
+		&_peer->session(),
+		SharedMediaKey(_peer->id, PinnedType, aroundId),
+		limit,
+		limit
+	) | rpl::map([](const SparseIdsSlice &result) {
 		auto data = PinnedAroundId();
-		data.fullCount = result.count;
-		data.skippedBefore = result.skippedBefore;
-		data.skippedAfter = result.skippedAfter;
-		data.ids = result.messageIds | ranges::to_vector;
+		data.fullCount = result.fullCount();
+		data.skippedBefore = result.skippedBefore();
+		data.skippedAfter = result.skippedAfter();
+		const auto count = result.size();
+		data.ids.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			data.ids.push_back(result[i]);
+		}
 		return data;
 	});
 }

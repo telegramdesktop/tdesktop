@@ -435,6 +435,7 @@ void MessageBar::paintLeftBar(Painter &p) {
 		st::msgInReplyBarColor->c.alpha() / 3));
 	const auto radius = line / 2.;
 	auto hq = PainterHighQualityEnabler(p);
+	p.setClipRect(bar.x(), 0, bar.width(), fullHeight);
 	for (auto i = paintFrom; i != paintTill; ++i) {
 		const auto top = i * single - scroll;
 		const auto bottom = top + state.size;
@@ -454,6 +455,7 @@ void MessageBar::paintLeftBar(Painter &p) {
 			radius,
 			radius);
 	}
+	p.setClipping(false);
 	if (_content.count > 4) {
 		const auto firstScroll = countBarState(2).scroll;
 		const auto gradientTop = (scroll >= firstScroll)
