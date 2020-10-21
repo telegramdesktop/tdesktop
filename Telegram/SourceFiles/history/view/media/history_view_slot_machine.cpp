@@ -47,21 +47,24 @@ const auto &kEmoji = ::Stickers::DicePacks::kSlotString;
 	return kShifts[partIndex] + inPartIndex;
 }
 
+[[nodiscard]] int ComputePartValue(int value, int partIndex) {
+	return ((value - 1) >> (partIndex * 2)) & 0x03; // 0..3
+}
+
 [[nodiscard]] int ComputeComplexIndex(int value, int partIndex) {
 	Expects(value > 0 && value <= 64);
 
 	if (value == kWinValue) {
 		return ComplexIndex(partIndex, kSevenWinIndex);
 	}
-	const auto bits = ((value - 1) >> (partIndex * 2)) & 0x03; // 0..3
 	return ComplexIndex(partIndex, [&] {
-		switch (bits) {
+		switch (ComputePartValue(value, partIndex)) {
 		case 0: return kBarIndex;
 		case 1: return kBerriesIndex;
 		case 2: return kLemonIndex;
 		case 3: return kSevenIndex;
 		}
-		Unexpected("Bits value in ComputeComplexIndex.");
+		Unexpected("Part value value in ComputeComplexIndex.");
 	}());
 }
 
@@ -115,7 +118,9 @@ void SlotMachine::resolveEnds(int value) {
 	if (value <= 0 || value > 64) {
 		return;
 	}
-	if (value == kWinValue) {
+	const auto firstPartValue = ComputePartValue(value, 0);
+	if (ComputePartValue(value, 1) == firstPartValue
+		&& ComputePartValue(value, 2) == firstPartValue) { // Three in a row.
 		resolve(_end[0], kWinBackIndex, kWinBackIndex, true);
 	}
 	for (auto i = 0; i != 3; ++i) {
