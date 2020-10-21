@@ -168,8 +168,9 @@ public:
 	enum class AnimatedScroll {
 		Full,
 		Part,
+		None,
 	};
-	void animatedScrollTo(
+	void scrollTo(
 		int scrollTop,
 		Data::MessagePosition attachPosition,
 		int delta,

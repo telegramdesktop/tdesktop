@@ -178,7 +178,10 @@ void PinnedWidget::showAtPosition(
 
 bool PinnedWidget::showAtPositionNow(
 		Data::MessagePosition position,
-		HistoryItem *originItem) {
+		HistoryItem *originItem,
+		anim::type animated) {
+	using AnimatedScroll = HistoryView::ListWidget::AnimatedScroll;
+
 	const auto item = position.fullId
 		? _history->owner().message(position.fullId)
 		: nullptr;
@@ -189,13 +192,16 @@ bool PinnedWidget::showAtPositionNow(
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
 		const auto scrollDelta = snap(fullDelta, -limit, limit);
-		_inner->animatedScrollTo(
+		const auto type = (animated == anim::type::instant)
+			? AnimatedScroll::None
+			: (std::abs(fullDelta) > limit)
+			? AnimatedScroll::Part
+			: AnimatedScroll::Full;
+		_inner->scrollTo(
 			wanted,
 			use,
 			scrollDelta,
-			(std::abs(fullDelta) > limit
-				? HistoryView::ListWidget::AnimatedScroll::Part
-				: HistoryView::ListWidget::AnimatedScroll::Full));
+			type);
 		if (use != Data::MaxMessagePosition
 			&& use != Data::UnreadMessagePosition) {
 			_inner->highlightMessage(use.fullId);
@@ -356,7 +362,7 @@ void PinnedWidget::restoreState(not_null<PinnedMemento*> memento) {
 			.date = TimeId(0),
 		};
 		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, nullptr);
+			return showAtPositionNow(position, nullptr, anim::type::instant);
 		});
 	}
 }

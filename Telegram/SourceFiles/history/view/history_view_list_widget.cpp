@@ -389,13 +389,13 @@ std::optional<int> ListWidget::scrollTopForView(
 	return top - std::max((available - height) / 2, 0);
 }
 
-void ListWidget::animatedScrollTo(
+void ListWidget::scrollTo(
 		int scrollTop,
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type) {
 	_scrollToAnimation.stop();
-	if (!delta || _items.empty()) {
+	if (!delta || _items.empty() || type == AnimatedScroll::None) {
 		_delegate->listScrollTo(scrollTop);
 		return;
 	}

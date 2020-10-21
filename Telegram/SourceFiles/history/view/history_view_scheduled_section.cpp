@@ -802,7 +802,7 @@ bool ScheduledWidget::showAtPositionNow(Data::MessagePosition position) {
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
 		const auto scrollDelta = snap(fullDelta, -limit, limit);
-		_inner->animatedScrollTo(
+		_inner->scrollTo(
 			wanted,
 			position,
 			scrollDelta,

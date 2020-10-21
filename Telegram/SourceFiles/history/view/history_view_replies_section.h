@@ -150,7 +150,8 @@ private:
 		HistoryItem *originItem = nullptr);
 	bool showAtPositionNow(
 		Data::MessagePosition position,
-		HistoryItem *originItem);
+		HistoryItem *originItem,
+		anim::type animated = anim::type::normal);
 	void finishSending();
 
 	void setupComposeControls();
