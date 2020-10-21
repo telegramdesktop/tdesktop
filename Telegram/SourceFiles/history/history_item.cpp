@@ -355,6 +355,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));
+		history()->peer->setHasPinnedMessages(true);
 	} else {
 		_flags &= ~MTPDmessage::Flag::f_pinned;
 		history()->session().storage().remove(Storage::SharedMediaRemoveOne(
@@ -489,12 +490,12 @@ void HistoryItem::indexAsNewItem() {
 		addToUnreadMentions(UnreadMentionType::New);
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
-				history()->peer->id,
+				_history->peer->id,
 				types,
 				id));
-		}
-		if (isPinned()) {
-			_history->peer->setTopPinnedMessageId(id);
+			if (types.test(Storage::SharedMediaType::Pinned)) {
+				_history->peer->setHasPinnedMessages(true);
+			}
 		}
 		//if (const auto channel = history()->peer->asChannel()) { // #feed
 		//	if (const auto feed = channel->feed()) {

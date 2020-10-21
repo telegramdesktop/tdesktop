@@ -29,8 +29,6 @@ class Session;
 namespace Data {
 
 class Session;
-class PinnedMessages;
-struct PinnedAroundId;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -328,12 +326,9 @@ public:
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
-	[[nodiscard]] MsgId topPinnedMessageId() const;
-	void setTopPinnedMessageId(MsgId messageId);
-	void clearPinnedMessages();
-	Data::PinnedMessages *currentPinnedMessages() const {
-		return _pinnedMessages.get();
-	}
+
+	[[nodiscard]] bool hasPinnedMessages() const;
+	void setHasPinnedMessages(bool has);
 
 	[[nodiscard]] bool canExportChatHistory() const;
 
@@ -412,10 +407,6 @@ private:
 		-> const std::vector<Data::UnavailableReason> &;
 
 	void setUserpicChecked(PhotoId photoId, const ImageLocation &location);
-	void ensurePinnedMessagesCreated();
-	void removeEmptyPinnedMessages();
-
-	[[nodiscard]] bool messageIdTooSmall(MsgId messageId) const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
@@ -433,7 +424,7 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	crl::time _lastFullUpdate = 0;
-	std::unique_ptr<Data::PinnedMessages> _pinnedMessages;
+	bool _hasPinnedMessages = false;
 
 	Settings _settings = { kSettingsUnknown };
 	BlockStatus _blockStatus = BlockStatus::Unknown;
@@ -450,5 +441,8 @@ std::vector<ChatRestrictions> ListOfRestrictions();
 std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);
+
+void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
+[[nodiscard]] MsgId ResolveTopPinnedId(not_null<PeerData*> peer);
 
 } // namespace Data

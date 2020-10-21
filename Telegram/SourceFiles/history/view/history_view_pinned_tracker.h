@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace Data {
-class PinnedMessages;
 enum class LoadDirection : char;
 } // namespace Data
 
@@ -46,16 +45,24 @@ public:
 	}
 
 private:
-	void refreshData();
-	void setupViewer(not_null<Data::PinnedMessages*> data);
+	struct Slice {
+		std::vector<MsgId> ids;
+		std::optional<int> fullCount;
+		std::optional<int> skippedBefore;
+		std::optional<int> skippedAfter;
+	};
+	void clear();
+	void refreshViewer();
+	void refreshCurrentFromSlice();
 
 	const not_null<History*> _history;
 
-	base::weak_ptr<Data::PinnedMessages> _data;
 	rpl::variable<PinnedId> _current;
 	rpl::lifetime _dataLifetime;
 
 	MsgId _aroundId = 0;
+	MsgId _viewerAroundId = 0;
+	Slice _slice;
 
 	rpl::lifetime _lifetime;
 

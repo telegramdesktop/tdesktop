@@ -769,9 +769,7 @@ void ApplyChannelUpdate(
 		}
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		channel->setTopPinnedMessageId(pinned->v);
-	} else {
-		channel->clearPinnedMessages();
+		SetTopPinnedMessageId(channel, pinned->v);
 	}
 	if (channel->isMegagroup()) {
 		const auto stickerSet = update.vstickerset();

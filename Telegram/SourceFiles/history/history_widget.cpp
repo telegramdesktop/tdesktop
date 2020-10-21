@@ -567,7 +567,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::ChannelLinkedChat
 		| UpdateFlag::Slowmode
 		| UpdateFlag::BotStartToken
-		| UpdateFlag::PinnedMessage
+		| UpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == _peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
@@ -608,7 +608,7 @@ HistoryWidget::HistoryWidget(
 			| UpdateFlag::ChannelLinkedChat)) {
 			handlePeerUpdate();
 		}
-		if (_pinnedTracker && (flags & UpdateFlag::PinnedMessage)) {
+		if (_pinnedTracker && (flags & UpdateFlag::PinnedMessages)) {
 			checkPinnedBarState();
 		}
 	}, lifetime());
@@ -5184,7 +5184,7 @@ void HistoryWidget::updatePinnedViewer() {
 	}();
 	const auto lessThanId = item
 		? (item->data()->id + (offset > 0 ? 1 : 0))
-		: (_history->peer->topPinnedMessageId() + 1);
+		: (ServerMaxMsgId - 1);
 	_pinnedTracker->trackAround(lessThanId);
 }
 
@@ -5193,13 +5193,7 @@ void HistoryWidget::setupPinnedTracker() {
 
 	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_history);
 	_pinnedBar = nullptr;
-	Info::Profile::SharedMediaCountValue(
-		_history->peer,
-		_migrated ? _migrated->peer.get() : nullptr,
-		Storage::SharedMediaType::Pinned
-	) | rpl::start_with_next([=] {
-		checkPinnedBarState();
-	}, _pinnedTracker->lifetime());
+	checkPinnedBarState();
 }
 
 void HistoryWidget::checkPinnedBarState() {
@@ -5208,7 +5202,7 @@ void HistoryWidget::checkPinnedBarState() {
 	const auto hiddenId = _peer->canPinMessages()
 		? MsgId(0)
 		: session().settings().hiddenPinnedMessageId(_peer->id);
-	const auto currentPinnedId = _peer->topPinnedMessageId();
+	const auto currentPinnedId = Data::ResolveTopPinnedId(_peer);
 	if (currentPinnedId == hiddenId) {
 		if (_pinnedBar) {
 			_pinnedTracker->reset();
@@ -5601,7 +5595,7 @@ void HistoryWidget::hidePinnedMessage() {
 	if (_peer->canPinMessages()) {
 		unpinMessage({ peerToChannel(_peer->id), id.message });
 	} else {
-		const auto top = _peer->topPinnedMessageId();
+		const auto top = Data::ResolveTopPinnedId(_peer);
 		if (top) {
 			session().settings().setHiddenPinnedMessageId(_peer->id, top);
 			session().saveSettingsDelayed();

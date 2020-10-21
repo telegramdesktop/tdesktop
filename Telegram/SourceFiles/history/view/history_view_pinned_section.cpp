@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
-#include "data/data_pinned_messages.h"
 #include "data/data_changes.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_shared_media.h"

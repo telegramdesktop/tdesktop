@@ -262,9 +262,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->setBotInfoVersion(-1);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		user->setTopPinnedMessageId(pinned->v);
-	} else {
-		user->clearPinnedMessages();
+		SetTopPinnedMessageId(user, pinned->v);
 	}
 	user->setFullFlags(update.vflags().v);
 	user->setIsBlocked(update.is_blocked());

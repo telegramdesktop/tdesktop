@@ -444,7 +444,7 @@ PinMessageBox::PinMessageBox(
 : _peer(peer)
 , _api(&peer->session().mtp())
 , _msgId(msgId)
-, _pinningOld(msgId < peer->topPinnedMessageId())
+, _pinningOld(msgId < Data::ResolveTopPinnedId(peer))
 , _text(
 	this,
 	(_pinningOld
