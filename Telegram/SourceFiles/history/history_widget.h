@@ -183,8 +183,6 @@ public:
 	void replyToMessage(not_null<HistoryItem*> item);
 	void editMessage(FullMsgId itemId);
 	void editMessage(not_null<HistoryItem*> item);
-	void pinMessage(FullMsgId itemId);
-	void unpinMessage(FullMsgId itemId);
 
 	MsgId replyToId() const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
@@ -516,8 +514,6 @@ private:
 	void messagesFailed(const RPCError &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
-
-	static void UnpinMessage(not_null<PeerData*> peer, MsgId msgId);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();

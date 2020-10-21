@@ -496,10 +496,12 @@ bool AddReplyToMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
 	const auto item = request.item;
 	if (!item
 		|| !IsServerMsgId(item->id)
-		|| !item->history()->peer->canWrite()) {
+		|| !item->history()->peer->canWrite()
+		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
@@ -511,6 +513,37 @@ bool AddReplyToMessageAction(
 		}
 		list->replyToMessageRequestNotify(item->fullId());
 	});
+	return true;
+}
+
+bool AddViewRepliesAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto item = request.item;
+	if (!item
+		|| !IsServerMsgId(item->id)
+		|| (context != Context::History && context != Context::Pinned)) {
+		return false;
+	}
+	const auto repliesCount = item->repliesCount();
+	const auto withReplies = (repliesCount > 0);
+	if (!withReplies || !item->history()->peer->isMegagroup()) {
+		return false;
+	}
+	const auto rootId = repliesCount ? item->id : item->replyToTop();
+	const auto phrase = (repliesCount > 0)
+		? tr::lng_replies_view(
+			tr::now,
+			lt_count,
+			repliesCount)
+		: tr::lng_replies_view_thread(tr::now);
+	const auto controller = list->controller();
+	const auto history = item->history();
+	menu->addAction(phrase, crl::guard(controller, [=] {
+		controller->showRepliesForMessage(history, rootId);
+	}));
 	return true;
 }
 
@@ -534,6 +567,27 @@ bool AddEditMessageAction(
 		}
 		list->editMessageRequestNotify(item->fullId());
 	});
+	return true;
+}
+
+bool AddPinMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto item = request.item;
+	if (!item
+		|| !IsServerMsgId(item->id)
+		|| !item->canPin()
+		|| (context != Context::History && context != Context::Pinned)) {
+		return false;
+	}
+	const auto itemId = item->fullId();
+	const auto isPinned = item->isPinned();
+	const auto controller = list->controller();
+	menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
+		Window::ToggleMessagePinned(controller, itemId, !isPinned);
+	}));
 	return true;
 }
 
@@ -720,7 +774,9 @@ void AddTopMessageActions(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
 	AddReplyToMessageAction(menu, request, list);
+	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
+	AddPinMessageAction(menu, request, list);
 }
 
 void AddMessageActions(

@@ -5552,39 +5552,6 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	_field->setFocus();
 }
 
-void HistoryWidget::pinMessage(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
-		if (item->canPin()) {
-			Ui::show(Box<PinMessageBox>(item->history()->peer, item->id));
-		}
-	}
-}
-
-void HistoryWidget::unpinMessage(FullMsgId itemId) {
-	if (!_peer) {
-		return;
-	}
-	UnpinMessage(_peer, itemId.msg);
-}
-
-void HistoryWidget::UnpinMessage(not_null<PeerData*> peer, MsgId msgId) {
-	if (!peer) {
-		return;
-	}
-
-	const auto session = &peer->session();
-	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
-		Ui::hideLayer();
-		session->api().request(MTPmessages_UpdatePinnedMessage(
-			MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
-			peer->input,
-			MTP_int(msgId)
-		)).done([=](const MTPUpdates &result) {
-			session->api().applyUpdates(result);
-		}).send();
-	})));
-}
-
 void HistoryWidget::hidePinnedMessage() {
 	Expects(_pinnedBar != nullptr);
 
@@ -5593,7 +5560,10 @@ void HistoryWidget::hidePinnedMessage() {
 		return;
 	}
 	if (_peer->canPinMessages()) {
-		unpinMessage({ peerToChannel(_peer->id), id.message });
+		Window::ToggleMessagePinned(
+			controller(),
+			{ peerToChannel(_peer->id), id.message },
+			false);
 	} else {
 		const auto top = Data::ResolveTopPinnedId(_peer);
 		if (top) {

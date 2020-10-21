@@ -33,6 +33,7 @@ class Media;
 enum class Context : char {
 	History,
 	Replies,
+	Pinned,
 	//Feed, // #feed
 	AdminLog,
 	ContactPreview

@@ -343,7 +343,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
 			: (_section == Section::Pinned)
-			? "Pinned messages" // #TODO pinned
+			? _customTitleText
 			: folder
 			? folder->chatListName()
 			: history->peer->isSelf()

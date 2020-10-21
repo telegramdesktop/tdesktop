@@ -102,6 +102,7 @@ PinnedWidget::PinnedWidget(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+	_topBar->setCustomTitle(tr::lng_contacts_loading(tr::now));
 
 	_topBar->deleteSelectionRequest(
 	) | rpl::start_with_next([=] {
@@ -285,10 +286,7 @@ QPixmap PinnedWidget::grabForShowAnimation(const Window::SectionSlideParams &par
 }
 
 void PinnedWidget::doSetInnerFocus() {
-	if (!_inner->getSelectedText().rich.text.isEmpty()
-		|| !_inner->getSelectedItems().empty()) {
-		_inner->setFocus();
-	}
+	_inner->setFocus();
 }
 
 bool PinnedWidget::showInternal(
@@ -321,33 +319,7 @@ bool PinnedWidget::showMessage(
 		PeerId peerId,
 		const Window::SectionShow &params,
 		MsgId messageId) {
-	if (peerId != _history->peer->id) {
-		return false;
-	}
-	const auto id = FullMsgId{
-		_history->channelId(),
-		messageId
-	};
-	const auto message = _history->owner().message(id);
-	if (!message || !message->isPinned()) {
-		return false;
-	}
-
-	const auto originItem = [&]() -> HistoryItem* {
-		using OriginMessage = Window::SectionShow::OriginMessage;
-		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
-			if (const auto returnTo = session().data().message(origin->id)) {
-				if (returnTo->history() == _history && returnTo->isPinned()) {
-					return returnTo;
-				}
-			}
-		}
-		return nullptr;
-	}();
-	showAtPosition(
-		Data::MessagePosition{ .fullId = id, .date = message->date() },
-		originItem);
-	return true;
+	return false; // We want 'Go to original' to work.
 }
 
 void PinnedWidget::saveState(not_null<PinnedMemento*> memento) {
@@ -463,7 +435,7 @@ QRect PinnedWidget::floatPlayerAvailableRect() {
 }
 
 Context PinnedWidget::listContext() {
-	return Context::Replies;
+	return Context::Pinned;
 }
 
 void PinnedWidget::listScrollTo(int top) {
@@ -502,7 +474,19 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 			messageId),
 		limitBefore,
 		limitAfter
-	) | rpl::map([=](SparseIdsSlice &&slice) {
+	) | rpl::filter([=](const SparseIdsSlice &slice) {
+		const auto count = slice.fullCount();
+		if (!count.has_value()) {
+			return true;
+		} else if (*count != 0) {
+			_topBar->setCustomTitle(
+				tr::lng_pinned_messages_title(tr::now, lt_count, *count));
+			return true;
+		} else {
+			controller()->showBackFromStack();
+			return false;
+		}
+	}) | rpl::map([=](SparseIdsSlice &&slice) {
 		auto result = Data::MessagesSlice();
 		result.fullCount = slice.fullCount();
 		result.skippedAfter = slice.skippedAfter();

@@ -1124,6 +1124,32 @@ void PeerMenuAddChannelMembers(
 	}));
 }
 
+void ToggleMessagePinned(
+		not_null<Window::SessionNavigation*> navigation,
+		FullMsgId itemId,
+		bool pin) {
+	const auto item = navigation->session().data().message(itemId);
+	if (!item || !item->canPin()) {
+		return;
+	}
+	if (pin) {
+		Ui::show(Box<PinMessageBox>(item->history()->peer, item->id));
+	} else {
+		const auto peer = item->history()->peer;
+		const auto session = &peer->session();
+		Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
+			Ui::hideLayer();
+			session->api().request(MTPmessages_UpdatePinnedMessage(
+				MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
+				peer->input,
+				MTP_int(itemId.msg)
+			)).done([=](const MTPUpdates &result) {
+				session->api().applyUpdates(result);
+			}).send();
+		})));
+	}
+}
+
 void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {

@@ -1572,13 +1572,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (item->canPin()) {
 			const auto isPinned = item->isPinned();
-			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), [=] {
-				if (isPinned) {
-					_widget->unpinMessage(itemId);
-				} else {
-					_widget->pinMessage(itemId);
-				}
-			});
+			const auto controller = _controller;
+			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
+				Window::ToggleMessagePinned(controller, itemId, !isPinned);
+			}));
 		}
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {

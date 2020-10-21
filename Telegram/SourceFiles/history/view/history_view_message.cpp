@@ -1214,6 +1214,7 @@ bool Message::hasFromPhoto() const {
 	//case Context::Feed: // #feed
 		return true;
 	case Context::History:
+	case Context::Pinned:
 	case Context::Replies: {
 		const auto item = message();
 		if (item->isPost()
@@ -2051,6 +2052,7 @@ bool Message::hasFromName() const {
 	//case Context::Feed: // #feed
 		return true;
 	case Context::History:
+	case Context::Pinned:
 	case Context::Replies: {
 		const auto item = message();
 		return (!hasOutLayout() || item->from()->isMegagroup())
@@ -2216,6 +2218,9 @@ bool Message::displayFastShare() const {
 }
 
 bool Message::displayGoToOriginal() const {
+	if (context() == Context::Pinned) {
+		return true;
+	}
 	const auto item = message();
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		return forwarded->savedFromPeer
@@ -2277,7 +2282,10 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink() const {
 	if (!_rightActionLink) {
-		if (displayRightActionComments()) {
+		if (context() == Context::Pinned) {
+			_rightActionLink = goToMessageClickHandler(data());
+			return _rightActionLink;
+		} else if (displayRightActionComments()) {
 			_rightActionLink = createGoToCommentsLink();
 			return _rightActionLink;
 		}

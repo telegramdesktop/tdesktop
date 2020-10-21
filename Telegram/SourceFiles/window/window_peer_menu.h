@@ -111,4 +111,9 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
 
+void ToggleMessagePinned(
+	not_null<Window::SessionNavigation*> navigation,
+	FullMsgId itemId,
+	bool pin);
+
 } // namespace Window

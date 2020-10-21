@@ -138,6 +138,7 @@ private:
 
 	bool _skipScrollEvent = false;
 	std::unique_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::FlatButton> _clearButton = { nullptr };
 
 	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;
