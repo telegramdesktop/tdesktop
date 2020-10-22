@@ -416,10 +416,11 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 					types,
 					item->id));
 			}
-		} else {
-			session().api().cancelLocalItem(item);
 		}
 		itemRemoved(item);
+	}
+	if (item->isSending()) {
+		session().api().cancelLocalItem(item);
 	}
 
 	owner().unregisterMessage(item);

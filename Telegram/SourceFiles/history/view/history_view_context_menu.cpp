@@ -69,7 +69,7 @@ constexpr auto kExportLocalTimeout = crl::time(1000);
 //}
 
 MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
-	if (!item->isScheduled()) {
+	if (!item->isScheduled() || item->isSending() || item->hasFailed()) {
 		return item->id;
 	}
 	const auto session = &item->history()->session();
