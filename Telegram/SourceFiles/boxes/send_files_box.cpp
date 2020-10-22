@@ -500,7 +500,9 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 				continue;
 			}
 		}
-		if (type != Type::File && type != Type::None) {
+		if (type != Type::File
+			&& type != Type::Music
+			&& type != Type::None) {
 			if (albumStart < 0) {
 				albumStart = i;
 			}
