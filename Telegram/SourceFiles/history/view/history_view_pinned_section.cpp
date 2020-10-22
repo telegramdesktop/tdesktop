@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "boxes/confirm_box.h"
+#include "data/data_peer_values.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -93,6 +94,10 @@ PinnedWidget::PinnedWidget(
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
+, _clearButton(std::make_unique<Ui::FlatButton>(
+	this,
+	QString(),
+	st::historyComposeButton))
 , _scrollDown(_scroll.get(), st::historyToDown) {
 	_topBar->setActiveChat(
 		_history,
@@ -129,6 +134,7 @@ PinnedWidget::PinnedWidget(
 	_scroll->show();
 	connect(_scroll.get(), &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
+	setupClearButton();
 	setupScrollDownButton();
 }
 
@@ -147,6 +153,28 @@ void PinnedWidget::setupScrollDownButton() {
 			: base::EventFilterResult::Continue;
 	});
 	updateScrollDownVisibility();
+}
+
+void PinnedWidget::setupClearButton() {
+	Data::CanPinMessagesValue(
+		_history->peer
+	) | rpl::start_with_next([=] {
+		refreshClearButtonText();
+	}, _clearButton->lifetime());
+
+	_clearButton->setClickedCallback([=] {
+		if (!_history->peer->canPinMessages()) {
+			const auto callback = [=] {
+				controller()->showBackFromStack();
+			};
+			Window::HidePinnedBar(
+				controller(),
+				_history->peer,
+				crl::guard(this, callback));
+		} else {
+			Window::UnpinAllMessages(controller(), _history);
+		}
+	});
 }
 
 void PinnedWidget::scrollDownClicked() {
@@ -357,6 +385,26 @@ void PinnedWidget::recountChatWidth() {
 	}
 }
 
+void PinnedWidget::setMessagesCount(int count) {
+	if (_messagesCount == count) {
+		return;
+	}
+	_messagesCount = count;
+	_topBar->setCustomTitle(
+		tr::lng_pinned_messages_title(tr::now, lt_count, count));
+	refreshClearButtonText();
+}
+
+void PinnedWidget::refreshClearButtonText() {
+	const auto can = _history->peer->canPinMessages();
+	_clearButton->setText(can
+		? tr::lng_pinned_unpin_all(
+			tr::now,
+			lt_count,
+			std::max(_messagesCount, 1)).toUpper()
+		: tr::lng_pinned_hide_all(tr::now).toUpper());
+}
+
 void PinnedWidget::updateControlsGeometry() {
 	const auto contentWidth = width();
 
@@ -366,7 +414,9 @@ void PinnedWidget::updateControlsGeometry() {
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 
-	const auto bottom = height();
+	const auto bottom = height() - _clearButton->height();
+	_clearButton->resizeToWidth(width());
+	_clearButton->move(0, bottom);
 	const auto controlsHeight = 0;
 	const auto scrollY = _topBar->height();
 	const auto scrollHeight = bottom - scrollY - controlsHeight;
@@ -479,8 +529,7 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		if (!count.has_value()) {
 			return true;
 		} else if (*count != 0) {
-			_topBar->setCustomTitle(
-				tr::lng_pinned_messages_title(tr::now, lt_count, *count));
+			setMessagesCount(*count);
 			return true;
 		} else {
 			controller()->showBackFromStack();

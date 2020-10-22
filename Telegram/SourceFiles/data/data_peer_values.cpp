@@ -252,7 +252,71 @@ rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
 	} else if (auto channel = peer->asChannel()) {
 		return CanWriteValue(channel);
 	}
-	Unexpected("Bad peer value in CanWriteValue()");
+	Unexpected("Bad peer value in CanWriteValue");
+}
+
+// This is duplicated in PeerData::canPinMessages().
+rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+	if (const auto user = peer->asUser()) {
+		return PeerFullFlagsValue(
+			user,
+			MTPDuserFull::Flag::f_can_pin_message
+		) | rpl::map(_1 != MTPDuserFull::Flag(0));
+	} else if (const auto chat = peer->asChat()) {
+		const auto mask = 0
+			| MTPDchat::Flag::f_deactivated
+			| MTPDchat_ClientFlag::f_forbidden
+			| MTPDchat::Flag::f_left
+			| MTPDchat::Flag::f_creator
+			| MTPDchat::Flag::f_kicked;
+		return rpl::combine(
+			PeerFlagsValue(chat, mask),
+			AdminRightValue(chat, ChatAdminRight::f_pin_messages),
+			DefaultRestrictionValue(chat, ChatRestriction::f_pin_messages),
+			[](
+				MTPDchat::Flags flags,
+				bool adminRightAllows,
+				bool defaultRestriction) {
+			const auto amOutFlags = 0
+				| MTPDchat::Flag::f_deactivated
+				| MTPDchat_ClientFlag::f_forbidden
+				| MTPDchat::Flag::f_left
+				| MTPDchat::Flag::f_kicked;
+			return !(flags & amOutFlags)
+				&& ((flags & MTPDchat::Flag::f_creator)
+					|| adminRightAllows
+					|| !defaultRestriction);
+		});
+	} else if (const auto megagroup = peer->asMegagroup()) {
+		if (megagroup->amCreator()) {
+			return rpl::single(true);
+		}
+		return rpl::combine(
+			AdminRightValue(megagroup, ChatAdminRight::f_pin_messages),
+			DefaultRestrictionValue(megagroup, ChatRestriction::f_pin_messages),
+			PeerFlagValue(megagroup, MTPDchannel::Flag::f_username),
+			PeerFullFlagValue(megagroup, MTPDchannelFull::Flag::f_location),
+			megagroup->restrictionsValue()
+		) | rpl::map([=](
+				bool adminRightAllows,
+				bool defaultRestriction,
+				bool hasUsername,
+				bool hasLocation,
+				Data::Flags<ChatRestrictions>::Change restrictions) {
+			return adminRightAllows
+				|| (!hasUsername
+					&& !hasLocation
+					&& !defaultRestriction
+					&& !(restrictions.value & ChatRestriction::f_pin_messages));
+		});
+	} else if (const auto channel = peer->asChannel()) {
+		if (channel->amCreator()) {
+			return rpl::single(true);
+		}
+		return AdminRightValue(channel, ChatAdminRight::f_edit_messages);
+	}
+	Unexpected("Peer type in CanPinMessagesValue.");
 }
 
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {

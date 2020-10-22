@@ -170,6 +170,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_pin" = "Pin";
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
+"lng_pinned_messages_title#one" = "{count} pinned message";
+"lng_pinned_messages_title#other" = "{count} pinned messages";
+"lng_pinned_hide_all" = "Don't show pinned messages";
+"lng_pinned_unpin_all#one" = "Unpin {count} message";
+"lng_pinned_unpin_all#other" = "Unpin all {count} messages";
+"lng_pinned_unpin_all_sure" = "Do you want to unpin all messages?";
+"lng_pinned_hide_all_sure" = "Do you want to hide the pinned messages bar? It will stay hidden until a new message is pinned.";
+"lng_pinned_hide_all_hide" = "Hide";
 
 "lng_edit_media_album_error" = "This file cannot be saved as a part of an album.";
 "lng_edit_media_invalid_file" = "Sorry, no way to use this file.";
@@ -316,8 +324,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_events_title" = "Events";
 "lng_settings_events_joined" = "Contact joined Telegram";
 "lng_settings_events_pinned" = "Pinned messages";
-"lng_pinned_messages_title#one" = "{count} pinned message";
-"lng_pinned_messages_title#other" = "{count} pinned messages";
 
 "lng_notification_preview" = "You have a new message";
 "lng_notification_reply" = "Reply";

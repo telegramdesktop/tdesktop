@@ -120,6 +120,7 @@ private:
 		HistoryItem *originItem,
 		anim::type animated = anim::type::normal);
 
+	void setupClearButton();
 	void setupScrollDownButton();
 	void scrollDownClicked();
 	void scrollDownAnimationFinish();
@@ -131,6 +132,9 @@ private:
 	void clearSelected();
 	void recountChatWidth();
 
+	void setMessagesCount(int count);
+	void refreshClearButtonText();
+
 	const not_null<History*> _history;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
@@ -138,13 +142,14 @@ private:
 
 	bool _skipScrollEvent = false;
 	std::unique_ptr<Ui::ScrollArea> _scroll;
-	object_ptr<Ui::FlatButton> _clearButton = { nullptr };
+	std::unique_ptr<Ui::FlatButton> _clearButton;
 
 	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
 
 	Data::MessagesSlice _lastSlice;
+	int _messagesCount = -1;
 
 };
 

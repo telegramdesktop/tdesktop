@@ -435,6 +435,7 @@ QString PeerData::computeUnavailableReason() const {
 	return (first != filtered.end()) ? first->text : QString();
 }
 
+// This is duplicated in CanPinMessagesValue().
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
 		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
@@ -1026,6 +1027,18 @@ MsgId ResolveTopPinnedId(not_null<PeerData*> peer) {
 			1,
 			1));
 	return slice.messageIds.empty() ? 0 : slice.messageIds.back();
+}
+
+std::optional<int> ResolvePinnedCount(not_null<PeerData*> peer) {
+	const auto slice = peer->session().storage().snapshot(
+		Storage::SharedMediaQuery(
+			Storage::SharedMediaKey(
+				peer->id,
+				Storage::SharedMediaType::Pinned,
+				0),
+			0,
+			0));
+	return slice.count;
 }
 
 } // namespace Data

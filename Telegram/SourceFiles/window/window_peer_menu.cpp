@@ -1150,6 +1150,53 @@ void ToggleMessagePinned(
 	}
 }
 
+void HidePinnedBar(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		Fn<void()> onHidden) {
+	Ui::show(Box<ConfirmBox>(tr::lng_pinned_hide_all_sure(tr::now), tr::lng_pinned_hide_all_hide(tr::now), crl::guard(navigation, [=] {
+		Ui::hideLayer();
+		auto &session = peer->session();
+		const auto top = Data::ResolveTopPinnedId(peer);
+		if (top) {
+			session.settings().setHiddenPinnedMessageId(peer->id, top);
+			session.saveSettingsDelayed();
+			if (onHidden) {
+				onHidden();
+			}
+		} else {
+			session.api().requestFullPeer(peer);
+		}
+	})));
+}
+
+void UnpinAllMessages(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<History*> history) {
+	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_all_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(navigation, [=] {
+		Ui::hideLayer();
+		const auto api = &history->session().api();
+		const auto peer = history->peer;
+		const auto sendRequest = [=](auto self) -> void {
+			api->request(MTPmessages_UnpinAllMessages(
+				peer->input
+			)).done([=](const MTPmessages_AffectedHistory &result) {
+				const auto offset = api->applyAffectedHistory(peer, result);
+				if (offset > 0) {
+					self(self);
+				} else {
+					peer->session().storage().remove(
+						Storage::SharedMediaRemoveAll(
+							peer->id,
+							Storage::SharedMediaType::Pinned));
+					peer->setHasPinnedMessages(false);
+				}
+			}).send();
+		};
+		sendRequest(sendRequest);
+	})));
+}
+
 void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {

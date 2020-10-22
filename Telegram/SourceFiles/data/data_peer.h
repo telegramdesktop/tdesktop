@@ -444,5 +444,6 @@ std::optional<QString> RestrictionError(
 
 void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
 [[nodiscard]] MsgId ResolveTopPinnedId(not_null<PeerData*> peer);
+[[nodiscard]] std::optional<int> ResolvePinnedCount(not_null<PeerData*> peer);
 
 } // namespace Data

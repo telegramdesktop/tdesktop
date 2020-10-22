@@ -1316,6 +1316,7 @@ void ListWidget::updateItemsGeometry() {
 				view->setDisplayDate(false);
 			} else {
 				view->setDisplayDate(true);
+				view->setAttachToPrevious(false);
 				return i;
 			}
 		}
@@ -2610,6 +2611,9 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 			view->setAttachToNext(attached);
 			view = next;
 		}
+	}
+	if (till == int(_items.size())) {
+		_items.back()->setAttachToNext(false);
 	}
 	updateSize();
 }

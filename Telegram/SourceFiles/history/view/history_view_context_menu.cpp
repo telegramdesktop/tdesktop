@@ -77,13 +77,17 @@ MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 	return session->data().scheduledMessages().lookupId(item);
 }
 
-bool HasEditMessageAction(const ContextMenuRequest &request) {
+bool HasEditMessageAction(
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
 	const auto item = request.item;
+	const auto context = list->elementContext();
 	if (!item
 		|| item->isSending()
 		|| item->hasFailed()
 		|| item->isEditingMedia()
-		|| !request.selectedItems.empty()) {
+		|| !request.selectedItems.empty()
+		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;
@@ -441,8 +445,10 @@ bool AddSendNowMessageAction(
 
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
-		const ContextMenuRequest &request) {
-	if (!HasEditMessageAction(request) || !request.item->isScheduled()) {
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!HasEditMessageAction(request, list)
+		|| !request.item->isScheduled()) {
 		return false;
 	}
 	const auto owner = &request.item->history()->owner();
@@ -551,7 +557,7 @@ bool AddEditMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	if (!HasEditMessageAction(request)) {
+	if (!HasEditMessageAction(request, list)) {
 		return false;
 	}
 	const auto item = request.item;
@@ -587,6 +593,29 @@ bool AddPinMessageAction(
 	const auto controller = list->controller();
 	menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
 		Window::ToggleMessagePinned(controller, itemId, !isPinned);
+	}));
+	return true;
+}
+
+bool AddGoToMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto view = request.view;
+	if (!view
+		|| !IsServerMsgId(view->data()->id)
+		|| context != Context::Pinned
+		|| !view->hasOutLayout()) {
+		return false;
+	}
+	const auto itemId = view->data()->fullId();
+	const auto controller = list->controller();
+	menu->addAction(tr::lng_context_to_msg(tr::now), crl::guard(controller, [=] {
+		const auto item = controller->session().data().message(itemId);
+		if (item) {
+			goToMessageClickHandler(item)->onClick(ClickContext{});
+		}
 	}));
 	return true;
 }
@@ -774,6 +803,7 @@ void AddTopMessageActions(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
 	AddReplyToMessageAction(menu, request, list);
+	AddGoToMessageAction(menu, request, list);
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
 	AddPinMessageAction(menu, request, list);
@@ -789,7 +819,7 @@ void AddMessageActions(
 	AddDeleteAction(menu, request, list);
 	AddReportAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
-	AddRescheduleMessageAction(menu, request);
+	AddRescheduleMessageAction(menu, request, list);
 }
 
 void AddCopyLinkAction(

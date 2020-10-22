@@ -115,5 +115,12 @@ void ToggleMessagePinned(
 	not_null<Window::SessionNavigation*> navigation,
 	FullMsgId itemId,
 	bool pin);
+void HidePinnedBar(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	Fn<void()> onHidden);
+void UnpinAllMessages(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<History*> history);
 
 } // namespace Window

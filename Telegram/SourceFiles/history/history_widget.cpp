@@ -5565,15 +5565,15 @@ void HistoryWidget::hidePinnedMessage() {
 			{ peerToChannel(_peer->id), id.message },
 			false);
 	} else {
-		const auto top = Data::ResolveTopPinnedId(_peer);
-		if (top) {
-			session().settings().setHiddenPinnedMessageId(_peer->id, top);
-			session().saveSettingsDelayed();
-
-			checkPinnedBarState();
-		} else {
-			session().api().requestFullPeer(_peer);
-		}
+		const auto callback = [=] {
+			if (_pinnedTracker) {
+				checkPinnedBarState();
+			}
+		};
+		Window::HidePinnedBar(
+			controller(),
+			_peer,
+			crl::guard(this, callback));
 	}
 }
 
