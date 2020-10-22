@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_pinned_bar.h"
+
 class History;
 
 namespace Data {
@@ -15,29 +17,16 @@ enum class LoadDirection : char;
 
 namespace HistoryView {
 
-struct PinnedId {
-	MsgId message = 0;
-	int index = 0;
-	int count = 1;
-
-	bool operator<(const PinnedId &other) const {
-		return std::tie(message, index, count)
-			< std::tie(other.message, other.index, other.count);
-	}
-	bool operator==(const PinnedId &other) const {
-		return std::tie(message, index, count)
-			== std::tie(other.message, other.index, other.count);
-	}
-};
-
 class PinnedTracker final {
 public:
+	using UniversalMsgId = int32;
+
 	explicit PinnedTracker(not_null<History*> history);
 	~PinnedTracker();
 
 	[[nodiscard]] rpl::producer<PinnedId> shownMessageId() const;
 	[[nodiscard]] PinnedId currentMessageId() const;
-	void trackAround(MsgId messageId);
+	void trackAround(UniversalMsgId messageId);
 	void reset();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -46,7 +35,7 @@ public:
 
 private:
 	struct Slice {
-		std::vector<MsgId> ids;
+		std::vector<FullMsgId> ids;
 		std::optional<int> fullCount;
 		std::optional<int> skippedBefore;
 		std::optional<int> skippedAfter;
@@ -56,12 +45,13 @@ private:
 	void refreshCurrentFromSlice();
 
 	const not_null<History*> _history;
+	PeerData *_migratedPeer = nullptr;
 
 	rpl::variable<PinnedId> _current;
 	rpl::lifetime _dataLifetime;
 
-	MsgId _aroundId = 0;
-	MsgId _viewerAroundId = 0;
+	UniversalMsgId _aroundId = 0;
+	UniversalMsgId _viewerAroundId = 0;
 	Slice _slice;
 
 	rpl::lifetime _lifetime;

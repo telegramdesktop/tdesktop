@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "boxes/confirm_box.h"
-#include "data/data_peer_values.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
@@ -34,10 +33,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_shared_media.h"
+#include "data/data_peer_values.h"
 #include "storage/storage_account.h"
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
@@ -90,7 +91,8 @@ PinnedWidget::PinnedWidget(
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history)
 : Window::SectionWidget(parent, controller)
-, _history(history)
+, _history(history->migrateToOrMe())
+, _migratedPeer(_history->peer->migrateFrom())
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
@@ -321,7 +323,8 @@ bool PinnedWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<PinnedMemento*>(memento.get())) {
-		if (logMemento->getHistory() == history()) {
+		if (logMemento->getHistory() == history()
+			|| logMemento->getHistory()->migrateToOrMe() == history()) {
 			restoreState(logMemento);
 			return true;
 		}
@@ -358,7 +361,9 @@ void PinnedWidget::restoreState(not_null<PinnedMemento*> memento) {
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
 		const auto position = Data::MessagePosition{
-			.fullId = FullMsgId(_history->channelId(), highlight),
+			.fullId = ((highlight > 0 || !_migratedPeer)
+				? FullMsgId(_history->channelId(), highlight)
+				: FullMsgId(0, -highlight)),
 			.date = TimeId(0),
 		};
 		_inner->showAroundPosition(position, [=] {
@@ -508,6 +513,28 @@ void PinnedWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
+rpl::producer<int> SharedMediaCountValue(
+		not_null<PeerData*> peer,
+		PeerData *migrated,
+		Storage::SharedMediaType type) {
+	auto aroundId = 0;
+	auto limit = 0;
+	auto updated = SharedMediaMergedViewer(
+		&peer->session(),
+		SharedMediaMergedKey(
+			SparseIdsMergedSlice::Key(
+				peer->id,
+				migrated ? migrated->id : 0,
+				aroundId),
+			type),
+		limit,
+		limit
+	) | rpl::map([](const SparseIdsMergedSlice &slice) {
+		return slice.fullCount();
+	}) | rpl::filter_optional();
+	return rpl::single(0) | rpl::then(std::move(updated));
+}
+
 rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -516,15 +543,18 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 	const auto messageId = aroundId.fullId.msg
 		? aroundId.fullId.msg
 		: (ServerMaxMsgId - 1);
-	return SharedMediaViewer(
+
+	return SharedMediaMergedViewer(
 		&_history->session(),
-		Storage::SharedMediaKey(
-			_history->peer->id,
-			Storage::SharedMediaType::Pinned,
-			messageId),
+		SharedMediaMergedKey(
+			SparseIdsMergedSlice::Key(
+				_history->peer->id,
+				_migratedPeer ? _migratedPeer->id : 0,
+				messageId),
+			Storage::SharedMediaType::Pinned),
 		limitBefore,
 		limitAfter
-	) | rpl::filter([=](const SparseIdsSlice &slice) {
+	) | rpl::filter([=](const SparseIdsMergedSlice &slice) {
 		const auto count = slice.fullCount();
 		if (!count.has_value()) {
 			return true;
@@ -535,7 +565,7 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 			controller()->showBackFromStack();
 			return false;
 		}
-	}) | rpl::map([=](SparseIdsSlice &&slice) {
+	}) | rpl::map([=](SparseIdsMergedSlice &&slice) {
 		auto result = Data::MessagesSlice();
 		result.fullCount = slice.fullCount();
 		result.skippedAfter = slice.skippedAfter();
@@ -543,10 +573,10 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		const auto count = slice.size();
 		result.ids.reserve(count);
 		if (const auto msgId = slice.nearest(messageId)) {
-			result.nearestToAround = FullMsgId(channelId, *msgId);
+			result.nearestToAround = *msgId;
 		}
 		for (auto i = 0; i != count; ++i) {
-			result.ids.emplace_back(channelId, slice[i]);
+			result.ids.push_back(slice[i]);
 		}
 		return result;
 	});

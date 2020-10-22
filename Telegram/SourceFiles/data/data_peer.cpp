@@ -1017,7 +1017,9 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 	peer->setHasPinnedMessages(true);
 }
 
-MsgId ResolveTopPinnedId(not_null<PeerData*> peer) {
+FullMsgId ResolveTopPinnedId(
+		not_null<PeerData*> peer,
+		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
@@ -1026,10 +1028,32 @@ MsgId ResolveTopPinnedId(not_null<PeerData*> peer) {
 				ServerMaxMsgId - 1),
 			1,
 			1));
-	return slice.messageIds.empty() ? 0 : slice.messageIds.back();
+	const auto old = migrated
+		? migrated->session().storage().snapshot(
+			Storage::SharedMediaQuery(
+				Storage::SharedMediaKey(
+					migrated->id,
+					Storage::SharedMediaType::Pinned,
+					ServerMaxMsgId - 1),
+				1,
+				1))
+		: Storage::SharedMediaResult{
+			.count = 0,
+			.skippedBefore = 0,
+			.skippedAfter = 0,
+		};
+	if (!slice.messageIds.empty()) {
+		return FullMsgId(peerToChannel(peer->id), slice.messageIds.back());
+	} else if (!migrated || slice.count != 0 || old.messageIds.empty()) {
+		return FullMsgId();
+	} else {
+		return FullMsgId(0, old.messageIds.back());
+	}
 }
 
-std::optional<int> ResolvePinnedCount(not_null<PeerData*> peer) {
+std::optional<int> ResolvePinnedCount(
+		not_null<PeerData*> peer,
+		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
@@ -1038,7 +1062,23 @@ std::optional<int> ResolvePinnedCount(not_null<PeerData*> peer) {
 				0),
 			0,
 			0));
-	return slice.count;
+	const auto old = migrated
+		? migrated->session().storage().snapshot(
+			Storage::SharedMediaQuery(
+				Storage::SharedMediaKey(
+					migrated->id,
+					Storage::SharedMediaType::Pinned,
+					0),
+				0,
+				0))
+		: Storage::SharedMediaResult{
+			.count = 0,
+			.skippedBefore = 0,
+			.skippedAfter = 0,
+	};
+	return (slice.count.has_value() && old.count.has_value())
+		? std::make_optional(*slice.count + *old.count)
+		: std::nullopt;
 }
 
 } // namespace Data

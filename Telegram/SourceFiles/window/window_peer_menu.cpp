@@ -1157,9 +1157,15 @@ void HidePinnedBar(
 	Ui::show(Box<ConfirmBox>(tr::lng_pinned_hide_all_sure(tr::now), tr::lng_pinned_hide_all_hide(tr::now), crl::guard(navigation, [=] {
 		Ui::hideLayer();
 		auto &session = peer->session();
-		const auto top = Data::ResolveTopPinnedId(peer);
-		if (top) {
-			session.settings().setHiddenPinnedMessageId(peer->id, top);
+		const auto migrated = peer->migrateFrom();
+		const auto top = Data::ResolveTopPinnedId(peer, migrated);
+		const auto universal = !top
+			? int32(0)
+			: (migrated && !top.channel)
+			? (top.msg - ServerMaxMsgId)
+			: top.msg;
+		if (universal) {
+			session.settings().setHiddenPinnedMessageId(peer->id, universal);
 			session.saveSettingsDelayed();
 			if (onHidden) {
 				onHidden();

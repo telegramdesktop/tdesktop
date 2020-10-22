@@ -443,7 +443,11 @@ std::optional<QString> RestrictionError(
 	ChatRestriction restriction);
 
 void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
-[[nodiscard]] MsgId ResolveTopPinnedId(not_null<PeerData*> peer);
-[[nodiscard]] std::optional<int> ResolvePinnedCount(not_null<PeerData*> peer);
+[[nodiscard]] FullMsgId ResolveTopPinnedId(
+	not_null<PeerData*> peer,
+	PeerData *migrated);
+[[nodiscard]] std::optional<int> ResolvePinnedCount(
+	not_null<PeerData*> peer,
+	PeerData *migrated);
 
 } // namespace Data

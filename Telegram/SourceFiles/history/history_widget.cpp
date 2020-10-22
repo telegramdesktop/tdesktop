@@ -569,6 +569,12 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::BotStartToken
 		| UpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		if (_migrated && update.peer.get() == _migrated->peer) {
+			if (_pinnedTracker
+				&& (update.flags & UpdateFlag::PinnedMessages)) {
+				checkPinnedBarState();
+			}
+		}
 		return (update.peer.get() == _peer);
 	}) | rpl::map([](const Data::PeerUpdate &update) {
 		return update.flags;
@@ -3398,6 +3404,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
+		setupPinnedTracker(); AssertIsDebug();
 	}
 	if (_recording) {
 		stopRecording(_peer && _inField);
@@ -5021,6 +5028,7 @@ void HistoryWidget::handlePeerMigration() {
 	} else {
 		_migrated = _history->migrateFrom();
 		_list->notifyMigrateUpdated();
+		setupPinnedTracker();
 		updateHistoryGeometry();
 	}
 	const auto from = chat->owner().historyLoaded(chat);
@@ -5168,23 +5176,14 @@ void HistoryWidget::updatePinnedViewer() {
 		|| !_historyInited) {
 		return;
 	}
-	const auto [item, offset] = [&] {
-		auto visibleTop = _scroll->scrollTop();
-		if (_migrated
-			&& _history->loadedAtBottom()
-			&& _migrated->loadedAtTop()) {
-			visibleTop -= _migrated->height();
-		}
-		auto [item, offset] = _history->findItemAndOffset(visibleTop);
-		while (item && !IsServerMsgId(item->data()->id)) {
-			offset -= item->height();
-			item = item->nextInBlocks();
-		}
-		return std::pair(item, offset);
-	}();
-	const auto lessThanId = item
-		? (item->data()->id + (offset > 0 ? 1 : 0))
-		: (ServerMaxMsgId - 1);
+	const auto visibleTop = _scroll->scrollTop();
+	const auto add = (st::historyReplyHeight - _pinnedBarHeight);
+	auto [view, offset] = _list->findViewForPinnedTracking(visibleTop + add);
+	const auto lessThanId = !view
+		? (ServerMaxMsgId - 1)
+		: (view->data()->history() != _history)
+		? (view->data()->id + (offset > 0 ? 1 : 0) - ServerMaxMsgId)
+		: (view->data()->id + (offset > 0 ? 1 : 0));
 	_pinnedTracker->trackAround(lessThanId);
 }
 
@@ -5202,8 +5201,15 @@ void HistoryWidget::checkPinnedBarState() {
 	const auto hiddenId = _peer->canPinMessages()
 		? MsgId(0)
 		: session().settings().hiddenPinnedMessageId(_peer->id);
-	const auto currentPinnedId = Data::ResolveTopPinnedId(_peer);
-	if (currentPinnedId == hiddenId) {
+	const auto currentPinnedId = Data::ResolveTopPinnedId(
+		_peer,
+		_migrated ? _migrated->peer.get() : nullptr);
+	const auto universalPinnedId = !currentPinnedId
+		? int32(0)
+		: (_migrated && !currentPinnedId.channel)
+		? (currentPinnedId.msg - ServerMaxMsgId)
+		: currentPinnedId.msg;
+	if (universalPinnedId == hiddenId) {
 		if (_pinnedBar) {
 			_pinnedTracker->reset();
 			auto qobject = base::unique_qptr{
@@ -5221,21 +5227,13 @@ void HistoryWidget::checkPinnedBarState() {
 		}
 		return;
 	}
-	if (_pinnedBar || !currentPinnedId) {
+	if (_pinnedBar || !universalPinnedId) {
 		return;
 	}
 
-	auto shown = _pinnedTracker->shownMessageId(
-	) | rpl::map([=](HistoryView::PinnedId messageId) {
-		return HistoryView::PinnedBarId{
-			FullMsgId{ peerToChannel(_peer->id), messageId.message },
-			messageId.index,
-			messageId.count
-		};
-	});
 	auto barContent = HistoryView::PinnedBarContent(
 		&session(),
-		std::move(shown));
+		_pinnedTracker->shownMessageId());
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(
 		this,
 		std::move(barContent));
@@ -5268,8 +5266,8 @@ void HistoryWidget::checkPinnedBarState() {
 	_pinnedBar->barClicks(
 	) | rpl::start_with_next([=] {
 		const auto id = _pinnedTracker->currentMessageId();
-		if (id.message) {
-			Ui::showPeerHistory(_peer, id.message);
+		if (const auto item = session().data().message(id.message)) {
+			Ui::showPeerHistory(item->history()->peer, item->id);
 		}
 	}, _pinnedBar->lifetime());
 
@@ -5303,7 +5301,11 @@ void HistoryWidget::refreshPinnedBarButton(bool many) {
 			const auto id = _pinnedTracker->currentMessageId();
 			if (id.message) {
 				controller()->showSection(
-					HistoryView::PinnedMemento(_history, id.message));
+					HistoryView::PinnedMemento(
+						_history,
+						((!_migrated || id.message.channel)
+							? id.message.msg
+							: (id.message.msg - ServerMaxMsgId))));
 			}
 		}
 	}, button->lifetime());
@@ -5560,10 +5562,7 @@ void HistoryWidget::hidePinnedMessage() {
 		return;
 	}
 	if (_peer->canPinMessages()) {
-		Window::ToggleMessagePinned(
-			controller(),
-			{ peerToChannel(_peer->id), id.message },
-			false);
+		Window::ToggleMessagePinned(controller(), id.message, false);
 	} else {
 		const auto callback = [=] {
 			if (_pinnedTracker) {
@@ -5877,7 +5876,9 @@ void HistoryWidget::handlePeerUpdate() {
 	updateHistoryGeometry();
 	if (_peer->isChat() && _peer->asChat()->noParticipantInfo()) {
 		session().api().requestFullPeer(_peer);
-	} else if (_peer->isUser() && (_peer->asUser()->blockStatus() == UserData::BlockStatus::Unknown || _peer->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
+	} else if (_peer->isUser()
+		&& (_peer->asUser()->blockStatus() == UserData::BlockStatus::Unknown
+			|| _peer->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
 		session().api().requestFullPeer(_peer);
 	} else if (auto channel = _peer->asMegagroup()) {
 		if (!channel->mgInfo->botStatus) {

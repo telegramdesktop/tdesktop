@@ -69,6 +69,21 @@ TextParseOptions kMarkedTextBoxOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
+[[nodiscard]] bool IsOldForPin(MsgId id, not_null<PeerData*> peer) {
+	const auto normal = peer->migrateToOrMe();
+	const auto migrated = normal->migrateFrom();
+	const auto top = Data::ResolveTopPinnedId(normal, migrated);
+	if (!top) {
+		return false;
+	} else if (peer == migrated) {
+		return top.channel || (id < top.msg);
+	} else if (migrated) {
+		return top.channel && (id < top.msg);
+	} else {
+		return (id < top.msg);
+	}
+}
+
 } // namespace
 
 ConfirmBox::ConfirmBox(
@@ -444,7 +459,7 @@ PinMessageBox::PinMessageBox(
 : _peer(peer)
 , _api(&peer->session().mtp())
 , _msgId(msgId)
-, _pinningOld(msgId < Data::ResolveTopPinnedId(peer))
+, _pinningOld(IsOldForPin(msgId, peer))
 , _text(
 	this,
 	(_pinningOld

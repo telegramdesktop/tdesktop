@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_changes.h"
 #include "data/data_peer.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_shared_media.h"
 #include "data/data_session.h"
@@ -26,13 +27,25 @@ constexpr auto kChangeViewerLimit = 2;
 
 } // namespace
 
-PinnedTracker::PinnedTracker(not_null<History*> history) : _history(history) {
-	_history->session().changes().peerFlagsValue(
-		_history->peer,
-		Data::PeerUpdate::Flag::PinnedMessages
-	) | rpl::map([=] {
-		return _history->peer->hasPinnedMessages();
-	}) | rpl::distinct_until_changed(
+PinnedTracker::PinnedTracker(not_null<History*> history)
+: _history(history->migrateToOrMe())
+, _migratedPeer(_history->peer->migrateFrom()) {
+	using namespace rpl::mappers;
+	const auto has = [&](PeerData *peer) -> rpl::producer<bool> {
+		auto &changes = _history->session().changes();
+		const auto flag = Data::PeerUpdate::Flag::PinnedMessages;
+		if (!peer) {
+			return rpl::single(false);
+		}
+		return changes.peerFlagsValue(peer, flag) | rpl::map([=] {
+			return peer->hasPinnedMessages();
+		});
+	};
+	rpl::combine(
+		has(_history->peer),
+		has(_migratedPeer),
+		_1 || _2
+	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool has) {
 		if (has) {
 			refreshViewer();
@@ -62,15 +75,17 @@ void PinnedTracker::refreshViewer() {
 	}
 	_dataLifetime.destroy();
 	_viewerAroundId = _aroundId;
-	SharedMediaViewer(
+	SharedMediaMergedViewer(
 		&_history->peer->session(),
-		Storage::SharedMediaKey(
-			_history->peer->id,
-			Storage::SharedMediaType::Pinned,
-			_viewerAroundId),
+		SharedMediaMergedKey(
+			SparseIdsMergedSlice::Key(
+				_history->peer->id,
+				_migratedPeer ? _migratedPeer->id : 0,
+				_viewerAroundId),
+			Storage::SharedMediaType::Pinned),
 		kLoadedLimit,
 		kLoadedLimit
-	) | rpl::start_with_next([=](const SparseIdsSlice &result) {
+	) | rpl::start_with_next([=](const SparseIdsMergedSlice &result) {
 		_slice.fullCount = result.fullCount();
 		_slice.skippedBefore = result.skippedBefore();
 		_slice.skippedAfter = result.skippedAfter();
@@ -83,12 +98,23 @@ void PinnedTracker::refreshViewer() {
 		refreshCurrentFromSlice();
 		if (_slice.fullCount == 0) {
 			_history->peer->setHasPinnedMessages(false);
+			if (_migratedPeer) {
+				_migratedPeer->setHasPinnedMessages(false);
+			}
 		}
 	}, _dataLifetime);
 }
 
 void PinnedTracker::refreshCurrentFromSlice() {
-	const auto i = ranges::lower_bound(_slice.ids, _aroundId);
+	const auto proj1 = [](FullMsgId id) {
+		return id.channel ? id.msg : (id.msg - ServerMaxMsgId);
+	};
+	const auto proj2 = [](FullMsgId id) {
+		return id.msg;
+	};
+	const auto i = _migratedPeer
+		? ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj1)
+		: ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj2);
 	const auto empty = _slice.ids.empty();
 	const auto before = int(i - begin(_slice.ids));
 	const auto after = int(end(_slice.ids) - i);

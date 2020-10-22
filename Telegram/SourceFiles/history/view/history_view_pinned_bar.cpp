@@ -117,7 +117,7 @@ namespace {
 	}));
 }
 
-auto WithPinnedTitle(not_null<Main::Session*> session, PinnedBarId id) {
+auto WithPinnedTitle(not_null<Main::Session*> session, PinnedId id) {
 	return [=](Ui::MessageBarContent &&content) {
 		const auto item = session->data().message(id.message);
 		if (!item) {
@@ -144,11 +144,11 @@ rpl::producer<Ui::MessageBarContent> MessageBarContentByItemId(
 
 rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 		not_null<Main::Session*> session,
-		rpl::producer<PinnedBarId> id) {
+		rpl::producer<PinnedId> id) {
 	return std::move(
 		id
 	) | rpl::distinct_until_changed(
-	) | rpl::map([=](PinnedBarId id) {
+	) | rpl::map([=](PinnedId id) {
 		return ContentByItemId(
 			session,
 			id.message

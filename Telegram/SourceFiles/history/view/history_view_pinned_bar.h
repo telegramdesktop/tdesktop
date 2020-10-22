@@ -28,25 +28,25 @@ namespace HistoryView {
 	FullMsgId id);
 
 enum class PinnedIdType;
-struct PinnedBarId {
+struct PinnedId {
 	FullMsgId message;
 	int index = 0;
 	int count = 1;
 
-	bool operator<(const PinnedBarId &other) const {
+	bool operator<(const PinnedId &other) const {
 		return std::tie(message, index, count)
 			< std::tie(other.message, other.index, other.count);
 	}
-	bool operator==(const PinnedBarId &other) const {
+	bool operator==(const PinnedId &other) const {
 		return std::tie(message, index, count)
 			== std::tie(other.message, other.index, other.count);
 	}
-	bool operator!=(const PinnedBarId &other) const {
+	bool operator!=(const PinnedId &other) const {
 		return !(*this == other);
 	}
 };
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 	not_null<Main::Session*> session,
-	rpl::producer<PinnedBarId> id);
+	rpl::producer<PinnedId> id);
 
 } // namespace HistoryView

@@ -2998,6 +2998,31 @@ int HistoryInner::itemTop(const Element *view) const {
 	return (top < 0) ? top : (top + view->y() + view->block()->y());
 }
 
+auto HistoryInner::findViewForPinnedTracking(int top) const
+-> std::pair<Element*, int> {
+	const auto normalTop = historyTop();
+	const auto oldTop = migratedTop();
+	const auto fromHistory = [&](not_null<History*> history, int historyTop)
+	-> std::pair<Element*, int> {
+		auto [view, offset] = history->findItemAndOffset(top - historyTop);
+		while (view && !IsServerMsgId(view->data()->id)) {
+			offset -= view->height();
+			view = view->nextInBlocks();
+		}
+		return { view, offset };
+	};
+	if (normalTop >= 0 && (oldTop < 0 || top >= normalTop)) {
+		return fromHistory(_history, normalTop);
+	} else if (oldTop >= 0) {
+		auto [view, offset] = fromHistory(_migrated, oldTop);
+		if (!view && normalTop >= 0) {
+			return fromHistory(_history, normalTop);
+		}
+		return { view, offset };
+	}
+	return { nullptr, 0 };
+}
+
 void HistoryInner::notifyIsBotChanged() {
 	const auto newinfo = _peer->isUser()
 		? _peer->asUser()->botInfo.get()
