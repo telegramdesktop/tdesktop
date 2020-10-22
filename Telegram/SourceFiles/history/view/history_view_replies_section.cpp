@@ -685,7 +685,7 @@ void RepliesWidget::sendingFilesConfirmed(
 			base::take(caption),
 			album,
 			action);
-	};
+	}
 	if (_composeControls->replyingToMessage().msg == replyTo) {
 		_composeControls->cancelReplyMessage();
 	}

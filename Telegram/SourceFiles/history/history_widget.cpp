@@ -4255,7 +4255,7 @@ void HistoryWidget::sendingFilesConfirmed(
 			base::take(caption),
 			album,
 			action);
-	};
+	}
 }
 
 bool HistoryWidget::confirmSendingFiles(

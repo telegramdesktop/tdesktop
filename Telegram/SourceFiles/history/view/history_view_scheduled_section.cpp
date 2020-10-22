@@ -419,12 +419,12 @@ void ScheduledWidget::sendingFilesConfirmed(
 			? std::make_shared<SendingAlbum>()
 			: nullptr;
 		session().api().sendFiles(
-			std::move(list),
+			std::move(group.list),
 			type,
 			base::take(caption),
 			album,
 			action);
-	};
+	}
 }
 
 bool ScheduledWidget::confirmSendingFiles(
