@@ -214,9 +214,12 @@ std::vector<PreparedGroup> DivideByGroups(
 
 	auto result = std::vector<PreparedGroup>();
 	auto pushGroup = [&] {
+		const auto type = (group.files.size() > 1)
+			? groupType
+			: AlbumType::None;
 		result.push_back(PreparedGroup{
 			.list = base::take(group),
-			.type = groupType,
+			.type = type,
 		});
 	};
 	for (auto i = 0; i != list.files.size(); ++i) {

@@ -1816,9 +1816,28 @@ void Message::drawInfo(
 		p.drawText(dateX, dateY + st::msgDateFont->ascent, item->_timeText);
 	}
 
+	const auto viewIconTop = infoBottom + st::historyViewsTop;
+	const auto pinIconTop = infoBottom + st::historyPinTop;
+	auto left = infoRight - infoW;
+	if (displayPinIcon()) {
+		const auto icon = [&] {
+			if (outbg) {
+				return &(invertedsprites
+					? st::historyPinInvertedIcon
+					: selected
+					? st::historyPinOutSelectedIcon
+					: st::historyPinOutIcon);
+			}
+			return &(invertedsprites
+				? st::historyPinInvertedIcon
+				: selected
+				? st::historyPinInSelectedIcon
+				: st::historyPinInIcon);
+		}();
+		icon->paint(p, left, pinIconTop, width);
+		left += st::historyViewsWidth;
+	}
 	if (auto views = item->Get<HistoryMessageViews>()) {
-		auto left = infoRight - infoW;
-		const auto iconTop = infoBottom + st::historyViewsTop;
 		const auto textTop = infoBottom - st::msgDateFont->descent;
 		if (views->replies.count > 0
 			&& !views->commentsMegagroupId
@@ -1843,11 +1862,11 @@ void Message::drawInfo(
 					: st::historyViewsSendingIcon);
 			}();
 			if (item->id > 0) {
-				icon->paint(p, left, iconTop, width);
+				icon->paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->replies.text);
 			} else if (!outbg && views->views.count < 0) { // sending outbg icon will be painted below
 				auto iconSkip = st::historyViewsSpace + views->replies.textWidth;
-				icon->paint(p, left + iconSkip, iconTop, width);
+				icon->paint(p, left + iconSkip, viewIconTop, width);
 			}
 			left += st::historyViewsSpace
 				+ views->replies.textWidth
@@ -1874,16 +1893,16 @@ void Message::drawInfo(
 					: st::historyViewsSendingIcon);
 			}();
 			if (item->id > 0) {
-				icon->paint(p, left, iconTop, width);
+				icon->paint(p, left, viewIconTop, width);
 				p.drawText(left + st::historyViewsWidth, textTop, views->views.text);
 			} else if (!outbg) { // sending outbg icon will be painted below
 				auto iconSkip = st::historyViewsSpace + views->views.textWidth;
-				icon->paint(p, left + iconSkip, iconTop, width);
+				icon->paint(p, left + iconSkip, viewIconTop, width);
 			}
 		}
 	} else if (item->id < 0 && item->history()->peer->isSelf() && !outbg) {
 		auto icon = &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
-		icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);
+		icon->paint(p, left, viewIconTop, width);
 	}
 	if (outbg) {
 		auto icon = [&] {
@@ -1951,6 +1970,9 @@ int Message::infoWidth() const {
 			result += st::historySendStateSpace;
 		}
 	}
+	if (displayPinIcon()) {
+		result += st::historyViewsWidth;
+	}
 
 	// When message is scheduled until online, time is not displayed,
 	// so message should have less space.
@@ -2000,6 +2022,9 @@ int Message::timeLeft() const {
 			result += st::historySendStateSpace;
 		}
 	}
+	if (displayPinIcon()) {
+		result += st::historyViewsWidth;
+	}
 	return result;
 }
 
@@ -2044,6 +2069,10 @@ HistoryMessageReply *Message::displayedReply() const {
 		return delegate()->elementHideReply(this) ? nullptr : reply;
 	}
 	return nullptr;
+}
+
+bool Message::displayPinIcon() const {
+	return data()->isPinned() && context() != Context::Pinned;
 }
 
 bool Message::hasFromName() const {

@@ -182,6 +182,12 @@ historyRepliesInSelectedIcon: icon {{ "history_replies", msgInDateFgSelected }};
 historyRepliesOutIcon: icon {{ "history_replies", historyOutIconFg }};
 historyRepliesOutSelectedIcon: icon {{ "history_replies", historyOutIconFgSelected }};
 historyRepliesInvertedIcon: icon {{ "history_replies", historySendingInvertedIconFg }};
+historyPinTop: -18px;
+historyPinInIcon: icon {{ "history_pin", msgInDateFg }};
+historyPinInSelectedIcon: icon {{ "history_pin", msgInDateFgSelected }};
+historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
+historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
+historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
 historyComposeField: InputField(defaultInputField) {
 	font: msgFont;

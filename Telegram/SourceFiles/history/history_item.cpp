@@ -348,6 +348,7 @@ void HistoryItem::markMediaRead() {
 }
 
 void HistoryItem::setIsPinned(bool pinned) {
+	const auto changed = (isPinned() != pinned);
 	if (pinned) {
 		_flags |= MTPDmessage::Flag::f_pinned;
 		history()->session().storage().add(Storage::SharedMediaAddExisting(
@@ -362,6 +363,9 @@ void HistoryItem::setIsPinned(bool pinned) {
 			history()->peer->id,
 			Storage::SharedMediaType::Pinned,
 			id));
+	}
+	if (changed) {
+		history()->owner().requestItemResize(this);
 	}
 }
 

@@ -176,11 +176,13 @@ private:
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
 
-	bool displayFastShare() const;
-	bool displayGoToOriginal() const;
-	ClickHandlerPtr fastReplyLink() const;
-	const HistoryMessageEdited *displayedEditBadge() const;
-	HistoryMessageEdited *displayedEditBadge();
+	[[nodiscard]] bool displayFastShare() const;
+	[[nodiscard]] bool displayGoToOriginal() const;
+	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
+	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
+	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
+	[[nodiscard]] bool displayPinIcon() const;
+
 	void initTime();
 	[[nodiscard]] int timeLeft() const;
 	[[nodiscard]] int plainMaxWidth() const;
