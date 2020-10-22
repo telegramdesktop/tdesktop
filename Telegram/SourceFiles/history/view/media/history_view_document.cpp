@@ -99,7 +99,8 @@ float64 Document::dataProgress() const {
 }
 
 bool Document::dataFinished() const {
-	return !_data->loading() && !_data->uploading();
+	return !_data->loading()
+		&& (!_data->uploading() || _data->waitingForAlbum());
 }
 
 bool Document::dataLoaded() const {
@@ -289,6 +290,7 @@ void Document::draw(
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
 	const auto innerSize = st::msgFileLayout.thumbSize;
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
+	const auto radialOpacity = radial ? _animation->radial.opacity() : 1.;
 	if (thumbed) {
 		auto inWebPage = (_parent->media() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
@@ -304,33 +306,43 @@ void Document::draw(
 			Ui::FillRoundRect(p, rthumb, p.textPalette().selectOverlay, overlayCorners);
 		}
 
-		if (radial || (!loaded && !_data->loading())) {
-			float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
+		if (radial || (!loaded && !_data->loading()) || _data->waitingForAlbum()) {
+			const auto backOpacity = (loaded && !_data->uploading()) ? radialOpacity : 1.;
 			p.setPen(Qt::NoPen);
 			if (selected) {
 				p.setBrush(st::msgDateImgBgSelected);
 			} else {
 				p.setBrush(st::msgDateImgBg);
 			}
-			p.setOpacity(radialOpacity * p.opacity());
+			p.setOpacity(backOpacity * p.opacity());
 
 			{
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(inner);
 			}
 
-			p.setOpacity(radialOpacity);
-			auto icon = ([radial, this, selected] {
-				if (radial || _data->loading()) {
+			const auto icon = [&] {
+				if (_data->waitingForAlbum()) {
+					return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
+				} else if (radial || _data->loading()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-			})();
-			p.setOpacity((radial && loaded) ? _animation->radial.opacity() : 1);
-			icon->paintInCenter(p, inner);
+			}();
+			const auto previous = [&]() -> const style::icon* {
+				if (_data->waitingForAlbum()) {
+					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+				}
+				return nullptr;
+			}();
+			p.setOpacity(backOpacity);
+			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+				PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+			} else {
+				icon->paintInCenter(p, inner);
+			}
+			p.setOpacity(1.);
 			if (radial) {
-				p.setOpacity(1);
-
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 			}
@@ -361,7 +373,9 @@ void Document::draw(
 		}
 
 		const auto icon = [&] {
-			if (!cornerDownload && (_data->loading() || _data->uploading())) {
+			if (_data->waitingForAlbum()) {
+				return &(outbg ? (selected ? st::historyFileOutWaitingSelected : st::historyFileOutWaiting) : (selected ? st::historyFileInWaitingSelected : st::historyFileInWaiting));
+			} else if (!cornerDownload && (_data->loading() || _data->uploading())) {
 				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
 			} else if (showPause) {
 				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
@@ -375,7 +389,17 @@ void Document::draw(
 			}
 			return &(outbg ? (selected ? st::historyFileOutDownloadSelected : st::historyFileOutDownload) : (selected ? st::historyFileInDownloadSelected : st::historyFileInDownload));
 		}();
-		icon->paintInCenter(p, inner);
+		const auto previous = [&]() -> const style::icon* {
+			if (_data->waitingForAlbum()) {
+				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
+			}
+			return nullptr;
+		}();
+		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+		} else {
+			icon->paintInCenter(p, inner);
+		}
 
 		if (radial && !cornerDownload) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));

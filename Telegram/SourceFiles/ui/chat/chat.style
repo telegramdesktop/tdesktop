@@ -148,6 +148,10 @@ historyFileOutPlay: icon {{ "history_file_play", historyFileOutIconFg }};
 historyFileOutPlaySelected: icon {{ "history_file_play", historyFileOutIconFgSelected }};
 historyFileInPlay: icon {{ "history_file_play", historyFileInIconFg }};
 historyFileInPlaySelected: icon {{ "history_file_play", historyFileInIconFgSelected }};
+historyFileOutWaiting: icon {{ "mediaview_save_check", historyFileOutIconFg }};
+historyFileOutWaitingSelected: icon {{ "mediaview_save_check", historyFileOutIconFgSelected }};
+historyFileInWaiting: icon {{ "mediaview_save_check", historyFileInIconFg }};
+historyFileInWaitingSelected: icon {{ "mediaview_save_check", historyFileInIconFgSelected }};
 
 historyFileThumbDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
 historyFileThumbDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
