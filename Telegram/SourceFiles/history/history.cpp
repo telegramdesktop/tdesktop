@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_document.h"
 #include "data/data_histories.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -423,6 +424,11 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 		session().api().cancelLocalItem(item);
 	}
 
+	const auto document = [&] {
+		const auto media = item->media();
+		return media ? media->document() : nullptr;
+	}();
+
 	owner().unregisterMessage(item);
 	Core::App().notifications().clearFromItem(item);
 
@@ -432,6 +438,10 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 
 	Assert(i != end(_messages));
 	_messages.erase(i);
+
+	if (document) {
+		session().data().documentMessageRemoved(document);
+	}
 }
 
 not_null<HistoryItem*> History::addNewItem(

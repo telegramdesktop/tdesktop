@@ -3674,6 +3674,13 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 		changingMsgId(change.item, change.oldId);
 	}, _sessionLifetime);
 
+	session->data().itemRemoved(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return (_document != nullptr) && (item->fullId() == _msgid);
+	}) | rpl::start_with_next([=] {
+		close();
+	}, _sessionLifetime);
+
 	session->account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		clearSession();

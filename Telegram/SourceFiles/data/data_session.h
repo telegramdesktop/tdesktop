@@ -547,6 +547,8 @@ public:
 		UserId contactId,
 		not_null<HistoryItem*> item);
 
+	void documentMessageRemoved(not_null<DocumentData*> document);
+
 	void checkPlayingAnimations();
 
 	HistoryItem *findWebPageItem(not_null<WebPageData*> page) const;

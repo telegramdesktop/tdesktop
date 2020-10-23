@@ -349,6 +349,11 @@ MainWidget::MainWidget(
 			if (!songState.id || IsStoppedOrStopping(songState.state)) {
 				closeBothPlayers();
 			}
+		} else if (type == AudioMsgId::Type::Song) {
+			const auto songState = Media::Player::instance()->getState(AudioMsgId::Type::Song);
+			if (!songState.id) {
+				closeBothPlayers();
+			}
 		}
 	});
 
