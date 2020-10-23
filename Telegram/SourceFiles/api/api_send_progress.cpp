@@ -20,6 +20,7 @@ namespace {
 
 constexpr auto kCancelTypingActionTimeout = crl::time(5000);
 constexpr auto kSetMyActionForMs = 10 * crl::time(1000);
+constexpr auto kSendTypingsToOfflineFor = TimeId(30);
 
 } // namespace
 
@@ -150,7 +151,8 @@ bool SendProgressManager::skipRequest(const Key &key) const {
 	} else if (user->isBot() && !user->isSupport()) {
 		return true;
 	}
-	return !Data::OnlineTextActive(user->onlineTill, base::unixtime::now());
+	const auto recently = base::unixtime::now() - kSendTypingsToOfflineFor;
+	return !Data::OnlineTextActive(user->onlineTill, recently);
 }
 
 void SendProgressManager::done(
