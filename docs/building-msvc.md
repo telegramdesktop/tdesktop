@@ -102,14 +102,13 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout fix_capture
+    git checkout fix_mono
     cd build
     cmake .. ^
     -G "Visual Studio 16 2019" ^
     -A Win32 ^
     -D LIBTYPE:STRING=STATIC ^
-    -D FORCE_STATIC_VCRT=ON ^
-    -D ALSOFT_BACKEND_WASAPI=OFF
+    -D FORCE_STATIC_VCRT=ON
     msbuild OpenAL.vcxproj /property:Configuration=Debug
     msbuild OpenAL.vcxproj /property:Configuration=Release
     cd ..\..
