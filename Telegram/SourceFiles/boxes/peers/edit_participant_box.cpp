@@ -308,7 +308,7 @@ void EditAdminBox::prepare() {
 	}, lifetime());
 
 	if (canTransferOwnership()) {
-		const auto allFlags = FullAdminRights(isGroup);
+		const auto allFlags = AdminRightsForOwnershipTransfer(isGroup);
 		setupTransferButton(
 			isGroup
 		)->toggleOn(rpl::duplicate(

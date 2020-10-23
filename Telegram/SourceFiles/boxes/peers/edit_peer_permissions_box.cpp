@@ -298,10 +298,12 @@ ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
 	return restrictions;
 }
 
-ChatAdminRights FullAdminRights(bool isGroup) {
+ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
 	auto result = ChatAdminRights();
 	for (const auto &[flag, label] : AdminRightLabels(isGroup, true)) {
-		result |= flag;
+		if (!(flag & ChatAdminRight::f_anonymous)) {
+			result |= flag;
+		}
 	}
 	return result;
 }
