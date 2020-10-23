@@ -47,8 +47,8 @@ private:
 	[[nodiscard]] bool applyUpdate(
 		not_null<Viewer*> viewer,
 		const MessageUpdate &update);
-	void injectRootMessageAndReverse(not_null<MessagesSlice*> slice);
-	void injectRootMessage(not_null<MessagesSlice*> slice);
+	void injectRootMessageAndReverse(not_null<Viewer*> viewer);
+	void injectRootMessage(not_null<Viewer*> viewer);
 	void injectRootDivider(
 		not_null<HistoryItem*> root,
 		not_null<MessagesSlice*> slice);

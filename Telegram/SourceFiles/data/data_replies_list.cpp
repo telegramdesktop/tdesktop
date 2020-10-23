@@ -42,7 +42,10 @@ struct RepliesList::Viewer {
 	MsgId around = 0;
 	int limitBefore = 0;
 	int limitAfter = 0;
+	int injectedForRoot = 0;
 	base::has_weak_ptr guard;
+	bool stale = true;
+	bool scheduled = false;
 };
 
 RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
@@ -67,7 +70,9 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		_history->session().changes().historyFlagsValue(
 			_history,
 			Data::HistoryUpdate::Flag::LocalMessages)
-	) | rpl::map([=](MessagesSlice &&server, const auto &) {
+	) | rpl::filter([=](const MessagesSlice &data, const auto &) {
+		return (data.fullCount.value_or(0) >= 0);
+	}) | rpl::map([=](MessagesSlice &&server, const auto &) {
 		appendLocalMessages(server);
 		return std::move(server);
 	});
@@ -82,8 +87,20 @@ rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 		auto lifetime = rpl::lifetime();
 		const auto viewer = lifetime.make_state<Viewer>();
 		const auto push = [=] {
+			viewer->scheduled = false;
 			if (buildFromData(viewer)) {
+				viewer->stale = false;
 				consumer.put_next_copy(viewer->slice);
+			}
+		};
+		const auto pushDelayed = [=] {
+			if (!viewer->stale) {
+				viewer->stale = true;
+				consumer.put_next_copy(MessagesSlice{ .fullCount = -1 });
+			}
+			if (!viewer->scheduled) {
+				viewer->scheduled = true;
+				crl::on_main(&viewer->guard, push);
 			}
 		};
 		viewer->around = around;
@@ -96,14 +113,10 @@ rpl::producer<MessagesSlice> RepliesList::sourceFromServer(
 			| MessageUpdate::Flag::Destroyed
 		) | rpl::filter([=](const MessageUpdate &update) {
 			return applyUpdate(viewer, update);
-		}) | rpl::start_with_next([=] {
-			crl::on_main(&viewer->guard, push);
-		}, lifetime);
+		}) | rpl::start_with_next(pushDelayed, lifetime);
 
 		_partLoaded.events(
-		) | rpl::start_with_next([=] {
-			crl::on_main(&viewer->guard, push);
-		}, lifetime);
+		) | rpl::start_with_next(pushDelayed, lifetime);
 
 		push();
 		return lifetime;
@@ -173,32 +186,37 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
-void RepliesList::injectRootMessageAndReverse(
-		not_null<MessagesSlice*> slice) {
-	injectRootMessage(slice);
-	ranges::reverse(slice->ids);
+void RepliesList::injectRootMessageAndReverse(not_null<Viewer*> viewer) {
+	injectRootMessage(viewer);
+	ranges::reverse(viewer->slice.ids);
 }
 
-void RepliesList::injectRootMessage(not_null<MessagesSlice*> slice) {
+void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
+	const auto slice = &viewer->slice;
+	viewer->injectedForRoot = 0;
 	if (slice->skippedBefore != 0) {
 		return;
 	}
-	if (const auto root = lookupRoot()) {
-		injectRootDivider(root, slice);
+	const auto root = lookupRoot();
+	if (!root) {
+		return;
+	}
+	injectRootDivider(root, slice);
 
-		if (const auto group = _history->owner().groups().find(root)) {
-			for (const auto item : ranges::view::reverse(group->items)) {
-				slice->ids.push_back(item->fullId());
-			}
-			if (slice->fullCount) {
-				*slice->fullCount += group->items.size();
-			}
-		} else {
-			slice->ids.push_back(root->fullId());
-			if (slice->fullCount) {
-				++*slice->fullCount;
-			}
+	if (const auto group = _history->owner().groups().find(root)) {
+		for (const auto item : ranges::view::reverse(group->items)) {
+			slice->ids.push_back(item->fullId());
 		}
+		viewer->injectedForRoot = group->items.size();
+		if (slice->fullCount) {
+			*slice->fullCount += group->items.size();
+		}
+	} else {
+		slice->ids.push_back(root->fullId());
+		viewer->injectedForRoot = 1;
+	}
+	if (slice->fullCount) {
+		*slice->fullCount += viewer->injectedForRoot;
 	}
 }
 
@@ -232,7 +250,8 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			= viewer->slice.skippedBefore
 			= viewer->slice.skippedAfter
 			= 0;
-		injectRootMessageAndReverse(&viewer->slice);
+		viewer->injectedForRoot = 0;
+		injectRootMessageAndReverse(viewer);
 		return true;
 	}
 	const auto around = [&] {
@@ -285,7 +304,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 			slice->ids.empty() ? 0 : slice->ids.back().msg));
 	slice->fullCount = _fullCount.current();
 
-	injectRootMessageAndReverse(slice);
+	injectRootMessageAndReverse(viewer);
 
 	if (_skippedBefore != 0 && useBefore < viewer->limitBefore + 1) {
 		loadBefore();
@@ -301,8 +320,18 @@ bool RepliesList::applyUpdate(
 		not_null<Viewer*> viewer,
 		const MessageUpdate &update) {
 	if (update.item->history() != _history
-		|| update.item->replyToTop() != _rootId
 		|| !IsServerMsgId(update.item->id)) {
+		return false;
+	}
+	if (update.flags & MessageUpdate::Flag::Destroyed) {
+		const auto id = update.item->fullId();
+		for (auto i = 0; i != viewer->injectedForRoot; ++i) {
+			if (viewer->slice.ids[i] == id) {
+				return true;
+			}
+		}
+	}
+	if (update.item->replyToTop() != _rootId) {
 		return false;
 	}
 	const auto id = update.item->id;
