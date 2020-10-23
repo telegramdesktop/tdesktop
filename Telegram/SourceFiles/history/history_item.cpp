@@ -537,6 +537,8 @@ void HistoryItem::setRealId(MsgId newId) {
 bool HistoryItem::canPin() const {
 	if (id < 0 || !toHistoryMessage()) {
 		return false;
+	} else if (const auto m = media(); m && m->call()) {
+		return false;
 	}
 	return _history->peer->canPinMessages();
 }

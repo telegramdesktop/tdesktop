@@ -166,10 +166,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_quiz" = "Pinned quiz";
 "lng_pinned_unpin_sure" = "Would you like to unpin this message?";
 "lng_pinned_pin_sure" = "Would you like to pin this message?";
+"lng_pinned_pin_sure_group" = "Do you want to pin this message for all members in the group?";
 "lng_pinned_pin_old_sure" = "Do you want to pin an older message while leaving a more recent one pinned?";
 "lng_pinned_pin" = "Pin";
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
+"lng_pinned_also_for_other" = "Also pin for {user}";
 "lng_pinned_messages_title#one" = "{count} pinned message";
 "lng_pinned_messages_title#other" = "{count} pinned messages";
 "lng_pinned_hide_all" = "Don't show pinned messages";

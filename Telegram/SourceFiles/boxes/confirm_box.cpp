@@ -464,6 +464,8 @@ PinMessageBox::PinMessageBox(
 	this,
 	(_pinningOld
 		? tr::lng_pinned_pin_old_sure(tr::now)
+		: (peer->isChat() || peer->isMegagroup())
+		? tr::lng_pinned_pin_sure_group(tr::now)
 		: tr::lng_pinned_pin_sure(tr::now)),
 	st::boxLabel) {
 }
@@ -473,12 +475,27 @@ void PinMessageBox::prepare() {
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	if (!_pinningOld && (_peer->isChat() || _peer->isMegagroup())) {
-		_notify.create(this, tr::lng_pinned_notify(tr::now), true, st::defaultBoxCheckbox);
+		_notify.create(
+			this,
+			tr::lng_pinned_notify(tr::now),
+			true,
+			st::defaultBoxCheckbox);
+		_checkbox = _notify;
+	} else if (_peer->isUser() && !_peer->isSelf()) {
+		_pinForPeer.create(
+			this,
+			tr::lng_pinned_also_for_other(
+				tr::now,
+				lt_user,
+				_peer->shortName()),
+			true,
+			st::defaultBoxCheckbox);
+		_checkbox = _pinForPeer;
 	}
 
 	auto height = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
-	if (_notify) {
-		height += st::boxMediumSkip + _notify->heightNoMargins();
+	if (_checkbox) {
+		height += st::boxMediumSkip + _checkbox->heightNoMargins();
 	}
 	setDimensions(st::boxWidth, height);
 }
@@ -486,8 +503,8 @@ void PinMessageBox::prepare() {
 void PinMessageBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	if (_notify) {
-		_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+	if (_checkbox) {
+		_checkbox->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
 	}
 }
 
@@ -505,6 +522,9 @@ void PinMessageBox::pinMessage() {
 	auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
 	if (_notify && !_notify->checked()) {
 		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
+	}
+	if (_pinForPeer && !_pinForPeer->checked()) {
+		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_pm_oneside;
 	}
 	_requestId = _api.request(MTPmessages_UpdatePinnedMessage(
 		MTP_flags(flags),
