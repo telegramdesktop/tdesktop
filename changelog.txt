@@ -1,3 +1,9 @@
+2.4.4 (23.10.20)
+
+- Fix application quit on call end with main window hidden in tray.
+- Update OpenAL library on Windows.
+- Several crash fixes.
+
 2.4.3 (07.10.20)
 
 - Fix sending voice messages in scheduled messages section.
