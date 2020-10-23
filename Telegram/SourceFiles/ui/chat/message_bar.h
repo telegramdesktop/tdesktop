@@ -52,6 +52,9 @@ private:
 		Ui::Animations::Simple barTop;
 		QPixmap bodyOrTextFrom;
 		QPixmap bodyOrTextTo;
+		QPixmap titleSame;
+		QPixmap titleFrom;
+		QPixmap titleTo;
 		QPixmap imageFrom;
 		QPixmap imageTo;
 		BodyAnimation bodyAnimation = BodyAnimation::None;
@@ -71,12 +74,16 @@ private:
 	[[nodiscard]] QPixmap prepareImage(const QImage &preview);
 
 	[[nodiscard]] QRect imageRect() const;
+	[[nodiscard]] QRect titleRangeRect(int from, int till) const;
 	[[nodiscard]] QRect bodyRect(bool withImage) const;
 	[[nodiscard]] QRect bodyRect() const;
 	[[nodiscard]] QRect textRect() const;
 
 	auto makeGrabGuard();
 	[[nodiscard]] QPixmap grabBodyOrTextPart(BodyAnimation type);
+	[[nodiscard]] QPixmap grabTitleBase(int till);
+	[[nodiscard]] QPixmap grabTitlePart(int from);
+	[[nodiscard]] QPixmap grabTitleRange(int from, int till);
 	[[nodiscard]] QPixmap grabImagePart();
 	[[nodiscard]] QPixmap grabBodyPart();
 	[[nodiscard]] QPixmap grabTextPart();

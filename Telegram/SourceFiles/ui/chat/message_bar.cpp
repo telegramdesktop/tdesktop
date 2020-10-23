@@ -13,6 +13,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 
 namespace Ui {
+namespace {
+
+[[nodiscard]] int SameFirstPartLength(const QString &a, const QString &b) {
+	const auto [i, j] = ranges::mismatch(a, b);
+	return (i - a.begin());
+}
+
+[[nodiscard]] bool MuchDifferent(
+		int same,
+		const QString &a,
+		const QString &b) {
+	return (same * 2 < a.size()) || (same * 2 < b.size());
+}
+
+[[nodiscard]] bool MuchDifferent(const QString &a, const QString &b) {
+	return MuchDifferent(SameFirstPartLength(a, b), a, b);
+}
+
+[[nodiscard]] bool ComplexTitleAnimation(
+		int same,
+		const QString &a,
+		const QString &b) {
+	return !MuchDifferent(same, a, b)
+		&& (same != a.size() || same != b.size());
+}
+
+} // namespace
 
 MessageBar::MessageBar(not_null<QWidget*> parent, const style::MessageBar &st)
 : _st(st)
@@ -51,10 +78,11 @@ MessageBar::BodyAnimation MessageBar::DetectBodyAnimationType(
 		? currentAnimation->bodyAnimation
 		: BodyAnimation::None;
 	const auto somethingChanged = (currentContent.text != nextContent.text)
+		|| (currentContent.title != nextContent.title)
 		|| (currentContent.index != nextContent.index)
 		|| (currentContent.count != nextContent.count);
 	return (now == BodyAnimation::Full
-		|| currentContent.title != nextContent.title
+		|| MuchDifferent(currentContent.title, nextContent.title)
 		|| (currentContent.title.isEmpty() && somethingChanged))
 		? BodyAnimation::Full
 		: (now == BodyAnimation::Text || somethingChanged)
@@ -93,10 +121,21 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 		: RectPart::None;
 	animation.imageFrom = grabImagePart();
 	animation.bodyOrTextFrom = grabBodyOrTextPart(animation.bodyAnimation);
+	const auto sameLength = SameFirstPartLength(
+		_content.title,
+		content.title);
+	if (animation.bodyAnimation == BodyAnimation::Text
+		&& ComplexTitleAnimation(sameLength, _content.title, content.title)) {
+		animation.titleSame = grabTitleBase(sameLength);
+		animation.titleFrom = grabTitlePart(sameLength);
+	}
 	auto was = std::move(_animation);
 	updateFromContent(std::move(content));
 	animation.imageTo = grabImagePart();
 	animation.bodyOrTextTo = grabBodyOrTextPart(animation.bodyAnimation);
+	if (!animation.titleSame.isNull()) {
+		animation.titleTo = grabTitlePart(sameLength);
+	}
 	if (was) {
 		_animation = std::move(was);
 		std::swap(*_animation, animation);
@@ -154,6 +193,20 @@ QRect MessageBar::imageRect() const {
 	return QRect(left, top, size, size);
 }
 
+QRect MessageBar::titleRangeRect(int from, int till) const {
+	auto result = bodyRect();
+	result.setHeight(st::msgServiceNameFont->height);
+	const auto left = from
+		? st::msgServiceNameFont->width(_content.title.mid(0, from))
+		: 0;
+	const auto right = (till <= _content.title.size())
+		? st::msgServiceNameFont->width(_content.title.mid(0, till))
+		: result.width();
+	result.setLeft(result.left() + left);
+	result.setWidth(right - left);
+	return result;
+}
+
 QRect MessageBar::bodyRect(bool withImage) const {
 	const auto innerLeft = st::msgReplyBarSkip + st::msgReplyBarSkip;
 	const auto imageSkip = st::msgReplyBarSize.height()
@@ -194,6 +247,21 @@ QPixmap MessageBar::grabBodyOrTextPart(BodyAnimation type) {
 		: (type == BodyAnimation::Text)
 		? grabTextPart()
 		: QPixmap();
+}
+
+QPixmap MessageBar::grabTitleBase(int till) {
+	return grabTitleRange(0, till);
+}
+
+QPixmap MessageBar::grabTitlePart(int from) {
+	Expects(from <= _content.title.size());
+
+	return grabTitleRange(from, _content.title.size());
+}
+
+QPixmap MessageBar::grabTitleRange(int from, int till) {
+	const auto guard = makeGrabGuard();
+	return GrabWidget(widget(), titleRangeRect(from, till));
 }
 
 QPixmap MessageBar::grabBodyPart() {
@@ -324,8 +392,24 @@ void MessageBar::paint(Painter &p) {
 		p.setOpacity(1.);
 	}
 	if (!_animation || _animation->bodyAnimation != BodyAnimation::Full) {
-		p.setPen(_st.titleFg);
-		_title.drawLeftElided(p, body.x(), body.y(), body.width(), width);
+		if (_animation && !_animation->titleSame.isNull()) {
+			const auto factor = style::DevicePixelRatio();
+			p.drawPixmap(body.x(), body.y(), _animation->titleSame);
+			p.setOpacity(1. - progress);
+			p.drawPixmap(
+				body.x() + (_animation->titleSame.width() / factor),
+				body.y() + shiftFrom,
+				_animation->titleFrom);
+			p.setOpacity(progress);
+			p.drawPixmap(
+				body.x() + (_animation->titleSame.width() / factor),
+				body.y() + shiftTo,
+				_animation->titleTo);
+			p.setOpacity(1.);
+		} else {
+			p.setPen(_st.titleFg);
+			_title.drawLeftElided(p, body.x(), body.y(), body.width(), width);
+		}
 	} else {
 		p.setOpacity(1. - progress);
 		p.drawPixmap(
