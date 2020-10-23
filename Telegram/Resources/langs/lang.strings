@@ -2271,6 +2271,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_not_ready_link" = "translations platform";
 
 "lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
+"lng_launch_svg_warning" = "Opening this file can potentially expose your IP address to its sender. Continue?";
 "lng_launch_exe_sure" = "Run";
 "lng_launch_exe_dont_ask" = "Don't ask me again";
 

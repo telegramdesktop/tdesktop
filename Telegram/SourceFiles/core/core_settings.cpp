@@ -109,7 +109,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_notifyFromAll ? 1 : 0)
 			<< qint32(_nativeWindowFrame.current() ? 1 : 0)
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
-			<< _callVideoInputDeviceId;
+			<< _callVideoInputDeviceId
+			<< qint32(_ipRevealWarning ? 1 : 0);
 	}
 	return result;
 }
@@ -176,6 +177,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 notifyFromAll = _notifyFromAll ? 1 : 0;
 	qint32 nativeWindowFrame = _nativeWindowFrame.current() ? 1 : 0;
 	qint32 systemDarkModeEnabled = _systemDarkModeEnabled.current() ? 1 : 0;
+	qint32 ipRevealWarning = _ipRevealWarning ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -259,6 +261,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> callVideoInputDeviceId;
 	}
+	if (!stream.atEnd()) {
+		stream >> ipRevealWarning;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -318,6 +323,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_includeMutedCounter = (includeMutedCounter == 1);
 	_countUnreadMessages = (countUnreadMessages == 1);
 	_exeLaunchWarning = (exeLaunchWarning == 1);
+	_ipRevealWarning = (ipRevealWarning == 1);
 	_notifyAboutPinned = (notifyAboutPinned == 1);
 	_loopAnimatedStickers = (loopAnimatedStickers == 1);
 	_largeEmoji = (largeEmoji == 1);
@@ -468,6 +474,7 @@ void Settings::resetOnLastLogout() {
 	_soundOverrides = {};
 
 	_exeLaunchWarning = true;
+	_ipRevealWarning = true;
 	_loopAnimatedStickers = true;
 	_largeEmoji = true;
 	_replaceEmoji = true;

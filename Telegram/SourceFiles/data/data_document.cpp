@@ -74,15 +74,15 @@ void LaunchWithWarning(
 		not_null<Main::Session*> session,
 		const QString &name,
 		HistoryItem *item) {
+	const auto isExecutable = Data::IsExecutableName(name);
+	const auto isIpReveal = Data::IsIpRevealingName(name);
+	auto &app = Core::App();
 	const auto warn = [&] {
-		if (!Data::IsExecutableName(name)) {
-			return false;
-		} else if (!Core::App().settings().exeLaunchWarning()) {
-			return false;
-		} else if (item && item->history()->peer->isVerified()) {
+		if (item && item->history()->peer->isVerified()) {
 			return false;
 		}
-		return true;
+		return (isExecutable && app.settings().exeLaunchWarning())
+			|| (isIpReveal && app.settings().ipRevealWarning());
 	}();
 	const auto extension = '.' + Data::FileExtension(name);
 	if (Platform::IsWindows() && extension == u"."_q) {
@@ -99,20 +99,27 @@ void LaunchWithWarning(
 		File::Launch(name);
 		return;
 	}
-	const auto callback = [=](bool checked) {
+	const auto callback = [=, &app](bool checked) {
 		if (checked) {
-			Core::App().settings().setExeLaunchWarning(false);
-			Core::App().saveSettingsDelayed();
+			if (isExecutable) {
+				app.settings().setExeLaunchWarning(false);
+			} else if (isIpReveal) {
+				app.settings().setIpRevealWarning(false);
+			}
+			app.saveSettingsDelayed();
 		}
 		File::Launch(name);
 	};
-	Ui::show(Box<ConfirmDontWarnBox>(
-		tr::lng_launch_exe_warning(
+	auto text = isExecutable
+		? tr::lng_launch_exe_warning(
 			lt_extension,
 			rpl::single(Ui::Text::Bold(extension)),
-			Ui::Text::WithEntities),
+			Ui::Text::WithEntities)
+		: tr::lng_launch_svg_warning(Ui::Text::WithEntities);
+	Ui::show(Box<ConfirmDontWarnBox>(
+		std::move(text),
 		tr::lng_launch_exe_dont_ask(tr::now),
-		tr::lng_launch_exe_sure(),
+		(isExecutable ? tr::lng_launch_exe_sure : tr::lng_continue)(),
 		callback));
 }
 
@@ -1668,18 +1675,30 @@ mpkg pkg scpt scptd xhtm webarchive");
 slp zsh");
 #else // Q_OS_MAC || Q_OS_UNIX
 			qsl("\
-ad ade adp app application appref-ms asp asx bas bat bin cdxml cer cfg chi \
-chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget grp \
-hlp hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk \
-local lua mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb \
-mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml msh2xml \
-mshxml msi msp mst ops osd paf pcd phar php php3 php4 php5 php7 phps php-s \
-pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 psd1 \
-psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr sct \
-search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp vbs \
-vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx \
-website ws wsc wsf wsh xbap xll xnk xs");
+ad ade adp app application appref-ms asp asx bas bat bin cab cdxml cer cfg \
+chi chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget \
+grp hlp hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse key ksh \
+lnk local lua mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda \
+mdb mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml \
+msh2xml mshxml msi msp mst ops osd paf pcd phar php php3 php4 php5 php7 phps \
+php-s pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
+psd1 psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr \
+sct search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp \
+vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx \
+vtx website ws wsc wsf wsh xbap xll xnk xs");
 #endif // !Q_OS_MAC && !Q_OS_UNIX
+		const auto list = joined.split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
+
+	return ranges::binary_search(
+		kExtensions,
+		FileExtension(filepath).toLower());
+}
+
+bool IsIpRevealingName(const QString &filepath) {
+	static const auto kExtensions = [] {
+		const auto joined = u"htm html svg"_q;
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
