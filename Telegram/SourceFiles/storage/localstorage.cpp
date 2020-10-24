@@ -1285,8 +1285,7 @@ bool readOldUserSettings(bool remove, ReadSettingsContext &context) {
 
 CustomLangPack *CustomLangPack::instance = nullptr;
 
-CustomLangPack::CustomLangPack() {
-}
+CustomLangPack::CustomLangPack() = default;
 
 void CustomLangPack::initInstance() {
 	if (!instance)
@@ -1317,12 +1316,16 @@ void CustomLangPack::fetchFinished() {
 	if (!_chkReply) return;
 
 	QByteArray result = _chkReply->readAll().trimmed();
-	QJsonParseError error;
+	QJsonParseError error{};
 	QJsonDocument str = QJsonDocument::fromJson(result, &error);
 	if (error.error == QJsonParseError::NoError) {
 		QJsonObject json = str.object();
-		foreach(const QString& key, json.keys()) {
+		for (const QString& key : json.keys()) {
 			Lang::GetInstance().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
+			if (key.contains("#other")) {
+                Lang::GetInstance().applyValue(key.toLocal8Bit().replace("#other", "#few"), QByteArray().append(json.value(key).toString()));
+                Lang::GetInstance().applyValue(key.toLocal8Bit().replace("#other", "#many"), QByteArray().append(json.value(key).toString()));
+			}
 		}
 		Lang::GetInstance().updatePluralRules();
 	}
@@ -1348,7 +1351,7 @@ void CustomLangPack::loadDefaultLangFile() {
 	if (file.open(QIODevice::ReadOnly)) {
 		QJsonDocument str = QJsonDocument::fromJson(file.readAll());
 		QJsonObject json = str.object();
-		foreach(const QString& key, json.keys()) {
+		for (const QString& key : json.keys()) {
 			Lang::GetInstance().applyValue(key.toLocal8Bit(), QByteArray().append(json.value(key).toString()));
 		}
 		Lang::GetInstance().updatePluralRules();
