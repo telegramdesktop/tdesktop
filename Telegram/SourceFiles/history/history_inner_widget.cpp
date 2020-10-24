@@ -1705,25 +1705,27 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardItemNoQuote(itemId);
 					});
 					if ((item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
-						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
-							const auto api = &item->history()->peer->session().api();
-							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-							action.clearDraft = false;
-							action.generateLocal = false;
-							api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
-								Ui::Toast::Show(tr::lng_share_done(tr::now));
-							});
-						});
-						if (!item->emptyText() && item->media() == nullptr) {
-							_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
-								const auto api = &item->history()->peer->session().api();
-								auto message = ApiWrap::MessageToSend(_history);
-								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
-								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-								message.action.replyTo = item->idOriginal();
-								api->sendMessage(std::move(message));
-							});
-						}
+					    if (cShowRepeaterOption()) {
+                            _menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+                                const auto api = &item->history()->peer->session().api();
+                                auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+                                action.clearDraft = false;
+                                action.generateLocal = false;
+                                api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+                                    Ui::Toast::Show(tr::lng_share_done(tr::now));
+                                });
+                            });
+                            if (!item->emptyText() && item->media() == nullptr) {
+                                _menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
+                                    const auto api = &item->history()->peer->session().api();
+                                    auto message = ApiWrap::MessageToSend(_history);
+                                    message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+                                    message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+                                    message.action.replyTo = item->idOriginal();
+                                    api->sendMessage(std::move(message));
+                                });
+                            }
+					    }
 						_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(api->session().user()->asUser()));
@@ -1893,25 +1895,27 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardAsGroupNoQuote(itemId);
 					});
 					if ((item->history()->peer->isMegagroup() || item->history()->peer->isChat() || item->history()->peer->isUser())) {
-						_menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
-							const auto api = &item->history()->peer->session().api();
-							auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-							action.clearDraft = false;
-							action.generateLocal = false;
-							api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
-								Ui::Toast::Show(tr::lng_share_done(tr::now));
-							});
-						});
-						if (!item->emptyText() && item->media() == nullptr) {
-							_menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
-								const auto api = &item->history()->peer->session().api();
-								auto message = ApiWrap::MessageToSend(_history);
-								message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
-								message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
-								message.action.replyTo = item->idOriginal();
-								api->sendMessage(std::move(message));
-							});
-						}
+					    if (cShowRepeaterOption()) {
+                            _menu->addAction(tr::lng_context_repeat_msg(tr::now), [=] {
+                                const auto api = &item->history()->peer->session().api();
+                                auto action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+                                action.clearDraft = false;
+                                action.generateLocal = false;
+                                api->forwardMessages(std::move(HistoryItemsList{ item }), action, [] {
+                                    Ui::Toast::Show(tr::lng_share_done(tr::now));
+                                });
+                            });
+                            if (!item->emptyText() && item->media() == nullptr) {
+                                _menu->addAction(tr::lng_context_repeat_msg_no_fwd(tr::now), [=] {
+                                    const auto api = &item->history()->peer->session().api();
+                                    auto message = ApiWrap::MessageToSend(_history);
+                                    message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+                                    message.action = Api::SendAction(item->history()->peer->owner().history(item->history()->peer));
+                                    message.action.replyTo = item->idOriginal();
+                                    api->sendMessage(std::move(message));
+                                });
+                            }
+					    }
 						_menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
 							const auto api = &item->history()->peer->session().api();
 							auto action = Api::SendAction(item->history()->peer->owner().history(api->session().user()->asUser()));

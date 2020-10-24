@@ -173,6 +173,7 @@ rpl::producer<> UpdatedRecentEmoji() {
 bool gEnhancedFirstRun = true;
 bool gShowMessagesID = false;
 bool gShowEmojiButtonAsText = false;
+bool gShowRepeaterOption = false;
 
 int gNetSpeedBoost = 0;
 int gNetRequestsCount = 2;

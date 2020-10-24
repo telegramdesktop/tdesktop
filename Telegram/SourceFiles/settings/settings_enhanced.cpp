@@ -82,6 +82,23 @@ namespace Settings {
 		AddSkip(inner);
 		AddDividerText(inner, tr::lng_show_messages_id_desc());
 
+        AddSkip(inner);
+        AddButton(
+                inner,
+                tr::lng_settings_show_repeater_option(),
+                st::settingsButton
+        )->toggleOn(
+                rpl::single(cShowRepeaterOption())
+        )->toggledChanges(
+        ) | rpl::filter([=](bool toggled) {
+            return (toggled != cShowRepeaterOption());
+        }) | rpl::start_with_next([=](bool toggled) {
+            cSetShowRepeaterOption(toggled);
+            EnhancedSettings::Write();
+        }, container->lifetime());
+
+        AddSkip(inner);
+
 		AddSkip(container);
 	}
 

@@ -181,6 +181,7 @@ inline void ValidateScale() {
 DeclareSetting(bool, EnhancedFirstRun);
 DeclareSetting(bool, ShowMessagesID);
 DeclareSetting(bool, ShowEmojiButtonAsText);
+DeclareSetting(bool, ShowRepeaterOption);
 
 DeclareSetting(int, NetSpeedBoost);
 DeclareSetting(int, NetRequestsCount);

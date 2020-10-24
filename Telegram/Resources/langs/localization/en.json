@@ -13,6 +13,7 @@
     "lng_settings_show_message_id": "Show Messages ID",
     "lng_settings_button": "Button",
     "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text",
+    "lng_settings_show_repeater_option": "Show Repeater Option",
 
     "lng_net_speed_boost_title": "Network speed boost",
     "lng_net_speed_boost_desc": "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.",
