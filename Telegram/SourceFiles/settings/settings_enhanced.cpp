@@ -36,7 +36,7 @@ https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 
 namespace Settings {
 
-	void SetupEnhancedNetwork(not_null<Ui::VerticalLayout *> container) {
+    void SetupEnhancedNetwork(not_null<Ui::VerticalLayout *> container) {
         const auto wrap = container->add(
                 object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
                         container,
@@ -44,46 +44,46 @@ namespace Settings {
         const auto inner = wrap->entity();
 
         AddDividerText(inner, tr::lng_settings_restart_hint());
-		AddSkip(container);
-		AddSubsectionTitle(container, tr::lng_settings_network());
+        AddSkip(container);
+        AddSubsectionTitle(container, tr::lng_settings_network());
 
-		AddButtonWithLabel(
-				container,
-				tr::lng_settings_net_speed_boost(),
-				rpl::single(NetBoostBox::BoostLabel(cNetSpeedBoost())),
-				st::settingsButton
-		)->addClickHandler([=] {
-			Ui::show(Box<NetBoostBox>());
-		});
+        AddButtonWithLabel(
+                container,
+                tr::lng_settings_net_speed_boost(),
+                rpl::single(NetBoostBox::BoostLabel(cNetSpeedBoost())),
+                st::settingsButton
+        )->addClickHandler([=] {
+            Ui::show(Box<NetBoostBox>());
+        });
 
-		AddSkip(container);
-	}
+        AddSkip(container);
+    }
 
-	void SetupEnhancedMessages(not_null<Ui::VerticalLayout *> container) {
-		AddDivider(container);
-		AddSkip(container);
-		AddSubsectionTitle(container, tr::lng_settings_messages());
+    void SetupEnhancedMessages(not_null<Ui::VerticalLayout *> container) {
+        AddDivider(container);
+        AddSkip(container);
+        AddSubsectionTitle(container, tr::lng_settings_messages());
 
-		const auto wrap = container->add(
-				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-						container,
-						object_ptr<Ui::VerticalLayout>(container)));
-		const auto inner = wrap->entity();
+        const auto wrap = container->add(
+                object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+                        container,
+                        object_ptr<Ui::VerticalLayout>(container)));
+        const auto inner = wrap->entity();
 
-		AddButton(
-				inner,
-				tr::lng_settings_show_message_id(),
-				st::settingsButton
-		)->toggleOn(
-				rpl::single(cShowMessagesID())
-		)->toggledChanges(
-		) | rpl::filter([=](bool toggled) {
-			return (toggled != cShowMessagesID());
-		}) | rpl::start_with_next([=](bool toggled) {
-			cSetShowMessagesID(toggled);
-			EnhancedSettings::Write();
-			App::restart();
-		}, container->lifetime());
+        AddButton(
+                inner,
+                tr::lng_settings_show_message_id(),
+                st::settingsButton
+        )->toggleOn(
+                rpl::single(cShowMessagesID())
+        )->toggledChanges(
+        ) | rpl::filter([=](bool toggled) {
+            return (toggled != cShowMessagesID());
+        }) | rpl::start_with_next([=](bool toggled) {
+            cSetShowMessagesID(toggled);
+            EnhancedSettings::Write();
+            App::restart();
+        }, container->lifetime());
 
         AddButton(
                 inner,
@@ -99,56 +99,55 @@ namespace Settings {
             EnhancedSettings::Write();
         }, container->lifetime());
 
-		AddSkip(container);
-	}
+        AddSkip(container);
+    }
 
-	void SetupEnhancedButton(not_null<Ui::VerticalLayout *> container) {
-		AddDivider(container);
-		AddSkip(container);
-		AddSubsectionTitle(container, tr::lng_settings_button());
+    void SetupEnhancedButton(not_null<Ui::VerticalLayout *> container) {
+        AddDivider(container);
+        AddSkip(container);
+        AddSubsectionTitle(container, tr::lng_settings_button());
 
-		const auto wrap = container->add(
-				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-						container,
-						object_ptr<Ui::VerticalLayout>(container)));
-		const auto inner = wrap->entity();
+        const auto wrap = container->add(
+                object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+                        container,
+                        object_ptr<Ui::VerticalLayout>(container)));
+        const auto inner = wrap->entity();
 
-		AddButton(
-				inner,
-				tr::lng_settings_show_emoji_button_as_text(),
-				st::settingsButton
-		)->toggleOn(
-				rpl::single(cShowEmojiButtonAsText())
-		)->toggledChanges(
-		) | rpl::filter([=](bool toggled) {
-			return (toggled != cShowEmojiButtonAsText());
-		}) | rpl::start_with_next([=](bool toggled) {
-			cSetShowEmojiButtonAsText(toggled);
-			EnhancedSettings::Write();
-			App::restart();
-		}, container->lifetime());
+        AddButton(
+                inner,
+                tr::lng_settings_show_emoji_button_as_text(),
+                st::settingsButton
+        )->toggleOn(
+                rpl::single(cShowEmojiButtonAsText())
+        )->toggledChanges(
+        ) | rpl::filter([=](bool toggled) {
+            return (toggled != cShowEmojiButtonAsText());
+        }) | rpl::start_with_next([=](bool toggled) {
+            cSetShowEmojiButtonAsText(toggled);
+            EnhancedSettings::Write();
+            App::restart();
+        }, container->lifetime());
 
-		AddSkip(inner);
-		AddDividerText(inner, tr::lng_show_emoji_button_as_text_desc());
+        AddDividerText(inner, tr::lng_show_emoji_button_as_text_desc());
 
-		AddSkip(container);
-	}
+        AddSkip(container);
+    }
 
-	Enhanced::Enhanced(
-			QWidget *parent,
-			not_null<Window::SessionController *> controller)
-			: Section(parent) {
-		setupContent(controller);
-	}
+    Enhanced::Enhanced(
+            QWidget *parent,
+            not_null<Window::SessionController *> controller)
+            : Section(parent) {
+        setupContent(controller);
+    }
 
-	void Enhanced::setupContent(not_null<Window::SessionController *> controller) {
-		const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+    void Enhanced::setupContent(not_null<Window::SessionController *> controller) {
+        const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-		SetupEnhancedNetwork(content);
-		SetupEnhancedMessages(content);
-		SetupEnhancedButton(content);
+        SetupEnhancedNetwork(content);
+        SetupEnhancedMessages(content);
+        SetupEnhancedButton(content);
 
-		Ui::ResizeFitChild(this, content);
-	}
+        Ui::ResizeFitChild(this, content);
+    }
 } // namespace Settings
 
