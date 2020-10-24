@@ -44,6 +44,10 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 24. Create new supergroup
 25. [Restore] Discussion group button
 26. Mention user via Create Link with tg://user?id=123456
+27. User Bio clickable
+28. `tg://openmessage` and `tg://user` clickable
+29. Show user total sent messages when you're deleting a message
+30. Shortcut for Fast Forward/Copy messages (ALT+F/ALF+C)
 
 ## Supported systems
 
