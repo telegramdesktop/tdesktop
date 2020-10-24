@@ -6,22 +6,53 @@ on:
   schedule:
     # At 00:00 on day-of-month 1.
     - cron: '0 0 1 * *'
+  pull_request_target:
+    types: [closed]
 
 jobs:
   User-agent:
     runs-on: ubuntu-latest
 
     env:
-      code_file: "Telegram/SourceFiles/mtproto/details/mtproto_domain_resolver.cpp"
-      skip: "0"
+      codeFile: "Telegram/SourceFiles/mtproto/details/mtproto_domain_resolver.cpp"
+      headBranchPrefix: "chrome_"
+      baseBranch: "dev"
+      isPull: "0"
 
     steps:
+      - name: Set env.
+        if: startsWith(github.event_name, 'pull_request')
+        run: |
+          echo "isPull=1" >> $GITHUB_ENV
+
       - name: Clone.
-        if: env.skip == '0'
         uses: actions/checkout@v2
 
+      - name: Set up git.
+        run: |
+          token=${{ secrets.TOKEN_FOR_MASTER_UPDATER }}
+          if [ -z "${token}" ]; then
+              echo "Token is unset. Nothing to do."
+              exit 1
+          fi
+
+          url=https://x-access-token:$token@github.com/$GITHUB_REPOSITORY
+
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+
+          git remote set-url origin $url
+
+      - name: Delete branch.
+        if: |
+          env.isPull == '1'
+            && github.event.action == 'closed'
+            && startsWith(github.head_ref, env.headBranchPrefix)
+        run: |
+          git push origin --delete ${{ github.head_ref }}
+
       - name: Write a new version of Google Chrome to the user-agent for DNS.
-        if: env.skip == '0'
+        if: env.isPull == '0'
         shell: python
         run: |
           import subprocess, os, re;
@@ -40,8 +71,11 @@ jobs:
           newChromeVersion = newVersion();
           print(newChromeVersion);
 
+          def setEnv(value):
+            open(os.environ['GITHUB_ENV'], "a").write(value);
+
           def writeUserAgent():
-            p = os.environ['code_file'];
+            p = os.environ['codeFile'];
             w = open(p, "r");
             content = w.read();
             w.close();
@@ -57,34 +91,64 @@ jobs:
             w = open(p, "w");
             w.write(content);
 
-            print("::set-env name=ChromeVersion::" + newChromeVersion);
+            setEnv("ChromeVersion=" + newChromeVersion);
 
           writeUserAgent();
 
-      - name: Push to the current branch.
-        if: env.skip == '0' && env.ChromeVersion != ''
+      - name: Push to a new branch.
+        if: env.isPull == '0' && env.ChromeVersion != ''
         run: |
-          token=${{ secrets.TOKEN_FOR_MASTER_UPDATER }}
-          if [ -z "${token}" ]; then
-              echo "Token is unset. Nothing to do."
-              exit 0
-          fi
-
-          url=https://x-access-token:$token@github.com/$GITHUB_REPOSITORY
-
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
           git diff > git_diff.txt
           if [[ ! -s git_diff.txt ]]; then
             echo "Nothing to commit."
             exit 0
           fi
 
-          git add $code_file
+          git checkout -b $headBranchPrefix$ChromeVersion
+          git add $codeFile
           git commit -m "Update User-Agent for DNS to Chrome $ChromeVersion."
 
-          git remote set-url origin $url
-
-          git push origin HEAD:$GITHUB_REF
+          git push origin $headBranchPrefix$ChromeVersion
           echo "Done!"
+
+      - name: Close previous pull requests.
+        if: env.isPull == '0' && env.ChromeVersion != ''
+        uses: actions/github-script@0.4.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const common = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            };
+
+            github.pulls.list(common).then(response => {
+              response.data.forEach((item, _) => {
+                if (item.head.ref.startsWith(process.env.headBranchPrefix)) {
+                  console.log(`Close ${item.title} #${item.number}.`);
+                  github.pulls.update({
+                    pull_number: item.number,
+                    state: "closed",
+                    ...common
+                  });
+                }
+              });
+            });
+
+      - name: Create a new pull request.
+        if: env.isPull == '0' && env.ChromeVersion != ''
+        uses: actions/github-script@0.4.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = process.env.ChromeVersion;
+            const title = `Update User-Agent for DNS to Chrome ${version}.`;
+
+            github.pulls.create({
+              title: title,
+              body: "",
+              head: `${process.env.headBranchPrefix}${version}`,
+              base: process.env.baseBranch,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
