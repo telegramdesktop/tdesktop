@@ -407,6 +407,7 @@ bool HandleOpenMessage(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto userId = params.value(qsl("user_id")).toInt();
+	const auto msgId = params.value(qsl("message_id")).toInt();
 	if (!userId) {
 		return false;
 	}
@@ -414,7 +415,8 @@ bool HandleOpenMessage(
 	if (peer != nullptr) {
 		controller->showPeerHistory(
 				peer,
-				Window::SectionShow::Way::Forward);
+				Window::SectionShow::Way::Forward,
+				msgId);
 		return true;
 	}
 	Core::App().hideMediaView();
