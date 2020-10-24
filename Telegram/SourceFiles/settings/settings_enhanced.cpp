@@ -37,7 +37,13 @@ https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 namespace Settings {
 
 	void SetupEnhancedNetwork(not_null<Ui::VerticalLayout *> container) {
-		AddDivider(container);
+        const auto wrap = container->add(
+                object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+                        container,
+                        object_ptr<Ui::VerticalLayout>(container)));
+        const auto inner = wrap->entity();
+
+        AddDividerText(inner, tr::lng_settings_restart_hint());
 		AddSkip(container);
 		AddSubsectionTitle(container, tr::lng_settings_network());
 
@@ -79,10 +85,6 @@ namespace Settings {
 			App::restart();
 		}, container->lifetime());
 
-		AddSkip(inner);
-		AddDividerText(inner, tr::lng_show_messages_id_desc());
-
-        AddSkip(inner);
         AddButton(
                 inner,
                 tr::lng_settings_show_repeater_option(),
@@ -96,8 +98,6 @@ namespace Settings {
             cSetShowRepeaterOption(toggled);
             EnhancedSettings::Write();
         }, container->lifetime());
-
-        AddSkip(inner);
 
 		AddSkip(container);
 	}

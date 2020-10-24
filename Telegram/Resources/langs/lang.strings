@@ -2455,9 +2455,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_button" = "Button";
 "lng_settings_show_emoji_button_as_text" = "Show Emoji Button As Text";
 "lng_settings_show_repeater_option" = "Show Repeater Option";
+"lng_settings_restart_hint" = "WARNING: Changing options marked with \"*\" will take effect immediately with restart.";
 
 "lng_net_speed_boost_title" = "Network speed boost";
-"lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.\n\nYou'll need to restart app to save changes.";
+"lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.";
 
 "lng_net_speed_boost_default" = "Disabled";
 "lng_net_speed_boost_slight" = "Slight";
@@ -2466,7 +2467,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_net_boost_restart_desc" = "You'll need to restart app to change network boost.\n\nRestart now?";
 "lng_show_messages_id_desc" = "Warning: the changes will take effect immediately with restart.";
-"lng_show_emoji_button_as_text_desc" = "Note: If you can't see a emoji button, please turn on this option.\nThe changes will take effect immediately with restart.";
+"lng_show_emoji_button_as_text_desc" = "Note: If you can't see a emoji button, please turn on this option.";
 
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";
