@@ -815,7 +815,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 		+ '-'
 		+ cGUIDStr();
 
-	if (idealSocketPath.size() > 108) {
+	if (idealSocketPath.size() >= 108) {
 		return AppRuntimeDirectory() + hash;
 	} else {
 		return idealSocketPath;
