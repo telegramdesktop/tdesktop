@@ -169,17 +169,14 @@ jobs:
         with:
           path: ${{ env.LibrariesPath }}/opus-cache
           key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
-      - name: Opus clone.
-        run: |
-          cd $LibrariesPath
-
-          git clone -b v1.3 --depth=1 $GIT/xiph/opus
-      - name: Opus build.
+      - name: Opus.
         if: steps.cache-opus.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
 
+          git clone $GIT/xiph/opus
           cd opus
+          git checkout v1.3
           ./autogen.sh
           CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
           make -j$(nproc)

@@ -42,7 +42,7 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-void InstallMainDesktopFile();
+void InstallLauncher();
 
 } // namespace Platform
 

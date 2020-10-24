@@ -69,7 +69,7 @@ constexpr auto kExportLocalTimeout = crl::time(1000);
 //}
 
 MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
-	if (!item->isScheduled()) {
+	if (!item->isScheduled() || item->isSending() || item->hasFailed()) {
 		return item->id;
 	}
 	const auto session = &item->history()->session();
@@ -420,23 +420,23 @@ bool AddSendNowMessageAction(
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request) {
-	if (!HasEditMessageAction(request)
-		|| !request.item->isScheduled()) {
+	if (!HasEditMessageAction(request) || !request.item->isScheduled()) {
 		return false;
 	}
-	const auto item = request.item;
-	const auto owner = &item->history()->owner();
-	const auto itemId = item->fullId();
+	const auto owner = &request.item->history()->owner();
+	const auto itemId = request.item->fullId();
 	menu->addAction(tr::lng_context_reschedule(tr::now), [=] {
 		const auto item = owner->message(itemId);
 		if (!item) {
 			return;
 		}
 		const auto callback = [=](Api::SendOptions options) {
-			if (!item->media() || !item->media()->webpage()) {
-				options.removeWebPageId = true;
+			if (const auto item = owner->message(itemId)) {
+				if (!item->media() || !item->media()->webpage()) {
+					options.removeWebPageId = true;
+				}
+				Api::RescheduleMessage(item, options);
 			}
-			Api::RescheduleMessage(item, options);
 		};
 
 		const auto peer = item->history()->peer;
@@ -453,13 +453,19 @@ bool AddRescheduleMessageAction(
 			? HistoryView::DefaultScheduleTime()
 			: item->date() + 600;
 
-		Ui::show(
+		const auto box = Ui::show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				sendMenuType,
 				callback,
 				date),
 			Ui::LayerOption::KeepOther);
+
+		owner->itemRemoved(
+			itemId
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
 	});
 	return true;
 }

@@ -228,14 +228,12 @@ void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
 
 void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 	// When the user sends a message with a media scheduled until online
-	// while the recipient is already online, the server sends
-	// updateNewMessage to the client and the client calls this method.
+	// while the recipient is already online, or scheduled message
+	// is already due and is sent immediately, the server sends
+	// updateNewMessage or updateNewChannelMessage to the client
+	// and the client calls this method.
 
 	const auto peer = peerFromMTP(data.vpeer_id());
-	if (!peerIsUser(peer)) {
-		return;
-	}
-
 	const auto history = _session->data().historyLoaded(peer);
 	if (!history) {
 		return;

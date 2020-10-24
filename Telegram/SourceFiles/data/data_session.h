@@ -231,6 +231,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
 
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
+	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved(
+		FullMsgId itemId) const;
 	void notifyViewRemoved(not_null<const ViewElement*> view);
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
@@ -544,6 +546,8 @@ public:
 	void unregisterContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
+
+	void documentMessageRemoved(not_null<DocumentData*> document);
 
 	void checkPlayingAnimations();
 

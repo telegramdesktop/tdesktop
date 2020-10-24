@@ -48,6 +48,7 @@ enum class Command {
 	FolderPrevious,
 
 	ShowArchive,
+	ShowContacts,
 
 	JustSendMessage,
 	SendSilentMessage,

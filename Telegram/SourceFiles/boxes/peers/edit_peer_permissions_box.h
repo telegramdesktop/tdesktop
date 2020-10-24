@@ -71,4 +71,4 @@ EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 
 ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer);
 ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions);
-ChatAdminRights FullAdminRights(bool isGroup);
+ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup);

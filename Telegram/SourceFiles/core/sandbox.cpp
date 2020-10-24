@@ -90,6 +90,7 @@ Sandbox::Sandbox(
 	}
 })
 , _launcher(launcher) {
+	setQuitOnLastWindowClosed(false);
 }
 
 int Sandbox::start() {

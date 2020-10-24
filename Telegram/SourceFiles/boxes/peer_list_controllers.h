@@ -31,8 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace Window {
+class SessionController;
 class SessionNavigation;
 } // namespace Window
+
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
+	not_null<Window::SessionController*> sessionController);
 
 class PeerListRowWithLink : public PeerListRow {
 public:

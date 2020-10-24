@@ -217,6 +217,7 @@ private:
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
+	void stopAndClear(not_null<Data*> data);
 
 	void handleStreamingUpdate(
 		not_null<Data*> data,

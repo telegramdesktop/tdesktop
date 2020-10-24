@@ -345,11 +345,13 @@ OverlayWidget::OverlayWidget()
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
-#else // Q_OS_UNIX && !Q_OS_MAC
-	setWindowFlags(Qt::FramelessWindowHint);
-#endif // Q_OS_UNIX && !Q_OS_MAC
+	if (Platform::IsLinux()) {
+		setWindowFlags(Qt::FramelessWindowHint
+			| Qt::WindowStaysOnTopHint
+			| Qt::MaximizeUsingFullscreenGeometryHint);
+	} else {
+		setWindowFlags(Qt::FramelessWindowHint);
+	}
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -2280,11 +2282,11 @@ void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		Ui::Platform::UpdateOverlayed(this);
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-		showFullScreen();
-#else // Q_OS_UNIX && !Q_OS_MAC
-		show();
-#endif // Q_OS_UNIX && !Q_OS_MAC
+		if (Platform::IsLinux()) {
+			showFullScreen();
+		} else {
+			show();
+		}
 		Ui::Platform::ShowOverAll(this);
 		activateWindow();
 		QApplication::setActiveWindow(this);
@@ -3670,6 +3672,14 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 	session->data().itemIdChanged(
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
 		changingMsgId(change.item, change.oldId);
+	}, _sessionLifetime);
+
+	session->data().itemRemoved(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return (_document != nullptr || _photo != nullptr)
+			&& (item->fullId() == _msgid);
+	}) | rpl::start_with_next([=] {
+		close();
 	}, _sessionLifetime);
 
 	session->account().sessionChanges(

@@ -3178,6 +3178,11 @@ void InnerWidget::setupShortcuts() {
 			return (history != nullptr);
 		});
 
+		request->check(Command::ShowContacts) && request->handle([=] {
+			Ui::show(PrepareContactsBox(_controller));
+			return true;
+		});
+
 		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent

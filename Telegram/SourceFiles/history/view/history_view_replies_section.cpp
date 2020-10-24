@@ -216,6 +216,7 @@ RepliesWidget::RepliesWidget(
 		if (update.item == _root) {
 			_root = nullptr;
 			updatePinnedVisibility();
+			controller->showBackFromStack();
 		}
 		while (update.item == _replyReturn) {
 			calculateNextReplyReturn();
@@ -1758,7 +1759,7 @@ MessagesBarData RepliesWidget::listMessagesBar(
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
 		if (IsServerMsgId(item->id) && item->id > till) {
-			if (item->out()) {
+			if (item->out() || !item->replyToId()) {
 				readTill(item);
 			} else {
 				return MessagesBarData{

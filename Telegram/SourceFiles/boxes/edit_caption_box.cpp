@@ -363,6 +363,12 @@ EditCaptionBox::EditCaptionBox(
 	) | rpl::start_with_next([&](bool checked) {
 		_asFile = checked;
 	}, _wayWrap->lifetime());
+
+	_controller->session().data().itemRemoved(
+		_msgId
+	) | rpl::start_with_next([=] {
+		closeBox();
+	}, lifetime());
 }
 
 EditCaptionBox::~EditCaptionBox() = default;
