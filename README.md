@@ -67,7 +67,7 @@ Create a Pull Request: [Localization Repo](https://github.com/TDesktop-x64/Local
 
 You can find a language ID on Telegram's log.txt
 
-For exmaple: `[2020.07.10 07:32:16] Current Language ID: en, Base ID: `
+For example: `[2020.07.10 07:32:16] Current Language ID: en, Base ID: `
 
 Then your language translation filename is `en.json` or something like that.
 
