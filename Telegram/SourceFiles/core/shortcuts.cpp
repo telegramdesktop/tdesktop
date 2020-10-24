@@ -385,7 +385,7 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+0"), Command::ChatSelf);
 
 	set(qsl("ctrl+9"), Command::ShowArchive);
-	set(qsl("ctrl+shift+n"), Command::ShowContacts);
+	set(qsl("ctrl+j"), Command::ShowContacts);
 
 	set(qsl("ctrl+r"), Command::ReadChat);
 }
