@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Get repository name.
-        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
         uses: actions/checkout@v2
@@ -94,13 +94,13 @@ jobs:
             thisFile=$REPO_NAME/.github/workflows/mac.yml
             echo `md5 -q $thisFile` >> CACHE_KEY.txt
           fi
-          echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
+          echo "CACHE_KEY=`md5 -q CACHE_KEY.txt`" >> $GITHUB_ENV
 
-          echo ::add-path::$PWD/Libraries/depot_tools
+          echo "$PWD/Libraries/depot_tools" >> $GITHUB_PATH
 
           mkdir -p Libraries/macos
           cd Libraries/macos
-          echo ::set-env name=LibrariesPath::`pwd`
+          echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
 
       - name: Patches.
         run: |
@@ -490,9 +490,9 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
-            echo ::set-env name=ARTIFACT_NAME::Telegram
+            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
 
           ./configure.sh \

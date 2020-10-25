@@ -76,7 +76,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           artifact_name=$(echo telegram-desktop_*.snap)
-          echo ::set-env name=ARTIFACT_NAME::$artifact_name
+          echo "ARTIFACT_NAME=$artifact_name" >> $GITHUB_ENV
 
           mkdir artifact
           mv $artifact_name artifact

@@ -71,7 +71,7 @@ jobs:
 
     steps:
       - name: Get repository name.
-        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Disable man for further package installs.
         run: |
@@ -129,11 +129,11 @@ jobs:
             echo `md5sum $thisFile | cut -c -32` >> CACHE_KEY.txt
           fi
           md5cache=$(md5sum CACHE_KEY.txt | cut -c -32)
-          echo ::set-env name=CACHE_KEY::$md5cache
+          echo "CACHE_KEY=$md5cache" >> $GITHUB_ENV
 
           mkdir -p Libraries
           cd Libraries
-          echo ::set-env name=LibrariesPath::`pwd`
+          echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
 
       - name: Patches.
         run: |
@@ -556,9 +556,9 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
-            echo ::set-env name=ARTIFACT_NAME::Telegram
+            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
 
           ./configure.sh \
