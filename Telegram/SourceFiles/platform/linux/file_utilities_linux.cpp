@@ -125,19 +125,26 @@ constexpr auto kPreviewHeight = 512;
 using Type = ::FileDialog::internal::Type;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-bool NativeSupported(Type type = Type::ReadFile) {
+bool UseNative(Type type = Type::ReadFile) {
 	// use gtk file dialog on gtk-based desktop environments
 	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
-	// or if portals is used and operation is to open folder
+	// or if portals are used and operation is to open folder
 	// and portal doesn't support folder choosing
-	return (Platform::DesktopEnvironment::IsGtkBased()
-			|| Platform::IsGtkIntegrationForced()
-			|| Platform::UseXDGDesktopPortal())
-		&& ((!Platform::UseXDGDesktopPortal() &&
-			((!Platform::InFlatpak() && !Platform::InSnap())
-				|| Platform::IsGtkIntegrationForced()))
-			|| (type == Type::ReadFolder && !Platform::CanOpenDirectoryWithPortal()))
-		&& Platform::internal::GdkHelperLoaded()
+	const auto neededForPortal = UseXDGDesktopPortal()
+		&& type == Type::ReadFolder
+		&& !CanOpenDirectoryWithPortal();
+
+	const auto neededNonForced = DesktopEnvironment::IsGtkBased()
+		|| neededForPortal;
+
+	const auto excludeNonForced = InFlatpak() || InSnap();
+
+	return IsGtkIntegrationForced()
+		|| (neededNonForced && !excludeNonForced);
+}
+
+bool NativeSupported() {
+	return Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
 		&& (Libs::gtk_clipboard_get != nullptr)
@@ -241,7 +248,7 @@ bool Get(
 		parent = parent->window();
 	}
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (NativeSupported(type)) {
+	if (UseNative(type) && NativeSupported()) {
 		return GetNative(
 			parent,
 			files,
