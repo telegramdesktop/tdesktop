@@ -252,7 +252,7 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 		psSetupTrayIcon();
 		HWND psOwner = (HWND)GetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT);
 		if (!psOwner) {
-			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (LONG)ps_tbHider_hWnd);
+			SetWindowLongPtr(ps_hWnd, GWLP_HWNDPARENT, (LONG_PTR)ps_tbHider_hWnd);
 		}
 	} break;
 
