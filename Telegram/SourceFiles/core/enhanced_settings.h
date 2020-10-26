@@ -10,29 +10,37 @@ https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 
 namespace EnhancedSettings {
 
-class Manager : public QObject {
-	Q_OBJECT
+    class Manager : public QObject {
+    Q_OBJECT
 
-public:
-	Manager();
-	void fill();
-	void write(bool force = false);
+    public:
+        Manager();
 
-public slots:
-	void writeTimeout();
+        void fill();
 
-private:
-	void writeDefaultFile();
-	void writeCurrentSettings();
-	bool readCustomFile();
-	void writing();
+        void write(bool force = false);
 
-	QTimer _jsonWriteTimer;
+    public slots:
 
-};
+        void writeTimeout();
 
-void Start();
-void Write();
-void Finish();
+    private:
+        void writeDefaultFile();
+
+        void writeCurrentSettings();
+
+        bool readCustomFile();
+
+        void writing();
+
+        QTimer _jsonWriteTimer;
+
+    };
+
+    void Start();
+
+    void Write();
+
+    void Finish();
 
 } // namespace EnhancedSettings
