@@ -480,6 +480,9 @@ private:
 	void setupPinnedTracker();
 	void checkPinnedBarState();
 	void refreshPinnedBarButton(bool many);
+	void checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop);
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
@@ -596,6 +599,7 @@ private:
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
+	FullMsgId _pinnedClickedId;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 

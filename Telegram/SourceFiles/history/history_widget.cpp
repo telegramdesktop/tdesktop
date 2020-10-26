@@ -1608,6 +1608,8 @@ void HistoryWidget::showHistory(
 		const PeerId &peerId,
 		MsgId showAtMsgId,
 		bool reload) {
+	_pinnedClickedId = FullMsgId();
+
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
 
@@ -2747,6 +2749,14 @@ void HistoryWidget::onScroll() {
 	if (!_synteticScrollEvent) {
 		_lastUserScrolled = crl::now();
 	}
+	const auto scrollTop = _scroll->scrollTop();
+	if (scrollTop != _lastScrollTop) {
+		if (!_synteticScrollEvent) {
+			checkLastPinnedClickedIdReset(_lastScrollTop, scrollTop);
+		}
+		_lastScrolled = crl::now();
+		_lastScrollTop = scrollTop;
+	}
 }
 
 bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
@@ -2788,12 +2798,6 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	if (!_scrollToAnimation.animating()) {
 		preloadHistoryByScroll();
 		checkReplyReturns();
-	}
-
-	auto scrollTop = _scroll->scrollTop();
-	if (scrollTop != _lastScrollTop) {
-		_lastScrolled = crl::now();
-		_lastScrollTop = scrollTop;
 	}
 }
 
@@ -5176,15 +5180,39 @@ void HistoryWidget::updatePinnedViewer() {
 		|| !_historyInited) {
 		return;
 	}
-	const auto visibleTop = _scroll->scrollTop();
-	const auto add = (st::historyReplyHeight - _pinnedBarHeight);
-	auto [view, offset] = _list->findViewForPinnedTracking(visibleTop + add);
+	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
+	auto [view, offset] = _list->findViewForPinnedTracking(visibleBottom);
 	const auto lessThanId = !view
 		? (ServerMaxMsgId - 1)
 		: (view->data()->history() != _history)
 		? (view->data()->id + (offset > 0 ? 1 : 0) - ServerMaxMsgId)
 		: (view->data()->id + (offset > 0 ? 1 : 0));
-	_pinnedTracker->trackAround(lessThanId);
+	const auto lastClickedId = !_pinnedClickedId
+		? (ServerMaxMsgId - 1)
+		: (!_migrated || _pinnedClickedId.channel)
+		? _pinnedClickedId.msg
+		: (_pinnedClickedId.msg - ServerMaxMsgId);
+	if (_pinnedClickedId && lessThanId <= lastClickedId) {
+		_pinnedClickedId = FullMsgId();
+	}
+	_pinnedTracker->trackAround(std::min(lessThanId, lastClickedId));
+}
+
+void HistoryWidget::checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop) {
+	if (_firstLoadRequest
+		|| _delayedShowAtRequest
+		|| _scroll->isHidden()
+		|| !_history
+		|| !_historyInited) {
+		return;
+	}
+	if (wasScrollTop < nowScrollTop && _pinnedClickedId) {
+		// User scrolled down.
+		_pinnedClickedId = FullMsgId();
+		updatePinnedViewer();
+	}
 }
 
 void HistoryWidget::setupPinnedTracker() {
@@ -5268,6 +5296,8 @@ void HistoryWidget::checkPinnedBarState() {
 		const auto id = _pinnedTracker->currentMessageId();
 		if (const auto item = session().data().message(id.message)) {
 			Ui::showPeerHistory(item->history()->peer, item->id);
+			_pinnedClickedId = id.message;
+			updatePinnedViewer();
 		}
 	}, _pinnedBar->lifetime());
 
