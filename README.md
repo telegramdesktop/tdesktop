@@ -48,6 +48,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 28. `tg://openmessage` and `tg://user` clickable
 29. Show user total sent messages when you're deleting a message
 30. Shortcut for Fast Forward/Copy messages (ALT+F/ALF+C)
+31. Always delete message option(Group/Person/Both)
 
 ## Supported systems
 
