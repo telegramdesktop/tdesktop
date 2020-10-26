@@ -1556,8 +1556,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto withReplies = IsServerMsgId(item->id)
 			&& (repliesCount > 0 || item->replyToTop());
 		if (withReplies
-			&& item->history()->peer->isMegagroup()
-			&& item->history()->peer->asMegagroup()->linkedChat()) {
+			&& item->history()->peer->isMegagroup()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
 			const auto phrase = (repliesCount > 0)
 				? tr::lng_replies_view(
