@@ -632,13 +632,13 @@ void SessionPrivate::tryToSend() {
 			? "n/a"
 			: _instance->systemVersion();
 #if defined OS_MAC_STORE
-		const auto appVersion = QString::fromLatin1(AppVersionStr)
+		const auto appVersion = QString::fromLatin1(AppVersionReleaseStr)
 			+ " mac store";
 #elif defined OS_WIN_STORE // OS_MAC_STORE
-		const auto appVersion = QString::fromLatin1(AppVersionStr)
+		const auto appVersion = QString::fromLatin1(AppVersionReleaseStr)
 			+ " win store";
 #else // OS_MAC_STORE || OS_WIN_STORE
-		const auto appVersion = QString::fromLatin1(AppVersionStr);
+		const auto appVersion = QString::fromLatin1(AppVersionReleaseStr);
 #endif // OS_MAC_STORE || OS_WIN_STORE
 		const auto proxyType = _options->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
