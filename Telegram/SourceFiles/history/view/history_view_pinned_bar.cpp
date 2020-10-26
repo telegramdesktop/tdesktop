@@ -125,9 +125,11 @@ auto WithPinnedTitle(not_null<Main::Session*> session, PinnedId id) {
 		}
 		content.title = (id.index + 1 >= id.count)
 			? tr::lng_pinned_message(tr::now)
-			: (tr::lng_pinned_message(tr::now) // #TODO pinned
+			: (id.count == 2)
+			? tr::lng_pinned_previous(tr::now)
+			: (tr::lng_pinned_message(tr::now)
 				+ " #"
-				+ QString::number(id.count - id.index));
+				+ QString::number(id.index + 1));
 		content.count = std::max(id.count, 1);
 		content.index = std::clamp(id.index, 0, content.count - 1);
 		return std::move(content);
