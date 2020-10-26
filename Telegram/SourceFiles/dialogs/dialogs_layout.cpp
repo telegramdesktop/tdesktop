@@ -39,8 +39,14 @@ namespace {
 constexpr int kRecentlyInSeconds = 20 * 3600;
 const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
-bool ShowUserBotIcon(not_null<UserData*> user) {
+[[nodiscard]] bool ShowUserBotIcon(not_null<UserData*> user) {
 	return user->isBot() && !user->isSupport() && !user->isRepliesChat();
+}
+
+[[nodiscard]] bool ShowSendActionInDialogs(History *history) {
+	return history
+		&& (!history->peer->isUser()
+			|| history->peer->asUser()->onlineTill > 0);
 }
 
 void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
@@ -362,7 +368,8 @@ void paintRow(
 
 		p.setFont(st::dialogsTextFont);
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (ShowSendActionInDialogs(history)
+			&& !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
@@ -389,7 +396,8 @@ void paintRow(
 
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (history && !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (ShowSendActionInDialogs(history)
+			&& !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
@@ -741,14 +749,16 @@ void RowPainter::paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		const auto actionWasPainted = history ? history->sendActionPainter()->paint(
-			p,
-			itemRect.x(),
-			itemRect.y(),
-			itemRect.width(),
-			fullWidth,
-			color,
-			ms) : false;
+		const auto actionWasPainted = ShowSendActionInDialogs(history)
+			? history->sendActionPainter()->paint(
+				p,
+				itemRect.x(),
+				itemRect.y(),
+				itemRect.width(),
+				fullWidth,
+				color,
+				ms)
+			: false;
 		if (const auto folder = row->folder()) {
 			PaintListEntryText(p, itemRect, active, selected, row);
 		} else if (!actionWasPainted) {
