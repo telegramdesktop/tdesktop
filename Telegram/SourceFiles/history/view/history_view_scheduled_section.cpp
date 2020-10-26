@@ -1166,32 +1166,11 @@ bool ScheduledWidget::listIsGoodForAroundPosition(
 }
 
 void ScheduledWidget::confirmSendNowSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto navigation = controller();
-	Window::ShowSendNowMessagesBox(
-		navigation,
-		_history,
-		std::move(items),
-		[=] { navigation->showBackFromStack(); });
+	ConfirmSendNowSelectedItems(_inner);
 }
 
 void ScheduledWidget::confirmDeleteSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	const auto box = Ui::show(Box<DeleteMessagesBox>(
-		&_history->session(),
-		std::move(items)));
-	box->setDeleteConfirmedCallback([=] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
-		}
-	});
+	ConfirmDeleteSelectedItems(_inner);
 }
 
 void ScheduledWidget::clearSelected() {

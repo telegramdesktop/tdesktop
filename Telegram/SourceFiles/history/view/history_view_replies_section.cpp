@@ -1629,7 +1629,7 @@ bool RepliesWidget::listAllowsMultiSelect() {
 
 bool RepliesWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return !item->isSending() && !item->hasFailed();
+	return IsServerMsgId(item->id);
 }
 
 bool RepliesWidget::listIsLessInOrder(
@@ -1739,32 +1739,11 @@ bool RepliesWidget::listIsGoodForAroundPosition(
 }
 
 void RepliesWidget::confirmDeleteSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	const auto box = Ui::show(Box<DeleteMessagesBox>(
-		&_history->session(),
-		std::move(items)));
-	box->setDeleteConfirmedCallback([=] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
-		}
-	});
+	ConfirmDeleteSelectedItems(_inner);
 }
 
 void RepliesWidget::confirmForwardSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	Window::ShowForwardMessagesBox(controller(), std::move(items), [=] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
-		}
-	});
+	ConfirmForwardSelectedItems(_inner);
 }
 
 void RepliesWidget::clearSelected() {

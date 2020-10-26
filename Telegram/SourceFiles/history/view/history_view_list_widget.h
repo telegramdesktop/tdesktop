@@ -183,8 +183,9 @@ public:
 		Data::MessagePosition position,
 		Fn<bool()> overrideInitialScroll);
 
-	TextForMimeData getSelectedText() const;
-	MessageIdsList getSelectedItems() const;
+	[[nodiscard]] TextForMimeData getSelectedText() const;
+	[[nodiscard]] MessageIdsList getSelectedIds() const;
+	[[nodiscard]] SelectedItems getSelectedItems() const;
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
@@ -550,5 +551,9 @@ private:
 	rpl::lifetime _viewerLifetime;
 
 };
+
+void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget);
+void ConfirmForwardSelectedItems(not_null<ListWidget*> widget);
+void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
 
 } // namespace HistoryView

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "boxes/confirm_box.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "ui/inactive_press.h"
@@ -1642,8 +1643,12 @@ TextForMimeData ListWidget::getSelectedText() const {
 	return result;
 }
 
-MessageIdsList ListWidget::getSelectedItems() const {
+MessageIdsList ListWidget::getSelectedIds() const {
 	return collectSelectedIds();
+}
+
+SelectedItems ListWidget::getSelectedItems() const {
+	return collectSelectedItems();
 }
 
 int ListWidget::findItemIndexByY(int y) const {
@@ -2482,7 +2487,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 				return true;
 			}();
 			auto items = canForwardAll
-				? getSelectedItems()
+				? collectSelectedIds()
 				: MessageIdsList();
 			if (!items.empty()) {
 				session().data().setMimeForwardIds(std::move(items));
@@ -2710,5 +2715,75 @@ rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
 }
 
 ListWidget::~ListWidget() = default;
+
+void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canDelete) {
+			return;
+		}
+	}
+	const auto weak = Ui::MakeWeak(widget);
+	const auto box = Ui::show(Box<DeleteMessagesBox>(
+		&widget->controller()->session(),
+		widget->getSelectedIds()));
+	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+void ConfirmForwardSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canForward) {
+			return;
+		}
+	}
+	auto ids = widget->getSelectedIds();
+	const auto weak = Ui::MakeWeak(widget);
+	Window::ShowForwardMessagesBox(widget->controller(), std::move(ids), [=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto navigation = widget->controller();
+	const auto history = [&]() -> History* {
+		auto result = (History*)nullptr;
+		auto &data = navigation->session().data();
+		for (const auto &item : items) {
+			if (!item.canSendNow) {
+				return nullptr;
+			}
+			const auto message = data.message(item.msgId);
+			if (message) {
+				result = message->history();
+			}
+		}
+		return result;
+	}();
+	if (!history) {
+		return;
+	}
+	Window::ShowSendNowMessagesBox(
+		navigation,
+		history,
+		widget->getSelectedIds(),
+		[=] { navigation->showBackFromStack(); });
+}
 
 } // namespace HistoryView

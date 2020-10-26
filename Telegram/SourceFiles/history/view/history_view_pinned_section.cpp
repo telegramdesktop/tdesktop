@@ -502,7 +502,7 @@ void PinnedWidget::listScrollTo(int top) {
 }
 
 void PinnedWidget::listCancelRequest() {
-	if (_inner && !_inner->getSelectedItems().empty()) {
+	if (_inner && !_inner->getSelectedIds().empty()) {
 		clearSelected();
 		return;
 	}
@@ -588,7 +588,7 @@ bool PinnedWidget::listAllowsMultiSelect() {
 
 bool PinnedWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return !item->isSending() && !item->hasFailed();
+	return IsServerMsgId(item->id);
 }
 
 bool PinnedWidget::listIsLessInOrder(
@@ -640,32 +640,11 @@ bool PinnedWidget::listIsGoodForAroundPosition(
 }
 
 void PinnedWidget::confirmDeleteSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	const auto box = Ui::show(Box<DeleteMessagesBox>(
-		&_history->session(),
-		std::move(items)));
-	box->setDeleteConfirmedCallback([=] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
-		}
-	});
+	ConfirmDeleteSelectedItems(_inner);
 }
 
 void PinnedWidget::confirmForwardSelected() {
-	auto items = _inner->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-	const auto weak = Ui::MakeWeak(this);
-	Window::ShowForwardMessagesBox(controller(), std::move(items), [=] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
-		}
-	});
+	ConfirmForwardSelectedItems(_inner);
 }
 
 void PinnedWidget::clearSelected() {
