@@ -533,11 +533,11 @@ void GenerateItems(
 	};
 
 	auto createUpdatePinned = [&](const MTPDchannelAdminLogEventActionUpdatePinned &action) {
-		if (action.vmessage().type() == mtpc_messageEmpty) {
-			auto text = tr::lng_admin_log_unpinned_message(tr::now, lt_from, fromLinkText);
-			addSimpleServiceMessage(text);
-		} else {
-			auto text = tr::lng_admin_log_pinned_message(tr::now, lt_from, fromLinkText);
+		action.vmessage().match([&](const MTPDmessage &data) {
+			const auto pinned = data.is_pinned();
+			auto text = (pinned
+				? tr::lng_admin_log_pinned_message
+				: tr::lng_admin_log_unpinned_message)(tr::now, lt_from, fromLinkText);
 			addSimpleServiceMessage(text);
 
 			auto detachExistingItem = false;
@@ -548,7 +548,10 @@ void GenerateItems(
 					date),
 				MTPDmessage_ClientFlag::f_admin_log_entry,
 				detachExistingItem));
-		}
+		}, [&](const auto &) {
+			auto text = tr::lng_admin_log_unpinned_message(tr::now, lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		});
 	};
 
 	auto createEditMessage = [&](const MTPDchannelAdminLogEventActionEditMessage &action) {
