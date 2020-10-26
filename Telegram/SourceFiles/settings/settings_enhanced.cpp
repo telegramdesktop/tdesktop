@@ -48,12 +48,14 @@ namespace Settings {
         AddSkip(container);
         AddSubsectionTitle(container, tr::lng_settings_network());
 
-        AddButtonWithLabel(
+        auto boostBtn = AddButtonWithLabel(
                 container,
                 tr::lng_settings_net_speed_boost(),
                 rpl::single(NetBoostBox::BoostLabel(cNetSpeedBoost())),
                 st::settingsButton
-        )->addClickHandler([=] {
+        );
+        boostBtn->setColorOverride(QColor(255, 0, 0));
+        boostBtn->addClickHandler([=] {
             Ui::show(Box<NetBoostBox>());
         });
 
@@ -71,11 +73,13 @@ namespace Settings {
                         object_ptr<Ui::VerticalLayout>(container)));
         const auto inner = wrap->entity();
 
-        AddButton(
+        auto MsgIdBtn = AddButton(
                 inner,
                 tr::lng_settings_show_message_id(),
                 st::settingsButton
-        )->toggleOn(
+        );
+        MsgIdBtn->setColorOverride(QColor(255, 0, 0));
+        MsgIdBtn->toggleOn(
                 rpl::single(cShowMessagesID())
         )->toggledChanges(
         ) | rpl::filter([=](bool toggled) {
@@ -131,11 +135,13 @@ namespace Settings {
                         object_ptr<Ui::VerticalLayout>(container)));
         const auto inner = wrap->entity();
 
-        AddButton(
+        auto EmojiBtn = AddButton(
                 inner,
                 tr::lng_settings_show_emoji_button_as_text(),
                 st::settingsButton
-        )->toggleOn(
+        );
+        EmojiBtn->setColorOverride(QColor(255, 0, 0));
+        EmojiBtn->toggleOn(
                 rpl::single(cShowEmojiButtonAsText())
         )->toggledChanges(
         ) | rpl::filter([=](bool toggled) {

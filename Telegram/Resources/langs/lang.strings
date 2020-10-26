@@ -2450,7 +2450,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_enhanced" = "Enhanced Setting";
 "lng_settings_network" = "Network";
-"lng_settings_net_speed_boost" = "Download/Upload Speed boost";
+"lng_settings_net_speed_boost" = "Upload Speed boost";
 "lng_settings_show_message_id" = "Show Messages ID";
 "lng_settings_button" = "Button";
 "lng_settings_show_emoji_button_as_text" = "Show Emoji Button As Text";

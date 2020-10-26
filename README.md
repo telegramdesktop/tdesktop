@@ -20,7 +20,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 
 1. Show Chat ID
 2. Show admin titles in member list
-3. Network(Download/Upload) Boost Setting
+3. Upload Boost Setting
 4. Show chat restriction reason on profile page
 5. Ban members option in Recent Actions
 6. Always show discuss button if channel has discussion group

@@ -9,12 +9,12 @@
 
     "lng_settings_enhanced": "Enhanced Setting",
     "lng_settings_network": "Network",
-    "lng_settings_net_speed_boost": "Download/Upload Speed boost[*]",
-    "lng_settings_show_message_id": "Show Messages ID[*]",
+    "lng_settings_net_speed_boost": "Upload Speed Boost",
+    "lng_settings_show_message_id": "Show Messages ID",
     "lng_settings_button": "Button",
-    "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text[*]",
+    "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text",
     "lng_settings_show_repeater_option": "Show Repeater Option",
-    "lng_settings_restart_hint": "WARNING: Changing options marked with \"*\" will take effect immediately with restart.",
+    "lng_settings_restart_hint": "WARNING: Changing options with colored will take effect immediately with restart.",
 
     "lng_net_speed_boost_title": "Network speed boost",
     "lng_net_speed_boost_desc": "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.",
@@ -69,7 +69,7 @@
 
     "lng_user_not_found": "404 User not found.\nNote: You must have \"seen\" that user before open this link.",
 
-    "lng_settings_always_delete_for": "Always delete message for",
+    "lng_settings_always_delete_for": "Auto check delete message for",
     "lng_settings_delete_disabled": "Disabled",
     "lng_settings_delete_for_group": "Group",
     "lng_settings_delete_for_person": "Person",
