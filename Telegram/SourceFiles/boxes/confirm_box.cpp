@@ -474,23 +474,23 @@ void PinMessageBox::prepare() {
 	addButton(tr::lng_pinned_pin(), [this] { pinMessage(); });
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
-	if (!_pinningOld && (_peer->isChat() || _peer->isMegagroup())) {
-		_notify.create(
-			this,
-			tr::lng_pinned_notify(tr::now),
-			true,
-			st::defaultBoxCheckbox);
-		_checkbox = _notify;
-	} else if (_peer->isUser() && !_peer->isSelf()) {
+	if (_peer->isUser() && !_peer->isSelf()) {
 		_pinForPeer.create(
 			this,
 			tr::lng_pinned_also_for_other(
 				tr::now,
 				lt_user,
 				_peer->shortName()),
-			true,
+			false,
 			st::defaultBoxCheckbox);
 		_checkbox = _pinForPeer;
+	} else if (!_pinningOld && (_peer->isChat() || _peer->isMegagroup())) {
+		_notify.create(
+			this,
+			tr::lng_pinned_notify(tr::now),
+			true,
+			st::defaultBoxCheckbox);
+		_checkbox = _notify;
 	}
 
 	auto height = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
