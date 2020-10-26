@@ -600,6 +600,7 @@ private:
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
 	FullMsgId _pinnedClickedId;
+	std::optional<FullMsgId> _minPinnedId;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 

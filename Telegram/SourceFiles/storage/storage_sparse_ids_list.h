@@ -71,7 +71,6 @@ private:
 	};
 
 	struct AddResult {
-		int inslice = 0;
 		int added = 0;
 	};
 	template <typename Range>

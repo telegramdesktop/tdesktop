@@ -446,6 +446,9 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,
 	PeerData *migrated);
+[[nodiscard]] FullMsgId ResolveMinPinnedId(
+	not_null<PeerData*> peer,
+	PeerData *migrated);
 [[nodiscard]] std::optional<int> ResolvePinnedCount(
 	not_null<PeerData*> peer,
 	PeerData *migrated);

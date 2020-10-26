@@ -1609,6 +1609,7 @@ void HistoryWidget::showHistory(
 		MsgId showAtMsgId,
 		bool reload) {
 	_pinnedClickedId = FullMsgId();
+	_minPinnedId = std::nullopt;
 
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
@@ -5195,7 +5196,17 @@ void HistoryWidget::updatePinnedViewer() {
 	if (_pinnedClickedId && lessThanId <= lastClickedId) {
 		_pinnedClickedId = FullMsgId();
 	}
-	_pinnedTracker->trackAround(std::min(lessThanId, lastClickedId));
+	if (_pinnedClickedId && !_minPinnedId) {
+		_minPinnedId = Data::ResolveMinPinnedId(
+			_peer,
+			_migrated ? _migrated->peer.get() : nullptr);
+	}
+	if (_pinnedClickedId && _minPinnedId == _pinnedClickedId) {
+		// After click on the last pinned message we should the top one.
+		_pinnedTracker->trackAround(ServerMaxMsgId - 1);
+	} else {
+		_pinnedTracker->trackAround(std::min(lessThanId, lastClickedId));
+	}
 }
 
 void HistoryWidget::checkLastPinnedClickedIdReset(
@@ -5211,6 +5222,7 @@ void HistoryWidget::checkLastPinnedClickedIdReset(
 	if (wasScrollTop < nowScrollTop && _pinnedClickedId) {
 		// User scrolled down.
 		_pinnedClickedId = FullMsgId();
+		_minPinnedId = std::nullopt;
 		updatePinnedViewer();
 	}
 }
@@ -5269,7 +5281,13 @@ void HistoryWidget::checkPinnedBarState() {
 		_peer,
 		nullptr,
 		Storage::SharedMediaType::Pinned
+	) | rpl::distinct_until_changed(
 	) | rpl::map([=](int count) {
+		if (_pinnedClickedId) {
+			_pinnedClickedId = FullMsgId();
+			_minPinnedId = std::nullopt;
+			updatePinnedViewer();
+		}
 		return (count > 1);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool many) {
@@ -5297,6 +5315,7 @@ void HistoryWidget::checkPinnedBarState() {
 		if (const auto item = session().data().message(id.message)) {
 			Ui::showPeerHistory(item->history()->peer, item->id);
 			_pinnedClickedId = id.message;
+			_minPinnedId = std::nullopt;
 			updatePinnedViewer();
 		}
 	}, _pinnedBar->lifetime());

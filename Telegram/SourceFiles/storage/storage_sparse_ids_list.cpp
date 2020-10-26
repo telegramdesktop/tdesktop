@@ -54,8 +54,7 @@ SparseIdsList::AddResult SparseIdsList::uniteAndAdd(
 	}
 	update.messages = &uniteFrom->messages;
 	update.range = uniteFrom->range;
-	const auto count = int(uniteFrom->messages.size());
-	return { count, count - was };
+	return { int(uniteFrom->messages.size()) - was };
 }
 
 template <typename Range>
@@ -65,6 +64,10 @@ SparseIdsList::AddResult SparseIdsList::addRangeItemsAndCountNew(
 		MsgRange noSkipRange) {
 	Expects(noSkipRange.from <= noSkipRange.till);
 
+	if (noSkipRange.from == noSkipRange.till
+		&& std::begin(messages) == std::end(messages)) {
+		return { 0 };
+	}
 	auto uniteFrom = ranges::lower_bound(
 		_slices,
 		noSkipRange.from,
@@ -88,8 +91,7 @@ SparseIdsList::AddResult SparseIdsList::addRangeItemsAndCountNew(
 	).first;
 	update.messages = &slice->messages;
 	update.range = slice->range;
-	const auto count = int(slice->messages.size());
-	return { count, count };
+	return { int(slice->messages.size()) };
 }
 
 template <typename Range>
@@ -111,12 +113,17 @@ void SparseIdsList::addRange(
 		*_count += result.added;
 	}
 	if (_slices.size() == 1) {
-		if (_slices.front().range == MsgRange { 0, ServerMaxMsgId }) {
+		if (_count && _slices.front().messages.size() >= *_count) {
+			_slices.modify(_slices.begin(), [&](Slice &slice) {
+				slice.range = { 0, ServerMaxMsgId };
+			});
+		}
+		if (_slices.front().range == MsgRange{ 0, ServerMaxMsgId }) {
 			_count = _slices.front().messages.size();
 		}
 	}
-	if (_count) {
-		accumulate_max(*_count, result.inslice);
+	if (_count && update.messages) {
+		accumulate_max(*_count, int(update.messages->size()));
 	}
 	update.count = _count;
 	_sliceUpdated.fire(std::move(update));
