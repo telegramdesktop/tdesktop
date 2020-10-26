@@ -584,15 +584,21 @@ bool AddPinMessageAction(
 	const auto item = request.item;
 	if (!item
 		|| !IsServerMsgId(item->id)
-		|| !item->canPin()
 		|| (context != Context::History && context != Context::Pinned)) {
 		return false;
 	}
-	const auto itemId = item->fullId();
-	const auto isPinned = item->isPinned();
+	const auto group = item->history()->owner().groups().find(item);
+	const auto pinItem = ((item->canPin() && item->isPinned()) || !group)
+		? item
+		: group->items.front().get();
+	if (!pinItem->canPin()) {
+		return false;
+	}
+	const auto pinItemId = pinItem->fullId();
+	const auto isPinned = pinItem->isPinned();
 	const auto controller = list->controller();
 	menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
-		Window::ToggleMessagePinned(controller, itemId, !isPinned);
+		Window::ToggleMessagePinned(controller, pinItemId, !isPinned);
 	}));
 	return true;
 }

@@ -1536,7 +1536,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	const auto session = &this->session();
 	const auto controller = _controller;
-
+	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {
+		if (!item) {
+			return nullptr;
+		} else if (const auto group = item->history()->owner().groups().find(item)) {
+			return group->items.front();
+		}
+		return item;
+	};
 	const auto addItemActions = [&](HistoryItem *item) {
 		if (!item
 			|| !IsServerMsgId(item->id)
@@ -1570,11 +1577,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_widget->editMessage(itemId);
 			});
 		}
-		if (item->canPin()) {
-			const auto isPinned = item->isPinned();
+		const auto pinItem = (item->canPin() && item->isPinned())
+			? item
+			: groupLeaderOrSelf(item);
+		if (pinItem->canPin()) {
+			const auto isPinned = pinItem->isPinned();
+			const auto pinItemId = pinItem->fullId();
 			const auto controller = _controller;
 			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
-				Window::ToggleMessagePinned(controller, itemId, !isPinned);
+				Window::ToggleMessagePinned(controller, pinItemId, !isPinned);
 			}));
 		}
 	};
@@ -1716,17 +1727,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else { // maybe cursor on some text history item?
 		const auto item = [&]() -> HistoryItem* {
-			if (const auto result = App::hoveredItem()
+			const auto result = App::hoveredItem()
 				? App::hoveredItem()->data().get()
 				: App::hoveredLinkItem()
 				? App::hoveredLinkItem()->data().get()
-				: nullptr) {
-				if (const auto group = session->data().groups().find(result)) {
-					return group->items.front();
-				}
-				return result;
-			}
-			return nullptr;
+				: nullptr;
+			return result ? groupLeaderOrSelf(result) : nullptr;
 		}();
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		const auto canDelete = item
