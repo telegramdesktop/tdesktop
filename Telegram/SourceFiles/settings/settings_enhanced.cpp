@@ -5,6 +5,7 @@ the unofficial app based on Telegram Desktop.
 For license and copyright information please follow this link:
 https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 */
+#include <base/timer_rpl.h>
 #include "settings/settings_enhanced.h"
 
 #include "settings/settings_common.h"
@@ -17,7 +18,7 @@ https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/connection_box.h"
-#include "boxes/net_boost_box.h"
+#include "boxes/enhanced_options_box.h"
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
@@ -98,6 +99,23 @@ namespace Settings {
             cSetShowRepeaterOption(toggled);
             EnhancedSettings::Write();
         }, container->lifetime());
+
+        auto value = rpl::single(
+                rpl::empty_value()
+        ) | rpl::then(base::ObservableViewer(
+                Global::RefAlwaysDeleteChanged()
+        )) | rpl::map([] {
+            return AlwaysDeleteBox::DeleteLabel(cAlwaysDeleteFor());
+        });
+
+        AddButtonWithLabel(
+                container,
+                tr::lng_settings_always_delete_for(),
+                std::move(value),
+                st::settingsButton
+        )->addClickHandler([=] {
+            Ui::show(Box<AlwaysDeleteBox>());
+        });
 
         AddSkip(container);
     }

@@ -2457,6 +2457,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_show_repeater_option" = "Show Repeater Option";
 "lng_settings_restart_hint" = "WARNING: Changing options marked with \"*\" will take effect immediately with restart.";
 
+"lng_settings_always_delete_for" = "Always delete message for";
+"lng_settings_delete_disabled" = "Disabled";
+"lng_settings_delete_for_group" = "Group";
+"lng_settings_delete_for_person" = "Person";
+"lng_settings_delete_for_both" = "Why not both?";
+
 "lng_net_speed_boost_title" = "Network speed boost";
 "lng_net_speed_boost_desc" = "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.";
 

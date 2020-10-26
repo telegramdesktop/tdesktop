@@ -14,6 +14,8 @@ class BoxContent;
 namespace Settings {
 
 void SetupEnhancedNetwork(not_null<Ui::VerticalLayout*> container);
+void SetupEnhancedMessages(not_null<Ui::VerticalLayout *> container);
+void SetupEnhancedButton(not_null<Ui::VerticalLayout *> container);
 
 class Enhanced : public Section {
 public:

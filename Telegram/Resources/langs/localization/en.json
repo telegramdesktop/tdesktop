@@ -9,10 +9,10 @@
 
     "lng_settings_enhanced": "Enhanced Setting",
     "lng_settings_network": "Network",
-    "lng_settings_net_speed_boost": "Download/Upload Speed boost",
-    "lng_settings_show_message_id": "Show Messages ID",
+    "lng_settings_net_speed_boost": "Download/Upload Speed boost[*]",
+    "lng_settings_show_message_id": "Show Messages ID[*]",
     "lng_settings_button": "Button",
-    "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text",
+    "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text[*]",
     "lng_settings_show_repeater_option": "Show Repeater Option",
     "lng_settings_restart_hint": "WARNING: Changing options marked with \"*\" will take effect immediately with restart.",
 
@@ -42,9 +42,9 @@
     "lng_context_forward_msg_old": "Forward Message(Classic)",
     "lng_context_forward_msg_old_selected": "Forward Selected(Classic)",
     "lng_selected_forward_emoji_classic": "📠(Classic)",
-    
+
     "lng_message_id": "Message ID: ",
-    
+
     "lng_admin_log_banned_send_stickers2": "Send stickers",
     "lng_admin_log_banned_send_gifs": "Send GIFs",
     "lng_admin_log_banned_send_games": "Send Games",
@@ -53,7 +53,7 @@
     "lng_rights_chat_send_gifs": "Send GIFs",
     "lng_rights_chat_send_games": "Send Games",
     "lng_rights_chat_use_inline": "Use Inline Bots",
-    
+
     "lng_media_selected_gif#one": "{count} Gif",
     "lng_media_selected_gif#other": "{count} Gifs",
     "lng_media_type_gifs": "Gifs",
@@ -61,11 +61,17 @@
     "lng_profile_gifs#other": "{count} gifs",
     "lng_profile_gifs_header": "Gifs",
     "lng_media_gif_empty": "No gifs here yet",
-    
+
     "lng_create_supergroup_title": "New Supergroup",
     "lng_action_group_migrate": "The group was upgraded to a supergroup",
     "lng_sure_upgrade_group": "Are you sure you want to upgrade this group to supergroup?",
     "lng_chat_upgrade_warning": "Note: This action can not be undone",
 
-    "lng_user_not_found": "404 User not found.\nNote: You must have \"seen\" that user before open this link."
+    "lng_user_not_found": "404 User not found.\nNote: You must have \"seen\" that user before open this link.",
+
+    "lng_settings_always_delete_for": "Always delete message for",
+    "lng_settings_delete_disabled": "Disabled",
+    "lng_settings_delete_for_group": "Group",
+    "lng_settings_delete_for_person": "Person",
+    "lng_settings_delete_for_both": "Why not both?"
 }

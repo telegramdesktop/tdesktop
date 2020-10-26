@@ -213,6 +213,14 @@ bool Manager::readCustomFile() {
 		cSetShowEmojiButtonAsText(v);
 	});
 
+    ReadOption(settings, "always_delete_for", [&](auto v) {
+        if (v.isNull()) {
+            SetAlwaysDelete(0);
+        } else if (v.isDouble()) {
+            SetAlwaysDelete(v.toInt());
+        }
+    });
+
 	return true;
 }
 
@@ -233,6 +241,7 @@ void Manager::writeDefaultFile() {
 	settings.insert(qsl("show_messages_id"), false);
     settings.insert(qsl("show_repeater_option"), false);
 	settings.insert(qsl("show_emoji_button_as_text"), false);
+    settings.insert(qsl("always_delete_for"), 0);
 
 	auto document = QJsonDocument();
 	document.setObject(settings);
@@ -259,6 +268,7 @@ void Manager::writeCurrentSettings() {
 	settings.insert(qsl("show_messages_id"), cShowMessagesID());
     settings.insert(qsl("show_repeater_option"), cShowRepeaterOption());
 	settings.insert(qsl("show_emoji_button_as_text"), cShowEmojiButtonAsText());
+    settings.insert(qsl("always_delete_for"), cAlwaysDeleteFor());
 
 	auto document = QJsonDocument();
 	document.setObject(settings);

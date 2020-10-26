@@ -132,6 +132,8 @@ DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
+DeclareRefVar(base::Observable<void>, AlwaysDeleteChanged);
+
 } // namespace Global
 
 namespace Adaptive {

@@ -643,8 +643,14 @@ void DeleteMessagesBox::prepare() {
 		if (_deleteAll) {
 			fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
 		}
+		if (cAlwaysDeleteFor() == 1 || cAlwaysDeleteFor() == 3) {
+            _deleteAll->setChecked(true);
+		}
 	} else if (_revoke) {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
+        if (cAlwaysDeleteFor() == 2 || cAlwaysDeleteFor() == 3) {
+            _revoke->setChecked(true);
+        }
 	}
 	setDimensions(st::boxWidth, fullHeight);
 }

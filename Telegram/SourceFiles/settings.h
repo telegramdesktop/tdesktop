@@ -187,6 +187,7 @@ DeclareSetting(int, NetSpeedBoost);
 DeclareSetting(int, NetRequestsCount);
 DeclareSetting(int, NetUploadSessionsCount);
 DeclareSetting(int, NetUploadRequestInterval);
+DeclareSetting(int, AlwaysDeleteFor);
 
 inline void SetNetworkBoost(int boost) {
 	if (boost < 0) {
@@ -200,4 +201,14 @@ inline void SetNetworkBoost(int boost) {
 	cSetNetRequestsCount(2 + (2 * cNetSpeedBoost()));
 	cSetNetUploadSessionsCount(2 + (2 * cNetSpeedBoost()));
 	cSetNetUploadRequestInterval(500 - (100 * cNetSpeedBoost()));
+}
+
+inline void SetAlwaysDelete(int option) {
+ 	if (option < 0) {
+ 	 	cSetAlwaysDeleteFor(0);
+ 	} else if (option > 3) {
+ 	 	cSetAlwaysDeleteFor(3);
+ 	} else {
+ 	 	cSetAlwaysDeleteFor(option);
+ 	}
 }
