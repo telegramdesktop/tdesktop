@@ -1320,8 +1320,11 @@ bool DocumentData::useStreamingLoader() const {
 }
 
 bool DocumentData::canBeStreamed() const {
-	// For now video messages are not streamed.
-	return hasRemoteLocation() && supportsStreaming();
+	// Streaming couldn't be used with external player
+	// Maybe someone brave will implement this once upon a time...
+	return hasRemoteLocation()
+		&& supportsStreaming()
+		&& (!cUseExternalVideoPlayer() || !isVideoFile());
 }
 
 void DocumentData::setInappPlaybackFailed() {
