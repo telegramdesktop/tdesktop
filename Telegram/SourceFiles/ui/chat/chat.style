@@ -173,8 +173,9 @@ historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, 
 
 historyScheduledUntilOnlineStateSpace: 17px;
 
-historyViewsSpace: 11px;
+historyViewsSpace: 8px;
 historyViewsWidth: 20px;
+historyPinWidth: 24px;
 historyViewsTop: -15px;
 historyViewsInIcon: icon {{ "history_views", msgInDateFg }};
 historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};

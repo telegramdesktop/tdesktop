@@ -1819,24 +1819,6 @@ void Message::drawInfo(
 	const auto viewIconTop = infoBottom + st::historyViewsTop;
 	const auto pinIconTop = infoBottom + st::historyPinTop;
 	auto left = infoRight - infoW;
-	if (displayPinIcon()) {
-		const auto icon = [&] {
-			if (outbg) {
-				return &(invertedsprites
-					? st::historyPinInvertedIcon
-					: selected
-					? st::historyPinOutSelectedIcon
-					: st::historyPinOutIcon);
-			}
-			return &(invertedsprites
-				? st::historyPinInvertedIcon
-				: selected
-				? st::historyPinInSelectedIcon
-				: st::historyPinInIcon);
-		}();
-		icon->paint(p, left, pinIconTop, width);
-		left += st::historyViewsWidth;
-	}
 	if (auto views = item->Get<HistoryMessageViews>()) {
 		const auto textTop = infoBottom - st::msgDateFont->descent;
 		if (views->replies.count > 0
@@ -1899,10 +1881,31 @@ void Message::drawInfo(
 				auto iconSkip = st::historyViewsSpace + views->views.textWidth;
 				icon->paint(p, left + iconSkip, viewIconTop, width);
 			}
+			left += st::historyViewsSpace
+				+ views->views.textWidth
+				+ st::historyViewsWidth;
 		}
 	} else if (item->id < 0 && item->history()->peer->isSelf() && !outbg) {
 		auto icon = &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
 		icon->paint(p, left, viewIconTop, width);
+	}
+	if (displayPinIcon()) {
+		const auto icon = [&] {
+			if (outbg) {
+				return &(invertedsprites
+					? st::historyPinInvertedIcon
+					: selected
+					? st::historyPinOutSelectedIcon
+					: st::historyPinOutIcon);
+			}
+			return &(invertedsprites
+				? st::historyPinInvertedIcon
+				: selected
+				? st::historyPinInSelectedIcon
+				: st::historyPinInIcon);
+		}();
+		icon->paint(p, left, pinIconTop, width);
+		left += st::historyPinWidth;
 	}
 	if (outbg) {
 		auto icon = [&] {
@@ -1971,7 +1974,7 @@ int Message::infoWidth() const {
 		}
 	}
 	if (displayPinIcon()) {
-		result += st::historyViewsWidth;
+		result += st::historyPinWidth;
 	}
 
 	// When message is scheduled until online, time is not displayed,
@@ -2023,7 +2026,7 @@ int Message::timeLeft() const {
 		}
 	}
 	if (displayPinIcon()) {
-		result += st::historyViewsWidth;
+		result += st::historyPinWidth;
 	}
 	return result;
 }
