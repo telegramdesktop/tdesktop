@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtCore/QVersionNumber>
+#include <QtCore/QLibraryInfo>
 #include <QtGui/QWindow>
 
 #include <private/qwaylanddisplay_p.h>
@@ -756,11 +757,20 @@ bool UseXDGDesktopPortal() {
 }
 
 bool CanOpenDirectoryWithPortal() {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED) && !defined DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	return FileChooserPortalVersion() >= 3;
-#else // (Qt >= 5.15 || DESKTOP_APP_QT_PATCHED) && !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	static const auto Result = [&] {
+#ifdef DESKTOP_APP_QT_PATCHED
+		return FileChooserPortalVersion() >= 3;
+#else // DESKTOP_APP_QT_PATCHED
+		return QLibraryInfo::version() >= QVersionNumber(5, 15, 0)
+			&& FileChooserPortalVersion() >= 3;
+#endif // !DESKTOP_APP_QT_PATCHED
+	}();
+
+	return Result;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 	return false;
-#endif // (Qt < 5.15 && !DESKTOP_APP_QT_PATCHED) || DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
