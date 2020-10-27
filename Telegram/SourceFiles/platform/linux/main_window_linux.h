@@ -42,10 +42,6 @@ public:
 		return _sniAvailable || QSystemTrayIcon::isSystemTrayAvailable();
 	}
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	void handleSNIHostRegistered();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 	static void LibsLoaded();
 
 	~MainWindow();
@@ -115,6 +111,7 @@ private:
 
 	void setSNITrayIcon(int counter, bool muted);
 	void attachToSNITrayIcon();
+	void handleSNIHostRegistered();
 
 	void handleSNIOwnerChanged(
 		const QString &service,
