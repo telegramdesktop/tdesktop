@@ -239,10 +239,6 @@ public:
 	void close();
 	void setImage(const QString &imagePath);
 
-	void notificationClosed(uint id, uint reason);
-	void actionInvoked(uint id, const QString &actionName);
-	void notificationReplied(uint id, const QString &text);
-
 private:
 	GDBusConnection *_dbusConnection = nullptr;
 	base::weak_ptr<Manager> _manager;
@@ -259,6 +255,10 @@ private:
 	guint _notificationRepliedSignalId = 0;
 	guint _notificationClosedSignalId = 0;
 	NotificationId _id;
+
+	void notificationClosed(uint id, uint reason);
+	void actionInvoked(uint id, const QString &actionName);
+	void notificationReplied(uint id, const QString &text);
 
 	static void signalEmitted(
 		GDBusConnection *connection,
