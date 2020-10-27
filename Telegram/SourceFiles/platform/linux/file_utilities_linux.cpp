@@ -68,10 +68,7 @@ QByteArray EscapeShell(const QByteArray &content) {
 } // namespace internal
 
 void UnsafeOpenUrl(const QString &url) {
-	if (InSnap()) {
-		QProcess process;
-		process.startDetached(qsl("xdg-open"), {url});
-	} else if (!g_app_info_launch_default_for_uri(
+	if (!g_app_info_launch_default_for_uri(
 		url.toUtf8(),
 		nullptr,
 		nullptr)) {
@@ -86,10 +83,7 @@ void UnsafeOpenEmailLink(const QString &email) {
 void UnsafeLaunch(const QString &filepath) {
 	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 
-	if (InSnap()) {
-		QProcess process;
-		process.startDetached(qsl("xdg-open"), {absolutePath});
-	} else if (!g_app_info_launch_default_for_uri(
+	if (!g_app_info_launch_default_for_uri(
 		("file://" + absolutePath).toUtf8(),
 		nullptr,
 		nullptr)) {
