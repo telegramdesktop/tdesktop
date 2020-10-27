@@ -252,7 +252,7 @@ bool GenerateDesktopFile(
 
 	QFile target(targetFile);
 	if (target.open(QIODevice::WriteOnly)) {
-		if (IsStaticBinary() || InAppImage()) {
+		if (!Core::UpdaterDisabled()) {
 			fileText = fileText.replace(
 				QRegularExpression(
 					qsl("^TryExec=.*$"),
@@ -719,7 +719,7 @@ bool IsGtkIntegrationForced() {
 	return false;
 }
 
-bool IsQtPluginsBundled() {
+bool AreQtPluginsBundled() {
 #ifdef DESKTOP_APP_USE_PACKAGED_LAZY
 	return true;
 #else // DESKTOP_APP_USE_PACKAGED_LAZY
@@ -834,7 +834,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 
 QString GetLauncherBasename() {
 	static const auto Result = [&] {
-		if ((IsStaticBinary() || InAppImage()) && !cExeName().isEmpty()) {
+		if (!Core::UpdaterDisabled() && !cExeName().isEmpty()) {
 			const auto appimagePath = qsl("file://%1%2")
 				.arg(cExeDir())
 				.arg(cExeName())
@@ -1244,13 +1244,11 @@ void start() {
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
-	if (IsQtPluginsBundled()) {
+	if (AreQtPluginsBundled()) {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if ((IsStaticBinary()
-		|| InAppImage()
-		|| IsQtPluginsBundled())
+	if (AreQtPluginsBundled()
 		// it is handled by Qt for flatpak and snap
 		&& !InFlatpak()
 		&& !InSnap()) {
@@ -1319,7 +1317,7 @@ void RegisterCustomScheme(bool force) {
 	GError *error = nullptr;
 
 	const auto neededCommandlineBuilder = qsl("%1 --")
-		.arg((IsStaticBinary() || InAppImage())
+		.arg(!Core::UpdaterDisabled()
 			? cExeDir() + cExeName()
 			: cExeName());
 
