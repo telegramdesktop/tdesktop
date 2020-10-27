@@ -18,6 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
 
+extern "C" {
+#undef signals
+#include <gio/gio.h>
+#define signals public
+} // extern "C"
+
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
 
@@ -63,38 +69,30 @@ QByteArray EscapeShell(const QByteArray &content) {
 
 void UnsafeOpenUrl(const QString &url) {
 	if (InSnap()) {
-		const QStringList arguments{
-			url
-		};
 		QProcess process;
-		process.startDetached(qsl("xdg-open"), arguments);
-	} else {
+		process.startDetached(qsl("xdg-open"), {url});
+	} else if (!g_app_info_launch_default_for_uri(
+		url.toUtf8(),
+		nullptr,
+		nullptr)) {
 		QDesktopServices::openUrl(url);
 	}
 }
 
 void UnsafeOpenEmailLink(const QString &email) {
-	const auto url = qstr("mailto:") + email;
-
-	if (InSnap()) {
-		const QStringList arguments{
-			url
-		};
-		QProcess process;
-		process.startDetached(qsl("xdg-open"), arguments);
-	} else {
-		QDesktopServices::openUrl(QUrl(url));
-	}
+	UnsafeOpenUrl(qstr("mailto:") + email);
 }
 
 void UnsafeLaunch(const QString &filepath) {
+	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
+
 	if (InSnap()) {
-		const QStringList arguments{
-			QFileInfo(filepath).absoluteFilePath()
-		};
 		QProcess process;
-		process.startDetached(qsl("xdg-open"), arguments);
-	} else {
+		process.startDetached(qsl("xdg-open"), {absolutePath});
+	} else if (!g_app_info_launch_default_for_uri(
+		("file://" + absolutePath).toUtf8(),
+		nullptr,
+		nullptr)) {
 		QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
 	}
 }
