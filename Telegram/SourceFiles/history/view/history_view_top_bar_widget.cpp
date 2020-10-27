@@ -981,9 +981,7 @@ void TopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
 		if (channel->isMegagroup()
-			&& (channel->membersCount() > 0)
-			&& (channel->membersCount()
-				<= channel->session().serverConfig().chatSizeMax)) {
+			&& channel->membersCount() > 0) {
 			if (channel->lastParticipantsRequestNeeded()) {
 				session().api().requestLastParticipants(channel);
 			}
