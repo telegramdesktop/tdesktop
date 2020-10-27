@@ -509,7 +509,7 @@ void MainWindow::initHook() {
 		_sniDBusProxy,
 		"g-signal",
 		G_CALLBACK(sniSignalEmitted),
-		this);
+		nullptr);
 
 	auto sniWatcher = new QDBusServiceWatcher(
 		kSNIWatcherService.utf16(),
@@ -655,9 +655,13 @@ void MainWindow::sniSignalEmitted(
 		gchar *sender_name,
 		gchar *signal_name,
 		GVariant *parameters,
-		MainWindow *window) {
+		gpointer user_data) {
 	if(signal_name == qstr("StatusNotifierHostRegistered")) {
-		window->handleSNIHostRegistered();
+		crl::on_main([] {
+			if (const auto window = App::wnd()) {
+				window->handleSNIHostRegistered();
+			}
+		});
 	}
 }
 

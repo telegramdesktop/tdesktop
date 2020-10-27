@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusObjectPath>
 #include <dbusmenuexporter.h>
 
+typedef void* gpointer;
 typedef char gchar;
 typedef struct _GVariant GVariant;
 typedef struct _GDBusProxy GDBusProxy;
@@ -145,7 +146,7 @@ private:
 		gchar *sender_name,
 		gchar *signal_name,
 		GVariant *parameters,
-		MainWindow *window);
+		gpointer user_data);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 };
