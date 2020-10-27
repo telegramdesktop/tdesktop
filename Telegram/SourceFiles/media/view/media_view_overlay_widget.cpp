@@ -350,6 +350,12 @@ OverlayWidget::OverlayWidget()
 	if (Platform::IsLinux()) {
 		setWindowFlags(Qt::FramelessWindowHint
 			| Qt::MaximizeUsingFullscreenGeometryHint);
+	} else if (Platform::IsMac()) {
+		// Without Qt::Tool starting with Qt 5.15.1 this widget
+		// when being opened from a fullscreen main window was
+		// opening not as overlay over the main window, but as
+		// a separate fullscreen window with a separate space.
+		setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	} else {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}

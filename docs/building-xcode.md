@@ -254,16 +254,16 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
-    cd qt_5_12_8
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_1
+    cd qt_5_15_1
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.8
+    git checkout v5.15.1
     git submodule update qtbase qtimageformats
     cd qtbase
-    find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_1 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.1" \
         -debug-and-release \
         -force-debug-info \
         -opensource \

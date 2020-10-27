@@ -39,8 +39,6 @@ constexpr auto kIgnoreActivationTimeoutMs = 500;
 
 } // namespace
 
-NSImage *qt_mac_create_nsimage(const QPixmap &pm);
-
 using Platform::Q2NSString;
 using Platform::NS2QString;
 
@@ -214,10 +212,9 @@ void SetApplicationIcon(const QIcon &icon) {
 	if (!icon.isNull()) {
 		auto pixmap = icon.pixmap(1024, 1024);
 		pixmap.setDevicePixelRatio(cRetinaFactor());
-		image = static_cast<NSImage*>(qt_mac_create_nsimage(pixmap));
+		image = Q2NSImage(pixmap.toImage());
 	}
 	[[NSApplication sharedApplication] setApplicationIconImage:image];
-	[image release];
 }
 
 } // namespace Platform
