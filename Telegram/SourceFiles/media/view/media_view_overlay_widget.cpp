@@ -347,7 +347,6 @@ OverlayWidget::OverlayWidget()
 
 	if (Platform::IsLinux()) {
 		setWindowFlags(Qt::FramelessWindowHint
-			| Qt::WindowStaysOnTopHint
 			| Qt::MaximizeUsingFullscreenGeometryHint);
 	} else {
 		setWindowFlags(Qt::FramelessWindowHint);
