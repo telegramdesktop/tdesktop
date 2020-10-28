@@ -79,7 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
-#include <QtGui/QDesktopServices>
 
 namespace Core {
 namespace {

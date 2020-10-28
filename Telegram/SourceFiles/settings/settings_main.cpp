@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
 #include "window/window_session_controller.h"
-#include "core/file_utilities.h"
+#include "core/click_handler_types.h"
 #include "base/call_delayed.h"
 #include "facades.h"
 #include "app.h"
@@ -274,7 +274,7 @@ void SetupInterfaceScale(
 }
 
 void OpenFaq() {
-	File::OpenUrl(telegramFaqLink());
+	UrlClickHandler::Open(telegramFaqLink());
 }
 
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
