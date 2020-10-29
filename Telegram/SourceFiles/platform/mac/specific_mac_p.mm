@@ -141,14 +141,16 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
-	if (Core::IsAppLaunched() && !_ignoreActivation) {
-		Core::App().handleAppActivated();
-		if (auto window = App::wnd()) {
-			if (window->isHidden()) {
-				window->showFromTray();
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		if (Core::IsAppLaunched() && !_ignoreActivation) {
+			Core::App().handleAppActivated();
+			if (auto window = App::wnd()) {
+				if (window->isHidden()) {
+					window->showFromTray();
+				}
 			}
 		}
-	}
+	});
 }
 
 - (void) applicationDidResignActive:(NSNotification *)aNotification {
