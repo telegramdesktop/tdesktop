@@ -163,12 +163,10 @@ public:
 	virtual void checkAnimation() {
 	}
 
-	[[nodiscard]] virtual QSize sizeForGroupingOptimal(
-			int maxWidth,
-			bool last) const {
+	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {
 		Unexpected("Grouping method call.");
 	}
-	[[nodiscard]] virtual QSize sizeForGrouping(int width, bool last) const {
+	[[nodiscard]] virtual QSize sizeForGrouping(int width) const {
 		Unexpected("Grouping method call.");
 	}
 	virtual void drawGrouped(

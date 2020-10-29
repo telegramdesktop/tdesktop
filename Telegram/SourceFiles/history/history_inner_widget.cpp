@@ -1544,7 +1544,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		return item;
 	};
-	const auto addItemActions = [&](HistoryItem *item) {
+	const auto addItemActions = [&](
+			HistoryItem *item,
+			HistoryItem *albumPartItem) {
 		if (!item
 			|| !IsServerMsgId(item->id)
 			|| isUponSelected == 2
@@ -1572,9 +1574,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				controller->showRepliesForMessage(_history, rootId);
 			});
 		}
-		if (item->allowsEdit(base::unixtime::now())) {
+		const auto t = base::unixtime::now();
+		const auto editItem = (albumPartItem && albumPartItem->allowsEdit(t))
+			? albumPartItem
+			: item->allowsEdit(t)
+			? item
+			: nullptr;
+		if (editItem) {
+			const auto editItemId = editItem->fullId();
 			_menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
-				_widget->editMessage(itemId);
+				_widget->editMessage(editItemId);
 			});
 		}
 		const auto pinItem = (item->canPin() && item->isPinned())
@@ -1663,7 +1672,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
 		}
-		addItemActions(item);
+		addItemActions(item, item);
 		if (lnkPhoto) {
 			addPhotoActions(lnkPhoto->photo());
 		} else {
@@ -1726,7 +1735,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 	} else { // maybe cursor on some text history item?
-		const auto item = [&]() -> HistoryItem* {
+		const auto albumPartItem = _dragStateItem;
+		const auto item = [&] {
 			const auto result = App::hoveredItem()
 				? App::hoveredItem()->data().get()
 				: App::hoveredLinkItem()
@@ -1750,9 +1760,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					? tr::lng_context_copy_selected_items(tr::now)
 					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
-			addItemActions(item);
+			addItemActions(item, item);
 		} else {
-			addItemActions(item);
+			addItemActions(item, albumPartItem);
 			if (item && !isUponSelected) {
 				const auto media = (view ? view->media() : nullptr);
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();

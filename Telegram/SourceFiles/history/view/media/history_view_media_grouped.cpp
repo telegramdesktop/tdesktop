@@ -117,10 +117,8 @@ QSize GroupedMedia::countOptimalSize() {
 			accumulate_max(maxWidth, media->maxWidth());
 		}
 	}
-	auto index = 0;
 	for (const auto &part : _parts) {
-		const auto last = (++index == partsCount);
-		sizes.push_back(part.content->sizeForGroupingOptimal(maxWidth, last));
+		sizes.push_back(part.content->sizeForGroupingOptimal(maxWidth));
 	}
 
 	const auto layout = (_mode == Mode::Grid)
@@ -161,11 +159,9 @@ QSize GroupedMedia::countCurrentSize(int newWidth) {
 	if (_mode == Mode::Grid && newWidth < st::historyGroupWidthMin) {
 		return { newWidth, newHeight };
 	} else if (_mode == Mode::Column) {
-		auto index = 0;
 		auto top = 0;
 		for (auto &part : _parts) {
-			const auto last = (++index == _parts.size());
-			const auto size = part.content->sizeForGrouping(newWidth, last);
+			const auto size = part.content->sizeForGrouping(newWidth);
 			part.geometry = QRect(0, top, newWidth, size.height());
 			top += size.height();
 		}
@@ -242,11 +238,14 @@ QMargins GroupedMedia::groupedPadding() const {
 	const auto normal = st::msgFileLayout.padding;
 	const auto grouped = st::msgFileLayoutGrouped.padding;
 	const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+	const auto lastHasCaption = isBubbleBottom()
+		&& !_parts.back().item->emptyText();
+	const auto addToBottom = lastHasCaption ? st::msgPadding.bottom() : 0;
 	return QMargins(
 		0,
 		(normal.top() - grouped.top()) - topMinus,
 		0,
-		(normal.bottom() - grouped.bottom()));
+		(normal.bottom() - grouped.bottom()) + addToBottom);
 }
 
 void GroupedMedia::draw(
@@ -518,8 +517,10 @@ DocumentData *GroupedMedia::getDocument() const {
 }
 
 HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
-	if (!_caption.isEmpty()) {
-		return _parts.front().item->Get<HistoryMessageEdited>();
+	for (const auto &part : _parts) {
+		if (const auto edited = part.item->Get<HistoryMessageEdited>()) {
+			return edited;
+		}
 	}
 	return nullptr;
 }
@@ -527,8 +528,7 @@ HistoryMessageEdited *GroupedMedia::displayedEditBadge() const {
 void GroupedMedia::updateNeedBubbleState() {
 	const auto captionItem = [&]() -> HistoryItem* {
 		if (_mode == Mode::Column) {
-			const auto last = _parts.back().item.get();
-			return last->emptyText() ? nullptr : last;
+			return nullptr;
 		}
 		auto result = (HistoryItem*)nullptr;
 		for (const auto &part : _parts) {

@@ -467,14 +467,14 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-QSize Photo::sizeForGroupingOptimal(int maxWidth, bool last) const {
+QSize Photo::sizeForGroupingOptimal(int maxWidth) const {
 	const auto width = _data->width();
 	const auto height = _data->height();
 	return { std::max(width, 1), std::max(height, 1) };
 }
 
-QSize Photo::sizeForGrouping(int width, bool last) const {
-	return sizeForGroupingOptimal(width, last);
+QSize Photo::sizeForGrouping(int width) const {
+	return sizeForGroupingOptimal(width);
 }
 
 void Photo::drawGrouped(

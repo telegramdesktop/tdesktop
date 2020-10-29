@@ -885,11 +885,11 @@ bool Gif::fullFeaturedGrouped(RectParts sides) const {
 	return (sides & RectPart::Left) && (sides & RectPart::Right);
 }
 
-QSize Gif::sizeForGroupingOptimal(int maxWidth, bool last) const {
+QSize Gif::sizeForGroupingOptimal(int maxWidth) const {
 	return sizeForAspectRatio();
 }
 
-QSize Gif::sizeForGrouping(int width, bool last) const {
+QSize Gif::sizeForGrouping(int width) const {
 	return sizeForAspectRatio();
 }
 

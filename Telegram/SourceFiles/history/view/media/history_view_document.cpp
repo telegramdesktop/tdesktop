@@ -518,11 +518,9 @@ void Document::draw(
 		}
 	}
 
-	if (mode != LayoutMode::GroupedLast) {
-		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-			p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-			captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
-		}
+	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
 	}
 }
 
@@ -699,20 +697,18 @@ TextState Document::textState(
 	}
 
 	auto painth = layout.height();
-	if (mode != LayoutMode::GroupedLast) {
-		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-			if (point.y() >= bottom) {
-				result = TextState(_parent, captioned->_caption.getState(
-					point - QPoint(st::msgPadding.left(), bottom),
-					width - st::msgPadding.left() - st::msgPadding.right(),
-					request.forText()));
-				return result;
-			}
-			auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
-			painth -= captioned->_caption.countHeight(captionw);
-			if (isBubbleBottom()) {
-				painth -= st::msgPadding.bottom();
-			}
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		if (point.y() >= bottom) {
+			result = TextState(_parent, captioned->_caption.getState(
+				point - QPoint(st::msgPadding.left(), bottom),
+				width - st::msgPadding.left() - st::msgPadding.right(),
+				request.forText()));
+			return result;
+		}
+		auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
+		painth -= captioned->_caption.countHeight(captionw);
+		if (isBubbleBottom()) {
+			painth -= st::msgPadding.bottom();
 		}
 	}
 	if (QRect(0, 0, width, painth).contains(point)
@@ -877,35 +873,29 @@ bool Document::hideForwardedFrom() const {
 	return _data->isSong();
 }
 
-QSize Document::sizeForGroupingOptimal(int maxWidth, bool last) const {
+QSize Document::sizeForGroupingOptimal(int maxWidth) const {
 	const auto thumbed = Get<HistoryDocumentThumbed>();
 	const auto &st = (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
 	auto height = st.padding.top() + st.thumbSize + st.padding.bottom();
-	if (!last) {
-		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-			auto captionw = maxWidth
-				- st::msgPadding.left()
-				- st::msgPadding.right();
-			height += captioned->_caption.countHeight(captionw);
-		}
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		auto captionw = maxWidth
+			- st::msgPadding.left()
+			- st::msgPadding.right();
+		height += captioned->_caption.countHeight(captionw);
 	}
-
 	return { maxWidth, height };
 }
 
-QSize Document::sizeForGrouping(int width, bool last) const {
+QSize Document::sizeForGrouping(int width) const {
 	const auto thumbed = Get<HistoryDocumentThumbed>();
 	const auto &st = (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
 	auto height = st.padding.top() + st.thumbSize + st.padding.bottom();
-	if (!last) {
-		if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-			auto captionw = width
-				- st::msgPadding.left()
-				- st::msgPadding.right();
-			height += captioned->_caption.countHeight(captionw);
-		}
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		auto captionw = width
+			- st::msgPadding.left()
+			- st::msgPadding.right();
+		height += captioned->_caption.countHeight(captionw);
 	}
-
 	return { maxWidth(), height };
 }
 
@@ -926,7 +916,7 @@ void Document::drawGrouped(
 		geometry.width(),
 		selection,
 		ms,
-		last ? LayoutMode::GroupedLast : LayoutMode::Grouped);
+		LayoutMode::Grouped);
 	p.translate(-geometry.topLeft());
 }
 
@@ -941,7 +931,7 @@ TextState Document::getStateGrouped(
 		point,
 		geometry.size(),
 		request,
-		last ? LayoutMode::GroupedLast : LayoutMode::Grouped);
+		LayoutMode::Grouped);
 }
 
 bool Document::voiceProgressAnimationCallback(crl::time now) {
