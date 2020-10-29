@@ -1531,15 +1531,12 @@ public:
 		int res = 0;
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-		int videoStreamId = av_find_best_stream(fmtContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
-		if (videoStreamId >= 0) {
-			DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(videoStreamId).arg(av_make_error_string(err, sizeof(err), streamId)));
-			return false;
-		}
-
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
 			const auto stream = fmtContext->streams[i];
 			if (stream->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+				if (!_cover.isNull()) {
+					continue;
+				}
 				const auto &packet = stream->attached_pic;
 				if (packet.size) {
 					const auto coverBytes = QByteArray(
@@ -1555,9 +1552,15 @@ public:
 					if (!_cover.isNull()) {
 						_coverBytes = coverBytes;
 						_coverFormat = format;
-						break;
 					}
 				}
+			} else if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+				DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', error %3, %4")
+					.arg(_file.name())
+					.arg(_data.size())
+					.arg(i)
+					.arg(av_make_error_string(err, sizeof(err), streamId)));
+				return false;
 			}
 		}
 
