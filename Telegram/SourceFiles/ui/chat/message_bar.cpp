@@ -341,8 +341,9 @@ void MessageBar::paint(Painter &p) {
 		if (!_image.isNull()) {
 			p.drawPixmap(image, _image);
 		}
-	} else if (!_animation->imageFrom.isNull()
-		|| !_animation->imageTo.isNull()) {
+	} else if (!_animation->imageTo.isNull()
+		|| (!_animation->imageFrom.isNull()
+			&& _animation->imageShown.animating())) {
 		const auto rect = [&] {
 			if (!_animation->imageShown.animating()) {
 				return image;
