@@ -22,7 +22,6 @@ inline void SetWatchingMediaKeys(bool watching) {
 
 bool InFlatpak();
 bool InSnap();
-bool InAppImage();
 bool IsStaticBinary();
 bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
@@ -54,8 +53,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 }
 
 void psWriteDump();
-
-void psDeleteDir(const QString &dir);
 
 QStringList psInitLogs();
 void psClearInitLogs();

@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
-#include "platform/platform_specific.h"
+#include "base/platform/base_platform_last_input.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_chat.h"
@@ -288,7 +288,7 @@ void SetupLocalPasscode(
 		Ui::show(Box<PasscodeBox>(&controller->session(), true));
 	});
 
-	const auto label = Platform::LastUserInputTimeSupported()
+	const auto label = base::Platform::LastUserInputTimeSupported()
 		? tr::lng_passcode_autolock_away
 		: tr::lng_passcode_autolock_inactive;
 	auto value = PasscodeChanges(

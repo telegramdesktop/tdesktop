@@ -31,24 +31,12 @@ enum class SystemSettingsType {
 
 void SetWatchingMediaKeys(bool watching);
 void SetApplicationIcon(const QIcon &icon);
-QString CurrentExecutablePath(int argc, char *argv[]);
 QString SingleInstanceLocalServerName(const QString &hash);
 void RegisterCustomScheme(bool force = false);
 PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
-
-[[nodiscard]] std::optional<crl::time> LastUserInputTime();
-[[nodiscard]] inline bool LastUserInputTimeSupported() {
-	return LastUserInputTime().has_value();
-}
-
-[[nodiscard]] std::optional<bool> IsDarkMode();
-[[nodiscard]] inline bool IsDarkModeSupported() {
-	return IsDarkMode().has_value();
-}
-
 void IgnoreApplicationActivationRightNow();
 bool AutostartSupported();
 bool TrayIconSupported();
@@ -60,6 +48,11 @@ bool WindowsNeedShadow();
 bool SetWindowExtents(QWindow *window, const QMargins &extents);
 bool UnsetWindowExtents(QWindow *window);
 Window::ControlsLayout WindowControlsLayout();
+
+[[nodiscard]] std::optional<bool> IsDarkMode();
+[[nodiscard]] inline bool IsDarkModeSupported() {
+	return IsDarkMode().has_value();
+}
 
 namespace ThirdParty {
 

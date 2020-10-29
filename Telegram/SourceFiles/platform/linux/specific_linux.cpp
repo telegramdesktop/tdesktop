@@ -174,33 +174,6 @@ QString FlatpakID() {
 	return Result;
 }
 
-QString ProcessNameByPID(const QString &pid) {
-	constexpr auto kMaxPath = 1024;
-	char result[kMaxPath] = { 0 };
-	auto count = readlink("/proc/" + pid.toLatin1() + "/exe", result, kMaxPath);
-	if (count > 0) {
-		auto filename = QFile::decodeName(result);
-		auto deletedPostfix = qstr(" (deleted)");
-		if (filename.endsWith(deletedPostfix) && !QFileInfo(filename).exists()) {
-			filename.chop(deletedPostfix.size());
-		}
-		return filename;
-	}
-
-	return QString();
-}
-
-QString RealExecutablePath(int argc, char *argv[]) {
-	const auto processName = ProcessNameByPID(qsl("self"));
-
-	// Fallback to the first command line argument.
-	return !processName.isEmpty()
-		? processName
-		: argc
-			? QFile::decodeName(argv[0])
-			: QString();
-}
-
 bool RunShellCommand(const QString &program, const QStringList &arguments) {
 	const auto result = QProcess::execute(program, arguments);
 
@@ -309,131 +282,6 @@ bool GetImageFromClipboardSupported() {
 		&& (Libs::gdk_atom_intern != nullptr);
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-
-std::optional<crl::time> XCBLastUserInputTime() {
-	const auto connection = base::Platform::XCB::GetConnectionFromQt();
-	if (!connection) {
-		return std::nullopt;
-	}
-
-	if (!base::Platform::XCB::IsExtensionPresent(
-			connection,
-			&xcb_screensaver_id)) {
-		return std::nullopt;
-	}
-
-	const auto root = base::Platform::XCB::GetRootWindowFromQt();
-	if (!root.has_value()) {
-		return std::nullopt;
-	}
-
-	const auto cookie = xcb_screensaver_query_info(
-		connection,
-		*root);
-
-	auto reply = xcb_screensaver_query_info_reply(
-		connection,
-		cookie,
-		nullptr);
-
-	if (!reply) {
-		return std::nullopt;
-	}
-
-	const auto idle = reply->ms_since_user_input;
-	free(reply);
-
-	return (crl::now() - static_cast<crl::time>(idle));
-}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-std::optional<crl::time> FreedesktopDBusLastUserInputTime() {
-	static auto NotSupported = false;
-
-	if (NotSupported) {
-		return std::nullopt;
-	}
-
-	static const auto Message = QDBusMessage::createMethodCall(
-		qsl("org.freedesktop.ScreenSaver"),
-		qsl("/org/freedesktop/ScreenSaver"),
-		qsl("org.freedesktop.ScreenSaver"),
-		qsl("GetSessionIdleTime"));
-
-	const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
-		Message);
-
-	static const auto NotSupportedErrors = {
-		QDBusError::ServiceUnknown,
-		QDBusError::NotSupported,
-	};
-
-	static const auto NotSupportedErrorsToLog = {
-		QDBusError::Disconnected,
-		QDBusError::AccessDenied,
-	};
-
-	if (reply.isValid()) {
-		return (crl::now() - static_cast<crl::time>(reply.value()));
-	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
-		NotSupported = true;
-	} else {
-		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
-			NotSupported = true;
-		}
-
-		LOG(("App Error: Unable to get last user input time "
-			"from org.freedesktop.ScreenSaver: %1: %2")
-			.arg(reply.error().name())
-			.arg(reply.error().message()));
-	}
-
-	return std::nullopt;
-}
-
-std::optional<crl::time> MutterDBusLastUserInputTime() {
-	static auto NotSupported = false;
-
-	if (NotSupported) {
-		return std::nullopt;
-	}
-
-	static const auto Message = QDBusMessage::createMethodCall(
-		qsl("org.gnome.Mutter.IdleMonitor"),
-		qsl("/org/gnome/Mutter/IdleMonitor/Core"),
-		qsl("org.gnome.Mutter.IdleMonitor"),
-		qsl("GetIdletime"));
-
-	const QDBusReply<qulonglong> reply = QDBusConnection::sessionBus().call(
-		Message);
-
-	static const auto NotSupportedErrors = {
-		QDBusError::ServiceUnknown,
-	};
-
-	static const auto NotSupportedErrorsToLog = {
-		QDBusError::Disconnected,
-		QDBusError::AccessDenied,
-	};
-
-	if (reply.isValid()) {
-		return (crl::now() - static_cast<crl::time>(reply.value()));
-	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
-		NotSupported = true;
-	} else {
-		if (ranges::contains(NotSupportedErrorsToLog, reply.error().type())) {
-			NotSupported = true;
-		}
-
-		LOG(("App Error: Unable to get last user input time "
-			"from org.gnome.Mutter.IdleMonitor: %1: %2")
-			.arg(reply.error().name())
-			.arg(reply.error().message()));
-	}
-
-	return std::nullopt;
-}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	if (edges == (Qt::TopEdge | Qt::LeftEdge))
@@ -682,11 +530,6 @@ bool InSnap() {
 	return Result;
 }
 
-bool InAppImage() {
-	static const auto Result = qEnvironmentVariableIsSet("APPIMAGE");
-	return Result;
-}
-
 bool IsStaticBinary() {
 #ifdef DESKTOP_APP_USE_PACKAGED
 		return false;
@@ -771,25 +614,6 @@ bool CanOpenDirectoryWithPortal() {
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return false;
-}
-
-QString CurrentExecutablePath(int argc, char *argv[]) {
-	if (InAppImage()) {
-		const auto appimagePath = QString::fromUtf8(qgetenv("APPIMAGE"));
-		const auto appimagePathList = appimagePath.split('/');
-
-		if (qEnvironmentVariableIsSet("ARGV0")
-			&& appimagePathList.size() >= 5
-			&& appimagePathList[1] == qstr("run")
-			&& appimagePathList[2] == qstr("user")
-			&& appimagePathList[4] == qstr("appimagelauncherfs")) {
-			return QString::fromUtf8(qgetenv("ARGV0"));
-		}
-
-		return appimagePath;
-	}
-
-	return RealExecutablePath(argc, argv);
 }
 
 QString AppRuntimeDirectory() {
@@ -906,29 +730,6 @@ QImage GetImageFromClipboard() {
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	return data;
-}
-
-std::optional<crl::time> LastUserInputTime() {
-	if (!IsWayland()) {
-		const auto xcbResult = XCBLastUserInputTime();
-		if (xcbResult.has_value()) {
-			return xcbResult;
-		}
-	}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	const auto freedesktopResult = FreedesktopDBusLastUserInputTime();
-	if (freedesktopResult.has_value()) {
-		return freedesktopResult;
-	}
-
-	const auto mutterResult = MutterDBusLastUserInputTime();
-	if (mutterResult.has_value()) {
-		return mutterResult;
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return std::nullopt;
 }
 
 std::optional<bool> IsDarkMode() {
@@ -1087,41 +888,6 @@ QRect psDesktopRect() {
 }
 
 void psWriteDump() {
-}
-
-bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
-	QByteArray pathRaw = QFile::encodeName(path);
-	DIR *d = opendir(pathRaw.constData());
-	if (!d) return false;
-
-	while (struct dirent *p = readdir(d)) {
-		/* Skip the names "." and ".." as we don't want to recurse on them. */
-		if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
-
-		QString fname = path + '/' + p->d_name;
-		QByteArray fnameRaw = QFile::encodeName(fname);
-		struct stat statbuf;
-		if (!stat(fnameRaw.constData(), &statbuf)) {
-			if (S_ISDIR(statbuf.st_mode)) {
-				if (!_removeDirectory(fname)) {
-					closedir(d);
-					return false;
-				}
-			} else {
-				if (unlink(fnameRaw.constData())) {
-					closedir(d);
-					return false;
-				}
-			}
-		}
-	}
-	closedir(d);
-
-	return !rmdir(pathRaw.constData());
-}
-
-void psDeleteDir(const QString &dir) {
-	_removeDirectory(dir);
 }
 
 void psActivateProcess(uint64 pid) {
@@ -1442,10 +1208,6 @@ void finish() {
 void psNewVersion() {
 	Platform::InstallLauncher();
 	Platform::RegisterCustomScheme();
-}
-
-bool psShowOpenWithMenu(int x, int y, const QString &file) {
-	return false;
 }
 
 void psAutoStart(bool start, bool silent) {

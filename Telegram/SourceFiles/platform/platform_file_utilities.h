@@ -20,7 +20,6 @@ void UnsafeOpenEmailLink(const QString &email);
 bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition);
 bool UnsafeShowOpenWith(const QString &filepath);
 void UnsafeLaunch(const QString &filepath);
-void UnsafeShowInFolder(const QString &filepath);
 
 void PostprocessDownloaded(const QString &filepath);
 

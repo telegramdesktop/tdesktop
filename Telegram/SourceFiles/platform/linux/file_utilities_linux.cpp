@@ -11,11 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
-#include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
-#include "base/platform/base_platform_file_utilities.h"
 
-#include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
 
 extern "C" {
@@ -89,12 +86,6 @@ void UnsafeLaunch(const QString &filepath) {
 		nullptr)) {
 		QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
 	}
-}
-
-void UnsafeShowInFolder(const QString &filepath) {
-	// Hide mediaview to make other apps visible.
-	Ui::hideLayer(anim::type::instant);
-	base::Platform::ShowInFolder(filepath);
 }
 
 } // namespace File
