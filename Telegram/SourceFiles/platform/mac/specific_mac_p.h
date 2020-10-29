@@ -19,7 +19,6 @@ void objc_finish();
 
 void objc_activateProgram(WId winId);
 bool objc_moveFile(const QString &from, const QString &to);
-void objc_deleteDir(const QString &dir);
 
 double objc_appkitVersion();
 

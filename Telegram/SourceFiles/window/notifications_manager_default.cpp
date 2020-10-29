@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "platform/platform_specific.h"
+#include "base/platform/base_platform_last_input.h"
 #include "base/call_delayed.h"
 #include "facades.h"
 #include "app.h"
@@ -663,7 +663,7 @@ void Notification::prepareActionsCache() {
 bool Notification::checkLastInput(bool hasReplyingNotifications) {
 	if (!_waitingForInput) return true;
 
-	const auto waitForUserInput = Platform::LastUserInputTimeSupported()
+	const auto waitForUserInput = base::Platform::LastUserInputTimeSupported()
 		? (Core::App().lastNonIdleTime() <= _started)
 		: false;
 	if (!waitForUserInput) {

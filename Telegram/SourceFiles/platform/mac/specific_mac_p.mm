@@ -340,14 +340,6 @@ bool objc_moveFile(const QString &from, const QString &to) {
 	return false;
 }
 
-void objc_deleteDir(const QString &dir) {
-	@autoreleasepool {
-
-	[[NSFileManager defaultManager] removeItemAtPath:Q2NSString(dir) error:nil];
-
-	}
-}
-
 double objc_appkitVersion() {
 	return NSAppKitVersionNumber;
 }

@@ -65,8 +65,6 @@ inline void psCheckLocalSocket(const QString &) {
 
 void psWriteDump();
 
-void psDeleteDir(const QString &dir);
-
 QStringList psInitLogs();
 void psClearInitLogs();
 

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/file_utilities_mac.h"
 
 #include "base/platform/mac/base_utilities_mac.h"
-#include "base/platform/base_platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
@@ -571,10 +570,6 @@ void UnsafeLaunch(const QString &filepath) {
 	}
 
 	}
-}
-
-void UnsafeShowInFolder(const QString &filepath) {
-	base::Platform::ShowInFolder(filepath);
 }
 
 } // namespace File

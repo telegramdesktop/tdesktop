@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_utilities.h"
 
-#include "platform/platform_specific.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "core/application.h"
 #include "data/data_peer.h"
 #include "ui/empty_userpic.h"
@@ -36,7 +36,7 @@ CachedUserpics::~CachedUserpics() {
 		}
 
 		// This works about 1200ms on Windows for a folder with one image O_o
-		//		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+		//		base::Platform::DeleteDirectory(cWorkingDir() + qsl("tdata/temp"));
 	}
 }
 

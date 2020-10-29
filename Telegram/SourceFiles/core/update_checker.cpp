@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "base/unixtime.h"
@@ -211,7 +212,7 @@ QString UpdatesFolder() {
 }
 
 void ClearAll() {
-	psDeleteDir(UpdatesFolder());
+	base::Platform::DeleteDirectory(UpdatesFolder());
 }
 
 QString FindUpdateFile() {
@@ -270,7 +271,7 @@ bool UnpackUpdate(const QString &filepath) {
 	input.close();
 
 	QString tempDirPath = cWorkingDir() + qsl("tupdates/temp"), readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready");
-	psDeleteDir(tempDirPath);
+	base::Platform::DeleteDirectory(tempDirPath);
 
 	QDir tempDir(tempDirPath);
 	if (tempDir.exists() || QFile(readyFilePath).exists()) {
@@ -1560,8 +1561,8 @@ bool checkReadyUpdate() {
 #endif // Q_OS_UNIX
 
 #ifdef Q_OS_MAC
-	Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
-	Platform::RemoveQuarantine(updater.absolutePath());
+	base::Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
+	base::Platform::RemoveQuarantine(updater.absolutePath());
 #endif // Q_OS_MAC
 
 	return true;
