@@ -635,7 +635,13 @@ void VoiceRecordButton::init() {
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
+		const auto progress = _showProgress.current();
+		const auto complete = (progress == 1.);
+
 		p.translate(_center, _center);
+		if (!complete) {
+			p.scale(progress, progress);
+		}
 		PainterHighQualityEnabler hq(p);
 		const auto color = anim::color(
 			st::historyRecordSignalColor,
@@ -644,7 +650,9 @@ void VoiceRecordButton::init() {
 		_recordCircle->paint(p, color);
 		p.resetTransform();
 
-		p.setOpacity(_showProgress.current());
+		if (!complete) {
+			p.setOpacity(progress);
+		}
 		st::historyRecordVoiceActive.paintInCenter(p, rect());
 
 	}, lifetime());
