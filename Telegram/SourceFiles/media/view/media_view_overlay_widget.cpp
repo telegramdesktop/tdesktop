@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_overlay_widget.h"
 
 #include "apiwrap.h"
+#include "api/api_attached_stickers.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1545,15 +1546,16 @@ void OverlayWidget::onCopy() {
 }
 
 void OverlayWidget::onAttachedStickers() {
-	const auto session = _session;
-	if (!session || !_photo) {
+	if (!_session || !_photo) {
 		return;
 	}
 	const auto &active = _session->windows();
 	if (active.empty()) {
 		return;
 	}
-	active.front()->requestAttachedStickerSets(_photo);
+	_session->api().attachedStickers().requestAttachedStickerSets(
+		active.front(),
+		_photo);
 	close();
 }
 

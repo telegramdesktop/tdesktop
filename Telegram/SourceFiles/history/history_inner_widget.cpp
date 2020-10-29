@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_attached_stickers.h"
 #include "api/api_toggling_media.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
@@ -1590,7 +1591,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		});
 		if (photo->hasSticker) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
-				controller->requestAttachedStickerSets(photo);
+				session->api().attachedStickers().requestAttachedStickerSets(
+					controller,
+					photo);
 			});
 		}
 	};

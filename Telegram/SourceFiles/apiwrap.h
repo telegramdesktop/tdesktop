@@ -53,6 +53,7 @@ namespace Api {
 
 class Updates;
 class Authorizations;
+class AttachedStickers;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
@@ -455,6 +456,7 @@ public:
 	rpl::producer<BlockedPeersSlice> blockedPeersSlice();
 
 	[[nodiscard]] Api::Authorizations &authorizations();
+	[[nodiscard]] Api::AttachedStickers &attachedStickers();
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
@@ -818,6 +820,7 @@ private:
 	rpl::event_stream<BlockedPeersSlice> _blockedPeersChanges;
 
 	const std::unique_ptr<Api::Authorizations> _authorizations;
+	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;
