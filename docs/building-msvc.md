@@ -118,7 +118,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     -D LIBTYPE:STRING=STATIC ^
     -D FORCE_STATIC_VCRT=ON
     msbuild OpenAL.vcxproj /property:Configuration=Debug
-    msbuild OpenAL.vcxproj /property:Configuration=Release
+    msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo
     cd ..\..
 
     git clone https://github.com/google/breakpad
