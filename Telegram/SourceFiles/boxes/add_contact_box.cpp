@@ -722,7 +722,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now)));
 		} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
+			Ui::show(Box<InformBox>(tr::lng_join_channel_error(tr::now))); // TODO
 		}
 	}).send();
 }
