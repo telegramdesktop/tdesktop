@@ -66,12 +66,6 @@ constexpr auto kMaxAmplitude = 1800.;
 
 constexpr auto kZeroPoint = QPointF(0, 0);
 
-void ApplyTo(float64 &value, const float64 &to, const float64 &diff) {
-	if ((value != to) && ((diff > 0) == (value > to))) {
-		value = to;
-	}
-}
-
 template <typename Number>
 void Normalize(Number &value, Number right) {
 	if (value >= right) {
@@ -120,6 +114,49 @@ void PerformAnimation(
 
 } // namespace
 
+class ContinuousValue {
+public:
+	ContinuousValue() = default;
+	ContinuousValue(float64 duration) : _duration(duration) {
+	}
+	void start(float64 to, float64 duration) {
+		_to = to;
+		_delta = (_to - _cur) / duration;
+	}
+	void start(float64 to) {
+		start(to, _duration);
+	}
+
+	float64 current() const {
+		return _cur;
+	}
+	float64 to() const {
+		return _to;
+	}
+	float64 delta() const {
+		return _delta;
+	}
+	void update(crl::time dt, Fn<void(float64 &)> &&callback = nullptr) {
+		if (_to != _cur) {
+			_cur += _delta * dt;
+			if ((_to != _cur) && ((_delta > 0) == (_cur > _to))) {
+				_cur = _to;
+			}
+			if (callback) {
+				callback(_cur);
+			}
+		}
+	}
+
+private:
+	float64 _duration = 0.;
+	float64 _to = 0.;
+
+	float64 _cur = 0.;
+	float64 _delta = 0.;
+
+};
+
 class CircleBezier final {
 public:
 	CircleBezier(int n);
@@ -162,8 +199,8 @@ public:
 		float64 amplitudeDiffFactor,
 		bool isDirectionClockwise);
 
-	void setValue(float64 value);
-	void tick(float64 circleRadius, crl::time lastUpdateTime);
+	void setValue(float64 to);
+	void tick(float64 circleRadius, crl::time dt);
 
 	void paint(Painter &p, QColor c);
 
@@ -185,16 +222,13 @@ private:
 	const int _flingDistanceFactor;
 	const int _flingInAnimationDuration;
 	const int _flingOutAnimationDuration;
-	const float64 _amplitudeDiffSpeed;
-	const float64 _amplitudeDiffFactor;
+	const float64 _amplitudeInAnimationDuration;
+	const float64 _amplitudeOutAnimationDuration;
 	const int _directionClockwise;
 
 	bool _incRandomAdditionals = false;
 	bool _isIdle = true;
 	bool _wasFling = false;
-	float64 _amplitude = 0.;
-	float64 _animateAmplitudeDiff = 0.;
-	float64 _animateToAmplitude = 0.;
 	float64 _flingRadius = 0.;
 	float64 _idleRadius = 0.;
 	float64 _idleRotation = 0.;
@@ -203,6 +237,7 @@ private:
 	float64 _sineAngleMax = 0.;
 	float64 _waveAngle = 0.;
 	float64 _waveDiff = 0.;
+	ContinuousValue _levelValue;
 
 	rpl::event_stream<float64> _flingAnimationRequests;
 	rpl::event_stream<> _enterIdleAnimationRequests;
@@ -223,13 +258,8 @@ private:
 	const std::unique_ptr<Wave> _majorWave;
 	const std::unique_ptr<Wave> _minorWave;
 
-	float64 _amplitude = 0.;
-	float64 _animateToAmplitude = 0.;
-	float64 _animateAmplitudeDiff = 0.;
 	crl::time _lastUpdateTime = 0;
-
-	rpl::lifetime _animationLifetime;
-	rpl::lifetime _lifetime;
+	ContinuousValue _levelValue;
 
 };
 
@@ -320,25 +350,23 @@ Wave::Wave(
 , _flingDistanceFactor(flingDistanceFactor)
 , _flingInAnimationDuration(flingInAnimationDuration)
 , _flingOutAnimationDuration(flingOutAnimationDuration)
-, _amplitudeDiffSpeed(amplitudeDiffSpeed)
-, _amplitudeDiffFactor(amplitudeDiffFactor)
+, _amplitudeInAnimationDuration(kMinDivider
+	+ amplitudeDiffFactor * amplitudeDiffSpeed)
+, _amplitudeOutAnimationDuration(kMinDivider
+	+ kAmplitudeDiffFactorMax * amplitudeDiffSpeed)
 , _directionClockwise(isDirectionClockwise ? 1 : -1)
 , _rotation(rotationOffset) {
 	initEnterIdleAnimation(rpl::duplicate(animationTicked));
 	initFlingAnimation(std::move(animationTicked));
 }
 
-void Wave::setValue(float64 value) {
-	_animateToAmplitude = value;
+void Wave::setValue(float64 to) {
+	const auto duration = (to <= _levelValue.current())
+		? _amplitudeOutAnimationDuration
+		: _amplitudeInAnimationDuration;
+	_levelValue.start(to, duration);
 
-	const auto amplitudeDelta = (_animateToAmplitude - _amplitude);
-	const auto factor = (_animateToAmplitude <= _amplitude)
-		? kAmplitudeDiffFactorMax
-		: _amplitudeDiffFactor;
-	_animateAmplitudeDiff = amplitudeDelta
-		/ (kMinDivider + factor * _amplitudeDiffSpeed);
-
-	const auto idle = value < 0.1;
+	const auto idle = to < 0.1;
 	if (_isIdle != idle && idle) {
 		_enterIdleAnimationRequests.fire({});
 	}
@@ -414,30 +442,28 @@ void Wave::initFlingAnimation(rpl::producer<crl::time> animationTicked) {
 	}, _lifetime);
 }
 
-void Wave::tick(float64 circleRadius, crl::time lastUpdateTime) {
-	const auto dt = (crl::now() - lastUpdateTime);
+void Wave::tick(float64 circleRadius, crl::time dt) {
 
-	if (_animateToAmplitude != _amplitude) {
-		_amplitude += _animateAmplitudeDiff * dt;
-		ApplyTo(_amplitude, _animateToAmplitude, _animateAmplitudeDiff);
-
-		if (std::abs(_amplitude - _animateToAmplitude) * _amplitudeRadius
+	auto amplitudeCallback = [&](float64 &value) {
+		if (std::abs(value - _levelValue.to()) * _amplitudeRadius
 				< (st::historyRecordRandomAddition / 2)) {
 			if (!_wasFling) {
-				_flingAnimationRequests.fire_copy(_animateAmplitudeDiff);
+				_flingAnimationRequests.fire_copy(_levelValue.delta());
 				_wasFling = true;
 			}
 		} else {
 			_wasFling = false;
 		}
-	}
+	};
+	_levelValue.update(dt, std::move(amplitudeCallback));
 
 	_idleRadius = circleRadius * kIdleRadiusFactor;
 
 	{
-		const auto delta = (_sineAngleMax - _animateToAmplitude);
+		const auto to = _levelValue.to();
+		const auto delta = (_sineAngleMax - to);
 		if (std::abs(delta) - 0.25 < 0) {
-			_sineAngleMax = _animateToAmplitude;
+			_sineAngleMax = to;
 		} else {
 			_sineAngleMax -= 0.25 * ((delta < 0) ? -1 : 1);
 		}
@@ -445,7 +471,7 @@ void Wave::tick(float64 circleRadius, crl::time lastUpdateTime) {
 
 	if (!_isIdle) {
 		_rotation += dt
-			* (kRotationSpeed * 4. * (_amplitude > 0.5 ? 1 : _amplitude / 0.5)
+			* (kRotationSpeed * 4. * std::min(_levelValue.current() / .5, 1.)
 				+ kRotationSpeed * 0.5);
 		Normalize(_rotation, 360.);
 	} else {
@@ -468,13 +494,14 @@ void Wave::tick(float64 circleRadius, crl::time lastUpdateTime) {
 
 
 void Wave::paint(Painter &p, QColor c) {
-	const auto waveAmplitude = _amplitude < 0.3 ? _amplitude / 0.3 : 1.;
+	const auto amplitude = _levelValue.current();
+	const auto waveAmplitude = std::min(amplitude / .3, 1.);
 	const auto radiusDiff = st::historyRecordRadiusDiffMin
-		+ st::historyRecordRadiusDiff * kWaveAngle * _animateToAmplitude;
+		+ st::historyRecordRadiusDiff * kWaveAngle * _levelValue.to();
 
 	const auto diffFactor = 0.35 * waveAmplitude * _waveDiff;
 
-	const auto radius = (_lastRadius + _amplitudeRadius * _amplitude)
+	const auto radius = (_lastRadius + _amplitudeRadius * amplitude)
 		+ _idleGlobalRadius
 		+ (_flingRadius * waveAmplitude);
 
@@ -527,30 +554,28 @@ RecordCircle::RecordCircle(rpl::producer<crl::time> animationTicked)
 	kFlingOutAnimationDurationMinor,
 	kAnimationSpeedMinor,
 	kAmplitudeDiffFactorMinor,
-	false)) {
+	false))
+, _levelValue(kMinDivider
+	+ kAmplitudeDiffFactorMax * kAnimationSpeedCircle) {
 }
 
 void RecordCircle::setAmplitude(float64 value) {
-	_animateToAmplitude = std::min(kMaxAmplitude, value) / kMaxAmplitude;
-	_majorWave->setValue(_animateToAmplitude);
-	_minorWave->setValue(_animateToAmplitude);
-	_animateAmplitudeDiff = (_animateToAmplitude - _amplitude)
-		/ (kMinDivider + kAmplitudeDiffFactorMax * kAnimationSpeedCircle);
+	const auto to = std::min(kMaxAmplitude, value) / kMaxAmplitude;
+	_levelValue.start(to);
+	_majorWave->setValue(to);
+	_minorWave->setValue(to);
 }
 
 void RecordCircle::paint(Painter &p, QColor c) {
 
-	const auto dt = (crl::now() - _lastUpdateTime);
-	if (_animateToAmplitude != _amplitude) {
-		_amplitude += _animateAmplitudeDiff * dt;
-		ApplyTo(_amplitude, _animateToAmplitude, _animateAmplitudeDiff);
-	}
+	const auto dt = crl::now() - _lastUpdateTime;
+	_levelValue.update(dt);
 
 	const auto radius = (st::historyRecordLevelMainRadius
-		+ st::historyRecordLevelMainRadiusAmplitude * _amplitude);
+		+ st::historyRecordLevelMainRadiusAmplitude * _levelValue.current());
 
-	_majorWave->tick(radius, _lastUpdateTime);
-	_minorWave->tick(radius, _lastUpdateTime);
+	_majorWave->tick(radius, dt);
+	_minorWave->tick(radius, dt);
 	_lastUpdateTime = crl::now();
 
 	const auto opacity = p.opacity();
