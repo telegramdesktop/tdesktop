@@ -16,8 +16,6 @@ namespace HistoryView::Controls {
 
 namespace {
 
-constexpr auto kRecordingUpdateDelta = crl::time(100);
-
 constexpr auto kSegmentsCount = 12;
 constexpr auto kMajorDegreeOffset = 360 / kSegmentsCount;
 constexpr auto kSixtyDegrees = 60;
@@ -196,7 +194,6 @@ private:
 	bool _wasFling = false;
 	float64 _amplitude = 0.;
 	float64 _animateAmplitudeDiff = 0.;
-	float64 _animateAmplitudeSlowDiff = 0.;
 	float64 _animateToAmplitude = 0.;
 	float64 _flingRadius = 0.;
 	float64 _idleRadius = 0.;
@@ -204,7 +201,6 @@ private:
 	float64 _lastRadius = 0.;
 	float64 _rotation = 0.;
 	float64 _sineAngleMax = 0.;
-	float64 _slowAmplitude = 0.;
 	float64 _waveAngle = 0.;
 	float64 _waveDiff = 0.;
 
@@ -336,14 +332,11 @@ void Wave::setValue(float64 value) {
 	_animateToAmplitude = value;
 
 	const auto amplitudeDelta = (_animateToAmplitude - _amplitude);
-	const auto amplitudeSlowDelta = (_animateToAmplitude - _slowAmplitude);
 	const auto factor = (_animateToAmplitude <= _amplitude)
 		? kAmplitudeDiffFactorMax
 		: _amplitudeDiffFactor;
 	_animateAmplitudeDiff = amplitudeDelta
 		/ (kMinDivider + factor * _amplitudeDiffSpeed);
-	_animateAmplitudeSlowDiff = amplitudeSlowDelta
-		/ (kMinDivider + kAmplitudeDiffFactorMax * _amplitudeDiffSpeed);
 
 	const auto idle = value < 0.1;
 	if (_isIdle != idle && idle) {
@@ -437,17 +430,6 @@ void Wave::tick(float64 circleRadius, crl::time lastUpdateTime) {
 		} else {
 			_wasFling = false;
 		}
-	}
-
-	if (_animateToAmplitude != _slowAmplitude) {
-		_slowAmplitude += _animateAmplitudeSlowDiff * dt;
-		if (std::abs(_slowAmplitude - _amplitude) > 0.2) {
-			_slowAmplitude = _amplitude + (_slowAmplitude > _amplitude ?
-					0.2 : -0.2);
-		}
-		ApplyTo(_slowAmplitude,
-			_animateToAmplitude,
-			_animateAmplitudeSlowDiff);
 	}
 
 	_idleRadius = circleRadius * kIdleRadiusFactor;
@@ -589,14 +571,14 @@ VoiceRecordButton::VoiceRecordButton(
 : AbstractButton(parent)
 , _recordCircle(std::make_unique<RecordCircle>(
 	_recordAnimationTicked.events()))
-, _height(st::historyRecordLevelMaxRadius * 2)
-, _center(_height / 2)
+, _center(st::historyRecordLevelMaxRadius)
 , _recordingAnimation([=](crl::time now) {
 	update();
 	_recordAnimationTicked.fire_copy(now);
 	return true;
 }) {
-	resize(_height, _height);
+	const auto h = st::historyRecordLevelMaxRadius * 2;
+	resize(h, h);
 	std::move(
 		leaveWindowEventProducer
 	) | rpl::start_with_next([=] {
@@ -610,22 +592,6 @@ VoiceRecordButton::~VoiceRecordButton() = default;
 void VoiceRecordButton::requestPaintLevel(quint16 level) {
 	_recordCircle->setAmplitude(level);
 	update();
-}
-
-bool VoiceRecordButton::recordingAnimationCallback(crl::time now) {
-	const auto dt = anim::Disabled()
-		? 1.
-		: ((now - _recordingAnimation.started())
-			/ float64(kRecordingUpdateDelta));
-	if (dt >= 1.) {
-		_recordingLevel.finish();
-	} else {
-		_recordingLevel.update(dt, anim::sineInOut);
-	}
-	if (!anim::Disabled()) {
-		update();
-	}
-	return (dt < 1.);
 }
 
 void VoiceRecordButton::init() {
@@ -664,9 +630,7 @@ void VoiceRecordButton::init() {
 		setVisible(show);
 		setMouseTracking(show);
 		if (!show) {
-			_recordingLevel = anim::value();
 			_recordingAnimation.stop();
-			_showingLifetime.destroy();
 			_showProgress = 0.;
 		} else {
 			if (!_recordingAnimation.animating()) {
@@ -712,33 +676,6 @@ bool VoiceRecordButton::inCircle(const QPoint &localPos) const {
 		return true;
 	}
 	return ((dx * dx + dy * dy) <= (radii * radii));
-}
-
-void VoiceRecordButton::drawProgress(Painter &p) {
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-	const auto color = anim::color(
-		st::historyRecordSignalColor,
-		st::historyRecordVoiceFgActive,
-		_colorProgress.current());
-	p.setBrush(color);
-
-	const auto progress = _showProgress.current();
-
-	const auto center = QPoint(_center, _center);
-	const int mainRadii = progress * st::historyRecordLevelMainRadius;
-
-	{
-		p.setOpacity(.5);
-		const auto min = progress * st::historyRecordLevelMinRadius;
-		const auto max = progress * st::historyRecordLevelMaxRadius;
-		const auto delta = std::min(_recordingLevel.current() / 0x4000, 1.);
-		const auto radii = qRound(min + (delta * (max - min)));
-		p.drawEllipse(center, radii, radii);
-		p.setOpacity(1.);
-	}
-
-	p.drawEllipse(center, mainRadii, mainRadii);
 }
 
 void VoiceRecordButton::requestPaintProgress(float64 progress) {

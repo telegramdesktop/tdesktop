@@ -33,26 +33,18 @@ public:
 private:
 	void init();
 
-	void drawProgress(Painter &p);
-
 	rpl::event_stream<crl::time> _recordAnimationTicked;
 	std::unique_ptr<RecordCircle> _recordCircle;
 
-	const int _height;
 	const int _center;
 
 	rpl::variable<float64> _showProgress = 0.;
 	rpl::variable<float64> _colorProgress = 0.;
 	rpl::variable<bool> _inCircle = false;
 
-	bool recordingAnimationCallback(crl::time now);
-
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.
 	Ui::Animations::Basic _recordingAnimation;
-	anim::value _recordingLevel;
-
-	rpl::lifetime _showingLifetime;
 };
 
 } // namespace HistoryView::Controls
