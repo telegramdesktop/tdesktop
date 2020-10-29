@@ -5193,7 +5193,9 @@ void HistoryWidget::updatePinnedViewer() {
 		: (!_migrated || _pinnedClickedId.channel)
 		? _pinnedClickedId.msg
 		: (_pinnedClickedId.msg - ServerMaxMsgId);
-	if (_pinnedClickedId && lessThanId <= lastClickedId) {
+	if (_pinnedClickedId
+		&& lessThanId <= lastClickedId
+		&& !_scrollToAnimation.animating()) {
 		_pinnedClickedId = FullMsgId();
 	}
 	if (_pinnedClickedId && !_minPinnedId) {
@@ -5201,7 +5203,7 @@ void HistoryWidget::updatePinnedViewer() {
 			_peer,
 			_migrated ? _migrated->peer.get() : nullptr);
 	}
-	if (_pinnedClickedId && _minPinnedId == _pinnedClickedId) {
+	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
 		// After click on the last pinned message we should the top one.
 		_pinnedTracker->trackAround(ServerMaxMsgId - 1);
 	} else {
@@ -5314,7 +5316,13 @@ void HistoryWidget::checkPinnedBarState() {
 		const auto id = _pinnedTracker->currentMessageId();
 		if (const auto item = session().data().message(id.message)) {
 			Ui::showPeerHistory(item->history()->peer, item->id);
-			_pinnedClickedId = id.message;
+			if (const auto group = session().data().groups().find(item)) {
+				// Hack for the case when a non-first item of an album
+				// is pinned and we still want the 'show last after first'.
+				_pinnedClickedId = group->items.front()->fullId();
+			} else {
+				_pinnedClickedId = id.message;
+			}
 			_minPinnedId = std::nullopt;
 			updatePinnedViewer();
 		}
