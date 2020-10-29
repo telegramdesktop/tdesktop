@@ -187,6 +187,11 @@ private:
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;
 
+	struct reqData {
+		int requestTime;
+		int memberCount;
+	};
+    QMap<QString, reqData> lastChatRequest;
 };
 
 } // namespace HistoryView

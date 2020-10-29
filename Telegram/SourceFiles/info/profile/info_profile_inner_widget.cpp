@@ -123,6 +123,18 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
 			_scrollToRequests.fire({ min, max });
 		}, _members->lifetime());
+
+		_controller->session().api().request(MTPmessages_GetOnlines(
+				_peer->input
+		)).done([=](const MTPChatOnlines &result) {
+			const auto count = result.c_chatOnlines().vonlines().v;
+			if (count > 0) {
+				_cover->setOnlineCount(rpl::single(count));
+			}
+		}).fail([=](const RPCError &error) {
+			// if failed, then no any changes :)
+		}).send();
+
 		_cover->setOnlineCount(_members->onlineCountValue());
 	}
 	return result;

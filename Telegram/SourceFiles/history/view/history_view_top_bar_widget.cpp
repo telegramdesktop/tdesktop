@@ -960,18 +960,29 @@ void TopBarWidget::updateOnlineDisplay() {
 				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->count);
 			}
 		} else {
-			const auto self = session().user();
-			auto online = 0;
-			auto onlyMe = true;
-			for (const auto user : chat->participants) {
-				if (user->onlineTill > now) {
-					++online;
-					if (onlyMe && user != self) onlyMe = false;
-				}
+			if (lastChatRequest[QString::number(chat->bareId())].requestTime + 10 < now) { // Update every 10 seconds
+				session().api().request(MTPmessages_GetOnlines(
+						chat->input
+				)).done([=](const MTPChatOnlines &result) {
+					const auto count = result.c_chatOnlines().vonlines().v;
+					if (count > 0) {
+						auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->participants.size());
+						auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, count);
+						QString text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
+						_titlePeerText.setText(st::dialogsTextStyle, text);
+						_titlePeerTextOnline = titlePeerTextOnline;
+						updateMembersShowArea();
+					}
+					lastChatRequest[QString::number(chat->bareId())].memberCount = count;
+				}).fail([=](const RPCError &error) {
+					// if failed, then no any changes :)
+				}).send();
+				lastChatRequest[QString::number(chat->bareId())].requestTime = now;
 			}
-			if (online > 0 && !onlyMe) {
+
+			if (chat->participants.size() > 0 && lastChatRequest[QString::number(chat->bareId())].memberCount > 0) {
 				auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->participants.size());
-				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, online);
+				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, lastChatRequest[QString::number(chat->bareId())].memberCount);
 				text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (chat->participants.size() > 0) {
 				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->participants.size());
@@ -982,23 +993,29 @@ void TopBarWidget::updateOnlineDisplay() {
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
 		if (channel->isMegagroup()
 			&& channel->membersCount() > 0) {
-			if (channel->lastParticipantsRequestNeeded()) {
-				session().api().requestLastParticipants(channel);
-			}
-			const auto self = session().user();
-			auto online = 0;
-			auto onlyMe = true;
-			for (auto &participant : std::as_const(channel->mgInfo->lastParticipants)) {
-				if (participant->onlineTill > now) {
-					++online;
-					if (onlyMe && participant != self) {
-						onlyMe = false;
+			if (lastChatRequest[QString::number(channel->bareId())].requestTime + 10 < now) { // Update every 10 seconds
+				session().api().request(MTPmessages_GetOnlines(
+						channel->input
+				)).done([=](const MTPChatOnlines &result) {
+					const auto count = result.c_chatOnlines().vonlines().v;
+					if (count > 0) {
+						auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
+						auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, count);
+						QString text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
+						_titlePeerText.setText(st::dialogsTextStyle, text);
+						_titlePeerTextOnline = titlePeerTextOnline;
+						updateMembersShowArea();
 					}
-				}
+					lastChatRequest[QString::number(channel->bareId())].memberCount = count;
+				}).fail([=](const RPCError &error) {
+					// if failed, then no any changes :)
+				}).send();
+				lastChatRequest[QString::number(channel->bareId())].requestTime = now;
 			}
-			if (online && !onlyMe) {
+
+			if (channel->membersCount() > 0 && lastChatRequest[QString::number(channel->bareId())].memberCount > 0) {
 				auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
-				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, online);
+				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, lastChatRequest[QString::number(channel->bareId())].memberCount);
 				text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (channel->membersCount() > 0) {
 				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
