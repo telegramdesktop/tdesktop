@@ -2251,7 +2251,7 @@ bool Message::displayFastShare() const {
 
 bool Message::displayGoToOriginal() const {
 	if (context() == Context::Pinned) {
-		return true;
+		return !hasOutLayout();
 	}
 	const auto item = message();
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
