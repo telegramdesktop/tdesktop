@@ -424,8 +424,15 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
 		const auto mediaText = [&] {
+			using TTL = HistoryServiceSelfDestruct;
 			if (const auto media = pinned->msg->media()) {
 				return media->pinnedTextSubstring();
+			} else if (const auto selfdestruct = pinned->msg->Get<TTL>()) {
+				if (selfdestruct->type == TTL::Type::Photo) {
+					return tr::lng_action_pinned_media_photo(tr::now);
+				} else if (selfdestruct->type == TTL::Type::Video) {
+					return tr::lng_action_pinned_media_video(tr::now);
+				}
 			}
 			return QString();
 		}();
