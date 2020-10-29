@@ -178,16 +178,14 @@ public:
 			RectParts sides,
 			RectParts corners,
 			not_null<uint64*> cacheKey,
-			not_null<QPixmap*> cache,
-			bool last) const {
+			not_null<QPixmap*> cache) const {
 		Unexpected("Grouping method call.");
 	}
 	[[nodiscard]] virtual TextState getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request,
-		bool last) const;
+		StateRequest request) const;
 
 	[[nodiscard]] virtual bool animating() const {
 		return false;

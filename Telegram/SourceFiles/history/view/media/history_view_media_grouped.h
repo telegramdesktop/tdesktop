@@ -48,12 +48,8 @@ public:
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
-	uint16 fullSelectionLength() const override {
-		return _caption.length();
-	}
-	bool hasTextForCopy() const override {
-		return !_caption.isEmpty();
-	}
+	uint16 fullSelectionLength() const override;
+	bool hasTextForCopy() const override;
 
 	PhotoData *getPhoto() const override;
 	DocumentData *getDocument() const override;

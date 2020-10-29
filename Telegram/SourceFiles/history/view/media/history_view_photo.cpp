@@ -486,8 +486,7 @@ void Photo::drawGrouped(
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache,
-		bool last) const {
+		not_null<QPixmap*> cache) const {
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 
@@ -587,8 +586,7 @@ TextState Photo::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request,
-		bool last) const {
+		StateRequest request) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}

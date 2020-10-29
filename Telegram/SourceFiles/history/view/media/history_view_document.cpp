@@ -908,8 +908,7 @@ void Document::drawGrouped(
 		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
-		not_null<QPixmap*> cache,
-		bool last) const {
+		not_null<QPixmap*> cache) const {
 	p.translate(geometry.topLeft());
 	draw(
 		p,
@@ -924,8 +923,7 @@ TextState Document::getStateGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		QPoint point,
-		StateRequest request,
-		bool last) const {
+		StateRequest request) const {
 	point -= geometry.topLeft();
 	return textState(
 		point,

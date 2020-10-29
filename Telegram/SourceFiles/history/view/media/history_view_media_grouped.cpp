@@ -254,14 +254,21 @@ void GroupedMedia::draw(
 		TextSelection selection,
 		crl::time ms) const {
 	const auto groupPadding = groupedPadding();
+	const auto fullSelection = (selection == FullSelection);
+	const auto textSelection = !fullSelection
+		&& !IsSubGroupSelection(selection);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
-		const auto partSelection = (selection == FullSelection)
+		const auto partSelection = fullSelection
 			? FullSelection
+			: textSelection
+			? selection
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection();
-		const auto last = (i + 1 == count);
+		if (textSelection) {
+			selection = part.content->skipSelection(selection);
+		}
 		part.content->drawGrouped(
 			p,
 			clip,
@@ -271,8 +278,7 @@ void GroupedMedia::draw(
 			part.sides,
 			cornersFromSides(part.sides),
 			&part.cacheKey,
-			&part.cache,
-			last);
+			&part.cache);
 	}
 
 	// date
@@ -303,20 +309,19 @@ void GroupedMedia::draw(
 TextState GroupedMedia::getPartState(
 		QPoint point,
 		StateRequest request) const {
-	auto index = 0;
+	auto shift = 0;
 	for (const auto &part : _parts) {
-		++index;
 		if (part.geometry.contains(point)) {
-			const auto last = (index == _parts.size());
 			auto result = part.content->getStateGrouped(
 				part.geometry,
 				part.sides,
 				point,
-				request,
-				last);
+				request);
+			result.symbol += shift;
 			result.itemId = part.item->fullId();
 			return result;
 		}
+		shift += part.content->fullSelectionLength();
 	}
 	return TextState(_parent->data());
 }
@@ -389,12 +394,69 @@ bool GroupedMedia::dragItemByHandler(const ClickHandlerPtr &p) const {
 TextSelection GroupedMedia::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
-	return _caption.adjustSelection(selection, type);
+	if (_mode != Mode::Column) {
+		return _caption.adjustSelection(selection, type);
+	}
+	auto checked = 0;
+	for (const auto &part : _parts) {
+		const auto modified = ShiftItemSelection(
+			part.content->adjustSelection(
+				UnshiftItemSelection(selection, checked),
+				type),
+			checked);
+		const auto till = checked + part.content->fullSelectionLength();
+		if (selection.from >= checked && selection.from < till) {
+			selection.from = modified.from;
+		}
+		if (selection.to <= till) {
+			selection.to = modified.to;
+			return selection;
+		}
+	}
+	return selection;
+}
+
+uint16 GroupedMedia::fullSelectionLength() const {
+	if (_mode != Mode::Column) {
+		return _caption.length();
+	}
+	auto result = 0;
+	for (const auto &part : _parts) {
+		result += part.content->fullSelectionLength();
+	}
+	return result;
+}
+
+bool GroupedMedia::hasTextForCopy() const {
+	if (_mode != Mode::Column) {
+		return !_caption.isEmpty();
+	}
+	for (const auto &part : _parts) {
+		if (part.content->hasTextForCopy()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 TextForMimeData GroupedMedia::selectedText(
 		TextSelection selection) const {
-	return _caption.toTextForMimeData(selection);
+	if (_mode != Mode::Column) {
+		return _caption.toTextForMimeData(selection);
+	}
+	auto result = TextForMimeData();
+	for (const auto &part : _parts) {
+		auto text = part.content->selectedText(selection);
+		if (!text.empty()) {
+			if (result.empty()) {
+				result = std::move(text);
+			} else {
+				result.append(qstr("\n\n")).append(std::move(text));
+			}
+		}
+		selection = part.content->skipSelection(selection);
+	}
+	return result;
 }
 
 auto GroupedMedia::getBubbleSelectionIntervals(
