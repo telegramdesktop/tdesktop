@@ -37,7 +37,6 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user);
-rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer);
 rpl::producer<QString> LinkValue(not_null<PeerData*> peer);

@@ -346,7 +346,7 @@ BioManager SetupBio(
 			std::move(done));
 	};
 
-	Info::Profile::BioValue(
+	Info::Profile::AboutValue(
 		self
 	) | rpl::start_with_next([=](const TextWithEntities &text) {
 		const auto wasChanged = (*current != bio->getLastText());

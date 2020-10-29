@@ -267,11 +267,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tr::lng_info_mobile_label(),
 			PhoneOrHiddenValue(user),
 			tr::lng_profile_copy_phone(tr::now));
-		if (user->isBot()) {
-			addInfoLine(tr::lng_info_about_label(), AboutValue(user));
-		} else {
-			addInfoLine(tr::lng_info_bio_label(), BioValue(user));
-		}
+		auto label = user->isBot()
+			? tr::lng_info_about_label()
+			: tr::lng_info_bio_label();
+		addInfoLine(std::move(label), AboutValue(user));
 		addInfoOneLine(
 			tr::lng_info_username_label(),
 			UsernameValue(user),
