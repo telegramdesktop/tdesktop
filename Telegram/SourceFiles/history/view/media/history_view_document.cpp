@@ -77,7 +77,7 @@ Document::Document(
 		fillNamedFromData(named);
 	}
 
-	setDocumentLinks(_data, item);
+	setDocumentLinks(_data, realParent);
 
 	setStatusSize(Ui::FileStatusSizeReady);
 
