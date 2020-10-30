@@ -2291,7 +2291,7 @@ not_null<PhotoData*> Session::photo(
 		const QByteArray &fileReference,
 		TimeId date,
 		int32 dc,
-		bool hasSticker,
+		bool hasStickers,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
@@ -2305,7 +2305,7 @@ not_null<PhotoData*> Session::photo(
 		fileReference,
 		date,
 		dc,
-		hasSticker,
+		hasStickers,
 		inlineThumbnailBytes,
 		small,
 		thumbnail,
@@ -2466,7 +2466,7 @@ void Session::photoApplyFields(
 		const QByteArray &fileReference,
 		TimeId date,
 		int32 dc,
-		bool hasSticker,
+		bool hasStickers,
 		const QByteArray &inlineThumbnailBytes,
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
@@ -2478,7 +2478,7 @@ void Session::photoApplyFields(
 	}
 	photo->setRemoteLocation(dc, access, fileReference);
 	photo->date = date;
-	photo->hasSticker = hasSticker;
+	photo->setHasAttachedStickers(hasStickers);
 	photo->updateImages(
 		inlineThumbnailBytes,
 		small,

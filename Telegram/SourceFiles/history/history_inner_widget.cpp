@@ -1589,7 +1589,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 			copyContextImage(photo);
 		});
-		if (photo->hasSticker) {
+		if (photo->hasAttachedStickers()) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
 				session->api().attachedStickers().requestAttachedStickerSets(
 					controller,

@@ -376,6 +376,14 @@ void PhotoData::updateImages(
 		[&](Data::FileOrigin origin) { loadVideo(origin); });
 }
 
+[[nodiscard]] bool PhotoData::hasAttachedStickers() const {
+	return _hasStickers;
+}
+
+void PhotoData::setHasAttachedStickers(bool value) {
+	_hasStickers = value;
+}
+
 int PhotoData::width() const {
 	return _images[PhotoSizeIndex(PhotoSize::Large)].location.width();
 }

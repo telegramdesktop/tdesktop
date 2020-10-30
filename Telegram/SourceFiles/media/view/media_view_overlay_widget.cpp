@@ -773,7 +773,7 @@ void OverlayWidget::updateActions() {
 	if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
 		_actions.push_back({ tr::lng_mediaview_copy(tr::now), SLOT(onCopy()) });
 	}
-	if (_photo && _photo->hasSticker) {
+	if (_photo && _photo->hasAttachedStickers()) {
 		_actions.push_back({ tr::lng_context_attached_stickers(tr::now), SLOT(onAttachedStickers()) });
 	}
 	if (_canForwardItem) {
