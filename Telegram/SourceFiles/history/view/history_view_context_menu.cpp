@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_context_menu.h"
 
+#include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
@@ -137,7 +138,8 @@ void ToggleFavedSticker(
 
 void AddPhotoActions(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<PhotoData*> photo) {
+		not_null<PhotoData*> photo,
+		not_null<ListWidget*> list) {
 	menu->addAction(
 		tr::lng_context_save_image(tr::now),
 		App::LambdaDelayed(
@@ -147,6 +149,16 @@ void AddPhotoActions(
 	menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 		CopyImage(photo);
 	});
+	if (photo->hasAttachedStickers()) {
+		const auto controller = list->controller();
+		auto callback = [=] {
+			auto &attached = photo->session().api().attachedStickers();
+			attached.requestAttachedStickerSets(controller, photo);
+		};
+		menu->addAction(
+			tr::lng_context_attached_stickers(tr::now),
+			std::move(callback));
+	}
 }
 
 void OpenGif(not_null<Main::Session*> session, FullMsgId itemId) {
@@ -238,6 +250,16 @@ void AddDocumentActions(
 				? tr::lng_context_show_in_finder(tr::now)
 				: tr::lng_context_show_in_folder(tr::now)),
 			[=] { ShowInFolder(document); });
+	}
+	if (document->hasAttachedStickers()) {
+		const auto controller = list->controller();
+		auto callback = [=] {
+			auto &attached = session->api().attachedStickers();
+			attached.requestAttachedStickerSets(controller, document);
+		};
+		menu->addAction(
+			tr::lng_context_attached_stickers(tr::now),
+			std::move(callback));
 	}
 	AddSaveDocumentAction(menu, contextId, document);
 }
@@ -768,7 +790,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	AddTopMessageActions(result, request, list);
 	if (linkPhoto) {
-		AddPhotoActions(result, photo);
+		AddPhotoActions(result, photo, list);
 	} else if (linkDocument) {
 		AddDocumentActions(result, document, itemId, list);
 	//} else if (linkPeer) { // #feed
