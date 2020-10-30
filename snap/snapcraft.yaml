@@ -67,8 +67,6 @@ parts:
     source: .
     source-type: git
     parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.appdata.xml]
-    build-environment:
-      - tg_owt_DIR: $SNAPCRAFT_STAGE/tg_owt
     build-packages:
       - python
       - qtbase5-private-dev
@@ -268,16 +266,11 @@ parts:
     stage-packages:
       - libopus0
       - libssl1.1
-    override-build: |
-      cmake "$SNAPCRAFT_PART_SRC" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DJPEG_LIBRARY_RELEASE="$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so" \
-        -DJPEG_INCLUDE_DIR="$SNAPCRAFT_STAGE/usr/include"
-
-      cmake --build . -- -j$(nproc)
-      cp -a . "$SNAPCRAFT_PART_INSTALL"
-    organize:
-      "*": tg_owt/
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
+      - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
     prime: [-./*]
     after:
       - ffmpeg
