@@ -197,7 +197,14 @@ bool FileWriteDescriptor::open(File &file, char postfix) {
 
 bool FileWriteDescriptor::writeHeader(QFileDevice &file) {
 	if (!file.open(QIODevice::WriteOnly)) {
-		return false;
+		const auto dir = QDir(_basePath);
+		if (dir.exists()) {
+			return false;
+		} else if (!QDir().mkpath(dir.absolutePath())) {
+			return false;
+		} else if (!file.open(QIODevice::WriteOnly)) {
+			return false;
+		}
 	}
 	file.write(TdfMagic, TdfMagicLen);
 	const auto version = qint32(AppVersion);
