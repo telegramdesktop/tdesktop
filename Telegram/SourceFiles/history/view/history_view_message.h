@@ -176,6 +176,8 @@ private:
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
 
+	[[nodiscard]] bool isPinnedContext() const;
+
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;

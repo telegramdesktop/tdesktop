@@ -2075,7 +2075,7 @@ HistoryMessageReply *Message::displayedReply() const {
 }
 
 bool Message::displayPinIcon() const {
-	return data()->isPinned() && context() != Context::Pinned;
+	return data()->isPinned() && !isPinnedContext();
 }
 
 bool Message::hasFromName() const {
@@ -2250,7 +2250,7 @@ bool Message::displayFastShare() const {
 }
 
 bool Message::displayGoToOriginal() const {
-	if (context() == Context::Pinned) {
+	if (isPinnedContext()) {
 		return !hasOutLayout();
 	}
 	const auto item = message();
@@ -2305,16 +2305,17 @@ void Message::drawRightAction(
 				views->repliesSmall.text,
 				views->repliesSmall.textWidth);
 		}
-	} else if (displayFastShare()) {
-		st::historyFastShareIcon.paintInCenter(p, { left, top, size->width(), size->height() });
 	} else {
-		st::historyGoToOriginalIcon.paintInCenter(p, { left, top, size->width(), size->height() });
+		const auto &icon = (displayFastShare() && !isPinnedContext())
+			? st::historyFastShareIcon
+			: st::historyGoToOriginalIcon;
+		icon.paintInCenter(p, { left, top, size->width(), size->height() });
 	}
 }
 
 ClickHandlerPtr Message::rightActionLink() const {
 	if (!_rightActionLink) {
-		if (context() == Context::Pinned) {
+		if (isPinnedContext()) {
 			_rightActionLink = goToMessageClickHandler(data());
 			return _rightActionLink;
 		} else if (displayRightActionComments()) {
@@ -2388,6 +2389,10 @@ ClickHandlerPtr Message::fastReplyLink() const {
 		});
 	}
 	return _fastReplyLink;
+}
+
+bool Message::isPinnedContext() const {
+	return context() == Context::Pinned;
 }
 
 void Message::updateMediaInBubbleState() {
