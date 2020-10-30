@@ -196,11 +196,12 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 		: (isEmojiSticker()
 			|| !Core::App().settings().loopAnimatedStickers());
 	const auto count = _lottie->information().framesCount;
-	_atTheEnd = (frame.index + 1 == count);
+	_frameIndex = frame.index;
+	_framesCount = count;
 	_nextLastDiceFrame = !paused
 		&& (_diceIndex > 0)
 		&& (frame.index + 2 == count);
-	const auto lastDiceFrame = (_diceIndex > 0) && _atTheEnd;
+	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
 	const auto switchToNext = !playOnce
 		|| (!lastDiceFrame && (frame.index != 0 || !_lottieOncePlayed));
 	if (!paused

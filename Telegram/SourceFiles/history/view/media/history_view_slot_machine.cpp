@@ -29,8 +29,8 @@ constexpr auto kBarIndex = 2;
 constexpr auto kBerriesIndex = 3;
 constexpr auto kLemonIndex = 4;
 constexpr auto kStartIndex = 5;
-
 constexpr auto kWinValue = 64;
+constexpr auto kSkipFramesBeforeWinEnding = 90;
 
 const auto &kEmoji = ::Stickers::DicePacks::kSlotString;
 
@@ -162,6 +162,7 @@ void SlotMachine::draw(Painter &p, const QRect &r, bool selected) {
 	const auto pullReady = _pull && _pull->readyToDrawLottie();
 	const auto paintReady = [&] {
 		auto result = pullReady;
+		auto allPlayedEnough = true;
 		for (auto i = 1; i != 4; ++i) {
 			if (!_end[i] || !_end[i]->readyToDrawLottie()) {
 				switchedToEnd[i] = false;
@@ -170,8 +171,14 @@ void SlotMachine::draw(Painter &p, const QRect &r, bool selected) {
 				&& (!_start[i] || !_start[i]->readyToDrawLottie())) {
 				result = false;
 			}
+			const auto playedTillFrame = !switchedToEnd[i]
+				? 0
+				: _end[i]->frameIndex().value_or(0);
+			if (playedTillFrame < kSkipFramesBeforeWinEnding) {
+				allPlayedEnough = false;
+			}
 		}
-		if (!_end[0] || !_end[0]->readyToDrawLottie()) {
+		if (!_end[0] || !_end[0]->readyToDrawLottie() || !allPlayedEnough) {
 			switchedToEnd[0] = false;
 		}
 		if (ranges::contains(switchedToEnd, false)
