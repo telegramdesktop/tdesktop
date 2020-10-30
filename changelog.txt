@@ -1,3 +1,11 @@
+2.4.5 (30.10.20)
+
+- Pin several messages in any chat, including one-on-one chats.
+- Jump between pinned messages or open them all on a separate page via the top bar.
+- Send several music tracks as a playlist. 
+- Send several files as an album in one chat bubble.
+- Send a :slot_machine: emoji to any chat to see if you hit the jackpot.
+
 2.4.4 (23.10.20)
 
 - Fix application quit on call end with main window hidden in tray.
