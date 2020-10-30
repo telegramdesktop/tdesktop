@@ -70,13 +70,7 @@ else
   DeployMac="1"
   DeployWin="1"
   DeployLinux="1"
-  if [ "$AlphaVersion" == "0" ]; then
-    DeployOsx="1"
-    DeployLinux32="1"
-    echo "Deploying five versions of $AppVersionStrFull: for Windows, OS X 10.10 and 10.11, macOS, Linux 64 bit and Linux 32 bit.."
-  else
-    echo "Deploying three versions of $AppVersionStrFull: for Windows, macOS and Linux 64 bit.."
-  fi
+  echo "Deploying three versions of $AppVersionStrFull: for Windows, macOS and Linux 64 bit.."
 fi
 if [ "$BuildTarget" == "mac" ]; then
   BackupPath="$HOME/Projects/backup/tdesktop"

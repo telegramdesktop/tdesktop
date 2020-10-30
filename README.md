@@ -59,7 +59,7 @@ Version **1.8.15** was the last that supports older systems
 ## Build instructions
 
 * [Visual Studio 2019][msvc]
-* [Xcode 11][xcode]
+* [Xcode 12][xcode]
 * [CMake on GNU/Linux][cmake]
 
 [//]: # (LINKS)

@@ -278,6 +278,8 @@ Go to ***BuildPath*** and run
         -openssl-linked \
         -I "$OPENSSL_DIR/include" \
         OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
+        -I "/usr/local/include" \
+        LIBJPEG_LIBS="/usr/local/lib/libjpeg.a" \
         -nomake examples \
         -nomake tests
 

@@ -1,4 +1,4 @@
-## Build instructions for Xcode 11
+## Build instructions for Xcode 12
 
 ### Prepare folder
 
@@ -80,6 +80,7 @@ Go to ***BuildPath*** and run
     cmake -B build . \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr/local/macos \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 \
         -DWITH_JPEG8=ON \
         -DPNG_SUPPORTED=OFF
     cmake --build build $MAKE_THREADS_CNT

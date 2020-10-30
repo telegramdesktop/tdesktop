@@ -5,6 +5,7 @@
 - Send several music tracks as a playlist. 
 - Send several files as an album in one chat bubble.
 - Send a :slot_machine: emoji to any chat to see if you hit the jackpot.
+- Hide Telegram taskbar icon on Linux in Settings > Advanced.
 
 2.4.4 (23.10.20)
 

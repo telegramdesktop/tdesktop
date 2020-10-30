@@ -3409,7 +3409,6 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (_replyForwardPressed) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
-		setupPinnedTracker(); AssertIsDebug();
 	}
 	if (_recording) {
 		stopRecording(_peer && _inField);
