@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 class ApiWrap;
+class DocumentData;
 class PhotoData;
 
 namespace Window {
@@ -26,7 +27,15 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<PhotoData*> photo);
 
+	void requestAttachedStickerSets(
+		not_null<Window::SessionController*> controller,
+		not_null<DocumentData*> document);
+
 private:
+	void request(
+		not_null<Window::SessionController*> controller,
+		MTPmessages_GetAttachedStickers &&mtpRequest);
+
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 

@@ -221,6 +221,8 @@ public:
 	[[nodiscard]] bool hasMimeType(QLatin1String mime) const;
 	void setMimeString(const QString &mime);
 
+	[[nodiscard]] bool hasAttachedStickers() const;
+
 	[[nodiscard]] MediaKey mediaKey() const;
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] uint8 cacheTag() const;
@@ -259,6 +261,7 @@ private:
 		ImageType = 0x08,
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
+		HasAttachedStickers = 0x40,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

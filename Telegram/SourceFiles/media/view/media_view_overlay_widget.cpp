@@ -773,8 +773,15 @@ void OverlayWidget::updateActions() {
 	if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
 		_actions.push_back({ tr::lng_mediaview_copy(tr::now), SLOT(onCopy()) });
 	}
-	if (_photo && _photo->hasAttachedStickers()) {
-		_actions.push_back({ tr::lng_context_attached_stickers(tr::now), SLOT(onAttachedStickers()) });
+	if ((_photo && _photo->hasAttachedStickers())
+		|| (_document && _document->hasAttachedStickers())) {
+		auto member = _photo
+			? SLOT(onPhotoAttachedStickers())
+			: SLOT(onDocumentAttachedStickers());
+		_actions.push_back({
+			tr::lng_context_attached_stickers(tr::now),
+			std::move(member)
+		});
 	}
 	if (_canForwardItem) {
 		_actions.push_back({ tr::lng_mediaview_forward(tr::now), SLOT(onForward()) });
@@ -1545,7 +1552,7 @@ void OverlayWidget::onCopy() {
 	}
 }
 
-void OverlayWidget::onAttachedStickers() {
+void OverlayWidget::onPhotoAttachedStickers() {
 	if (!_session || !_photo) {
 		return;
 	}
@@ -1556,6 +1563,20 @@ void OverlayWidget::onAttachedStickers() {
 	_session->api().attachedStickers().requestAttachedStickerSets(
 		active.front(),
 		_photo);
+	close();
+}
+
+void OverlayWidget::onDocumentAttachedStickers() {
+	if (!_session || !_document) {
+		return;
+	}
+	const auto &active = _session->windows();
+	if (active.empty()) {
+		return;
+	}
+	_session->api().attachedStickers().requestAttachedStickerSets(
+		active.front(),
+		_document);
 	close();
 }
 

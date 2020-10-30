@@ -499,7 +499,9 @@ Main::Session &DocumentData::session() const {
 
 void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
-	_flags &= ~(Flag::ImageType | kStreamingSupportedMask);
+	_flags &= ~(Flag::ImageType
+		| Flag::HasAttachedStickers
+		| kStreamingSupportedMask);
 	_flags |= kStreamingSupportedUnknown;
 
 	validateLottieSticker();
@@ -577,6 +579,7 @@ void DocumentData::setattributes(
 				_filename = std::move(_filename).replace(ch, "_");
 			}
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
+			_flags |= Flag::HasAttachedStickers;
 		});
 	}
 	if (type == StickerDocument
@@ -1537,6 +1540,10 @@ TimeId DocumentData::getDuration() const {
 
 bool DocumentData::isImage() const {
 	return (_flags & Flag::ImageType);
+}
+
+bool DocumentData::hasAttachedStickers() const {
+	return (_flags & Flag::HasAttachedStickers);
 }
 
 bool DocumentData::supportsStreaming() const {

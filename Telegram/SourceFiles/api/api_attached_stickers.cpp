@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
+#include "data/data_document.h"
 #include "data/data_photo.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
@@ -21,15 +22,14 @@ AttachedStickers::AttachedStickers(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
 }
 
-void AttachedStickers::requestAttachedStickerSets(
+void AttachedStickers::request(
 		not_null<Window::SessionController*> controller,
-		not_null<PhotoData*> photo) {
+		MTPmessages_GetAttachedStickers &&mtpRequest) {
 	const auto weak = base::make_weak(controller.get());
 	_api.request(_requestId).cancel();
 	_requestId = _api.request(
-		MTPmessages_GetAttachedStickers(
-			MTP_inputStickeredMediaPhoto(photo->mtpInput())
-	)).done([=](const MTPVector<MTPStickerSetCovered> &result) {
+		std::move(mtpRequest)
+	).done([=](const MTPVector<MTPStickerSetCovered> &result) {
 		_requestId = 0;
 		const auto strongController = weak.get();
 		if (!strongController) {
@@ -59,6 +59,24 @@ void AttachedStickers::requestAttachedStickerSets(
 		_requestId = 0;
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
+}
+
+void AttachedStickers::requestAttachedStickerSets(
+		not_null<Window::SessionController*> controller,
+		not_null<PhotoData*> photo) {
+	request(
+		controller,
+		MTPmessages_GetAttachedStickers(
+			MTP_inputStickeredMediaPhoto(photo->mtpInput())));
+}
+
+void AttachedStickers::requestAttachedStickerSets(
+		not_null<Window::SessionController*> controller,
+		not_null<DocumentData*> document) {
+	request(
+		controller,
+		MTPmessages_GetAttachedStickers(
+			MTP_inputStickeredMediaDocument(document->mtpInput())));
 }
 
 } // namespace Api
