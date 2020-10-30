@@ -1423,7 +1423,7 @@ void MainWidget::ui_showPeerHistory(
 		if (const auto activeChat = _controller->activeChatCurrent()) {
 			if (const auto peer = activeChat.peer()) {
 				if (way == Way::Forward && peer->id == peerId) {
-					way = Way::ClearStack;
+					way = _mainSection ? Way::Backward : Way::ClearStack;
 				}
 			}
 		}

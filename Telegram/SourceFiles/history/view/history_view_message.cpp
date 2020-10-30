@@ -2203,7 +2203,8 @@ bool Message::displayFastReply() const {
 }
 
 bool Message::displayRightActionComments() const {
-	return data()->repliesAreComments()
+	return !isPinnedContext()
+		&& data()->repliesAreComments()
 		&& media()
 		&& media()->isDisplayed()
 		&& !hasBubble();
