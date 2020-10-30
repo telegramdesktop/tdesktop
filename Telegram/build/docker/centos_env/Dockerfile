@@ -47,6 +47,25 @@ RUN scl enable devtoolset-8 -- cmake3 -B build . -DCMAKE_BUILD_TYPE=Release
 RUN scl enable devtoolset-8 -- cmake3 --build build -j$(nproc)
 RUN DESTDIR="$LibrariesPath/xz-cache" scl enable devtoolset-8 -- cmake3 --install build
 
+WORKDIR ..
+RUN rm -rf xz
+
+FROM builder AS mozjpeg
+RUN git clone -b v4.0.1-rc2 --depth=1 $GIT/mozilla/mozjpeg.git
+
+WORKDIR mozjpeg
+RUN scl enable devtoolset-8 -- cmake3 -B build . \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_INSTALL_PREFIX=/usr/local \
+	-DWITH_JPEG8=ON \
+	-DPNG_SUPPORTED=OFF
+
+RUN scl enable devtoolset-8 -- cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/mozjpeg-cache" scl enable devtoolset-8 -- cmake3 --install build
+
+WORKDIR ..
+RUN rm -rf mozjpeg
+
 FROM builder AS opus
 RUN git clone -b v1.3 --depth=1 $GIT/xiph/opus.git
 
@@ -336,6 +355,7 @@ RUN rm -rf libxkbcommon
 FROM patches AS qt
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
@@ -361,7 +381,6 @@ RUN scl enable devtoolset-8 -- ./configure -prefix "$QT_PREFIX" \
 	-opensource \
 	-confirm-license \
 	-qt-libpng \
-	-qt-libjpeg \
 	-qt-harfbuzz \
 	-qt-pcre \
 	-qt-xcb \
@@ -372,10 +391,14 @@ RUN scl enable devtoolset-8 -- ./configure -prefix "$QT_PREFIX" \
 	-openssl-linked \
 	-I "$OPENSSL_PREFIX/include" OPENSSL_LIBS="$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread" \
 	-nomake examples \
-	-nomake tests
+	-nomake tests \
+	-L /usr/local/lib64
 
 RUN scl enable devtoolset-8 -- make -j$(nproc)
 RUN scl enable devtoolset-8 -- make INSTALL_ROOT="$LibrariesPath/qt-cache" install
+
+WORKDIR ..
+RUN rm -rf qt_${QT}
 
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git
@@ -418,10 +441,10 @@ RUN rm -rf gyp
 
 FROM builder AS webrtc
 
+COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
-COPY --from=qt ${LibrariesPath}/qt_${QT} qt_${QT}
 
 RUN git clone $GIT/desktop-app/tg_owt.git
 
@@ -431,7 +454,7 @@ RUN git checkout c73a471
 RUN scl enable devtoolset-8 -- cmake3 -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DTG_OWT_SPECIAL_TARGET=linux \
-	-DTG_OWT_LIBJPEG_INCLUDE_PATH=$(pwd)/../qt_$QT/qtbase/src/3rdparty/libjpeg \
+	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
 	-DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
@@ -442,6 +465,7 @@ FROM builder
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
+COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
