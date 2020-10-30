@@ -1,6 +1,6 @@
 ## Build instructions for Xcode 10.1
 
-**NB** These are used for OS X 10.10/10.11 build, after the [Building using Xcode][xcode] instructions.
+**NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
 
 ### Prepare folder
 
