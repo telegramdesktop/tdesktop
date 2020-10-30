@@ -113,6 +113,8 @@ public:
 	}
 	void destroyMessage(not_null<HistoryItem*> item);
 
+	void unpinAllMessages();
+
 	HistoryItem *addNewMessage(
 		const MTPMessage &msg,
 		MTPDmessage_ClientFlags clientFlags,

@@ -1182,20 +1182,16 @@ void UnpinAllMessages(
 	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_all_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(navigation, [=] {
 		Ui::hideLayer();
 		const auto api = &history->session().api();
-		const auto peer = history->peer;
 		const auto sendRequest = [=](auto self) -> void {
 			api->request(MTPmessages_UnpinAllMessages(
-				peer->input
+				history->peer->input
 			)).done([=](const MTPmessages_AffectedHistory &result) {
+				const auto peer = history->peer;
 				const auto offset = api->applyAffectedHistory(peer, result);
 				if (offset > 0) {
 					self(self);
 				} else {
-					peer->session().storage().remove(
-						Storage::SharedMediaRemoveAll(
-							peer->id,
-							Storage::SharedMediaType::Pinned));
-					peer->setHasPinnedMessages(false);
+					history->unpinAllMessages();
 				}
 			}).send();
 		};

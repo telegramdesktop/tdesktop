@@ -441,6 +441,19 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	}
 }
 
+void History::unpinAllMessages() {
+	session().storage().remove(
+		Storage::SharedMediaRemoveAll(
+			peer->id,
+			Storage::SharedMediaType::Pinned));
+	peer->setHasPinnedMessages(false);
+	for (const auto &message : _messages) {
+		if (message->isPinned()) {
+			message->setIsPinned(false);
+		}
+	}
+}
+
 not_null<HistoryItem*> History::addNewItem(
 		not_null<HistoryItem*> item,
 		bool unread) {
