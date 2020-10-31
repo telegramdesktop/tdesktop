@@ -53,16 +53,12 @@ Add **GYP** and **Ninja** to your PATH:
 ## Clone source code and prepare libraries
 
 Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
-
     SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
     mkdir Libraries
     cd Libraries
-
-    SET LibrariesPath=%cd%
-
     git clone https://github.com/desktop-app/patches.git
     cd patches
     git checkout ddd4084
@@ -102,12 +98,26 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="x64"
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="x64"
     cd ..\..\..\..
+    
+    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    cd mozjpeg
+    cmake . ^
+    -G "Visual Studio 16 2019" ^
+    -A x64 ^
+    -DWITH_JPEG8=ON ^
+    -DPNG_SUPPORTED=OFF
+    cmake --build .
+    cd ..
 
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout fix_capture
+    git checkout fix_mono
     cd build
-    cmake -G "Visual Studio 16 2019" -A x64 -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON -D ALSOFT_BACKEND_WASAPI=OFF ..
+    cmake .. ^
+    -G "Visual Studio 16 2019" ^
+    -A x64 ^
+    -D LIBTYPE:STRING=STATIC ^
+    -D FORCE_STATIC_VCRT=ON
     msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="x64"
     msbuild OpenAL.vcxproj /property:Configuration=Release /property:Platform="x64"
     cd ..\..
@@ -151,6 +161,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
+    SET LibrariesPath=%cd%
     git clone git://code.qt.io/qt/qt5.git qt_5_12_8
     cd qt_5_12_8
     perl init-repository --module-subset=qtbase,qtimageformats
@@ -160,8 +171,28 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     for /r %i in (..\..\patches\qtbase_5_12_8\*) do git apply %i
     cd ..
 
-    configure -prefix "%LibrariesPath%\Qt-5.12.8" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%LibrariesPath%\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out64\libssl.lib %LibrariesPath%\openssl_1_1_1\out64\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
-
+    configure ^
+        -prefix "%LibrariesPath%\Qt-5.12.8" ^
+        -debug-and-release ^
+        -force-debug-info ^
+        -opensource ^
+        -confirm-license ^
+        -static ^
+        -static-runtime ^
+        -no-opengl ^
+        -openssl-linked ^
+        -recheck ^
+        -I "%LibrariesPath%\openssl_1_1_1\include" ^
+        OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out64\libssl.lib %LibrariesPath%\openssl_1_1_1\out64\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        -I "%LibrariesPath%\mozjpeg" ^
+        LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
+        LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib" ^
+        -mp ^
+        -nomake examples ^
+        -nomake tests ^
+        -platform win32-msvc
+	
     jom -j %NUMBER_OF_PROCESSORS%
     jom -j %NUMBER_OF_PROCESSORS% install
     cd ..
@@ -175,7 +206,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cmake -G Ninja ^
     -DCMAKE_BUILD_TYPE=Debug ^
     -DTG_OWT_SPECIAL_TARGET=win ^
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg ^
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
     -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
     -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
     -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
@@ -186,7 +217,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cmake -G Ninja ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DTG_OWT_SPECIAL_TARGET=win ^
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg ^
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
     -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
     -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
     -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
@@ -197,7 +228,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
 Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
+    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
 
 * Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
@@ -207,7 +238,7 @@ Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **
 
 For better debugging you may want to install Qt Visual Studio Tools:
 
-* Open **Tools** -> **Extensions and Updates...**
+* Open **Extensions** -> **Manage Extensions**
 * Go to **Online** tab
 * Search for **Qt**
 * Install **Qt Visual Studio Tools** extension
