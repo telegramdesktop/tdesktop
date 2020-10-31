@@ -18,8 +18,6 @@ apps:
     common-id: org.telegram.desktop
     desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
-      # Use GTK3 cursor theme, icon theme and open/save file dialogs.
-      QT_QPA_PLATFORMTHEME: gtk3
       GTK_USE_PORTAL: 1
     plugs:
       - alsa
