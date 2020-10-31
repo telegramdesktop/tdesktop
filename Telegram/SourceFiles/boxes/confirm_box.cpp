@@ -622,7 +622,7 @@ void DeleteMessagesBox::prepare() {
 						MTP_flags(MTPmessages_Search::Flag::f_from_id),
 						peer->input,
 						MTP_string(""),
-						_moderateFrom->inputUser,
+						_moderateFrom->input,
 						MTPint(), // top_msg_id
 						MTP_inputMessagesFilterEmpty(),
 						MTP_int(0),

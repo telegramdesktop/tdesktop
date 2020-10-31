@@ -118,19 +118,6 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 	});
 }
 
-rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user) {
-	auto flags = TextParseLinks
-				 | TextParseMentions
-				 | TextParseHashtags;
-	return PlainBioValue(
-			user
-	) | Ui::Text::ToWithEntities(
-	) | rpl::map([=](TextWithEntities &&text) {
-		TextUtilities::ParseEntities(text, flags);
-		return std::move(text);
-	});
-}
-
 rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 	return PlainUsernameValue(
 		user
