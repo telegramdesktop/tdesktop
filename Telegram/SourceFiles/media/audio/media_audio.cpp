@@ -321,6 +321,9 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alSourcei(stream.source, AL_LOOPING, 0);
 	alSourcei(stream.source, AL_SOURCE_RELATIVE, 1);
 	alSourcei(stream.source, AL_ROLLOFF_FACTOR, 0);
+	if (alIsExtensionPresent("AL_SOFT_direct_channels_remix")) {
+		alSourcei(stream.source, alGetEnumValue("AL_DIRECT_CHANNELS_SOFT"), 2);
+	}
 	alGenBuffers(3, stream.buffers);
 	if (speedEffect) {
 		applySourceSpeedEffect();
