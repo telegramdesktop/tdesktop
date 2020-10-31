@@ -93,13 +93,15 @@ bool Panel::preventAutoHide() const {
 }
 
 void Panel::updateControlsGeometry() {
-	auto scrollTop = contentTop();
-	auto width = contentWidth();
-	auto scrollHeight = qMax(height() - scrollTop - contentBottom() - scrollMarginBottom(), 0);
+	const auto scrollTop = contentTop();
+	const auto width = contentWidth();
+	const auto scrollHeight = qMax(
+		height() - scrollTop - contentBottom() - scrollMarginBottom(),
+		0);
 	if (scrollHeight > 0) {
 		_scroll->setGeometryToRight(contentRight(), scrollTop, width, scrollHeight);
 	}
-	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
+	if (const auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(width);
 	}
 }
