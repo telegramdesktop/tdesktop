@@ -1,4 +1,4 @@
-## Build instructions for Xcode 11
+## Build instructions for Xcode 12
 
 ### Prepare folder
 
@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    git checkout a77e4d5
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -46,7 +46,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    git checkout a77e4d5
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -73,6 +73,18 @@ Go to ***BuildPath*** and run
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
     make $MAKE_THREADS_CNT
     sudo make install
+    cd ..
+
+    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    cd mozjpeg
+    cmake -B build . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local/macos \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 \
+        -DWITH_JPEG8=ON \
+        -DPNG_SUPPORTED=OFF
+    cmake --build build $MAKE_THREADS_CNT
+    sudo cmake --install build
     cd ..
 
     git clone https://github.com/openssl/openssl openssl_1_1_1
@@ -252,17 +264,20 @@ Go to ***BuildPath*** and run
     cd ..
 
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
-    -debug-and-release \
-    -force-debug-info \
-    -opensource \
-    -confirm-license \
-    -static \
-    -opengl desktop \
-    -no-openssl \
-    -securetransport \
-    -nomake examples \
-    -nomake tests \
-    -platform macx-clang
+        -debug-and-release \
+        -force-debug-info \
+        -opensource \
+        -confirm-license \
+        -static \
+        -opengl desktop \
+        -no-openssl \
+        -securetransport \
+        -I "/usr/local/macos/include" \
+        LIBJPEG_LIBS="/usr/local/macos/lib/libjpeg.a" \
+        ZLIB_LIBS="/usr/local/macos/lib/libz.a" \
+        -nomake examples \
+        -nomake tests \
+        -platform macx-clang
 
     make $MAKE_THREADS_CNT
     sudo make install
@@ -275,23 +290,23 @@ Go to ***BuildPath*** and run
     mkdir Debug
     cd Debug
     cmake -G Ninja \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DTG_OWT_SPECIAL_TARGET=mac \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
-    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DTG_OWT_SPECIAL_TARGET=mac \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
     ninja
     cd ..
     mkdir Release
     cd Release
     cmake -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DTG_OWT_SPECIAL_TARGET=mac \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
-    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
+        -DCMAKE_BUILD_TYPE=Release \
+        -DTG_OWT_SPECIAL_TARGET=mac \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/macos/include/opus \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/macos/include ../..
     ninja
     cd ../../..
 

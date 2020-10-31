@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_child_ffmpeg_loader.h"
 
 #include "core/crash_reports.h"
+#include "core/file_location.h"
 
 namespace Media {
 namespace {
@@ -30,7 +31,7 @@ bool IsPlanarFormat(int format) {
 ChildFFMpegLoader::ChildFFMpegLoader(
 	std::unique_ptr<ExternalSoundData> &&data)
 : AbstractAudioFFMpegLoader(
-	FileLocation(),
+	Core::FileLocation(),
 	QByteArray(),
 	bytes::vector())
 , _parentData(std::move(data)) {

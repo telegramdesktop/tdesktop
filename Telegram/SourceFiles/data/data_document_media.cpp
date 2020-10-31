@@ -111,8 +111,8 @@ void VideoPreviewState::automaticLoad(Data::FileOrigin origin) const {
 			_media->videoThumbnailContent(),
 			std::move(callback))
 		: ::Media::Clip::MakeReader(
-			_media,
-			FullMsgId(),
+			_media->owner()->location(),
+			_media->bytes(),
 			std::move(callback));
 }
 
@@ -386,7 +386,7 @@ void DocumentMedia::GenerateGoodThumbnail(
 		: FileType::Video;
 	auto location = document->location().isEmpty()
 		? nullptr
-		: std::make_unique<FileLocation>(document->location());
+		: std::make_unique<Core::FileLocation>(document->location());
 	if (data.isEmpty() && !location) {
 		document->setGoodThumbnailChecked(false);
 		return;

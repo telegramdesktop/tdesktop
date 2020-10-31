@@ -489,7 +489,7 @@ backgroundScroll: ScrollArea(boxScroll) {
 	deltab: 10px;
 }
 
-editMediaButtonSize: 29px;
+editMediaButtonSize: 28px;
 editMediaButtonSkip: 8px;
 editMediaButtonFileSkipRight: 1px;
 editMediaButtonFileSkipTop: 7px;
@@ -508,24 +508,32 @@ editMediaButton: IconButton {
 
 // SendFilesBox
 
-sendBoxAlbumGroupEditInternalSkip: 9px;
+sendBoxAlbumGroupEditInternalSkip: 8px;
 sendBoxAlbumGroupSkipRight: 6px;
 sendBoxAlbumGroupSkipTop: 6px;
-sendBoxAlbumGroupRadius: 12px;
-sendBoxAlbumGroupHeight: 25px;
+sendBoxAlbumGroupRadius: 13px;
+sendBoxAlbumGroupHeight: 26px;
 
-sendBoxAlbumGroupEditButtonIcon: editMediaButtonIconPhoto;
-sendBoxAlbumGroupEditButtonIconPosition: point(4px, -1px);
+sendBoxFileGroupSkipTop: 2px;
+sendBoxFileGroupSkipRight: 8px;
+sendBoxFileGroupEditInternalSkip: -1px;
 
 sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgRipple;
 	}
 }
-
-sendBoxAlbumGroupDeleteButtonIconPosition: point(-3px, 0px);
-sendBoxAlbumGroupDeleteButtonIcon: icon {{ "history_file_cancel", msgServiceFg}};
+sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
 sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "history_file_cancel", menuIconFg, point(6px, 6px) }};
+
+sendBoxAlbumGroupButtonMediaEdit: icon {{ "settings_edit", msgServiceFg, point(3px, -2px) }};
+sendBoxAlbumGroupButtonMediaDelete: icon {{ "history_file_cancel", msgServiceFg, point(2px, 5px) }};
+sendBoxAlbumGroupButtonMedia: IconButton {
+	width: sendBoxAlbumGroupHeight;
+	height: sendBoxAlbumGroupHeight;
+
+	icon: sendBoxAlbumGroupButtonMediaEdit;
+}
 
 // End of SendFilesBox
 
@@ -705,11 +713,7 @@ groupStickersSubTitleHeight: 36px;
 
 sendMediaPreviewSize: 308px;
 sendMediaPreviewHeightMax: 1280;
-sendMediaPreviewPhotoSkip: 10px;
-sendMediaFileThumbSize: 64px;
-sendMediaFileThumbSkip: 10px;
-sendMediaFileNameTop: 7px;
-sendMediaFileStatusTop: 37px;
+sendMediaRowSkip: 10px;
 
 proxyUsePadding: margins(22px, 6px, 22px, 5px);
 proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);

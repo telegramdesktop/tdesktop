@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 

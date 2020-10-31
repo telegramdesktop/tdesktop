@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
@@ -86,7 +86,7 @@ void Call::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 
 	nameleft = st::historyCallLeft;
 	nametop = st::historyCallTop - topMinus;
-	nameright = st::msgFilePadding.left();
+	nameright = st::msgFileLayout.padding.left();
 	statustop = st::historyCallStatusTop - topMinus;
 
 	auto namewidth = paintw - nameleft - nameright;

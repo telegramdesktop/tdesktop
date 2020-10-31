@@ -1372,6 +1372,81 @@ void PeerMenuAddChannelMembers(
 	}));
 }
 
+void ToggleMessagePinned(
+		not_null<Window::SessionNavigation*> navigation,
+		FullMsgId itemId,
+		bool pin) {
+	const auto item = navigation->session().data().message(itemId);
+	if (!item || !item->canPin()) {
+		return;
+	}
+	if (pin) {
+		Ui::show(Box<PinMessageBox>(item->history()->peer, item->id));
+	} else {
+		const auto peer = item->history()->peer;
+		const auto session = &peer->session();
+		Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(session, [=] {
+			Ui::hideLayer();
+			session->api().request(MTPmessages_UpdatePinnedMessage(
+				MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
+				peer->input,
+				MTP_int(itemId.msg)
+			)).done([=](const MTPUpdates &result) {
+				session->api().applyUpdates(result);
+			}).send();
+		})));
+	}
+}
+
+void HidePinnedBar(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		Fn<void()> onHidden) {
+	Ui::show(Box<ConfirmBox>(tr::lng_pinned_hide_all_sure(tr::now), tr::lng_pinned_hide_all_hide(tr::now), crl::guard(navigation, [=] {
+		Ui::hideLayer();
+		auto &session = peer->session();
+		const auto migrated = peer->migrateFrom();
+		const auto top = Data::ResolveTopPinnedId(peer, migrated);
+		const auto universal = !top
+			? int32(0)
+			: (migrated && !top.channel)
+			? (top.msg - ServerMaxMsgId)
+			: top.msg;
+		if (universal) {
+			session.settings().setHiddenPinnedMessageId(peer->id, universal);
+			session.saveSettingsDelayed();
+			if (onHidden) {
+				onHidden();
+			}
+		} else {
+			session.api().requestFullPeer(peer);
+		}
+	})));
+}
+
+void UnpinAllMessages(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<History*> history) {
+	Ui::show(Box<ConfirmBox>(tr::lng_pinned_unpin_all_sure(tr::now), tr::lng_pinned_unpin(tr::now), crl::guard(navigation, [=] {
+		Ui::hideLayer();
+		const auto api = &history->session().api();
+		const auto sendRequest = [=](auto self) -> void {
+			api->request(MTPmessages_UnpinAllMessages(
+				history->peer->input
+			)).done([=](const MTPmessages_AffectedHistory &result) {
+				const auto peer = history->peer;
+				const auto offset = api->applyAffectedHistory(peer, result);
+				if (offset > 0) {
+					self(self);
+				} else {
+					history->unpinAllMessages();
+				}
+			}).send();
+		};
+		sendRequest(sendRequest);
+	})));
+}
+
 void PeerMenuAddMuteAction(
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction) {

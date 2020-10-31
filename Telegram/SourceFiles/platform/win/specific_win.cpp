@@ -70,8 +70,6 @@ using namespace Platform;
 
 namespace {
 
-constexpr auto kRefreshBadLastUserInputTimeout = 10 * crl::time(1000);
-
 QStringList _initLogs;
 
 bool themeInited = false;
@@ -87,49 +85,27 @@ public:
 };
 _PsInitializer _psInitializer;
 
-} // namespace
+BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
+	uint64 &processId(*(uint64*)lParam);
 
-void psDeleteDir(const QString &dir) {
-	std::wstring wDir = QDir::toNativeSeparators(dir).toStdWString();
-	WCHAR path[4096];
-	memcpy(path, wDir.c_str(), (wDir.size() + 1) * sizeof(WCHAR));
-	path[wDir.size() + 1] = 0;
-	SHFILEOPSTRUCT file_op = {
-		NULL,
-		FO_DELETE,
-		path,
-		L"",
-		FOF_NOCONFIRMATION |
-		FOF_NOERRORUI |
-		FOF_SILENT,
-		false,
-		0,
-		L""
-	};
-	int res = SHFileOperation(&file_op);
-}
+	DWORD dwProcessId;
+	::GetWindowThreadProcessId(hWnd, &dwProcessId);
 
-namespace {
-	BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
-		uint64 &processId(*(uint64*)lParam);
-
-		DWORD dwProcessId;
-		::GetWindowThreadProcessId(hWnd, &dwProcessId);
-
-		if ((uint64)dwProcessId == processId) { // found top-level window
-			static const int32 nameBufSize = 1024;
-			WCHAR nameBuf[nameBufSize];
-			int32 len = GetWindowText(hWnd, nameBuf, nameBufSize);
-			if (len && len < nameBufSize) {
-				if (QRegularExpression(qsl("^Telegram(\\s*\\(\\d+\\))?$")).match(QString::fromStdWString(nameBuf)).hasMatch()) {
-					BOOL res = ::SetForegroundWindow(hWnd);
-					::SetFocus(hWnd);
-					return FALSE;
-				}
+	if ((uint64)dwProcessId == processId) { // found top-level window
+		static const int32 nameBufSize = 1024;
+		WCHAR nameBuf[nameBufSize];
+		int32 len = GetWindowText(hWnd, nameBuf, nameBufSize);
+		if (len && len < nameBufSize) {
+			if (QRegularExpression(qsl("^Telegram(\\s*\\(\\d+\\))?$")).match(QString::fromStdWString(nameBuf)).hasMatch()) {
+				BOOL res = ::SetForegroundWindow(hWnd);
+				::SetFocus(hWnd);
+				return FALSE;
 			}
 		}
-		return TRUE;
 	}
+	return TRUE;
+}
+
 }
 
 QStringList psInitLogs() {
@@ -312,76 +288,8 @@ void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
 
-QString CurrentExecutablePath(int argc, char *argv[]) {
-	WCHAR result[MAX_PATH + 1] = { 0 };
-	auto count = GetModuleFileName(nullptr, result, MAX_PATH + 1);
-	if (count < MAX_PATH + 1) {
-		auto info = QFileInfo(QDir::fromNativeSeparators(QString::fromWCharArray(result)));
-		return info.absoluteFilePath();
-	}
-
-	// Fallback to the first command line argument.
-	auto argsCount = 0;
-	if (auto args = CommandLineToArgvW(GetCommandLine(), &argsCount)) {
-		auto info = QFileInfo(QDir::fromNativeSeparators(QString::fromWCharArray(args[0])));
-		LocalFree(args);
-		return info.absoluteFilePath();
-	}
-	return QString();
-}
-
 QString SingleInstanceLocalServerName(const QString &hash) {
 	return qsl("Global\\") + hash + '-' + cGUIDStr();
-}
-
-std::optional<crl::time> LastUserInputTime() {
-	auto lii = LASTINPUTINFO{ 0 };
-	lii.cbSize = sizeof(LASTINPUTINFO);
-	if (!GetLastInputInfo(&lii)) {
-		return std::nullopt;
-	}
-	const auto now = crl::now();
-	const auto input = crl::time(lii.dwTime);
-	static auto LastTrackedInput = input;
-	static auto LastTrackedWhen = now;
-
-	const auto ticks32 = crl::time(GetTickCount());
-	const auto ticks64 = crl::time(GetTickCount64());
-	const auto elapsed = std::max(ticks32, ticks64) - input;
-	const auto good = (std::abs(ticks32 - ticks64) <= crl::time(1000))
-		&& (elapsed >= 0);
-	if (good) {
-		LastTrackedInput = input;
-		LastTrackedWhen = now;
-		return (now > elapsed) ? (now - elapsed) : crl::time(0);
-	}
-
-	static auto WaitingDelayed = false;
-	if (!WaitingDelayed) {
-		WaitingDelayed = true;
-		base::call_delayed(kRefreshBadLastUserInputTimeout, [=] {
-			WaitingDelayed = false;
-			[[maybe_unused]] const auto cheked = LastUserInputTime();
-		});
-	}
-	constexpr auto OverrunLimit = std::numeric_limits<DWORD>::max();
-	constexpr auto OverrunThreshold = OverrunLimit / 4;
-	if (LastTrackedInput == input) {
-		return LastTrackedWhen;
-	}
-	const auto guard = gsl::finally([&] {
-		LastTrackedInput = input;
-		LastTrackedWhen = now;
-	});
-	if (input > LastTrackedInput) {
-		const auto add = input - LastTrackedInput;
-		return std::min(LastTrackedWhen + add, now);
-	} else if (crl::time(OverrunLimit) + input - LastTrackedInput
-		< crl::time(OverrunThreshold)) {
-		const auto add = crl::time(OverrunLimit) + input - LastTrackedInput;
-		return std::min(LastTrackedWhen + add, now);
-	}
-	return LastTrackedWhen;
 }
 
 std::optional<bool> IsDarkMode() {

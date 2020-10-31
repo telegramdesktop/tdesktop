@@ -21,12 +21,7 @@ enum {
 	LocalEncryptSaltSize = 32, // 256 bit
 
 	AnimationTimerDelta = 7,
-	ClipThreadsCount = 8,
-	AverageGifSize = 320 * 240,
-	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
 	RecentInlineBotsLimit = 10,
-
-	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
@@ -132,26 +127,4 @@ inline const QString &cDataFile() {
 inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
 	return regexp;
-}
-
-inline const QStringList &cImgExtensions() {
-	static QStringList result;
-	if (result.isEmpty()) {
-		result.reserve(4);
-		result.push_back(qsl(".jpg"));
-		result.push_back(qsl(".jpeg"));
-		result.push_back(qsl(".png"));
-		result.push_back(qsl(".gif"));
-	}
-	return result;
-}
-
-inline const QStringList &cExtensionsForCompress() {
-	static QStringList result;
-	if (result.isEmpty()) {
-		result.push_back(qsl(".jpg"));
-		result.push_back(qsl(".jpeg"));
-		result.push_back(qsl(".png"));
-	}
-	return result;
 }

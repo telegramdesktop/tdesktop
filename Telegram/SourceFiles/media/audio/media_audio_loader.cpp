@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 
 AudioPlayerLoader::AudioPlayerLoader(
-	const FileLocation &file,
+	const Core::FileLocation &file,
 	const QByteArray &data,
 	bytes::vector &&buffer)
 : _file(file)
@@ -26,7 +26,7 @@ AudioPlayerLoader::~AudioPlayerLoader() {
 }
 
 bool AudioPlayerLoader::check(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data) {
 	return (this->_file == file) && (this->_data.size() == data.size());
 }

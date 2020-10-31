@@ -48,7 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_info.h"
 
 namespace HistoryView {
@@ -359,12 +359,15 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto folder = _activeChat.folder();
 	if (folder
 		|| history->peer->sharedMediaInfo()
-		|| (_section == Section::Scheduled)) {
+		|| (_section == Section::Scheduled)
+		|| (_section == Section::Pinned)) {
 		// #TODO feed name emoji.
 		auto text = (_section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
 				: tr::lng_scheduled_messages(tr::now))
+			: (_section == Section::Pinned)
+			? _customTitleText
 			: folder
 			? folder->chatListName()
 			: history->peer->isSelf()

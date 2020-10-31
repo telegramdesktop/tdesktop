@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/toast/toast.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"

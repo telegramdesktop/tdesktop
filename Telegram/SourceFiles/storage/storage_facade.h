@@ -25,6 +25,7 @@ struct SharedMediaRemoveOne;
 struct SharedMediaRemoveAll;
 struct SharedMediaInvalidateBottom;
 struct SharedMediaQuery;
+struct SharedMediaKey;
 using SharedMediaResult = SparseIdsListResult;
 struct SharedMediaSliceUpdate;
 
@@ -58,6 +59,8 @@ public:
 	void invalidate(SharedMediaInvalidateBottom &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
+	SharedMediaResult snapshot(const SharedMediaQuery &query) const;
+	bool empty(const SharedMediaKey &key) const;
 	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;

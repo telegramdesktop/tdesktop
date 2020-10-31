@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "boxes/abstract_box.h"
+#include "ui/chat/attach/attach_prepare.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
@@ -26,14 +28,13 @@ class TabbedPanel;
 } // namespace ChatHelpers
 
 namespace Ui {
-template <typename Enum>
-class Radioenum;
-template <typename Enum>
-class RadioenumGroup;
+class Checkbox;
 class RoundButton;
 class InputField;
 struct GroupMediaLayout;
 class EmojiButton;
+class AlbumPreview;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
@@ -44,12 +45,6 @@ namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
 
-enum class SendFilesWay {
-	Album,
-	Photos,
-	Files,
-};
-
 class SendFilesBox : public Ui::BoxContent {
 public:
 	enum class SendLimit {
@@ -59,17 +54,16 @@ public:
 	SendFilesBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		CompressConfirm compressed,
 		SendLimit limit,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
 
 	void setConfirmedCallback(
 		Fn<void(
-			Storage::PreparedList &&list,
-			SendFilesWay way,
+			Ui::PreparedList &&list,
+			Ui::SendFilesWay way,
 			TextWithTags &&caption,
 			Api::SendOptions options,
 			bool ctrlShiftEnter)> callback) {
@@ -90,27 +84,52 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	class AlbumPreview;
+	class Block final {
+	public:
+		Block(
+			not_null<QWidget*> parent,
+			not_null<std::vector<Ui::PreparedFile>*> items,
+			int from,
+			int till,
+			Fn<bool()> gifPaused,
+			Ui::SendFilesWay way);
+		Block(Block &&other) = default;
+		Block &operator=(Block &&other) = default;
 
+		[[nodiscard]] int fromIndex() const;
+		[[nodiscard]] int tillIndex() const;
+		[[nodiscard]] object_ptr<Ui::RpWidget> takeWidget();
+
+		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
+		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
+
+		void setSendWay(Ui::SendFilesWay way);
+		void applyAlbumOrder();
+
+	private:
+		base::unique_qptr<Ui::RpWidget> _preview;
+		not_null<std::vector<Ui::PreparedFile>*> _items;
+		int _from = 0;
+		int _till = 0;
+		bool _isAlbum = false;
+		bool _isSingleMedia = false;
+
+	};
 	void initSendWay();
-	void initPreview(rpl::producer<int> desiredPreviewHeight);
+	void initPreview();
 
-	void setupControls();
+	void refreshControls();
 	void setupSendWayControls();
 	void setupCaption();
-	void setupShadows(
-		not_null<Ui::ScrollArea*> wrap,
-		not_null<AlbumPreview*> content);
+	void setupShadows();
 
 	void setupEmojiPanel();
+	void updateSendWayControlsVisibility();
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
-	void refreshAlbumMediaCount();
 	void preparePreview();
-	void prepareSingleFilePreview();
-	void prepareAlbumPreview();
-	void applyAlbumOrder();
+	void generatePreviewFrom(int fromBlock);
 
 	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
 	void sendSilent();
@@ -118,37 +137,38 @@ private:
 	void captionResized();
 
 	void setupDragArea();
-	void setupTitleText();
+	void refreshTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
-	void addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap);
-
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
-	bool addFiles(Storage::PreparedList list);
+	bool addFiles(Ui::PreparedList list);
+	void addFile(Ui::PreparedFile &&file);
+	void pushBlock(int from, int till);
 
 	void openDialogToAddFileToAlbum();
-	void updateLeftButtonVisibility();
-	void refreshAllAfterAlbumChanges();
+	void refreshAllAfterChanges(int fromItem);
+
+	void enqueueNextPrepare();
+	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
 	const not_null<Window::SessionController*> _controller;
 	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
-	int _titleHeight = 0;
+	rpl::variable<int> _titleHeight = 0;
 
-	Storage::PreparedList _list;
+	Ui::PreparedList _list;
+	std::optional<int> _removingIndex;
 
-	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
-	CompressConfirm _compressConfirm = CompressConfirm::None;
 	SendLimit _sendLimit = SendLimit::Many;
 	SendMenu::Type _sendMenuType = SendMenu::Type();
 
 	Fn<void(
-		Storage::PreparedList &&list,
-		SendFilesWay way,
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter)> _confirmedCallback;
@@ -160,22 +180,20 @@ private:
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
-	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };
-	std::shared_ptr<Ui::RadioenumGroup<SendFilesWay>> _sendWay;
+	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
+	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;
-	rpl::event_stream<> _albumChanged;
+	rpl::lifetime _dimensionsLifetime;
 
-	QWidget *_preview = nullptr;
-	AlbumPreview *_albumPreview = nullptr;
-	int _albumVideosCount = 0;
-	int _albumPhotosCount = 0;
-
-	int _lastScrollTop = 0;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<Ui::VerticalLayout> _inner;
+	std::vector<Block> _blocks;
+	Fn<void()> _whenReadySend;
+	bool _preparing = false;
 
 	QPointer<Ui::RoundButton> _send;
-	QPointer<Ui::RoundButton> _addFileToAlbum;
+	QPointer<Ui::RoundButton> _addFile;
 
 };

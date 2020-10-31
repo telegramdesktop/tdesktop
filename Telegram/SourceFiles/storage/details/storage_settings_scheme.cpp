@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "window/themes/window_theme.h"
 #include "core/update_checker.h"
 #include "platform/platform_specific.h"
@@ -917,9 +918,10 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setSendFilesWay((v == 1)
-			? SendFilesWay::Album
-			: SendFilesWay::Files);
+		auto way = Ui::SendFilesWay();
+		way.setGroupFiles(v == 1);
+		way.setSendImagesAsPhotos(v == 1);
+		Core::App().settings().setSendFilesWay(way);
 		context.legacyRead = true;
 	} break;
 

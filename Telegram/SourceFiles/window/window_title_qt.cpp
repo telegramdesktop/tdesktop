@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
+#include <QtWidgets/QApplication>
 
 namespace Window {
 namespace {
@@ -231,17 +232,26 @@ void TitleWidgetQt::resizeEvent(QResizeEvent *e) {
 
 void TitleWidgetQt::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
-		startMove();
+		if ((crl::now() - _pressedForMoveTime)
+			< QApplication::doubleClickInterval()) {
+			if (_maximizedState) {
+				window()->setWindowState(Qt::WindowNoState);
+			} else {
+				window()->setWindowState(Qt::WindowMaximized);
+			}
+		} else {
+			_pressedForMove = true;
+			_pressedForMoveTime = crl::now();
+			_pressedForMovePoint = e->windowPos().toPoint();
+		}
 	} else if (e->button() == Qt::RightButton) {
 		Platform::ShowWindowMenu(window()->windowHandle());
 	}
 }
 
-void TitleWidgetQt::mouseDoubleClickEvent(QMouseEvent *e) {
-	if (_maximizedState) {
-		window()->setWindowState(Qt::WindowNoState);
-	} else {
-		window()->setWindowState(Qt::WindowMaximized);
+void TitleWidgetQt::mouseReleaseEvent(QMouseEvent *e) {
+	if (e->button() == Qt::LeftButton) {
+		_pressedForMove = false;
 	}
 }
 
@@ -250,12 +260,24 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 		|| e->type() == QEvent::MouseButtonPress) {
 		if (window()->isAncestorOf(static_cast<QWidget*>(obj))) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
-			const auto edges = edgesFromPos(
-				mouseEvent->windowPos().toPoint());
+			const auto currentPoint = mouseEvent->windowPos().toPoint();
+			const auto edges = edgesFromPos(currentPoint);
+			const auto dragDistance = QApplication::startDragDistance();
 
 			if (e->type() == QEvent::MouseMove
 				&& mouseEvent->buttons() == Qt::NoButton) {
+				if (_pressedForMove) {
+					_pressedForMove = false;
+				}
+
 				updateCursor(edges);
+			}
+
+			if (e->type() == QEvent::MouseMove
+				&& _pressedForMove
+				&& ((currentPoint - _pressedForMovePoint).manhattanLength()
+					>= dragDistance)) {
+				return startMove();
 			}
 
 			if (e->type() == QEvent::MouseButtonPress

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
@@ -211,7 +211,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	Ui::Shadow::paint(p, inner, width(), st::defaultRoundShadow);
-	App::roundRect(p, inner, st::boxBg, BoxCorners);
+	Ui::FillRoundRect(p, inner, st::boxBg, Ui::BoxCorners);
 
 	auto x = st::emojiPanMargins.left() + 2 * st::emojiColorsPadding + _singleSize.width();
 	if (rtl()) x = width() - x - st::emojiColorsSep;
@@ -372,7 +372,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	if (variant == _selected) {
 		QPoint tl(w);
 		if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
-		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
+		Ui::FillRoundRect(p, QRect(tl, _singleSize), st::emojiPanHover, Ui::StickerHoverCorners);
 	}
 	const auto esize = Ui::Emoji::GetSizeLarge();
 	Ui::Emoji::Draw(
@@ -558,7 +558,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 					if (selected) {
 						auto tl = w;
 						if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
-						App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
+						Ui::FillRoundRect(p, QRect(tl, _singleSize), st::emojiPanHover, Ui::StickerHoverCorners);
 					}
 					Ui::Emoji::Draw(
 						p,

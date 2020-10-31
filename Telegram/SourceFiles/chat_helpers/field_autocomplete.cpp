@@ -29,11 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
-#include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
 
@@ -686,7 +686,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				if (_sel == index) {
 					QPoint tl(pos);
 					if (rtl()) tl.setX(width() - tl.x() - st::stickerPanSize.width());
-					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+					Ui::FillRoundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, Ui::StickerHoverCorners);
 				}
 
 				media->checkStickerSmall();

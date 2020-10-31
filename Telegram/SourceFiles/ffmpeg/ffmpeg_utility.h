@@ -25,6 +25,7 @@ class QImage;
 namespace FFmpeg {
 
 inline constexpr auto kPixelBytesSize = 4;
+inline constexpr auto kAVBlockSize = 4096; // 4Kb for ffmpeg blocksize
 
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
 constexpr auto kNormalAspect = AVRational{ 1, 1 };

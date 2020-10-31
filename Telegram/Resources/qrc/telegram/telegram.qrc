@@ -49,6 +49,13 @@
     <file alias="art/sunrise.jpg">../../art/sunrise.jpg</file>
     <file alias="art/dice_idle.tgs">../../art/dice_idle.tgs</file>
     <file alias="art/dart_idle.tgs">../../art/dart_idle.tgs</file>
+    <file alias="art/bball_idle.tgs">../../art/bball_idle.tgs</file>
+    <file alias="art/fball_idle.tgs">../../art/fball_idle.tgs</file>
+    <file alias="art/slot_0_idle.tgs">../../art/slot_0_idle.tgs</file>
+    <file alias="art/slot_1_idle.tgs">../../art/slot_1_idle.tgs</file>
+    <file alias="art/slot_2_idle.tgs">../../art/slot_2_idle.tgs</file>
+    <file alias="art/slot_back.tgs">../../art/slot_back.tgs</file>
+    <file alias="art/slot_pull.tgs">../../art/slot_pull.tgs</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>

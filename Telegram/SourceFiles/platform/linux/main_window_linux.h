@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusObjectPath>
 #include <dbusmenuexporter.h>
 
+typedef void* gpointer;
 typedef char gchar;
 typedef struct _GVariant GVariant;
 typedef struct _GDBusProxy GDBusProxy;
@@ -40,10 +41,6 @@ public:
 	bool trayAvailable() {
 		return _sniAvailable || QSystemTrayIcon::isSystemTrayAvailable();
 	}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	void handleSNIHostRegistered();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	static void LibsLoaded();
 
@@ -114,6 +111,7 @@ private:
 
 	void setSNITrayIcon(int counter, bool muted);
 	void attachToSNITrayIcon();
+	void handleSNIHostRegistered();
 
 	void handleSNIOwnerChanged(
 		const QString &service,
@@ -145,7 +143,7 @@ private:
 		gchar *sender_name,
 		gchar *signal_name,
 		GVariant *parameters,
-		MainWindow *window);
+		gpointer user_data);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 };

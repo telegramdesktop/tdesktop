@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_row.h"
 
 #include "ui/effects/ripple_animation.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "dialogs/dialogs_entry.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"

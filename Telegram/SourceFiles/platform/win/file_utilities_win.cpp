@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
-#include "base/platform/base_platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "core/crash_reports.h"
@@ -264,10 +263,6 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 void UnsafeLaunch(const QString &filepath) {
 	auto wstringPath = QDir::toNativeSeparators(filepath).toStdWString();
 	ShellExecute(0, L"open", wstringPath.c_str(), 0, 0, SW_SHOWNORMAL);
-}
-
-void UnsafeShowInFolder(const QString &filepath) {
-	base::Platform::ShowInFolder(filepath);
 }
 
 void PostprocessDownloaded(const QString &filepath) {

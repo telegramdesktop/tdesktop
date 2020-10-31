@@ -42,7 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "storage/storage_feed_messages.h" // #feed
 #include "support/support_helper.h"
 #include "ui/image/image.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "core/crash_reports.h"
 #include "core/application.h"
 #include "base/unixtime.h"
@@ -176,9 +176,6 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		&& item->unread()
 		&& unreadCount() > 0) {
 		setUnreadCount(unreadCount() - 1);
-	}
-	if (peer->pinnedMessageId() == item->id) {
-		peer->clearPinnedMessage();
 	}
 }
 
@@ -441,6 +438,19 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 
 	if (document) {
 		session().data().documentMessageRemoved(document);
+	}
+}
+
+void History::unpinAllMessages() {
+	session().storage().remove(
+		Storage::SharedMediaRemoveAll(
+			peer->id,
+			Storage::SharedMediaType::Pinned));
+	peer->setHasPinnedMessages(false);
+	for (const auto &message : _messages) {
+		if (message->isPinned()) {
+			message->setIsPinned(false);
+		}
 	}
 }
 
@@ -708,6 +718,9 @@ not_null<HistoryItem*> History::addNewToBack(
 				sharedMediaTypes,
 				item->id,
 				{ from, till }));
+			if (sharedMediaTypes.test(Storage::SharedMediaType::Pinned)) {
+				peer->setHasPinnedMessages(true);
+			}
 		}
 	}
 	if (item->from()->id) {
@@ -1004,9 +1017,14 @@ void History::applyServiceChanges(
 	case mtpc_messageActionPinMessage: {
 		if (const auto replyTo = data.vreply_to()) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
+				const auto id = data.vreply_to_msg_id().v;
 				if (item) {
-					item->history()->peer->setPinnedMessageId(
-						data.vreply_to_msg_id().v);
+					session().storage().add(Storage::SharedMediaAddSlice(
+						peer->id,
+						Storage::SharedMediaType::Pinned,
+						{ id },
+						{ id, ServerMaxMsgId }));
+					peer->setHasPinnedMessages(true);
 				}
 			});
 		}
@@ -1347,6 +1365,9 @@ void History::addToSharedMedia(
 				type,
 				std::move(medias[i]),
 				{ from, till }));
+			if (type == Storage::SharedMediaType::Pinned) {
+				peer->setHasPinnedMessages(true);
+			}
 		}
 	}
 }
@@ -1775,16 +1796,19 @@ TimeId History::adjustedChatListTimeId() const {
 }
 
 void History::countScrollState(int top) {
-	countScrollTopItem(top);
-	if (scrollTopItem) {
-		scrollTopOffset = (top - scrollTopItem->block()->y() - scrollTopItem->y());
-	}
+	std::tie(scrollTopItem, scrollTopOffset) = findItemAndOffset(top);
 }
 
-void History::countScrollTopItem(int top) {
+auto History::findItemAndOffset(int top) const -> std::pair<Element*, int> {
+	if (const auto element = findScrollTopItem(top)) {
+		return { element, (top - element->block()->y() - element->y()) };
+	}
+	return {};
+}
+
+auto History::findScrollTopItem(int top) const -> Element* {
 	if (isEmpty()) {
-		forgetScrollState();
-		return;
+		return nullptr;
 	}
 
 	auto itemIndex = 0;
@@ -1803,8 +1827,7 @@ void History::countScrollTopItem(int top) {
 				const auto view = block->messages[itemIndex].get();
 				itemTop = block->y() + view->y();
 				if (itemTop <= top) {
-					scrollTopItem = view;
-					return;
+					return view;
 				}
 			}
 			if (--blockIndex >= 0) {
@@ -1814,27 +1837,24 @@ void History::countScrollTopItem(int top) {
 			}
 		} while (true);
 
-		scrollTopItem = blocks.front()->messages.front().get();
-	} else {
-		// go forward through history while we don't find the last item that starts above
-		for (auto blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
-			const auto &block = blocks[blockIndex];
-			for (auto itemsCount = int(block->messages.size()); itemIndex < itemsCount; ++itemIndex) {
-				itemTop = block->y() + block->messages[itemIndex]->y();
-				if (itemTop > top) {
-					Assert(itemIndex > 0 || blockIndex > 0);
-					if (itemIndex > 0) {
-						scrollTopItem = block->messages[itemIndex - 1].get();
-					} else {
-						scrollTopItem = blocks[blockIndex - 1]->messages.back().get();
-					}
-					return;
-				}
-			}
-			itemIndex = 0;
-		}
-		scrollTopItem = blocks.back()->messages.back().get();
+		return blocks.front()->messages.front().get();
 	}
+	// go forward through history while we don't find the last item that starts above
+	for (auto blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
+		const auto &block = blocks[blockIndex];
+		for (auto itemsCount = int(block->messages.size()); itemIndex < itemsCount; ++itemIndex) {
+			itemTop = block->y() + block->messages[itemIndex]->y();
+			if (itemTop > top) {
+				Assert(itemIndex > 0 || blockIndex > 0);
+				if (itemIndex > 0) {
+					return block->messages[itemIndex - 1].get();
+				}
+				return blocks[blockIndex - 1]->messages.back().get();
+			}
+		}
+		itemIndex = 0;
+	}
+	return blocks.back()->messages.back().get();
 }
 
 void History::getNextScrollTopItem(HistoryBlock *block, int32 i) {
@@ -3017,7 +3037,6 @@ void History::clear(ClearType type) {
 		clearSharedMedia();
 		clearLastKeyboard();
 		if (const auto channel = peer->asChannel()) {
-			channel->clearPinnedMessage();
 			//if (const auto feed = channel->feed()) { // #feed
 			//	// Should be after resetting the _lastMessage.
 			//	feed->historyCleared(this);

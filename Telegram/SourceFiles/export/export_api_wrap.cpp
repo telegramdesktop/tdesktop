@@ -1429,7 +1429,7 @@ void ApiWrap::requestChatMessages(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
 			realPeerInput,
 			MTP_string(), // query
-			_user,
+			MTP_inputPeerSelf(),
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date

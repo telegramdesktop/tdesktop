@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_chat_filters.h"
-#include "data/data_photo.h" // requestAttachedStickerSets.
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
@@ -40,10 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/delayed_activation.h"
 #include "ui/toast/toast.h"
 #include "boxes/calendar_box.h"
-#include "boxes/sticker_set_box.h" // requestAttachedStickerSets.
-#include "boxes/confirm_box.h" // requestAttachedStickerSets.
-#include "boxes/stickers_box.h" // requestAttachedStickerSets.
-#include "lang/lang_keys.h" // requestAttachedStickerSets.
+#include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
@@ -543,36 +539,6 @@ void SessionController::refreshFiltersMenu() {
 
 rpl::producer<> SessionController::filtersMenuChanged() const {
 	return _filtersMenuChanged.events();
-}
-
-void SessionController::requestAttachedStickerSets(
-		not_null<PhotoData*> photo) {
-	session().api().request(_attachedStickerSetsRequestId).cancel();
-	_attachedStickerSetsRequestId = session().api().request(
-		MTPmessages_GetAttachedStickers(
-			MTP_inputStickeredMediaPhoto(photo->mtpInput())
-	)).done([=](const MTPVector<MTPStickerSetCovered> &result) {
-		if (result.v.isEmpty()) {
-			Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
-			return;
-		} else if (result.v.size() > 1) {
-			Ui::show(Box<StickersBox>(this, result));
-			return;
-		}
-		// Single attached sticker pack.
-		const auto setData = result.v.front().match([&](const auto &data) {
-			return data.vset().match([&](const MTPDstickerSet &data) {
-				return &data;
-			});
-		});
-
-		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
-			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
-			: MTP_inputStickerSetShortName(setData->vshort_name());
-		Ui::show(Box<StickerSetBox>(this, setId), Ui::LayerOption::KeepOther);
-	}).fail([=](const RPCError &error) {
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
-	}).send();
 }
 
 void SessionController::checkOpenedFilter() {
@@ -1132,8 +1098,6 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 	}
 }
 
-SessionController::~SessionController() {
-	session().api().request(_attachedStickerSetsRequestId).cancel();
-}
+SessionController::~SessionController() = default;
 
 } // namespace Window

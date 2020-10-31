@@ -19,9 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_widgets.h"
 #include "styles/style_media_player.h"
@@ -159,7 +159,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		| RectPart::Top;
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
 	auto parts = RectPart::Full;
-	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
+	Ui::FillRoundRect(p, shadowedRect, st::menuBg, Ui::MenuCorners, nullptr, parts);
 }
 
 void Panel::enterEventHook(QEvent *e) {

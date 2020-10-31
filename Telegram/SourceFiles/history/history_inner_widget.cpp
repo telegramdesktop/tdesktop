@@ -25,9 +25,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/text/text_entity.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -47,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_attached_stickers.h"
 #include "api/api_toggling_media.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
@@ -63,7 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "facades.h"
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_window.h" // st::windowMinWidth
 
 #include <QtGui/QClipboard>
@@ -594,7 +596,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
 			p.setTextPalette(st::inTextPalette);
-			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
+			Ui::FillRoundRect(p, _botAbout->rect, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
 			auto top = _botAbout->rect.top() + st::msgPadding.top();
 			if (!_history->peer->isRepliesChat()) {
@@ -1538,8 +1540,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	const auto session = &this->session();
 	const auto controller = _controller;
-
-	const auto addItemActions = [&](HistoryItem *item) {
+	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {
+		if (!item) {
+			return nullptr;
+		} else if (const auto group = item->history()->owner().groups().find(item)) {
+			return group->items.front();
+		}
+		return item;
+	};
+	const auto addItemActions = [&](
+			HistoryItem *item,
+			HistoryItem *albumPartItem) {
 		if (!item
 			|| !IsServerMsgId(item->id)
 			|| isUponSelected == 2
@@ -1554,9 +1565,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = IsServerMsgId(item->id)
-			&& (repliesCount > 0 || item->replyToTop());
-		if (withReplies
-			&& item->history()->peer->isMegagroup()) {
+			&& (repliesCount > 0);
+		if (withReplies && item->history()->peer->isMegagroup()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
 			const auto phrase = (repliesCount > 0)
 				? tr::lng_replies_view(
@@ -1568,20 +1578,28 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				controller->showRepliesForMessage(_history, rootId);
 			});
 		}
-		if (item->allowsEdit(base::unixtime::now())) {
+		const auto t = base::unixtime::now();
+		const auto editItem = (albumPartItem && albumPartItem->allowsEdit(t))
+			? albumPartItem
+			: item->allowsEdit(t)
+			? item
+			: nullptr;
+		if (editItem) {
+			const auto editItemId = editItem->fullId();
 			_menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
-				_widget->editMessage(itemId);
+				_widget->editMessage(editItemId);
 			});
 		}
-		if (item->canPin()) {
-			const auto isPinned = item->isPinned();
-			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), [=] {
-				if (isPinned) {
-					_widget->unpinMessage(itemId);
-				} else {
-					_widget->pinMessage(itemId);
-				}
-			});
+		const auto pinItem = (item->canPin() && item->isPinned())
+			? item
+			: groupLeaderOrSelf(item);
+		if (pinItem->canPin()) {
+			const auto isPinned = pinItem->isPinned();
+			const auto pinItemId = pinItem->fullId();
+			const auto controller = _controller;
+			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
+				Window::ToggleMessagePinned(controller, pinItemId, !isPinned);
+			}));
 		}
 		const auto peer = item->history()->peer;
 		if (peer->isChat() || peer->isMegagroup()) {
@@ -1597,9 +1615,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 			copyContextImage(photo);
 		});
-		if (photo->hasSticker) {
+		if (photo->hasAttachedStickers()) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
-				controller->requestAttachedStickerSets(photo);
+				session->api().attachedStickers().requestAttachedStickerSets(
+					controller,
+					photo);
 			});
 		}
 	};
@@ -1641,6 +1661,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 			saveDocumentToFile(itemId, document);
 		}));
+		if (document->hasAttachedStickers()) {
+			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
+				session->api().attachedStickers().requestAttachedStickerSets(
+					controller,
+					document);
+			});
+		}
 	};
 	const auto link = ClickHandler::getActive();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
@@ -1655,7 +1682,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
 		}
-		addItemActions(item);
+		addItemActions(item, item);
 		if (lnkPhoto) {
 			addPhotoActions(lnkPhoto->photo());
 		} else {
@@ -1765,18 +1792,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 	} else { // maybe cursor on some text history item?
-		const auto item = [&]() -> HistoryItem* {
-			if (const auto result = App::hoveredItem()
+		const auto albumPartItem = _dragStateItem;
+		const auto item = [&] {
+			const auto result = App::hoveredItem()
 				? App::hoveredItem()->data().get()
 				: App::hoveredLinkItem()
 				? App::hoveredLinkItem()->data().get()
-				: nullptr) {
-				if (const auto group = session->data().groups().find(result)) {
-					return group->items.front();
-				}
-				return result;
-			}
-			return nullptr;
+				: nullptr;
+			return result ? groupLeaderOrSelf(result) : nullptr;
 		}();
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		const auto canDelete = item
@@ -1794,9 +1817,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					? tr::lng_context_copy_selected_items(tr::now)
 					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
-			addItemActions(item);
+			addItemActions(item, item);
 		} else {
-			addItemActions(item);
+			addItemActions(item, albumPartItem);
 			if (item && !isUponSelected) {
 				const auto media = (view ? view->media() : nullptr);
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
@@ -3093,6 +3116,31 @@ int HistoryInner::itemTop(const Element *view) const {
 			? migratedTop()
 			: -2);
 	return (top < 0) ? top : (top + view->y() + view->block()->y());
+}
+
+auto HistoryInner::findViewForPinnedTracking(int top) const
+-> std::pair<Element*, int> {
+	const auto normalTop = historyTop();
+	const auto oldTop = migratedTop();
+	const auto fromHistory = [&](not_null<History*> history, int historyTop)
+	-> std::pair<Element*, int> {
+		auto [view, offset] = history->findItemAndOffset(top - historyTop);
+		while (view && !IsServerMsgId(view->data()->id)) {
+			offset -= view->height();
+			view = view->nextInBlocks();
+		}
+		return { view, offset };
+	};
+	if (normalTop >= 0 && (oldTop < 0 || top >= normalTop)) {
+		return fromHistory(_history, normalTop);
+	} else if (oldTop >= 0) {
+		auto [view, offset] = fromHistory(_migrated, oldTop);
+		if (!view && normalTop >= 0) {
+			return fromHistory(_history, normalTop);
+		}
+		return { view, offset };
+	}
+	return { nullptr, 0 };
 }
 
 void HistoryInner::notifyIsBotChanged() {

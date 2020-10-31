@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 
+namespace Core {
+class FileLocation;
+} // namespace Core
+
 namespace Media {
 namespace Audio {
 
@@ -22,7 +26,7 @@ public:
 	void samplePeakEach(crl::time peakDuration);
 
 	void fillFromData(bytes::vector &&data);
-	void fillFromFile(const FileLocation &location);
+	void fillFromFile(const Core::FileLocation &location);
 	void fillFromFile(const QString &filePath);
 
 	void playOnce() {

@@ -19,7 +19,7 @@ namespace Dialogs {
 
 void ShowSearchFromBox(
 		not_null<PeerData*> peer,
-		Fn<void(not_null<UserData*>)> callback,
+		Fn<void(not_null<PeerData*>)> callback,
 		Fn<void()> closedCallback) {
 	auto createController = [
 		peer,
@@ -47,33 +47,33 @@ void ShowSearchFromBox(
 
 SearchFromController::SearchFromController(
 	not_null<PeerData*> peer,
-	Fn<void(not_null<UserData*>)> callback)
+	Fn<void(not_null<PeerData*>)> callback)
 : AddSpecialBoxController(
 	peer,
 	ParticipantsBoxController::Role::Members,
 	AdminDoneCallback(),
 	BannedDoneCallback())
-, _callback(std::move(callback))
-{
+, _callback(std::move(callback)) {
 	_excludeSelf = false;
 }
 
 void SearchFromController::prepare() {
 	AddSpecialBoxController::prepare();
 	delegate()->peerListSetTitle(tr::lng_search_messages_from());
-}
-
-void SearchFromController::rowClicked(not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
-	if (const auto onstack = base::duplicate(_callback)) {
-		onstack(row->peer()->asUser());
+	if (const auto megagroup = peer()->asMegagroup()) {
+		if (!delegate()->peerListFindRow(megagroup->id)) {
+			delegate()->peerListAppendRow(
+				std::make_unique<PeerListRow>(megagroup));
+			setDescriptionText({});
+			delegate()->peerListRefreshRows();
+		}
 	}
 }
 
-std::unique_ptr<PeerListRow> SearchFromController::createRow(
-		not_null<UserData*> user) const {
-	return std::make_unique<PeerListRow>(user);
+void SearchFromController::rowClicked(not_null<PeerListRow*> row) {
+	if (const auto onstack = base::duplicate(_callback)) {
+		onstack(row->peer());
+	}
 }
 
 } // namespace Dialogs

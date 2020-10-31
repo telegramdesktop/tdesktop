@@ -141,7 +141,7 @@ private:
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	bool searchForPeersRequired(const QString &query) const;
-	void setSearchInChat(Key chat, UserData *from = nullptr);
+	void setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showJumpToDate();
 	void showSearchFrom();
 	void showMainMenu();
@@ -212,7 +212,7 @@ private:
 	Data::Folder *_openedFolder = nullptr;
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
-	UserData *_searchFromUser = nullptr;
+	PeerData *_searchFromAuthor = nullptr;
 	QString _lastFilterText;
 
 	QTimer _searchTimer;
@@ -222,7 +222,7 @@ private:
 	mtpRequestId _peerSearchRequest = 0;
 
 	QString _searchQuery;
-	UserData *_searchQueryFrom = nullptr;
+	PeerData *_searchQueryFrom = nullptr;
 	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;

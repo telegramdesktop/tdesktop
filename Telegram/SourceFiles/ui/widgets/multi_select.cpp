@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/cross_animation.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
 #include "app.h"
 

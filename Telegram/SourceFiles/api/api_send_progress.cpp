@@ -152,7 +152,14 @@ bool SendProgressManager::skipRequest(const Key &key) const {
 		return true;
 	}
 	const auto recently = base::unixtime::now() - kSendTypingsToOfflineFor;
-	return !Data::OnlineTextActive(user->onlineTill, recently);
+	const auto online = user->onlineTill;
+	if (online == -2) { // last seen recently
+		return false;
+	} else if (online < 0) {
+		return (-online < recently);
+	} else {
+		return (online < recently);
+	}
 }
 
 void SendProgressManager::done(

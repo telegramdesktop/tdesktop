@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/special_buttons.h"
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"

@@ -9,6 +9,24 @@ using "ui/basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+MessageBar {
+	title: TextStyle;
+	titleFg: color;
+	text: TextStyle;
+	textFg: color;
+	textPalette: TextPalette;
+	duration: int;
+}
+
+defaultMessageBar: MessageBar {
+	title: semiboldTextStyle;
+	titleFg: windowActiveTextFg;
+	text: messageTextStyle;
+	textFg: historyComposeAreaFg;
+	textPalette: historyComposeAreaPalette;
+	duration: 160;
+}
+
 minPhotoSize: 100px;
 minVideoSize: 160px;
 maxMediaSize: 430px;
@@ -130,6 +148,10 @@ historyFileOutPlay: icon {{ "history_file_play", historyFileOutIconFg }};
 historyFileOutPlaySelected: icon {{ "history_file_play", historyFileOutIconFgSelected }};
 historyFileInPlay: icon {{ "history_file_play", historyFileInIconFg }};
 historyFileInPlaySelected: icon {{ "history_file_play", historyFileInIconFgSelected }};
+historyFileOutWaiting: icon {{ "mediaview_save_check", historyFileOutIconFg }};
+historyFileOutWaitingSelected: icon {{ "mediaview_save_check", historyFileOutIconFgSelected }};
+historyFileInWaiting: icon {{ "mediaview_save_check", historyFileInIconFg }};
+historyFileInWaitingSelected: icon {{ "mediaview_save_check", historyFileInIconFgSelected }};
 
 historyFileThumbDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
 historyFileThumbDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
@@ -151,8 +173,9 @@ historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, 
 
 historyScheduledUntilOnlineStateSpace: 17px;
 
-historyViewsSpace: 11px;
+historyViewsSpace: 8px;
 historyViewsWidth: 20px;
+historyPinWidth: 24px;
 historyViewsTop: -15px;
 historyViewsInIcon: icon {{ "history_views", msgInDateFg }};
 historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};
@@ -164,6 +187,12 @@ historyRepliesInSelectedIcon: icon {{ "history_replies", msgInDateFgSelected }};
 historyRepliesOutIcon: icon {{ "history_replies", historyOutIconFg }};
 historyRepliesOutSelectedIcon: icon {{ "history_replies", historyOutIconFgSelected }};
 historyRepliesInvertedIcon: icon {{ "history_replies", historySendingInvertedIconFg }};
+historyPinTop: -18px;
+historyPinInIcon: icon {{ "history_pin", msgInDateFg }};
+historyPinInSelectedIcon: icon {{ "history_pin", msgInDateFgSelected }};
+historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
+historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
+historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
 historyComposeField: InputField(defaultInputField) {
 	font: msgFont;
@@ -343,6 +372,10 @@ historyReplyCancel: IconButton {
 		color: windowBgOver;
 	}
 }
+historyPinnedShowAll: IconButton(historyReplyCancel) {
+	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
+	iconOver: icon {{ "pinned_show_all", historyReplyCancelFgOver }};
+}
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
@@ -454,16 +487,52 @@ historyCallStatusTop: 29px;
 historyCallStatusSkip: 4px;
 historyCallArrowPosition: point(-1px, 1px);
 
+HistoryFileLayout {
+	padding: margins;
+	nameTop: pixels;
+	statusTop: pixels;
+	linkTop: pixels;
+	thumbSize: pixels;
+}
+
+msgFileLayout: HistoryFileLayout {
+	padding: margins(14px, 10px, 11px, 10px);
+	nameTop: 16px;
+	statusTop: 37px;
+	thumbSize: 44px;
+}
+msgFileThumbLayout: HistoryFileLayout {
+	padding: margins(10px, 10px, 14px, 10px);
+	nameTop: 12px;
+	statusTop: 32px;
+	linkTop: 60px;
+	thumbSize: 72px;
+}
+msgFileLayoutGrouped: HistoryFileLayout(msgFileLayout) {
+	padding: margins(14px, 7px, 11px, 7px);
+	nameTop: 13px;
+	statusTop: 34px;
+}
+msgFileThumbLayoutGrouped: HistoryFileLayout(msgFileThumbLayout) {
+	padding: margins(10px, 7px, 14px, 7px);
+	nameTop: 9px;
+	statusTop: 29px;
+	linkTop: 57px;
+}
+attachPreviewLayout: HistoryFileLayout {
+	padding: margins(0px, 0px, 11px, 0px);
+	nameTop: 6px;
+	statusTop: 27px;
+	thumbSize: 44px;
+}
+attachPreviewThumbLayout: HistoryFileLayout {
+	padding: margins(0px, 0px, 10px, 0px);
+	nameTop: 7px;
+	statusTop: 37px;
+	thumbSize: 64px;
+}
+
 msgFileMenuSize: size(36px, 36px);
-msgFileSize: 44px;
-msgFilePadding: margins(14px, 12px, 11px, 12px);
-msgFileThumbSize: 72px;
-msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
-msgFileThumbNameTop: 12px;
-msgFileThumbStatusTop: 32px;
-msgFileThumbLinkTop: 60px;
-msgFileNameTop: 16px;
-msgFileStatusTop: 37px;
 msgFileMinWidth: 268px;
 msgFileTopMinus: 6px;
 
@@ -635,7 +704,7 @@ historyGroupAboutHeaderSkip: 10px;
 historyGroupAboutTextSkip: 10px;
 historyGroupAboutSkip: 8px;
 
-historyVideoDownloadSize: msgFileSize;
+historyVideoDownloadSize: 44px;
 historyVideoMuteSize: 22px;
 historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
 historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};

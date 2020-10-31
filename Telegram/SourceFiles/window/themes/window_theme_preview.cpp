@@ -10,13 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/image/image_prepare.h"
 #include "ui/emoji_config.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 
@@ -245,12 +245,13 @@ void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wa
 
 	auto width = st::msgFileMinWidth;
 	auto tleft = 0, tright = 0;
-	tleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-	tright = st::msgFileThumbPadding.left();
+	const auto &st = st::msgFileLayout;
+	tleft = st.padding.left() + st.thumbSize + st.padding.right();
+	tright = st.padding.left();
 	accumulate_max(width, tleft + st::normalFont->width(wavestatus) + skipBlock.width() + st::msgPadding.right());
 	accumulate_min(width, st::msgMaxWidth);
 
-	auto height = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
+	auto height = st.padding.top() + st.thumbSize + st.padding.bottom();
 	addBubble(std::move(bubble), width, height, date, status);
 }
 
@@ -763,13 +764,14 @@ void Generator::paintBubble(const Bubble &bubble) {
 		_p->setFont(st::msgFont);
 		bubble.text.draw(*_p, trect.x(), trect.y(), trect.width());
 	} else if (!bubble.waveform.isEmpty()) {
-		auto nameleft = x + st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-		auto nametop = y + st::msgFileNameTop;
-		auto nameright = st::msgFilePadding.left();
-		auto statustop = y + st::msgFileStatusTop;
-		auto bottom = y + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
+		const auto &st = st::msgFileLayout;
+		auto nameleft = x + st.padding.left() + st.thumbSize + st.padding.right();
+		auto nametop = y + st.nameTop;
+		auto nameright = st.padding.left();
+		auto statustop = y + st.statusTop;
+		auto bottom = y + st.padding.top() + st.thumbSize + st.padding.bottom();
 
-		auto inner = style::rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _rect.width());
+		auto inner = style::rtlrect(x + st.padding.left(), y + st.padding.top(), st.thumbSize, st.thumbSize, _rect.width());
 		_p->setPen(Qt::NoPen);
 		_p->setBrush(bubble.outbg ? st::msgFileOutBg[_palette] : st::msgFileInBg[_palette]);
 
@@ -790,7 +792,7 @@ void Generator::paintBubble(const Bubble &bubble) {
 		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
 		auto max_value = 0;
 		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
-		auto wave_bottom = y + st::msgFilePadding.top() + st::msgWaveformMax;
+		auto wave_bottom = y + st::msgFileLayout.padding.top() + st::msgWaveformMax;
 		_p->setPen(Qt::NoPen);
 		auto norm_value = uchar(31);
 		for (auto i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {

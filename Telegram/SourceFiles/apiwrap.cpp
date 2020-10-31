@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_attached_stickers.h"
 #include "api/api_hash.h"
 #include "api/api_media.h"
 #include "api/api_sending.h"
@@ -63,8 +64,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/message_field.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"
 #include "storage/download_manager_mtproto.h"
@@ -188,6 +190,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _topPromotionTimer([=] { refreshTopPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
 , _authorizations(std::make_unique<Api::Authorizations>(this))
+, _attachedStickers(std::make_unique<Api::AttachedStickers>(this))
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
 , _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this)) {
@@ -1689,6 +1692,9 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 				finalize(-1, 0);
 			}, [&](const MTPDchannelParticipant &data) {
 				LOG(("API Error: Got self regular participant."));
+				finalize(-1, 0);
+			}, [&](const MTPDchannelParticipantLeft &data) {
+				LOG(("API Error: Got self left participant."));
 				finalize(-1, 0);
 			});
 		});
@@ -3564,6 +3570,9 @@ void ApiWrap::sharedMediaDone(
 		parsed.noSkipRange,
 		parsed.fullCount
 	));
+	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
+		peer->setHasPinnedMessages(true);
+	}
 }
 
 void ApiWrap::requestUserPhotos(
@@ -4178,7 +4187,7 @@ void ApiWrap::sendVoiceMessage(
 }
 
 void ApiWrap::editMedia(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		const SendAction &action,
@@ -4200,21 +4209,18 @@ void ApiWrap::editMedia(
 }
 
 void ApiWrap::sendFiles(
-		Storage::PreparedList &&list,
+		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action) {
 	const auto haveCaption = !caption.text.isEmpty();
-	const auto isAlbum = (album != nullptr);
-	const auto compressImages = (type == SendMediaType::Photo);
-	if (haveCaption && !list.canAddCaption(isAlbum, compressImages)) {
+	if (haveCaption && !list.canAddCaption(album != nullptr)) {
 		auto message = MessageToSend(action.history);
-		message.textWithTags = std::move(caption);
+		message.textWithTags = base::take(caption);
 		message.action = action;
 		message.action.clearDraft = false;
 		sendMessage(std::move(message));
-		caption = TextWithTags();
 	}
 
 	const auto to = fileLoadTaskOptions(action);
@@ -4225,14 +4231,11 @@ void ApiWrap::sendFiles(
 	tasks.reserve(list.files.size());
 	for (auto &file : list.files) {
 		if (album) {
-			switch (file.type) {
-			case Storage::PreparedFile::AlbumType::Photo:
+			if (file.type == Ui::PreparedFile::Type::Photo
+				&& type != SendMediaType::File) {
 				type = SendMediaType::Photo;
-				break;
-			case Storage::PreparedFile::AlbumType::Video:
+			} else {
 				type = SendMediaType::File;
-				break;
-			default: Unexpected("AlbumType in uploadFilesAfterConfirmation");
 			}
 		}
 		tasks.push_back(std::make_unique<FileLoadTask>(
@@ -5225,6 +5228,10 @@ auto ApiWrap::blockedPeersSlice() -> rpl::producer<BlockedPeersSlice> {
 
 Api::Authorizations &ApiWrap::authorizations() {
 	return *_authorizations;
+}
+
+Api::AttachedStickers &ApiWrap::attachedStickers() {
+	return *_attachedStickers;
 }
 
 Api::SelfDestruct &ApiWrap::selfDestruct() {

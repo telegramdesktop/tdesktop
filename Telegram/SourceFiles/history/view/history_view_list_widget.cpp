@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
+#include "boxes/confirm_box.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "ui/inactive_press.h"
@@ -37,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "facades.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtCore/QMimeData>
@@ -389,13 +390,13 @@ std::optional<int> ListWidget::scrollTopForView(
 	return top - std::max((available - height) / 2, 0);
 }
 
-void ListWidget::animatedScrollTo(
+void ListWidget::scrollTo(
 		int scrollTop,
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type) {
 	_scrollToAnimation.stop();
-	if (!delta || _items.empty()) {
+	if (!delta || _items.empty() || type == AnimatedScroll::None) {
 		_delegate->listScrollTo(scrollTop);
 		return;
 	}
@@ -1316,6 +1317,7 @@ void ListWidget::updateItemsGeometry() {
 				view->setDisplayDate(false);
 			} else {
 				view->setDisplayDate(true);
+				view->setAttachToPrevious(false);
 				return i;
 			}
 		}
@@ -1641,8 +1643,12 @@ TextForMimeData ListWidget::getSelectedText() const {
 	return result;
 }
 
-MessageIdsList ListWidget::getSelectedItems() const {
+MessageIdsList ListWidget::getSelectedIds() const {
 	return collectSelectedIds();
+}
+
+SelectedItems ListWidget::getSelectedItems() const {
+	return collectSelectedItems();
 }
 
 int ListWidget::findItemIndexByY(int y) const {
@@ -2481,7 +2487,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 				return true;
 			}();
 			auto items = canForwardAll
-				? getSelectedItems()
+				? collectSelectedIds()
 				: MessageIdsList();
 			if (!items.empty()) {
 				session().data().setMimeForwardIds(std::move(items));
@@ -2611,6 +2617,9 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 			view = next;
 		}
 	}
+	if (till == int(_items.size())) {
+		_items.back()->setAttachToNext(false);
+	}
 	updateSize();
 }
 
@@ -2706,5 +2715,75 @@ rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
 }
 
 ListWidget::~ListWidget() = default;
+
+void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canDelete) {
+			return;
+		}
+	}
+	const auto weak = Ui::MakeWeak(widget);
+	const auto box = Ui::show(Box<DeleteMessagesBox>(
+		&widget->controller()->session(),
+		widget->getSelectedIds()));
+	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+void ConfirmForwardSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canForward) {
+			return;
+		}
+	}
+	auto ids = widget->getSelectedIds();
+	const auto weak = Ui::MakeWeak(widget);
+	Window::ShowForwardMessagesBox(widget->controller(), std::move(ids), [=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto navigation = widget->controller();
+	const auto history = [&]() -> History* {
+		auto result = (History*)nullptr;
+		auto &data = navigation->session().data();
+		for (const auto &item : items) {
+			if (!item.canSendNow) {
+				return nullptr;
+			}
+			const auto message = data.message(item.msgId);
+			if (message) {
+				result = message->history();
+			}
+		}
+		return result;
+	}();
+	if (!history) {
+		return;
+	}
+	Window::ShowSendNowMessagesBox(
+		navigation,
+		history,
+		widget->getSelectedIds(),
+		[=] { navigation->showBackFromStack(); });
+}
 
 } // namespace HistoryView

@@ -30,6 +30,7 @@ class Document final
 public:
 	Document(
 		not_null<Element*> parent,
+		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document);
 	~Document();
 
@@ -61,6 +62,24 @@ public:
 	QMargins bubbleMargins() const override;
 	bool hideForwardedFrom() const override;
 
+	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	QSize sizeForGrouping(int width) const override;
+	void drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		crl::time ms,
+		const QRect &geometry,
+		RectParts sides,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const override;
+	TextState getStateGrouped(
+		const QRect &geometry,
+		RectParts sides,
+		QPoint point,
+		StateRequest request) const override;
+
 	bool voiceProgressAnimationCallback(crl::time now);
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -82,7 +101,22 @@ private:
 		bool showPause = false;
 		int realDuration = 0;
 	};
+	enum class LayoutMode {
+		Full,
+		Grouped,
+	};
 
+	void draw(
+		Painter &p,
+		int width,
+		TextSelection selection,
+		crl::time ms,
+		LayoutMode mode) const;
+	[[nodiscard]] TextState textState(
+		QPoint point,
+		QSize layout,
+		StateRequest request,
+		LayoutMode mode) const;
 	void ensureDataMediaCreated() const;
 
 	[[nodiscard]] Ui::Text::String createCaption();
@@ -97,10 +131,11 @@ private:
 	bool updateStatusText() const; // returns showPause
 
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerDownload(Painter &p, bool selected) const;
+	void drawCornerDownload(Painter &p, bool selected, LayoutMode mode) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
-		StateRequest request) const;
+		StateRequest request,
+		LayoutMode mode) const;
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;

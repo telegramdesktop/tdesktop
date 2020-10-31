@@ -1083,6 +1083,17 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		_session->data().updateEditedMessage(d.vmessage());
 	} break;
 
+	case mtpc_updatePinnedChannelMessages: {
+		const auto &d = update.c_updatePinnedChannelMessages();
+		const auto channelId = d.vchannel_id().v;
+		for (const auto &msgId : d.vmessages().v) {
+			const auto item = session().data().message(channelId, msgId.v);
+			if (item) {
+				item->setIsPinned(d.is_pinned());
+			}
+		}
+	} break;
+
 	case mtpc_updateEditMessage: {
 		auto &d = update.c_updateEditMessage();
 		_session->data().updateEditedMessage(d.vmessage());
@@ -1096,6 +1107,17 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	case mtpc_updateDeleteChannelMessages: {
 		auto &d = update.c_updateDeleteChannelMessages();
 		_session->data().processMessagesDeleted(d.vchannel_id().v, d.vmessages().v);
+	} break;
+
+	case mtpc_updatePinnedMessages: {
+		const auto &d = update.c_updatePinnedMessages();
+		const auto peerId = peerFromMTP(d.vpeer());
+		for (const auto &msgId : d.vmessages().v) {
+			const auto item = session().data().message(0, msgId.v);
+			if (item) {
+				item->setIsPinned(d.is_pinned());
+			}
+		}
 	} break;
 
 	default: Unexpected("Type in applyUpdateNoPtsCheck()");
@@ -1381,6 +1403,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateEditChannelMessage: {
 		auto &d = update.c_updateEditChannelMessage();
 		auto channel = session().data().channelLoaded(peerToChannel(PeerFromMessage(d.vmessage())));
+
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else {
+				channel->ptsUpdateAndApply(d.vpts().v, d.vpts_count().v, update);
+			}
+		} else {
+			applyUpdateNoPtsCheck(update);
+		}
+	} break;
+
+	case mtpc_updatePinnedChannelMessages: {
+		auto &d = update.c_updatePinnedChannelMessages();
+		auto channel = session().data().channelLoaded(d.vchannel_id().v);
 
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
@@ -1999,28 +2036,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	// Pinned message.
-	case mtpc_updateUserPinnedMessage: {
-		const auto &d = update.c_updateUserPinnedMessage();
-		if (const auto user = session().data().userLoaded(d.vuser_id().v)) {
-			user->setPinnedMessageId(d.vid().v);
-		}
-	} break;
-
-	case mtpc_updateChatPinnedMessage: {
-		const auto &d = update.c_updateChatPinnedMessage();
-		if (const auto chat = session().data().chatLoaded(d.vchat_id().v)) {
-			const auto status = chat->applyUpdateVersion(d.vversion().v);
-			if (status == ChatData::UpdateStatus::Good) {
-				chat->setPinnedMessageId(d.vid().v);
-			}
-		}
-	} break;
-
-	case mtpc_updateChannelPinnedMessage: {
-		const auto &d = update.c_updateChannelPinnedMessage();
-		if (const auto channel = session().data().channelLoaded(d.vchannel_id().v)) {
-			channel->setPinnedMessageId(d.vid().v);
-		}
+	case mtpc_updatePinnedMessages: {
+		const auto &d = update.c_updatePinnedMessages();
+		updateAndApply(d.vpts().v, d.vpts_count().v, update);
 	} break;
 
 	////// Cloud sticker sets

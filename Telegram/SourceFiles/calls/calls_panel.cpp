@@ -42,7 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 #ifdef Q_OS_WIN
 #include "ui/platform/win/ui_window_title_win.h"

@@ -118,7 +118,8 @@ struct BackgroundUpdate {
 	[[nodiscard]] bool paletteChanged() const {
 		return (type == Type::TestingTheme)
 			|| (type == Type::RevertingTheme)
-			|| (type == Type::ApplyingEdit);
+			|| (type == Type::ApplyingEdit)
+			|| (type == Type::New);
 	}
 	Type type;
 	bool tiled;

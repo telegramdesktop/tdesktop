@@ -161,13 +161,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_deleted" = "Deleted Account";
 "lng_deleted_message" = "Deleted message";
 "lng_pinned_message" = "Pinned message";
+"lng_pinned_previous" = "Previous message";
 "lng_pinned_poll" = "Pinned poll";
 "lng_pinned_quiz" = "Pinned quiz";
 "lng_pinned_unpin_sure" = "Would you like to unpin this message?";
 "lng_pinned_pin_sure" = "Would you like to pin this message?";
+"lng_pinned_pin_sure_group" = "Do you want to pin this message for all members in the group?";
+"lng_pinned_pin_old_sure" = "Do you want to pin an older message while leaving a more recent one pinned?";
 "lng_pinned_pin" = "Pin";
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
+"lng_pinned_also_for_other" = "Also pin for {user}";
+"lng_pinned_messages_title#one" = "{count} pinned message";
+"lng_pinned_messages_title#other" = "{count} pinned messages";
+"lng_pinned_hide_all" = "Don't show pinned messages";
+"lng_pinned_unpin_all#one" = "Unpin {count} message";
+"lng_pinned_unpin_all#other" = "Unpin all {count} messages";
+"lng_pinned_unpin_all_sure" = "Do you want to unpin all messages?";
+"lng_pinned_hide_all_sure" = "Do you want to hide the pinned messages bar? It will stay hidden until a new message is pinned.";
+"lng_pinned_hide_all_hide" = "Hide";
 
 "lng_edit_media_album_error" = "This file cannot be saved as a part of an album.";
 "lng_edit_media_invalid_file" = "Sorry, no way to use this file.";
@@ -1103,6 +1115,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_secure_proof_of_address" = "proof of address";
 "lng_action_secure_phone" = "phone number";
 "lng_action_secure_email" = "email address";
+"lng_action_proximity_reached" = "{from} is now within {distance} from {user}";
+"lng_action_proximity_reached_you" = "{from} is now within {distance} from you";
+"lng_action_you_proximity_reached" = "You are now within {distance} from {user}";
+"lng_action_proximity_distance_m#one" = "{count} meter";
+"lng_action_proximity_distance_m#other" = "{count} metres";
+"lng_action_proximity_distance_km#one" = "{count} km";
+"lng_action_proximity_distance_km#other" = "{count} km";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";
@@ -1524,9 +1543,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_files_selected#other" = "{count} files selected";
 "lng_send_files#one" = "Send {count} file";
 "lng_send_files#other" = "Send {count} files";
-"lng_send_album" = "Send as an album";
-"lng_send_photo" = "Send as a photo";
-"lng_send_file" = "Send as a file";
+"lng_send_grouped" = "Group items";
+"lng_send_compressed" = "Compress images";
 "lng_send_media_invalid_files" = "Sorry, no valid files found.";
 
 "lng_forward_choose" = "Choose recipient...";

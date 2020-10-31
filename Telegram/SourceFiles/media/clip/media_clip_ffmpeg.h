@@ -7,23 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-extern "C" {
-
-#include <libswscale/swscale.h>
-
-} // extern "C"
-
 #include "media/clip/media_clip_implementation.h"
-#include "media/audio/media_child_ffmpeg_loader.h"
-#include "media/streaming/media_streaming_utility.h"
+#include "ffmpeg/ffmpeg_utility.h"
+
+extern "C" {
+#include <libswscale/swscale.h>
+#include <libavutil/opt.h>
+} // extern "C"
+#include <deque>
+
+//#include "media/streaming/media_streaming_utility.h"
 
 namespace Media {
 namespace Clip {
 namespace internal {
 
+constexpr auto kMaxInMemory = 10 * 1024 * 1024;
+
 class FFMpegReaderImplementation : public ReaderImplementation {
 public:
-	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, const AudioMsgId &audio);
+	FFMpegReaderImplementation(Core::FileLocation *location, QByteArray *data);
 
 	ReadResult readFramesTill(crl::time frameMs, crl::time systemMs) override;
 
@@ -33,9 +36,6 @@ public:
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 
 	crl::time durationMs() const override;
-	bool hasAudio() const override {
-		return (_audioStreamId >= 0);
-	}
 
 	bool start(Mode mode, crl::time &positionMs) override;
 	bool inspectAt(crl::time &positionMs);
@@ -74,7 +74,7 @@ private:
 	static int _read(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek(void *opaque, int64_t offset, int whence);
 
-	Mode _mode = Mode::Normal;
+	Mode _mode = Mode::Silent;
 
 	Rotation _rotation = Rotation::None;
 
@@ -90,8 +90,6 @@ private:
 	int _skippedInvalidDataPackets = 0;
 
 	bool _hasAudioStream = false;
-	int _audioStreamId = -1;
-	AudioMsgId _audioMsgId;
 	crl::time _lastReadVideoMs = 0;
 	crl::time _lastReadAudioMs = 0;
 

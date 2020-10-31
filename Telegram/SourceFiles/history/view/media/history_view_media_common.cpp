@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_theme_document.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 
@@ -80,7 +80,7 @@ std::unique_ptr<Media> CreateAttach(
 				document,
 				webpageUrl);
 		}
-		return std::make_unique<Document>(parent, document);
+		return std::make_unique<Document>(parent, parent->data(), document);
 	} else if (photo) {
 		return std::make_unique<Photo>(
 			parent,

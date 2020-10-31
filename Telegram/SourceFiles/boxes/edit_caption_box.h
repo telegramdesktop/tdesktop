@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 class Image;
 
@@ -32,6 +33,7 @@ class InputField;
 class EmojiButton;
 class IconButton;
 class Checkbox;
+enum class AlbumType;
 } // namespace Ui
 
 namespace Window {
@@ -92,6 +94,7 @@ private:
 	int errorTopSkip() const;
 
 	void createEditMediaButton();
+	bool setPreparedList(Ui::PreparedList &&list);
 
 	inline QString getNewMediaPath() {
 		return _preparedList.files.empty()
@@ -130,15 +133,15 @@ private:
 	int _gifh = 0;
 	int _gifx = 0;
 
-	Storage::PreparedList _preparedList;
+	Ui::PreparedList _preparedList;
 
 	mtpRequestId _saveRequestId = 0;
 
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
+	Ui::AlbumType _albumType = Ui::AlbumType();
 	bool _isAllowedEditMedia = false;
-	bool _isAlbum = false;
 	bool _asFile = false;
 	rpl::event_stream<> _editMediaClicks;
 

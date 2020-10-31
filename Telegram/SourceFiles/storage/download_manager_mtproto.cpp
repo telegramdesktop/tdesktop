@@ -541,8 +541,10 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 		return api().request(MTPupload_GetWebFile(
 			MTP_inputWebFileGeoPointLocation(
 				MTP_inputGeoPoint(
+					MTP_flags(0),
 					MTP_double(location.lat),
-					MTP_double(location.lon)),
+					MTP_double(location.lon),
+					MTP_int(0)), // accuracy_radius
 				MTP_long(location.access),
 				MTP_int(location.width),
 				MTP_int(location.height),

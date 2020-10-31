@@ -25,11 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
+#include "ui/cached_round_corners.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_overview.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_widgets.h"
 
@@ -207,7 +207,8 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 			}
 			return &st::historyFileInDownload;
 		}();
-		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		const auto size = st::inlineRadialSize;
+		QRect inner((_width - size) / 2, (height - size) / 2, size, size);
 		icon->paintInCenter(p, inner);
 		if (radial) {
 			p.setOpacity(1);
@@ -460,7 +461,7 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	auto over = _a_over.value(_active ? 1. : 0.);
 	if (over > 0) {
 		p.setOpacity(over);
-		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
+		Ui::FillRoundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, Ui::StickerHoverCorners);
 		p.setOpacity(1);
 	}
 
@@ -734,7 +735,7 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 		int durationTop = st::inlineRowMargin + st::inlineThumbSize - st::normalFont->height - st::inlineDurationMargin;
 		int durationW = _durationWidth + 2 * st::msgDateImgPadding.x(), durationH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		int durationX = (st::inlineThumbSize - durationW) / 2, durationY = st::inlineRowMargin + st::inlineThumbSize - durationH;
-		App::roundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, DateCorners);
+		Ui::FillRoundRect(p, durationX, durationY - st::msgDateImgPadding.y(), durationW, durationH, st::msgDateImgBg, Ui::DateCorners);
 		p.setPen(st::msgDateImgFg);
 		p.setFont(st::normalFont);
 		p.drawText(durationX + st::msgDateImgPadding.x(), durationTop + st::normalFont->ascent, _duration);
@@ -818,8 +819,8 @@ void CancelFileClickHandler::onClickImpl() const {
 
 File::File(not_null<Context*> context, not_null<Result*> result)
 : FileBase(context, result)
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
+, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineFileSize - st::inlineThumbSkip)
+, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineFileSize - st::inlineThumbSkip)
 , _open(std::make_shared<OpenFileClickHandler>(result))
 , _cancel(std::make_shared<CancelFileClickHandler>(result))
 , _document(getShownDocument()) {
@@ -835,7 +836,7 @@ File::File(not_null<Context*> context, not_null<Result*> result)
 
 void File::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
+	int textWidth = _maxw - (st::inlineFileSize + st::inlineThumbSkip);
 
 	TextParseOptions titleOpts = { 0, _maxw, st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
@@ -843,12 +844,12 @@ void File::initDimensions() {
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::defaultTextStyle, _result->getLayoutDescription(), descriptionOpts);
 
-	_minh = st::msgFileSize;
+	_minh = st::inlineFileSize;
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
 void File::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	const auto left = st::msgFileSize + st::inlineThumbSkip;
+	const auto left = st::inlineFileSize + st::inlineThumbSkip;
 
 	ensureDataMediaCreated();
 	const auto loaded = _documentMedia->loaded();
@@ -862,7 +863,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	const auto showPause = updateStatusText();
 	const auto radial = isRadialAnimation();
 
-	auto inner = style::rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
+	auto inner = style::rtlrect(0, st::inlineRowMargin, st::inlineFileSize, st::inlineFileSize, _width);
 	p.setPen(Qt::NoPen);
 	if (isThumbAnimation()) {
 		auto over = _animation->a_thumbOver.value(1.);
@@ -926,10 +927,10 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 TextState File::getState(
 		QPoint point,
 		StateRequest request) const {
-	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
+	if (QRect(0, st::inlineRowMargin, st::inlineFileSize, st::inlineFileSize).contains(point)) {
 		return { nullptr, _document->loading() ? _cancel : _open };
 	} else {
-		auto left = st::msgFileSize + st::inlineThumbSkip;
+		auto left = st::inlineFileSize + st::inlineThumbSkip;
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
 			return { nullptr, _send };
 		}
@@ -1070,16 +1071,16 @@ void Contact::initDimensions() {
 	_description.setText(st::defaultTextStyle, _result->getLayoutDescription(), descriptionOpts);
 	int32 descriptionHeight = qMin(_description.countHeight(_maxw), st::normalFont->height);
 
-	_minh = st::msgFileSize;
+	_minh = st::inlineFileSize;
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
 void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
 
-	left = st::msgFileSize + st::inlineThumbSkip;
-	prepareThumbnail(st::msgFileSize, st::msgFileSize);
-	QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width));
+	left = st::inlineFileSize + st::inlineThumbSkip;
+	prepareThumbnail(st::inlineFileSize, st::inlineFileSize);
+	QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineFileSize, st::inlineFileSize, _width));
 	p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
 
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
@@ -1099,8 +1100,8 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 TextState Contact::getState(
 		QPoint point,
 		StateRequest request) const {
-	if (!QRect(0, st::inlineRowMargin, st::msgFileSize, st::inlineThumbSize).contains(point)) {
-		auto left = (st::msgFileSize + st::inlineThumbSkip);
+	if (!QRect(0, st::inlineRowMargin, st::inlineFileSize, st::inlineThumbSize).contains(point)) {
+		auto left = (st::inlineFileSize + st::inlineThumbSkip);
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
 			return { nullptr, _send };
 		}
@@ -1373,9 +1374,10 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		bool loaded = _documentMedia->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = Media::Clip::MakeReader(_documentMedia.get(), FullMsgId(), [that](Media::Clip::Notification notification) {
-				that->clipCallback(notification);
-			});
+			that->_gif = Media::Clip::MakeReader(
+				_documentMedia->owner()->location(),
+				_documentMedia->bytes(),
+				[=](Media::Clip::Notification notification) { that->clipCallback(notification); });
 		}
 
 		bool animating = (_gif && _gif->started());
@@ -1413,7 +1415,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	if (radial) {
 		p.fillRect(rthumb, st::msgDateImgBg);
-		QRect inner((st::inlineThumbSize - st::msgFileSize) / 2, (st::inlineThumbSize - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		QRect inner((st::inlineThumbSize - st::inlineRadialSize) / 2, (st::inlineThumbSize - st::inlineRadialSize) / 2, st::inlineRadialSize, st::inlineRadialSize);
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));

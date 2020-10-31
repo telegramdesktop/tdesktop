@@ -205,6 +205,13 @@ Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
 	return _replyPreview->image(origin);
 }
 
+bool PhotoData::replyPreviewLoaded() const {
+	if (!_replyPreview) {
+		return false;
+	}
+	return _replyPreview->loaded();
+}
+
 void PhotoData::setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -374,6 +381,14 @@ void PhotoData::updateImages(
 		owner().cache(),
 		Data::kAnimationCacheTag,
 		[&](Data::FileOrigin origin) { loadVideo(origin); });
+}
+
+[[nodiscard]] bool PhotoData::hasAttachedStickers() const {
+	return _hasStickers;
+}
+
+void PhotoData::setHasAttachedStickers(bool value) {
+	_hasStickers = value;
 }
 
 int PhotoData::width() const {

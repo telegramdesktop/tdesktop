@@ -430,7 +430,7 @@ void Mixer::Track::clear() {
 	detach();
 
 	state = TrackState();
-	file = FileLocation();
+	file = Core::FileLocation();
 	data = QByteArray();
 	bufferedPosition = 0;
 	bufferedLength = 0;
@@ -1519,7 +1519,7 @@ void DetachFromDevice(not_null<Audio::Instance*> instance) {
 
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
 public:
-	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data)
+	FFMpegAttributesReader(const Core::FileLocation &file, const QByteArray &data)
 	: AbstractFFMpegLoader(file, data, bytes::vector()) {
 	}
 
@@ -1531,15 +1531,12 @@ public:
 		int res = 0;
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-		int videoStreamId = av_find_best_stream(fmtContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
-		if (videoStreamId >= 0) {
-			DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(videoStreamId).arg(av_make_error_string(err, sizeof(err), streamId)));
-			return false;
-		}
-
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
 			const auto stream = fmtContext->streams[i];
 			if (stream->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+				if (!_cover.isNull()) {
+					continue;
+				}
 				const auto &packet = stream->attached_pic;
 				if (packet.size) {
 					const auto coverBytes = QByteArray(
@@ -1555,9 +1552,15 @@ public:
 					if (!_cover.isNull()) {
 						_coverBytes = coverBytes;
 						_coverFormat = format;
-						break;
 					}
 				}
+			} else if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+				DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', error %3, %4")
+					.arg(_file.name())
+					.arg(_data.size())
+					.arg(i)
+					.arg(av_make_error_string(err, sizeof(err), streamId)));
+				return false;
 			}
 		}
 
@@ -1627,9 +1630,9 @@ private:
 
 namespace Player {
 
-FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileMediaInformation::Song();
-	FFMpegAttributesReader reader(FileLocation(fname), data);
+Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = Ui::PreparedFileInformation::Song();
+	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
 	if (reader.open(positionMs) && reader.samplesCount() > 0) {
 		result.duration = reader.samplesCount() / reader.samplesFrequency();
@@ -1644,7 +1647,7 @@ FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteAr
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
-	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
+	FFMpegWaveformCounter(const Core::FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
 	}
 
 	bool open(crl::time positionMs) override {
@@ -1729,7 +1732,7 @@ private:
 } // namespace Media
 
 VoiceWaveform audioCountWaveform(
-		const FileLocation &file,
+		const Core::FileLocation &file,
 		const QByteArray &data) {
 	Media::FFMpegWaveformCounter counter(file, data);
 	const auto positionMs = crl::time(0);

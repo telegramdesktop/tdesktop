@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace Window {
 namespace {
@@ -375,8 +375,8 @@ void MediaPreviewWidget::validateGifAnimation() {
 	};
 	if (contentLoaded) {
 		_gif = Media::Clip::MakeReader(
-			_documentMedia.get(),
-			FullMsgId(),
+			_documentMedia->owner()->location(),
+			_documentMedia->bytes(),
 			std::move(callback));
 	} else {
 		_gifThumbnail = Media::Clip::MakeReader(

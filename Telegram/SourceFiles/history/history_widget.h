@@ -21,10 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class RPCError;
 struct FileLoadResult;
-struct FileMediaInformation;
 struct SendingAlbum;
 enum class SendMediaType;
-enum class CompressConfirm;
 class MessageLinksParser;
 
 namespace SendMenu {
@@ -66,6 +64,9 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
+class PinnedBar;
+struct PreparedList;
+class SendFilesWay;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -83,7 +84,6 @@ class TabbedSelector;
 
 namespace Storage {
 enum class MimeDataState;
-struct PreparedList;
 struct UploadedPhoto;
 struct UploadedDocument;
 struct UploadedThumbDocument;
@@ -93,6 +93,7 @@ namespace HistoryView {
 class TopBarWidget;
 class ContactStatus;
 class Element;
+class PinnedTracker;
 } // namespace HistoryView
 
 class DragArea;
@@ -182,8 +183,6 @@ public:
 	void replyToMessage(not_null<HistoryItem*> item);
 	void editMessage(FullMsgId itemId);
 	void editMessage(not_null<HistoryItem*> item);
-	void pinMessage(FullMsgId itemId);
-	void unpinMessage(FullMsgId itemId);
 
 	MsgId replyToId() const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
@@ -328,16 +327,6 @@ private slots:
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
-	struct PinnedBar {
-		PinnedBar(MsgId msgId, HistoryWidget *parent);
-		~PinnedBar();
-
-		MsgId msgId = 0;
-		HistoryItem *msg = nullptr;
-		Ui::Text::String text;
-		object_ptr<Ui::IconButton> cancel;
-		object_ptr<Ui::PlainShadow> shadow;
-	};
 	enum ScrollChangeType {
 		ScrollChangeNone,
 
@@ -426,33 +415,29 @@ private:
 	bool canSendFiles(not_null<const QMimeData*> data) const;
 	bool confirmSendingFiles(
 		const QStringList &files,
-		CompressConfirm compressed,
-		const QString &insertTextOnCancel = QString());
+		const QString &insertTextOnCancel);
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
-		Storage::PreparedList &&list,
-		CompressConfirm compressed,
+		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
-	bool showSendingFilesError(const Storage::PreparedList &list) const;
+	bool showSendingFilesError(const Ui::PreparedList &list) const;
+
+	void sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
+		TextWithTags &&caption,
+		Api::SendOptions options,
+		bool ctrlShiftEnter);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
-
-	void uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
-		SendMediaType type,
-		TextWithTags &&caption,
-		MsgId replyTo,
-		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album = nullptr);
-
 	void itemRemoved(not_null<const HistoryItem*> item);
 
 	// Updates position of controls around the message field,
@@ -497,9 +482,13 @@ private:
 	void updateReplyEditTexts(bool force = false);
 	void updateReplyEditText(not_null<HistoryItem*> item);
 
-	void updatePinnedBar(bool force = false);
-	bool pinnedMsgVisibilityUpdated();
-	void destroyPinnedBar();
+	void updatePinnedViewer();
+	void setupPinnedTracker();
+	void checkPinnedBarState();
+	void refreshPinnedBarButton(bool many);
+	void checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop);
 
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
@@ -513,7 +502,6 @@ private:
 		int left,
 		int top) const;
 	void drawRecording(Painter &p, float64 recordActive);
-	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	bool paintShowAnimationFrame();
 
@@ -535,8 +523,6 @@ private:
 	void messagesFailed(const RPCError &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
-
-	static void UnpinMessage(not_null<PeerData*> peer);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
@@ -616,7 +602,11 @@ private:
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 
-	std::unique_ptr<PinnedBar> _pinnedBar;
+	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
+	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
+	int _pinnedBarHeight = 0;
+	FullMsgId _pinnedClickedId;
+	std::optional<FullMsgId> _minPinnedId;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
@@ -706,7 +696,6 @@ private:
 	bool _recording = false;
 	bool _inField = false;
 	bool _inReplyEditForward = false;
-	bool _inPinnedMsg = false;
 	bool _inClickable = false;
 	int _recordingSamples = 0;
 	int _recordCancelWidth;

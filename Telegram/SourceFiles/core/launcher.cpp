@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "ui/main_queue_processor.h"
 #include "ui/ui_utility.h"
 #include "core/crash_reports.h"
@@ -300,10 +301,6 @@ void Launcher::init() {
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-	QApplication::setDesktopFileName(Platform::GetLauncherFilename());
-#endif
-
 #ifndef OS_MAC_OLD
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // OS_MAC_OLD
@@ -342,7 +339,7 @@ int Launcher::exec() {
 	if (!UpdaterDisabled() && cRestartingUpdate()) {
 		DEBUG_LOG(("Sandbox Info: executing updater to install update."));
 		if (!launchUpdater(UpdaterLaunch::PerformUpdate)) {
-			psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
+			base::Platform::DeleteDirectory(cWorkingDir() + qsl("tupdates/temp"));
 		}
 	} else if (cRestarting()) {
 		DEBUG_LOG(("Sandbox Info: executing Telegram because of restart."));
@@ -402,7 +399,7 @@ bool Launcher::customWorkingDir() const {
 }
 
 void Launcher::prepareSettings() {
-	auto path = Platform::CurrentExecutablePath(_argc, _argv);
+	auto path = base::Platform::CurrentExecutablePath(_argc, _argv);
 	LOG(("Executable path before check: %1").arg(path));
 	if (!path.isEmpty()) {
 		auto info = QFileInfo(path);

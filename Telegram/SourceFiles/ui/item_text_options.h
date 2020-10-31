@@ -7,26 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_options.h"
+
 class History;
 class PeerData;
-
-struct TextParseOptions;
+class HistoryItem;
 
 namespace Ui {
-
-void InitTextOptions();
-
-const TextParseOptions &ItemTextDefaultOptions();
-const TextParseOptions &ItemTextBotDefaultOptions();
-const TextParseOptions &ItemTextNoMonoOptions();
-const TextParseOptions &ItemTextBotNoMonoOptions();
-const TextParseOptions &ItemTextServiceOptions();
-
-const TextParseOptions &WebpageTextTitleOptions();
-const TextParseOptions &WebpageTextDescriptionOptions();
-
-const TextParseOptions &NameTextOptions();
-const TextParseOptions &DialogTextOptions();
 
 const TextParseOptions &ItemTextOptions(
 	not_null<History*> history,

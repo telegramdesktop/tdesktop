@@ -113,6 +113,8 @@ public:
 	}
 	void destroyMessage(not_null<HistoryItem*> item);
 
+	void unpinAllMessages();
+
 	HistoryItem *addNewMessage(
 		const MTPMessage &msg,
 		MTPDmessage_ClientFlags clientFlags,
@@ -366,6 +368,8 @@ public:
 	// of the displayed window relative to the history start coordinate
 	void countScrollState(int top);
 
+	[[nodiscard]] std::pair<Element*, int> findItemAndOffset(int top) const;
+
 	MsgId nextNonHistoryEntryId();
 
 	bool folderKnown() const override;
@@ -422,7 +426,7 @@ private:
 	void getNextScrollTopItem(HistoryBlock *block, int32 i);
 
 	// helper method for countScrollState(int top)
-	void countScrollTopItem(int top);
+	[[nodiscard]] Element *findScrollTopItem(int top) const;
 
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and

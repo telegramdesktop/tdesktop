@@ -61,7 +61,17 @@ public:
 
 	void setDiceIndex(const QString &emoji, int index);
 	[[nodiscard]] bool atTheEnd() const {
-		return _atTheEnd;
+		return 	(_frameIndex >= 0) && (_frameIndex + 1 == _framesCount);
+	}
+	[[nodiscard]] std::optional<int> frameIndex() const {
+		return (_frameIndex >= 0)
+			? std::make_optional(_frameIndex)
+			: std::nullopt;
+	}
+	[[nodiscard]] std::optional<int> framesCount() const {
+		return (_framesCount > 0)
+			? std::make_optional(_framesCount)
+			: std::nullopt;
 	}
 	[[nodiscard]] bool readyToDrawLottie();
 
@@ -94,8 +104,9 @@ private:
 	QImage _lastDiceFrame;
 	QString _diceEmoji;
 	int _diceIndex = -1;
+	mutable int _frameIndex = -1;
+	mutable int _framesCount = -1;
 	mutable bool _lottieOncePlayed = false;
-	mutable bool _atTheEnd = false;
 	mutable bool _nextLastDiceFrame = false;
 
 	rpl::lifetime _lifetime;

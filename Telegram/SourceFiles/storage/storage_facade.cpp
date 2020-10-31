@@ -22,6 +22,8 @@ public:
 	void remove(SharedMediaRemoveAll &&query);
 	void invalidate(SharedMediaInvalidateBottom &&query);
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
+	SharedMediaResult snapshot(const SharedMediaQuery &query) const;
+	bool empty(const SharedMediaKey &key) const;
 	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
@@ -81,6 +83,14 @@ void Facade::Impl::invalidate(SharedMediaInvalidateBottom &&query) {
 
 rpl::producer<SharedMediaResult> Facade::Impl::query(SharedMediaQuery &&query) const {
 	return _sharedMedia.query(std::move(query));
+}
+
+SharedMediaResult Facade::Impl::snapshot(const SharedMediaQuery &query) const {
+	return _sharedMedia.snapshot(query);
+}
+
+bool Facade::Impl::empty(const SharedMediaKey &key) const {
+	return _sharedMedia.empty(key);
 }
 
 rpl::producer<SharedMediaSliceUpdate> Facade::Impl::sharedMediaSliceUpdated() const {
@@ -201,6 +211,14 @@ void Facade::invalidate(SharedMediaInvalidateBottom &&query) {
 
 rpl::producer<SharedMediaResult> Facade::query(SharedMediaQuery &&query) const {
 	return _impl->query(std::move(query));
+}
+
+SharedMediaResult Facade::snapshot(const SharedMediaQuery &query) const {
+	return _impl->snapshot(query);
+}
+
+bool Facade::empty(const SharedMediaKey &key) const {
+	return _impl->empty(key);
 }
 
 rpl::producer<SharedMediaSliceUpdate> Facade::sharedMediaSliceUpdated() const {

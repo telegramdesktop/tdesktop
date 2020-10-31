@@ -65,6 +65,7 @@ public:
 	[[nodiscard]] bool waitingForAlbum() const;
 
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] bool replyPreviewLoaded() const;
 
 	void setRemoteLocation(
 		int32 dc,
@@ -142,13 +143,15 @@ public:
 		bool forceRemoteLoader) const
 	-> std::unique_ptr<Media::Streaming::Loader>;
 
+	[[nodiscard]] bool hasAttachedStickers() const;
+	void setHasAttachedStickers(bool value);
+
 	// For now they return size of the 'large' image.
 	int width() const;
 	int height() const;
 
 	PhotoId id = 0;
 	TimeId date = 0;
-	bool hasSticker = false;
 
 	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption
@@ -164,6 +167,7 @@ private:
 
 	int32 _dc = 0;
 	uint64 _access = 0;
+	bool _hasStickers = false;
 	QByteArray _fileReference;
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::PhotoMedia> _media;

@@ -34,8 +34,6 @@ struct Information;
 
 namespace Ui {
 
-class InfiniteRadialAnimation;
-
 class HistoryDownButton : public RippleButton {
 public:
 	HistoryDownButton(QWidget *parent, const style::TwoIconButton &st);
@@ -55,111 +53,6 @@ private:
 	const style::TwoIconButton &_st;
 
 	int _unreadCount = 0;
-
-};
-
-class EmojiButton : public RippleButton {
-public:
-	EmojiButton(QWidget *parent, const style::IconButton &st);
-
-	void setLoading(bool loading);
-	void setColorOverrides(const style::icon *iconOverride, const style::color *colorOverride, const style::color *rippleOverride);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(State was, StateChangeSource source) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	void loadingAnimationCallback();
-
-	const style::IconButton &_st;
-
-	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
-
-	const style::icon *_iconOverride = nullptr;
-	const style::color *_colorOverride = nullptr;
-	const style::color *_rippleOverride = nullptr;
-
-};
-
-class SendButton : public RippleButton {
-public:
-	SendButton(QWidget *parent);
-
-	static constexpr auto kSlowmodeDelayLimit = 100 * 60;
-
-	enum class Type {
-		Send,
-		Schedule,
-		Save,
-		Record,
-		Cancel,
-		Slowmode,
-	};
-	Type type() const {
-		return _type;
-	}
-	void setType(Type state);
-	void setRecordActive(bool recordActive);
-	void setSlowmodeDelay(int seconds);
-	void finishAnimating();
-
-	void setRecordStartCallback(Fn<void()> callback) {
-		_recordStartCallback = std::move(callback);
-	}
-	void setRecordUpdateCallback(Fn<void(QPoint globalPos)> callback) {
-		_recordUpdateCallback = std::move(callback);
-	}
-	void setRecordStopCallback(Fn<void(bool active)> callback) {
-		_recordStopCallback = std::move(callback);
-	}
-	void setRecordAnimationCallback(Fn<void()> callback) {
-		_recordAnimationCallback = std::move(callback);
-	}
-
-	float64 recordActiveRatio() {
-		return _a_recordActive.value(_recordActive ? 1. : 0.);
-	}
-
-protected:
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(State was, StateChangeSource source) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	void recordAnimationCallback();
-	QPixmap grabContent();
-	bool isSlowmode() const;
-
-	void paintRecord(Painter &p, bool over);
-	void paintSave(Painter &p, bool over);
-	void paintCancel(Painter &p, bool over);
-	void paintSend(Painter &p, bool over);
-	void paintSchedule(Painter &p, bool over);
-	void paintSlowmode(Painter &p);
-
-	Type _type = Type::Send;
-	Type _afterSlowmodeType = Type::Send;
-	bool _recordActive = false;
-	QPixmap _contentFrom, _contentTo;
-
-	Ui::Animations::Simple _a_typeChanged;
-	Ui::Animations::Simple _a_recordActive;
-
-	bool _recording = false;
-	Fn<void()> _recordStartCallback;
-	Fn<void(bool active)> _recordStopCallback;
-	Fn<void(QPoint globalPos)> _recordUpdateCallback;
-	Fn<void()> _recordAnimationCallback;
-
-	int _slowmodeDelay = 0;
-	QString _slowmodeDelayText;
 
 };
 

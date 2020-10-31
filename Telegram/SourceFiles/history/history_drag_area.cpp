@@ -18,10 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/shadow.h"
 #include "ui/ui_utility.h"
+#include "ui/cached_round_corners.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "app.h"
 #include "storage/storage_media_prepare.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -315,7 +315,7 @@ void DragArea::paintEvent(QPaintEvent *e) {
 	}
 
 	Ui::Shadow::paint(p, inner, width(), st::boxRoundShadow);
-	App::roundRect(p, inner, st::boxBg, BoxCorners);
+	Ui::FillRoundRect(p, inner, st::boxBg, Ui::BoxCorners);
 
 	p.setPen(anim::pen(
 		st::dragColor,

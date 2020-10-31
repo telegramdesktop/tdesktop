@@ -46,6 +46,7 @@ public:
 	enum class Section {
 		History,
 		Scheduled,
+		Pinned,
 		Replies,
 	};
 

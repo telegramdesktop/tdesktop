@@ -115,7 +115,7 @@ void WrapInvokeAfter(
 	auto cb = reinterpret_cast<const char*>(b);
 	volatile auto different = false;
 	for (const auto ce = ca + size; ca != ce; ++ca, ++cb) {
-		different |= (*ca != *cb);
+		different = different | (*ca != *cb);
 	}
 	return different;
 }

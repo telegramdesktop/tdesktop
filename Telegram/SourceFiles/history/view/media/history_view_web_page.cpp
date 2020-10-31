@@ -17,8 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "ui/text/format_values.h"
+#include "ui/cached_round_corners.h"
 #include "layout.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -26,8 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
-#include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
@@ -501,7 +501,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {
-			App::roundRect(p, style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()), p.textPalette().selectOverlay, SelectedOverlaySmallCorners);
+			Ui::FillRoundRect(p, style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()), p.textPalette().selectOverlay, Ui::SelectedOverlaySmallCorners);
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
@@ -569,7 +569,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 				auto dateW = pixwidth - dateX - st::msgDateImgDelta;
 				auto dateH = pixheight - dateY - st::msgDateImgDelta;
 
-				App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+				Ui::FillRoundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
 
 				p.setFont(st::msgDateFont);
 				p.setPen(st::msgDateImgFg);

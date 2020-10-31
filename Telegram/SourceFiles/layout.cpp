@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "history/view/history_view_cursor_state.h"
-#include "app.h"
+#include "ui/cached_round_corners.h"
 
 int32 documentColorIndex(DocumentData *document, QString &ext) {
 	auto colorIndex = 0;
@@ -118,8 +118,8 @@ style::color documentSelectedColor(int32 colorIndex) {
 	return colors[colorIndex & 3];
 }
 
-RoundCorners documentCorners(int32 colorIndex) {
-	return RoundCorners(Doc1Corners + (colorIndex & 3));
+Ui::CachedRoundCorners documentCorners(int32 colorIndex) {
+	return Ui::CachedRoundCorners(Ui::Doc1Corners + (colorIndex & 3));
 }
 
 [[nodiscard]] HistoryView::TextState LayoutItemBase::getState(

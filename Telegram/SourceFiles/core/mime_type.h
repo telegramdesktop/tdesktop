@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QFileInfo>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QMimeType>
@@ -35,12 +36,14 @@ private:
 
 };
 
-MimeType MimeTypeForName(const QString &mime);
-MimeType MimeTypeForFile(const QFileInfo &file);
-MimeType MimeTypeForData(const QByteArray &data);
+[[nodiscard]] MimeType MimeTypeForName(const QString &mime);
+[[nodiscard]] MimeType MimeTypeForFile(const QFileInfo &file);
+[[nodiscard]] MimeType MimeTypeForData(const QByteArray &data);
 
-bool IsMimeStickerAnimated(const QString &mime);
-bool IsMimeSticker(const QString &mime);
-bool IsMimeAcceptedForAlbum(const QString &mime);
+[[nodiscard]] bool IsMimeStickerAnimated(const QString &mime);
+[[nodiscard]] bool IsMimeSticker(const QString &mime);
+[[nodiscard]] bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime);
+
+[[nodiscard]] bool FileIsImage(const QString &name, const QString &mime);
 
 } // namespace Core

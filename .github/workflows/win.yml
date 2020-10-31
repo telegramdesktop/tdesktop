@@ -68,10 +68,31 @@ jobs:
       DOC_PATH: "docs/building-msvc.md"
       AUTO_CACHING: "1"
 
+    defaults:
+      run:
+        shell: cmd
+
     steps:
       - name: Get repository name.
         shell: bash
-        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Set up environment paths.
+        shell: bash
+        run: |
+          echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
+          echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
+          echo "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\" >> $GITHUB_PATH
+
+          mkdir Libraries && cd Libraries
+          echo "Convert unix path to win path."
+          p=`pwd | sed 's#^/[d]#d:#g' |sed 's#/#\\\\#g'`
+          echo "LibrariesPath=$p" >> $GITHUB_ENV
+
+      - name: Save msbuild version.
+        run: |
+          call vcvars32.bat
+          msbuild -version > CACHE_KEY.txt
 
       - name: Clone.
         uses: actions/checkout@v2
@@ -79,38 +100,18 @@ jobs:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
 
-      - name: Set up environment variables.
-        shell: cmd
-        run: |
-          echo ::add-path::C:\Strawberry\perl\bin\
-          echo ::add-path::"%programfiles%\NASM"
-
-          C:
-          cd "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\"
-          echo ::add-path::%cd%
-
-          call vcvars32.bat
-          D:
-          cd %GITHUB_WORKSPACE%
-          msbuild -version > CACHE_KEY.txt
-          echo %MANUAL_CACHING% >> CACHE_KEY.txt
-
-          mkdir Libraries
-          cd Libraries
-          echo ::set-env name=LibrariesPath::%cd%
-
       - name: Generate cache key.
         shell: bash
         run: |
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
           if [ "$AUTO_CACHING" == "1" ]; then
             thisFile=$REPO_NAME/.github/workflows/win.yml
             echo `md5sum $thisFile | awk '{ print $1 }'` >> CACHE_KEY.txt
           fi
-          echo ::set-env name=CACHE_KEY::`md5sum CACHE_KEY.txt | awk '{ print $1 }'`
+          echo "CACHE_KEY=`md5sum CACHE_KEY.txt | awk '{ print $1 }'`" >> $GITHUB_ENV
 
       - name: Choco installs.
-        run: |
-          choco install --no-progress -y nasm yasm jom ninja
+        run: choco install --no-progress -y nasm yasm jom ninja
 
       - name: Patches.
         shell: bash
@@ -123,21 +124,18 @@ jobs:
           eval $checkoutCommit
 
       - name: Find any version of Python 2.
-        shell: cmd
+        shell: bash
         run: |
-          echo Find any version of Python 2.
-          for /D %%a in (C:\hostedtoolcache\windows\Python\2.*) do (
-            SET PY2=%%a\x64
-          )
-          if [%PY2%] == [] (
-            echo Python 2 is not found.
+          echo "Find any version of Python 2."
+          p=`ls /c/hostedtoolcache/windows/python | grep 2 | tail -1`
+          if [ -z "$p" ]; then
+            echo "Python 2 is not found."
             exit 1
-          )
-          echo Found %PY2%.
-          echo ::set-env name=PY2::%PY2%
+          fi
+          echo "PY2=C:\\hostedtoolcache\\windows\\Python\\$p\\x64" >> $GITHUB_ENV
+          echo "Found $p."
 
       - name: LZMA.
-        shell: cmd
         run: |
           %VC%
 
@@ -154,7 +152,6 @@ jobs:
           key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
       - name: OpenSSL.
         if: steps.cache-openssl.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
 
@@ -180,7 +177,6 @@ jobs:
           rmdir /S /Q .git
 
       - name: Zlib.
-        shell: cmd
         run: |
           %VC%
 
@@ -190,6 +186,20 @@ jobs:
           cd contrib\vstudio\vc14
           msbuild -m zlibstat.vcxproj /property:Configuration=Debug
 
+      - name: MozJPEG.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone -b v4.0.1-rc2 %GIT%/mozilla/mozjpeg.git
+          cd mozjpeg
+          cmake . ^
+          -G "Visual Studio 16 2019" ^
+          -A Win32 ^
+          -DWITH_JPEG8=ON ^
+          -DPNG_SUPPORTED=OFF
+          cmake --build . --config Debug
+
       - name: OpenAL Soft cache.
         id: cache-openal
         uses: actions/cache@v2
@@ -197,7 +207,6 @@ jobs:
           path: ${{ env.LibrariesPath }}/openal-soft
           key: ${{ runner.OS }}-openal-soft-${{ env.CACHE_KEY }}
       - name: OpenAL Soft.
-        shell: cmd
         if: steps.cache-openal.outputs.cache-hit != 'true'
         run: |
           %VC%
@@ -225,7 +234,6 @@ jobs:
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\'
           GYP_MSVS_VERSION: 2019
-        shell: cmd
         if: steps.cache-breakpad.outputs.cache-hit != 'true'
         run: |
           cd %LibrariesPath%
@@ -262,7 +270,6 @@ jobs:
           key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
       - name: Opus.
         if: steps.cache-opus.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
 
@@ -281,7 +288,6 @@ jobs:
           key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-2-${{ hashFiles('**/build_ffmpeg_win.sh') }}
       - name: FFmpeg.
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
           choco install --no-progress -y msys2
@@ -303,7 +309,6 @@ jobs:
           key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
       - name: Configure Qt 5.12.8.
         if: steps.cache-qt.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
 
@@ -335,10 +340,12 @@ jobs:
           -mp ^
           -nomake examples ^
           -nomake tests ^
-          -platform win32-msvc
+          -platform win32-msvc ^
+          -I "%LibrariesPath%\mozjpeg" ^
+          LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
+          LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
       - name: Qt 5.12.8 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
           cd qt_%QT%
@@ -357,24 +364,8 @@ jobs:
           key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
-        shell: cmd
         run: |
           %VC%
-
-          :: Qt libjpeg.
-          mkdir qt_%QT%
-          cd qt_%QT%
-          git clone -b %QT_VER% https://github.com/qt/qtbase
-
-          move qtbase\src\3rdparty\libjpeg ..
-          cd ..
-          dir
-          rmdir /S /Q qt_%QT%
-          mkdir qt_%QT%\qtbase\src\3rdparty\
-          move libjpeg qt_%QT%\qtbase\src\3rdparty\
-
-          :: WebRTC.
-          cd %LibrariesPath%
 
           git clone %GIT%/desktop-app/tg_owt.git
           mkdir tg_owt\out\Debug
@@ -382,7 +373,7 @@ jobs:
           cmake -G Ninja ^
           -DCMAKE_BUILD_TYPE=Debug ^
           -DTG_OWT_SPECIAL_TARGET=win ^
-          -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../qt_%QT%/qtbase/src/3rdparty/libjpeg ^
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
           -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_%OPENSSL_VER%/include ^
           -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
           -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ^
@@ -397,9 +388,6 @@ jobs:
           mkdir out\Debug
           move tg_owt.lib out\Debug\tg_owt.lib
 
-          cd %LibrariesPath%
-          rmdir /S /Q qt_%QT%
-
       - name: Read defines.
         shell: bash
         run: |
@@ -407,15 +395,14 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo ::set-env name=ARTIFACT_NAME::Telegram_${{ matrix.defines }}
+            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
-            echo ::set-env name=ARTIFACT_NAME::Telegram
+            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
-          echo "::set-env name=TDESKTOP_BUILD_DEFINE::$DEFINE"
+          echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
-        shell: cmd
         run: |
           cd %REPO_NAME%\Telegram
 
@@ -432,7 +419,6 @@ jobs:
 
       - name: Move artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
-        shell: cmd
         run: |
           cd %REPO_NAME%\out\Debug
           mkdir artifact

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text/format_values.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "base/unixtime.h"
 
 namespace {
@@ -227,6 +227,61 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareProximityReached = [this](const MTPDmessageActionGeoProximityReached &action) {
+		auto result = PreparedText{};
+		const auto fromId = peerFromMTP(action.vfrom_id());
+		const auto fromPeer = history()->owner().peer(fromId);
+		const auto toId = peerFromMTP(action.vto_id());
+		const auto toPeer = history()->owner().peer(toId);
+		const auto selfId = _from->session().userPeerId();
+		const auto distanceMeters = action.vdistance().v;
+		const auto distance = [&] {
+			if (distanceMeters >= 1000) {
+				const auto km = (10 * (distanceMeters / 10)) / 1000.;
+				return tr::lng_action_proximity_distance_km(
+					tr::now,
+					lt_count,
+					km);
+			} else {
+				return tr::lng_action_proximity_distance_m(
+					tr::now,
+					lt_count,
+					distanceMeters);
+			}
+		}();
+		result.text = [&] {
+			if (fromId == selfId) {
+				result.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_you_proximity_reached(
+					tr::now,
+					lt_distance,
+					distance,
+					lt_user,
+					textcmdLink(1, toPeer->name));
+			} else if (toId == selfId) {
+				result.links.push_back(fromPeer->createOpenLink());
+				return tr::lng_action_proximity_reached_you(
+					tr::now,
+					lt_from,
+					textcmdLink(1, fromPeer->name),
+					lt_distance,
+					distance);
+			} else {
+				result.links.push_back(fromPeer->createOpenLink());
+				result.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_proximity_reached(
+					tr::now,
+					lt_from,
+					textcmdLink(1, fromPeer->name),
+					lt_distance,
+					distance,
+					lt_user,
+					textcmdLink(2, toPeer->name));
+			}
+		}();
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -268,6 +323,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareSecureValuesSent(data);
 	}, [&](const MTPDmessageActionContactSignUp &data) {
 		return prepareContactSignUp();
+	}, [&](const MTPDmessageActionGeoProximityReached &data) {
+		return prepareProximityReached(data);
 	}, [](const MTPDmessageActionPaymentSentMe &) {
 		LOG(("API Error: messageActionPaymentSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };
@@ -375,8 +432,15 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
 		const auto mediaText = [&] {
+			using TTL = HistoryServiceSelfDestruct;
 			if (const auto media = pinned->msg->media()) {
 				return media->pinnedTextSubstring();
+			} else if (const auto selfdestruct = pinned->msg->Get<TTL>()) {
+				if (selfdestruct->type == TTL::Type::Photo) {
+					return tr::lng_action_pinned_media_photo(tr::now);
+				} else if (selfdestruct->type == TTL::Type::Video) {
+					return tr::lng_action_pinned_media_video(tr::now);
+				}
 			}
 			return QString();
 		}();

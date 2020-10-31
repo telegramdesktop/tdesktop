@@ -111,6 +111,10 @@ public:
 	int itemTop(const HistoryItem *item) const;
 	int itemTop(const Element *view) const;
 
+	// Returns (view, offset-from-top).
+	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
+		int top) const;
+
 	void notifyIsBotChanged();
 	void notifyMigrateUpdated();
 

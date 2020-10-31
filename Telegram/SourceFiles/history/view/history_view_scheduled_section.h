@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 
 class History;
-enum class CompressConfirm;
 enum class SendMediaType;
 struct SendingAlbum;
 
@@ -25,15 +24,13 @@ namespace Api {
 struct SendOptions;
 } // namespace Api
 
-namespace Storage {
-struct PreparedList;
-} // namespace Storage
-
 namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
 class HistoryDownButton;
+struct PreparedList;
+class SendFilesWay;
 } // namespace Ui
 
 namespace Profile {
@@ -167,24 +164,22 @@ private:
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
-		Storage::PreparedList &&list,
-		CompressConfirm compressed,
+		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
-	bool showSendingFilesError(const Storage::PreparedList &list) const;
-	void uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
-		SendMediaType type,
+	bool showSendingFilesError(const Ui::PreparedList &list) const;
+	void sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
 		TextWithTags &&caption,
-		MsgId replyTo,
 		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album);
+		bool ctrlShiftEnter);
 
 	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(

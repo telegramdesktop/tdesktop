@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"

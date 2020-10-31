@@ -87,8 +87,7 @@ void GetSupported() {
 	}
 	Checked = true;
 
-	if (Core::App().settings().nativeNotifications()
-		&& !Platform::IsWayland()) {
+	if (Core::App().settings().nativeNotifications() && !IsWayland()) {
 		ComputeSupported(true);
 	} else {
 		ComputeSupported();
@@ -239,10 +238,6 @@ public:
 	void close();
 	void setImage(const QString &imagePath);
 
-	void notificationClosed(uint id, uint reason);
-	void actionInvoked(uint id, const QString &actionName);
-	void notificationReplied(uint id, const QString &text);
-
 private:
 	GDBusConnection *_dbusConnection = nullptr;
 	base::weak_ptr<Manager> _manager;
@@ -259,6 +254,10 @@ private:
 	guint _notificationRepliedSignalId = 0;
 	guint _notificationClosedSignalId = 0;
 	NotificationId _id;
+
+	void notificationClosed(uint id, uint reason);
+	void actionInvoked(uint id, const QString &actionName);
+	void notificationReplied(uint id, const QString &text);
 
 	static void signalEmitted(
 		GDBusConnection *connection,
@@ -402,15 +401,21 @@ NotificationData::NotificationData(
 NotificationData::~NotificationData() {
 	if (_dbusConnection) {
 		if (_actionInvokedSignalId != 0) {
-			g_dbus_connection_signal_unsubscribe(_dbusConnection, _actionInvokedSignalId);
+			g_dbus_connection_signal_unsubscribe(
+				_dbusConnection,
+				_actionInvokedSignalId);
 		}
 
 		if (_notificationRepliedSignalId != 0) {
-			g_dbus_connection_signal_unsubscribe(_dbusConnection, _notificationRepliedSignalId);
+			g_dbus_connection_signal_unsubscribe(
+				_dbusConnection,
+				_notificationRepliedSignalId);
 		}
 
 		if (_notificationClosedSignalId != 0) {
-			g_dbus_connection_signal_unsubscribe(_dbusConnection, _notificationClosedSignalId);
+			g_dbus_connection_signal_unsubscribe(
+				_dbusConnection,
+				_notificationClosedSignalId);
 		}
 
 		g_object_unref(_dbusConnection);
@@ -647,7 +652,7 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	if ((Core::App().settings().nativeNotifications() && Supported())
-		|| Platform::IsWayland()) {
+		|| IsWayland()) {
 		return std::make_unique<Manager>(system);
 	}
 

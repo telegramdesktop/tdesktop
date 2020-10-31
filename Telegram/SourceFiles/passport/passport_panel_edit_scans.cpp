@@ -15,8 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
@@ -41,7 +42,7 @@ std::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
 	auto image = App::readImage(base::take(bytes));
 	if (image.isNull()) {
 		return ReadScanError::CantReadImage;
-	} else if (!Storage::ValidateThumbDimensions(image.width(), image.height())) {
+	} else if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
 		return ReadScanError::BadImageSize;
 	}
 	if (std::max(image.width(), image.height()) > kMaxDimensions) {
@@ -853,10 +854,7 @@ void EditScans::ChooseScan(
 		Fn<void(ReadScanError)> errorCallback) {
 	Expects(parent != nullptr);
 
-	const auto filter = FileDialog::AllFilesFilter()
-		+ qsl(";;Image files (*")
-		+ cImgExtensions().join(qsl(" *"))
-		+ qsl(")");
+	const auto filter = FileDialog::AllOrImagesFilter();
 	const auto guardedCallback = crl::guard(parent, doneCallback);
 	const auto guardedError = crl::guard(parent, errorCallback);
 	const auto onMainError = [=](ReadScanError error) {

@@ -10,7 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 
-struct FileMediaInformation;
+namespace Ui {
+struct PreparedFileInformation;
+struct PreparedFile;
+struct PreparedList;
+enum class AlbumType;
+} // namespace Ui
 
 namespace Storage {
 
@@ -21,72 +26,21 @@ enum class MimeDataState {
 	Image,
 };
 
+std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
+	FileDialog::OpenResult &&result,
+	Fn<bool(const Ui::PreparedList&)> checkResult,
+	Fn<void(tr::phrase<>)> errorCallback,
+	int previewWidth);
 MimeDataState ComputeMimeDataState(const QMimeData *data);
-
-struct PreparedFile {
-	enum class AlbumType {
-		None,
-		Photo,
-		Video,
-	};
-
-	PreparedFile(const QString &path);
-	PreparedFile(PreparedFile &&other);
-	PreparedFile &operator=(PreparedFile &&other);
-	~PreparedFile();
-
-	QString path;
-	QByteArray content;
-	QString mime;
-	std::unique_ptr<FileMediaInformation> information;
-	QImage preview;
-	QSize shownDimensions;
-	AlbumType type = AlbumType::None;
-
-};
-
-struct PreparedList {
-	enum class Error {
-		None,
-		NonLocalUrl,
-		Directory,
-		EmptyFile,
-		TooLargeFile,
-	};
-
-	PreparedList() = default;
-	PreparedList(Error error, QString errorData)
-	: error(error)
-	, errorData(errorData) {
-	}
-	static PreparedList Reordered(
-		PreparedList &&list,
-		std::vector<int> order);
-	static std::optional<PreparedList> PreparedFileFromFilesDialog(
-		FileDialog::OpenResult &&result,
-		bool isAlbum,
-		Fn<void(tr::phrase<>)> errorCallback,
-		int previewWidth);
-	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
-
-	bool canAddCaption(bool isAlbum, bool compressImages) const;
-
-	Error error = Error::None;
-	QString errorData;
-	std::vector<PreparedFile> files;
-	bool allFilesForCompress = true;
-	bool albumIsPossible = false;
-
-};
-
-bool ValidateDragData(not_null<const QMimeData*> data, bool isAlbum);
-bool ValidateThumbDimensions(int width, int height);
-PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
-PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
-PreparedList PrepareMediaFromImage(
+bool ValidateEditMediaDragData(
+	not_null<const QMimeData*> data,
+	Ui::AlbumType albumType);
+Ui::PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
+Ui::PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
+Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
-int MaxAlbumItems();
+void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
 
 } // namespace Storage

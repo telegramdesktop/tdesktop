@@ -7,28 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_reader.h"
 
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "storage/file_download.h"
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
+#include "core/file_location.h"
+#include "base/openssl_help.h"
+#include "base/invoke_queued.h"
+#include "logs.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QThread>
+#include <QtCore/QFileInfo>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
-}
+} // extern "C"
 
 namespace Media {
 namespace Clip {
 namespace {
+
+constexpr auto kClipThreadsCount = 8;
+constexpr auto kAverageGifSize = 320 * 240;
+constexpr auto kWaitBeforeGifPause = crl::time(200);
 
 QVector<QThread*> threads;
 QVector<Manager*> managers;
@@ -85,44 +90,32 @@ QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool h
 
 } // namespace
 
-Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, crl::time seekMs)
-: _callback(std::move(callback))
-, _mode(mode)
-, _seekPositionMs(seekMs) {
-	init(FileLocation(filepath), QByteArray());
-}
-
 Reader::Reader(
-	not_null<Data::DocumentMedia*> media,
-	FullMsgId msgId,
-	Callback &&callback,
-	Mode mode,
-	crl::time seekMs)
-: _callback(std::move(callback))
-, _mode(mode)
-, _audioMsgId(
-	media->owner(),
-	msgId,
-	(mode == Mode::Video) ? AudioMsgId::CreateExternalPlayId() : 0)
-, _seekPositionMs(seekMs) {
-	init(media->owner()->location(), media->bytes());
+	const Core::FileLocation &location,
+	const QByteArray &data,
+	Callback &&callback)
+: _callback(std::move(callback)) {
+	init(location, data);
 }
 
-Reader::Reader(const QByteArray &data, Callback &&callback, Mode mode, crl::time seekMs)
-: _callback(std::move(callback))
-, _mode(mode)
-, _seekPositionMs(seekMs) {
-	init(FileLocation(QString()), data);
+Reader::Reader(const QString &filepath, Callback &&callback)
+: _callback(std::move(callback)) {
+	init(Core::FileLocation(filepath), QByteArray());
 }
 
-void Reader::init(const FileLocation &location, const QByteArray &data) {
-	if (threads.size() < ClipThreadsCount) {
+Reader::Reader(const QByteArray &data, Callback &&callback)
+: _callback(std::move(callback)) {
+	init(Core::FileLocation(QString()), data);
+}
+
+void Reader::init(const Core::FileLocation &location, const QByteArray &data) {
+	if (threads.size() < kClipThreadsCount) {
 		_threadIndex = threads.size();
 		threads.push_back(new QThread());
 		managers.push_back(new Manager(threads.back()));
 		threads.back()->start();
 	} else {
-		_threadIndex = int32(rand_value<uint32>() % threads.size());
+		_threadIndex = int32(openssl::RandomValue<uint32>() % threads.size());
 		int32 loadLevel = 0x7FFFFFFF;
 		for (int32 i = 0, l = threads.size(); i < l; ++i) {
 			int32 level = managers.at(i)->loadLevel();
@@ -216,7 +209,7 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 	if (_state == State::Error) return;
 
 	if (_step.loadAcquire() == WaitingForRequestStep) {
-		int factor = cIntRetinaFactor();
+		int factor = style::DevicePixelRatio();
 		FrameRequest request;
 		request.factor = factor;
 		request.framew = framew * factor;
@@ -252,7 +245,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 		frame->displayed.storeRelease(-1);
 	}
 
-	auto factor = cIntRetinaFactor();
+	auto factor = style::DevicePixelRatio();
 	if (frame->pix.width() == outerw * factor
 		&& frame->pix.height() == outerh * factor
 		&& frame->request.radius == radius
@@ -284,17 +277,6 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	return frame->pix;
 }
 
-QPixmap Reader::current() {
-	Expects(_mode == Mode::Video);
-
-	auto frame = frameToShow();
-	Assert(frame != nullptr);
-
-	frame->displayed.storeRelease(1);
-	moveToNextShow();
-	return frame->pix;
-}
-
 bool Reader::ready() const {
 	if (_width && _height) return true;
 
@@ -307,15 +289,11 @@ bool Reader::ready() const {
 	return false;
 }
 
-bool Reader::hasAudio() const {
-	return ready() ? _hasAudio : false;
-}
-
 crl::time Reader::getPositionMs() const {
 	if (auto frame = frameToShow()) {
 		return frame->positionMs;
 	}
-	return _seekPositionMs;
+	return 0;
 }
 
 crl::time Reader::getDurationMs() const {
@@ -370,13 +348,11 @@ Reader::~Reader() {
 
 class ReaderPrivate {
 public:
-	ReaderPrivate(Reader *reader, const FileLocation &location, const QByteArray &data) : _interface(reader)
-	, _mode(reader->mode())
-	, _audioMsgId(reader->audioMsgId())
-	, _seekPositionMs(reader->seekPositionMs())
+	ReaderPrivate(Reader *reader, const Core::FileLocation &location, const QByteArray &data)
+	: _interface(reader)
 	, _data(data) {
 		if (_data.isEmpty()) {
-			_location = std::make_unique<FileLocation>(location);
+			_location = std::make_unique<Core::FileLocation>(location);
 			if (!_location->accessEnable()) {
 				error();
 				return;
@@ -396,8 +372,8 @@ public:
 				// get the frame size and return a black frame with that size.
 
 				auto firstFramePositionMs = crl::time(0);
-				auto reader = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, AudioMsgId());
-				if (reader->start(internal::ReaderImplementation::Mode::Normal, firstFramePositionMs)) {
+				auto reader = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data);
+				if (reader->start(internal::ReaderImplementation::Mode::Silent, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
 					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
 						if (reader->renderFrame(frame()->original, frame()->alpha, QSize())) {
@@ -408,7 +384,6 @@ public:
 							_width = frame()->original.width();
 							_height = frame()->original.height();
 							_durationMs = _implementation->durationMs();
-							_hasAudio = _implementation->hasAudio();
 							return ProcessResult::Started;
 						}
 					}
@@ -426,7 +401,6 @@ public:
 			_width = frame()->original.width();
 			_height = frame()->original.height();
 			_durationMs = _implementation->durationMs();
-			_hasAudio = _implementation->hasAudio();
 			return ProcessResult::Started;
 		}
 		return ProcessResult::Wait;
@@ -444,9 +418,6 @@ public:
 		}
 		if (!_started) {
 			_started = true;
-			if (!_videoPausedAtMs && _hasAudio) {
-				Player::mixer()->resume(_audioMsgId, true);
-			}
 		}
 
 		if (!_autoPausedGif && !_videoPausedAtMs && ms >= _nextFrameWhen) {
@@ -459,7 +430,7 @@ public:
 		auto frameMs = _seekPositionMs + ms - _animationStarted;
 		auto readResult = _implementation->readFramesTill(frameMs, ms);
 		if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile) {
-			stop(Player::State::StoppedAtEnd);
+			stop();
 			_state = State::Finished;
 			return ProcessResult::Finished;
 		} else if (readResult == internal::ReaderImplementation::ReadResult::Error) {
@@ -494,7 +465,7 @@ public:
 	}
 
 	bool init() {
-		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= Storage::kMaxAnimationInMemory) {
+		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= internal::kMaxInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
 				_data = f.readAll();
@@ -504,16 +475,9 @@ public:
 			}
 		}
 
-		_implementation = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _audioMsgId);
+		_implementation = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data);
 
-		auto implementationMode = [this]() {
-			using ImplementationMode = internal::ReaderImplementation::Mode;
-			if (_mode == Reader::Mode::Gif) {
-				return ImplementationMode::Silent;
-			}
-			return ImplementationMode::Normal;
-		};
-		return _implementation->start(implementationMode(), _seekPositionMs);
+		return _implementation->start(internal::ReaderImplementation::Mode::Silent, _seekPositionMs);
 	}
 
 	void startedAt(crl::time ms) {
@@ -524,9 +488,6 @@ public:
 		if (_videoPausedAtMs) return; // Paused already.
 
 		_videoPausedAtMs = ms;
-		if (_hasAudio) {
-			Player::mixer()->pause(_audioMsgId, true);
-		}
 	}
 
 	void resumeVideo(crl::time ms) {
@@ -537,23 +498,16 @@ public:
 		_nextFrameWhen += delta;
 
 		_videoPausedAtMs = 0;
-		if (_hasAudio) {
-			Player::mixer()->resume(_audioMsgId, true);
-		}
 	}
 
 	ProcessResult error() {
-		stop(Player::State::StoppedAtError);
+		stop();
 		_state = State::Error;
 		return ProcessResult::Error;
 	}
 
-	void stop(Player::State audioState) {
+	void stop() {
 		_implementation = nullptr;
-		if (_hasAudio) {
-			Player::mixer()->stop(_audioMsgId, audioState);
-		}
-
 		if (_location) {
 			if (_accessed) {
 				_location->accessDisable();
@@ -564,19 +518,17 @@ public:
 	}
 
 	~ReaderPrivate() {
-		stop(Player::State::Stopped);
+		stop();
 		_data.clear();
 	}
 
 private:
 	Reader *_interface;
 	State _state = State::Reading;
-	Reader::Mode _mode;
-	AudioMsgId _audioMsgId;
 	crl::time _seekPositionMs = 0;
 
 	QByteArray _data;
-	std::unique_ptr<FileLocation> _location;
+	std::unique_ptr<Core::FileLocation> _location;
 	bool _accessed = false;
 
 	QBuffer _buffer;
@@ -601,7 +553,6 @@ private:
 	int _width = 0;
 	int _height = 0;
 
-	bool _hasAudio = false;
 	crl::time _durationMs = 0;
 	crl::time _animationStarted = 0;
 	crl::time _nextFrameWhen = 0;
@@ -617,24 +568,17 @@ private:
 
 Manager::Manager(QThread *thread) {
 	moveToThread(thread);
-	connect(thread, SIGNAL(started()), this, SLOT(process()));
-	connect(thread, SIGNAL(finished()), this, SLOT(finish()));
-	connect(this, SIGNAL(processDelayed()), this, SLOT(process()), Qt::QueuedConnection);
+	connect(thread, &QThread::started, this, [=] { process(); });
+	connect(thread, &QThread::finished, this, [=] { finish(); });
 
 	_timer.setSingleShot(true);
 	_timer.moveToThread(thread);
-	connect(&_timer, SIGNAL(timeout()), this, SLOT(process()));
-
-	connect(
-		this,
-		&Manager::callback,
-		QCoreApplication::instance(),
-		&Reader::callback);
+	connect(&_timer, &QTimer::timeout, this, [=] { process(); });
 }
 
-void Manager::append(Reader *reader, const FileLocation &location, const QByteArray &data) {
+void Manager::append(Reader *reader, const Core::FileLocation &location, const QByteArray &data) {
 	reader->_private = new ReaderPrivate(reader, location, data);
-	_loadLevel.fetchAndAddRelaxed(AverageGifSize);
+	_loadLevel.fetchAndAddRelaxed(kAverageGifSize);
 	update(reader);
 }
 
@@ -650,7 +594,7 @@ void Manager::update(Reader *reader) {
 	} else {
 		i->storeRelease(1);
 	}
-	emit processDelayed();
+	InvokeQueued(this, [=] { process(); });
 }
 
 void Manager::stop(Reader *reader) {
@@ -658,7 +602,7 @@ void Manager::stop(Reader *reader) {
 
 	QMutexLocker lock(&_readerPointersMutex);
 	_readerPointers.remove(reader);
-	emit processDelayed();
+	InvokeQueued(this, [=] { process(); });
 }
 
 bool Manager::carries(Reader *reader) const {
@@ -680,20 +624,26 @@ Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(Re
 	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.cend();
 }
 
+void Manager::callback(Reader *reader, Notification notification) {
+	crl::on_main([=, threadIndex = reader->threadIndex()] {
+		Reader::callback(reader, threadIndex, notification);
+	});
+}
+
 bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, crl::time ms) {
 	QMutexLocker lock(&_readerPointersMutex);
 	auto it = unsafeFindReaderPointer(reader);
 	if (result == ProcessResult::Error) {
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
-			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+			callback(it.key(), NotificationReinit);
 			_readerPointers.erase(it);
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {
 		if (it != _readerPointers.cend()) {
 			it.key()->finished();
-			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+			callback(it.key(), NotificationReinit);
 		}
 		return false;
 	}
@@ -702,17 +652,16 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 	}
 
 	if (result == ProcessResult::Started) {
-		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - AverageGifSize);
+		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - kAverageGifSize);
 		it.key()->_durationMs = reader->_durationMs;
-		it.key()->_hasAudio = reader->_hasAudio;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
-	if (!reader->_autoPausedGif && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
+	if (!reader->_autoPausedGif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
 		auto showing = it.key()->frameToShow(&ishowing), previous = it.key()->frameToWriteNext(false, &iprevious);
 		Assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
 		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
-			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
+			if (reader->_frames[ishowing].when + kWaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
 				reader->_autoPausedGif = true;
 				it.key()->_autoPausedGif.storeRelease(1);
 				result = ProcessResult::Paused;
@@ -730,21 +679,21 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 		if (result == ProcessResult::Started) {
 			reader->startedAt(ms);
 			it.key()->moveToNextWrite();
-			emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+			callback(it.key(), NotificationReinit);
 		}
 	} else if (result == ProcessResult::Paused) {
 		it.key()->moveToNextWrite();
-		emit callback(it.key(), it.key()->threadIndex(), NotificationReinit);
+		callback(it.key(), NotificationReinit);
 	} else if (result == ProcessResult::Repaint) {
 		it.key()->moveToNextWrite();
-		emit callback(it.key(), it.key()->threadIndex(), NotificationRepaint);
+		callback(it.key(), NotificationRepaint);
 	}
 	return true;
 }
 
 Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessResult result, crl::time ms) {
 	if (!handleProcessResult(reader, result, ms)) {
-		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : AverageGifSize));
+		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : kAverageGifSize));
 		delete reader;
 		return ResultHandleRemove;
 	}
@@ -836,7 +785,7 @@ void Manager::process() {
 			QMutexLocker lock(&_readerPointersMutex);
 			auto it = constUnsafeFindReaderPointer(reader);
 			if (it == _readerPointers.cend()) {
-				_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : AverageGifSize));
+				_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : kAverageGifSize));
 				delete reader;
 				i = _readers.erase(i);
 				continue;
@@ -883,13 +832,13 @@ Manager::~Manager() {
 	clear();
 }
 
-FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileMediaInformation::Video();
-	auto localLocation = FileLocation(fname);
+Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = Ui::PreparedFileInformation::Video();
+	auto localLocation = Core::FileLocation(fname);
 	auto localData = QByteArray(data);
 
 	auto seekPositionMs = crl::time(0);
-	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData, AudioMsgId());
+	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData);
 	if (reader->start(internal::ReaderImplementation::Mode::Inspecting, seekPositionMs)) {
 		auto durationMs = reader->durationMs();
 		if (durationMs > 0) {
@@ -939,7 +888,7 @@ void Finish() {
 	}
 }
 
-Reader *const ReaderPointer::BadPointer = SharedMemoryLocation<Reader, 0>();
+Reader *const ReaderPointer::BadPointer = reinterpret_cast<Reader*>(1);
 
 ReaderPointer::~ReaderPointer() {
 	if (valid()) {

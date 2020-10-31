@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_block_peer_list.h"
 
 #include "ui/effects/ripple_animation.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "data/data_peer.h"
 #include "data/data_cloud_file.h"
 #include "main/main_session.h"

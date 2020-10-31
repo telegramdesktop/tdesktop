@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 
 #include "media/audio/media_audio_ffmpeg_loader.h"
+#include "ffmpeg/ffmpeg_utility.h"
 #include "base/timer.h"
 
 #include <al.h>
@@ -247,9 +248,9 @@ void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 
 	// Create encoding context
 
-	d->ioBuffer = (uchar*)av_malloc(AVBlockSize);
+	d->ioBuffer = (uchar*)av_malloc(FFmpeg::kAVBlockSize);
 
-	d->ioContext = avio_alloc_context(d->ioBuffer, AVBlockSize, 1, static_cast<void*>(d.get()), &Private::_read_data, &Private::_write_data, &Private::_seek_data);
+	d->ioContext = avio_alloc_context(d->ioBuffer, FFmpeg::kAVBlockSize, 1, static_cast<void*>(d.get()), &Private::_read_data, &Private::_write_data, &Private::_seek_data);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 	AVOutputFormat *fmt = 0;

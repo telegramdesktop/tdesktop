@@ -15,14 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "core/core_settings.h"
 #include "core/application.h"
 #include "mainwidget.h"
 #include "layout.h"
 #include "lang/lang_keys.h"
 #include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {

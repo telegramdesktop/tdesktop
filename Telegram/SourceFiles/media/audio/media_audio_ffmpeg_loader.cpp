@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/audio/media_audio_ffmpeg_loader.h"
 
+#include "core/file_location.h"
+#include "ffmpeg/ffmpeg_utility.h"
 #include "base/bytes.h"
 
 namespace Media {
@@ -34,13 +36,13 @@ bool AbstractFFMpegLoader::open(crl::time positionMs) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	ioBuffer = (uchar *)av_malloc(AVBlockSize);
+	ioBuffer = (uchar *)av_malloc(FFmpeg::kAVBlockSize);
 	if (!_data.isEmpty()) {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_data, 0, &AbstractFFMpegLoader::_seek_data);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_data, 0, &AbstractFFMpegLoader::_seek_data);
 	} else if (!_bytes.empty()) {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_bytes, 0, &AbstractFFMpegLoader::_seek_bytes);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_bytes, 0, &AbstractFFMpegLoader::_seek_bytes);
 	} else {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_file, 0, &AbstractFFMpegLoader::_seek_file);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_file, 0, &AbstractFFMpegLoader::_seek_file);
 	}
 	fmtContext = avformat_alloc_context();
 	if (!fmtContext) {
@@ -187,7 +189,7 @@ int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whenc
 }
 
 AbstractAudioFFMpegLoader::AbstractAudioFFMpegLoader(
-	const FileLocation &file,
+	const Core::FileLocation &file,
 	const QByteArray &data,
 	bytes::vector &&buffer)
 : AbstractFFMpegLoader(file, data, std::move(buffer))
@@ -389,7 +391,7 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 		return true;
 	}
 	const auto allocate = std::max(samples, int(av_rescale_rnd(
-		AVBlockSize / _outputSampleSize,
+		FFmpeg::kAVBlockSize / _outputSampleSize,
 		_swrDstRate,
 		_swrSrcRate,
 		AV_ROUND_UP)));
@@ -501,7 +503,7 @@ AbstractAudioFFMpegLoader::~AbstractAudioFFMpegLoader() {
 }
 
 FFMpegLoader::FFMpegLoader(
-	const FileLocation & file,
+	const Core::FileLocation & file,
 	const QByteArray & data,
 	bytes::vector && buffer)
 : AbstractAudioFFMpegLoader(file, data, std::move(buffer)) {

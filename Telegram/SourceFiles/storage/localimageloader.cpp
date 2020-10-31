@@ -40,7 +40,7 @@ constexpr auto kThumbnailQuality = 87;
 constexpr auto kThumbnailSize = 320;
 constexpr auto kPhotoUploadPartSize = 32 * 1024;
 
-using Storage::ValidateThumbDimensions;
+using Ui::ValidateThumbDimensions;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;
@@ -489,7 +489,7 @@ FileLoadTask::FileLoadTask(
 	not_null<Main::Session*> session,
 	const QString &filepath,
 	const QByteArray &content,
-	std::unique_ptr<FileMediaInformation> information,
+	std::unique_ptr<Ui::PreparedFileInformation> information,
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
@@ -528,11 +528,14 @@ FileLoadTask::FileLoadTask(
 , _caption(caption) {
 }
 
-std::unique_ptr<FileMediaInformation> FileLoadTask::ReadMediaInformation(
-		const QString &filepath,
-		const QByteArray &content,
-		const QString &filemime) {
-	auto result = std::make_unique<FileMediaInformation>();
+FileLoadTask::~FileLoadTask() = default;
+
+auto FileLoadTask::ReadMediaInformation(
+	const QString &filepath,
+	const QByteArray &content,
+	const QString &filemime)
+-> std::unique_ptr<Ui::PreparedFileInformation> {
+	auto result = std::make_unique<Ui::PreparedFileInformation>();
 	result->filemime = filemime;
 
 	if (CheckForSong(filepath, content, result)) {
@@ -565,7 +568,7 @@ bool FileLoadTask::CheckMimeOrExtensions(
 bool FileLoadTask::CheckForSong(
 		const QString &filepath,
 		const QByteArray &content,
-		std::unique_ptr<FileMediaInformation> &result) {
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
 		qstr("audio/mp3"),
 		qstr("audio/m4a"),
@@ -606,7 +609,7 @@ bool FileLoadTask::CheckForSong(
 bool FileLoadTask::CheckForVideo(
 		const QString &filepath,
 		const QByteArray &content,
-		std::unique_ptr<FileMediaInformation> &result) {
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
 		qstr("video/mp4"),
 		qstr("video/quicktime"),
@@ -640,7 +643,7 @@ bool FileLoadTask::CheckForVideo(
 bool FileLoadTask::CheckForImage(
 		const QString &filepath,
 		const QByteArray &content,
-		std::unique_ptr<FileMediaInformation> &result) {
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	auto animated = false;
 	auto image = [&] {
 		if (filepath.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
@@ -665,20 +668,20 @@ bool FileLoadTask::CheckForImage(
 bool FileLoadTask::FillImageInformation(
 		QImage &&image,
 		bool animated,
-		std::unique_ptr<FileMediaInformation> &result) {
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	Expects(result != nullptr);
 
 	if (image.isNull()) {
 		return false;
 	}
-	auto media = FileMediaInformation::Image();
+	auto media = Ui::PreparedFileInformation::Image();
 	media.data = std::move(image);
 	media.animated = animated;
 	result->media = media;
 	return true;
 }
 
-void FileLoadTask::process() {
+void FileLoadTask::process(Args &&args) {
 	_result = std::make_shared<FileLoadResult>(
 		id(),
 		_id,
@@ -717,7 +720,7 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(Core::MimeTypeForFile(info).name());
 		}
 		filemime = _information->filemime;
-		if (auto image = std::get_if<FileMediaInformation::Image>(
+		if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 				&_information->media)) {
 			fullimage = base::take(image->data);
 			if (!Core::IsMimeSticker(filemime)) {
@@ -732,7 +735,7 @@ void FileLoadTask::process() {
 			filemime = "audio/ogg";
 		} else {
 			if (_information) {
-				if (auto image = std::get_if<FileMediaInformation::Image>(
+				if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 						&_information->media)) {
 					fullimage = base::take(image->data);
 				}
@@ -757,7 +760,7 @@ void FileLoadTask::process() {
 		}
 	} else {
 		if (_information) {
-			if (auto image = std::get_if<FileMediaInformation::Image>(
+			if (auto image = std::get_if<Ui::PreparedFileInformation::Image>(
 					&_information->media)) {
 				fullimage = base::take(image->data);
 			}
@@ -807,13 +810,13 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(filemime);
 			filemime = _information->filemime;
 		}
-		if (auto song = std::get_if<FileMediaInformation::Song>(
+		if (auto song = std::get_if<Ui::PreparedFileInformation::Song>(
 				&_information->media)) {
 			isSong = true;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
 			thumbnail = PrepareFileThumbnail(std::move(song->cover));
-		} else if (auto video = std::get_if<FileMediaInformation::Video>(
+		} else if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 				&_information->media)) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
@@ -827,12 +830,13 @@ void FileLoadTask::process() {
 			}
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
-			goodThumbnail = video->thumbnail;
-			{
-				QBuffer buffer(&goodThumbnailBytes);
-				goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+			if (args.generateGoodThumbnail) {
+				goodThumbnail = video->thumbnail;
+				{
+					QBuffer buffer(&goodThumbnailBytes);
+					goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+				}
 			}
-
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
 		} else if (filemime == qstr("application/x-tdesktop-theme")
 			|| filemime == qstr("application/x-tgtheme-tdesktop")) {
@@ -861,7 +865,7 @@ void FileLoadTask::process() {
 					MTP_string(),
 					MTP_inputStickerSetEmpty(),
 					MTPMaskCoords()));
-				if (isAnimation) {
+				if (isAnimation && args.generateGoodThumbnail) {
 					goodThumbnail = fullimage;
 					{
 						QBuffer buffer(&goodThumbnailBytes);
@@ -994,6 +998,11 @@ void FileLoadTask::finish() {
 
 FileLoadResult *FileLoadTask::peekResult() const {
 	return _result.get();
+}
+
+std::unique_ptr<Ui::PreparedFileInformation> FileLoadTask::readMediaInformation(
+		const QString &filemime) const {
+	return ReadMediaInformation(_filepath, _content, filemime);
 }
 
 void FileLoadTask::removeFromAlbum() {

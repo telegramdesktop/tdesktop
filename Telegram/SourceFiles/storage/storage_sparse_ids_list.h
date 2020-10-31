@@ -51,6 +51,8 @@ public:
 	void invalidateBottom();
 	rpl::producer<SparseIdsListResult> query(SparseIdsListQuery &&query) const;
 	rpl::producer<SparseIdsSliceUpdate> sliceUpdated() const;
+	SparseIdsListResult snapshot(const SparseIdsListQuery &query) const;
+	bool empty() const;
 
 private:
 	struct Slice {
@@ -69,7 +71,6 @@ private:
 	};
 
 	struct AddResult {
-		int inslice = 0;
 		int added = 0;
 	};
 	template <typename Range>

@@ -9,17 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "chat_helpers/stickers_dice_pack.h"
-#include "api/api_sending.h"
-#include "api/api_common.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_utilities.h"
-#include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
@@ -32,57 +27,12 @@ namespace {
 	return session.diceStickersPacks().lookup(emoji, value);
 }
 
-[[nodiscard]] ClickHandlerPtr MakeDiceHandler(
-		not_null<History*> history,
-		const QString &emoji) {
-	static auto ShownToast = base::weak_ptr<Ui::Toast::Instance>();
-	static const auto HideExisting = [] {
-		if (const auto toast = ShownToast.get()) {
-			toast->hideAnimated();
-			ShownToast = nullptr;
-		}
-	};
-	return std::make_shared<LambdaClickHandler>([=] {
-		auto config = Ui::Toast::Config{
-			.text = { tr::lng_about_random(tr::now, lt_emoji, emoji) },
-			.st = &st::historyDiceToast,
-			.durationMs = Ui::Toast::kDefaultDuration * 2,
-			.multiline = true,
-		};
-		if (history->peer->canWrite()) {
-			auto link = Ui::Text::Link(
-				tr::lng_about_random_send(tr::now).toUpper());
-			link.entities.push_back(
-				EntityInText(EntityType::Semibold, 0, link.text.size()));
-			config.text.append(' ').append(std::move(link));
-			config.filter = crl::guard(&history->session(), [=](
-					const ClickHandlerPtr &handler,
-					Qt::MouseButton button) {
-				if (button == Qt::LeftButton && !ShownToast.empty()) {
-					auto message = Api::MessageToSend(history);
-					message.action.clearDraft = false;
-					message.textWithTags.text = emoji;
-
-					Api::SendDice(message);
-					HideExisting();
-				}
-				return false;
-			});
-		}
-
-		HideExisting();
-		ShownToast = Ui::Toast::Show(config);
-	});
-}
-
 } // namespace
 
 Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 : _parent(parent)
 , _dice(dice)
-, _link(_parent->data()->Has<HistoryMessageForwarded>()
-		? nullptr
-		: MakeDiceHandler(_parent->history(), dice->emoji())) {
+, _link(dice->makeHandler()) {
 	if (const auto document = Lookup(parent, dice->emoji(), 0)) {
 		_start.emplace(parent, document);
 		_start->setDiceIndex(_dice->emoji(), 0);

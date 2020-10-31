@@ -69,7 +69,8 @@ public:
 	}
 
 	bool fullFeaturedGrouped(RectParts sides) const;
-	QSize sizeForGrouping() const override;
+	QSize sizeForGroupingOptimal(int maxWidth) const override;
+	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(
 		Painter &p,
 		const QRect &clip,

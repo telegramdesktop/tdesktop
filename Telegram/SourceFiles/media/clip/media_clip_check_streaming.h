@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Core {
+class FileLocation;
+} // namespace Core
+
 namespace Media {
 namespace Clip {
 
 bool CheckStreamingSupport(
-	const FileLocation &location,
+	const Core::FileLocation &location,
 	QByteArray data);
 
 } // namespace Clip

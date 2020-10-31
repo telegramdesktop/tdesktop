@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 
@@ -262,9 +262,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->setBotInfoVersion(-1);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		user->setPinnedMessageId(pinned->v);
-	} else {
-		user->clearPinnedMessage();
+		SetTopPinnedMessageId(user, pinned->v);
 	}
 	user->setFullFlags(update.vflags().v);
 	user->setIsBlocked(update.is_blocked());

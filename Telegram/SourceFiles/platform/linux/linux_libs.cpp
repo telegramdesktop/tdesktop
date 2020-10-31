@@ -115,7 +115,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		if(Platform::IsWayland()) {
+		if(IsWayland()) {
 			DEBUG_LOG(("Limit allowed GDK backends to wayland,x11"));
 			gdk_set_allowed_backends("wayland,x11");
 		} else {
@@ -176,7 +176,7 @@ void SetIconTheme() {
 			DEBUG_LOG(("New icon theme: %1").arg(QIcon::themeName()));
 			DEBUG_LOG(("New fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
-			Platform::SetApplicationIcon(Window::CreateIcon());
+			SetApplicationIcon(Window::CreateIcon());
 			if (App::wnd()) {
 				App::wnd()->setWindowIcon(Window::CreateIcon());
 			}
@@ -188,13 +188,13 @@ void SetIconTheme() {
 
 void DarkModeChanged() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+		Core::App().settings().setSystemDarkMode(IsDarkMode());
 	});
 }
 
 void DecorationLayoutChanged() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
+		Core::App().settings().setWindowControlsLayout(WindowControlsLayout());
 	});
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

@@ -19,10 +19,10 @@ MimeType::MimeType(Known type) : _type(type) {
 
 QStringList MimeType::globPatterns() const {
 	switch (_type) {
-	case Known::WebP: return QStringList(qsl("*.webp"));
-	case Known::Tgs: return QStringList(qsl("*.tgs"));
-	case Known::TDesktopTheme: return QStringList(qsl("*.tdesktop-theme"));
-	case Known::TDesktopPalette: return QStringList(qsl("*.tdesktop-palette"));
+	case Known::WebP: return QStringList(u"*.webp"_q);
+	case Known::Tgs: return QStringList(u"*.tgs"_q);
+	case Known::TDesktopTheme: return QStringList(u"*.tdesktop-theme"_q);
+	case Known::TDesktopPalette: return QStringList(u"*.tdesktop-palette"_q);
 	default: break;
 	}
 	return _typeStruct.globPatterns();
@@ -30,10 +30,10 @@ QStringList MimeType::globPatterns() const {
 
 QString MimeType::filterString() const {
 	switch (_type) {
-	case Known::WebP: return qsl("WebP image (*.webp)");
-	case Known::Tgs: return qsl("Telegram sticker (*.tgs)");
-	case Known::TDesktopTheme: return qsl("Theme files (*.tdesktop-theme)");
-	case Known::TDesktopPalette: return qsl("Palette files (*.tdesktop-palette)");
+	case Known::WebP: return u"WebP image (*.webp)"_q;
+	case Known::Tgs: return u"Telegram sticker (*.tgs)"_q;
+	case Known::TDesktopTheme: return u"Theme files (*.tdesktop-theme)"_q;
+	case Known::TDesktopPalette: return u"Palette files (*.tdesktop-palette)"_q;
 	default: break;
 	}
 	return _typeStruct.filterString();
@@ -41,10 +41,10 @@ QString MimeType::filterString() const {
 
 QString MimeType::name() const {
 	switch (_type) {
-	case Known::WebP: return qsl("image/webp");
-	case Known::Tgs: return qsl("application/x-tgsticker");
-	case Known::TDesktopTheme: return qsl("application/x-tdesktop-theme");
-	case Known::TDesktopPalette: return qsl("application/x-tdesktop-palette");
+	case Known::WebP: return u"image/webp"_q;
+	case Known::Tgs: return u"application/x-tgsticker"_q;
+	case Known::TDesktopTheme: return u"application/x-tdesktop-theme"_q;
+	case Known::TDesktopPalette: return u"application/x-tdesktop-palette"_q;
 	default: break;
 	}
 	return _typeStruct.name();
@@ -103,19 +103,38 @@ MimeType MimeTypeForData(const QByteArray &data) {
 }
 
 bool IsMimeStickerAnimated(const QString &mime) {
-	return mime == qsl("application/x-tgsticker");
+	return (mime == u"application/x-tgsticker"_q);
 }
 
 bool IsMimeSticker(const QString &mime) {
-	return mime == qsl("image/webp")
+	return (mime == u"image/webp"_q)
 		|| IsMimeStickerAnimated(mime);
 }
 
-bool IsMimeAcceptedForAlbum(const QString &mime) {
+bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 	return (mime == u"image/jpeg"_q)
 		|| (mime == u"image/png"_q)
 		|| (mime == u"video/mp4"_q)
 		|| (mime == u"video/quicktime"_q);
+}
+
+bool FileIsImage(const QString &name, const QString &mime) {
+	QString lowermime = mime.toLower(), namelower = name.toLower();
+	if (lowermime.startsWith(qstr("image/"))) {
+		return true;
+	} else if (namelower.endsWith(qstr(".bmp"))
+		|| namelower.endsWith(qstr(".jpg"))
+		|| namelower.endsWith(qstr(".jpeg"))
+		|| namelower.endsWith(qstr(".gif"))
+		|| namelower.endsWith(qstr(".webp"))
+		|| namelower.endsWith(qstr(".tga"))
+		|| namelower.endsWith(qstr(".tiff"))
+		|| namelower.endsWith(qstr(".tif"))
+		|| namelower.endsWith(qstr(".psd"))
+		|| namelower.endsWith(qstr(".png"))) {
+		return true;
+	}
+	return false;
 }
 
 } // namespace Core

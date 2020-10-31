@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/admin_log/history_admin_log_inner.h"
 
-#include "styles/style_history.h"
 #include "history/history.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
@@ -26,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "api/api_attached_stickers.h"
 #include "layout.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -1073,6 +1074,16 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 				copyContextImage(photo);
 			});
+			if (photo->hasAttachedStickers()) {
+				const auto controller = _controller;
+				auto callback = [=] {
+					auto &attached = session().api().attachedStickers();
+					attached.requestAttachedStickerSets(controller, photo);
+				};
+				_menu->addAction(
+					tr::lng_context_attached_stickers(tr::now),
+					std::move(callback));
+			}
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
@@ -1105,6 +1116,16 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
 				}));
+				if (document->hasAttachedStickers()) {
+					const auto controller = _controller;
+					auto callback = [=, doc = document] {
+						auto &attached = session().api().attachedStickers();
+						attached.requestAttachedStickerSets(controller, doc);
+					};
+					_menu->addAction(
+						tr::lng_context_attached_stickers(tr::now),
+						std::move(callback));
+				}
 			}
 		}
 	} else if (lnkPeer) { // suggest to block

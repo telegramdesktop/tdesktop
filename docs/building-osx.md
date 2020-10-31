@@ -1,6 +1,6 @@
 ## Build instructions for Xcode 10.1
 
-**NB** These are used for OS X 10.10/10.11 build, after the [Building using Xcode][xcode] instructions.
+**NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
 
 ### Prepare folder
 
@@ -66,6 +66,17 @@ Go to ***BuildPath*** and run
     CFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.10" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
+    cd ..
+
+    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    cd mozjpeg
+    cmake -B build . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DWITH_JPEG8=ON \
+    -DPNG_SUPPORTED=OFF
+    cmake --build build $MAKE_THREADS_CNT
+    sudo cmake --install build
     cd ..
 
     git clone https://github.com/openssl/openssl openssl_1_1_1
@@ -240,7 +251,7 @@ Go to ***BuildPath*** and run
     git apply ../../patches/qtbase_5_6_2.diff
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang -I "/usr/local/include" LIBJPEG_LIBS="/usr/local/lib/libjpeg.a" ZLIB_LIBS="/usr/local/lib/libz.a"
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -254,7 +265,7 @@ Go to ***BuildPath*** and run
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
     -DTG_OWT_SPECIAL_TARGET=osx \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt5_6_2/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
     -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
     -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
     -DTG_OWT_FFMPEG_INCLUDE_PATH=`pwd`/../../../ffmpeg ../..
@@ -265,7 +276,7 @@ Go to ***BuildPath*** and run
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DTG_OWT_SPECIAL_TARGET=osx \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt5_6_2/qtbase/src/3rdparty/libjpeg \
+    -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
     -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
     -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
     -DTG_OWT_FFMPEG_INCLUDE_PATH=`pwd`/../../../ffmpeg ../..

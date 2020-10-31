@@ -55,6 +55,8 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 			return MTP_inputMessagesFilterUrl();
 		case Type::ChatPhoto:
 			return MTP_inputMessagesFilterChatPhotos();
+		case Type::Pinned:
+			return MTP_inputMessagesFilterPinned();
 		}
 		return MTP_inputMessagesFilterEmpty();
 	}();
@@ -87,7 +89,7 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 		MTP_flags(0),
 		peer->input,
 		MTP_string(query),
-		MTP_inputUserEmpty(),
+		MTP_inputPeerEmpty(),
 		MTPint(), // top_msg_id
 		filter,
 		MTP_int(0),

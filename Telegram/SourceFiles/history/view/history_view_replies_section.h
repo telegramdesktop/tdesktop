@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
-enum class CompressConfirm;
 enum class SendMediaType;
 struct SendingAlbum;
 
@@ -27,7 +26,6 @@ struct SendOptions;
 } // namespace Api
 
 namespace Storage {
-struct PreparedList;
 } // namespace Storage
 
 namespace Ui {
@@ -35,8 +33,9 @@ class ScrollArea;
 class PlainShadow;
 class FlatButton;
 class HistoryDownButton;
-template <typename Widget>
-class SlideWrap;
+class PinnedBar;
+struct PreparedList;
+class SendFilesWay;
 } // namespace Ui
 
 namespace Profile {
@@ -151,14 +150,14 @@ private:
 		HistoryItem *originItem = nullptr);
 	bool showAtPositionNow(
 		Data::MessagePosition position,
-		HistoryItem *originItem);
+		HistoryItem *originItem,
+		anim::type animated = anim::type::normal);
 	void finishSending();
 
 	void setupComposeControls();
 
 	void setupRoot();
 	void setupRootView();
-	void refreshRootView();
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
@@ -170,7 +169,6 @@ private:
 	void updateScrollDownPosition();
 	void updatePinnedVisibility();
 
-	void confirmSendNowSelected();
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
 	void clearSelected();
@@ -200,24 +198,22 @@ private:
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
-		Storage::PreparedList &&list,
-		CompressConfirm compressed,
+		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		CompressConfirm compressed,
+		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
-	bool showSendingFilesError(const Storage::PreparedList &list) const;
-	void uploadFilesAfterConfirmation(
-		Storage::PreparedList &&list,
-		SendMediaType type,
+	bool showSendingFilesError(const Ui::PreparedList &list) const;
+	void sendingFilesConfirmed(
+		Ui::PreparedList &&list,
+		Ui::SendFilesWay way,
 		TextWithTags &&caption,
-		MsgId replyTo,
 		Api::SendOptions options,
-		std::shared_ptr<SendingAlbum> album);
+		bool ctrlShiftEnter);
 
 	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(
@@ -250,12 +246,10 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
 
-	Ui::Text::String _rootTitle;
-	Ui::Text::String _rootMessage;
-	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _rootView;
+	std::unique_ptr<Ui::PinnedBar> _rootView;
 	int _rootViewHeight = 0;
-	object_ptr<Ui::PlainShadow> _rootShadow;
 	bool _rootViewInited = false;
+	rpl::variable<bool> _rootVisible = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 

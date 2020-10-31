@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
-using "history/history.style";
+using "ui/chat/chat.style";
 using "boxes/boxes.style"; // UserpicButton
 
 windowMinWidth: 380px;

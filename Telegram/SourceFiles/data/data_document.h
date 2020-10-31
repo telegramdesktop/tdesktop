@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/binary_guard.h"
 #include "data/data_types.h"
 #include "data/data_cloud_file.h"
+#include "core/file_location.h"
 #include "ui/image/image.h"
 
 class mtpFileLoader;
@@ -78,8 +79,6 @@ struct VoiceData : public DocumentAdditionalData {
 	char wavemax = 0;
 };
 
-bool fileIsImage(const QString &name, const QString &mime);
-
 namespace Serialize {
 class Document;
 } // namespace Serialize;
@@ -116,8 +115,8 @@ public:
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
-	[[nodiscard]] const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
+	[[nodiscard]] const Core::FileLocation &location(bool check = false) const;
+	void setLocation(const Core::FileLocation &loc);
 
 	bool saveFromData();
 	bool saveFromDataSilent();
@@ -126,6 +125,7 @@ public:
 	[[nodiscard]] bool saveToCache() const;
 
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] bool replyPreviewLoaded() const;
 
 	[[nodiscard]] StickerData *sticker() const;
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;
@@ -221,14 +221,12 @@ public:
 	[[nodiscard]] bool hasMimeType(QLatin1String mime) const;
 	void setMimeString(const QString &mime);
 
+	[[nodiscard]] bool hasAttachedStickers() const;
+
 	[[nodiscard]] MediaKey mediaKey() const;
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] uint8 cacheTag() const;
 
-	[[nodiscard]] static QString ComposeNameString(
-		const QString &filename,
-		const QString &songTitle,
-		const QString &songPerformer);
 	[[nodiscard]] QString composeNameString() const;
 
 	[[nodiscard]] bool canBeStreamed() const;
@@ -259,6 +257,7 @@ private:
 		ImageType = 0x08,
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
+		HasAttachedStickers = 0x40,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
@@ -317,7 +316,7 @@ private:
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;
 
-	FileLocation _location;
+	Core::FileLocation _location;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;

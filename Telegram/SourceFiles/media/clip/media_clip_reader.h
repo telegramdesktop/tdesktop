@@ -7,16 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/localimageloader.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 
 #include <QtCore/QTimer>
+#include <QtCore/QMutex>
 
+namespace Core {
 class FileLocation;
-
-namespace Data {
-class DocumentMedia;
-} // namespace Data
+} // namespace Core
 
 namespace Media {
 namespace Clip {
@@ -60,23 +59,15 @@ public:
 		Video,
 	};
 
-	Reader(not_null<Data::DocumentMedia*> media, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
-	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
-	Reader(const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
+	Reader(const Core::FileLocation &location, const QByteArray &data, Callback &&callback);
+	Reader(const QString &filepath, Callback &&callback);
+	Reader(const QByteArray &data, Callback &&callback);
 
 	// Reader can be already deleted.
 	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
 
-	AudioMsgId audioMsgId() const {
-		return _audioMsgId;
-	}
-	crl::time seekPositionMs() const {
-		return _seekPositionMs;
-	}
-
 	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners);
 	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, crl::time ms);
-	QPixmap current();
 	QPixmap frameOriginal() const {
 		if (auto frame = frameToShow()) {
 			auto result = QPixmap::fromImage(frame->original);
@@ -107,7 +98,6 @@ public:
 	}
 	bool ready() const;
 
-	bool hasAudio() const;
 	crl::time getPositionMs() const;
 	crl::time getDurationMs() const;
 	void pauseResumeVideo();
@@ -116,24 +106,15 @@ public:
 	void error();
 	void finished();
 
-	Mode mode() const {
-		return _mode;
-	}
-
 	~Reader();
 
 private:
-	void init(const FileLocation &location, const QByteArray &data);
+	void init(const Core::FileLocation &location, const QByteArray &data);
 
 	Callback _callback;
-	Mode _mode;
-
 	State _state = State::Reading;
 
-	AudioMsgId _audioMsgId;
-	bool _hasAudio = false;
 	crl::time _durationMs = 0;
-	crl::time _seekPositionMs = 0;
 
 	mutable int _width = 0;
 	mutable int _height = 0;
@@ -240,32 +221,23 @@ enum class ProcessResult {
 };
 
 class Manager : public QObject {
-	Q_OBJECT
-
 public:
+	explicit Manager(QThread *thread);
+	~Manager();
 
-	Manager(QThread *thread);
-	int32 loadLevel() const {
+	int loadLevel() const {
 		return _loadLevel.load();
 	}
-	void append(Reader *reader, const FileLocation &location, const QByteArray &data);
+	void append(Reader *reader, const Core::FileLocation &location, const QByteArray &data);
 	void start(Reader *reader);
 	void update(Reader *reader);
 	void stop(Reader *reader);
 	bool carries(Reader *reader) const;
-	~Manager();
-
-signals:
-	void processDelayed();
-
-	void callback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification);
-
-public slots:
-	void process();
-	void finish();
 
 private:
-
+	void process();
+	void finish();
+	void callback(Reader *reader, Notification notification);
 	void clear();
 
 	QAtomicInt _loadLevel;
@@ -294,7 +266,9 @@ private:
 
 };
 
-FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data);
+[[nodiscard]] Ui::PreparedFileInformation::Video PrepareForSending(
+	const QString &fname,
+	const QByteArray &data);
 
 void Finish();
 

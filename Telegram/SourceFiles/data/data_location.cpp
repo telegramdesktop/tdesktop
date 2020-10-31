@@ -36,9 +36,11 @@ QString LocationPoint::lonAsString() const {
 
 MTPGeoPoint LocationPoint::toMTP() const {
 	return MTP_geoPoint(
+		MTP_flags(0),
 		MTP_double(_lon),
 		MTP_double(_lat),
-		MTP_long(_access));
+		MTP_long(_access),
+		MTP_int(0)); // accuracy_radius
 }
 
 float64 LocationPoint::lat() const {

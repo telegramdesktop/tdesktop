@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/send_context_menu.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 #include <QGuiApplication>
 

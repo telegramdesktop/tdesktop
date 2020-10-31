@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_context_menu.h"
 
+#include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
@@ -76,13 +77,17 @@ MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 	return session->data().scheduledMessages().lookupId(item);
 }
 
-bool HasEditMessageAction(const ContextMenuRequest &request) {
+bool HasEditMessageAction(
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
 	const auto item = request.item;
+	const auto context = list->elementContext();
 	if (!item
 		|| item->isSending()
 		|| item->hasFailed()
 		|| item->isEditingMedia()
-		|| !request.selectedItems.empty()) {
+		|| !request.selectedItems.empty()
+		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
 	const auto peer = item->history()->peer;
@@ -137,7 +142,8 @@ void ToggleFavedSticker(
 
 void AddPhotoActions(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<PhotoData*> photo) {
+		not_null<PhotoData*> photo,
+		not_null<ListWidget*> list) {
 	menu->addAction(
 		tr::lng_context_save_image(tr::now),
 		App::LambdaDelayed(
@@ -147,6 +153,16 @@ void AddPhotoActions(
 	menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 		CopyImage(photo);
 	});
+	if (photo->hasAttachedStickers()) {
+		const auto controller = list->controller();
+		auto callback = [=] {
+			auto &attached = photo->session().api().attachedStickers();
+			attached.requestAttachedStickerSets(controller, photo);
+		};
+		menu->addAction(
+			tr::lng_context_attached_stickers(tr::now),
+			std::move(callback));
+	}
 }
 
 void OpenGif(not_null<Main::Session*> session, FullMsgId itemId) {
@@ -238,6 +254,16 @@ void AddDocumentActions(
 				? tr::lng_context_show_in_finder(tr::now)
 				: tr::lng_context_show_in_folder(tr::now)),
 			[=] { ShowInFolder(document); });
+	}
+	if (document->hasAttachedStickers()) {
+		const auto controller = list->controller();
+		auto callback = [=] {
+			auto &attached = session->api().attachedStickers();
+			attached.requestAttachedStickerSets(controller, document);
+		};
+		menu->addAction(
+			tr::lng_context_attached_stickers(tr::now),
+			std::move(callback));
 	}
 	AddSaveDocumentAction(menu, contextId, document);
 }
@@ -419,8 +445,10 @@ bool AddSendNowMessageAction(
 
 bool AddRescheduleMessageAction(
 		not_null<Ui::PopupMenu*> menu,
-		const ContextMenuRequest &request) {
-	if (!HasEditMessageAction(request) || !request.item->isScheduled()) {
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!HasEditMessageAction(request, list)
+		|| !request.item->isScheduled()) {
 		return false;
 	}
 	const auto owner = &request.item->history()->owner();
@@ -474,10 +502,12 @@ bool AddReplyToMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
 	const auto item = request.item;
 	if (!item
 		|| !IsServerMsgId(item->id)
-		|| !item->history()->peer->canWrite()) {
+		|| !item->history()->peer->canWrite()
+		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
@@ -492,11 +522,42 @@ bool AddReplyToMessageAction(
 	return true;
 }
 
+bool AddViewRepliesAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto item = request.item;
+	if (!item
+		|| !IsServerMsgId(item->id)
+		|| (context != Context::History && context != Context::Pinned)) {
+		return false;
+	}
+	const auto repliesCount = item->repliesCount();
+	const auto withReplies = (repliesCount > 0);
+	if (!withReplies || !item->history()->peer->isMegagroup()) {
+		return false;
+	}
+	const auto rootId = repliesCount ? item->id : item->replyToTop();
+	const auto phrase = (repliesCount > 0)
+		? tr::lng_replies_view(
+			tr::now,
+			lt_count,
+			repliesCount)
+		: tr::lng_replies_view_thread(tr::now);
+	const auto controller = list->controller();
+	const auto history = item->history();
+	menu->addAction(phrase, crl::guard(controller, [=] {
+		controller->showRepliesForMessage(history, rootId);
+	}));
+	return true;
+}
+
 bool AddEditMessageAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	if (!HasEditMessageAction(request)) {
+	if (!HasEditMessageAction(request, list)) {
 		return false;
 	}
 	const auto item = request.item;
@@ -512,6 +573,56 @@ bool AddEditMessageAction(
 		}
 		list->editMessageRequestNotify(item->fullId());
 	});
+	return true;
+}
+
+bool AddPinMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto item = request.item;
+	if (!item
+		|| !IsServerMsgId(item->id)
+		|| (context != Context::History && context != Context::Pinned)) {
+		return false;
+	}
+	const auto group = item->history()->owner().groups().find(item);
+	const auto pinItem = ((item->canPin() && item->isPinned()) || !group)
+		? item
+		: group->items.front().get();
+	if (!pinItem->canPin()) {
+		return false;
+	}
+	const auto pinItemId = pinItem->fullId();
+	const auto isPinned = pinItem->isPinned();
+	const auto controller = list->controller();
+	menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
+		Window::ToggleMessagePinned(controller, pinItemId, !isPinned);
+	}));
+	return true;
+}
+
+bool AddGoToMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto context = list->elementContext();
+	const auto view = request.view;
+	if (!view
+		|| !IsServerMsgId(view->data()->id)
+		|| context != Context::Pinned
+		|| !view->hasOutLayout()) {
+		return false;
+	}
+	const auto itemId = view->data()->fullId();
+	const auto controller = list->controller();
+	menu->addAction(tr::lng_context_to_msg(tr::now), crl::guard(controller, [=] {
+		const auto item = controller->session().data().message(itemId);
+		if (item) {
+			goToMessageClickHandler(item)->onClick(ClickContext{});
+		}
+	}));
 	return true;
 }
 
@@ -698,7 +809,10 @@ void AddTopMessageActions(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
 	AddReplyToMessageAction(menu, request, list);
+	AddGoToMessageAction(menu, request, list);
+	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
+	AddPinMessageAction(menu, request, list);
 }
 
 void AddMessageActions(
@@ -711,7 +825,7 @@ void AddMessageActions(
 	AddDeleteAction(menu, request, list);
 	AddReportAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
-	AddRescheduleMessageAction(menu, request);
+	AddRescheduleMessageAction(menu, request, list);
 }
 
 void AddCopyLinkAction(
@@ -768,7 +882,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	AddTopMessageActions(result, request, list);
 	if (linkPhoto) {
-		AddPhotoActions(result, photo);
+		AddPhotoActions(result, photo, list);
 	} else if (linkDocument) {
 		AddDocumentActions(result, document, itemId, list);
 	//} else if (linkPeer) { // #feed

@@ -5,15 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 
-#include "history/history.h"
-#include "history/history_item.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
-#include "styles/style_history.h"
 #include "styles/style_window.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {
@@ -110,37 +105,13 @@ TextParseOptions WebpageDescriptionOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-bool UseBotTextOptions(
-		not_null<History*> history,
-		not_null<PeerData*> author) {
-	if (const auto user = history->peer->asUser()) {
-		if (user->isBot()) {
-			return true;
-		}
-	} else if (const auto chat = history->peer->asChat()) {
-		if (chat->botStatus >= 0) {
-			return true;
-		}
-	} else if (const auto group = history->peer->asMegagroup()) {
-		if (group->mgInfo->botStatus >= 0) {
-			return true;
-		}
-	}
-	if (const auto user = author->asUser()) {
-		if (user->isBot()) {
-			return true;
-		}
-	}
-	return false;
-}
-
 } // namespace
 
 void InitTextOptions() {
 	HistoryServiceOptions.dir
 		= TextNameOptions.dir
 		= TextDialogOptions.dir
-		= cLangDir();
+		= Qt::LeftToRight;
 	TextDialogOptions.maxw = st::columnMaximalWidthLeft * 2;
 	WebpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
 	WebpageTitleOptions.maxw
@@ -186,31 +157,6 @@ const TextParseOptions &NameTextOptions() {
 
 const TextParseOptions &DialogTextOptions() {
 	return TextDialogOptions;
-}
-
-const TextParseOptions &ItemTextOptions(
-		not_null<History*> history,
-		not_null<PeerData*> author) {
-	return UseBotTextOptions(history, author)
-		? HistoryBotOptions
-		: HistoryTextOptions;
-}
-
-const TextParseOptions &ItemTextOptions(not_null<const HistoryItem*> item) {
-	return ItemTextOptions(item->history(), item->author());
-}
-
-const TextParseOptions &ItemTextNoMonoOptions(
-		not_null<History*> history,
-		not_null<PeerData*> author) {
-	return UseBotTextOptions(history, author)
-		? HistoryBotNoMonoOptions
-		: HistoryTextNoMonoOptions;
-}
-
-const TextParseOptions &ItemTextNoMonoOptions(
-		not_null<const HistoryItem*> item) {
-	return ItemTextNoMonoOptions(item->history(), item->author());
 }
 
 } // namespace Ui

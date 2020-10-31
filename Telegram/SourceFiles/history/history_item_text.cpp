@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
 
 TextForMimeData WrapAsReply(
 		TextForMimeData &&text,
@@ -108,12 +108,38 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 	Expects(!group->items.empty());
 
+	const auto columnAlbum = [&] {
+		const auto item = group->items.front();
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				return !document->isVideoFile();
+			}
+		}
+		return false;
+	}();
+	const auto hasCaption = [](not_null<HistoryItem*> item) {
+		return !item->clipboardText().empty();
+	};
+	if (columnAlbum) {
+		const auto simple = !ranges::any_of(group->items, hasCaption);
+		if (!simple) {
+			auto result = TextForMimeData();
+			for (const auto &item : group->items) {
+				if (result.empty()) {
+					result = HistoryItemText(item);
+				} else {
+					result.append(qstr("\n\n")).append(HistoryItemText(item));
+				}
+			}
+			return result;
+		}
+	}
 	auto caption = [&] {
 		auto &&nonempty = ranges::view::all(
 			group->items
-		) | ranges::view::filter([](not_null<HistoryItem*> item) {
-			return !item->clipboardText().empty();
-		}) | ranges::view::take(2);
+		) | ranges::view::filter(
+			hasCaption
+		) | ranges::view::take(2);
 		auto first = nonempty.begin();
 		auto end = nonempty.end();
 		if (first == end) {

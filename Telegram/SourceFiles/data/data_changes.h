@@ -57,7 +57,7 @@ struct PeerUpdate {
 		Notifications     = (1 << 4),
 		Migration         = (1 << 5),
 		UnavailableReason = (1 << 6),
-		PinnedMessage     = (1 << 7),
+		PinnedMessages    = (1 << 7),
 		IsBlocked         = (1 << 8),
 
 		// For users

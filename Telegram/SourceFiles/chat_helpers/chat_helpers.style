@@ -278,3 +278,6 @@ manageEmojiPreviewPadding: margins(22px, 9px, 19px, 9px);
 manageEmojiMarginRight: 21px;
 manageEmojiNameTop: 3px;
 manageEmojiStatusTop: 25px;
+
+inlineRadialSize: 44px;
+inlineFileSize: 44px;

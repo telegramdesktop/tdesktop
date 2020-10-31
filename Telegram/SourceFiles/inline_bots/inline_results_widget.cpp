@@ -33,9 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
+#include "ui/cached_round_corners.h"
 #include "history/view/history_view_cursor_state.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -905,7 +905,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 void Widget::paintContent(Painter &p) {
 	auto inner = innerRect();
-	App::roundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::FullBottom);
+	Ui::FillRoundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::FullBottom);
 
 	auto horizontal = horizontalRect();
 	auto sidesTop = horizontal.y();

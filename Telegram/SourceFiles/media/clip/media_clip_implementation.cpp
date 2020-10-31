@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_implementation.h"
 
+#include "core/file_location.h"
+
 namespace Media {
 namespace Clip {
 namespace internal {

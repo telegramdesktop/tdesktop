@@ -15,12 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
-#include "ui/text_options.h"
+#include "ui/text/text_options.h"
+#include "ui/cached_round_corners.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
-#include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 
@@ -179,7 +179,7 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		}
 		painth -= painty;
 	} else {
-		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+		Ui::FillRoundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? Ui::InSelectedShadowCorners : Ui::InShadowCorners);
 	}
 
 	auto roundRadius = ImageRoundRadius::Large;
@@ -191,7 +191,7 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 		const auto &pix = thumbnail->pixSingle(paintw, painth, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
-		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexLocationRect(p, rthumb, roundRadius, roundCorners);
 	}
 	const auto paintMarker = [&](const style::icon &icon) {
 		icon.paint(
@@ -203,7 +203,7 @@ void Location::draw(Painter &p, const QRect &r, TextSelection selection, crl::ti
 	paintMarker(st::historyMapPoint);
 	paintMarker(st::historyMapPointInner);
 	if (selected) {
-		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	if (_parent->media() == this) {

@@ -12,7 +12,7 @@ jobs:
         run: |
           tag=$(git ls-remote --tags git://github.com/$GITHUB_REPOSITORY | cut -f 2 | tail -n1)
           echo $tag
-          echo ::set-env name=LATEST_TAG::$tag
+          echo "LATEST_TAG=$tag" >> $GITHUB_ENV
 
       - name: Get the latest macOS version.
         shell: python
@@ -28,7 +28,7 @@ jobs:
           ver = itemlist[0].attributes['sparkle:shortVersionString'].value;
           print(ver);
 
-          subprocess.check_call("echo ::set-env name=%s::%s" % ("LATEST_MACOS", ver), shell=True);
+          open(os.environ['GITHUB_ENV'], "a").write("LATEST_MACOS=" + ver);
 
       - name: Check a version from an issue.
         uses: actions/github-script@0.4.0

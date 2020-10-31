@@ -14,13 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
-#include "ui/text_options.h"
+#include "ui/item_text_options.h"
+#include "ui/cached_round_corners.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_game.h"
 #include "data/data_media_types.h"
-#include "app.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 
@@ -261,7 +261,7 @@ void Game::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 		auto gameX = pixwidth - st::msgDateImgDelta - gameW;
 		auto gameY = pixheight - st::msgDateImgDelta - gameH;
 
-		App::roundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+		Ui::FillRoundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);

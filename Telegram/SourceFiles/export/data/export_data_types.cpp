@@ -1094,6 +1094,18 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionContactSignUp &data) {
 		result.content = ActionContactSignUp();
+	}, [&](const MTPDmessageActionGeoProximityReached &data) {
+		auto content = ActionGeoProximityReached();
+		content.fromId = ParsePeerId(data.vfrom_id());
+		if (content.fromId == context.selfPeerId) {
+			content.fromSelf = true;
+		}
+		content.toId = ParsePeerId(data.vto_id());
+		if (content.toId == context.selfPeerId) {
+			content.toSelf = true;
+		}
+		content.distance = data.vdistance().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

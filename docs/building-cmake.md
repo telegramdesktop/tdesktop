@@ -58,6 +58,17 @@ Go to ***BuildPath*** and run
     git checkout ddd4084
     cd ../
 
+    git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
+    cd mozjpeg
+    cmake -B build . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DWITH_JPEG8=ON \
+    -DPNG_SUPPORTED=OFF
+    cmake --build build $MAKE_THREADS_CNT
+    sudo cmake --install build
+    cd ..
+
     git clone https://github.com/xiph/opus
     cd opus
     git checkout v1.3
@@ -221,7 +232,7 @@ Go to ***BuildPath*** and run
     --enable-static \
     --disable-documentation \
     --disable-dtd-validation
-    make -j$(nproc)
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -251,24 +262,26 @@ Go to ***BuildPath*** and run
 
     OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
-    -release \
-    -force-debug-info \
-    -opensource \
-    -confirm-license \
-    -qt-zlib \
-    -qt-libpng \
-    -qt-libjpeg \
-    -qt-harfbuzz \
-    -qt-pcre \
-    -qt-xcb \
-    -no-gtk \
-    -no-icu \
-    -static \
-    -dbus-runtime \
-    -openssl-linked \
-    -I "$OPENSSL_DIR/include" OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
-    -nomake examples \
-    -nomake tests
+        -release \
+        -force-debug-info \
+        -opensource \
+        -confirm-license \
+        -qt-zlib \
+        -qt-libpng \
+        -qt-harfbuzz \
+        -qt-pcre \
+        -qt-xcb \
+        -no-gtk \
+        -no-icu \
+        -static \
+        -dbus-runtime \
+        -openssl-linked \
+        -I "$OPENSSL_DIR/include" \
+        OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
+        -I "/usr/local/include" \
+        LIBJPEG_LIBS="/usr/local/lib/libjpeg.a" \
+        -nomake examples \
+        -nomake tests
 
     make $MAKE_THREADS_CNT
     sudo make install
@@ -281,23 +294,23 @@ Go to ***BuildPath*** and run
     mkdir Debug
     cd Debug
     cmake -G Ninja \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DTG_OWT_SPECIAL_TARGET=linux \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
-    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DTG_OWT_SPECIAL_TARGET=linux \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
     ninja
     cd ..
     mkdir Release
     cd Release
     cmake -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DTG_OWT_SPECIAL_TARGET=linux \
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
-    -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
+        -DCMAKE_BUILD_TYPE=Release \
+        -DTG_OWT_SPECIAL_TARGET=linux \
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=`pwd`/../../../qt_5_12_8/qtbase/src/3rdparty/libjpeg \
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=/usr/local/desktop-app/openssl-1.1.1/include \
+        -DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include ../..
     ninja
     cd ../../..
 

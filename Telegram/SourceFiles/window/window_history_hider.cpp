@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/cached_round_corners.h"
 #include "mainwidget.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_layers.h"
-#include "styles/style_history.h"
+#include "styles/style_chat.h"
 
 namespace Window {
 
@@ -57,7 +57,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 	p.setFont(st::historyForwardChooseFont);
 	auto w = st::historyForwardChooseMargins.left() + _chooseWidth + st::historyForwardChooseMargins.right();
 	auto h = st::historyForwardChooseMargins.top() + st::historyForwardChooseFont->height + st::historyForwardChooseMargins.bottom();
-	App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::historyForwardChooseBg, ForwardCorners);
+	Ui::FillRoundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::historyForwardChooseBg, Ui::ForwardCorners);
 
 	p.setPen(st::historyForwardChooseFg);
 	p.drawText(_box, _text, QTextOption(style::al_center));

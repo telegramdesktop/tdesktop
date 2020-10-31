@@ -24,6 +24,7 @@ public:
 	~ReplyPreview();
 
 	[[nodiscard]] Image *image(Data::FileOrigin origin);
+	[[nodiscard]] bool loaded() const;
 
 private:
 	void prepare(not_null<Image*> image, Images::Options options);

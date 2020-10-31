@@ -185,25 +185,11 @@ files.append({
   'label': 'macOS 10.12+: Installer',
 })
 files.append({
-  'local': 'tsetup-osx.' + version_full + '.dmg',
-  'remote': 'tsetup-osx.' + version_full + '.dmg',
-  'backup_folder': 'tosx',
-  'mime': 'application/octet-stream',
-  'label': 'OS X 10.10 and 10.11: Installer',
-})
-files.append({
   'local': 'tsetup.' + version_full + '.tar.xz',
   'remote': 'tsetup.' + version_full + '.tar.xz',
   'backup_folder': 'tlinux',
   'mime': 'application/octet-stream',
   'label': 'Linux 64 bit: Binary',
-})
-files.append({
-  'local': 'tsetup32.' + version_full + '.tar.xz',
-  'remote': 'tsetup32.' + version_full + '.tar.xz',
-  'backup_folder': 'tlinux32',
-  'mime': 'application/octet-stream',
-  'label': 'Linux 32 bit: Binary',
 })
 files.append({
   'local': 'sources',

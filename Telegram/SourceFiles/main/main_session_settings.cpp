@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "window/section_widget.h"
 #include "support/support_common.h"
 #include "storage/serialize_common.h"
@@ -96,7 +97,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	float64 appDialogsWidthRatio = app.dialogsWidthRatio();
 	int appThirdColumnWidth = app.thirdColumnWidth();
 	int appThirdSectionExtendedBy = app.thirdSectionExtendedBy();
-	qint32 appSendFilesWay = static_cast<qint32>(app.sendFilesWay());
+	qint32 appSendFilesWay = app.sendFilesWay().serialize();
 	qint32 legacyCallsPeerToPeer = qint32(0);
 	qint32 appSendSubmitWay = static_cast<qint32>(app.sendSubmitWay());
 	qint32 supportSwitch = static_cast<qint32>(_supportSwitch);
@@ -367,11 +368,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		for (const auto &[key, value] : appSoundOverrides) {
 			app.setSoundOverride(key, value);
 		}
-		auto uncheckedSendFilesWay = static_cast<SendFilesWay>(appSendFilesWay);
-		switch (uncheckedSendFilesWay) {
-		case SendFilesWay::Album:
-		case SendFilesWay::Photos:
-		case SendFilesWay::Files: app.setSendFilesWay(uncheckedSendFilesWay); break;
+		if (const auto sendFilesWay = Ui::SendFilesWay::FromSerialized(appSendFilesWay)) {
+			app.setSendFilesWay(*sendFilesWay);
 		}
 		auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
 			appSendSubmitWay);

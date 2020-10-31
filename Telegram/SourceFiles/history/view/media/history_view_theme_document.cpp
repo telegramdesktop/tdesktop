@@ -17,10 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "base/qthelp_url.h"
 #include "ui/text/format_values.h"
+#include "ui/cached_round_corners.h"
 #include "window/themes/window_theme.h"
 #include "layout.h" // FullSelection
-#include "app.h"
-#include "styles/style_history.h"
+#include "app.h" // App::pixmapFromImageInPlace.
+#include "styles/style_chat.h"
 
 namespace HistoryView {
 
@@ -139,14 +140,14 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
 	if (selected) {
-		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
 	auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 	auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 	auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-	App::roundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+	Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? Ui::DateSelectedCorners : Ui::DateCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
@@ -155,7 +156,8 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 		const auto radialOpacity = (radial && loaded && !_data->uploading())
 			? _animation->radial.opacity() :
 			1.;
-		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+		const auto innerSize = st::msgFileLayout.thumbSize;
+		QRect inner(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
