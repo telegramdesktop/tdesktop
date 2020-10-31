@@ -3620,11 +3620,17 @@ void HistoryInner::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::FastForward, 1) && request->handle([=] {
-			_widget->forwardSelected();
+			auto selectedState = getSelectionState();
+			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
+				_widget->forwardSelected();
+			}
 			return true;
 		});
 		request->check(Command::FastCopy, 1) && request->handle([=] {
-			_widget->forwardNoQuoteSelected();
+			auto selectedState = getSelectionState();
+			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
+				_widget->forwardNoQuoteSelected();
+			}
 			return true;
 		});
 	}, lifetime());
