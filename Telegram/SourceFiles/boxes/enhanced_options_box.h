@@ -3,7 +3,7 @@
 This file is part of Telegram Desktop x64,
 the unofficial app based on Telegram Desktop.
 For license and copyright information please follow this link:
-https://github.com/kotatogram/kotatogram-desktop/blob/dev/LEGAL
+https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 */
 #pragma once
 
