@@ -174,6 +174,7 @@ bool gEnhancedFirstRun = true;
 bool gShowMessagesID = false;
 bool gShowEmojiButtonAsText = false;
 bool gShowRepeaterOption = false;
+bool gShowPhoneNumber = true;
 
 int gNetSpeedBoost = 0;
 int gNetRequestsCount = 2;

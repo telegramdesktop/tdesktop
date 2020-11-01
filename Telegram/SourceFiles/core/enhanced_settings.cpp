@@ -221,6 +221,10 @@ namespace EnhancedSettings {
             }
         });
 
+		ReadBoolOption(settings, "show_phone_number", [&](auto v) {
+			cSetShowPhoneNumber(v);
+		});
+
         return true;
     }
 
@@ -242,6 +246,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_repeater_option"), false);
         settings.insert(qsl("show_emoji_button_as_text"), false);
         settings.insert(qsl("always_delete_for"), 0);
+		settings.insert(qsl("show_phone_number"), true);
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -269,6 +274,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_repeater_option"), cShowRepeaterOption());
         settings.insert(qsl("show_emoji_button_as_text"), cShowEmojiButtonAsText());
         settings.insert(qsl("always_delete_for"), cAlwaysDeleteFor());
+		settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
 
         auto document = QJsonDocument();
         document.setObject(settings);

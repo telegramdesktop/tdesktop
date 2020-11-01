@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
+#include <core/enhanced_settings.h>
 
 namespace {
 
@@ -928,6 +929,20 @@ void MainMenu::refreshMenu() {
 	*_nightThemeAction = action;
 	action->setCheckable(true);
 	action->setChecked(Window::Theme::IsNightMode());
+
+	_showPhoneAction = std::make_shared<QPointer<QAction>>();
+	auto action2 = _menu->addAction(tr::lng_settings_show_phone_number(tr::now), [=] {
+		if (auto action2 = *_showPhoneAction) {
+			cSetShowPhoneNumber(!action2->isChecked());
+			action2->setChecked(!action2->isChecked());
+			EnhancedSettings::Write();
+			updatePhone();
+		}
+	}, &st::mainMenuCalls, &st::mainMenuCallsOver);
+	*_showPhoneAction = action2;
+	action2->setCheckable(true);
+	action2->setChecked(cShowPhoneNumber());
+
 	Core::App().settings().systemDarkModeValue(
 	) | rpl::start_with_next([=](std::optional<bool> darkMode) {
 		const auto darkModeEnabled = Core::App().settings().systemDarkModeEnabled();
@@ -1042,7 +1057,11 @@ void MainMenu::updateInnerControlsGeometry() {
 }
 
 void MainMenu::updatePhone() {
-	_phoneText = App::formatPhone(_controller->session().user()->phone());
+	if (cShowPhoneNumber()) {
+		_phoneText = App::formatPhone(_controller->session().user()->phone());
+	} else {
+		_phoneText = "";
+	}
 	update();
 }
 

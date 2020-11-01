@@ -89,6 +89,7 @@ private:
 	not_null<Ui::FlatLabel*> _telegram;
 	not_null<Ui::FlatLabel*> _version;
 	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
+	std::shared_ptr<QPointer<QAction>> _showPhoneAction;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
