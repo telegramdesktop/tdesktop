@@ -581,9 +581,9 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//	}
 	//}
 	if (_source != PeerMenuSource::ChatsList) {
-		if (channel->isBroadcast()) {
+		if (channel->isBroadcast() || channel->isMegagroup()) {
 			if (const auto chat = channel->linkedChat()) {
-				_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
+				_addAction(channel->isMegagroup() ? tr::lng_profile_view_channel(tr::now) : tr::lng_profile_view_discussion(tr::now), [=] {
 					navigation->showPeerHistory(
 						chat,
 						Window::SectionShow::Way::Forward);
