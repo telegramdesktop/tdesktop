@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
+#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/timer.h"
@@ -1575,9 +1576,16 @@ void UpdateApplication() {
 			return "https://www.microsoft.com/en-us/store/p/telegram-desktop/9nztwsqntd0s";
 #elif defined OS_MAC_STORE // OS_WIN_STORE
 			return "https://itunes.apple.com/ae/app/telegram-desktop/id946399090";
-#else // OS_WIN_STORE || OS_MAC_STORE
+#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_WIN_STORE || OS_MAC_STORE
+			if (Platform::InFlatpak()) {
+				return "https://flathub.org/apps/details/org.telegram.desktop";
+			} else if (Platform::InSnap()) {
+				return "https://snapcraft.io/telegram-desktop";
+			}
 			return "https://desktop.telegram.org";
-#endif // OS_WIN_STORE || OS_MAC_STORE
+#else // OS_WIN_STORE || OS_MAC_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+			return "https://desktop.telegram.org";
+#endif // OS_WIN_STORE || OS_MAC_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
 		}();
 		UrlClickHandler::Open(url);
 	} else {

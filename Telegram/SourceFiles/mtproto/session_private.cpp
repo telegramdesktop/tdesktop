@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/connection_abstract.h"
+#include "platform/platform_specific.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
@@ -637,9 +638,20 @@ void SessionPrivate::tryToSend() {
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
 			+ " win store";
-#else // OS_MAC_STORE || OS_WIN_STORE
+#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_MAC_STORE || OS_WIN_STORE
+		const auto appVersion = [] {
+			if (Platform::InFlatpak()) {
+				return QString::fromLatin1(AppVersionStr)
+					+ " flatpak";
+			} else if (Platform::InSnap()) {
+				return QString::fromLatin1(AppVersionStr)
+					+ " snap";
+			}
+			return QString::fromLatin1(AppVersionStr);
+		}();
+#else // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
 		const auto appVersion = QString::fromLatin1(AppVersionStr);
-#endif // OS_MAC_STORE || OS_WIN_STORE
+#endif // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
 		const auto proxyType = _options->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
 		const auto clientProxyFields = mtprotoProxy
