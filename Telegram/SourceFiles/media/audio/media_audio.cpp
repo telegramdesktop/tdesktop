@@ -34,6 +34,7 @@ namespace {
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kWaveformCounterBufferSize = 256 * 1024;
+constexpr auto kEffectDestructionDelay = crl::time(1000);
 
 QMutex AudioMutex;
 ALCdevice *AudioDevice = nullptr;
@@ -179,7 +180,7 @@ void ClosePlaybackDevice(not_null<Instance*> instance) {
 	LOG(("Audio Info: Closing audio playback device."));
 
 	if (Player::mixer()) {
-		Player::mixer()->detachTracks();
+		Player::mixer()->prepareToCloseDevice();
 	}
 	instance->detachTracks();
 
@@ -383,9 +384,11 @@ void Mixer::Track::resetSpeedEffect() {
 		if (isStreamCreated()) {
 			removeSourceSpeedEffect();
 		}
-		OpenAL::alDeleteEffects(1, &speedEffect->effect);
-		OpenAL::alDeleteAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
-		OpenAL::alDeleteFilters(1, &speedEffect->filter);
+		if (Player::mixer()) {
+			// Don't destroy effect slot immediately.
+			// See https://github.com/kcat/openal-soft/issues/486
+			Player::mixer()->scheduleEffectDestruction(*speedEffect);
+		}
 	}
 	speedEffect->effect = speedEffect->effectSlot = speedEffect->filter = 0;
 }
@@ -560,6 +563,7 @@ Mixer::Track::~Track() = default;
 
 Mixer::Mixer(not_null<Audio::Instance*> instance)
 : _instance(instance)
+, _effectsDestructionTimer([=] { destroyStaleEffectsSafe(); })
 , _volumeVideo(kVolumeRound)
 , _volumeSong(kVolumeRound)
 , _fader(new Fader(&_faderThread))
@@ -620,6 +624,60 @@ void Mixer::onUpdated(const AudioMsgId &audio) {
 		externalSoundProgress(audio);
 	}
 	Media::Player::Updated().notify(audio);
+}
+
+// Thread: Any. Must be locked: AudioMutex.
+void Mixer::scheduleEffectDestruction(const SpeedEffect &effect) {
+	_effectsForDestruction.emplace_back(
+		crl::now() + kEffectDestructionDelay,
+		effect);
+	scheduleEffectsDestruction();
+}
+
+// Thread: Any. Must be locked: AudioMutex.
+void Mixer::scheduleEffectsDestruction() {
+	if (_effectsForDestruction.empty()) {
+		return;
+	}
+	InvokeQueued(this, [=] {
+		if (!_effectsDestructionTimer.isActive()) {
+			_effectsDestructionTimer.callOnce(kEffectDestructionDelay + 1);
+		}
+	});
+}
+
+// Thread: Main. Locks: AudioMutex.
+void Mixer::destroyStaleEffectsSafe() {
+	QMutexLocker lock(&AudioMutex);
+	destroyStaleEffects();
+}
+
+// Thread: Main. Must be locked: AudioMutex.
+void Mixer::destroyStaleEffects() {
+	const auto now = crl::now();
+	const auto checkAndDestroy = [&](
+			const std::pair<crl::time, SpeedEffect> &pair) {
+		const auto &[when, effect] = pair;
+		if (when && when > now) {
+			return false;
+		}
+		OpenAL::alDeleteEffects(1, &effect.effect);
+		OpenAL::alDeleteAuxiliaryEffectSlots(1, &effect.effectSlot);
+		OpenAL::alDeleteFilters(1, &effect.filter);
+		return true;
+	};
+	_effectsForDestruction.erase(
+		ranges::remove_if(_effectsForDestruction, checkAndDestroy),
+		end(_effectsForDestruction));
+	scheduleEffectsDestruction();
+}
+
+// Thread: Main. Must be locked: AudioMutex.
+void Mixer::destroyEffectsOnClose() {
+	for (auto &[when, effect] : _effectsForDestruction) {
+		when = 0;
+	}
+	destroyStaleEffects();
 }
 
 void Mixer::onError(const AudioMsgId &audio) {
@@ -823,6 +881,7 @@ void Mixer::forceToBufferExternal(const AudioMsgId &audioId) {
 	_loader->forceToBufferExternal(audioId);
 }
 
+// Thread: Main. Locks: AudioMutex.
 void Mixer::setSpeedFromExternal(const AudioMsgId &audioId, float64 speed) {
 	QMutexLocker lock(&AudioMutex);
 	const auto track = trackForType(audioId.type());
@@ -1160,12 +1219,14 @@ void Mixer::setStoppedState(Track *current, State state) {
 }
 
 // Thread: Main. Must be locked: AudioMutex.
-void Mixer::detachTracks() {
+void Mixer::prepareToCloseDevice() {
 	for (auto i = 0; i != kTogetherLimit; ++i) {
 		trackForType(AudioMsgId::Type::Voice, i)->detach();
 		trackForType(AudioMsgId::Type::Song, i)->detach();
 	}
 	_videoTrack.detach();
+
+	destroyEffectsOnClose();
 }
 
 // Thread: Main. Must be locked: AudioMutex.
