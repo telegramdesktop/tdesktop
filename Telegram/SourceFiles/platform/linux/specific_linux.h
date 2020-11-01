@@ -41,7 +41,7 @@ QString GetIconName();
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-void InstallLauncher();
+void InstallLauncher(bool force = false);
 
 } // namespace Platform
 

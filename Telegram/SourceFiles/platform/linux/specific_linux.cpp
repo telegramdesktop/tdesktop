@@ -1129,13 +1129,15 @@ void start() {
 void finish() {
 }
 
-void InstallLauncher() {
+void InstallLauncher(bool force) {
 	static const auto DisabledByEnv = qEnvironmentVariableIsSet(
 		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
 
 	// don't update desktop file for alpha version or if updater is disabled
-	if (cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
+	if ((cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
+		&& !force) {
 		return;
+	}
 
 	const auto applicationsPath = QStandardPaths::writableLocation(
 		QStandardPaths::ApplicationsLocation) + '/';

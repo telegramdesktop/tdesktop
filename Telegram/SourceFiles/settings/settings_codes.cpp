@@ -157,6 +157,13 @@ auto GenerateCodes() {
 	});
 #endif // Q_OS_WIN || Q_OS_MAC
 
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
+	codes.emplace(qsl("installauncher"), [](SessionController *window) {
+		Platform::InstallLauncher(true);
+		Ui::Toast::Show("Forced launcher installation.");
+	});
+#endif // Q_OS_UNIX && !Q_OS_MAC
+
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
 	auto audioKeys = {
 		qsl("msg_incoming"),
