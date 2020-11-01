@@ -633,10 +633,10 @@ void SessionPrivate::tryToSend() {
 			: _instance->systemVersion();
 #if defined OS_MAC_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " mac store";
+			+ " Mac App Store";
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " win store";
+			+ " Microsoft Store";
 #else // OS_MAC_STORE || OS_WIN_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr);
 #endif // OS_MAC_STORE || OS_WIN_STORE
