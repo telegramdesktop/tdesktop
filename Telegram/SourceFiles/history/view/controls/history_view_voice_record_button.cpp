@@ -24,7 +24,7 @@ constexpr auto kEnterIdleAnimationDuration = crl::time(1200);
 
 constexpr auto kRotationSpeed = 0.36 * 0.1;
 
-constexpr auto kRandomAdditionFactor = 0.3;
+constexpr auto kRandomAdditionFactor = 0.15;
 
 constexpr auto kIdleRadiusGlobalFactor = 0.56;
 constexpr auto kIdleRadiusFactor = 0.15 * 0.5;
@@ -37,13 +37,13 @@ constexpr auto kIdleRotateDiff = 0.1 * kIdleRotationSpeed;
 
 constexpr auto kWaveAngle = 0.03;
 
-constexpr auto kAnimationSpeedMajor = 1.5;// - 0.65;
-constexpr auto kAnimationSpeedMinor = 1.5;// - 0.45;
-constexpr auto kAnimationSpeedCircle = 1.5;// - 0.25;
+constexpr auto kAnimationSpeedMajor = 1.5 - 0.65;
+constexpr auto kAnimationSpeedMinor = 1.5 - 0.45;
+constexpr auto kAnimationSpeedCircle = 1.5 - 0.25;
 
-constexpr auto kAmplitudeDiffFactorMax = 500.;
-constexpr auto kAmplitudeDiffFactorMajor = 300.;
-constexpr auto kAmplitudeDiffFactorMinor = 400.;
+constexpr auto kAmplitudeDiffFactorMax = 500. - 100.;
+constexpr auto kAmplitudeDiffFactorMajor = 300. - 100.;
+constexpr auto kAmplitudeDiffFactorMinor = 400. - 100.;
 
 constexpr auto kFlingDistanceFactorMajor = 8 * 16;
 constexpr auto kFlingDistanceFactorMinor = 20 * 16;
@@ -53,8 +53,8 @@ constexpr auto kFlingInAnimationDurationMinor = 350;
 constexpr auto kFlingOutAnimationDurationMajor = 220;
 constexpr auto kFlingOutAnimationDurationMinor = 380;
 
-constexpr auto kSineWaveSpeedMajor = 0.02 * 0.2 * 0.5;
-constexpr auto kSineWaveSpeedMinor = 0.026 * 0.2 * 0.5;
+constexpr auto kSineWaveSpeedMajor = 0.02 * 0.2;
+constexpr auto kSineWaveSpeedMinor = 0.026 * 0.2;
 
 constexpr auto kSmallWaveRadius = 0.55;
 
