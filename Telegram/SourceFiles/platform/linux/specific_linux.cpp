@@ -132,6 +132,14 @@ bool IsXDGDesktopPortalKDEPresent() {
 	return Result;
 }
 
+bool IsIBusPortalPresent() {
+	static const auto Result = QDBusInterface(
+		qsl("org.freedesktop.IBus.Portal"),
+		qsl("/org/freedesktop/IBus")).isValid();
+
+	return Result;
+}
+
 uint FileChooserPortalVersion() {
 	static const auto Result = [&]() -> uint {
 		auto message = QDBusMessage::createMethodCall(
@@ -1101,6 +1109,21 @@ void start() {
 			LOG(("XDG Desktop Portal is not present :("));
 		}
 	}
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	// IBus has changed its socket path several times
+	// and each change should be synchronized with Qt.
+	// Moreover, the last time Qt changed the path,
+	// they didn't introduce a fallback to the old path
+	// and made the new Qt incompatible with IBus from older distributions.
+	// Since tdesktop is distributed in static binary form,
+	// it makes sense to use ibus portal whenever it present
+	// to ensure compatibility with the maximum range of distributions.
+	if (IsIBusPortalPresent()) {
+		LOG(("IBus portal is present! Using it."));
+		qputenv("IBUS_USE_PORTAL", "1");
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
