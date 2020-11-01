@@ -129,25 +129,13 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 }
 
 rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
-	auto flags = TextParseLinks | TextParseMentions;
-	const auto user = peer->asUser();
-	const auto isBot = user && user->isBot();
-	if (!user) {
-		flags |= TextParseHashtags;
-	} else if (isBot) {
-		flags |= TextParseHashtags | TextParseBotCommands;
-	}
-	const auto stripExternal = peer->isChat()
-		|| peer->isMegagroup()
-		|| (user && !isBot);
+	auto flags = TextParseLinks | TextParseMentions | TextParseBotCommands;
 	return PlainAboutValue(
 		peer
 	) | Ui::Text::ToWithEntities(
 	) | rpl::map([=](TextWithEntities &&text) {
 		TextUtilities::ParseEntities(text, flags);
-		if (stripExternal) {
-			StripExternalLinks(text);
-		}
+		//StripExternalLinks(text);
 		return std::move(text);
 	});
 }
