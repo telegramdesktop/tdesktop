@@ -746,7 +746,7 @@ void TopBarWidget::updateControlsVisibility() {
 		&& (scheduledMode ? showInScheduledMode : historyMode));
 	const auto isAdmin = [&] {
 		if (const auto peer = _activeChat.peer()) {
-			if (peer->isMegagroup()) {
+			if (peer->isMegagroup() || peer->isChannel()) {
 				const auto channel = peer->asChannel();
 				if (channel->hasAdminRights() || channel->amCreator()) {
 					return true;
@@ -758,7 +758,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_recentActions->setVisible(isAdmin);
 	const auto isGroup = [&] {
 		if (const auto peer = _activeChat.peer()) {
-			if (peer->isMegagroup()) {
+			if (peer->isMegagroup() || peer->isChannel()) {
 				return true;
 			}
 		}
