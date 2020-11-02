@@ -4230,20 +4230,18 @@ void ApiWrap::sendFiles(
 	auto tasks = std::vector<std::unique_ptr<Task>>();
 	tasks.reserve(list.files.size());
 	for (auto &file : list.files) {
-		if (album) {
-			if (file.type == Ui::PreparedFile::Type::Photo
-				&& type != SendMediaType::File) {
-				type = SendMediaType::Photo;
-			} else {
-				type = SendMediaType::File;
-			}
-		}
+		const auto uploadWithType = !album
+			? type
+			: (file.type == Ui::PreparedFile::Type::Photo
+				&& type != SendMediaType::File)
+			? SendMediaType::Photo
+			: SendMediaType::File;
 		tasks.push_back(std::make_unique<FileLoadTask>(
 			&session(),
 			file.path,
 			file.content,
 			std::move(file.information),
-			type,
+			uploadWithType,
 			to,
 			caption,
 			album));
