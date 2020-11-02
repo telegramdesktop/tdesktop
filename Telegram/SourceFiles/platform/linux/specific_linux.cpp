@@ -134,7 +134,7 @@ bool IsXDGDesktopPortalKDEPresent() {
 
 bool IsIBusPortalPresent() {
 	static const auto Result = QDBusInterface(
-		qsl("org.freedesktop.IBus.Portal"),
+		qsl("org.freedesktop.portal.IBus"),
 		qsl("/org/freedesktop/IBus")).isValid();
 
 	return Result;
