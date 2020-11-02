@@ -37,6 +37,8 @@ constexpr auto kMaxSamples =
 
 constexpr auto kPrecision = 10;
 
+constexpr auto kLockArcAngle = 15.;
+
 enum class FilterType {
 	Continue,
 	ShowBox,
@@ -76,13 +78,22 @@ private:
 	void setProgress(float64 progress);
 	void startLockingAnimation(float64 to);
 
+	const QPen _arcPen;
+
 	Ui::Animations::Simple _lockAnimation;
 	Ui::Animations::Simple _lockEnderAnimation;
 
 	rpl::variable<float64> _progress = 0.;
 };
 
-RecordLock::RecordLock(not_null<Ui::RpWidget*> parent) : RpWidget(parent) {
+RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
+: RpWidget(parent)
+, _arcPen(
+	st::historyRecordLockIconFg,
+	st::historyRecordLockIconLineWidth,
+	Qt::SolidLine,
+	Qt::SquareCap,
+	Qt::RoundJoin) {
 	resize(
 		st::historyRecordLockTopShadow.width(),
 		st::historyRecordLockSize.height());
@@ -189,14 +200,54 @@ void RecordLock::drawProgress(Painter &p) {
 		p.setOpacity(1.);
 	}
 	{
-		const auto &icon = isLocked()
-			? st::historyRecordLockIcon
-			: st::historyRecordUnlockIcon;
-		icon.paint(
-			p,
-			inner.x() + (inner.width() - icon.width()) / 2,
-			inner.y() + (originTop.height() * 2 - icon.height()) / 2,
-			inner.width());
+		PainterHighQualityEnabler hq(p);
+		const auto &size = st::historyRecordLockIconSize;
+		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
+		const auto blockRect = QRect(
+			0,
+			size.height() - blockHeight,
+			size.width(),
+			blockHeight);
+		const auto &lineHeight = st::historyRecordLockIconLineHeight;
+		const auto &offset = st::historyRecordLockIconLineSkip;
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::historyRecordLockIconFg);
+		p.translate(
+			inner.x() + (inner.width() - size.width()) / 2,
+			inner.y() + (originTop.height() * 2 - size.height()) / 2);
+		p.drawRoundedRect(blockRect, 2, 3);
+
+		p.translate(
+			size.width() - offset,
+			blockRect.y());
+
+		if (progress < 1. && progress > 0.) {
+			p.rotate(kLockArcAngle * progress);
+		}
+
+		p.setPen(_arcPen);
+		const auto rLine = QLineF(0, 0, 0, -lineHeight);
+		p.drawLine(rLine);
+
+		const auto arcWidth = size.width() - offset * 2;
+		const auto &arcHeight = st::historyRecordLockIconArcHeight;
+		p.drawArc(
+			-arcWidth,
+			rLine.dy() - arcHeight - _arcPen.width() + rLine.y1(),
+			arcWidth,
+			arcHeight * 2,
+			0,
+			180 * 16);
+
+		const auto lockProgress = 1. - _lockAnimation.value(1.);
+		if (progress == 1. && lockProgress < 1.) {
+			p.drawLine(
+				-arcWidth,
+				rLine.y2(),
+				-arcWidth,
+				rLine.dy() * lockProgress);
+		}
 	}
 }
 
