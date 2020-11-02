@@ -634,18 +634,18 @@ void SessionPrivate::tryToSend() {
 			: _instance->systemVersion();
 #if defined OS_MAC_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " mac store";
+			+ " Mac App Store";
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " win store";
+			+ " Microsoft Store";
 #elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_MAC_STORE || OS_WIN_STORE
 		const auto appVersion = [] {
 			if (Platform::InFlatpak()) {
 				return QString::fromLatin1(AppVersionStr)
-					+ " flatpak";
+					+ " Flatpak";
 			} else if (Platform::InSnap()) {
 				return QString::fromLatin1(AppVersionStr)
-					+ " snap";
+					+ " Snap";
 			}
 			return QString::fromLatin1(AppVersionStr);
 		}();
