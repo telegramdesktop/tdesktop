@@ -83,6 +83,7 @@ private:
 	void setPositionOnScreen(Position position, QRect available);
 
 	QScreen *myScreen() const;
+	void startSystemDrag();
 	void processDrag(QPoint point);
 	void finishDrag(QPoint point);
 	void updatePositionAnimated();

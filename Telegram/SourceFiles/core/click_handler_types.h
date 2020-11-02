@@ -13,6 +13,8 @@ namespace Main {
 class Session;
 } // namespace Main
 
+[[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
+
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {

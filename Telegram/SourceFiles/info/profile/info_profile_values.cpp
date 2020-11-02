@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 
 #include "core/application.h"
-#include "core/local_url_handlers.h"
+#include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
@@ -50,7 +50,7 @@ auto PlainUsernameValue(not_null<PeerData*> peer) {
 
 void StripExternalLinks(TextWithEntities &text) {
 	const auto local = [](const QString &url) {
-		return Core::TryConvertUrlToLocal(url).startsWith(qstr("tg://"));
+		return !UrlRequiresConfirmation(QUrl::fromUserInput(url));
 	};
 	const auto notLocal = [&](const EntityInText &entity) {
 		if (entity.type() == EntityType::CustomUrl) {

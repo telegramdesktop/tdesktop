@@ -368,8 +368,8 @@ void paintRow(
 
 		p.setFont(st::dialogsTextFont);
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (ShowSendActionInDialogs(history)
-			&& !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (!ShowSendActionInDialogs(history)
+			|| !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
@@ -396,8 +396,8 @@ void paintRow(
 
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (ShowSendActionInDialogs(history)
-			&& !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		if (!ShowSendActionInDialogs(history)
+			|| !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {

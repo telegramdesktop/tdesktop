@@ -3382,6 +3382,9 @@ void HistoryWidget::doneShow() {
 	} else {
 		handlePendingHistoryUpdate();
 	}
+	// If we show pinned bar here, we don't want it to change the
+	// calculated and prepared scrollTop of the messages history.
+	_preserveScrollTop = true;
 	preloadHistoryIfNeeded();
 	updatePinnedViewer();
 	if (_pinnedBar) {
@@ -3389,6 +3392,7 @@ void HistoryWidget::doneShow() {
 	}
 	checkHistoryActivation();
 	App::wnd()->setInnerFocus();
+	_preserveScrollTop = false;
 }
 
 void HistoryWidget::finishAnimating() {
@@ -5501,7 +5505,7 @@ void HistoryWidget::checkPinnedBarState() {
 	_pinnedBarHeight = 0;
 	_pinnedBar->heightValue(
 	) | rpl::start_with_next([=](int height) {
-		_topDelta = (height - _pinnedBarHeight);
+		_topDelta = _preserveScrollTop ? 0 : (height - _pinnedBarHeight);
 		_pinnedBarHeight = height;
 		updateHistoryGeometry();
 		updateControlsGeometry();

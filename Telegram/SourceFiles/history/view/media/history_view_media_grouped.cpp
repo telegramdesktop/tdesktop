@@ -145,6 +145,16 @@ QSize GroupedMedia::countOptimalSize() {
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
 		}
+	} else if (_mode == Mode::Column && _parts.back().item->emptyText()) {
+		const auto item = _parent->data();
+		const auto msgsigned = item->Get<HistoryMessageSigned>();
+		const auto views = item->Get<HistoryMessageViews>();
+		if ((msgsigned && !msgsigned->isAnonymousRank)
+			|| (views
+				&& (views->views.count >= 0 || views->replies.count > 0))
+			|| displayedEditBadge()) {
+			minHeight += st::msgDateFont->height - st::msgDateDelta.y();
+		}
 	}
 
 	const auto groupPadding = groupedPadding();
@@ -205,6 +215,16 @@ QSize GroupedMedia::countCurrentSize(int newWidth) {
 		if (isBubbleBottom()) {
 			newHeight += st::msgPadding.bottom();
 		}
+	} else if (_mode == Mode::Column && _parts.back().item->emptyText()) {
+		const auto item = _parent->data();
+		const auto msgsigned = item->Get<HistoryMessageSigned>();
+		const auto views = item->Get<HistoryMessageViews>();
+		if ((msgsigned && !msgsigned->isAnonymousRank)
+			|| (views
+				&& (views->views.count >= 0 || views->replies.count > 0))
+			|| displayedEditBadge()) {
+			newHeight += st::msgDateFont->height - st::msgDateDelta.y();
+		}
 	}
 
 	const auto groupPadding = groupedPadding();
@@ -255,7 +275,8 @@ void GroupedMedia::draw(
 		crl::time ms) const {
 	const auto groupPadding = groupedPadding();
 	const auto fullSelection = (selection == FullSelection);
-	const auto textSelection = !fullSelection
+	const auto textSelection = (_mode == Mode::Column)
+		&& !fullSelection
 		&& !IsSubGroupSelection(selection);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];

@@ -113,14 +113,15 @@ bool UseNative(Type type = Type::ReadFile) {
 	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
 	// or if portals are used and operation is to open folder
 	// and portal doesn't support folder choosing
-	const auto neededForPortal = UseXDGDesktopPortal()
-		&& type == Type::ReadFolder
+	const auto neededForPortal = (type == Type::ReadFolder)
 		&& !CanOpenDirectoryWithPortal();
 
 	const auto neededNonForced = DesktopEnvironment::IsGtkBased()
-		|| neededForPortal;
+		|| (UseXDGDesktopPortal() && neededForPortal);
 
-	const auto excludeNonForced = InFlatpak() || InSnap();
+	const auto excludeNonForced = InFlatpak()
+		|| InSnap()
+		|| (UseXDGDesktopPortal() && !neededForPortal);
 
 	return IsGtkIntegrationForced()
 		|| (neededNonForced && !excludeNonForced);

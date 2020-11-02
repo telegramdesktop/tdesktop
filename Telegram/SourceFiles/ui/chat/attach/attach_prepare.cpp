@@ -154,11 +154,15 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 		files,
 		PreparedFile::Type::File,
 		&PreparedFile::type);
+	const auto hasMusic = ranges::contains(
+		files,
+		PreparedFile::Type::Music,
+		&PreparedFile::type);
 	const auto hasNotGrouped = ranges::contains(
 		files,
 		PreparedFile::Type::None,
 		&PreparedFile::type);
-	return !hasFiles && !hasNotGrouped;
+	return !hasFiles && !hasMusic && !hasNotGrouped;
 }
 
 bool PreparedList::hasGroupOption(bool slowmode) const {

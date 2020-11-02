@@ -25,14 +25,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 
-namespace {
-
 bool UrlRequiresConfirmation(const QUrl &url) {
 	using namespace qthelp;
-	return !regex_match(qsl("(^|\\.)(telegram\\.org|telegra\\.ph|telesco\\.pe)$"), url.host(), RegExOption::CaseInsensitive);
-}
 
-} // namespace
+	return !regex_match(
+		"(^|\\.)(telegram\\.(org|me|dog)|t\\.me|telegra\\.ph|telesco\\.pe)$",
+		url.host(),
+		RegExOption::CaseInsensitive);
+}
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	url = Core::TryConvertUrlToLocal(url);
@@ -48,7 +48,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 		open();
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
-		if (UrlRequiresConfirmation(url)
+		if (UrlRequiresConfirmation(parsedUrl)
 			&& QGuiApplication::keyboardModifiers() != Qt::ControlModifier) {
 			Core::App().hideMediaView();
 			const auto displayed = parsedUrl.isValid()
