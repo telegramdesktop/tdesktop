@@ -924,6 +924,22 @@ void SendFilesBox::setInnerFocus() {
 	}
 }
 
+void SendFilesBox::saveSendWaySettings() {
+	auto way = _sendWay.current();
+	auto oldWay = Core::App().settings().sendFilesWay();
+	if (_groupFiles->isHidden()) {
+		way.setGroupFiles(oldWay.groupFiles());
+	}
+	if (_list.overrideSendImagesAsPhotos == way.sendImagesAsPhotos()
+		|| _sendImagesAsPhotos->isHidden()) {
+		way.setSendImagesAsPhotos(oldWay.sendImagesAsPhotos());
+	}
+	if (way != oldWay) {
+		Core::App().settings().setSendFilesWay(way);
+		Core::App().saveSettingsDelayed();
+	}
+}
+
 void SendFilesBox::send(
 		Api::SendOptions options,
 		bool ctrlShiftEnter) {
@@ -939,19 +955,7 @@ void SendFilesBox::send(
 		return;
 	}
 
-	auto way = _sendWay.current();
-	auto oldWay = Core::App().settings().sendFilesWay();
-	if (_groupFiles->isHidden()) {
-		way.setGroupFiles(oldWay.groupFiles());
-	}
-	if (_list.overrideSendImagesAsPhotos == way.sendImagesAsPhotos()
-		|| _sendImagesAsPhotos->isHidden()) {
-		way.setSendImagesAsPhotos(oldWay.sendImagesAsPhotos());
-	}
-	if (way != oldWay) {
-		Core::App().settings().setSendFilesWay(way);
-		Core::App().saveSettingsDelayed();
-	}
+	saveSendWaySettings();
 
 	for (auto &block : _blocks) {
 		block.applyAlbumOrder();
@@ -963,7 +967,7 @@ void SendFilesBox::send(
 			: TextWithTags();
 		_confirmedCallback(
 			std::move(_list),
-			way,
+			_sendWay.current(),
 			std::move(caption),
 			options,
 			ctrlShiftEnter);

@@ -135,6 +135,7 @@ private:
 	void sendSilent();
 	void sendScheduled();
 	void captionResized();
+	void saveSendWaySettings();
 
 	void setupDragArea();
 	void refreshTitleText();
