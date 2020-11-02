@@ -1268,8 +1268,9 @@ void ListWidget::elementStartStickerLoop(not_null<const Element*> view) {
 }
 
 void ListWidget::elementShowPollResults(
-	not_null<PollData*> poll,
-	FullMsgId context) {
+		not_null<PollData*> poll,
+		FullMsgId context) {
+	_controller->showPollResults(poll, context);
 }
 
 void ListWidget::elementShowTooltip(
