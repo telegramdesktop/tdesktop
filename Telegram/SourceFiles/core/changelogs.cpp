@@ -22,26 +22,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1009020,
-		"- Fix crash in shared links search.\n"
-
-		"- Fix blurred thumbnails in albums with video files.\n"
-
-		"- Fix a possible crash in animated stickers rendering."
-	},
-	{
-		1009022,
-		"- Organize chats into Chat Folders if you have too many chats.\n"
-	},
-	{
-		2000001,
-		"- Switch between folders using Ctrl+1, ..., Ctrl+8.\n"
-
-		"- Fix crash when a pinned in folder chat was added to archive.\n"
-
-		"- Fix font issues in Linux version."
-	},
-	{
 		2001008,
 		"- Add support for full group message history export.\n"
 
@@ -94,6 +74,16 @@ std::map<int, const char*> BetaLogs() {
 		"- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.\n"
 
 		"- Enjoy dark native window frame for Telegram night mode on Windows.\n"
+	},
+	{
+		2004006,
+		"- Fix image compression option when sending files with drag-n-drop.\n"
+
+		"- Fix caption text selection in media albums.\n"
+
+		"- Fix drafts display in personal chats in the chats list.\n"
+
+		"- Bug fixes and other minor improvements.\n"
 	},
 	};
 };
