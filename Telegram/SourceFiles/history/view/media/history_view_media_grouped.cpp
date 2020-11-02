@@ -275,7 +275,8 @@ void GroupedMedia::draw(
 		crl::time ms) const {
 	const auto groupPadding = groupedPadding();
 	const auto fullSelection = (selection == FullSelection);
-	const auto textSelection = !fullSelection
+	const auto textSelection = (_mode == Mode::Column)
+		&& !fullSelection
 		&& !IsSubGroupSelection(selection);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
