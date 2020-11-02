@@ -65,7 +65,6 @@ protected:
 	void titleVisibilityChangedHook() override;
 	void unreadCounterChangedHook() override;
 
-	QImage psTrayIcon(bool selected = false) const;
 	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
@@ -76,8 +75,6 @@ protected:
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
-
-	QImage trayImg, trayImgSel;
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
@@ -95,6 +92,7 @@ private:
 	void hideAndDeactivate();
 	void updateTitleCounter();
 	void updateIconCounters();
+	[[nodiscard]] QIcon generateIconForTray(int counter, bool muted) const;
 
 	std::unique_ptr<Private> _private;
 
