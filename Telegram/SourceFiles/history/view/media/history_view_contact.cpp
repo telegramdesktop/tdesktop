@@ -135,8 +135,10 @@ QSize Contact::countOptimalSize() {
 	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
 	if (_userId) {
 		const auto msgsigned = item->Get<HistoryMessageSigned>();
+		const auto views = item->Get<HistoryMessageViews>();
 		if ((msgsigned && !msgsigned->isAnonymousRank)
-			|| item->Has<HistoryMessageViews>()) {
+			|| (views
+				&& (views->views.count >= 0 || views->replies.count > 0))) {
 			minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 		}
 	}
