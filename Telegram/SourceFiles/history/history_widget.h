@@ -599,6 +599,7 @@ private:
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
+	bool _preserveScrollTop = false;
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;
 
