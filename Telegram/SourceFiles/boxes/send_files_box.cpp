@@ -591,6 +591,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 void SendFilesBox::refreshControls() {
 	refreshTitleText();
 	updateSendWayControlsVisibility();
+	updateCaptionPlaceholder();
 }
 
 void SendFilesBox::setupSendWayControls() {
