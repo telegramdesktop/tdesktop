@@ -126,6 +126,9 @@ public:
 	void start(float64 to) {
 		start(to, _duration);
 	}
+	void reset() {
+		_to = _cur = _delta = 0.;
+	}
 
 	float64 current() const {
 		return _cur;
@@ -201,6 +204,7 @@ public:
 
 	void setValue(float64 to);
 	void tick(float64 circleRadius, crl::time dt);
+	void reset();
 
 	void paint(Painter &p, QColor c);
 
@@ -250,6 +254,7 @@ class RecordCircle final {
 public:
 	RecordCircle(rpl::producer<crl::time> animationTicked);
 
+	void reset();
 	void setAmplitude(float64 value);
 	void paint(Painter &p, QColor c);
 
@@ -358,6 +363,21 @@ Wave::Wave(
 , _rotation(rotationOffset) {
 	initEnterIdleAnimation(rpl::duplicate(animationTicked));
 	initFlingAnimation(std::move(animationTicked));
+}
+
+void Wave::reset() {
+	_incRandomAdditionals = false;
+	_isIdle = true;
+	_wasFling = false;
+	_flingRadius = 0.;
+	_idleRadius = 0.;
+	_idleRotation = 0.;
+	_lastRadius = 0.;
+	_rotation = 0.;
+	_sineAngleMax = 0.;
+	_waveAngle = 0.;
+	_waveDiff = 0.;
+	_levelValue.reset();
 }
 
 void Wave::setValue(float64 to) {
@@ -559,6 +579,12 @@ RecordCircle::RecordCircle(rpl::producer<crl::time> animationTicked)
 	+ kAmplitudeDiffFactorMax * kAnimationSpeedCircle) {
 }
 
+void RecordCircle::reset() {
+	_majorWave->reset();
+	_minorWave->reset();
+	_levelValue.reset();
+}
+
 void RecordCircle::setAmplitude(float64 value) {
 	const auto to = std::min(kMaxAmplitude, value) / kMaxAmplitude;
 	_levelValue.start(to);
@@ -567,7 +593,6 @@ void RecordCircle::setAmplitude(float64 value) {
 }
 
 void RecordCircle::paint(Painter &p, QColor c) {
-
 	const auto dt = crl::now() - _lastUpdateTime;
 	_levelValue.update(dt);
 
@@ -655,13 +680,15 @@ void VoiceRecordButton::init() {
 
 	rpl::merge(
 		shownValue(),
-		_showProgress.value() | rpl::map(hasProgress)
+		_showProgress.value(
+		) | rpl::map(hasProgress) | rpl::distinct_until_changed()
 	) | rpl::start_with_next([=](bool show) {
 		setVisible(show);
 		setMouseTracking(show);
 		if (!show) {
 			_recordingAnimation.stop();
 			_showProgress = 0.;
+			_recordCircle->reset();
 		} else {
 			if (!_recordingAnimation.animating()) {
 				_recordingAnimation.start();
