@@ -2,8 +2,9 @@ FROM centos:7 AS builder
 
 ENV GIT https://github.com
 ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig
-ENV QT 5_12_8
-ENV QT_PREFIX /usr/local/desktop-app/Qt-5.12.8
+ENV QT 5_15_1
+ENV QT_TAG v5.15.1
+ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.1
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 
@@ -18,6 +19,7 @@ RUN yum -y install git cmake3 zlib-devel gtk2-devel libICE-devel \
 	devtoolset-8-make devtoolset-8-gcc devtoolset-8-gcc-c++ \
 	devtoolset-8-binutils
 
+SHELL [ "scl", "enable", "devtoolset-8", "--", "bash", "-c" ]
 RUN ln -s cmake3 /usr/bin/cmake
 
 ENV LibrariesPath /usr/src/Libraries
@@ -31,10 +33,10 @@ FROM builder AS libffi
 RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
 
 WORKDIR libffi
-RUN scl enable devtoolset-8 -- ./autogen.sh
-RUN scl enable devtoolset-8 -- ./configure --enable-static --disable-docs
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libffi-cache" install
+RUN ./autogen.sh
+RUN ./configure --enable-static --disable-docs
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libffi-cache" install
 
 WORKDIR ..
 RUN rm -rf libffi
@@ -43,9 +45,9 @@ FROM builder AS xz
 RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git
 
 WORKDIR xz
-RUN scl enable devtoolset-8 -- cmake3 -B build . -DCMAKE_BUILD_TYPE=Release
-RUN scl enable devtoolset-8 -- cmake3 --build build -j$(nproc)
-RUN DESTDIR="$LibrariesPath/xz-cache" scl enable devtoolset-8 -- cmake3 --install build
+RUN cmake3 -B build . -DCMAKE_BUILD_TYPE=Release
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/xz-cache" cmake3 --install build
 
 WORKDIR ..
 RUN rm -rf xz
@@ -54,14 +56,14 @@ FROM builder AS mozjpeg
 RUN git clone -b v4.0.1-rc2 --depth=1 $GIT/mozilla/mozjpeg.git
 
 WORKDIR mozjpeg
-RUN scl enable devtoolset-8 -- cmake3 -B build . \
+RUN cmake3 -B build . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX=/usr/local \
 	-DWITH_JPEG8=ON \
 	-DPNG_SUPPORTED=OFF
 
-RUN scl enable devtoolset-8 -- cmake3 --build build -j$(nproc)
-RUN DESTDIR="$LibrariesPath/mozjpeg-cache" scl enable devtoolset-8 -- cmake3 --install build
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/mozjpeg-cache" cmake3 --install build
 
 WORKDIR ..
 RUN rm -rf mozjpeg
@@ -70,10 +72,10 @@ FROM builder AS opus
 RUN git clone -b v1.3 --depth=1 $GIT/xiph/opus.git
 
 WORKDIR opus
-RUN scl enable devtoolset-8 -- ./autogen.sh
-RUN scl enable devtoolset-8 -- ./configure
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/opus-cache" install
+RUN ./autogen.sh
+RUN ./configure
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/opus-cache" install
 
 WORKDIR ..
 RUN rm -rf opus
@@ -82,9 +84,9 @@ FROM builder AS xcb-proto
 RUN git clone -b xcb-proto-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
 
 WORKDIR xcbproto
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/xcb-proto-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-proto-cache" install
 
 WORKDIR ..
 RUN rm -rf xcbproto
@@ -95,20 +97,71 @@ COPY --from=xcb-proto ${LibrariesPath}/xcb-proto-cache /
 RUN git clone -b libxcb-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxcb.git
 
 WORKDIR libxcb
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/xcb-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-cache" install
 
 WORKDIR ..
 RUN rm -rf libxcb
+
+FROM builder AS xcb-wm
+
+RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-wm.git
+
+WORKDIR libxcb-wm
+RUN git checkout 0.4.1
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-wm-cache" install
+
+FROM builder AS xcb-util
+
+RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-util.git
+
+WORKDIR libxcb-util
+RUN git checkout 0.4.0
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-util-cache" install
+
+FROM builder AS xcb-image
+COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
+
+RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-image.git
+
+WORKDIR libxcb-image
+RUN git checkout 0.4.0
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-image-cache" install
+
+FROM builder AS xcb-keysyms
+
+RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms.git
+
+WORKDIR libxcb-keysyms
+RUN git checkout 0.4.0
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-keysyms-cache" install
+
+FROM builder AS xcb-render-util
+
+RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util.git
+
+WORKDIR libxcb-render-util
+RUN git checkout 0.3.9
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xcb-render-util-cache" install
 
 FROM builder AS libXext
 RUN git clone -b libXext-1.3.4 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxext.git
 
 WORKDIR libxext
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libXext-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libXext-cache" install
 
 WORKDIR ..
 RUN rm -rf libxext
@@ -117,9 +170,9 @@ FROM builder AS libXfixes
 RUN git clone -b libXfixes-5.0.3 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxfixes.git
 
 WORKDIR libxfixes
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libXfixes-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libXfixes-cache" install
 
 WORKDIR ..
 RUN rm -rf libxfixes
@@ -128,9 +181,9 @@ FROM builder AS libXi
 RUN git clone -b libXi-1.7.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxi.git
 
 WORKDIR libxi
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libXi-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libXi-cache" install
 
 WORKDIR ..
 RUN rm -rf libxi
@@ -139,9 +192,9 @@ FROM builder AS libXrender
 RUN git clone -b libXrender-0.9.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrender.git
 
 WORKDIR libxrender
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libXrender-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libXrender-cache" install
 
 WORKDIR ..
 RUN rm -rf libxrender
@@ -152,13 +205,13 @@ COPY --from=libffi ${LibrariesPath}/libffi-cache /
 RUN git clone -b 1.18.0 --depth=1 https://gitlab.freedesktop.org/wayland/wayland.git
 
 WORKDIR wayland
-RUN scl enable devtoolset-8 -- ./autogen.sh \
+RUN ./autogen.sh \
 	--enable-static \
 	--disable-documentation \
 	--disable-dtd-validation
 
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/wayland-cache" install
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/wayland-cache" install
 
 WORKDIR ..
 RUN rm -rf wayland
@@ -173,9 +226,9 @@ COPY --from=wayland ${LibrariesPath}/wayland-cache /
 RUN git clone -b 2.9.0 --depth=1 $GIT/intel/libva.git
 
 WORKDIR libva
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libva-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libva-cache" install
 
 WORKDIR ..
 RUN rm -rf libva
@@ -184,9 +237,9 @@ FROM builder AS libvdpau
 RUN git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
 
 WORKDIR libvdpau
-RUN scl enable devtoolset-8 -- ./autogen.sh --enable-static
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/libvdpau-cache" install
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libvdpau-cache" install
 
 WORKDIR ..
 RUN rm -rf libvdpau
@@ -200,7 +253,7 @@ COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 RUN git clone -b release/3.4 --depth=1 $GIT/FFmpeg/FFmpeg.git ffmpeg
 
 WORKDIR ffmpeg
-RUN scl enable devtoolset-8 -- ./configure \
+RUN ./configure \
 	--disable-debug \
 	--disable-programs \
 	--disable-doc \
@@ -302,14 +355,14 @@ RUN scl enable devtoolset-8 -- ./configure \
 	--enable-muxer=ogg \
 	--enable-muxer=opus
 
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/ffmpeg-cache" install
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/ffmpeg-cache" install
 
 FROM builder AS openal
 RUN git clone -b openal-soft-1.20.1 --depth=1 $GIT/kcat/openal-soft.git
 
 WORKDIR openal-soft
-RUN scl enable devtoolset-8 -- cmake3 -B build . \
+RUN cmake3 -B build . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DLIBTYPE:STRING=STATIC \
 	-DALSOFT_EXAMPLES=OFF \
@@ -317,8 +370,8 @@ RUN scl enable devtoolset-8 -- cmake3 -B build . \
 	-DALSOFT_UTILS=OFF \
 	-DALSOFT_CONFIG=OFF
 
-RUN scl enable devtoolset-8 -- cmake3 --build build -j$(nproc)
-RUN DESTDIR="$LibrariesPath/openal-cache" scl enable devtoolset-8 -- cmake3 --install build
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/openal-cache" cmake3 --install build
 
 WORKDIR ..
 RUN rm -rf openal
@@ -329,9 +382,9 @@ RUN git clone -b OpenSSL_${OPENSSL_VER}-stable --depth=1 \
 	$GIT/openssl/openssl.git $opensslDir
 
 WORKDIR ${opensslDir}
-RUN scl enable devtoolset-8 -- ./config --prefix="$OPENSSL_PREFIX" no-tests
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/openssl-cache" install_sw
+RUN ./config --prefix="$OPENSSL_PREFIX" no-tests
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/openssl-cache" install_sw
 
 WORKDIR ..
 RUN rm -rf $opensslDir
@@ -340,14 +393,14 @@ FROM builder AS xkbcommon
 RUN git clone -b xkbcommon-0.8.4 --depth=1 $GIT/xkbcommon/libxkbcommon.git
 
 WORKDIR libxkbcommon
-RUN scl enable devtoolset-8 -- ./autogen.sh \
+RUN ./autogen.sh \
 	--disable-docs \
 	--disable-wayland \
 	--with-xkb-config-root=/usr/share/X11/xkb \
 	--with-x-locale-root=/usr/share/X11/locale
 
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$LibrariesPath/xkbcommon-cache" install
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/xkbcommon-cache" install
 
 WORKDIR ..
 RUN rm -rf libxkbcommon
@@ -357,6 +410,11 @@ FROM patches AS qt
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
+COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
+COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
+COPY --from=xcb-image ${LibrariesPath}/xcb-image-cache /
+COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
+COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=libXi ${LibrariesPath}/libXi-cache /
@@ -365,37 +423,42 @@ COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 
-RUN git clone -b v5.12.8 --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
+RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
 WORKDIR qt_${QT}
 RUN perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
 RUN git submodule update qtbase qtwayland qtimageformats qtsvg
 
 WORKDIR qtbase
 RUN find ../../patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-WORKDIR ../qtwayland
-RUN find ../../patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
-RUN scl enable devtoolset-8 -- ./configure -prefix "$QT_PREFIX" \
+# I couldn't make it work with direct ./configure call :(
+RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-release \
 	-opensource \
 	-confirm-license \
+	-xcb \
 	-qt-libpng \
 	-qt-harfbuzz \
 	-qt-pcre \
-	-qt-xcb \
 	-no-icu \
 	-no-gtk \
+	-no-feature-wayland-server \
 	-static \
 	-dbus-runtime \
 	-openssl-linked \
-	-I "$OPENSSL_PREFIX/include" OPENSSL_LIBS="$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread" \
+	-I '$'\"''$OPENSSL_PREFIX/include'$'\"'' \
+	OPENSSL_LIBS='$'\"''$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread'$'\"'' \
 	-nomake examples \
 	-nomake tests \
-	-L /usr/local/lib64
+	-L /usr/local/lib64' >> ./run_configure.sh
+RUN cat ./run_configure.sh
+RUN chmod a+x ./run_configure.sh
+RUN ./run_configure.sh
+RUN rm ./run_configure.sh
 
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make INSTALL_ROOT="$LibrariesPath/qt-cache" install
+RUN make -j$(nproc)
+RUN make INSTALL_ROOT="$LibrariesPath/qt-cache" install
 
 WORKDIR ..
 RUN rm -rf qt_${QT}
@@ -419,9 +482,9 @@ RUN git checkout 9f2a7bb1
 RUN git apply ../patches/gyp.diff
 
 WORKDIR ../breakpad
-RUN scl enable devtoolset-8 -- ./configure
-RUN scl enable devtoolset-8 -- make -j$(nproc)
-RUN scl enable devtoolset-8 -- make DESTDIR="$BreakpadCache" install
+RUN ./configure
+RUN make -j$(nproc)
+RUN make DESTDIR="$BreakpadCache" install
 
 WORKDIR src
 RUN rm -rf testing
@@ -432,8 +495,8 @@ RUN sed -i 's/minidump_upload.m/minidump_upload.cc/' linux/tools_linux.gypi
 RUN ../../../gyp/gyp  --depth=. --generator-output=.. -Goutput_dir=../out tools.gyp --format=cmake
 
 WORKDIR ../../out/Default
-RUN scl enable devtoolset-8 -- cmake3 .
-RUN scl enable devtoolset-8 -- cmake3 --build . --target dump_syms -j$(nproc)
+RUN cmake3 .
+RUN cmake3 --build . --target dump_syms -j$(nproc)
 RUN mv dump_syms $BreakpadCache
 
 WORKDIR ..
@@ -451,7 +514,7 @@ RUN git clone $GIT/desktop-app/tg_owt.git
 WORKDIR tg_owt
 RUN git checkout c73a471
 
-RUN scl enable devtoolset-8 -- cmake3 -B out/Release . \
+RUN cmake3 -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DTG_OWT_SPECIAL_TARGET=linux \
 	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
@@ -459,7 +522,17 @@ RUN scl enable devtoolset-8 -- cmake3 -B out/Release . \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
-RUN scl enable devtoolset-8 -- cmake3 --build out/Release
+RUN cmake3 --build out/Release -- -j8
+
+RUN cmake3 -B out/Debug . \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DTG_OWT_SPECIAL_TARGET=linux \
+	-DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/include \
+	-DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PREFIX/include \
+	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
+	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
+
+RUN cmake3 --build out/Debug -- -j8
 
 FROM builder
 
@@ -468,6 +541,11 @@ COPY --from=xz ${LibrariesPath}/xz-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
+COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
+COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
+COPY --from=xcb-image ${LibrariesPath}/xcb-image-cache /
+COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
+COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=libXi ${LibrariesPath}/libXi-cache /
