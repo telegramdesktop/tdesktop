@@ -701,10 +701,6 @@ QString AppRuntimeDirectory() {
 			runtimeDir = QDir::tempPath();
 		}
 
-		if (runtimeDir.isEmpty()) {
-			runtimeDir = qsl("/tmp/");
-		}
-
 		if (!runtimeDir.endsWith('/')) {
 			runtimeDir += '/';
 		}
