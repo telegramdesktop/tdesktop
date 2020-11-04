@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 #include "mtproto/connection_tcp.h"
 #include "storage/serialize_common.h"
+#include "base/qt_adapters.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QRegularExpression>
@@ -779,7 +780,7 @@ bool DcOptions::loadFromFile(const QString &path) {
 	stream.setCodec("UTF-8");
 	while (!stream.atEnd()) {
 		auto line = stream.readLine();
-		auto components = line.split(QRegularExpression(R"(\s)"), QString::SkipEmptyParts);
+		auto components = line.split(QRegularExpression(R"(\s)"), base::QStringSkipEmptyParts);
 		if (components.isEmpty() || components[0].startsWith('#')) {
 			continue;
 		}

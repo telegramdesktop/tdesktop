@@ -358,11 +358,7 @@ bool Get(
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
 	} else if (type == Type::ReadFolder) { // save dir
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
-
-		// We use "obsolete" value ::DirectoryOnly instead of ::Directory + ::ShowDirsOnly
-		// because in Windows XP native dialog this one works, while the "preferred" one
-		// shows a native file choose dialog where you can't choose a directory, only open one.
-		dialog.setFileMode(QFileDialog::DirectoryOnly);
+		dialog.setFileMode(QFileDialog::Directory);
 		dialog.setOption(QFileDialog::ShowDirsOnly);
 	} else { // save file
 		dialog.setFileMode(QFileDialog::AnyFile);

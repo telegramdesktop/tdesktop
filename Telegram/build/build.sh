@@ -134,73 +134,13 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Backup folder not found!"
   fi
 
-  ./configure.sh
+  ./build/docker/centos_env/run.sh /usr/src/tdesktop/Telegram/build/docker/build.sh
 
-  cd $ProjectPath
-  cmake --build . --config Release --target Telegram -- -j8
-  cd $ReleasePath
-
-  echo "$BinaryName build complete!"
-
-  if [ ! -f "$ReleasePath/$BinaryName" ]; then
-    Error "$BinaryName not found!"
-  fi
-
-  # BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.1[6-9] | wc -l`
-  # if [ "$BadCount" != "0" ]; then
-  #   Error "Bad GLIBC usages found: $BadCount"
-  # fi
-
-  # BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.2[0-9] | wc -l`
-  # if [ "$BadCount" != "0" ]; then
-  #   Error "Bad GLIBC usages found: $BadCount"
-  # fi
-
-  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GCC usages found: $BadCount"
-  fi
-
-  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GCC usages found: $BadCount"
-  fi
-
-  if [ ! -f "$ReleasePath/Updater" ]; then
-    Error "Updater not found!"
-  fi
-
-  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[6-9] | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GLIBC usages found: $BadCount"
-  fi
-
-  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.2[0-9] | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GLIBC usages found: $BadCount"
-  fi
-
-  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_4\.[3-9] | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GCC usages found: $BadCount"
-  fi
-
-  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_[5-9]\. | wc -l`
-  if [ "$BadCount" != "0" ]; then
-    Error "Bad GCC usages found: $BadCount"
-  fi
-
-  echo "Dumping debug symbols.."
-  "$HomePath/../../Libraries/breakpad/out/Default/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
-  echo "Done!"
-
-  echo "Stripping the executable.."
-  strip -s "$ReleasePath/$BinaryName"
-  echo "Done!"
-
-  echo "Removing RPATH.."
-  chrpath -d "$ReleasePath/$BinaryName"
-  echo "Done!"
+  echo "Copying from docker result folder."
+  cp "$ReleasePath/root/$BinaryName" "$ReleasePath/$BinaryName"
+  cp "$ReleasePath/root/$BinaryName.sym" "$ReleasePath/$BinaryName.sym"
+  cp "$ReleasePath/root/Updater" "$ReleasePath/Updater"
+  cp "$ReleasePath/root/Packer" "$ReleasePath/Packer"
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"

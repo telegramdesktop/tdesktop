@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/invoke_queued.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 
 #include <QtCore/QtEndian>
 #include <range/v3/algorithm/reverse.hpp>
@@ -470,12 +471,9 @@ TlsSocket::TlsSocket(
 		&_socket,
 		&QTcpSocket::readyRead,
 		wrap([=] { plainReadyRead(); }));
-
-	using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
-	const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 	connect(
 		&_socket,
-		QTcpSocket_error,
+		base::QTcpSocket_error,
 		wrap([=](Error e) { handleError(e); }));
 }
 

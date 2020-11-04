@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
 #include "storage/localstorage.h"
+#include "base/qt_adapters.h"
 
 #include <QtGui/QDesktopServices>
 
@@ -387,7 +388,7 @@ QStringList cleanFilterList(const QString &filter) {
 	int i = regexp.indexIn(f);
 	if (i >= 0)
 		f = regexp.cap(2);
-	return f.split(QLatin1Char(' '), QString::SkipEmptyParts);
+	return f.split(QLatin1Char(' '), base::QStringSkipEmptyParts);
 }
 
 } // namespace
@@ -585,7 +586,6 @@ GtkFileChooserAction gtkFileChooserAction(QFileDialog::FileMode fileMode, QFileD
 		else
 			return GTK_FILE_CHOOSER_ACTION_SAVE;
 	case QFileDialog::Directory:
-	case QFileDialog::DirectoryOnly:
 	default:
 		if (acceptMode == QFileDialog::AcceptOpen)
 			return GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;

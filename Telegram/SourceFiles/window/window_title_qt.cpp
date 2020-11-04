@@ -393,7 +393,7 @@ Qt::Edges TitleWidgetQt::edgesFromPos(const QPoint &pos) {
 		>= (window()->height() - getResizeArea(Qt::BottomEdge))) {
 		return Qt::BottomEdge;
 	} else {
-		return 0;
+		return Qt::Edges();
 	}
 }
 

@@ -39,7 +39,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Background, QColor(255, 255, 255));
+	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
 	QLabel tmp(this);
@@ -79,7 +79,7 @@ PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
 	setFont(labelFont);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(0, 0, 0));
+	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
 	setPalette(p);
 	show();
 };
@@ -97,7 +97,7 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 	setFont(logFont);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(0, 0, 0));
+	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
 	setPalette(p);
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
@@ -115,7 +115,7 @@ PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	setFont(logFont);
 
 	QPalette p(palette());
-	p.setColor(QPalette::Foreground, QColor(96, 96, 96));
+	p.setColor(QPalette::WindowText, QColor(96, 96, 96));
 	setPalette(p);
 
 	setReadOnly(true);
@@ -783,7 +783,7 @@ void LastCrashedWindow::updateControls() {
 	}
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
+	QSize s(2 * padding + QFontMetrics(_label.font()).horizontalAdvance(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
 	if (s == size()) {
 		resizeEvent(0);
 	} else {

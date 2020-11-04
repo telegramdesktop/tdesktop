@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -3277,7 +3278,7 @@ void ApiWrap::requestMessageAfterDate(
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
 	auto offsetId = 0;
-	auto offsetDate = static_cast<int>(QDateTime(date).toTime_t()) - 1;
+	auto offsetDate = static_cast<int>(base::QDateToDateTime(date).toTime_t()) - 1;
 	auto addOffset = -1;
 	auto limit = 1;
 	auto maxId = 0;
@@ -3365,7 +3366,7 @@ void ApiWrap::jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date) {
 //		const QDate &date,
 //		Callback &&callback) {
 //	const auto offsetId = 0;
-//	const auto offsetDate = static_cast<TimeId>(QDateTime(date).toTime_t());
+//	const auto offsetDate = static_cast<TimeId>(base::QDateToDateTime(date).toTime_t());
 //	const auto addOffset = -2;
 //	const auto limit = 1;
 //	const auto hash = 0;

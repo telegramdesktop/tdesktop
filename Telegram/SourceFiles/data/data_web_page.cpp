@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "base/qt_adapters.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
@@ -26,7 +27,7 @@ QString SiteNameFromUrl(const QString &url) {
 	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
 	int32 slash = pretty.indexOf('/');
 	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', QString::SkipEmptyParts);
+	QStringList components = pretty.split('.', base::QStringSkipEmptyParts);
 	if (components.size() >= 2) {
 		components = components.mid(components.size() - 2);
 		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);

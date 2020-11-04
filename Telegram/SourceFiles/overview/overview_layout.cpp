@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
@@ -1518,7 +1519,7 @@ Link::Link(
 			domain = parts.at(2);
 		}
 
-		parts = domain.split('@').back().split('.', QString::SkipEmptyParts);
+		parts = domain.split('@').back().split('.', base::QStringSkipEmptyParts);
 		if (parts.size() > 1) {
 			_letter = parts.at(parts.size() - 2).at(0).toUpper();
 			if (_title.isEmpty()) {

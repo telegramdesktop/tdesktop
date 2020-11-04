@@ -178,7 +178,7 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 
 void PeerListBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	for (auto rect : e->region().rects()) {
+	for (const auto rect : e->region()) {
 		p.fillRect(rect, st::contactsBg);
 	}
 }

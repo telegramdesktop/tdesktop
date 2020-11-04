@@ -2968,13 +2968,11 @@ void OverlayWidget::validatePhotoCurrentImage() {
 
 void OverlayWidget::paintEvent(QPaintEvent *e) {
 	const auto r = e->rect();
-	const auto &region = e->region();
-	const auto rects = region.rects();
-
+	const auto region = e->region();
 	const auto contentShown = _photo || documentContentShown();
-	const auto bgRects = contentShown
-		? (region - contentRect()).rects()
-		: rects;
+	const auto bgRegion = contentShown
+		? (region - contentRect())
+		: region;
 
 	auto ms = crl::now();
 
@@ -2988,7 +2986,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 	const auto m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	const auto bgColor = _fullScreenVideo ? st::mediaviewVideoBg : st::mediaviewBg;
-	for (const auto &rect : bgRects) {
+	for (const auto rect : bgRegion) {
 		p.fillRect(rect, bgColor);
 	}
 	p.setCompositionMode(m);
@@ -3084,7 +3082,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			auto o = overLevel(OverLeftNav);
 			if (o > 0) {
 				p.setOpacity(o * co);
-				for (const auto &rect : rects) {
+				for (const auto &rect : region) {
 					const auto fill = _leftNav.intersected(rect);
 					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
@@ -3100,7 +3098,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			auto o = overLevel(OverRightNav);
 			if (o > 0) {
 				p.setOpacity(o * co);
-				for (const auto &rect : rects) {
+				for (const auto &rect : region) {
 					const auto fill = _rightNav.intersected(rect);
 					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
@@ -3116,7 +3114,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			auto o = overLevel(OverClose);
 			if (o > 0) {
 				p.setOpacity(o * co);
-				for (const auto &rect : rects) {
+				for (const auto &rect : region) {
 					const auto fill = _closeNav.intersected(rect);
 					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
 				}
@@ -4151,7 +4149,7 @@ bool OverlayWidget::eventHook(QEvent *e) {
 		} else {
 			_accumScroll += ev->angleDelta();
 			if (ev->phase() == Qt::ScrollEnd) {
-				if (ev->orientation() == Qt::Horizontal) {
+				if (ev->angleDelta().x() != 0) {
 					if (_accumScroll.x() * _accumScroll.x() > _accumScroll.y() * _accumScroll.y() && _accumScroll.x() != 0) {
 						moveToNext(_accumScroll.x() > 0 ? -1 : 1);
 					}

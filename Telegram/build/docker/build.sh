@@ -1,10 +1,25 @@
 #!/bin/bash
 
+set -e
+FullExecPath=$PWD
+pushd `dirname $0` > /dev/null
+FullScriptPath=`pwd`
+popd > /dev/null
+
+if [ ! -d "$FullScriptPath/../../../../DesktopPrivate" ]; then
+  echo ""
+  echo "This script is for building the production version of Telegram Desktop."
+  echo ""
+  echo "For building custom versions please visit the build instructions page at:"
+  echo "https://github.com/telegramdesktop/tdesktop/#build-instructions"
+  exit
+fi
+
 Run () {
   scl enable devtoolset-8 -- "$@"
 }
 
-HomePath=/usr/src/tdesktop/Telegram
+HomePath="$FullScriptPath/../.."
 cd $HomePath
 
 ProjectPath="$HomePath/../out"

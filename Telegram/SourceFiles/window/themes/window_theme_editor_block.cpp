@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
 #include "base/call_delayed.h"
+#include "base/qt_adapters.h"
 
 namespace Window {
 namespace Theme {
@@ -154,7 +155,7 @@ void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
 	_searchStartChars.clear();
 	auto toIndex = _name + ' ' + _copyOf + ' ' + TextUtilities::RemoveAccents(_description.toString()) + ' ' + _valueString;
-	auto words = toIndex.toLower().split(SearchSplitter, QString::SkipEmptyParts);
+	auto words = toIndex.toLower().split(SearchSplitter, base::QStringSkipEmptyParts);
 	for_const (auto &word, words) {
 		_searchWords.insert(word);
 		_searchStartChars.insert(word[0]);

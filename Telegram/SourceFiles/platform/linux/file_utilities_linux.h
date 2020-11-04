@@ -141,7 +141,7 @@ private:
 	void hideHelper();
 
 	// Options
-	QFileDialog::Options _options = { 0 };
+	QFileDialog::Options _options;
 	QString _windowTitle = "Choose file";
 	QString _initialDirectory;
 	QStringList _initialFiles;

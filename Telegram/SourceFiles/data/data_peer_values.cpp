@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 
 namespace Data {
 namespace {
@@ -39,7 +40,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 		return (hours + 1) * 3600 - (now - online);
 	}
 	const auto nowFull = base::unixtime::parse(now);
-	const auto tomorrow = QDateTime(nowFull.date().addDays(1));
+	const auto tomorrow = base::QDateToDateTime(nowFull.date().addDays(1));
 	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 

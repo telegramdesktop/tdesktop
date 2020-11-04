@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "boxes/calendar_box.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
@@ -478,7 +479,7 @@ void SettingsWidget::editDateLimit(
 		}));
 	};
 	const auto callback = crl::guard(this, [=](const QDate &date) {
-		done(base::unixtime::serialize(QDateTime(date)));
+		done(base::unixtime::serialize(base::QDateToDateTime(date)));
 		if (const auto weak = shared->data()) {
 			weak->closeBox();
 		}

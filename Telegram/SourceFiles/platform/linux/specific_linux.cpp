@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -248,14 +249,14 @@ bool GenerateDesktopFile(
 					QRegularExpression::MultilineOption),
 				qsl("TryExec=")
 					+ QFile::encodeName(cExeDir() + cExeName())
-						.replace('\\', qsl("\\\\")));
+						.replace('\\', "\\\\"));
 			fileText = fileText.replace(
 				QRegularExpression(
 					qsl("^Exec=.*$"),
 					QRegularExpression::MultilineOption),
 				qsl("Exec=")
 					+ EscapeShell(QFile::encodeName(cExeDir() + cExeName()))
-						.replace('\\', qsl("\\\\"))
+						.replace('\\', "\\\\")
 					+ (args.isEmpty() ? QString() : ' ' + args));
 		} else {
 			fileText = fileText.replace(
@@ -1025,7 +1026,7 @@ namespace Platform {
 
 void start() {
 	PlatformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
-		.split(':', QString::SkipEmptyParts);
+		.split(':', base::QStringSkipEmptyParts);
 
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
@@ -1249,27 +1250,35 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 
 bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
-		auto options = std::vector<QString>();
-		const auto add = [&](const char *option) {
-			options.emplace_back(option);
+		struct Command {
+			QString command;
+			QStringList arguments;
+		};
+		auto options = std::vector<Command>();
+		const auto add = [&](const char *option, const char *arg = nullptr) {
+			auto command = Command{ .command = option };
+			if (arg) {
+				command.arguments.push_back(arg);
+			}
+			options.push_back(std::move(command));
 		};
 		if (DesktopEnvironment::IsUnity()) {
-			add("unity-control-center sound");
+			add("unity-control-center", "sound");
 		} else if (DesktopEnvironment::IsKDE()) {
-			add("kcmshell5 kcm_pulseaudio");
-			add("kcmshell4 phonon");
+			add("kcmshell5", "kcm_pulseaudio");
+			add("kcmshell4", "phonon");
 		} else if (DesktopEnvironment::IsGnome()) {
-			add("gnome-control-center sound");
+			add("gnome-control-center", "sound");
 		} else if (DesktopEnvironment::IsCinnamon()) {
-			add("cinnamon-settings sound");
+			add("cinnamon-settings", "sound");
 		} else if (DesktopEnvironment::IsMATE()) {
 			add("mate-volume-control");
 		}
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
-		return ranges::any_of(options, [](const QString &command) {
-			return QProcess::startDetached(command);
+		return ranges::any_of(options, [](const Command &command) {
+			return QProcess::startDetached(command.command, command.arguments);
 		});
 	}
 	return true;

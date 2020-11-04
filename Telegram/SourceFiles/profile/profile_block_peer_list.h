@@ -72,7 +72,7 @@ public:
 	}
 	template <typename Predicate>
 	void sortItems(Predicate predicate) {
-		qSort(_items.begin(), _items.end(), std::move(predicate));
+		std::sort(_items.begin(), _items.end(), std::move(predicate));
 	}
 
 	void setPreloadMoreCallback(Fn<void()> callback) {

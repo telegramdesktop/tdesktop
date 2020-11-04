@@ -171,10 +171,8 @@ bool SuggestionsWidget::eventHook(QEvent *e) {
 }
 
 void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
-	const auto horizontal = (e->angleDelta().x() != 0)
-		|| (e->orientation() == Qt::Horizontal);
-	const auto vertical = (e->angleDelta().y() != 0)
-		|| (e->orientation() == Qt::Vertical);
+	const auto horizontal = (e->angleDelta().x() != 0);
+	const auto vertical = (e->angleDelta().y() != 0);
 	const auto current = scrollCurrent();
 	const auto scroll = [&] {
 		if (horizontal) {

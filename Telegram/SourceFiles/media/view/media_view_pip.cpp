@@ -334,7 +334,7 @@ Qt::Edges RectPartToQtEdges(RectPart rectPart) {
 		return Qt::BottomEdge;
 	}
 
-	return 0;
+	return Qt::Edges();
 }
 
 } // namespace
@@ -591,7 +591,7 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
 	if (_useTransparency) {
-		Ui::Platform::StartTranslucentPaint(p, e->region().rects());
+		Ui::Platform::StartTranslucentPaint(p, e->region());
 	}
 
 	auto request = FrameRequest();

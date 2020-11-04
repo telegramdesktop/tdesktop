@@ -614,8 +614,8 @@ bool StickersListWidget::Footer::eventHook(QEvent *e) {
 
 void StickersListWidget::Footer::scrollByWheelEvent(
 		not_null<QWheelEvent*> e) {
-	auto horizontal = (e->angleDelta().x() != 0 || e->orientation() == Qt::Horizontal);
-	auto vertical = (e->angleDelta().y() != 0 || e->orientation() == Qt::Vertical);
+	auto horizontal = (e->angleDelta().x() != 0);
+	auto vertical = (e->angleDelta().y() != 0);
 	if (horizontal) {
 		_horizontal = true;
 	}

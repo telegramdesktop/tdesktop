@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_tcp_socket.h"
 
 #include "base/invoke_queued.h"
+#include "base/qt_adapters.h"
 
 namespace MTP::details {
 
@@ -33,12 +34,9 @@ TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
 		&_socket,
 		&QTcpSocket::readyRead,
 		wrap([=] { _readyRead.fire({}); }));
-
-	using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
-	const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 	connect(
 		&_socket,
-		QTcpSocket_error,
+		base::QTcpSocket_error,
 		wrap([=](Error e) { handleError(e); }));
 }
 

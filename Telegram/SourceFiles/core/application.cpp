@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QScreen>
 
 namespace Core {
 namespace {
@@ -941,7 +942,7 @@ QPoint Application::getPointForCallPanelCenter() const {
 	if (const auto window = activeWindow()) {
 		return window->getPointForCallPanelCenter();
 	}
-	return QApplication::desktop()->screenGeometry().center();
+	return QGuiApplication::primaryScreen()->geometry().center();
 }
 
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
