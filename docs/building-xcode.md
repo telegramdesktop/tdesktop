@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a77e4d5
+    git checkout cdca495
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -39,14 +39,26 @@ Go to ***BuildPath*** and run
     git apply ../patches/gyp.diff
     ./setup.py build
     sudo ./setup.py install
-    cd ../..
+    cd ..
 
+    git clone -b macos_padding https://github.com/desktop-app/yasm.git
+    cd yasm
+    ./autogen.sh
+    make $MAKE_THREADS_CNT
+    cd ..
+
+    git clone https://github.com/desktop-app/macho_edit.git
+    cd macho_edit
+    xcodebuild build -configuration Release -project macho_edit.xcodeproj -target macho_edit
+    cd ..
+
+    cd ..
     mkdir -p Libraries/macos
     cd Libraries/macos
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a77e4d5
+    git checkout cdca495
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -119,12 +131,15 @@ Go to ***BuildPath*** and run
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
+    cp ../patches/macos_yasm_wrap.sh ./
 
     ./configure --prefix=/usr/local/macos \
     --extra-cflags="$MIN_VER $UNGUARDED" \
     --extra-cxxflags="$MIN_VER $UNGUARDED" \
     --extra-ldflags="$MIN_VER" \
-    --enable-protocol=file --enable-libopus \
+    --x86asmexe=`pwd`/macos_yasm_wrap.sh \
+    --enable-protocol=file \
+    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
