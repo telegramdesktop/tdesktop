@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/file_bookmark_mac.h"
 
+#include "base/platform/mac/base_utilities_mac.h"
+#include "logs.h"
+
+#include <Cocoa/Cocoa.h>
+#include <CoreFoundation/CFURL.h>
+
 namespace Platform {
 namespace {
 
@@ -61,7 +67,7 @@ bool FileBookmark::enable() const {
 #else // OS_MAC_STORE
 	if (!data) return false;
 
-	QMutexLocker lock(&_bookmarksMutex);
+	QMutexLocker lock(&BookmarksMutex);
 	if (data->counter > 0 || [data->url startAccessingSecurityScopedResource] == YES) {
 		++data->counter;
 		return true;
@@ -74,7 +80,7 @@ void FileBookmark::disable() const {
 #ifdef OS_MAC_STORE
 	if (!data) return;
 
-	QMutexLocker lock(&_bookmarksMutex);
+	QMutexLocker lock(&BookmarksMutex);
 	if (data->counter > 0) {
 		--data->counter;
 		if (!data->counter) {
