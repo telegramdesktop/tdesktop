@@ -349,7 +349,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		App::wnd()->sessionController(),
 		std::move(copyLinkCallback),
 		std::move(submitCallback),
-		std::move(filterCallback)));
+		std::move(filterCallback),
+		tr::lng_share_title()));
 }
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(

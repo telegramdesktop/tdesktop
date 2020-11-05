@@ -2546,4 +2546,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_user_not_found" = "404 User not found.\nNote: You must have \"seen\" that user before open this link.";
 
+"lng_title_forward_as_copy" = "Copy to...";
+"lng_title_multiple_forward" = "Forward to...";
+
 // Keys finished

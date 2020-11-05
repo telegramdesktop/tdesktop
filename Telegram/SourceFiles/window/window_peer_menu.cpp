@@ -1166,7 +1166,8 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		App::wnd()->sessionController(),
 		nullptr,
 		std::move(submitCallback),
-		std::move(filterCallback)));
+		std::move(filterCallback),
+		tr::lng_title_multiple_forward()));
 	return weak->data();
 }
 
@@ -1281,7 +1282,8 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 		App::wnd()->sessionController(),
 		nullptr,
 		std::move(submitCallback),
-		std::move(filterCallback)));
+		std::move(filterCallback),
+		tr::lng_title_forward_as_copy()));
 	return weak->data();
 }
 

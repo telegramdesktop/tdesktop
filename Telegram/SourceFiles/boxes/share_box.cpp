@@ -158,7 +158,8 @@ ShareBox::ShareBox(
 	not_null<Window::SessionNavigation*> navigation,
 	CopyCallback &&copyCallback,
 	SubmitCallback &&submitCallback,
-	FilterCallback &&filterCallback)
+	FilterCallback &&filterCallback,
+	rpl::producer<QString> title)
 : _navigation(navigation)
 , _api(&_navigation->session().mtp())
 , _copyCallback(std::move(copyCallback))
@@ -177,6 +178,7 @@ ShareBox::ShareBox(
 		tr::lng_photos_comment()),
 	st::shareCommentPadding)
 , _searchTimer([=] { searchByUsername(); }) {
+	header = title;
 }
 
 void ShareBox::prepareCommentField() {
@@ -216,7 +218,7 @@ void ShareBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
 	Ui::SendPendingMoveResizeEvents(_select);
 
-	setTitle(tr::lng_share_title());
+	setTitle(header);
 
 	_inner = setInnerWidget(
 		object_ptr<Inner>(

@@ -65,7 +65,8 @@ public:
 		not_null<Window::SessionNavigation*> navigation,
 		CopyCallback &&copyCallback,
 		SubmitCallback &&submitCallback,
-		FilterCallback &&filterCallback);
+		FilterCallback &&filterCallback,
+		rpl::producer<QString> title);
 
 protected:
 	void prepare() override;
@@ -132,4 +133,5 @@ private:
 
 	Ui::Animations::Simple _scrollAnimation;
 
+	rpl::producer<QString> header;
 };

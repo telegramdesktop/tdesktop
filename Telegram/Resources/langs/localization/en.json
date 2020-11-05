@@ -74,5 +74,8 @@
     "lng_settings_delete_disabled": "Disabled",
     "lng_settings_delete_for_group": "Group",
     "lng_settings_delete_for_person": "Person",
-    "lng_settings_delete_for_both": "Why not both?"
+    "lng_settings_delete_for_both": "Why not both?",
+
+    "lng_title_forward_as_copy": "Copy to...",
+    "lng_title_multiple_forward": "Forward to..."
 }
