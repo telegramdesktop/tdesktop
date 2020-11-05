@@ -126,11 +126,18 @@ void SingleMediaPreview::preparePreview(
 		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
 	}
 	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
+	const auto minthumbh = st::sendBoxAlbumGroupHeight
+		 + st::sendBoxAlbumGroupSkipTop * 2;
 	_previewHeight = qRound(originalHeight * float64(_previewWidth) / originalWidth);
 	if (_previewHeight > maxthumbh) {
 		_previewWidth = qRound(_previewWidth * float64(maxthumbh) / _previewHeight);
 		accumulate_max(_previewWidth, kMinPreviewWidth);
 		_previewHeight = maxthumbh;
+	} else if (_previewHeight < minthumbh) {
+		_previewWidth = qRound(_previewWidth * float64(minthumbh)
+			/ _previewHeight);
+		accumulate_max(_previewWidth, kMinPreviewWidth);
+		_previewHeight = minthumbh;
 	}
 	_previewLeft = (st::boxWideWidth - _previewWidth) / 2;
 
