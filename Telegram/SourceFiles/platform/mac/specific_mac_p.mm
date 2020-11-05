@@ -157,11 +157,13 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
-	if (Core::IsAppLaunched()) {
-		Core::App().checkLocalTime();
+	if (!Core::IsAppLaunched()) {
+		return;
 	}
+	Core::App().checkLocalTime();
 
-	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));
+	LOG(("Audio Info: "
+		"-receiveWakeNote: received, scheduling detach from audio device"));
 	Media::Audio::ScheduleDetachFromDeviceSafe();
 }
 

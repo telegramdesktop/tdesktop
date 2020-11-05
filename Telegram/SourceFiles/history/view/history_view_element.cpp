@@ -493,6 +493,8 @@ void Element::recountAttachToPreviousInBlocks() {
 	if (isHidden() || data()->isEmpty()) {
 		if (const auto next = nextDisplayedInBlocks()) {
 			next->recountAttachToPreviousInBlocks();
+		} else if (const auto previous = previousDisplayedInBlocks()) {
+			previous->setAttachToNext(false);
 		}
 		return;
 	}
