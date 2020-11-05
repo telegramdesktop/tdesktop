@@ -61,6 +61,85 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 	return result;
 }
 
+void PaintWaveform(
+		Painter &p,
+		const VoiceData *voiceData,
+		int availableWidth,
+		bool selected,
+		bool outbg,
+		float64 progress) {
+	const auto wf = [&]() -> const VoiceWaveform* {
+		if (!voiceData) {
+			return nullptr;
+		}
+		if (voiceData->waveform.isEmpty()) {
+			return nullptr;
+		} else if (voiceData->waveform.at(0) < 0) {
+			return nullptr;
+		}
+		return &voiceData->waveform;
+	}();
+
+	// Rescale waveform by going in waveform.size * bar_count 1D grid.
+	const auto active = outbg
+		? (selected
+			? st::msgWaveformOutActiveSelected
+			: st::msgWaveformOutActive)
+		: (selected
+			? st::msgWaveformInActiveSelected
+			: st::msgWaveformInActive);
+	const auto inactive = outbg
+		? (selected
+			? st::msgWaveformOutInactiveSelected
+			: st::msgWaveformOutInactive)
+		: (selected
+			? st::msgWaveformInInactiveSelected
+			: st::msgWaveformInInactive);
+	const auto wfSize = wf
+		? wf->size()
+		: ::Media::Player::kWaveformSamplesCount;
+	const auto activeWidth = std::round(availableWidth * progress);
+
+	const auto &barWidth = st::msgWaveformBar;
+	const auto barCount = std::min(
+		availableWidth / (barWidth + st::msgWaveformSkip),
+		wfSize);
+	const auto barNormValue = (wf ? voiceData->wavemax : 0) + 1;
+	const auto maxDelta = st::msgWaveformMax - st::msgWaveformMin;
+	const auto &bottom = st::msgWaveformMax;
+	p.setPen(Qt::NoPen);
+	for (auto i = 0, barLeft = 0, sum = 0, maxValue = 0; i < wfSize; ++i) {
+		const auto value = wf ? wf->at(i) : 0;
+		if (sum + barCount < wfSize) {
+			maxValue = std::max(maxValue, value);
+			sum += barCount;
+			continue;
+		}
+		// Draw bar.
+		sum = sum + barCount - wfSize;
+		if (sum < (barCount + 1) / 2) {
+			maxValue = std::max(maxValue, value);
+		}
+		const auto barValue = ((maxValue * maxDelta) + (barNormValue / 2))
+			/ barNormValue;
+		const auto barHeight = st::msgWaveformMin + barValue;
+		const auto barTop = bottom - barValue;
+
+		if ((barLeft < activeWidth) && (barLeft + barWidth > activeWidth)) {
+			const auto leftWidth = activeWidth - barLeft;
+			const auto rightWidth = barWidth - leftWidth;
+			p.fillRect(barLeft, barTop, leftWidth, barHeight, active);
+			p.fillRect(activeWidth, barTop, rightWidth, barHeight, inactive);
+		} else {
+			const auto &color = (barLeft >= activeWidth) ? inactive : active;
+			p.fillRect(barLeft, barTop, barWidth, barHeight, color);
+		}
+		barLeft += barWidth + st::msgWaveformSkip;
+
+		maxValue = (sum < (barCount + 1) / 2) ? 0 : value;
+	}
+}
+
 } // namespace
 
 Document::Document(
@@ -418,79 +497,42 @@ void Document::draw(
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		ensureDataMediaCreated();
 
-		const VoiceWaveform *wf = nullptr;
-		uchar norm_value = 0;
 		if (const auto voiceData = _data->voice()) {
-			wf = &voiceData->waveform;
-			if (wf->isEmpty()) {
-				wf = nullptr;
+			if (voiceData->waveform.isEmpty()) {
 				if (loaded) {
 					Local::countVoiceWaveform(_dataMedia.get());
 				}
-			} else if (wf->at(0) < 0) {
-				wf = nullptr;
-			} else {
-				norm_value = voiceData->wavemax;
 			}
 		}
-		auto progress = ([voice] {
+
+		const auto progress = [&] {
+			if (!outbg
+				&& !voice->_playback
+				&& _realParent->hasUnreadMediaFlag()) {
+				return 1.;
+			}
 			if (voice->seeking()) {
 				return voice->seekingCurrent();
 			} else if (voice->_playback) {
 				return voice->_playback->progress.current();
 			}
 			return 0.;
-		})();
+		}();
 		if (voice->seeking()) {
-			voiceStatusOverride = Ui::FormatPlayedText(qRound(progress * voice->_lastDurationMs) / 1000, voice->_lastDurationMs / 1000);
+			voiceStatusOverride = Ui::FormatPlayedText(
+				std::round(progress * voice->_lastDurationMs) / 1000,
+				voice->_lastDurationMs / 1000);
 		}
 
-		// rescale waveform by going in waveform.size * bar_count 1D grid
-		auto active = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
-		auto inactive = outbg ? (selected ? st::msgWaveformOutInactiveSelected : st::msgWaveformOutInactive) : (selected ? st::msgWaveformInInactiveSelected : st::msgWaveformInInactive);
-		auto wf_size = wf ? wf->size() : ::Media::Player::kWaveformSamplesCount;
-		auto availw = namewidth + st::msgWaveformSkip;
-		auto activew = qRound(availw * progress);
-		if (!outbg
-			&& !voice->_playback
-			&& _realParent->hasUnreadMediaFlag()) {
-			activew = availw;
-		}
-		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
-		auto max_value = 0;
-		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
-		auto bottom = st.padding.top() - topMinus + st::msgWaveformMax;
-		p.setPen(Qt::NoPen);
-		for (auto i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
-			auto value = wf ? wf->at(i) : 0;
-			if (sum_i + bar_count >= wf_size) { // draw bar
-				sum_i = sum_i + bar_count - wf_size;
-				if (sum_i < (bar_count + 1) / 2) {
-					if (max_value < value) max_value = value;
-				}
-				auto bar_value = ((max_value * max_delta) + ((norm_value + 1) / 2)) / (norm_value + 1);
-
-				if (bar_x >= activew) {
-					p.fillRect(nameleft + bar_x, bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, inactive);
-				} else if (bar_x + st::msgWaveformBar <= activew) {
-					p.fillRect(nameleft + bar_x, bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, active);
-				} else {
-					p.fillRect(nameleft + bar_x, bottom - bar_value, activew - bar_x, st::msgWaveformMin + bar_value, active);
-					p.fillRect(nameleft + activew, bottom - bar_value, st::msgWaveformBar - (activew - bar_x), st::msgWaveformMin + bar_value, inactive);
-				}
-				bar_x += st::msgWaveformBar + st::msgWaveformSkip;
-
-				if (sum_i < (bar_count + 1) / 2) {
-					max_value = 0;
-				} else {
-					max_value = value;
-				}
-			} else {
-				if (max_value < value) max_value = value;
-
-				sum_i += bar_count;
-			}
-		}
+		p.save();
+		p.translate(nameleft, st.padding.top() - topMinus);
+		PaintWaveform(p,
+			_data->voice(),
+			namewidth + st::msgWaveformSkip,
+			selected,
+			outbg,
+			progress);
+		p.restore();
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
 		p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
