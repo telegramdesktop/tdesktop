@@ -289,45 +289,6 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
-				if (itembottom <= _visibleAreaTop) {
-					QStringList debug;
-					for (const auto &logBlock : history->blocks) {
-						QStringList debugItems;
-						for (const auto &logItem : logBlock->messages) {
-							debugItems.push_back(QString("%1,%2"
-							).arg(logItem->y()
-							).arg(logItem->height()
-							));
-						}
-						debug.push_back(QString("b(%1,%2:%3)"
-						).arg(logBlock->y()
-						).arg(logBlock->height()
-						).arg(debugItems.join(';')
-						));
-					}
-					CrashReports::SetAnnotation(
-						"geometry",
-						QString("height:%1 "
-						).arg(history->height()
-						) + debug.join(';'));
-					CrashReports::SetAnnotation(
-						"info",
-						QString("block:%1(%2,%3), "
-							"item:%4(%5,%6), "
-							"limits:%7,%8, "
-							"has:%9"
-						).arg(blockIndex
-						).arg(block->y()
-						).arg(block->height()
-						).arg(itemIndex
-						).arg(view->y()
-						).arg(view->height()
-						).arg(_visibleAreaTop
-						).arg(_visibleAreaBottom
-						).arg(Logs::b(history->hasPendingResizedItems())
-						));
-					Unexpected("itembottom > _visibleAreaTop");
-				}
 				Assert(itembottom > _visibleAreaTop);
 			} else {
 				Assert(itemtop < _visibleAreaBottom);
@@ -415,8 +376,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 	auto userpicCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
 		// Skip all service messages.
 		const auto item = view->data();
-		const auto message = item->toHistoryMessage();
-		if (!message) return true;
+		if (view->isHidden() || !item->toHistoryMessage()) return true;
 
 		if (lowestAttachedItemTop < 0 && view->isAttachedToNext()) {
 			lowestAttachedItemTop = itemtop + view->marginTop();
