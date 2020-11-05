@@ -1,5 +1,7 @@
 ## Build instructions for CMake under Ubuntu 14.04
 
+**NB** These are outdated.
+
 ### Prepare folder
 
 Choose an empty folder for the future build, for example **/home/user/TBuild**. It will be named ***BuildPath*** in the rest of this document.

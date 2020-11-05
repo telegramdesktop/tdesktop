@@ -152,7 +152,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.4
+    git checkout release/4.2
 
     set CHERE_INVOKING=enabled_from_arguments
     set MSYS2_PATH_TYPE=inherit
@@ -172,7 +172,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ..
 
     configure ^
-        -prefix "%LibrariesPath%\Qt-Qt-5.15.1" ^
+        -prefix "%LibrariesPath%\Qt-5.15.1" ^
         -debug-and-release ^
         -force-debug-info ^
         -opensource ^

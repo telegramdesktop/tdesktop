@@ -127,7 +127,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.4
+    git checkout release/4.2
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
@@ -240,9 +240,9 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone git://repo.or.cz/openal-soft.git
+    git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout v1.19
+    git checkout fix_mono
     cd build
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
     make $MAKE_THREADS_CNT
