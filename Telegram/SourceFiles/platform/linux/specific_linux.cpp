@@ -134,7 +134,7 @@ bool IsXDGDesktopPortalKDEPresent() {
 
 bool IsIBusPortalPresent() {
 	static const auto Result = QDBusInterface(
-		qsl("org.freedesktop.IBus.Portal"),
+		qsl("org.freedesktop.portal.IBus"),
 		qsl("/org/freedesktop/IBus")).isValid();
 
 	return Result;
@@ -699,10 +699,6 @@ QString AppRuntimeDirectory() {
 
 		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
 			runtimeDir = QDir::tempPath();
-		}
-
-		if (runtimeDir.isEmpty()) {
-			runtimeDir = qsl("/tmp/");
 		}
 
 		if (!runtimeDir.endsWith('/')) {

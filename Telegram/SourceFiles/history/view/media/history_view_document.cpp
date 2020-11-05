@@ -129,18 +129,18 @@ void Document::createComponents(bool caption) {
 	if (const auto thumbed = Get<HistoryDocumentThumbed>()) {
 		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(
 			_data,
-			_parent->data()->fullId());
+			_realParent->fullId());
 		thumbed->_linkopenwithl = std::make_shared<DocumentOpenWithClickHandler>(
 			_data,
-			_parent->data()->fullId());
+			_realParent->fullId());
 		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(
 			_data,
-			_parent->data()->fullId());
+			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(
 			_data,
-			_parent->data()->fullId());
+			_realParent->fullId());
 	}
 }
 
@@ -261,7 +261,7 @@ void Document::draw(
 	const auto cornerDownload = downloadInCorner();
 
 	if (!_dataMedia->canBePlayed()) {
-		_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
+		_dataMedia->automaticLoad(_realParent->fullId(), _realParent);
 	}
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	bool selected = (selection == FullSelection);
@@ -453,7 +453,7 @@ void Document::draw(
 		auto activew = qRound(availw * progress);
 		if (!outbg
 			&& !voice->_playback
-			&& _parent->data()->hasUnreadMediaFlag()) {
+			&& _realParent->hasUnreadMediaFlag()) {
 			activew = availw;
 		}
 		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
@@ -507,7 +507,7 @@ void Document::draw(
 	p.setPen(status);
 	p.drawTextLeft(nameleft, statustop, width, statusText);
 
-	if (_parent->data()->hasUnreadMediaFlag()) {
+	if (_realParent->hasUnreadMediaFlag()) {
 		auto w = st::normalFont->width(statusText);
 		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= statuswidth) {
 			p.setPen(Qt::NoPen);
@@ -549,7 +549,7 @@ bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed()
-		&& IsServerMsgId(_parent->data()->id);
+		&& IsServerMsgId(_realParent->id);
 }
 
 void Document::drawCornerDownload(Painter &p, bool selected, LayoutMode mode) const {
@@ -687,7 +687,7 @@ TextState Document::textState(
 		auto waveformbottom = st.padding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
 		if (QRect(nameleft, nametop, namewidth, waveformbottom - nametop).contains(point)) {
 			const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId())
+			if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
 				&& !::Media::Player::IsStoppedOrStopping(state.state)) {
 				if (!voice->seeking()) {
 					voice->setSeekingStart((point.x() - nameleft) / float64(namewidth));
@@ -814,7 +814,7 @@ bool Document::updateStatusText() const {
 
 	if (_data->isVoiceMessage()) {
 		const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Voice);
-		if (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId())
+		if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
 			&& !::Media::Player::IsStoppedOrStopping(state.state)) {
 			if (auto voice = Get<HistoryDocumentVoice>()) {
 				bool was = (voice->_playback != nullptr);
@@ -840,19 +840,19 @@ bool Document::updateStatusText() const {
 				voice->checkPlaybackFinished();
 			}
 		}
-		if (!showPause && (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId()))) {
+		if (!showPause && (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId()))) {
 			showPause = ::Media::Player::instance()->isSeeking(AudioMsgId::Type::Voice);
 		}
 	} else if (_data->isAudioFile()) {
 		const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Song);
-		if (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId())
+		if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
 			&& !::Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
 			realDuration = (state.length / state.frequency);
 			showPause = ::Media::Player::ShowPauseIcon(state.state);
 		} else {
 		}
-		if (!showPause && (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId()))) {
+		if (!showPause && (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId()))) {
 			showPause = ::Media::Player::instance()->isSeeking(AudioMsgId::Type::Song);
 		}
 	}
@@ -962,7 +962,7 @@ void Document::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed
 		} else if (!pressed && voice->seeking()) {
 			const auto type = AudioMsgId::Type::Voice;
 			const auto state = ::Media::Player::instance()->getState(type);
-			if (state.id == AudioMsgId(_data, _parent->data()->fullId(), state.id.externalPlayId()) && state.length) {
+			if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId()) && state.length) {
 				const auto currentProgress = voice->seekingCurrent();
 				::Media::Player::instance()->finishSeeking(
 					AudioMsgId::Type::Voice,
