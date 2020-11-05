@@ -1795,10 +1795,7 @@ void Widget::onCancelSearchInChat() {
 		}
 		setSearchInChat(Key());
 	}
-	_inner->clearFilter();
-	_filter->clear();
-	_filter->updatePlaceholder();
-	applyFilterUpdate();
+	applyFilterUpdate(true);
 	if (!Adaptive::OneColumn() && !controller()->selectingPeer()) {
 		emit cancelled();
 	}
