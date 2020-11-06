@@ -2118,11 +2118,9 @@ void ListWidget::mouseActionFinish(
 	//_widget->noSelectingScroll(); // #TODO scroll by drag
 	//_widget->updateTopBarSelection();
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	//if (hasSelectedText()) { // #TODO linux clipboard
+	//if (QGuiApplication::clipboard()->supportsSelection() && hasSelectedText()) { // #TODO linux clipboard
 	//	TextUtilities::SetClipboardText(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
 	//}
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void ListWidget::applyDragSelection() {

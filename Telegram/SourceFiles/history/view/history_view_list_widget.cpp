@@ -2222,16 +2222,15 @@ void ListWidget::mouseActionFinish(
 	_mouseSelectType = TextSelectType::Letters;
 	//_widget->noSelectingScroll(); // #TODO select scroll
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	if (_selectedTextItem
+	if (QGuiApplication::clipboard()->supportsSelection()
+		&& _selectedTextItem
 		&& _selectedTextRange.from != _selectedTextRange.to) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
 			TextUtilities::SetClipboardText(
 				view->selectedText(_selectedTextRange),
 				QClipboard::Selection);
-}
+		}
 	}
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void ListWidget::mouseActionUpdate() {
