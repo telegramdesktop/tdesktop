@@ -13,14 +13,9 @@ if [ ! -d "$FullScriptPath/../../../../../DesktopPrivate" ]; then
   exit
 fi
 
-Error () {
-  cd $FullExecPath
-  echo "$1"
-  exit 1
-}
-
-if [ "$1" == "" ]; then
-  Error "Script not found!"
+Command="$1"
+if [ "$Command" == "" ]; then
+  Command="scl enable devtoolset-8 -- bash"
 fi
 
-docker run -it --rm --cpus=8 --memory=10g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $1
+docker run -it --rm --cpus=8 --memory=10g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $Command
