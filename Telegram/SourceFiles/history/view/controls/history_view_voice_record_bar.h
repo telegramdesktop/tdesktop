@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+struct VoiceData;
+
 namespace Ui {
 class SendButton;
 } // namespace Ui
@@ -24,6 +26,7 @@ class SessionController;
 namespace HistoryView::Controls {
 
 class VoiceRecordButton;
+class ListenWrap;
 class RecordLock;
 
 class VoiceRecordBar final : public Ui::RpWidget {
@@ -64,6 +67,12 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 
 private:
+	enum class StopType {
+		Cancel,
+		Send,
+		Listen,
+	};
+
 	void init();
 
 	void updateMessageGeometry();
@@ -74,7 +83,7 @@ private:
 	bool recordingAnimationCallback(crl::time now);
 
 	void stop(bool send);
-	void stopRecording(bool send);
+	void stopRecording(StopType type);
 	void visibilityAnimate(bool show, Fn<void()> &&callback);
 
 	bool showRecordButton() const;
@@ -92,6 +101,7 @@ private:
 
 	void activeAnimate(bool active);
 	float64 showAnimationRatio() const;
+	float64 showListenAnimationRatio() const;
 	float64 activeAnimationRatio() const;
 
 	void computeAndSetLockProgress(QPoint globalPos);
@@ -101,6 +111,7 @@ private:
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;
+	std::unique_ptr<ListenWrap> _listen;
 
 	base::Timer _startTimer;
 
@@ -129,6 +140,7 @@ private:
 	rpl::variable<bool> _lockShowing = false;
 
 	Ui::Animations::Simple _showLockAnimation;
+	Ui::Animations::Simple _showListenAnimation;
 	Ui::Animations::Simple _activeAnimation;
 	Ui::Animations::Simple _showAnimation;
 
