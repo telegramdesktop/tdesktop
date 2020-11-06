@@ -947,14 +947,9 @@ Window::ControlsLayout WindowControlsLayout() {
 
 } // namespace Platform
 
-namespace {
-
-QRect _monitorRect;
-auto _monitorLastGot = 0LL;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static auto _monitorLastGot = 0LL;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
