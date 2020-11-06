@@ -57,9 +57,9 @@ jobs:
       PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
       XZ: "xz-5.2.4"
-      QT: "5_12_8"
+      QT: "5_15_1"
       OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.1"
       LIBICONV_VER: "libiconv-1.16"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -417,20 +417,20 @@ jobs:
           build/gyp_crashpad.py -Dmac_deployment_target=10.10
           ninja -C out/Debug
 
-      - name: Qt 5.12.8 cache.
+      - name: Qt 5.15.1 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
-      - name: Use cached Qt 5.12.8.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_1/*') }}
+      - name: Use cached Qt 5.15.1.
         if: steps.cache-qt.outputs.cache-hit == 'true'
         run: |
           cd $LibrariesPath
-          mv qt-cache Qt-5.12.8
+          mv qt-cache Qt-5.15.1
           sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.12.8 "$(dirname "$QT_PREFIX")"/
-      - name: Qt 5.12.8 build.
+          sudo mv -f Qt-5.15.1 "$(dirname "$QT_PREFIX")"/
+      - name: Qt 5.15.1 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
@@ -438,7 +438,7 @@ jobs:
           git clone git://code.qt.io/qt/qt5.git qt_$QT
           cd qt_$QT
           perl init-repository --module-subset=qtbase,qtimageformats
-          git checkout v5.12.8
+          git checkout v5.15.1
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
