@@ -162,11 +162,11 @@ uint FileChooserPortalVersion() {
 			qsl("version")
 		});
 
-		const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+		const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 			message);
 
 		if (reply.isValid()) {
-			return reply.value();
+			return reply.value().toUInt();
 		} else {
 			LOG(("Error getting FileChooser portal version: %1")
 				.arg(reply.error().message()));
