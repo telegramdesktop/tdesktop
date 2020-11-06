@@ -145,14 +145,9 @@ void psDoCleanup() {
 	}
 }
 
-namespace {
-
-QRect _monitorRect;
-crl::time _monitorLastGot = 0;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static crl::time _monitorLastGot = 0;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;

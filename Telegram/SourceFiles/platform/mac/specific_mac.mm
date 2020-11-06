@@ -36,14 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-namespace {
-
-QRect _monitorRect;
-crl::time _monitorLastGot = 0;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static crl::time _monitorLastGot = 0;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
