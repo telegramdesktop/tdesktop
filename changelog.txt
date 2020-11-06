@@ -1,3 +1,7 @@
+2.4.9 beta (06.11.20)
+
+- Fix crash in tray icon removing. (macOS only)
+
 2.4.8 beta (06.11.20)
 
 - Upgrade Qt to version 5.15.1.
