@@ -38,12 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-QStringList _initLogs;
-
-};
-
-namespace {
-
 QRect _monitorRect;
 crl::time _monitorLastGot = 0;
 
@@ -63,14 +57,6 @@ void psWriteDump() {
 	double v = objc_appkitVersion();
 	CrashReports::dump() << "OS-Version: " << v;
 #endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
-}
-
-QStringList psInitLogs() {
-	return _initLogs;
-}
-
-void psClearInitLogs() {
-	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

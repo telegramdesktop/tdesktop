@@ -69,11 +69,7 @@ inline void psCheckLocalSocket(const QString &) {
 
 void psWriteDump();
 
-QStringList psInitLogs();
-void psClearInitLogs();
-
 void psActivateProcess(uint64 pid = 0);
-QString psLocalServerPrefix();
 QString psAppDataPath();
 QString psAppDataPathOld();
 void psAutoStart(bool start, bool silent = false);
