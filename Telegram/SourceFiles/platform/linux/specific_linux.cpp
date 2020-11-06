@@ -1139,7 +1139,7 @@ void InstallLauncher(bool force) {
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
-	const auto icon = icons + qsl("telegram.png");
+	const auto icon = icons + kIconName.utf16() + qsl(".png");
 	auto iconExists = QFile(icon).exists();
 	if (Local::oldSettingsVersion() < 10021 && iconExists) {
 		// Icon was changed.
