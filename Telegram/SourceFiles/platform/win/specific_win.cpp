@@ -70,8 +70,6 @@ using namespace Platform;
 
 namespace {
 
-QStringList _initLogs;
-
 bool themeInited = false;
 bool finished = true;
 QMargins simpleMargins, margins;
@@ -106,14 +104,6 @@ BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
 	return TRUE;
 }
 
-}
-
-QStringList psInitLogs() {
-	return _initLogs;
-}
-
-void psClearInitLogs() {
-	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
