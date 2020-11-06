@@ -58,8 +58,8 @@ jobs:
 
     env:
       GIT: "https://github.com"
-      QT: "5_12_8"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
+      QT: "5_15_1"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.1"
       OPENSSL_VER: "1_1_1"
       OPENSSL_PREFIX: "/usr/local/desktop-app/openssl-1.1.1"
       CMAKE_VER: "3.17.0"
@@ -427,18 +427,18 @@ jobs:
           cd ..
           rm -rf libxkbcommon
 
-      - name: Qt 5.12.8 cache.
+      - name: Qt 5.15.1 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qt*_5_12_8/*') }}
-      - name: Qt 5.12.8 build.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qt*_5_15_1/*') }}
+      - name: Qt 5.15.1 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
 
-          git clone -b v5.12.8 --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
+          git clone -b v5.15.1 --depth=1 git://code.qt.io/qt/qt5.git qt_${QT}
           cd qt_${QT}
           perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg
           git submodule update qtbase qtwayland qtimageformats qtsvg
@@ -471,7 +471,7 @@ jobs:
           sudo make INSTALL_ROOT="$LibrariesPath/qt-cache" install
           cd ..
           rm -rf qt_${QT}
-      - name: Qt 5.12.8 install.
+      - name: Qt 5.15.1 install.
         run: |
           cd $LibrariesPath
           sudo cp -R qt-cache/. /

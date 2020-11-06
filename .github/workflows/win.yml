@@ -59,8 +59,8 @@ jobs:
       SDK: "10.0.18362.0"
       VC: "call vcvars32.bat && cd Libraries"
       GIT: "https://github.com"
-      QT: "5_12_8"
-      QT_VER: "5.12.8"
+      QT: "5_15_1"
+      QT_VER: "5.15.1"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -301,13 +301,13 @@ jobs:
 
           rmdir /S /Q .git
 
-      - name: Qt 5.12.8 cache.
+      - name: Qt 5.15.1 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/Qt-${{ env.QT_VER }}
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
-      - name: Configure Qt 5.12.8.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_1/*') }}
+      - name: Configure Qt 5.15.1.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
@@ -344,7 +344,7 @@ jobs:
           -I "%LibrariesPath%\mozjpeg" ^
           LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
           LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
-      - name: Qt 5.12.8 build.
+      - name: Qt 5.15.1 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
