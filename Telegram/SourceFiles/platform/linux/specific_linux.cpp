@@ -635,11 +635,11 @@ bool IsGtkIntegrationForced() {
 }
 
 bool AreQtPluginsBundled() {
-#ifdef DESKTOP_APP_USE_PACKAGED_LAZY
+#if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY
 	return true;
-#else // DESKTOP_APP_USE_PACKAGED_LAZY
+#else // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
 	return false;
-#endif // !DESKTOP_APP_USE_PACKAGED_LAZY
+#endif // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
 }
 
 bool IsXDGDesktopPortalPresent() {
