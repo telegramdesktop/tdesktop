@@ -124,6 +124,14 @@ void PortalAutostart(bool autostart, bool silent = false) {
 	}
 }
 
+bool IsXDGDesktopPortalPresent() {
+	static const auto Result = QDBusInterface(
+		kXDGDesktopPortalService.utf16(),
+		kXDGDesktopPortalObjectPath.utf16()).isValid();
+
+	return Result;
+}
+
 bool IsXDGDesktopPortalKDEPresent() {
 	static const auto Result = QDBusInterface(
 		qsl("org.freedesktop.impl.portal.desktop.kde"),
@@ -642,18 +650,6 @@ bool AreQtPluginsBundled() {
 #endif // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
 }
 
-bool IsXDGDesktopPortalPresent() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto Result = QDBusInterface(
-		kXDGDesktopPortalService.utf16(),
-		kXDGDesktopPortalObjectPath.utf16()).isValid();
-
-	return Result;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return false;
-}
-
 bool UseXDGDesktopPortal() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = [&] {
@@ -1093,6 +1089,7 @@ void start() {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// this can give us a chance to use
 	// a proper file dialog for current session
 	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
@@ -1108,7 +1105,6 @@ void start() {
 		DEBUG_LOG(("XDG Desktop Portal is not present :("));
 	}
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// IBus has changed its socket path several times
 	// and each change should be synchronized with Qt.
 	// Moreover, the last time Qt changed the path,

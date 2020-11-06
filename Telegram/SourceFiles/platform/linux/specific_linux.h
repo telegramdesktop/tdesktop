@@ -23,25 +23,21 @@ inline void SetWatchingMediaKeys(bool watching) {
 bool InFlatpak();
 bool InSnap();
 bool IsStaticBinary();
+bool AreQtPluginsBundled();
 bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
-bool AreQtPluginsBundled();
-
-bool IsXDGDesktopPortalPresent();
 bool UseXDGDesktopPortal();
 bool CanOpenDirectoryWithPortal();
 
 QString AppRuntimeDirectory();
-
 QString GetLauncherBasename();
 QString GetLauncherFilename();
-
 QString GetIconName();
+
+void InstallLauncher(bool force = false);
 
 inline void IgnoreApplicationActivationRightNow() {
 }
-
-void InstallLauncher(bool force = false);
 
 } // namespace Platform
 
