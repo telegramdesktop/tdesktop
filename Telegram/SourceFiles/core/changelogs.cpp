@@ -85,6 +85,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Bug fixes and other minor improvements.\n"
 	},
+	{
+		2004008,
+		"- Upgrade several third party libraries to latest versions.\n"
+	},
 	};
 };
 

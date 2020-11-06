@@ -1,3 +1,9 @@
+2.4.8 beta (06.11.20)
+
+- Upgrade Qt to version 5.15.1.
+- Upgrade FFmpeg to version 4.2.
+- Upgrade OpenAL to version 1.20.1.
+
 2.4.7 (05.11.20)
 
 - Fix playback display in albums of music files.
