@@ -1382,8 +1382,9 @@ void HistoryInner::mouseActionFinish(
 	_widget->noSelectingScroll();
 	_widget->updateTopBarSelection();
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
+	if (QGuiApplication::clipboard()->supportsSelection()
+		&& !_selected.empty()
+		&& _selected.cbegin()->second != FullSelection) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
 			TextUtilities::SetClipboardText(
@@ -1391,7 +1392,6 @@ void HistoryInner::mouseActionFinish(
 				QClipboard::Selection);
 		}
 	}
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
