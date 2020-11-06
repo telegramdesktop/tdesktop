@@ -657,12 +657,19 @@ bool IsXDGDesktopPortalPresent() {
 bool UseXDGDesktopPortal() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = [&] {
+		const auto onlyIn = AreQtPluginsBundled()
+			// it is handled by Qt for flatpak and snap
+			&& !InFlatpak()
+			&& !InSnap();
+
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 		const auto neededForKde = DesktopEnvironment::IsKDE()
 			&& IsXDGDesktopPortalKDEPresent();
 
-		return (neededForKde || envVar) && portalPresent;
+		return onlyIn
+			&& portalPresent
+			&& (neededForKde || envVar);
 	}();
 
 	return Result;
@@ -1086,24 +1093,19 @@ void start() {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if (AreQtPluginsBundled()
-		// it is handled by Qt for flatpak and snap
-		&& !InFlatpak()
-		&& !InSnap()) {
-		LOG(("Checking for XDG Desktop Portal..."));
-		// this can give us a chance to use
-		// a proper file dialog for current session
-		if (IsXDGDesktopPortalPresent()) {
-			LOG(("XDG Desktop Portal is present!"));
-			if (UseXDGDesktopPortal()) {
-				LOG(("Using XDG Desktop Portal."));
-				qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
-			} else {
-				LOG(("Not using XDG Desktop Portal."));
-			}
+	// this can give us a chance to use
+	// a proper file dialog for current session
+	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
+	if (IsXDGDesktopPortalPresent()) {
+		DEBUG_LOG(("XDG Desktop Portal is present!"));
+		if (UseXDGDesktopPortal()) {
+			LOG(("Using XDG Desktop Portal."));
+			qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 		} else {
-			LOG(("XDG Desktop Portal is not present :("));
+			DEBUG_LOG(("Not using XDG Desktop Portal."));
 		}
+	} else {
+		DEBUG_LOG(("XDG Desktop Portal is not present :("));
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
