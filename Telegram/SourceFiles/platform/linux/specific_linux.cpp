@@ -272,8 +272,8 @@ bool GenerateDesktopFile(
 
 		if (IsStaticBinary()) {
 			DEBUG_LOG(("App Info: removing old .desktop files"));
-			QFile(qsl("%1telegram.desktop").arg(targetPath)).remove();
-			QFile(qsl("%1telegramdesktop.desktop").arg(targetPath)).remove();
+			QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
+			QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
 		}
 
 		return true;
@@ -986,9 +986,9 @@ QString psAppDataPath() {
 	if (!home.isEmpty()) {
 		auto oldPath = home + qsl(".TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
-		if (QFile(oldSettingsBase + '0').exists()
-			|| QFile(oldSettingsBase + '1').exists()
-			|| QFile(oldSettingsBase + 's').exists()) {
+		if (QFile::exists(oldSettingsBase + '0')
+			|| QFile::exists(oldSettingsBase + '1')
+			|| QFile::exists(oldSettingsBase + 's')) {
 			return oldPath;
 		}
 	}
@@ -1140,15 +1140,15 @@ void InstallLauncher(bool force) {
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
 	const auto icon = icons + kIconName.utf16() + qsl(".png");
-	auto iconExists = QFile(icon).exists();
+	auto iconExists = QFile::exists(icon);
 	if (Local::oldSettingsVersion() < 10021 && iconExists) {
 		// Icon was changed.
-		if (QFile(icon).remove()) {
+		if (QFile::remove(icon)) {
 			iconExists = false;
 		}
 	}
 	if (!iconExists) {
-		if (QFile(qsl(":/gui/art/logo_256.png")).copy(icon)) {
+		if (QFile::copy(qsl(":/gui/art/logo_256.png"), icon)) {
 			DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
 		}
 	}
