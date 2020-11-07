@@ -78,10 +78,11 @@ class ListenWrap final {
 public:
 	ListenWrap(
 		not_null<Ui::RpWidget*> parent,
-		const ::Media::Capture::Result &data);
+		::Media::Capture::Result &&data);
 
 	void requestPaintProgress(float64 progress);
 	rpl::producer<> stopRequests() const;
+	::Media::Capture::Result *data() const;
 
 	rpl::lifetime &lifetime();
 
@@ -90,7 +91,8 @@ private:
 
 	not_null<Ui::RpWidget*> _parent;
 
-	const std::unique_ptr<VoiceData> _voiceData;
+	const std::unique_ptr<::Media::Capture::Result> _data;
+	// const std::unique_ptr<VoiceData> _voiceData;
 	const style::IconButton &_stDelete;
 	base::unique_qptr<Ui::IconButton> _delete;
 
@@ -102,9 +104,10 @@ private:
 
 ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
-	const ::Media::Capture::Result &data)
+	::Media::Capture::Result &&data)
 : _parent(parent)
-, _voiceData(ProcessCaptureResult(data))
+, _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
+// , _voiceData(ProcessCaptureResult(_data))
 , _stDelete(st::historyRecordDelete)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete)) {
 	init();
@@ -135,6 +138,10 @@ void ListenWrap::requestPaintProgress(float64 progress) {
 
 rpl::producer<> ListenWrap::stopRequests() const {
 	return _delete->clicks() | rpl::to_empty;
+}
+
+::Media::Capture::Result *ListenWrap::data() const {
+	return _data.get();
 }
 
 rpl::lifetime &ListenWrap::lifetime() {
@@ -533,11 +540,9 @@ void VoiceRecordBar::init() {
 	_lock->stops(
 	) | rpl::start_with_next([=] {
 		::Media::Capture::instance()->startedChanges(
-		) | rpl::filter([](auto capturing) {
-			return !capturing;
+		) | rpl::filter([=](auto capturing) {
+			return !capturing && _listen;
 		}) | rpl::take(1) | rpl::start_with_next([=] {
-			Assert(_listen != nullptr);
-
 			_lockShowing = false;
 
 			const auto to = 1.;
@@ -604,6 +609,50 @@ void VoiceRecordBar::init() {
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			_startTimer.cancel();
 		}
+	}, lifetime());
+
+	_listenChanges.events(
+	) | rpl::filter([=] {
+		return _listen != nullptr;
+	}) | rpl::start_with_next([=] {
+		_listen->stopRequests(
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			visibilityAnimate(false, [=] { hide(); });
+		}, _listen->lifetime());
+
+		_listen->lifetime().add([=] { _listenChanges.fire({}); });
+
+		auto filterCallback = [=](not_null<QEvent*> e) {
+			using Result = base::EventFilterResult;
+			if (_send->type() != Ui::SendButton::Type::Send
+				&& _send->type() != Ui::SendButton::Type::Schedule) {
+				return Result::Continue;
+			}
+			switch(e->type()) {
+			case QEvent::MouseButtonRelease: {
+				auto callback = [=] {
+					const auto data = _listen->data();
+					_sendVoiceRequests.fire({
+						data->bytes,
+						data->waveform,
+						Duration(data->samples) });
+					hide();
+				};
+				visibilityAnimate(false, std::move(callback));
+				_send->clearState();
+				return Result::Cancel;
+			}
+			default: return Result::Continue;
+			}
+		};
+
+		auto filter = base::install_event_filter(
+			_send.get(),
+			std::move(filterCallback));
+
+		_listen->lifetime().make_state<base::unique_qptr<QObject>>(
+		std::move(filter));
+
 	}, lifetime());
 }
 
@@ -783,8 +832,10 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		instance()->stop();
 		return;
 	}
-	instance()->stop(crl::guard(this, [=](const Result &data) {
+	instance()->stop(crl::guard(this, [=](Result &&data) {
 		if (data.bytes.isEmpty()) {
+			// Close everything.
+			stop(false);
 			return;
 		}
 
@@ -793,11 +844,8 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		if (type == StopType::Send) {
 			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
 		} else if (type == StopType::Listen) {
-			_listen = std::make_unique<ListenWrap>(this, data);
-			_listen->stopRequests(
-			) | rpl::take(1) | rpl::start_with_next([=] {
-				visibilityAnimate(false, [=] { hide(); });
-			}, _listen->lifetime());
+			_listen = std::make_unique<ListenWrap>(this, std::move(data));
+			_listenChanges.fire({});
 
 			_lockShowing = false;
 		}
@@ -879,8 +927,16 @@ rpl::producer<bool> VoiceRecordBar::lockShowStarts() const {
 	return _lockShowing.changes();
 }
 
+rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
+	return _listenChanges.events();
+}
+
 bool VoiceRecordBar::isLockPresent() const {
 	return _lockShowing.current();
+}
+
+bool VoiceRecordBar::isListenState() const {
+	return _listen != nullptr;
 }
 
 bool VoiceRecordBar::isTypeRecord() const {

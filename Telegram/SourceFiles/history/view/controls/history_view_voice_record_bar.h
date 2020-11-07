@@ -57,6 +57,7 @@ public:
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
+	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
 
 	void setLockBottom(rpl::producer<int> &&bottom);
 	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
@@ -65,6 +66,7 @@ public:
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isLockPresent() const;
+	[[nodiscard]] bool isListenState() const;
 
 private:
 	enum class StopType {
@@ -117,6 +119,7 @@ private:
 
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
+	rpl::event_stream<> _listenChanges;
 
 	int _centerY = 0;
 	QRect _redCircleRect;
@@ -130,14 +133,13 @@ private:
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
+	rpl::variable<bool> _lockShowing = false;
 	int _recordingSamples = 0;
 	float64 _redCircleProgress = 0.;
 
 	const style::font &_cancelFont;
 
 	rpl::lifetime _recordingLifetime;
-
-	rpl::variable<bool> _lockShowing = false;
 
 	Ui::Animations::Simple _showLockAnimation;
 	Ui::Animations::Simple _showListenAnimation;

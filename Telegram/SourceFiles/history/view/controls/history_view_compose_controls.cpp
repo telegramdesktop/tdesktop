@@ -994,6 +994,7 @@ void ComposeControls::orderControls() {
 
 bool ComposeControls::showRecordButton() const {
 	return ::Media::Capture::instance()->available()
+		&& !_voiceRecordBar->isListenState()
 		&& !HasSendText(_field)
 		//&& !readyToForward()
 		&& !isEditingMessage();
@@ -1533,6 +1534,11 @@ void ComposeControls::initVoiceRecordBar() {
 	_voiceRecordBar->setEscFilter([=] {
 		return (isEditingMessage() || replyingToMessage());
 	});
+
+	_voiceRecordBar->updateSendButtonTypeRequests(
+	) | rpl::start_with_next([=] {
+		updateSendButtonType();
+	}, _wrap->lifetime());
 }
 
 void ComposeControls::updateWrappingVisibility() {

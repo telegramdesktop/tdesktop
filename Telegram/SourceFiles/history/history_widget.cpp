@@ -804,6 +804,11 @@ void HistoryWidget::initVoiceRecordBar() {
 		updateUnreadMentionsVisibility();
 	}, lifetime());
 
+	_voiceRecordBar->updateSendButtonTypeRequests(
+	) | rpl::start_with_next([=] {
+		updateSendButtonType();
+	}, lifetime());
+
 	_voiceRecordBar->hideFast();
 }
 
@@ -3639,6 +3644,7 @@ bool HistoryWidget::isMuteUnmute() const {
 
 bool HistoryWidget::showRecordButton() const {
 	return Media::Capture::instance()->available()
+		&& !_voiceRecordBar->isListenState()
 		&& !HasSendText(_field)
 		&& !readyToForward()
 		&& !_editMsgId;
