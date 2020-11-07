@@ -82,7 +82,7 @@ void UnsafeLaunch(const QString &filepath) {
 	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 
 	if (!g_app_info_launch_default_for_uri(
-		("file://" + absolutePath).toUtf8(),
+		g_filename_to_uri(absolutePath.toUtf8(), nullptr, nullptr),
 		nullptr,
 		nullptr)) {
 		QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
