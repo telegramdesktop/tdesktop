@@ -622,37 +622,7 @@ void VoiceRecordBar::init() {
 
 		_listen->lifetime().add([=] { _listenChanges.fire({}); });
 
-		auto filterCallback = [=](not_null<QEvent*> e) {
-			using Result = base::EventFilterResult;
-			if (_send->type() != Ui::SendButton::Type::Send
-				&& _send->type() != Ui::SendButton::Type::Schedule) {
-				return Result::Continue;
-			}
-			switch(e->type()) {
-			case QEvent::MouseButtonRelease: {
-				auto callback = [=] {
-					const auto data = _listen->data();
-					_sendVoiceRequests.fire({
-						data->bytes,
-						data->waveform,
-						Duration(data->samples) });
-					hide();
-				};
-				visibilityAnimate(false, std::move(callback));
-				_send->clearState();
-				return Result::Cancel;
-			}
-			default: return Result::Continue;
-			}
-		};
-
-		auto filter = base::install_event_filter(
-			_send.get(),
-			std::move(filterCallback));
-
-		_listen->lifetime().make_state<base::unique_qptr<QObject>>(
-		std::move(filter));
-
+		installListenStateFilter();
 	}, lifetime());
 }
 
@@ -1043,6 +1013,85 @@ void VoiceRecordBar::installClickOutsideFilter() {
 
 	_recordingLifetime.make_state<base::unique_qptr<QObject>>(
 		std::move(filter));
+}
+
+void VoiceRecordBar::installListenStateFilter() {
+	const auto close = [=](bool send) {
+		auto callback = [=] {
+			if (send) {
+				const auto data = _listen->data();
+				_sendVoiceRequests.fire({
+					data->bytes,
+					data->waveform,
+					Duration(data->samples) });
+			}
+			hide();
+		};
+		visibilityAnimate(false, std::move(callback));
+	};
+
+	const auto isSend = [=] {
+		return _send->type() == Ui::SendButton::Type::Send
+			|| _send->type() == Ui::SendButton::Type::Schedule;
+	};
+
+	auto mouseFilterCallback = [=](not_null<QEvent*> e) {
+		using Result = base::EventFilterResult;
+		if (!isSend()) {
+			return Result::Continue;
+		}
+		switch(e->type()) {
+		case QEvent::MouseButtonRelease: {
+			close(true);
+			_send->clearState();
+			return Result::Cancel;
+		}
+		default: return Result::Continue;
+		}
+	};
+
+	auto sendFilter = base::install_event_filter(
+		_send.get(),
+		std::move(mouseFilterCallback));
+
+	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
+	std::move(sendFilter));
+
+	auto keyFilterCallback = [=](not_null<QEvent*> e) {
+		using Result = base::EventFilterResult;
+		if (!isSend()) {
+			return Result::Continue;
+		}
+		switch(e->type()) {
+		case QEvent::KeyPress: {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			const auto isEsc = (key == Qt::Key_Escape);
+			const auto isEnter = (key == Qt::Key_Enter
+				|| key == Qt::Key_Return);
+			if (isEnter) {
+				close(true);
+				return Result::Cancel;
+			}
+			if (isEsc) {
+				if (_escFilter && _escFilter()) {
+					return Result::Continue;
+				} else {
+					close(false);
+					return Result::Cancel;
+				}
+			}
+			return Result::Continue;
+		}
+		default: return Result::Continue;
+		}
+	};
+
+	auto keyFilter = base::install_event_filter(
+		QCoreApplication::instance(),
+		std::move(keyFilterCallback));
+
+	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
+		std::move(keyFilter));
 }
 
 } // namespace HistoryView::Controls

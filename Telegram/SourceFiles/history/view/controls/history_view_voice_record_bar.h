@@ -95,6 +95,7 @@ private:
 
 	void startRedCircleAnimation();
 	void installClickOutsideFilter();
+	void installListenStateFilter();
 
 	bool isTypeRecord() const;
 	bool hasDuration() const;
