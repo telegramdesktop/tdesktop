@@ -365,7 +365,7 @@ void MainWindow::refreshTitleWidget() {
 		_titleShadow.destroy();
 	}
 
-#ifdef Q_OS_LINUX
+#if defined Q_OS_UNIX && !defined Q_OS_MAC
 	// setWindowFlag calls setParent(parentWidget(), newFlags), which
 	// always calls hide() explicitly, we have to show() the window back.
 	const auto hidden = isHidden();
@@ -378,7 +378,7 @@ void MainWindow::refreshTitleWidget() {
 			this,
 			[=] { show(); });
 	}
-#endif // Q_OS_LINUX
+#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void MainWindow::updateMinimumSize() {
