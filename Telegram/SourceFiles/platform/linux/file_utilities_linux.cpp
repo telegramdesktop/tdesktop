@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/specific_linux.h"
 #include "storage/localstorage.h"
 #include "base/qt_adapters.h"
+#include "window/window_controller.h"
+#include "core/application.h"
 
 #include <QtGui/QDesktopServices>
 
@@ -35,6 +37,58 @@ extern "C" {
 
 namespace Platform {
 namespace File {
+namespace {
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+bool ShowOpenWithSupported() {
+	return Platform::internal::GdkHelperLoaded()
+		&& (Libs::gtk_app_chooser_dialog_new != nullptr)
+		&& (Libs::gtk_app_chooser_get_app_info != nullptr)
+		&& (Libs::gtk_app_chooser_get_type != nullptr)
+		&& (Libs::gtk_widget_get_type != nullptr)
+		&& (Libs::gtk_widget_get_window != nullptr)
+		&& (Libs::gtk_widget_realize != nullptr)
+		&& (Libs::gtk_widget_show != nullptr)
+		&& (Libs::gtk_widget_destroy != nullptr);
+}
+
+void HandleAppChooserResponse(
+		GtkDialog *dialog,
+		int responseId,
+		GFile *file) {
+	GAppInfo *chosenAppInfo = nullptr;
+
+	switch (responseId) {
+	case GTK_RESPONSE_OK:
+		chosenAppInfo = Libs::gtk_app_chooser_get_app_info(
+			Libs::gtk_app_chooser_cast(dialog));
+
+		if (chosenAppInfo) {
+			GList *uris = nullptr;
+			uris = g_list_prepend(uris, g_file_get_uri(file));
+			g_app_info_launch_uris(chosenAppInfo, uris, nullptr, nullptr);
+			g_list_free(uris);
+			g_object_unref(chosenAppInfo);
+		}
+
+		g_object_unref(file);
+		Libs::gtk_widget_destroy(Libs::gtk_widget_cast(dialog));
+		break;
+
+	case GTK_RESPONSE_CANCEL:
+	case GTK_RESPONSE_DELETE_EVENT:
+		g_object_unref(file);
+		Libs::gtk_widget_destroy(Libs::gtk_widget_cast(dialog));
+		break;
+
+	default:
+		break;
+	}
+}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+} // namespace
+
 namespace internal {
 
 QByteArray EscapeShell(const QByteArray &content) {
@@ -78,6 +132,44 @@ void UnsafeOpenEmailLink(const QString &email) {
 	UnsafeOpenUrl(qstr("mailto:") + email);
 }
 
+bool UnsafeShowOpenWith(const QString &filepath) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (InFlatpak()
+		|| InSnap()
+		|| !ShowOpenWithSupported()) {
+		return false;
+	}
+
+	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
+	auto gfileInstance = g_file_new_for_path(absolutePath.toUtf8());
+
+	auto appChooserDialog = Libs::gtk_app_chooser_dialog_new(
+		nullptr,
+		GTK_DIALOG_MODAL,
+		gfileInstance);
+
+	g_signal_connect(
+		appChooserDialog,
+		"response",
+		G_CALLBACK(HandleAppChooserResponse),
+		gfileInstance);
+
+	Libs::gtk_widget_realize(appChooserDialog);
+
+	if (const auto activeWindow = Core::App().activeWindow()) {
+		Platform::internal::XSetTransientForHint(
+			Libs::gtk_widget_get_window(appChooserDialog),
+			activeWindow->widget().get()->windowHandle()->winId());
+	}
+
+	Libs::gtk_widget_show(appChooserDialog);
+
+	return true;
+#else // !TDESKTOP_DISABLE_GTK_INTEGRATION
+	return false;
+#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
+}
+
 void UnsafeLaunch(const QString &filepath) {
 	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 
@@ -85,7 +177,9 @@ void UnsafeLaunch(const QString &filepath) {
 		g_filename_to_uri(absolutePath.toUtf8(), nullptr, nullptr),
 		nullptr,
 		nullptr)) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
+		if (!UnsafeShowOpenWith(filepath)) {
+			QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
+		}
 	}
 }
 

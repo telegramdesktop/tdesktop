@@ -34,10 +34,6 @@ inline bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosit
 	return false;
 }
 
-inline bool UnsafeShowOpenWith(const QString &filepath) {
-	return false;
-}
-
 inline void PostprocessDownloaded(const QString &filepath) {
 }
 
