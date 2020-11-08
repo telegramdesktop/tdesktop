@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "window/window_controller.h"
+#include "core/application.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
@@ -108,8 +110,19 @@ void PortalAutostart(bool autostart, bool silent = false) {
 		qsl("org.freedesktop.portal.Background"),
 		qsl("RequestBackground"));
 
+	const auto parentWindowId = [&] {
+		if (const auto activeWindow = Core::App().activeWindow()) {
+			if (!IsWayland()) {
+				return qsl("x11:%1").arg(QString::number(
+					activeWindow->widget().get()->windowHandle()->winId(),
+					16));
+			}
+		}
+		return QString();
+	}();
+
 	message.setArguments({
-		QString(),
+		parentWindowId,
 		options
 	});
 
