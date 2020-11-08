@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/application.h"
 #include "data/data_document.h"
+#include "history/history_item_components.h"
 #include "history/view/controls/history_view_voice_record_button.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -91,10 +92,12 @@ private:
 
 	not_null<Ui::RpWidget*> _parent;
 
+	const std::unique_ptr<VoiceData> _voiceData;
 	const std::unique_ptr<::Media::Capture::Result> _data;
-	// const std::unique_ptr<VoiceData> _voiceData;
 	const style::IconButton &_stDelete;
 	base::unique_qptr<Ui::IconButton> _delete;
+
+	QRect _waveformBgRect;
 
 	rpl::variable<float64> _showProgress = 0.;
 
@@ -106,8 +109,8 @@ ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
 	::Media::Capture::Result &&data)
 : _parent(parent)
+, _voiceData(ProcessCaptureResult(data))
 , _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
-// , _voiceData(ProcessCaptureResult(_data))
 , _stDelete(st::historyRecordDelete)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete)) {
 	init();
@@ -120,15 +123,75 @@ void ListenWrap::init() {
 	}) | rpl::distinct_until_changed();
 	_delete->showOn(std::move(deleteShow));
 
+	_parent->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		const auto left = _stDelete.width + st::historyRecordWaveformLeftSkip;
+		_waveformBgRect = QRect({ 0, 0 }, size)
+			.marginsRemoved(st::historyRecordWaveformBgMargins);
+	}, _lifetime);
+
 	_parent->paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		const auto progress = _showProgress.current();
-		if (progress == 0. || progress == 1.) {
-			return;
-		}
 		Painter p(_parent);
+		PainterHighQualityEnabler hq(p);
+		const auto progress = _showProgress.current();
 		p.setOpacity(progress);
-		_stDelete.icon.paint(p, _stDelete.iconPosition, _parent->width());
+		if (progress > 0. && progress < 1.) {
+			_stDelete.icon.paint(p, _stDelete.iconPosition, _parent->width());
+		}
+
+		{
+			const auto deleteIconLeft = _stDelete.iconPosition.x();
+			const auto bgRectRight = anim::interpolate(
+				deleteIconLeft,
+				_stDelete.width,
+				progress);
+			const auto bgRectLeft = anim::interpolate(
+				_parent->width() - deleteIconLeft - _waveformBgRect.height(),
+				_stDelete.width,
+				progress);
+			const auto bgRectMargins = style::margins(
+				bgRectLeft,
+				0,
+				bgRectRight,
+				0);
+			const auto bgRect = _waveformBgRect.marginsRemoved(bgRectMargins);
+
+			const auto horizontalMargin = bgRect.width() - bgRect.height();
+			const auto bgLeftCircleRect = bgRect.marginsRemoved(
+				style::margins(0, 0, horizontalMargin, 0));
+			const auto bgRightCircleRect = bgRect.marginsRemoved(
+				style::margins(horizontalMargin, 0, 0, 0));
+
+			const auto halfHeight = bgRect.height() / 2;
+			const auto bgCenterRect = bgRect.marginsRemoved(
+				style::margins(halfHeight, 0, halfHeight, 0));
+
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::historyRecordCancelActive);
+			p.drawEllipse(bgLeftCircleRect);
+			p.drawEllipse(bgRightCircleRect);
+			p.fillRect(bgCenterRect, st::historyRecordCancelActive);
+
+			// Waveform paint.
+			{
+				const auto top =
+					(bgCenterRect.height() - st::msgWaveformMax) / 2;
+				const auto rect = bgCenterRect.marginsRemoved(
+					style::margins(halfHeight, top, halfHeight, top));
+				if (rect.width() > 0) {
+					p.translate(rect.topLeft());
+					HistoryDocumentVoice::PaintWaveform(
+						p,
+						_voiceData.get(),
+						rect.width(),
+						false,
+						false,
+						0.);
+					p.resetTransform();
+				}
+			}
+		}
 	}, _lifetime);
 }
 
