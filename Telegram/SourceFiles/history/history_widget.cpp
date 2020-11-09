@@ -3183,11 +3183,20 @@ void HistoryWidget::showAnimated(
 	_a_show.stop();
 
 	_cacheUnder = params.oldContentCache;
+
+	// If we show pinned bar here, we don't want it to change the
+	// calculated and prepared scrollTop of the messages history.
+	_preserveScrollTop = true;
 	show();
 	_topBar->finishAnimating();
 	historyDownAnimationFinish();
 	unreadMentionsAnimationFinish();
+	if (_pinnedBar) {
+		_pinnedBar->finishAnimating();
+	}
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
+	_preserveScrollTop = false;
+
 	_cacheOver = controller()->content()->grabForShowAnimation(params);
 
 	if (_tabbedPanel) {
@@ -3216,8 +3225,12 @@ void HistoryWidget::animationCallback() {
 	if (!_a_show.animating()) {
 		historyDownAnimationFinish();
 		unreadMentionsAnimationFinish();
+		if (_pinnedBar) {
+			_pinnedBar->finishAnimating();
+		}
 		_cacheUnder = _cacheOver = QPixmap();
 		doneShow();
+		synteticScrollToY(_scroll->scrollTop());
 	}
 }
 
@@ -4676,11 +4689,7 @@ void HistoryWidget::updateHistoryGeometry(
 		}
 	}
 	const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
-	if (_scroll->scrollTop() == toY) {
-		visibleAreaUpdated();
-	} else {
-		synteticScrollToY(toY);
-	}
+	synteticScrollToY(toY);
 }
 
 void HistoryWidget::updateListSize() {
