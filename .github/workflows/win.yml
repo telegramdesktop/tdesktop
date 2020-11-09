@@ -294,10 +294,10 @@ jobs:
 
           git clone %GIT%/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/3.4
+          git checkout release/4.2
           set CHERE_INVOKING=enabled_from_arguments
           set MSYS2_PATH_TYPE=inherit
-          call c:\tools\msys64\usr\bin\bash --login ../../%REPO_NAME%/Telegram/Patches/build_ffmpeg_win.sh
+          call c:\tools\msys64\usr\bin\bash --login ../patches/build_ffmpeg_win.sh
 
           rmdir /S /Q .git
 

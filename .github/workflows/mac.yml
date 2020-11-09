@@ -235,7 +235,7 @@ jobs:
 
           git clone $GIT/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/3.4
+          git checkout release/4.2
           CFLAGS=`freetype-config --cflags`
           LDFLAGS=`freetype-config --libs`
           PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
@@ -244,7 +244,9 @@ jobs:
           --extra-cflags="$MIN_MAC $UNGUARDED" \
           --extra-cxxflags="$MIN_MAC $UNGUARDED" \
           --extra-ldflags="$MIN_MAC" \
-          --enable-protocol=file --enable-libopus \
+          --x86asmexe=`pwd`/macos_yasm_wrap.sh \
+          --enable-protocol=file \
+          --enable-libopus \
           --disable-programs \
           --disable-doc \
           --disable-network \
@@ -364,9 +366,9 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/kcat/openal-soft.git
+          git clone https://github.com/telegramdesktop/openal-soft.git
           cd openal-soft
-          git checkout openal-soft-1.19.1
+          git checkout fix_mono
           cd build
 
           CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \

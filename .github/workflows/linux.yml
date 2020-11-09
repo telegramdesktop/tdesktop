@@ -229,7 +229,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone --branch release/3.4 $GIT/FFmpeg/FFmpeg ffmpeg
+          git clone --branch release/4.2 $GIT/FFmpeg/FFmpeg ffmpeg
           cd ffmpeg
           ./configure \
           --disable-debug \
