@@ -201,7 +201,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 	QIcon result;
 	QIcon systemIcon;
 
-	const auto iconSizes = {
+	static const auto iconSizes = {
 		22,
 		24,
 		32,
@@ -240,9 +240,12 @@ QIcon TrayIconGen(int counter, bool muted) {
 				currentImageBack = Core::App().logo();
 			}
 
-			if (currentImageBack.size() != desiredSize) {
+			const auto currentImageBackSize = currentImageBack.size()
+				/ currentImageBack.devicePixelRatio();
+
+			if (currentImageBackSize != desiredSize) {
 				currentImageBack = currentImageBack.scaled(
-					desiredSize,
+					desiredSize * currentImageBack.devicePixelRatio(),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 			}
@@ -327,8 +330,7 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
-	const auto dpr = style::DevicePixelRatio();
-	const auto desiredSize = QSize(22 * dpr, 22 * dpr);
+	static const auto desiredSize = QSize(22, 22);
 
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
@@ -346,10 +348,11 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		icon
-			.pixmap(*biggestSize)
+		const auto iconPixmap = icon.pixmap(*biggestSize);
+
+		iconPixmap
 			.scaled(
-				desiredSize,
+				desiredSize * iconPixmap.devicePixelRatio(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation)
 			.save(ret.get());
