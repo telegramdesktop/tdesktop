@@ -665,7 +665,7 @@ void VoiceRecordButton::init() {
 		}
 		PainterHighQualityEnabler hq(p);
 		const auto color = anim::color(
-			st::historyRecordSignalColor,
+			st::historyRecordVoiceFgInactive,
 			st::historyRecordVoiceFgActive,
 			_colorProgress.current());
 		_recordCircle->paint(p, color);

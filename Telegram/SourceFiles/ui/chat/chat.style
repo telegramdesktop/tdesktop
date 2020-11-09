@@ -327,14 +327,15 @@ historyScheduledToggle: IconButton(historyAttach) {
 }
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
+historyRecordVoiceFgInactive: attentionButtonFg;
 historyRecordVoiceFgActive: windowBgActive;
+historyRecordVoiceFgActiveIcon: windowFgActive;
 historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
-historyRecordVoiceActive: icon {{ "send_control_record_active", recordActiveIcon }};
+historyRecordVoiceActive: icon {{ "send_control_record_active", historyRecordVoiceFgActiveIcon }};
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
-historyRecordSignalColor: attentionButtonFg;
 historyRecordSignalRadius: 5px;
 historyRecordCancel: windowSubTextFg;
 historyRecordCancelActive: windowActiveTextFg;

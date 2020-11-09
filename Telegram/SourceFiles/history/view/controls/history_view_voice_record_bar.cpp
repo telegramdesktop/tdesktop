@@ -691,7 +691,7 @@ void VoiceRecordBar::startRedCircleAnimation() {
 void VoiceRecordBar::drawRedCircle(Painter &p) {
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(st::historyRecordSignalColor);
+	p.setBrush(st::historyRecordVoiceFgInactive);
 
 	p.setOpacity(1. - _redCircleProgress);
 	const int radii = st::historyRecordSignalRadius * showAnimationRatio();
