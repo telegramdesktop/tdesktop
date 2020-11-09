@@ -11,7 +11,7 @@ ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 RUN yum -y install centos-release-scl
 
-RUN yum -y install git cmake3 zlib-devel gtk2-devel libICE-devel \
+RUN yum -y install git cmake3 zlib-devel gtk3-devel libICE-devel \
 	libSM-devel libdrm-devel autoconf automake libtool fontconfig-devel \
 	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \

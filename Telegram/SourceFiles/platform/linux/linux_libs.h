@@ -18,7 +18,7 @@ extern "C" {
 #define signals public
 } // extern "C"
 
-// present start with gtk 3.0, we're building with gtk 2.0 headers
+// present starting with gtk 3.0, we can build with gtk2 headers
 typedef struct _GtkAppChooser GtkAppChooser;
 
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

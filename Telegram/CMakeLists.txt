@@ -112,7 +112,7 @@ if (LINUX)
                 PkgConfig::X11
             )
         else()
-            pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
+            pkg_search_module(GTK REQUIRED gtk+-3.0 gtk+-2.0)
             target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
             target_link_libraries(Telegram PRIVATE X11)
         endif()
