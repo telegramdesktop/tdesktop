@@ -79,7 +79,8 @@ class ListenWrap final {
 public:
 	ListenWrap(
 		not_null<Ui::RpWidget*> parent,
-		::Media::Capture::Result &&data);
+		::Media::Capture::Result &&data,
+		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
 	rpl::producer<> stopRequests() const;
@@ -95,9 +96,13 @@ private:
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::unique_ptr<::Media::Capture::Result> _data;
 	const style::IconButton &_stDelete;
-	base::unique_qptr<Ui::IconButton> _delete;
+	const base::unique_qptr<Ui::IconButton> _delete;
+	const style::font &_durationFont;
+	const QString _duration;
+	const int _durationWidth;
 
 	QRect _waveformBgRect;
+	QRect _durationRect;
 
 	rpl::variable<float64> _showProgress = 0.;
 
@@ -107,12 +112,17 @@ private:
 
 ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
-	::Media::Capture::Result &&data)
+	::Media::Capture::Result &&data,
+	const style::font &font)
 : _parent(parent)
 , _voiceData(ProcessCaptureResult(data))
 , _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
 , _stDelete(st::historyRecordDelete)
-, _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete)) {
+, _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete))
+, _durationFont(font)
+, _duration(Ui::FormatDurationText(
+	float64(_data->samples) / ::Media::Player::kDefaultFrequency))
+, _durationWidth(_durationFont->width(_duration)) {
 	init();
 }
 
@@ -173,12 +183,29 @@ void ListenWrap::init() {
 			p.drawEllipse(bgRightCircleRect);
 			p.fillRect(bgCenterRect, st::historyRecordCancelActive);
 
+			// Duration paint.
+			{
+				p.setFont(_durationFont);
+				p.setPen(st::historyRecordVoiceFgActiveIcon);
+
+				const auto top = computeTopMargin(_durationFont->ascent);
+				const auto rect = bgCenterRect.marginsRemoved(
+					style::margins(
+						bgCenterRect.width() - _durationWidth,
+						top,
+						0,
+						top));
+				p.drawText(rect, style::al_left, _duration);
+			}
+
 			// Waveform paint.
 			{
 				const auto top =
 					(bgCenterRect.height() - st::msgWaveformMax) / 2;
+				const auto right = st::historyRecordWaveformLeftSkip
+					+ _durationWidth;
 				const auto rect = bgCenterRect.marginsRemoved(
-					style::margins(halfHeight, top, halfHeight, top));
+					style::margins(halfHeight, top, right, top));
 				if (rect.width() > 0) {
 					p.translate(rect.topLeft());
 					HistoryDocumentVoice::PaintWaveform(
@@ -877,7 +904,10 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		if (type == StopType::Send) {
 			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
 		} else if (type == StopType::Listen) {
-			_listen = std::make_unique<ListenWrap>(this, std::move(data));
+			_listen = std::make_unique<ListenWrap>(
+				this,
+				std::move(data),
+				_cancelFont);
 			_listenChanges.fire({});
 
 			_lockShowing = false;
