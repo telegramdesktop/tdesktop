@@ -159,6 +159,11 @@ private:
 			not_null<DocumentData*>> data;
 		HistoryItem *item;
 	};
+	enum class SavePhotoVideo {
+		None,
+		QuickSave,
+		SaveAs,
+	};
 
 	void paintEvent(QPaintEvent *e) override;
 
@@ -206,6 +211,9 @@ private:
 	void moveToScreen(bool force = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
+
+	bool contentCanBeSaved() const;
+	void checkForSaveLoaded();
 
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
@@ -502,6 +510,7 @@ private:
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Ui::Text::String _saveMsgText;
+	SavePhotoVideo _savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 
 	base::flat_map<OverState, crl::time> _animations;
 	base::flat_map<OverState, anim::value> _animationOpacities;

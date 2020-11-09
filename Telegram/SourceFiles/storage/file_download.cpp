@@ -471,8 +471,9 @@ bool FileLoader::finalizeResult() {
 					_cacheTag));
 		}
 	}
-	_session->notifyDownloaderTaskFinished();
+	const auto session = _session;
 	_updates.fire_done();
+	session->notifyDownloaderTaskFinished();
 	return true;
 }
 

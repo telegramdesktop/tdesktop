@@ -627,6 +627,34 @@ void OverlayWidget::refreshNavVisibility() {
 	}
 }
 
+bool OverlayWidget::contentCanBeSaved() const {
+	if (_photo) {
+		return _photo->hasVideo() || _photoMedia->loaded();
+	} else if (_document) {
+		return _document->filepath(true).isEmpty() && !_document->loading();
+	} else {
+		return false;
+	}
+}
+
+void OverlayWidget::checkForSaveLoaded() {
+	if (_savePhotoVideoWhenLoaded == SavePhotoVideo::None) {
+		return;
+	} else if (!_photo
+		|| !_photo->hasVideo()
+		|| _photoMedia->videoContent().isEmpty()) {
+		return;
+	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::QuickSave) {
+		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
+		onDownload();
+	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::SaveAs) {
+		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
+		onSaveAs();
+	} else {
+		Unexpected("SavePhotoVideo in OverlayWidget::checkForSaveLoaded.");
+	}
+}
+
 void OverlayWidget::updateControls() {
 	if (_document && documentBubbleShown()) {
 		if (_document->loading()) {
@@ -658,10 +686,7 @@ void OverlayWidget::updateControls() {
 
 	updateThemePreviewGeometry();
 
-	_saveVisible = (_photo && _photoMedia->loaded())
-		|| (_document
-			&& _document->filepath(true).isEmpty()
-			&& !_document->loading());
+	_saveVisible = contentCanBeSaved();
 	_rotateVisible = !_themePreviewShown;
 	const auto navRect = [&](int i) {
 		return myrtlrect(width() - st::mediaviewIconSize.width() * i,
@@ -1153,6 +1178,7 @@ OverlayWidget::~OverlayWidget() {
 }
 
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
+	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	_photo = nullptr;
 	_photoMedia = nullptr;
 	if (_document != document) {
@@ -1167,6 +1193,7 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 }
 
 void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
+	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	_document = nullptr;
 	_documentMedia = nullptr;
 	if (_photo != photo) {
@@ -1348,6 +1375,31 @@ void OverlayWidget::onSaveAs() {
 			updateControls();
 			updateOver(_lastMouseMovePos);
 		}
+	} else if (_photo && _photo->hasVideo()) {
+		if (const auto bytes = _photoMedia->videoContent(); !bytes.isEmpty()) {
+			auto filter = qsl("Video Files (*.mp4);;") + FileDialog::AllFilesFilter();
+			FileDialog::GetWritePath(
+				this,
+				tr::lng_save_video(tr::now),
+				filter,
+				filedialogDefaultName(
+					qsl("photo"),
+					qsl(".mp4"),
+					QString(),
+					false,
+					_photo->date),
+				crl::guard(this, [=, photo = _photo](const QString &result) {
+					QFile f(result);
+					if (!result.isEmpty()
+						&& _photo == photo
+						&& f.open(QIODevice::WriteOnly)) {
+						f.write(bytes);
+					}
+				}));
+		} else {
+			_photo->loadVideo(fileOrigin());
+			_savePhotoVideoWhenLoaded = SavePhotoVideo::SaveAs;
+		}
 	} else {
 		if (!_photo || !_photoMedia->loaded()) {
 			return;
@@ -1436,14 +1488,29 @@ void OverlayWidget::onDownload() {
 					DocumentSaveClickHandler::Mode::ToFile);
 				updateControls();
 			} else {
-				_saveVisible = false;
+				_saveVisible = contentCanBeSaved();
 				update(_saveNav);
 			}
 			updateOver(_lastMouseMovePos);
 		}
+	} else if (_photo && _photo->hasVideo()) {
+		if (const auto bytes = _photoMedia->videoContent(); !bytes.isEmpty()) {
+			if (!QDir().exists(path)) {
+				QDir().mkpath(path);
+			}
+			toName = filedialogDefaultName(qsl("photo"), qsl(".mp4"), path);
+			QFile f(toName);
+			if (!f.open(QIODevice::WriteOnly)
+				|| f.write(bytes) != bytes.size()) {
+				toName = QString();
+			}
+		} else {
+			_photo->loadVideo(fileOrigin());
+			_savePhotoVideoWhenLoaded = SavePhotoVideo::QuickSave;
+		}
 	} else {
 		if (!_photo || !_photoMedia->loaded()) {
-			_saveVisible = false;
+			_saveVisible = contentCanBeSaved();
 			update(_saveNav);
 		} else {
 			const auto image = _photoMedia->image(
@@ -3685,6 +3752,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 	) | rpl::start_with_next([=] {
 		if (!isHidden()) {
 			updateControls();
+			checkForSaveLoaded();
 		}
 	}, _sessionLifetime);
 
