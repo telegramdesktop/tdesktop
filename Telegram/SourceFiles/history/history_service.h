@@ -95,9 +95,7 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	bool needCheck() const override {
-		return false;
-	}
+	bool needCheck() const override;
 	bool serviceMsg() const override {
 		return true;
 	}

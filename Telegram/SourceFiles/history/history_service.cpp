@@ -617,6 +617,11 @@ bool HistoryService::updateDependencyItem() {
 	return HistoryItem::updateDependencyItem();
 }
 
+bool HistoryService::needCheck() const {
+	return (GetDependentData() != nullptr)
+		|| Has<HistoryServiceSelfDestruct>();
+}
+
 QString HistoryService::inDialogsText(DrawInDialog way) const {
 	return textcmdLink(1, TextUtilities::Clean(notificationText()));
 }
