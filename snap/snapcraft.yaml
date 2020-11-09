@@ -18,6 +18,7 @@ apps:
     common-id: org.telegram.desktop
     desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
     environment:
+      # Tell glib to use portals on file associations handling.
       GTK_USE_PORTAL: 1
     plugs:
       - alsa
