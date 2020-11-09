@@ -500,8 +500,10 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
 
 	d.reset(new QGtkDialog(Libs::gtk_file_chooser_dialog_new("", nullptr,
 		GTK_FILE_CHOOSER_ACTION_OPEN,
-		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-		GTK_STOCK_OK, GTK_RESPONSE_OK, nullptr)));
+		// https://developer.gnome.org/gtk3/stable/GtkFileChooserDialog.html#gtk-file-chooser-dialog-new
+		// first_button_text doesn't need explicit conversion to char*, while all others are vardict
+		tr::lng_cancel(tr::now).toUtf8(), GTK_RESPONSE_CANCEL,
+		tr::lng_box_ok(tr::now).toUtf8().constData(), GTK_RESPONSE_OK, nullptr)));
 	connect(d.data(), SIGNAL(accept()), this, SLOT(onAccepted()));
 	connect(d.data(), SIGNAL(reject()), this, SLOT(onRejected()));
 
@@ -737,9 +739,9 @@ void GtkFileDialog::applyOptions() {
 			/*if (opts->isLabelExplicitlySet(QFileDialogOptions::Accept))
 				Libs::gtk_button_set_label(Libs::gtk_button_cast(acceptButton), opts->labelText(QFileDialogOptions::Accept).toUtf8());
 			else*/ if (_acceptMode == QFileDialog::AcceptOpen)
-				Libs::gtk_button_set_label(Libs::gtk_button_cast(acceptButton), GTK_STOCK_OPEN);
+				Libs::gtk_button_set_label(Libs::gtk_button_cast(acceptButton), tr::lng_open_link(tr::now).toUtf8());
 			else
-				Libs::gtk_button_set_label(Libs::gtk_button_cast(acceptButton), GTK_STOCK_SAVE);
+				Libs::gtk_button_set_label(Libs::gtk_button_cast(acceptButton), tr::lng_settings_save(tr::now).toUtf8());
 		}
 
 		GtkWidget *rejectButton = Libs::gtk_dialog_get_widget_for_response(gtkDialog, GTK_RESPONSE_CANCEL);
@@ -747,7 +749,7 @@ void GtkFileDialog::applyOptions() {
 			/*if (opts->isLabelExplicitlySet(QFileDialogOptions::Reject))
 				Libs::gtk_button_set_label(Libs::gtk_button_cast(rejectButton), opts->labelText(QFileDialogOptions::Reject).toUtf8());
 			else*/
-				Libs::gtk_button_set_label(Libs::gtk_button_cast(rejectButton), GTK_STOCK_CANCEL);
+				Libs::gtk_button_set_label(Libs::gtk_button_cast(rejectButton), tr::lng_cancel(tr::now).toUtf8());
 		}
 	}
 }
