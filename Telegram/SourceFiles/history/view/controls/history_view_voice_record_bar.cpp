@@ -9,17 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_send_progress.h"
 #include "base/event_filter.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_session.h"
 #include "history/history_item_components.h"
 #include "history/view/controls/history_view_voice_record_button.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "mainwidget.h" // MainWidget::stopAndClosePlayer
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_capture.h"
+#include "media/player/media_player_button.h"
+#include "media/player/media_player_instance.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
@@ -73,12 +81,29 @@ enum class FilterType {
 	return voiceData;
 }
 
+[[nodiscard]] not_null<DocumentData*> DummyDocument(
+		not_null<Data::Session*> owner) {
+	return owner->document(
+		rand_value<DocumentId>(),
+		uint64(0),
+		QByteArray(),
+		base::unixtime::now(),
+		QVector<MTPDocumentAttribute>(),
+		QString(),
+		QByteArray(),
+		ImageWithLocation(),
+		ImageWithLocation(),
+		owner->session().mainDcId(),
+		int32(0));
+}
+
 } // namespace
 
 class ListenWrap final {
 public:
 	ListenWrap(
 		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
 		::Media::Capture::Result &&data,
 		const style::font &font);
 
@@ -90,19 +115,29 @@ public:
 
 private:
 	void init();
+	void initPlayButton();
+
+	int computeTopMargin(int height) const;
 
 	not_null<Ui::RpWidget*> _parent;
 
+	const not_null<Window::SessionController*> _controller;
+	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
+	const std::shared_ptr<Data::DocumentMedia> _mediaView;
 	const std::unique_ptr<::Media::Capture::Result> _data;
 	const style::IconButton &_stDelete;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	const QString _duration;
 	const int _durationWidth;
+	const style::MediaPlayerButton &_playPauseSt;
+	const base::unique_qptr<Ui::AbstractButton> _playPauseButton;
 
 	QRect _waveformBgRect;
-	QRect _durationRect;
+	QRect _waveformBgFinalCenterRect;
+
+	::Media::Player::PlayButtonLayout _playPause;
 
 	rpl::variable<float64> _showProgress = 0.;
 
@@ -112,17 +147,24 @@ private:
 
 ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Window::SessionController*> controller,
 	::Media::Capture::Result &&data,
 	const style::font &font)
 : _parent(parent)
+, _controller(controller)
+, _document(DummyDocument(&_controller->session().data()))
 , _voiceData(ProcessCaptureResult(data))
+, _mediaView(_document->createMediaView())
 , _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
 , _stDelete(st::historyRecordDelete)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete))
 , _durationFont(font)
 , _duration(Ui::FormatDurationText(
 	float64(_data->samples) / ::Media::Player::kDefaultFrequency))
-, _durationWidth(_durationFont->width(_duration)) {
+, _durationWidth(_durationFont->width(_duration))
+, _playPauseSt(st::mediaPlayerButton)
+, _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
+, _playPause(_playPauseSt, [=] { _playPauseButton->update(); }) {
 	init();
 }
 
@@ -135,9 +177,20 @@ void ListenWrap::init() {
 
 	_parent->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		const auto left = _stDelete.width + st::historyRecordWaveformLeftSkip;
 		_waveformBgRect = QRect({ 0, 0 }, size)
 			.marginsRemoved(st::historyRecordWaveformBgMargins);
+		{
+			const auto m = _stDelete.width + _waveformBgRect.height() / 2;
+			_waveformBgFinalCenterRect = _waveformBgRect.marginsRemoved(
+				style::margins(m, 0, m, 0));
+		}
+		{
+			const auto &play = _playPauseSt.playOuter;
+			const auto &final = _waveformBgFinalCenterRect;
+			_playPauseButton->moveToLeft(
+				final.x() - (final.height() - play.width()) / 2,
+				final.y());
+		}
 	}, _lifetime);
 
 	_parent->paintRequest(
@@ -200,12 +253,13 @@ void ListenWrap::init() {
 
 			// Waveform paint.
 			{
-				const auto top =
-					(bgCenterRect.height() - st::msgWaveformMax) / 2;
+				const auto &play = _playPauseSt.playOuter;
+				const auto top = computeTopMargin(st::msgWaveformMax);
+				const auto left = play.width() / 2 + halfHeight;
 				const auto right = st::historyRecordWaveformLeftSkip
 					+ _durationWidth;
 				const auto rect = bgCenterRect.marginsRemoved(
-					style::margins(halfHeight, top, right, top));
+					style::margins(left, top, right, top));
 				if (rect.width() > 0) {
 					p.translate(rect.topLeft());
 					HistoryDocumentVoice::PaintWaveform(
@@ -220,6 +274,73 @@ void ListenWrap::init() {
 			}
 		}
 	}, _lifetime);
+
+	initPlayButton();
+}
+
+void ListenWrap::initPlayButton() {
+	using namespace ::Media::Player;
+	using State = TrackState;
+
+	_mediaView->setBytes(_data->bytes);
+	_document->type = VoiceDocument;
+
+	const auto &play = _playPauseSt.playOuter;
+	const auto &width = _waveformBgFinalCenterRect.height();
+	_playPauseButton->resize(width, width);
+	_playPauseButton->show();
+
+	_playPauseButton->paintRequest(
+	) | rpl::start_with_next([=](const QRect &clip) {
+		Painter p(_playPauseButton);
+
+		const auto progress = _showProgress.current();
+		p.translate(width / 2, width / 2);
+		if (progress < 1.) {
+			p.scale(progress, progress);
+		}
+		p.translate(-play.width() / 2, -play.height() / 2);
+		_playPause.paint(p, st::historyRecordVoiceFgActiveIcon);
+	}, _playPauseButton->lifetime());
+
+	_playPauseButton->setClickedCallback([=] {
+		instance()->playPause({ _document, FullMsgId() });
+	});
+
+	const auto showPause = _lifetime.make_state<rpl::variable<bool>>(false);
+	showPause->changes(
+	) | rpl::start_with_next([=](bool pause) {
+		_playPause.setState(pause
+			? PlayButtonLayout::State::Pause
+			: PlayButtonLayout::State::Play);
+	}, _lifetime);
+
+	instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const State &state) {
+		if (state.id.audio() == _document) {
+			*showPause = ShowPauseIcon(state.state);
+		} else if (showPause->current()) {
+			*showPause = false;
+		}
+	}, _lifetime);
+
+	instance()->stops(
+		AudioMsgId::Type::Voice
+	) | rpl::start_with_next([=] {
+		*showPause = false;
+	}, _lifetime);
+
+	const auto weak = Ui::MakeWeak(_controller->content().get());
+	_lifetime.add([=] {
+		const auto voiceState = instance()->getState(AudioMsgId::Type::Voice);
+		if (weak && voiceState.id && (voiceState.id.audio() == _document)) {
+			weak->stopAndClosePlayer();
+		}
+	});
+}
+
+int ListenWrap::computeTopMargin(int height) const {
+	return (_waveformBgRect.height() - height) / 2;
 }
 
 void ListenWrap::requestPaintProgress(float64 progress) {
@@ -906,6 +1027,7 @@ void VoiceRecordBar::stopRecording(StopType type) {
 		} else if (type == StopType::Listen) {
 			_listen = std::make_unique<ListenWrap>(
 				this,
+				_controller,
 				std::move(data),
 				_cancelFont);
 			_listenChanges.fire({});

@@ -220,6 +220,7 @@ public:
 	using FloatDelegate::floatPlayerAreaUpdated;
 
 	void closeBothPlayers();
+	void stopAndClosePlayer();
 
 public slots:
 	void inlineResultLoadProgress(FileLoader *loader);

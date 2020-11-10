@@ -483,7 +483,7 @@ void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 		const auto voiceData = Media::Player::instance()->current(
 			AudioMsgId::Type::Voice);
 		if (voiceData.contextId() == itemId) {
-			_player->entity()->stopAndClose();
+			stopAndClosePlayer();
 		}
 	}
 }
@@ -880,6 +880,12 @@ void MainWidget::closeBothPlayers() {
 	Media::Player::instance()->stop(AudioMsgId::Type::Song);
 
 	Shortcuts::ToggleMediaShortcuts(false);
+}
+
+void MainWidget::stopAndClosePlayer() {
+	if (_player) {
+		_player->entity()->stopAndClose();
+	}
 }
 
 void MainWidget::createPlayer() {
