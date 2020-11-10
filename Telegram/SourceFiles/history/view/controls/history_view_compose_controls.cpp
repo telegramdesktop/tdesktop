@@ -22,10 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
 #include "facades.h"
+#include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -537,6 +539,7 @@ ComposeControls::ComposeControls(
 
 ComposeControls::~ComposeControls() {
 	setTabbedPanel(nullptr);
+	session().api().request(_inlineBotResolveRequestId).cancel();
 }
 
 Main::Session &ComposeControls::session() const {
@@ -559,6 +562,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_window->tabbedSelector()->setCurrentPeer(
 		history ? history->peer.get() : nullptr);
 	initWebpageProcess();
+	updateFieldPlaceholder();
 }
 
 void ComposeControls::move(int x, int y) {
@@ -757,8 +761,7 @@ void ComposeControls::checkAutocomplete() {
 	}
 
 	const auto peer = _history->peer;
-	const auto isInlineBot = false;// _inlineBot && !_inlineLookingUpBot;
-	const auto autocomplete = isInlineBot
+	const auto autocomplete = _isInlineBot
 		? AutocompleteQuery()
 		: ParseMentionHashtagBotCommandQuery(_field);
 	if (!autocomplete.query.isEmpty()) {
@@ -878,7 +881,7 @@ void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
 
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
-	_field->setSubmitSettings(Core::App().settings().sendSubmitWay());
+	updateSubmitSettings();
 	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
 	Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
@@ -893,6 +896,13 @@ void ComposeControls::initField() {
 		&_window->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	InitSpellchecker(_window, _field);
+}
+
+void ComposeControls::updateSubmitSettings() {
+	const auto settings = _isInlineBot
+		? Ui::InputField::SubmitSettings::None
+		: Core::App().settings().sendSubmitWay();
+	_field->setSubmitSettings(settings);
 }
 
 void ComposeControls::initAutocomplete() {
@@ -1001,9 +1011,39 @@ void ComposeControls::updateStickersByEmoji() {
 	_autocomplete->showStickers(emoji);
 }
 
+void ComposeControls::updateFieldPlaceholder() {
+	if (!isEditingMessage() && _isInlineBot) {
+		_field->setPlaceholder(
+			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
+			_inlineBot->username.size() + 2);
+		return;
+	}
+
+	_field->setPlaceholder([&] {
+		if (isEditingMessage()) {
+			return tr::lng_edit_message_text();
+		} else if (!_history) {
+			return tr::lng_message_ph();
+		} else if (const auto channel = _history->peer->asChannel()) {
+			if (channel->isBroadcast()) {
+				return session().data().notifySilentPosts(channel)
+					? tr::lng_broadcast_silent_ph()
+					: tr::lng_broadcast_ph();
+			} else if (channel->adminRights() & ChatAdminRight::f_anonymous) {
+				return tr::lng_send_anonymous_ph();
+			} else {
+				return tr::lng_message_ph();
+			}
+		} else {
+			return tr::lng_message_ph();
+		}
+	}());
+	updateSendButtonType();
+}
+
 void ComposeControls::fieldChanged() {
-	if (/*!_inlineBot
-		&& */!_header->isEditingMessage()
+	if (!_inlineBot
+		&& !_header->isEditingMessage()
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
 		_sendActionUpdates.fire({ Api::SendProgressType::Typing });
 	}
@@ -1012,6 +1052,7 @@ void ComposeControls::fieldChanged() {
 		//_previewCancelled = false;
 	}
 	InvokeQueued(_autocomplete.get(), [=] {
+		updateInlineBotQuery();
 		updateStickersByEmoji();
 	});
 }
@@ -1073,6 +1114,81 @@ void ComposeControls::initSendButton() {
 	}, _send->lifetime());
 
 	_send->finishAnimating();
+
+	_send->clicks(
+	) | rpl::filter([=] {
+		return (_send->type() == Ui::SendButton::Type::Cancel);
+	}) | rpl::start_with_next([=] {
+		cancelInlineBot();
+	}, _send->lifetime());
+}
+
+void ComposeControls::inlineBotResolveDone(
+		const MTPcontacts_ResolvedPeer &result) {
+	Expects(result.type() == mtpc_contacts_resolvedPeer);
+
+	_inlineBotResolveRequestId = 0;
+	const auto &data = result.c_contacts_resolvedPeer();
+	const auto resolvedBot = [&]() -> UserData* {
+		if (const auto result = session().data().processUsers(data.vusers())) {
+			if (result->isBot()
+				&& !result->botInfo->inlinePlaceholder.isEmpty()) {
+				return result;
+			}
+		}
+		return nullptr;
+	}();
+	session().data().processChats(data.vchats());
+
+	const auto query = ParseInlineBotQuery(&session(), _field);
+	if (_inlineBotUsername == query.username) {
+		applyInlineBotQuery(
+			query.lookingUpBot ? resolvedBot : query.bot,
+			query.query);
+	} else {
+		clearInlineBot();
+	}
+}
+
+void ComposeControls::inlineBotResolveFail(
+		const RPCError &error,
+		const QString &username) {
+	_inlineBotResolveRequestId = 0;
+	if (username == _inlineBotUsername) {
+		clearInlineBot();
+	}
+}
+
+void ComposeControls::cancelInlineBot() {
+	auto &textWithTags = _field->getTextWithTags();
+	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
+		setText({ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() });
+	} else {
+		setText({});
+	}
+}
+
+void ComposeControls::clearInlineBot() {
+	if (_inlineBot || _inlineLookingUpBot) {
+		_inlineBot = nullptr;
+		_inlineLookingUpBot = false;
+		inlineBotChanged();
+		_field->finishAnimating();
+	}
+	if (_inlineResults) {
+		_inlineResults->clearInlineBot();
+	}
+	checkAutocomplete();
+}
+
+void ComposeControls::inlineBotChanged() {
+	const auto isInlineBot = (_inlineBot && !_inlineLookingUpBot);
+	if (_isInlineBot != isInlineBot) {
+		_isInlineBot = isInlineBot;
+		updateFieldPlaceholder();
+		updateSubmitSettings();
+		checkAutocomplete();
+	}
 }
 
 void ComposeControls::initWriteRestriction() {
@@ -1155,8 +1271,8 @@ void ComposeControls::updateSendButtonType() {
 	const auto type = [&] {
 		if (_header->isEditingMessage()) {
 			return Type::Save;
-		//} else if (_isInlineBot) {
-		//	return Type::Cancel;
+		} else if (_isInlineBot) {
+			return Type::Cancel;
 		} else if (showRecordButton()) {
 			return Type::Record;
 		}
@@ -1319,6 +1435,7 @@ void ComposeControls::editMessage(FullMsgId id) {
 	if (_autocomplete) {
 		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
 	}
+	updateFieldPlaceholder();
 }
 
 void ComposeControls::cancelEditMessage() {
@@ -1326,6 +1443,7 @@ void ComposeControls::cancelEditMessage() {
 	if (_autocomplete) {
 		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
 	}
+	updateFieldPlaceholder();
 }
 
 void ComposeControls::replyToMessage(FullMsgId id) {
@@ -1338,7 +1456,10 @@ void ComposeControls::cancelReplyMessage() {
 }
 
 bool ComposeControls::handleCancelRequest() {
-	if (isEditingMessage()) {
+	if (_isInlineBot) {
+		cancelInlineBot();
+		return true;
+	} else if (isEditingMessage()) {
 		cancelEditMessage();
 		return true;
 	} else if (_autocomplete && !_autocomplete->isHidden()) {
@@ -1490,6 +1611,7 @@ void ComposeControls::initWebpageProcess() {
 	}) | rpl::start_with_next([=] {
 		checkPreview();
 		updateStickersByEmoji();
+		updateFieldPlaceholder();
 	}, lifetime);
 
 	_window->session().downloaderTaskFinished(
@@ -1555,6 +1677,79 @@ rpl::producer<bool> ComposeControls::lockShowStarts() const {
 
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
+}
+
+void ComposeControls::updateInlineBotQuery() {
+	if (!_history) {
+		return;
+	}
+	const auto query = ParseInlineBotQuery(&session(), _field);
+	if (_inlineBotUsername != query.username) {
+		_inlineBotUsername = query.username;
+		auto &api = session().api();
+		if (_inlineBotResolveRequestId) {
+			api.request(_inlineBotResolveRequestId).cancel();
+			_inlineBotResolveRequestId = 0;
+		}
+		if (query.lookingUpBot) {
+			_inlineBot = nullptr;
+			_inlineLookingUpBot = true;
+			const auto username = _inlineBotUsername;
+			_inlineBotResolveRequestId = api.request(
+				MTPcontacts_ResolveUsername(MTP_string(username))
+			).done([=](const MTPcontacts_ResolvedPeer &result) {
+				inlineBotResolveDone(result);
+			}).fail([=](const RPCError &error) {
+				inlineBotResolveFail(error, username);
+			}).send();
+		} else {
+			applyInlineBotQuery(query.bot, query.query);
+		}
+	} else if (query.lookingUpBot) {
+		if (!_inlineLookingUpBot) {
+			applyInlineBotQuery(_inlineBot, query.query);
+		}
+	} else {
+		applyInlineBotQuery(query.bot, query.query);
+	}
+}
+
+void ComposeControls::applyInlineBotQuery(
+		UserData *bot,
+		const QString &query) {
+	if (_history && bot) {
+		if (_inlineBot != bot) {
+			_inlineBot = bot;
+			_inlineLookingUpBot = false;
+			inlineBotChanged();
+		}
+		if (!_inlineResults) {
+			_inlineResults = std::make_unique<InlineBots::Layout::Widget>(
+				_parent,
+				_window);
+			_inlineResults->setResultSelectedCallback([=](
+					InlineBots::Result *result,
+					UserData *bot,
+					Api::SendOptions options) {
+				_inlineResultChosen.fire(InlineChosen{
+					.result = result,
+					.bot = bot,
+					.options = options,
+				});
+			});
+			_inlineResults->requesting(
+			) | rpl::start_with_next([=](bool requesting) {
+				_tabbedSelectorToggle->setLoading(requesting);
+			}, _inlineResults->lifetime());
+			updateOuterGeometry(_wrap->geometry());
+		}
+		_inlineResults->queryInlineBot(_inlineBot, _history->peer, query);
+		if (!_autocomplete->isHidden()) {
+			_autocomplete->hideAnimated();
+		}
+	} else {
+		clearInlineBot();
+	}
 }
 
 } // namespace HistoryView

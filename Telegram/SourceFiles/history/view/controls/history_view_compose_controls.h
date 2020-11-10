@@ -67,6 +67,7 @@ class ComposeControls final {
 public:
 	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
 	using PhotoChosen = ChatHelpers::TabbedSelector::PhotoChosen;
+	using InlineChosen = ChatHelpers::TabbedSelector::InlineChosen;
 
 	using MessageToEdit = Controls::MessageToEdit;
 	using VoiceToSend = Controls::VoiceToSend;
@@ -105,8 +106,7 @@ public:
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
-	[[nodiscard]] auto inlineResultChosen() const
-		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
+	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 
 	using MimeDataHook = Fn<bool(
@@ -161,6 +161,7 @@ private:
 	void initWriteRestriction();
 	void initVoiceRecordBar();
 	void initAutocomplete();
+	void updateSubmitSettings();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateWrappingVisibility();
@@ -172,6 +173,7 @@ private:
 	void orderControls();
 	void checkAutocomplete();
 	void updateStickersByEmoji();
+	void updateFieldPlaceholder();
 
 	void escape();
 	void fieldChanged();
@@ -185,6 +187,19 @@ private:
 	bool showRecordButton() const;
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	void updateOverStates(QPoint pos);
+
+	void cancelInlineBot();
+	void clearInlineBot();
+	void inlineBotChanged();
+
+	// Look in the _field for the inline bot and query string.
+	void updateInlineBotQuery();
+
+	// Request to show results in the emoji panel.
+	void applyInlineBotQuery(UserData *bot, const QString &query);
+
+	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
+	void inlineBotResolveFail(const RPCError &error, const QString &username);
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
@@ -213,7 +228,7 @@ private:
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
-	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
+	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<QString> _sendCommandRequests;
 
@@ -222,6 +237,12 @@ private:
 
 	//bool _inReplyEditForward = false;
 	//bool _inClickable = false;
+
+	UserData *_inlineBot = nullptr;
+	QString _inlineBotUsername;
+	bool _inlineLookingUpBot = false;
+	mtpRequestId _inlineBotResolveRequestId = 0;
+	bool _isInlineBot = false;
 
 	rpl::lifetime _uploaderSubscriptions;
 
