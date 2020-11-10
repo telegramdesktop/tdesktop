@@ -2018,7 +2018,7 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	const auto base = duration
 		? DocumentTimestampLinkBase(_document, item->fullId())
 		: QString();
-	const auto context = Core::UiIntegration::Context{
+	const auto context = Core::MarkedTextContext{
 		.session = &item->history()->session()
 	};
 	_caption.setMarkedText(

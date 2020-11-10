@@ -182,15 +182,7 @@ void ScheduledWidget::setupComposeControls() {
 
 	_composeControls->sendCommandRequests(
 	) | rpl::start_with_next([=](const QString &command) {
-		const auto callback = [=](Api::SendOptions options) {
-			auto message = ApiWrap::MessageToSend(_history);
-			message.textWithTags = { command };
-			message.action.options = options;
-			session().api().sendMessage(std::move(message));
-		};
-		Ui::show(
-			PrepareScheduleBox(this, sendMenuType(), callback),
-			Ui::LayerOption::KeepOther);
+		listSendBotCommand(command, FullMsgId());
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -1183,6 +1175,21 @@ bool ScheduledWidget::listElementShownUnread(not_null<const Element*> view) {
 bool ScheduledWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
 	return true;
+}
+
+void ScheduledWidget::listSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	const auto callback = [=](Api::SendOptions options) {
+		const auto text = WrapBotCommandInChat(_history->peer, command, context);
+		auto message = ApiWrap::MessageToSend(_history);
+		message.textWithTags = { text };
+		message.action.options = options;
+		session().api().sendMessage(std::move(message));
+	};
+	Ui::show(
+		PrepareScheduleBox(this, sendMenuType(), callback),
+		Ui::LayerOption::KeepOther);
 }
 
 void ScheduledWidget::confirmSendNowSelected() {

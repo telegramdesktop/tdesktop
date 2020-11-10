@@ -180,20 +180,14 @@ auto CashtagClickHandler::getTextEntity() const -> TextEntity {
 	return { EntityType::Cashtag };
 }
 
-PeerData *BotCommandClickHandler::_peer = nullptr;
-UserData *BotCommandClickHandler::_bot = nullptr;
 void BotCommandClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (auto peer = peerForCommand()) {
-			if (auto bot = peer->isUser() ? peer->asUser() : botForCommand()) {
-				Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-				App::sendBotCommand(peer, bot, _cmd);
-				return;
-			}
-		}
-
-		if (auto peer = Ui::getPeerForMouseAction()) { // old way
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
+			delegate->elementSendBotCommand(_cmd, my.itemId);
+			return;
+		} else if (auto peer = Ui::getPeerForMouseAction()) { // old way
 			auto bot = peer->isUser() ? peer->asUser() : nullptr;
 			if (!bot) {
 				if (const auto view = App::hoveredLinkItem()) {

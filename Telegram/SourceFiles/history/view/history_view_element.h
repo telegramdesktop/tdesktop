@@ -67,6 +67,9 @@ public:
 	virtual bool elementIsGifPaused() = 0;
 	virtual bool elementHideReply(not_null<const Element*> view) = 0;
 	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
+	virtual void elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) = 0;
 
 };
 
@@ -99,6 +102,9 @@ public:
 	bool elementIsGifPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
+	void elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;

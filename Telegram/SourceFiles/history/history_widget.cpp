@@ -3405,15 +3405,9 @@ void HistoryWidget::sendBotCommand(
 
 	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, replyTo));
 
-	QString toSend = cmd;
-	if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
-		bot = nullptr;
-	}
-	QString username = bot ? bot->asUser()->username : QString();
-	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
-	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
-		toSend += '@' + username;
-	}
+	const auto toSend = replyTo
+		? cmd
+		: HistoryView::WrapBotCommandInChat(_peer, cmd, bot);
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = { toSend, TextWithTags::Tags() };

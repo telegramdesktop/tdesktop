@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
@@ -76,11 +77,11 @@ bool ShowTheme(
 	if (!controller) {
 		return false;
 	}
-	const auto clickFromMessageId = context.value<FullMsgId>();
+	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	Core::App().hideMediaView();
 	controller->session().data().cloudThemes().resolve(
 		match->captured(1),
-		clickFromMessageId);
+		fromMessageId);
 	return true;
 }
 
@@ -280,7 +281,7 @@ bool ResolveUsername(
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
 	}
-	const auto clickFromMessageId = context.value<FullMsgId>();
+	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	using Navigation = Window::SessionNavigation;
 	controller->showPeerByLink(Navigation::PeerByLinkInfo{
 		.usernameOrId = domain,
@@ -295,7 +296,7 @@ bool ResolveUsername(
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.startToken = startToken,
-		.clickFromMessageId = clickFromMessageId,
+		.clickFromMessageId = fromMessageId,
 	});
 	return true;
 }
@@ -319,7 +320,7 @@ bool ResolvePrivatePost(
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}
-	const auto clickFromMessageId = context.value<FullMsgId>();
+	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	using Navigation = Window::SessionNavigation;
 	controller->showPeerByLink(Navigation::PeerByLinkInfo{
 		.usernameOrId = channelId,
@@ -333,7 +334,7 @@ bool ResolvePrivatePost(
 				Navigation::ThreadId{ threadId }
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
-		.clickFromMessageId = clickFromMessageId,
+		.clickFromMessageId = fromMessageId,
 	});
 	return true;
 }

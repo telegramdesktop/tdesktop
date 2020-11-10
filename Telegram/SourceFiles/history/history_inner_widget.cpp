@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/merge.h>
 #include "core/file_utilities.h"
 #include "core/crash_reports.h"
+#include "core/click_handler_types.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/media/history_view_media.h"
@@ -1330,7 +1331,14 @@ void HistoryInner::mouseActionFinish(
 			: FullMsgId();
 		ActivateClickHandler(window(), activated, {
 			button,
-			QVariant::fromValue(pressedItemId)
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = pressedItemId,
+				.elementDelegate = [weak = Ui::MakeWeak(this)] {
+					return weak
+						? HistoryInner::ElementDelegate().get()
+						: nullptr;
+				},
+			})
 		});
 		return;
 	}
@@ -2540,6 +2548,24 @@ bool HistoryInner::elementIsGifPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
+void HistoryInner::elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	if (auto peer = Ui::getPeerForMouseAction()) { // old way
+		auto bot = peer->isUser() ? peer->asUser() : nullptr;
+		if (!bot) {
+			if (const auto view = App::hoveredLinkItem()) {
+				// may return nullptr
+				bot = view->data()->fromOriginal()->asUser();
+			}
+		}
+		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
+		App::sendBotCommand(peer, bot, command);
+	} else {
+		App::insertBotCommand(command);
+	}
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3433,6 +3459,13 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		}
 		bool elementShownUnread(not_null<const Element*> view) override {
 			return view->data()->unread();
+		}
+		void elementSendBotCommand(
+				const QString &command,
+				const FullMsgId &context) {
+			if (Instance) {
+				Instance->elementSendBotCommand(command, context);
+			}
 		}
 	};
 

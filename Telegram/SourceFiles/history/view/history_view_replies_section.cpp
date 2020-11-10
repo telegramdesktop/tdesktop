@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_replies_list.h"
 #include "data/data_changes.h"
@@ -445,11 +446,7 @@ void RepliesWidget::setupComposeControls() {
 		if (showSlowmodeError()) {
 			return;
 		}
-		auto message = ApiWrap::MessageToSend(_history);
-		message.textWithTags = { command };
-		message.action.replyTo = replyToId();
-		session().api().sendMessage(std::move(message));
-		finishSending();
+		listSendBotCommand(command, FullMsgId());
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -1764,6 +1761,17 @@ bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
 bool RepliesWidget::listIsGoodForAroundPosition(
 		not_null<const Element*> view) {
 	return IsServerMsgId(view->data()->id);
+}
+
+void RepliesWidget::listSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	const auto text = WrapBotCommandInChat(_history->peer, command, context);
+	auto message = ApiWrap::MessageToSend(_history);
+	message.textWithTags = { text };
+	message.action.replyTo = replyToId();
+	session().api().sendMessage(std::move(message));
+	finishSending();
 }
 
 void RepliesWidget::confirmDeleteSelected() {

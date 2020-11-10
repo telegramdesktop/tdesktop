@@ -92,6 +92,9 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
 	bool elementIsGifPaused();
+	void elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context);
 
 	void updateBotInfo(bool recount = true);
 

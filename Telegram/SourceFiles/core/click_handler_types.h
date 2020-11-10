@@ -13,7 +13,17 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace HistoryView {
+class ElementDelegate;
+} // namespace HistoryView
+
 [[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
+
+struct ClickHandlerContext {
+	FullMsgId itemId;
+	Fn<HistoryView::ElementDelegate*()> elementDelegate;
+};
+Q_DECLARE_METATYPE(ClickHandlerContext);
 
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
@@ -165,30 +175,14 @@ public:
 		return _cmd;
 	}
 
-	static void setPeerForCommand(PeerData *peer) {
-		_peer = peer;
-	}
-	static void setBotForCommand(UserData *bot) {
-		_bot = bot;
-	}
-
 	TextEntity getTextEntity() const override;
 
 protected:
 	QString url() const override {
 		return _cmd;
 	}
-	static PeerData *peerForCommand() {
-		return _peer;
-	}
-	static UserData *botForCommand() {
-		return _bot;
-	}
 
 private:
 	QString _cmd;
-
-	static PeerData *_peer;
-	static UserData *_bot;
 
 };

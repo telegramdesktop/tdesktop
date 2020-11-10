@@ -13,20 +13,25 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace HistoryView {
+class ElementDelegate;
+} // namespace HistoryView
+
 namespace Core {
 
-class UiIntegration : public Ui::Integration {
-public:
+struct MarkedTextContext {
 	enum class HashtagMentionType : uchar {
 		Telegram,
 		Twitter,
 		Instagram,
 	};
-	struct Context {
-		Main::Session *session = nullptr;
-		HashtagMentionType type = HashtagMentionType::Telegram;
-	};
 
+	Main::Session *session = nullptr;
+	HashtagMentionType type = HashtagMentionType::Telegram;
+};
+
+class UiIntegration : public Ui::Integration {
+public:
 	void postponeCall(FnMut<void()> &&callable) override;
 	void registerLeaveSubscription(not_null<QWidget*> widget) override;
 	void unregisterLeaveSubscription(not_null<QWidget*> widget) override;

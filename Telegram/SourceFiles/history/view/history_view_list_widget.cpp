@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "apiwrap.h"
 #include "layout.h"
 #include "window/window_session_controller.h"
@@ -37,6 +38,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
+#include "data/data_chat.h"
+#include "data/data_channel.h"
 #include "facades.h"
 #include "styles/style_chat.h"
 
@@ -1290,6 +1294,12 @@ bool ListWidget::elementShownUnread(not_null<const Element*> view) {
 	return _delegate->listElementShownUnread(view);
 }
 
+void ListWidget::elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	return _delegate->listSendBotCommand(command, context);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
@@ -2186,7 +2196,14 @@ void ListWidget::mouseActionFinish(
 		mouseActionCancel();
 		ActivateClickHandler(window(), activated, {
 			button,
-			QVariant::fromValue(pressState.itemId)
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = pressState.itemId,
+				.elementDelegate = [weak = Ui::MakeWeak(this)] {
+					return weak
+						? (ElementDelegate*)weak
+						: nullptr;
+				},
+			})
 		});
 		return;
 	}
@@ -2784,6 +2801,36 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 		history,
 		widget->getSelectedIds(),
 		[=] { navigation->showBackFromStack(); });
+}
+
+QString WrapBotCommandInChat(
+		not_null<PeerData*> peer,
+		const QString &command,
+		const FullMsgId &context) {
+	auto result = command;
+	if (const auto item = peer->owner().message(context)) {
+		if (const auto user = item->fromOriginal()->asUser()) {
+			return WrapBotCommandInChat(peer, command, user);
+		}
+	}
+	return result;
+}
+
+QString WrapBotCommandInChat(
+		not_null<PeerData*> peer,
+		const QString &command,
+		not_null<UserData*> bot) {
+	if (!bot->isBot() || bot->username.isEmpty()) {
+		return command;
+	}
+	const auto botStatus = peer->isChat()
+		? peer->asChat()->botStatus
+		: peer->isMegagroup()
+		? peer->asChannel()->mgInfo->botStatus
+		: -1;
+	return ((command.indexOf('@') < 2) && (botStatus == 0 || botStatus == 2))
+		? command + '@' + bot->username
+		: command;
 }
 
 } // namespace HistoryView

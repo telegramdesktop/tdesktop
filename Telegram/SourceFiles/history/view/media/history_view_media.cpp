@@ -139,7 +139,7 @@ Ui::Text::String Media::createCaption(
 		- st::msgPadding.left()
 		- st::msgPadding.right();
 	auto result = Ui::Text::String(minResizeWidth);
-	const auto context = Core::UiIntegration::Context{
+	const auto context = Core::MarkedTextContext{
 		.session = &history()->session()
 	};
 	result.setMarkedText(

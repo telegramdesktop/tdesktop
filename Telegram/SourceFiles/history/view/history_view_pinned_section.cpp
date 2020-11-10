@@ -639,6 +639,11 @@ bool PinnedWidget::listIsGoodForAroundPosition(
 	return IsServerMsgId(view->data()->id);
 }
 
+void PinnedWidget::listSendBotCommand(
+	const QString &command,
+	const FullMsgId &context) {
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

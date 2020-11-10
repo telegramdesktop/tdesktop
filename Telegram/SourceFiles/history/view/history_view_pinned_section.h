@@ -93,6 +93,9 @@ public:
 	bool listElementHideReply(not_null<const Element*> view) override;
 	bool listElementShownUnread(not_null<const Element*> view) override;
 	bool listIsGoodForAroundPosition(not_null<const Element*> view) override;
+	void listSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
