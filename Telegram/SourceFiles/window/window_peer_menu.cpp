@@ -650,7 +650,8 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 }
 
 void Filler::fill() {
-	if (_source == PeerMenuSource::ScheduledSection) {
+	if (_source == PeerMenuSource::ScheduledSection
+		|| _source == PeerMenuSource::RepliesSection) {
 		addPollAction(_peer);
 		return;
 	}

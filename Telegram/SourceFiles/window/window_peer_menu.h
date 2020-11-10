@@ -37,6 +37,7 @@ enum class PeerMenuSource {
 	History,
 	Profile,
 	ScheduledSection,
+	RepliesSection,
 };
 
 using PeerMenuCallback = Fn<QAction*(

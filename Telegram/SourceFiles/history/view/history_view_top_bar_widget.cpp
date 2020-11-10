@@ -238,9 +238,11 @@ void TopBarWidget::showMenu() {
 			peer,
 			FilterId(),
 			addAction,
-			(_section == Section::Scheduled)
+			(_section == Section::Scheduled
 				? Window::PeerMenuSource::ScheduledSection
-				: Window::PeerMenuSource::History);
+				: (_section == Section::Replies)
+				? Window::PeerMenuSource::RepliesSection
+				: Window::PeerMenuSource::History));
 	} else if (const auto folder = _activeChat.folder()) {
 		Window::FillFolderMenu(
 			_controller,
@@ -686,12 +688,14 @@ void TopBarWidget::updateControlsVisibility() {
 		_unreadBadge->show();
 	}
 	const auto historyMode = (_section == Section::History);
-	const auto scheduledMode = (_section == Section::Scheduled);
-	const auto showInScheduledMode = (_activeChat.peer()
-		&& _activeChat.peer()->canSendPolls());
+	const auto hasPollsMenu = _activeChat.peer()
+		&& _activeChat.peer()->canSendPolls();
+	const auto hasMenu = !_activeChat.folder()
+		&& ((_section == Section::Scheduled || _section == Section::Replies)
+			? hasPollsMenu
+			: historyMode);
 	updateSearchVisibility();
-	_menuToggle->setVisible(!_activeChat.folder()
-		&& (scheduledMode ? showInScheduledMode : historyMode));
+	_menuToggle->setVisible(hasMenu);
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.folder()
 		&& !Adaptive::OneColumn()

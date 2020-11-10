@@ -1398,6 +1398,11 @@ bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
 	return true;
 }
 
+MsgId RepliesWidget::currentReplyToIdFor(
+		not_null<History*> history) const {
+	return (_history == history) ? replyToId() : 0;
+}
+
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	memento->setReplies(_replies);
 	memento->setReplyReturns(_replyReturns);

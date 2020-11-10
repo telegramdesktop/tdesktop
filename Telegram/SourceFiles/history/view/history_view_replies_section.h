@@ -88,6 +88,8 @@ public:
 		const Window::SectionShow &params,
 		MsgId messageId) override;
 	bool replyToMessage(not_null<HistoryItem*> item) override;
+	MsgId currentReplyToIdFor(
+		not_null<History*> history) const override;
 
 	void setInternalState(
 		const QRect &geometry,
