@@ -5523,6 +5523,10 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
+	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+		return;
+	}
 	if (const auto media = item->media()) {
 		if (media->allowsEditCaption()) {
 			Ui::show(Box<EditCaptionBox>(controller(), item));

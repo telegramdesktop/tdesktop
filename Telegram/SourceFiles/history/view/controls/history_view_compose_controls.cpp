@@ -1748,6 +1748,11 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
+	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+		return;
+	}
+
 	if (!isEditingMessage()) {
 		saveFieldToHistoryLocalDraft();
 	}
