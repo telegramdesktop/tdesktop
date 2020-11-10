@@ -25,6 +25,7 @@ struct VoiceToSend {
 	QByteArray bytes;
 	VoiceWaveform waveform;
 	int duration = 0;
+	Api::SendOptions options;
 };
 struct SendActionUpdate {
 	Api::SendProgressType type = Api::SendProgressType();

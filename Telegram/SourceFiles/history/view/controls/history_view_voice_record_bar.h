@@ -59,6 +59,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
 
+	void requestToSendWithOptions(Api::SendOptions options);
+
 	void setLockBottom(rpl::producer<int> &&bottom);
 	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
 	void setEscFilter(Fn<bool()> &&callback);
@@ -100,6 +102,7 @@ private:
 	bool isTypeRecord() const;
 	bool hasDuration() const;
 
+	void hideAnimated();
 	void finish();
 
 	void activeAnimate(bool active);

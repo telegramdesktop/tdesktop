@@ -791,6 +791,7 @@ void HistoryWidget::initVoiceRecordBar() {
 
 		auto action = Api::SendAction(_history);
 		action.replyTo = replyToId();
+		action.options = data.options;
 		session().api().sendVoiceMessage(
 			data.bytes,
 			data.waveform,
@@ -3061,6 +3062,11 @@ void HistoryWidget::send(Api::SendOptions options) {
 		saveEditMsg();
 		return;
 	} else if (!options.scheduled && showSlowmodeError()) {
+		return;
+	}
+
+	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+		_voiceRecordBar->requestToSendWithOptions(options);
 		return;
 	}
 

@@ -958,7 +958,7 @@ void VoiceRecordBar::init() {
 	}) | rpl::start_with_next([=] {
 		_listen->stopRequests(
 		) | rpl::take(1) | rpl::start_with_next([=] {
-			visibilityAnimate(false, [=] { hide(); });
+			hideAnimated();
 		}, _listen->lifetime());
 
 		_listen->lifetime().add([=] { _listenChanges.fire({}); });
@@ -1218,6 +1218,18 @@ void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
 		style::al_center);
 }
 
+void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
+	if (isListenState()) {
+		const auto data = _listen->data();
+		_sendVoiceRequests.fire({
+			data->bytes,
+			data->waveform,
+			Duration(data->samples),
+			options });
+		hideAnimated();
+	}
+}
+
 rpl::producer<SendActionUpdate> VoiceRecordBar::sendActionUpdates() const {
 	return _sendActionUpdates.events();
 }
@@ -1228,6 +1240,10 @@ rpl::producer<VoiceToSend> VoiceRecordBar::sendVoiceRequests() const {
 
 bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
+}
+
+void VoiceRecordBar::hideAnimated() {
+	visibilityAnimate(false, [=] { hide(); });
 }
 
 void VoiceRecordBar::finishAnimating() {
@@ -1360,50 +1376,10 @@ void VoiceRecordBar::installClickOutsideFilter() {
 }
 
 void VoiceRecordBar::installListenStateFilter() {
-	const auto close = [=](bool send) {
-		auto callback = [=] {
-			if (send) {
-				const auto data = _listen->data();
-				_sendVoiceRequests.fire({
-					data->bytes,
-					data->waveform,
-					Duration(data->samples) });
-			}
-			hide();
-		};
-		visibilityAnimate(false, std::move(callback));
-	};
-
-	const auto isSend = [=] {
-		return _send->type() == Ui::SendButton::Type::Send
-			|| _send->type() == Ui::SendButton::Type::Schedule;
-	};
-
-	auto mouseFilterCallback = [=](not_null<QEvent*> e) {
-		using Result = base::EventFilterResult;
-		if (!isSend()) {
-			return Result::Continue;
-		}
-		switch(e->type()) {
-		case QEvent::MouseButtonRelease: {
-			close(true);
-			_send->clearState();
-			return Result::Cancel;
-		}
-		default: return Result::Continue;
-		}
-	};
-
-	auto sendFilter = base::install_event_filter(
-		_send.get(),
-		std::move(mouseFilterCallback));
-
-	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
-	std::move(sendFilter));
-
 	auto keyFilterCallback = [=](not_null<QEvent*> e) {
 		using Result = base::EventFilterResult;
-		if (!isSend()) {
+		if (!(_send->type() == Ui::SendButton::Type::Send
+			|| _send->type() == Ui::SendButton::Type::Schedule)) {
 			return Result::Continue;
 		}
 		switch(e->type()) {
@@ -1413,14 +1389,14 @@ void VoiceRecordBar::installListenStateFilter() {
 			const auto isEnter = (key == Qt::Key_Enter
 				|| key == Qt::Key_Return);
 			if (isEnter) {
-				close(true);
+				requestToSendWithOptions({});
 				return Result::Cancel;
 			}
 			if (isEsc) {
 				if (_escFilter && _escFilter()) {
 					return Result::Continue;
 				} else {
-					close(false);
+					hideAnimated();
 					return Result::Cancel;
 				}
 			}
